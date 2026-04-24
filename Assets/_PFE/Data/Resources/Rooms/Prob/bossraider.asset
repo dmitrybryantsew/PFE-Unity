@@ -1,0 +1,209 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
+  m_Name: bossraider
+  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  id: bossraider
+  type: pass
+  fixedPosition: {x: 0, y: 0, z: 0}
+  difficultyLevel: 0
+  maxInstances: 2
+  allowRandom: 1
+  backgroundRoomId: 
+  backgroundDecorations:
+  - id: vkonstr
+    tileCoord: {x: 9, y: 15}
+  - id: vkonstr
+    tileCoord: {x: 9, y: 18}
+  - id: konstr
+    tileCoord: {x: 4, y: 12}
+  - id: konstr
+    tileCoord: {x: 4, y: 16}
+  - id: konstr
+    tileCoord: {x: 43, y: 12}
+  - id: door
+    tileCoord: {x: 45, y: 17}
+  - id: door
+    tileCoord: {x: 1, y: 17}
+  - id: vkonstr
+    tileCoord: {x: 39, y: 12}
+  - id: vkonstr
+    tileCoord: {x: 39, y: 15}
+  - id: vkonstr
+    tileCoord: {x: 39, y: 18}
+  - id: vkonstr
+    tileCoord: {x: 9, y: 12}
+  - id: konstr
+    tileCoord: {x: 43, y: 16}
+  - id: bigbeam
+    tileCoord: {x: 4, y: 7}
+  - id: bigbeam
+    tileCoord: {x: 14, y: 7}
+  - id: bigbeam
+    tileCoord: {x: 24, y: 7}
+  - id: bigbeam
+    tileCoord: {x: 34, y: 7}
+  - id: light1
+    tileCoord: {x: 45, y: 9}
+  - id: light1
+    tileCoord: {x: 2, y: 9}
+  - id: light3
+    tileCoord: {x: 13, y: 9}
+  - id: light3
+    tileCoord: {x: 33, y: 9}
+  - id: hkonstr
+    tileCoord: {x: 21, y: 15}
+  - id: vkonstr
+    tileCoord: {x: 25, y: 17}
+  - id: vkonstr
+    tileCoord: {x: 21, y: 17}
+  - id: railing
+    tileCoord: {x: 19, y: 14}
+  - id: railing
+    tileCoord: {x: 25, y: 14}
+  - id: railing
+    tileCoord: {x: 37, y: 11}
+  - id: railing
+    tileCoord: {x: 33, y: 11}
+  - id: railing
+    tileCoord: {x: 7, y: 11}
+  - id: railing
+    tileCoord: {x: 11, y: 11}
+  doorQuality: 000000000000000002000000020000000200000002000000000000000000000000000000000000000000000000000000000000000000000002000000020000000200000002000000000000000000000000000000000000000000000000000000
+  tileDataString: "A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA._F._F._F._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._F._F._F.A\nA._F._F._F._._O._O._._._._._._._._._._._._._._._._._O._O._._._._._._._._._._._._._._._._._O._O._._F._F._F.A\nA._F._F._F._._O._O._._._._._._._._._._._._._._._._._O._O._._._._._._._._._._._._._._._._._O._O._._F._F._F.A\nA._F._F._F._._O._O._._._._._._._._._._._._._._._._._O._O._._._._._._._._._._._._._._._._._O._O._._F._F._F.A\nA._F._F._F._-._-._-._-._-._-._-._\u0411-._-._-._-._-._\u0413._._._._._._._O._O._._._._._._._\u0412._-._-._-._-._-._-._\u0410-._-._-._-._-._-._F._F._F.A\nA._F-._F._F._._._._._._._._\u0411._._._._._._\u0413._._._._._._O._O._._._._._._\u0412._._._._._._._._\u0410._._._._._._F._F._F-.AQ\nA._F._F._F._._._._._._._._\u0411._._._._._._._\u0413._._._._._O._O._._._._._\u0412._._._._._._._._._\u0410._._._._._._F._F._F.AQ\nA._F._F._F._._._._._._._._\u0411._._._._._._._\u0412._-._\u0410-._-._-._-._-._-._-._\u0411-._-._\u0413._._._._._._._._._\u0410._._._._._._F._F._F.AQ\nA._F-._F._F._._._._._._._._\u0411._._._._._._\u0412._._._\u0410._._._._._._._\u0411._._._\u0413._._._._._._._._\u0410._._._._._._F._F._F-.A\nA._F._F._F._._._._._._._._\u0411._._._._._\u0412._._._._\u0410._._._._._._._\u0411._._._._\u0413._._._._._._._\u0410._._._._._._F._F._F.A\nA._F._F._F._F._F._F._F._F._F._F._F\u0411._F._F._F._F\u0412._F._F._F._F._F\u0410._F._F._F._F._F._F._F\u0411._F._F._F._F._F\u0413._F._F._F._F._F._F\u0410._F._F._F._F._F._F._F._F.A\nA._F._F._F._F._F._F._F._F._F._F._F\u0411._F._F._F\u0412._F._F._F._F._F._F\u0410._F._F._F._F._F._F._F\u0411._F._F._F._F._F._F\u0413._F._F._F._F._F\u0410._F._F._F._F._F._F._F._F.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A"
+  objects:
+  - type: obj
+    id: enspawn
+    definitionId: enspawn
+    definition: {fileID: 11400000, guid: 55c9b527d50b8f74f98ca05a6c1e57ee, type: 2}
+    tileCoord: {x: 1, y: 19}
+    code: knvvm40ExUNVpnVM
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="knvvm40ExUNVpnVM"
+  - type: box
+    id: safe
+    definitionId: safe
+    definition: {fileID: 11400000, guid: 1933ef669b3b71743a5a42c553624f28, type: 2}
+    tileCoord: {x: 6, y: 19}
+    code: XjITlMeLE7aA5gdq
+    uid: 
+    attributes:
+    - key: prize
+      value: 1
+    items: []
+    scripts: []
+    parameters: code="XjITlMeLE7aA5gdq" prize="1"
+  - type: obj
+    id: bossraider
+    definitionId: bossraider
+    definition: {fileID: 11400000, guid: 9afbf2a60b0008949b02eaa8afb470bd, type: 2}
+    tileCoord: {x: 20, y: 19}
+    code: RvCrgdNQKwwfFFay
+    uid: bossraiderF1
+    attributes:
+    - key: turn
+      value: 1
+    - key: tr
+      value: 2
+    items:
+    - id: key_sewer
+      attributes:
+      - key: id
+        value: key_sewer
+      - key: imp
+        value: 1
+    scripts: []
+    parameters: code="RvCrgdNQKwwfFFay" uid="bossraiderF1" turn="1" tr="2"
+  - type: box
+    id: mcrate2
+    definitionId: mcrate2
+    definition: {fileID: 11400000, guid: c665fca677fbff349ac0c8235e61089b, type: 2}
+    tileCoord: {x: 35, y: 19}
+    code: dNLIsxDWXGb1OlhS
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="dNLIsxDWXGb1OlhS"
+  - type: box
+    id: bigbox
+    definitionId: bigbox
+    definition: {fileID: 11400000, guid: 3c4761fe5ddb00545a1db7150c27fad8, type: 2}
+    tileCoord: {x: 21, y: 19}
+    code: UQrinYVol3FPmXYD
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="UQrinYVol3FPmXYD"
+  - type: box
+    id: mcrate3
+    definitionId: mcrate3
+    definition: {fileID: 11400000, guid: 049a4729c63885542879049cdb41a547, type: 2}
+    tileCoord: {x: 8, y: 19}
+    code: eRSTVDXnwPjrYpI0
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="eRSTVDXnwPjrYpI0"
+  - type: player
+    id: player
+    definitionId: player
+    definition: {fileID: 11400000, guid: c18de3d4f4f3cd448bdfddca852d2595, type: 2}
+    tileCoord: {x: 40, y: 19}
+    code: ESySttsXPLpLOBWZ
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="ESySttsXPLpLOBWZ"
+  - type: obj
+    id: enspawn
+    definitionId: enspawn
+    definition: {fileID: 11400000, guid: 55c9b527d50b8f74f98ca05a6c1e57ee, type: 2}
+    tileCoord: {x: 45, y: 19}
+    code: daoPmfXYf3CTN7p5
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="daoPmfXYf3CTN7p5"
+  spawnPoints:
+  - tileCoord: {x: 40, y: 19}
+    type: 0
+    unitId: 
+    facingDirection: 1
+  environment:
+    musicTrack: music_cat_1
+    colorScheme: green
+    backgroundColorScheme: 
+    backgroundWall: 
+    backgroundForm: 0
+    transparentBackground: 0
+    hasSky: 0
+    borderType: 1
+    noBlackReveal: 0
+    visibilityMultiplier: 2
+    lightsOn: 0
+    returnsToDarkness: 0
+    waterLevel: 100
+    waterType: 0
+    waterOpacity: 0
+    waterDamage: 0
+    waterDamageType: 7
+    radiation: 0
+    radiationDamage: 0
+    darkness: 0

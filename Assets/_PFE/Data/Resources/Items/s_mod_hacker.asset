@@ -1,0 +1,81 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 00000000000000000000000000000001, type: 3}
+  m_Name: s_mod_hacker
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.ItemDefinition
+  itemId: s_mod_hacker
+  type: 11
+  baseItemId: 
+  modifierType: 0
+  inventoryCategory: 0
+  isHidden: 0
+  keepContainer: 0
+  isSellOnly: 0
+  dropChance: 0.5
+  requiredStoryStage: 0
+  requiredLevel: 0
+  basePrice: 10
+  sellPrice: 5
+  weight: 1
+  stackSize: 1
+  usageType: 0
+  sortOrder: 0
+  icon: {fileID: 0}
+  pickupSound: {fileID: 0}
+  fallbackColor: {r: 1, g: 1, b: 1, a: 1}
+  medicalData:
+    hpRestore: 0
+    organRestore: 0
+    overTime: 0
+    duration: 0
+    removeRads: 0
+    cureAddiction: 0
+    restoreLimbs: 0
+    addictionId: 
+    addictionChance: 0
+    medicineSkillRequired: 0
+  ammoVariant:
+    armorPiercingBonus: 0
+    damageMultiplier: 0
+    armorMultiplier: 0
+    knockbackMultiplier: 0
+    precisionMultiplier: 0
+    extraDurabilityCost: 0
+    fireDamage: 0
+    damageTypeOverride: 0
+  crafting:
+    resultItemId: 
+    resultCount: 0
+    requiredWorkbench: 
+    requiredSkill: 
+    requiredSkillLevel: 0
+  book:
+    skillId: 
+    bonusLevels: 0
+    oneTime: 0
+  equipment:
+    armor: 0
+    magicArmor: 0
+    armorHP: 0
+    dexPenalty: 0
+  component:
+    category: 0
+    isJunk: 0
+  potion:
+    isCraftable: 0
+    requiredSkill: 
+    requiredSkillLevel: 0
+  skillModifiers: []
+  effects: []
+  components: []
+  displayName: Item Name
+  description: Item description.

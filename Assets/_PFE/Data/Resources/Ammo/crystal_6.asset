@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9890688ee0fa3d94aa489b3a78449b8b, type: 3}
+  m_Name: crystal_6
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.AmmoData
+  dataVersion: 1
+  gameVersion: 0.1.0
+  id: crystal_6
+  baseId: crystal
+  stackSize: 100
+  dropChance: 0.25
+  requiredStoryLevel: 5
+  requiredLevel: 4
+  weight: 1
+  basePrice: 5
+  sellPrice: 1
+  modifier: 6
+  armorPiercingBonus: 40
+  damageMultiplier: 1.5
+  armorMultiplier: 1
+  knockbackMultiplier: 1
+  precisionMultiplier: 1
+  extraDurabilityCost: 0
+  fireDamage: 0
+  damageTypeOverride: 0
+  icon: {fileID: 0}
+  displayName: crystal_6

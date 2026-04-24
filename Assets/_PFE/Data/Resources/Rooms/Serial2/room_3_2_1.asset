@@ -1,0 +1,219 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
+  m_Name: room_3_2_1
+  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  id: room_3_2_1
+  type: pass
+  fixedPosition: {x: 3, y: 2, z: 0}
+  difficultyLevel: 0
+  maxInstances: 2
+  allowRandom: 1
+  backgroundRoomId: 
+  backgroundDecorations:
+  - id: exit_light
+    tileCoord: {x: 38, y: 9}
+  doorQuality: 000000000000000002000000020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000000000
+  tileDataString: 'S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S
+
+    S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S
+
+    S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S
+
+    S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S
+
+    S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S
+
+    S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S
+
+    S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S
+
+    S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S
+
+    S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S
+
+    S.S.S.S.S.S.S.S.S._U._U._U._U._U._U._U._U._U._U._U.SU._U._U.SU._U._U.SU._U._U.SU._U._U.SU._._._._._._._._._._._._._._G._G
+
+    S.S.S.S.S.S.S.S.S._U._U._U._U._U._U._U._U._U._U._U.SU._U._U.SU._U._U.SU._U._U.SU._U._U.SU._._._._._._._._._._._._._._G._G
+
+    S.S.S.S.S.S.S.S.S._._._._._._._._._._F._F.S._F._F.S._F._F.S._F._F.S._F._F.S._._._._._._._._._._._._._._G._G
+
+    S.S.S.S.S.S.S.S.S._._._._._._._._._._F._F.S._F._F.S._F._F.S._F._F.S._F._F.S._._._._._._._._._._._._._._G._G
+
+    _._._._._._._._._._._._._._._._._._._F._F._._F._F._._F._F._._F._F._._F._F._._._._._._._._._._._._._._._G._G
+
+    _._._._._._._._._._._._._._._._._._._F._F._._F._F._._F._F._._F._F._._F._F._._._._._._._._._._._._._._._G._G
+
+    _._._._._._._._._._._._._._._._._._._F._F._._F._F._._F._F._._F._F._._F._F._._._._._._._._._._._._._._._G._G
+
+    S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S
+
+    S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S
+
+    S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S
+
+    S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S
+
+    S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S
+
+    S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S
+
+    S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S
+
+    S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S
+
+    S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S'
+  objects:
+  - type: door
+    id: enclpole
+    definitionId: enclpole
+    definition: {fileID: 11400000, guid: f31dac3819f37764e838791f59c6b0c2, type: 2}
+    tileCoord: {x: 26, y: 15}
+    code: wIKO75OGplowwWvk
+    uid: 
+    attributes:
+    - key: open
+      value: 1
+    items: []
+    scripts: []
+    parameters: code="wIKO75OGplowwWvk" open="1"
+  - type: door
+    id: enclpole
+    definitionId: enclpole
+    definition: {fileID: 11400000, guid: f31dac3819f37764e838791f59c6b0c2, type: 2}
+    tileCoord: {x: 23, y: 15}
+    code: kFnXbnoBx2Wv2d5T
+    uid: 
+    attributes:
+    - key: open
+      value: 1
+    items: []
+    scripts: []
+    parameters: code="kFnXbnoBx2Wv2d5T" open="1"
+  - type: door
+    id: enclpole
+    definitionId: enclpole
+    definition: {fileID: 11400000, guid: f31dac3819f37764e838791f59c6b0c2, type: 2}
+    tileCoord: {x: 20, y: 15}
+    code: C5gPeJdKbcohEjqc
+    uid: 
+    attributes:
+    - key: open
+      value: 1
+    items: []
+    scripts: []
+    parameters: code="C5gPeJdKbcohEjqc" open="1"
+  - type: door
+    id: enclpole
+    definitionId: enclpole
+    definition: {fileID: 11400000, guid: f31dac3819f37764e838791f59c6b0c2, type: 2}
+    tileCoord: {x: 29, y: 15}
+    code: MkwUO8DqZxVTIXhD
+    uid: 
+    attributes:
+    - key: open
+      value: 1
+    items: []
+    scripts: []
+    parameters: code="MkwUO8DqZxVTIXhD" open="1"
+  - type: door
+    id: enclpole
+    definitionId: enclpole
+    definition: {fileID: 11400000, guid: f31dac3819f37764e838791f59c6b0c2, type: 2}
+    tileCoord: {x: 32, y: 15}
+    code: CeLK3zviAlyZXN98
+    uid: 
+    attributes:
+    - key: open
+      value: 1
+    items: []
+    scripts: []
+    parameters: code="CeLK3zviAlyZXN98" open="1"
+  - type: area
+    id: area
+    definitionId: area
+    definition: {fileID: 11400000, guid: 62760a6826b295d4bb7380b3dc6e5dc0, type: 2}
+    tileCoord: {x: 7, y: 15}
+    code: HrABTBzjoVsv4ank
+    uid: 
+    attributes: []
+    items: []
+    scripts:
+    - eventName: 
+      actions:
+      - act: trus
+        targ: 
+        val: 5
+      - act: off
+        targ: this
+        val: 
+    parameters: code="HrABTBzjoVsv4ank"
+  - type: area
+    id: area
+    definitionId: area
+    definition: {fileID: 11400000, guid: 62760a6826b295d4bb7380b3dc6e5dc0, type: 2}
+    tileCoord: {x: 24, y: 15}
+    code: qRtvvyJosOsNqqvk
+    uid: 
+    attributes: []
+    items: []
+    scripts:
+    - eventName: 
+      actions:
+      - act: trus
+        targ: 
+        val: 8
+      - act: off
+        targ: this
+        val: 
+    parameters: code="qRtvvyJosOsNqqvk"
+  - type: area
+    id: area
+    definitionId: area
+    definition: {fileID: 11400000, guid: 62760a6826b295d4bb7380b3dc6e5dc0, type: 2}
+    tileCoord: {x: 46, y: 15}
+    code: dxTVOf4sujoKVgTV
+    uid: 
+    attributes:
+    - key: h
+      value: 6
+    - key: scr
+      value: lp_fall
+    items: []
+    scripts: []
+    parameters: code="dxTVOf4sujoKVgTV" h="6" scr="lp_fall"
+  spawnPoints:
+  - tileCoord: {x: 2, y: 15}
+    type: 0
+    unitId: 
+    facingDirection: 1
+  environment:
+    musicTrack: music_encl_2
+    colorScheme: sky
+    backgroundColorScheme: 
+    backgroundWall: tEncl3
+    backgroundForm: 0
+    transparentBackground: 0
+    hasSky: 0
+    borderType: 1
+    noBlackReveal: 0
+    visibilityMultiplier: 3
+    lightsOn: 0
+    returnsToDarkness: 0
+    waterLevel: 100
+    waterType: 0
+    waterOpacity: 0
+    waterDamage: 0
+    waterDamageType: 7
+    radiation: 0
+    radiationDamage: 0
+    darkness: 0

@@ -1,0 +1,38 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e94da64c3527f604c86bdaf09d32867f, type: 3}
+  m_Name: vismbul
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponVisualDefinition
+  symbolName: vismbul
+  weaponId: mbul
+  sourceSymbolId: 1355
+  frames:
+  - {fileID: -985113564820616005, guid: 951d35e1ba155c24588063f530ed102b, type: 3}
+  - {fileID: 202404987911244711, guid: 44fd6de2bd279044fa307701cd30eb2d, type: 3}
+  - {fileID: -8764597738744933808, guid: 97868ab1a8b536349aeacee4df4e0ee6, type: 3}
+  - {fileID: 2805633920695696223, guid: c38b9615175db764bbf4bc5610c210e1, type: 3}
+  - {fileID: -7723724024098242069, guid: 788ba6d1f46b65a4e8deeae743aa85a3, type: 3}
+  - {fileID: 1296198028869233028, guid: a1bc29b87f9f9ea48a0180386652e409, type: 3}
+  - {fileID: 4243038468684218715, guid: a5fe67240f52036498eef349d23c4239, type: 3}
+  pixelsPerUnit: 100
+  idleFrame: 0
+  shootFrameStart: 1
+  shootFrameCount: 6
+  reloadFrameStart: -1
+  reloadFrameCount: 0
+  prepFrameStart: -1
+  prepFrameCount: 0
+  readyFrame: -1
+  muzzleLocalOffset: {x: 0, y: 0}
+  muzzleFlareId: 
+  hasShellEject: 0
+  shineRadius: 0

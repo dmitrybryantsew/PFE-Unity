@@ -1,0 +1,68 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b6346ec5ad241bcb662491c6de14d7a, type: 3}
+  m_Name: radbigbarrel
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.MapObjectDefinition
+  objectId: radbigbarrel
+  displayName: radbigbarrel
+  legacyTip: box
+  family: 9
+  defaultPlacementType: trap
+  size: 2
+  width: 3
+  wallMounted: 0
+  blocksMovement: 0
+  blocksVisibility: 0
+  isInteractive: 0
+  isSaveRelevant: 1
+  autoClose: 0
+  containerId: 
+  interactionMode: 
+  allAct: 
+  allId: 
+  hitPoints: 0
+  threshold: 0
+  shield: 0.75
+  materialId: 1
+  physicalCapability: 5
+  mass: 1100
+  massMultiplier: 1
+  buoyancyFactor: 0
+  defaultVisualId: visradbigbarrel
+  visual: {fileID: 11400000, guid: fc71870914886c24ba8bc1402f3987f2, type: 2}
+  legacyAttributes:
+  - key: ed
+    value: 1
+  - key: ico
+    value: phis
+  - key: tip
+    value: box
+  - key: mat
+    value: 1
+  - key: massa
+    value: 1100
+  - key: size
+    value: 2
+  - key: shield
+    value: 0.75
+  - key: lurk
+    value: 2
+  - key: wid
+    value: 3
+  - key: rad
+    value: 9
+  - key: radrad
+    value: 400
+  - key: radtip
+    value: 0
+  - key: fall
+    value: fall_metal_big

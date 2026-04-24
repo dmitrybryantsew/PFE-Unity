@@ -1,0 +1,26 @@
+{
+    "name": "PFE.Core",
+    "rootNamespace": "PFE",
+    "references": [
+        "Unity.InputSystem",
+        "Unity.ResourceManager",
+        "Unity.Addressables",
+        "VContainer",
+        "UniTask",
+        "UniTask.Linq",
+        "R3.Unity",
+        "MessagePipe",
+        "MessagePipe.VContainer",
+        "Unity.Mathematics",
+        "PFE.ModAPI"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

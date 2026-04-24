@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 52445f94c96c4150ac0fe58bc05f53cc, type: 3}
+  m_Name: visbarst
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.MapObjectVisualDefinition
+  visualId: visbarst
+  objectId: barst
+  linkedObjectIds:
+  - barst
+  sourceFolderName: DefineSprite_78_visbarst
+  sourceSymbolId: 78
+  frames:
+  - {fileID: 21300000, guid: ebe387543e548494f923b3e7bade8082, type: 3}
+  pixelsPerUnit: 100
+  pixelSize: {x: 120, y: 45}
+  pivot: {x: 0.5, y: 0.5}
+  localOffset: {x: 0, y: 0}
+  sortingOrder: 1
+  wallMounted: 1

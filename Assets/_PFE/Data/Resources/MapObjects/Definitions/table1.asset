@@ -1,0 +1,62 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b6346ec5ad241bcb662491c6de14d7a, type: 3}
+  m_Name: table1
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.MapObjectDefinition
+  objectId: table1
+  displayName: table1
+  legacyTip: box
+  family: 5
+  defaultPlacementType: box
+  size: 2
+  width: 1
+  wallMounted: 0
+  blocksMovement: 0
+  blocksVisibility: 0
+  isInteractive: 0
+  isSaveRelevant: 0
+  autoClose: 0
+  containerId: 
+  interactionMode: 
+  allAct: 
+  allId: 
+  hitPoints: 0
+  threshold: 0
+  shield: 0
+  materialId: 3
+  physicalCapability: 6
+  mass: 0
+  massMultiplier: 0.5
+  buoyancyFactor: -0.2
+  defaultVisualId: vistable1
+  visual: {fileID: 11400000, guid: 9170a2e63b8d67b4d9c0b1bb6925f57f, type: 2}
+  legacyAttributes:
+  - key: ed
+    value: 1
+  - key: ico
+    value: phis
+  - key: mat
+    value: 3
+  - key: tip
+    value: box
+  - key: massaMult
+    value: 0.5
+  - key: size
+    value: 2
+  - key: plav
+    value: -0.2
+  - key: lurk
+    value: 3
+  - key: wid
+    value: 1
+  - key: fall
+    value: fall_wood_small

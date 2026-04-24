@@ -1,0 +1,1099 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 087c86b828bccdb4b861a56e8f2b49ff, type: 3}
+  m_Name: RoomBackgroundLookup
+  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.Rendering.RoomBackgroundLookup
+  _entries:
+  - id: tileVoda
+    frames:
+    - {fileID: 21300000, guid: b3e647ac17fc39542b106a6d95adbdae, type: 3}
+    - {fileID: 21300000, guid: 5b9fc8385a3b0a44ebad758ab1a9d0e3, type: 3}
+    - {fileID: 21300000, guid: 5d76ed9f507b409488195732c88c37cf, type: 3}
+    - {fileID: 21300000, guid: 36ac2d24bcb854542b6b1ffc292dec89, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: stree
+    frames:
+    - {fileID: 21300000, guid: 35448d5564677b64a8f446e4a0c31dec, type: 3}
+    - {fileID: 21300000, guid: 1627ab1bd1c96ab47937bdafeef415af, type: 3}
+    - {fileID: 21300000, guid: 69c54bc699110e14aa7b5e0801846712, type: 3}
+    - {fileID: 21300000, guid: 664c72fd3bc8dd04ab298b39c7f0b4ec, type: 3}
+    - {fileID: 21300000, guid: ced70b5d51fdcf84195d2bc76293df8a, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: trava
+    frames:
+    - {fileID: 21300000, guid: 317c820a7657b2142ad8abafac9aacb6, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: battery
+    frames:
+    - {fileID: 21300000, guid: 3ae83563ef6eed94a979ec34c4d3fd26, type: 3}
+    - {fileID: 21300000, guid: 19a20e8dc1c7db84babdf4e891be11ff, type: 3}
+    - {fileID: 21300000, guid: c3a7ca68d2ead1e4fa7a8c60bfdeaaaa, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: wires2
+    frames:
+    - {fileID: 21300000, guid: c834ebcaf195e544aaf12b7b3e54a0d0, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: pipe4
+    frames:
+    - {fileID: 21300000, guid: df3c265872465be409b8706c0a32d892, type: 3}
+    - {fileID: 21300000, guid: 8ce42960c80b6ea4bb47ce217203cd00, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: minkrut
+    frames:
+    - {fileID: 21300000, guid: b675cabd8b2871b4c944f5b086102c62, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: depot
+    frames:
+    - {fileID: 21300000, guid: 2ac1ccc65675f424ca3729dc448e06ee, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: bwindow
+    frames:
+    - {fileID: 21300000, guid: aa02ceb6c4145b84fb790b7a7e5ea3c8, type: 3}
+    - {fileID: 21300000, guid: e9eb7aa0337ff174aa5fedaca9d3efd2, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: wires1
+    frames:
+    - {fileID: 21300000, guid: 455f4c4daa48a49458a468b8f079dde6, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: poster
+    frames:
+    - {fileID: 21300000, guid: d9b90a3dd3cc2504d90251afdb78077a, type: 3}
+    - {fileID: 21300000, guid: 792805dd3d036a74e9d93f7be352ba0d, type: 3}
+    - {fileID: 21300000, guid: bb62c639e66f8644aa1a44269212ac28, type: 3}
+    - {fileID: 21300000, guid: d36d1fe7a6530a24d8e2fc47d204259f, type: 3}
+    - {fileID: 21300000, guid: 03e74195f544f084d9acfd7a83c81aa4, type: 3}
+    - {fileID: 21300000, guid: cc0d8aef7a867494eb1de89ecdf8783a, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: light3
+    frames:
+    - {fileID: 21300000, guid: 830b2abafa9baea41a9dabdb4b143a73, type: 3}
+    - {fileID: 21300000, guid: 221703d7b69eb7742a86f77d639968f1, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: light2
+    frames:
+    - {fileID: 21300000, guid: 689f19da8f5a20d449a12d24c05b391b, type: 3}
+    - {fileID: 21300000, guid: 4629b1cb74637db4ca605d5d6e3e3ce3, type: 3}
+    - {fileID: 21300000, guid: 9b1c6266918a55846b6872121c03c481, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: stenka3
+    frames:
+    - {fileID: 21300000, guid: 2a78826c156abe54e9be37a2dc27f9c8, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: exit_light
+    frames:
+    - {fileID: 21300000, guid: ba1be56845174af4e9ff536a8c0ef211, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: light4
+    frames:
+    - {fileID: 21300000, guid: d261516b59907ac49b56c9df915b7f48, type: 3}
+    - {fileID: 21300000, guid: 31d08595b6d1fd049b3337822d489d66, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: pult
+    frames:
+    - {fileID: 21300000, guid: 4c7d9014c5ef6a84a8733405eb5fcd21, type: 3}
+    - {fileID: 21300000, guid: ac7fd16c33b40a54eb23bddda08df10c, type: 3}
+    - {fileID: 21300000, guid: 8ab7a69c34d112a4abffd9607895c1f9, type: 3}
+    - {fileID: 21300000, guid: 1f1a305aee298f640bbf4aee666eb83d, type: 3}
+    - {fileID: 21300000, guid: bdb3e6e57efd4a14a87e856c7c47a547, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: stenka1
+    frames:
+    - {fileID: 21300000, guid: 6e00c04ead156a245abb0769893fe119, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: light5
+    frames:
+    - {fileID: 21300000, guid: 02ae173bbdc5f0649b0f3a01b768c0f4, type: 3}
+    - {fileID: 21300000, guid: 9892e830d66e9234588bc673d51f3cae, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: moss
+    frames:
+    - {fileID: 21300000, guid: 3df5fd1ccd1470d4890bbb6076b45eb0, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: konstr
+    frames:
+    - {fileID: 21300000, guid: f90d64650d508df40a70f099abd54aad, type: 3}
+    pixelOffset: {x: 0, y: -89}
+    flipX: 0
+    flipY: 0
+  - id: bigbeam
+    frames:
+    - {fileID: 21300000, guid: c25cea190c15a6c488878d865410b663, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: zavod2
+    frames:
+    - {fileID: 21300000, guid: a34c8ec7666be6840ba0ae55b105e36a, type: 3}
+    - {fileID: 21300000, guid: 8c4fc9e72cf9cc84eb1f194e9779455e, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: musor1
+    frames:
+    - {fileID: 21300000, guid: e8c222cc22b98914aa75ebc4418bbd64, type: 3}
+    - {fileID: 21300000, guid: a66c71ef053cc784a828c5e22b156b83, type: 3}
+    - {fileID: 21300000, guid: 0145ad21e7b215b41a195731b333d5bf, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: plantgate
+    frames:
+    - {fileID: 21300000, guid: 02803e6d2eb971a4386e42db5701b38d, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: hkonstr
+    frames:
+    - {fileID: 21300000, guid: 2eb8b61811f30b344a81f8e86f03dde9, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: swindow
+    frames:
+    - {fileID: 21300000, guid: 2bd07927fecb271458b5d8ddc1e9eebc, type: 3}
+    - {fileID: 21300000, guid: 5a8d33972fe1c054096f8001c7cbe2d8, type: 3}
+    - {fileID: 21300000, guid: 8608032fe741ce4409a8bd54e338237a, type: 3}
+    - {fileID: 21300000, guid: 48c2cfe1198cb7b428af570121e3870e, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: vent
+    frames:
+    - {fileID: 21300000, guid: 2579a0a4d43ad2643b83b79cdca97c37, type: 3}
+    - {fileID: 21300000, guid: 28bc5530e781c8a418c0b39816c4c5e7, type: 3}
+    - {fileID: 21300000, guid: 9aa12fc17e01c534e90256a772c0aa7e, type: 3}
+    - {fileID: 21300000, guid: c4e4a06bdc822d44b8681359e1a5f2e2, type: 3}
+    - {fileID: 21300000, guid: 5ffbd39f897436d4ab4739a3bbdbecf2, type: 3}
+    - {fileID: 21300000, guid: 5ca9f5acbfe7a1147a9ccc904d1b6749, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: vents
+    frames:
+    - {fileID: 21300000, guid: 3006d391d4570bf459f02dad788935d2, type: 3}
+    - {fileID: 21300000, guid: b68d91a77411a5a40b894c01544290af, type: 3}
+    - {fileID: 21300000, guid: 79fc19106f3758e468fd328c1baf807e, type: 3}
+    - {fileID: 21300000, guid: 4fef5b75b8bcf784295fa6ec77571d4f, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: kolonna
+    frames:
+    - {fileID: 21300000, guid: ee93606729d8dec46a1b9978e73ecb68, type: 3}
+    - {fileID: 21300000, guid: c45e7892a86bae049a37e66f33e59ce3, type: 3}
+    - {fileID: 21300000, guid: cf41cbc0b9f2c05479850651eec20071, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: door
+    frames:
+    - {fileID: 21300000, guid: a208993671752b240a9ea6c8b1ba0e1f, type: 3}
+    - {fileID: 21300000, guid: f09a193181e28574ba77b45830e44b3f, type: 3}
+    - {fileID: 21300000, guid: 2bfb5fd7f657cc64f8885a81c7b06846, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: karniz1
+    frames:
+    - {fileID: 21300000, guid: fc1b95e3d054aaf4c92cae8289535bbe, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: ugolr
+    frames:
+    - {fileID: 21300000, guid: 5a9d623a2cccbf744a9752c2359a622d, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: heap2
+    frames:
+    - {fileID: 21300000, guid: 2e1dfb4fedfd52b4a94b97d6f577e9fe, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: arc
+    frames:
+    - {fileID: 21300000, guid: 6f992ef0859546f4eb9f6fb08af8a323, type: 3}
+    - {fileID: 21300000, guid: 87b7ca3ecdccba845ad9ba0828986386, type: 3}
+    - {fileID: 21300000, guid: b79cf70c8e6aed148b8ef14bcaba97a2, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: cwindow
+    frames:
+    - {fileID: 21300000, guid: 7af8e09335a82df4cabd5d8d15ad9937, type: 3}
+    - {fileID: 21300000, guid: b818cef3ee1db9741a79a469a9293009, type: 3}
+    - {fileID: 21300000, guid: 70fb412b8c09aa9428a3196a17db5b95, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: skel
+    frames:
+    - {fileID: 21300000, guid: 36ff050fee9bd3049b8d3b2c04ac8f13, type: 3}
+    - {fileID: 21300000, guid: 04952c2343a1bae49b02312cb104cc53, type: 3}
+    - {fileID: 21300000, guid: d0f9c804fd0d46d438ccfad491ea0c54, type: 3}
+    - {fileID: 21300000, guid: b4c57e0cc218c1b47a78bdb1eaef0550, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: pipes
+    frames:
+    - {fileID: 21300000, guid: 54a4e39d20c056b43bae5e321d8425b3, type: 3}
+    - {fileID: 21300000, guid: 632aeb88b16f51e4195102e4264382aa, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: karniz3
+    frames:
+    - {fileID: 21300000, guid: 7b31d7b5d4dc4e8428d769630575c28d, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: pipe3
+    frames:
+    - {fileID: 21300000, guid: 083268a3860d50f4b9bf1bf4142fc15d, type: 3}
+    - {fileID: 21300000, guid: 6d627aae170b31148ad85e46ad23c96e, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: light1
+    frames:
+    - {fileID: 21300000, guid: d4b89f1dc711b5f4ba107920969cbbaf, type: 3}
+    - {fileID: 21300000, guid: 0e998a4565d043649bf00e7a6b54d0a0, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: vkonstr
+    frames:
+    - {fileID: 21300000, guid: af7b2b35282f34a49ab69be061a77f92, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: monitor
+    frames:
+    - {fileID: 21300000, guid: 2218972af041b2d4a96ec006745f7dec, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: balus
+    frames:
+    - {fileID: 21300000, guid: e25ac50fb71daec4baf393b721ea8b20, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: unitaz
+    frames:
+    - {fileID: 21300000, guid: b94447c1cb4d0f442ad00d7ab4b4fb90, type: 3}
+    - {fileID: 21300000, guid: c4458ebb27b6982408be0e9d595f8963, type: 3}
+    - {fileID: 21300000, guid: f24e03c5010afbe458994282b4d93e88, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: komp
+    frames:
+    - {fileID: 21300000, guid: ba00a2188eed5e247b8ff15b91d9140a, type: 3}
+    - {fileID: 21300000, guid: 6e0ef223f855641448ccb083e42a429a, type: 3}
+    - {fileID: 21300000, guid: 7aa6e66ed6502834aa46acc94c3e2b32, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: light7
+    frames:
+    - {fileID: 21300000, guid: 6ecd0a835f7afee46819c06b57eec961, type: 3}
+    - {fileID: 21300000, guid: aa6b184bfba675d49b383bb535ba02e9, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: pult2
+    frames:
+    - {fileID: 21300000, guid: 1155524c315865646b84141d508e3e9d, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: enil
+    frames:
+    - {fileID: 21300000, guid: 33aed2f522ef9934ab05243191b1006a, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: enclwindow
+    frames:
+    - {fileID: 21300000, guid: 302664270b2dec045ad0c0fdedab118f, type: 3}
+    - {fileID: 21300000, guid: 06d4750b5ea9f8d4c9931c1c4b6c864b, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: storage
+    frames:
+    - {fileID: 21300000, guid: 2c3a8cfc678b3e64494167be24d9eec7, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: books
+    frames:
+    - {fileID: 21300000, guid: 21f652a004eb50746823d35969376ba8, type: 3}
+    - {fileID: 21300000, guid: 4639aee64da8a2b47b3c27f5d0b9345f, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: vrail
+    frames:
+    - {fileID: 21300000, guid: 40664acf6f5260a468947acd64fe74f2, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: pipes2
+    frames:
+    - {fileID: 21300000, guid: 04b77fbe058b4ef4db245767d659b07a, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: railing
+    frames:
+    - {fileID: 21300000, guid: 32df01aa37ec8f44fbd772e8b0eac801, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: hole
+    frames:
+    - {fileID: 21300000, guid: 44165936e13d07642b7f5c912090e168, type: 3}
+    - {fileID: 21300000, guid: 021f874cb3b6c004ea346c19a82819e5, type: 3}
+    - {fileID: 21300000, guid: edb8490e8cf120244bdbdd29bab463a7, type: 3}
+    - {fileID: 21300000, guid: e428a346737bc2e4887823d160348fbe, type: 3}
+    - {fileID: 21300000, guid: 2475e15f18a94e647a93cde200a5a9e8, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: bvent
+    frames:
+    - {fileID: 21300000, guid: 983727a9ad2fe2242889a2989dcc3f8a, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: fuse
+    frames:
+    - {fileID: 21300000, guid: 044b3427df0a148499931bf7e9df2965, type: 3}
+    - {fileID: 21300000, guid: 146a5eda668d81c4e9eea9c0801ff19b, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: hrail
+    frames:
+    - {fileID: 21300000, guid: 914db91167830cd458cc160bf77e320c, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: light6
+    frames:
+    - {fileID: 21300000, guid: 8a1c60561fdd6a0498d37f208a1e8399, type: 3}
+    - {fileID: 21300000, guid: 4d362bb0dd3646b4888087d98a5d2dec, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: doorbase2
+    frames:
+    - {fileID: 21300000, guid: 73a65727e0817584683c6d5f9d738cbe, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: doorbase1
+    frames:
+    - {fileID: 21300000, guid: a39eaad248aed8a4393d4b00543a4722, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: generator
+    frames:
+    - {fileID: 21300000, guid: 4d251dabd64750b4bb4a6ef8cc672c3a, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: server
+    frames:
+    - {fileID: 21300000, guid: bef8a9859415e2c459fee083bfdc5609, type: 3}
+    - {fileID: 21300000, guid: 849f523a1a7ce674bb234404dbfd7911, type: 3}
+    - {fileID: 21300000, guid: c6393ade155f58d4bb2eae422be4803a, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: stlight4
+    frames:
+    - {fileID: 21300000, guid: 0889eb38f18ad88479bcbfe978a44c11, type: 3}
+    - {fileID: 21300000, guid: b5a36bef20882554db85fcb680d0fc54, type: 3}
+    - {fileID: 21300000, guid: a34a8dcb9aafd574d8c5552e1b1459fd, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: dresser
+    frames:
+    - {fileID: 21300000, guid: 6dbe01ee56b55a44390f4345aec794d5, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: stlight1
+    frames:
+    - {fileID: 21300000, guid: 0b184e146d92760489f7dee28da6b41c, type: 3}
+    - {fileID: 21300000, guid: 912b416e39d1dd340adae8b09d28d22a, type: 3}
+    - {fileID: 21300000, guid: 2dd6d0a8795c78f418fed05847e11591, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: stabledoor
+    frames:
+    - {fileID: 21300000, guid: d03cf34e3a6907c4abcd034bf099d0a0, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: oper
+    frames:
+    - {fileID: 21300000, guid: 1e5f98608eb1dfe43b697c4c633977a2, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: unitazm
+    frames:
+    - {fileID: 21300000, guid: 3fe23b161dde70242ae34465a015b1c5, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: shower
+    frames:
+    - {fileID: 21300000, guid: b4e882efedcc9b84ca5766b60ee260e4, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: stlight3
+    frames:
+    - {fileID: 21300000, guid: cd79596bca734334e89f53818bfe9105, type: 3}
+    - {fileID: 21300000, guid: 02366e1dcfcb33f4d9b58f0261e35e3f, type: 3}
+    - {fileID: 21300000, guid: d58551cdc11c4ea40a01e64cd3781a4d, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: potek
+    frames:
+    - {fileID: 21300000, guid: 6e4658a573444e944996abe64312206e, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: rgraff
+    frames:
+    - {fileID: 21300000, guid: 93e64d978d8431242872e189ea71a2ae, type: 3}
+    - {fileID: 21300000, guid: 53e3394be75ef934daf059de8e3d72ef, type: 3}
+    - {fileID: 21300000, guid: c05eedcea017f8e41abe68e859ddbdca, type: 3}
+    - {fileID: 21300000, guid: 20aa1665d9cbfc248ae6a2bae4f119aa, type: 3}
+    - {fileID: 21300000, guid: 14bc9be380b3a0a4398ce6e1be309b13, type: 3}
+    - {fileID: 21300000, guid: 5d5f224f80101414eaa2efd2edf0d422, type: 3}
+    - {fileID: 21300000, guid: d3cd361e0f0527b40b901e4132445fd5, type: 3}
+    - {fileID: 21300000, guid: f7b60a563c657034994829d8ac39f484, type: 3}
+    - {fileID: 21300000, guid: 5aa4f1f5ddcc06c458e66ad4d5899d6d, type: 3}
+    - {fileID: 21300000, guid: 01fcc35f595016f44ba1151600378310, type: 3}
+    - {fileID: 21300000, guid: 10d14cacd98ee184098be25ccb369493, type: 3}
+    - {fileID: 21300000, guid: 28d9d264c0fdb0244b7df3cf39e427a4, type: 3}
+    - {fileID: 21300000, guid: c2f50d8839109fb44ae0ec828b655b02, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: fwindow
+    frames:
+    - {fileID: 21300000, guid: d511d9f03056a7f49acfb75d2b36bbd8, type: 3}
+    - {fileID: 21300000, guid: 09c233c0dd68eef4ea6ea0de432e71fc, type: 3}
+    - {fileID: 21300000, guid: 7e6926713c90dd54d8750e86e6311c19, type: 3}
+    - {fileID: 21300000, guid: 16c6859d46ad039479772163d10e3bd5, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: chole
+    frames:
+    - {fileID: 21300000, guid: 2fa6f1d4bff24ce4795bb0c56590203c, type: 3}
+    - {fileID: 21300000, guid: b1f5033e8c4289e4b98d48af07a4a228, type: 3}
+    - {fileID: 21300000, guid: 2365485075fc2544b922c8ad2919f4e8, type: 3}
+    - {fileID: 21300000, guid: 137cb95765d95954db660743fe772504, type: 3}
+    - {fileID: 21300000, guid: 7bfa72b474691ed48b980948ea767f87, type: 3}
+    - {fileID: 21300000, guid: 5fbb7394e3983014b9d7cfb10295c5af, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: pipe1
+    frames:
+    - {fileID: 21300000, guid: 3df6c7addf716364ca0128b44c30ed28, type: 3}
+    - {fileID: 21300000, guid: 85fc8384564854943bcecfb13fe805df, type: 3}
+    - {fileID: 21300000, guid: 71e26f97ccbac69459b952dbac7793dd, type: 3}
+    - {fileID: 21300000, guid: cec65dad238007e40874103fa12479a1, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: rak
+    frames:
+    - {fileID: 21300000, guid: 53239638b601d01488354d0b4cfd6b4a, type: 3}
+    - {fileID: 21300000, guid: 4eb32cdb7d491514481a372e05a839d9, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: plesen
+    frames:
+    - {fileID: 21300000, guid: d90572823724d0346b7481baada1888f, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: zavod1
+    frames:
+    - {fileID: 21300000, guid: 7fbaa585d37d898469f2df0612f9a5af, type: 3}
+    - {fileID: 21300000, guid: 3b6eb50b6e063504084cdc58c5fe3b4a, type: 3}
+    - {fileID: 21300000, guid: fd9631285d2860f47bc2064b50342159, type: 3}
+    - {fileID: 21300000, guid: e59c778fd48a9624daa8be193602c7f5, type: 3}
+    - {fileID: 21300000, guid: 9d7ae10d9cd559747a20d6eb1e195567, type: 3}
+    - {fileID: 21300000, guid: 68dc150c8c7157a43abd520eee9c4987, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: pipe2
+    frames:
+    - {fileID: 21300000, guid: f1909619a3d537943a35be6c89ca5fb8, type: 3}
+    - {fileID: 21300000, guid: 8004f00b8957fae47af994fd7533ed93, type: 3}
+    - {fileID: 21300000, guid: de14bb7b2061860498c3e9f44363c688, type: 3}
+    - {fileID: 21300000, guid: bd34f7ba4338a4c4e8e16f2e845514e0, type: 3}
+    pixelOffset: {x: 0, y: -40}
+    flipX: 0
+    flipY: 0
+  - id: web1tl
+    frames:
+    - {fileID: 21300000, guid: 55ae9ab052b140b41bb8ffe62657ed17, type: 3}
+    - {fileID: 21300000, guid: 6ec8b28def0c17a4bb028b8e5eb74bfc, type: 3}
+    - {fileID: 21300000, guid: 3bd7333f3dd7bc84bae92befdae507b1, type: 3}
+    - {fileID: 21300000, guid: 683e2d68595d24d4ba0aae34997a50b9, type: 3}
+    - {fileID: 21300000, guid: 32a98d9d8d260af4088a4f9b6eb49e66, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: heap3
+    frames:
+    - {fileID: 21300000, guid: 946e1e67804ec1846b1cb860e50a560e, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: electro
+    frames:
+    - {fileID: 21300000, guid: dd6a372b25de78d43b6c89c0e420d108, type: 3}
+    - {fileID: 21300000, guid: 38dc22932e4143f4c99c7d108b58850d, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: hole1
+    frames:
+    - {fileID: 21300000, guid: 0890a5dfd7c5b5c4dbd68415b31906d5, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: hole2
+    frames:
+    - {fileID: 21300000, guid: 05894d9bcdd02d3439dee4f8a29f13c2, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: stwindow
+    frames:
+    - {fileID: 21300000, guid: db9f9a20a521cd14b8d0e5c9b73056f7, type: 3}
+    - {fileID: 21300000, guid: 98db96027bd3f4d41b31a758435931d4, type: 3}
+    - {fileID: 21300000, guid: f62b39b1473abb5449257672c0307689, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: stillage
+    frames:
+    - {fileID: 21300000, guid: ccf75bd659339e942a571b4132359edd, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: blood1
+    frames:
+    - {fileID: 21300000, guid: 159c2bed804c6164993f5a3c491c61c5, type: 3}
+    - {fileID: 21300000, guid: 8d376f49020b89a48af7883f2aff4471, type: 3}
+    - {fileID: 21300000, guid: 36dd789cb5a193c4c899d86ace2369e8, type: 3}
+    - {fileID: 21300000, guid: 658f73cd04f168e4fb2017d715448ef8, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: karniz2
+    frames:
+    - {fileID: 21300000, guid: 5956034315e5b9448b35bd6908b7cef3, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: stok
+    frames:
+    - {fileID: 21300000, guid: df63f17fbda11ed48b5c03631b276259, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: opora
+    frames:
+    - {fileID: 21300000, guid: c7c50d247d564904da3fae4e4e56a161, type: 3}
+    - {fileID: 21300000, guid: ffa5aea88f0c9d14cbe15077789ae9f6, type: 3}
+    - {fileID: 21300000, guid: aba9973acdb88eb46a9ab4fd3b7ca7b0, type: 3}
+    - {fileID: 21300000, guid: ec41edfd77f85b94a880a8ec90a9bb71, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: stenka2
+    frames:
+    - {fileID: 21300000, guid: 9eea1bb53f4fe9942aedd02535d9d63b, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: hole5
+    frames:
+    - {fileID: 21300000, guid: 966b49649cc2f7748aa6b7d4447a32f3, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: chains
+    frames:
+    - {fileID: 21300000, guid: 59f0e7dad52acd64fbe3a63e1d7e704b, type: 3}
+    - {fileID: 21300000, guid: 3216defb7db4b1446967d193321d0324, type: 3}
+    - {fileID: 21300000, guid: dc4b97c2bd0178145bcacae4032b2876, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: illum
+    frames:
+    - {fileID: 21300000, guid: 9372323121d3d3e448f3b47039e4b058, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: lab
+    frames:
+    - {fileID: 21300000, guid: ddb5e06e4bcb4234c88efbdc4c9544ed, type: 3}
+    - {fileID: 21300000, guid: 8f2c46fa84300df45a5b675afad6f90b, type: 3}
+    - {fileID: 21300000, guid: 01b3426cc70420d438e9394458b5b443, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: biggate
+    frames:
+    - {fileID: 21300000, guid: 1dcfe830e9cf5df45aadc905571214b5, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: doorencl1
+    frames:
+    - {fileID: 21300000, guid: db47ee6875164fa45b85cc3fa37332dd, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: metal
+    frames:
+    - {fileID: 21300000, guid: 2e9aa7a5da4e671409fa5ca7024fbb38, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: barrow
+    frames:
+    - {fileID: 21300000, guid: 3c0921714fe680a4cb6e118a2147ee4e, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: tree
+    frames:
+    - {fileID: 21300000, guid: 00bbda60f9545f441869ef0bbb6d8a07, type: 3}
+    - {fileID: 21300000, guid: 1ef359ec65a130945a3676a31576cefd, type: 3}
+    - {fileID: 21300000, guid: 69c2e67bed535cd49b5b5a6e7c1c064e, type: 3}
+    - {fileID: 21300000, guid: 9fd5edbb1b3e6be4d8387cf54b88dc62, type: 3}
+    - {fileID: 21300000, guid: 350b67c87a2fac344a1a808ae6c39c4f, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: web1tr
+    frames:
+    - {fileID: 21300000, guid: af288c028fcae79489fe3c2913e9e841, type: 3}
+    - {fileID: 21300000, guid: c4d1cc2206c80bd44871cc4a4b178c85, type: 3}
+    - {fileID: 21300000, guid: 2c72e87fa642e6648844a6d9f8f26925, type: 3}
+    - {fileID: 21300000, guid: 5d94cda59ea2db44b948729f2a2f74a4, type: 3}
+    - {fileID: 21300000, guid: 5f3e5387f07a31c469c837cc7aca3ed8, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: web1bl
+    frames:
+    - {fileID: 21300000, guid: a65ad314b0257e741ba26f2b296c3ea4, type: 3}
+    - {fileID: 21300000, guid: 5acda96dc7796b043a00369e0d1a6b49, type: 3}
+    - {fileID: 21300000, guid: 87c6c442217a12f46bde0c3099b478ae, type: 3}
+    - {fileID: 21300000, guid: cd6ef2d8858d0204dbbdc0d965a08529, type: 3}
+    - {fileID: 21300000, guid: 1f5cd0a46d5c7ef4e95da4e6b27382a6, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: stok2
+    frames:
+    - {fileID: 21300000, guid: b57b4f21dd9b5bc48bb779d4fdb5ad62, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: rad
+    frames:
+    - {fileID: 21300000, guid: 7567289704d0606419b44bf8bb294254, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: draw
+    frames:
+    - {fileID: 21300000, guid: cea7fb73b1e260e448652ece86d15130, type: 3}
+    - {fileID: 21300000, guid: 6c05da5c99a1a0549968f9ffc30c1eef, type: 3}
+    - {fileID: 21300000, guid: 47aaf71af2cc36646a845a24ebff3883, type: 3}
+    - {fileID: 21300000, guid: d8c80901cec951249bd46c305160e95d, type: 3}
+    - {fileID: 21300000, guid: f68ba320b48095d4ab5c8cd008396aba, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: web1br
+    frames:
+    - {fileID: 21300000, guid: a2d80fc075cf00842bd2dd9997e58255, type: 3}
+    - {fileID: 21300000, guid: 181a251d34b073d47b1993af91264083, type: 3}
+    - {fileID: 21300000, guid: bc8921452f6ac8f489432a8b25d14636, type: 3}
+    - {fileID: 21300000, guid: 1f37cc12d9909fe4687e91965bbee24b, type: 3}
+    - {fileID: 21300000, guid: 591e790bc9efead4f89cf6f4c2f54879, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: remains1
+    frames:
+    - {fileID: 21300000, guid: fe0609762abbf1547a2c514d09312517, type: 3}
+    - {fileID: 21300000, guid: adad102b40f05af4d8f950514be26c53, type: 3}
+    - {fileID: 21300000, guid: f462bb5ef5f8b50429ef958ef0824b54, type: 3}
+    - {fileID: 21300000, guid: 78dec214f05e4dc4488742fed8f1de09, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: heap1
+    frames:
+    - {fileID: 21300000, guid: 4a603e5164a890648951e125deee50fd, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: musor2
+    frames:
+    - {fileID: 21300000, guid: 4dbb704dfa5d2b74688f5ba6cf3e2f51, type: 3}
+    - {fileID: 21300000, guid: 1f878099d1e907f498cb341af73340af, type: 3}
+    - {fileID: 21300000, guid: baac9b2e209b35d449e233c40009d36b, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: remains2
+    frames:
+    - {fileID: 21300000, guid: 7c2f203ceb68cee4886e9b7a429259a2, type: 3}
+    - {fileID: 21300000, guid: ee06ce3323b4c6147999c1552ef53964, type: 3}
+    - {fileID: 21300000, guid: defeadffa4f3944488d324ffa8211e1a, type: 3}
+    - {fileID: 21300000, guid: 812b58b88f1ea6c4c979d9131ff68528, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: gate
+    frames:
+    - {fileID: 21300000, guid: 2cc512e1345774b429a88275ce8720a5, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: hole4
+    frames:
+    - {fileID: 21300000, guid: 0540b01527acaa244afeaca0b006debe, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: cot
+    frames:
+    - {fileID: 21300000, guid: 3830a3f31a8f41a4283bc5b8c864211a, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: zhaluzi
+    frames:
+    - {fileID: 21300000, guid: f7c9c0e4d47cfcf4aa38a8f32f7bc9c0, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: paint
+    frames:
+    - {fileID: 21300000, guid: 3eb0a19b2349d0f40bf39c8eac21d003, type: 3}
+    - {fileID: 21300000, guid: a6dc8379471518d4fb2e3821e0988715, type: 3}
+    - {fileID: 21300000, guid: cf4b69f9749a33e4d89edc4ecb16db61, type: 3}
+    - {fileID: 21300000, guid: 8aebc9592e24d344b8e8e4ee7ebc534a, type: 3}
+    - {fileID: 21300000, guid: 2bf73898d5a31d4499c145272d3d379b, type: 3}
+    - {fileID: 21300000, guid: fd51878b6e9ee1548a2d68d9659a4d1b, type: 3}
+    - {fileID: 21300000, guid: d95dbb744caae7842ac57aebf4a7fb2c, type: 3}
+    - {fileID: 21300000, guid: c97ee40e8e8b1624697fc23ead061f65, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: barf
+    frames:
+    - {fileID: 21300000, guid: 0c1bceaef5f07b7438ba4d0ca09dfcd8, type: 3}
+    - {fileID: 21300000, guid: b9520e48c7199d048a52f36f20f3b48d, type: 3}
+    - {fileID: 21300000, guid: 4e9d145b522b7f040a26b396325ca5ec, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: vpipes
+    frames:
+    - {fileID: 21300000, guid: 4ffcd0c4c955640498c3742caa39354d, type: 3}
+    - {fileID: 21300000, guid: 73fd485eb84cbaf4e8c23a69e89423c1, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: vyt
+    frames:
+    - {fileID: 21300000, guid: fc494ca12dc748d4a92295c91a730b8f, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: ugoll
+    frames:
+    - {fileID: 21300000, guid: ef20d78a9270d7041852a35a4ba97b61, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: awningr
+    frames:
+    - {fileID: 21300000, guid: 8c65a106ba1ad874e96b7c2009af8cff, type: 3}
+    - {fileID: 21300000, guid: 8157657e2e786494d9648631b5e519ae, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: clock
+    frames:
+    - {fileID: 21300000, guid: cd1be94934c75e04c87c94e2b3041bf9, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: banner
+    frames:
+    - {fileID: 21300000, guid: eb1b7d5022a501741aff19a9248e6fbd, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: signboard
+    frames:
+    - {fileID: 21300000, guid: 25aea63c93772ae4faf3894889a58035, type: 3}
+    - {fileID: 21300000, guid: 7006c1074ae5d144faf8615cc3866444, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: awningl
+    frames:
+    - {fileID: 21300000, guid: f549fbb37a78f7a42b767126b30dfb6d, type: 3}
+    - {fileID: 21300000, guid: 1afc7d58a6ef7804cb3947c0e1d98f29, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: chert
+    frames:
+    - {fileID: 21300000, guid: b13b53e56058ae24287fce64094b74a7, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: awindow
+    frames:
+    - {fileID: 21300000, guid: 276d0d552cc0d334bbee47f192aa4fe0, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: vase
+    frames:
+    - {fileID: 21300000, guid: 3bc5e824405ab7e4c9b0b81fc2f415f7, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: blood2
+    frames:
+    - {fileID: 21300000, guid: 329fe3e582a2a284fbbe5528318e9dba, type: 3}
+    - {fileID: 21300000, guid: 3f301d96e6d234042b7167ad8a60d6f8, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: karniz2a
+    frames:
+    - {fileID: 21300000, guid: 40ec4d43d7d46634e8272485c6ab07bb, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: hole3
+    frames:
+    - {fileID: 21300000, guid: 176424bcda5cae748b6b00dd8f255079, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: med
+    frames:
+    - {fileID: 21300000, guid: e0bcd37a388ca0d4e909bdb9e1bbe83b, type: 3}
+    - {fileID: 21300000, guid: 40c069d8cbf80b64aafcc0761ef922bc, type: 3}
+    - {fileID: 21300000, guid: 99247e33565939e44a17398932bdedd9, type: 3}
+    - {fileID: 21300000, guid: 03d75f538191d7142a457d83764d9ef4, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: celest
+    frames:
+    - {fileID: 21300000, guid: 1d47309a3fe71ae4aa457c533101cd3d, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: schem
+    frames:
+    - {fileID: 21300000, guid: 24065b658aa23844588753128ce47ee4, type: 3}
+    - {fileID: 21300000, guid: 96fcdeb1a2b9fdc4993968615b5fe67d, type: 3}
+    - {fileID: 21300000, guid: 0a4e8d78e0714ca4f95c88091ab571ff, type: 3}
+    - {fileID: 21300000, guid: b55658f2c0f6d104d92f6e8ef2e7f940, type: 3}
+    - {fileID: 21300000, guid: d33b857f3b1782b438b157f416aca8c5, type: 3}
+    - {fileID: 21300000, guid: 4d09fe0ade3395c4db37a6ab097def6e, type: 3}
+    - {fileID: 21300000, guid: 61c7a87662158534586c5d479b1b7e15, type: 3}
+    - {fileID: 21300000, guid: db660c1c042504246be90268d6ac46db, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: enclbanner
+    frames:
+    - {fileID: 21300000, guid: b2216282ae703e24f93c4e4510ed30e8, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: enclave
+    frames:
+    - {fileID: 21300000, guid: 2ab55a043af56ad4b971c4720553cca4, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: rangers
+    frames:
+    - {fileID: 21300000, guid: 665be418184bf9945a437a11ad17be6c, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: znak
+    frames:
+    - {fileID: 21300000, guid: cc798b61fc79b2043af832ceca60fc62, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: monitor2
+    frames:
+    - {fileID: 21300000, guid: c3e7328bac3e42142b77e642dbf0e284, type: 3}
+    - {fileID: 21300000, guid: e392cb64d5d36fe4b83d0e4ef2342b92, type: 3}
+    - {fileID: 21300000, guid: b7aaba87340643e47b32f296603a5d8a, type: 3}
+    - {fileID: 21300000, guid: 75b08050126b7414f99eaf0a0752bef1, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: pi
+    frames:
+    - {fileID: 21300000, guid: 74ebf1efffcc7ab4b87baf5c3a2769fa, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: kolb
+    frames:
+    - {fileID: 21300000, guid: c4d36fcde8174f54bba93ebe65725fb7, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: h109
+    frames:
+    - {fileID: 21300000, guid: 1df06d3b8cd4f2b4082e64c10d951909, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: stbanner
+    frames:
+    - {fileID: 21300000, guid: bb2edb45895bfb04d9962c0e87ada8ee, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: vitrina
+    frames:
+    - {fileID: 21300000, guid: 75f7d3cfff9f0d14caa9f7f19b4ebfc8, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: minst
+    frames:
+    - {fileID: 21300000, guid: 7bf7710ca345ee24e8b0a090ae279b40, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: stabledoor2
+    frames:
+    - {fileID: 21300000, guid: 1b582136e645afc45a91881d731fd4b4, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: bio
+    frames:
+    - {fileID: 21300000, guid: f9b425ed345f94c4c8a1b3ebd85b6765, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: snar
+    frames:
+    - {fileID: 21300000, guid: ee920f92b40b58543a46fb6019821c58, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: bannerl
+    frames:
+    - {fileID: 21300000, guid: 7a1bd58cb3f2ca54fb17cc5523852bf6, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: vpipel
+    frames:
+    - {fileID: 21300000, guid: 5882892b6d051604bb05b1f400cb49aa, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0

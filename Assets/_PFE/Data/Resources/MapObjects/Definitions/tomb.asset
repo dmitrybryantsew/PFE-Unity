@@ -1,0 +1,58 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b6346ec5ad241bcb662491c6de14d7a, type: 3}
+  m_Name: tomb
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.MapObjectDefinition
+  objectId: tomb
+  displayName: "\u041C\u043E\u0433\u0438\u043B\u0430"
+  legacyTip: box
+  family: 5
+  defaultPlacementType: box
+  size: 2
+  width: 2
+  wallMounted: 1
+  blocksMovement: 0
+  blocksVisibility: 0
+  isInteractive: 1
+  isSaveRelevant: 0
+  autoClose: 0
+  containerId: 
+  interactionMode: 0
+  allAct: 
+  allId: 
+  hitPoints: 0
+  threshold: 0
+  shield: 0
+  materialId: 0
+  physicalCapability: 2
+  mass: 0
+  massMultiplier: 1
+  buoyancyFactor: 0
+  defaultVisualId: vistomb
+  visual: {fileID: 11400000, guid: ae97f99f014aaca439af92c88436195c, type: 2}
+  legacyAttributes:
+  - key: ed
+    value: 8
+  - key: ico
+    value: 
+  - key: inter
+    value: 0
+  - key: tip
+    value: box
+  - key: wall
+    value: 1
+  - key: size
+    value: 2
+  - key: wid
+    value: 2
+  - key: n
+    value: "\u041C\u043E\u0433\u0438\u043B\u0430"

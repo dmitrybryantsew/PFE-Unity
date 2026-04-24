@@ -1,0 +1,190 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
+  m_Name: room_2_5
+  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  id: room_2_5
+  type: pass
+  fixedPosition: {x: 2, y: 5, z: 0}
+  difficultyLevel: 0
+  maxInstances: 2
+  allowRandom: 1
+  backgroundRoomId: 
+  backgroundDecorations:
+  - id: opora
+    tileCoord: {x: 41, y: 0}
+  - id: opora
+    tileCoord: {x: 4, y: 0}
+  - id: opora
+    tileCoord: {x: 17, y: 0}
+  - id: opora
+    tileCoord: {x: 28, y: 0}
+  - id: hole1
+    tileCoord: {x: 33, y: 16}
+  - id: hole2
+    tileCoord: {x: 25, y: 1}
+  - id: hole3
+    tileCoord: {x: 6, y: 2}
+  - id: hole4
+    tileCoord: {x: 3, y: 16}
+  - id: hole5
+    tileCoord: {x: 18, y: 15}
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000
+  tileDataString: "N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N._._._._._._._\u0411._._._._._._._.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N\nN._._._._._._._._._._._._._._._._._._._._._._._\u0411._._._._._._._._._._._._._._._._._._._._._._._.N\nN._._._._._._._._._._._._._._._._._._._._._._._\u0411._._._._._._._._._._._._._._._._._._._._._._._.N\nN._._._._._._._._._._._._._._._._._._._._._._._\u0411._._._._._._._._._._._._._._._._._._._._._._._.N\nN._._._._._._._._._._._._._._._._._._._._._._._\u0411._._._._._._._._._._._._._._._._._._._._._._._.N\nN._._._._._._._._._._._._._._._._._._._._._._._\u0411._._._._._._._._._._._._._._._._._._._._._._._.N\nN._._._._._._._._._._._._._._._._._._._._._._._\u0411._._._._._._._._._._._._._._._._._._._._._._._.N\nN._._._._._._._._._._._._._._._._._._._._._._._\u0411._._._._._._._._._._._._._._._._._._._._._._._.N\nN._._._._._._._._\u041A._\u041A._\u041A._\u041A._\u041A._._._._._._._._._._._\u0411._._._._._._._._._._._._\u041A._\u041A._\u041A._\u041A._\u041A._._._._._._._.N\nN._._._._._._._._._._._._._._._._._._._._._._._\u0411._._._._._._._._._._._._._._._._._._._._._._._.N\nN._._._._._._._._._._._._._._._._._._._._._._._\u0411._._._._._._._._._._._._._._._._._._._._._._._.N\nN._._._._._._._._._._._._._._._._._._._._._._._\u0411._._._._._._._._._._._._._._._._._._._._._._._.N\nN._._._._._._._._._._._._._._._._._\u041A._\u041A._._._._._\u0411._._._._._._\u041A._\u041A._._._._._._._._._._._._._._\u041A._\u041A._\u0410\u041A.N\nN._._._._._._._._._._._._._._._._._._._._._._._\u0411._._._._._._._._._._._._._._._._._._._._._._._\u0410.N\nN._._._._._._._._._._._._._._._._._._._._._._._\u0411._._._._._._._._._._._._._._._._._._._._._._._\u0410.N\nN._._._._._._._._._._._._._._._._._._._._._._._\u0411._._._._._._._._._._._._._._._._._._._._._._._\u0410.N\nN._._._._._._._._\u041A._\u041A._\u041A._\u041A._\u041A._._._._._._._._._._._\u0411._._._._._._._._._._._._\u041A._\u041A._\u041A._\u041A._\u041A._._._._._._._\u0410.N\nN._._._._._._._._._._._._._._._._._._._._._._._\u0411._._._._._._._._._._._._._._._._._._._._._._._\u0410.N\nN._._._._._._._._._._._._._._._._._._._._._._._\u0411._._._._._._._._._._._._._._._._._._._._._._._\u0410.N\nN._._._._\u0411._._._._._._._._._._._._._._._._._._._\u0411._._._._._._._._._._._._._._._._._._._._._._._\u0410.N\nN._._._._\u0411._._._._._._._._._._._._._._._._._._._\u0411._._._._._._._._._._._._._._._._._._._._._._\u041A._\u041A.N\nN._._._._\u0411._._._._._._._._._._._._._\u041A._\u041A._._._._._\u0411._._._._._._\u041A._\u041A._._._._._._._._._._._._._._._._.N\nN._._._._\u0411._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.N\nN._._._._\u0411._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.N\nN._._._._\u0411._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.N"
+  objects:
+  - type: obj
+    id: ebloat
+    definitionId: ebloat
+    definition: {fileID: 11400000, guid: 1f318101da73eae4992134243db714ea, type: 2}
+    tileCoord: {x: 41, y: 3}
+    code: UCE27CiD3PROT4Ph
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="UCE27CiD3PROT4Ph"
+  - type: obj
+    id: alicorn
+    definitionId: alicorn
+    definition: {fileID: 11400000, guid: a26047f529a359f4da09fd7fe3169bf3, type: 2}
+    tileCoord: {x: 37, y: 15}
+    code: jlrROV9ymrzvxdXO
+    uid: 
+    attributes:
+    - key: turn
+      value: -1
+    - key: allid
+      value: 1
+    - key: dis
+      value: 1
+    items: []
+    scripts: []
+    parameters: code="jlrROV9ymrzvxdXO" turn="-1" allid="1" dis="1"
+  - type: obj
+    id: bloat
+    definitionId: bloat
+    definition: {fileID: 11400000, guid: ab23dccecabecbf4e9019535dfa0d378, type: 2}
+    tileCoord: {x: 21, y: 15}
+    code: tXhRibswJo6dKsLr
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="tXhRibswJo6dKsLr"
+  - type: obj
+    id: bloat
+    definitionId: bloat
+    definition: {fileID: 11400000, guid: ab23dccecabecbf4e9019535dfa0d378, type: 2}
+    tileCoord: {x: 25, y: 11}
+    code: O4bfP8WZqSsFb7EY
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="O4bfP8WZqSsFb7EY"
+  - type: obj
+    id: bloat
+    definitionId: bloat
+    definition: {fileID: 11400000, guid: ab23dccecabecbf4e9019535dfa0d378, type: 2}
+    tileCoord: {x: 21, y: 8}
+    code: slW9WsFoU90B0895
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="slW9WsFoU90B0895"
+  - type: obj
+    id: bloat
+    definitionId: bloat
+    definition: {fileID: 11400000, guid: ab23dccecabecbf4e9019535dfa0d378, type: 2}
+    tileCoord: {x: 25, y: 6}
+    code: Bng42JX7XnIBgzw6
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="Bng42JX7XnIBgzw6"
+  - type: obj
+    id: alicorn
+    definitionId: alicorn
+    definition: {fileID: 11400000, guid: a26047f529a359f4da09fd7fe3169bf3, type: 2}
+    tileCoord: {x: 9, y: 15}
+    code: v4QL2WmwJ29NWhgq
+    uid: 
+    attributes:
+    - key: turn
+      value: 1
+    - key: allid
+      value: 1
+    - key: dis
+      value: 1
+    items: []
+    scripts: []
+    parameters: code="v4QL2WmwJ29NWhgq" turn="1" allid="1" dis="1"
+  - type: area
+    id: area
+    definitionId: area
+    definition: {fileID: 11400000, guid: 62760a6826b295d4bb7380b3dc6e5dc0, type: 2}
+    tileCoord: {x: 18, y: 2}
+    code: L7vynnWS2XKyEup3
+    uid: 
+    attributes:
+    - key: w
+      value: 12
+    items: []
+    scripts:
+    - eventName: 
+      actions:
+      - act: allact
+        targ: 
+        val: activate
+      - act: off
+        targ: this
+        val: 
+    parameters: code="L7vynnWS2XKyEup3" w="12"
+  - type: obj
+    id: ebloat
+    definitionId: ebloat
+    definition: {fileID: 11400000, guid: 1f318101da73eae4992134243db714ea, type: 2}
+    tileCoord: {x: 5, y: 3}
+    code: xN4WrUHvp4EgeQNE
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="xN4WrUHvp4EgeQNE"
+  spawnPoints:
+  - tileCoord: {x: 2, y: 15}
+    type: 0
+    unitId: 
+    facingDirection: 1
+  environment:
+    musicTrack: music_mane_2
+    colorScheme: 
+    backgroundColorScheme: 
+    backgroundWall: tTower
+    backgroundForm: 0
+    transparentBackground: 1
+    hasSky: 0
+    borderType: 1
+    noBlackReveal: 0
+    visibilityMultiplier: 2
+    lightsOn: 0
+    returnsToDarkness: 0
+    waterLevel: 100
+    waterType: 0
+    waterOpacity: 0
+    waterDamage: 0
+    waterDamageType: 7
+    radiation: 0
+    radiationDamage: 0
+    darkness: -20

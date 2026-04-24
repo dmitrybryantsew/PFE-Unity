@@ -1,0 +1,47 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 52445f94c96c4150ac0fe58bc05f53cc, type: 3}
+  m_Name: visinstdoor
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.MapObjectVisualDefinition
+  visualId: visinstdoor
+  objectId: instdoor
+  linkedObjectIds:
+  - instdoor
+  sourceFolderName: DefineSprite_320_visinstdoor
+  sourceSymbolId: 320
+  frames:
+  - {fileID: 21300000, guid: 00c232f01a87f064f824d053bf09a0fa, type: 3}
+  - {fileID: 21300000, guid: a4b8d8d6643a1c648805ade7062818d2, type: 3}
+  - {fileID: 21300000, guid: 38103623d9d39f84b94bc3e4d4400b82, type: 3}
+  - {fileID: 21300000, guid: a56b1cb3052f1eb4e8de5cd7d14b1abe, type: 3}
+  - {fileID: 21300000, guid: e6ff0e52e9ab2d545a0dba9b3025d801, type: 3}
+  - {fileID: 21300000, guid: b6a11b0fa6ec45f4ea7ee453c26c9f68, type: 3}
+  - {fileID: 21300000, guid: 6e4112a2e91a94642afd63cfc774d804, type: 3}
+  - {fileID: 21300000, guid: faa97282a3b35b2448e2b0762d1ebe11, type: 3}
+  - {fileID: 21300000, guid: b13fafeeae15c534d92074cb1d7b5383, type: 3}
+  - {fileID: 21300000, guid: 5c1746de5f345884c9e434fb1a44c1a6, type: 3}
+  - {fileID: 21300000, guid: af1a3a7adb4c6d34fb353e6e2c913fb5, type: 3}
+  - {fileID: 21300000, guid: e5e0005a9d9d1434bbdc0944184fd203, type: 3}
+  - {fileID: 21300000, guid: b58501c2aac8e6546a3b15e49316abf5, type: 3}
+  - {fileID: 21300000, guid: bf813a6665db8ea42b5e5c05fc8118f5, type: 3}
+  - {fileID: 21300000, guid: a6b27111512045343bcfa7edc47904d7, type: 3}
+  - {fileID: 21300000, guid: b238aaf97335afe41a04e60ce7ad171a, type: 3}
+  - {fileID: 21300000, guid: faeb631ac891d8643807ab828de52e1c, type: 3}
+  - {fileID: 21300000, guid: 5b7d029c701fb7848ae6e71d022dcc21, type: 3}
+  - {fileID: 21300000, guid: 708825df66773e94f911010d008414f8, type: 3}
+  - {fileID: 21300000, guid: e6bb5aa679a688742bc12b22da272489, type: 3}
+  pixelsPerUnit: 100
+  pixelSize: {x: 120, y: 221}
+  pivot: {x: 0.5, y: 0.5}
+  localOffset: {x: 0, y: 0}
+  sortingOrder: 1
+  wallMounted: 1

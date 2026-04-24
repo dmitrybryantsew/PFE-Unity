@@ -1,0 +1,79 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d6ba3adb0716e844684560a96adb6927, type: 3}
+  m_Name: shovel
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
+  weaponId: shovel
+  weaponType: 1
+  skillLevel: 1
+  weaponLevel: 1
+  baseDamage: 18
+  rapid: 20
+  precision: 0
+  deviation: 0
+  armorPenetration: 0
+  knockback: 10
+  critChance: 0.1
+  critMultiplier: 2
+  projectilesPerShot: 1
+  projectileSpeed: 100
+  burstCount: 0
+  explRadius: 0
+  explosionDamage: 0
+  magazineSize: 0
+  reloadTime: 0
+  ammoType: 
+  maxDurability: 100
+  prepFrames: 0
+  ammoPerShot: 1
+  rechargeFrames: 0
+  recoilFrames: 0
+  recoilLift: 0
+  magicPoolCost: 0
+  manaHealthCost: 0
+  throwTip: 0
+  fuseFrames: 75
+  radio: 0
+  meleeType: 0
+  meleeDlina: 100
+  meleeMinDlina: 100
+  meleeCombo: 0
+  meleePowerAttack: 0
+  projectileArchetype: 0
+  damageType: 1
+  bulletGravity: 0
+  bulletAccel: 0
+  bulletFlame: 0
+  bulletNavod: 0
+  isPhysBullet: 0
+  vbul: 
+  projectileVisual: {fileID: 0}
+  springMode: 1
+  bulletAnimated: 0
+  hasShell: 0
+  shineRadius: 500
+  decalType: 5
+  destroyTiles: 20
+  piercing: 0
+  manaCost: 0
+  alicornOnly: 0
+  weaponVisual: {fileID: 11400000, guid: 57566cc18b7ba5d408a6a01bfcedb39a, type: 2}
+  visualOverrideId: 
+  muzzleFlareId: 
+  weaponSprite: 
+  soundShoot: m_med
+  soundReload: 
+  soundHit: 
+  soundPrep: 
+  soundPrepT1: 0
+  soundPrepT2: 0
+  noiseRadius: 500

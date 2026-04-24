@@ -1,0 +1,156 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
+  m_Name: room_-1_0
+  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  id: room_-1_0
+  type: pass
+  fixedPosition: {x: -1, y: 0, z: 0}
+  difficultyLevel: 0
+  maxInstances: 2
+  allowRandom: 1
+  backgroundRoomId: 
+  backgroundDecorations:
+  - id: web1tr
+    tileCoord: {x: 44, y: 1}
+  - id: swindow
+    tileCoord: {x: 32, y: 1}
+  - id: web1tl
+    tileCoord: {x: 19, y: 1}
+  - id: swindow
+    tileCoord: {x: 23, y: 1}
+  - id: pipe4
+    tileCoord: {x: 19, y: 1}
+  - id: pipe4
+    tileCoord: {x: 19, y: 3}
+  - id: pipe4
+    tileCoord: {x: 19, y: 5}
+  - id: pipe4
+    tileCoord: {x: 19, y: 7}
+  - id: pipe4
+    tileCoord: {x: 19, y: 9}
+  - id: pipe4
+    tileCoord: {x: 19, y: 11}
+  - id: swindow
+    tileCoord: {x: 37, y: 1}
+  - id: qgraff
+    tileCoord: {x: 20, y: 1}
+  doorQuality: 020000000200000002000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000020000000200000002000000
+  tileDataString: 'C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C
+
+    C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._._._._._._._._._._._._._._._._._._._._._._._._._._._._.C
+
+    C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._._._._._._._._._._._._._._._._._._._._._._._._._._._._.C
+
+    C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._._._._._._._._._._._._._._._._._._._._._._._._._._._._.C
+
+    C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._._._._._._._._._._._._._._._._._._._._._._._._._._._._.C
+
+    C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._._._._._._._._._._._._._._._._._._._._._._._._._._._._.C
+
+    C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._._._._._._._._._._._._._._._._._._._._._._._._._._._._.C
+
+    C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._._._._._._._._._._._._._._._._._._._._._._._._._._._._.C
+
+    C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._._._._._._._._._._._._._._._._._._._._._._._._._._._._.C
+
+    C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
+
+    C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
+
+    C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
+
+    C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._._._._._._._._._._._._._._._._._._._._._._._.C.C.C.C
+
+    C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C
+
+    C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C
+
+    C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C
+
+    C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C
+
+    C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C
+
+    C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C
+
+    C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C
+
+    C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C
+
+    C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C
+
+    C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C
+
+    C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C
+
+    C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C'
+  objects:
+  - type: box
+    id: box
+    definitionId: box
+    definition: {fileID: 11400000, guid: 140a965d2a888724f9ff7835ad1ae69c, type: 2}
+    tileCoord: {x: 19, y: 9}
+    code: awGu6eR6044Oe93S
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="awGu6eR6044Oe93S"
+  - type: box
+    id: mcrate2
+    definitionId: mcrate2
+    definition: {fileID: 11400000, guid: c665fca677fbff349ac0c8235e61089b, type: 2}
+    tileCoord: {x: 22, y: 12}
+    code: C5gt0OznWGecNitT
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="C5gt0OznWGecNitT"
+  - type: box
+    id: bigbox
+    definitionId: bigbox
+    definition: {fileID: 11400000, guid: 3c4761fe5ddb00545a1db7150c27fad8, type: 2}
+    tileCoord: {x: 19, y: 11}
+    code: nRgZizgG7IOQXKwn
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="nRgZizgG7IOQXKwn"
+  spawnPoints:
+  - tileCoord: {x: 2, y: 15}
+    type: 0
+    unitId: 
+    facingDirection: 1
+  environment:
+    musicTrack: music_base
+    colorScheme: 
+    backgroundColorScheme: 
+    backgroundWall: tBackWall
+    backgroundForm: 0
+    transparentBackground: 0
+    hasSky: 0
+    borderType: 1
+    noBlackReveal: 0
+    visibilityMultiplier: 1
+    lightsOn: 1
+    returnsToDarkness: 0
+    waterLevel: 100
+    waterType: 0
+    waterOpacity: 0
+    waterDamage: 0
+    waterDamageType: 7
+    radiation: 0
+    radiationDamage: 0
+    darkness: -50

@@ -1,0 +1,61 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e94da64c3527f604c86bdaf09d32867f, type: 3}
+  m_Name: vissmg9
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponVisualDefinition
+  symbolName: vissmg9
+  weaponId: smg9
+  sourceSymbolId: 1479
+  frames:
+  - {fileID: -985113564820616005, guid: ce5b47cda88878440a246b0143ec5030, type: 3}
+  - {fileID: 202404987911244711, guid: 1336309e1be888149a5a12a92cc716a2, type: 3}
+  - {fileID: -8764597738744933808, guid: b3b4748cec1b87e4fa8a34011752e164, type: 3}
+  - {fileID: 2805633920695696223, guid: 6c7cebe094ce26f42af5d6e09778ea7c, type: 3}
+  - {fileID: -7723724024098242069, guid: 61942402657cbe442a4ef363ea102e2d, type: 3}
+  - {fileID: 1296198028869233028, guid: 1e858349551a15b4dab97799099c31bc, type: 3}
+  - {fileID: 4243038468684218715, guid: 916c9ed12cdde1340a72c04c94e7fab3, type: 3}
+  - {fileID: 5760737632179803129, guid: f9ae92bd34107d54c8379d4b3a5b3bbd, type: 3}
+  - {fileID: 178528315620593539, guid: 95fb00daa69a3aa46ad4b080cba18c7c, type: 3}
+  - {fileID: 3626981666587773793, guid: 7eca8ad1f397a5b48b135ef45347b039, type: 3}
+  - {fileID: -39957892216141377, guid: 8cafaf4ef8854014f813958a5344d1d4, type: 3}
+  - {fileID: 905864831991595785, guid: bad30f9dd8cffa04db7028e32137db1c, type: 3}
+  - {fileID: -378122100048681540, guid: f0d87e395e90a0d418d9bdb863746b87, type: 3}
+  - {fileID: -2983719998795993426, guid: 04f2a250a6150bc428fb79b56bad4287, type: 3}
+  - {fileID: -3545135326624840846, guid: dc1a15df17ccfe146b74ec601c371c36, type: 3}
+  - {fileID: -3378509263682496928, guid: ebcd79401cd89e34388eadda75d9875c, type: 3}
+  - {fileID: -7571332395713996475, guid: ad6679275340e72429d5e87c0caf6627, type: 3}
+  - {fileID: -7343408912986953008, guid: 49292eb71da0d644eb4a06042fff4fde, type: 3}
+  - {fileID: 212381734724294192, guid: 4302780feb09ec8448f3fa2483771cc9, type: 3}
+  - {fileID: -3269660356630656930, guid: 707f3a8fc8ff2014297dbb1803ec269d, type: 3}
+  - {fileID: -3448757404833851647, guid: af647704ede8d014688f362a932b0b5c, type: 3}
+  - {fileID: -3071011852523773315, guid: 284a26b6e089c59448e1655b3ed10c63, type: 3}
+  - {fileID: 8733314447243124160, guid: 4678ae13e3c4d624eb8d3809bb279869, type: 3}
+  - {fileID: -5334879187219241648, guid: 6f7891f4a08327741a9e8223377af2da, type: 3}
+  - {fileID: 3156778366736209615, guid: 768dfa9e8643e4f46a976fdf51cb0b5d, type: 3}
+  - {fileID: 5850770447481293253, guid: 7bef611b86bedaa45bec556ba56ffec0, type: 3}
+  - {fileID: 2118702227863695699, guid: 3655f085e9673194d9e5677b539dbe95, type: 3}
+  - {fileID: 3135142947305115967, guid: 162f83469d752a24f9b8bbf9999314d0, type: 3}
+  - {fileID: 5262390925805910272, guid: 54d5a84855cc5d445a864459180eeb6d, type: 3}
+  - {fileID: -2020930894118476123, guid: 1f462b2ef9ef910439681c5a39f894f1, type: 3}
+  pixelsPerUnit: 100
+  idleFrame: 0
+  shootFrameStart: 1
+  shootFrameCount: 8
+  reloadFrameStart: 9
+  reloadFrameCount: 21
+  prepFrameStart: -1
+  prepFrameCount: 0
+  readyFrame: -1
+  muzzleLocalOffset: {x: 0, y: 0}
+  muzzleFlareId: 
+  hasShellEject: 0
+  shineRadius: 0

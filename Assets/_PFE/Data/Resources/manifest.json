@@ -1,0 +1,14 @@
+{
+    "modId": "pfe.base",
+    "displayName": "PFE Base Game",
+    "version": "0.1.0",
+    "author": "PFE",
+    "description": "Project Fallout Equestria — base game content",
+    "targetGameVersion": "0.1.0",
+    "contentSchemaVersion": 1,
+    "dependencies": [],
+    "loadOrder": 0,
+    "isCosmeticOnly": false,
+    "overrides": [],
+    "multiplayerPolicy": 0
+}

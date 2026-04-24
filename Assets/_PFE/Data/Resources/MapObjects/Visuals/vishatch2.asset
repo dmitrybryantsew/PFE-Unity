@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 52445f94c96c4150ac0fe58bc05f53cc, type: 3}
+  m_Name: vishatch2
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.MapObjectVisualDefinition
+  visualId: vishatch2
+  objectId: hatch2
+  linkedObjectIds:
+  - hatch2
+  sourceFolderName: DefineSprite_371_vishatch2
+  sourceSymbolId: 371
+  frames:
+  - {fileID: 21300000, guid: a0c69fc7d77951f4bb655beae524be71, type: 3}
+  - {fileID: 21300000, guid: b60b24cf0c6da9b44817f4c59bbb7dbc, type: 3}
+  - {fileID: 21300000, guid: fea488d81eae4e14cb4b1f1113be5287, type: 3}
+  pixelsPerUnit: 100
+  pixelSize: {x: 80, y: 48}
+  pivot: {x: 0.5, y: 0.5}
+  localOffset: {x: 0, y: 0}
+  sortingOrder: 1
+  wallMounted: 1

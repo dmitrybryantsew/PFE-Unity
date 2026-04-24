@@ -1,0 +1,38 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e94da64c3527f604c86bdaf09d32867f, type: 3}
+  m_Name: viseclipse
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponVisualDefinition
+  symbolName: viseclipse
+  weaponId: eclipse
+  sourceSymbolId: 1361
+  frames:
+  - {fileID: -985113564820616005, guid: d3ec8cadaa0ff6848bc7a90a6daa7243, type: 3}
+  - {fileID: 202404987911244711, guid: f5c4c42e2a041d54ba62db7303fe07fc, type: 3}
+  - {fileID: -8764597738744933808, guid: f914ee65873421946a4c645d90d7a50f, type: 3}
+  - {fileID: 2805633920695696223, guid: 6bf34f5d97fd9ab478b71f9479c55f12, type: 3}
+  - {fileID: -7723724024098242069, guid: 05f65b8cca5ed744d81425428b3447fb, type: 3}
+  - {fileID: 1296198028869233028, guid: 982c67426ba3c204cb858775a2f17c78, type: 3}
+  - {fileID: 4243038468684218715, guid: 50296bcff784f4649b67f7b463fc2967, type: 3}
+  pixelsPerUnit: 100
+  idleFrame: 0
+  shootFrameStart: 1
+  shootFrameCount: 6
+  reloadFrameStart: -1
+  reloadFrameCount: 0
+  prepFrameStart: -1
+  prepFrameCount: 0
+  readyFrame: -1
+  muzzleLocalOffset: {x: 0, y: 0}
+  muzzleFlareId: 
+  hasShellEject: 0
+  shineRadius: 0

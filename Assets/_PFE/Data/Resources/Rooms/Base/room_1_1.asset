@@ -1,0 +1,187 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
+  m_Name: room_1_1
+  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  id: room_1_1
+  type: pass
+  fixedPosition: {x: 1, y: 1, z: 0}
+  difficultyLevel: 0
+  maxInstances: 2
+  allowRandom: 1
+  backgroundRoomId: 
+  backgroundDecorations:
+  - id: lgreen
+    tileCoord: {x: 23, y: 14}
+  - id: wires1
+    tileCoord: {x: 15, y: 14}
+  - id: wires1
+    tileCoord: {x: 10, y: 14}
+  - id: rad
+    tileCoord: {x: 43, y: 13}
+  doorQuality: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+  tileDataString: "D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D\nD.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D._._._._._._\nD.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D._._._._._._\nD.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D._._._\u0410.L.L.L\nD.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D._._._\u0410.L.L.L\nD.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D._._._\u0410._.L.D\nD.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D._._._\u0410._.L.D\nD.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D._._._\u0410._.L.D\nL.L._._._._._._._._.D.D.D.D.D.D._._._._._._._._._._._._._._._._._._._._._._.D.D.D.D._._._\u0410._.L.D\nL.L._._._._._._._._.D.D.D.D.D.D._._._._._._._._._._._._._._._._._._._._._._.D.D.D.D._-._-._-._-.L.D\nL.L._._._._._._._._.D.D.D.D.D.D._._._._._._._._._._._._._._._._._._._._._._.D.D.D.D._._._._.L.D\nL.L._._._._._._._._.D.D.D.D.D.D._._._._._._._._._._._._._._._._._._._._._._.D.D.D.D._._._._.L.D\nL.L.L.L.L._-._-._-._-._-.D.D.D.D.D.D._._._._._._._._._._._._._._._._._._._._._._.D.D.D.D._-._-._-._-.L.D\nL.L._._._._._._._._.D.D.D.D.D.D._._._._._._._._._._._._._._._._._._._._._._.D.D.D.D._._._._.L.D\nL.L._._._._._._._._._._S._S._S._S._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.L.D\nL.L._._._._._._._._._._S._S._S._S._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.L.D\nL.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.D\nD.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D\nD.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D\nD.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D\nD.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D\nD.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D\nD.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D\nD.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D\nD.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D"
+  objects:
+  - type: box
+    id: safe
+    definitionId: safe
+    definition: {fileID: 11400000, guid: 1933ef669b3b71743a5a42c553624f28, type: 2}
+    tileCoord: {x: 3, y: 15}
+    code: Q1dy5dISVMxQBOKr
+    uid: 
+    attributes:
+    - key: lock
+      value: 1
+    - key: mine
+      value: 1
+    items: []
+    scripts: []
+    parameters: code="Q1dy5dISVMxQBOKr" lock="1" mine="1"
+  - type: trap
+    id: radbarrel
+    definitionId: radbarrel
+    definition: {fileID: 11400000, guid: e4fbb8523fe77a7428d0bba20e9fbe47, type: 2}
+    tileCoord: {x: 24, y: 15}
+    code: XWOM0rLCStP30qS5
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="XWOM0rLCStP30qS5"
+  - type: trap
+    id: radbarrel
+    definitionId: radbarrel
+    definition: {fileID: 11400000, guid: e4fbb8523fe77a7428d0bba20e9fbe47, type: 2}
+    tileCoord: {x: 26, y: 15}
+    code: wCZoiaQIvyrcmI6A
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="wCZoiaQIvyrcmI6A"
+  - type: trap
+    id: radbarrel
+    definitionId: radbarrel
+    definition: {fileID: 11400000, guid: e4fbb8523fe77a7428d0bba20e9fbe47, type: 2}
+    tileCoord: {x: 28, y: 15}
+    code: rHZTgkTaOQkMJyR7
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="rHZTgkTaOQkMJyR7"
+  - type: box
+    id: medbox
+    definitionId: medbox
+    definition: {fileID: 11400000, guid: 6b564a33698b5c94e86115e584042907, type: 2}
+    tileCoord: {x: 3, y: 10}
+    code: CvX1eXm6TF9d5LsC
+    uid: 
+    attributes:
+    - key: cont
+      value: 
+    items:
+    - id: antiradin
+      attributes:
+      - key: id
+        value: antiradin
+    - id: antiradin
+      attributes:
+      - key: id
+        value: antiradin
+    scripts: []
+    parameters: code="CvX1eXm6TF9d5LsC"
+  - type: door
+    id: door1
+    definitionId: door1
+    definition: {fileID: 11400000, guid: dbf42975fe466da45b49d0ea2b5bd07d, type: 2}
+    tileCoord: {x: 40, y: 15}
+    code: lzwONl55vYvc4yWJ
+    uid: 
+    attributes:
+    - key: open
+      value: 1
+    items: []
+    scripts: []
+    parameters: code="lzwONl55vYvc4yWJ" open="1"
+  - type: trap
+    id: radbarrel
+    definitionId: radbarrel
+    definition: {fileID: 11400000, guid: e4fbb8523fe77a7428d0bba20e9fbe47, type: 2}
+    tileCoord: {x: 30, y: 15}
+    code: S8N6lI96bdc5Vf62
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="S8N6lI96bdc5Vf62"
+  - type: box
+    id: wallcab
+    definitionId: wallcab
+    definition: {fileID: 11400000, guid: a21d8481ed6e6b745a1044e2b1ef93d6, type: 2}
+    tileCoord: {x: 5, y: 10}
+    code: TI5gHx1RIlznnNf2
+    uid: 
+    attributes: []
+    items:
+    - id: col1
+      attributes:
+      - key: id
+        value: col1
+      - key: imp
+        value: 1
+    scripts:
+    - eventName: 
+      actions:
+      - act: mess
+        targ: 
+        val: trAntirad
+    parameters: code="TI5gHx1RIlznnNf2"
+  - type: area
+    id: area
+    definitionId: area
+    definition: {fileID: 11400000, guid: 62760a6826b295d4bb7380b3dc6e5dc0, type: 2}
+    tileCoord: {x: 42, y: 15}
+    code: eSWv0duGTCg3xM9m
+    uid: 
+    attributes:
+    - key: mess
+      value: trRad
+    items: []
+    scripts: []
+    parameters: code="eSWv0duGTCg3xM9m" mess="trRad"
+  spawnPoints:
+  - tileCoord: {x: 2, y: 15}
+    type: 0
+    unitId: 
+    facingDirection: 1
+  environment:
+    musicTrack: music_begin
+    colorScheme: 
+    backgroundColorScheme: 
+    backgroundWall: tMossy
+    backgroundForm: 0
+    transparentBackground: 0
+    hasSky: 0
+    borderType: 1
+    noBlackReveal: 0
+    visibilityMultiplier: 1
+    lightsOn: 0
+    returnsToDarkness: 0
+    waterLevel: 100
+    waterType: 0
+    waterOpacity: 0
+    waterDamage: 0
+    waterDamageType: 7
+    radiation: 0.5
+    radiationDamage: 0
+    darkness: 0

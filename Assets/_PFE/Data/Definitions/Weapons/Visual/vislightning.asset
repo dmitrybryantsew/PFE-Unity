@@ -1,0 +1,38 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e94da64c3527f604c86bdaf09d32867f, type: 3}
+  m_Name: vislightning
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponVisualDefinition
+  symbolName: vislightning
+  weaponId: lightning
+  sourceSymbolId: 1358
+  frames:
+  - {fileID: -985113564820616005, guid: 50814fd4e5fed7a45bdc800571912195, type: 3}
+  - {fileID: 202404987911244711, guid: 4349e464d32f6634f9d6c585e070639d, type: 3}
+  - {fileID: -8764597738744933808, guid: 9bc668e04b0278840953da806cf8697e, type: 3}
+  - {fileID: 2805633920695696223, guid: 7054f72a8ccdb944f9474401badc7421, type: 3}
+  - {fileID: -7723724024098242069, guid: d2b0010d97f2a4a48955b6941f61711a, type: 3}
+  - {fileID: 1296198028869233028, guid: 05e840366e95f8f4399b54f4b89ca1ff, type: 3}
+  - {fileID: 4243038468684218715, guid: c7ddb644202f7244ca39143c82b34eb8, type: 3}
+  pixelsPerUnit: 100
+  idleFrame: 0
+  shootFrameStart: 1
+  shootFrameCount: 6
+  reloadFrameStart: -1
+  reloadFrameCount: 0
+  prepFrameStart: -1
+  prepFrameCount: 0
+  readyFrame: -1
+  muzzleLocalOffset: {x: 0, y: 0}
+  muzzleFlareId: 
+  hasShellEject: 0
+  shineRadius: 0

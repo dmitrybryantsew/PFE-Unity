@@ -1,0 +1,99 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
+  m_Name: room_6_2
+  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  id: room_6_2
+  type: pass
+  fixedPosition: {x: 6, y: 2, z: 0}
+  difficultyLevel: 0
+  maxInstances: 2
+  allowRandom: 1
+  backgroundRoomId: 
+  backgroundDecorations:
+  - id: moss
+    tileCoord: {x: 17, y: 14}
+  - id: moss
+    tileCoord: {x: 27, y: 14}
+  doorQuality: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002000000020000000200000000000000
+  tileDataString: "H.H.H.H.H.H.H.H.H.H.H.H.H.H.D._._._._._._._._._._._._._._._._._._._._._._\u0410.D.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.D._._._._._._._._._._._._._._._._._._._._._._\u0410.D.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.D._._._._._._._._._._._._._._._._._._._._._._\u0410.D.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.D._._._._._._._._._._._._._._._._._._._._._._\u0410.D.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.D._._._._._._._._._._._._._._._._._._._._._._\u0410.D.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.D._._._._._._._._._._._._._._._._._._._._._._\u0410.D.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.D._._._._._._._._._._._._._._._._._._._._._._\u0410.D.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.D._._._._._._._._._._._._._._._._._._._._._._.D.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.D._._._._._._._._._._._._._._._._._._._._._._.D.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H._._._._._._._._._._._._._._._._._._._._.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H._._._._._._._._._._._._._._._._._._._._.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H._._._._._._._._._._._._._._._._._._._.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H._._._._._._._._._._._._._._._._._._.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H._._._._._._._._._._._._._._._._._._.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H._._._._._._._._._._._._._._._._.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H._._._._._._._._._._._._._._._.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H"
+  objects:
+  - type: trap
+    id: radbarrel
+    definitionId: radbarrel
+    definition: {fileID: 11400000, guid: e4fbb8523fe77a7428d0bba20e9fbe47, type: 2}
+    tileCoord: {x: 32, y: 15}
+    code: jCMrtemPgU9Cioup
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="jCMrtemPgU9Cioup"
+  - type: trap
+    id: radbarrel
+    definitionId: radbarrel
+    definition: {fileID: 11400000, guid: e4fbb8523fe77a7428d0bba20e9fbe47, type: 2}
+    tileCoord: {x: 26, y: 15}
+    code: uoLcBIWkXBCUoU2t
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="uoLcBIWkXBCUoU2t"
+  - type: trap
+    id: radbarrel
+    definitionId: radbarrel
+    definition: {fileID: 11400000, guid: e4fbb8523fe77a7428d0bba20e9fbe47, type: 2}
+    tileCoord: {x: 28, y: 15}
+    code: wsihdGrmYIX5YEwe
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="wsihdGrmYIX5YEwe"
+  - type: trap
+    id: radbarrel
+    definitionId: radbarrel
+    definition: {fileID: 11400000, guid: e4fbb8523fe77a7428d0bba20e9fbe47, type: 2}
+    tileCoord: {x: 22, y: 15}
+    code: A6Kh9cqfNMlEKsKG
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="A6Kh9cqfNMlEKsKG"
+  spawnPoints:
+  - tileCoord: {x: 2, y: 15}
+    type: 0
+    unitId: 
+    facingDirection: 1
+  environment:
+    musicTrack: music_surf
+    colorScheme: blue
+    backgroundColorScheme: 
+    backgroundWall: tDirt2
+    backgroundForm: 0
+    transparentBackground: 0
+    hasSky: 0
+    borderType: 1
+    noBlackReveal: 0
+    visibilityMultiplier: 10
+    lightsOn: 0
+    returnsToDarkness: 0
+    waterLevel: 13
+    waterType: 1
+    waterOpacity: 0
+    waterDamage: 0
+    waterDamageType: 7
+    radiation: 0
+    radiationDamage: 0
+    darkness: 0

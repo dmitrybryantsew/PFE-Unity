@@ -1,0 +1,66 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b6346ec5ad241bcb662491c6de14d7a, type: 3}
+  m_Name: himlab
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.MapObjectDefinition
+  objectId: himlab
+  displayName: "\u041B\u0430\u0431\u043E\u0440\u0430\u0442\u043E\u0440\u0438\u044F"
+  legacyTip: box
+  family: 4
+  defaultPlacementType: box
+  size: 2
+  width: 2
+  wallMounted: 0
+  blocksMovement: 0
+  blocksVisibility: 0
+  isInteractive: 1
+  isSaveRelevant: 1
+  autoClose: 0
+  containerId: 
+  interactionMode: 2
+  allAct: lab
+  allId: 
+  hitPoints: 0
+  threshold: 0
+  shield: 0
+  materialId: 0
+  physicalCapability: 6
+  mass: 0
+  massMultiplier: 0.5
+  buoyancyFactor: 0
+  defaultVisualId: vishimlab
+  visual: {fileID: 11400000, guid: ea7ee8abc2815df4893c9606b774d1df, type: 2}
+  legacyAttributes:
+  - key: ed
+    value: 5
+  - key: ico
+    value: 
+  - key: inter
+    value: 2
+  - key: tip
+    value: box
+  - key: massaMult
+    value: 0.5
+  - key: allact
+    value: lab
+  - key: lurk
+    value: 3
+  - key: n
+    value: "\u041B\u0430\u0431\u043E\u0440\u0430\u0442\u043E\u0440\u0438\u044F"
+  - key: size
+    value: 2
+  - key: wid
+    value: 2
+  - key: scy
+    value: 33
+  - key: fall
+    value: "fall_wood_\u044B\u044C\u0444\u0434\u0434"

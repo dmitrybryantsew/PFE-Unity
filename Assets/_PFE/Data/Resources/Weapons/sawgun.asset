@@ -1,0 +1,79 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d6ba3adb0716e844684560a96adb6927, type: 3}
+  m_Name: sawgun
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
+  weaponId: sawgun
+  weaponType: 3
+  skillLevel: 3
+  weaponLevel: 3
+  baseDamage: 45
+  rapid: 10
+  precision: 0
+  deviation: 5
+  armorPenetration: 0
+  knockback: 16
+  critChance: 0.15
+  critMultiplier: 1.5
+  projectilesPerShot: 1
+  projectileSpeed: 150
+  burstCount: 0
+  explRadius: 0
+  explosionDamage: 0
+  magazineSize: 1
+  reloadTime: 30
+  ammoType: saw
+  maxDurability: 100
+  prepFrames: 0
+  ammoPerShot: 1
+  rechargeFrames: 0
+  recoilFrames: 0
+  recoilLift: 0
+  magicPoolCost: 0
+  manaHealthCost: 0
+  throwTip: 0
+  fuseFrames: 75
+  radio: 0
+  meleeType: 0
+  meleeDlina: 100
+  meleeMinDlina: 100
+  meleeCombo: 0
+  meleePowerAttack: 0
+  projectileArchetype: 4
+  damageType: 1
+  bulletGravity: 0
+  bulletAccel: 0
+  bulletFlame: 0
+  bulletNavod: 0
+  isPhysBullet: 1
+  vbul: saw
+  projectileVisual: {fileID: 11400000, guid: f2e9a47b9d27fb74fb45ba74a90556d5, type: 2}
+  springMode: 0
+  bulletAnimated: 0
+  hasShell: 0
+  shineRadius: 100
+  decalType: 5
+  destroyTiles: 40
+  piercing: 0.7
+  manaCost: 0
+  alicornOnly: 0
+  weaponVisual: {fileID: 11400000, guid: df05191c59b7bf149807ddd2b4e06c45, type: 2}
+  visualOverrideId: 
+  muzzleFlareId: 
+  weaponSprite: 
+  soundShoot: sawgun_s
+  soundReload: 
+  soundHit: 
+  soundPrep: 
+  soundPrepT1: 0
+  soundPrepT2: 0
+  noiseRadius: 700

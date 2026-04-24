@@ -1,0 +1,47 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 52445f94c96c4150ac0fe58bc05f53cc, type: 3}
+  m_Name: visinbasedoor
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.MapObjectVisualDefinition
+  visualId: visinbasedoor
+  objectId: inbasedoor
+  linkedObjectIds:
+  - inbasedoor
+  sourceFolderName: DefineSprite_362_visinbasedoor
+  sourceSymbolId: 362
+  frames:
+  - {fileID: 21300000, guid: f7f04ab895c0a4e4abbd95ee0cb85b58, type: 3}
+  - {fileID: 21300000, guid: 7f1eb3e8800e5e8479c115022bdb4086, type: 3}
+  - {fileID: 21300000, guid: 8761be5b3a175bc42a422adf19a0a687, type: 3}
+  - {fileID: 21300000, guid: 0f0347b4af4ce1f42b01681dac23a678, type: 3}
+  - {fileID: 21300000, guid: fc1c261a47da7b847bf54b50a3e25ac2, type: 3}
+  - {fileID: 21300000, guid: 70c14f8a7fe47344da97c7f771b87305, type: 3}
+  - {fileID: 21300000, guid: bc57e42573366bc4cb25beb060df9cdf, type: 3}
+  - {fileID: 21300000, guid: b90b74c05915edb47b11e43b80ba1502, type: 3}
+  - {fileID: 21300000, guid: b964dd58c04c14f4083952b1ceb7ecab, type: 3}
+  - {fileID: 21300000, guid: 5cbf363d185a5734e8e987f5776c8b2a, type: 3}
+  - {fileID: 21300000, guid: a1fd2661115435c4e842d19ce733faae, type: 3}
+  - {fileID: 21300000, guid: 3e1a6fc7bf74e03438f738e9ed1f93f5, type: 3}
+  - {fileID: 21300000, guid: e55094962c9792d4baef51f36b418d11, type: 3}
+  - {fileID: 21300000, guid: 16c5fb14f0f843a479854149479ae2f0, type: 3}
+  - {fileID: 21300000, guid: 5a1821b91a0ac4240b8b407b86d56c3a, type: 3}
+  - {fileID: 21300000, guid: 390229812756ca640abbf89544e66173, type: 3}
+  - {fileID: 21300000, guid: ed454c2e0867bbc4cbf4c948452402e9, type: 3}
+  - {fileID: 21300000, guid: be676fdb73201ec4a9367f1c087c24ff, type: 3}
+  - {fileID: 21300000, guid: b0c1beac8d5b6364db74f3de278b9555, type: 3}
+  - {fileID: 21300000, guid: 82d2be60359df6d40a37c0f4beae1d06, type: 3}
+  pixelsPerUnit: 100
+  pixelSize: {x: 142, y: 122}
+  pivot: {x: 0.5, y: 0.5}
+  localOffset: {x: 0, y: 0}
+  sortingOrder: 1
+  wallMounted: 1

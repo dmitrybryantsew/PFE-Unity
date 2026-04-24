@@ -1,0 +1,100 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b04f0dbf704ca3142b600863b7fd7d08, type: 3}
+  m_Name: TileAssetDatabase
+  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.Rendering.TileAssetDatabase
+  tileSprites:
+  - tileId: tile_1
+    sprite: {fileID: 21300000, guid: bc0be587cbf080f488c061ade046f3e5, type: 3}
+    physicsType: 0
+    material: 0
+  - tileId: tile_2
+    sprite: {fileID: 21300000, guid: 7b197d136791042468cc504942574944, type: 3}
+    physicsType: 0
+    material: 0
+  - tileId: tile_3
+    sprite: {fileID: 21300000, guid: 977f619d0df60ca40a23a8f1a14b18a4, type: 3}
+    physicsType: 0
+    material: 0
+  - tileId: tile_4
+    sprite: {fileID: 21300000, guid: c4ecc618c54ef884a9fbbb1b53b8b7be, type: 3}
+    physicsType: 0
+    material: 0
+  - tileId: tile_5
+    sprite: {fileID: 21300000, guid: c4495137abe405547abfe7c9775f73f7, type: 3}
+    physicsType: 0
+    material: 0
+  - tileId: tile_6
+    sprite: {fileID: 21300000, guid: 6240774e62d95214bb9386c0cf6fdce5, type: 3}
+    physicsType: 0
+    material: 0
+  - tileId: tile_7
+    sprite: {fileID: 21300000, guid: 79d5ad6851a915f42940ca7a74b4dadb, type: 3}
+    physicsType: 0
+    material: 0
+  - tileId: tile_8
+    sprite: {fileID: 21300000, guid: 8b44616d23f222b458ab7f9d18c354dd, type: 3}
+    physicsType: 0
+    material: 0
+  - tileId: tile_9
+    sprite: {fileID: 21300000, guid: 57b0741e434e3a74d9cdca34fbf6432b, type: 3}
+    physicsType: 0
+    material: 0
+  - tileId: tile_10
+    sprite: {fileID: 21300000, guid: 75db45d4cddbd86458d53b3803cdcdc6, type: 3}
+    physicsType: 0
+    material: 0
+  - tileId: tile_11
+    sprite: {fileID: 21300000, guid: 9678450b523584c4dac022b959b0d91f, type: 3}
+    physicsType: 0
+    material: 0
+  - tileId: tile_12
+    sprite: {fileID: 21300000, guid: f91826cf19d11f44a86a2ac6be7cfc2d, type: 3}
+    physicsType: 0
+    material: 0
+  - tileId: tile_13
+    sprite: {fileID: 21300000, guid: 7c1ae2e30e5d32743ba5ed7bbd7052e6, type: 3}
+    physicsType: 0
+    material: 0
+  - tileId: tile_14
+    sprite: {fileID: 21300000, guid: 0b59629901181f94385e1f6ce9c61f0c, type: 3}
+    physicsType: 0
+    material: 0
+  - tileId: tile_15
+    sprite: {fileID: 21300000, guid: 33eaf27357df9a34d996adae97f401e7, type: 3}
+    physicsType: 0
+    material: 0
+  - tileId: tile_16
+    sprite: {fileID: 21300000, guid: b107e12eb334f3e43a4fdbd5cf8eb122, type: 3}
+    physicsType: 0
+    material: 0
+  defaultAirSprite: {fileID: 8093865513381670207, guid: 387eb678c837e524eb186e43bf59eb86, type: 3}
+  defaultWallSprite: {fileID: -102410067342046082, guid: 31f63712fde39e24b9971f89d8bdad15, type: 3}
+  defaultPlatformSprite: {fileID: -717497621811729582, guid: af62e2cf46ea40646bdea8bcc66a82df, type: 3}
+  defaultStairSprite: {fileID: -1992922203932134839, guid: 3136b30b129357b4093a645df4f7a903, type: 3}
+  allSprites:
+  - {fileID: 21300000, guid: bc0be587cbf080f488c061ade046f3e5, type: 3}
+  - {fileID: 21300000, guid: 7b197d136791042468cc504942574944, type: 3}
+  - {fileID: 21300000, guid: 977f619d0df60ca40a23a8f1a14b18a4, type: 3}
+  - {fileID: 21300000, guid: c4ecc618c54ef884a9fbbb1b53b8b7be, type: 3}
+  - {fileID: 21300000, guid: c4495137abe405547abfe7c9775f73f7, type: 3}
+  - {fileID: 21300000, guid: 6240774e62d95214bb9386c0cf6fdce5, type: 3}
+  - {fileID: 21300000, guid: 79d5ad6851a915f42940ca7a74b4dadb, type: 3}
+  - {fileID: 21300000, guid: 8b44616d23f222b458ab7f9d18c354dd, type: 3}
+  - {fileID: 21300000, guid: 57b0741e434e3a74d9cdca34fbf6432b, type: 3}
+  - {fileID: 21300000, guid: 75db45d4cddbd86458d53b3803cdcdc6, type: 3}
+  - {fileID: 21300000, guid: 9678450b523584c4dac022b959b0d91f, type: 3}
+  - {fileID: 21300000, guid: f91826cf19d11f44a86a2ac6be7cfc2d, type: 3}
+  - {fileID: 21300000, guid: 7c1ae2e30e5d32743ba5ed7bbd7052e6, type: 3}
+  - {fileID: 21300000, guid: 0b59629901181f94385e1f6ce9c61f0c, type: 3}
+  - {fileID: 21300000, guid: 33eaf27357df9a34d996adae97f401e7, type: 3}
+  - {fileID: 21300000, guid: b107e12eb334f3e43a4fdbd5cf8eb122, type: 3}

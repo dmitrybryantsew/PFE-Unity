@@ -1,0 +1,272 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 00000000000000000000000000000004, type: 3}
+  m_Name: necro
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.EffectDefinition
+  effectId: necro
+  type: 0
+  durationTicks: 0
+  isChem: 0
+  isBadComedown: 0
+  value: 0
+  effects:
+  - skillId: allDamMult
+    value: 1.1
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: allDamMult
+    value: 1.1
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: allDamMult
+    value: 1.1
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: allDamMult
+    value: 1.1
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: teleMult
+    value: 2.2
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: throwDmana
+    value: 100
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: maxTeleMassa
+    value: 25
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: telePorog
+    value: 1.2
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: teleAccel
+    value: 2
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: teleSpeed
+    value: 8
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: unitLevitMult
+    value: 2.5
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: djumpdy
+    value: 6
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: telePower
+    value: 1
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: teleEnemy
+    value: 10
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: alicornRunMana
+    value: 1.6
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: alicornFlyMult
+    value: 1
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: meleeR
+    value: 100
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: meleeRun
+    value: 10
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: remine
+    value: 1
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: visiTrap
+    value: 1
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: recManaMin
+    value: 0
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: spellDown
+    value: 1
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: spellPower
+    value: 1
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: repair
+    value: 1
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: repairMult
+    value: 0.2
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: alicornSkin
+    value: 10
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: medic
+    value: 0
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: healMult
+    value: 0.4
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: alicornHeal
+    value: 0.5
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: lockPick
+    value: 0
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: unlockMaster
+    value: 0
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: alicornPortMana
+    value: 500
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: hacker
+    value: 0
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: hackerMaster
+    value: 0
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: alicornShitHP
+    value: 1000
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: sneak
+    value: 0
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: noiseRun
+    value: 300
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: critInvis
+    value: 0
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: signal
+    value: 1
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: sneakLurk
+    value: 2.5
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: alicornDexter
+    value: 0
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: barterLvl
+    value: 0
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: limitBuys
+    value: 1
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: barterMult
+    value: 1
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: alicornVulner
+    value: 0.7
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: skin
+    value: 0
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: allVulnerMult
+    value: 0
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: allDamMult
+    value: 0
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: allVulnerMult
+    value: 0
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: ableFly
+    value: 1
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: maxhp
+    value: 5
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: healMult
+    value: 2.5
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: allSpeedMult
+    value: 1.8
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: knocked
+    value: 0.1
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: allDamMult
+    value: 5
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: allPrecMult
+    value: 2
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: meleeR
+    value: 1.5
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: runForever
+    value: -1
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: shitArmor
+    value: 30
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: recManaMin
+    value: 2
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: allDManaMult
+    value: 0.75
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: pipEmpVulner
+    value: 0
+    isMultiplier: 0
+    isWeaponSkill: 0
+  afterEffectId: 
+  displayName: NECRO
+  displayValue: 

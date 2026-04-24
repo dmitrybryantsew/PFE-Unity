@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e94da64c3527f604c86bdaf09d32867f, type: 3}
+  m_Name: vistelebul
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponVisualDefinition
+  symbolName: vistelebul
+  weaponId: telebul
+  sourceSymbolId: 1338
+  frames:
+  - {fileID: -985113564820616005, guid: 061ecee471e96c44c9950f811aa8159b, type: 3}
+  - {fileID: 202404987911244711, guid: aee25756f4cdbd440a19efa11ea78071, type: 3}
+  - {fileID: -8764597738744933808, guid: 2aa4520baf8131a4eac04162c3fc34ea, type: 3}
+  - {fileID: 2805633920695696223, guid: b21f867526848044987000bd7c6924a5, type: 3}
+  - {fileID: -7723724024098242069, guid: 47a8bc55061ff9841891676fd4c9d6ed, type: 3}
+  pixelsPerUnit: 100
+  idleFrame: 0
+  shootFrameStart: 1
+  shootFrameCount: 4
+  reloadFrameStart: -1
+  reloadFrameCount: 0
+  prepFrameStart: -1
+  prepFrameCount: 0
+  readyFrame: -1
+  muzzleLocalOffset: {x: 0, y: 0}
+  muzzleFlareId: 
+  hasShellEject: 0
+  shineRadius: 0

@@ -1,0 +1,60 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b6346ec5ad241bcb662491c6de14d7a, type: 3}
+  m_Name: vault
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.MapObjectDefinition
+  objectId: vault
+  displayName: "\u0425\u0440\u0430\u043D\u0438\u043B\u0438\u0449\u0435"
+  legacyTip: box
+  family: 4
+  defaultPlacementType: box
+  size: 2
+  width: 1
+  wallMounted: 1
+  blocksMovement: 0
+  blocksVisibility: 0
+  isInteractive: 1
+  isSaveRelevant: 1
+  autoClose: 0
+  containerId: 
+  interactionMode: 2
+  allAct: vault
+  allId: 
+  hitPoints: 0
+  threshold: 0
+  shield: 0
+  materialId: 0
+  physicalCapability: 2
+  mass: 0
+  massMultiplier: 1
+  buoyancyFactor: 0
+  defaultVisualId: visvault
+  visual: {fileID: 11400000, guid: 35b46b9fdcd0d8b4c96301800544ebf2, type: 2}
+  legacyAttributes:
+  - key: ed
+    value: 9
+  - key: ico
+    value: 
+  - key: inter
+    value: 2
+  - key: tip
+    value: box
+  - key: wall
+    value: 1
+  - key: allact
+    value: vault
+  - key: n
+    value: "\u0425\u0440\u0430\u043D\u0438\u043B\u0438\u0449\u0435"
+  - key: size
+    value: 2
+  - key: wid
+    value: 1

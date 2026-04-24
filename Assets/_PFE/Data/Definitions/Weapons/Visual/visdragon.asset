@@ -1,0 +1,38 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e94da64c3527f604c86bdaf09d32867f, type: 3}
+  m_Name: visdragon
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponVisualDefinition
+  symbolName: visdragon
+  weaponId: dragon
+  sourceSymbolId: 1375
+  frames:
+  - {fileID: -985113564820616005, guid: fb6ee0aa5e996ca4ab88bb8136ea0c06, type: 3}
+  - {fileID: 202404987911244711, guid: 4407ae4221471e34c9597e48c2c4d9ee, type: 3}
+  - {fileID: -8764597738744933808, guid: 59d08fc7e6aa83449b83e92924bdb215, type: 3}
+  - {fileID: 2805633920695696223, guid: 10e9ab8ad61a90745bd8518cd8d00003, type: 3}
+  - {fileID: -7723724024098242069, guid: 97093a893d32f0f408d10a62760771bf, type: 3}
+  - {fileID: 1296198028869233028, guid: 1dc6b5020d501fa45aaa138d927fec53, type: 3}
+  - {fileID: 4243038468684218715, guid: c0da74b5e00b3a747a2c868cf1f69f71, type: 3}
+  pixelsPerUnit: 100
+  idleFrame: 0
+  shootFrameStart: 1
+  shootFrameCount: 6
+  reloadFrameStart: -1
+  reloadFrameCount: 0
+  prepFrameStart: -1
+  prepFrameCount: 0
+  readyFrame: -1
+  muzzleLocalOffset: {x: 0, y: 0}
+  muzzleFlareId: 
+  hasShellEject: 0
+  shineRadius: 0

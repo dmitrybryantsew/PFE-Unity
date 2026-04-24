@@ -1,0 +1,58 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b6346ec5ad241bcb662491c6de14d7a, type: 3}
+  m_Name: damgren
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.MapObjectDefinition
+  objectId: damgren
+  displayName: "\u0421\u0432\u044F\u0437\u043A\u0430 \u0433\u0440\u0430\u043D\u0430\u0442"
+  legacyTip: unit
+  family: 1
+  defaultPlacementType: obj
+  size: 1
+  width: 1
+  wallMounted: 0
+  blocksMovement: 0
+  blocksVisibility: 0
+  isInteractive: 0
+  isSaveRelevant: 0
+  autoClose: 0
+  containerId: 
+  interactionMode: 
+  allAct: 
+  allId: 
+  hitPoints: 0
+  threshold: 0
+  shield: 0
+  materialId: 0
+  physicalCapability: 1
+  mass: 0
+  massMultiplier: 1
+  buoyancyFactor: 0
+  defaultVisualId: visdamgren
+  visual: {fileID: 11400000, guid: 29b553e07fc3d76489e858f5f5da9d70, type: 2}
+  legacyAttributes:
+  - key: ed
+    value: 18
+  - key: ico
+    value: mine
+  - key: tip
+    value: unit
+  - key: cl
+    value: UnitDamager
+  - key: cid
+    value: damgren
+  - key: n
+    value: "\u0421\u0432\u044F\u0437\u043A\u0430 \u0433\u0440\u0430\u043D\u0430\u0442"
+  - key: size
+    value: 1
+  - key: wid
+    value: 1

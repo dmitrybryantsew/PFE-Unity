@@ -1,0 +1,106 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
+  m_Name: room_3_1
+  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  id: room_3_1
+  type: pass
+  fixedPosition: {x: 3, y: 1, z: 0}
+  difficultyLevel: 0
+  maxInstances: 2
+  allowRandom: 1
+  backgroundRoomId: 
+  backgroundDecorations:
+  - id: pipe2
+    tileCoord: {x: 12, y: 17}
+  - id: pipe2
+    tileCoord: {x: 24, y: 17}
+  - id: pipe3
+    tileCoord: {x: 44, y: 23}
+  - id: pipe2
+    tileCoord: {x: 36, y: 17}
+  - id: pipe2
+    tileCoord: {x: 0, y: 17}
+  - id: pipe3
+    tileCoord: {x: 46, y: 23}
+  - id: stok2
+    tileCoord: {x: 33, y: 22}
+  - id: stok2
+    tileCoord: {x: 26, y: 22}
+  - id: stok2
+    tileCoord: {x: 19, y: 22}
+  - id: moss
+    tileCoord: {x: 15, y: 19}
+  - id: moss
+    tileCoord: {x: 29, y: 19}
+  doorQuality: 000000000000000000000000000000000000000002000000000000000000000002000000020000000200000000000000020000000200000002000000020000000200000002000000000000000000000000000000000000000000000000000000
+  tileDataString: "A._S._S._S\u0410.A.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O\nA._S._S._S\u0410.A.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O\nA._S._S._S\u0410.A.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O\nA._S._S._S\u0410.A.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O\nA._S._S._S\u0410.A.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O\nA._S._S._S\u0410.A.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O\nA._S._S._S\u0410.A.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O\nA._S._S._S\u0410.M.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O\nA._S._S._T\u0410.M.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O\nA._S._T._T\u0410.M.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O\nM._S._T._T.M.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O\nM._T._T._T.M.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O\nM._T._T._T.M.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O\nM._T._T._T.M.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O\nM._T._T._T.M.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O\nM._T._T._T.M.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O\nM._T._T._T.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M\nM._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T.M\nM._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T.M\nM._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T.M\nM.M.M.M.M.M.M.M.M.M.M.M.M.M.M._T._T._T.M.M.M.M._T._T._T.M.M.M.M._T._T._T.M.M.M.M._T._T._T.M.M.M.M.M._T._T._T.M\nO.O.O.O.O.O.O.O.O.O.O.O.O.O.M._T*._T*._T*.M.M.M.M._T*._T*._T*.M.M.M.M._T*._T*._T*.M.M.M.M._T*._T*._T*.M.O.O.O.M._T._T._T.M\nO.O.O.O.O.O.O.O.O.O.O.O.O.O.M._T*._T*._T*._T*._T*._T*._T*._T*._T*._T*._T*._T*._T*._T*._T*._T*._T*._T*._T*._T*._T*._T*._T*._T*.M.O.O.O.M._T._T._T.M\nO.O.O.O.O.O.O.O.O.O.O.O.O.O.M._T*._T*._T*._T*._T*._T*._T*._T*._T*._T*._T*._T*._T*._T*._T*._T*._T*._T*._T*._T*._T*._T*._T*._T*.M.O.O.O.M._T._T._T.M\nO.O.O.O.O.O.O.O.O.O.O.O.O.O.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.O.O.O.M._T._T._T.M"
+  objects:
+  - type: trap
+    id: radbarrel
+    definitionId: radbarrel
+    definition: {fileID: 11400000, guid: e4fbb8523fe77a7428d0bba20e9fbe47, type: 2}
+    tileCoord: {x: 26, y: 19}
+    code: Kn9EXtIokx1hIjbx
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="Kn9EXtIokx1hIjbx"
+  - type: trap
+    id: radbarrel
+    definitionId: radbarrel
+    definition: {fileID: 11400000, guid: e4fbb8523fe77a7428d0bba20e9fbe47, type: 2}
+    tileCoord: {x: 13, y: 19}
+    code: ZIgj6Z5Nf2KpT8fg
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="ZIgj6Z5Nf2KpT8fg"
+  - type: trap
+    id: radbarrel
+    definitionId: radbarrel
+    definition: {fileID: 11400000, guid: e4fbb8523fe77a7428d0bba20e9fbe47, type: 2}
+    tileCoord: {x: 27, y: 19}
+    code: bxWMUVjbqZGGYWFH
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="bxWMUVjbqZGGYWFH"
+  spawnPoints:
+  - tileCoord: {x: 2, y: 15}
+    type: 0
+    unitId: 
+    facingDirection: 1
+  environment:
+    musicTrack: music_red
+    colorScheme: black
+    backgroundColorScheme: 
+    backgroundWall: tMbase
+    backgroundForm: 0
+    transparentBackground: 0
+    hasSky: 0
+    borderType: 1
+    noBlackReveal: 0
+    visibilityMultiplier: 0.5
+    lightsOn: 0
+    returnsToDarkness: 0
+    waterLevel: 100
+    waterType: 1
+    waterOpacity: 0
+    waterDamage: 0
+    waterDamageType: 7
+    radiation: 0
+    radiationDamage: 0
+    darkness: 0

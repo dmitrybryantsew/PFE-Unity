@@ -1,0 +1,79 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 25410bcbf8bb37f4a9981ef42c0711f2, type: 3}
+  m_Name: CharacterStyleData
+  m_EditorClassIdentifier: PFE.Core::PFE.Character.CharacterStyleData
+  layers:
+  - partName: Mane
+    layerName: Primary
+    tintChannel: 1
+    sprites:
+    - {fileID: 21300000, guid: fe9b0256c380f1e4eab1173417f2c7f3, type: 3}
+    - {fileID: 21300000, guid: d1057b9938b385f4eb38642855418843, type: 3}
+    - {fileID: 21300000, guid: a7308c94036562f488fc0b214e8244f9, type: 3}
+    - {fileID: 21300000, guid: f6143f71dfff9b548ba2e37a20d383a2, type: 3}
+    - {fileID: 21300000, guid: 45e5e704c60336a4fa9287fc8a0a2d49, type: 3}
+  - partName: Mane
+    layerName: Secondary
+    tintChannel: 2
+    sprites:
+    - {fileID: 21300000, guid: 2b891857f3cd2944f9c74cbe901f4d2a, type: 3}
+    - {fileID: 21300000, guid: 3041b80026ae08e429fce495bc9e23be, type: 3}
+    - {fileID: 21300000, guid: e4e179086f984e54495039691ceb42f6, type: 3}
+    - {fileID: 21300000, guid: b54ccfa977ed2f645b8ad5365a3f2c98, type: 3}
+    - {fileID: 21300000, guid: 25a037aadfaf5e14c83ee4835f109464, type: 3}
+  - partName: Tail
+    layerName: Primary
+    tintChannel: 1
+    sprites:
+    - {fileID: 21300000, guid: 747cb0e1959bf194980d8650ae2d299a, type: 3}
+    - {fileID: 21300000, guid: 9cea703748e4a7b439d91302893dba2c, type: 3}
+    - {fileID: 21300000, guid: 8fe1b4caefea5794c9cb0869e84aa36b, type: 3}
+    - {fileID: 21300000, guid: 877a95bb63df20445bd4f738a0524377, type: 3}
+    - {fileID: 21300000, guid: 4331387ef6887ce46aa789f4766fd899, type: 3}
+  - partName: Tail
+    layerName: Secondary
+    tintChannel: 2
+    sprites:
+    - {fileID: 21300000, guid: fa84953a441d83c4ba22c1af95fe45ef, type: 3}
+    - {fileID: 21300000, guid: 39b6815e8b2932d4e8b7832195c936e1, type: 3}
+    - {fileID: 21300000, guid: d74582da80bb34045abfb67bc298672a, type: 3}
+    - {fileID: 21300000, guid: 0cb989a1752eafc49baa900f5a41a9e5, type: 3}
+    - {fileID: 21300000, guid: 0cdf70d9061b5cf4f887f018e1230a04, type: 3}
+  - partName: Forelock
+    layerName: Primary
+    tintChannel: 1
+    sprites:
+    - {fileID: 21300000, guid: d853cf3533cc9624ea8b1ab1ee67e8c4, type: 3}
+    - {fileID: 21300000, guid: 6efd494e3d591a04bb4b84451d6f6f85, type: 3}
+    - {fileID: 21300000, guid: 0ed11c2a48f81a0498777634f5214fa8, type: 3}
+    - {fileID: 21300000, guid: 19badb752ac57dc4ba9f5dfc5028a23c, type: 3}
+    - {fileID: 21300000, guid: df994918e1d35f341b6079faf3856414, type: 3}
+  - partName: Forelock
+    layerName: Secondary
+    tintChannel: 2
+    sprites:
+    - {fileID: 21300000, guid: 28b287382e7b1f542920c3bbb9fa7634, type: 3}
+    - {fileID: 21300000, guid: 6015844bad1eccc4998211c822117368, type: 3}
+    - {fileID: 21300000, guid: 45ed8fc82afeb2c4aa3d79532c873d12, type: 3}
+    - {fileID: 21300000, guid: 4a24704ed5e678f41a2892ad0eda0e2c, type: 3}
+    - {fileID: 21300000, guid: d37c9e13d2b0dde4e9f1f630966f5e66, type: 3}
+  - partName: Eye
+    layerName: Iris
+    tintChannel: 3
+    sprites:
+    - {fileID: 21300000, guid: f7bc6943abef91b488135d651586ae11, type: 3}
+    - {fileID: 21300000, guid: 03fc45b2e08eaae4390b172539a7b167, type: 3}
+    - {fileID: 21300000, guid: f1fe9445026f1f246bd62b0096256433, type: 3}
+    - {fileID: 21300000, guid: 794cbe7a390854548acb17798edf4e40, type: 3}
+    - {fileID: 21300000, guid: c66b25c31a6f1744fb30fff653d6097d, type: 3}
+    - {fileID: 21300000, guid: bf8e7e459880ec84f943fadd0e5a0dd0, type: 3}

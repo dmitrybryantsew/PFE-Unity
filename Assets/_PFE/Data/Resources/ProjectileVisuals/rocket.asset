@@ -1,0 +1,49 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8bc12b9b0b454a6599970a23f6fca3a8, type: 3}
+  m_Name: rocket
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.ProjectileVisualDefinition
+  visualId: rocket
+  sourceClassName: visbulrocket
+  sourceSymbolId: 4010
+  recommendedArchetype: 4
+  frames:
+  - {fileID: 21300000, guid: de813f5aa62b62b4e8dd247fdc750678, type: 3}
+  - {fileID: 21300000, guid: e1130501bf65ad5478ba777bcc3f9873, type: 3}
+  - {fileID: 21300000, guid: 9fda1a85e672ebd4a8b997c8e6552fb1, type: 3}
+  - {fileID: 21300000, guid: 7e3bcc11b1fc1af4891c3d953c4ff27b, type: 3}
+  - {fileID: 21300000, guid: 3b339e144c60adc4ebb00b26dde0b293, type: 3}
+  - {fileID: 21300000, guid: a67a5bccaeed82540a05fece6028a1ce, type: 3}
+  - {fileID: 21300000, guid: 9956b72f16d0215409fa3136c11323a4, type: 3}
+  - {fileID: 21300000, guid: bb27080be587a114e86a587670a445de, type: 3}
+  - {fileID: 21300000, guid: c772c0781edf2ca44978b3f39816bdb8, type: 3}
+  - {fileID: 21300000, guid: 668bae4e915671a448a2c636cd8646d5, type: 3}
+  - {fileID: 21300000, guid: 5eade228b1837eb4782651a0a8bf87e9, type: 3}
+  - {fileID: 21300000, guid: b863a40be2e31584fae7593d63ef54b3, type: 3}
+  - {fileID: 21300000, guid: 0781f1ab63c931d4daa5540b75233822, type: 3}
+  - {fileID: 21300000, guid: 94d67af41f8c6c34fb793578f1217b9b, type: 3}
+  - {fileID: 21300000, guid: 99cb75e98938fcd4087fc355508748a8, type: 3}
+  - {fileID: 21300000, guid: f3cb1948d0f739f4b8feddd9c3130c28, type: 3}
+  - {fileID: 21300000, guid: a9717957ab2c07248b5bf1e736e93221, type: 3}
+  - {fileID: 21300000, guid: 15779fe37ff85524a9883a61010f3c34, type: 3}
+  - {fileID: 21300000, guid: 948ee8d52348524428e192850304c5f6, type: 3}
+  - {fileID: 21300000, guid: 84733fef12a706f479e4fc69406701d5, type: 3}
+  - {fileID: 21300000, guid: 7d1fd8ce5712b0f42a14a9675ad78bd5, type: 3}
+  - {fileID: 21300000, guid: 39a06128a12fef4479bb64ea48a903d5, type: 3}
+  - {fileID: 21300000, guid: 7783b5e453c7b024a93973dab80f94d4, type: 3}
+  frameRate: 30
+  loop: 0
+  localOffset: {x: 0, y: 0, z: 0}
+  localRotation: 0
+  localScale: {x: 1, y: 1, z: 1}
+  colorTint: {r: 1, g: 1, b: 1, a: 1}
+  sortingOrder: 0

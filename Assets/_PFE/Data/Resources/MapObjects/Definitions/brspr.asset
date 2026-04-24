@@ -1,0 +1,56 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b6346ec5ad241bcb662491c6de14d7a, type: 3}
+  m_Name: brspr
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.MapObjectDefinition
+  objectId: brspr
+  displayName: "\u041E\u0431\u043B\u043E\u043C\u043A\u0438 \u0441\u043F\u0440\u0430\u0439\u0442\u0431\u043E\u0442\u0430"
+  legacyTip: box
+  family: 4
+  defaultPlacementType: box
+  size: 2
+  width: 1
+  wallMounted: 1
+  blocksMovement: 0
+  blocksVisibility: 0
+  isInteractive: 1
+  isSaveRelevant: 1
+  autoClose: 0
+  containerId: 
+  interactionMode: 
+  allAct: 
+  allId: 
+  hitPoints: 0
+  threshold: 0
+  shield: 0
+  materialId: 0
+  physicalCapability: 2
+  mass: 0
+  massMultiplier: 1
+  buoyancyFactor: 0
+  defaultVisualId: visbrspr
+  visual: {fileID: 11400000, guid: 1ca131aab0fe3d94ba1c77dc8991a956, type: 2}
+  legacyAttributes:
+  - key: ed
+    value: 5
+  - key: ico
+    value: 
+  - key: tip
+    value: box
+  - key: wall
+    value: 1
+  - key: size
+    value: 2
+  - key: wid
+    value: 1
+  - key: n
+    value: "\u041E\u0431\u043B\u043E\u043C\u043A\u0438 \u0441\u043F\u0440\u0430\u0439\u0442\u0431\u043E\u0442\u0430"

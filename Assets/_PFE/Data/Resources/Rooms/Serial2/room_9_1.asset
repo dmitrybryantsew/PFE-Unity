@@ -1,0 +1,249 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
+  m_Name: room_9_1
+  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  id: room_9_1
+  type: pass
+  fixedPosition: {x: 9, y: 1, z: 0}
+  difficultyLevel: 0
+  maxInstances: 2
+  allowRandom: 1
+  backgroundRoomId: 
+  backgroundDecorations:
+  - id: wires2
+    tileCoord: {x: 43, y: 16}
+  - id: wires2
+    tileCoord: {x: 43, y: 20}
+  - id: vkonstr
+    tileCoord: {x: 21, y: 14}
+  - id: vkonstr
+    tileCoord: {x: 21, y: 17}
+  - id: vkonstr
+    tileCoord: {x: 21, y: 20}
+  - id: vkonstr
+    tileCoord: {x: 25, y: 14}
+  - id: vkonstr
+    tileCoord: {x: 25, y: 17}
+  - id: vkonstr
+    tileCoord: {x: 25, y: 20}
+  - id: vkonstr
+    tileCoord: {x: 25, y: 23}
+  - id: vkonstr
+    tileCoord: {x: 21, y: 23}
+  - id: vkonstr
+    tileCoord: {x: 6, y: 14}
+  - id: vkonstr
+    tileCoord: {x: 6, y: 17}
+  - id: vkonstr
+    tileCoord: {x: 6, y: 20}
+  - id: vkonstr
+    tileCoord: {x: 6, y: 23}
+  - id: vkonstr
+    tileCoord: {x: 40, y: 14}
+  - id: vkonstr
+    tileCoord: {x: 40, y: 17}
+  - id: vkonstr
+    tileCoord: {x: 40, y: 20}
+  - id: vkonstr
+    tileCoord: {x: 40, y: 23}
+  - id: generator
+    tileCoord: {x: 28, y: 20}
+  - id: generator
+    tileCoord: {x: 34, y: 20}
+  - id: generator
+    tileCoord: {x: 9, y: 20}
+  - id: generator
+    tileCoord: {x: 15, y: 20}
+  - id: generator
+    tileCoord: {x: 28, y: 16}
+  - id: generator
+    tileCoord: {x: 34, y: 16}
+  - id: generator
+    tileCoord: {x: 9, y: 16}
+  - id: generator
+    tileCoord: {x: 15, y: 16}
+  - id: generator
+    tileCoord: {x: 42, y: 16}
+  - id: generator
+    tileCoord: {x: 42, y: 20}
+  - id: generator
+    tileCoord: {x: 1, y: 16}
+  - id: wires2
+    tileCoord: {x: 4, y: 14}
+  - id: wires2
+    tileCoord: {x: 4, y: 16}
+  - id: wires2
+    tileCoord: {x: 4, y: 20}
+  - id: wires2
+    tileCoord: {x: 43, y: 14}
+  - id: generator
+    tileCoord: {x: 1, y: 20}
+  - id: electro
+    tileCoord: {x: 21, y: 20}
+  - id: electro
+    tileCoord: {x: 24, y: 20}
+  - id: electro
+    tileCoord: {x: 32, y: 20}
+  - id: electro
+    tileCoord: {x: 13, y: 20}
+  - id: electro
+    tileCoord: {x: 13, y: 16}
+  - id: electro
+    tileCoord: {x: 32, y: 16}
+  - id: bvent
+    tileCoord: {x: 3, y: 3}
+  - id: bvent
+    tileCoord: {x: 36, y: 3}
+  - id: bvent
+    tileCoord: {x: 8, y: 3}
+  - id: bvent
+    tileCoord: {x: 31, y: 3}
+  - id: bvent
+    tileCoord: {x: 13, y: 3}
+  - id: monitor2
+    tileCoord: {x: 22, y: 8}
+  - id: monitor
+    tileCoord: {x: 21, y: 7}
+  - id: monitor
+    tileCoord: {x: 23, y: 7}
+  - id: monitor
+    tileCoord: {x: 25, y: 7}
+  - id: wires2
+    tileCoord: {x: 21, y: 8}
+  - id: wires2
+    tileCoord: {x: 26, y: 8}
+  - id: wires2
+    tileCoord: {x: 26, y: 10}
+  - id: wires2
+    tileCoord: {x: 21, y: 10}
+  - id: pult
+    tileCoord: {x: 22, y: 11}
+  - id: pult
+    tileCoord: {x: 24, y: 11}
+  - id: pult
+    tileCoord: {x: 21, y: 12}
+  - id: pult
+    tileCoord: {x: 23, y: 12}
+  - id: pult
+    tileCoord: {x: 25, y: 12}
+  - id: light4
+    tileCoord: {x: 4, y: 1}
+  - id: light4
+    tileCoord: {x: 9, y: 1}
+  - id: light4
+    tileCoord: {x: 14, y: 1}
+  - id: light4
+    tileCoord: {x: 32, y: 1}
+  - id: light4
+    tileCoord: {x: 37, y: 1}
+  - id: light2
+    tileCoord: {x: 22, y: 5}
+  - id: light2
+    tileCoord: {x: 24, y: 5}
+  - id: light2
+    tileCoord: {x: 22, y: 3}
+  - id: light2
+    tileCoord: {x: 24, y: 3}
+  - id: light5
+    tileCoord: {x: 14, y: 14}
+  - id: light5
+    tileCoord: {x: 33, y: 14}
+  - id: rangers
+    tileCoord: {x: 23, y: 1}
+  doorQuality: 020000000200000002000000000000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000000000000200000002000000020000000200000002000000020000000200000002000000
+  tileDataString: "A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A._._\u0410.A\nA._._._._._._._._._._._._._._._._._._._._._F._F._F._F._F._F._._._._._._._._._._._._._._._.A.A.A._._\u0410.A\nA._._._._._._._._._._._._._._._._._._._._._F._F._F._F._F._F._._._._._._._._._._._._._._._.A.A.A._._\u0410.A\nA._._._._._._._._._._._._._._._._._._._._._F._F._F._F._F._F._._._._._._._._._._._._._._._.A.A.A._._\u0410.A\nA._._._._._._._._._._._._._._._._._._._._._F._F._F._F._F._F._._._._._._._._._._._._._._._.A.A.A._._\u0410.A\nA._._._._._._._._._._._._._._._._._._._._._F._F._F._F._F._F._._._._._._._._._._._._._._._.A.A.A._._\u0410.A\nA._._._._._._._._._._._._._._._._._._._._._F._F._F._F._F._F._._._._._._._._._._._._._._._.A.A.A._._\u0410.A\nA._._._._._._._._._._._._._._._._._._._._._F._F._F._F._F._F._._._._._._._._._._._._._._._.A.A.A._._\u0410.A\nA._._._._._._._._._O._O._O._._._._._._._._._._F._F._F._F._F._F._._._._._._._._._._O._O._O._._._.A.A.A._._\u0410.A\nA._._._._._._._._._O._O._O._._._._._._._._._._F._F._F._F._F._F._._._._._._._._._._O._O._O._._._.A.A.A._._\u0410.A\n_._._._._._._._._._O._O._O._._._._._._._._._._F._F._F._F._F._F._._._._._._._._._._O._O._O._._._._._._._._\u0410.A\n_._._._._._._._._._O._O._O._._._._._._._._._._F._F._F._F._F._F._._._._._._._._._._O._O._O._._._._._._._._\u0410.A\n_._._._._._._._._._O._O._O._._._._._._._._._._F._F._F._F._F._F._._._._._._._._._._O._O._O._._._._._._._._\u0410.A\nA.A.A.A.A.A.A.A._\u0411\u0415._\u0415._\u0415._\u0415._\u0415._F\u0415._F\u0415._F\u0415._\u0415._\u0415._\u0415._\u0415._\u0415.A.A.A.A.A.A._\u0415._\u0415._\u0415._\u0415._\u0415._F\u0415._F\u0415._F\u0415._\u0415._\u0415._\u0415._\u0415._\u0410\u0415.A.A.A.A.A.A.A.A\nA._._._._._._._._\u0411._._._._._F._F._F._._._._._._._._._._._._._._._._._F._F._F._._._._._\u0410._._._._._._._.A\nA._._._._._._._._\u0411._._._._._F._F._F._._._._._._._._._._._._._._._._._F._F._F._._._._._\u0410._._._._._._._.A\nA._._._._._._._._\u0411._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\u0410._._._._._._._.A\nA._._._._._._._._\u0411._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\u0410._._._._._._._.A\nA._._._._._._._._\u0411._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\u0410._._._._._._._.A\nA._._._._._._._._\u0411._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\u0410._._._._._._._.A\nA._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0411\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._._._._._._._._._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0410\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415.A\nA._._._._._._._._\u0411._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\u0410._._._._._._._.A\nA._._._._._._._._\u0411._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\u0410._._._._._._._.A\nA._._._._._._._._\u0411._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\u0410._._._._._._._.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A"
+  objects:
+  - type: door
+    id: enclpole
+    definitionId: enclpole
+    definition: {fileID: 11400000, guid: f31dac3819f37764e838791f59c6b0c2, type: 2}
+    tileCoord: {x: 43, y: 12}
+    code: ZT8zzrynBUFAcqgk
+    uid: 
+    attributes:
+    - key: allid
+      value: a1
+    - key: inter
+      value: 0
+    items: []
+    scripts: []
+    parameters: code="ZT8zzrynBUFAcqgk" allid="a1" inter="0"
+  - type: door
+    id: enclpole
+    definitionId: enclpole
+    definition: {fileID: 11400000, guid: f31dac3819f37764e838791f59c6b0c2, type: 2}
+    tileCoord: {x: 44, y: 12}
+    code: xnG8YhgZ1H3aMN8m
+    uid: 
+    attributes:
+    - key: allid
+      value: a1
+    - key: inter
+      value: 0
+    items: []
+    scripts: []
+    parameters: code="xnG8YhgZ1H3aMN8m" allid="a1" inter="0"
+  - type: box
+    id: term
+    definitionId: term
+    definition: {fileID: 11400000, guid: b1d20e94969bc39458569f5a6f756a2a, type: 2}
+    tileCoord: {x: 22, y: 11}
+    code: saXHNCkOpRz2DAdP
+    uid: 
+    attributes:
+    - key: scr
+      value: fortRocks2
+    items: []
+    scripts: []
+    parameters: code="saXHNCkOpRz2DAdP" scr="fortRocks2"
+  - type: door
+    id: enclpole
+    definitionId: enclpole
+    definition: {fileID: 11400000, guid: f31dac3819f37764e838791f59c6b0c2, type: 2}
+    tileCoord: {x: 42, y: 12}
+    code: GiPbgOgyLA1wYeF9
+    uid: 
+    attributes:
+    - key: allid
+      value: a1
+    - key: inter
+      value: 0
+    items: []
+    scripts: []
+    parameters: code="GiPbgOgyLA1wYeF9" allid="a1" inter="0"
+  spawnPoints:
+  - tileCoord: {x: 2, y: 15}
+    type: 0
+    unitId: 
+    facingDirection: 1
+  environment:
+    musicTrack: music_red
+    colorScheme: yellow
+    backgroundColorScheme: 
+    backgroundWall: tMbase
+    backgroundForm: 0
+    transparentBackground: 0
+    hasSky: 0
+    borderType: 1
+    noBlackReveal: 0
+    visibilityMultiplier: 2
+    lightsOn: 0
+    returnsToDarkness: 0
+    waterLevel: 100
+    waterType: 0
+    waterOpacity: 0
+    waterDamage: 0
+    waterDamageType: 7
+    radiation: 0
+    radiationDamage: 0
+    darkness: 0

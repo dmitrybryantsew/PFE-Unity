@@ -1,0 +1,26 @@
+{
+    "name": "PFE.Tests.PlayMode",
+    "rootNamespace": "PFE.Tests.PlayMode",
+    "references": [
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner",
+        "PFE.Core",
+        "PFE.Tests",
+        "VContainer",
+        "MessagePipe",
+        "MessagePipe.VContainer",
+        "R3",
+        "UniTask"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

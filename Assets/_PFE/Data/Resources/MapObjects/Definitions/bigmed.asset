@@ -1,0 +1,68 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b6346ec5ad241bcb662491c6de14d7a, type: 3}
+  m_Name: bigmed
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.MapObjectDefinition
+  objectId: bigmed
+  displayName: bigmed
+  legacyTip: box
+  family: 3
+  defaultPlacementType: box
+  size: 2
+  width: 3
+  wallMounted: 0
+  blocksMovement: 0
+  blocksVisibility: 0
+  isInteractive: 1
+  isSaveRelevant: 1
+  autoClose: 0
+  containerId: med2
+  interactionMode: 1
+  allAct: 
+  allId: 
+  hitPoints: 0
+  threshold: 0
+  shield: 0
+  materialId: 3
+  physicalCapability: 5
+  mass: 0
+  massMultiplier: 0.5
+  buoyancyFactor: 0.3
+  defaultVisualId: visbigmed
+  visual: {fileID: 11400000, guid: c64fa1bd84eadb94584795802ce072cc, type: 2}
+  legacyAttributes:
+  - key: ed
+    value: 2
+  - key: ico
+    value: cont
+  - key: inter
+    value: 1
+  - key: tip
+    value: box
+  - key: cont
+    value: med2
+  - key: mat
+    value: 3
+  - key: massaMult
+    value: 0.5
+  - key: plav
+    value: 0.3
+  - key: lurk
+    value: 2
+  - key: size
+    value: 2
+  - key: wid
+    value: 3
+  - key: fall
+    value: fall_wood_big
+  - key: open
+    value: wood_open

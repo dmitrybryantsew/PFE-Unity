@@ -1,0 +1,56 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b6346ec5ad241bcb662491c6de14d7a, type: 3}
+  m_Name: barst
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.MapObjectDefinition
+  objectId: barst
+  displayName: "\u0421\u0442\u043E\u0439\u043A\u0430 \u0431\u0430\u0440\u0430"
+  legacyTip: box
+  family: 5
+  defaultPlacementType: box
+  size: 3
+  width: 1
+  wallMounted: 1
+  blocksMovement: 0
+  blocksVisibility: 0
+  isInteractive: 0
+  isSaveRelevant: 0
+  autoClose: 0
+  containerId: 
+  interactionMode: 
+  allAct: 
+  allId: 
+  hitPoints: 0
+  threshold: 0
+  shield: 0
+  materialId: 0
+  physicalCapability: 2
+  mass: 0
+  massMultiplier: 1
+  buoyancyFactor: 0
+  defaultVisualId: visbarst
+  visual: {fileID: 11400000, guid: 273fa1249dabe2346bd61a4b534cf169, type: 2}
+  legacyAttributes:
+  - key: ed
+    value: 5
+  - key: ico
+    value: 
+  - key: tip
+    value: box
+  - key: wall
+    value: 1
+  - key: size
+    value: 3
+  - key: wid
+    value: 1
+  - key: n
+    value: "\u0421\u0442\u043E\u0439\u043A\u0430 \u0431\u0430\u0440\u0430"

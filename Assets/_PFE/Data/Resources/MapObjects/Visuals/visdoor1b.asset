@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 52445f94c96c4150ac0fe58bc05f53cc, type: 3}
+  m_Name: visdoor1b
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.MapObjectVisualDefinition
+  visualId: visdoor1b
+  objectId: door1b
+  linkedObjectIds:
+  - door1b
+  sourceFolderName: DefineSprite_295_visdoor1b
+  sourceSymbolId: 295
+  frames:
+  - {fileID: 21300000, guid: a0a19aea70349014ca6d58696e19fdb9, type: 3}
+  - {fileID: 21300000, guid: 534e4aeb75bd60b47a53d1569d27f892, type: 3}
+  - {fileID: 21300000, guid: 58622cbb330181e49b173b9fe9eee607, type: 3}
+  pixelsPerUnit: 100
+  pixelSize: {x: 58, y: 80}
+  pivot: {x: 0.5, y: 0.5}
+  localOffset: {x: 0, y: 0}
+  sortingOrder: 1
+  wallMounted: 1

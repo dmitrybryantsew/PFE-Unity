@@ -1,0 +1,118 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9bbb39c4bb9f5984e997bac6c033dfcb, type: 3}
+  m_Name: TileMaskLookup
+  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.Rendering.TileMaskLookup
+  _entries:
+  - name: BorderMask
+    frames:
+    - {fileID: 21300000, guid: 69eeddc01a75e7e4c889cfbbc56f7930, type: 3}
+    - {fileID: 21300000, guid: cf61e7a963839a642bb55945cd387a93, type: 3}
+    - {fileID: 21300000, guid: 6701a899b91197d4b82a11d4432ffd7b, type: 3}
+    - {fileID: 21300000, guid: 0ae928ac9b2edac44b2e4b12f52a16d6, type: 3}
+    - {fileID: 21300000, guid: 01e3cd6bf822a8b4d89e7d7ffc15c981, type: 3}
+    - {fileID: 21300000, guid: 7eb3e7b598ee15f4f90ce25cdff4db39, type: 3}
+  - name: FloorMask
+    frames:
+    - {fileID: 21300000, guid: 0410a6e9fdf06f145abebbcf8679562b, type: 3}
+    - {fileID: 21300000, guid: bd15ef4ae84147341b64d7788f377927, type: 3}
+    - {fileID: 21300000, guid: a1272054a4c2f194a826337ce3efc0d6, type: 3}
+    - {fileID: 21300000, guid: 512a5a7759cc29241a8bf1eacb5c992d, type: 3}
+    - {fileID: 21300000, guid: c9dd6ad22f8f439418e99bd610e3b8de, type: 3}
+  - name: maskBare
+    frames:
+    - {fileID: 21300000, guid: 69b94a7596d46c54683a68e8a7cf0dab, type: 3}
+    - {fileID: 21300000, guid: dc48e24aefb66dc4991e84e2644239a0, type: 3}
+    - {fileID: 21300000, guid: 4ee17ff10fdfe714eb61c57c6f4de55e, type: 3}
+    - {fileID: 21300000, guid: a85f89ad2e31b3d46bb63a7086d54e2b, type: 3}
+    - {fileID: 21300000, guid: a8cd950150146674ba8e2fa138bef4aa, type: 3}
+    - {fileID: 21300000, guid: 796e17c9626db494bad5ccca54351c8f, type: 3}
+  - name: maskBorderBare
+    frames:
+    - {fileID: 21300000, guid: 99688e3b4012e374390d59a16cd4d8db, type: 3}
+    - {fileID: 21300000, guid: 234e418d6d3fa304db52f242cac986bd, type: 3}
+    - {fileID: 21300000, guid: 5727924cae7e2e84f8249ed4279f1b3f, type: 3}
+    - {fileID: 21300000, guid: 73377519d2676614d997af9adcefd7b7, type: 3}
+    - {fileID: 21300000, guid: 7a93982109728c043ba9fb2e88dc79f5, type: 3}
+    - {fileID: 21300000, guid: 17fa39ae162c99b44a07f18ccd50a99d, type: 3}
+  - name: maskCrack
+    frames:
+    - {fileID: 21300000, guid: 23bc714b1ec918c40a6b9c769b712c4a, type: 3}
+  - name: maskCTiles
+    frames:
+    - {fileID: 21300000, guid: e4d23e85684030d4c832ff01e5100f4e, type: 3}
+  - name: maskDamaged
+    frames:
+    - {fileID: 21300000, guid: dce529546c06cb745895923d65008e8d, type: 3}
+    - {fileID: 21300000, guid: c2e70fa500b66664bb300405d6e79923, type: 3}
+    - {fileID: 21300000, guid: 8fd295973f781154193082bf18846316, type: 3}
+    - {fileID: 21300000, guid: 8aa3fc813adfaf54886bdfe5acbb4224, type: 3}
+    - {fileID: 21300000, guid: 4af7df801cc981b4bb9f9fb22cf38c12, type: 3}
+    - {fileID: 21300000, guid: a745f3ac68d513e4f94ada45cb03535b, type: 3}
+  - name: maskDirt
+    frames:
+    - {fileID: 21300000, guid: 15ccbd24ed521dc4181b6ac44c1115e3, type: 3}
+  - name: maskDirtBorder
+    frames:
+    - {fileID: 21300000, guid: 51c8cf54bc518e04a99d55132e1fa0e9, type: 3}
+    - {fileID: 21300000, guid: 3edb0852eefe9fb429e18d6eead7afc4, type: 3}
+    - {fileID: 21300000, guid: 4788fc26b512a5f4a9fd2757b1d15d99, type: 3}
+    - {fileID: 21300000, guid: 93f9c8555635f42489d97ac05424bac1, type: 3}
+    - {fileID: 21300000, guid: 00dcd72721e64764c970cd829bcda4f3, type: 3}
+    - {fileID: 21300000, guid: ff6ec86195fd98747b54bbc2552e005d, type: 3}
+  - name: maskFloor
+    frames:
+    - {fileID: 21300000, guid: 8b870f3b9105bde4fb14bd4d6e6e3531, type: 3}
+    - {fileID: 21300000, guid: 2b9d1260d36b4204588a6da15abc01c6, type: 3}
+    - {fileID: 21300000, guid: 2b41f58161499764ba7887ca737204b2, type: 3}
+    - {fileID: 21300000, guid: f7d46021720628a4cb50e482d9f82ed8, type: 3}
+    - {fileID: 21300000, guid: beda85466e9020f42861806bdf97ced9, type: 3}
+  - name: maskMetalBorder
+    frames:
+    - {fileID: 21300000, guid: 09dccc3c3a232f54bb6440ca168875ce, type: 3}
+    - {fileID: 21300000, guid: cdf999dfc09ce2f448642d54541273ce, type: 3}
+    - {fileID: 21300000, guid: f8eacbed00f7e2942a66bcf2fd718249, type: 3}
+    - {fileID: 21300000, guid: b2e00d256f67c5741a11fe876e35c2e8, type: 3}
+    - {fileID: 21300000, guid: c904ff6d82caa0d4696dc03f2c92a50a, type: 3}
+    - {fileID: 21300000, guid: aecdaae4767e7bf489f878ba94dac112, type: 3}
+  - name: maskSimple
+    frames:
+    - {fileID: 21300000, guid: 77ef980f226f62e4091455740b327940, type: 3}
+    - {fileID: 21300000, guid: 5d40e388bc178e140bdd78f6c03e981f, type: 3}
+    - {fileID: 21300000, guid: fd4462b4acd3e7e43bdf92b92d3eb26d, type: 3}
+    - {fileID: 21300000, guid: 6299d408767b99e4196eb0d207b2c5a8, type: 3}
+    - {fileID: 21300000, guid: 0f9f390a559626e48a540e17c61c770c, type: 3}
+    - {fileID: 21300000, guid: 7ed71362ada726347abe23725030895b, type: 3}
+  - name: maskSkol
+    frames:
+    - {fileID: 21300000, guid: 72375dd902342004eb0754be1798342c, type: 3}
+    - {fileID: 21300000, guid: 173d50ae187e0d14280a7df1ce543cc5, type: 3}
+    - {fileID: 21300000, guid: a7d873d6109fada419c21e34eceef0b4, type: 3}
+    - {fileID: 21300000, guid: f2c1db49ba4335146affe003db3384e8, type: 3}
+    - {fileID: 21300000, guid: 194f4c34f10d3974da11c814a596e8df, type: 3}
+    - {fileID: 21300000, guid: d2aae5ff8d8a3dd4987be38785a58c08, type: 3}
+    - {fileID: 21300000, guid: 3cd2c1c5c00502743b68a1cad2f1e0d7, type: 3}
+    - {fileID: 21300000, guid: 1ab90e5600aae1b47a8cf6e7c15bec86, type: 3}
+  - name: maskStone
+    frames:
+    - {fileID: 21300000, guid: 9bba14a0973502240bf0c354f90dc150, type: 3}
+  - name: maskStoneBorder
+    frames:
+    - {fileID: 21300000, guid: 8ffca09e1fbf773409e46a389330dfdb, type: 3}
+    - {fileID: 21300000, guid: c586e6c37b9e7074593d640fb408dc29, type: 3}
+    - {fileID: 21300000, guid: ad40f3e568d0a844f93d67163b2c17b6, type: 3}
+    - {fileID: 21300000, guid: 9a8fdd5b3358e0244aed7b86d42de169, type: 3}
+    - {fileID: 21300000, guid: 3663f8f5c49b02149bd1bac3a17960cf, type: 3}
+    - {fileID: 21300000, guid: 736cc2388b89db8468923dc1fdbc28f5, type: 3}
+  - name: TileMask
+    frames:
+    - {fileID: 21300000, guid: 2cd8d4bca8dd3d340ae7b54696cf4c7b, type: 3}

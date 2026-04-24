@@ -1,0 +1,288 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
+  m_Name: room_-1_1
+  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  id: room_-1_1
+  type: pass
+  fixedPosition: {x: -1, y: 1, z: 0}
+  difficultyLevel: 0
+  maxInstances: 2
+  allowRandom: 1
+  backgroundRoomId: 
+  backgroundDecorations:
+  - id: hkonstr
+    tileCoord: {x: 31, y: 8}
+  - id: konstr
+    tileCoord: {x: 11, y: 8}
+  - id: door
+    tileCoord: {x: 18, y: 13}
+  - id: konstr
+    tileCoord: {x: 11, y: 12}
+  - id: konstr
+    tileCoord: {x: 37, y: 12}
+  - id: konstr
+    tileCoord: {x: 37, y: 8}
+  - id: hkonstr
+    tileCoord: {x: 12, y: 8}
+  - id: hkonstr
+    tileCoord: {x: 18, y: 8}
+  - id: hkonstr
+    tileCoord: {x: 25, y: 8}
+  - id: konstr
+    tileCoord: {x: 24, y: 8}
+  - id: konstr
+    tileCoord: {x: 24, y: 12}
+  - id: light2
+    tileCoord: {x: 13, y: 12}
+  - id: light2
+    tileCoord: {x: 16, y: 12}
+  - id: light2
+    tileCoord: {x: 34, y: 12}
+  - id: light2
+    tileCoord: {x: 31, y: 12}
+  - id: bvent
+    tileCoord: {x: 20, y: 10}
+  - id: bvent
+    tileCoord: {x: 25, y: 10}
+  doorQuality: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+  tileDataString: 'M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M
+
+    M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M
+
+    M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M
+
+    M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M
+
+    M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M
+
+    M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M
+
+    M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M
+
+    M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M
+
+    M.M.M.M.M.M.M.M.M.M.M._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T.M.M.M.M.M.M.M.M.M.M
+
+    M.M.M.M.M.M.M.M.M.M.M._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T.M.M.M.M.M.M.M.M.M.M
+
+    M.M.M.M.M.M.M.M.M.M.M._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T.M.M.M.M.M.M.M.M.M.M
+
+    M.M.M.M.M.M.M.M.M.M.M._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T.M.M.M.M.M.M.M.M.M.M
+
+    M.M.M.M.M.M.M.M.M.M.M._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T.M.M.M.M.M.M.M.M.M.M
+
+    M.M.M.M.M.M.M.M.M.M.M._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T.M.M.M.M.M.M.M.M.M.M
+
+    M.M.M.M.M.M.M.M.M.M.M._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T.M.M.M.M.M.M.M.M.M.M
+
+    M.M.M.M.M.M.M.M.M.M.M._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T.M.M.M.M.M.M.M.M.M.M
+
+    M.M.M.M.M.M.M.M.M.M.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.M.M.M.M.M.M.M.M.M
+
+    M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M
+
+    M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M
+
+    M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M
+
+    M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M
+
+    M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M
+
+    M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M
+
+    M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M
+
+    M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M'
+  objects:
+  - type: obj
+    id: npc
+    definitionId: npc
+    definition: {fileID: 11400000, guid: 2b067238a37bc224c99b891f75cdd086, type: 2}
+    tileCoord: {x: 32, y: 15}
+    code: UAh15CAQ5gZX9cW1
+    uid: 
+    attributes:
+    - key: turn
+      value: -1
+    - key: npc
+      value: zeb2
+    - key: trig
+      value: soviet
+    items: []
+    scripts: []
+    parameters: code="UAh15CAQ5gZX9cW1" turn="-1" npc="zeb2" trig="soviet"
+  - type: obj
+    id: npc
+    definitionId: npc
+    definition: {fileID: 11400000, guid: 2b067238a37bc224c99b891f75cdd086, type: 2}
+    tileCoord: {x: 27, y: 15}
+    code: geRTQqHTxepZ2njb
+    uid: 
+    attributes:
+    - key: turn
+      value: -1
+    - key: npc
+      value: askari_s
+    items: []
+    scripts: []
+    parameters: code="geRTQqHTxepZ2njb" turn="-1" npc="askari_s"
+  - type: player
+    id: player
+    definitionId: player
+    definition: {fileID: 11400000, guid: c18de3d4f4f3cd448bdfddca852d2595, type: 2}
+    tileCoord: {x: 23, y: 15}
+    code: jgzDUxPX5WWM1Erb
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="jgzDUxPX5WWM1Erb"
+  - type: box
+    id: couch
+    definitionId: couch
+    definition: {fileID: 11400000, guid: 837c781ba893c3b4ca11857c9b51eec3, type: 2}
+    tileCoord: {x: 36, y: 15}
+    code: cmwFLNTODi67yQUE
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="cmwFLNTODi67yQUE"
+  - type: box
+    id: table2
+    definitionId: table2
+    definition: {fileID: 11400000, guid: a0f6bbe85663ce84a9e8ba830e810b99, type: 2}
+    tileCoord: {x: 34, y: 15}
+    code: CcYKRhiGuUdyVLYu
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="CcYKRhiGuUdyVLYu"
+  - type: box
+    id: mcrate3
+    definitionId: mcrate3
+    definition: {fileID: 11400000, guid: 049a4729c63885542879049cdb41a547, type: 2}
+    tileCoord: {x: 11, y: 15}
+    code: SHW2qgIEQru1dgnO
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="SHW2qgIEQru1dgnO"
+  - type: obj
+    id: npc
+    definitionId: npc
+    definition: {fileID: 11400000, guid: 2b067238a37bc224c99b891f75cdd086, type: 2}
+    tileCoord: {x: 19, y: 15}
+    code: PcX2BkRoUOplDzdS
+    uid: 
+    attributes:
+    - key: turn
+      value: 1
+    - key: npc
+      value: velvet_s
+    items: []
+    scripts: []
+    parameters: code="PcX2BkRoUOplDzdS" turn="1" npc="velvet_s"
+  - type: obj
+    id: npc
+    definitionId: npc
+    definition: {fileID: 11400000, guid: 2b067238a37bc224c99b891f75cdd086, type: 2}
+    tileCoord: {x: 16, y: 15}
+    code: wBHp9UsfHBVOPHc3
+    uid: 
+    attributes:
+    - key: turn
+      value: 1
+    - key: npc
+      value: zeb3
+    - key: trig
+      value: soviet
+    items: []
+    scripts: []
+    parameters: code="wBHp9UsfHBVOPHc3" turn="1" npc="zeb3" trig="soviet"
+  - type: area
+    id: area
+    definitionId: area
+    definition: {fileID: 11400000, guid: 62760a6826b295d4bb7380b3dc6e5dc0, type: 2}
+    tileCoord: {x: 22, y: 15}
+    code: SEVusuLLrSJRIEvC
+    uid: 
+    attributes:
+    - key: scr
+      value: sovietStory
+    items: []
+    scripts: []
+    parameters: code="SEVusuLLrSJRIEvC" scr="sovietStory"
+  - type: obj
+    id: npc
+    definitionId: npc
+    definition: {fileID: 11400000, guid: 2b067238a37bc224c99b891f75cdd086, type: 2}
+    tileCoord: {x: 14, y: 15}
+    code: lZ1q0H7MxXWry1TL
+    uid: 
+    attributes:
+    - key: turn
+      value: 1
+    - key: npc
+      value: zeb4
+    - key: trig
+      value: soviet
+    items: []
+    scripts: []
+    parameters: code="lZ1q0H7MxXWry1TL" turn="1" npc="zeb4" trig="soviet"
+  - type: obj
+    id: npc
+    definitionId: npc
+    definition: {fileID: 11400000, guid: 2b067238a37bc224c99b891f75cdd086, type: 2}
+    tileCoord: {x: 30, y: 15}
+    code: jFQS7pVvyuBtrAvt
+    uid: 
+    attributes:
+    - key: turn
+      value: -1
+    - key: npc
+      value: zeb1
+    - key: trig
+      value: soviet
+    items: []
+    scripts: []
+    parameters: code="jFQS7pVvyuBtrAvt" turn="-1" npc="zeb1" trig="soviet"
+  spawnPoints:
+  - tileCoord: {x: 23, y: 15}
+    type: 0
+    unitId: 
+    facingDirection: 1
+  environment:
+    musicTrack: music_covert
+    colorScheme: 
+    backgroundColorScheme: 
+    backgroundWall: sky
+    backgroundForm: 0
+    transparentBackground: 0
+    hasSky: 0
+    borderType: 1
+    noBlackReveal: 0
+    visibilityMultiplier: 10
+    lightsOn: 1
+    returnsToDarkness: 0
+    waterLevel: 100
+    waterType: 0
+    waterOpacity: 0
+    waterDamage: 0
+    waterDamageType: 7
+    radiation: 0
+    radiationDamage: 0
+    darkness: 0

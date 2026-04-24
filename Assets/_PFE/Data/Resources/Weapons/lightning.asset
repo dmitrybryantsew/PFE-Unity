@@ -1,0 +1,79 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d6ba3adb0716e844684560a96adb6927, type: 3}
+  m_Name: lightning
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
+  weaponId: lightning
+  weaponType: 5
+  skillLevel: 6
+  weaponLevel: 10
+  baseDamage: 75
+  rapid: 30
+  precision: 0
+  deviation: 7
+  armorPenetration: 0
+  knockback: 0
+  critChance: 0.1
+  critMultiplier: 2
+  projectilesPerShot: 1
+  projectileSpeed: 100
+  burstCount: 0
+  explRadius: 0
+  explosionDamage: 0
+  magazineSize: 0
+  reloadTime: 0
+  ammoType: 
+  maxDurability: 100
+  prepFrames: 0
+  ammoPerShot: 1
+  rechargeFrames: 0
+  recoilFrames: 0
+  recoilLift: 0
+  magicPoolCost: 0
+  manaHealthCost: 0
+  throwTip: 0
+  fuseFrames: 75
+  radio: 0
+  meleeType: 0
+  meleeDlina: 100
+  meleeMinDlina: 100
+  meleeCombo: 0
+  meleePowerAttack: 0
+  projectileArchetype: 8
+  damageType: 9
+  bulletGravity: 0
+  bulletAccel: 0
+  bulletFlame: 0
+  bulletNavod: 0
+  isPhysBullet: 0
+  vbul: lightning
+  projectileVisual: {fileID: 11400000, guid: f40a16da41dc40d4382086310d649fe8, type: 2}
+  springMode: 1
+  bulletAnimated: 1
+  hasShell: 0
+  shineRadius: 500
+  decalType: 11
+  destroyTiles: 50
+  piercing: 0
+  manaCost: 30
+  alicornOnly: 0
+  weaponVisual: {fileID: 11400000, guid: 89365718e9f9c5249a0286ae2601e854, type: 2}
+  visualOverrideId: 
+  muzzleFlareId: 
+  weaponSprite: 
+  soundShoot: lightning
+  soundReload: 
+  soundHit: 
+  soundPrep: 
+  soundPrepT1: 0
+  soundPrepT2: 0
+  noiseRadius: 800

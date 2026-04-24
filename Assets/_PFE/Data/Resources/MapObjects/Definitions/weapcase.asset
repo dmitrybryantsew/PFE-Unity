@@ -1,0 +1,76 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b6346ec5ad241bcb662491c6de14d7a, type: 3}
+  m_Name: weapcase
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.MapObjectDefinition
+  objectId: weapcase
+  displayName: weapcase
+  legacyTip: box
+  family: 3
+  defaultPlacementType: box
+  size: 3
+  width: 1
+  wallMounted: 0
+  blocksMovement: 0
+  blocksVisibility: 0
+  isInteractive: 1
+  isSaveRelevant: 1
+  autoClose: 0
+  containerId: wbig
+  interactionMode: 1
+  allAct: 
+  allId: 
+  hitPoints: 500
+  threshold: 0
+  shield: 0.3
+  materialId: 1
+  physicalCapability: 6
+  mass: 0
+  massMultiplier: 2
+  buoyancyFactor: 0
+  defaultVisualId: visweapcase
+  visual: {fileID: 11400000, guid: fe266cdbe3cfc0040b27a07cac1de34e, type: 2}
+  legacyAttributes:
+  - key: ed
+    value: 2
+  - key: ico
+    value: cont
+  - key: inter
+    value: 1
+  - key: tip
+    value: box
+  - key: hp
+    value: 500
+  - key: shield
+    value: 0.3
+  - key: montdam
+    value: 25
+  - key: mat
+    value: 1
+  - key: cont
+    value: wbig
+  - key: massaMult
+    value: 2
+  - key: lock
+    value: 1.8
+  - key: lockch
+    value: 0.9
+  - key: lurk
+    value: 3
+  - key: size
+    value: 3
+  - key: wid
+    value: 1
+  - key: fall
+    value: fall_metal_big
+  - key: open
+    value: metal_open

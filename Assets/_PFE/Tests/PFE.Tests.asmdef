@@ -1,0 +1,27 @@
+{
+    "name": "PFE.Tests",
+    "rootNamespace": "PFE.Tests",
+    "references": [
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner",
+        "PFE.Core",
+		"VContainer",
+		"MessagePipe",
+		"MessagePipe.VContainer",
+		"R3",
+		"UniTask"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

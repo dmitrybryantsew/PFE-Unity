@@ -1,0 +1,82 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 77d935778faf2c746af77713f87ed564, type: 3}
+  m_Name: DefaultAS3ObjectMapping
+  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.DataMigration.AS3ObjectMapping
+  mappings:
+  - as3ObjectId: player
+    unityPrefabPath: Prefabs/Player/Player
+    category: 1
+    instantiateOnLoad: 1
+    defaultScale: {x: 1, y: 1, z: 1}
+  - as3ObjectId: chest
+    unityPrefabPath: Prefabs/Objects/Containers/Chest
+    category: 3
+    instantiateOnLoad: 1
+    defaultScale: {x: 1, y: 1, z: 1}
+  - as3ObjectId: bigbox
+    unityPrefabPath: Prefabs/Objects/Containers/BigBox
+    category: 3
+    instantiateOnLoad: 1
+    defaultScale: {x: 1, y: 1, z: 1}
+  - as3ObjectId: box
+    unityPrefabPath: Prefabs/Objects/Containers/Box
+    category: 3
+    instantiateOnLoad: 1
+    defaultScale: {x: 1, y: 1, z: 1}
+  - as3ObjectId: woodbox
+    unityPrefabPath: Prefabs/Objects/Containers/WoodBox
+    category: 3
+    instantiateOnLoad: 1
+    defaultScale: {x: 1, y: 1, z: 1}
+  - as3ObjectId: medbox
+    unityPrefabPath: Prefabs/Objects/Containers/MedBox
+    category: 3
+    instantiateOnLoad: 1
+    defaultScale: {x: 1, y: 1, z: 1}
+  - as3ObjectId: case
+    unityPrefabPath: Prefabs/Objects/Containers/Case
+    category: 3
+    instantiateOnLoad: 1
+    defaultScale: {x: 1, y: 1, z: 1}
+  - as3ObjectId: wallcab
+    unityPrefabPath: Prefabs/Objects/Containers/WallCabinet
+    category: 3
+    instantiateOnLoad: 1
+    defaultScale: {x: 1, y: 1, z: 1}
+  - as3ObjectId: door1
+    unityPrefabPath: Prefabs/Objects/Doors/Door1
+    category: 4
+    instantiateOnLoad: 1
+    defaultScale: {x: 1, y: 1, z: 1}
+  - as3ObjectId: tarakan
+    unityPrefabPath: Prefabs/Enemies/Tarakan
+    category: 2
+    instantiateOnLoad: 1
+    defaultScale: {x: 1, y: 1, z: 1}
+  - as3ObjectId: instr1
+    unityPrefabPath: Prefabs/Objects/Interactive/Instrument1
+    category: 5
+    instantiateOnLoad: 1
+    defaultScale: {x: 1, y: 1, z: 1}
+  - as3ObjectId: instr2
+    unityPrefabPath: Prefabs/Objects/Interactive/Instrument2
+    category: 5
+    instantiateOnLoad: 1
+    defaultScale: {x: 1, y: 1, z: 1}
+  - as3ObjectId: area
+    unityPrefabPath: Prefabs/Objects/Triggers/AreaTrigger
+    category: 7
+    instantiateOnLoad: 1
+    defaultScale: {x: 1, y: 1, z: 1}
+  unknownObjectFallback: Prefabs/Objects/UnknownObject
+  logUnknownObjects: 1

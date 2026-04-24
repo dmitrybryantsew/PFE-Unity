@@ -1,0 +1,180 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
+  m_Name: "\u0441\u0442\u0430\u0442\u0443\u044F"
+  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  id: "\u0441\u0442\u0430\u0442\u0443\u044F"
+  type: surf
+  fixedPosition: {x: 0, y: 0, z: 0}
+  difficultyLevel: 0
+  maxInstances: 2
+  allowRandom: 1
+  backgroundRoomId: 
+  backgroundDecorations:
+  - id: trava
+    tileCoord: {x: 10, y: 23}
+  - id: stree
+    tileCoord: {x: 28, y: 18}
+  - id: stree
+    tileCoord: {x: 16, y: 18}
+  - id: vase
+    tileCoord: {x: 8, y: 20}
+  - id: vase
+    tileCoord: {x: 39, y: 20}
+  - id: balus
+    tileCoord: {x: 7, y: 21}
+  - id: balus
+    tileCoord: {x: 38, y: 21}
+  - id: karniz1
+    tileCoord: {x: 26, y: 22}
+  - id: karniz1
+    tileCoord: {x: 32, y: 22}
+  - id: karniz1
+    tileCoord: {x: 10, y: 22}
+  - id: karniz1
+    tileCoord: {x: 16, y: 22}
+  - id: tree
+    tileCoord: {x: 31, y: 15}
+  - id: celest
+    tileCoord: {x: 18, y: 10}
+  - id: stree
+    tileCoord: {x: 34, y: 18}
+  - id: stree
+    tileCoord: {x: 9, y: 18}
+  - id: lpink
+    tileCoord: {x: 20, y: 18}
+  - id: trava
+    tileCoord: {x: 26, y: 23}
+  - id: tree
+    tileCoord: {x: 11, y: 15}
+  - id: karniz2
+    tileCoord: {x: 26, y: 23}
+  - id: karniz2
+    tileCoord: {x: 30, y: 23}
+  - id: karniz2
+    tileCoord: {x: 34, y: 23}
+  - id: karniz2
+    tileCoord: {x: 10, y: 23}
+  - id: karniz2
+    tileCoord: {x: 14, y: 23}
+  - id: karniz2
+    tileCoord: {x: 18, y: 23}
+  - id: stree
+    tileCoord: {x: 26, y: 19}
+  - id: stree
+    tileCoord: {x: 31, y: 20}
+  - id: stree
+    tileCoord: {x: 17, y: 20}
+  - id: stree
+    tileCoord: {x: 12, y: 20}
+  - id: heap1
+    tileCoord: {x: 0, y: 21}
+  - id: heap1
+    tileCoord: {x: 45, y: 21}
+  - id: heap3
+    tileCoord: {x: 43, y: 23}
+  - id: musor1
+    tileCoord: {x: 10, y: 23}
+  - id: musor1
+    tileCoord: {x: 14, y: 23}
+  - id: musor1
+    tileCoord: {x: 26, y: 23}
+  - id: musor1
+    tileCoord: {x: 30, y: 23}
+  doorQuality: 020000000200000002000000020000000200000002000000000000000200000002000000000000000200000000000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000
+  tileDataString: '_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
+
+    _._._._._._._._._._._._._._._._._._._._._._.QC.QC.QC.QC._._._._._._._._._._._._._._._._._._._._._._
+
+    _._._._._._.Q;.Q.Q.Q._E._E._E._E._E._E._E._E._E._E._E._E.QC.QC.QC.QC._E._E._E._E._E._E._E._E._E._E._E._E.Q.Q.Q.Q;._._._._._._
+
+    _._._._.Q;.Q.Q.Q.Q.Q._E*._E*._E*._E*._E*._E*._E*._E*._E*._E*._E*._E*.QC.QC.QC.QC._E*._E*._E*._E*._E*._E*._E*._E*._E*._E*._E*._E*.Q.Q.Q.Q.Q.Q;._._._._
+
+    Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.QV.QV.QV.Q.Q.Q.Q.Q.Q.Q.Q.Q.QE.QE.QE.QE.Q.Q.Q.Q.Q.Q.Q.Q.Q.QV.QV.QV.QV.QV.Q.Q.Q.Q.Q.Q.Q.Q'
+  objects:
+  - type: player
+    id: player
+    definitionId: player
+    definition: {fileID: 11400000, guid: c18de3d4f4f3cd448bdfddca852d2595, type: 2}
+    tileCoord: {x: 23, y: 20}
+    code: kAVfbFk2mIVexkMJ
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="kAVfbFk2mIVexkMJ"
+  spawnPoints:
+  - tileCoord: {x: 23, y: 20}
+    type: 0
+    unitId: 
+    facingDirection: 1
+  environment:
+    musicTrack: music_cat_1
+    colorScheme: 
+    backgroundColorScheme: 
+    backgroundWall: 
+    backgroundForm: 0
+    transparentBackground: 0
+    hasSky: 0
+    borderType: 1
+    noBlackReveal: 0
+    visibilityMultiplier: 1
+    lightsOn: 0
+    returnsToDarkness: 0
+    waterLevel: 100
+    waterType: 0
+    waterOpacity: 0
+    waterDamage: 0
+    waterDamageType: 7
+    radiation: 0
+    radiationDamage: 0
+    darkness: 0

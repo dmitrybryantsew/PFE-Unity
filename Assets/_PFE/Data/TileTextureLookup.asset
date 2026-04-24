@@ -1,0 +1,175 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ad38b02a527c58646bea733bab4fda5f, type: 3}
+  m_Name: TileTextureLookup
+  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.Rendering.TileTextureLookup
+  _entries:
+  - name: tConcreteMoss
+    texture: {fileID: 2800000, guid: 418e1c1724a7a394d838811e49c0b69b, type: 3}
+  - name: tRustPlates
+    texture: {fileID: 2800000, guid: 5322e02f5ec256c4098f7b0e45926b4e, type: 3}
+  - name: tMetalRust
+    texture: {fileID: 2800000, guid: be68254893ad7b847bab52c3cc7ec774, type: 3}
+  - name: tMetalVert
+    texture: {fileID: 2800000, guid: d7ca9f1aff4144046b12c8672d4b272f, type: 3}
+  - name: tMetalPlates
+    texture: {fileID: 2800000, guid: 88e6ebd5d201c4f47ba2e944e438dd4f, type: 3}
+  - name: tDarkMetal
+    texture: {fileID: 2800000, guid: 09207995ca70ebc49bf9d7278f931481, type: 3}
+  - name: tMetal
+    texture: {fileID: 2800000, guid: 339a4ad7e8ec0d14fb1e2a575c6aeab2, type: 3}
+  - name: tKaf
+    texture: {fileID: 2800000, guid: 4febc80cbce57f94cb403d0b2b3d3b79, type: 3}
+  - name: tSkol
+    texture: {fileID: 2800000, guid: da46d99f4dc7b444dbe064f484ea38fb, type: 3}
+  - name: tConcreteBack
+    texture: {fileID: 2800000, guid: 0f1daf0af4c6c4b439aa0fcef21530e0, type: 3}
+  - name: tWoodPlanks
+    texture: {fileID: 2800000, guid: f378aabd932fd9c4c92a353125ac0e59, type: 3}
+  - name: tFloor
+    texture: {fileID: 2800000, guid: 7a01dcc0fe895874687150ad7acec670, type: 3}
+  - name: tConPlates
+    texture: {fileID: 2800000, guid: 354c4f2bfaf841f4b8bf2070965c8a06, type: 3}
+  - name: tSuperCon
+    texture: {fileID: 2800000, guid: 4267cf1c0a9a05043bbd39cabea55439, type: 3}
+  - name: tCracked
+    texture: {fileID: 2800000, guid: a6830ea98c12bb34fbab094571913da4, type: 3}
+  - name: tConcreteD
+    texture: {fileID: 2800000, guid: 5e589ea875776254aafb6f51548961d9, type: 3}
+  - name: tConcreteDirt
+    texture: {fileID: 2800000, guid: 9fe1bcb7974d23f4688127fa114e5680, type: 3}
+  - name: tConcrete
+    texture: {fileID: 2800000, guid: 54bbfdbe25001da429c992f4dbb01d17, type: 3}
+  - name: tBlocks
+    texture: {fileID: 2800000, guid: 745d5100891f37a4fa3236fa4c77b08d, type: 3}
+  - name: tBrick
+    texture: {fileID: 2800000, guid: f66f47574c46fe745aea2b9fe5d5e243, type: 3}
+  - name: tStConcrete
+    texture: {fileID: 2800000, guid: ac3d9ba096ce9224fb79967ca0a2b329, type: 3}
+  - name: tCave
+    texture: {fileID: 2800000, guid: 9d56616da26b0a84e9a54dd663d173b1, type: 3}
+  - name: tStones
+    texture: {fileID: 2800000, guid: 25ab2d29db3b57442a109b31d3f36588, type: 3}
+  - name: tDirt
+    texture: {fileID: 2800000, guid: 8d9e6e191f837c9408dda7852941b0dd, type: 3}
+  - name: tShtuk
+    texture: {fileID: 2800000, guid: f58fe21e7c4a7f14d8bbd54e48dc8ca3, type: 3}
+  - name: tRust
+    texture: {fileID: 2800000, guid: a0fb96e13f6f26340b537e0492041412, type: 3}
+  - name: tRoofFloor
+    texture: {fileID: 2800000, guid: f69ddfe411af84143a943d0e26c4d8d5, type: 3}
+  - name: tRoof
+    texture: {fileID: 2800000, guid: c99b383af8bf5a444bea087dc6ce9456, type: 3}
+  - name: tRock
+    texture: {fileID: 2800000, guid: a4d3e40fc3a1e8d44824c21c5a61ea47, type: 3}
+  - name: tRivets
+    texture: {fileID: 2800000, guid: cb5800ffaf0f9964eb7b5539db4e08fd, type: 3}
+  - name: tResh
+    texture: {fileID: 2800000, guid: 548e9f93d9e8c9d4e946086e7f44891d, type: 3}
+  - name: tPlates2
+    texture: {fileID: 2800000, guid: 8ac18c07bc44d9c408be994f95a102a0, type: 3}
+  - name: tMetalPlates2
+    texture: {fileID: 2800000, guid: 7fcb4a5fa0d93ed4780c6b97c12c93da, type: 3}
+  - name: tPipes
+    texture: {fileID: 2800000, guid: 70f2dfa3161026244bc93b5140783f8d, type: 3}
+  - name: tMWall
+    texture: {fileID: 2800000, guid: 2dcd1a674c043e24bb66a4b77be79122, type: 3}
+  - name: tMoss
+    texture: {fileID: 2800000, guid: 03700d2024ac49a419c106cb5991a18e, type: 3}
+  - name: tBaseMetal
+    texture: {fileID: 2800000, guid: 8e877e432cf251f4aa3eb2dba08f76ac, type: 3}
+  - name: tMeh
+    texture: {fileID: 2800000, guid: 64c634e640548fd4983c61f72c7606eb, type: 3}
+  - name: tMarble
+    texture: {fileID: 2800000, guid: b8fb0bf0493ae034d937df3910cb55a7, type: 3}
+  - name: tLightPlate
+    texture: {fileID: 2800000, guid: d2ceb0aa21b21884b85bd96ef1a0d5c0, type: 3}
+  - name: tKlep3
+    texture: {fileID: 2800000, guid: 77764eb2421d703408953b69c7207c02, type: 3}
+  - name: tFloorMetal
+    texture: {fileID: 2800000, guid: e992d21d208706e4ab7c38f22adb5838, type: 3}
+  - name: tVent
+    texture: {fileID: 2800000, guid: 2358dd24bb2ee7f4aa44204bc85a1825, type: 3}
+  - name: tEncl3
+    texture: {fileID: 2800000, guid: 580433be532130e4abc4c7cbc544bb1e, type: 3}
+  - name: tDirt2
+    texture: {fileID: 2800000, guid: 70da6679a75536743a64a06ef4693f93, type: 3}
+  - name: tDarkRivets
+    texture: {fileID: 2800000, guid: bdc8ba8a2f49f6c44935686aac9789a4, type: 3}
+  - name: tDarkPlates
+    texture: {fileID: 2800000, guid: 4e5a416a92fd92a4f88bb1500e0e5678, type: 3}
+  - name: tConRough
+    texture: {fileID: 2800000, guid: cdf4b2dafe26aa847a416de265a1062b, type: 3}
+  - name: tStPlates
+    texture: {fileID: 2800000, guid: fb0615c7fa3838141a6c9e17acd481cf, type: 3}
+  - name: tBorder
+    texture: {fileID: 2800000, guid: 91f2d625d007d5e4cb346418dc4da57f, type: 3}
+  - name: tMossy
+    texture: {fileID: 2800000, guid: ee2155dc29767c54faff839394b45240, type: 3}
+  - name: tLeaking
+    texture: {fileID: 2800000, guid: a49d3d6a451ca434da17acb26c69c463, type: 3}
+  - name: tCloud
+    texture: {fileID: 2800000, guid: ed17f7ee9cb81374f99219b2ee912929, type: 3}
+  - name: tCanStuc
+    texture: {fileID: 2800000, guid: b31635d490cb8a543ac1e6db96c465da, type: 3}
+  - name: tCanBrick
+    texture: {fileID: 2800000, guid: 890b571f0efb2e74ba64d35af917f2a4, type: 3}
+  - name: tCanTiles
+    texture: {fileID: 2800000, guid: 3ac94ef532228bf4a995f73b3df4096f, type: 3}
+  - name: tBuild
+    texture: {fileID: 2800000, guid: a96001571de62ab4c83b2c837218384b, type: 3}
+  - name: tTiles
+    texture: {fileID: 2800000, guid: ece390aca13ecaa4d8b181fb4b60141e, type: 3}
+  - name: tWood
+    texture: {fileID: 2800000, guid: 16872c4fb9176b8419d2f61ee32e1ab7, type: 3}
+  - name: tBackWall
+    texture: {fileID: 2800000, guid: 45714930ae0e5324bb651b9fa607c435, type: 3}
+  - name: tSteklo
+    texture: {fileID: 2800000, guid: 1e188ce8871d1e94cbb00393875e3280, type: 3}
+  - name: tWoodBeam
+    texture: {fileID: 2800000, guid: 427f9d5dfe60d2949ac68660cace810f, type: 3}
+  - name: tStShelf
+    texture: {fileID: 2800000, guid: 4bcb74ba62571aa4b8171fd07957c712, type: 3}
+  - name: tShelf
+    texture: {fileID: 2800000, guid: ddb4b6fc505e57f4b90c407f8615fd61, type: 3}
+  - name: tSetka
+    texture: {fileID: 2800000, guid: 759d000b028ea07409646b567b7041eb, type: 3}
+  - name: tWindows2
+    texture: {fileID: 2800000, guid: a8153a1b3d8ce064fa015635d406875f, type: 3}
+  - name: tOrn
+    texture: {fileID: 2800000, guid: d957ef8003b380844a5d28023fa84fdd, type: 3}
+  - name: tWindows
+    texture: {fileID: 2800000, guid: d41d814bfe4e87c48b37d7f694bc4290, type: 3}
+  - name: tMbase
+    texture: {fileID: 2800000, guid: 08d0114142a5c1a4ab3a20f5fcc68fba, type: 3}
+  - name: tMWall2
+    texture: {fileID: 2800000, guid: 5acdae83430f21a4ab7cf6af63931c84, type: 3}
+  - name: tKlep2
+    texture: {fileID: 2800000, guid: e7b1e081fa8e58041bef67ea6e362424, type: 3}
+  - name: tKlep
+    texture: {fileID: 2800000, guid: 82b5d55c7374a994990a3550da32328d, type: 3}
+  - name: tEncl2
+    texture: {fileID: 2800000, guid: 26644c2afa3828a49aa20a7c83c70bbe, type: 3}
+  - name: tEncl1
+    texture: {fileID: 2800000, guid: 7653e15f02f1d624f886d70c6b048d5c, type: 3}
+  - name: tTower
+    texture: {fileID: 2800000, guid: 19de1911c8371df4b9ba1740e9fe520a, type: 3}
+  - name: tConBeam
+    texture: {fileID: 2800000, guid: 83581feab6f957a44996ae5b8583e543, type: 3}
+  - name: tCloudBeam
+    texture: {fileID: 2800000, guid: 259b654c13ecfe84589e157f1a444bc1, type: 3}
+  - name: tCanBeam
+    texture: {fileID: 2800000, guid: 49b516857f0455f46aaf3d1caeff58be, type: 3}
+  - name: tBrick2
+    texture: {fileID: 2800000, guid: 33513979343a62c458d268e8ed5706ad, type: 3}
+  - name: tBase
+    texture: {fileID: 2800000, guid: 235f4a0bd61f8a34399ddfdbc2469027, type: 3}

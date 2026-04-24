@@ -1,0 +1,38 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e94da64c3527f604c86bdaf09d32867f, type: 3}
+  m_Name: visdefwave
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponVisualDefinition
+  symbolName: visdefwave
+  weaponId: defwave
+  sourceSymbolId: 1329
+  frames:
+  - {fileID: -985113564820616005, guid: 32e9712e5f1eec04ab170610cb888d95, type: 3}
+  - {fileID: 202404987911244711, guid: fad3bfc1479f7654082c13b5ca3ca2d4, type: 3}
+  - {fileID: -8764597738744933808, guid: c9016cb32285e3643909952e92fe3a99, type: 3}
+  - {fileID: 2805633920695696223, guid: aad732cdff2e34e4b975b518b811fae6, type: 3}
+  - {fileID: -7723724024098242069, guid: a9ea996e922c4e34c856cdc58afdb0d0, type: 3}
+  - {fileID: 1296198028869233028, guid: b101388aba36dee47964f92ff29cd41a, type: 3}
+  - {fileID: 4243038468684218715, guid: cb27469bd568ffa42bec25f03b5bc4b5, type: 3}
+  pixelsPerUnit: 100
+  idleFrame: 0
+  shootFrameStart: 1
+  shootFrameCount: 6
+  reloadFrameStart: -1
+  reloadFrameCount: 0
+  prepFrameStart: -1
+  prepFrameCount: 0
+  readyFrame: -1
+  muzzleLocalOffset: {x: 0, y: 0}
+  muzzleFlareId: 
+  hasShellEject: 0
+  shineRadius: 0

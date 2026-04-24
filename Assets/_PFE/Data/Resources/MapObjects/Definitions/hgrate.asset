@@ -1,0 +1,76 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b6346ec5ad241bcb662491c6de14d7a, type: 3}
+  m_Name: hgrate
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.MapObjectDefinition
+  objectId: hgrate
+  displayName: "\u0420\u0435\u0448\u0451\u0442\u043A\u0430 \u0433\u043E\u0440"
+  legacyTip: door
+  family: 2
+  defaultPlacementType: door
+  size: 3
+  width: 1
+  wallMounted: 1
+  blocksMovement: 1
+  blocksVisibility: 0
+  isInteractive: 1
+  isSaveRelevant: 1
+  autoClose: 0
+  containerId: 
+  interactionMode: 0
+  allAct: 
+  allId: 
+  hitPoints: 1000
+  threshold: 100
+  shield: 0
+  materialId: 1
+  physicalCapability: 3
+  mass: 0
+  massMultiplier: 1
+  buoyancyFactor: 0
+  defaultVisualId: vishgrate
+  visual: {fileID: 11400000, guid: 4af78e115d3ca5e45ac7ac546b9aed30, type: 2}
+  legacyAttributes:
+  - key: ed
+    value: 6
+  - key: ico
+    value: door
+  - key: inter
+    value: 0
+  - key: tip
+    value: door
+  - key: door
+    value: 1
+  - key: phis
+    value: 2
+  - key: wall
+    value: 2
+  - key: opac
+    value: 0.1
+  - key: hp
+    value: 1000
+  - key: thre
+    value: 100
+  - key: mat
+    value: 1
+  - key: size
+    value: 3
+  - key: wid
+    value: 1
+  - key: n
+    value: "\u0420\u0435\u0448\u0451\u0442\u043A\u0430 \u0433\u043E\u0440"
+  - key: open
+    value: big_door_close
+  - key: close
+    value: big_door_close
+  - key: die
+    value: break_metal

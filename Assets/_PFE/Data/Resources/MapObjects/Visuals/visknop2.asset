@@ -1,0 +1,42 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 52445f94c96c4150ac0fe58bc05f53cc, type: 3}
+  m_Name: visknop2
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.MapObjectVisualDefinition
+  visualId: visknop2
+  objectId: knop2
+  linkedObjectIds:
+  - knop2
+  sourceFolderName: DefineSprite_110_visknop2
+  sourceSymbolId: 110
+  frames:
+  - {fileID: 21300000, guid: 1e1abc6caee75264691cf55182baeb67, type: 3}
+  - {fileID: 21300000, guid: 3b564a4d97190be418c60efbcb120b41, type: 3}
+  - {fileID: 21300000, guid: 57f65f7f92fcfea4ab35c73a1801bb5f, type: 3}
+  - {fileID: 21300000, guid: 0430aeb0422831a4184c0ff179fd427d, type: 3}
+  - {fileID: 21300000, guid: a7d11413ede11c74aaba29ae036dbc70, type: 3}
+  - {fileID: 21300000, guid: 6e4c201f13f385d4abaf45959b95423e, type: 3}
+  - {fileID: 21300000, guid: a272409dbd552e345823773f0bf0c269, type: 3}
+  - {fileID: 21300000, guid: 14979d5a2c9579e4a90fcb5c71435728, type: 3}
+  - {fileID: 21300000, guid: de18997a2087436438e63af229bd29bc, type: 3}
+  - {fileID: 21300000, guid: 4b304ac381f56ed48bb2e0910fd1b459, type: 3}
+  - {fileID: 21300000, guid: 396e1c4d25c7f8f418e5550efc9962c9, type: 3}
+  - {fileID: 21300000, guid: b0b370e488988664aa4406ec42cf9a9f, type: 3}
+  - {fileID: 21300000, guid: 1c1230b56e2b49540a796e7459ad0ec8, type: 3}
+  - {fileID: 21300000, guid: 9e1d6dd3e1e55ed44a92fce23a3a1206, type: 3}
+  - {fileID: 21300000, guid: 904f726117531a24488af93c64ef3520, type: 3}
+  pixelsPerUnit: 100
+  pixelSize: {x: 40, y: 40}
+  pivot: {x: 0.5, y: 0.5}
+  localOffset: {x: 0, y: 0}
+  sortingOrder: 1
+  wallMounted: 1

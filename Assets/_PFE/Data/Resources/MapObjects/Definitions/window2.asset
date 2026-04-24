@@ -1,0 +1,70 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b6346ec5ad241bcb662491c6de14d7a, type: 3}
+  m_Name: window2
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.MapObjectDefinition
+  objectId: window2
+  displayName: "\u0411\u0440\u043E\u043D\u0438\u0440\u043E\u0432\u0430\u043D\u043D\u043E\u0435
+    \u043E\u043A\u043D\u043E"
+  legacyTip: door
+  family: 2
+  defaultPlacementType: door
+  size: 1
+  width: 2
+  wallMounted: 1
+  blocksMovement: 1
+  blocksVisibility: 0
+  isInteractive: 1
+  isSaveRelevant: 1
+  autoClose: 0
+  containerId: 
+  interactionMode: 
+  allAct: 
+  allId: 
+  hitPoints: 1000
+  threshold: 100
+  shield: 0
+  materialId: 5
+  physicalCapability: 3
+  mass: 0
+  massMultiplier: 1
+  buoyancyFactor: 0
+  defaultVisualId: viswindow2
+  visual: {fileID: 11400000, guid: d51ad05a48f59ca41b8886ed69fba713, type: 2}
+  legacyAttributes:
+  - key: ed
+    value: 6
+  - key: ico
+    value: door
+  - key: tip
+    value: door
+  - key: door
+    value: 1
+  - key: wall
+    value: 2
+  - key: opac
+    value: 0.2
+  - key: hp
+    value: 1000
+  - key: thre
+    value: 100
+  - key: mat
+    value: 5
+  - key: size
+    value: 1
+  - key: wid
+    value: 2
+  - key: n
+    value: "\u0411\u0440\u043E\u043D\u0438\u0440\u043E\u0432\u0430\u043D\u043D\u043E\u0435
+      \u043E\u043A\u043D\u043E"
+  - key: die
+    value: break_glass

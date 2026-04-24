@@ -1,0 +1,62 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b6346ec5ad241bcb662491c6de14d7a, type: 3}
+  m_Name: doorout
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.MapObjectDefinition
+  objectId: doorout
+  displayName: "\u0414\u0432\u0435\u0440\u044C \u0432\u043E\u0437\u0432\u0440\u0430\u0442\u0430"
+  legacyTip: box
+  family: 2
+  defaultPlacementType: door
+  size: 2
+  width: 3
+  wallMounted: 1
+  blocksMovement: 1
+  blocksVisibility: 0
+  isInteractive: 1
+  isSaveRelevant: 1
+  autoClose: 0
+  containerId: 
+  interactionMode: 11
+  allAct: probreturn
+  allId: 
+  hitPoints: 0
+  threshold: 0
+  shield: 0
+  materialId: 0
+  physicalCapability: 3
+  mass: 0
+  massMultiplier: 1
+  buoyancyFactor: 0
+  defaultVisualId: visdoorout
+  visual: {fileID: 11400000, guid: a26cf6c1f3737f641b9a7e96038067fb, type: 2}
+  legacyAttributes:
+  - key: ed
+    value: 9
+  - key: ico
+    value: 
+  - key: inter
+    value: 11
+  - key: time
+    value: 10
+  - key: tip
+    value: box
+  - key: allact
+    value: probreturn
+  - key: wall
+    value: 1
+  - key: n
+    value: "\u0414\u0432\u0435\u0440\u044C \u0432\u043E\u0437\u0432\u0440\u0430\u0442\u0430"
+  - key: size
+    value: 2
+  - key: wid
+    value: 3

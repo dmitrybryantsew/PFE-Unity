@@ -1,0 +1,276 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
+  m_Name: "\u043A\u043E\u043D\u0435\u0446"
+  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  id: "\u043A\u043E\u043D\u0435\u0446"
+  type: end
+  fixedPosition: {x: 0, y: 0, z: 0}
+  difficultyLevel: 0
+  maxInstances: 2
+  allowRandom: 1
+  backgroundRoomId: "\u043A\u043E\u043D\u0435\u0446.\u0437\u0430\u0434"
+  backgroundDecorations:
+  - id: light5
+    tileCoord: {x: 44, y: 11}
+  doorQuality: 020000000200000002000000020000000000000002000000020000000000000002000000000000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000
+  tileDataString: "A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\n_._._._._._._._._._._._._._._._._._._._.O._._._._._._._._._._._._._._._._._._._._.A._._._._._.A\n_._._._._._._._._._._._._._._._._._._._.O._._._._._._._._._._._._._._._._._._._._.A._._._._._.A\n_._._._._._._\u0415._\u0415._\u0415._\u0415._._._._._._._._._._._._._._._._._._._._._._\u0415._\u0415._\u0415._\u0415._._._._._._.A._._._._._.A\n_\u0415._\u0415._\u0415._._._._._._._._._._._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._._._._._._._._._._._\u0415._\u0415._\u0415.A._\u0415._\u0415._\u0415._\u0415._\u0415.A\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A\n_._\u0415._\u0415._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\u0415._\u0415.A.O.O.O.O.O.A\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A._F._U._U._U._F.A\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A._F._U._U._U._F.A\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A._F._U._U._U._F.A\n_._\u0415._\u0415._._._._._.O._._._._._._._._._._._._._._._._._._._._._._._._.O._._._._._._\u0415._\u0415.A._F._U._U._U._F.A\n_._._._._._._._.O._._._._._._._._._._._._._._._._._._._._._._._._.O._._._._._._._._._F._U._U._U._F.A\n_._._._._._._\u0415._\u0415.O._._._._._._._._._._._._._._._._._._._._._._._._.O._\u0415._\u0415._._._._._._._F._U._U._U._F.A\n_._._._._._._._.O.O.O.O._._._._._._._._._._._._._._._._._._.O.O.O.O._._._._._._._._._F._U._U._U._F.A\n_._\u0415._\u0415._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\u0415._\u0415.A.O.O.O.O.O.A\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A\n_._\u0415._\u0415._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\u0415._\u0415.A._\u0415._\u0415._\u0415._\u0415._\u0415.A\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A._._._._._.A\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A._._._._._.A\n_._._._._._._._._._._.O.O.O.O.O._*._*._*._*._*._*._*._*._*.O.O.O.O.O._._._._._._._._._._._.A._._._._._.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A"
+  objects:
+  - type: box
+    id: basechest
+    definitionId: basechest
+    definition: {fileID: 11400000, guid: 24dc29e5af5d5f349bafff845b43a763, type: 2}
+    tileCoord: {x: 43, y: 23}
+    code: dxtaPltGBjnCOFsK
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="dxtaPltGBjnCOFsK"
+  - type: door
+    id: door4
+    definitionId: door4
+    definition: {fileID: 11400000, guid: 40e9f710053621346835979c0cdde619, type: 2}
+    tileCoord: {x: 41, y: 19}
+    code: itt5FFVmcqeZp1g3
+    uid: 
+    attributes:
+    - key: locktip
+      value: 0
+    - key: allid
+      value: 1
+    items: []
+    scripts: []
+    parameters: code="itt5FFVmcqeZp1g3" locktip="0" allid="1"
+  - type: box
+    id: inbasedoor
+    definitionId: inbasedoor
+    definition: {fileID: 11400000, guid: eb015ee80898af843a8a85e6869c4999, type: 2}
+    tileCoord: {x: 43, y: 15}
+    code: o9wKnmlUAG4W89nJ
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="o9wKnmlUAG4W89nJ"
+  - type: door
+    id: door4
+    definitionId: door4
+    definition: {fileID: 11400000, guid: 40e9f710053621346835979c0cdde619, type: 2}
+    tileCoord: {x: 41, y: 7}
+    code: ofOzulmEp0kF6Bcj
+    uid: 
+    attributes:
+    - key: locktip
+      value: 0
+    - key: allid
+      value: 1
+    items: []
+    scripts: []
+    parameters: code="ofOzulmEp0kF6Bcj" locktip="0" allid="1"
+  - type: obj
+    id: megadron
+    definitionId: megadron
+    definition: {fileID: 11400000, guid: a57143fd613ec1c45ae4afa54f242b3b, type: 2}
+    tileCoord: {x: 27, y: 9}
+    code: jYMN9ZYnE0vJqe1w
+    uid: 
+    attributes: []
+    items: []
+    scripts:
+    - eventName: 
+      actions:
+      - act: allact
+        targ: 
+        val: open
+    parameters: code="jYMN9ZYnE0vJqe1w"
+  - type: box
+    id: weapbox
+    definitionId: weapbox
+    definition: {fileID: 11400000, guid: f6552c08c16365448b4ca8dce89dab5b, type: 2}
+    tileCoord: {x: 45, y: 7}
+    code: rsFgQdUj4yVVpoys
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="rsFgQdUj4yVVpoys"
+  - type: box
+    id: ammobox
+    definitionId: ammobox
+    definition: {fileID: 11400000, guid: 812fa104dc7e4a640b7449d632fc2a28, type: 2}
+    tileCoord: {x: 44, y: 7}
+    code: K1b2vS9OVo0Pk2mn
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="K1b2vS9OVo0Pk2mn"
+  - type: box
+    id: ammobox
+    definitionId: ammobox
+    definition: {fileID: 11400000, guid: 812fa104dc7e4a640b7449d632fc2a28, type: 2}
+    tileCoord: {x: 43, y: 7}
+    code: WVcywwLz9dTY2OLC
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="WVcywwLz9dTY2OLC"
+  - type: box
+    id: medbox
+    definitionId: medbox
+    definition: {fileID: 11400000, guid: 6b564a33698b5c94e86115e584042907, type: 2}
+    tileCoord: {x: 45, y: 22}
+    code: q9ff30TZGS9orsNB
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="q9ff30TZGS9orsNB"
+  - type: door
+    id: door4
+    definitionId: door4
+    definition: {fileID: 11400000, guid: 40e9f710053621346835979c0cdde619, type: 2}
+    tileCoord: {x: 41, y: 15}
+    code: trBqttmhpTt61wyr
+    uid: 
+    attributes:
+    - key: locktip
+      value: 0
+    - key: allid
+      value: 1
+    items: []
+    scripts: []
+    parameters: code="trBqttmhpTt61wyr" locktip="0" allid="1"
+  - type: box
+    id: case
+    definitionId: case
+    definition: {fileID: 11400000, guid: 98fdf58298f664742b03884d15281c30, type: 2}
+    tileCoord: {x: 45, y: 23}
+    code: kvIwP5KlLVqakrmR
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="kvIwP5KlLVqakrmR"
+  - type: area
+    id: area
+    definitionId: area
+    definition: {fileID: 11400000, guid: 62760a6826b295d4bb7380b3dc6e5dc0, type: 2}
+    tileCoord: {x: 39, y: 23}
+    code: ayhVX4IiphDZcOrC
+    uid: 
+    attributes:
+    - key: emit
+      value: lift
+    - key: dens
+      value: 3
+    - key: vis
+      value: lift
+    - key: grav
+      value: -10
+    items: []
+    scripts: []
+    parameters: code="ayhVX4IiphDZcOrC" emit="lift" dens="3" vis="lift" grav="-10"
+  - type: box
+    id: mcrate3
+    definitionId: mcrate3
+    definition: {fileID: 11400000, guid: 049a4729c63885542879049cdb41a547, type: 2}
+    tileCoord: {x: 31, y: 14}
+    code: RGeBT0yTz4fxzj9l
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="RGeBT0yTz4fxzj9l"
+  - type: box
+    id: mcrate3
+    definitionId: mcrate3
+    definition: {fileID: 11400000, guid: 049a4729c63885542879049cdb41a547, type: 2}
+    tileCoord: {x: 5, y: 23}
+    code: UZaHA5zPupLPHfzU
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="UZaHA5zPupLPHfzU"
+  - type: box
+    id: bigbox
+    definitionId: bigbox
+    definition: {fileID: 11400000, guid: 3c4761fe5ddb00545a1db7150c27fad8, type: 2}
+    tileCoord: {x: 9, y: 14}
+    code: wT76yUAjpZePbmw1
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="wT76yUAjpZePbmw1"
+  - type: box
+    id: mcrate4
+    definitionId: mcrate4
+    definition: {fileID: 11400000, guid: 3501a09d324899249b8782f987dbfd78, type: 2}
+    tileCoord: {x: 36, y: 23}
+    code: EXzZNTk76sq6U4g3
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="EXzZNTk76sq6U4g3"
+  - type: box
+    id: mcrate5
+    definitionId: mcrate5
+    definition: {fileID: 11400000, guid: 01716c36a83190d4bb939c507d6e4c74, type: 2}
+    tileCoord: {x: 22, y: 3}
+    code: RkTaVOiomK5xmbLu
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="RkTaVOiomK5xmbLu"
+  - type: box
+    id: mcrate3
+    definitionId: mcrate3
+    definition: {fileID: 11400000, guid: 049a4729c63885542879049cdb41a547, type: 2}
+    tileCoord: {x: 16, y: 3}
+    code: cHZNieYNrmr6CMi3
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="cHZNieYNrmr6CMi3"
+  spawnPoints:
+  - tileCoord: {x: 2, y: 15}
+    type: 0
+    unitId: 
+    facingDirection: 1
+  environment:
+    musicTrack: music_cat_1
+    colorScheme: 
+    backgroundColorScheme: 
+    backgroundWall: 
+    backgroundForm: 0
+    transparentBackground: 0
+    hasSky: 0
+    borderType: 1
+    noBlackReveal: 0
+    visibilityMultiplier: 1
+    lightsOn: 0
+    returnsToDarkness: 0
+    waterLevel: 100
+    waterType: 0
+    waterOpacity: 0
+    waterDamage: 0
+    waterDamageType: 7
+    radiation: 0
+    radiationDamage: 0
+    darkness: 0

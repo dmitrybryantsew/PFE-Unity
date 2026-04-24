@@ -1,0 +1,57 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8bc12b9b0b454a6599970a23f6fca3a8, type: 3}
+  m_Name: dflame
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.ProjectileVisualDefinition
+  visualId: dflame
+  sourceClassName: visbuldflame
+  sourceSymbolId: 3922
+  recommendedArchetype: 8
+  frames:
+  - {fileID: 21300000, guid: c1779211c7bcc1243be3e38cc73334cd, type: 3}
+  - {fileID: 21300000, guid: 8aaeb3852bc350c4fbf5ea60090c35af, type: 3}
+  - {fileID: 21300000, guid: e34d4fa6ad7078047bd876fdde505fc1, type: 3}
+  - {fileID: 21300000, guid: 18f54d301b2d5ab438adb7d274499305, type: 3}
+  - {fileID: 21300000, guid: 0d5ce0fc3db3c344ea24f540a1e14c1c, type: 3}
+  - {fileID: 21300000, guid: 4179f5c08f0bf104f9f8963f6cb8b323, type: 3}
+  - {fileID: 21300000, guid: c1f0d927562775544be8343161993a2e, type: 3}
+  - {fileID: 21300000, guid: 24d503af01c001844b3a6736cc2dadc3, type: 3}
+  - {fileID: 21300000, guid: 959ab14ca8d22f04ba91b9b21cc7b5b9, type: 3}
+  - {fileID: 21300000, guid: 9a359cb0d9ef9b7448438d09d30bb0a0, type: 3}
+  - {fileID: 21300000, guid: 028b100bf7935bc4aaf2fb636abb94d8, type: 3}
+  - {fileID: 21300000, guid: c3ade177dec7d5f46a6f049d1db4a31e, type: 3}
+  - {fileID: 21300000, guid: e1bfcd9177038c0449e90175e2a57aab, type: 3}
+  - {fileID: 21300000, guid: c9f189c8ab7d5344db5098c8ba582133, type: 3}
+  - {fileID: 21300000, guid: e5272a4a622a63e4ab5eb16573d2ca41, type: 3}
+  - {fileID: 21300000, guid: c0c47eae011393c4d9325e5767673447, type: 3}
+  - {fileID: 21300000, guid: 13d9758d951ba994b8a0e8c47e58d01d, type: 3}
+  - {fileID: 21300000, guid: dfddf21d6eb1d7b4389cde76fa608e1a, type: 3}
+  - {fileID: 21300000, guid: 7c901193e099d3d43a47ccc83ab7cd6d, type: 3}
+  - {fileID: 21300000, guid: c69068114d4462f47a0c03bb16d626c3, type: 3}
+  - {fileID: 21300000, guid: ab65fc8c0d346e84eabe46075be2da40, type: 3}
+  - {fileID: 21300000, guid: 9457cd80c15795d42b3d7e2e81f07c37, type: 3}
+  - {fileID: 21300000, guid: a07aa63168738de4e8db9a16e19e6588, type: 3}
+  - {fileID: 21300000, guid: c8ed1ef66a51bc941a632ce604b7d5eb, type: 3}
+  - {fileID: 21300000, guid: d0190ab1e5c8d27458cf4dff411d2a19, type: 3}
+  - {fileID: 21300000, guid: a9e3bf201e9f59d4fa44796a14a6bd0a, type: 3}
+  - {fileID: 21300000, guid: c3dd9665674bd9d468234005efdc9d64, type: 3}
+  - {fileID: 21300000, guid: 728bc4e5319d58b49a1a853b29e50e4b, type: 3}
+  - {fileID: 21300000, guid: 253ca982b8bcc5f48b891437d8f99a7c, type: 3}
+  - {fileID: 21300000, guid: 9ee1d2692a4f43e43a9b2c2b9e8be531, type: 3}
+  - {fileID: 21300000, guid: cbd2f5fec8c121b4b8879d8991643bb8, type: 3}
+  frameRate: 30
+  loop: 0
+  localOffset: {x: 0, y: 0, z: 0}
+  localRotation: 0
+  localScale: {x: 1, y: 1, z: 1}
+  colorTint: {r: 1, g: 1, b: 1, a: 1}
+  sortingOrder: 0

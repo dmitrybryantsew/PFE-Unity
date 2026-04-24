@@ -1,0 +1,20 @@
+{
+    "name": "PFE.Editor",
+    "rootNamespace": "PFE.Editor",
+    "references": [
+        "PFE.Core",
+        "PFE.ModAPI",
+        "Unity.InputSystem"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

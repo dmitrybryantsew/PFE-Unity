@@ -1,0 +1,94 @@
+# KiloCode Ignore File
+# Files and directories listed here will be excluded from AI context
+# to reduce token usage and improve performance
+
+# --------------------------------------------
+# 1. BINARY/IMAGE FILES (Highest Priority)
+# --------------------------------------------
+# All image formats - these are huge token consumers
+# *.jpg
+# *.jpeg
+# *.png
+# *.gif
+*.bmp
+*.tga
+*.psd
+*.tif
+*.tiff
+*.webp
+*.ico
+# *.svg
+
+# --------------------------------------------
+# 4. DATA FILES
+# --------------------------------------------
+# *.json
+# *.xml
+# *.csv
+
+# Large auto-generated files
+# AllData.as
+
+# Unity asset files (serialized data, not source code)
+# *.asset
+*.asset.meta
+
+# Unity meta files (not needed for code understanding)
+*.meta
+
+
+# Large data directories
+Assets/_PFE/Data/Resources/Items/
+Assets/_PFE/Data/Resources/Effects/
+Assets/_PFE/Data/Resources/Perks/
+Assets/_PFE/Data/Resources/Rooms/
+Assets/_PFE/Data/Resources/Units/
+Assets/_PFE/Data/Resources/Weapons/
+
+# TEST FILES 
+Assets/_PFE/Tests/
+
+# Large database files
+Assets/_PFE/Data/*.asset
+Assets/_PFE/Data/Map/*.asset
+
+# unrelated to _pfe files
+Assets/Packages/
+Assets/Plugins/
+Assets/Resources/
+Assets/Scenes/
+Assets/Settings/
+Assets/ConsolePro/
+# Assets/_PFE/ - main project directory excludingf this there should be no tokens... it still gives 3m ffs
+# Assets/_PFE/ 
+
+Builds/
+Library/
+Logs/
+Packages/
+
+# Documentation
+# /docs/
+
+
+# Logs
+*.log
+
+/.ralph
+
+# --------------------------------------------
+# 9. UTILITY SCRIPTS
+# --------------------------------------------
+# PS1Scripts/
+
+# --------------------------------------------
+# 11. CONFIG FILES
+# --------------------------------------------
+# Uncomment if not needed for context
+.vscode/
+ProjectSettings/
+
+*.csproj
+*.sln
+*.slnx
+*.txt

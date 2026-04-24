@@ -1,0 +1,58 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b6346ec5ad241bcb662491c6de14d7a, type: 3}
+  m_Name: p_luna
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.MapObjectDefinition
+  objectId: p_luna
+  displayName: p_luna
+  legacyTip: box
+  family: 4
+  defaultPlacementType: box
+  size: 3
+  width: 4
+  wallMounted: 1
+  blocksMovement: 0
+  blocksVisibility: 0
+  isInteractive: 1
+  isSaveRelevant: 1
+  autoClose: 0
+  containerId: 
+  interactionMode: 2
+  allAct: take
+  allId: 
+  hitPoints: 0
+  threshold: 0
+  shield: 0
+  materialId: 0
+  physicalCapability: 2
+  mass: 0
+  massMultiplier: 1
+  buoyancyFactor: 0
+  defaultVisualId: visp_luna
+  visual: {fileID: 11400000, guid: fb4fb573139c4e34991b78a3b4e71784, type: 2}
+  legacyAttributes:
+  - key: ed
+    value: 5
+  - key: ico
+    value: 
+  - key: tip
+    value: box
+  - key: inter
+    value: 2
+  - key: wall
+    value: 1
+  - key: allact
+    value: take
+  - key: size
+    value: 3
+  - key: wid
+    value: 4

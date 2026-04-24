@@ -1,0 +1,246 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
+  m_Name: room_8_1
+  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  id: room_8_1
+  type: pass
+  fixedPosition: {x: 8, y: 1, z: 0}
+  difficultyLevel: 0
+  maxInstances: 2
+  allowRandom: 1
+  backgroundRoomId: 
+  backgroundDecorations:
+  - id: stenka3
+    tileCoord: {x: 11, y: 20}
+  - id: hkonstr
+    tileCoord: {x: 21, y: 13}
+  - id: railing
+    tileCoord: {x: 24, y: 12}
+  - id: konstr
+    tileCoord: {x: 21, y: 15}
+  - id: konstr
+    tileCoord: {x: 26, y: 15}
+  - id: railing
+    tileCoord: {x: 20, y: 12}
+  - id: stenka2
+    tileCoord: {x: 8, y: 15}
+  - id: konstr
+    tileCoord: {x: 21, y: 19}
+  - id: konstr
+    tileCoord: {x: 26, y: 19}
+  - id: konstr
+    tileCoord: {x: 9, y: 18}
+  - id: konstr
+    tileCoord: {x: 13, y: 18}
+  - id: trava
+    tileCoord: {x: 21, y: 21}
+  - id: trava
+    tileCoord: {x: 0, y: 21}
+  - id: stenka2
+    tileCoord: {x: 36, y: 15}
+  - id: stenka1
+    tileCoord: {x: 33, y: 17}
+  - id: stenka3
+    tileCoord: {x: 37, y: 21}
+  - id: konstr
+    tileCoord: {x: 13, y: 14}
+  doorQuality: 020000000200000002000000020000000200000002000000000000000000000000000000000000000000000000000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000
+  tileDataString: "_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._\u0410-._-._-._-._-._-._-._\u0411-._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._.E.E.E.E.E.E._._._._._._\u0410.E.E.E.E.E.E._\u0411._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._\u0410._._._._._._._\u0411._._._._._._._._.E._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._\u0410._._._._._._._\u0411._._._._._._._\u0410.E.E.E.E.E.E.E.E._._._._._\n_._._._._._._._._._._._._._._._._._._._._\u0410._._._._._._._\u0411._._._._._._._\u0410._-._-._-._-._.E._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._\u0410._._._._._._._\u0411._._._._._._._\u0410._._._._._.E._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._\u0410._._._._._._._\u0411._._._._._._._\u0410._._._._._.E._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._\u0410._._._._._._._\u0411._._._._._._._._._._._._.E._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._\u0410._._._._._._._\u0411._._._._._._._._._._._._._._._._._._._._\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D\nG.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H"
+  objects:
+  - type: obj
+    id: bossraider
+    definitionId: bossraider
+    definition: {fileID: 11400000, guid: 9afbf2a60b0008949b02eaa8afb470bd, type: 2}
+    tileCoord: {x: 28, y: 21}
+    code: rAAM2sitOyIETLj4
+    uid: buch
+    attributes:
+    - key: turn
+      value: -1
+    - key: name
+      value: buch
+    items:
+    - id: sl_note1
+      attributes:
+      - key: id
+        value: sl_note1
+      - key: imp
+        value: 1
+    scripts:
+    - eventName: 
+      actions:
+      - act: unlock
+        targ: surfBoss1
+        val: 
+    parameters: code="rAAM2sitOyIETLj4" uid="buch" turn="-1" name="buch"
+  - type: box
+    id: box
+    definitionId: box
+    definition: {fileID: 11400000, guid: 140a965d2a888724f9ff7835ad1ae69c, type: 2}
+    tileCoord: {x: 5, y: 21}
+    code: oUY5oxCcK4o3sIpU
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="oUY5oxCcK4o3sIpU"
+  - type: box
+    id: bigbox
+    definitionId: bigbox
+    definition: {fileID: 11400000, guid: 3c4761fe5ddb00545a1db7150c27fad8, type: 2}
+    tileCoord: {x: 43, y: 21}
+    code: QWeQuMr0okKS6GBv
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="QWeQuMr0okKS6GBv"
+  - type: box
+    id: mcrate2
+    definitionId: mcrate2
+    definition: {fileID: 11400000, guid: c665fca677fbff349ac0c8235e61089b, type: 2}
+    tileCoord: {x: 32, y: 21}
+    code: BhtooXWY4S4SQ0E6
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="BhtooXWY4S4SQ0E6"
+  - type: box
+    id: box
+    definitionId: box
+    definition: {fileID: 11400000, guid: 140a965d2a888724f9ff7835ad1ae69c, type: 2}
+    tileCoord: {x: 38, y: 21}
+    code: FdsspgRsDZkbrr33
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="FdsspgRsDZkbrr33"
+  - type: box
+    id: mcrate2
+    definitionId: mcrate2
+    definition: {fileID: 11400000, guid: c665fca677fbff349ac0c8235e61089b, type: 2}
+    tileCoord: {x: 22, y: 12}
+    code: JD2zbj0j6vjlkO9m
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="JD2zbj0j6vjlkO9m"
+  - type: box
+    id: box
+    definitionId: box
+    definition: {fileID: 11400000, guid: 140a965d2a888724f9ff7835ad1ae69c, type: 2}
+    tileCoord: {x: 15, y: 21}
+    code: Rppd7Dohs2E48oiI
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="Rppd7Dohs2E48oiI"
+  - type: box
+    id: bigbox
+    definitionId: bigbox
+    definition: {fileID: 11400000, guid: 3c4761fe5ddb00545a1db7150c27fad8, type: 2}
+    tileCoord: {x: 22, y: 21}
+    code: vRmFUk9wnY4riTa7
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="vRmFUk9wnY4riTa7"
+  - type: area
+    id: area
+    definitionId: area
+    definition: {fileID: 11400000, guid: 62760a6826b295d4bb7380b3dc6e5dc0, type: 2}
+    tileCoord: {x: 1, y: 21}
+    code: tZs7PruaNIkeXj47
+    uid: 
+    attributes:
+    - key: h
+      value: 8
+    items: []
+    scripts:
+    - eventName: 
+      actions:
+      - act: music
+        targ: 
+        val: pre_1
+      - act: control off
+        targ: 
+        val: 
+      - act: show
+        targ: buch
+        val: 
+      - act: dialog
+        targ: 
+        val: surfDialHello3
+      - act: control on
+        targ: 
+        val: 
+      - act: show
+        targ: 
+        val: 
+      - act: off
+        targ: this
+        val: 
+    parameters: code="tZs7PruaNIkeXj47" h="8"
+  - type: obj
+    id: enspawn
+    definitionId: enspawn
+    definition: {fileID: 11400000, guid: 55c9b527d50b8f74f98ca05a6c1e57ee, type: 2}
+    tileCoord: {x: 46, y: 21}
+    code: j2i29FkbnH61YAmQ
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="j2i29FkbnH61YAmQ"
+  - type: obj
+    id: enspawn
+    definitionId: enspawn
+    definition: {fileID: 11400000, guid: 55c9b527d50b8f74f98ca05a6c1e57ee, type: 2}
+    tileCoord: {x: 0, y: 21}
+    code: DxgtHieQFwdjL43B
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="DxgtHieQFwdjL43B"
+  spawnPoints:
+  - tileCoord: {x: 2, y: 15}
+    type: 0
+    unitId: 
+    facingDirection: 1
+  environment:
+    musicTrack: 
+    colorScheme: blue
+    backgroundColorScheme: 
+    backgroundWall: sky
+    backgroundForm: 0
+    transparentBackground: 0
+    hasSky: 0
+    borderType: 1
+    noBlackReveal: 0
+    visibilityMultiplier: 10
+    lightsOn: 0
+    returnsToDarkness: 0
+    waterLevel: 100
+    waterType: 0
+    waterOpacity: 0
+    waterDamage: 0
+    waterDamageType: 7
+    radiation: 0
+    radiationDamage: 0
+    darkness: 0

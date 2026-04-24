@@ -1,0 +1,64 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b6346ec5ad241bcb662491c6de14d7a, type: 3}
+  m_Name: mcrate2
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.MapObjectDefinition
+  objectId: mcrate2
+  displayName: "\u043C \u044F\u0449\u0438\u043A 75 \u043A\u0433"
+  legacyTip: box
+  family: 3
+  defaultPlacementType: box
+  size: 2
+  width: 2
+  wallMounted: 0
+  blocksMovement: 0
+  blocksVisibility: 0
+  isInteractive: 1
+  isSaveRelevant: 1
+  autoClose: 0
+  containerId: 
+  interactionMode: 
+  allAct: 
+  allId: 
+  hitPoints: 0
+  threshold: 0
+  shield: 0.75
+  materialId: 1
+  physicalCapability: 6
+  mass: 75
+  massMultiplier: 1
+  buoyancyFactor: 0
+  defaultVisualId: vismcrate2
+  visual: {fileID: 11400000, guid: 0797dcb00f002044ba1971d1de0cd236, type: 2}
+  legacyAttributes:
+  - key: ed
+    value: 1
+  - key: ico
+    value: phis
+  - key: tip
+    value: box
+  - key: mat
+    value: 1
+  - key: massa
+    value: 75
+  - key: size
+    value: 2
+  - key: shield
+    value: 0.75
+  - key: lurk
+    value: 2
+  - key: wid
+    value: 2
+  - key: fall
+    value: fall_metal_big
+  - key: n
+    value: "\u043C \u044F\u0449\u0438\u043A 75 \u043A\u0433"

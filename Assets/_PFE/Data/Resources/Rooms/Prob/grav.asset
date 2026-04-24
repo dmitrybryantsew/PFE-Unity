@@ -1,0 +1,307 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
+  m_Name: grav
+  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  id: grav
+  type: pass
+  fixedPosition: {x: 0, y: 0, z: 0}
+  difficultyLevel: 0
+  maxInstances: 2
+  allowRandom: 1
+  backgroundRoomId: 
+  backgroundDecorations:
+  - id: vkonstr
+    tileCoord: {x: 28, y: 4}
+  - id: vkonstr
+    tileCoord: {x: 28, y: 1}
+  - id: konstr
+    tileCoord: {x: 30, y: 21}
+  - id: konstr
+    tileCoord: {x: 35, y: 21}
+  - id: server
+    tileCoord: {x: 32, y: 20}
+  - id: bvent
+    tileCoord: {x: 43, y: 18}
+  - id: lcyan
+    tileCoord: {x: 43, y: 17}
+  - id: vkonstr
+    tileCoord: {x: 7, y: 17}
+  - id: vkonstr
+    tileCoord: {x: 7, y: 14}
+  - id: vkonstr
+    tileCoord: {x: 7, y: 11}
+  - id: vkonstr
+    tileCoord: {x: 7, y: 8}
+  - id: vkonstr
+    tileCoord: {x: 12, y: 8}
+  - id: vkonstr
+    tileCoord: {x: 12, y: 11}
+  - id: vkonstr
+    tileCoord: {x: 12, y: 14}
+  - id: vkonstr
+    tileCoord: {x: 12, y: 17}
+  - id: vkonstr
+    tileCoord: {x: 12, y: 20}
+  - id: light3
+    tileCoord: {x: 44, y: 5}
+  - id: light1
+    tileCoord: {x: 10, y: 4}
+  - id: light5
+    tileCoord: {x: 10, y: 8}
+  doorQuality: 020000000200000002000000020000000200000002000000000000000200000000000000000000000200000000000000020000000200000002000000020000000200000002000000020000000000000002000000020000000200000002000000
+  tileDataString: "B._._.N.N.N.N.N.N.N.N.N.N.N._._.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N._._.A.BC.BC.BC.BC.B\nB._._._._._._.N.N.N.N.N.N.N._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A._C._C._C._C.B\nB._._._._._._.N.N.N.N.N.N.N._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._C._C._C._C.B\nB._._._._._._.NC._C._C._C._C._C.NC._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._C._C._C._C.B\nB._._._._._._._C._C._C._C._C._C._C._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A._C\u041A._C\u041A._C\u041A._C\u041A.B\nB._._._._._._._C._C._C._C._C._C._C._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A._C._C._C._C.B\nB._._._._._._.NC._C._C._C._C._C.NC._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A._C._C._C._C.B\nB._._._._._._.NC._F\u0415._F\u0415._F\u0415._F\u0415._F\u0415.NC._._._._._._._._._._._._._._._\u0415._\u0415._._._._._._._._._._._._.A._C._C._C._C.B\nB._._._._._._._F._F._F._F._F._F._F._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A._C._C._C._C.B\nB._._._._._._._._._K._K._K._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A._C._C._C._C.B\nB._._._._._._._._._K._K._K._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A._C._C._C._C.B\nB._._._._._._._._._K._K._K._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A._C._C._C._C.B\nB._._._._._._._._._K._K._K._._._._._._C\u041A._C\u041A._C\u041A._C\u041A._C\u041A._._._._._._._._._._._._._._._.N.N._\u041A._\u041A._\u041A.A._C._C._C._C.B\nB._._._._._._._._._K._K._K._._._._._._C._._._._C._._._._._._._._._._._._._._._._._._._._.A._C._C._C._C.B\nB._._._._._._._._._K._K._K._._._._._._C._._._._C._._._._._._._._._._._._._._._._._._._._.A._C._C._C._C.B\nB._._._._._._._._._K._K._K._._._._._._C._._._._C._._._._._._._._._._._._._._._._._._._._.A._C._C._C._C.B\nB._._._._._._._._._K._K._K._._._._._._C._._._._C._._._._._._._._._._._._._._._._._._._._.A._C._C._C._C.B\nB._._._._._._._._._K._K._K._._._._._._C._._._._C._._._._._._._._._._._._._._._._._._._._.A._C._C._C._C.B\nB._._._._._._._._._K._K._K._._._._._._C._._._._C._._._._._._._._._._._._._._._._._._._._.A._C._C._C._C.B\nB._._._._._._._._._K._K._K._._._._._._C._._._._C._._._._._._._._._._._._._._._._._._._._.A._C._C._C._C.B\nB._._._._._._.N.N.N.N.N.N._._._._.N.N.N.N.N._._._._._._._._.A.A.A.A.A.A._._._._._._.A.B.B.B.B.B\nB._._._._._._._C._C._C._C._C._C._._._._.N.N.N.N.N._._._._._._._._._C._C._C._C._C._C._._._._._._.A.B.B.B.B.B\nB._._._._._._._C._C._C._C._C._C._._._._.N.N.N.N.N._._._._._._._._._C._C._C._C._C._C._._._._._._.A.B.B.B.B.B\nB._._.N.N.N.N.NC._C._C._C._C.NC.NC.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.NC._C._C._C._C.NC.N.N.N.N._._.A.B.B.B.B.B\nB._._.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N._._.A.B.B.B.B.B"
+  objects:
+  - type: door
+    id: window2
+    definitionId: window2
+    definition: {fileID: 11400000, guid: 552b7f3413ec8ad4d96e5a39b01ef8b9, type: 2}
+    tileCoord: {x: 42, y: 3}
+    code: N6pJmffOYF1h2wz9
+    uid: 
+    attributes:
+    - key: indestruct
+      value: 1
+    items: []
+    scripts: []
+    parameters: code="N6pJmffOYF1h2wz9" indestruct="1"
+  - type: area
+    id: area
+    definitionId: area
+    definition: {fileID: 11400000, guid: 62760a6826b295d4bb7380b3dc6e5dc0, type: 2}
+    tileCoord: {x: 0, y: 23}
+    code: iWI34YaXAmNQVtrx
+    uid: 
+    attributes:
+    - key: h
+      value: 23
+    - key: w
+      value: 42
+    - key: grav
+      value: 0.2
+    items: []
+    scripts: []
+    parameters: code="iWI34YaXAmNQVtrx" h="23" w="42" grav="0.2"
+  - type: obj
+    id: merc
+    definitionId: merc
+    definition: {fileID: 11400000, guid: 08677b36cc558b0498d299ef921c44da, type: 2}
+    tileCoord: {x: 32, y: 19}
+    code: puRpq0BYUZvhpYGH
+    uid: 
+    attributes:
+    - key: tr
+      value: 2
+    - key: qid
+      value: gravF1
+    items: []
+    scripts: []
+    parameters: code="puRpq0BYUZvhpYGH" tr="2" qid="gravF1"
+  - type: obj
+    id: merc
+    definitionId: merc
+    definition: {fileID: 11400000, guid: 08677b36cc558b0498d299ef921c44da, type: 2}
+    tileCoord: {x: 10, y: 6}
+    code: wxsLRJp5pSOaKWZd
+    uid: 
+    attributes:
+    - key: tr
+      value: 4
+    - key: qid
+      value: gravF1
+    items: []
+    scripts: []
+    parameters: code="wxsLRJp5pSOaKWZd" tr="4" qid="gravF1"
+  - type: obj
+    id: merc
+    definitionId: merc
+    definition: {fileID: 11400000, guid: 08677b36cc558b0498d299ef921c44da, type: 2}
+    tileCoord: {x: 18, y: 11}
+    code: cr8VBmbE5RYnlbWR
+    uid: 
+    attributes:
+    - key: tr
+      value: 3
+    - key: emit
+      value: 3
+    - key: qid
+      value: gravF1
+    - key: weap
+      value: antidrak
+    items: []
+    scripts: []
+    parameters: code="cr8VBmbE5RYnlbWR" tr="3" emit="3" qid="gravF1" weap="antidrak"
+  - type: obj
+    id: merc
+    definitionId: merc
+    definition: {fileID: 11400000, guid: 08677b36cc558b0498d299ef921c44da, type: 2}
+    tileCoord: {x: 10, y: 19}
+    code: nInmSLJWyjyuHM4b
+    uid: 
+    attributes:
+    - key: tr
+      value: 1
+    - key: qid
+      value: gravF1
+    items: []
+    scripts: []
+    parameters: code="nInmSLJWyjyuHM4b" tr="1" qid="gravF1"
+  - type: area
+    id: area
+    definitionId: area
+    definition: {fileID: 11400000, guid: 62760a6826b295d4bb7380b3dc6e5dc0, type: 2}
+    tileCoord: {x: 0, y: 0}
+    code: aFxOoKl4tZRJxYGK
+    uid: 
+    attributes:
+    - key: h
+      value: 1
+    - key: w
+      value: 42
+    - key: port
+      value: 44:3
+    items: []
+    scripts: []
+    parameters: code="aFxOoKl4tZRJxYGK" h="1" w="42" port="44:3"
+  - type: player
+    id: player
+    definitionId: player
+    definition: {fileID: 11400000, guid: c18de3d4f4f3cd448bdfddca852d2595, type: 2}
+    tileCoord: {x: 44, y: 3}
+    code: isGlnqMkteSVMXmc
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="isGlnqMkteSVMXmc"
+  - type: box
+    id: safe
+    definitionId: safe
+    definition: {fileID: 11400000, guid: 1933ef669b3b71743a5a42c553624f28, type: 2}
+    tileCoord: {x: 9, y: 6}
+    code: W3y4IrBCpo7iNvkL
+    uid: 
+    attributes:
+    - key: prize
+      value: 1
+    items: []
+    scripts: []
+    parameters: code="W3y4IrBCpo7iNvkL" prize="1"
+  - type: box
+    id: bigbox
+    definitionId: bigbox
+    definition: {fileID: 11400000, guid: 3c4761fe5ddb00545a1db7150c27fad8, type: 2}
+    tileCoord: {x: 18, y: 19}
+    code: FFzEPjVQZ4mRwM94
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="FFzEPjVQZ4mRwM94"
+  - type: box
+    id: mcrate4
+    definitionId: mcrate4
+    definition: {fileID: 11400000, guid: 3501a09d324899249b8782f987dbfd78, type: 2}
+    tileCoord: {x: 40, y: 11}
+    code: hjx1fwXkWRntOmK1
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="hjx1fwXkWRntOmK1"
+  - type: door
+    id: doorout
+    definitionId: doorout
+    definition: {fileID: 11400000, guid: 4decc1088bb013243bd72cdc10b87663, type: 2}
+    tileCoord: {x: 9, y: 23}
+    code: EEWzqIfTzjBYWdQQ
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="EEWzqIfTzjBYWdQQ"
+  - type: door
+    id: window1
+    definitionId: window1
+    definition: {fileID: 11400000, guid: 85d7d8a3f894d6f4f859deb3a8208d30, type: 2}
+    tileCoord: {x: 7, y: 5}
+    code: x0s3zHy6OfYmRsHx
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="x0s3zHy6OfYmRsHx"
+  - type: box
+    id: termh
+    definitionId: termh
+    definition: {fileID: 11400000, guid: 4f651e27195448e4dbed34f2b63a6760, type: 2}
+    tileCoord: {x: 46, y: 2}
+    code: QEfsLxgNXfNWH5Jv
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="QEfsLxgNXfNWH5Jv"
+  - type: area
+    id: area
+    definitionId: area
+    definition: {fileID: 11400000, guid: 62760a6826b295d4bb7380b3dc6e5dc0, type: 2}
+    tileCoord: {x: 43, y: 19}
+    code: pKnyFVeIHDMrh5xr
+    uid: 
+    attributes:
+    - key: h
+      value: 1
+    - key: w
+      value: 4
+    - key: port
+      value: 32:23
+    items: []
+    scripts: []
+    parameters: code="pKnyFVeIHDMrh5xr" h="1" w="4" port="32:23"
+  - type: door
+    id: window1
+    definitionId: window1
+    definition: {fileID: 11400000, guid: 85d7d8a3f894d6f4f859deb3a8208d30, type: 2}
+    tileCoord: {x: 13, y: 5}
+    code: GVxLEsonSleG1iPv
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="GVxLEsonSleG1iPv"
+  spawnPoints:
+  - tileCoord: {x: 44, y: 3}
+    type: 0
+    unitId: 
+    facingDirection: 1
+  environment:
+    musicTrack: music_cat_1
+    colorScheme: 
+    backgroundColorScheme: 
+    backgroundWall: sky
+    backgroundForm: 0
+    transparentBackground: 0
+    hasSky: 0
+    borderType: 1
+    noBlackReveal: 0
+    visibilityMultiplier: 2
+    lightsOn: 0
+    returnsToDarkness: 0
+    waterLevel: 100
+    waterType: 0
+    waterOpacity: 0
+    waterDamage: 0
+    waterDamageType: 7
+    radiation: 0
+    radiationDamage: 0
+    darkness: 0

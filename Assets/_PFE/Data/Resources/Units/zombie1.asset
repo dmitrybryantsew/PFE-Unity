@@ -1,0 +1,255 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4a2c40d3e9efca34e98262b4ddd324f7, type: 3}
+  m_Name: zombie1
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.UnitDefinition
+  dataVersion: 1
+  gameVersion: 0.1.0
+  id: zombie1
+  parentId: zombie
+  controllerId: zombie
+  fraction: 2
+  category: 3
+  xpReward: 150
+  displayName: "\u041F\u0440\u044B\u0433\u0443\u043D"
+  width: 0.55
+  height: 0.7
+  sitHeight: 0.5
+  mass: 40
+  moveSpeed: 2
+  runMultiplier: 2
+  acceleration: 3
+  braking: 0.5
+  jumpForce: 18
+  levitationMaxHeight: 60
+  levitationAcceleration: 1.6
+  canSwim: 1
+  canLevitate: 0
+  canBeKnockedDown: 1
+  isFixed: 0
+  wallDamage: 0
+  stepThreshold: 0
+  health: 80
+  armor: 0
+  magicArmor: 0
+  armorHealth: 0
+  damage: 15
+  observationRange: 0
+  radiationDamage: 0
+  skinThickness: 0
+  dexterity: 1
+  skill: 1
+  waterAbility: 1
+  hearingRange: 5
+  damageType: 2
+  isStable: 0
+  bloodType: 1
+  leavesCorpse: 1
+  isInvulnerable: 0
+  canActivateTraps: 1
+  usesSpecialStats: 0
+  isNpc: 0
+  canOverlook: 0
+  isPony: 0
+  isZombie: 0
+  isInsect: 0
+  isMechanical: 0
+  isAlicorn: 0
+  heroType: 
+  hasHeroBonus: 0
+  vulnerabilities:
+    bullet: 1
+    blade: 1
+    phis: 1
+    fire: 1
+    expl: 1
+    laser: 1
+    plasma: 1
+    spark: 1
+    acid: 1
+    cryo: 1
+    venom: 1
+    poison: 1
+    bleed: 1
+    fang: 1
+    emp: 1
+    pink: 1
+    necro: 1
+  noiseLevel: 300
+  visualDamageLevel: 1
+  splashDamage: 0
+  tripDamage: 0
+  dialogueSet: 
+  teleportColor: {r: 1, g: 1, b: 1, a: 1}
+  sprite: {fileID: 0}
+  spriteSheet: []
+  spriteDimensions: {x: 120, y: 120}
+  drawDimensions: {x: 60, y: 60}
+  gender: 1
+  musicTrack: 
+  deathSound: {fileID: 0}
+  fallingSound: {fileID: 0}
+  detectionDistance: 400
+  grenadeCount: 0
+  stalkDistance: 0
+  actionPoints: 0
+  specialState: 0
+  attractRange: 0
+  isWalker: 0
+  isSniper: 0
+  hasGrenades: 0
+  usesEnclaveWeapons: 0
+  willStayInPlace: 0
+  canResurrect: 0
+  glows: 0
+  hasLightBulb: 0
+  canCarryItems: 0
+  attachDistance: 1
+  dropItem: 
+  weapons: []
+  animations:
+    stay:
+      y: 0
+      length: 0
+      rep: 0
+      ff: 0
+      rf: 0
+      df: 0
+      stab: 0
+    walk:
+      y: 0
+      length: 0
+      rep: 0
+      ff: 0
+      rf: 0
+      df: 0
+      stab: 0
+    trot:
+      y: 0
+      length: 0
+      rep: 0
+      ff: 0
+      rf: 0
+      df: 0
+      stab: 0
+    run:
+      y: 0
+      length: 0
+      rep: 0
+      ff: 0
+      rf: 0
+      df: 0
+      stab: 0
+    jump:
+      y: 0
+      length: 0
+      rep: 0
+      ff: 0
+      rf: 0
+      df: 0
+      stab: 0
+    die:
+      y: 0
+      length: 0
+      rep: 0
+      ff: 0
+      rf: 0
+      df: 0
+      stab: 0
+    death:
+      y: 0
+      length: 0
+      rep: 0
+      ff: 0
+      rf: 0
+      df: 0
+      stab: 0
+    fall:
+      y: 0
+      length: 0
+      rep: 0
+      ff: 0
+      rf: 0
+      df: 0
+      stab: 0
+    drag:
+      y: 0
+      length: 0
+      rep: 0
+      ff: 0
+      rf: 0
+      df: 0
+      stab: 0
+    swim:
+      y: 0
+      length: 0
+      rep: 0
+      ff: 0
+      rf: 0
+      df: 0
+      stab: 0
+    climb:
+      y: 0
+      length: 0
+      rep: 0
+      ff: 0
+      rf: 0
+      df: 0
+      stab: 0
+    sit:
+      y: 0
+      length: 0
+      rep: 0
+      ff: 0
+      rf: 0
+      df: 0
+      stab: 0
+    crawl:
+      y: 0
+      length: 0
+      rep: 0
+      ff: 0
+      rf: 0
+      df: 0
+      stab: 0
+    fly:
+      y: 0
+      length: 0
+      rep: 0
+      ff: 0
+      rf: 0
+      df: 0
+      stab: 0
+    dig:
+      y: 0
+      length: 0
+      rep: 0
+      ff: 0
+      rf: 0
+      df: 0
+      stab: 0
+    transform:
+      y: 0
+      length: 0
+      rep: 0
+      ff: 0
+      rf: 0
+      df: 0
+      stab: 0
+    preAttack:
+      y: 0
+      length: 0
+      rep: 0
+      ff: 0
+      rf: 0
+      df: 0
+      stab: 0

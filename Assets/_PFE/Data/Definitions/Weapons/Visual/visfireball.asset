@@ -1,0 +1,38 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e94da64c3527f604c86bdaf09d32867f, type: 3}
+  m_Name: visfireball
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponVisualDefinition
+  symbolName: visfireball
+  weaponId: fireball
+  sourceSymbolId: 1323
+  frames:
+  - {fileID: -985113564820616005, guid: b7b3192d4bdcbf541b9eda2866fa89bf, type: 3}
+  - {fileID: 202404987911244711, guid: 78a7acf3bf643574f935b2b9a1d05e88, type: 3}
+  - {fileID: -8764597738744933808, guid: 7c38ed42edf05924fae09b7417bc5187, type: 3}
+  - {fileID: 2805633920695696223, guid: 9a406683df81534478659047c7c71abe, type: 3}
+  - {fileID: -7723724024098242069, guid: 2f9fa5c16ffef3348bd45d2f6101135b, type: 3}
+  - {fileID: 1296198028869233028, guid: 023ca19e9495bf948990ff28679ae736, type: 3}
+  - {fileID: 4243038468684218715, guid: 9af9dc29da425234cb2295374f89b7e8, type: 3}
+  pixelsPerUnit: 100
+  idleFrame: 0
+  shootFrameStart: 1
+  shootFrameCount: 6
+  reloadFrameStart: -1
+  reloadFrameCount: 0
+  prepFrameStart: -1
+  prepFrameCount: 0
+  readyFrame: -1
+  muzzleLocalOffset: {x: 0, y: 0}
+  muzzleFlareId: 
+  hasShellEject: 0
+  shineRadius: 0

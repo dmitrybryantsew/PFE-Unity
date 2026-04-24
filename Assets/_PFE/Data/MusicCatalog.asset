@@ -1,0 +1,85 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3a9af838af7bc174b8c611079b613f02, type: 3}
+  m_Name: MusicCatalog
+  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Audio.MusicCatalog
+  tracks:
+  - id: music_begin
+    clip: {fileID: 8300000, guid: cfd3a6cd4bdc1294287accb92a99feef, type: 3}
+  - id: music_strange
+    clip: {fileID: 8300000, guid: 6e0ab727a6ce91444ba023610c33fba5, type: 3}
+  - id: music_base
+    clip: {fileID: 8300000, guid: 1086611455d9eb94db736b48c8445472, type: 3}
+  - id: music_surf
+    clip: {fileID: 8300000, guid: f5bc0607d898792428d680fc1eba0af9, type: 3}
+  - id: music_enc
+    clip: {fileID: 8300000, guid: 137bfde33f422024fb42c25f98998fe7, type: 3}
+  - id: music_raiders
+    clip: {fileID: 8300000, guid: a76c7a397aff31b47bf5631f37a1dfe6, type: 3}
+  - id: music_plant_1
+    clip: {fileID: 8300000, guid: 08f96a0003cbcba4691215f06213a4d4, type: 3}
+  - id: music_plant_2
+    clip: {fileID: 8300000, guid: dbd5700ae1e85834d8102bbeb0d25f2e, type: 3}
+  - id: music_sewer_1
+    clip: {fileID: 8300000, guid: e55cdcf500ae2e645b5e0ca0f0c2d193, type: 3}
+  - id: music_stable_1
+    clip: {fileID: 8300000, guid: 6f3b472eec2dd7e468901729171c9669, type: 3}
+  - id: music_stable_2
+    clip: {fileID: 8300000, guid: 21be8690ebf5da64fad1229e97577c6f, type: 3}
+  - id: music_cat_1
+    clip: {fileID: 8300000, guid: ee53763ec448da64f908858a70187996, type: 3}
+  - id: music_mane_1
+    clip: {fileID: 8300000, guid: 4dedf5b573afa614687009a7bc76ace3, type: 3}
+  - id: music_mane_2
+    clip: {fileID: 8300000, guid: addf9ecae5a77a74895c5d5b2bbdc353, type: 3}
+  - id: music_mbase
+    clip: {fileID: 8300000, guid: 8a2ac7fcb28814848b055d915582011b, type: 3}
+  - id: music_covert
+    clip: {fileID: 8300000, guid: 7b3ceed700e8b4940b62d80644718039, type: 3}
+  - id: music_minst
+    clip: {fileID: 8300000, guid: 82a1cd9711348a045abbcf21ea54e857, type: 3}
+  - id: music_encl_1
+    clip: {fileID: 8300000, guid: f70a38d0ee15d7d4784e576b64c2677d, type: 3}
+  - id: music_encl_2
+    clip: {fileID: 8300000, guid: d75dee662995e604a8d4e995da6ed74d, type: 3}
+  - id: music_pi
+    clip: {fileID: 8300000, guid: c4f5a50a73b4a5640b97381a5b38701f, type: 3}
+  - id: music_workshop
+    clip: {fileID: 8300000, guid: ef29f5c3cf102d04c80735ce1a93bc0d, type: 3}
+  - id: music_hql
+    clip: {fileID: 8300000, guid: e931f36f0201aea49860eb95eacc02b9, type: 3}
+  - id: music_red
+    clip: {fileID: 8300000, guid: 2991718c26f21bb4d95d5e7a50ac2884, type: 3}
+  - id: music_fall_1
+    clip: {fileID: 8300000, guid: 89d40ffe4d0b7834ba481c38418622da, type: 3}
+  - id: music_fall_2
+    clip: {fileID: 8300000, guid: 5857e8f161dcb9041b95b0ec09d761e2, type: 3}
+  - id: music_end
+    clip: {fileID: 8300000, guid: 7c6cf94b77fac5747bd086d17d8706f2, type: 3}
+  - id: pre_1
+    clip: {fileID: 8300000, guid: 77c301cd14358df47927588f914634bd, type: 3}
+  - id: combat_1
+    clip: {fileID: 8300000, guid: 564ae59bc6e2e434390c18a48894a5b4, type: 3}
+  - id: boss_1
+    clip: {fileID: 8300000, guid: bb18e1954e869ed44817daff01ea2c0d, type: 3}
+  - id: boss_2
+    clip: {fileID: 8300000, guid: 7010c78367bb82840bdf4b0bf6967f51, type: 3}
+  - id: boss_3
+    clip: {fileID: 8300000, guid: 140cd307556deca419c2e74d9d782c1d, type: 3}
+  - id: boss_4
+    clip: {fileID: 8300000, guid: 3027ae2af25cda947b1ee0cae502e546, type: 3}
+  - id: boss_5
+    clip: {fileID: 8300000, guid: a7da65eafdc6204489c07907ddb96514, type: 3}
+  - id: boss_6
+    clip: {fileID: 8300000, guid: ef89d4a2b19163b4083f332a7e83fbc8, type: 3}
+  - id: mainmenu
+    clip: {fileID: 8300000, guid: db576e094c2b24f4b81bbc32e1de641b, type: 3}

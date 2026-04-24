@@ -1,0 +1,653 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8ae0c821e1e97644a9764e3a06111312, type: 3}
+  m_Name: MaterialRenderDatabase
+  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.Rendering.MaterialRenderDatabase
+  _frontMaterials:
+  - id: A
+    displayName: "\u0421\u0442\u0430\u043B\u044C"
+    ed: 1
+    isRear: 0
+    mainTexture: tMetal
+    mainMask: TileMask
+    altTexture: 
+    borderTexture: tKlep
+    borderMask: maskSimple
+    floorTexture: 
+    floorMask: 
+    filterType: cont
+  - id: B
+    displayName: "\u0421\u0443\u043F\u0435\u0440\u0431\u0435\u0442\u043E\u043D"
+    ed: 1
+    isRear: 0
+    mainTexture: tSuperCon
+    mainMask: maskBare
+    altTexture: 
+    borderTexture: tBorder
+    borderMask: maskBorderBare
+    floorTexture: 
+    floorMask: 
+    filterType: potek
+  - id: C
+    displayName: "\u0411\u0435\u0442\u043E\u043D"
+    ed: 1
+    isRear: 0
+    mainTexture: tConcrete
+    mainMask: maskBare
+    altTexture: 
+    borderTexture: tBorder
+    borderMask: maskBorderBare
+    floorTexture: tFloor
+    floorMask: maskFloor
+    filterType: 
+  - id: D
+    displayName: "\u041F\u043E\u0431\u0438\u0442\u044B\u0439 \u0431\u0435\u0442\u043E\u043D"
+    ed: 1
+    isRear: 0
+    mainTexture: tConcreteD
+    mainMask: maskDamaged
+    altTexture: 
+    borderTexture: tSkol
+    borderMask: maskSkol
+    floorTexture: 
+    floorMask: 
+    filterType: potek
+  - id: E
+    displayName: "\u0422\u0440\u0435\u0449\u0438\u043D\u044B"
+    ed: 1
+    isRear: 0
+    mainTexture: tCracked
+    mainMask: maskDamaged
+    altTexture: 
+    borderTexture: tSkol
+    borderMask: maskSkol
+    floorTexture: 
+    floorMask: 
+    filterType: potek
+  - id: F
+    displayName: "\u0420\u0443\u0445\u043B\u044F\u0434\u044C"
+    ed: 1
+    isRear: 0
+    mainTexture: tWood
+    mainMask: maskDamaged
+    altTexture: 
+    borderTexture: 
+    borderMask: 
+    floorTexture: 
+    floorMask: 
+    filterType: cont_th
+  - id: G
+    displayName: "\u041A\u0430\u043C\u0435\u043D\u044C"
+    ed: 1
+    isRear: 0
+    mainTexture: tRock
+    mainMask: maskStone
+    altTexture: 
+    borderTexture: tSkol
+    borderMask: maskStoneBorder
+    floorTexture: 
+    floorMask: 
+    filterType: 
+  - id: H
+    displayName: "\u0417\u0435\u043C\u043B\u044F"
+    ed: 1
+    isRear: 0
+    mainTexture: tStones
+    mainMask: maskDirt
+    altTexture: 
+    borderTexture: tDirt2
+    borderMask: maskDirtBorder
+    floorTexture: 
+    floorMask: 
+    filterType: potek
+  - id: I
+    displayName: "\u041A\u0438\u0440\u043F\u0438\u0447"
+    ed: 1
+    isRear: 0
+    mainTexture: tBrick2
+    mainMask: maskBare
+    altTexture: 
+    borderTexture: 
+    borderMask: 
+    floorTexture: tFloor
+    floorMask: maskFloor
+    filterType: 
+  - id: J
+    displayName: "\u0416\u0435\u043B\u0435\u0437\u043D\u0430\u044F \u0441\u0442\u0435\u043D\u043A\u0430"
+    ed: 1
+    isRear: 0
+    mainTexture: tMWall
+    mainMask: TileMask
+    altTexture: 
+    borderTexture: tKlep2
+    borderMask: maskMetalBorder
+    floorTexture: tFloorMetal
+    floorMask: maskFloor
+    filterType: cont_metal
+  - id: K
+    displayName: "\u0416\u0435\u043B\u0435\u0437\u043D\u044B\u0435 \u043A\u043E\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0438"
+    ed: 1
+    isRear: 0
+    mainTexture: tMWall2
+    mainMask: TileMask
+    altTexture: 
+    borderTexture: 
+    borderMask: 
+    floorTexture: tFloorMetal
+    floorMask: maskFloor
+    filterType: cont_metal
+  - id: L
+    displayName: "\u041C\u043E\u0445"
+    ed: 1
+    isRear: 0
+    mainTexture: tConcreteMoss
+    mainMask: maskDirt
+    altTexture: 
+    borderTexture: tMoss
+    borderMask: maskDirtBorder
+    floorTexture: 
+    floorMask: 
+    filterType: potek
+  - id: M
+    displayName: "\u0420\u0436\u0430\u0432\u044B\u0439 \u043C\u0435\u0442\u0430\u043B\u043B"
+    ed: 1
+    isRear: 0
+    mainTexture: tRust
+    mainMask: TileMask
+    altTexture: 
+    borderTexture: tKlep
+    borderMask: maskSimple
+    floorTexture: 
+    floorMask: 
+    filterType: cont
+  - id: N
+    displayName: "\u0421\u0442\u0435\u043D\u0430 \u0437\u0434\u0430\u043D\u0438\u044F"
+    ed: 1
+    isRear: 0
+    mainTexture: tBuild
+    mainMask: maskDirt
+    altTexture: 
+    borderTexture: tConRough
+    borderMask: maskDirtBorder
+    floorTexture: tFloor
+    floorMask: maskFloor
+    filterType: 
+  - id: O
+    displayName: "\u0421\u0442\u0435\u043D\u0430 \u0431\u0430\u0437\u044B"
+    ed: 1
+    isRear: 0
+    mainTexture: tBaseMetal
+    mainMask: TileMask
+    altTexture: 
+    borderTexture: tKlep2
+    borderMask: maskMetalBorder
+    floorTexture: tFloorMetal
+    floorMask: maskFloor
+    filterType: cont_metal
+  - id: P
+    displayName: "\u041A\u0438\u0440\u043F\u0438\u0447 \u041A\u0430\u043D\u0442\u0435\u0440\u043B\u043E\u0442\u0430"
+    ed: 1
+    isRear: 0
+    mainTexture: tCanBrick
+    mainMask: maskBare
+    altTexture: 
+    borderTexture: 
+    borderMask: 
+    floorTexture: tFloor
+    floorMask: maskFloor
+    filterType: 
+  - id: Q
+    displayName: "\u0411\u0435\u0442\u043E\u043D \u041A\u0430\u043D\u0442\u0435\u0440\u043B\u043E\u0442\u0430"
+    ed: 1
+    isRear: 0
+    mainTexture: tConRough
+    mainMask: maskBare
+    altTexture: 
+    borderTexture: tBorder
+    borderMask: maskBorderBare
+    floorTexture: tFloor
+    floorMask: maskFloor
+    filterType: 
+  - id: R
+    displayName: "\u041A\u0440\u044B\u0448\u0430"
+    ed: 1
+    isRear: 0
+    mainTexture: tRoof
+    mainMask: maskDirt
+    altTexture: 
+    borderTexture: 
+    borderMask: 
+    floorTexture: tRoofFloor
+    floorMask: maskFloor
+    filterType: potek
+  - id: S
+    displayName: "\u041F\u0440\u043E\u0447\u043D\u0430\u044F \u0421\u0442\u0435\u043D\u0430
+      \u0410\u043D\u043A\u043B\u0430\u0432\u0430"
+    ed: 1
+    isRear: 0
+    mainTexture: tEncl1
+    mainMask: TileMask
+    altTexture: 
+    borderTexture: tKlep3
+    borderMask: maskMetalBorder
+    floorTexture: tFloorMetal
+    floorMask: maskFloor
+    filterType: cont_metal
+  - id: T
+    displayName: "\u0421\u0442\u0435\u043D\u0430 \u0410\u043D\u043A\u043B\u0430\u0432\u0430"
+    ed: 1
+    isRear: 0
+    mainTexture: tEncl2
+    mainMask: TileMask
+    altTexture: 
+    borderTexture: tKlep3
+    borderMask: maskMetalBorder
+    floorTexture: tFloorMetal
+    floorMask: maskFloor
+    filterType: cont_metal
+  - id: 100
+    displayName: "\u0413\u0440\u0430\u043D\u0438\u0446\u0430"
+    ed: 0
+    isRear: 0
+    mainTexture: tMetal
+    mainMask: TileMask
+    altTexture: 
+    borderTexture: tKlep
+    borderMask: maskSimple
+    floorTexture: 
+    floorMask: 
+    filterType: cont
+  - id: '-'
+    displayName: "\u0420\u0436\u0430\u0432\u0430\u044F \u0431\u0430\u043B\u043A\u0430"
+    ed: 4
+    isRear: 1
+    mainTexture: tShelf
+    mainMask: TileMask
+    altTexture: 
+    borderTexture: 
+    borderMask: 
+    floorTexture: 
+    floorMask: 
+    filterType: 
+  - id: "\u0414"
+    displayName: "\u0414\u0435\u0440\u0435\u0432\u044F\u043D\u043D\u0430\u044F \u0431\u0430\u043B\u043A\u0430"
+    ed: 4
+    isRear: 1
+    mainTexture: tWoodBeam
+    mainMask: TileMask
+    altTexture: 
+    borderTexture: 
+    borderMask: 
+    floorTexture: 
+    floorMask: 
+    filterType: cont_th
+  - id: "\u0415"
+    displayName: "\u0421\u0442\u0430\u043B\u044C\u043D\u0430\u044F \u0431\u0430\u043B\u043A\u0430"
+    ed: 4
+    isRear: 1
+    mainTexture: tStShelf
+    mainMask: TileMask
+    altTexture: 
+    borderTexture: 
+    borderMask: 
+    floorTexture: 
+    floorMask: 
+    filterType: cont
+  - id: "\u041A"
+    displayName: "\u0411\u0435\u0442\u043E\u043D\u043D\u0430\u044F \u0431\u0430\u043B\u043A\u0430"
+    ed: 4
+    isRear: 1
+    mainTexture: tConBeam
+    mainMask: TileMask
+    altTexture: 
+    borderTexture: 
+    borderMask: 
+    floorTexture: 
+    floorMask: 
+    filterType: cont
+  - id: "\u041D"
+    displayName: "\u041A\u0430\u043D\u0442 \u0431\u0430\u043B\u043A\u0430"
+    ed: 4
+    isRear: 1
+    mainTexture: tCanBeam
+    mainMask: TileMask
+    altTexture: 
+    borderTexture: 
+    borderMask: 
+    floorTexture: 
+    floorMask: 
+    filterType: 
+  - id: "\u0420"
+    displayName: "\u041E\u0431\u043B\u0430\u0447\u043D\u0430\u044F \u0431\u0430\u043B\u043A\u0430"
+    ed: 4
+    isRear: 1
+    mainTexture: tCloudBeam
+    mainMask: TileMask
+    altTexture: 
+    borderTexture: 
+    borderMask: 
+    floorTexture: 
+    floorMask: 
+    filterType: 
+  _backMaterials:
+  - id: A
+    displayName: "\u0417\u0430\u0434\u043D\u0438\u043A \u0441\u0442\u0435\u043D\u044B"
+    ed: 2
+    isRear: 1
+    mainTexture: tConcreteBack
+    mainMask: maskDirt
+    altTexture: 
+    borderTexture: 
+    borderMask: 
+    floorTexture: 
+    floorMask: 
+    filterType: 
+  - id: B
+    displayName: "\u041F\u043B\u0438\u0442\u043A\u0430"
+    ed: 2
+    isRear: 1
+    mainTexture: tKaf
+    mainMask: TileMask
+    altTexture: 
+    borderTexture: 
+    borderMask: 
+    floorTexture: 
+    floorMask: 
+    filterType: plitka
+  - id: C
+    displayName: "\u0411\u0435\u0442\u043E\u043D\u043D\u044B\u0435 \u043F\u043B\u0438\u0442\u044B"
+    ed: 2
+    isRear: 1
+    mainTexture: tConPlates
+    mainMask: TileMask
+    altTexture: 
+    borderTexture: 
+    borderMask: 
+    floorTexture: 
+    floorMask: 
+    filterType: plitka
+  - id: D
+    displayName: "\u041A\u0438\u0440\u043F\u0438\u0447\u043D\u0430\u044F \u0441\u0442\u0435\u043D\u043A\u0430"
+    ed: 2
+    isRear: 1
+    mainTexture: tBrick
+    mainMask: maskCTiles
+    altTexture: 
+    borderTexture: 
+    borderMask: 
+    floorTexture: 
+    floorMask: 
+    filterType: plitka
+  - id: E
+    displayName: "\u0411\u043E\u043B\u044C\u0448\u0438\u0435 \u0431\u043B\u043E\u043A\u0438"
+    ed: 2
+    isRear: 1
+    mainTexture: tBlocks
+    mainMask: TileMask
+    altTexture: 
+    borderTexture: 
+    borderMask: 
+    floorTexture: 
+    floorMask: 
+    filterType: plitka
+  - id: F
+    displayName: "\u041C\u0435\u0442\u0430\u043B\u043B. \u043F\u043B\u0438\u0442\u044B"
+    ed: 2
+    isRear: 1
+    mainTexture: tMetalPlates
+    mainMask: TileMask
+    altTexture: 
+    borderTexture: 
+    borderMask: 
+    floorTexture: 
+    floorMask: 
+    filterType: plitka
+  - id: G
+    displayName: "\u041C\u0435\u0442\u0430\u043B\u043B. \u043F\u0440\u043E\u0444\u0438\u043B\u044C"
+    ed: 2
+    isRear: 1
+    mainTexture: tMetalVert
+    mainMask: TileMask
+    altTexture: 
+    borderTexture: 
+    borderMask: 
+    floorTexture: 
+    floorMask: 
+    filterType: 
+  - id: H
+    displayName: "\u0420\u0436\u0430\u0432\u044B\u0439 \u043C\u0435\u0442\u0430\u043B\u043B"
+    ed: 2
+    isRear: 1
+    mainTexture: tMetalRust
+    mainMask: TileMask
+    altTexture: 
+    borderTexture: 
+    borderMask: 
+    floorTexture: 
+    floorMask: 
+    filterType: 
+  - id: I
+    displayName: "\u0412\u0435\u043D\u0442\u0438\u043B\u044F\u0446\u0438\u044F"
+    ed: 2
+    isRear: 1
+    mainTexture: tVent
+    mainMask: TileMask
+    altTexture: 
+    borderTexture: 
+    borderMask: 
+    floorTexture: 
+    floorMask: 
+    filterType: 
+  - id: J
+    displayName: "\u041E\u0431\u043B\u0435\u0437\u043B\u0430\u044F \u0448\u0442\u0443\u043A\u0430\u0442\u0443\u0440\u043A\u0430"
+    ed: 2
+    isRear: 1
+    mainTexture: tShtuk
+    mainMask: maskCTiles
+    altTexture: 
+    borderTexture: 
+    borderMask: 
+    floorTexture: 
+    floorMask: 
+    filterType: 
+  - id: K
+    displayName: "\u0421\u0435\u0442\u043A\u0430"
+    ed: 2
+    isRear: 1
+    mainTexture: tSetka
+    mainMask: TileMask
+    altTexture: 
+    borderTexture: 
+    borderMask: 
+    floorTexture: 
+    floorMask: 
+    filterType: 
+  - id: L
+    displayName: "\u0417\u0435\u043C\u043B\u044F"
+    ed: 2
+    isRear: 1
+    mainTexture: tDirt2
+    mainMask: maskDirt
+    altTexture: 
+    borderTexture: 
+    borderMask: 
+    floorTexture: 
+    floorMask: 
+    filterType: 
+  - id: M
+    displayName: "\u0414\u043E\u0441\u043A\u0438"
+    ed: 2
+    isRear: 1
+    mainTexture: tWoodPlanks
+    mainMask: TileMask
+    altTexture: 
+    borderTexture: 
+    borderMask: 
+    floorTexture: 
+    floorMask: 
+    filterType: plitka
+  - id: N
+    displayName: "\u041F\u043B\u0438\u0442\u044B \u0441\u0442\u043E\u0439\u043B\u0430"
+    ed: 2
+    isRear: 1
+    mainTexture: tStPlates
+    mainMask: TileMask
+    altTexture: 
+    borderTexture: 
+    borderMask: 
+    floorTexture: 
+    floorMask: 
+    filterType: plitka
+  - id: O
+    displayName: "\u041C\u0435\u0445\u0430\u043D\u0438\u0437\u043C\u044B"
+    ed: 2
+    isRear: 1
+    mainTexture: tMeh
+    mainMask: TileMask
+    altTexture: 
+    borderTexture: 
+    borderMask: 
+    floorTexture: 
+    floorMask: 
+    filterType: dyrka
+  - id: P
+    displayName: "\u0422\u0451\u043C\u043D\u0430\u044F \u0441\u0442\u0435\u043D\u043A\u0430"
+    ed: 2
+    isRear: 1
+    mainTexture: tDarkMetal
+    mainMask: TileMask
+    altTexture: tMbase
+    borderTexture: 
+    borderMask: 
+    floorTexture: 
+    floorMask: 
+    filterType: 
+  - id: Q
+    displayName: "\u0422\u0451\u043C\u043D\u044B\u0435 \u043F\u043B\u0438\u0442\u044B"
+    ed: 2
+    isRear: 1
+    mainTexture: tDarkPlates
+    mainMask: TileMask
+    altTexture: tLightPlate
+    borderTexture: 
+    borderMask: 
+    floorTexture: 
+    floorMask: 
+    filterType: 
+  - id: R
+    displayName: "\u0422\u0451\u043C\u043D\u044B\u0435 \u0437\u0430\u043A\u043B\u0451\u043F\u043A\u0438"
+    ed: 2
+    isRear: 1
+    mainTexture: tDarkRivets
+    mainMask: TileMask
+    altTexture: tPlates2
+    borderTexture: 
+    borderMask: 
+    floorTexture: 
+    floorMask: 
+    filterType: 
+  - id: S
+    displayName: "\u0422\u0440\u0443\u0431\u044B"
+    ed: 2
+    isRear: 1
+    mainTexture: tPipes
+    mainMask: maskCrack
+    altTexture: 
+    borderTexture: 
+    borderMask: 
+    floorTexture: 
+    floorMask: 
+    filterType: dyrka
+  - id: T
+    displayName: "\u0420\u0436\u0430\u0432\u044B\u0435 \u043F\u043B\u0438\u0442\u044B"
+    ed: 2
+    isRear: 1
+    mainTexture: tRustPlates
+    mainMask: TileMask
+    altTexture: 
+    borderTexture: 
+    borderMask: 
+    floorTexture: 
+    floorMask: 
+    filterType: 
+  - id: U
+    displayName: "\u0421\u0442\u0435\u043D\u0430 \u0431\u0430\u0437\u044B"
+    ed: 2
+    isRear: 1
+    mainTexture: tBase
+    mainMask: TileMask
+    altTexture: 
+    borderTexture: 
+    borderMask: 
+    floorTexture: 
+    floorMask: 
+    filterType: plitka
+  - id: V
+    displayName: "\u0421\u0442\u0435\u043D\u0430 \u041A\u0430\u043D\u0442\u0435\u0440\u043B\u043E\u0442\u0430"
+    ed: 2
+    isRear: 1
+    mainTexture: tCanStuc
+    mainMask: maskCTiles
+    altTexture: 
+    borderTexture: 
+    borderMask: 
+    floorTexture: 
+    floorMask: 
+    filterType: plitka
+  - id: W
+    displayName: "\u041F\u043B\u0438\u0442\u043A\u0430 \u041A\u0430\u043D\u0442\u0435\u0440\u043B\u043E\u0442\u0430"
+    ed: 2
+    isRear: 1
+    mainTexture: tCanTiles
+    mainMask: maskCTiles
+    altTexture: 
+    borderTexture: 
+    borderMask: 
+    floorTexture: 
+    floorMask: 
+    filterType: plitka
+  - id: X
+    displayName: "\u041E\u0440\u043D\u0430\u043C\u0435\u043D\u0442"
+    ed: 2
+    isRear: 1
+    mainTexture: tOrn
+    mainMask: TileMask
+    altTexture: 
+    borderTexture: 
+    borderMask: 
+    floorTexture: 
+    floorMask: 
+    filterType: 
+  - id: Y
+    displayName: "\u0421\u0442\u0435\u043D\u0430 \u0410\u043A\u043B\u0430\u0432\u0430"
+    ed: 2
+    isRear: 1
+    mainTexture: tEncl2
+    mainMask: TileMask
+    altTexture: 
+    borderTexture: 
+    borderMask: 
+    floorTexture: 
+    floorMask: 
+    filterType: plitka
+  - id: Z
+    displayName: "\u041E\u0431\u043B\u0430\u0447\u043D\u0430\u044F \u0441\u0442\u0435\u043D\u0430"
+    ed: 2
+    isRear: 1
+    mainTexture: tCloud
+    mainMask: TileMask
+    altTexture: 
+    borderTexture: 
+    borderMask: 
+    floorTexture: 
+    floorMask: 
+    filterType: cloud

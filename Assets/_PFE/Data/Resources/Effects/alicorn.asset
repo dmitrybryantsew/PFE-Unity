@@ -1,0 +1,76 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 00000000000000000000000000000004, type: 3}
+  m_Name: alicorn
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.EffectDefinition
+  effectId: alicorn
+  type: 4
+  durationTicks: 20
+  isChem: 0
+  isBadComedown: 0
+  value: 0
+  effects:
+  - skillId: ableFly
+    value: 1
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: maxhp
+    value: 5
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: healMult
+    value: 2.5
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: allSpeedMult
+    value: 1.8
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: knocked
+    value: 0.1
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: allDamMult
+    value: 5
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: allPrecMult
+    value: 2
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: meleeR
+    value: 1.5
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: runForever
+    value: -1
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: shitArmor
+    value: 30
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: recManaMin
+    value: 2
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: allDManaMult
+    value: 0.75
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: pipEmpVulner
+    value: 0
+    isMultiplier: 0
+    isWeaponSkill: 0
+  afterEffectId: 
+  displayName: ALICORN
+  displayValue: Special

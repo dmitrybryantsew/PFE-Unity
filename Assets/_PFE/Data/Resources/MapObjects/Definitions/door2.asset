@@ -1,0 +1,78 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b6346ec5ad241bcb662491c6de14d7a, type: 3}
+  m_Name: door2
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.MapObjectDefinition
+  objectId: door2
+  displayName: door2
+  legacyTip: door
+  family: 2
+  defaultPlacementType: door
+  size: 1
+  width: 2
+  wallMounted: 1
+  blocksMovement: 1
+  blocksVisibility: 0
+  isInteractive: 1
+  isSaveRelevant: 1
+  autoClose: 0
+  containerId: 
+  interactionMode: 1
+  allAct: 
+  allId: 
+  hitPoints: 1000
+  threshold: 100
+  shield: 0
+  materialId: 1
+  physicalCapability: 3
+  mass: 0
+  massMultiplier: 1
+  buoyancyFactor: 0
+  defaultVisualId: visdoor2
+  visual: {fileID: 11400000, guid: d193a4a1b1befeb4b8ac4515f2edce5a, type: 2}
+  legacyAttributes:
+  - key: ed
+    value: 6
+  - key: ico
+    value: door
+  - key: inter
+    value: 1
+  - key: tip
+    value: door
+  - key: hack
+    value: 1
+  - key: door
+    value: 2
+  - key: wall
+    value: 1
+  - key: hp
+    value: 1000
+  - key: thre
+    value: 100
+  - key: lock
+    value: 1.5
+  - key: low
+    value: 0.8
+  - key: lockch
+    value: 0.8
+  - key: mat
+    value: 1
+  - key: size
+    value: 1
+  - key: wid
+    value: 2
+  - key: open
+    value: metal_door_open
+  - key: close
+    value: metal_door_close
+  - key: die
+    value: break_metal

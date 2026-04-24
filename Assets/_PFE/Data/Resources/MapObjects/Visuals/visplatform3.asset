@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 52445f94c96c4150ac0fe58bc05f53cc, type: 3}
+  m_Name: visplatform3
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.MapObjectVisualDefinition
+  visualId: visplatform3
+  objectId: platform3
+  linkedObjectIds:
+  - platform3
+  sourceFolderName: DefineSprite_84_visplatform3
+  sourceSymbolId: 84
+  frames:
+  - {fileID: 21300000, guid: 47a5a01d432c3fc408140e70d0a453fa, type: 3}
+  - {fileID: 21300000, guid: b907f863ac8bb184689b54ad504fa10e, type: 3}
+  - {fileID: 21300000, guid: cdf04cfbc59d2424984038de497dfe9c, type: 3}
+  pixelsPerUnit: 100
+  pixelSize: {x: 120, y: 35}
+  pivot: {x: 0.5, y: 0.5}
+  localOffset: {x: 0, y: 0}
+  sortingOrder: 1
+  wallMounted: 1

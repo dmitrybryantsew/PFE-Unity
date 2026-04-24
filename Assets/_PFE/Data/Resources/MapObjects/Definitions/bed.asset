@@ -1,0 +1,64 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b6346ec5ad241bcb662491c6de14d7a, type: 3}
+  m_Name: bed
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.MapObjectDefinition
+  objectId: bed
+  displayName: bed
+  legacyTip: box
+  family: 5
+  defaultPlacementType: box
+  size: 4
+  width: 1
+  wallMounted: 0
+  blocksMovement: 0
+  blocksVisibility: 0
+  isInteractive: 0
+  isSaveRelevant: 0
+  autoClose: 0
+  containerId: 
+  interactionMode: 
+  allAct: 
+  allId: 
+  hitPoints: 0
+  threshold: 0
+  shield: 0
+  materialId: 3
+  physicalCapability: 6
+  mass: 0
+  massMultiplier: 1
+  buoyancyFactor: 0.5
+  defaultVisualId: visbed
+  visual: {fileID: 11400000, guid: 11458a085b0048f4f9018020210a555d, type: 2}
+  legacyAttributes:
+  - key: ed
+    value: 1
+  - key: ico
+    value: phis
+  - key: tip
+    value: box
+  - key: mat
+    value: 3
+  - key: massaMult
+    value: 1
+  - key: size
+    value: 4
+  - key: plav
+    value: 0.5
+  - key: wid
+    value: 1
+  - key: lurk
+    value: 3
+  - key: scy
+    value: 28
+  - key: fall
+    value: fall_wood_big

@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 52445f94c96c4150ac0fe58bc05f53cc, type: 3}
+  m_Name: visbigmed
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.MapObjectVisualDefinition
+  visualId: visbigmed
+  objectId: bigmed
+  linkedObjectIds:
+  - bigmed
+  sourceFolderName: DefineSprite_253_visbigmed
+  sourceSymbolId: 253
+  frames:
+  - {fileID: 21300000, guid: 2d77b62149a2a82478a52589c60b57df, type: 3}
+  - {fileID: 21300000, guid: 7dc596a97f0ff6b4f97fff02107f1c71, type: 3}
+  pixelsPerUnit: 100
+  pixelSize: {x: 80, y: 100}
+  pivot: {x: 0.5, y: 0}
+  localOffset: {x: 0, y: 0}
+  sortingOrder: 0
+  wallMounted: 0

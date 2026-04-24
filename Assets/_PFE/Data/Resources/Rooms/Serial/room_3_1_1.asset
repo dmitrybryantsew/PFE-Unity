@@ -1,0 +1,147 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
+  m_Name: room_3_1_1
+  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  id: room_3_1_1
+  type: pass
+  fixedPosition: {x: 3, y: 1, z: 0}
+  difficultyLevel: 0
+  maxInstances: 2
+  allowRandom: 1
+  backgroundRoomId: 
+  backgroundDecorations:
+  - id: moss
+    tileCoord: {x: 18, y: 8}
+  - id: heap2
+    tileCoord: {x: 42, y: 2}
+  - id: musor1
+    tileCoord: {x: 40, y: 3}
+  - id: stree
+    tileCoord: {x: 20, y: 4}
+  - id: trava
+    tileCoord: {x: 17, y: 9}
+  - id: potek
+    tileCoord: {x: 10, y: 1}
+  - id: potek
+    tileCoord: {x: 20, y: 1}
+  - id: potek
+    tileCoord: {x: 30, y: 1}
+  - id: potek
+    tileCoord: {x: 1, y: 1}
+  - id: lacid
+    tileCoord: {x: 19, y: 4}
+  - id: chole1
+    tileCoord: {x: 18, y: 3}
+  doorQuality: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000020000000200000002000000020000000200000000000000
+  tileDataString: 'E.E.E.E.E.E.E.E.E.E.E.E.E.E.E.E.E.E.E.E.E.E.E.E.E.E.E.E.E.E.E.E.E.E.E.E.E.E.E.E.E.E.E.E._._.E.E
+
+    E._._._._._._._.E.E._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.E.E._._._._._._.E
+
+    E._._._._._._._.E.E._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.E.E._._._._._._.E
+
+    E._._._._._._._.E.E._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.E.E._._._._._._.E
+
+    H.H.H.H.H.H.H.H.H.H.H.H.H,.H;.H:._._._._._._._._._._._._._._._._._._.H:.H;.H,.H.H.H.H.H.H.H.H.H.H.H.H
+
+    H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H;._._._._._._._._._._._.H;.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H
+
+    H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H._._._._._._._._._._._.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H
+
+    H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H._._._._._._._._._.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H
+
+    H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H._._._._._._._._._.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H
+
+    H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H._*._*._*._*._*._*._*._*._*.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H
+
+    H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H
+
+    H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H
+
+    A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A
+
+    H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H
+
+    H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H
+
+    H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H
+
+    H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H
+
+    H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H
+
+    H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H
+
+    H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H
+
+    H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H
+
+    H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H
+
+    H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H
+
+    H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H
+
+    H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H'
+  objects:
+  - type: box
+    id: chest
+    definitionId: chest
+    definition: {fileID: 11400000, guid: 9c1374c66789827438951e8008308988, type: 2}
+    tileCoord: {x: 2, y: 3}
+    code: CpIh2oiD40moHP7B
+    uid: 
+    attributes: []
+    items:
+    - id: col2
+      attributes:
+      - key: id
+        value: col2
+    scripts: []
+    parameters: code="CpIh2oiD40moHP7B"
+  - type: box
+    id: case
+    definitionId: case
+    definition: {fileID: 11400000, guid: 98fdf58298f664742b03884d15281c30, type: 2}
+    tileCoord: {x: 45, y: 3}
+    code: ORPbdT3xc41qmUqz
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="ORPbdT3xc41qmUqz"
+  spawnPoints:
+  - tileCoord: {x: 2, y: 15}
+    type: 0
+    unitId: 
+    facingDirection: 1
+  environment:
+    musicTrack: music_plant_2
+    colorScheme: black
+    backgroundColorScheme: 
+    backgroundWall: tDirt2
+    backgroundForm: 0
+    transparentBackground: 0
+    hasSky: 0
+    borderType: 1
+    noBlackReveal: 0
+    visibilityMultiplier: 1
+    lightsOn: 0
+    returnsToDarkness: 0
+    waterLevel: 100
+    waterType: 1
+    waterOpacity: 0.75
+    waterDamage: 0
+    waterDamageType: 7
+    radiation: 0
+    radiationDamage: 0
+    darkness: 0

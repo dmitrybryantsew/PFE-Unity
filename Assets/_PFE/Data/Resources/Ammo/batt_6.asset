@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9890688ee0fa3d94aa489b3a78449b8b, type: 3}
+  m_Name: batt_6
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.AmmoData
+  dataVersion: 1
+  gameVersion: 0.1.0
+  id: batt_6
+  baseId: batt
+  stackSize: 20
+  dropChance: 0.3
+  requiredStoryLevel: 1
+  requiredLevel: 1
+  weight: 0.5
+  basePrice: 2
+  sellPrice: 0
+  modifier: 6
+  armorPiercingBonus: 15
+  damageMultiplier: 1.4
+  armorMultiplier: 1
+  knockbackMultiplier: 1
+  precisionMultiplier: 1
+  extraDurabilityCost: 0
+  fireDamage: 0
+  damageTypeOverride: 0
+  icon: {fileID: 0}
+  displayName: batt_6

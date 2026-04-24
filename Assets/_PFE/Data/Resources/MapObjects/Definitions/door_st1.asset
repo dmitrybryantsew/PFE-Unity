@@ -1,0 +1,61 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b6346ec5ad241bcb662491c6de14d7a, type: 3}
+  m_Name: door_st1
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.MapObjectDefinition
+  objectId: door_st1
+  displayName: "\u0414\u0432\u0435\u0440\u044C \u0441\u0442\u043E\u0439\u043B\u0430
+    \u0441\u043D\u0430\u0440\u0443\u0436\u0438"
+  legacyTip: box
+  family: 2
+  defaultPlacementType: door
+  size: 6
+  width: 6
+  wallMounted: 1
+  blocksMovement: 1
+  blocksVisibility: 0
+  isInteractive: 1
+  isSaveRelevant: 1
+  autoClose: 0
+  containerId: 
+  interactionMode: 8
+  allAct: comein
+  allId: 
+  hitPoints: 0
+  threshold: 0
+  shield: 0
+  materialId: 0
+  physicalCapability: 3
+  mass: 0
+  massMultiplier: 1
+  buoyancyFactor: 0
+  defaultVisualId: visdoor_st1
+  visual: {fileID: 11400000, guid: 6e8a1ddec6b67974aa7d50f6c2431202, type: 2}
+  legacyAttributes:
+  - key: ed
+    value: 8
+  - key: ico
+    value: 
+  - key: inter
+    value: 8
+  - key: tip
+    value: box
+  - key: wall
+    value: 2
+  - key: size
+    value: 6
+  - key: wid
+    value: 6
+  - key: allact
+    value: comein
+  - key: n
+    value: "\u0414\u0432\u0435\u0440\u044C \u0441\u0442\u043E\u0439\u043B\u0430 \u0441\u043D\u0430\u0440\u0443\u0436\u0438"

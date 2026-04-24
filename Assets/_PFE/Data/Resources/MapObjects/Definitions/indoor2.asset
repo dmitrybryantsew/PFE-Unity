@@ -1,0 +1,66 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b6346ec5ad241bcb662491c6de14d7a, type: 3}
+  m_Name: indoor2
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.MapObjectDefinition
+  objectId: indoor2
+  displayName: "\u0423\u0441\u0438\u043B\u0435\u043D\u043D\u0430\u044F \u0434\u0432\u0435\u0440\u044C
+    Z"
+  legacyTip: box
+  family: 13
+  defaultPlacementType: box
+  size: 2
+  width: 2
+  wallMounted: 1
+  blocksMovement: 0
+  blocksVisibility: 0
+  isInteractive: 1
+  isSaveRelevant: 1
+  autoClose: 0
+  containerId: 
+  interactionMode: 8
+  allAct: comein
+  allId: 
+  hitPoints: 0
+  threshold: 0
+  shield: 0
+  materialId: 0
+  physicalCapability: 2
+  mass: 0
+  massMultiplier: 1
+  buoyancyFactor: 0
+  defaultVisualId: visindoor2
+  visual: {fileID: 11400000, guid: 1422051c3ff23b5449ad02886f66555a, type: 2}
+  legacyAttributes:
+  - key: ed
+    value: 8
+  - key: ico
+    value: door
+  - key: inter
+    value: 8
+  - key: tip
+    value: box
+  - key: wall
+    value: 2
+  - key: size
+    value: 2
+  - key: wid
+    value: 2
+  - key: time
+    value: 10
+  - key: allact
+    value: comein
+  - key: open
+    value: wood_door_open
+  - key: n
+    value: "\u0423\u0441\u0438\u043B\u0435\u043D\u043D\u0430\u044F \u0434\u0432\u0435\u0440\u044C
+      Z"

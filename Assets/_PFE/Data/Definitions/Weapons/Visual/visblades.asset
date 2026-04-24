@@ -1,0 +1,38 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e94da64c3527f604c86bdaf09d32867f, type: 3}
+  m_Name: visblades
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponVisualDefinition
+  symbolName: visblades
+  weaponId: blades
+  sourceSymbolId: 1332
+  frames:
+  - {fileID: -985113564820616005, guid: ffebd72366b07454081c801a68faf806, type: 3}
+  - {fileID: 202404987911244711, guid: 5d8f849f719eb864c9e45f4df4a5cded, type: 3}
+  - {fileID: -8764597738744933808, guid: 578b10531dd318a49a13eb113ce0652f, type: 3}
+  - {fileID: 2805633920695696223, guid: 77a83b163320f8b48bcbe6c6e62123de, type: 3}
+  - {fileID: -7723724024098242069, guid: 05320d347b06361468ef7b26bbcb8b02, type: 3}
+  - {fileID: 1296198028869233028, guid: a7b9598e97064de4c86e2279eefaac2c, type: 3}
+  - {fileID: 4243038468684218715, guid: 3aa035fa76b875941a168cc486273cad, type: 3}
+  pixelsPerUnit: 100
+  idleFrame: 0
+  shootFrameStart: 1
+  shootFrameCount: 6
+  reloadFrameStart: -1
+  reloadFrameCount: 0
+  prepFrameStart: -1
+  prepFrameCount: 0
+  readyFrame: -1
+  muzzleLocalOffset: {x: 0, y: 0}
+  muzzleFlareId: 
+  hasShellEject: 0
+  shineRadius: 0

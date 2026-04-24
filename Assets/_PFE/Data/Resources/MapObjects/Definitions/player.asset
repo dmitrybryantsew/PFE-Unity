@@ -1,0 +1,54 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b6346ec5ad241bcb662491c6de14d7a, type: 3}
+  m_Name: player
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.MapObjectDefinition
+  objectId: player
+  displayName: "\u0422\u043E\u0447\u043A\u0430 \u043F\u043E\u044F\u0432\u043B\u0435\u043D\u0438\u044F"
+  legacyTip: spawnpoint
+  family: 10
+  defaultPlacementType: player
+  size: 2
+  width: 2
+  wallMounted: 0
+  blocksMovement: 0
+  blocksVisibility: 0
+  isInteractive: 0
+  isSaveRelevant: 1
+  autoClose: 0
+  containerId: 
+  interactionMode: 
+  allAct: 
+  allId: 
+  hitPoints: 0
+  threshold: 0
+  shield: 0
+  materialId: 0
+  physicalCapability: 1
+  mass: 0
+  massMultiplier: 1
+  buoyancyFactor: 0
+  defaultVisualId: 
+  visual: {fileID: 0}
+  legacyAttributes:
+  - key: ed
+    value: 11
+  - key: ico
+    value: npc
+  - key: tip
+    value: spawnpoint
+  - key: n
+    value: "\u0422\u043E\u0447\u043A\u0430 \u043F\u043E\u044F\u0432\u043B\u0435\u043D\u0438\u044F"
+  - key: size
+    value: 2
+  - key: wid
+    value: 2

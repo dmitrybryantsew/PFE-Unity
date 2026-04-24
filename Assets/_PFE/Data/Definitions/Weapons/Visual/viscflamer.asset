@@ -1,0 +1,71 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e94da64c3527f604c86bdaf09d32867f, type: 3}
+  m_Name: viscflamer
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponVisualDefinition
+  symbolName: viscflamer
+  weaponId: cflamer
+  sourceSymbolId: 1723
+  frames:
+  - {fileID: -985113564820616005, guid: 6172810cdf4a921408835ba26cffd755, type: 3}
+  - {fileID: 202404987911244711, guid: 7f4074da459f2ec4e9eb7d9d74f243f7, type: 3}
+  - {fileID: -8764597738744933808, guid: 0f54eb4e356337a4784f79ac72c87625, type: 3}
+  - {fileID: 2805633920695696223, guid: 59422cf639a58154fb64c7e6c2f20622, type: 3}
+  - {fileID: -7723724024098242069, guid: 7d07e054fe7f59a42bac8125ff0a9dd9, type: 3}
+  - {fileID: 1296198028869233028, guid: 22d8fe1711f3f474c84965cddf54ce88, type: 3}
+  - {fileID: 4243038468684218715, guid: 5872d58ecdf11fc4590a14db48e4539e, type: 3}
+  - {fileID: 5760737632179803129, guid: 0889eb92d68d7674393651eb56284c13, type: 3}
+  - {fileID: 178528315620593539, guid: fa69eb6e86fb31d41a44889b06b464ed, type: 3}
+  - {fileID: 3626981666587773793, guid: d403086cec74e784598f00bdadcbf5f3, type: 3}
+  - {fileID: -39957892216141377, guid: 445dce321a5785644b30093afc2378dd, type: 3}
+  - {fileID: 905864831991595785, guid: e1af02f6877c84f449147020e579fe6e, type: 3}
+  - {fileID: -378122100048681540, guid: 81c3bae7b35673a489c29312ea16b50b, type: 3}
+  - {fileID: -2983719998795993426, guid: 0540b5536b4df87418bf1789a2368d30, type: 3}
+  - {fileID: -3545135326624840846, guid: 15557bef6ebbd09479a5190615fa43df, type: 3}
+  - {fileID: -3378509263682496928, guid: bec20e21ca5b5a741a092e65dd4505de, type: 3}
+  - {fileID: -7571332395713996475, guid: c7ce7165f7bf4d344a43e4f6f306a5ec, type: 3}
+  - {fileID: -7343408912986953008, guid: 5063023c467386744b699db49e0b0fce, type: 3}
+  - {fileID: 212381734724294192, guid: ce7963035565ed6488108def90f61a1c, type: 3}
+  - {fileID: -3269660356630656930, guid: 6d120ad19cd75ff45b9af3cddf884518, type: 3}
+  - {fileID: -3448757404833851647, guid: 7260bbddf6d208d46a953e726e35ebf1, type: 3}
+  - {fileID: -3071011852523773315, guid: 45c0017aa52bc15438a27eada74ada73, type: 3}
+  - {fileID: 8733314447243124160, guid: 532e0cbc088fe5a40bb99449a4a91147, type: 3}
+  - {fileID: -5334879187219241648, guid: 573ad9df638aa924ea45675a2d0a0e79, type: 3}
+  - {fileID: 3156778366736209615, guid: a42f84b88e7978141ab042e67b09f5c2, type: 3}
+  - {fileID: 5850770447481293253, guid: e15e88bdccef6d44999f9be2ae6096a5, type: 3}
+  - {fileID: 2118702227863695699, guid: e51e41c28453d164d99d187dfe16d984, type: 3}
+  - {fileID: 3135142947305115967, guid: 4433aac6ea75573489bab9325f2ee490, type: 3}
+  - {fileID: 5262390925805910272, guid: 59e9ac70ebc3abd43b4654079e14d6a1, type: 3}
+  - {fileID: -2020930894118476123, guid: 436ead338377c834a9f2cb902416941c, type: 3}
+  - {fileID: -4033300062392140628, guid: 108a86ab55da4e642a7a0a332a5bcc5c, type: 3}
+  - {fileID: -1151698016744913704, guid: 9c82b0cd7e530974ca69aab7a8523700, type: 3}
+  - {fileID: -5781617755705487484, guid: d4a0f51f17df03b48b92cc7d704900c4, type: 3}
+  - {fileID: 5910701654519110669, guid: 79358bfb4ec070a4795d4e034ddb0c29, type: 3}
+  - {fileID: 4253402732592318040, guid: a722cdcd15f018d49bfd648afd93fa7e, type: 3}
+  - {fileID: 6356261457482742617, guid: 7a0db1cf8e7b9594694a03afa36b2c04, type: 3}
+  - {fileID: 4505443881645649222, guid: 3e5580b24a13c4f44852b66d755e6942, type: 3}
+  - {fileID: 3078743683195831104, guid: b5d2d92a88b9ede489d5301ef78f7920, type: 3}
+  - {fileID: 5152041220990786121, guid: 7e0e64f55d980c441b908e1f93ffa25f, type: 3}
+  - {fileID: 6584951861013755272, guid: 3940a57f0b4dd164582c1cee3661c211, type: 3}
+  pixelsPerUnit: 100
+  idleFrame: 0
+  shootFrameStart: 1
+  shootFrameCount: 8
+  reloadFrameStart: 9
+  reloadFrameCount: 31
+  prepFrameStart: -1
+  prepFrameCount: 0
+  readyFrame: -1
+  muzzleLocalOffset: {x: 0, y: 0}
+  muzzleFlareId: 
+  hasShellEject: 0
+  shineRadius: 0

@@ -1,0 +1,38 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 52445f94c96c4150ac0fe58bc05f53cc, type: 3}
+  m_Name: visindoor4
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.MapObjectVisualDefinition
+  visualId: visindoor4
+  objectId: indoor4
+  linkedObjectIds:
+  - indoor4
+  sourceFolderName: DefineSprite_336_visindoor4
+  sourceSymbolId: 336
+  frames:
+  - {fileID: 21300000, guid: 2181c4c5ba66c9042961ff21b4d29caf, type: 3}
+  - {fileID: 21300000, guid: c55c8af0aa27bba4ea531eded972feed, type: 3}
+  - {fileID: 21300000, guid: 948cb36499703314fa840bcfb65d774f, type: 3}
+  - {fileID: 21300000, guid: 60873a2d90a2df54e83f5dad84f0a997, type: 3}
+  - {fileID: 21300000, guid: 4bc6a31354fa5894c9f86786f8aa4094, type: 3}
+  - {fileID: 21300000, guid: b9333b7482c4ecc4f8ddf10d099e6d9d, type: 3}
+  - {fileID: 21300000, guid: 99963e2a53e00074b9bc511b21eb186c, type: 3}
+  - {fileID: 21300000, guid: a086f80681a61e94d9afb474368bbf7f, type: 3}
+  - {fileID: 21300000, guid: 18565c98989ae1f40b11593977c25bf1, type: 3}
+  - {fileID: 21300000, guid: 6f42dc2815f290f4f89f18897ff8eb77, type: 3}
+  - {fileID: 21300000, guid: c12cff93d2e8b3946b87036ad242cdba, type: 3}
+  pixelsPerUnit: 100
+  pixelSize: {x: 53, y: 85}
+  pivot: {x: 0.5, y: 0.5}
+  localOffset: {x: 0, y: 0}
+  sortingOrder: 1
+  wallMounted: 1

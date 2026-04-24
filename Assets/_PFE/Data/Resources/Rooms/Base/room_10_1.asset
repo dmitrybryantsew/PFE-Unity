@@ -1,0 +1,132 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
+  m_Name: room_10_1
+  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  id: room_10_1
+  type: pass
+  fixedPosition: {x: 10, y: 1, z: 0}
+  difficultyLevel: 0
+  maxInstances: 2
+  allowRandom: 1
+  backgroundRoomId: 
+  backgroundDecorations:
+  - id: bigbeam
+    tileCoord: {x: 29, y: 15}
+  - id: bigbeam
+    tileCoord: {x: 9, y: 15}
+  - id: hkonstr
+    tileCoord: {x: 21, y: 13}
+  - id: hkonstr
+    tileCoord: {x: 27, y: 13}
+  - id: hkonstr
+    tileCoord: {x: 33, y: 13}
+  - id: hkonstr
+    tileCoord: {x: 15, y: 13}
+  - id: hkonstr
+    tileCoord: {x: 9, y: 13}
+  - id: vkonstr
+    tileCoord: {x: 7, y: 10}
+  - id: vkonstr
+    tileCoord: {x: 39, y: 10}
+  - id: vkonstr
+    tileCoord: {x: 39, y: 7}
+  - id: vkonstr
+    tileCoord: {x: 7, y: 7}
+  - id: bigbeam
+    tileCoord: {x: 19, y: 15}
+  - id: hrail
+    tileCoord: {x: 35, y: 12}
+  - id: hrail
+    tileCoord: {x: 31, y: 12}
+  - id: hrail
+    tileCoord: {x: 13, y: 12}
+  - id: hrail
+    tileCoord: {x: 9, y: 12}
+  - id: hrail
+    tileCoord: {x: 39, y: 12}
+  - id: hrail
+    tileCoord: {x: 5, y: 12}
+  - id: hkonstr
+    tileCoord: {x: 9, y: 12}
+  - id: hkonstr
+    tileCoord: {x: 33, y: 12}
+  - id: hrail
+    tileCoord: {x: 43, y: 12}
+  - id: hrail
+    tileCoord: {x: 1, y: 12}
+  - id: hkonstr
+    tileCoord: {x: 41, y: 12}
+  - id: hkonstr
+    tileCoord: {x: 1, y: 12}
+  doorQuality: 020000000200000002000000000000000000000000000000000000000200000002000000020000000200000002000000020000000200000002000000000000000000000002000000020000000200000002000000020000000200000002000000
+  tileDataString: "_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\nDG.DG.DG.DG.DG.D.D.D.D.D.D.D.D.D.D.D.D._._._._._._._._._._._._._._.D.D.D.D.D.D.D.D.D.D.D.D.DG.DG.DG.DG.DG\nK.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K._._._._._._._._._._._._._._._._.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K\nK.K.K.K.K.K.K.D.K._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.K.D.K.K.K.K.K.K.K\nH.H.H.H.H.K.K.D.K._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.K.D.K.K.H.H.H.H.H\nH.H.H.D.D.D.D.D._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.D.D.D.D.D.H.H.H\n_E._E._E._E._E._E._E._L._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.D.D.D.D.D.H.H.H\n_E._E._E._E._E._E._E._L._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._L._L.H.H.H.H.H.H\nD.D.D.D.D.D._L\u0411._L._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._L._L.H.H.H.H.H.H\nH.H.H.H.H.H._L\u0411._L._L._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._L._L.H.H.H.H.H.H\nH.H.H.H.H.H._L\u0411._L._L._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._L._L.H.H.H.H.H.H\nH.H.H.H.H.H._L\u0411._L._L._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._L._L._L.H.H.H.H.H.H\nH.H.H.H.H.H._L\u0411._L._L._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._L._L._L.H.H.H.H.H.H"
+  objects:
+  - type: obj
+    id: bloodwing
+    definitionId: bloodwing
+    definition: {fileID: 11400000, guid: 8cb413623584f5e44aac1dffdaa1d68b, type: 2}
+    tileCoord: {x: 10, y: 15}
+    code: M2JmTNp0dUGyYXFI
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="M2JmTNp0dUGyYXFI"
+  - type: obj
+    id: bloodwing
+    definitionId: bloodwing
+    definition: {fileID: 11400000, guid: 8cb413623584f5e44aac1dffdaa1d68b, type: 2}
+    tileCoord: {x: 13, y: 15}
+    code: KxQ8aNtcDqiopUS1
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="KxQ8aNtcDqiopUS1"
+  - type: obj
+    id: bloodwing
+    definitionId: bloodwing
+    definition: {fileID: 11400000, guid: 8cb413623584f5e44aac1dffdaa1d68b, type: 2}
+    tileCoord: {x: 36, y: 15}
+    code: QYPOkGYJTMKvVa33
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="QYPOkGYJTMKvVa33"
+  spawnPoints:
+  - tileCoord: {x: 2, y: 15}
+    type: 0
+    unitId: 
+    facingDirection: 1
+  environment:
+    musicTrack: music_surf
+    colorScheme: blue
+    backgroundColorScheme: 
+    backgroundWall: sky
+    backgroundForm: 0
+    transparentBackground: 0
+    hasSky: 0
+    borderType: 1
+    noBlackReveal: 0
+    visibilityMultiplier: 10
+    lightsOn: 0
+    returnsToDarkness: 0
+    waterLevel: 100
+    waterType: 0
+    waterOpacity: 0
+    waterDamage: 0
+    waterDamageType: 7
+    radiation: 0
+    radiationDamage: 0
+    darkness: 0

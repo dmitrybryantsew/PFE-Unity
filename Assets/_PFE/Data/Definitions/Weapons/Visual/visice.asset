@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e94da64c3527f604c86bdaf09d32867f, type: 3}
+  m_Name: visice
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponVisualDefinition
+  symbolName: visice
+  weaponId: ice
+  sourceSymbolId: 1374
+  frames:
+  - {fileID: -985113564820616005, guid: c126fa7c38192ef4e87f69d01baad285, type: 3}
+  - {fileID: 202404987911244711, guid: a4c3286ee561e6e4eb777c744f3f3535, type: 3}
+  - {fileID: -8764597738744933808, guid: 80c7d9476c05ea84ab9b647b02b036bf, type: 3}
+  - {fileID: 2805633920695696223, guid: 4cc4f6bed51cb4e42beec175b961cb94, type: 3}
+  - {fileID: -7723724024098242069, guid: 865b64296b4b6f342ae59255b6311bf1, type: 3}
+  pixelsPerUnit: 100
+  idleFrame: 0
+  shootFrameStart: 1
+  shootFrameCount: 4
+  reloadFrameStart: -1
+  reloadFrameCount: 0
+  prepFrameStart: -1
+  prepFrameCount: 0
+  readyFrame: -1
+  muzzleLocalOffset: {x: 0, y: 0}
+  muzzleFlareId: 
+  hasShellEject: 0
+  shineRadius: 0

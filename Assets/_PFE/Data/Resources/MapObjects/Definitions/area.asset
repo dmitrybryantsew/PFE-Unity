@@ -1,0 +1,54 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b6346ec5ad241bcb662491c6de14d7a, type: 3}
+  m_Name: area
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.MapObjectDefinition
+  objectId: area
+  displayName: "\u041E\u0431\u043B\u0430\u0441\u0442\u044C"
+  legacyTip: area
+  family: 6
+  defaultPlacementType: area
+  size: 2
+  width: 2
+  wallMounted: 0
+  blocksMovement: 0
+  blocksVisibility: 0
+  isInteractive: 1
+  isSaveRelevant: 1
+  autoClose: 0
+  containerId: 
+  interactionMode: 
+  allAct: 
+  allId: 
+  hitPoints: 0
+  threshold: 0
+  shield: 0
+  materialId: 0
+  physicalCapability: 1
+  mass: 0
+  massMultiplier: 1
+  buoyancyFactor: 0
+  defaultVisualId: visArea
+  visual: {fileID: 11400000, guid: 9b70cf1121b0f8947977443c5ee34c4d, type: 2}
+  legacyAttributes:
+  - key: ed
+    value: 10
+  - key: ico
+    value: area
+  - key: tip
+    value: area
+  - key: n
+    value: "\u041E\u0431\u043B\u0430\u0441\u0442\u044C"
+  - key: size
+    value: 2
+  - key: wid
+    value: 2

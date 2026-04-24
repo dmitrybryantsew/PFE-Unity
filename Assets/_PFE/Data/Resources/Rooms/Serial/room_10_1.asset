@@ -1,0 +1,176 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
+  m_Name: room_10_1
+  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  id: room_10_1
+  type: pass
+  fixedPosition: {x: 10, y: 1, z: 0}
+  difficultyLevel: 0
+  maxInstances: 2
+  allowRandom: 1
+  backgroundRoomId: 
+  backgroundDecorations:
+  - id: electro
+    tileCoord: {x: 36, y: 17}
+  - id: wires1
+    tileCoord: {x: 35, y: 19}
+  - id: wires1
+    tileCoord: {x: 35, y: 17}
+  - id: stabledoor2
+    tileCoord: {x: 21, y: 14}
+  - id: wires1
+    tileCoord: {x: 35, y: 13}
+  - id: wires2
+    tileCoord: {x: 33, y: 14}
+  - id: vents
+    tileCoord: {x: 32, y: 12}
+  - id: vents
+    tileCoord: {x: 37, y: 12}
+  - id: electro
+    tileCoord: {x: 32, y: 17}
+  - id: wires1
+    tileCoord: {x: 35, y: 15}
+  - id: wires2
+    tileCoord: {x: 37, y: 14}
+  - id: wires2
+    tileCoord: {x: 37, y: 16}
+  - id: wires2
+    tileCoord: {x: 33, y: 16}
+  - id: potek
+    tileCoord: {x: 7, y: 8}
+  - id: potek
+    tileCoord: {x: 17, y: 8}
+  - id: potek
+    tileCoord: {x: 27, y: 8}
+  - id: potek
+    tileCoord: {x: 37, y: 8}
+  - id: light5
+    tileCoord: {x: 28, y: 13}
+  doorQuality: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000
+  tileDataString: 'G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G
+
+    G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G
+
+    G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G
+
+    G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G
+
+    G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G
+
+    G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G
+
+    G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G
+
+    G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G
+
+    G.G.G.G.G.G.G.B._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.B.G.G.G.G.G.G.G
+
+    G.G.G.G.G.G.G.B._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.B.G.G.G.G.G.G.G
+
+    G.G.G.G.G.G.G.B._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.B.G.G.G.G.G.G.G
+
+    G.G.G.G.G.G.G.B._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q.B.G.G.G.G.G.G.G
+
+    G.G.G.G.G.G.G.B._N._N._N._N._N._N._N._N._N._Q._Q._P._P._P._P._P._P._P._P._P._P._Q._Q._N._N._N._N._N._N._N._N._N.B.G.G.G.G.G.G.G
+
+    G.G.G.G.G.G.G.B._N._N._N._N._N._N._N._N._N._Q._Q._P._P._P._P._P._P._P._P._P._P._Q._Q._N._N._N._N._N._N._N._N._N.B.G.G.G.G.G.G.G
+
+    G.G.G.G.G.G.G.B._N._N._N._N._N._N._N._N._N._Q._Q._P._P._P._P._P._P._P._P._P._P._Q._Q._N._N._N._N._N._N._N._N._N.B.G.G.G.G.G.G.G
+
+    G.G.G.G.G.G.G.B._N._N._N._N._N._N._N._N._N._Q._Q._P._P._P._P._P._P._P._P._P._P._Q._Q._N._N._N._N._N._N._N._N._N.B.G.G.G.G.G.G.G
+
+    G.G.G.G.G.G.G.B._N._N._O._O._N._N._N._N._N._Q._Q._P._P._P._P._P._P._P._P._P._P._Q._Q._N._N._N._N._N._N._N._N._N.B.G.G.G.G.G.G.G
+
+    B.B.B.B.B.B.B.B._N._N._O._O._O._N._N._N._N._Q._Q._P._P._P._P._P._P._P._P._P._P._Q._Q._N._N._N._N._N._N._N._N._N.B.G.G.G.G.G.G.G
+
+    _N._N._N._N._N._N._N._G._N._N._O._O._O._O._O._N._N._Q._Q._P._P._P._P._P._P._P._P._P._P._Q._Q._N._N._N._N._N._N._N._N._N.B.G.G.G.G.G.G.G
+
+    _N._N._N._N._N._N._N._G._N._N._O._O._O._O._O._N._N._Q._Q._P._P._P._P._P._P._P._P._P._P._Q._Q._N._N._N._N._N._N._N._N._N.B.G.G.G.G.G.G.G
+
+    _N._N._N._N._N._N._N._G._N._N._O._O._O._O._O._N._N.KP.KP.KP.KP.KP.KP.KP.KP.KP.KP.KP.KP.KP.KP._N._N._N._N._N._N._N._N._N.B.G.G.G.G.G.G.G
+
+    B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.G.G.G.G.G.G.G
+
+    G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G
+
+    G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G
+
+    G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G'
+  objects:
+  - type: area
+    id: area
+    definitionId: area
+    definition: {fileID: 11400000, guid: 62760a6826b295d4bb7380b3dc6e5dc0, type: 2}
+    tileCoord: {x: 15, y: 20}
+    code: DRmDqZckVtxLu79T
+    uid: 
+    attributes:
+    - key: h
+      value: 15
+    items: []
+    scripts:
+    - eventName: 
+      actions:
+      - act: dialog
+        targ: 
+        val: surfDialStable
+      - act: refill
+        targ: 
+        val: 
+      - act: off
+        targ: this
+        val: 
+    parameters: code="DRmDqZckVtxLu79T" h="15"
+  - type: box
+    id: term
+    definitionId: term
+    definition: {fileID: 11400000, guid: b1d20e94969bc39458569f5a6f756a2a, type: 2}
+    tileCoord: {x: 28, y: 18}
+    code: LCkfOf2nwDUjOUwF
+    uid: 
+    attributes:
+    - key: time
+      value: 60
+    - key: inter
+      value: 8
+    - key: scr
+      value: stableStory
+    items: []
+    scripts: []
+    parameters: code="LCkfOf2nwDUjOUwF" time="60" inter="8" scr="stableStory"
+  spawnPoints:
+  - tileCoord: {x: 2, y: 15}
+    type: 0
+    unitId: 
+    facingDirection: 1
+  environment:
+    musicTrack: music_raiders
+    colorScheme: blue
+    backgroundColorScheme: 
+    backgroundWall: tLeaking
+    backgroundForm: 0
+    transparentBackground: 0
+    hasSky: 0
+    borderType: 1
+    noBlackReveal: 0
+    visibilityMultiplier: 10
+    lightsOn: 0
+    returnsToDarkness: 0
+    waterLevel: 100
+    waterType: 0
+    waterOpacity: 0
+    waterDamage: 0
+    waterDamageType: 7
+    radiation: 0
+    radiationDamage: 0
+    darkness: 0

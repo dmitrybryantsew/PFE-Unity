@@ -1,0 +1,41 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e94da64c3527f604c86bdaf09d32867f, type: 3}
+  m_Name: visdray
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponVisualDefinition
+  symbolName: visdray
+  weaponId: dray
+  sourceSymbolId: 1326
+  frames:
+  - {fileID: -985113564820616005, guid: 016cd7002cb5e384ea8dc1f06eacabdb, type: 3}
+  - {fileID: 202404987911244711, guid: c57e458d070fc724d9ea56467d90b1be, type: 3}
+  - {fileID: -8764597738744933808, guid: bf4a4b28ff55fdf42be030d128908483, type: 3}
+  - {fileID: 2805633920695696223, guid: 0409ebb529317d04888268275b5dcbe7, type: 3}
+  - {fileID: -7723724024098242069, guid: dcbbd2ac68ad2754b9ff2d7a732c4806, type: 3}
+  - {fileID: 1296198028869233028, guid: 4c10886963d39b443a994a74d0f9d074, type: 3}
+  - {fileID: 4243038468684218715, guid: bebc01973df7a824a98ec3895e989468, type: 3}
+  - {fileID: 5760737632179803129, guid: 31634b89fdd944c45bbb56f1e4e90578, type: 3}
+  - {fileID: 178528315620593539, guid: 0898c9ac433c4ed4f969edd8409b22ec, type: 3}
+  - {fileID: 3626981666587773793, guid: 5436dd608af77ac499e29bd8ee76192e, type: 3}
+  pixelsPerUnit: 100
+  idleFrame: 0
+  shootFrameStart: 1
+  shootFrameCount: 9
+  reloadFrameStart: -1
+  reloadFrameCount: 0
+  prepFrameStart: -1
+  prepFrameCount: 0
+  readyFrame: -1
+  muzzleLocalOffset: {x: 0, y: 0}
+  muzzleFlareId: 
+  hasShellEject: 0
+  shineRadius: 0

@@ -1,0 +1,131 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
+  m_Name: room_0_3
+  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  id: room_0_3
+  type: pass
+  fixedPosition: {x: 0, y: 3, z: 0}
+  difficultyLevel: 0
+  maxInstances: 2
+  allowRandom: 1
+  backgroundRoomId: 
+  backgroundDecorations:
+  - id: vrail
+    tileCoord: {x: 11, y: 12}
+  - id: vrail
+    tileCoord: {x: 11, y: 0}
+  - id: vrail
+    tileCoord: {x: 9, y: 4}
+  - id: vrail
+    tileCoord: {x: 11, y: 4}
+  - id: vrail
+    tileCoord: {x: 9, y: 8}
+  - id: vrail
+    tileCoord: {x: 11, y: 8}
+  - id: vrail
+    tileCoord: {x: 9, y: 12}
+  - id: vrail
+    tileCoord: {x: 9, y: 0}
+  - id: vrail
+    tileCoord: {x: 9, y: 16}
+  - id: vrail
+    tileCoord: {x: 11, y: 16}
+  - id: vrail
+    tileCoord: {x: 9, y: 20}
+  - id: vrail
+    tileCoord: {x: 11, y: 20}
+  - id: vrail
+    tileCoord: {x: 9, y: 24}
+  - id: vrail
+    tileCoord: {x: 11, y: 24}
+  - id: hkonstr
+    tileCoord: {x: 7, y: 8}
+  - id: hkonstr
+    tileCoord: {x: 8, y: 16}
+  doorQuality: 000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000
+  tileDataString: 'G.G.G.G.G.G.G.D._T._T._T._T._T.C.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G
+
+    G.G.G.G.G.G.G.D._T._T._T._T._T.C.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G
+
+    G.G.G.G.G.G.G.D._T._T._T._T._T.C.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G
+
+    G.G.G.G.G.G.G.D._T._T._T._T._T.C.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G
+
+    G.G.G.G.G.G.G.D._T._T._T._T._T.C.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G
+
+    G.G.G.G.G.G.G.D._T._T._T._T._T.C.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G
+
+    G.G.G.G.G.G.G.C._T._T._T._T._T.C.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G
+
+    G.G.G.G.G.G.G.C._T._T._T._T._T.C.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G
+
+    G.G.G.G.G.G.G.C._T._T._T._T._T.C.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G
+
+    G.G.G.G.G.G.G.C._T._T._T._T._T.C.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G
+
+    G.G.G.G.G.G.G.C._T._T._T._T._T.C.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G
+
+    G.G.G.G.G.G.G.C._T._T._T._T._T.D.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G
+
+    G.G.G.G.G.G.G.C._T._T._T._T._T.D.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G
+
+    G.G.G.G.G.G.G.C._T._T._T._T._T.D.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G
+
+    G.G.G.G.G.G.G.C._T._T._T._T._T.D.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G
+
+    G.G.G.G.G.G.G.C._T._T._T._T._T.C.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G
+
+    G.G.G.G.G.G.G.C._T._T._T._T._T.C.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G
+
+    G.G.G.G.G.G.G.C._T._T._T._T._T.C.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G
+
+    G.G.G.G.G.G.G.C._T._T._T._T._T.C.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G
+
+    G.G.G.G.G.G.G.C._T._T._T._T._T.C.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G
+
+    G.G.G.G.G.G.G.C._T._T._T._T._T.C.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G
+
+    G.G.G.G.G.G.G.C._T._T._T._T._T.C.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G
+
+    G.G.G.G.G.G.G.C._T._T._T._T._T.C.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G
+
+    G.G.G.G.G.G.G.C._T._T._T._T._T.C.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G
+
+    G.G.G.G.G.G.G.C._T._T._T._T._T.C.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G'
+  objects: []
+  spawnPoints:
+  - tileCoord: {x: 2, y: 15}
+    type: 0
+    unitId: 
+    facingDirection: 1
+  environment:
+    musicTrack: music_encl_2
+    colorScheme: fire
+    backgroundColorScheme: 
+    backgroundWall: tStConcrete
+    backgroundForm: 0
+    transparentBackground: 0
+    hasSky: 0
+    borderType: 1
+    noBlackReveal: 0
+    visibilityMultiplier: 3
+    lightsOn: 0
+    returnsToDarkness: 0
+    waterLevel: 100
+    waterType: 0
+    waterOpacity: 0
+    waterDamage: 0
+    waterDamageType: 7
+    radiation: 0
+    radiationDamage: 0
+    darkness: 0

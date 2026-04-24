@@ -1,0 +1,78 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b6346ec5ad241bcb662491c6de14d7a, type: 3}
+  m_Name: door1
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.MapObjectDefinition
+  objectId: door1
+  displayName: door1
+  legacyTip: door
+  family: 2
+  defaultPlacementType: door
+  size: 1
+  width: 2
+  wallMounted: 1
+  blocksMovement: 1
+  blocksVisibility: 0
+  isInteractive: 1
+  isSaveRelevant: 1
+  autoClose: 0
+  containerId: 
+  interactionMode: 1
+  allAct: 
+  allId: 
+  hitPoints: 60
+  threshold: 10
+  shield: 0
+  materialId: 3
+  physicalCapability: 3
+  mass: 0
+  massMultiplier: 1
+  buoyancyFactor: 0
+  defaultVisualId: visdoor1
+  visual: {fileID: 11400000, guid: 1408e2c56235cb14a92cb6814659f7a8, type: 2}
+  legacyAttributes:
+  - key: ed
+    value: 7
+  - key: ico
+    value: door
+  - key: inter
+    value: 1
+  - key: tip
+    value: door
+  - key: door
+    value: 1
+  - key: opac
+    value: 0.8
+  - key: wall
+    value: 2
+  - key: hp
+    value: 60
+  - key: thre
+    value: 10
+  - key: lockch
+    value: 0.3
+  - key: low
+    value: 0.8
+  - key: lock
+    value: 1
+  - key: mat
+    value: 3
+  - key: size
+    value: 1
+  - key: wid
+    value: 2
+  - key: open
+    value: wood_door_open
+  - key: close
+    value: wood_door_close
+  - key: die
+    value: break_wood

@@ -1,0 +1,43 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 78a55cd812641ba4d807391e27ac3968, type: 3}
+  m_Name: PfeInputSettings
+  m_EditorClassIdentifier: PFE.Core::PFE.Core.Input.PfeInputSettings
+  move:
+    kbUp: <Keyboard>/w
+    kbDown: <Keyboard>/s
+    kbLeft: <Keyboard>/a
+    kbRight: <Keyboard>/d
+    altUp: <Keyboard>/upArrow
+    altDown: <Keyboard>/downArrow
+    altLeft: <Keyboard>/leftArrow
+    altRight: <Keyboard>/rightArrow
+  jump:
+    keyboard: <Keyboard>/space
+    altKeyboard: <Keyboard>/ctrl
+    gamepad: <Gamepad>/buttonSouth
+  attack:
+    keyboard: <Mouse>/leftButton
+    altKeyboard: 
+    gamepad: <Gamepad>/buttonRightShoulder
+  interact:
+    keyboard: <Keyboard>/e
+    altKeyboard: 
+    gamepad: <Gamepad>/buttonWest
+  dash:
+    keyboard: <Keyboard>/leftShift
+    altKeyboard: 
+    gamepad: <Gamepad>/buttonEast
+  teleport:
+    keyboard: <Keyboard>/g
+    altKeyboard: 
+    gamepad: <Gamepad>/leftShoulder

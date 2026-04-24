@@ -1,0 +1,79 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d6ba3adb0716e844684560a96adb6927, type: 3}
+  m_Name: flamer
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
+  weaponId: flamer
+  weaponType: 3
+  skillLevel: 4
+  weaponLevel: 2
+  baseDamage: 2.5
+  rapid: 1
+  precision: 240
+  deviation: 6
+  armorPenetration: 0
+  knockback: 0
+  critChance: 0.1
+  critMultiplier: 2
+  projectilesPerShot: 1
+  projectileSpeed: 40
+  burstCount: 0
+  explRadius: 0
+  explosionDamage: 0
+  magazineSize: 200
+  reloadTime: 60
+  ammoType: fuel
+  maxDurability: 3000
+  prepFrames: 0
+  ammoPerShot: 1
+  rechargeFrames: 0
+  recoilFrames: 0
+  recoilLift: 0
+  magicPoolCost: 0
+  manaHealthCost: 0
+  throwTip: 0
+  fuseFrames: 75
+  radio: 0
+  meleeType: 0
+  meleeDlina: 100
+  meleeMinDlina: 100
+  meleeCombo: 0
+  meleePowerAttack: 0
+  projectileArchetype: 3
+  damageType: 3
+  bulletGravity: 0
+  bulletAccel: 0
+  bulletFlame: 1
+  bulletNavod: 0
+  isPhysBullet: 0
+  vbul: flame
+  projectileVisual: {fileID: 11400000, guid: a76dec5066e069f4c9968cb1419b300e, type: 2}
+  springMode: 1
+  bulletAnimated: 1
+  hasShell: 0
+  shineRadius: 500
+  decalType: 11
+  destroyTiles: 10
+  piercing: 10
+  manaCost: 0
+  alicornOnly: 0
+  weaponVisual: {fileID: 11400000, guid: d237e6bc6ed3e7c40af677b333268342, type: 2}
+  visualOverrideId: 
+  muzzleFlareId: 
+  weaponSprite: 
+  soundShoot: 
+  soundReload: flamer_r
+  soundHit: 
+  soundPrep: flamer_s
+  soundPrepT1: 1540
+  soundPrepT2: 2840
+  noiseRadius: 400

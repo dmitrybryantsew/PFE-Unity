@@ -1,0 +1,55 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 04352088915e56e428091e18db900c78, type: 3}
+  m_Name: ImpactSoundTable
+  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Audio.ImpactSoundTable
+  surfaceSounds:
+  - material: 1
+    soundId: hit_metal
+    volume: 0.4
+  - material: 2
+    soundId: hit_concrete
+    volume: 0.5
+  - material: 3
+    soundId: hit_wood
+    volume: 0.5
+  - material: 4
+    soundId: hit_glass
+    volume: 0.5
+  - material: 5
+    soundId: hit_pole
+    volume: 0.5
+  - material: 6
+    soundId: hit_flesh
+    volume: 0.5
+  - material: 7
+    soundId: hit_water
+    volume: 0.5
+  - material: 8
+    soundId: hit_slime
+    volume: 0.5
+  - material: 9
+    soundId: hit_necr
+    volume: 0.5
+  fleshOverrides:
+  - damageType: 0
+    soundId: hit_bullet
+    volume: 0.8
+  - damageType: 1
+    soundId: hit_blade
+    volume: 0.8
+  - damageType: 2
+    soundId: hit_blade
+    volume: 0.8
+  - damageType: 14
+    soundId: hit_blade
+    volume: 0.8

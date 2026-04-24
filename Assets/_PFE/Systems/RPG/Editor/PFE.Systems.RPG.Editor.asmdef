@@ -1,0 +1,19 @@
+{
+    "name": "PFE.Systems.RPG.Editor",
+    "rootNamespace": "PFE.Systems.RPG.Editor",
+    "references": [
+        "PFE.Core",
+        "PFE.Editor"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 52445f94c96c4150ac0fe58bc05f53cc, type: 3}
+  m_Name: visseptum
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.MapObjectVisualDefinition
+  visualId: visseptum
+  objectId: septum
+  linkedObjectIds:
+  - septum
+  sourceFolderName: DefineSprite_313_visseptum
+  sourceSymbolId: 313
+  frames:
+  - {fileID: 21300000, guid: 4b7fc6520785666498b21938a165aa6c, type: 3}
+  - {fileID: 21300000, guid: 78115c64af0333b45aa922dc3907aa88, type: 3}
+  - {fileID: 21300000, guid: a7214a55c2db88544b1169e399439dd6, type: 3}
+  pixelsPerUnit: 100
+  pixelSize: {x: 40, y: 120}
+  pivot: {x: 0.5, y: 0.5}
+  localOffset: {x: 0, y: 0}
+  sortingOrder: 1
+  wallMounted: 1

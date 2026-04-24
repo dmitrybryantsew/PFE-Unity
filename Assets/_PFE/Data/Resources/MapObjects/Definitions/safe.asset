@@ -1,0 +1,84 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b6346ec5ad241bcb662491c6de14d7a, type: 3}
+  m_Name: safe
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.MapObjectDefinition
+  objectId: safe
+  displayName: safe
+  legacyTip: box
+  family: 3
+  defaultPlacementType: box
+  size: 2
+  width: 2
+  wallMounted: 0
+  blocksMovement: 0
+  blocksVisibility: 0
+  isInteractive: 1
+  isSaveRelevant: 1
+  autoClose: 0
+  containerId: safe
+  interactionMode: 1
+  allAct: 
+  allId: 
+  hitPoints: 1200
+  threshold: 200
+  shield: 0.5
+  materialId: 1
+  physicalCapability: 6
+  mass: 0
+  massMultiplier: 1.5
+  buoyancyFactor: 0
+  defaultVisualId: vissafe
+  visual: {fileID: 11400000, guid: a5006ffb170587941b1d51e2e6870a9e, type: 2}
+  legacyAttributes:
+  - key: ed
+    value: 2
+  - key: ico
+    value: cont
+  - key: tip
+    value: box
+  - key: explcrack
+    value: 1
+  - key: xp
+    value: 50
+  - key: hp
+    value: 1200
+  - key: shield
+    value: 0.5
+  - key: thre
+    value: 200
+  - key: mat
+    value: 1
+  - key: inter
+    value: 1
+  - key: cont
+    value: safe
+  - key: lock
+    value: 2.2
+  - key: lockhp
+    value: 16
+  - key: mine
+    value: 2
+  - key: minech
+    value: 0.6
+  - key: massaMult
+    value: 1.5
+  - key: lurk
+    value: 2
+  - key: size
+    value: 2
+  - key: wid
+    value: 2
+  - key: fall
+    value: fall_metal_safe
+  - key: open
+    value: safe_open

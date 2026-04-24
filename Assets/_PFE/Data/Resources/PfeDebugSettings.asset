@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3f0a9d82f17f4385b4f13a40537f0ee1, type: 3}
+  m_Name: PfeDebugSettings
+  m_EditorClassIdentifier: PFE.Core::PFE.Core.PfeDebugSettings
+  runtimeLoggingEnabled: 1
+  logGameDatabaseInitializationSummary: 0
+  logGameDatabaseAssetRegistration: 0
+  logGameDatabaseDuplicateRegistrationWarnings: 0
+  logRoomTemplateLoadSummary: 0
+  logRoomTemplateLoadDiagnostics: 0
+  logLoadedRoomTemplateList: 0
+  logDependencyInjectionConstruct: 0
+  logInputActionEvents: 0
+  logWeaponLifecycle: 0
+  logWeaponFiring: 0
+  logWeaponControllerDiagnostics: 0
+  logProjectileSpawning: 1
+  logProjectileLifecycle: 1
+  logGameManagerLifecycle: 0
+  logGameLoopEvents: 0
+  logWorldBuilderSummary: 0
+  logMapGenerationDiagnostics: 0
+  logMapBridgeLifecycle: 0
+  logRoomRenderingLifecycle: 0
+  logTileVisualCreationSummary: 0
+  logTileColliderCreation: 0

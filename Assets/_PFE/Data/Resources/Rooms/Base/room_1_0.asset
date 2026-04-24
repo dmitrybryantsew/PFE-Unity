@@ -1,0 +1,301 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
+  m_Name: room_1_0
+  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  id: room_1_0
+  type: pass
+  fixedPosition: {x: 1, y: 0, z: 0}
+  difficultyLevel: 0
+  maxInstances: 2
+  allowRandom: 1
+  backgroundRoomId: 
+  backgroundDecorations:
+  - id: pipe4
+    tileCoord: {x: 38, y: 4}
+  - id: pipe4
+    tileCoord: {x: 38, y: 8}
+  - id: pipe4
+    tileCoord: {x: 38, y: 10}
+  - id: pipe4
+    tileCoord: {x: 29, y: 10}
+  - id: pipe1
+    tileCoord: {x: 25, y: 4}
+  - id: pipe4
+    tileCoord: {x: 38, y: 6}
+  - id: pipe4
+    tileCoord: {x: 38, y: 0}
+  - id: pipe4
+    tileCoord: {x: 29, y: 0}
+  - id: pipe4
+    tileCoord: {x: 29, y: 6}
+  - id: pipe4
+    tileCoord: {x: 29, y: 4}
+  - id: pipe4
+    tileCoord: {x: 29, y: 2}
+  - id: pipe4
+    tileCoord: {x: 29, y: 8}
+  - id: pipe4
+    tileCoord: {x: 38, y: 2}
+  - id: pipe1
+    tileCoord: {x: 35, y: 4}
+  - id: light1
+    tileCoord: {x: 7, y: 6}
+  - id: light1
+    tileCoord: {x: 14, y: 6}
+  - id: potek
+    tileCoord: {x: 3, y: 18}
+  - id: light2
+    tileCoord: {x: 31, y: 1}
+  - id: light2
+    tileCoord: {x: 35, y: 1}
+  - id: hkonstr
+    tileCoord: {x: 4, y: 18}
+  - id: hkonstr
+    tileCoord: {x: 10, y: 18}
+  - id: web1tr
+    tileCoord: {x: 16, y: 5}
+  - id: web1tr
+    tileCoord: {x: 37, y: 1}
+  - id: web1bl
+    tileCoord: {x: 4, y: 21}
+  - id: pipe1
+    tileCoord: {x: 3, y: 19}
+  - id: pipe4
+    tileCoord: {x: 6, y: 22}
+  - id: pipe4
+    tileCoord: {x: 6, y: 20}
+  - id: pipe4
+    tileCoord: {x: 6, y: 18}
+  - id: plesen
+    tileCoord: {x: 3, y: 22}
+  - id: plesen
+    tileCoord: {x: 12, y: 22}
+  - id: plesen
+    tileCoord: {x: 22, y: 22}
+  - id: stok2
+    tileCoord: {x: 33, y: 6}
+  - id: stok2
+    tileCoord: {x: 36, y: 6}
+  - id: stok2
+    tileCoord: {x: 30, y: 6}
+  doorQuality: 000000000000000000000000020000000000000000000000020000000200000002000000020000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000000000200000002000000
+  tileDataString: "H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.C.C.C.C.C.C.C.C.C.C.C.C.C.C.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.C._C._C._C._C._C._C._C._C._C._C._C._C.C.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.C._C._C._C._C._C._C._C._C._C._C._C._C.C.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.C._C-._C-._C-._C-._C-._C-._C-._C-._C-._C-._C-._C-.C.H.H.H.H.H.H.H\nC.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.H.H.H.H.H.H.H.C._C._C._C._C._C._C._C._C._C._C._C._C.C.H.H.H.H.H.H.H\n_D._D._D._D._D._D._D._D._D.DD.DD.DD.DD._D._D._D._D._D._D.C.H.H.H.H.H.H.H.C._C._C._C._C._C._C._C._C._C._C._C._C.C.H.H.H.H.H.H.H\n_D._D._D._D._D._D._D._D._D.DD.DD.DD.DD._D._D._D._D._D._D.C.H.H.H.H.H.H.H.C._C._C._C._C._C._C._C._C._C._C._C._C.C.H.H.H.H.H.H.H\n_D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D.C.H.H.H.H.H.H.H.C._C._C._C._C._C._C._C._C._C._C._C._C.C.H.H.H.H.H.H.H\nC.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._D-._D-._D-.C.H.H.H.H.H.H.H.C._C._C._C._C._C._C._C._C._C._C._C._C.C.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.C._D._D._D.C.H.H.H.H.H.H.H.C._C._C._C._C._C._C._C._C._C._C._C._C.C.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.C._D._D._D.C.H.H.H.H.H.H.H.C._C._C._C._C._C._C._C._C._C._C._C._C.C.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.C._D._D._D.C.H.H.H.H.H.H.H.C._C._C._C._C._C._C._C._C._C._C._C._C.C.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.C._D._D._D.C.C.C.C.C.C.C.C.C.C.C.C.C.C._C-._C-._C\u0410-.C.C.C.C.C.C.C.C.C.C.C.C\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.C._D._D._D._C._C._C._C._C._C._C._C._C._._._._._._._._\u0410._._.C._._._._._._._._._\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.C._D._D._D._C._C._C._C._C._C._C._C._C._._._._._._._._\u0410._._._._._._._._._._._._\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.C._D._D._D._C._C._C._C._C._C._C._C._C._._._._._._._._\u0410._._._._._._._._._._._._\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._._\u0410.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C\nH.H.H.C.C.C.C.C.C.C.C.C.C.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.C._._\u0410.C.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.C._D._D._D._D._D._D._D._D.C.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.C._._\u0410.C.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.C._D._D._D._D._D._D._D._D.C.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.C._._\u0410.C.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.C._D._D._D._D._D._D._D._D.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._._\u0410.C.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.C._D._D._D._D._D._D._D._D._._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E\u0410.C.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.C._D._D._D._D._D._D._D._D._._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E\u0410.C.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.C._D._D._D._D._D._D._D._D._._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E\u0410.C.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H"
+  objects:
+  - type: area
+    id: area
+    definitionId: area
+    definition: {fileID: 11400000, guid: 62760a6826b295d4bb7380b3dc6e5dc0, type: 2}
+    tileCoord: {x: 5, y: 7}
+    code: OYJU8YlgKzkzUZTv
+    uid: 
+    attributes:
+    - key: mess
+      value: trSit
+    items: []
+    scripts: []
+    parameters: code="OYJU8YlgKzkzUZTv" mess="trSit"
+  - type: area
+    id: area
+    definitionId: area
+    definition: {fileID: 11400000, guid: 62760a6826b295d4bb7380b3dc6e5dc0, type: 2}
+    tileCoord: {x: 16, y: 7}
+    code: I3ndeRBGnIouAx0Z
+    uid: 
+    attributes:
+    - key: mess
+      value: trDownJump
+    items: []
+    scripts: []
+    parameters: code="I3ndeRBGnIouAx0Z" mess="trDownJump"
+  - type: box
+    id: case
+    definitionId: case
+    definition: {fileID: 11400000, guid: 98fdf58298f664742b03884d15281c30, type: 2}
+    tileCoord: {x: 31, y: 2}
+    code: fInksMkFM1Rj4kRT
+    uid: trSign3
+    attributes: []
+    items:
+    - id: col1
+      attributes:
+      - key: id
+        value: col1
+      - key: imp
+        value: 1
+    scripts:
+    - eventName: 
+      actions:
+      - act: off
+        targ: trTele
+        val: 
+    parameters: code="fInksMkFM1Rj4kRT" uid="trSign3"
+  - type: area
+    id: area
+    definitionId: area
+    definition: {fileID: 11400000, guid: 62760a6826b295d4bb7380b3dc6e5dc0, type: 2}
+    tileCoord: {x: 16, y: 15}
+    code: RMLiZLoa3LwKjjjK
+    uid: trCont
+    attributes:
+    - key: w
+      value: 5
+    - key: mess
+      value: trCont
+    items: []
+    scripts:
+    - eventName: 
+      actions:
+      - act: sign
+        targ: trSign1
+        val: 1
+    parameters: code="RMLiZLoa3LwKjjjK" uid="trCont" w="5" mess="trCont"
+  - type: area
+    id: area
+    definitionId: area
+    definition: {fileID: 11400000, guid: 62760a6826b295d4bb7380b3dc6e5dc0, type: 2}
+    tileCoord: {x: 34, y: 11}
+    code: drajCNRpM05nIlWN
+    uid: trTele
+    attributes:
+    - key: mess
+      value: trTele
+    - key: down
+      value: 1
+    items: []
+    scripts:
+    - eventName: 
+      actions:
+      - act: sign
+        targ: trSign3
+        val: 1
+    parameters: code="drajCNRpM05nIlWN" uid="trTele" mess="trTele" down="1"
+  - type: area
+    id: area
+    definitionId: area
+    definition: {fileID: 11400000, guid: 62760a6826b295d4bb7380b3dc6e5dc0, type: 2}
+    tileCoord: {x: 15, y: 23}
+    code: D55F3NFVYNkPeyIt
+    uid: trPunch
+    attributes:
+    - key: w
+      value: 6
+    - key: mess
+      value: trPunch
+    items: []
+    scripts:
+    - eventName: 
+      actions:
+      - act: sign
+        targ: trSign2
+        val: 1
+    parameters: code="D55F3NFVYNkPeyIt" uid="trPunch" w="6" mess="trPunch"
+  - type: box
+    id: wallcab
+    definitionId: wallcab
+    definition: {fileID: 11400000, guid: a21d8481ed6e6b745a1044e2b1ef93d6, type: 2}
+    tileCoord: {x: 23, y: 14}
+    code: jqoF54gK5Sa6YvOd
+    uid: trSign1
+    attributes:
+    - key: cont
+      value: 
+    - key: lock
+      value: 0
+    items:
+    - id: col1
+      attributes:
+      - key: id
+        value: col1
+      - key: imp
+        value: 1
+    scripts:
+    - eventName: 
+      actions:
+      - act: off
+        targ: trCont
+        val: 
+    parameters: code="jqoF54gK5Sa6YvOd" uid="trSign1" lock="0"
+  - type: box
+    id: case
+    definitionId: case
+    definition: {fileID: 11400000, guid: 98fdf58298f664742b03884d15281c30, type: 2}
+    tileCoord: {x: 8, y: 23}
+    code: sR7whrdZZxsQOsSM
+    uid: 
+    attributes: []
+    items:
+    - id: col1
+      attributes:
+      - key: id
+        value: col1
+      - key: imp
+        value: 1
+    scripts: []
+    parameters: code="sR7whrdZZxsQOsSM"
+  - type: door
+    id: septum
+    definitionId: septum
+    definition: {fileID: 11400000, guid: 5feb68a17367d3b41832314b4621c8cc, type: 2}
+    tileCoord: {x: 12, y: 23}
+    code: nJrkP0fKTo7ty31p
+    uid: trSign2
+    attributes:
+    - key: inter
+      value: 0
+    items: []
+    scripts:
+    - eventName: die
+      actions:
+      - act: off
+        targ: trPunch
+        val: 
+    parameters: code="nJrkP0fKTo7ty31p" uid="trSign2" inter="0"
+  - type: door
+    id: door1
+    definitionId: door1
+    definition: {fileID: 11400000, guid: dbf42975fe466da45b49d0ea2b5bd07d, type: 2}
+    tileCoord: {x: 38, y: 15}
+    code: ACmqoTi6dil3iQgs
+    uid: 
+    attributes:
+    - key: lock
+      value: 0
+    items: []
+    scripts: []
+    parameters: code="ACmqoTi6dil3iQgs" lock="0"
+  spawnPoints:
+  - tileCoord: {x: 2, y: 15}
+    type: 0
+    unitId: 
+    facingDirection: 1
+  environment:
+    musicTrack: music_begin
+    colorScheme: 
+    backgroundColorScheme: 
+    backgroundWall: tBackWall
+    backgroundForm: 0
+    transparentBackground: 0
+    hasSky: 0
+    borderType: 1
+    noBlackReveal: 0
+    visibilityMultiplier: 1
+    lightsOn: 0
+    returnsToDarkness: 0
+    waterLevel: 100
+    waterType: 0
+    waterOpacity: 0
+    waterDamage: 0
+    waterDamageType: 7
+    radiation: 0
+    radiationDamage: 0
+    darkness: 0

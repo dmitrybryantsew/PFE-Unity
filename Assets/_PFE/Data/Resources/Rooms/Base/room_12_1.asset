@@ -1,0 +1,279 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
+  m_Name: room_12_1
+  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  id: room_12_1
+  type: pass
+  fixedPosition: {x: 12, y: 1, z: 0}
+  difficultyLevel: 0
+  maxInstances: 2
+  allowRandom: 1
+  backgroundRoomId: 
+  backgroundDecorations:
+  - id: stenka1
+    tileCoord: {x: 20, y: 16}
+  - id: stenka3
+    tileCoord: {x: 34, y: 21}
+  - id: stenka2
+    tileCoord: {x: 41, y: 16}
+  - id: musor1
+    tileCoord: {x: 10, y: 22}
+  - id: heap3
+    tileCoord: {x: 14, y: 22}
+  - id: musor1
+    tileCoord: {x: 21, y: 21}
+  - id: heap1
+    tileCoord: {x: 16, y: 20}
+  - id: heap2
+    tileCoord: {x: 39, y: 20}
+  - id: heap2
+    tileCoord: {x: 30, y: 21}
+  - id: heap3
+    tileCoord: {x: 21, y: 21}
+  - id: trava
+    tileCoord: {x: 0, y: 22}
+  - id: tree
+    tileCoord: {x: 6, y: 14}
+  - id: stree
+    tileCoord: {x: 13, y: 17}
+  - id: stree
+    tileCoord: {x: 4, y: 17}
+  - id: remains1
+    tileCoord: {x: 32, y: 13}
+  - id: remains1
+    tileCoord: {x: 8, y: 14}
+  - id: remains2
+    tileCoord: {x: 25, y: 16}
+  - id: remains2
+    tileCoord: {x: 14, y: 16}
+  doorQuality: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000
+  tileDataString: '_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.D.D
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.D.D
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.D.D
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.D.D
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.D.D
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.D.D
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.D.D
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.D.D
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.D.D
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.D.D
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.D.D
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.D.D
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.D.D
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.D.D
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.D.D
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.D.D
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.D.D
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.D.D
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.D.D
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.D.D
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.D.D
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.E.E.E.D.D
+
+    _._._._._._._._._._._._._._._._._._._._.D.D.D.D.E.E.E.E.E.D.D.D._._._._._.E.E.E.E.E.E.E.E.E.D.D
+
+    H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.D.D.D.D.D.D.D.D.D.D.D.D.H.H.H.H.H.H.H.H.H.H.H.H.H.H.D.D
+
+    H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.D.D.D.D.D.D.D.D.D.D.D.D.H.H.H.H.H.H.H.H.H.H.H.H.H.H.D.D'
+  objects:
+  - type: obj
+    id: raider
+    definitionId: raider
+    definition: {fileID: 11400000, guid: 78df2015123b4124fa2fdc5977d63f5c, type: 2}
+    tileCoord: {x: 22, y: 21}
+    code: k6dIZiF41fyeQ5uf
+    uid: 
+    attributes:
+    - key: ai
+      value: stay
+    - key: turn
+      value: -1
+    - key: tr
+      value: 5
+    - key: weap
+      value: p9mm
+    items: []
+    scripts: []
+    parameters: code="k6dIZiF41fyeQ5uf" ai="stay" turn="-1" tr="5" weap="p9mm"
+  - type: obj
+    id: raider
+    definitionId: raider
+    definition: {fileID: 11400000, guid: 78df2015123b4124fa2fdc5977d63f5c, type: 2}
+    tileCoord: {x: 26, y: 21}
+    code: A8br3VOMiVcyqpVz
+    uid: 
+    attributes:
+    - key: ai
+      value: stay
+    - key: turn
+      value: -1
+    - key: tr
+      value: 3
+    items: []
+    scripts: []
+    parameters: code="A8br3VOMiVcyqpVz" ai="stay" turn="-1" tr="3"
+  - type: obj
+    id: raider
+    definitionId: raider
+    definition: {fileID: 11400000, guid: 78df2015123b4124fa2fdc5977d63f5c, type: 2}
+    tileCoord: {x: 30, y: 21}
+    code: ebizFa1IdLxAYZH1
+    uid: 
+    attributes:
+    - key: ai
+      value: stay
+    - key: turn
+      value: -1
+    - key: tr
+      value: 4
+    items: []
+    scripts: []
+    parameters: code="ebizFa1IdLxAYZH1" ai="stay" turn="-1" tr="4"
+  - type: obj
+    id: raider
+    definitionId: raider
+    definition: {fileID: 11400000, guid: 78df2015123b4124fa2fdc5977d63f5c, type: 2}
+    tileCoord: {x: 37, y: 21}
+    code: kJVw3q5iwjYkoIgT
+    uid: 
+    attributes:
+    - key: ai
+      value: stay
+    - key: turn
+      value: -1
+    - key: tr
+      value: 2
+    items: []
+    scripts: []
+    parameters: code="kJVw3q5iwjYkoIgT" ai="stay" turn="-1" tr="2"
+  - type: obj
+    id: raider
+    definitionId: raider
+    definition: {fileID: 11400000, guid: 78df2015123b4124fa2fdc5977d63f5c, type: 2}
+    tileCoord: {x: 13, y: 22}
+    code: RQhOqSWhLLhgokOT
+    uid: surfRaider1
+    attributes:
+    - key: ai
+      value: quiet
+    - key: turn
+      value: -1
+    - key: tr
+      value: 7
+    - key: weap
+      value: oldr
+    items: []
+    scripts: []
+    parameters: code="RQhOqSWhLLhgokOT" uid="surfRaider1" ai="quiet" turn="-1" tr="7"
+      weap="oldr"
+  - type: area
+    id: area
+    definitionId: area
+    definition: {fileID: 11400000, guid: 62760a6826b295d4bb7380b3dc6e5dc0, type: 2}
+    tileCoord: {x: 1, y: 22}
+    code: vNvr2nBZDcpt2hH1
+    uid: 
+    attributes:
+    - key: h
+      value: 22
+    - key: scr
+      value: surfStory
+    items: []
+    scripts: []
+    parameters: code="vNvr2nBZDcpt2hH1" h="22" scr="surfStory"
+  - type: obj
+    id: npc
+    definitionId: npc
+    definition: {fileID: 11400000, guid: 2b067238a37bc224c99b891f75cdd086, type: 2}
+    tileCoord: {x: 40, y: 2}
+    code: MraR4xuhkXhpQYkj
+    uid: surfCalam
+    attributes:
+    - key: npc
+      value: calam
+    - key: fly
+      value: 1
+    - key: turn
+      value: -1
+    - key: invis
+      value: 1
+    items: []
+    scripts: []
+    parameters: code="MraR4xuhkXhpQYkj" uid="surfCalam" npc="calam" fly="1" turn="-1"
+      invis="1"
+  - type: obj
+    id: raider
+    definitionId: raider
+    definition: {fileID: 11400000, guid: 78df2015123b4124fa2fdc5977d63f5c, type: 2}
+    tileCoord: {x: 17, y: 22}
+    code: E0WORd8SEQHzAomy
+    uid: 
+    attributes:
+    - key: ai
+      value: stay
+    - key: turn
+      value: -1
+    - key: tr
+      value: 6
+    - key: weap
+      value: oldshot
+    items: []
+    scripts: []
+    parameters: code="E0WORd8SEQHzAomy" ai="stay" turn="-1" tr="6" weap="oldshot"
+  spawnPoints:
+  - tileCoord: {x: 2, y: 15}
+    type: 0
+    unitId: 
+    facingDirection: 1
+  environment:
+    musicTrack: music_surf
+    colorScheme: blue
+    backgroundColorScheme: 
+    backgroundWall: sky
+    backgroundForm: 0
+    transparentBackground: 0
+    hasSky: 0
+    borderType: 1
+    noBlackReveal: 0
+    visibilityMultiplier: 10
+    lightsOn: 0
+    returnsToDarkness: 0
+    waterLevel: 100
+    waterType: 0
+    waterOpacity: 0
+    waterDamage: 0
+    waterDamageType: 7
+    radiation: 0
+    radiationDamage: 0
+    darkness: 0

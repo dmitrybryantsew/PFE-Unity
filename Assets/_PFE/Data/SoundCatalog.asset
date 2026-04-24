@@ -1,0 +1,1064 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: aaa52c34dd774f948a8998147f3d7e6e, type: 3}
+  m_Name: SoundCatalog
+  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Audio.SoundCatalog
+  entries:
+  - id: acid
+    variants:
+    - {fileID: 8300000, guid: d2d5df99d164a4242b4ce3e2ab780ec6, type: 3}
+    library: sound
+  - id: acid_e
+    variants:
+    - {fileID: 8300000, guid: c58087ba98baa844498546c8da11c166, type: 3}
+    library: sound
+  - id: alarm
+    variants:
+    - {fileID: 8300000, guid: e568ef039f704944b92cd83ebc7aac2c, type: 3}
+    library: sound
+  - id: ali
+    variants:
+    - {fileID: 8300000, guid: 68b281c509fcb3a40a64256c137cfbd8, type: 3}
+    - {fileID: 8300000, guid: 78c79310649eebb4e9f7b5e9b59a0ff0, type: 3}
+    - {fileID: 8300000, guid: c31049cefe6e9624ebb5fd24e8ea6188, type: 3}
+    library: sound_unit
+  - id: ali1
+    variants:
+    - {fileID: 8300000, guid: 68b281c509fcb3a40a64256c137cfbd8, type: 3}
+    library: sound_unit
+  - id: ali2
+    variants:
+    - {fileID: 8300000, guid: 78c79310649eebb4e9f7b5e9b59a0ff0, type: 3}
+    library: sound_unit
+  - id: ali3
+    variants:
+    - {fileID: 8300000, guid: c31049cefe6e9624ebb5fd24e8ea6188, type: 3}
+    library: sound_unit
+  - id: al_armor
+    variants:
+    - {fileID: 8300000, guid: 0a2d5d6fe328db3479e22269ca14caf7, type: 3}
+    library: sound_unit
+  - id: antidrak_s
+    variants:
+    - {fileID: 8300000, guid: 7ce682b59be317e4d9a6154e19656af7, type: 3}
+    library: sound_weapon
+  - id: anti_s
+    variants:
+    - {fileID: 8300000, guid: 869dde157ede0a441b6d138ea0e163cf, type: 3}
+    library: sound_weapon
+  - id: arson_s
+    variants:
+    - {fileID: 8300000, guid: 22dab4ff3da41fd47935909844856c21, type: 3}
+    library: sound_weapon
+  - id: artfire
+    variants:
+    - {fileID: 8300000, guid: ded7012100fa8a54089ac2439d8ff1bd, type: 3}
+    - {fileID: 8300000, guid: fbc45c635be35f04c826b8e04538e39b, type: 3}
+    library: sound_weapon
+  - id: artfire1
+    variants:
+    - {fileID: 8300000, guid: ded7012100fa8a54089ac2439d8ff1bd, type: 3}
+    library: sound_weapon
+  - id: artfire2
+    variants:
+    - {fileID: 8300000, guid: fbc45c635be35f04c826b8e04538e39b, type: 3}
+    library: sound_weapon
+  - id: autoaxe_s
+    variants:
+    - {fileID: 8300000, guid: 638a1bdf7894197458dc1c59fa5d61cc, type: 3}
+    library: sound_weapon
+  - id: bale_e
+    variants:
+    - {fileID: 8300000, guid: 61eabcf6c08fc9b47866e2bb0081b260, type: 3}
+    library: sound
+  - id: bat
+    variants:
+    - {fileID: 8300000, guid: d7455f5c582a50544aef101ce4f0df81, type: 3}
+    - {fileID: 8300000, guid: c904ec9dd65c1a547b9f3555bc8bbe42, type: 3}
+    library: sound_unit
+  - id: bat1
+    variants:
+    - {fileID: 8300000, guid: d7455f5c582a50544aef101ce4f0df81, type: 3}
+    library: sound_unit
+  - id: bat2
+    variants:
+    - {fileID: 8300000, guid: c904ec9dd65c1a547b9f3555bc8bbe42, type: 3}
+    library: sound_unit
+  - id: bfg_p
+    variants:
+    - {fileID: 8300000, guid: 15f6f0c0709d1b94fa98fbf1b206ea5f, type: 3}
+    library: sound_weapon
+  - id: bfg_s
+    variants:
+    - {fileID: 8300000, guid: ad72962f389aec64b8e03f096386a7be, type: 3}
+    library: sound_weapon
+  - id: big_door_close
+    variants:
+    - {fileID: 8300000, guid: b69989387686db94abce2c81a0872fd5, type: 3}
+    library: sound
+  - id: blade
+    variants:
+    - {fileID: 8300000, guid: 62da87b53398d3048b9df807fd4f2a33, type: 3}
+    library: sound
+  - id: blade2
+    variants:
+    - {fileID: 8300000, guid: 8fd2914ec352b1b4f899b0420cd8eb2c, type: 3}
+    library: sound
+  - id: blast
+    variants:
+    - {fileID: 8300000, guid: fcf3c6f702d5e4540b84eb913b5450d6, type: 3}
+    library: sound
+  - id: blaster_s
+    variants:
+    - {fileID: 8300000, guid: ec0d6a20f1c74054d90fdcefe7fcd7d7, type: 3}
+    library: sound_weapon
+  - id: bloat
+    variants:
+    - {fileID: 8300000, guid: 8b988b4c6f0051940b966c9595c1be8e, type: 3}
+    - {fileID: 8300000, guid: 2f1cdeb059b9cc641b92ebd063fd3c7f, type: 3}
+    - {fileID: 8300000, guid: b766913bf90dd1647a83d9ad3db1b756, type: 3}
+    - {fileID: 8300000, guid: f8e80d1d2ecfa0e4981b9f6d15c1455a, type: 3}
+    library: sound_unit
+  - id: bloat1
+    variants:
+    - {fileID: 8300000, guid: 8b988b4c6f0051940b966c9595c1be8e, type: 3}
+    library: sound_unit
+  - id: bloat2
+    variants:
+    - {fileID: 8300000, guid: 2f1cdeb059b9cc641b92ebd063fd3c7f, type: 3}
+    library: sound_unit
+  - id: bloat3
+    variants:
+    - {fileID: 8300000, guid: b766913bf90dd1647a83d9ad3db1b756, type: 3}
+    library: sound_unit
+  - id: bloat4
+    variants:
+    - {fileID: 8300000, guid: f8e80d1d2ecfa0e4981b9f6d15c1455a, type: 3}
+    library: sound_unit
+  - id: bonus1
+    variants:
+    - {fileID: 8300000, guid: 096b37869427bdc43929c5096100fe76, type: 3}
+    library: sound
+  - id: bonus2
+    variants:
+    - {fileID: 8300000, guid: 2dc2961d92f15074bb7ce5dd9f6d5042, type: 3}
+    library: sound
+  - id: bottle_hit
+    variants:
+    - {fileID: 8300000, guid: c7c2c08db96b085439abe0c938aec380, type: 3}
+    library: sound
+  - id: break_glass
+    variants:
+    - {fileID: 8300000, guid: d44375503b2a14640924242374778057, type: 3}
+    library: sound
+  - id: break_metal
+    variants:
+    - {fileID: 8300000, guid: db431325459cad741b91ad4e2fe0e524, type: 3}
+    library: sound
+  - id: break_wood
+    variants:
+    - {fileID: 8300000, guid: ea3368f77512c57479ab40f1859a60cd, type: 3}
+    library: sound
+  - id: brushgun_s
+    variants:
+    - {fileID: 8300000, guid: 47fc966abfe000745ab69d3eb1c09b8e, type: 3}
+    library: sound_weapon
+  - id: bsaw_s
+    variants:
+    - {fileID: 8300000, guid: 47ee2d8e78ce6424e926519b8f3d6c0d, type: 3}
+    library: sound_weapon
+  - id: button
+    variants:
+    - {fileID: 8300000, guid: 36f7c227ecbd49b4d936dbd561eb80ad, type: 3}
+    library: sound
+  - id: cans
+    variants:
+    - {fileID: 8300000, guid: e99ce02236ec97046ac831df69f9e303, type: 3}
+    library: sound_unit
+  - id: caster_s
+    variants:
+    - {fileID: 8300000, guid: 4d68eecb43846d74f868be90feaa53c9, type: 3}
+    library: sound_weapon
+  - id: cryo_e
+    variants:
+    - {fileID: 8300000, guid: 4be178a9c51e1c042bb2eed5640b1c3b, type: 3}
+    library: sound
+  - id: cryo_s
+    variants:
+    - {fileID: 8300000, guid: c5f456b7ced5f4d40a519b314a52bb58, type: 3}
+    library: sound_weapon
+  - id: crystal
+    variants:
+    - {fileID: 8300000, guid: 699d5995c229ac641a51e98bab1d5819, type: 3}
+    library: sound
+  - id: dash
+    variants:
+    - {fileID: 8300000, guid: c5cc7bf2477ed7940be15b7fe5f83bcd, type: 3}
+    library: sound
+  - id: desintegr_f
+    variants:
+    - {fileID: 8300000, guid: ab3f8a80def2b8549863d2a5c1779f55, type: 3}
+    library: sound
+  - id: dinamit_f
+    variants:
+    - {fileID: 8300000, guid: d2f010da834e086479d0911e821a3e8c, type: 3}
+    library: sound
+  - id: dray
+    variants:
+    - {fileID: 8300000, guid: 3e77b9421601b8244a19c873bda6cf99, type: 3}
+    library: sound
+  - id: drone
+    variants:
+    - {fileID: 8300000, guid: 144f48199545add48917ef4eb88f58cd, type: 3}
+    library: sound_unit
+  - id: electro
+    variants:
+    - {fileID: 8300000, guid: df2ee6f41f9f35a46b1f389fe3598b9e, type: 3}
+    library: sound
+  - id: emp_e
+    variants:
+    - {fileID: 8300000, guid: ca4b6fd116068c045ac8835e9c49d1c0, type: 3}
+    library: sound
+  - id: expl1
+    variants:
+    - {fileID: 8300000, guid: 13f6c33322a01e641b4a576a97042e93, type: 3}
+    library: sound_unit
+  - id: expl2
+    variants:
+    - {fileID: 8300000, guid: e3826a9540c0ea34b82705a7e196653f, type: 3}
+    library: sound_unit
+  - id: expl3
+    variants:
+    - {fileID: 8300000, guid: 406d46cc101dde048a38b4670a1963dd, type: 3}
+    library: sound_unit
+  - id: expl_e
+    variants:
+    - {fileID: 8300000, guid: 20deab3d72f276145a769c9d7fea56c1, type: 3}
+    library: sound
+  - id: expl_uw
+    variants:
+    - {fileID: 8300000, guid: 050b6c293981d3748b0b1389aaf53041, type: 3}
+    library: sound
+  - id: exppla_e
+    variants:
+    - {fileID: 8300000, guid: 4d147aacb6c6ffd4da339237e1d1ea01, type: 3}
+    library: sound
+  - id: fall_armor
+    variants:
+    - {fileID: 8300000, guid: f4fc90ccd754e7e4b8c9041cdeba9ab6, type: 3}
+    library: sound
+  - id: fall_body
+    variants:
+    - {fileID: 8300000, guid: f2303fe903eb4074eb0cf054c0916518, type: 3}
+    library: sound
+  - id: fall_caps
+    variants:
+    - {fileID: 8300000, guid: 9b04cdc430164354b93768a7ea73a900, type: 3}
+    library: sound
+  - id: fall_gem
+    variants:
+    - {fileID: 8300000, guid: 535f863a4b046b64b9bde682e0f9f2af, type: 3}
+    library: sound
+  - id: fall_grenade
+    variants:
+    - {fileID: 8300000, guid: 5b5cd86a2970c7745a3cc96ad8f0ddd6, type: 3}
+    library: sound
+  - id: fall_hammer
+    variants:
+    - {fileID: 8300000, guid: 5d0404101380a0740b2936d185da9dd8, type: 3}
+    library: sound
+  - id: fall_hbody
+    variants:
+    - {fileID: 8300000, guid: 739fbe99fe4fcc64fa95de6dbb4c30e1, type: 3}
+    library: sound
+  - id: fall_item
+    variants:
+    - {fileID: 8300000, guid: 817deb87c7ff9ba41b0c33fb6ad63ad8, type: 3}
+    library: sound
+  - id: fall_item_water
+    variants:
+    - {fileID: 8300000, guid: c53a2ee4789f0fd49afaf0c76d683f4c, type: 3}
+    library: sound
+  - id: fall_metal_big
+    variants:
+    - {fileID: 8300000, guid: 256d4f16b09a3e24a80e80a50c69dfd2, type: 3}
+    library: sound
+  - id: fall_metal_item
+    variants:
+    - {fileID: 8300000, guid: 691e389abe19a894183e17cc02ac8aa5, type: 3}
+    library: sound
+  - id: fall_metal_safe
+    variants:
+    - {fileID: 8300000, guid: 2189217c527c4ee458b500673392950b, type: 3}
+    library: sound
+  - id: fall_metal_small
+    variants:
+    - {fileID: 8300000, guid: 94079a97ee783e24dbfac31944d92984, type: 3}
+    library: sound
+  - id: fall_paper
+    variants:
+    - {fileID: 8300000, guid: cbe6076e415e7f843b8df342f92619ec, type: 3}
+    library: sound
+  - id: fall_potion
+    variants:
+    - {fileID: 8300000, guid: bdf1bed687f5f3940a285ba48452e782, type: 3}
+    library: sound
+  - id: fall_water0
+    variants:
+    - {fileID: 8300000, guid: e9974c201a7d4794a999937055ec2659, type: 3}
+    library: sound
+  - id: fall_water1
+    variants:
+    - {fileID: 8300000, guid: 825709f9a1fa366459dc33d1e7296963, type: 3}
+    library: sound
+  - id: fall_water2
+    variants:
+    - {fileID: 8300000, guid: ad35746336db8844fa0d2980bbe9f4a1, type: 3}
+    library: sound
+  - id: fall_weapon
+    variants:
+    - {fileID: 8300000, guid: 7673c232f32004d419a3196f3e2f5b8f, type: 3}
+    library: sound
+  - id: fall_wood_big
+    variants:
+    - {fileID: 8300000, guid: 608fa9e5471774f448e3113bc568be59, type: 3}
+    library: sound
+  - id: fall_wood_small
+    variants:
+    - {fileID: 8300000, guid: 35afcb64d0a7ff14b95b1a32e64dafba, type: 3}
+    library: sound
+  - id: fang_hit
+    variants:
+    - {fileID: 8300000, guid: ec78a0a95252f9346badbb8ac24ff5ca, type: 3}
+    - {fileID: 8300000, guid: b666f27a73aec5f488fd4dc9cf89521d, type: 3}
+    - {fileID: 8300000, guid: c115466d0062d8e4f98de5e5156992aa, type: 3}
+    library: sound
+  - id: fang_hit1
+    variants:
+    - {fileID: 8300000, guid: ec78a0a95252f9346badbb8ac24ff5ca, type: 3}
+    library: sound
+  - id: fang_hit2
+    variants:
+    - {fileID: 8300000, guid: b666f27a73aec5f488fd4dc9cf89521d, type: 3}
+    library: sound
+  - id: fang_hit3
+    variants:
+    - {fileID: 8300000, guid: c115466d0062d8e4f98de5e5156992aa, type: 3}
+    library: sound
+  - id: fireball
+    variants:
+    - {fileID: 8300000, guid: afbe5fa25841a8348a6dee26aec08c11, type: 3}
+    library: sound
+  - id: fire_e
+    variants:
+    - {fileID: 8300000, guid: 626ef2a829ae8ca4cbe144fea2ea43df, type: 3}
+    library: sound
+  - id: flamer_r
+    variants:
+    - {fileID: 8300000, guid: 523336464ddf6124eadf7d7083f05cfa, type: 3}
+    library: sound_weapon
+  - id: flamer_s
+    variants:
+    - {fileID: 8300000, guid: 5185c5eb9c5fbae409ec2c26bc979153, type: 3}
+    library: sound_weapon
+  - id: footstep1
+    variants:
+    - {fileID: 8300000, guid: 77d8bf9913d381c4ebedf65fb6ce616b, type: 3}
+    library: sound_unit
+  - id: footstep1a
+    variants:
+    - {fileID: 8300000, guid: d77c38de7f8f341418305d2f2aad8f92, type: 3}
+    library: sound_unit
+  - id: footstep2
+    variants:
+    - {fileID: 8300000, guid: 3936bd49c83236343a6d7d302be091bb, type: 3}
+    library: sound_unit
+  - id: footstep2a
+    variants:
+    - {fileID: 8300000, guid: 9bb7eee173fb7ce4cb35b4536ba61fc9, type: 3}
+    library: sound_unit
+  - id: footstep3
+    variants:
+    - {fileID: 8300000, guid: 54cf7b71bc4c6e643bdacd6ae461db12, type: 3}
+    library: sound_unit
+  - id: footstep3a
+    variants:
+    - {fileID: 8300000, guid: 855a058c43d62b44b92daa09502de005, type: 3}
+    library: sound_unit
+  - id: footstep4
+    variants:
+    - {fileID: 8300000, guid: 7860c38fe803cbe44b5366ec065c8bfa, type: 3}
+    library: sound_unit
+  - id: footstep4a
+    variants:
+    - {fileID: 8300000, guid: 7cc2f84dde18617469586c67866bc48f, type: 3}
+    library: sound_unit
+  - id: freezing_f
+    variants:
+    - {fileID: 8300000, guid: 5eb23985e032ae441b409c256cc1c435, type: 3}
+    library: sound
+  - id: gas_e
+    variants:
+    - {fileID: 8300000, guid: 2a9e95ec0f428094ebc0bd89b98cb5dd, type: 3}
+    library: sound
+  - id: gatl_s
+    variants:
+    - {fileID: 8300000, guid: db7ed9fc5d67b1c4ca189ca7da586656, type: 3}
+    library: sound_weapon
+  - id: geiger
+    variants:
+    - {fileID: 8300000, guid: c0d8de0dd80cf47478f2d3df9c0a870c, type: 3}
+    - {fileID: 8300000, guid: 3c77f609ddd24f54eb59f364ad61682b, type: 3}
+    - {fileID: 8300000, guid: c0dc4804366ecfe41888fc879676c711, type: 3}
+    library: sound
+  - id: geiger1
+    variants:
+    - {fileID: 8300000, guid: c0d8de0dd80cf47478f2d3df9c0a870c, type: 3}
+    library: sound
+  - id: geiger2
+    variants:
+    - {fileID: 8300000, guid: 3c77f609ddd24f54eb59f364ad61682b, type: 3}
+    library: sound
+  - id: geiger3
+    variants:
+    - {fileID: 8300000, guid: c0dc4804366ecfe41888fc879676c711, type: 3}
+    library: sound
+  - id: glau_s
+    variants:
+    - {fileID: 8300000, guid: f423de674e6c0814ab1b8f5c9c9d61a4, type: 3}
+    library: sound_weapon
+  - id: grom_s
+    variants:
+    - {fileID: 8300000, guid: 20334bfad3c91a84b90c36783a8dbdb3, type: 3}
+    library: sound_weapon
+  - id: harddie
+    variants:
+    - {fileID: 8300000, guid: 178f91b61fba78543bdab55d461a1e33, type: 3}
+    library: sound
+  - id: hit_blade
+    variants:
+    - {fileID: 8300000, guid: ce8902bd4deb9dc41bcef95e6681987b, type: 3}
+    library: sound
+  - id: hit_bullet
+    variants:
+    - {fileID: 8300000, guid: 724dad0f20c76b24bb10f383079cc0f7, type: 3}
+    library: sound
+  - id: hit_concrete
+    variants:
+    - {fileID: 8300000, guid: 145bca1847999c6448fa3c44a4dcab7a, type: 3}
+    library: sound
+  - id: hit_flesh
+    variants:
+    - {fileID: 8300000, guid: cb67add0f5dee854c89e27067f407795, type: 3}
+    library: sound
+  - id: hit_glass
+    variants:
+    - {fileID: 8300000, guid: 244d54cd7cc97074ca8012dfbd73be87, type: 3}
+    library: sound
+  - id: hit_metal
+    variants:
+    - {fileID: 8300000, guid: 940c70a5d4f01a04cb9adaaaf0dc2dbc, type: 3}
+    library: sound
+  - id: hit_necr
+    variants:
+    - {fileID: 8300000, guid: 8a28f7a5cacf70d43a3c7402fbbc4456, type: 3}
+    library: sound
+  - id: hit_pole
+    variants:
+    - {fileID: 8300000, guid: 6cc8cd42af3e8be42a45ef55bc9284c1, type: 3}
+    library: sound
+  - id: hit_slime
+    variants:
+    - {fileID: 8300000, guid: 1b32d400e8635fb4aa8c054f0e9e20f9, type: 3}
+    library: sound
+  - id: hit_water
+    variants:
+    - {fileID: 8300000, guid: f1085df096acca74abd041b29b5f2bb9, type: 3}
+    library: sound
+  - id: hit_wood
+    variants:
+    - {fileID: 8300000, guid: a5de19e913260ed4382f356ad579856c, type: 3}
+    library: sound
+  - id: hmg_s
+    variants:
+    - {fileID: 8300000, guid: bf30886b2f2763744a7db91e5b69ee79, type: 3}
+    library: sound_weapon
+  - id: hunt_s
+    variants:
+    - {fileID: 8300000, guid: ff22fc7a05e33c647add7fdf37fdd70f, type: 3}
+    library: sound_weapon
+  - id: ice
+    variants:
+    - {fileID: 8300000, guid: f872589d20b1dc14c90170ed311d1d31, type: 3}
+    library: sound
+  - id: incin_s
+    variants:
+    - {fileID: 8300000, guid: b320ccdaae6961047b9ac711cd5ac0b3, type: 3}
+    library: sound_weapon
+  - id: laser2_s
+    variants:
+    - {fileID: 8300000, guid: a39fe961fc2049b4b855cb283e6730be, type: 3}
+    library: sound_weapon
+  - id: lasercraft_s
+    variants:
+    - {fileID: 8300000, guid: 75fcc8a308b8a2a4dae9bc38413aaf1e, type: 3}
+    library: sound_weapon
+  - id: laser_r
+    variants:
+    - {fileID: 8300000, guid: a910e6b8674c0654fbe0de683a2fbe2f, type: 3}
+    library: sound_weapon
+  - id: laser_s
+    variants:
+    - {fileID: 8300000, guid: f849b72983e8b884ebbd4e7a35d1ab88, type: 3}
+    library: sound_weapon
+  - id: lasm_h
+    variants:
+    - {fileID: 8300000, guid: 613da9e1fafa68b42b288cfd2cfee738, type: 3}
+    library: sound_weapon
+  - id: lasm_s
+    variants:
+    - {fileID: 8300000, guid: 8bbc429653447ba43a8a9050c25d0d78, type: 3}
+    library: sound_weapon
+  - id: las_s
+    variants:
+    - {fileID: 8300000, guid: 94bdcdfe2eedce54ebd7c592e08a149e, type: 3}
+    library: sound_weapon
+  - id: lazstep1
+    variants:
+    - {fileID: 8300000, guid: d74500984c93b9e4998f0b44adcb8e3b, type: 3}
+    library: sound_unit
+  - id: lazstep2
+    variants:
+    - {fileID: 8300000, guid: a2d4dabba81ab624c99edcdaa3fc0323, type: 3}
+    library: sound_unit
+  - id: lazstep3
+    variants:
+    - {fileID: 8300000, guid: 223fce965d25f604193db5b3cba2dc06, type: 3}
+    library: sound_unit
+  - id: lazstep4
+    variants:
+    - {fileID: 8300000, guid: 18317145ff135db4a94d06aed0ef07e5, type: 3}
+    library: sound_unit
+  - id: levelup
+    variants:
+    - {fileID: 8300000, guid: 5453c454676fc9f4097d5c96191ba5bb, type: 3}
+    library: sound
+  - id: lightning
+    variants:
+    - {fileID: 8300000, guid: bb31d2d32d1681449817195bcc978ee5, type: 3}
+    library: sound
+  - id: liquid_f
+    variants:
+    - {fileID: 8300000, guid: 6a3f5c90b4025c84c904de2c16c4e37c, type: 3}
+    library: sound
+  - id: lmg_s
+    variants:
+    - {fileID: 8300000, guid: d37a981d6d9771d488b39a0b57daeec2, type: 3}
+    library: sound_weapon
+  - id: lowhp
+    variants:
+    - {fileID: 8300000, guid: 7c4c592151fa5aa4ea9fdbbef75545ae, type: 3}
+    library: sound
+  - id: metalstep1
+    variants:
+    - {fileID: 8300000, guid: 27e7abac4be6ea04791dbebdccfa38f6, type: 3}
+    library: sound_unit
+  - id: metalstep1a
+    variants:
+    - {fileID: 8300000, guid: 387010a42bc9d6a499924412f3075b45, type: 3}
+    library: sound_unit
+  - id: metalstep2
+    variants:
+    - {fileID: 8300000, guid: b38fdfb873aa9cb4fbf54955e03e3973, type: 3}
+    library: sound_unit
+  - id: metalstep2a
+    variants:
+    - {fileID: 8300000, guid: 4608cf9d7cfdad5429da1ce43260d58d, type: 3}
+    library: sound_unit
+  - id: metalstep3
+    variants:
+    - {fileID: 8300000, guid: b63919ea8da29284b928bfe0f1de59e1, type: 3}
+    library: sound_unit
+  - id: metalstep3a
+    variants:
+    - {fileID: 8300000, guid: dca41ca33bce5634195e9e107652fc35, type: 3}
+    library: sound_unit
+  - id: metalstep4
+    variants:
+    - {fileID: 8300000, guid: 171a6b476a76ca24794dce2083021ef2, type: 3}
+    library: sound_unit
+  - id: metalstep4a
+    variants:
+    - {fileID: 8300000, guid: 5e1bafdc9602a6347b1b07d54f645b06, type: 3}
+    library: sound_unit
+  - id: metal_door_open
+    variants:
+    - {fileID: 8300000, guid: 9dd8786847f3a0d49a3a1ca2c51cae87, type: 3}
+    library: sound
+  - id: metal_open
+    variants:
+    - {fileID: 8300000, guid: 129bf7ae4f89f0146b4c57971cbcfa2a, type: 3}
+    library: sound
+  - id: mine_bip
+    variants:
+    - {fileID: 8300000, guid: 08926d50074dfc74ba810b37b5c1d530, type: 3}
+    library: sound
+  - id: mine_dem
+    variants:
+    - {fileID: 8300000, guid: 4aa9dcc7b9520384a89fc45dbd44ccfd, type: 3}
+    library: sound
+  - id: mine_s
+    variants:
+    - {fileID: 8300000, guid: 0cdd95441862c2a47b4df6bd45e41bb4, type: 3}
+    library: sound
+  - id: minigun_s
+    variants:
+    - {fileID: 8300000, guid: 6d5ca432efd5577458c75189e1fb4dd9, type: 3}
+    library: sound_weapon
+  - id: molerat
+    variants:
+    - {fileID: 8300000, guid: 67abbe32630c64a4da561942e54ce4e5, type: 3}
+    library: sound_unit
+  - id: move
+    variants:
+    - {fileID: 8300000, guid: d1271107826deb74fa8816fe7426369c, type: 3}
+    library: sound
+  - id: mray
+    variants:
+    - {fileID: 8300000, guid: 1bab8a1234eeb2f449731034dbcc2cb4, type: 3}
+    library: sound
+  - id: mshit
+    variants:
+    - {fileID: 8300000, guid: c69bb96ec0cd5784ea0dadc5ec7511ae, type: 3}
+    library: sound
+  - id: mwall
+    variants:
+    - {fileID: 8300000, guid: b375299045ef23c45b5ce3ad5ccb691e, type: 3}
+    library: sound
+  - id: m_big
+    variants:
+    - {fileID: 8300000, guid: 8825fe9aee98ca44e85902a7b12bfa37, type: 3}
+    library: sound_weapon
+  - id: m_med
+    variants:
+    - {fileID: 8300000, guid: 6966ff3548c792b4aa4582e6bb50a34a, type: 3}
+    library: sound_weapon
+  - id: m_small
+    variants:
+    - {fileID: 8300000, guid: d72945a9adef71f4799e573d0795df93, type: 3}
+    library: sound_weapon
+  - id: nest
+    variants:
+    - {fileID: 8300000, guid: f2cf067b2691794419d58de65fd5a45d, type: 3}
+    library: sound_unit
+  - id: nomagic
+    variants:
+    - {fileID: 8300000, guid: 8eb8a3c9f08428549a9c2e9ade0dc39c, type: 3}
+    library: sound
+  - id: no_ammo
+    variants:
+    - {fileID: 8300000, guid: a43349e7b5e847e499daa47606c63582, type: 3}
+    library: sound_weapon
+  - id: oldshot_s
+    variants:
+    - {fileID: 8300000, guid: 393bca9fc569e1d428ecec6e5de69d46, type: 3}
+    library: sound_weapon
+  - id: owl_s
+    variants:
+    - {fileID: 8300000, guid: 1b719842f9b15c64d86c65391f2cbd38, type: 3}
+    library: sound_weapon
+  - id: p10mm_r
+    variants:
+    - {fileID: 8300000, guid: 64352a47c4917bb4094177317ca689fb, type: 3}
+    library: sound_weapon
+  - id: p10mm_s
+    variants:
+    - {fileID: 8300000, guid: e029e22b72bc0ef49afbf4ac38847dad, type: 3}
+    library: sound_weapon
+  - id: p127_s
+    variants:
+    - {fileID: 8300000, guid: c8f37d3c77730a9489890a47d408437c, type: 3}
+    library: sound_weapon
+  - id: pila_s
+    variants:
+    - {fileID: 8300000, guid: fc2e614513d5436438f3513f2e64bd5b, type: 3}
+    library: sound_weapon
+  - id: pip1
+    variants:
+    - {fileID: 8300000, guid: 0a0fcb7e00b2eea459a7ce502a0ec3aa, type: 3}
+    library: sound
+  - id: pip2
+    variants:
+    - {fileID: 8300000, guid: 152e63bfaf11f134588f4f3bb3b54015, type: 3}
+    library: sound
+  - id: pip3
+    variants:
+    - {fileID: 8300000, guid: ee2f63da0be4c1748943969cd50e8399, type: 3}
+    library: sound
+  - id: plap_s
+    variants:
+    - {fileID: 8300000, guid: 8d9567c27008d424fba987789a38cc74, type: 3}
+    library: sound_weapon
+  - id: plasma_s
+    variants:
+    - {fileID: 8300000, guid: 02d54065d078a9340b2322ba80fac384, type: 3}
+    library: sound_weapon
+  - id: pole_off
+    variants:
+    - {fileID: 8300000, guid: 11775ad16d3ff9641b2811c8b3546818, type: 3}
+    library: sound
+  - id: pot_use
+    variants:
+    - {fileID: 8300000, guid: a266c26c65f3faf448c4d909cef44ba0, type: 3}
+    library: sound
+  - id: pp127_s
+    variants:
+    - {fileID: 8300000, guid: 991d6a979be9c8e4890072afec253194, type: 3}
+    library: sound_weapon
+  - id: prisma_s
+    variants:
+    - {fileID: 8300000, guid: 0547c08b67dcb9d4fbeb1778fa3b643e, type: 3}
+    library: sound_weapon
+  - id: pshot_s
+    variants:
+    - {fileID: 8300000, guid: 98f7103ef699b1145ba87135cedaeab5, type: 3}
+    library: sound_weapon
+  - id: psy
+    variants:
+    - {fileID: 8300000, guid: 863cfbdea32304140803d3ec3df1398a, type: 3}
+    library: sound
+  - id: pulse_s
+    variants:
+    - {fileID: 8300000, guid: d603906534418f74eb0187f14e740509, type: 3}
+    library: sound_weapon
+  - id: quest
+    variants:
+    - {fileID: 8300000, guid: 955da8f07d519694eadda2329739b430, type: 3}
+    library: sound
+  - id: quest_ok
+    variants:
+    - {fileID: 8300000, guid: 28acee914b3ed4d4cbabebb5cb74bb18, type: 3}
+    library: sound
+  - id: quick_s
+    variants:
+    - {fileID: 8300000, guid: 46a2d53655959704c9e4ccad2eabe62d, type: 3}
+    library: sound_weapon
+  - id: railway_s
+    variants:
+    - {fileID: 8300000, guid: 428d8f7fa90873a47a8d40dea3261a4c, type: 3}
+    library: sound_weapon
+  - id: rail_s
+    variants:
+    - {fileID: 8300000, guid: d5893f18994630d4fb21446bc9491561, type: 3}
+    library: sound_weapon
+  - id: rat
+    variants:
+    - {fileID: 8300000, guid: d67f1f07e30636547bf98f2b179aa037, type: 3}
+    library: sound_unit
+  - id: rem_act
+    variants:
+    - {fileID: 8300000, guid: 0576c81beee4a8044a2e25f3d5617acf, type: 3}
+    library: sound
+  - id: revo_r
+    variants:
+    - {fileID: 8300000, guid: 1e72427438e3ac3418abb8f366d40c68, type: 3}
+    library: sound_weapon
+  - id: revo_s
+    variants:
+    - {fileID: 8300000, guid: ba1ffb2674a4ea24e864d9106af9e819, type: 3}
+    library: sound_weapon
+  - id: rifle2_r
+    variants:
+    - {fileID: 8300000, guid: 9ea6942002896874d84a2d6a3c0f5068, type: 3}
+    library: sound_weapon
+  - id: rifle_r
+    variants:
+    - {fileID: 8300000, guid: f71a2ef8dac5d6f48beb50ae8c8beb76, type: 3}
+    library: sound_weapon
+  - id: rifle_s
+    variants:
+    - {fileID: 8300000, guid: 95066d32abb5eab45bd8efc4fbd6fdfd, type: 3}
+    library: sound_weapon
+  - id: rm
+    variants:
+    - {fileID: 8300000, guid: a91d486e4790a424298a1e8e161a3708, type: 3}
+    - {fileID: 8300000, guid: cf107fd3f7ce58041b599fbeb12e32e9, type: 3}
+    - {fileID: 8300000, guid: 17a510072a5e2f8489eb0e2d9e90e4f2, type: 3}
+    - {fileID: 8300000, guid: 9c463423385275a4badddadbfd63507d, type: 3}
+    - {fileID: 8300000, guid: 183f77e63fc8586498017da12e54850a, type: 3}
+    - {fileID: 8300000, guid: 82dd381c72ab59542a0fca9c9129f80f, type: 3}
+    library: sound_unit
+  - id: rm1
+    variants:
+    - {fileID: 8300000, guid: a91d486e4790a424298a1e8e161a3708, type: 3}
+    library: sound_unit
+  - id: rm2
+    variants:
+    - {fileID: 8300000, guid: cf107fd3f7ce58041b599fbeb12e32e9, type: 3}
+    library: sound_unit
+  - id: rm3
+    variants:
+    - {fileID: 8300000, guid: 17a510072a5e2f8489eb0e2d9e90e4f2, type: 3}
+    library: sound_unit
+  - id: rm4
+    variants:
+    - {fileID: 8300000, guid: 9c463423385275a4badddadbfd63507d, type: 3}
+    library: sound_unit
+  - id: rm5
+    variants:
+    - {fileID: 8300000, guid: 183f77e63fc8586498017da12e54850a, type: 3}
+    library: sound_unit
+  - id: rm6
+    variants:
+    - {fileID: 8300000, guid: 82dd381c72ab59542a0fca9c9129f80f, type: 3}
+    library: sound_unit
+  - id: rocket_s
+    variants:
+    - {fileID: 8300000, guid: 34ae987e4d3d6c641a365f13c99aef0e, type: 3}
+    library: sound_weapon
+  - id: rw
+    variants:
+    - {fileID: 8300000, guid: a3b17124b02a6fe4398b1e0adcface4c, type: 3}
+    - {fileID: 8300000, guid: f5ad78b9cf6da054e85ba188e7d0c81f, type: 3}
+    - {fileID: 8300000, guid: 0ad4311f39edfc8408d0b2c6ac05b824, type: 3}
+    - {fileID: 8300000, guid: ffea9f863e901b54d9f8d8e64389f63e, type: 3}
+    - {fileID: 8300000, guid: 27e282b74314c704ea7ab3478ce4b220, type: 3}
+    - {fileID: 8300000, guid: 418474e9ae5d84d4294fa653fb4560d3, type: 3}
+    library: sound_unit
+  - id: rw1
+    variants:
+    - {fileID: 8300000, guid: a3b17124b02a6fe4398b1e0adcface4c, type: 3}
+    library: sound_unit
+  - id: rw2
+    variants:
+    - {fileID: 8300000, guid: f5ad78b9cf6da054e85ba188e7d0c81f, type: 3}
+    library: sound_unit
+  - id: rw3
+    variants:
+    - {fileID: 8300000, guid: 0ad4311f39edfc8408d0b2c6ac05b824, type: 3}
+    library: sound_unit
+  - id: rw4
+    variants:
+    - {fileID: 8300000, guid: ffea9f863e901b54d9f8d8e64389f63e, type: 3}
+    library: sound_unit
+  - id: rw5
+    variants:
+    - {fileID: 8300000, guid: 27e282b74314c704ea7ab3478ce4b220, type: 3}
+    library: sound_unit
+  - id: rw6
+    variants:
+    - {fileID: 8300000, guid: 418474e9ae5d84d4294fa653fb4560d3, type: 3}
+    library: sound_unit
+  - id: saf9_s
+    variants:
+    - {fileID: 8300000, guid: 61555ccab8a8daf43894dcdafce6995b, type: 3}
+    library: sound_weapon
+  - id: safe_open
+    variants:
+    - {fileID: 8300000, guid: cbc3094ad1b5f0747a84872ee2a99c1e, type: 3}
+    library: sound
+  - id: sawgun_s
+    variants:
+    - {fileID: 8300000, guid: 266ae9c3e472d1e499a0b1bcc0d91a74, type: 3}
+    library: sound_weapon
+  - id: scorp
+    variants:
+    - {fileID: 8300000, guid: 07583ac2bff5757419c115d20cb60582, type: 3}
+    library: sound_unit
+  - id: shotgun_r
+    variants:
+    - {fileID: 8300000, guid: 624d627cc9337304391e38123a9c10bb, type: 3}
+    library: sound_weapon
+  - id: shotgun_s
+    variants:
+    - {fileID: 8300000, guid: 5bfb82867efb4fe4595f3532ac844424, type: 3}
+    library: sound_weapon
+  - id: silen_s
+    variants:
+    - {fileID: 8300000, guid: 1381a9f8915fa7e459f62d3c3c04c667, type: 3}
+    library: sound_weapon
+  - id: skill
+    variants:
+    - {fileID: 8300000, guid: 7f2fb5f4c846ad341b2e9380bb210cfd, type: 3}
+    library: sound
+  - id: slime
+    variants:
+    - {fileID: 8300000, guid: 5ce258d1148e6194c9941c0290bef80d, type: 3}
+    library: sound_unit
+  - id: slow
+    variants:
+    - {fileID: 8300000, guid: 389e8fa2335942844968d44922c85b63, type: 3}
+    library: sound
+  - id: small_open
+    variants:
+    - {fileID: 8300000, guid: 40922928b65080b44998e14f86d5e257, type: 3}
+    library: sound
+  - id: smg10mm_s
+    variants:
+    - {fileID: 8300000, guid: b086f5d2a819ba04b9051c54b60e1483, type: 3}
+    library: sound_weapon
+  - id: sniper_r
+    variants:
+    - {fileID: 8300000, guid: 066ead051c46254429e485a1c953f3c3, type: 3}
+    library: sound_weapon
+  - id: sniper_s
+    variants:
+    - {fileID: 8300000, guid: 3a5914df70036644caa7f8f61f9d88e0, type: 3}
+    library: sound_weapon
+  - id: spark_s
+    variants:
+    - {fileID: 8300000, guid: 8db6e6eeb5d41924e9b699c51b4da789, type: 3}
+    library: sound_weapon
+  - id: spitfire_s
+    variants:
+    - {fileID: 8300000, guid: 26589551ad73fa84f9fef47bc6e36486, type: 3}
+    library: sound_weapon
+  - id: sr
+    variants:
+    - {fileID: 8300000, guid: f59a45f74d23c6643a06dccd992078a1, type: 3}
+    - {fileID: 8300000, guid: ccf1c6f8e52cb28408ff3cc44ad78052, type: 3}
+    - {fileID: 8300000, guid: c08c9056381fce34292915152cafddd8, type: 3}
+    library: sound_unit
+  - id: sr1
+    variants:
+    - {fileID: 8300000, guid: f59a45f74d23c6643a06dccd992078a1, type: 3}
+    library: sound_unit
+  - id: sr2
+    variants:
+    - {fileID: 8300000, guid: ccf1c6f8e52cb28408ff3cc44ad78052, type: 3}
+    library: sound_unit
+  - id: sr3
+    variants:
+    - {fileID: 8300000, guid: c08c9056381fce34292915152cafddd8, type: 3}
+    library: sound_unit
+  - id: telebul
+    variants:
+    - {fileID: 8300000, guid: 414dd6e930a86014c94210573cff9165, type: 3}
+    library: sound
+  - id: teleport
+    variants:
+    - {fileID: 8300000, guid: 965e56efe55dd634eb94f961286f93a0, type: 3}
+    library: sound
+  - id: termo_s
+    variants:
+    - {fileID: 8300000, guid: 5948ffc4b4b18bc4da6d7984d29240f1, type: 3}
+    library: sound_weapon
+  - id: term_act
+    variants:
+    - {fileID: 8300000, guid: 8513cc3f7b1ede744bec4f232a00c532, type: 3}
+    library: sound
+  - id: transmitter
+    variants:
+    - {fileID: 8300000, guid: 8d4dee8529e5e3d4faa068ea88cc6959, type: 3}
+    library: sound_unit
+  - id: trap_a
+    variants:
+    - {fileID: 8300000, guid: d22a9af079d0e7e4483dd9015f930899, type: 3}
+    library: sound_unit
+  - id: trap_reload
+    variants:
+    - {fileID: 8300000, guid: 84e064512ac27234f9eece4c3d5d3d4f, type: 3}
+    library: sound_unit
+  - id: trup
+    variants:
+    - {fileID: 8300000, guid: 15fe69eac93506947a8a63fa9c5d0843, type: 3}
+    library: sound_unit
+  - id: unreal
+    variants:
+    - {fileID: 8300000, guid: 9bd97d23b5b22ad489edfa0ad82114e1, type: 3}
+    library: sound
+  - id: vortex
+    variants:
+    - {fileID: 8300000, guid: 43e35e88f06ad834c91827304e983a97, type: 3}
+    library: sound_unit
+  - id: vortex_cut
+    variants:
+    - {fileID: 8300000, guid: 4a51196d373392f4293462d68880a972, type: 3}
+    - {fileID: 8300000, guid: ad9de6d05c4637d43b975c7153c09c91, type: 3}
+    - {fileID: 8300000, guid: 532597869c87ca640a99d7f8bd5b78aa, type: 3}
+    library: sound_unit
+  - id: vortex_cut1
+    variants:
+    - {fileID: 8300000, guid: 4a51196d373392f4293462d68880a972, type: 3}
+    library: sound_unit
+  - id: vortex_cut2
+    variants:
+    - {fileID: 8300000, guid: ad9de6d05c4637d43b975c7153c09c91, type: 3}
+    library: sound_unit
+  - id: vortex_cut3
+    variants:
+    - {fileID: 8300000, guid: 532597869c87ca640a99d7f8bd5b78aa, type: 3}
+    library: sound_unit
+  - id: wavedef
+    variants:
+    - {fileID: 8300000, guid: 0cc53ec54199eeb4f9079181e226489a, type: 3}
+    library: sound
+  - id: winchester_s
+    variants:
+    - {fileID: 8300000, guid: 114515e36c199d8499799535b2b5dae2, type: 3}
+    library: sound_weapon
+  - id: wood_door_close
+    variants:
+    - {fileID: 8300000, guid: fe80cba27192b5c468210ff5475516b8, type: 3}
+    library: sound
+  - id: wood_door_open
+    variants:
+    - {fileID: 8300000, guid: 5ea59243111e8b345b3f9f89d81c9ca2, type: 3}
+    library: sound
+  - id: wood_open
+    variants:
+    - {fileID: 8300000, guid: 4efb0b039a3313f4f9bcecfaf9e4f19c, type: 3}
+    library: sound
+  - id: zebr_s
+    variants:
+    - {fileID: 8300000, guid: 0f3047ee2d0a44341b9d4267587a01c9, type: 3}
+    library: sound_weapon
+  - id: zm
+    variants:
+    - {fileID: 8300000, guid: 415c3f4276019e5448799beb32a874a1, type: 3}
+    - {fileID: 8300000, guid: b2a18d9c095182441aa238fe6898b426, type: 3}
+    - {fileID: 8300000, guid: 12c52e3f2bdcc984a930640de4f37bb4, type: 3}
+    library: sound_unit
+  - id: zm1
+    variants:
+    - {fileID: 8300000, guid: 415c3f4276019e5448799beb32a874a1, type: 3}
+    library: sound_unit
+  - id: zm2
+    variants:
+    - {fileID: 8300000, guid: b2a18d9c095182441aa238fe6898b426, type: 3}
+    library: sound_unit
+  - id: zm3
+    variants:
+    - {fileID: 8300000, guid: 12c52e3f2bdcc984a930640de4f37bb4, type: 3}
+    library: sound_unit
+  - id: zombie_res
+    variants:
+    - {fileID: 8300000, guid: 0eb28d407f04f9146b51ad2df36c7810, type: 3}
+    library: sound_unit
+  - id: zw
+    variants:
+    - {fileID: 8300000, guid: b333c5b970f1bec4f927155d9f4a3895, type: 3}
+    - {fileID: 8300000, guid: 16cea7b6096fa544b8dc768a7d6a6a99, type: 3}
+    - {fileID: 8300000, guid: 5c54859d6c571f342a0c7b06d80abf26, type: 3}
+    library: sound_unit
+  - id: zw1
+    variants:
+    - {fileID: 8300000, guid: b333c5b970f1bec4f927155d9f4a3895, type: 3}
+    library: sound_unit
+  - id: zw2
+    variants:
+    - {fileID: 8300000, guid: 16cea7b6096fa544b8dc768a7d6a6a99, type: 3}
+    library: sound_unit
+  - id: zw3
+    variants:
+    - {fileID: 8300000, guid: 5c54859d6c571f342a0c7b06d80abf26, type: 3}
+    library: sound_unit

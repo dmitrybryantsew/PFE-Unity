@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 52445f94c96c4150ac0fe58bc05f53cc, type: 3}
+  m_Name: visexplbox
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.MapObjectVisualDefinition
+  visualId: visexplbox
+  objectId: explbox
+  linkedObjectIds:
+  - explbox
+  sourceFolderName: DefineSprite_212_visexplbox
+  sourceSymbolId: 212
+  frames:
+  - {fileID: 21300000, guid: 69c4bafeec0576f429607f8a40672aee, type: 3}
+  - {fileID: 21300000, guid: 7e32d532a98d4314489cbf7bce81fce1, type: 3}
+  pixelsPerUnit: 100
+  pixelSize: {x: 38, y: 33}
+  pivot: {x: 0.5, y: 0}
+  localOffset: {x: 0, y: 0}
+  sortingOrder: 0
+  wallMounted: 0

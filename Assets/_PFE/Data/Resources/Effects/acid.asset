@@ -1,0 +1,204 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 00000000000000000000000000000004, type: 3}
+  m_Name: acid
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.EffectDefinition
+  effectId: acid
+  type: 0
+  durationTicks: 0
+  isChem: 0
+  isBadComedown: 0
+  value: 0
+  effects:
+  - skillId: damMonster
+    value: 1.2
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: damZombie
+    value: 0.2
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: potmaster
+    value: 1
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: radChild
+    value: 0.2
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: limitBuys
+    value: 0.4
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: eco
+    value: 1
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: maxOd
+    value: 0
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: critCh
+    value: 0
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: critDamMult
+    value: 0.4
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: punchDamMult
+    value: 0.5
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: kickDestroy
+    value: 80
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: petDam
+    value: 2
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: petSkin
+    value: 0
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: petVulner
+    value: 1
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: owlDam
+    value: 3
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: owlSkin
+    value: 5
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: owlVulner
+    value: 1
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: maxhp
+    value: 0
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: inMaxMana
+    value: 0
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: organMultPot
+    value: 1
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: radX
+    value: 0
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: meleeDamMult
+    value: 1
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: runSpeedMult
+    value: 0
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: stamRun
+    value: 1
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: allPrecMult
+    value: 1
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: spellsDamMult
+    value: 0
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: dexter
+    value: 0
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: critCh
+    value: 0
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: damAlicorn
+    value: 1.15
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: damZombie
+    value: 0.1
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: allPrecMult
+    value: 0.7
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: meleeSpdMult
+    value: 0.7
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: allDManaMult
+    value: 2
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: mazilAdd
+    value: 15
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: maxhp
+    value: 0.6
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: stamRun
+    value: 3
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: stamRes
+    value: 0.25
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: runSpeedMult
+    value: 0.5
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: allSpeedMult
+    value: 0.75
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: jumpdy
+    value: -2
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: allVulnerMult
+    value: 1.3
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: allDamMult
+    value: 0.8
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: maxTeleMassa
+    value: 0.3
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: spellsDamMult
+    value: 0
+    isMultiplier: 0
+    isWeaponSkill: 0
+  - skillId: runForever
+    value: 1
+    isMultiplier: 0
+    isWeaponSkill: 0
+  afterEffectId: 
+  displayName: ACID
+  displayValue: 
