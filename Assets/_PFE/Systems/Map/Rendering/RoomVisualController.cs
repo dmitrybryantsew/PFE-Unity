@@ -290,16 +290,14 @@ namespace PFE.Systems.Map.Rendering
 
         /// <summary>
         /// Get world position for this room.
-        /// Accounts for expanded room dimensions (border adds 1 tile on each side).
+        /// Accounts for the room's pixel origin in the land grid.
         /// </summary>
         private Vector3 GetRoomWorldPosition()
         {
             if (roomInstance == null)
                 return Vector3.zero;
 
-            // Calculate base position from land grid (using standard room size)
-            // Then offset by -1 tile to account for border expansion
-            int borderOffset = (roomInstance.width - WorldConstants.ROOM_WIDTH) / 2;
+            int borderOffset = Mathf.Max(0, roomInstance.borderOffset);
             
             Vector2 roomPixelPos = new Vector2(
                 roomInstance.landPosition.x * WorldConstants.ROOM_WIDTH * WorldConstants.TILE_SIZE - borderOffset * WorldConstants.TILE_SIZE,
@@ -922,7 +920,7 @@ namespace PFE.Systems.Map.Rendering
 
             if (!string.IsNullOrEmpty(template.backgroundRoomId))
             {
-                RoomTemplate backgroundTemplate = LoadRoomTemplateById(template.backgroundRoomId);
+                RoomTemplate backgroundTemplate = LoadRoomTemplateById(template.backgroundRoomId, template);
                 if (backgroundTemplate != null)
                 {
                     RoomInstance backgroundRoom = generator.GenerateRoom(backgroundTemplate, landPosition);
@@ -1016,7 +1014,7 @@ namespace PFE.Systems.Map.Rendering
             destination.trapId = source.trapId;
         }
 
-        private static RoomTemplate LoadRoomTemplateById(string templateId)
+        private static RoomTemplate LoadRoomTemplateById(string templateId, RoomTemplate context = null)
         {
             if (string.IsNullOrWhiteSpace(templateId))
             {
@@ -1024,6 +1022,31 @@ namespace PFE.Systems.Map.Rendering
             }
 
             string[] guids = UnityEditor.AssetDatabase.FindAssets("t:RoomTemplate", new[] { "Assets/_PFE/Data/Resources/Rooms" });
+            for (int i = 0; i < guids.Length; i++)
+            {
+                string path = UnityEditor.AssetDatabase.GUIDToAssetPath(guids[i]);
+                RoomTemplate template = UnityEditor.AssetDatabase.LoadAssetAtPath<RoomTemplate>(path);
+                if (template != null && template.GetContentId() == templateId)
+                {
+                    return template;
+                }
+            }
+
+            if (context != null && !string.IsNullOrWhiteSpace(context.sourceCollectionId))
+            {
+                for (int i = 0; i < guids.Length; i++)
+                {
+                    string path = UnityEditor.AssetDatabase.GUIDToAssetPath(guids[i]);
+                    RoomTemplate template = UnityEditor.AssetDatabase.LoadAssetAtPath<RoomTemplate>(path);
+                    if (template != null &&
+                        template.id == templateId &&
+                        template.sourceCollectionId == context.sourceCollectionId)
+                    {
+                        return template;
+                    }
+                }
+            }
+
             for (int i = 0; i < guids.Length; i++)
             {
                 string path = UnityEditor.AssetDatabase.GUIDToAssetPath(guids[i]);

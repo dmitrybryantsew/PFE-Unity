@@ -13,9 +13,9 @@ namespace PFE.Tests.Editor.Map
             RoomInstance room = new RoomInstance
             {
                 id = "legacy_room",
-                width = WorldConstants.ROOM_WIDTH + 2,
-                height = WorldConstants.ROOM_HEIGHT + 2,
-                borderOffset = 1
+                width = WorldConstants.ROOM_WIDTH,
+                height = WorldConstants.ROOM_HEIGHT,
+                borderOffset = 0
             };
             room.InitializeTiles();
 
@@ -32,8 +32,8 @@ namespace PFE.Tests.Editor.Map
 
             ObjectInstance spawned = room.objects.Find(obj => obj != null && obj.code == "legacy_box");
             Assert.NotNull(spawned);
-            Assert.AreEqual(220f, spawned.position.x, 0.01f);
-            Assert.AreEqual(41f, spawned.position.y, 0.01f);
+            Assert.AreEqual(180f, spawned.position.x, 0.01f);
+            Assert.AreEqual(121f, spawned.position.y, 0.01f);
 
             Object.DestroyImmediate(template);
         }
@@ -44,9 +44,9 @@ namespace PFE.Tests.Editor.Map
             RoomInstance room = new RoomInstance
             {
                 id = "legacy_room_units",
-                width = WorldConstants.ROOM_WIDTH + 2,
-                height = WorldConstants.ROOM_HEIGHT + 2,
-                borderOffset = 1
+                width = WorldConstants.ROOM_WIDTH,
+                height = WorldConstants.ROOM_HEIGHT,
+                borderOffset = 0
             };
             room.InitializeTiles();
 
@@ -62,8 +62,8 @@ namespace PFE.Tests.Editor.Map
 
             UnitInstance spawned = room.units.Find(unit => unit != null && unit.unitId == "raider");
             Assert.NotNull(spawned);
-            Assert.AreEqual(220f, spawned.position.x, 0.01f);
-            Assert.AreEqual(81f, spawned.position.y, 0.01f);
+            Assert.AreEqual(180f, spawned.position.x, 0.01f);
+            Assert.AreEqual(161f, spawned.position.y, 0.01f);
 
             Object.DestroyImmediate(template);
         }

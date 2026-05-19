@@ -103,6 +103,14 @@ namespace PFE.Core
         [Tooltip("Logs per-type room template breakdown from MapDiagnostics (10+ lines per run).")]
         private bool logMapGenerationDiagnostics = false;
 
+        [SerializeField]
+        [Tooltip("Logs room template duplicate IDs, selected map-build path, and edge-hole summaries around map generation.")]
+        private bool logMapIntegrityDiagnostics = true;
+
+        [SerializeField]
+        [Tooltip("Optional debug override: build this room collection as a fixed/specific map, e.g. Base or Camp. Empty uses normal random generation.")]
+        private string debugSpecificRoomCollection = "";
+
         // ── Map Bridge ───────────────────────────────────────────────────────
 
         [Header("Map Bridge")]
@@ -144,6 +152,8 @@ namespace PFE.Core
         public bool LogGameLoopEvents                            => runtimeLoggingEnabled && logGameLoopEvents;
         public bool LogWorldBuilderSummary                       => runtimeLoggingEnabled && logWorldBuilderSummary;
         public bool LogMapGenerationDiagnostics                  => runtimeLoggingEnabled && logMapGenerationDiagnostics;
+        public bool LogMapIntegrityDiagnostics                   => runtimeLoggingEnabled && logMapIntegrityDiagnostics;
+        public string DebugSpecificRoomCollection                => debugSpecificRoomCollection;
         public bool LogMapBridgeLifecycle                        => runtimeLoggingEnabled && logMapBridgeLifecycle;
         public bool LogRoomRenderingLifecycle                    => runtimeLoggingEnabled && logRoomRenderingLifecycle;
         public bool LogTileVisualCreationSummary                 => runtimeLoggingEnabled && logTileVisualCreationSummary;

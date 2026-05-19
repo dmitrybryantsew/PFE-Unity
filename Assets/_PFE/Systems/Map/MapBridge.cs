@@ -213,15 +213,15 @@ public class MapBridge : MonoBehaviour
             return false;
         }
 
-        RoomSetup.FinalizeRoom(room, template);
+        FinalizeOverrideRoom(room, template);
 
         if (!string.IsNullOrEmpty(template.backgroundRoomId))
         {
-            RoomTemplate backgroundTemplate = FindTemplateById(template.backgroundRoomId);
+            RoomTemplate backgroundTemplate = FindTemplateById(template.backgroundRoomId, template);
             if (backgroundTemplate != null)
             {
                 RoomInstance backgroundRoom = _roomGenerator.GenerateRoom(backgroundTemplate, roomPosition);
-                RoomSetup.FinalizeRoom(backgroundRoom, backgroundTemplate);
+                FinalizeOverrideRoom(backgroundRoom, backgroundTemplate);
                 backgroundRoom.roomType = "back";
                 landMap.AddSpecialRoom("background", backgroundRoom, roomPosition);
                 room.backgroundRoom = backgroundRoom;
@@ -238,6 +238,34 @@ public class MapBridge : MonoBehaviour
         if (_debugSettings?.LogMapBridgeLifecycle == true)
             Debug.Log($"[MapBridge] Debug room override loaded template '{template.id}' ({template.type}).");
         return true;
+    }
+
+    private void FinalizeOverrideRoom(RoomInstance room, RoomTemplate template)
+    {
+        if (room == null || template == null)
+        {
+            return;
+        }
+
+        if (template.specificMapOnly)
+        {
+            if (_debugSettings?.LogMapIntegrityDiagnostics == true)
+            {
+                Debug.Log(
+                    $"[MapBridge] Finalizing override room '{template.GetContentId()}' as specific/authored. " +
+                    "Skipping random border and door carving.");
+            }
+
+            RoomSetup.FinalizeSpecificRoom(room, template, _debugSettings);
+            return;
+        }
+
+        if (_debugSettings?.LogMapIntegrityDiagnostics == true)
+        {
+            Debug.Log($"[MapBridge] Finalizing override room '{template.GetContentId()}' as random/procedural.");
+        }
+
+        RoomSetup.FinalizeRoom(room, template, debugSettings: _debugSettings);
     }
 
     private RoomTemplate ResolveOverrideTemplate()
@@ -272,7 +300,7 @@ public class MapBridge : MonoBehaviour
         return null;
     }
 
-    private RoomTemplate FindTemplateById(string templateId)
+    private RoomTemplate FindTemplateById(string templateId, RoomTemplate context = null)
     {
         if (string.IsNullOrWhiteSpace(templateId))
         {
@@ -280,6 +308,29 @@ public class MapBridge : MonoBehaviour
         }
 
         var templates = _gameManager.GetLoadedRoomTemplates();
+        for (int i = 0; i < templates.Count; i++)
+        {
+            RoomTemplate template = templates[i];
+            if (template != null && string.Equals(template.GetContentId(), templateId, System.StringComparison.Ordinal))
+            {
+                return template;
+            }
+        }
+
+        if (context != null && !string.IsNullOrWhiteSpace(context.sourceCollectionId))
+        {
+            for (int i = 0; i < templates.Count; i++)
+            {
+                RoomTemplate template = templates[i];
+                if (template != null &&
+                    string.Equals(template.id, templateId, System.StringComparison.Ordinal) &&
+                    string.Equals(template.sourceCollectionId, context.sourceCollectionId, System.StringComparison.Ordinal))
+                {
+                    return template;
+                }
+            }
+        }
+
         for (int i = 0; i < templates.Count; i++)
         {
             RoomTemplate template = templates[i];

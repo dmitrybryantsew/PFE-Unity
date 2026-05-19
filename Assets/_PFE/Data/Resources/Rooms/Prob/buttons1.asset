@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: buttons1
   m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
   id: buttons1
+  sourceCollectionId: Prob
   type: pass
   fixedPosition: {x: 0, y: 0, z: 0}
   difficultyLevel: 0

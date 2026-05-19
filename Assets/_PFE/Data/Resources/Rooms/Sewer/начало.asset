@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: "\u043D\u0430\u0447\u0430\u043B\u043E"
   m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
   id: "\u043D\u0430\u0447\u0430\u043B\u043E"
+  sourceCollectionId: Sewer
   type: beg0
   fixedPosition: {x: 0, y: 0, z: 0}
   difficultyLevel: 0

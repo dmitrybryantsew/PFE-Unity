@@ -17,9 +17,11 @@ namespace PFE.Systems.Map
         // Identification
         [Header("Identification")]
         public string id;
+        [Tooltip("Room collection/folder this template came from, e.g. Base, Camp, Stable. Used to disambiguate duplicate AS3 room IDs.")]
+        public string sourceCollectionId = "";
 
         // IGameContent
-        string IGameContent.ContentId => id;
+        string IGameContent.ContentId => GetContentId();
         ContentType IGameContent.ContentType => ContentType.RoomTemplate;
         [Tooltip("Room type: beg0, pass, roof, vert, surf, etc.")]
         public string type;  // beg0, pass, roof, etc.
@@ -40,6 +42,9 @@ namespace PFE.Systems.Map
 
         [Tooltip("Can be randomly selected (rnd in AS3)")]
         public bool allowRandom = true;
+
+        [Tooltip("Authored/fixed-map room. These rooms should be placed by specific-map logic, not random land generation.")]
+        public bool specificMapOnly = false;
 
         // Background layer
         [Header("Background Layer")]
@@ -77,6 +82,13 @@ namespace PFE.Systems.Map
         // Environment
         [Header("Environment")]
         public RoomEnvironmentData environment = new RoomEnvironmentData();
+
+        public string GetContentId()
+        {
+            return string.IsNullOrWhiteSpace(sourceCollectionId)
+                ? id
+                : $"{sourceCollectionId}/{id}";
+        }
 
         /// <summary>
         /// Parse tile data string into 2D array.

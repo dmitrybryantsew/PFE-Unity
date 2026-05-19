@@ -188,7 +188,15 @@ namespace PFE.Data
             var fromRegistry = Registry.Get<RoomTemplate>(ContentType.RoomTemplate, id);
             if (fromRegistry != null) return fromRegistry;
 
-            return _roomTemplates.TryGetValue(id, out var template) ? template : null;
+            foreach (var registeredTemplate in Registry.GetAll<RoomTemplate>(ContentType.RoomTemplate))
+            {
+                if (registeredTemplate != null && registeredTemplate.id == id)
+                {
+                    return registeredTemplate;
+                }
+            }
+
+            return _roomTemplates.TryGetValue(id, out var legacyTemplate) ? legacyTemplate : null;
         }
 
         public IEnumerable<string> GetAllUnitIDs()

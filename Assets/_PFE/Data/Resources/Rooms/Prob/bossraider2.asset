@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: bossraider2
   m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
   id: bossraider2
+  sourceCollectionId: Prob
   type: pass
   fixedPosition: {x: 0, y: 0, z: 0}
   difficultyLevel: 0

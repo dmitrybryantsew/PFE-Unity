@@ -42,86 +42,98 @@ namespace PFE.Systems.Map
         /// <summary>
         /// Carve a single door opening in the tile grid.
         /// Directly mirrors AS3 Location.setDoor(doorIndex, quality).
-        /// Accounts for border expansion (adds 1 tile offset on each side).
+        /// Uses the same edge cells as AS3 Location.setDoor().
         /// </summary>
         public static void CarveDoor(RoomInstance room, int doorIndex, int quality)
         {
             if (quality < 2) return; // Quality < 2 means no opening
             if (doorIndex < 0 || doorIndex > 21) return;
 
-            // Calculate border offset (if room was expanded)
-            int borderOffset = (room.width - WorldConstants.ROOM_WIDTH) / 2;
+            int borderOffset = Mathf.Max(0, room.borderOffset);
 
             if (doorIndex >= 17) // Top side (indices 17-21)
             {
                 int baseCol = (doorIndex - 17) * 9 + 4 + borderOffset;
-                int topRow = borderOffset; // Top border row
+                int topRow = As3RowToUnityY(room, borderOffset); // AS3 row 0
+                int innerRow = As3RowToUnityY(room, borderOffset + 1);
                 // Core 2-tile opening
                 CarveTile(room, baseCol + 1, topRow);
                 CarveTile(room, baseCol + 2, topRow);
                 // Clear tiles behind the opening for walkability
-                ClearPhysics(room, baseCol + 1, topRow + 1);
-                ClearPhysics(room, baseCol + 2, topRow + 1);
+                ClearPhysics(room, baseCol + 1, innerRow);
+                ClearPhysics(room, baseCol + 2, innerRow);
 
                 if (quality > 2) // Wide door
                 {
                     CarveTile(room, baseCol, topRow);
                     CarveTile(room, baseCol + 3, topRow);
-                    ClearPhysics(room, baseCol, topRow + 1);
-                    ClearPhysics(room, baseCol + 3, topRow + 1);
+                    ClearPhysics(room, baseCol, innerRow);
+                    ClearPhysics(room, baseCol + 3, innerRow);
                 }
             }
             else if (doorIndex >= 11) // Left side (indices 11-16, mapped from AS3 indices 11-16)
             {
                 int baseRow = (doorIndex - 11) * 4 + 3 + borderOffset;
+                int row0 = As3RowToUnityY(room, baseRow);
+                int row1 = As3RowToUnityY(room, baseRow - 1);
+                int row2 = As3RowToUnityY(room, baseRow - 2);
                 int leftCol = borderOffset; // Left border column
                 // Core 2-tile opening
-                CarveTile(room, leftCol, baseRow);
-                CarveTile(room, leftCol, baseRow - 1);
+                CarveTile(room, leftCol, row0);
+                CarveTile(room, leftCol, row1);
                 // Clear tiles behind the opening
-                ClearPhysics(room, leftCol + 1, baseRow);
-                ClearPhysics(room, leftCol + 1, baseRow - 1);
+                ClearPhysics(room, leftCol + 1, row0);
+                ClearPhysics(room, leftCol + 1, row1);
 
                 if (quality > 2)
                 {
-                    CarveTile(room, leftCol, baseRow - 2);
-                    ClearPhysics(room, leftCol + 1, baseRow - 2);
+                    CarveTile(room, leftCol, row2);
+                    ClearPhysics(room, leftCol + 1, row2);
                 }
             }
             else if (doorIndex >= 6) // Bottom side (indices 6-10, mapped from AS3 indices 6-10)
             {
                 int baseCol = (doorIndex - 6) * 9 + 4 + borderOffset;
-                int bottomRow = room.height - 1 - borderOffset; // Bottom border row (accounting for expansion)
+                int bottomRow = As3RowToUnityY(room, room.height - 1 - borderOffset);
+                int innerRow = As3RowToUnityY(room, room.height - 2 - borderOffset);
                 // Core 2-tile opening
                 CarveTile(room, baseCol + 1, bottomRow);
                 CarveTile(room, baseCol + 2, bottomRow);
-                ClearPhysics(room, baseCol + 1, bottomRow - 1);
-                ClearPhysics(room, baseCol + 2, bottomRow - 1);
+                ClearPhysics(room, baseCol + 1, innerRow);
+                ClearPhysics(room, baseCol + 2, innerRow);
 
                 if (quality > 2)
                 {
                     CarveTile(room, baseCol, bottomRow);
                     CarveTile(room, baseCol + 3, bottomRow);
-                    ClearPhysics(room, baseCol, bottomRow - 1);
-                    ClearPhysics(room, baseCol + 3, bottomRow - 1);
+                    ClearPhysics(room, baseCol, innerRow);
+                    ClearPhysics(room, baseCol + 3, innerRow);
                 }
             }
             else // Right side (indices 0-5)
             {
                 int baseRow = doorIndex * 4 + 3 + borderOffset;
-                int rightCol = room.width - 1 - borderOffset; // Right border column (accounting for expansion)
+                int row0 = As3RowToUnityY(room, baseRow);
+                int row1 = As3RowToUnityY(room, baseRow - 1);
+                int row2 = As3RowToUnityY(room, baseRow - 2);
+                int rightCol = room.width - 1 - borderOffset; // Right border column
                 // Core 2-tile opening
-                CarveTile(room, rightCol, baseRow);
-                CarveTile(room, rightCol, baseRow - 1);
-                ClearPhysics(room, rightCol - 1, baseRow);
-                ClearPhysics(room, rightCol - 1, baseRow - 1);
+                CarveTile(room, rightCol, row0);
+                CarveTile(room, rightCol, row1);
+                ClearPhysics(room, rightCol - 1, row0);
+                ClearPhysics(room, rightCol - 1, row1);
 
                 if (quality > 2)
                 {
-                    CarveTile(room, rightCol, baseRow - 2);
-                    ClearPhysics(room, rightCol - 1, baseRow - 2);
+                    CarveTile(room, rightCol, row2);
+                    ClearPhysics(room, rightCol - 1, row2);
                 }
             }
+        }
+
+        private static int As3RowToUnityY(RoomInstance room, int as3Row)
+        {
+            return room.height - 1 - as3Row;
         }
 
         /// <summary>
@@ -162,8 +174,6 @@ namespace PFE.Systems.Map
 
         /// <summary>
         /// Apply border frame (ramka) around room edges.
-        /// EXPANDS the room array by 2 tiles (1 on each side) and fills the new
-        /// outer layer with indestructible border tiles.
         ///
         /// From AS3 Location constructor: fills border tiles with solid walls.
         /// ramka types:
@@ -179,15 +189,15 @@ namespace PFE.Systems.Map
         /// </summary>
         public static void ApplyBorder(RoomInstance room, int ramka)
         {
-            if (ramka == 0 || room == null || room.tiles == null) return;
+            if (room == null || room.tiles == null) return;
 
-            // Step 1: Expand the room array to make room for border
-            ExpandRoomForBorder(room);
+            room.borderOffset = 0;
 
             int w = room.width;
             int h = room.height;
 
-            // Step 2: Fill border tiles (now on the outer ring of expanded array)
+            // AS3 first marks ramka edge cells solid while parsing, then
+            // Location.mainFrame() converts every solid edge cell to border material.
             for (int x = 0; x < w; x++)
             {
                 for (int y = 0; y < h; y++)
@@ -195,118 +205,69 @@ namespace PFE.Systems.Map
                     bool isBorder = (x == 0 || x == w - 1 || y == 0 || y == h - 1);
                     if (!isBorder) continue;
 
-                    bool shouldSolid = false;
+                    var tile = room.tiles[x, y];
+                    if (tile == null) continue;
 
-                    switch (ramka)
+                    if (ShouldApplyRamkaAtEdge(ramka, x, y, w, h))
                     {
-                        case 1: // Full border
-                            shouldSolid = true;
-                            break;
-                        case 2: // Left + right walls
-                            shouldSolid = (x == 0 || x == w - 1);
-                            break;
-                        case 3: // Bottom only
-                            shouldSolid = (y == h - 1);
-                            break;
-                        case 4: // Left + right + bottom
-                            shouldSolid = (x == 0 || x == w - 1 || y == h - 1);
-                            break;
-                        case 5: // Partial left+right (columns 0-10 and 37-47)
-                            shouldSolid = (x <= 10 || x >= 37);
-                            break;
-                        case 6: // Partial bottom (rows 16+)
-                            shouldSolid = (y >= 16);
-                            break;
-                        case 7: // Partial left+right + partial bottom
-                            shouldSolid = ((x <= 10 || x >= 37) && (y >= 16));
-                            break;
-                        case 8: // Right wall only
-                            shouldSolid = (x == w - 1);
-                            break;
+                        tile.physicsType = TilePhysicsType.Wall;
                     }
 
-                    if (shouldSolid)
+                    if ((int)tile.physicsType >= (int)TilePhysicsType.Wall)
                     {
-                        var tile = room.tiles[x, y];
-                        if (tile != null)
-                        {
-                            tile.physicsType = TilePhysicsType.Wall;
-                            tile.indestructible = true;
-                            tile.hitPoints = 9999;
-                            tile.SetFrontGraphic("tBorder");
-                        }
+                        ApplyMainFrame(tile, "A");
                     }
                 }
             }
         }
 
-        /// <summary>
-        /// Expand room tile array by 2 tiles (1 on each side).
-        /// Existing tiles are shifted inward to make room for border.
-        /// </summary>
-        private static void ExpandRoomForBorder(RoomInstance room)
+        private static bool ShouldApplyRamkaAtEdge(int ramka, int x, int unityY, int width, int height)
         {
-            int oldW = room.width;
-            int oldH = room.height;
-            int newW = oldW + 2;
-            int newH = oldH + 2;
+            int as3Row = height - 1 - unityY;
 
-            // Create new expanded array
-            TileData[,] newTiles = new TileData[newW, newH];
-
-            // Copy existing tiles to center of new array (offset by 1,1)
-            for (int x = 0; x < oldW; x++)
+            switch (ramka)
             {
-                for (int y = 0; y < oldH; y++)
-                {
-                    var tile = room.tiles[x, y];
-                    if (tile != null)
-                    {
-                        // Update grid position to new coordinates
-                        tile.gridPosition = new Vector2Int(x + 1, y + 1);
-                        newTiles[x + 1, y + 1] = tile;
-                    }
-                }
+                case 1: // Full border
+                    return true;
+                case 2: // Left + right walls
+                    return x == 0 || x == width - 1;
+                case 3: // AS3 bottom row
+                    return as3Row == height - 1;
+                case 4: // Left + right + AS3 bottom row
+                    return x == 0 || x == width - 1 || as3Row == height - 1;
+                case 5: // Partial left+right columns
+                    return x <= 10 || x >= 37;
+                case 6: // Partial AS3 lower rows
+                    return as3Row >= 16;
+                case 7: // Partial left+right + partial AS3 lower rows
+                    return (x <= 10 || x >= 37) && as3Row >= 16;
+                case 8: // Right wall only
+                    return x == width - 1;
+                default:
+                    return false;
+            }
+        }
+
+        private static void ApplyMainFrame(TileData tile, string materialId)
+        {
+            if (tile == null)
+            {
+                return;
             }
 
-            // Initialize new border tiles (outer ring)
-            for (int x = 0; x < newW; x++)
-            {
-                for (int y = 0; y < newH; y++)
-                {
-                    // Only initialize tiles on the border that don't exist yet
-                    if (x == 0 || x == newW - 1 || y == 0 || y == newH - 1)
-                    {
-                        if (newTiles[x, y] == null)
-                        {
-                            newTiles[x, y] = new TileData
-                            {
-                                gridPosition = new Vector2Int(x, y),
-                                physicsType = TilePhysicsType.Air // Will be set to Wall by ApplyBorder
-                            };
-                        }
-                    }
-                }
-            }
-
-            // Update room dimensions and array
-            room.tiles = newTiles;
-            room.width = newW;
-            room.height = newH;
-            room.borderOffset = 1; // Track that we added 1 tile border on each side
-
-            // Update door positions (shift by 1 to account for border offset)
-            foreach (var door in room.doors)
-            {
-                // Door positions are relative to room, they need adjustment
-                // This is handled by the door carving logic using room.width/height
-            }
-
-            // Update spawn points (shift by 1 tile to account for border offset)
-            foreach (var spawn in room.spawnPoints)
-            {
-                spawn.tileCoord += new Vector2Int(1, 1);
-            }
+            // Mirrors Tile.mainFrame() for the default border material closely enough
+            // for Unity's material compositor: the front/back IDs must remain form IDs,
+            // not texture names like tBorder.
+            tile.physicsType = TilePhysicsType.Wall;
+            tile.visualId = 0;
+            tile.visualId2 = 0;
+            tile.slopeType = 0;
+            tile.stairType = 0;
+            tile.SetFrontGraphic(materialId);
+            tile.SetBackGraphic("A");
+            tile.indestructible = true;
+            tile.hitPoints = 10000;
+            tile.opacity = 1f;
         }
 
         /// <summary>

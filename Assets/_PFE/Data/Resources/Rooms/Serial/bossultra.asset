@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: bossultra
   m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
   id: bossultra
+  sourceCollectionId: Serial
   type: pass
   fixedPosition: {x: 3, y: 0, z: 0}
   difficultyLevel: 0

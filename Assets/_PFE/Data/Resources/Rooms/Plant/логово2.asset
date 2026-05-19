@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: "\u043B\u043E\u0433\u043E\u0432\u043E2"
   m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
   id: "\u043B\u043E\u0433\u043E\u0432\u043E2"
+  sourceCollectionId: Plant
   type: pass
   fixedPosition: {x: 0, y: 0, z: 0}
   difficultyLevel: 3

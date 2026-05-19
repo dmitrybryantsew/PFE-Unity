@@ -30,7 +30,9 @@ MonoBehaviour:
   logGameLoopEvents: 0
   logWorldBuilderSummary: 0
   logMapGenerationDiagnostics: 0
-  logMapBridgeLifecycle: 0
+  logMapIntegrityDiagnostics: 1
+  debugSpecificRoomCollection: Base
+  logMapBridgeLifecycle: 1
   logRoomRenderingLifecycle: 0
   logTileVisualCreationSummary: 0
   logTileColliderCreation: 0

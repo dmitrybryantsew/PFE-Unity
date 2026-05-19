@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: room_4_2
   m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
   id: room_4_2
+  sourceCollectionId: Serial2
   type: pass
   fixedPosition: {x: 4, y: 2, z: 0}
   difficultyLevel: 0

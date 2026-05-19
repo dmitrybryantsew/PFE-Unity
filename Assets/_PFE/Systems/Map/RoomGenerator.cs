@@ -36,9 +36,10 @@ namespace PFE.Systems.Map
             templateUsageCount.Clear();
             foreach (var template in templates)
             {
-                if (!string.IsNullOrEmpty(template.id))
+                string templateKey = template.GetContentId();
+                if (!string.IsNullOrEmpty(templateKey))
                 {
-                    templateUsageCount[template.id] = 0;
+                    templateUsageCount[templateKey] = 0;
                 }
             }
         }
@@ -67,8 +68,8 @@ namespace PFE.Systems.Map
 
             RoomInstance room = new RoomInstance
             {
-                id = $"{template.id}_{position.x}_{position.y}_{position.z}",
-                templateId = template.id,
+                id = $"{template.GetContentId()}_{position.x}_{position.y}_{position.z}",
+                templateId = template.GetContentId(),
                 landPosition = position,
                 width = WorldConstants.ROOM_WIDTH,
                 height = WorldConstants.ROOM_HEIGHT,
@@ -180,10 +181,10 @@ namespace PFE.Systems.Map
         /// </summary>
         private DoorSide GetDoorSide(int doorIndex)
         {
-            if (doorIndex >= 0 && doorIndex < 6) return DoorSide.Right;
-            if (doorIndex >= 6 && doorIndex < 12) return DoorSide.Bottom;
-            if (doorIndex >= 12 && doorIndex < 18) return DoorSide.Left;
-            return DoorSide.Top; // 18-23
+            if (doorIndex >= 0 && doorIndex <= 5) return DoorSide.Right;
+            if (doorIndex >= 6 && doorIndex <= 10) return DoorSide.Bottom;
+            if (doorIndex >= 11 && doorIndex <= 16) return DoorSide.Left;
+            return DoorSide.Top;
         }
 
         /// <summary>
@@ -197,26 +198,26 @@ namespace PFE.Systems.Map
             if (doorIndex >= 0 && doorIndex <= 5)
             {
                 // RIGHT side: AS3 formula = index * 4 + 3
-                int y = doorIndex * 4 + 3;
+                int y = height - 1 - (doorIndex * 4 + 3);
                 return new Vector2Int(width - 1, y);
             }
             else if (doorIndex >= 6 && doorIndex <= 10)
             {
                 // BOTTOM side: AS3 formula = (index - 6) * 9 + 4
                 int x = (doorIndex - 6) * 9 + 4;
-                return new Vector2Int(x, height - 1);
+                return new Vector2Int(x, 0);
             }
             else if (doorIndex >= 11 && doorIndex <= 16)
             {
                 // LEFT side: AS3 formula = (index - 11) * 4 + 3
-                int y = (doorIndex - 11) * 4 + 3;
+                int y = height - 1 - ((doorIndex - 11) * 4 + 3);
                 return new Vector2Int(0, y);
             }
             else if (doorIndex >= 17 && doorIndex <= 21)
             {
                 // TOP side: AS3 formula = (index - 17) * 9 + 4
                 int x = (doorIndex - 17) * 9 + 4;
-                return new Vector2Int(x, 0);
+                return new Vector2Int(x, height - 1);
             }
 
             return Vector2Int.zero;
@@ -248,6 +249,9 @@ namespace PFE.Systems.Map
                 if (string.IsNullOrEmpty(template.id))
                     continue;
 
+                if (template.specificMapOnly)
+                    continue;
+
                 // Check exclusion list
                 if (exclude != null && exclude.Contains(template)) continue;
 
@@ -270,7 +274,8 @@ namespace PFE.Systems.Map
                 if (template.difficultyLevel > maxDifficulty) continue;
 
                 // Check usage count unless prototype mode ignores instance limits
-                int currentUsage = templateUsageCount.ContainsKey(template.id) ? templateUsageCount[template.id] : 0;
+                string templateKey = template.GetContentId();
+                int currentUsage = templateUsageCount.ContainsKey(templateKey) ? templateUsageCount[templateKey] : 0;
                 if (!prototypeMode && currentUsage >= template.maxInstances) continue;
 
                 // Calculate weight (quadratic - kol * kol in AS3)
@@ -308,10 +313,10 @@ namespace PFE.Systems.Map
                 if (random < cumulative)
                 {
                     // Increment usage count
-                    string templateId = candidates[i].id;
-                    if (!templateUsageCount.ContainsKey(templateId))
-                        templateUsageCount[templateId] = 0;
-                    templateUsageCount[templateId]++;
+                    string selectedKey = candidates[i].GetContentId();
+                    if (!templateUsageCount.ContainsKey(selectedKey))
+                        templateUsageCount[selectedKey] = 0;
+                    templateUsageCount[selectedKey]++;
 
                     return candidates[i];
                 }
@@ -337,6 +342,9 @@ namespace PFE.Systems.Map
 
             foreach (var template in allTemplates)
             {
+                if (template.specificMapOnly)
+                    continue;
+
                 if (template.type == roomType)
                 {
                     // Check exclusion list
@@ -344,7 +352,8 @@ namespace PFE.Systems.Map
                         continue;
 
                     // Check usage count
-                    int currentUsage = templateUsageCount.ContainsKey(template.id) ? templateUsageCount[template.id] : 0;
+                    string templateKey = template.GetContentId();
+                    int currentUsage = templateUsageCount.ContainsKey(templateKey) ? templateUsageCount[templateKey] : 0;
                     if (!prototypeMode && currentUsage >= template.maxInstances)
                         continue;
 
@@ -362,11 +371,12 @@ namespace PFE.Systems.Map
             RoomTemplate selected = candidates[UnityEngine.Random.Range(0, candidates.Count)];
 
             // Increment usage count
-            if (!string.IsNullOrEmpty(selected.id))
+            string selectedKey = selected.GetContentId();
+            if (!string.IsNullOrEmpty(selectedKey))
             {
-                if (!templateUsageCount.ContainsKey(selected.id))
-                    templateUsageCount[selected.id] = 0;
-                templateUsageCount[selected.id]++;
+                if (!templateUsageCount.ContainsKey(selectedKey))
+                    templateUsageCount[selectedKey] = 0;
+                templateUsageCount[selectedKey]++;
             }
 
             return selected;

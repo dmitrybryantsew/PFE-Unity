@@ -14,7 +14,7 @@ namespace PFE.Systems.Map
     /// Call flow (mirrors AS3):
     ///   1. RoomGenerator.GenerateRoom() - creates tiles, copies spawn data
     ///   2. DoorCarver.CarveAllDoors() - opens door passages
-    ///   3. DoorCarver.ApplyBorder() - adds ramka border walls
+    ///   3. DoorCarver.ApplyBorder() - applies ramka border walls on existing edge cells
     ///   4. RoomPopulator.PopulateRoom() - spawns all entities <-- THIS CLASS
     /// </summary>
     public class RoomPopulator

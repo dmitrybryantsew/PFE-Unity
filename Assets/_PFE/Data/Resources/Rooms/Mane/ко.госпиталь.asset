@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: "\u043A\u043E.\u0433\u043E\u0441\u043F\u0438\u0442\u0430\u043B\u044C"
   m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
   id: "\u043A\u043E.\u0433\u043E\u0441\u043F\u0438\u0442\u0430\u043B\u044C"
+  sourceCollectionId: Mane
   type: pass
   fixedPosition: {x: 0, y: 0, z: 0}
   difficultyLevel: 1

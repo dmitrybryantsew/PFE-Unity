@@ -67,6 +67,7 @@ namespace PFE.Systems.Map
 
             // Initialize land map
             landMap.Initialize(minBounds, maxBounds);
+            MapIntegrityDiagnostics.LogBuildPath("Random", allTemplates.Count, minBounds, maxBounds, _debugSettings);
 
             // Reset room generator usage counts
             roomGenerator.ResetUsageCounts();
@@ -98,11 +99,12 @@ namespace PFE.Systems.Map
                     // Generate room
                     RoomInstance room = roomGenerator.GenerateRoom(template, position);
                     landMap.AddRoom(room, position);
+                    MapIntegrityDiagnostics.LogRoomSnapshot("GeneratedRandomRoom", room, template, _debugSettings);
 
                     // Create background room if specified
                     if (!string.IsNullOrEmpty(template.backgroundRoomId))
                     {
-                        RoomTemplate backTemplate = FindTemplateById(template.backgroundRoomId);
+                        RoomTemplate backTemplate = FindTemplateById(template.backgroundRoomId, template);
                         if (backTemplate != null)
                         {
                             RoomInstance backRoom = roomGenerator.GenerateRoom(backTemplate, position);
@@ -122,7 +124,7 @@ namespace PFE.Systems.Map
 
             // Build door connections
             BuildDoorConnections();
-            RoomSetup.FinalizeAllRooms(landMap, allTemplates);
+            RoomSetup.FinalizeAllRooms(landMap, allTemplates, _debugSettings);
             // Activate starting room
             if (landMap.HasRoom(startPosition))
             {
@@ -157,7 +159,7 @@ namespace PFE.Systems.Map
 
             foreach (var template in levelTemplates)
             {
-                if (template.fixedPosition.x >= 0)
+                if (HasFixedPosition(template))
                 {
                     calcMin.x = Mathf.Min(calcMin.x, template.fixedPosition.x);
                     calcMin.y = Mathf.Min(calcMin.y, template.fixedPosition.y);
@@ -169,24 +171,32 @@ namespace PFE.Systems.Map
                 }
             }
 
+            if (calcMin.x == int.MaxValue)
+            {
+                Debug.LogError("[WorldBuilder] No fixed-position templates provided");
+                return false;
+            }
+
             minBounds = calcMin;
             maxBounds = calcMax;
 
             // Initialize land map
             landMap.Initialize(minBounds, maxBounds);
+            MapIntegrityDiagnostics.LogBuildPath("Specific", levelTemplates.Count, minBounds, maxBounds, _debugSettings);
 
             // Place rooms at fixed positions
             foreach (var template in levelTemplates)
             {
-                if (template.fixedPosition.x >= 0)
+                if (HasFixedPosition(template))
                 {
                     RoomInstance room = roomGenerator.GenerateRoom(template, template.fixedPosition);
                     landMap.AddRoom(room, template.fixedPosition);
+                    MapIntegrityDiagnostics.LogRoomSnapshot("GeneratedSpecificRoom", room, template, _debugSettings);
 
                     // Create background room if specified
                     if (!string.IsNullOrEmpty(template.backgroundRoomId))
                     {
-                        RoomTemplate backTemplate = FindTemplateById(template.backgroundRoomId);
+                        RoomTemplate backTemplate = FindTemplateById(template.backgroundRoomId, template);
                         if (backTemplate != null)
                         {
                             RoomInstance backRoom = roomGenerator.GenerateRoom(backTemplate, template.fixedPosition);
@@ -210,9 +220,19 @@ namespace PFE.Systems.Map
                 }
             }
 
-            // Build door connections
-            BuildDoorConnections();
-            RoomSetup.FinalizeAllRooms(landMap, allTemplates);
+            if (!landMap.HasRoom(startPosition))
+            {
+                foreach (var template in levelTemplates)
+                {
+                    if (HasFixedPosition(template))
+                    {
+                        startPosition = template.fixedPosition;
+                        break;
+                    }
+                }
+            }
+
+            RoomSetup.FinalizeSpecificAllRooms(landMap, allTemplates, _debugSettings);
             // Activate starting room
             if (landMap.HasRoom(startPosition))
             {
@@ -425,15 +445,15 @@ namespace PFE.Systems.Map
             // Determine door index ranges based on side
             if (side == DoorSide.Right)
             {
-                // Right side of room1 (0-5) with left side of room2 (12-17)
+                // Right side of room1 (0-5) with left side of room2 (11-16)
                 start1 = 0; end1 = 5;
-                start2 = 12;
+                start2 = 11;
             }
             else // Bottom
             {
-                // Bottom of room1 (6-11) with top of room2 (18-23)
-                start1 = 6; end1 = 11;
-                start2 = 18;
+                // Bottom of room1 (6-10) with top of room2 (17-21)
+                start1 = 6; end1 = 10;
+                start2 = 17;
             }
 
             // Find matching doors
@@ -483,9 +503,24 @@ namespace PFE.Systems.Map
         /// <summary>
         /// Find template by ID.
         /// </summary>
-        private RoomTemplate FindTemplateById(string id)
+        private RoomTemplate FindTemplateById(string id, RoomTemplate context = null)
         {
             if (string.IsNullOrEmpty(id)) return null;
+
+            foreach (var template in allTemplates)
+            {
+                if (template.GetContentId() == id)
+                    return template;
+            }
+
+            if (context != null && !string.IsNullOrWhiteSpace(context.sourceCollectionId))
+            {
+                foreach (var template in allTemplates)
+                {
+                    if (template.id == id && template.sourceCollectionId == context.sourceCollectionId)
+                        return template;
+                }
+            }
 
             foreach (var template in allTemplates)
             {
@@ -513,7 +548,7 @@ namespace PFE.Systems.Map
             else
             {
                 index1 = 8;   // Bottom side middle slot.
-                index2 = 20;  // Top side mirrored middle slot.
+                index2 = 19;  // Top side mirrored middle slot.
             }
 
             DoorInstance door1 = AddOrGetDoor(room1, index1);
@@ -562,9 +597,9 @@ namespace PFE.Systems.Map
 
         private DoorSide GetDoorSide(int doorIndex)
         {
-            if (doorIndex >= 0 && doorIndex < 6) return DoorSide.Right;
-            if (doorIndex >= 6 && doorIndex < 12) return DoorSide.Bottom;
-            if (doorIndex >= 12 && doorIndex < 18) return DoorSide.Left;
+            if (doorIndex >= 0 && doorIndex <= 5) return DoorSide.Right;
+            if (doorIndex >= 6 && doorIndex <= 10) return DoorSide.Bottom;
+            if (doorIndex >= 11 && doorIndex <= 16) return DoorSide.Left;
             return DoorSide.Top;
         }
 
@@ -576,26 +611,26 @@ namespace PFE.Systems.Map
             if (doorIndex >= 0 && doorIndex <= 5)
             {
                 // RIGHT side: AS3 formula = index * 4 + 3
-                int y = doorIndex * 4 + 3;
+                int y = height - 1 - (doorIndex * 4 + 3);
                 return new Vector2Int(width - 1, y);
             }
             else if (doorIndex >= 6 && doorIndex <= 10)
             {
                 // BOTTOM side: AS3 formula = (index - 6) * 9 + 4
                 int x = (doorIndex - 6) * 9 + 4;
-                return new Vector2Int(x, height - 1);
+                return new Vector2Int(x, 0);
             }
             else if (doorIndex >= 11 && doorIndex <= 16)
             {
                 // LEFT side: AS3 formula = (index - 11) * 4 + 3
-                int y = (doorIndex - 11) * 4 + 3;
+                int y = height - 1 - ((doorIndex - 11) * 4 + 3);
                 return new Vector2Int(0, y);
             }
             else if (doorIndex >= 17 && doorIndex <= 21)
             {
                 // TOP side: AS3 formula = (index - 17) * 9 + 4
                 int x = (doorIndex - 17) * 9 + 4;
-                return new Vector2Int(x, 0);
+                return new Vector2Int(x, height - 1);
             }
 
             return Vector2Int.zero;
@@ -617,6 +652,11 @@ namespace PFE.Systems.Map
             }
 
             return false;
+        }
+
+        private static bool HasFixedPosition(RoomTemplate template)
+        {
+            return template != null && template.fixedPosition.z >= 0;
         }
 
         /// <summary>

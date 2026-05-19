@@ -52,6 +52,7 @@ namespace PFE.Systems.Map.DataMigration
 
             // Basic info
             template.id = as3Room.name;
+            template.sourceCollectionId = as3Room.sourceCollectionId;
             template.name = as3Room.name;
             template.type = GetRoomType(as3Room);
             template.fixedPosition = new Vector3Int(as3Room.x, as3Room.y, 0);

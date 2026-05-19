@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: "\u043A\u0430\u043C\u0435\u0440\u044B_\u0441\u0442\u0430\u0440\u0442"
   m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
   id: "\u043A\u0430\u043C\u0435\u0440\u044B_\u0441\u0442\u0430\u0440\u0442"
+  sourceCollectionId: Stable
   type: back
   fixedPosition: {x: 0, y: 0, z: 0}
   difficultyLevel: 0

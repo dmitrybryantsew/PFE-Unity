@@ -13,11 +13,13 @@ MonoBehaviour:
   m_Name: room_10_2
   m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
   id: room_10_2
+  sourceCollectionId: Base
   type: pass
   fixedPosition: {x: 10, y: 2, z: 0}
   difficultyLevel: 0
   maxInstances: 2
-  allowRandom: 1
+  allowRandom: 0
+  specificMapOnly: 1
   backgroundRoomId: 
   backgroundDecorations: []
   doorQuality: 000000000000000000000000000000000000000000000000000000000200000002000000020000000200000002000000000000000000000000000000000000000000000000000000000000000200000002000000020000000200000002000000

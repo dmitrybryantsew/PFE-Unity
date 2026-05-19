@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: "\u0432\u0435\u043D\u0442\u0438\u043B\u044F\u0446\u0438\u044F"
   m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
   id: "\u0432\u0435\u043D\u0442\u0438\u043B\u044F\u0446\u0438\u044F"
+  sourceCollectionId: Canter
   type: pass
   fixedPosition: {x: 0, y: 0, z: 0}
   difficultyLevel: 0

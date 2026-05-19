@@ -4,6 +4,7 @@ using Cysharp.Threading.Tasks;
 using UnityEngine;
 using PFE.Systems.Map;
 using PFE.Data;
+using System;
 using System.Collections.Generic;
 
 namespace PFE.Core
@@ -111,6 +112,12 @@ namespace PFE.Core
                 }
             }
 
+            if (debugSettings.LogMapIntegrityDiagnostics)
+            {
+                var rawResourceTemplates = Resources.LoadAll<RoomTemplate>("Rooms");
+                MapIntegrityDiagnostics.LogTemplateRegistryIntegrity(templates, rawResourceTemplates, debugSettings);
+            }
+
             return templates;
         }
 
@@ -122,8 +129,33 @@ namespace PFE.Core
             if (debugSettings.LogGameManagerLifecycle)
                 Debug.Log("[GameManager] Building world...");
 
-            // Build random world
-            bool success = worldBuilder.BuildRandomWorld(currentStage);
+            string specificCollection = debugSettings.DebugSpecificRoomCollection;
+            bool success;
+
+            if (!string.IsNullOrWhiteSpace(specificCollection))
+            {
+                var specificTemplates = loadedRoomTemplates.FindAll(template =>
+                    template != null &&
+                    string.Equals(template.sourceCollectionId, specificCollection, StringComparison.OrdinalIgnoreCase));
+
+                if (debugSettings.LogMapIntegrityDiagnostics)
+                {
+                    Debug.Log(
+                        $"[GameManager] BuildWorldAsync is using BuildSpecificWorld for collection '{specificCollection}' " +
+                        $"({specificTemplates.Count} templates).");
+                }
+
+                success = worldBuilder.BuildSpecificWorld(specificTemplates);
+            }
+            else
+            {
+                if (debugSettings.LogMapIntegrityDiagnostics)
+                {
+                    Debug.Log("[GameManager] BuildWorldAsync is using BuildRandomWorld(currentStage).");
+                }
+
+                success = worldBuilder.BuildRandomWorld(currentStage);
+            }
 
             if (!success)
             {

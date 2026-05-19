@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: "\u043A\u043E\u043D\u0435\u04461"
   m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
   id: "\u043A\u043E\u043D\u0435\u04461"
+  sourceCollectionId: Mbase
   type: end1
   fixedPosition: {x: 0, y: 0, z: 0}
   difficultyLevel: 0

@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: "\u0442\u0446"
   m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
   id: "\u0442\u0446"
+  sourceCollectionId: Canter
   type: surf
   fixedPosition: {x: 0, y: 0, z: 0}
   difficultyLevel: 0

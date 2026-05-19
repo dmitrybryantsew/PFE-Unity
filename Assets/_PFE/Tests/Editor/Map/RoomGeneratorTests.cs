@@ -326,6 +326,34 @@ namespace PFE.Tests.Editor.Map
         }
 
         [Test]
+        public void GenerateRoom_DoorConfiguration_UsesUnityTileCoordinates()
+        {
+            RoomGenerator generator = new RoomGenerator();
+            List<RoomTemplate> templates = CreateTestTemplates();
+
+            templates[0].doorQuality[6] = 2;  // AS3 bottom side
+            templates[0].doorQuality[11] = 2; // AS3 left side
+            templates[0].doorQuality[17] = 2; // AS3 top side
+
+            generator.Initialize(templates);
+            RoomInstance room = generator.GenerateRoom(templates[0], new Vector3Int(0, 0, 0));
+
+            DoorInstance bottom = room.doors.Find(door => door.doorIndex == 6);
+            DoorInstance left = room.doors.Find(door => door.doorIndex == 11);
+            DoorInstance top = room.doors.Find(door => door.doorIndex == 17);
+
+            Assert.NotNull(bottom);
+            Assert.NotNull(left);
+            Assert.NotNull(top);
+            Assert.AreEqual(DoorSide.Bottom, bottom.side);
+            Assert.AreEqual(new Vector2Int(4, 0), bottom.tilePosition);
+            Assert.AreEqual(DoorSide.Left, left.side);
+            Assert.AreEqual(new Vector2Int(0, 23), left.tilePosition);
+            Assert.AreEqual(DoorSide.Top, top.side);
+            Assert.AreEqual(new Vector2Int(4, WorldConstants.ROOM_HEIGHT - 1), top.tilePosition);
+        }
+
+        [Test]
         public void RoomType_IsCopiedFromTemplate()
         {
             RoomGenerator generator = new RoomGenerator();
