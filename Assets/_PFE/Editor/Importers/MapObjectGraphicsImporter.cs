@@ -488,8 +488,10 @@ namespace PFE.Editor.Importers
             visual.pixelsPerUnit = PixelsPerUnit;
             visual.pixelSize = GetPixelSize(visual.FirstFrame);
             visual.wallMounted = definition.wallMounted;
-            visual.pivot = definition.wallMounted ? new Vector2(0.5f, 0.5f) : new Vector2(0.5f, 0f);
-            visual.localOffset = Vector2.zero;
+            // AS3 Box uses X as horizontal center and Y as the bottom anchor for every
+            // map object, including wall-mounted doors, lockers, safes, and hatches.
+            visual.pivot = new Vector2(0.5f, 0f);
+            visual.localOffset = ResolveLocalOffset(definition, visual.pivot, sprites);
             visual.sortingOrder = definition.wallMounted ? 1 : 0;
 
             definition.visual = visual;
@@ -497,6 +499,78 @@ namespace PFE.Editor.Importers
 
             EditorUtility.SetDirty(visual);
             EditorUtility.SetDirty(definition);
+        }
+
+        static Vector2 ResolveLocalOffset(MapObjectDefinition definition, Vector2 pivot, IReadOnlyList<Sprite> sprites)
+        {
+            if (definition == null || !definition.wallMounted || sprites == null || sprites.Count == 0 || sprites[0] == null)
+            {
+                return Vector2.zero;
+            }
+
+            string assetPath = AssetDatabase.GetAssetPath(sprites[0]);
+            if (string.IsNullOrWhiteSpace(assetPath) || !File.Exists(assetPath))
+            {
+                return Vector2.zero;
+            }
+
+            Texture2D texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+            try
+            {
+                if (!texture.LoadImage(File.ReadAllBytes(assetPath)))
+                {
+                    return Vector2.zero;
+                }
+
+                if (!TryGetOpaqueBounds(texture, out int minX, out _, out int maxX, out _))
+                {
+                    return Vector2.zero;
+                }
+
+                float contentWidth = maxX - minX + 1f;
+                float logicalWidth = Mathf.Max(1, definition.size) * 40f;
+                if (contentWidth > logicalWidth + 1f)
+                {
+                    return Vector2.zero;
+                }
+
+                float desiredAnchorX = texture.width * pivot.x;
+                float opaqueCenterX = (minX + maxX + 1f) * 0.5f;
+                float offsetX = Mathf.Round(desiredAnchorX - opaqueCenterX);
+                return Mathf.Abs(offsetX) > 0.5f ? new Vector2(offsetX, 0f) : Vector2.zero;
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(texture);
+            }
+        }
+
+        static bool TryGetOpaqueBounds(Texture2D texture, out int minX, out int minY, out int maxX, out int maxY)
+        {
+            Color32[] pixels = texture.GetPixels32();
+            minX = texture.width;
+            minY = texture.height;
+            maxX = -1;
+            maxY = -1;
+
+            for (int y = 0; y < texture.height; y++)
+            {
+                int rowOffset = y * texture.width;
+                for (int x = 0; x < texture.width; x++)
+                {
+                    if (pixels[rowOffset + x].a <= 8)
+                    {
+                        continue;
+                    }
+
+                    minX = Mathf.Min(minX, x);
+                    minY = Mathf.Min(minY, y);
+                    maxX = Mathf.Max(maxX, x);
+                    maxY = Mathf.Max(maxY, y);
+                }
+            }
+
+            return maxX >= minX && maxY >= minY;
         }
 
         static string ResolveImportedVisualId(string resolvedKey, string sourceFolder)

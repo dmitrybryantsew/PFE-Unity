@@ -24,7 +24,7 @@ MonoBehaviour:
   - {fileID: 21300000, guid: e329d666b66ec0f47b4633390a194081, type: 3}
   pixelsPerUnit: 100
   pixelSize: {x: 58, y: 80}
-  pivot: {x: 0.5, y: 0.5}
-  localOffset: {x: 0, y: 0}
+  pivot: {x: 0.5, y: 0}
+  localOffset: {x: 9, y: 0}
   sortingOrder: 1
   wallMounted: 1

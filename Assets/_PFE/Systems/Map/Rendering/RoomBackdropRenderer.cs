@@ -544,7 +544,7 @@ namespace PFE.Systems.Map.Rendering
             }
 
             Sprite sprite = frames[0];
-            Vector2Int renderTileCoord = ConvertAs3TileCoord(decoration.tileCoord);
+            Vector2Int renderTileCoord = ConvertAs3TileCoord(decoration.tileCoord, sprite);
             Vector2 pixelOffset = _backgroundLookup.GetPixelOffset(decoration.decorationId);
             Vector2 spriteExtentsPixels = WorldCoordinates.UnityToPixel(sprite.bounds.extents);
             localPixels = WorldCoordinates.TileToPixel(renderTileCoord) + pixelOffset + spriteExtentsPixels;
@@ -916,7 +916,7 @@ namespace PFE.Systems.Map.Rendering
             }
 
             Sprite sprite = frames[0];
-            Vector2Int renderTileCoord = ConvertAs3TileCoord(tileCoord);
+            Vector2Int renderTileCoord = ConvertAs3TileCoord(tileCoord, sprite);
 
             GameObject backgroundObject = new GameObject($"Background_{id}_{tileCoord.x}_{tileCoord.y}");
             backgroundObject.transform.SetParent(_backgroundParent, false);
@@ -1663,7 +1663,7 @@ namespace PFE.Systems.Map.Rendering
             return Mathf.Lerp(top, bottom, ty);
         }
 
-        private Vector2Int ConvertAs3TileCoord(Vector2Int tileCoord)
+        private Vector2Int ConvertAs3TileCoord(Vector2Int tileCoord, Sprite sprite)
         {
             if (_room == null || _room.height <= 0)
             {
@@ -1671,9 +1671,28 @@ namespace PFE.Systems.Map.Rendering
             }
 
             int borderOffset = Mathf.Max(0, _room.borderOffset);
+            int contentHeight = Mathf.Max(0, _room.height - borderOffset * 2);
+            int decorationHeight = GetLogicalDecorationHeightTiles(sprite);
+
             return new Vector2Int(
                 tileCoord.x + borderOffset,
-                (_room.height - 2 - borderOffset) - tileCoord.y);
+                borderOffset + contentHeight - tileCoord.y - decorationHeight);
+        }
+
+        private static int GetLogicalDecorationHeightTiles(Sprite sprite)
+        {
+            if (sprite == null)
+            {
+                return 1;
+            }
+
+            float pixelHeight = sprite.rect.height;
+            if (pixelHeight <= 0f)
+            {
+                return 1;
+            }
+
+            return Mathf.Max(1, Mathf.CeilToInt(pixelHeight / WorldConstants.TILE_SIZE));
         }
 
         private Vector2Int GetContentOriginTileCoord()
