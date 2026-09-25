@@ -318,14 +318,19 @@ namespace PFE.Systems.Map
                     continue;
 
                 // AS3: arri = js.split(".");
-                // RemoveEmptyEntries handles trailing dots (e.g., "C._E._E.")
-                string[] tileCodes = row.Split(new[] { '.' }, StringSplitOptions.RemoveEmptyEntries);
+                // AS3 keeps empty entries and then indexes a FIXED 0..spaceX-1 range,
+                // so an authored "A..C" leaves column 1 empty and keeps C at column 2.
+                // RemoveEmptyEntries instead collapses the gap and shifts every later
+                // token left by one, which corrupts the row and leaves air at the end.
+                // That was latent while every authored row was dense, but it is reachable
+                // the moment a room editor writes an empty cell.
+                string[] tileCodes = row.Split(new[] { '.' });
 
-                for (int i = 0; i < tileCodes.Length && i < roomWidth; i++)
+                for (int i = 0; i < roomWidth; i++)
                 {
                     // AS3 mirror: read from opposite end
                     int x = mirror ? (roomWidth - i - 1) : i;
-                    string code = tileCodes[i];
+                    string code = i < tileCodes.Length ? tileCodes[i] : string.Empty;
 
                     if (string.IsNullOrEmpty(code))
                         code = "_";
