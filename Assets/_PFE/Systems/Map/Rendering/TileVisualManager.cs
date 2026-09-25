@@ -169,7 +169,7 @@ namespace PFE.Systems.Map.Rendering
                 using (Profiler.Region("tiles.createTile.collider", "boot: per-tile TileCollider add + Initialize for non-air tiles"))
                 {
                     TileCollider collider = tileObj.AddComponent<TileCollider>();
-                    collider.Initialize(tile, debugSettings);
+                    collider.Initialize(tile, debugSettings, this);
                 }
             }
 

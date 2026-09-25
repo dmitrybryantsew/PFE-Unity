@@ -1,6 +1,7 @@
 using UnityEngine;
 using System;
 using PFE.Systems.Map;
+using PFE.Systems.Physics;
 
 namespace PFE.Systems.Map.Streaming
 {
@@ -153,8 +154,33 @@ namespace PFE.Systems.Map.Streaming
                 streamingManager.ActivateRoom(toRoom, fromRoom);
             }
 
+            // LandMap's own bookkeeping was never updated here, so `landMap.currentRoom` kept
+            // pointing at the room the player started in. RoomStreamingManager had just set
+            // that old room's isActive = false, and RoomInstance.Update() early-returns when
+            // inactive — so LandMap.Update() became a no-op and the room the player is actually
+            // in never ticked its units or objects. It also made the NEXT transition compute
+            // `fromRoom` from the wrong room. Activation stays with the streaming manager; this
+            // only fixes the bookkeeping.
+            if (landMap != null && toRoom != null)
+            {
+                landMap.SetCurrentRoom(toRoom);
+            }
+
             // Move player to spawn position
             player.transform.position = spawnPos;
+
+            // P0-2: the transform move alone desyncs the movement motor. TilePhysicsController
+            // keeps its own authoritative posX/posY plus currentRoom, and none of those were
+            // updated — so the next tick collided against the OLD room's tiles at the NEW
+            // room's coordinates (falling through floors / sticking in walls), or fought the
+            // transform back to the old position. Hand off explicitly instead.
+            // motor == null is legitimate: an AI-driven or legacy object has no motor, and a
+            // transform-only move is correct for it.
+            IMovementMotor motor = player.GetComponent<IMovementMotor>();
+            if (motor != null && toRoom != null)
+            {
+                motor.RepositionForRoom(toRoom, spawnPos);
+            }
 
             // Wait for transition duration
             yield return new WaitForSeconds(transitionDuration);

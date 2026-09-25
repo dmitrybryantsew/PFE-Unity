@@ -251,7 +251,6 @@ GameObject:
   - component: {fileID: 7812910789973770164}
   - component: {fileID: 3205032263152521522}
   - component: {fileID: -2588720961981928765}
-  - component: {fileID: 2890627492912910723}
   - component: {fileID: 4873407468948832891}
   - component: {fileID: 874929367802877649}
   - component: {fileID: 1624748335255232816}
@@ -468,47 +467,6 @@ MonoBehaviour:
   teleportChargeTimeSeconds: 0.42
   teleportManaCost: 25
   teleportCooldownSeconds: 5
---- !u!114 &2890627492912910723
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4313158047856038044}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5264179736f0da04795ec97cc44bdc67, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Physics.TilePhysicsController
-  collisionWidth: 30
-  collisionHeight: 30
-  crouchedCollisionHeight: 0
-  colliderOffsetPixels: {x: 0, y: 0}
-  acceleration: 2
-  maxSpeedX: 8
-  maxSpeedY: 20
-  jumpForce: 15
-  groundFriction: 0.7
-  airFriction: 0.95
-  gravityMult: 1
-  globalGravity: 0.98
-  platformThreshold: 8
-  maxSubStepDistance: 9
-  stepUpThreshold: 10
-  stepUpThresholdWhileAirborne: 4
-  platformDropDurationSeconds: 0.18
-  ladderClimbSpeed: 5
-  ladderProbeHalfWidth: 6
-  isGrounded: 0
-  isOnPlatform: 0
-  isInWater: 0
-  isFullySubmerged: 0
-  isOnLadder: 0
-  isCrouching: 0
-  hitCeiling: 0
-  wallLeft: 0
-  wallRight: 0
-  facingDirection: 1
 --- !u!114 &4873407468948832891
 MonoBehaviour:
   m_ObjectHideFlags: 0

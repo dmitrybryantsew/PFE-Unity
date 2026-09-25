@@ -117,6 +117,33 @@ namespace PFE.Systems.Map
         }
 
         /// <summary>
+        /// Update the tracked current room WITHOUT touching activation state, music or the
+        /// room's own Activate/Deactivate callbacks.
+        ///
+        /// <see cref="SwitchRoom"/> is the world-build / load path and does all of that. But a
+        /// door transition goes through <c>RoomStreamingManager.ActivateRoom</c>, which flips
+        /// <c>isActive</c> and never told LandMap anything — so <c>currentRoom</c> stayed on the
+        /// room the player started in. Because <see cref="RoomInstance.Update"/> early-returns
+        /// when the room is not active, and the streaming manager had just deactivated that old
+        /// room, <c>LandMap.Update()</c> became a no-op: the room the player is actually standing
+        /// in never ticked its units or objects.
+        ///
+        /// Bookkeeping is mirrored from SwitchRoom (previousRoom / currentCoord) so the two paths
+        /// stay consistent. Activation is deliberately left to the streaming manager.
+        /// </summary>
+        public void SetCurrentRoom(RoomInstance room)
+        {
+            if (room == null || room == currentRoom)
+            {
+                return;
+            }
+
+            previousRoom = currentRoom;
+            currentRoom = room;
+            currentCoord = room.landPosition;
+        }
+
+        /// <summary>
         /// Get current room position.
         /// </summary>
         public Vector3Int GetCurrentPosition()

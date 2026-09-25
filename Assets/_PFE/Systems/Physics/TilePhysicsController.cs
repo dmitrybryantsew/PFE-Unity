@@ -24,7 +24,14 @@ namespace PFE.Systems.Physics
     ///        Call SetRoom() when entering a new room.
     ///        This replaces Rigidbody2D physics entirely.
     /// </summary>
+    /// <summary>
+    /// P0-1: exactly one motor per GameObject. Two instances both write
+    /// <c>transform.position</c> every tick while only the first receives input,
+    /// which desyncs dx/dy, currentRoom and the rendered position.
+    /// See docs/Roadmap/01_P0_CRITICAL_DEFECT_FIXES.md (Defect 1).
+    /// </summary>
     [DefaultExecutionOrder(-150)]
+    [DisallowMultipleComponent]
     public class TilePhysicsController : MonoBehaviour, IMovementMotor
     {
         [Header("Unit Dimensions (pixels, matching AS3)")]
@@ -171,6 +178,7 @@ namespace PFE.Systems.Physics
         public float VelocityX => dx;
         public float VelocityY => dy;
         public Vector2 PixelPosition => new Vector2(posX, posY);
+        public RoomInstance CurrentRoom => currentRoom;
         public Vector2 ColliderOffsetPixels => colliderOffsetPixels;
         public MovementMotorState State => new MovementMotorState(
             isGrounded,
@@ -351,6 +359,50 @@ namespace PFE.Systems.Physics
             posX = colliderPos.x;
             posY = colliderPos.y;
             SyncUnityPosition();
+        }
+
+        /// <summary>
+        /// P0-1 guard: <see cref="DisallowMultipleComponent"/> stops *new* duplicates but does
+        /// not repair existing ones, so assert at load time. Editor/development only — this is
+        /// an authoring-fault check, not a runtime path. Not gated on PfeDebugSettings because
+        /// a duplicate motor is a hard data fault, not an informational log.
+        /// </summary>
+        private void Awake()
+        {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            TilePhysicsController[] motors = GetComponents<TilePhysicsController>();
+            if (motors != null && motors.Length > 1)
+            {
+                Debug.LogError(
+                    "[PFE] '" + name + "' has " + motors.Length + " TilePhysicsController " +
+                    "components. This desyncs motor state (dx/dy, currentRoom, pixel position). " +
+                    "Exactly one is required.", this);
+            }
+#endif
+        }
+
+        /// <summary>
+        /// P0-2: reposition the motor after a room transition.
+        ///
+        /// Order matters: <see cref="SetRoom"/> MUST run first because it refreshes
+        /// <c>currentRoom</c> and <c>roomWorldPixelX/Y</c>. SetUnityPosition and every
+        /// subsequent tick resolve tiles against currentRoom, so a stale room means
+        /// colliding against the old grid at the new coordinates.
+        ///
+        /// Velocity is cleared because AS3 rebuilds the unit on every location change
+        /// — dx/dy never carry across a door. Preserving them would launch the player
+        /// through the new room at the old room's exit speed.
+        /// </summary>
+        public void RepositionForRoom(RoomInstance room, Vector3 worldPos)
+        {
+            SetRoom(room);
+            SetUnityPosition(worldPos);
+
+            dx = 0f;
+            dy = 0f;
+            isOnLadder = false;
+            dashTimer = 0f;
+            platformDropTimer = 0f;
         }
 
         private void Start()

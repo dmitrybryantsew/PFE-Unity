@@ -1,21 +1,34 @@
 using UnityEngine;
 using PFE.Systems.Map;
 using PFE.Systems.Audio;
+using PFE.Systems.Combat;
 using PFE.Core;
+using PFE.Data.Definitions;
 
 namespace PFE.Systems.Map.Rendering
 {
     /// <summary>
     /// Adds and manages Unity Collider2D components for tiles.
     /// Attached to tile GameObjects alongside TileRenderer.
+    ///
+    /// Also implements <see cref="IDestructibleTile"/> — see P0 Defect 3. This component
+    /// already sits on every non-air tile GameObject, which is precisely the object
+    /// Projectile.cs resolves via GetComponent&lt;IDestructibleTile&gt;(), so implementing
+    /// the interface here wires destruction up with no extra components and no manual
+    /// per-room setup.
     /// </summary>
     [RequireComponent(typeof(TileRenderer))]
-    public class TileCollider : MonoBehaviour
+    public class TileCollider : MonoBehaviour, IDestructibleTile
     {
         [Header("Tile Data")]
         [SerializeField] private TileData tileData;
         [SerializeField] private Collider2D tileCollider;
         private PfeDebugSettings debugSettings;
+
+        // The manager that built this tile. Needed so destruction can go through
+        // TileVisualManager.DestroyTile, which also drops the tile from its
+        // `tileRenderers` registry. Not a Unity object, so not serialized.
+        private TileVisualManager owner;
 
         // Layer constants
         private const int LAYER_GROUND = 6;
@@ -24,10 +37,17 @@ namespace PFE.Systems.Map.Rendering
         /// <summary>
         /// Initialize the tile collider based on tile data.
         /// </summary>
-        public void Initialize(TileData data, PfeDebugSettings debugSettings = null)
+        public void Initialize(TileData data, PfeDebugSettings debugSettings = null,
+                               TileVisualManager owner = null)
         {
             tileData = data;
             this.debugSettings = debugSettings;
+
+            // RefreshCollider() re-enters here with no owner; keep the one we already have.
+            if (owner != null)
+            {
+                this.owner = owner;
+            }
             
             if (tileData == null)
             {
@@ -177,6 +197,103 @@ namespace PFE.Systems.Map.Rendering
         {
             return tileData;
         }
+
+        #region IDestructibleTile
+
+        /// <summary>
+        /// P0-4. Damages this tile by <paramref name="destroyAmount"/>.
+        ///
+        /// Damage semantics ported verbatim from AS3 <c>Tile.udar(param1:int)</c>:
+        /// <code>
+        ///   if (indestruct || thre &gt; param1) return false;
+        ///   hp -= param1;
+        /// </code>
+        /// That is: indestructible tiles ignore it, damage below <c>thre</c> is ignored
+        /// entirely (no chip damage), otherwise HP is reduced by the full amount.
+        ///
+        /// AS3 has NO material-resistance or damage-type modifier in this path —
+        /// <c>Tile.mat</c> is not consulted by <c>udar</c>. So neither is implemented here.
+        /// The "Explosive ignores Metal resistance" wording on IDestructibleTile is
+        /// speculative API design, not original behaviour. See REPLICA_BEHAVIOR_CONTRACT.
+        /// </summary>
+        public void ApplyDestruction(Vector3 worldPosition, float destroyAmount, DamageType damageType)
+        {
+            DamageThisTile(destroyAmount);
+        }
+
+        /// <summary>
+        /// P0-4. Damages this tile as part of an area explosion.
+        ///
+        /// This deliberately does NOT iterate a radius. Projectile.Detonate() already
+        /// enumerates every tile inside the blast with Physics2D.OverlapCircleAll and
+        /// calls this once per tile, so the caller owns the radius filter. Applying a
+        /// full area of damage here would multiply the damage by the number of
+        /// overlapping tiles.
+        /// </summary>
+        public void ApplyDestructionRadius(Vector3 worldPosition, float radius,
+                                           float destroyAmount, DamageType damageType)
+        {
+            DamageThisTile(destroyAmount);
+        }
+
+        private void DamageThisTile(float destroyAmount)
+        {
+            if (tileData == null) return;
+
+            // AS3 udar() takes an int.
+            int damage = Mathf.RoundToInt(destroyAmount);
+            if (damage <= 0) return;
+
+            if (!tileData.TakeDamage(damage)) return;   // indestructible, or below threshold
+            if (!tileData.IsDestroyed()) return;        // chipped but standing
+
+            DestroyThisTile();
+        }
+
+        private void DestroyThisTile()
+        {
+            // Mirrors AS3 Tile.die(): phis=0, opac=0, visuals cleared.
+            tileData.Destroy();
+
+            // Drop the collider immediately so projectiles and units pass through.
+            // Without this the tile stays solid even though it renders as destroyed.
+            if (tileCollider != null)
+            {
+                if (Application.isPlaying)
+                    Destroy(tileCollider);
+                else
+                    DestroyImmediate(tileCollider);
+                tileCollider = null;
+            }
+
+            // Route through the owning manager when there is one: TileVisualManager.DestroyTile
+            // also removes the tile from its `tileRenderers` registry. Calling
+            // TileRenderer.DestroyTile() directly leaves a stale entry pointing at a GameObject
+            // that destroys itself 0.5 s later, so anything iterating the registry (UpdateVisuals,
+            // RefreshSprites) can touch a destroyed renderer.
+            if (owner != null)
+            {
+                owner.DestroyTile(tileData.gridPosition);
+            }
+            else
+            {
+                // Fallback for tiles created outside TileVisualManager (tests, editor preview).
+                TileRenderer renderer = GetComponent<TileRenderer>();
+                if (renderer != null)
+                {
+                    renderer.DestroyTile();
+                }
+            }
+
+            // NOTE: the tile grid is authoritative and read live, so no collision cache
+            // needs invalidating. What IS now stale is the kontur (edge) data of the
+            // surrounding tiles — their visible borders assume this tile is still solid.
+            // TODO(P2): recompute neighbours via KonturCalculator and route the mutation
+            // through ITileQueryService.NotifyTilesMutated so cached geometry backends
+            // (e.g. the Box2D chain path) rebuild.
+        }
+
+        #endregion
 
         /// <summary>
         /// Update collider if tile data changes.

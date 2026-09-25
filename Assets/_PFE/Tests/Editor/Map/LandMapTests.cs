@@ -280,5 +280,80 @@ namespace PFE.Tests.Editor.Map
 
             Assert.AreEqual(new Vector3Int(2, 3, 0), land.GetCurrentPosition());
         }
+
+        // ── SetCurrentRoom (P0 Defect 2 — door-transition bookkeeping) ────────────────────
+        //
+        // A door transition goes through RoomStreamingManager.ActivateRoom, which flips the
+        // rooms' isActive flags but never told LandMap anything. `currentRoom` therefore stayed
+        // on the room the player started in, and because RoomInstance.Update() early-returns
+        // when !isActive, LandMap.Update() became a no-op for the room the player was actually
+        // standing in. These tests pin the narrow fix.
+
+        [Test]
+        public void SetCurrentRoom_UpdatesCurrentAndPrevious()
+        {
+            LandMap land = CreateTestLand();
+            RoomInstance room1 = CreateTestRoom("room1", new Vector3Int(0, 0, 0));
+            RoomInstance room2 = CreateTestRoom("room2", new Vector3Int(1, 0, 0));
+
+            land.AddRoom(room1, new Vector3Int(0, 0, 0));
+            land.AddRoom(room2, new Vector3Int(1, 0, 0));
+
+            land.SwitchRoom(new Vector3Int(0, 0, 0));
+            Assert.AreEqual("room1", land.currentRoom.id);
+
+            land.SetCurrentRoom(room2);
+
+            Assert.AreEqual("room2", land.currentRoom.id,
+                "LandMap still points at the room the player left.");
+            Assert.AreEqual("room1", land.previousRoom.id,
+                "previousRoom bookkeeping must mirror SwitchRoom.");
+            Assert.AreEqual(new Vector3Int(1, 0, 0), land.GetCurrentPosition(),
+                "currentCoord must follow the new room.");
+        }
+
+        [Test]
+        public void SetCurrentRoom_DoesNotTouchActivationState()
+        {
+            LandMap land = CreateTestLand();
+            RoomInstance room1 = CreateTestRoom("room1", new Vector3Int(0, 0, 0));
+            RoomInstance room2 = CreateTestRoom("room2", new Vector3Int(1, 0, 0));
+
+            land.AddRoom(room1, new Vector3Int(0, 0, 0));
+            land.AddRoom(room2, new Vector3Int(1, 0, 0));
+
+            land.SwitchRoom(new Vector3Int(0, 0, 0));
+
+            // Reproduce what the streaming manager has already done by the time
+            // RoomTransitionManager calls SetCurrentRoom.
+            room1.Deactivate();
+            room2.Activate();
+
+            land.SetCurrentRoom(room2);
+
+            Assert.IsTrue(room2.isActive,
+                "SetCurrentRoom must not activate — RoomStreamingManager owns activation.");
+            Assert.IsFalse(room1.isActive,
+                "SetCurrentRoom must not deactivate the room the player left.");
+        }
+
+        [Test]
+        public void SetCurrentRoom_IsIdempotentAndNullSafe()
+        {
+            LandMap land = CreateTestLand();
+            RoomInstance room1 = CreateTestRoom("room1", new Vector3Int(0, 0, 0));
+
+            land.AddRoom(room1, new Vector3Int(0, 0, 0));
+            land.SwitchRoom(new Vector3Int(0, 0, 0));
+
+            land.SetCurrentRoom(room1);
+            Assert.AreEqual("room1", land.currentRoom.id);
+            Assert.IsNull(land.previousRoom,
+                "Re-selecting the same room must not demote it to previousRoom.");
+
+            Assert.DoesNotThrow(() => land.SetCurrentRoom(null));
+            Assert.AreEqual("room1", land.currentRoom.id,
+                "A null room must not clear currentRoom.");
+        }
     }
 }
