@@ -115,7 +115,9 @@ namespace PFE.Core
 
         public static SceneLoaderFadeOverlay Create(Color fadeColor)
         {
-            var existing = UnityEngine.Object.FindObjectOfType<SceneLoaderFadeOverlay>();
+            // FindFirstObjectByType is the non-obsolete replacement for FindObjectOfType.
+            // Both exclude inactive objects by default, so behaviour is unchanged.
+            var existing = UnityEngine.Object.FindFirstObjectByType<SceneLoaderFadeOverlay>();
             if (existing != null)
             {
                 existing.SetupIfNeeded(fadeColor);

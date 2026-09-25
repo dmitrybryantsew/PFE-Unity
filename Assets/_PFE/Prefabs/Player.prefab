@@ -391,7 +391,6 @@ MonoBehaviour:
   acceleration: 2
   maxSpeedX: 8
   maxSpeedY: 20
-  jumpForce: 10
   groundFriction: 0.7
   airFriction: 0.95
   gravityMult: 1

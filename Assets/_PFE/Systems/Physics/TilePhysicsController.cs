@@ -57,8 +57,13 @@ namespace PFE.Systems.Physics
         [Tooltip("Maximum vertical speed (pixels/frame, maxdy in AS3)")]
         [SerializeField] private float maxSpeedY = 20f;
 
-        [Tooltip("Jump force (pixels/frame, jumpdy in AS3)")]
-        [SerializeField] private float jumpForce = 10f;
+        // Jump force is deliberately NOT owned by this motor. The live constant is
+        // PlayerLocomotionController.baseJumpForce (sourced from UnitDefinition.jumpForce,
+        // AS3 jumpdy) and is handed to the motor through IMovementMotor.Jump().
+        // A [SerializeField] float jumpForce = 10f lived here; it was never read anywhere
+        // (only assigned), which raised CS0414. Removed rather than wired up, because wiring
+        // it up would silently change jump height. If the motor should own jumpdy instead,
+        // that is a design decision for the physics rewrite, not a warning cleanup.
 
         [Tooltip("Ground friction (brake in AS3, 0-1)")]
         [SerializeField] private float groundFriction = 0.7f;
