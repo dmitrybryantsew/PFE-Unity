@@ -1,4 +1,5 @@
 #if UNITY_EDITOR
+using System;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
@@ -17,11 +18,36 @@ namespace PFE.Editor
         private const float MaxBackdropOffset = 2f;
         private const float MinBrightness = 0f;
         private const float MaxBrightness = 2.5f;
+        private const string AllCollectionsLabel = "All";
+        private const string BackgroundRoomType = "back";
 
-        private List<RoomTemplate> _templates;
-        private string[] _templateOptions;
-        private bool _templatesLoaded;
         private int _selectedDecorationIndex;
+
+        // Collection (folder) filter for the preview template picker.
+        // Template + collection are kept together in one list on purpose: parallel
+        // lists previously drifted out of sync when the load step did not finish,
+        // which threw IndexOutOfRange from the inspector.
+        private List<TemplateEntry> _entries;
+        private List<TemplateEntry> _filteredEntries;
+        private List<string> _collectionNames;
+        private string[] _collectionOptions;
+        private string[] _filteredOptions;
+        private int _selectedCollectionIndex;
+        private bool _filteredListDirty = true;
+        private bool _collectionInitialized;
+        private bool _entriesLoaded;
+
+        private struct TemplateEntry
+        {
+            public RoomTemplate Template;
+            public string Collection;
+
+            public TemplateEntry(RoomTemplate template, string collection)
+            {
+                Template = template;
+                Collection = collection;
+            }
+        }
 
         public override void OnInspectorGUI()
         {
@@ -78,21 +104,155 @@ namespace PFE.Editor
 
         private void DrawTemplateSelector(RoomVisualController controller)
         {
-            if (_templates == null || _templates.Count == 0)
+            if (_entries == null || _entries.Count == 0)
             {
                 EditorGUILayout.HelpBox("No RoomTemplate assets found under Assets/_PFE/Data/Resources/Rooms.", MessageType.Warning);
                 return;
             }
 
             RoomTemplate currentTemplate = controller.PreviewTemplate;
-            int currentIndex = Mathf.Max(0, _templates.IndexOf(currentTemplate));
-            int nextIndex = EditorGUILayout.Popup("Template", currentIndex, _templateOptions);
 
-            if (nextIndex >= 0 && nextIndex < _templates.Count && _templates[nextIndex] != currentTemplate)
+            SyncCollectionToCurrentTemplate(currentTemplate);
+            EnsureFilteredListCurrent();
+            DrawCollectionFilter(controller);
+
+            currentTemplate = controller.PreviewTemplate;
+
+            int rawIndex = FindFilteredIndex(currentTemplate);
+            int currentIndex = rawIndex >= 0 ? rawIndex : 0;
+
+            if (_filteredOptions == null || _filteredOptions.Length == 0)
             {
-                Undo.RecordObject(controller, "Change Preview Template");
-                controller.PreviewTemplate = _templates[nextIndex];
-                EditorUtility.SetDirty(controller);
+                EditorGUILayout.HelpBox("No rooms match the selected collection.", MessageType.Info);
+                return;
+            }
+
+            int nextIndex = EditorGUILayout.Popup("Room", currentIndex, _filteredOptions);
+
+            if (nextIndex >= 0 && nextIndex < _filteredEntries.Count)
+            {
+                RoomTemplate picked = _filteredEntries[nextIndex].Template;
+                if (picked != null && picked != currentTemplate)
+                {
+                    Undo.RecordObject(controller, "Change Preview Template");
+                    controller.PreviewTemplate = picked;
+                    EditorUtility.SetDirty(controller);
+                    currentTemplate = picked;
+                }
+            }
+
+            if (currentTemplate != null && string.Equals(currentTemplate.type, BackgroundRoomType, StringComparison.Ordinal))
+            {
+                EditorGUILayout.HelpBox(
+                    $"'{currentTemplate.id}' is a BACKGROUND layer room (type=back). Loaded as foreground it " +
+                    "renders almost nothing - it is meant to sit behind a foreground room. " +
+                    "Pick a foreground room (pass/beg/vert/...) if the preview looks empty.",
+                    MessageType.Warning);
+            }
+        }
+
+        /// <summary>
+        /// Index of a template in the current filtered list, or -1 when it is not present.
+        /// Uses reference equality because UnityEngine.Object overloads == / Equals.
+        /// </summary>
+        private int FindFilteredIndex(RoomTemplate template)
+        {
+            if (template == null || _filteredEntries == null)
+            {
+                return -1;
+            }
+
+            for (int i = 0; i < _filteredEntries.Count; i++)
+            {
+                if (ReferenceEquals(_filteredEntries[i].Template, template))
+                {
+                    return i;
+                }
+            }
+
+            return -1;
+        }
+
+        private void DrawCollectionFilter(RoomVisualController controller)
+        {
+            if (_collectionOptions == null || _collectionOptions.Length == 0)
+            {
+                return;
+            }
+
+            if (_selectedCollectionIndex < 0 || _selectedCollectionIndex >= _collectionOptions.Length)
+            {
+                _selectedCollectionIndex = 0;
+                _filteredListDirty = true;
+                EnsureFilteredListCurrent();
+            }
+
+            int nextCollection = EditorGUILayout.Popup("Collection", _selectedCollectionIndex, _collectionOptions);
+            if (nextCollection == _selectedCollectionIndex)
+            {
+                return;
+            }
+
+            _selectedCollectionIndex = nextCollection;
+            _filteredListDirty = true;
+            EnsureFilteredListCurrent();
+
+            // Drill-down: switching collection must also move the selection into that
+            // collection, otherwise the Room popup would highlight one room while
+            // "Load Preview Room" still uses the previous collection's template.
+            if (_filteredEntries != null && _filteredEntries.Count > 0 &&
+                FindFilteredIndex(controller.PreviewTemplate) < 0)
+            {
+                RoomTemplate first = _filteredEntries[0].Template;
+                if (first != null)
+                {
+                    Undo.RecordObject(controller, "Change Preview Template");
+                    controller.PreviewTemplate = first;
+                    EditorUtility.SetDirty(controller);
+                }
+            }
+        }
+
+        private void EnsureFilteredListCurrent()
+        {
+            if (!_filteredListDirty && _filteredEntries != null && _filteredOptions != null)
+            {
+                return;
+            }
+
+            _filteredListDirty = false;
+
+            if (_entries == null)
+            {
+                _filteredEntries = new List<TemplateEntry>();
+                _filteredOptions = new string[0];
+                return;
+            }
+
+            // _collectionNames[0] is "All" (no filter); real collections start at index 1.
+            string selectedCollection = null;
+            if (_collectionNames != null && _selectedCollectionIndex > 0 && _selectedCollectionIndex < _collectionNames.Count)
+            {
+                selectedCollection = _collectionNames[_selectedCollectionIndex];
+            }
+
+            _filteredEntries = new List<TemplateEntry>();
+            for (int i = 0; i < _entries.Count; i++)
+            {
+                if (selectedCollection == null ||
+                    string.Equals(_entries[i].Collection, selectedCollection, StringComparison.Ordinal))
+                {
+                    _filteredEntries.Add(_entries[i]);
+                }
+            }
+
+            _filteredOptions = new string[_filteredEntries.Count];
+            for (int i = 0; i < _filteredEntries.Count; i++)
+            {
+                RoomTemplate template = _filteredEntries[i].Template;
+                string typeLabel = template != null && !string.IsNullOrWhiteSpace(template.type) ? template.type : "?";
+                string id = template != null ? template.id : "(missing)";
+                _filteredOptions[i] = $"{_filteredEntries[i].Collection} / {id}  [{typeLabel}]";
             }
         }
 
@@ -402,37 +562,124 @@ namespace PFE.Editor
 
         private void EnsureTemplatesLoaded()
         {
-            if (_templatesLoaded)
+            // The flag is only set once the whole build succeeds. Marking it loaded up-front
+            // meant a failure half-way through left the picker permanently broken (options
+            // null while the template list was already populated) and it never retried.
+            if (_entriesLoaded && _entries != null && _collectionOptions != null)
             {
                 return;
             }
 
-            _templatesLoaded = true;
-            _templates = new List<RoomTemplate>();
+            List<TemplateEntry> loaded = new List<TemplateEntry>();
 
             string[] guids = AssetDatabase.FindAssets("t:RoomTemplate", new[] { RoomTemplateRoot });
             for (int i = 0; i < guids.Length; i++)
             {
                 string path = AssetDatabase.GUIDToAssetPath(guids[i]);
                 RoomTemplate template = AssetDatabase.LoadAssetAtPath<RoomTemplate>(path);
-                if (template != null)
+                if (template == null)
                 {
-                    _templates.Add(template);
+                    continue;
                 }
+
+                loaded.Add(new TemplateEntry(template, ResolveCollection(template, path)));
             }
 
-            _templates.Sort((a, b) =>
+            loaded.Sort((a, b) =>
             {
-                string left = $"{a.type}/{a.id}";
-                string right = $"{b.type}/{b.id}";
+                string left = $"{a.Template.type}/{a.Template.id}";
+                string right = $"{b.Template.type}/{b.Template.id}";
                 return string.CompareOrdinal(left, right);
             });
 
-            _templateOptions = new string[_templates.Count];
-            for (int i = 0; i < _templates.Count; i++)
+            _entries = loaded;
+            BuildCollectionOptions();
+            _filteredListDirty = true;
+            _entriesLoaded = true;
+        }
+
+        /// <summary>
+        /// Room "collection" = the folder the template lives in (Base, Camp, Serial, ...).
+        /// Prefers the authored sourceCollectionId and falls back to the parent folder name,
+        /// so templates imported without that field still group correctly.
+        /// </summary>
+        private static string ResolveCollection(RoomTemplate template, string assetPath)
+        {
+            if (!string.IsNullOrWhiteSpace(template.sourceCollectionId))
             {
-                RoomTemplate template = _templates[i];
-                _templateOptions[i] = $"{template.type} / {template.id}";
+                return template.sourceCollectionId;
+            }
+
+            if (string.IsNullOrWhiteSpace(assetPath))
+            {
+                return "Unsorted";
+            }
+
+            int lastSlash = assetPath.LastIndexOf('/');
+            if (lastSlash <= 0)
+            {
+                return "Unsorted";
+            }
+
+            string folder = assetPath.Substring(0, lastSlash);
+            int parentSlash = folder.LastIndexOf('/');
+            string folderName = parentSlash >= 0 ? folder.Substring(parentSlash + 1) : folder;
+            return string.IsNullOrWhiteSpace(folderName) ? "Unsorted" : folderName;
+        }
+
+        private void BuildCollectionOptions()
+        {
+            SortedDictionary<string, int> counts = new SortedDictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            for (int i = 0; i < _entries.Count; i++)
+            {
+                string collection = _entries[i].Collection;
+                counts.TryGetValue(collection, out int existing);
+                counts[collection] = existing + 1;
+            }
+
+            List<string> names = new List<string>(counts.Keys);
+            _collectionOptions = new string[names.Count + 1];
+            _collectionOptions[0] = $"{AllCollectionsLabel} ({_entries.Count})";
+            for (int i = 0; i < names.Count; i++)
+            {
+                _collectionOptions[i + 1] = $"{names[i]} ({counts[names[i]]})";
+            }
+
+            // _collectionNames mirrors the popup order: index 0 is "All" (no filter),
+            // so the collection shown at popup index N is _collectionNames[N].
+            List<string> ordered = new List<string> { AllCollectionsLabel };
+            ordered.AddRange(names);
+            _collectionNames = ordered;
+        }
+
+        /// <summary>
+        /// On first draw, move the collection filter to whatever template is already assigned,
+        /// so the Room popup shows the current selection instead of silently resetting it.
+        /// </summary>
+        private void SyncCollectionToCurrentTemplate(RoomTemplate currentTemplate)
+        {
+            if (_collectionInitialized || currentTemplate == null || _entries == null || _collectionNames == null)
+            {
+                return;
+            }
+
+            _collectionInitialized = true;
+
+            for (int i = 0; i < _entries.Count; i++)
+            {
+                if (!ReferenceEquals(_entries[i].Template, currentTemplate))
+                {
+                    continue;
+                }
+
+                int collectionIndex = _collectionNames.IndexOf(_entries[i].Collection);
+                if (collectionIndex > 0)
+                {
+                    _selectedCollectionIndex = collectionIndex;
+                    _filteredListDirty = true;
+                }
+
+                return;
             }
         }
     }
