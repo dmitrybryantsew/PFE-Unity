@@ -3,6 +3,7 @@ using UnityEngine;
 using PFE.Systems.Map;
 using PFE.Entities.Player;
 using PFE.Core;
+using Profiler = PFE.Core.Profiling.PfeProfiler;
 
 namespace PFE.Systems.Map.Rendering
 {
@@ -117,6 +118,7 @@ namespace PFE.Systems.Map.Rendering
             
             roomInstance = room;
             tileAssetDatabase = ResolveTileAssetDatabase(assetDatabase);
+            Profiler.Mark("room.resolveTileDb");
             visibilityRevealTargetTransform = null;
 
             if (room == null)
@@ -177,6 +179,7 @@ namespace PFE.Systems.Map.Rendering
                 ResolveBackgroundTileTint(room),
                 MapSortingLayers.MainTiles,
                 MapSortingLayers.Foreground);
+                Profiler.Mark("room.tileVisualManager.ctor");
 
             // Create background layer if exists
             if (room.hasBackgroundLayer && room.backgroundRoom != null)
@@ -196,6 +199,7 @@ namespace PFE.Systems.Map.Rendering
                     ResolveBackgroundTileTint(room),
                     MapSortingLayers.BackgroundTiles,
                     MapSortingLayers.BackgroundTiles);
+                    Profiler.Mark("room.bgTileVisualManager.ctor");
             }
             else if (room.hasBackgroundLayer)
             {
@@ -204,6 +208,7 @@ namespace PFE.Systems.Map.Rendering
 
             ApplyStoredRoomTintSettingsIfAvailable(room);
             ApplyStoredBackdropSettingsIfAvailable(room);
+            Profiler.Mark("room.storedSettings.applied");
             roomBackdropRenderer = new RoomBackdropRenderer(
                 room,
                 tileTextureLookup,
@@ -220,13 +225,21 @@ namespace PFE.Systems.Map.Rendering
                 backdropSharpenStrength,
                 GetCurrentBackgroundAssetTintSettings(),
                 disableBackdropShadowBakeForDebug);
-            KonturCalculator.CalculateAll(room);
+                Profiler.Mark("room.backdropRenderer.ctor");
+
+            using (Profiler.Region("room.kontur.calculateAll", "boot: expected trivial"))
+            {
+                KonturCalculator.CalculateAll(room);
+            }
             // Create all tiles
             if (debugSettings != null && debugSettings.LogRoomRenderingLifecycle)
             {
                 Debug.Log("[RoomVisualController] Creating main layer tiles...");
             }
-            tileVisualManager.CreateAllTiles();
+            using (Profiler.Region("tiles.createAll", "boot: MEASURED 2518ms (2026-09-25) — was ~31s before the TileCompositor fixes"))
+            {
+                tileVisualManager.CreateAllTiles();
+            }
             int mainTiles = tileVisualManager.GetTileCount();
             if (debugSettings != null && debugSettings.LogRoomRenderingLifecycle)
             {
@@ -235,16 +248,23 @@ namespace PFE.Systems.Map.Rendering
 
             if (backgroundTileVisualManager != null)
             {
-                backgroundTileVisualManager.CreateAllTiles();
+                using (Profiler.Region("tiles.createAll.bg", "boot: background layer — never fires for the base room"))
+                {
+                    backgroundTileVisualManager.CreateAllTiles();
+                }
                 if (debugSettings != null && debugSettings.LogRoomRenderingLifecycle)
                 {
                     Debug.Log($"[RoomVisualController] Created {backgroundTileVisualManager.GetTileCount()} background tiles");
                 }
             }
 
-            roomBackdropRenderer.CreateVisuals();
+            using (Profiler.Region("room.backdrop.createVisuals", "boot: MEASURED 1453ms (2026-09-25) — 2nd largest item. Now split into backdrop.* sub-regions"))
+            {
+                roomBackdropRenderer.CreateVisuals();
+            }
             roomObjectVisualManager = new RoomObjectVisualManager(room, backgroundObjectParent, backgroundPhysicalObjectParent);
             roomObjectVisualManager.RefreshAll();
+            Profiler.Mark("room.objects.refreshAll");
 
             // Set world position
             Vector3 worldPos = GetRoomWorldPosition();
@@ -513,6 +533,22 @@ namespace PFE.Systems.Map.Rendering
             ClampBackdropSettings();
 
             #if UNITY_EDITOR
+            // Do NOT schedule the editor preview rebuild while playing.
+            //
+            // OnValidate fires during play-mode boot (Unity calls it when the component is loaded),
+            // and the delayed call below rebuilds the entire backdrop. Measured 2026-09-25: that
+            // second CreateVisuals cost ~1418 ms — a full rebuild on top of the one Initialize had
+            // already done a few seconds earlier, i.e. ~20% of the 6.9 s boot, entirely wasted.
+            // The editor preview is not visible in play mode, and nothing reads a preview there.
+            //
+            // Verified that OnValidate -> delayCall is the ONLY live path into that rebuild:
+            // RoomVisualController.RefreshSprites() (the other caller of RefreshBackdropVisuals)
+            // has no call sites anywhere in the project.
+            if (Application.isPlaying)
+            {
+                return;
+            }
+
             UnityEditor.EditorApplication.delayCall -= RefreshBackdropPreviewDelayed;
             UnityEditor.EditorApplication.delayCall += RefreshBackdropPreviewDelayed;
             #endif
@@ -550,7 +586,15 @@ namespace PFE.Systems.Map.Rendering
                 backdropSharpenStrength,
                 GetCurrentBackgroundAssetTintSettings(),
                 disableBackdropShadowBakeForDebug);
-            roomBackdropRenderer.CreateVisuals();
+
+            // Separate region from room.backdrop.createVisuals on purpose: this path is reached
+            // from the editor-preview refresh, NOT from Initialize. When both shared one id the
+            // report showed a child (2 calls, 2394 ms) totalling more than its parent (1 call,
+            // 1418 ms), which is how the redundant rebuild was found. Keep them distinguishable.
+            using (Profiler.Region("backdrop.createVisuals.refresh", "boot: REBUILD path (editor preview / RefreshSprites), not the Initialize path. Should not fire during play"))
+            {
+                roomBackdropRenderer.CreateVisuals();
+            }
         }
 
         private void ApplyBackgroundLayerRendering(RoomInstance room)
@@ -849,6 +893,46 @@ namespace PFE.Systems.Map.Rendering
         }
         #endif
 
+        private static void CopyEditedTileFields(TileData source, TileData destination)
+        {
+            if (source == null || destination == null)
+            {
+                return;
+            }
+
+            destination.physicsType = source.physicsType;
+            destination.indestructible = source.indestructible;
+            destination.hitPoints = source.hitPoints;
+            destination.damageThreshold = source.damageThreshold;
+            destination.SetFrontGraphic(source.GetFrontGraphic());
+            destination.SetBackGraphic(source.GetBackGraphic());
+            destination.SetZadGraphic(source.GetZadGraphic());
+            destination.visualId = source.visualId;
+            destination.visualId2 = source.visualId2;
+            destination.frontRear = source.frontRear;
+            destination.vidRear = source.vidRear;
+            destination.vid2Rear = source.vid2Rear;
+            destination.opacity = source.opacity;
+            destination.heightLevel = source.heightLevel;
+            destination.slopeType = source.slopeType;
+            destination.stairType = source.stairType;
+            destination.isLedge = source.isLedge;
+            destination.hasWater = source.hasWater;
+            destination.lurk = source.lurk;
+            destination.kontur1 = source.kontur1;
+            destination.kontur2 = source.kontur2;
+            destination.kontur3 = source.kontur3;
+            destination.kontur4 = source.kontur4;
+            destination.pontur1 = source.pontur1;
+            destination.pontur2 = source.pontur2;
+            destination.pontur3 = source.pontur3;
+            destination.pontur4 = source.pontur4;
+            destination.material = source.material;
+            destination.canPlaceObjects = source.canPlaceObjects;
+            destination.doorId = source.doorId;
+            destination.trapId = source.trapId;
+        }
+
         #if UNITY_EDITOR
         public RoomTemplate PreviewTemplate
         {
@@ -972,46 +1056,6 @@ namespace PFE.Systems.Map.Rendering
                 UnityEngine.Object child = parent.GetChild(i).gameObject;
                 UnityEngine.Object.DestroyImmediate(child);
             }
-        }
-
-        private static void CopyEditedTileFields(TileData source, TileData destination)
-        {
-            if (source == null || destination == null)
-            {
-                return;
-            }
-
-            destination.physicsType = source.physicsType;
-            destination.indestructible = source.indestructible;
-            destination.hitPoints = source.hitPoints;
-            destination.damageThreshold = source.damageThreshold;
-            destination.SetFrontGraphic(source.GetFrontGraphic());
-            destination.SetBackGraphic(source.GetBackGraphic());
-            destination.SetZadGraphic(source.GetZadGraphic());
-            destination.visualId = source.visualId;
-            destination.visualId2 = source.visualId2;
-            destination.frontRear = source.frontRear;
-            destination.vidRear = source.vidRear;
-            destination.vid2Rear = source.vid2Rear;
-            destination.opacity = source.opacity;
-            destination.heightLevel = source.heightLevel;
-            destination.slopeType = source.slopeType;
-            destination.stairType = source.stairType;
-            destination.isLedge = source.isLedge;
-            destination.hasWater = source.hasWater;
-            destination.lurk = source.lurk;
-            destination.kontur1 = source.kontur1;
-            destination.kontur2 = source.kontur2;
-            destination.kontur3 = source.kontur3;
-            destination.kontur4 = source.kontur4;
-            destination.pontur1 = source.pontur1;
-            destination.pontur2 = source.pontur2;
-            destination.pontur3 = source.pontur3;
-            destination.pontur4 = source.pontur4;
-            destination.material = source.material;
-            destination.canPlaceObjects = source.canPlaceObjects;
-            destination.doorId = source.doorId;
-            destination.trapId = source.trapId;
         }
 
         private static RoomTemplate LoadRoomTemplateById(string templateId, RoomTemplate context = null)

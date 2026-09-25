@@ -135,6 +135,9 @@ InitTestScene*.unity*
 /Assets/_PFE/Data/MusicImportReport.txt.meta
 /Assets/_PFE/Data/MapObjects/ImportReports/
 
+# Profiling output: Unity Profiler captures (.bc7/.data/.png) and PfeProfiler dumps
+/ProfilerCaptures/
+
 # Unity recovery/temp content
 /Assets/_Recovery/
 .claude/settings.local.json

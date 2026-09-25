@@ -1,6 +1,7 @@
 using UnityEngine;
 using System.Collections.Generic;
 using PFE.Core;
+using Profiler = PFE.Core.Profiling.PfeProfiler;
 //using TileCollider;
 namespace PFE.Systems.Map.Rendering
 {
@@ -88,9 +89,16 @@ namespace PFE.Systems.Map.Rendering
                         continue;
                     }
 
-                    if (ShouldRenderTile(tile))
+                    TileVisualData visualData = null;
+                    bool renderTile;
+                    using (Profiler.Region("tiles.shouldRender", "boot: MEASURED 0.008ms/call (2026-09-25) — was 13.6ms/call before the TileCompositor fixes. Now effectively free"))
                     {
-                        CreateTile(tile);
+                        renderTile = ShouldRenderTile(tile, out visualData);
+                    }
+
+                    if (renderTile)
+                    {
+                        CreateTile(tile, visualData);
                         createdCount++;
                     }
                     else
@@ -104,12 +112,21 @@ namespace PFE.Systems.Map.Rendering
             {
                 Debug.Log($"[TileVisualManager] Tile creation complete: {createdCount} created, {skippedAirCount} air skipped, {nullTileCount} null tiles");
             }
+
         }
 
         /// <summary>
         /// Create a single tile GameObject.
         /// </summary>
         public TileRenderer CreateTile(TileData tile)
+        {
+            return CreateTile(tile, null);
+        }
+
+        /// <summary>
+        /// Create a single tile GameObject, reusing already-resolved visual data when supplied.
+        /// </summary>
+        public TileRenderer CreateTile(TileData tile, TileVisualData visualData)
         {
             if (tile == null)
                 return null;
@@ -121,23 +138,39 @@ namespace PFE.Systems.Map.Rendering
             }
 
             // Create GameObject
-            GameObject tileObj = new GameObject($"Tile_{tile.gridPosition.x}_{tile.gridPosition.y}");
-            tileObj.transform.SetParent(tileParent);
+            GameObject tileObj;
+            using (Profiler.Region("tiles.createTile.go", "boot: per-tile GameObject + parent, ~1136 calls"))
+            {
+                tileObj = new GameObject($"Tile_{tile.gridPosition.x}_{tile.gridPosition.y}");
+                tileObj.transform.SetParent(tileParent);
+            }
 
             // Add renderer component
-            TileRenderer renderer = tileObj.AddComponent<TileRenderer>();
-            TileVisualData visualData = ResolveVisualData(tile);
-            renderer.Initialize(tile, assetDatabase, visualData);
-            renderer.SetSortingLayers(baseSortingLayerName, frontSortingLayerName);
-            renderer.SetSortingOrderOffset(sortingOrderOffset);
-            renderer.SetColorTint(tintColor);
-            renderer.SetSecondaryColorTint(secondaryTintColor);
+            TileRenderer renderer;
+            using (Profiler.Region("tiles.createTile.renderer", "boot: per-tile TileRenderer add + Initialize + sprite assignment"))
+            {
+                renderer = tileObj.AddComponent<TileRenderer>();
+                if (visualData == null)
+                {
+                    // Only reached from UpdateTile / RefreshSprites now — CreateAllTiles hands
+                    // in the already-resolved data.
+                    visualData = ResolveVisualData(tile);
+                }
+                renderer.Initialize(tile, assetDatabase, visualData);
+                renderer.SetSortingLayers(baseSortingLayerName, frontSortingLayerName);
+                renderer.SetSortingOrderOffset(sortingOrderOffset);
+                renderer.SetColorTint(tintColor);
+                renderer.SetSecondaryColorTint(secondaryTintColor);
+            }
 
             // Add collider component for solid tiles
             if (tile.physicsType != TilePhysicsType.Air)
             {
-                TileCollider collider = tileObj.AddComponent<TileCollider>();
-                collider.Initialize(tile, debugSettings);
+                using (Profiler.Region("tiles.createTile.collider", "boot: per-tile TileCollider add + Initialize for non-air tiles"))
+                {
+                    TileCollider collider = tileObj.AddComponent<TileCollider>();
+                    collider.Initialize(tile, debugSettings);
+                }
             }
 
             // Store reference
@@ -343,17 +376,51 @@ namespace PFE.Systems.Map.Rendering
 
         private bool ShouldRenderTile(TileData tile)
         {
+            return ShouldRenderTile(tile, out _);
+        }
+
+        /// <summary>
+        /// Resolves the tile's visual data once and reports whether it should be rendered.
+        /// The resolved data is handed to CreateTile so ResolveVisualData is not run a second
+        /// time — it used to be called here and again inside CreateTile for every tile.
+        /// </summary>
+        private bool ShouldRenderTile(TileData tile, out TileVisualData visualData)
+        {
+            visualData = null;
+
             if (tile == null)
             {
                 return false;
             }
 
-            if (tile.physicsType == TilePhysicsType.Air && compositor != null && HasBackGraphic(tile))
+            if (tile.physicsType == TilePhysicsType.Air)
             {
-                return true;
+                // An air tile still needs a renderer whenever it carries ANY visual. The old
+                // test only accepted a back graphic, which silently dropped every overlay that
+                // does not promote physics off Air — and slopes are exactly that: TileDecoder
+                // sets slopeType for diagon but never raises physicsType, so "_В"/"_Г"/"_Й" stay
+                // Air with an empty back graphic. 2398 tiles across the 557 shipped rooms are
+                // slope-on-air, and all of them rendered as nothing at all (the cell showed the
+                // dark room backdrop plus the tile's own baked shadow, which reads as a black
+                // hole). Stairs and shelves never hit this because they do promote to
+                // Stair/Platform.
+                bool hasAnyVisual = HasBackGraphic(tile)
+                    || !string.IsNullOrEmpty(tile.GetFrontGraphic())
+                    || tile.visualId > 0
+                    || tile.visualId2 > 0;
+
+                if (!hasAnyVisual)
+                {
+                    return false;
+                }
+
+                // The slope/stair overlay lives on a child renderer, so it is only reachable
+                // through the resolved data. Plain air has none of the above and still bails
+                // out early, so the common case costs nothing extra.
             }
 
-            return tile.physicsType != TilePhysicsType.Air && ResolveVisualData(tile).HasAnySprite();
+            visualData = ResolveVisualData(tile);
+            return visualData.HasAnySprite();
         }
 
         private bool HasBackGraphic(TileData tile)
@@ -363,14 +430,29 @@ namespace PFE.Systems.Map.Rendering
 
         private TileVisualData ResolveVisualData(TileData tile)
         {
+            Sprite main;
+            using (Profiler.Region("tiles.resolve.front", "boot: MEASURED 999ms / 1136 calls (2026-09-25). Of that, tiles.generateFront is 963ms over 508 misses"))
+            {
+                main = ResolveFrontSprite(tile);
+            }
+
+            Sprite back;
+            using (Profiler.Region("tiles.resolve.back", "boot: MEASURED 1029ms / 1136 calls (2026-09-25). Of that, tiles.generateBack is 995ms over 614 misses"))
+            {
+                back = ResolveBackSprite(tile);
+            }
+
             TileVisualData visualData = new TileVisualData
             {
-                MainSprite = ResolveFrontSprite(tile),
-                BackSprite = ResolveBackSprite(tile),
+                MainSprite = main,
+                BackSprite = back,
                 HeightScale = Mathf.Clamp01(1f - tile.heightLevel * 0.25f)
             };
 
-            AssignOverlaySprites(tile, visualData);
+            using (Profiler.Region("tiles.resolve.overlay", "boot: assetDatabase.GetOverlaySprite x2 — measured ~2ms total, believed trivial"))
+            {
+                AssignOverlaySprites(tile, visualData);
+            }
             return visualData;
         }
 

@@ -15,14 +15,31 @@ namespace PFE.Systems.Map.Rendering
         [SerializeField] private TileAssetDatabase tileDatabase;
         [SerializeField] private TileTextureLookup tileTextureLookup;
         [SerializeField] private MaterialRenderDatabase materialRenderDatabase;
+        [SerializeField] private TileMaskLookup tileMaskLookup;
+        [SerializeField] private RoomBackgroundLookup roomBackgroundLookup;
         
         private GameManager gameManager;
+        private RoomGenerator roomGenerator;
+        private PfeDebugSettings debugSettings;
         private MapBridge mapBridge;
         
         [Inject]
-        public void Construct(GameManager gm)
+        public void Construct(
+            GameManager gm,
+            RoomGenerator generator,
+            TileTextureLookup textureLookup,
+            MaterialRenderDatabase materialDatabase,
+            TileMaskLookup maskLookup,
+            RoomBackgroundLookup backgroundLookup,
+            PfeDebugSettings debug)
         {
             gameManager = gm;
+            roomGenerator = generator;
+            tileTextureLookup = tileTextureLookup != null ? tileTextureLookup : textureLookup;
+            materialRenderDatabase = materialRenderDatabase != null ? materialRenderDatabase : materialDatabase;
+            tileMaskLookup = tileMaskLookup != null ? tileMaskLookup : maskLookup;
+            roomBackgroundLookup = roomBackgroundLookup != null ? roomBackgroundLookup : backgroundLookup;
+            debugSettings = debug;
         }
         
         private void Start()
@@ -85,23 +102,21 @@ namespace PFE.Systems.Map.Rendering
                 Debug.Log("[MapRendererBootstrapper] Set tileDatabase reference");
             }
             
-            // Trigger injection manually since we created this at runtime
-            // The GameManager should already be available via VContainer
-            var constructMethod = typeof(MapBridge).GetMethod("Construct", 
-                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
-            if (constructMethod != null && gameManager != null)
+            if (gameManager != null && roomGenerator != null)
             {
-                constructMethod.Invoke(bridge, new object[] { gameManager, tileTextureLookup, materialRenderDatabase });
+                bridge.Construct(
+                    gameManager,
+                    roomGenerator,
+                    tileTextureLookup,
+                    materialRenderDatabase,
+                    tileMaskLookup,
+                    roomBackgroundLookup,
+                    debugSettings);
                 Debug.Log("[MapRendererBootstrapper] Injected runtime dependencies into MapBridge");
             }
-            
-            // Call Start manually to begin initialization
-            var startMethod = typeof(MapBridge).GetMethod("Start", 
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            if (startMethod != null)
+            else
             {
-                startMethod.Invoke(bridge, null);
-                Debug.Log("[MapRendererBootstrapper] Called MapBridge.Start()");
+                Debug.LogError("[MapRendererBootstrapper] Cannot inject MapBridge: GameManager or RoomGenerator is missing.");
             }
             
             Debug.Log("[MapRendererBootstrapper] MapRenderer creation complete!");

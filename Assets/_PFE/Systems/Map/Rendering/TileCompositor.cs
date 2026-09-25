@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using Profiler = PFE.Core.Profiling.PfeProfiler;
 
 namespace PFE.Systems.Map.Rendering
 {
@@ -81,6 +82,294 @@ namespace PFE.Systems.Map.Rendering
         // Sprite cache: key = "materialId_k1_k2_k3_k4" -> Sprite
         private Dictionary<string, Sprite> _spriteCache = new Dictionary<string, Sprite>();
         private readonly Dictionary<Texture2D, Texture2D> _readableTextureCache = new Dictionary<Texture2D, Texture2D>();
+
+        // ── Boot-cost optimisation ────────────────────────────────────────────────────
+        // ROLLBACK: set this to false to restore per-pixel Texture2D.GetPixel sampling.
+        //
+        // GetPixel is a bounds-checked virtual call. GenerateTile performs up to ~4800 of
+        // them per tile (up to 3 textures x 1600 px, plus mask sampling), which dominated
+        // boot. Caching GetPixels() once per texture and indexing the buffer is
+        // mathematically identical — GetPixel(x,y) == pixels[y * width + x] — but far cheaper.
+        private const bool CacheTexturePixels = true;
+
+        private readonly Dictionary<Texture2D, Color[]> _pixelsCache = new Dictionary<Texture2D, Color[]>();
+
+        /// <summary>Returns the cached pixel buffer for a texture, or null if unavailable.</summary>
+        private Color[] GetCachedPixels(Texture2D texture)
+        {
+            if (!CacheTexturePixels || texture == null) return null;
+            if (_pixelsCache.TryGetValue(texture, out Color[] cached)) return cached;
+
+            Color[] pixels;
+            try { pixels = texture.GetPixels(); }
+            catch (System.Exception) { return null; }
+
+            _pixelsCache[texture] = pixels;
+            return pixels;
+        }
+
+        // ── Boot-cost optimisation ────────────────────────────────────────────────────
+        // ROLLBACK: set this to false to read Sprite/Texture properties per pixel again.
+        //
+        // Sprite.rect, Sprite.texture, Texture2D.width/height and Texture2D.name are NOT
+        // cached fields — every access is a managed->native interop call (~1 us in a
+        // development build). GenerateTile runs 1600 pixels per generated tile and touched
+        // ~9-11 of those properties per pixel => ~20M native calls per room, which measured
+        // as ~19 s of boot (STATS: generate=18758ms for 1122 generations).
+        // Resolve each object's native properties once and reuse them.
+        private const bool CacheNativeProps = true;
+
+        private struct SpriteSampleInfo
+        {
+            public Texture2D readable;
+            public Rect rect;
+            public int texWidth;
+            public bool valid;
+        }
+
+        private struct TilingSampleInfo
+        {
+            public int width;
+            public int height;
+            public Vector2Int offset;
+        }
+
+        private readonly Dictionary<Sprite, SpriteSampleInfo> _spriteSampleCache = new Dictionary<Sprite, SpriteSampleInfo>();
+        private readonly Dictionary<Texture2D, TilingSampleInfo> _tilingInfoCache = new Dictionary<Texture2D, TilingSampleInfo>();
+        private readonly Dictionary<string, IReadOnlyList<Sprite>> _maskFramesCache = new Dictionary<string, IReadOnlyList<Sprite>>(System.StringComparer.Ordinal);
+
+        /// <summary>Resolves a Sprite's native properties (rect, texture) once and caches them.</summary>
+        private SpriteSampleInfo GetSpriteSampleInfo(Sprite sprite)
+        {
+            if (sprite == null) return default;
+
+            if (CacheNativeProps && _spriteSampleCache.TryGetValue(sprite, out SpriteSampleInfo cached))
+                return cached;
+
+            var info = new SpriteSampleInfo
+            {
+                rect = sprite.rect,
+                readable = GetReadableTexture(sprite.texture)
+            };
+
+            if (info.readable != null)
+            {
+                info.texWidth = info.readable.width;
+                info.valid = true;
+            }
+
+            if (CacheNativeProps) _spriteSampleCache[sprite] = info;
+            return info;
+        }
+
+        /// <summary>
+        /// Cached width/height/sample-offset for a tiling texture.
+        /// Keyed on the SOURCE texture, not the readable copy: CreateReadableCopy preserves
+        /// width and height but not .name, and the manual offset table is keyed by name.
+        /// </summary>
+        private TilingSampleInfo GetTilingInfo(Texture2D texture)
+        {
+            if (texture == null) return default;
+
+            if (CacheNativeProps && _tilingInfoCache.TryGetValue(texture, out TilingSampleInfo cached))
+                return cached;
+
+            string textureName = texture.name;
+            var info = new TilingSampleInfo
+            {
+                width = texture.width,
+                height = texture.height,
+                offset = string.IsNullOrWhiteSpace(textureName)
+                    ? Vector2Int.zero
+                    : (ManualTextureSampleOffsets.TryGetValue(textureName, out Vector2Int found) ? found : Vector2Int.zero)
+            };
+
+            if (CacheNativeProps) _tilingInfoCache[texture] = info;
+            return info;
+        }
+
+        /// <summary>
+        /// Memoised mask frame lookup. Pure lookup memo — but note it becomes stale if the
+        /// underlying TileMaskLookup is mutated (Clear/SetEntry) while this compositor lives.
+        /// </summary>
+        private IReadOnlyList<Sprite> GetMaskFrames(string maskName)
+        {
+            if (_maskLookup == null || string.IsNullOrWhiteSpace(maskName)) return null;
+            if (_maskFramesCache.TryGetValue(maskName, out IReadOnlyList<Sprite> cached)) return cached;
+
+            IReadOnlyList<Sprite> frames = _maskLookup.GetFrames(maskName);
+            _maskFramesCache[maskName] = frames;
+            return frames;
+        }
+
+        // ── Boot-cost optimisation ────────────────────────────────────────────────────
+        // ROLLBACK: set this to false to restore the previous per-pixel lookup path.
+        //
+        // After native-prop caching (CacheNativeProps) the remaining per-pixel cost WAS the
+        // dictionary lookups themselves: Dictionary<Sprite/T> and Dictionary<Texture2D/T>
+        // resolve through UnityEngine.Object.Equals -> CompareBaseObjects ->
+        // IsNativeObjectAlive, which is itself a native call. ~9-10 lookups per pixel x
+        // 1.8M pixels = ~16M native calls (STATS: generate=9782ms for 1122 generations,
+        // 5.45us/pixel, 4.44us/sample).
+        //
+        // GenerateTile already knows the material and k1..k4 before the pixel loop starts,
+        // so every lookup that depends only on those is hoisted to once per generation.
+        private const bool HoistSamplers = true;
+
+        private struct TilingSampler
+        {
+            public Texture2D source;    // as resolved from the material; null => slot not composited
+            public Texture2D readable;  // CPU-readable copy; null => contributes fallbackColor
+            public Color[] pixels;      // cached buffer; null => GetPixel fallback
+            public int width;
+            public int height;
+            public Vector2Int offset;
+        }
+
+        private struct MaskSampler
+        {
+            public bool valid;              // frames != null && frames.Count > 0
+            public int frameCount;
+            public Sprite[] sprites;        // per frame (null-checked by the floor path)
+            public SpriteSampleInfo[] info; // per frame
+            public bool cropSingleFrame;
+            public Rect opaqueBounds;
+            public bool mirroredCorner;
+            public bool mirroredFloor;
+        }
+
+        private sealed class MaterialSamplers
+        {
+            public TilingSampler floorSampler;
+            public bool hasFloorTexture;
+
+            public TilingSampler mainSampler;   // sampled regardless of null-ness (falls back to fallbackColor)
+
+            public TilingSampler borderSampler;
+            public bool hasBorderTexture;
+
+            public MaskSampler floorMask;
+            public MaskSampler mainMask;
+            public MaskSampler borderMask;
+            public MaskSampler borderManualAtlas;
+            public bool hasManualBorderAtlas;
+
+            public bool usesExplicitMainShape;
+        }
+
+        private readonly Dictionary<string, MaskSampler> _maskSamplerCache =
+            new Dictionary<string, MaskSampler>(System.StringComparer.Ordinal);
+        private readonly Dictionary<MaterialRenderEntry, MaterialSamplers> _materialSamplerCache =
+            new Dictionary<MaterialRenderEntry, MaterialSamplers>();
+        private MaterialSamplers _nullMaterialSamplers;
+
+        /// <summary>
+        /// One dictionary lookup per generation instead of ~9-10 per pixel.
+        /// Mask samplers do not depend on k1..k4 (only the trivial IsFullySurroundedTile test
+        /// does, and that stays in the sampling call), so they are cacheable by name.
+        /// </summary>
+        private MaterialSamplers GetMaterialSamplers(MaterialRenderEntry material)
+        {
+            if (material == null)
+            {
+                return _nullMaterialSamplers ?? (_nullMaterialSamplers = BuildMaterialSamplers(null));
+            }
+
+            if (_materialSamplerCache.TryGetValue(material, out MaterialSamplers cached))
+                return cached;
+
+            MaterialSamplers built = BuildMaterialSamplers(material);
+            _materialSamplerCache[material] = built;
+            return built;
+        }
+
+        private MaterialSamplers BuildMaterialSamplers(MaterialRenderEntry material)
+        {
+            var samplers = new MaterialSamplers
+            {
+                floorSampler = BuildTilingSampler(ResolveTexture(material?.floorTexture)),
+                mainSampler = BuildTilingSampler(ResolveTexture(material?.mainTexture)),
+                borderSampler = BuildTilingSampler(ResolveTexture(material?.borderTexture)),
+                floorMask = GetMaskSampler(material?.floorMask),
+                mainMask = GetMaskSampler(material?.mainMask),
+                borderMask = GetMaskSampler(material?.borderMask),
+                usesExplicitMainShape = UsesExplicitMainShape(material?.mainMask)
+            };
+
+            samplers.hasFloorTexture = samplers.floorSampler.source != null;
+            samplers.hasBorderTexture = samplers.borderSampler.source != null;
+
+            string borderMaskName = material?.borderMask;
+            if (!string.IsNullOrWhiteSpace(borderMaskName) &&
+                ManualBorderAtlasOverrides.TryGetValue(borderMaskName, out string atlasName))
+            {
+                MaskSampler atlas = GetMaskSampler(atlasName);
+                if (atlas.valid && atlas.frameCount >= 9)
+                {
+                    samplers.borderManualAtlas = atlas;
+                    samplers.hasManualBorderAtlas = true;
+                }
+            }
+
+            return samplers;
+        }
+
+        private TilingSampler BuildTilingSampler(Texture2D source)
+        {
+            var sampler = new TilingSampler { source = source };
+            if (source == null)
+            {
+                return sampler;
+            }
+
+            TilingSampleInfo info = GetTilingInfo(source);
+            sampler.width = info.width;
+            sampler.height = info.height;
+            sampler.offset = info.offset;
+            sampler.readable = GetReadableTexture(source);
+            sampler.pixels = GetCachedPixels(sampler.readable);
+            return sampler;
+        }
+
+        private MaskSampler GetMaskSampler(string maskName)
+        {
+            if (_maskLookup == null || string.IsNullOrWhiteSpace(maskName))
+            {
+                return default;
+            }
+
+            if (_maskSamplerCache.TryGetValue(maskName, out MaskSampler cached))
+                return cached;
+
+            MaskSampler sampler = default;
+
+            IReadOnlyList<Sprite> frames = GetMaskFrames(maskName);
+            if (frames != null && frames.Count > 0)
+            {
+                sampler.valid = true;
+                sampler.frameCount = frames.Count;
+                sampler.mirroredCorner = IsMirroredCornerMask(maskName);
+                sampler.mirroredFloor = IsMirroredFloorMask(maskName);
+                sampler.sprites = new Sprite[frames.Count];
+                sampler.info = new SpriteSampleInfo[frames.Count];
+
+                for (int i = 0; i < frames.Count; i++)
+                {
+                    sampler.sprites[i] = frames[i];
+                    sampler.info[i] = GetSpriteSampleInfo(frames[i]);
+                }
+
+                sampler.cropSingleFrame = frames.Count == 1 && ShouldCropSingleFrameMask(frames[0]);
+                if (sampler.cropSingleFrame)
+                {
+                    sampler.opaqueBounds = GetOpaqueSpriteBounds(frames[0]);
+                }
+            }
+
+            _maskSamplerCache[maskName] = sampler;
+            return sampler;
+        }
+
         private readonly Dictionary<Sprite, Rect> _opaqueSpriteBoundsCache = new Dictionary<Sprite, Rect>();
 
         private readonly TileTextureLookup _textureLookup;
@@ -98,6 +387,64 @@ namespace PFE.Systems.Map.Rendering
             _maskLookup = maskLookup;
         }
 
+        // ── Boot-cost optimisation ────────────────────────────────────────────────────
+        // ROLLBACK: set this to false to restore the previous behaviour (cache key used the
+        // raw tileX/tileY, so every tile position generated its own 40x40 texture).
+        //
+        // Sampling is PositiveModulo(tileX * TILE_PX + x, texture.width), so the sampled
+        // phase repeats every (width / gcd(TILE_PX, width)) tiles. Keying the cache on a
+        // coordinate quantised by that period is PIXEL-IDENTICAL, but collapses the ~1136
+        // per-position generations down to one per distinct phase.
+        private const bool QuantizeTilePhase = true;
+
+        private static int Gcd(int a, int b)
+        {
+            while (b != 0) { int t = a % b; a = b; b = t; }
+            return a < 0 ? -a : a;
+        }
+
+        private static int Lcm(int a, int b)
+        {
+            if (a <= 0 || b <= 0) return Mathf.Max(a, b);
+            return a / Gcd(a, b) * b;
+        }
+
+        private static int PhasePeriod(int textureSize)
+        {
+            if (textureSize <= 0) return 1;
+            int g = Gcd(TILE_PX, textureSize);
+            return g <= 0 ? 1 : textureSize / g;
+        }
+
+        private readonly Dictionary<string, Vector2Int> _phasePeriodCache = new Dictionary<string, Vector2Int>();
+
+        private static void AccumulatePeriod(Texture2D tex, ref int px, ref int py)
+        {
+            if (tex == null) return;
+            px = Lcm(px, PhasePeriod(tex.width));
+            py = Lcm(py, PhasePeriod(tex.height));
+        }
+
+        /// <summary>
+        /// Period (in whole tiles) after which the sampled texture phase repeats for a material.
+        /// Cached per material so texture lookups are not repeated for every tile.
+        /// </summary>
+        private Vector2Int GetPhasePeriod(string materialId, MaterialRenderEntry material)
+        {
+            string id = materialId ?? "";
+            if (_phasePeriodCache.TryGetValue(id, out Vector2Int cached))
+                return cached;
+
+            int px = 1, py = 1;
+            AccumulatePeriod(ResolveTexture(material?.mainTexture), ref px, ref py);
+            AccumulatePeriod(ResolveTexture(material?.floorTexture), ref px, ref py);
+            AccumulatePeriod(ResolveTexture(material?.borderTexture), ref px, ref py);
+
+            var period = new Vector2Int(Mathf.Max(1, px), Mathf.Max(1, py));
+            _phasePeriodCache[id] = period;
+            return period;
+        }
+
         /// <summary>
         /// Get or create a sprite for a front (wall) tile.
         /// </summary>
@@ -111,23 +458,42 @@ namespace PFE.Systems.Map.Rendering
         public Sprite GetFrontTileSprite(string materialId, int tileX, int tileY,
             int kont1, int kont2, int kont3, int kont4)
         {
+            // Look up material render data (needed before keying when the phase is quantised)
+            var matRender = _materialDb?.GetFrontMaterial(materialId);
+
+            int keyX = tileX, keyY = tileY;
+            if (QuantizeTilePhase)
+            {
+                Vector2Int period = GetPhasePeriod(materialId, matRender);
+                keyX = PositiveModulo(tileX, period.x);
+                keyY = PositiveModulo(tileY, period.y);
+            }
+
             // Position affects the sampled texture phase, so it must be part of the cache key.
-            string key = $"f_{materialId}_{tileX}_{tileY}_{kont1}{kont2}{kont3}{kont4}";
+            string key = $"f_{materialId}_{keyX}_{keyY}_{kont1}{kont2}{kont3}{kont4}";
 
             if (_spriteCache.TryGetValue(key, out Sprite cached))
+            {
                 return cached;
+            }
 
-            // Look up material render data
-            var matRender = _materialDb?.GetFrontMaterial(materialId);
-            Texture2D tileTex = GenerateTile(matRender, FallbackWall, tileX, tileY,
-                kont1, kont2, kont3, kont4);
+            Texture2D tileTex;
+            using (Profiler.Region("tiles.generateFront", "boot: per-miss front tile pixel generation. Region call count == front cache misses"))
+            {
+                tileTex = GenerateTile(matRender, FallbackWall, keyX, keyY,
+                    kont1, kont2, kont3, kont4);
+            }
 
-            Sprite sprite = Sprite.Create(tileTex,
-                new Rect(0, 0, TILE_PX, TILE_PX),
-                new Vector2(0.5f, 0.5f),
-                100f,
-                0,
-                SpriteMeshType.FullRect); // Avoid tight-mesh cracks between adjacent tiles
+            Sprite sprite;
+            using (Profiler.Region("tiles.spriteCreate", "boot: Sprite.Create per generated tile — measured 20-43ms total, trivial"))
+            {
+                sprite = Sprite.Create(tileTex,
+                    new Rect(0, 0, TILE_PX, TILE_PX),
+                    new Vector2(0.5f, 0.5f),
+                    100f,
+                    0,
+                    SpriteMeshType.FullRect); // Avoid tight-mesh cracks between adjacent tiles
+            }
 
             sprite.name = key;
             _spriteCache[key] = sprite;
@@ -140,21 +506,40 @@ namespace PFE.Systems.Map.Rendering
         public Sprite GetBackTileSprite(string materialId, int tileX, int tileY,
             int pont1, int pont2, int pont3, int pont4)
         {
-            string key = $"b_{materialId}_{tileX}_{tileY}_{pont1}{pont2}{pont3}{pont4}";
+            var matRender = _materialDb?.GetBackMaterial(materialId);
+
+            int keyX = tileX, keyY = tileY;
+            if (QuantizeTilePhase)
+            {
+                Vector2Int period = GetPhasePeriod(materialId, matRender);
+                keyX = PositiveModulo(tileX, period.x);
+                keyY = PositiveModulo(tileY, period.y);
+            }
+
+            string key = $"b_{materialId}_{keyX}_{keyY}_{pont1}{pont2}{pont3}{pont4}";
 
             if (_spriteCache.TryGetValue(key, out Sprite cached))
+            {
                 return cached;
+            }
 
-            var matRender = _materialDb?.GetBackMaterial(materialId);
-            Texture2D tileTex = GenerateTile(matRender, FallbackBack, tileX, tileY,
-                pont1, pont2, pont3, pont4);
+            Texture2D tileTex;
+            using (Profiler.Region("tiles.generateBack", "boot: per-miss back tile pixel generation. Region call count == back cache misses"))
+            {
+                tileTex = GenerateTile(matRender, FallbackBack, keyX, keyY,
+                    pont1, pont2, pont3, pont4);
+            }
 
-            Sprite sprite = Sprite.Create(tileTex,
-                new Rect(0, 0, TILE_PX, TILE_PX),
-                new Vector2(0.5f, 0.5f),
-                100f,
-                0,
-                SpriteMeshType.FullRect);
+            Sprite sprite;
+            using (Profiler.Region("tiles.spriteCreate", "boot: Sprite.Create per generated tile — measured 20-43ms total, trivial"))
+            {
+                sprite = Sprite.Create(tileTex,
+                    new Rect(0, 0, TILE_PX, TILE_PX),
+                    new Vector2(0.5f, 0.5f),
+                    100f,
+                    0,
+                    SpriteMeshType.FullRect);
+            }
 
             sprite.name = key;
             _spriteCache[key] = sprite;
@@ -196,43 +581,79 @@ namespace PFE.Systems.Map.Rendering
         private Texture2D GenerateTile(MaterialRenderEntry material, Color fallbackColor,
             int tileX, int tileY, int k1, int k2, int k3, int k4)
         {
-            Texture2D mainTexture = ResolveTexture(material?.mainTexture);
-            Texture2D floorTexture = ResolveTexture(material?.floorTexture);
-            Texture2D borderTexture = ResolveTexture(material?.borderTexture);
-
             Texture2D result = new Texture2D(TILE_PX, TILE_PX, TextureFormat.RGBA32, false);
             result.filterMode = FilterMode.Point;
             result.wrapMode = TextureWrapMode.Clamp;
 
             Color[] pixels = new Color[TILE_PX * TILE_PX];
 
-            for (int y = 0; y < TILE_PX; y++)
+            // Run 17: tiles.generateFront 919.5 + tiles.generateBack 909.1 = 1828.6 ms, the largest
+            // item in boot and the only big one with no sub-regions. These three split it into the
+            // per-pixel composition, the post-pass filter, and the texture upload. Ids are shared by
+            // the front and back paths on purpose — the parent region already tells us which one,
+            // and sharing keeps the id set static instead of forwarding a label.
+            using (Profiler.Region("tiles.compose", "boot: ComposeTilePixelHoisted per pixel — mask sampling + edge mask + alpha composite"))
             {
-                for (int x = 0; x < TILE_PX; x++)
+                if (HoistSamplers)
                 {
-                    Color pixel = ComposeTilePixel(
-                        material,
-                        fallbackColor,
-                        mainTexture,
-                        floorTexture,
-                        borderTexture,
-                        tileX,
-                        tileY,
-                        k1,
-                        k2,
-                        k3,
-                        k4,
-                        x,
-                        y);
+                    // All per-pixel lookups resolved once, before the loop.
+                    MaterialSamplers samplers = GetMaterialSamplers(material);
 
-                    // Unity textures are bottom-up, AS3 is top-down
-                    pixels[(TILE_PX - 1 - y) * TILE_PX + x] = pixel;
+                    for (int y = 0; y < TILE_PX; y++)
+                    {
+                        for (int x = 0; x < TILE_PX; x++)
+                        {
+                            Color pixel = ComposeTilePixelHoisted(
+                                samplers, fallbackColor, tileX, tileY, k1, k2, k3, k4, x, y);
+
+                            // Unity textures are bottom-up, AS3 is top-down
+                            pixels[(TILE_PX - 1 - y) * TILE_PX + x] = pixel;
+                        }
+                    }
+                }
+                else
+                {
+                    Texture2D mainTexture = ResolveTexture(material?.mainTexture);
+                    Texture2D floorTexture = ResolveTexture(material?.floorTexture);
+                    Texture2D borderTexture = ResolveTexture(material?.borderTexture);
+
+                    for (int y = 0; y < TILE_PX; y++)
+                    {
+                        for (int x = 0; x < TILE_PX; x++)
+                        {
+                            Color pixel = ComposeTilePixel(
+                                material,
+                                fallbackColor,
+                                mainTexture,
+                                floorTexture,
+                                borderTexture,
+                                tileX,
+                                tileY,
+                                k1,
+                                k2,
+                                k3,
+                                k4,
+                                x,
+                                y);
+
+                            // Unity textures are bottom-up, AS3 is top-down
+                            pixels[(TILE_PX - 1 - y) * TILE_PX + x] = pixel;
+                        }
+                    }
                 }
             }
 
-            ApplyMaterialFilter(pixels, TILE_PX, TILE_PX, material?.filterType);
-            result.SetPixels(pixels);
-            result.Apply();
+            using (Profiler.Region("tiles.filter", "boot: ApplyMaterialFilter post-pass over the whole tile"))
+            {
+                ApplyMaterialFilter(pixels, TILE_PX, TILE_PX, material?.filterType);
+            }
+
+            using (Profiler.Region("tiles.upload", "boot: SetPixels + Apply for one tile texture"))
+            {
+                result.SetPixels(pixels);
+                result.Apply();
+            }
+
             return result;
         }
 
@@ -289,6 +710,162 @@ namespace PFE.Systems.Map.Rendering
             }
 
             return pixel;
+        }
+
+        // ── Hoisted (HoistSamplers == true) composition path ──────────────────────────
+        // Same logic as ComposeTilePixel, but every texture/sprite lookup arrives pre-resolved
+        // in the samplers, so the pixel loop performs no dictionary lookups at all.
+
+        private Color ComposeTilePixelHoisted(
+            MaterialSamplers samplers,
+            Color fallbackColor,
+            int tileX,
+            int tileY,
+            int k1,
+            int k2,
+            int k3,
+            int k4,
+            int x,
+            int y)
+        {
+            Color pixel = new Color(0f, 0f, 0f, 0f);
+
+            if (samplers.hasFloorTexture)
+            {
+                float floorAlpha = samplers.floorMask.valid
+                    ? SampleFloorMaskAlpha(samplers.floorMask, x, y, k1, k2)
+                    : ComputeProceduralFloorAlpha(x, y, k1, k2);
+                pixel = AlphaComposite(pixel, SampleTilingTexture(samplers.floorSampler, fallbackColor, tileX, tileY, x, y), floorAlpha);
+            }
+
+            float shapeAlpha = ComputeEdgeMask(x, y, k1, k2, k3, k4);
+            float mainMaskAlpha = SampleMaskAlpha(samplers.mainMask, x, y, k1, k2, k3, k4, 1f);
+            float mainAlpha = samplers.usesExplicitMainShape
+                ? mainMaskAlpha
+                : shapeAlpha * mainMaskAlpha;
+
+            if (mainAlpha > AlphaEpsilon)
+            {
+                pixel = AlphaComposite(pixel, SampleTilingTexture(samplers.mainSampler, fallbackColor, tileX, tileY, x, y), mainAlpha);
+            }
+
+            if (samplers.hasBorderTexture)
+            {
+                bool hasManualBorderMask = samplers.hasManualBorderAtlas;
+                bool hasImportedBorderMask = hasManualBorderMask || samplers.borderMask.valid;
+                float borderAlpha = hasManualBorderMask
+                    ? SampleManualBorderMaskAlpha(samplers.borderManualAtlas, x, y, k1, k2, k3, k4)
+                    : hasImportedBorderMask
+                        ? SampleMaskAlpha(samplers.borderMask, x, y, k1, k2, k3, k4, 0f)
+                        : ComputeProceduralBorderAlpha(x, y, k1, k2, k3, k4);
+                if (borderAlpha > AlphaEpsilon)
+                {
+                    pixel = AlphaComposite(pixel, SampleTilingTexture(samplers.borderSampler, fallbackColor, tileX, tileY, x, y), borderAlpha);
+                }
+            }
+
+            return pixel;
+        }
+
+        private Color SampleTilingTexture(in TilingSampler sampler, Color fallbackColor, int tileX, int tileY, int x, int y)
+        {
+            if (sampler.readable == null)
+            {
+                return fallbackColor;
+            }
+
+            int texX = PositiveModulo(tileX * TILE_PX + x + sampler.offset.x, sampler.width);
+            int texY = PositiveModulo(tileY * TILE_PX + y + sampler.offset.y, sampler.height);
+
+            return sampler.pixels != null
+                ? sampler.pixels[texY * sampler.width + texX]
+                : sampler.readable.GetPixel(texX, texY);
+        }
+
+        private float SampleMaskAlpha(in MaskSampler sampler, int px, int py, int k1, int k2, int k3, int k4, float defaultAlpha)
+        {
+            if (!sampler.valid)
+            {
+                return defaultAlpha;
+            }
+
+            int frameIndex = 0;
+            if (sampler.frameCount > 1)
+            {
+                frameIndex = ResolveMaskFrameIndex(sampler.frameCount, px, py, k1, k2, k3, k4);
+                if (frameIndex < 0)
+                    return defaultAlpha;  // 1.0 for main (fully opaque), 0.0 for border (no border)
+            }
+
+            frameIndex = Mathf.Clamp(frameIndex, 0, sampler.frameCount - 1);
+            SpriteSampleInfo info = sampler.info[frameIndex];
+
+            if (sampler.cropSingleFrame && defaultAlpha > 0.5f && IsFullySurroundedTile(k1, k2, k3, k4))
+            {
+                return 1f;
+            }
+
+            if (sampler.mirroredCorner)
+            {
+                MirrorCornerSampleCoordinates(px, py, out int mirroredX, out int mirroredY);
+                return sampler.cropSingleFrame
+                    ? SampleSpriteAlphaCore(info, sampler.opaqueBounds, mirroredX, mirroredY, TILE_PX, TILE_PX)
+                    : SampleSpriteAlphaCore(info, info.rect, mirroredX, mirroredY, TILE_PX, TILE_PX);
+            }
+
+            return sampler.cropSingleFrame
+                ? SampleSpriteAlphaCore(info, sampler.opaqueBounds, px, py, TILE_PX, TILE_PX)
+                : SampleSpriteAlphaCore(info, info.rect, px, py, TILE_PX, TILE_PX);
+        }
+
+        private float SampleManualBorderMaskAlpha(in MaskSampler sampler, int px, int py, int k1, int k2, int k3, int k4)
+        {
+            if (!sampler.valid)
+            {
+                return 0f;
+            }
+
+            if (!KonturBorderMaskAtlasMapper.TryMap(px, py, k1, k2, k3, k4, sampler.frameCount, out var sample))
+            {
+                return ComputeProceduralBorderAlpha(px, py, k1, k2, k3, k4);
+            }
+
+            int frameIndex = Mathf.Clamp(sample.FrameIndex, 0, sampler.frameCount - 1);
+            SpriteSampleInfo info = sampler.info[frameIndex];
+            return SampleSpriteAlphaCore(info, info.rect, sample.LocalX, sample.LocalY, 20f, 20f);
+        }
+
+        private float SampleFloorMaskAlpha(in MaskSampler sampler, int px, int py, int leftKontur, int rightKontur)
+        {
+            if (!sampler.valid)
+            {
+                return 0f;
+            }
+
+            int bandTop = (TILE_PX - FLOOR_BAND_PX) / 2;
+            int bandBottom = bandTop + FLOOR_BAND_PX;
+            if (py < bandTop || py >= bandBottom)
+            {
+                return 0f;
+            }
+
+            int contourValue = px < TILE_PX / 2 ? leftKontur : rightKontur;
+            int frameIndex = Mathf.Clamp(contourValue, 0, sampler.frameCount - 1);
+            if (sampler.sprites[frameIndex] == null)
+            {
+                return 0f;
+            }
+
+            if (sampler.mirroredFloor && px >= TILE_PX / 2)
+            {
+                px = TILE_PX - 1 - px;
+            }
+
+            SpriteSampleInfo info = sampler.info[frameIndex];
+            Rect spriteRect = info.rect;
+            int localY = py - bandTop;
+            int sampleY = Mathf.Clamp(Mathf.FloorToInt((localY + 0.5f) / FLOOR_BAND_PX * spriteRect.height), 0, Mathf.Max(0, Mathf.FloorToInt(spriteRect.height) - 1));
+            return SampleSpriteAlphaCore(info, spriteRect, px, sampleY, spriteRect.width, spriteRect.height);
         }
 
         private static void ApplyMaterialFilter(Color[] pixels, int width, int height, string filterType)
@@ -446,10 +1023,14 @@ namespace PFE.Systems.Map.Rendering
                 return fallbackColor;
             }
 
-            Vector2Int sampleOffset = GetManualTextureSampleOffset(tilingTexture);
-            int texX = PositiveModulo(tileX * TILE_PX + x + sampleOffset.x, readableTexture.width);
-            int texY = PositiveModulo(tileY * TILE_PX + y + sampleOffset.y, readableTexture.height);
-            return readableTexture.GetPixel(texX, texY);
+            TilingSampleInfo info = GetTilingInfo(tilingTexture);
+            int w = info.width;
+            int h = info.height;
+            int texX = PositiveModulo(tileX * TILE_PX + x + info.offset.x, w);
+            int texY = PositiveModulo(tileY * TILE_PX + y + info.offset.y, h);
+
+            Color[] pixels = GetCachedPixels(readableTexture);
+            return pixels != null ? pixels[texY * w + texX] : readableTexture.GetPixel(texX, texY);
         }
 
         private static Vector2Int GetManualTextureSampleOffset(Texture2D texture)
@@ -471,7 +1052,7 @@ namespace PFE.Systems.Map.Rendering
                 return defaultAlpha;
             }
 
-            IReadOnlyList<Sprite> frames = _maskLookup.GetFrames(maskName);
+            IReadOnlyList<Sprite> frames = GetMaskFrames(maskName);
             if (frames == null || frames.Count == 0)
             {
                 return defaultAlpha;
@@ -528,7 +1109,7 @@ namespace PFE.Systems.Map.Rendering
                 return false;
             }
 
-            IReadOnlyList<Sprite> frames = _maskLookup.GetFrames(maskName);
+            IReadOnlyList<Sprite> frames = GetMaskFrames(maskName);
             return frames != null && frames.Count > 0;
         }
 
@@ -545,7 +1126,7 @@ namespace PFE.Systems.Map.Rendering
                 return false;
             }
 
-            frames = _maskLookup.GetFrames(atlasName);
+            frames = GetMaskFrames(atlasName);
             return frames != null && frames.Count >= 9;
         }
 
@@ -556,7 +1137,7 @@ namespace PFE.Systems.Map.Rendering
                 return 0f;
             }
 
-            IReadOnlyList<Sprite> frames = _maskLookup.GetFrames(maskName);
+            IReadOnlyList<Sprite> frames = GetMaskFrames(maskName);
             if (frames == null || frames.Count == 0)
             {
                 return 0f;
@@ -582,9 +1163,10 @@ namespace PFE.Systems.Map.Rendering
                 px = TILE_PX - 1 - px;
             }
 
+            Rect spriteRect = GetSpriteSampleInfo(sprite).rect;
             int localY = py - bandTop;
-            int sampleY = Mathf.Clamp(Mathf.FloorToInt((localY + 0.5f) / FLOOR_BAND_PX * sprite.rect.height), 0, Mathf.Max(0, Mathf.FloorToInt(sprite.rect.height) - 1));
-            return SampleSpriteAlpha(sprite, px, sampleY, sprite.rect.width, sprite.rect.height);
+            int sampleY = Mathf.Clamp(Mathf.FloorToInt((localY + 0.5f) / FLOOR_BAND_PX * spriteRect.height), 0, Mathf.Max(0, Mathf.FloorToInt(spriteRect.height) - 1));
+            return SampleSpriteAlpha(sprite, px, sampleY, spriteRect.width, spriteRect.height);
         }
 
         private static bool IsMirroredCornerMask(string maskName)
@@ -642,7 +1224,13 @@ namespace PFE.Systems.Map.Rendering
 
         private float SampleSpriteAlpha(Sprite sprite, int px, int py, float sampleWidth, float sampleHeight)
         {
-            return SampleSpriteAlpha(sprite, px, py, sprite != null ? sprite.rect : new Rect(0f, 0f, sampleWidth, sampleHeight), sampleWidth, sampleHeight);
+            if (sprite == null)
+            {
+                return 1f;
+            }
+
+            SpriteSampleInfo info = GetSpriteSampleInfo(sprite);
+            return SampleSpriteAlphaCore(info, info.rect, px, py, sampleWidth, sampleHeight);
         }
 
         private float SampleSpriteAlpha(Sprite sprite, int px, int py, Rect sampleRect, float sampleWidth, float sampleHeight)
@@ -652,8 +1240,12 @@ namespace PFE.Systems.Map.Rendering
                 return 1f;
             }
 
-            Texture2D readableTexture = GetReadableTexture(sprite.texture);
-            if (readableTexture == null)
+            return SampleSpriteAlphaCore(GetSpriteSampleInfo(sprite), sampleRect, px, py, sampleWidth, sampleHeight);
+        }
+
+        private float SampleSpriteAlphaCore(SpriteSampleInfo info, Rect sampleRect, int px, int py, float sampleWidth, float sampleHeight)
+        {
+            if (!info.valid)
             {
                 return 1f;
             }
@@ -663,7 +1255,10 @@ namespace PFE.Systems.Map.Rendering
             int sampleX = Mathf.Clamp(Mathf.FloorToInt(sampleRect.x + ((px + 0.5f) / width) * sampleRect.width), Mathf.FloorToInt(sampleRect.x), Mathf.FloorToInt(sampleRect.xMax) - 1);
             float flippedPy = (height - 1f) - py;
             int sampleY = Mathf.Clamp(Mathf.FloorToInt(sampleRect.y + ((flippedPy + 0.5f) / height) * sampleRect.height), Mathf.FloorToInt(sampleRect.y), Mathf.FloorToInt(sampleRect.yMax) - 1);
-            return readableTexture.GetPixel(sampleX, sampleY).a;
+            Color[] alphaPixels = GetCachedPixels(info.readable);
+            return alphaPixels != null
+                ? alphaPixels[sampleY * info.texWidth + sampleX].a
+                : info.readable.GetPixel(sampleX, sampleY).a;
         }
 
         private bool ShouldCropSingleFrameMask(Sprite sprite)
@@ -673,7 +1268,7 @@ namespace PFE.Systems.Map.Rendering
                 return false;
             }
 
-            Rect rect = sprite.rect;
+            Rect rect = GetSpriteSampleInfo(sprite).rect;
             return Mathf.RoundToInt(rect.width) != TILE_PX || Mathf.RoundToInt(rect.height) != TILE_PX;
         }
 
@@ -702,11 +1297,18 @@ namespace PFE.Systems.Map.Rendering
             int maxX = Mathf.FloorToInt(spriteRect.x) - 1;
             int maxY = Mathf.FloorToInt(spriteRect.y) - 1;
 
+            Color[] boundsPixels = GetCachedPixels(readableTexture);
+            int boundsWidth = readableTexture.width;
+
             for (int y = Mathf.FloorToInt(spriteRect.y); y < Mathf.FloorToInt(spriteRect.yMax); y++)
             {
                 for (int x = Mathf.FloorToInt(spriteRect.x); x < Mathf.FloorToInt(spriteRect.xMax); x++)
                 {
-                    if (readableTexture.GetPixel(x, y).a <= AlphaEpsilon)
+                    float alpha = boundsPixels != null
+                        ? boundsPixels[y * boundsWidth + x].a
+                        : readableTexture.GetPixel(x, y).a;
+
+                    if (alpha <= AlphaEpsilon)
                     {
                         continue;
                     }

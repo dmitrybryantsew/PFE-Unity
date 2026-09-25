@@ -4,6 +4,7 @@ using Cysharp.Threading.Tasks;
 using UnityEngine;
 using PFE.Systems.Map;
 using PFE.Data;
+using PFE.Core.Profiling;
 using System;
 using System.Collections.Generic;
 
@@ -46,15 +47,30 @@ namespace PFE.Core
 
         public async void Start()
         {
+            // Closes the span opened by PfeProfiler.HookAfterSceneLoad. Whatever that region reports
+            // as self time is the 485.8 ms hole run 17 found between AfterSceneLoad and this point
+            // that no region was covering. Must stay the FIRST statement so it measures the gap and
+            // not our own startup work.
+            PfeProfiler.CloseSpan();
+
             if (debugSettings.LogGameManagerLifecycle)
                 Debug.Log("[GameManager] Initializing game...");
 
             // Initialize database first
-            gameDatabase.Initialize();
+            using (PfeProfiler.Region("game.db.init", "boot: MEASURED 3493ms (2026-09-25) — the single largest boot item, bigger than all tile rendering. Eleven Resources.LoadAll<T> calls; split per type in BuiltInContentSource"))
+            {
+                gameDatabase.Initialize();
+            }
+            PfeProfiler.Mark("game.db.init.done");
 
             // Load room templates
-            var roomTemplates = LoadRoomTemplates();
+            List<RoomTemplate> roomTemplates;
+            using (PfeProfiler.Region("game.rooms.load", "boot: 556 templates, believed trivial"))
+            {
+                roomTemplates = LoadRoomTemplates();
+            }
             loadedRoomTemplates = roomTemplates;
+            PfeProfiler.Mark("game.rooms.load.done", $"count={roomTemplates?.Count ?? 0}");
 
             if (roomTemplates == null || roomTemplates.Count == 0)
             {
@@ -68,6 +84,7 @@ namespace PFE.Core
                 excludeSpecialTypesInRandom: true);
             roomGenerator.Initialize(roomTemplates);
             worldBuilder.Initialize(landMap, roomGenerator, roomTemplates, debugSettings);
+            PfeProfiler.Mark("game.generators.ready");
 
             // Build the world (skipped when a debug room override is active)
             if (!skipWorldBuild)
@@ -76,6 +93,7 @@ namespace PFE.Core
                 Debug.Log("[GameManager] Skipping full world generation (room override active).");
 
             isInitialized = true;
+            PfeProfiler.Mark("game.world.ready");
             if (debugSettings.LogGameManagerLifecycle)
                 Debug.Log($"[GameManager] Game initialized successfully!");
         }

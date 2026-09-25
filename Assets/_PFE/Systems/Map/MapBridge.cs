@@ -140,6 +140,7 @@ public class MapBridge : MonoBehaviour
             if (_useRoomOverride)
             {
                 TryApplyRoomOverride(landMap);
+                PFE.Core.Profiling.PfeProfiler.Mark("map.roomOverride.applied");
             }
 
             var currentRoom = landMap.currentRoom;
@@ -172,10 +173,16 @@ public class MapBridge : MonoBehaviour
                     Debug.Log($"[MapBridge] Using TileAssetDatabase '{_tileDatabase.name}' with {_tileDatabase.GetCount()} overlay sprites.");
 
                 // Initialize the visual controller with the logical room data
-                _visualController.Initialize(currentRoom, _tileDatabase);
+                using (PFE.Core.Profiling.PfeProfiler.Region("room.init.visuals", "boot: MEASURED 4007ms (2026-09-25) — still the dominant phase: tiles.createAll 2518 + backdrop.createVisuals 1453"))
+                {
+                    _visualController.Initialize(currentRoom, _tileDatabase);
+                }
 
                 // Spawn player at valid position
-                SpawnPlayer(currentRoom);
+                using (PFE.Core.Profiling.PfeProfiler.Region("map.spawnPlayer", "boot: believed trivial"))
+                {
+                    SpawnPlayer(currentRoom);
+                }
             }
             else
             {

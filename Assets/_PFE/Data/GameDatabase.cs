@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using PFE.Core.Profiling;
 using PFE.Data.Definitions;
 using PFE.ModAPI;
 using PFE.Systems.Map;
@@ -278,10 +279,18 @@ namespace PFE.Data
             Registry.LogConflicts = _debugSettings.LogGameDatabaseDuplicateRegistrationWarnings;
 
             // Build ordered content sources: base game first, then mods
-            var sources = Loader.BuildSourceList();
+            List<IContentSource> sources;
+            using (PfeProfiler.Region("game.db.buildSources", "boot: ModLoader discovery — believed trivial next to the LoadAll calls"))
+            {
+                sources = Loader.BuildSourceList();
+            }
 
-            // Feed all sources into the registry
-            Registry.Initialize(sources);
+            // Feed all sources into the registry. This is where the ~3.5s actually goes:
+            // BuiltInContentSource.RegisterContent issues eleven Resources.LoadAll<T> calls.
+            using (PfeProfiler.Region("game.db.registryInit", "boot: ContentRegistry.Initialize — delegates to Resources.LoadAll x11"))
+            {
+                Registry.Initialize(sources);
+            }
 
             // Log validation issues from mod discovery
             foreach (var warning in Loader.ValidationLog)

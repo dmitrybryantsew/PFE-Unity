@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using Profiler = PFE.Core.Profiling.PfeProfiler;
 
 namespace PFE.Systems.Map.Rendering
 {
@@ -54,6 +55,39 @@ namespace PFE.Systems.Map.Rendering
         private readonly HashSet<string> _missingIds = new HashSet<string>();
         private readonly List<UnityEngine.Object> _generatedAssets = new List<UnityEngine.Object>();
         private readonly Dictionary<Texture2D, Texture2D> _readableTextureCache = new Dictionary<Texture2D, Texture2D>();
+
+        /// <summary>
+        /// Cached <c>Color[]</c> per readable texture, so per-pixel loops can index instead of
+        /// calling <c>GetPixel</c>.
+        ///
+        /// Why this matters: <c>GetPixel</c> is a managed→native interop call (~0.1-1 µs), not a
+        /// field read. The room backdrop is 48×25 tiles at 40 px = 1.92M pixels, and the loop in
+        /// <see cref="CreateBackdropSprite"/> was measured at 1197 ms per call — ~0.62 µs per
+        /// pixel, which is interop, not arithmetic. The composite maths it interleaves
+        /// (<see cref="ApplyBackdropComposite"/>) is pure managed code and costs almost nothing.
+        ///
+        /// This is the same defect (and the same fix) as <c>TileCompositor.CacheTexturePixels</c>,
+        /// which was the root cause of the original 54 s boot.
+        /// </summary>
+        private readonly Dictionary<Texture2D, Color[]> _readablePixelCache = new Dictionary<Texture2D, Color[]>();
+
+        private Color[] GetReadablePixels(Texture2D readable)
+        {
+            if (readable == null)
+            {
+                return null;
+            }
+
+            if (_readablePixelCache.TryGetValue(readable, out Color[] cached))
+            {
+                return cached;
+            }
+
+            Color[] pixels = readable.GetPixels();
+            _readablePixelCache[readable] = pixels;
+            return pixels;
+        }
+
         private readonly List<LightSource> _lightSources = new List<LightSource>();
 
         private Texture2D _visibilityMaskTexture;
@@ -140,18 +174,46 @@ namespace PFE.Systems.Map.Rendering
                 return;
             }
 
-            Vector2Int contentPixelSize = GetContentPixelSize();
-            Vector2 contentOriginPixels = GetContentOriginPixels();
-            BackdropCompositeData compositeData = BuildBackdropCompositeData(contentOriginPixels, contentPixelSize);
+            Vector2Int contentPixelSize;
+            Vector2 contentOriginPixels;
+            BackdropCompositeData compositeData;
+            using (Profiler.Region("backdrop.compositeData", "boot: geometry + composite planning for the backdrop, before any pixels are touched"))
+            {
+                contentPixelSize = GetContentPixelSize();
+                contentOriginPixels = GetContentOriginPixels();
+                compositeData = BuildBackdropCompositeData(contentOriginPixels, contentPixelSize);
+            }
 
-            CreateRoomBackdrop(contentOriginPixels, contentPixelSize, compositeData);
-            CreateBackgroundTileShadowOverlay(contentOriginPixels, contentPixelSize, compositeData);
-            CreateBackgroundDecorations(contentOriginPixels, contentPixelSize, compositeData);
-            CreateWaterOverlays();
+            // Measured 2026-09-25: the whole of CreateVisuals was 1453 ms, the second largest
+            // boot item after Resources.LoadAll. These five regions split it so we can see which
+            // step actually costs — they are NOT assumed to be equal.
+            using (Profiler.Region("backdrop.roomBackdrop", "boot: CreateRoomBackdrop — fill rects + backdrop sprite"))
+            {
+                CreateRoomBackdrop(contentOriginPixels, contentPixelSize, compositeData);
+            }
+
+            using (Profiler.Region("backdrop.tileShadow", "boot: CreateBackgroundTileShadowOverlay — per-tile shadow bake"))
+            {
+                CreateBackgroundTileShadowOverlay(contentOriginPixels, contentPixelSize, compositeData);
+            }
+
+            using (Profiler.Region("backdrop.decorations", "boot: CreateBackgroundDecorations"))
+            {
+                CreateBackgroundDecorations(contentOriginPixels, contentPixelSize, compositeData);
+            }
+
+            using (Profiler.Region("backdrop.water", "boot: CreateWaterOverlays"))
+            {
+                CreateWaterOverlays();
+            }
+
             if (UsesVisibilityMask())
             {
-                CreateVisibilityMaskOverlay();
-                UpdateVisibilityMask();
+                using (Profiler.Region("backdrop.visibilityMask", "boot: CreateVisibilityMaskOverlay + UpdateVisibilityMask — per-pixel light loop"))
+                {
+                    CreateVisibilityMaskOverlay();
+                    UpdateVisibilityMask();
+                }
             }
         }
 
@@ -660,45 +722,62 @@ namespace PFE.Systems.Map.Rendering
                 return;
             }
 
-            Texture2D sourceTexture = ResolveBackdropTexture(backgroundWall);
+            Texture2D sourceTexture;
+            using (Profiler.Region("backdrop.resolveTexture", "boot: ResolveBackdropTexture — lookup only, expected trivial"))
+            {
+                sourceTexture = ResolveBackdropTexture(backgroundWall);
+            }
+
             if (sourceTexture == null)
             {
                 WarnMissingBackgroundId(backgroundWall, "room backdrop texture");
                 return;
             }
 
-            List<RectInt> fillRects = BuildBackdropFillRects(contentPixelSize, _room.environment.backgroundForm);
+            List<RectInt> fillRects;
+            using (Profiler.Region("backdrop.fillRects", "boot: BuildBackdropFillRects — geometry only, expected trivial"))
+            {
+                fillRects = BuildBackdropFillRects(contentPixelSize, _room.environment.backgroundForm);
+            }
+
             if (fillRects.Count == 0)
             {
                 return;
             }
             Color tint = ResolveBackdropColor();
 
-            for (int i = 0; i < fillRects.Count; i++)
+            // The pixel work. Was 1197 ms per call because CreateBackdropSprite called GetPixel
+            // once per pixel (1.92M interop calls for a 48x25 room) and re-read Texture2D.width/
+            // .height up to four times per pixel. Both are now hoisted/cached, so this region
+            // should collapse — if it does not, the cost is somewhere else and we look again.
+            using (Profiler.Region("backdrop.sprites", "boot: CreateBackdropSprite per fill rect — the per-pixel loop"))
             {
-                RectInt fillRect = fillRects[i];
-                if (fillRect.width <= 0 || fillRect.height <= 0)
+                for (int i = 0; i < fillRects.Count; i++)
                 {
-                    continue;
+                    RectInt fillRect = fillRects[i];
+                    if (fillRect.width <= 0 || fillRect.height <= 0)
+                    {
+                        continue;
+                    }
+
+                    Sprite sprite = CreateBackdropSprite(sourceTexture, fillRect, compositeData);
+                    if (sprite == null)
+                    {
+                        continue;
+                    }
+
+                    GameObject backdropObject = new GameObject($"Backdrop_{backgroundWall}_{i}");
+                    backdropObject.transform.SetParent(_backgroundParent, false);
+
+                    SpriteRenderer renderer = backdropObject.AddComponent<SpriteRenderer>();
+                    renderer.sprite = sprite;
+                    renderer.sortingLayerName = MapSortingLayers.Backwall;
+                    renderer.sortingOrder = BackdropSortingOrder;
+                    renderer.color = tint;
+                    renderer.transform.localPosition = GetBackdropSegmentPosition(contentOriginPixels, contentPixelSize, fillRect, sprite);
+
+                    _backdropRenderers.Add(renderer);
                 }
-
-                Sprite sprite = CreateBackdropSprite(sourceTexture, fillRect, compositeData);
-                if (sprite == null)
-                {
-                    continue;
-                }
-
-                GameObject backdropObject = new GameObject($"Backdrop_{backgroundWall}_{i}");
-                backdropObject.transform.SetParent(_backgroundParent, false);
-
-                SpriteRenderer renderer = backdropObject.AddComponent<SpriteRenderer>();
-                renderer.sprite = sprite;
-                renderer.sortingLayerName = MapSortingLayers.Backwall;
-                renderer.sortingOrder = BackdropSortingOrder;
-                renderer.color = tint;
-                renderer.transform.localPosition = GetBackdropSegmentPosition(contentOriginPixels, contentPixelSize, fillRect, sprite);
-
-                _backdropRenderers.Add(renderer);
             }
         }
 
@@ -1022,11 +1101,20 @@ namespace PFE.Systems.Map.Rendering
             int textureX = Mathf.RoundToInt(textureRect.x);
             int textureY = Mathf.RoundToInt(textureRect.y);
 
+            // Same fix as CreateBackdropSprite: index a cached Color[] instead of one GetPixel
+            // interop call per pixel. GetPixels() returns y-major with y=0 at the bottom, which is
+            // exactly the order GetPixel(x, y) addresses, so the mapping is (y * texWidth + x).
+            int texWidth = readableTexture.width;
+            Color[] sourcePixels = GetReadablePixels(readableTexture);
+
             for (int y = 0; y < height; y++)
             {
+                int sourceRow = (textureY + y) * texWidth + textureX;
                 for (int x = 0; x < width; x++)
                 {
-                    Color sampledColor = readableTexture.GetPixel(textureX + x, textureY + y);
+                    Color sampledColor = sourcePixels != null
+                        ? sourcePixels[sourceRow + x]
+                        : readableTexture.GetPixel(textureX + x, textureY + y);
                     float renderedPixelX = flipX ? (width - 1 - x) : x;
                     float renderedPixelY = flipY ? (height - 1 - y) : y;
                     float localPixelX = anchorPixelPosition.x + (renderedPixelX + 0.5f) * roomPixelsPerSpritePixel;
@@ -1280,50 +1368,79 @@ namespace PFE.Systems.Map.Rendering
                 return null;
             }
 
+            // Hoist every native accessor out of the pixel loop. readableTexture.width/.height are
+            // interop calls, and the loop below used to read them up to four times per pixel.
+            // GetPixels() is one call for the whole texture instead of one GetPixel per pixel.
+            int texWidth = readableTexture.width;
+            int texHeight = readableTexture.height;
+            Color[] sourcePixels = GetReadablePixels(readableTexture);
+
             Texture2D result = new Texture2D(fillRect.width, fillRect.height, TextureFormat.RGBA32, false);
             result.filterMode = FilterMode.Point;
             result.wrapMode = TextureWrapMode.Clamp;
 
-            float sourceOffsetX = _backdropTextureOffset.x * readableTexture.width;
-            float sourceOffsetY = _backdropTextureOffset.y * readableTexture.height;
+            float sourceOffsetX = _backdropTextureOffset.x * texWidth;
+            float sourceOffsetY = _backdropTextureOffset.y * texHeight;
+            bool flipX = _flipBackdropTextureX;
+            bool flipY = _flipBackdropTextureY;
             Color[] pixels = new Color[fillRect.width * fillRect.height];
-            for (int y = 0; y < fillRect.height; y++)
+            using (Profiler.Region("backdrop.sprites.sample", "boot: per-pixel sample + composite. Was 1.92M GetPixel interop calls before the pixel cache"))
             {
-                for (int x = 0; x < fillRect.width; x++)
+                for (int y = 0; y < fillRect.height; y++)
                 {
-                    int scaledX = Mathf.FloorToInt((fillRect.x + x) / _backdropTextureScale.x + sourceOffsetX);
-                    int scaledY = Mathf.FloorToInt((fillRect.y + y) / _backdropTextureScale.y + sourceOffsetY);
-                    if (_flipBackdropTextureX)
+                    int destRow = (fillRect.height - 1 - y) * fillRect.width;
+                    int srcRowBase = fillRect.y + y;
+                    for (int x = 0; x < fillRect.width; x++)
                     {
-                        scaledX = readableTexture.width - 1 - scaledX;
-                    }
+                        // Keep the division exactly as it was. (a / s) and (a * (1/s)) are not
+                        // bit-identical, and a 1-ULP difference flips FloorToInt for boundary values —
+                        // that would silently shift the sampled texel by one pixel.
+                        int scaledX = Mathf.FloorToInt((fillRect.x + x) / _backdropTextureScale.x + sourceOffsetX);
+                        int scaledY = Mathf.FloorToInt(srcRowBase / _backdropTextureScale.y + sourceOffsetY);
+                        if (flipX)
+                        {
+                            scaledX = texWidth - 1 - scaledX;
+                        }
 
-                    if (_flipBackdropTextureY)
-                    {
-                        scaledY = readableTexture.height - 1 - scaledY;
-                    }
+                        if (flipY)
+                        {
+                            scaledY = texHeight - 1 - scaledY;
+                        }
 
-                    int sourceX = PositiveModulo(scaledX, readableTexture.width);
-                    int sourceY = PositiveModulo(scaledY, readableTexture.height);
-                    Color sampledColor = readableTexture.GetPixel(sourceX, sourceY);
-                    sampledColor = ApplyBackdropComposite(sampledColor, fillRect.x + x, fillRect.y + y, compositeData);
-                    pixels[(fillRect.height - 1 - y) * fillRect.width + x] = sampledColor;
+                        int sourceX = PositiveModulo(scaledX, texWidth);
+                        int sourceY = PositiveModulo(scaledY, texHeight);
+                        Color sampledColor = sourcePixels != null
+                            ? sourcePixels[sourceY * texWidth + sourceX]
+                            : readableTexture.GetPixel(sourceX, sourceY);
+                        sampledColor = ApplyBackdropComposite(sampledColor, fillRect.x + x, srcRowBase, compositeData);
+                        pixels[destRow + x] = sampledColor;
+                    }
                 }
             }
 
             if (_backdropSharpenStrength > 0.001f)
             {
-                pixels = ApplySharpen(pixels, fillRect.width, fillRect.height, _backdropSharpenStrength);
+                // Suspected to be the bulk of what is left here: a 5-tap convolution over the whole
+                // image using Color operator chains, which are method calls returning a 16-byte
+                // struct — seven of them per pixel over 1.92M pixels. Now scalar float maths.
+                using (Profiler.Region("backdrop.sprites.sharpen", "boot: ApplySharpen — 5-tap convolution over every pixel"))
+                {
+                    pixels = ApplySharpen(pixels, fillRect.width, fillRect.height, _backdropSharpenStrength);
+                }
             }
 
-            result.SetPixels(pixels);
-            result.Apply();
+            Sprite sprite;
+            using (Profiler.Region("backdrop.sprites.upload", "boot: SetPixels + Apply + Sprite.Create for one backdrop segment"))
+            {
+                result.SetPixels(pixels);
+                result.Apply();
 
-            Sprite sprite = Sprite.Create(
-                result,
-                new Rect(0, 0, fillRect.width, fillRect.height),
-                new Vector2(0.5f, 0.5f),
-                100f);
+                sprite = Sprite.Create(
+                    result,
+                    new Rect(0, 0, fillRect.width, fillRect.height),
+                    new Vector2(0.5f, 0.5f),
+                    100f);
+            }
 
             sprite.name = $"Backdrop_{_room?.environment.backgroundWall}_{fillRect.x}_{fillRect.y}_{fillRect.width}_{fillRect.height}";
             _generatedAssets.Add(result);
@@ -1398,22 +1515,39 @@ namespace PFE.Systems.Map.Rendering
             float clampedStrength = Mathf.Clamp(strength, 0f, 2f);
             for (int y = 1; y < height - 1; y++)
             {
+                int row = y * width;
                 for (int x = 1; x < width - 1; x++)
                 {
-                    int index = y * width + x;
+                    int index = row + x;
                     Color center = source[index];
                     Color left = source[index - 1];
                     Color right = source[index + 1];
                     Color up = source[index - width];
                     Color down = source[index + width];
 
-                    Color neighborAverage = (left + right + up + down) * 0.25f;
-                    Color boosted = center + (center - neighborAverage) * clampedStrength;
-                    boosted.r = Mathf.Clamp01(boosted.r);
-                    boosted.g = Mathf.Clamp01(boosted.g);
-                    boosted.b = Mathf.Clamp01(boosted.b);
-                    boosted.a = center.a;
-                    sharpened[index] = boosted;
+                    // Scalar float maths instead of Color operator chains.
+                    //
+                    // UnityEngine.Color's +, - and * are static METHODS returning a 16-byte struct,
+                    // not intrinsics. The original expression below dispatched seven of them plus
+                    // three Mathf.Clamp01 calls per pixel — over 1.92M pixels that is the bulk of
+                    // this loop. The arithmetic and its evaluation order are unchanged, so the
+                    // result is bit-identical; only the operator dispatch is gone.
+                    //
+                    // Note the alpha term is deliberately NOT computed: the original calculated it
+                    // through the operator chain and then overwrote it with center.a anyway.
+                    float avgR = (left.r + right.r + up.r + down.r) * 0.25f;
+                    float avgG = (left.g + right.g + up.g + down.g) * 0.25f;
+                    float avgB = (left.b + right.b + up.b + down.b) * 0.25f;
+
+                    float r = center.r + (center.r - avgR) * clampedStrength;
+                    float g = center.g + (center.g - avgG) * clampedStrength;
+                    float b = center.b + (center.b - avgB) * clampedStrength;
+
+                    sharpened[index] = new Color(
+                        r < 0f ? 0f : (r > 1f ? 1f : r),
+                        g < 0f ? 0f : (g > 1f ? 1f : g),
+                        b < 0f ? 0f : (b > 1f ? 1f : b),
+                        center.a);
                 }
             }
 
@@ -1802,6 +1936,10 @@ namespace PFE.Systems.Map.Rendering
 
             _generatedAssets.Clear();
             _readableTextureCache.Clear();
+            // Must be cleared alongside the texture cache: it is keyed on the readable textures
+            // that were just destroyed, so keeping it would pin their pixel arrays in memory and
+            // hand out stale entries if a source texture were ever recreated.
+            _readablePixelCache.Clear();
         }
     }
 }

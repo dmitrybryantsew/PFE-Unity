@@ -14,6 +14,13 @@ namespace PFE.Core
         [Tooltip("Master toggle — disabling this silences all optional runtime debug logs at once.")]
         private bool runtimeLoggingEnabled = true;
 
+        // ── Profiling ────────────────────────────────────────────────────────
+
+        [Header("Profiling")]
+        [SerializeField]
+        [Tooltip("Enables PfeProfiler regions. Off = every Region()/Mark() call is a single branch and records nothing. Development builds only.")]
+        private bool profilingEnabled = true;
+
         // ── Game Database ────────────────────────────────────────────────────
 
         [Header("Game Database")]
@@ -134,6 +141,12 @@ namespace PFE.Core
         private bool logTileColliderCreation = false;
 
         // ── Public accessors ─────────────────────────────────────────────────
+
+        /// <summary>
+        /// Not gated by <c>runtimeLoggingEnabled</c> — profiling is a measurement tool, not a log,
+        /// and is separately gated to development builds inside PfeProfiler.
+        /// </summary>
+        public bool ProfilingEnabled                             => profilingEnabled;
 
         public bool LogGameDatabaseInitializationSummary         => runtimeLoggingEnabled && logGameDatabaseInitializationSummary;
         public bool LogGameDatabaseAssetRegistration             => runtimeLoggingEnabled && logGameDatabaseAssetRegistration;

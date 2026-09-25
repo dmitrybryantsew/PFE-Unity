@@ -31,8 +31,22 @@ public class GameLifetimeScope : LifetimeScope
     [SerializeField] private RoomBackgroundLookup _roomBackgroundLookup;
     [SerializeField] private PfeDebugSettings _debugSettings;
     [SerializeField] private GameSettings _gameSettings;
-    protected override void Configure(IContainerBuilder builder)
-    {
+        // VContainer builds the container inside Awake, and Configure() below runs five
+        // FindFirstObjectByType scene scans plus the Resources fallbacks. Run 17 showed the
+        // BeforeSceneLoad -> AfterSceneLoad window at 1018.6 ms with no region covering any of it,
+        // so we could not tell engine scene-load cost from our own container-build cost.
+        // LifetimeScope.Awake is protected virtual (verified in VContainer.dll), so this is safe.
+        protected override void Awake()
+        {
+            using (PFE.Core.Profiling.PfeProfiler.Region("boot.lifetimeScope",
+                "boot: VContainer container build + Configure's 5 FindFirstObjectByType scene scans + Resources fallbacks"))
+            {
+                base.Awake();
+            }
+        }
+
+        protected override void Configure(IContainerBuilder builder)
+        {
         // === MessagePipe Event System ===
         var pipe = builder.RegisterMessagePipe();
         // Input messages
@@ -205,8 +219,17 @@ public class GameLifetimeScope : LifetimeScope
         }
         else
         {
-            Debug.LogWarning("[GameLifetimeScope] No MapBridge found in scene! Map rendering will not work.");
-            Debug.LogWarning("[GameLifetimeScope] Please create a GameObject named 'MapRenderer' with MapBridge and RoomVisualController components.");
+            var existingMapRendererBootstrapper = FindFirstObjectByType<MapRendererBootstrapper>(FindObjectsInactive.Include);
+            if (existingMapRendererBootstrapper != null)
+            {
+                builder.RegisterComponent(existingMapRendererBootstrapper);
+                Debug.Log("[GameLifetimeScope] Registered existing MapRendererBootstrapper");
+            }
+            else
+            {
+                Debug.LogWarning("[GameLifetimeScope] No MapBridge found in scene! Map rendering will not work.");
+                Debug.LogWarning("[GameLifetimeScope] Please create a GameObject named 'MapRenderer' with MapBridge and RoomVisualController components.");
+            }
         }
     }
     
