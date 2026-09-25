@@ -30,5 +30,18 @@ namespace PFE.Core
 
         public float SfxVolume   => sfxVolume;
         public float MusicVolume => musicVolume;
+
+        // ── Simulation ───────────────────────────────────────────────────────
+
+        [Header("Simulation")]
+        [SerializeField]
+        [Tooltip("Simulation tick rate in Hz. 30 is the original target and is replica-exact (one tick = one AS3 ENTER_FRAME). 60 / 90 / 120 mirror the community build's experimental multi-FPS mode. Game speed is identical at every value — physics constants are canonical px-per-30Hz-frame and are scaled per tick, so only integration resolution changes, not how fast the game runs. Unsupported values snap to the nearest supported rate.")]
+        private int simulationTicksPerSecond = SimClock.DefaultTicksPerSecond;
+
+        /// <summary>
+        /// Configured simulation tick rate, snapped to a value in
+        /// <see cref="SimClock.SupportedTicksPerSecond"/>. 30 is the default and the replica-exact mode.
+        /// </summary>
+        public int SimulationTicksPerSecond => SimClock.SnapToSupported(simulationTicksPerSecond);
     }
 }

@@ -30,10 +30,18 @@ public class MapBridge : MonoBehaviour
     private TileMaskLookup _tileMaskLookup;
     private RoomBackgroundLookup _roomBackgroundLookup;
     private PFE.Core.PfeDebugSettings _debugSettings;
+    private PFE.Core.SimClock _simClock;
+    private PFE.Core.SimLoop _simLoop;
 
     // Inject GameManager via VContainer
+    //
+    // Note: C# default values would NOT make a parameter optional here. VContainer's
+    // ResolveOrParameter never consults ParameterInfo.HasDefaultValue — it checks only explicitly
+    // supplied inject parameters, then calls Resolve(type) and throws if that fails. So every
+    // parameter below must be registered, and `= null` defaults are deliberately omitted rather
+    // than left in to imply an optionality the container does not honour.
     [Inject]
-    public void Construct(GameManager gameManager, RoomGenerator roomGenerator, TileTextureLookup tileTextureLookup, MaterialRenderDatabase materialRenderDatabase, TileMaskLookup tileMaskLookup, RoomBackgroundLookup roomBackgroundLookup, PFE.Core.PfeDebugSettings debugSettings)
+    public void Construct(GameManager gameManager, RoomGenerator roomGenerator, TileTextureLookup tileTextureLookup, MaterialRenderDatabase materialRenderDatabase, TileMaskLookup tileMaskLookup, RoomBackgroundLookup roomBackgroundLookup, PFE.Core.PfeDebugSettings debugSettings, PFE.Core.SimClock simClock, PFE.Core.SimLoop simLoop)
     {
         _gameManager = gameManager;
         _roomGenerator = roomGenerator;
@@ -42,6 +50,8 @@ public class MapBridge : MonoBehaviour
         _tileMaskLookup = tileMaskLookup;
         _roomBackgroundLookup = roomBackgroundLookup;
         _debugSettings = debugSettings;
+        _simClock = simClock;
+        _simLoop = simLoop;
 
         if (_useRoomOverride)
             gameManager.SetSkipWorldBuild(true);
@@ -387,6 +397,23 @@ public class MapBridge : MonoBehaviour
                 spawnPosition.y * 100f);
             if (_debugSettings?.LogMapBridgeLifecycle == true)
                 Debug.Log("[MapBridge] TilePhysicsController connected to room");
+
+            // P1: hand the motor to the fixed-step simulation. Opt-in — with the flag off the motor
+            // stays on the legacy FixedUpdate path, byte-identical to the pre-P1 behaviour.
+            if (_debugSettings != null && _debugSettings.SimTickMotor)
+            {
+                // AttachSimulation owns the null guard (it warns and stays legacy), so the clock is
+                // only dereferenced here once we know it arrived.
+                tilePhysics.AttachSimulation(_simClock, _simLoop);
+                if (_simClock != null)
+                {
+                    // Deliberately not gated on LogMapBridgeLifecycle: this confirms an opt-in
+                    // behaviour change, and silence would be ambiguous with "the flag did nothing".
+                    Debug.Log(
+                        "[MapBridge] Motor is sim-driven at " + _simClock.TicksPerSecond +
+                        " Hz (tick fix ON; step scale " + _simClock.StepScale.ToString("0.###") + ")");
+                }
+            }
         }
 
         SetupCameraFollow();

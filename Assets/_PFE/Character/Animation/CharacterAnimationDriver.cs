@@ -93,14 +93,21 @@ namespace PFE.Character.Animation
 
             if (_eventSinkObject != null)
                 _eventSink = _eventSinkObject as IAnimationEventSink;
+
+            // Built here rather than in Start on purpose. A script recompile during Play triggers a
+            // domain reload, which re-runs Awake but NOT Start, so anything built in Start is lost
+            // while the object lives on. With the build in Start, `_states` — and every action state
+            // used by TriggerAction — came back null and EvaluateBestState threw once per FixedUpdate.
+            // BuildStates reads only [SerializeField] tunables, so it needs nothing Start provides.
+            BuildStates();
         }
 
         void Start()
         {
+            // Stays in Start rather than moving up to Awake: `_assembler.Definition` is only
+            // guaranteed to be populated once every component's Awake has run.
             if (_assembler?.Definition != null)
                 _frameDuration = 1f / Mathf.Max(1f, _assembler.Definition.frameRate);
-
-            BuildStates();
         }
 
         void FixedUpdate()

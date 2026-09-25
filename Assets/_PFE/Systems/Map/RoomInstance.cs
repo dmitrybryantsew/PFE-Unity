@@ -167,7 +167,16 @@ namespace PFE.Systems.Map
         /// </summary>
         public TileData GetTileAtCoord(Vector2Int coord)
         {
-            if (coord.x < 0 || coord.x >= width || coord.y < 0 || coord.y >= height)
+            // The `tiles == null` test is load-bearing, not defensive padding. `width`/`height` have
+            // non-zero defaults (WorldConstants.ROOM_WIDTH/HEIGHT) while `tiles` has no initialiser,
+            // so a RoomInstance that exists but has not been filled in yet passes the bounds check
+            // below and dereferences a null array. That is reachable in practice: Unity cannot
+            // serialise a multidimensional array, so `tiles` is also lost when a script recompile
+            // triggers a domain reload while the game is running. Returning null — "no tile here" —
+            // is exactly what the bounds check already means, so this keeps one contract.
+            if (tiles == null ||
+                coord.x < 0 || coord.x >= width ||
+                coord.y < 0 || coord.y >= height)
             {
                 return null;
             }

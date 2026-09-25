@@ -140,6 +140,29 @@ namespace PFE.Core
         [Tooltip("Logs each generated tile collider (TileCollider).")]
         private bool logTileColliderCreation = false;
 
+        // ── Simulation Tick (P1) ─────────────────────────────────────────────
+
+        [Header("Simulation Tick (P1)")]
+        [SerializeField]
+        [Tooltip("Enables dispatch of the fixed-step simulation (SimLoop -> ISimTickable). Accumulation and the overlay keep running when this is off. Behaviour toggle, NOT gated by runtimeLoggingEnabled.")]
+        private bool simTickEnabled = true;
+
+        [SerializeField]
+        [Tooltip("Draws the SimLoop timing readout (rate, tick index, accumulator, alpha, dropped ticks). Display toggle, NOT gated by runtimeLoggingEnabled.")]
+        private bool simTickOverlayEnabled = false;
+
+        [SerializeField]
+        [Tooltip("Stage B dual-run harness: runs the legacy and sim paths side by side and compares state. Behaviour toggle, NOT gated by runtimeLoggingEnabled. Must be off in a shipped build.")]
+        private bool simTickDualRun = false;
+
+        [SerializeField]
+        [Tooltip("Drives TilePhysicsController from SimLoop at the configured tick rate instead of Unity's FixedUpdate. OFF = legacy path, byte-identical to the pre-P1 behaviour (which runs ~2x fast). Turn ON to feel the tick fix. Behaviour toggle, NOT gated by runtimeLoggingEnabled.")]
+        private bool simTickMotor = false;
+
+        [SerializeField]
+        [Tooltip("Logs each field-level divergence found by the dual-run harness, with tick index. Very noisy — opt in only while diffing Stage B.")]
+        private bool simTickLogDivergence = false;
+
         // ── Public accessors ─────────────────────────────────────────────────
 
         /// <summary>
@@ -171,5 +194,15 @@ namespace PFE.Core
         public bool LogRoomRenderingLifecycle                    => runtimeLoggingEnabled && logRoomRenderingLifecycle;
         public bool LogTileVisualCreationSummary                 => runtimeLoggingEnabled && logTileVisualCreationSummary;
         public bool LogTileColliderCreation                      => runtimeLoggingEnabled && logTileColliderCreation;
+
+        // Simulation Tick flags are deliberately NOT gated by runtimeLoggingEnabled: the master
+        // toggle silences logs, and must never be able to change gameplay or hide the overlay.
+        public bool SimTickEnabled                               => simTickEnabled;
+        public bool SimTickOverlayEnabled                        => simTickOverlayEnabled;
+        public bool SimTickDualRun                               => simTickDualRun;
+        public bool SimTickMotor                                 => simTickMotor;
+
+        /// <summary>Divergence logging is a log, so it does respect the master toggle.</summary>
+        public bool SimTickLogDivergence                         => runtimeLoggingEnabled && simTickLogDivergence;
     }
 }

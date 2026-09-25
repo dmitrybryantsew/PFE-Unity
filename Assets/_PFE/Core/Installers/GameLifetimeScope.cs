@@ -138,17 +138,40 @@ public class GameLifetimeScope : LifetimeScope
                 : ScriptableObject.CreateInstance<PfeDebugSettings>());
         }
 
-        if (_gameSettings != null)
+        // Resolve once into a local: the simulation clock below needs the configured tick rate, and
+        // re-loading here would risk handing SimClock a different instance than the one registered.
+        var resolvedGameSettings = _gameSettings;
+        if (resolvedGameSettings == null)
         {
-            builder.RegisterInstance(_gameSettings);
+            resolvedGameSettings = Resources.Load<GameSettings>("GameSettings");
+            if (resolvedGameSettings == null)
+            {
+                resolvedGameSettings = ScriptableObject.CreateInstance<GameSettings>();
+            }
         }
-        else
-        {
-            var runtimeGameSettings = Resources.Load<GameSettings>("GameSettings");
-            builder.RegisterInstance(runtimeGameSettings != null
-                ? runtimeGameSettings
-                : ScriptableObject.CreateInstance<GameSettings>());
-        }
+
+        builder.RegisterInstance(resolvedGameSettings);
+
+        // === Simulation Clock (P1) ===
+        // The canonical constants (30 Hz, px-per-frame units) are compile-time values on SimClock.
+        // The tick rate is per-match state rather than process state, so it is a registered
+        // instance and not a static: a multiplayer session agrees one rate, instead of every peer
+        // mutating a shared global. 30 Hz is replica-exact; 60/90/120 mirror the community build's
+        // experimental multi-FPS mode.
+        var simClock = new SimClock(resolvedGameSettings.SimulationTicksPerSecond);
+        builder.RegisterInstance(simClock);
+
+        // Registered but with no ISimTickable consumers attached yet, so this driver only advances
+        // its own counters. Consumers move across in Stage C.
+        //
+        // AsSelf() is REQUIRED, not cosmetic: RegisterEntryPoint<T>() is
+        // `Register<T>(lifetime).AsImplementedInterfaces()` — and As* *replaces* the service types
+        // rather than adding to them, so without AsSelf the only resolvable services are IStartable
+        // and ITickable. MapBridge injects the concrete SimLoop and would fail with
+        // "No such registration of type: PFE.Core.SimLoop". Same reason GameManager needs AsSelf
+        // below. Singleton also matters here: the instance handed to MapBridge must be the very same
+        // one being ticked, or the motor would register on a SimLoop that never runs.
+        builder.RegisterEntryPoint<SimLoop>().AsSelf();
 
         // Syncs GameSettings audio sliders → ISoundService / IMusicService each tick
         builder.RegisterEntryPoint<AudioVolumeSync>();
@@ -207,7 +230,10 @@ public class GameLifetimeScope : LifetimeScope
         builder.RegisterEntryPoint<GameManager>(Lifetime.Singleton).AsSelf();
 
         // === Game Loop ===
-        builder.RegisterEntryPoint<GameLoopManager>();
+        // AsSelf for the same reason as SimLoop above. Nothing injects GameLoopManager today, so
+        // this is currently a no-op — but C3 of the P1 plan (and any pause UI) will inject it to
+        // call Pause()/Resume(), and it would fail with the same "No such registration" otherwise.
+        builder.RegisterEntryPoint<GameLoopManager>().AsSelf();
 
         // === Map Rendering ===
         // Check if MapBridge exists in scene, if not we'll create it at runtime

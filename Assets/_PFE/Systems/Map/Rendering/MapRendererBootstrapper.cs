@@ -22,7 +22,13 @@ namespace PFE.Systems.Map.Rendering
         private RoomGenerator roomGenerator;
         private PfeDebugSettings debugSettings;
         private MapBridge mapBridge;
-        
+
+        // P1: forwarded to MapBridge.Construct below. This bootstrapper is the ONLY manual caller of
+        // that method (the other path is VContainer's own injection), so when MapBridge.Construct
+        // gained required sim parameters this call site had to be updated in the same change.
+        private SimClock simClock;
+        private SimLoop simLoop;
+
         [Inject]
         public void Construct(
             GameManager gm,
@@ -31,7 +37,9 @@ namespace PFE.Systems.Map.Rendering
             MaterialRenderDatabase materialDatabase,
             TileMaskLookup maskLookup,
             RoomBackgroundLookup backgroundLookup,
-            PfeDebugSettings debug)
+            PfeDebugSettings debug,
+            SimClock clock,
+            SimLoop loop)
         {
             gameManager = gm;
             roomGenerator = generator;
@@ -40,6 +48,8 @@ namespace PFE.Systems.Map.Rendering
             tileMaskLookup = tileMaskLookup != null ? tileMaskLookup : maskLookup;
             roomBackgroundLookup = roomBackgroundLookup != null ? roomBackgroundLookup : backgroundLookup;
             debugSettings = debug;
+            simClock = clock;
+            simLoop = loop;
         }
         
         private void Start()
@@ -111,7 +121,9 @@ namespace PFE.Systems.Map.Rendering
                     materialRenderDatabase,
                     tileMaskLookup,
                     roomBackgroundLookup,
-                    debugSettings);
+                    debugSettings,
+                    simClock,
+                    simLoop);
                 Debug.Log("[MapRendererBootstrapper] Injected runtime dependencies into MapBridge");
             }
             else

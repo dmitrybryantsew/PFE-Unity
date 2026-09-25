@@ -32,8 +32,66 @@ namespace PFE.Systems.Physics
     /// </summary>
     [DefaultExecutionOrder(-150)]
     [DisallowMultipleComponent]
-    public class TilePhysicsController : MonoBehaviour, IMovementMotor
+    public class TilePhysicsController : MonoBehaviour, IMovementMotor, PFE.Core.ISimTickable
     {
+        /// <summary>
+        /// P1: runs after input is gathered and before everything downstream, so entities move
+        /// against a settled room and triggers/damage see final positions.
+        /// </summary>
+        public int TickOrder => PFE.Core.SimTickOrder.PlayerMotor;
+
+        /// <summary>
+        /// One authoritative simulation step. Identical work to the legacy FixedUpdate body; only the
+        /// <i>driver</i> and the per-step scaling change. See <see cref="SimDriven"/>.
+        /// </summary>
+        public void SimTick(int tickIndex)
+        {
+            StepMotor();
+        }
+
+        /// <summary>
+        /// Hands this motor to the fixed-step simulation. After this the motor is driven by
+        /// <see cref="PFE.Core.SimLoop"/> at the configured tick rate and
+        /// <see cref="FixedUpdate"/> stands down.
+        ///
+        /// <para>Called by MapBridge, which already resolves the player's motor in order to connect
+        /// it to the room. <b>Not</b> called means the legacy FixedUpdate path, which is the default,
+        /// so this is a one-flag A/B rather than a silent behaviour change.</para>
+        /// </summary>
+        public void AttachSimulation(PFE.Core.SimClock clock, PFE.Core.SimLoop loop)
+        {
+            if (clock == null || loop == null)
+            {
+                Debug.LogWarning(
+                    "[PFE] AttachSimulation called with a null clock or loop; staying on the " +
+                    "legacy FixedUpdate path.", this);
+                return;
+            }
+
+            simClock = clock;
+            simLoop = loop;
+            simAttached = true;
+            simLoop.Register(this);
+        }
+
+        private void OnEnable()
+        {
+            // Re-register across a disable/enable cycle (pooling, room streaming) so the motor does
+            // not silently stop ticking. Register is idempotent.
+            if (simAttached && simLoop != null)
+            {
+                simLoop.Register(this);
+            }
+        }
+
+        private void OnDestroy()
+        {
+            if (simAttached && simLoop != null)
+            {
+                simLoop.Unregister(this);
+            }
+        }
+
         [Header("Unit Dimensions (pixels, matching AS3)")]
         [Tooltip("Width of collision box in pixels (scX in AS3)")]
         [SerializeField] private float collisionWidth = 30f;
@@ -147,6 +205,75 @@ namespace PFE.Systems.Physics
         private Vector2 dashVelocity;
         private float standingCollisionHeight;
         private float resolvedCrouchedCollisionHeight;
+
+        // ── Simulation driving (P1) ──────────────────────────────────────────
+        // The motor is driven either by SimLoop at the configured tick rate ("sim-driven"), or by
+        // Unity's FixedUpdate ("legacy"). Legacy stays the default so the migration can be A/B'd on
+        // one flag — see PfeDebugSettings.SimTickMotor. With the flag off, every expression below
+        // evaluates to exactly what it did before, so the legacy path is unchanged by construction.
+        private PFE.Core.SimClock simClock;
+        private PFE.Core.SimLoop simLoop;
+        private bool simAttached;
+
+        /// <summary>True when SimLoop owns the step and FixedUpdate must stand down.</summary>
+        private bool SimDriven => simAttached && simClock != null;
+
+        /// <summary>
+        /// Canonical 30 Hz frames of <b>position</b> advanced by a single step.
+        ///
+        /// <para>Legacy: <c>Time.fixedDeltaTime * 60f</c>, i.e. 1.2 at the default 50 Hz FixedUpdate.
+        /// That is the 2x-too-fast bug — 1.2 px per step at 50 steps/s is 60 px/s, against AS3's
+        /// 30 px/s. It is preserved verbatim here so the legacy path is bit-identical.</para>
+        ///
+        /// <para>Sim: <see cref="PFE.Core.SimClock.StepScale"/> = 30/rate, so exactly 1.0 at 30 Hz
+        /// (one step is one AS3 frame) and 0.5 at 60 Hz.</para>
+        /// </summary>
+        private float PositionFramesPerStep => TilePhysicsStepMath.PositionFramesPerStep(
+            SimDriven,
+            UnityEngine.Time.fixedDeltaTime,
+            simClock != null ? simClock.StepScale : 1f);
+
+        /// <summary>
+        /// Canonical 30 Hz frames of <b>rate accumulation</b> (gravity, acceleration, friction decay)
+        /// applied by a single step.
+        ///
+        /// <para>Legacy: exactly <c>1f</c>. Today these are applied once per FixedUpdate with no
+        /// scaling at all, so at 50 Hz gravity accumulates 50 times a second instead of 30 — 1.67x too
+        /// strong, on top of the 2x velocity error above. The two do not cancel. Again preserved
+        /// verbatim so the A/B measures a real difference rather than a mixed one.</para>
+        ///
+        /// <para>Sim: <see cref="PFE.Core.SimClock.StepScale"/>. Semi-implicit Euler with a smaller
+        /// step is not the same trajectory as AS3's h=1, but it is the correct fixed-step form: rates
+        /// advance proportionally to the time the step covers.</para>
+        /// </summary>
+        private float RateFramesPerStep => TilePhysicsStepMath.RateFramesPerStep(
+            SimDriven,
+            simClock != null ? simClock.StepScale : 1f);
+
+        /// <summary>
+        /// Wall-clock seconds covered by a single step. Timers stored in seconds
+        /// (<c>dashTimer</c>, <c>platformDropTimer</c>) decrement by this so their duration stops
+        /// depending on the tick rate.
+        /// </summary>
+        private float StepSeconds => TilePhysicsStepMath.StepSeconds(
+            SimDriven,
+            UnityEngine.Time.fixedDeltaTime,
+            simClock != null ? simClock.SimDt : 0f);
+
+        /// <summary>
+        /// Re-expresses a per-canonical-frame multiplicative decay over this step's frames.
+        ///
+        /// <para>AS3 applies <c>dx *= brake</c> exactly once per 30 Hz frame. Applying it once per
+        /// step at a different tick rate would decay too fast (or too slow), because the number of
+        /// steps per second changed. Over <c>h</c> frames the correct factor is <c>brake^h</c>.</para>
+        ///
+        /// <para>Returns the factor untouched when <c>h == 1</c>, which is always true on the legacy
+        /// path — so legacy behaviour is unchanged by construction.</para>
+        /// </summary>
+        private float DecayOverStep(float perFrameFactor)
+        {
+            return TilePhysicsStepMath.DecayOverStep(perFrameFactor, RateFramesPerStep);
+        }
 
         // Conversion: pixels to Unity units
         // Your WorldCoordinates uses 100 pixels = 1 Unity unit
@@ -425,6 +552,22 @@ namespace PFE.Systems.Physics
 
         private void FixedUpdate()
         {
+            // Standing down when SimLoop owns the step is essential: leaving both mechanisms active
+            // is the classic double-step bug. See SimDriven.
+            if (SimDriven)
+            {
+                return;
+            }
+
+            StepMotor();
+        }
+
+        /// <summary>
+        /// One motor step, shared by the legacy FixedUpdate path and the sim-driven
+        /// <see cref="SimTick"/> path. Extracted so the two drivers cannot drift apart.
+        /// </summary>
+        private void StepMotor()
+        {
             if (currentRoom == null) return;
 
             hitCeiling = false;
@@ -456,12 +599,12 @@ namespace PFE.Systems.Physics
             // 3b. Water drag (AS3: dx *= 0.8, dy *= 0.8 when fully submerged; dx *= 0.5 when wading)
             if (isFullySubmerged)
             {
-                dx *= 0.8f;
-                dy *= 0.8f;
+                dx *= DecayOverStep(0.8f);
+                dy *= DecayOverStep(0.8f);
             }
             else if (isInWater)
             {
-                dx *= 0.5f;
+                dx *= DecayOverStep(0.5f);
             }
 
             // 4. Clamp velocity
@@ -493,8 +636,11 @@ namespace PFE.Systems.Physics
             // 9. Check water
             CheckWater();
 
-            dashTimer = Mathf.Max(0f, dashTimer - Time.fixedDeltaTime);
-            platformDropTimer = Mathf.Max(0f, platformDropTimer - Time.fixedDeltaTime);
+            // Decrement by the step's wall-clock duration, not by Unity's fixed delta, so dash and
+            // platform-drop last the same number of real seconds at every tick rate. In legacy mode
+            // StepSeconds IS Time.fixedDeltaTime, so this is unchanged.
+            dashTimer = Mathf.Max(0f, dashTimer - StepSeconds);
+            platformDropTimer = Mathf.Max(0f, platformDropTimer - StepSeconds);
             if (previousDashTimer > 0f && dashTimer <= 0f)
             {
                 dx *= 0.3f;
@@ -516,7 +662,10 @@ namespace PFE.Systems.Physics
 
             if (isOnLadder)
             {
-                dx = Mathf.MoveTowards(dx, 0f, acceleration);
+                // accel is px per canonical frame, so the delta applied over one step is accel * h.
+                // ladderClimbSpeed is a target velocity (px/frame) and is assigned, not accumulated,
+                // so it needs no scaling.
+                dx = Mathf.MoveTowards(dx, 0f, acceleration * RateFramesPerStep);
                 dy = Mathf.Abs(ladderInputY) > 0.1f
                     ? ladderInputY * ladderClimbSpeed
                     : 0f;
@@ -526,7 +675,7 @@ namespace PFE.Systems.Physics
             }
 
             float accelerationRate = isGrounded ? acceleration : acceleration * 0.35f;
-            dx = Mathf.MoveTowards(dx, desiredHorizontalSpeed, accelerationRate);
+            dx = Mathf.MoveTowards(dx, desiredHorizontalSpeed, accelerationRate * RateFramesPerStep);
         }
 
         /// <summary>
@@ -544,7 +693,9 @@ namespace PFE.Systems.Physics
 
             if (!isGrounded && dashTimer <= 0f)
             {
-                dy -= globalGravity * gravityMult * gravityScale;
+                // AS3 applies World.ddy once per 30 Hz frame, so accumulate proportionally to the
+                // frames this step covers. RateFramesPerStep is exactly 1f on the legacy path.
+                dy -= globalGravity * gravityMult * gravityScale * RateFramesPerStep;
             }
         }
 
@@ -563,7 +714,7 @@ namespace PFE.Systems.Physics
 
             if (Mathf.Abs(desiredHorizontalSpeed) < 0.1f)
             {
-                dx *= friction;
+                dx *= DecayOverStep(friction);
                 if (Mathf.Abs(dx) < 0.1f) dx = 0;
             }
         }
@@ -579,9 +730,10 @@ namespace PFE.Systems.Physics
         {
             if (currentRoom == null || currentRoom.tiles == null) return;
 
-            // Convert velocity from AS3-style (pixels/frame) to per-fixedUpdate
-            float moveX = dx * Time.fixedDeltaTime * 60f; // Scale to ~60fps base
-            float moveY = dy * Time.fixedDeltaTime * 60f;
+            // dx/dy are canonical pixels per 30 Hz frame (AS3 maxdx=8, maxdy=20). Advance by the
+            // number of canonical frames this step covers. Legacy is the 2x bug; sim is correct.
+            float moveX = dx * PositionFramesPerStep;
+            float moveY = dy * PositionFramesPerStep;
 
             if (isOnLadder)
             {
