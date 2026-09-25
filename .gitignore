@@ -135,6 +135,12 @@ InitTestScene*.unity*
 /Assets/_PFE/Data/MusicImportReport.txt.meta
 /Assets/_PFE/Data/MapObjects/ImportReports/
 
+# Agent memory / scratch tooling (local session state, not project source)
+.workbuddy-ai/
+
+# Mermaid diagram export scratch (generated under Assets/_PFE/)
+.mermaid-export/
+
 # Profiling output: Unity Profiler captures (.bc7/.data/.png) and PfeProfiler dumps
 /ProfilerCaptures/
 
