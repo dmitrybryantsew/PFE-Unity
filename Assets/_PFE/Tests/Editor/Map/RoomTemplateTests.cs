@@ -240,7 +240,10 @@ namespace PFE.Tests.Editor.Map
         public void ParseTiles_MultipleRows_ParsesCorrectly()
         {
             RoomTemplate template = ScriptableObject.CreateInstance<RoomTemplate>();
-            template.tileDataString = "...\nBBB\nZZZ";
+            // Rows are DOT-separated tile codes, exactly like AS3 (`arri = js.split(".")`), not
+            // dense character-per-tile rows. A dense "BBB" is a single tile code (fForm 'B' plus
+            // oForm 'B'), so it would stamp one wall at column 0 and leave columns 1-2 as air.
+            template.tileDataString = "...\nB.B.B\nZ.Z.Z";
 
             TileData[,] tiles = template.ParseTiles(LoadTileFormDatabase());
 
@@ -249,12 +252,12 @@ namespace PFE.Tests.Editor.Map
             Assert.AreEqual(TilePhysicsType.Air, tiles[1, TopRow].physicsType);
             Assert.AreEqual(TilePhysicsType.Air, tiles[2, TopRow].physicsType);
 
-            // Row 1: BBB
+            // Row 1: B.B.B
             Assert.AreEqual(TilePhysicsType.Wall, tiles[0, TopRow - 1].physicsType);
             Assert.AreEqual(TilePhysicsType.Wall, tiles[1, TopRow - 1].physicsType);
             Assert.AreEqual(TilePhysicsType.Wall, tiles[2, TopRow - 1].physicsType);
 
-            // Row 2: ZZZ (unregistered as an fForm -> Air)
+            // Row 2: Z.Z.Z (unregistered as an fForm -> Air)
             Assert.AreEqual(TilePhysicsType.Air, tiles[0, TopRow - 2].physicsType);
             Assert.AreEqual(TilePhysicsType.Air, tiles[1, TopRow - 2].physicsType);
             Assert.AreEqual(TilePhysicsType.Air, tiles[2, TopRow - 2].physicsType);

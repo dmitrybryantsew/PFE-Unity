@@ -9,7 +9,10 @@ namespace PFE.Systems.Map.Streaming
     /// Attached to door GameObjects to detect player collisions and trigger room transitions.
     /// From AS3: Door interaction system (fe/units/hero.as lines 2300-2450)
     /// </summary>
-    [RequireComponent(typeof(Collider2D))]
+    // BoxCollider2D, not Collider2D: Collider2D is abstract, so Unity can never auto-add it and
+    // AddComponent<DoorTrigger>() on a bare GameObject silently returns null. The code below only
+    // ever reads or configures a BoxCollider2D anyway.
+    [RequireComponent(typeof(BoxCollider2D))]
     public class DoorTrigger : MonoBehaviour
     {
         [Header("Door Configuration")]

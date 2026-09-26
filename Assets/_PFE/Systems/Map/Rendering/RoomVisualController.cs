@@ -144,6 +144,13 @@ namespace PFE.Systems.Map.Rendering
             Profiler.Mark("room.resolveTileDb");
             visibilityRevealTargetTransform = null;
 
+            // The scripting/trigger layer is not a rendering concern, so create and wire it BEFORE
+            // the render-asset guards below. Otherwise a missing tile database leaves
+            // AreaTriggerSystem null, which silently kills the OnGotoLand forwarding chain that
+            // MapBridge subscribes to.
+            areaTriggerSystem = new PFE.Systems.Map.Scripting.AreaTriggerSystem();
+            areaTriggerSystem.OnGotoLand += land => OnGotoLand?.Invoke(land);
+
             if (room == null)
             {
                 Debug.LogError("[RoomVisualController] Cannot initialize with null room!");
@@ -285,8 +292,6 @@ namespace PFE.Systems.Map.Rendering
             {
                 roomBackdropRenderer.CreateVisuals();
             }
-            areaTriggerSystem = new PFE.Systems.Map.Scripting.AreaTriggerSystem();
-            areaTriggerSystem.OnGotoLand += land => OnGotoLand?.Invoke(land);
             roomObjectVisualManager = new RoomObjectVisualManager(room, backgroundObjectParent, backgroundPhysicalObjectParent, areaTriggerSystem);
             roomObjectVisualManager.RefreshAll();
             Profiler.Mark("room.objects.refreshAll");

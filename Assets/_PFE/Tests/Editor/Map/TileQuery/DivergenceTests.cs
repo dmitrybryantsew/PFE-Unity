@@ -77,7 +77,12 @@ namespace PFE.Tests.Editor.Map.TileQuery
             // A probe at y = 200 - 9 = 191px is:
             // - within unified porog 10 (200 - 10 = 190) -> collides!
             // - outside grid porog 8 (200 - 8 = 192) -> does NOT collide!
-            Rect probeAt9px = new Rect(200f, 191f, 30f, 50f);
+            //
+            // The probe must stay INSIDE the platform's own tile row (y = 160..200). A taller
+            // probe (this used to be 50px tall, spanning 191..241) reaches the ceiling wall row
+            // above (y = 240..280), so BOTH backends collide on that wall and the porog
+            // difference is masked entirely.
+            Rect probeAt9px = new Rect(200f, 191f, 30f, 5f);
 
             bool gridCollides = grid.CheckCollision(probeAt9px, TileQueryOptions.Default);
             bool unifiedCollides = unified.CheckCollision(probeAt9px, TileQueryOptions.Default);
@@ -112,8 +117,9 @@ namespace PFE.Tests.Editor.Map.TileQuery
             var unified = new UnifiedTileQueryService(_room);
             var logger = new TileQueryDivergenceLogger(grid, unified);
 
-            // Probe at 9px where they diverge
-            Rect probeAt9px = new Rect(200f, 191f, 30f, 50f);
+            // Probe at 9px where they diverge (kept inside the platform's tile row, see
+            // PlatformThreshold_DivergenceDocumented for why the height matters).
+            Rect probeAt9px = new Rect(200f, 191f, 30f, 5f);
             logger.CheckCollision(probeAt9px, TileQueryOptions.Default);
 
             Assert.AreEqual(1, logger.DivergenceCount, "Divergence logger should record 1 divergence");

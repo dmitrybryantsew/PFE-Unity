@@ -273,10 +273,11 @@ namespace PFE.Tests.Editor.Map.Streaming
             playerGo.transform.position = new Vector3(1.2f, 0f, 0f);
             Assert.That(interactable.CanInteract(playerGo), Is.True);
 
-            // Player approaches door
+            // Player approaches door. CanInteract(user) measures the distance to the user, so
+            // proximity alone is enough here — there is no need to fake an OnTriggerEnter2D.
+            // Driving a physics callback through SendMessage in EditMode trips Unity's internal
+            // "Assertion failed on expression: 'ShouldRunBehaviour()'", which fails the test.
             playerGo.tag = "Player";
-            var col = playerGo.AddComponent<BoxCollider2D>();
-            presenter.SendMessage("OnTriggerEnter2D", col, SendMessageOptions.DontRequireReceiver);
 
             Assert.That(interactable.CanInteract(playerGo), Is.True);
             Assert.That(interactable.ActionText, Is.EqualTo("Open"));
@@ -686,6 +687,10 @@ namespace PFE.Tests.Editor.Map.Streaming
             Assert.That(debugChild == null || !debugChild.gameObject.activeSelf, Is.True);
 
             AreaTriggerPresenter.SetDebugOverride(true);
+            // OnEnable never runs for a component added in EditMode, so _activePresenters is empty
+            // and the static broadcast has no listener. Call the instance method the broadcast
+            // would have called — that is the path that actually creates the overlay.
+            presenter.UpdateDebugVisual();
             debugChild = go.transform.Find("__AreaDebugVisual");
             Assert.That(debugChild, Is.Not.Null);
             Assert.That(debugChild.gameObject.activeSelf, Is.True);
@@ -696,6 +701,7 @@ namespace PFE.Tests.Editor.Map.Streaming
             Assert.That(spriteRenderer.color.b, Is.GreaterThan(0.7f));
 
             AreaTriggerPresenter.SetDebugOverride(false);
+            presenter.UpdateDebugVisual();
             Assert.That(debugChild.gameObject.activeSelf, Is.False);
 
             AreaTriggerPresenter.SetDebugOverride(null);
@@ -806,6 +812,10 @@ namespace PFE.Tests.Editor.Map.Streaming
             Assert.That(debugChild == null || !debugChild.gameObject.activeSelf, Is.True);
 
             DoorPropPresenter.SetDebugOverride(true);
+            // OnEnable never runs for a component added in EditMode, so _activePresenters is empty
+            // and the static broadcast has no listener. Call the instance method the broadcast
+            // would have called — that is the path that actually creates the overlay.
+            presenter.UpdateDebugVisual();
             debugChild = go.transform.Find("__DoorDebugVisual");
             Assert.That(debugChild, Is.Not.Null);
             Assert.That(debugChild.gameObject.activeSelf, Is.True);
@@ -815,6 +825,7 @@ namespace PFE.Tests.Editor.Map.Streaming
             Assert.That(spriteRenderer.color.r, Is.GreaterThan(0.8f)); // Yellow component
 
             DoorPropPresenter.SetDebugOverride(false);
+            presenter.UpdateDebugVisual();
             Assert.That(debugChild.gameObject.activeSelf, Is.False);
 
             DoorPropPresenter.SetDebugOverride(null);
@@ -844,6 +855,10 @@ namespace PFE.Tests.Editor.Map.Streaming
             Assert.That(debugChild == null || !debugChild.gameObject.activeSelf, Is.True);
 
             ObjectColliderDebugPresenter.SetDebugOverride(true);
+            // OnEnable never runs for a component added in EditMode, so _activePresenters is empty
+            // and the static broadcast has no listener. Call the instance method the broadcast
+            // would have called — that is the path that actually creates the overlay.
+            presenter.UpdateDebugVisual();
             debugChild = go.transform.Find("__ObjectDebugVisual");
             Assert.That(debugChild, Is.Not.Null);
             Assert.That(debugChild.gameObject.activeSelf, Is.True);
@@ -853,6 +868,7 @@ namespace PFE.Tests.Editor.Map.Streaming
             Assert.That(spriteRenderer.color.g, Is.GreaterThan(0.7f)); // Teal green component
 
             ObjectColliderDebugPresenter.SetDebugOverride(false);
+            presenter.UpdateDebugVisual();
             Assert.That(debugChild.gameObject.activeSelf, Is.False);
 
             ObjectColliderDebugPresenter.SetDebugOverride(null);

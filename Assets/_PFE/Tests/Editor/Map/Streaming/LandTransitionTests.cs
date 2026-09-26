@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEngine;
+using UnityEngine.TestTools;
 using PFE.Core.Messages;
 using PFE.Data.Definitions;
 using PFE.Systems.Map;
@@ -111,7 +112,10 @@ namespace PFE.Tests.Editor.Map.Streaming
             };
             room.InitializeTiles();
 
-            // Calling Initialize on rvc sets up areaTriggerSystem and wires up OnGotoLand forwarding
+            // Initialize wires up the trigger system before it touches the render assets, so the
+            // system survives the early-out below. The null database is deliberate: this test only
+            // cares about the OnGotoLand forwarding chain, not about rendering the room.
+            LogAssert.Expect(LogType.Error, "[RoomVisualController] Cannot initialize with null asset database!");
             rvc.Initialize(room, null);
 
             Assert.That(rvc.AreaTriggerSystem, Is.Not.Null);
