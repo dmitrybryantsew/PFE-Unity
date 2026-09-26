@@ -16,6 +16,7 @@ namespace PFE.Systems.Map.Scripting
         private readonly IPublisher<TutorialPromptMessage> _promptPublisher;
         private readonly IPublisher<ObjectiveMarkerMessage> _markerPublisher;
         private readonly IPublisher<LandTransitionMessage> _landTransitionPublisher;
+        private readonly LuaTriggerBridge _luaBridge;
 
         private readonly Dictionary<string, string> _localizedTextOverrides = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
@@ -24,18 +25,20 @@ namespace PFE.Systems.Map.Scripting
         public event Action<ObjectInstance> OnObjectStateChanged;
         public event Action<string> OnGotoLand;
 
-        public AreaTriggerSystem() : this(null, null, null)
+        public AreaTriggerSystem() : this(null, null, null, null)
         {
         }
 
         public AreaTriggerSystem(
             IPublisher<TutorialPromptMessage> promptPublisher,
             IPublisher<ObjectiveMarkerMessage> markerPublisher,
-            IPublisher<LandTransitionMessage> landTransitionPublisher = null)
+            IPublisher<LandTransitionMessage> landTransitionPublisher = null,
+            LuaTriggerBridge luaBridge = null)
         {
             _promptPublisher = promptPublisher;
             _markerPublisher = markerPublisher;
             _landTransitionPublisher = landTransitionPublisher;
+            _luaBridge = luaBridge;
         }
 
         public void SetTextOverride(string key, string text)
@@ -215,6 +218,12 @@ namespace PFE.Systems.Map.Scripting
                 return;
             }
 
+            if (command == "lua")
+            {
+                _luaBridge?.ExecuteTriggerScript(room, null, action.val);
+                return;
+            }
+
             if (string.IsNullOrEmpty(action.targ)) return;
 
             string targetUid = action.targ;
@@ -283,29 +292,28 @@ namespace PFE.Systems.Map.Scripting
         {
             if (room?.tiles == null || obj == null) return;
 
-            // Default door size in pixels: 40x80 (2x4 tiles)
-            float widthPx = 40f;
-            float heightPx = 80f;
+            // Door tile dimensions: size is width in tiles, width is height in tiles (AS3 wid)
+            int widthTiles = 1;
+            int heightTiles = 2;
             if (obj.definition != null)
             {
-                if (obj.definition.width > 0) widthPx = obj.definition.width * WorldConstants.TILE_SIZE;
-                if (obj.definition.size > 0) heightPx = obj.definition.size * WorldConstants.TILE_SIZE;
+                if (obj.definition.size > 0) widthTiles = obj.definition.size;
+                if (obj.definition.width > 0) heightTiles = obj.definition.width;
             }
 
+            float widthPx = widthTiles * WorldConstants.TILE_SIZE;
             float leftPx = obj.position.x - widthPx * 0.5f;
-            float rightPx = obj.position.x + widthPx * 0.5f - 1f;
             float bottomPx = obj.position.y;
-            float topPx = obj.position.y + heightPx - 1f;
+
+            int txMin = Mathf.FloorToInt(leftPx / WorldConstants.TILE_SIZE + 0.01f);
+            int txMax = txMin + widthTiles - 1;
+            int tyMin = Mathf.FloorToInt(bottomPx / WorldConstants.TILE_SIZE);
+            int tyMax = tyMin + heightTiles - 1;
 
             if (!isOpen)
             {
-                EjectPlayerIfOverlappingDoor(room, obj, leftPx, rightPx, bottomPx, topPx);
+                EjectPlayerIfOverlappingDoor(room, obj, leftPx, leftPx + widthPx, bottomPx, bottomPx + heightTiles * WorldConstants.TILE_SIZE);
             }
-
-            int txMin = Mathf.FloorToInt(leftPx / WorldConstants.TILE_SIZE);
-            int txMax = Mathf.FloorToInt(rightPx / WorldConstants.TILE_SIZE);
-            int tyMin = Mathf.FloorToInt(bottomPx / WorldConstants.TILE_SIZE);
-            int tyMax = Mathf.FloorToInt(topPx / WorldConstants.TILE_SIZE);
 
             TilePhysicsType targetType = isOpen ? TilePhysicsType.Air : TilePhysicsType.Wall;
 
@@ -339,26 +347,34 @@ namespace PFE.Systems.Map.Scripting
             if (player == null) return;
 
             Vector3 playerWorldPos = player.transform.position;
-            float roomOriginPxX = room.landPosition.x * WorldConstants.ROOM_SIZE_PIXELS.x;
-            float roomOriginPxY = room.landPosition.y * WorldConstants.ROOM_SIZE_PIXELS.y;
+            float roomOriginPxX = (room.landPosition.x * WorldConstants.ROOM_WIDTH - room.borderOffset) * WorldConstants.TILE_SIZE;
+            float roomOriginPxY = (room.landPosition.y * WorldConstants.ROOM_HEIGHT - room.borderOffset) * WorldConstants.TILE_SIZE;
 
             float playerPxX = (playerWorldPos.x * 100f) - roomOriginPxX;
             float playerPxY = (playerWorldPos.y * 100f) - roomOriginPxY;
 
             float halfW = 15f; // 15px (0.15m)
-            var col = player.GetComponent<Collider2D>();
-            if (col != null && !col.isTrigger)
+            var tpc = player.GetComponent<PFE.Systems.Physics.TilePhysicsController>();
+            if (tpc != null)
             {
-                halfW = Mathf.Max(12f, col.bounds.extents.x * 100f);
+                halfW = tpc.CollisionWidth * 0.5f;
+            }
+            else
+            {
+                var col = player.GetComponent<Collider2D>();
+                if (col != null && !col.isTrigger)
+                {
+                    halfW = Mathf.Max(12f, col.bounds.extents.x * 100f);
+                }
             }
 
-            bool overlapX = (playerPxX + halfW) > leftPx + 1f && (playerPxX - halfW) < rightPx - 1f;
+            bool overlapX = (playerPxX + halfW) > leftPx + 0.5f && (playerPxX - halfW) < rightPx - 0.5f;
             bool overlapY = playerPxY + 50f > bottomPx && playerPxY < topPx;
 
             if (overlapX && overlapY)
             {
                 float doorCenterPx = (leftPx + rightPx) * 0.5f;
-                const float marginPx = 8f;
+                const float marginPx = 2f;
                 float targetPxX = playerPxX < doorCenterPx
                     ? (leftPx - halfW - marginPx)
                     : (rightPx + halfW + marginPx);
@@ -366,14 +382,23 @@ namespace PFE.Systems.Map.Scripting
                 float targetWorldX = (targetPxX + roomOriginPxX) * 0.01f;
                 Vector3 newPos = new Vector3(targetWorldX, playerWorldPos.y, playerWorldPos.z);
 
-                var motor = player.GetComponent<PFE.Systems.Physics.IMovementMotor>();
-                if (motor != null)
+                if (tpc != null)
                 {
-                    motor.SetUnityPosition(newPos);
+                    tpc.SetUnityPosition(newPos);
+                    tpc.TeleportTo(tpc.PixelPosition.x, tpc.PixelPosition.y);
                 }
                 else
                 {
-                    player.transform.position = newPos;
+                    var motor = player.GetComponent<PFE.Systems.Physics.IMovementMotor>();
+                    if (motor != null)
+                    {
+                        motor.SetUnityPosition(newPos);
+                        motor.SetDesiredHorizontalSpeed(0f);
+                    }
+                    else
+                    {
+                        player.transform.position = newPos;
+                    }
                 }
             }
         }

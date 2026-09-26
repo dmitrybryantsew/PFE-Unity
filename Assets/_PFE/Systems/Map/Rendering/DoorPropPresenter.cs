@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using UnityEngine;
 using PFE.Core;
 using PFE.Core.Messages;
@@ -207,6 +208,21 @@ namespace PFE.Systems.Map.Rendering
             UpdateVisualFrame(instant: true);
         }
 
+        private void GetDoorBounds(out Vector2 size, out Vector2 offset)
+        {
+            if (_renderer != null && _renderer.sprite != null)
+            {
+                size = (Vector2)_renderer.sprite.bounds.size;
+                offset = (Vector2)_renderer.sprite.bounds.center;
+                return;
+            }
+
+            float w = _visual != null ? Mathf.Max(0.2f, _visual.pixelSize.x * 0.01f) : 0.4f;
+            float h = _visual != null ? Mathf.Max(0.2f, _visual.pixelSize.y * 0.01f) : 0.8f;
+            size = new Vector2(w, h);
+            offset = Vector2.zero;
+        }
+
         private void ConfigureCollider()
         {
             if (_triggerCollider == null) return;
@@ -220,12 +236,9 @@ namespace PFE.Systems.Map.Rendering
             }
 
             _triggerCollider.enabled = true;
-            float w = _visual != null ? Mathf.Max(0.2f, _visual.pixelSize.x * 0.01f) : 0.4f;
-            float h = _visual != null ? Mathf.Max(0.2f, _visual.pixelSize.y * 0.01f) : 0.8f;
-
-            // Interaction area has generous padding (AS3 actionDist reach zone)
-            _triggerCollider.size = new Vector2(w + 1.2f, h + 0.4f);
-            _triggerCollider.offset = new Vector2(0f, h * 0.5f);
+            GetDoorBounds(out Vector2 size, out Vector2 offset);
+            _triggerCollider.size = size;
+            _triggerCollider.offset = offset;
         }
 
         public void SetOpen(bool open)
@@ -255,21 +268,60 @@ namespace PFE.Systems.Map.Rendering
             SetOpen(!IsOpen);
         }
 
+        public void GetDoorTileDimensions(out int widthTiles, out int heightTiles)
+        {
+            widthTiles = 1;
+            heightTiles = 2;
+
+            if (_objectInstance?.definition != null)
+            {
+                if (_objectInstance.definition.size > 0)
+                    widthTiles = _objectInstance.definition.size;
+                if (_objectInstance.definition.width > 0)
+                    heightTiles = _objectInstance.definition.width;
+                return;
+            }
+
+            if (_objectInstance != null)
+            {
+                string rawSize = _objectInstance.GetAttribute("size", string.Empty);
+                if (int.TryParse(rawSize, NumberStyles.Integer, CultureInfo.InvariantCulture, out int s) && s > 0)
+                    widthTiles = s;
+
+                string rawWid = _objectInstance.GetAttribute("wid", string.Empty);
+                if (int.TryParse(rawWid, NumberStyles.Integer, CultureInfo.InvariantCulture, out int w) && w > 0)
+                    heightTiles = w;
+
+                if (!string.IsNullOrEmpty(rawSize) || !string.IsNullOrEmpty(rawWid))
+                    return;
+            }
+
+            if (_visual != null && _visual.pixelSize.x > 0 && _visual.pixelSize.y > 0)
+            {
+                widthTiles = Mathf.Max(1, Mathf.RoundToInt((float)_visual.pixelSize.x / WorldConstants.TILE_SIZE));
+                heightTiles = Mathf.Max(1, Mathf.RoundToInt((float)_visual.pixelSize.y / WorldConstants.TILE_SIZE));
+            }
+        }
+
+        public void GetCoveredTileRange(out int txMin, out int txMax, out int tyMin, out int tyMax)
+        {
+            GetDoorTileDimensions(out int widthTiles, out int heightTiles);
+
+            float widthPx = widthTiles * WorldConstants.TILE_SIZE;
+            float leftPx = (_objectInstance != null ? _objectInstance.position.x : 0f) - widthPx * 0.5f;
+            float bottomPx = _objectInstance != null ? _objectInstance.position.y : 0f;
+
+            txMin = Mathf.FloorToInt(leftPx / WorldConstants.TILE_SIZE + 0.01f);
+            txMax = txMin + widthTiles - 1;
+            tyMin = Mathf.FloorToInt(bottomPx / WorldConstants.TILE_SIZE);
+            tyMax = tyMin + heightTiles - 1;
+        }
+
         public void ApplyTileCollision(bool isOpen)
         {
             if (_room?.tiles == null || _objectInstance == null) return;
 
-            // Compute covered tile range
-            Vector2 size = _visual != null ? (Vector2)_visual.pixelSize : new Vector2(40f, 80f);
-            float leftPx = _objectInstance.position.x - size.x * 0.5f;
-            float rightPx = _objectInstance.position.x + size.x * 0.5f - 1f;
-            float bottomPx = _objectInstance.position.y;
-            float topPx = _objectInstance.position.y + size.y - 1f;
-
-            int txMin = Mathf.FloorToInt(leftPx / WorldConstants.TILE_SIZE);
-            int txMax = Mathf.FloorToInt(rightPx / WorldConstants.TILE_SIZE);
-            int tyMin = Mathf.FloorToInt(bottomPx / WorldConstants.TILE_SIZE);
-            int tyMax = Mathf.FloorToInt(topPx / WorldConstants.TILE_SIZE);
+            GetCoveredTileRange(out int txMin, out int txMax, out int tyMin, out int tyMax);
 
             TilePhysicsType targetType = isOpen ? TilePhysicsType.Air : TilePhysicsType.Wall;
 
@@ -350,10 +402,15 @@ namespace PFE.Systems.Map.Rendering
             }
 
             // 2. Physics overlap query for other units
-            float doorW = (_visual != null && _visual.pixelSize.x > 0) ? (_visual.pixelSize.x * 0.01f) : 0.6f;
-            float doorH = (_visual != null && _visual.pixelSize.y > 0) ? (_visual.pixelSize.y * 0.01f) : 0.8f;
-            Vector2 boxCenter = (Vector2)transform.position + new Vector2(0f, doorH * 0.5f);
-            Vector2 boxSize = new Vector2(doorW + 0.2f, doorH);
+            GetDoorTileDimensions(out int widthTiles, out int heightTiles);
+            float widthUnits = widthTiles * WorldConstants.TILE_SIZE * 0.01f;
+            float heightUnits = heightTiles * WorldConstants.TILE_SIZE * 0.01f;
+
+            Vector2 localOffsetUnits = _visual != null ? (Vector2)_visual.localOffset * 0.01f : Vector2.zero;
+            float doorCenterX = transform.position.x - localOffsetUnits.x;
+            float doorBottomY = transform.position.y - localOffsetUnits.y;
+            Vector2 boxCenter = new Vector2(doorCenterX, doorBottomY + heightUnits * 0.5f);
+            Vector2 boxSize = new Vector2(widthUnits + 0.4f, heightUnits);
 
             Collider2D[] overlaps = Physics2D.OverlapBoxAll(boxCenter, boxSize, 0f);
             if (overlaps != null)
@@ -382,50 +439,52 @@ namespace PFE.Systems.Map.Rendering
         }
 
         /// <summary>
-        /// Eject an individual unit if it overlaps the door's volume.
+        /// Eject an individual unit if it overlaps the door's solid volume.
         /// Pushes horizontally to the nearest open side, keeping Y unchanged.
         /// </summary>
         public bool EjectUnitIfOverlapping(GameObject unit)
         {
             if (unit == null) return false;
 
-            float doorW = (_visual != null && _visual.pixelSize.x > 0) ? (_visual.pixelSize.x * 0.01f) : 0.6f;
-            float doorH = (_visual != null && _visual.pixelSize.y > 0) ? (_visual.pixelSize.y * 0.01f) : 0.8f;
+            GetDoorTileDimensions(out int widthTiles, out int heightTiles);
+            float widthUnits = widthTiles * WorldConstants.TILE_SIZE * 0.01f;
+            float heightUnits = heightTiles * WorldConstants.TILE_SIZE * 0.01f;
 
-            float doorCenterX = transform.position.x;
-            float doorBottomY = transform.position.y;
-            float doorLeft = doorCenterX - doorW * 0.5f;
-            float doorRight = doorCenterX + doorW * 0.5f;
-            float doorTop = doorBottomY + doorH;
+            Vector2 localOffsetUnits = _visual != null ? (Vector2)_visual.localOffset * 0.01f : Vector2.zero;
+            float doorCenterX = transform.position.x - localOffsetUnits.x;
+            float doorBottomY = transform.position.y - localOffsetUnits.y;
+            float doorLeft = doorCenterX - widthUnits * 0.5f;
+            float doorRight = doorCenterX + widthUnits * 0.5f;
+            float doorTop = doorBottomY + heightUnits;
 
             Vector3 unitPos = unit.transform.position;
             float halfWidth = 0.15f;
             float unitBottom = unitPos.y;
             float unitTop = unitPos.y + 0.5f;
 
-            var col = unit.GetComponent<Collider2D>();
-            if (col != null && !col.isTrigger)
+            var tpc = unit.GetComponent<TilePhysicsController>();
+            if (tpc != null)
             {
-                halfWidth = Mathf.Max(0.12f, col.bounds.extents.x);
-                unitBottom = col.bounds.min.y;
-                unitTop = col.bounds.max.y;
+                halfWidth = tpc.CollisionWidth * 0.5f * 0.01f;
+                unitBottom = unitPos.y;
+                unitTop = unitPos.y + tpc.CollisionHeight * 0.01f;
             }
             else
             {
-                var motor = unit.GetComponent<TilePhysicsController>();
-                if (motor != null)
+                var col = unit.GetComponent<Collider2D>();
+                if (col != null && !col.isTrigger)
                 {
-                    halfWidth = 0.15f;
-                    unitBottom = unitPos.y;
-                    unitTop = unitPos.y + 0.5f;
+                    halfWidth = Mathf.Max(0.12f, col.bounds.extents.x);
+                    unitBottom = col.bounds.min.y;
+                    unitTop = col.bounds.max.y;
                 }
             }
 
             float unitLeft = unitPos.x - halfWidth;
             float unitRight = unitPos.x + halfWidth;
 
-            // Check AABB overlap between unit and door frame
-            bool overlapX = unitRight > doorLeft + 0.01f && unitLeft < doorRight - 0.01f;
+            // Check AABB overlap between unit and solid door footprint
+            bool overlapX = unitRight > doorLeft + 0.005f && unitLeft < doorRight - 0.005f;
             bool overlapY = unitTop > doorBottomY && unitBottom < doorTop;
 
             if (!overlapX || !overlapY)
@@ -434,7 +493,7 @@ namespace PFE.Systems.Map.Rendering
             }
 
             // Margin outside the door's solid bounds to ensure no immediate re-collision with wall
-            const float clearMargin = 0.08f;
+            const float clearMargin = 0.02f;
             float pushLeftX = doorLeft - halfWidth - clearMargin;
             float pushRightX = doorRight + halfWidth + clearMargin;
 
@@ -466,23 +525,29 @@ namespace PFE.Systems.Map.Rendering
             // never upward into the ceiling.
             Vector3 newPos = new Vector3(targetX, unitPos.y, unitPos.z);
 
-            var movementMotor = unit.GetComponent<IMovementMotor>();
-            if (movementMotor != null)
-            {
-                movementMotor.SetUnityPosition(newPos);
-            }
-            else if (unit.TryGetComponent<TilePhysicsController>(out var tpc))
+            if (tpc != null)
             {
                 tpc.SetUnityPosition(newPos);
+                tpc.TeleportTo(tpc.PixelPosition.x, tpc.PixelPosition.y);
             }
             else
             {
-                var rb = unit.GetComponent<Rigidbody2D>();
-                if (rb != null)
+                var movementMotor = unit.GetComponent<IMovementMotor>();
+                if (movementMotor != null)
                 {
-                    rb.position = new Vector2(targetX, unitPos.y);
+                    movementMotor.SetUnityPosition(newPos);
+                    movementMotor.SetDesiredHorizontalSpeed(0f);
                 }
-                unit.transform.position = newPos;
+                else
+                {
+                    var rb = unit.GetComponent<Rigidbody2D>();
+                    if (rb != null)
+                    {
+                        rb.position = new Vector2(targetX, unitPos.y);
+                        rb.linearVelocity = Vector2.zero;
+                    }
+                    unit.transform.position = newPos;
+                }
             }
 
             return true;
@@ -492,8 +557,8 @@ namespace PFE.Systems.Map.Rendering
         {
             if (_room?.tiles == null) return false;
 
-            float roomOriginPixelX = _room.landPosition.x * WorldConstants.ROOM_SIZE_PIXELS.x;
-            float roomOriginPixelY = _room.landPosition.y * WorldConstants.ROOM_SIZE_PIXELS.y;
+            float roomOriginPixelX = (_room.landPosition.x * WorldConstants.ROOM_WIDTH - _room.borderOffset) * WorldConstants.TILE_SIZE;
+            float roomOriginPixelY = (_room.landPosition.y * WorldConstants.ROOM_HEIGHT - _room.borderOffset) * WorldConstants.TILE_SIZE;
 
             float localPixelX = (worldX * 100f) - roomOriginPixelX;
             float localPixelY = (worldY * 100f) - roomOriginPixelY;
@@ -677,10 +742,7 @@ namespace PFE.Systems.Map.Rendering
             }
             else
             {
-                float w = _visual != null ? Mathf.Max(0.2f, _visual.pixelSize.x * 0.01f) : 0.4f;
-                float h = _visual != null ? Mathf.Max(0.2f, _visual.pixelSize.y * 0.01f) : 0.8f;
-                size = new Vector2(w, h);
-                offset = new Vector2(0f, h * 0.5f);
+                GetDoorBounds(out size, out offset);
             }
 
             _debugVisualGo.transform.localPosition = new Vector3(offset.x, offset.y, 0f);
@@ -719,10 +781,7 @@ namespace PFE.Systems.Map.Rendering
             }
             else
             {
-                float w = _visual != null ? Mathf.Max(0.2f, _visual.pixelSize.x * 0.01f) : 0.4f;
-                float h = _visual != null ? Mathf.Max(0.2f, _visual.pixelSize.y * 0.01f) : 0.8f;
-                size = new Vector2(w, h);
-                offset = new Vector2(0f, h * 0.5f);
+                GetDoorBounds(out size, out offset);
             }
 
             Vector3 center = transform.position + new Vector3(offset.x, offset.y, 0f);
