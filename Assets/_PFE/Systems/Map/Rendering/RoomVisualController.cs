@@ -1,6 +1,7 @@
 using System.Text;
 using UnityEngine;
 using PFE.Systems.Map;
+using PFE.Systems.Map.Streaming;
 using PFE.Entities.Player;
 using PFE.Core;
 using Profiler = PFE.Core.Profiling.PfeProfiler;
@@ -68,12 +69,23 @@ namespace PFE.Systems.Map.Rendering
         private TileVisualManager backgroundTileVisualManager;
         private RoomBackdropRenderer roomBackdropRenderer;
         private RoomObjectVisualManager roomObjectVisualManager;
+        private PFE.Systems.Map.Scripting.AreaTriggerSystem areaTriggerSystem;
         private Transform visibilityRevealTargetTransform;
 
         /// <summary>
         /// Get the room instance this controller renders.
         /// </summary>
         public RoomInstance RoomInstance => roomInstance;
+
+        /// <summary>
+        /// Get the area trigger system for this room.
+        /// </summary>
+        public PFE.Systems.Map.Scripting.AreaTriggerSystem AreaTriggerSystem => areaTriggerSystem;
+
+        /// <summary>
+        /// Get the tile asset database used for rendering this room.
+        /// </summary>
+        public TileAssetDatabase TileAssetDatabase => tileAssetDatabase;
 
         /// <summary>
         /// Is this room currently visible?
@@ -110,6 +122,11 @@ namespace PFE.Systems.Map.Rendering
         /// </summary>
         public void Initialize(RoomInstance room, TileAssetDatabase assetDatabase)
         {
+            if (isInitialized)
+            {
+                ClearVisuals();
+            }
+
             debugSettings = ResolveDebugSettings();
             if (debugSettings != null && debugSettings.LogRoomRenderingLifecycle)
             {
@@ -262,9 +279,12 @@ namespace PFE.Systems.Map.Rendering
             {
                 roomBackdropRenderer.CreateVisuals();
             }
-            roomObjectVisualManager = new RoomObjectVisualManager(room, backgroundObjectParent, backgroundPhysicalObjectParent);
+            areaTriggerSystem = new PFE.Systems.Map.Scripting.AreaTriggerSystem();
+            roomObjectVisualManager = new RoomObjectVisualManager(room, backgroundObjectParent, backgroundPhysicalObjectParent, areaTriggerSystem);
             roomObjectVisualManager.RefreshAll();
             Profiler.Mark("room.objects.refreshAll");
+
+            EnsureBoundaryDoorTriggers(room);
 
             // Set world position
             Vector3 worldPos = GetRoomWorldPosition();
@@ -325,6 +345,59 @@ namespace PFE.Systems.Map.Rendering
             );
 
             return WorldCoordinates.PixelToUnity(roomPixelPos);
+        }
+
+        /// <summary>
+        /// Instantiate boundary door triggers for all active DoorInstances in the room.
+        /// </summary>
+        public void EnsureBoundaryDoorTriggers(RoomInstance room)
+        {
+            if (room?.doors == null || room.doors.Count == 0) return;
+
+            Transform doorParent = transform.Find("DoorTriggers");
+            if (doorParent == null)
+            {
+                var doorParentGo = new GameObject("DoorTriggers");
+                doorParentGo.transform.SetParent(transform, false);
+                doorParent = doorParentGo.transform;
+            }
+
+            for (int i = 0; i < room.doors.Count; i++)
+            {
+                DoorInstance door = room.doors[i];
+                if (door == null || !door.isActive) continue;
+
+                string doorName = $"DoorTrigger_{door.doorIndex}_{door.side}";
+                Transform existing = doorParent.Find(doorName);
+                GameObject doorGo = existing != null ? existing.gameObject : new GameObject(doorName);
+                doorGo.transform.SetParent(doorParent, false);
+
+                // Convert tile position to room local Unity space
+                Vector2 tilePixel = WorldCoordinates.TileToPixel(door.tilePosition);
+                Vector3 localUnityPos = WorldCoordinates.PixelToUnity(tilePixel + new Vector2(WorldConstants.TILE_SIZE * 0.5f, WorldConstants.TILE_SIZE * 0.5f));
+                doorGo.transform.localPosition = localUnityPos;
+
+                BoxCollider2D collider = doorGo.GetComponent<BoxCollider2D>();
+                if (collider == null)
+                {
+                    collider = doorGo.AddComponent<BoxCollider2D>();
+                }
+                collider.isTrigger = true;
+
+                // Size collider depending on horizontal or vertical door
+                bool isVertical = door.side == DoorSide.Left || door.side == DoorSide.Right;
+                float w = isVertical ? 0.20f : 0.40f;
+                float h = isVertical ? 0.40f : 0.20f;
+                collider.size = new Vector2(w, h);
+                collider.offset = Vector2.zero;
+
+                DoorTrigger trigger = doorGo.GetComponent<DoorTrigger>();
+                if (trigger == null)
+                {
+                    trigger = doorGo.AddComponent<DoorTrigger>();
+                }
+                trigger.SetDoor(door, room);
+            }
         }
 
         /// <summary>
@@ -933,6 +1006,63 @@ namespace PFE.Systems.Map.Rendering
             destination.trapId = source.trapId;
         }
 
+        /// <summary>
+        /// Clear all visual elements for this room, including tiles, backdrops, objects, triggers, and lights.
+        /// </summary>
+        /// <remarks>
+        /// Deliberately NOT inside <c>#if UNITY_EDITOR</c>. <see cref="Initialize"/> calls this at runtime
+        /// when re-initializing an already-initialized room, so it must exist in Player builds too. It used
+        /// to live inside the editor-only preview block below, which made every Player build fail with
+        /// CS0103 "The name 'ClearVisuals' does not exist in the current context" — invisible in the Editor
+        /// because <c>UNITY_EDITOR</c> is defined there.
+        /// </remarks>
+        public void ClearVisuals()
+        {
+            tileVisualManager?.DestroyAllTiles();
+            backgroundTileVisualManager?.DestroyAllTiles();
+            roomBackdropRenderer?.DestroyVisuals();
+            roomObjectVisualManager?.DestroyAll();
+
+            tileVisualManager = null;
+            backgroundTileVisualManager = null;
+            roomBackdropRenderer = null;
+            roomObjectVisualManager = null;
+            visibilityRevealTargetTransform = null;
+            isInitialized = false;
+
+            DestroyChildren(tileParent);
+            DestroyChildren(backgroundParent);
+            DestroyChildren(backgroundTileParent);
+            DestroyChildren(backgroundObjectParent);
+            DestroyChildren(backgroundPhysicalObjectParent);
+            DestroyChildren(lightingParent);
+            DestroyChildren(fogOfWarParent);
+
+            Transform doorParent = transform.Find("DoorTriggers");
+            DestroyChildren(doorParent);
+        }
+
+        private static void DestroyChildren(Transform parent)
+        {
+            if (parent == null)
+            {
+                return;
+            }
+
+            for (int i = parent.childCount - 1; i >= 0; i--)
+            {
+                GameObject child = parent.GetChild(i).gameObject;
+                if (Application.isPlaying)
+                {
+                    Destroy(child);
+                }
+                else
+                {
+                    DestroyImmediate(child);
+                }
+            }
+        }
+
         #if UNITY_EDITOR
         public RoomTemplate PreviewTemplate
         {
@@ -1024,38 +1154,7 @@ namespace PFE.Systems.Map.Rendering
 
         private void ClearPreviewVisuals()
         {
-            tileVisualManager?.DestroyAllTiles();
-            backgroundTileVisualManager?.DestroyAllTiles();
-            roomBackdropRenderer?.DestroyVisuals();
-            roomObjectVisualManager?.DestroyAll();
-
-            tileVisualManager = null;
-            backgroundTileVisualManager = null;
-            roomBackdropRenderer = null;
-            roomObjectVisualManager = null;
-            visibilityRevealTargetTransform = null;
-            isInitialized = false;
-
-            DestroyChildren(tileParent);
-            DestroyChildren(backgroundParent);
-            DestroyChildren(backgroundObjectParent);
-            DestroyChildren(backgroundPhysicalObjectParent);
-            DestroyChildren(lightingParent);
-            DestroyChildren(fogOfWarParent);
-        }
-
-        private static void DestroyChildren(Transform parent)
-        {
-            if (parent == null)
-            {
-                return;
-            }
-
-            for (int i = parent.childCount - 1; i >= 0; i--)
-            {
-                UnityEngine.Object child = parent.GetChild(i).gameObject;
-                UnityEngine.Object.DestroyImmediate(child);
-            }
+            ClearVisuals();
         }
 
         private static RoomTemplate LoadRoomTemplateById(string templateId, RoomTemplate context = null)

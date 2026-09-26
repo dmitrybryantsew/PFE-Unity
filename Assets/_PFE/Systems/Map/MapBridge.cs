@@ -1,8 +1,10 @@
+using System.Collections.Generic;
 using UnityEngine;
 using VContainer;
 using PFE.Core;
 using PFE.Systems.Map;
 using PFE.Systems.Map.Rendering;
+using PFE.Systems.Map.Streaming;
 
 public class MapBridge : MonoBehaviour
 {
@@ -193,6 +195,24 @@ public class MapBridge : MonoBehaviour
                 {
                     SpawnPlayer(currentRoom);
                 }
+
+                // Setup RoomTransitionManager & RoomStreamingManager
+                var transitionManager = RoomTransitionManager.Instance;
+                if (transitionManager == null)
+                {
+                    var rtmGo = new GameObject("RoomTransitionManager");
+                    transitionManager = rtmGo.AddComponent<RoomTransitionManager>();
+                }
+                transitionManager.SetLandMap(landMap);
+                transitionManager.SetVisualController(_visualController, _tileDatabase);
+
+                var streamingManager = FindFirstObjectByType<RoomStreamingManager>();
+                if (streamingManager == null)
+                {
+                    var rsmGo = new GameObject("RoomStreamingManager");
+                    streamingManager = rsmGo.AddComponent<RoomStreamingManager>();
+                }
+                transitionManager.SetStreamingManager(streamingManager);
             }
             else
             {
@@ -220,7 +240,37 @@ public class MapBridge : MonoBehaviour
             return false;
         }
 
-        Vector3Int roomPosition = Vector3Int.zero;
+        // If the override template belongs to a multi-room collection (e.g. "Base"), build the full collection
+        // so adjacent rooms (e.g. room_2_0) and door connections exist, starting the player in the override room.
+        var allLoaded = _gameManager?.GetLoadedRoomTemplates();
+        var worldBuilder = _gameManager?.GetWorldBuilder();
+        if (worldBuilder != null && allLoaded != null && !string.IsNullOrWhiteSpace(template.sourceCollectionId))
+        {
+            var collectionTemplates = new List<RoomTemplate>();
+            for (int i = 0; i < allLoaded.Count; i++)
+            {
+                var t = allLoaded[i];
+                if (t != null && string.Equals(t.sourceCollectionId, template.sourceCollectionId, System.StringComparison.OrdinalIgnoreCase))
+                {
+                    collectionTemplates.Add(t);
+                }
+            }
+
+            if (collectionTemplates.Count > 1)
+            {
+                bool built = worldBuilder.BuildSpecificWorld(collectionTemplates, template.fixedPosition);
+                if (built && landMap.currentRoom != null)
+                {
+                    if (_debugSettings?.LogMapBridgeLifecycle == true)
+                    {
+                        Debug.Log($"[MapBridge] Debug room override loaded full collection '{template.sourceCollectionId}' ({collectionTemplates.Count} rooms) starting at {landMap.currentRoom.id}.");
+                    }
+                    return true;
+                }
+            }
+        }
+
+        Vector3Int roomPosition = template.fixedPosition;
         landMap.Initialize(roomPosition, roomPosition + Vector3Int.one);
 
         RoomInstance room = _roomGenerator.GenerateRoom(template, roomPosition);

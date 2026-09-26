@@ -289,6 +289,16 @@ namespace PFE.Core
             return landMap;
         }
 
+        public WorldBuilder GetWorldBuilder()
+        {
+            return worldBuilder;
+        }
+
+        public RoomGenerator GetRoomGenerator()
+        {
+            return roomGenerator;
+        }
+
         public IReadOnlyList<RoomTemplate> GetLoadedRoomTemplates()
         {
             return loadedRoomTemplates;

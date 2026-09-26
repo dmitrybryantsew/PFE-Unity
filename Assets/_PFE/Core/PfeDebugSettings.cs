@@ -140,6 +140,21 @@ namespace PFE.Core
         [Tooltip("Logs each generated tile collider (TileCollider).")]
         private bool logTileColliderCreation = false;
 
+        // ── Area Triggers ────────────────────────────────────────────────────
+
+        [Header("Debug Visual Overlays")]
+        [SerializeField]
+        [Tooltip("Draws purple debug visual overlays for area trigger zones in Scene and Game views (matches Flash AS3 World.w.showArea, Hotkey: F8).")]
+        private bool showAreaTriggerDebug = false;
+
+        [SerializeField]
+        [Tooltip("Draws yellow/cyan debug visual overlays for door interaction triggers and boundary room transitions (Hotkey: F9).")]
+        private bool showDoorColliderDebug = false;
+
+        [SerializeField]
+        [Tooltip("Draws teal debug visual overlays for interactive/physical objects, barricades, containers (Hotkey: F10).")]
+        private bool showObjectColliderDebug = false;
+
         // ── Simulation Tick (P1) ─────────────────────────────────────────────
 
         [Header("Simulation Tick (P1)")]
@@ -194,6 +209,25 @@ namespace PFE.Core
         public bool LogRoomRenderingLifecycle                    => runtimeLoggingEnabled && logRoomRenderingLifecycle;
         public bool LogTileVisualCreationSummary                 => runtimeLoggingEnabled && logTileVisualCreationSummary;
         public bool LogTileColliderCreation                      => runtimeLoggingEnabled && logTileColliderCreation;
+
+        // Visual debug toggles are NOT gated by runtimeLoggingEnabled
+        public bool ShowAreaTriggerDebug
+        {
+            get => showAreaTriggerDebug;
+            set => showAreaTriggerDebug = value;
+        }
+
+        public bool ShowDoorColliderDebug
+        {
+            get => showDoorColliderDebug;
+            set => showDoorColliderDebug = value;
+        }
+
+        public bool ShowObjectColliderDebug
+        {
+            get => showObjectColliderDebug;
+            set => showObjectColliderDebug = value;
+        }
 
         // Simulation Tick flags are deliberately NOT gated by runtimeLoggingEnabled: the master
         // toggle silences logs, and must never be able to change gameplay or hide the overlay.

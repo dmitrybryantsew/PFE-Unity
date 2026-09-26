@@ -145,7 +145,7 @@ namespace PFE.Systems.Map
         /// Build specific world (hand-crafted level).
         /// From AS3: Land.buildSpecifLand()
         /// </summary>
-        public bool BuildSpecificWorld(List<RoomTemplate> levelTemplates)
+        public bool BuildSpecificWorld(List<RoomTemplate> levelTemplates, Vector3Int? preferredStartPosition = null)
         {
             if (levelTemplates == null || levelTemplates.Count == 0)
             {
@@ -220,7 +220,11 @@ namespace PFE.Systems.Map
                 }
             }
 
-            if (!landMap.HasRoom(startPosition))
+            if (preferredStartPosition.HasValue && landMap.HasRoom(preferredStartPosition.Value))
+            {
+                startPosition = preferredStartPosition.Value;
+            }
+            else if (!landMap.HasRoom(startPosition))
             {
                 foreach (var template in levelTemplates)
                 {
@@ -232,6 +236,8 @@ namespace PFE.Systems.Map
                 }
             }
 
+            // Build door connections for fixed/authored rooms
+            BuildDoorConnections();
             RoomSetup.FinalizeSpecificAllRooms(landMap, allTemplates, _debugSettings);
             // Activate starting room
             if (landMap.HasRoom(startPosition))

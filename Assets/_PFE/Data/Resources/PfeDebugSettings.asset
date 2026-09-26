@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: PfeDebugSettings
   m_EditorClassIdentifier: PFE.Core::PFE.Core.PfeDebugSettings
   runtimeLoggingEnabled: 1
+  profilingEnabled: 1
   logGameDatabaseInitializationSummary: 0
   logGameDatabaseAssetRegistration: 0
   logGameDatabaseDuplicateRegistrationWarnings: 0
@@ -24,15 +25,21 @@ MonoBehaviour:
   logWeaponLifecycle: 0
   logWeaponFiring: 0
   logWeaponControllerDiagnostics: 0
-  logProjectileSpawning: 1
-  logProjectileLifecycle: 1
+  logProjectileSpawning: 0
+  logProjectileLifecycle: 0
   logGameManagerLifecycle: 0
   logGameLoopEvents: 0
   logWorldBuilderSummary: 0
   logMapGenerationDiagnostics: 0
-  logMapIntegrityDiagnostics: 1
+  logMapIntegrityDiagnostics: 0
   debugSpecificRoomCollection: Base
-  logMapBridgeLifecycle: 1
+  logMapBridgeLifecycle: 0
   logRoomRenderingLifecycle: 0
   logTileVisualCreationSummary: 0
   logTileColliderCreation: 0
+  showAreaTriggerDebug: 1
+  simTickEnabled: 1
+  simTickOverlayEnabled: 1
+  simTickDualRun: 1
+  simTickMotor: 1
+  simTickLogDivergence: 1

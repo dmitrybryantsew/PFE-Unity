@@ -7,6 +7,7 @@ using PFE.Core.Messages;
 using PFE.Entities.Units;
 using PFE.Entities.Weapons;
 using PFE.Systems.Combat;
+using PFE.Systems.Interaction;
 using PFE.Systems.Physics;
 using PFE.Systems.Weapons;
 namespace PFE.Entities.Player
@@ -72,6 +73,7 @@ namespace PFE.Entities.Player
             IWeaponFactory weaponFactory,
             ISubscriber<AttackMessage> attackSubscriber,
             ISubscriber<TeleportMessage> teleportSubscriber,
+            ISubscriber<InteractMessage> interactSubscriber,
             PFE.Core.PfeDebugSettings debugSettings)
         {
             _input = input;
@@ -98,6 +100,14 @@ namespace PFE.Entities.Player
                 if (_locomotion != null)
                 {
                     _locomotion.SetTeleportHeld(message.IsStarted);
+                }
+            }).AddTo(_disposables);
+
+            interactSubscriber.Subscribe(message =>
+            {
+                if (message.IsPressed)
+                {
+                    HandleInteract();
                 }
             }).AddTo(_disposables);
         }
@@ -172,6 +182,17 @@ namespace PFE.Entities.Player
         {
             HandleAiming();
             HandleMovementInput();
+
+            // Direct interact check (E key or Right-Click)
+            bool ePressed = Input.GetKeyDown(KeyCode.E) ||
+                (UnityEngine.InputSystem.Keyboard.current != null && UnityEngine.InputSystem.Keyboard.current.eKey.wasPressedThisFrame);
+            bool rightClick = Input.GetMouseButtonDown(1) ||
+                (UnityEngine.InputSystem.Mouse.current != null && UnityEngine.InputSystem.Mouse.current.rightButton.wasPressedThisFrame);
+
+            if (ePressed || rightClick)
+            {
+                HandleInteract();
+            }
         }
 
         /// <summary>
@@ -306,6 +327,12 @@ namespace PFE.Entities.Player
         /// <summary>Start attacking when attack button is pressed.</summary>
         private void HandleAttackStart()
         {
+            // If mouse is aimed directly at an interactable within reach, interact instead of attacking
+            if (TryCursorInteract())
+            {
+                return;
+            }
+
             if (_loadout != null) { _loadout.BeginAttack(); return; }
             _weaponView?.BeginFiring();
         }
@@ -353,6 +380,97 @@ namespace PFE.Entities.Player
 
             // TODO: Show game over screen
             // TODO: Reload last save
+        }
+
+        [Header("Interaction")]
+        [SerializeField]
+        [Tooltip("Maximum radius to scan for interactable objects (AS3 World.w.actionDist: 200px = 2.0m).")]
+        private float _interactionRadius = 2.0f;
+
+        /// <summary>
+        /// Attempt to interact with whatever is under the mouse cursor within reach.
+        /// </summary>
+        private bool TryCursorInteract()
+        {
+            if (_mainCamera == null)
+            {
+                _mainCamera = Camera.main;
+                if (_mainCamera == null) _mainCamera = FindFirstObjectByType<Camera>();
+            }
+            if (_mainCamera == null) return false;
+
+            Vector3 mouseScreen = Input.mousePosition;
+            if (!_mainCamera.orthographic)
+            {
+                mouseScreen.z = -_mainCamera.transform.position.z;
+            }
+            Vector3 mouseWorld = _mainCamera.ScreenToWorldPoint(mouseScreen);
+            mouseWorld.z = 0f;
+            Vector2 playerPos = transform.position;
+
+            Collider2D[] cursorHits = Physics2D.OverlapCircleAll(mouseWorld, 0.45f);
+            for (int i = 0; i < cursorHits.Length; i++)
+            {
+                Collider2D hit = cursorHits[i];
+                if (hit == null || hit.gameObject == gameObject) continue;
+
+                IInteractable cursorInteractable = hit.GetComponent<IInteractable>() ?? hit.GetComponentInParent<IInteractable>();
+                if (cursorInteractable != null && cursorInteractable.CanInteract(gameObject))
+                {
+                    Vector2 closestPt = hit.ClosestPoint(playerPos);
+                    float distSq = (closestPt - playerPos).sqrMagnitude;
+                    if (distSq <= 6.25f) // 2.5m (AS3 actionDist = 200px = 2.0m)
+                    {
+                        cursorInteractable.Interact(gameObject);
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Scan for interactable objects (doors, containers, switches) and trigger interaction.
+        /// Prioritizes interactable under cursor (AS3: loc.celObj && loc.celObj.onCursor),
+        /// falling back to the closest interactable in radius.
+        /// </summary>
+        private void HandleInteract()
+        {
+            Vector2 playerPos = transform.position;
+
+            // 1. Prioritize interactable under mouse cursor if within reach
+            if (TryCursorInteract())
+            {
+                return;
+            }
+
+            // 2. Fall back to closest interactable in proximity
+            Collider2D[] hits = Physics2D.OverlapCircleAll(playerPos, _interactionRadius);
+            IInteractable bestTarget = null;
+            float bestDistSq = float.MaxValue;
+
+            for (int i = 0; i < hits.Length; i++)
+            {
+                Collider2D hit = hits[i];
+                if (hit == null || hit.gameObject == gameObject) continue;
+
+                IInteractable interactable = hit.GetComponent<IInteractable>() ?? hit.GetComponentInParent<IInteractable>();
+                if (interactable != null && interactable.CanInteract(gameObject))
+                {
+                    Vector2 closestPt = hit.ClosestPoint(playerPos);
+                    float distSq = (closestPt - playerPos).sqrMagnitude;
+                    if (distSq < bestDistSq)
+                    {
+                        bestDistSq = distSq;
+                        bestTarget = interactable;
+                    }
+                }
+            }
+
+            if (bestTarget != null)
+            {
+                bestTarget.Interact(gameObject);
+            }
         }
 
         // Public getters

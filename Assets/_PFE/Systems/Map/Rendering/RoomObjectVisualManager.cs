@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using PFE.Data.Definitions;
+using PFE.Systems.Map.Scripting;
 using UnityEngine;
 
 namespace PFE.Systems.Map.Rendering
@@ -29,6 +31,8 @@ namespace PFE.Systems.Map.Rendering
         readonly HashSet<ObjectInstance> _seenObjects = new HashSet<ObjectInstance>();
         readonly List<ObjectInstance> _staleObjects = new List<ObjectInstance>();
 
+        public AreaTriggerSystem TriggerSystem { get; set; }
+
         sealed class Presenter
         {
             public readonly GameObject gameObject;
@@ -47,11 +51,12 @@ namespace PFE.Systems.Map.Rendering
             }
         }
 
-        public RoomObjectVisualManager(RoomInstance room, Transform staticParent, Transform physicalParent)
+        public RoomObjectVisualManager(RoomInstance room, Transform staticParent, Transform physicalParent, AreaTriggerSystem triggerSystem = null)
         {
             _room = room;
             _staticParent = staticParent;
             _physicalParent = physicalParent != null ? physicalParent : staticParent;
+            TriggerSystem = triggerSystem;
         }
 
         public void RefreshAll()
@@ -195,7 +200,43 @@ namespace PFE.Systems.Map.Rendering
             presenter.renderer.sprite = sprite;
             presenter.renderer.sortingOrder = ComputeSortingOrder(obj, visual);
             presenter.transform.localPosition = ResolveLocalPosition(obj, visual, sprite);
-            presenter.renderer.enabled = sprite != null;
+            presenter.transform.localScale = ResolveLocalScale(obj, visual);
+            bool isArea = string.Equals(obj.objectType, "area", StringComparison.OrdinalIgnoreCase) ||
+                          (visual != null && string.Equals(visual.visualId, "visArea", StringComparison.OrdinalIgnoreCase));
+            presenter.renderer.enabled = !isArea && sprite != null && obj.isActive;
+
+            if (isArea)
+            {
+                AreaTriggerPresenter triggerPresenter = presenter.gameObject.GetComponent<AreaTriggerPresenter>();
+                if (triggerPresenter == null)
+                {
+                    triggerPresenter = presenter.gameObject.AddComponent<AreaTriggerPresenter>();
+                }
+                triggerPresenter.Initialize(_room, obj, TriggerSystem);
+            }
+
+            bool isDoor = string.Equals(obj.objectType, "door", StringComparison.OrdinalIgnoreCase) ||
+                          (obj.definition != null && obj.definition.family == MapObjectFamily.Door) ||
+                          (visual != null && visual.objectId != null && visual.objectId.StartsWith("door", StringComparison.OrdinalIgnoreCase));
+            if (isDoor)
+            {
+                DoorPropPresenter doorPresenter = presenter.gameObject.GetComponent<DoorPropPresenter>();
+                if (doorPresenter == null)
+                {
+                    doorPresenter = presenter.gameObject.AddComponent<DoorPropPresenter>();
+                }
+                doorPresenter.Initialize(_room, obj, visual, presenter.renderer, TriggerSystem);
+            }
+
+            if (!isArea && !isDoor)
+            {
+                ObjectColliderDebugPresenter colPresenter = presenter.gameObject.GetComponent<ObjectColliderDebugPresenter>();
+                if (colPresenter == null)
+                {
+                    colPresenter = presenter.gameObject.AddComponent<ObjectColliderDebugPresenter>();
+                }
+                colPresenter.Initialize(_room, obj, visual);
+            }
         }
 
         void UpdatePresenter(ObjectInstance obj, Presenter presenter, float deltaTime)
@@ -205,22 +246,56 @@ namespace PFE.Systems.Map.Rendering
                 return;
             }
 
+            bool isArea = string.Equals(obj.objectType, "area", StringComparison.OrdinalIgnoreCase) ||
+                          (presenter.visual != null && string.Equals(presenter.visual.visualId, "visArea", StringComparison.OrdinalIgnoreCase));
+
             if (!obj.isActive)
             {
                 presenter.renderer.enabled = false;
+                AreaTriggerPresenter triggerPresenter = presenter.gameObject.GetComponent<AreaTriggerPresenter>();
+                if (triggerPresenter != null)
+                {
+                    triggerPresenter.UpdateActiveState();
+                }
+                ObjectColliderDebugPresenter colPresenter = presenter.gameObject.GetComponent<ObjectColliderDebugPresenter>();
+                if (colPresenter != null)
+                {
+                    colPresenter.UpdateDebugVisual();
+                }
                 return;
             }
 
-            int nextFrame = ResolveFrameIndex(obj, presenter.visual);
-            if (nextFrame != presenter.frameIndex)
+            DoorPropPresenter doorPresenter = presenter.gameObject.GetComponent<DoorPropPresenter>();
+            if (doorPresenter == null)
             {
-                presenter.frameIndex = nextFrame;
-                presenter.renderer.sprite = ResolveFrame(presenter.visual, presenter.frameIndex);
+                int nextFrame = ResolveFrameIndex(obj, presenter.visual);
+                if (nextFrame != presenter.frameIndex)
+                {
+                    presenter.frameIndex = nextFrame;
+                    presenter.renderer.sprite = ResolveFrame(presenter.visual, presenter.frameIndex);
+                }
+            }
+            else
+            {
+                presenter.frameIndex = doorPresenter.CurrentFrame;
             }
 
             presenter.renderer.sortingOrder = ComputeSortingOrder(obj, presenter.visual);
             presenter.transform.localPosition = ResolveLocalPosition(obj, presenter.visual, presenter.renderer.sprite);
-            presenter.renderer.enabled = presenter.renderer.sprite != null;
+            presenter.transform.localScale = ResolveLocalScale(obj, presenter.visual);
+            presenter.renderer.enabled = !isArea && presenter.renderer.sprite != null;
+
+            AreaTriggerPresenter activeTriggerPresenter = presenter.gameObject.GetComponent<AreaTriggerPresenter>();
+            if (activeTriggerPresenter != null)
+            {
+                activeTriggerPresenter.UpdateActiveState();
+            }
+
+            ObjectColliderDebugPresenter activeColPresenter = presenter.gameObject.GetComponent<ObjectColliderDebugPresenter>();
+            if (activeColPresenter != null)
+            {
+                activeColPresenter.UpdateDebugVisual();
+            }
         }
 
         void RemovePresenter(ObjectInstance obj)
@@ -386,7 +461,7 @@ namespace PFE.Systems.Map.Rendering
 
             if (obj.runtimeState.isOpen)
             {
-                return Mathf.Min(lastFrameIndex, 1);
+                return visual.frames.Length >= 3 ? 2 : Mathf.Min(lastFrameIndex, 1);
             }
 
             return 0;
@@ -406,6 +481,15 @@ namespace PFE.Systems.Map.Rendering
                 anchorPixels += visual.localOffset;
             }
 
+            bool isArea = string.Equals(obj?.objectType, "area", StringComparison.OrdinalIgnoreCase) ||
+                          (visual != null && string.Equals(visual.visualId, "visArea", StringComparison.OrdinalIgnoreCase));
+            if (isArea)
+            {
+                // Area triggers are anchored at their bottom-left in room pixel space.
+                // Do not apply sprite pivot compensation.
+                return WorldCoordinates.PixelToUnity(anchorPixels);
+            }
+
             if (visual == null || sprite == null)
             {
                 return WorldCoordinates.PixelToUnity(anchorPixels);
@@ -417,6 +501,47 @@ namespace PFE.Systems.Map.Rendering
                 spriteSize.y * visual.pivot.y);
             Vector2 pivotCompensation = sprite.pivot - desiredPivotPixels;
             return WorldCoordinates.PixelToUnity(anchorPixels + pivotCompensation);
+        }
+
+        static Vector3 ResolveLocalScale(ObjectInstance obj, MapObjectVisualDefinition visual)
+        {
+            if (obj == null)
+            {
+                return Vector3.one;
+            }
+
+            bool isArea = string.Equals(obj.objectType, "area", StringComparison.OrdinalIgnoreCase) ||
+                          (visual != null && string.Equals(visual.visualId, "visArea", StringComparison.OrdinalIgnoreCase));
+
+            if (isArea)
+            {
+                float w = TryParseFloatAttribute(obj, "w", 2f);
+                float h = TryParseFloatAttribute(obj, "h", 2f);
+                if (w <= 0f) w = 2f;
+                if (h <= 0f) h = 2f;
+
+                float baseWidth = visual != null && visual.pixelSize.x > 0 ? visual.pixelSize.x : 100f;
+                float baseHeight = visual != null && visual.pixelSize.y > 0 ? visual.pixelSize.y : 100f;
+
+                float scaleX = (w * WorldConstants.TILE_SIZE) / baseWidth;
+                float scaleY = (h * WorldConstants.TILE_SIZE) / baseHeight;
+                return new Vector3(scaleX, scaleY, 1f);
+            }
+
+            return Vector3.one;
+        }
+
+        static float TryParseFloatAttribute(ObjectInstance obj, string key, float defaultValue)
+        {
+            if (obj == null)
+            {
+                return defaultValue;
+            }
+
+            string raw = obj.GetAttribute(key, string.Empty);
+            return float.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out float parsed)
+                ? parsed
+                : defaultValue;
         }
 
         static Material GetPresenterMaterial()

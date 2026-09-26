@@ -532,9 +532,22 @@ namespace PFE.Systems.Physics
 
             dx = 0f;
             dy = 0f;
-            isOnLadder = false;
             dashTimer = 0f;
             platformDropTimer = 0f;
+
+            // If the spawn position sits directly on a ladder, automatically attach so the player
+            // continues climbing without a 1-frame gravity drop or detaching across room boundaries.
+            if (TryGetLadderContactAt(posX, posY, collisionHeight, out LadderContact ladderContact))
+            {
+                isOnLadder = true;
+                SnapToLadder(ladderContact);
+                isGrounded = false;
+                isOnPlatform = false;
+            }
+            else
+            {
+                isOnLadder = false;
+            }
         }
 
         private void Start()
@@ -636,6 +649,9 @@ namespace PFE.Systems.Physics
             // 9. Check water
             CheckWater();
 
+            // 10. Check room boundary exit (AS3 Unit.as outLoc)
+            CheckRoomBoundaryExit();
+
             // Decrement by the step's wall-clock duration, not by Unity's fixed delta, so dash and
             // platform-drop last the same number of real seconds at every tick rate. In legacy mode
             // StepSeconds IS Time.fixedDeltaTime, so this is unchanged.
@@ -645,6 +661,63 @@ namespace PFE.Systems.Physics
             {
                 dx *= 0.3f;
                 dy *= 0.3f;
+            }
+        }
+
+        /// <summary>
+        /// Check if the unit has crossed the room boundary (open corridor / border passage).
+        /// Port of AS3 Unit.as:2064-2083 (outLoc).
+        /// </summary>
+        private void CheckRoomBoundaryExit()
+        {
+            if (currentRoom == null) return;
+
+            float localPixelX = posX - roomWorldPixelX;
+            float localPixelY = posY - roomWorldPixelY;
+            float roomWidthPixels = currentRoom.width * WorldConstants.TILE_SIZE;
+            float roomHeightPixels = currentRoom.height * WorldConstants.TILE_SIZE;
+
+            var transitionManager = PFE.Systems.Map.Streaming.RoomTransitionManager.Instance;
+
+            // Right boundary (direction 2)
+            if (localPixelX >= roomWidthPixels)
+            {
+                bool transitioned = transitionManager != null && transitionManager.TransitionThroughEdge(2, gameObject);
+                if (!transitioned)
+                {
+                    posX = roomWorldPixelX + roomWidthPixels;
+                    SyncUnityPosition();
+                }
+            }
+            // Left boundary (direction 1)
+            else if (localPixelX < 0f)
+            {
+                bool transitioned = transitionManager != null && transitionManager.TransitionThroughEdge(1, gameObject);
+                if (!transitioned)
+                {
+                    posX = roomWorldPixelX;
+                    SyncUnityPosition();
+                }
+            }
+            // Bottom boundary (direction 3)
+            else if (localPixelY < 0f)
+            {
+                bool transitioned = transitionManager != null && transitionManager.TransitionThroughEdge(3, gameObject);
+                if (!transitioned)
+                {
+                    posY = roomWorldPixelY;
+                    SyncUnityPosition();
+                }
+            }
+            // Top boundary (direction 4)
+            else if (localPixelY >= roomHeightPixels)
+            {
+                bool transitioned = transitionManager != null && transitionManager.TransitionThroughEdge(4, gameObject);
+                if (!transitioned)
+                {
+                    posY = roomWorldPixelY + roomHeightPixels;
+                    SyncUnityPosition();
+                }
             }
         }
 

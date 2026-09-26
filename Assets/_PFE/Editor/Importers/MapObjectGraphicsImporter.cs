@@ -490,7 +490,10 @@ namespace PFE.Editor.Importers
             visual.wallMounted = definition.wallMounted;
             // AS3 Box uses X as horizontal center and Y as the bottom anchor for every
             // map object, including wall-mounted doors, lockers, safes, and hatches.
-            visual.pivot = new Vector2(0.5f, 0f);
+            // Area triggers use (0, 0) bottom-left anchor to match TileToPixel placement.
+            bool isAreaTrigger = definition.family == MapObjectFamily.AreaTrigger ||
+                                 string.Equals(visualId, "visArea", StringComparison.OrdinalIgnoreCase);
+            visual.pivot = isAreaTrigger ? Vector2.zero : new Vector2(0.5f, 0f);
             visual.localOffset = ResolveLocalOffset(definition, visual.pivot, sprites);
             visual.sortingOrder = definition.wallMounted ? 1 : 0;
 
@@ -504,6 +507,12 @@ namespace PFE.Editor.Importers
         static Vector2 ResolveLocalOffset(MapObjectDefinition definition, Vector2 pivot, IReadOnlyList<Sprite> sprites)
         {
             if (definition == null || !definition.wallMounted || sprites == null || sprites.Count == 0 || sprites[0] == null)
+            {
+                return Vector2.zero;
+            }
+
+            // Area triggers use (0, 0) bottom-left anchor and do not use opaque-bounds compensation
+            if (definition.family == MapObjectFamily.AreaTrigger)
             {
                 return Vector2.zero;
             }

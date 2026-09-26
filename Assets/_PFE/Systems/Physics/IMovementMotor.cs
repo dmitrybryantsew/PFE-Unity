@@ -19,6 +19,7 @@ namespace PFE.Systems.Physics
         void AddForce(Vector2 force);
         bool CanTeleportTo(float targetPixelX, float targetPixelY, float halfWidth, float halfHeight);
         void TeleportTo(float targetPixelX, float targetPixelY);
+        void SetUnityPosition(Vector3 worldPos);
 
         /// <summary>
         /// Move the motor into a new room and re-sync its authoritative pixel state from

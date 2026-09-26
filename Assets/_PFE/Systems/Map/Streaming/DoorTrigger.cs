@@ -1,5 +1,6 @@
 using UnityEngine;
 using PFE.Systems.Map;
+using PFE.Systems.Map.Rendering;
 
 namespace PFE.Systems.Map.Streaming
 {
@@ -31,6 +32,12 @@ namespace PFE.Systems.Map.Streaming
         private float lastTransitionTime = -999f;
         private Collider2D triggerCollider;
 
+        private static readonly Color BoundaryFillColor = new Color(0.0f, 0.85f, 1.0f, 0.35f);
+        private static readonly Color BoundaryWireColor = new Color(0.2f, 0.95f, 1.0f, 0.9f);
+        private static Sprite _whiteDebugSprite;
+        private GameObject _debugVisualGo;
+        private SpriteRenderer _debugSpriteRenderer;
+
         #region Initialization
 
         private void Awake()
@@ -45,6 +52,11 @@ namespace PFE.Systems.Map.Streaming
         private void Start()
         {
             UpdateDoorVisual();
+        }
+
+        private void Update()
+        {
+            UpdateDebugVisual();
         }
 
         #endregion
@@ -104,6 +116,24 @@ namespace PFE.Systems.Map.Streaming
             return true;
         }
 
+        /// <summary>
+        /// Configure trigger collider size and offset.
+        /// </summary>
+        public void ConfigureCollider(Vector2 size, Vector2 offset)
+        {
+            if (triggerCollider == null)
+            {
+                triggerCollider = GetComponent<Collider2D>();
+            }
+
+            if (triggerCollider is BoxCollider2D box)
+            {
+                box.size = size;
+                box.offset = offset;
+                box.isTrigger = true;
+            }
+        }
+
         #endregion
 
         #region Unity Events
@@ -116,7 +146,7 @@ namespace PFE.Systems.Map.Streaming
             }
 
             // Check if player entered the door trigger
-            if (other.CompareTag("Player"))
+            if (other.CompareTag("Player") || other.GetComponent<PFE.Systems.Physics.IMovementMotor>() != null)
             {
                 TryTriggerTransition(other.gameObject);
             }
@@ -141,6 +171,64 @@ namespace PFE.Systems.Map.Streaming
             }
         }
 
+        public void UpdateDebugVisual()
+        {
+            var settings = Resources.Load<PFE.Core.PfeDebugSettings>("PfeDebugSettings");
+            bool shouldShow = (settings != null && settings.ShowDoorColliderDebug) && isEnabled && doorInstance != null && doorInstance.isActive;
+
+            if (!shouldShow)
+            {
+                if (_debugVisualGo != null)
+                {
+                    _debugVisualGo.SetActive(false);
+                }
+                return;
+            }
+
+            EnsureDebugVisual();
+            if (_debugVisualGo != null)
+            {
+                _debugVisualGo.SetActive(true);
+            }
+        }
+
+        private void EnsureDebugVisual()
+        {
+            if (_debugVisualGo != null) return;
+
+            _debugVisualGo = new GameObject("__BoundaryDoorDebugVisual");
+            _debugVisualGo.transform.SetParent(transform, false);
+
+            Vector2 size = Vector2.one * 0.4f;
+            Vector2 offset = Vector2.zero;
+            if (triggerCollider is BoxCollider2D box)
+            {
+                size = box.size;
+                offset = box.offset;
+            }
+
+            _debugVisualGo.transform.localPosition = new Vector3(offset.x, offset.y, 0f);
+            _debugVisualGo.transform.localScale = new Vector3(size.x, size.y, 1f);
+
+            _debugSpriteRenderer = _debugVisualGo.AddComponent<SpriteRenderer>();
+            _debugSpriteRenderer.sprite = GetWhiteDebugSprite();
+            _debugSpriteRenderer.color = BoundaryFillColor;
+            _debugSpriteRenderer.sortingLayerName = MapSortingLayers.Foreground;
+            _debugSpriteRenderer.sortingOrder = 998;
+        }
+
+        private static Sprite GetWhiteDebugSprite()
+        {
+            if (_whiteDebugSprite == null)
+            {
+                var tex = new Texture2D(1, 1, TextureFormat.RGBA32, false);
+                tex.SetPixel(0, 0, Color.white);
+                tex.Apply();
+                _whiteDebugSprite = Sprite.Create(tex, new Rect(0, 0, 1, 1), new Vector2(0.5f, 0.5f), 1f);
+            }
+            return _whiteDebugSprite;
+        }
+
         #endregion
 
         #region Debug
@@ -163,6 +251,19 @@ namespace PFE.Systems.Map.Streaming
                     0
                 );
                 Gizmos.DrawLine(transform.position, targetPos);
+            }
+
+            var settings = Resources.Load<PFE.Core.PfeDebugSettings>("PfeDebugSettings");
+            if (settings != null && settings.ShowDoorColliderDebug && triggerCollider != null)
+            {
+                Gizmos.color = BoundaryFillColor;
+                Gizmos.DrawCube(triggerCollider.bounds.center, triggerCollider.bounds.size);
+                Gizmos.color = BoundaryWireColor;
+                Gizmos.DrawWireCube(triggerCollider.bounds.center, triggerCollider.bounds.size);
+
+#if UNITY_EDITOR
+                UnityEditor.Handles.Label(triggerCollider.bounds.center, $"[Passage Door] -> {doorInstance.targetRoomPosition} ({doorInstance.side})");
+#endif
             }
         }
 

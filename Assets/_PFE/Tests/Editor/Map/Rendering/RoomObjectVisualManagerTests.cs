@@ -134,6 +134,59 @@ namespace PFE.Tests.Editor.Map.Rendering
             Assert.AreSame(visual.frames[2], renderer.sprite);
         }
 
+        [Test]
+        public void RefreshAll_AreaTrigger_ScalesPresenterAccordingToAttributes()
+        {
+            RoomInstance room = CreateRoom();
+            MapObjectVisualDefinition visual = CreateVisual("visArea", 1);
+            visual.pixelSize = new Vector2Int(100, 100);
+            visual.pivot = Vector2.zero;
+
+            ObjectInstance areaObj = new ObjectInstance
+            {
+                objectId = "area",
+                objectType = "area",
+                definitionId = "area",
+                position = new Vector2(640f, 360f),
+                parameters = "w=\"5\" h=\"2\" mess=\"trCont\"",
+                runtimeState = new MapObjectRuntimeStateData()
+            };
+            areaObj.EnsureStructuredData();
+            room.objects.Add(areaObj);
+
+            RoomObjectVisualManager manager = new RoomObjectVisualManager(room, _staticParent, _physicalParent);
+            manager.RefreshAll();
+
+            Assert.AreEqual(1, _staticParent.childCount);
+            Transform presenter = _staticParent.GetChild(0);
+
+            // 5 tiles * 40 / 100 = 2.0, 2 tiles * 40 / 100 = 0.8
+            Assert.AreEqual(2.0f, presenter.localScale.x, 0.001f);
+            Assert.AreEqual(0.8f, presenter.localScale.y, 0.001f);
+            Assert.AreEqual(WorldCoordinates.PixelToUnity(areaObj.position), presenter.localPosition);
+        }
+
+        [Test]
+        public void RefreshAll_Door_AppliesLocalOffsetForAsymmetricalPadding()
+        {
+            RoomInstance room = CreateRoom();
+            MapObjectVisualDefinition visual = CreateVisual("visdoor1", 1);
+            visual.pixelSize = new Vector2Int(58, 80);
+            visual.pivot = new Vector2(0.5f, 0f);
+            visual.localOffset = new Vector2(9f, 0f);
+
+            ObjectInstance doorObj = CreateObject("door1", MapObjectPhysicalCapability.Static, new Vector2(1540f, 321f), visual);
+            room.objects.Add(doorObj);
+
+            RoomObjectVisualManager manager = new RoomObjectVisualManager(room, _staticParent, _physicalParent);
+            manager.RefreshAll();
+
+            Transform presenter = _staticParent.GetChild(0);
+            Vector3 expected = WorldCoordinates.PixelToUnity(doorObj.position + visual.localOffset);
+            Assert.AreEqual(expected, presenter.localPosition);
+            Assert.AreEqual(Vector3.one, presenter.localScale);
+        }
+
         RoomInstance CreateRoom()
         {
             RoomInstance room = new RoomInstance

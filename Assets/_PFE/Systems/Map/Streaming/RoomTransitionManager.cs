@@ -1,6 +1,7 @@
 using UnityEngine;
 using System;
 using PFE.Systems.Map;
+using PFE.Systems.Map.Rendering;
 using PFE.Systems.Physics;
 
 namespace PFE.Systems.Map.Streaming
@@ -13,7 +14,17 @@ namespace PFE.Systems.Map.Streaming
     public class RoomTransitionManager : MonoBehaviour
     {
         private static RoomTransitionManager _instance;
-        public static RoomTransitionManager Instance => _instance;
+        public static RoomTransitionManager Instance
+        {
+            get
+            {
+                if (_instance == null)
+                {
+                    _instance = FindFirstObjectByType<RoomTransitionManager>();
+                }
+                return _instance;
+            }
+        }
 
         [Header("References")]
         [Tooltip("The LandMap containing all rooms")]
@@ -21,6 +32,12 @@ namespace PFE.Systems.Map.Streaming
 
         [Tooltip("The RoomStreamingManager for activating/deactivating rooms")]
         [SerializeField] private RoomStreamingManager streamingManager;
+
+        [Tooltip("The RoomVisualController for re-rendering rooms on transition")]
+        [SerializeField] private RoomVisualController visualController;
+
+        [Tooltip("The TileAssetDatabase for rendering room tiles")]
+        [SerializeField] private TileAssetDatabase tileDatabase;
 
         [Header("Transition Settings")]
         [Tooltip("Duration of room transition in seconds")]
@@ -51,9 +68,15 @@ namespace PFE.Systems.Map.Streaming
 
         private void Start()
         {
-            // Auto-find references if not set
-            // Note: LandMap is not a MonoBehaviour, so FindObjectOfType won't work
-            // It must be set via Inspector or assigned programmatically
+            if (visualController == null)
+            {
+                visualController = FindFirstObjectByType<RoomVisualController>();
+            }
+
+            if (streamingManager == null)
+            {
+                streamingManager = FindFirstObjectByType<RoomStreamingManager>();
+            }
         }
 
         #endregion
@@ -66,6 +89,26 @@ namespace PFE.Systems.Map.Streaming
         public void SetLandMap(LandMap map)
         {
             landMap = map;
+        }
+
+        /// <summary>
+        /// Set the RoomVisualController and optional TileAssetDatabase.
+        /// </summary>
+        public void SetVisualController(RoomVisualController controller, TileAssetDatabase database = null)
+        {
+            visualController = controller;
+            if (database != null)
+            {
+                tileDatabase = database;
+            }
+        }
+
+        /// <summary>
+        /// Set the RoomStreamingManager reference.
+        /// </summary>
+        public void SetStreamingManager(RoomStreamingManager manager)
+        {
+            streamingManager = manager;
         }
 
         /// <summary>
@@ -118,11 +161,47 @@ namespace PFE.Systems.Map.Streaming
                 return;
             }
 
-            // Find spawn point in target room
-            Vector3 spawnPos = WorldCoordinates.LandToWorld(roomPosition, Vector2.zero);
+            // Find spawn point in target room (center in Unity units)
+            Vector2 roomCenterPixels = new Vector2(
+                (roomPosition.x + 0.5f) * WorldConstants.ROOM_SIZE_PIXELS.x,
+                (roomPosition.y + 0.5f) * WorldConstants.ROOM_SIZE_PIXELS.y
+            );
+            Vector3 spawnPos = WorldCoordinates.PixelToUnity(roomCenterPixels);
             spawnPos.z = player.transform.position.z;
 
             StartCoroutine(PerformTransition(currentRoom, targetRoom, null, player, spawnPos));
+        }
+
+        /// <summary>
+        /// Transition to an adjacent room when crossing room boundaries.
+        /// Port of AS3 Land.gotoLoc(1..4).
+        /// 1 = Left, 2 = Right, 3 = Bottom, 4 = Top
+        /// Returns true if a transition was started.
+        /// </summary>
+        public bool TransitionThroughEdge(int direction, GameObject player)
+        {
+            if (isTransitioning || player == null || landMap == null) return false;
+
+            RoomInstance current = landMap.currentRoom;
+            if (current == null) return false;
+
+            Vector3Int targetPos = current.landPosition;
+            switch (direction)
+            {
+                case 1: targetPos.x -= 1; break; // Left
+                case 2: targetPos.x += 1; break; // Right
+                case 3: targetPos.y += 1; break; // Bottom (Y increases downward in LandMap grid)
+                case 4: targetPos.y -= 1; break; // Top (Y decreases upward in LandMap grid)
+                default: return false;
+            }
+
+            RoomInstance targetRoom = landMap.GetRoom(targetPos);
+            if (targetRoom == null) return false;
+
+            Vector3 spawnPos = ComputeEdgeSpawnPosition(direction, current, targetRoom, player.transform.position);
+
+            StartCoroutine(PerformTransition(current, targetRoom, null, player, spawnPos));
+            return true;
         }
 
         #endregion
@@ -166,6 +245,16 @@ namespace PFE.Systems.Map.Streaming
                 landMap.SetCurrentRoom(toRoom);
             }
 
+            // Re-render visuals for the new room
+            if (visualController != null)
+            {
+                TileAssetDatabase db = tileDatabase != null ? tileDatabase : visualController.TileAssetDatabase;
+                if (db != null)
+                {
+                    visualController.Initialize(toRoom, db);
+                }
+            }
+
             // Move player to spawn position
             player.transform.position = spawnPos;
 
@@ -182,6 +271,15 @@ namespace PFE.Systems.Map.Streaming
                 motor.RepositionForRoom(toRoom, spawnPos);
             }
 
+            // Snap camera directly to player in the new room
+            Camera mainCam = Camera.main;
+            if (mainCam != null)
+            {
+                var follow = mainCam.GetComponent<PFE.Core.CameraFollow>();
+                float camZ = follow != null ? follow.offset.z : -10f;
+                mainCam.transform.position = new Vector3(spawnPos.x, spawnPos.y, camZ);
+            }
+
             // Wait for transition duration
             yield return new WaitForSeconds(transitionDuration);
 
@@ -193,11 +291,87 @@ namespace PFE.Systems.Map.Streaming
             Debug.Log($"Transition complete. Now in {toRoom.id}");
         }
 
-        private Vector3 CalculateSpawnPosition(DoorInstance door, RoomInstance targetRoom, Vector3 currentPlayerPos)
+        public Vector3 CalculateSpawnPosition(DoorInstance door, RoomInstance targetRoom, Vector3 currentPlayerPos)
         {
+            return ComputeSpawnPosition(door, targetRoom, currentPlayerPos, spawnOffset);
+        }
+
+        public static Vector3 GetRoomOriginUnity(RoomInstance room)
+        {
+            if (room == null) return Vector3.zero;
+            int borderOffset = Mathf.Max(0, room.borderOffset);
+            Vector2 roomPixelPos = new Vector2(
+                room.landPosition.x * WorldConstants.ROOM_WIDTH * WorldConstants.TILE_SIZE - borderOffset * WorldConstants.TILE_SIZE,
+                room.landPosition.y * WorldConstants.ROOM_HEIGHT * WorldConstants.TILE_SIZE - borderOffset * WorldConstants.TILE_SIZE
+            );
+            return WorldCoordinates.PixelToUnity(roomPixelPos);
+        }
+
+        /// <summary>
+        /// Compute entry spawn position when walking through an edge/passage into an adjacent room.
+        /// Port of AS3 Land.gotoLoc(1..4).
+        /// Direction: 1 = Left, 2 = Right, 3 = Bottom, 4 = Top
+        /// </summary>
+        public static Vector3 ComputeEdgeSpawnPosition(
+            int direction,
+            RoomInstance fromRoom,
+            RoomInstance toRoom,
+            Vector3 currentPlayerPos,
+            float offsetUnits = 0.4f)
+        {
+            if (toRoom == null) return currentPlayerPos;
+
+            Vector3 fromOrigin = GetRoomOriginUnity(fromRoom);
+            Vector3 toOrigin = GetRoomOriginUnity(toRoom);
+
+            float relX = currentPlayerPos.x - fromOrigin.x;
+            float relY = currentPlayerPos.y - fromOrigin.y;
+
+            float toWidthUnits = toRoom.width * WorldConstants.TILE_SIZE * 0.01f;
+            float toHeightUnits = toRoom.height * WorldConstants.TILE_SIZE * 0.01f;
+
+            float spawnX = toOrigin.x;
+            float spawnY = toOrigin.y;
+
+            switch (direction)
+            {
+                case 1: // Exited Left, enter toRoom from Right
+                    spawnX = toOrigin.x + toWidthUnits - offsetUnits;
+                    spawnY = toOrigin.y + Mathf.Clamp(relY, offsetUnits, toHeightUnits - offsetUnits);
+                    break;
+
+                case 2: // Exited Right, enter toRoom from Left
+                    spawnX = toOrigin.x + offsetUnits;
+                    spawnY = toOrigin.y + Mathf.Clamp(relY, offsetUnits, toHeightUnits - offsetUnits);
+                    break;
+
+                case 3: // Exited Bottom, enter toRoom from Top
+                    spawnX = toOrigin.x + Mathf.Clamp(relX, offsetUnits, toWidthUnits - offsetUnits);
+                    spawnY = toOrigin.y + toHeightUnits - offsetUnits;
+                    break;
+
+                case 4: // Exited Top, enter toRoom from Bottom
+                    spawnX = toOrigin.x + Mathf.Clamp(relX, offsetUnits, toWidthUnits - offsetUnits);
+                    spawnY = toOrigin.y + offsetUnits;
+                    break;
+
+                default:
+                    return currentPlayerPos;
+            }
+
+            return new Vector3(spawnX, spawnY, currentPlayerPos.z);
+        }
+
+        public static Vector3 ComputeSpawnPosition(DoorInstance door, RoomInstance targetRoom, Vector3 currentPlayerPos, float offsetUnits = 0.4f)
+        {
+            if (targetRoom == null)
+            {
+                return currentPlayerPos;
+            }
+
             // Find the target door in the new room
             DoorInstance targetDoor = null;
-            if (door != null && targetRoom != null)
+            if (door != null && targetRoom.doors != null)
             {
                 foreach (var d in targetRoom.doors)
                 {
@@ -212,37 +386,48 @@ namespace PFE.Systems.Map.Streaming
             if (targetDoor == null)
             {
                 // No target door, spawn at center of room
-                Vector3 roomCenter = WorldCoordinates.LandToWorld(targetRoom.landPosition, Vector2.zero);
-                roomCenter.x += WorldConstants.ROOM_SIZE_PIXELS.x * 0.5f;
-                roomCenter.y += WorldConstants.ROOM_SIZE_PIXELS.y * 0.5f;
-                return roomCenter;
+                Vector2 roomCenterPixels = new Vector2(
+                    (targetRoom.landPosition.x + 0.5f) * WorldConstants.ROOM_SIZE_PIXELS.x,
+                    (targetRoom.landPosition.y + 0.5f) * WorldConstants.ROOM_SIZE_PIXELS.y
+                );
+                Vector3 centerUnity = WorldCoordinates.PixelToUnity(roomCenterPixels);
+                centerUnity.z = currentPlayerPos.z;
+                return centerUnity;
             }
 
-            // Calculate spawn position relative to target door
-            Vector3 doorWorldPos = WorldCoordinates.LandToWorld(
-                targetRoom.landPosition,
-                targetDoor.tilePosition
-            );
+            // Calculate door center position in world pixels
+            Vector2 tilePixel = WorldCoordinates.TileToPixel(targetDoor.tilePosition) +
+                                new Vector2(WorldConstants.TILE_SIZE * 0.5f, WorldConstants.TILE_SIZE * 0.5f);
+            Vector2 doorWorldPixel = WorldCoordinates.LandToWorld(targetRoom.landPosition, tilePixel);
 
-            // Determine spawn offset based on door side
+            // Convert to Unity world coordinates
+            Vector3 doorWorldUnity = WorldCoordinates.PixelToUnity(doorWorldPixel);
+
+            // Determine spawn offset based on door side (offset pushes player INSIDE the target room)
             Vector2 offset = Vector2.zero;
             switch (targetDoor.side)
             {
                 case DoorSide.Left:
-                    offset = new Vector2(-this.spawnOffset, 0);
+                    // Door is at left room boundary: push right (+X) into room
+                    offset = new Vector2(offsetUnits, 0f);
                     break;
                 case DoorSide.Right:
-                    offset = new Vector2(this.spawnOffset, 0);
+                    // Door is at right room boundary: push left (-X) into room
+                    offset = new Vector2(-offsetUnits, 0f);
                     break;
                 case DoorSide.Top:
-                    offset = new Vector2(0, this.spawnOffset);
+                    // Door is at top room boundary: push down (-Y) into room
+                    offset = new Vector2(0f, -offsetUnits);
                     break;
                 case DoorSide.Bottom:
-                    offset = new Vector2(0, -this.spawnOffset);
+                    // Door is at bottom room boundary: push up (+Y) into room
+                    offset = new Vector2(0f, offsetUnits);
                     break;
             }
 
-            return doorWorldPos + (Vector3)offset;
+            Vector3 spawnPos = doorWorldUnity + (Vector3)offset;
+            spawnPos.z = currentPlayerPos.z;
+            return spawnPos;
         }
 
         #endregion
