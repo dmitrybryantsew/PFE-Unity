@@ -168,6 +168,28 @@ namespace PFE.Systems.Map
         }
 
         /// <summary>
+        /// Global cheat / debug flag matching AS3 World.w.drawAllMap.
+        /// When true, map rendering and queries treat all rooms as visible.
+        /// </summary>
+        public bool DrawAllMap { get; set; } = false;
+
+        /// <summary>
+        /// Reveals all rooms on this land map by marking their isVisited flag true.
+        /// Matches the AS3 console command 'map'.
+        /// </summary>
+        public void RevealAllRooms(bool visited = true)
+        {
+            foreach (var room in rooms.Values)
+            {
+                if (room != null)
+                {
+                    room.isVisited = visited;
+                }
+            }
+            DrawAllMap = visited;
+        }
+
+        /// <summary>
         /// Update active room.
         /// From AS3: Land.step()
         /// </summary>

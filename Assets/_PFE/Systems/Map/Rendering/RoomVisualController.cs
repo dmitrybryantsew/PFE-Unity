@@ -65,6 +65,7 @@ namespace PFE.Systems.Map.Rendering
         [Header("State")]
         [SerializeField] private bool isInitialized = false;
         [SerializeField] private bool isVisible = true;
+        [SerializeField] private bool fogOfWarDisabled = false;
 
         private TileVisualManager tileVisualManager;
         private TileVisualManager backgroundTileVisualManager;
@@ -72,6 +73,42 @@ namespace PFE.Systems.Map.Rendering
         private RoomObjectVisualManager roomObjectVisualManager;
         private PFE.Systems.Map.Scripting.AreaTriggerSystem areaTriggerSystem;
         private Transform visibilityRevealTargetTransform;
+
+        /// <summary>
+        /// Whether fog of war / darkness overlay is disabled (revealed).
+        /// </summary>
+        public bool FogOfWarDisabled
+        {
+            get => fogOfWarDisabled;
+            set => SetFogOfWarDisabled(value);
+        }
+
+        /// <summary>
+        /// Enable or disable fog of war in this room.
+        /// </summary>
+        public void SetFogOfWarDisabled(bool disabled)
+        {
+            fogOfWarDisabled = disabled;
+            if (roomBackdropRenderer != null)
+            {
+                roomBackdropRenderer.SetFogOfWarDisabled(disabled);
+            }
+            if (fogOfWarParent != null)
+            {
+                fogOfWarParent.gameObject.SetActive(!disabled);
+            }
+        }
+
+        /// <summary>
+        /// Permanently reveal all tiles in the current room's visibility mask.
+        /// </summary>
+        public void RevealFogOfWar()
+        {
+            if (roomBackdropRenderer != null)
+            {
+                roomBackdropRenderer.RevealAll();
+            }
+        }
 
         /// <summary>
         /// Get the room instance this controller renders.
@@ -291,6 +328,7 @@ namespace PFE.Systems.Map.Rendering
             using (Profiler.Region("room.backdrop.createVisuals", "boot: MEASURED 1453ms (2026-09-25) — 2nd largest item. Now split into backdrop.* sub-regions"))
             {
                 roomBackdropRenderer.CreateVisuals();
+                roomBackdropRenderer.SetFogOfWarDisabled(fogOfWarDisabled);
             }
             roomObjectVisualManager = new RoomObjectVisualManager(room, backgroundObjectParent, backgroundPhysicalObjectParent, areaTriggerSystem);
             roomObjectVisualManager.RefreshAll();
@@ -686,6 +724,7 @@ namespace PFE.Systems.Map.Rendering
             using (Profiler.Region("backdrop.createVisuals.refresh", "boot: REBUILD path (editor preview / RefreshSprites), not the Initialize path. Should not fire during play"))
             {
                 roomBackdropRenderer.CreateVisuals();
+                roomBackdropRenderer.SetFogOfWarDisabled(fogOfWarDisabled);
             }
         }
 

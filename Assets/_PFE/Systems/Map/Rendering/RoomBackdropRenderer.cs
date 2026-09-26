@@ -55,6 +55,47 @@ namespace PFE.Systems.Map.Rendering
         private readonly HashSet<string> _missingIds = new HashSet<string>();
         private readonly List<UnityEngine.Object> _generatedAssets = new List<UnityEngine.Object>();
         private readonly Dictionary<Texture2D, Texture2D> _readableTextureCache = new Dictionary<Texture2D, Texture2D>();
+        private bool _fogOfWarDisabled;
+
+        public bool FogOfWarDisabled => _fogOfWarDisabled;
+
+        public void SetFogOfWarDisabled(bool disabled)
+        {
+            _fogOfWarDisabled = disabled;
+            for (int i = 0; i < _visibilityMaskRenderers.Count; i++)
+            {
+                if (_visibilityMaskRenderers[i] != null)
+                {
+                    _visibilityMaskRenderers[i].enabled = !disabled;
+                }
+            }
+            if (_visibilityMaskParent != null)
+            {
+                _visibilityMaskParent.gameObject.SetActive(!disabled);
+            }
+            _visibilityMaskDirty = true;
+        }
+
+        public void RevealAll()
+        {
+            if (_visibilityMaskCurrentVisibility == null || _visibilityMaskPixels == null)
+            {
+                return;
+            }
+
+            for (int i = 0; i < _visibilityMaskCurrentVisibility.Length; i++)
+            {
+                _visibilityMaskCurrentVisibility[i] = 1f;
+                _visibilityMaskPixels[i] = Color.clear;
+            }
+
+            if (_visibilityMaskTexture != null)
+            {
+                _visibilityMaskTexture.SetPixels(_visibilityMaskPixels);
+                _visibilityMaskTexture.Apply(false, false);
+            }
+            _visibilityMaskDirty = false;
+        }
 
         /// <summary>
         /// Cached <c>Color[]</c> per readable texture, so per-pixel loops can index instead of
@@ -238,7 +279,7 @@ namespace PFE.Systems.Map.Rendering
 
         public void UpdateVisibilityMask(Vector3? playerWorldPosition = null)
         {
-            if (_room == null || !UsesVisibilityMask() || _visibilityMaskTexture == null || _visibilityMaskRenderers.Count == 0)
+            if (_fogOfWarDisabled || _room == null || !UsesVisibilityMask() || _visibilityMaskTexture == null || _visibilityMaskRenderers.Count == 0)
             {
                 return;
             }
@@ -367,6 +408,10 @@ namespace PFE.Systems.Map.Rendering
             renderer.sortingLayerName = MapSortingLayers.Foreground;
             renderer.sortingOrder = VisibilityMaskSortingOrder;
             renderer.color = Color.white;
+            if (_fogOfWarDisabled)
+            {
+                renderer.enabled = false;
+            }
 
             _generatedAssets.Add(_visibilityMaskTexture);
             _generatedAssets.Add(_visibilityMaskSprite);

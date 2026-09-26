@@ -12,6 +12,8 @@ public class MapBridge : MonoBehaviour
     [SerializeField] private RoomVisualController _visualController;
     [SerializeField] private TileAssetDatabase _tileDatabase;
 
+    public RoomVisualController VisualController => _visualController;
+
     [Header("Player Spawning")]
     [Tooltip("Tag of the player GameObject to find and spawn")]
     [SerializeField] private string _playerTag = "Player";

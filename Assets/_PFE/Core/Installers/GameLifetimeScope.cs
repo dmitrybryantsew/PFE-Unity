@@ -16,6 +16,7 @@ using PFE.Entities.Weapons;
 using PFE.Systems.Weapons;
 using PFE.Core.Rng;
 using PFE.Core.Ids;
+using PFE.Core.Scripting;
 using UnityEngine;
 
 public class GameLifetimeScope : LifetimeScope
@@ -99,6 +100,11 @@ public class GameLifetimeScope : LifetimeScope
 
         // === Entity Registry (P3) ===
         builder.Register<IEntityRegistry, EntityRegistry>(Lifetime.Singleton);
+
+        // === Lua Scripting Engine & Developer Console ===
+        builder.Register<ILuaEngine, MoonSharpScriptEngine>(Lifetime.Singleton);
+        builder.Register<DeveloperConsoleService>(Lifetime.Singleton).AsSelf();
+        builder.RegisterComponentOnNewGameObject<DeveloperConsoleController>(Lifetime.Singleton, "DeveloperConsole");
 
         // === Combat Systems ===
         builder.Register<ICombatCalculator, CombatCalculator>(Lifetime.Singleton);
