@@ -218,6 +218,16 @@ namespace PFE.Systems.Map.Streaming
             isTransitioning = true;
             transitionStartTime = Time.time;
 
+            // Yield a frame so any physics callback that triggered the transition (e.g. OnTriggerEnter2D)
+            // finishes completely before rooms are swapped and game objects recreated
+            yield return null;
+
+            if (player == null || toRoom == null)
+            {
+                isTransitioning = false;
+                yield break;
+            }
+
             // Notify start of transition
             OnRoomTransitionStart?.Invoke(fromRoom, toRoom);
 
@@ -225,7 +235,7 @@ namespace PFE.Systems.Map.Streaming
             Vector3 spawnPos = customSpawnPos ?? CalculateSpawnPosition(door, toRoom, player.transform.position);
 
             // Begin transition
-            Debug.Log($"Transitioning from {fromRoom.id} to {toRoom.id}");
+            Debug.Log($"Transitioning from {fromRoom?.id} to {toRoom.id}");
 
             // Update streaming (activate new room, deactivate old)
             if (streamingManager != null)

@@ -240,7 +240,14 @@ namespace PFE.Systems.Map.Rendering
             {
                 if (kvp.Value != null)
                 {
-                    Object.DestroyImmediate(kvp.Value.gameObject);
+                    if (Application.isPlaying)
+                    {
+                        Object.Destroy(kvp.Value.gameObject);
+                    }
+                    else
+                    {
+                        Object.DestroyImmediate(kvp.Value.gameObject);
+                    }
                 }
             }
 

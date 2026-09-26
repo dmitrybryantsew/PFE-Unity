@@ -236,8 +236,8 @@ namespace PFE.Systems.Map
                 }
             }
 
-            // Build door connections for fixed/authored rooms
-            BuildDoorConnections();
+            // Build door connections for fixed/authored rooms (NO synthetic fallback doors through solid walls, connect all authored matching doors)
+            BuildDoorConnections(allowFallback: false, connectAllMatching: true);
             RoomSetup.FinalizeSpecificAllRooms(landMap, allTemplates, _debugSettings);
             // Activate starting room
             if (landMap.HasRoom(startPosition))
@@ -302,7 +302,7 @@ namespace PFE.Systems.Map
         /// Build door connections between adjacent rooms.
         /// From AS3: Land door connection system (lines 418-494)
         /// </summary>
-        private void BuildDoorConnections()
+        private void BuildDoorConnections(bool allowFallback = true, bool connectAllMatching = false)
         {
             int attemptedConnections = 0;
             int connectedConnections = 0;
@@ -335,7 +335,7 @@ namespace PFE.Systems.Map
                         if (room2 != null)
                         {
                             attemptedConnections++;
-                            if (BuildConnection(room1, room2, DoorSide.Right, pos, new Vector3Int(x + 1, y, 0), out bool usedFallback))
+                            if (BuildConnection(room1, room2, DoorSide.Right, pos, new Vector3Int(x + 1, y, 0), out bool usedFallback, allowFallback, connectAllMatching))
                             {
                                 connectedConnections++;
                                 if (usedFallback)
@@ -357,7 +357,7 @@ namespace PFE.Systems.Map
                         if (room2 != null)
                         {
                             attemptedConnections++;
-                            if (BuildConnection(room1, room2, DoorSide.Bottom, pos, new Vector3Int(x, y + 1, 0), out bool usedFallback))
+                            if (BuildConnection(room1, room2, DoorSide.Bottom, pos, new Vector3Int(x, y + 1, 0), out bool usedFallback, allowFallback, connectAllMatching))
                             {
                                 connectedConnections++;
                                 if (usedFallback)
@@ -383,7 +383,15 @@ namespace PFE.Systems.Map
         /// <summary>
         /// Build door connection between two adjacent rooms.
         /// </summary>
-        private bool BuildConnection(RoomInstance room1, RoomInstance room2, DoorSide side, Vector3Int pos1, Vector3Int pos2, out bool usedFallback)
+        private bool BuildConnection(
+            RoomInstance room1,
+            RoomInstance room2,
+            DoorSide side,
+            Vector3Int pos1,
+            Vector3Int pos2,
+            out bool usedFallback,
+            bool allowFallback = true,
+            bool connectAllMatching = false)
         {
             usedFallback = false;
 
@@ -392,7 +400,7 @@ namespace PFE.Systems.Map
 
             if (possibleConnections.Count == 0)
             {
-                if (roomGenerator != null && roomGenerator.IsPrototypeMode)
+                if (allowFallback && roomGenerator != null && roomGenerator.IsPrototypeMode)
                 {
                     if (TryBuildPrototypeFallbackConnection(room1, room2, side, pos1, pos2))
                     {
@@ -405,13 +413,14 @@ namespace PFE.Systems.Map
             }
 
             // Determine number of doors to activate
-            // From AS3: 2-3 horizontal, 1 vertical
-            int doorCount = (side == DoorSide.Right) ? UnityEngine.Random.Range(2, 4) : 1;
+            int doorCount = connectAllMatching
+                ? possibleConnections.Count
+                : ((side == DoorSide.Right) ? UnityEngine.Random.Range(2, 4) : 1);
 
-            // Activate random doors
+            // Activate doors
             for (int i = 0; i < doorCount && possibleConnections.Count > 0; i++)
             {
-                int idx = UnityEngine.Random.Range(0, possibleConnections.Count);
+                int idx = connectAllMatching ? 0 : UnityEngine.Random.Range(0, possibleConnections.Count);
                 DoorConnection connection = possibleConnections[idx];
                 possibleConnections.RemoveAt(idx);
 

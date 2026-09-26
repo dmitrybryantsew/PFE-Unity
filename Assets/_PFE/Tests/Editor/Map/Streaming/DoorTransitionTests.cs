@@ -16,6 +16,17 @@ namespace PFE.Tests.Editor.Map.Streaming
         private GameObject _holderGo;
         private RoomInstance _room;
 
+        /// <summary>
+        /// A tile that a 40x80 px door prop sitting at (200, 100) actually covers.
+        ///
+        /// <para>The tests below used to assert on tile (10, 5). That is off by a factor of two on
+        /// both axes: <see cref="WorldConstants.TILE_SIZE"/> is 40 px, so the door spans
+        /// 180..219 px =&gt; tiles 4..5 in X, and 100..179 px =&gt; tiles 2..4 in Y. Tile (10, 5) is
+        /// never stamped, so those assertions passed only while they expected "Air" by accident and
+        /// failed the moment they expected "Wall".</para>
+        /// </summary>
+        private static readonly Vector2Int DoorCoveredTile = new Vector2Int(4, 2);
+
         [SetUp]
         public void Setup()
         {
@@ -138,7 +149,7 @@ namespace PFE.Tests.Editor.Map.Streaming
             {
                 objectId = "door1",
                 objectType = "door",
-                position = new Vector2(200f, 100f), // Tile X=10, Y=5
+                position = new Vector2(200f, 100f), // Covers tiles X 4..5, Y 2..4 at TILE_SIZE 40
                 runtimeState = new MapObjectRuntimeStateData { isOpen = false }
             };
 
@@ -152,20 +163,19 @@ namespace PFE.Tests.Editor.Map.Streaming
 
             presenter.Initialize(_room, doorObj, visualDef, renderer, null);
 
-            // Covered tiles: X: 180px..219px -> tiles 9, 10; Y: 100px..179px -> tiles 5..8
-            TileData tileClosed = _room.GetTileAtCoord(new Vector2Int(10, 5));
+            TileData tileClosed = _room.GetTileAtCoord(DoorCoveredTile);
             Assert.That(tileClosed.physicsType, Is.EqualTo(TilePhysicsType.Wall), "Closed door must stamp Wall collision");
             Assert.That(presenter.IsOpen, Is.False);
 
             // Open door
             presenter.SetOpen(true);
-            TileData tileOpened = _room.GetTileAtCoord(new Vector2Int(10, 5));
+            TileData tileOpened = _room.GetTileAtCoord(DoorCoveredTile);
             Assert.That(tileOpened.physicsType, Is.EqualTo(TilePhysicsType.Air), "Open door must clear Wall collision to Air");
             Assert.That(presenter.IsOpen, Is.True);
 
             // Close door again
             presenter.SetOpen(false);
-            TileData tileReclosed = _room.GetTileAtCoord(new Vector2Int(10, 5));
+            TileData tileReclosed = _room.GetTileAtCoord(DoorCoveredTile);
             Assert.That(tileReclosed.physicsType, Is.EqualTo(TilePhysicsType.Wall), "Re-closed door must restore Wall collision");
             Assert.That(presenter.IsOpen, Is.False);
 
@@ -192,7 +202,7 @@ namespace PFE.Tests.Editor.Map.Streaming
             triggerSystem.ExecuteAction(_room, openAction);
 
             Assert.That(doorObj.runtimeState.isOpen, Is.True);
-            TileData openTile = _room.GetTileAtCoord(new Vector2Int(10, 5));
+            TileData openTile = _room.GetTileAtCoord(DoorCoveredTile);
             Assert.That(openTile.physicsType, Is.EqualTo(TilePhysicsType.Air));
 
             // Execute script action "close"
@@ -200,7 +210,7 @@ namespace PFE.Tests.Editor.Map.Streaming
             triggerSystem.ExecuteAction(_room, closeAction);
 
             Assert.That(doorObj.runtimeState.isOpen, Is.False);
-            TileData closedTile = _room.GetTileAtCoord(new Vector2Int(10, 5));
+            TileData closedTile = _room.GetTileAtCoord(DoorCoveredTile);
             Assert.That(closedTile.physicsType, Is.EqualTo(TilePhysicsType.Wall));
         }
 
@@ -275,13 +285,20 @@ namespace PFE.Tests.Editor.Map.Streaming
             interactable.Interact(playerGo);
             Assert.That(presenter.IsOpen, Is.True);
             Assert.That(interactable.ActionText, Is.EqualTo("Close"));
-            Assert.That(_room.GetTileAtCoord(new Vector2Int(10, 5)).physicsType, Is.EqualTo(TilePhysicsType.Air));
+            Assert.That(_room.GetTileAtCoord(DoorCoveredTile).physicsType, Is.EqualTo(TilePhysicsType.Air));
 
-            // Player presses interact ('E') again -> Door closes
-            presenter.OnInteractPressed();
+            // Interact() is deliberately rate-limited to one toggle per rendered frame (it guards
+            // on Time.frameCount). An EditMode test never renders a frame between two calls, so a
+            // second press in the same frame is a no-op — assert that contract explicitly instead
+            // of relying on OnInteractPressed() to get through.
+            interactable.Interact(playerGo);
+            Assert.That(presenter.IsOpen, Is.True, "second Interact() in the same frame must be ignored");
+
+            // Close through ToggleOpen(), which is what a real second press does on a later frame.
+            presenter.ToggleOpen();
             Assert.That(presenter.IsOpen, Is.False);
             Assert.That(interactable.ActionText, Is.EqualTo("Open"));
-            Assert.That(_room.GetTileAtCoord(new Vector2Int(10, 5)).physicsType, Is.EqualTo(TilePhysicsType.Wall));
+            Assert.That(_room.GetTileAtCoord(DoorCoveredTile).physicsType, Is.EqualTo(TilePhysicsType.Wall));
 
             Object.DestroyImmediate(visualDef);
         }
@@ -644,7 +661,7 @@ namespace PFE.Tests.Editor.Map.Streaming
             Assert.That(presenter.IsOpen, Is.False);
 
             // Barricade still stamps solid wall collision
-            Assert.That(_room.GetTileAtCoord(new Vector2Int(10, 5)).physicsType, Is.EqualTo(TilePhysicsType.Wall));
+            Assert.That(_room.GetTileAtCoord(DoorCoveredTile).physicsType, Is.EqualTo(TilePhysicsType.Wall));
         }
 
         [Test]
@@ -893,6 +910,16 @@ namespace PFE.Tests.Editor.Map.Streaming
 
             // Invalid direction
             Assert.That(m4.TransitionThroughEdge(99, playerGo), Is.False);
+        }
+
+        [Test]
+        public void RoomVisualController_ClearVisuals_CallsDestroyAllTiles_WithoutThrowing()
+        {
+            var go = new GameObject("TestRVC_Clear");
+            go.transform.SetParent(_holderGo.transform);
+            var rvc = go.AddComponent<RoomVisualController>();
+
+            Assert.DoesNotThrow(() => rvc.ClearVisuals());
         }
     }
 }

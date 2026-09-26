@@ -62,6 +62,10 @@ public class GameLifetimeScope : LifetimeScope
         builder.RegisterMessageBroker<WeaponReloadStartedMessage>(pipe);
         builder.RegisterMessageBroker<WeaponReloadCompletedMessage>(pipe);
         builder.RegisterMessageBroker<WeaponDurabilityChangedMessage>(pipe);
+        // Map messages
+        builder.RegisterMessageBroker<LandTransitionMessage>(pipe);
+        builder.RegisterMessageBroker<TutorialPromptMessage>(pipe);
+        builder.RegisterMessageBroker<ObjectiveMarkerMessage>(pipe);
 
         // === Audio System ===
         // SoundService is a MonoBehaviour — assign it in the scene and reference here.

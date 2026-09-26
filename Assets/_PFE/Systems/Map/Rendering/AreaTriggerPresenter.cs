@@ -84,7 +84,24 @@ namespace PFE.Systems.Map.Rendering
                     return AreaTriggerType.Event;
             }
 
-            // 2. Identify by uid, mess, or objectId
+            // 2. Check if scripts contain gotoland actions (level transition / teleport)
+            if (trigger.scripts != null)
+            {
+                for (int s = 0; s < trigger.scripts.Count; s++)
+                {
+                    var script = trigger.scripts[s];
+                    if (script?.actions == null) continue;
+                    for (int a = 0; a < script.actions.Count; a++)
+                    {
+                        if (string.Equals(script.actions[a].act, "gotoland", System.StringComparison.OrdinalIgnoreCase))
+                        {
+                            return AreaTriggerType.Teleport;
+                        }
+                    }
+                }
+            }
+
+            // 3. Identify by uid, mess, or objectId
             string uid = trigger.uid ?? string.Empty;
             string mess = trigger.GetAttribute("mess", string.Empty);
             string id = trigger.objectId ?? string.Empty;

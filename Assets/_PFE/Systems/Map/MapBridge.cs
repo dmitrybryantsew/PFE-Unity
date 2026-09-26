@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using VContainer;
@@ -75,6 +76,8 @@ public class MapBridge : MonoBehaviour
             Debug.LogError("[MapBridge] TileAssetDatabase is not assigned! Assign it in the inspector.");
             return;
         }
+
+        _visualController.OnGotoLand += HandleGotoLand;
 
         // Wait for Game Manager to finish generating the world
         StartCoroutine(WaitForInitialization());
@@ -571,5 +574,151 @@ public class MapBridge : MonoBehaviour
 
         if (_debugSettings?.LogMapBridgeLifecycle == true)
             Debug.Log("[MapBridge] Camera follow setup complete");
+    }
+
+    private void OnDestroy()
+    {
+        if (_visualController != null)
+        {
+            _visualController.OnGotoLand -= HandleGotoLand;
+        }
+    }
+
+    private void HandleGotoLand(string targetLand)
+    {
+        Debug.Log($"[MapBridge] HandleGotoLand triggered for: '{targetLand}'");
+        StartCoroutine(PerformLandTransition(targetLand));
+    }
+
+    public System.Collections.IEnumerator PerformLandTransition(string targetLand, Vector3Int? targetPosition = null)
+    {
+        Debug.Log($"[MapBridge] Starting land transition to '{targetLand}'...");
+
+        // Disable player controller during transition
+        GameObject playerObj = GameObject.FindWithTag(_playerTag);
+        if (playerObj == null)
+        {
+            var pc = FindFirstObjectByType<PFE.Entities.Player.PlayerController>();
+            if (pc != null) playerObj = pc.gameObject;
+        }
+
+        var playerController = playerObj != null ? playerObj.GetComponent<PFE.Entities.Player.PlayerController>() : null;
+        if (playerController != null)
+        {
+            playerController.enabled = false;
+        }
+
+        // Reset room streaming & ongoing room transitions
+        var rtm = RoomTransitionManager.Instance;
+        if (rtm != null)
+        {
+            rtm.StopAllCoroutines();
+        }
+
+        var rsm = FindFirstObjectByType<RoomStreamingManager>();
+        if (rsm != null)
+        {
+            rsm.ResetStreaming();
+        }
+
+        // Yield a frame so physics callbacks finish cleanly
+        yield return null;
+
+        // Clear visuals
+        _visualController.ClearVisuals();
+
+        // Get LandMap and clear
+        var landMap = _gameManager.GetLandMap();
+        if (landMap != null)
+        {
+            landMap.Clear();
+        }
+
+        // Resolve collection name
+        string collectionName = ResolveCollectionName(targetLand);
+        var templates = _gameManager.GetTemplatesForCollection(collectionName);
+        if (templates == null || templates.Count == 0)
+        {
+            Debug.LogError($"[MapBridge] No templates found for collection '{collectionName}' (targetLand: '{targetLand}')!");
+            if (playerController != null) playerController.enabled = true;
+            yield break;
+        }
+
+        // Determine starting room position (in Surf, entry is room_0_1 at (0, 1, 0))
+        Vector3Int startPos = targetPosition ?? ResolveEntrancePosition(templates, collectionName);
+
+        var worldBuilder = _gameManager.GetWorldBuilder();
+        bool built = worldBuilder.BuildSpecificWorld(templates, startPos);
+        if (!built)
+        {
+            Debug.LogError($"[MapBridge] Failed to build world for collection '{collectionName}'!");
+            if (playerController != null) playerController.enabled = true;
+            yield break;
+        }
+
+        yield return null;
+
+        var currentRoom = landMap.currentRoom;
+        if (currentRoom != null)
+        {
+            _visualController.Initialize(currentRoom, _tileDatabase);
+            SpawnPlayer(currentRoom);
+
+            if (rtm != null)
+            {
+                rtm.SetLandMap(landMap);
+                rtm.SetVisualController(_visualController, _tileDatabase);
+            }
+
+            if (rsm != null)
+            {
+                rsm.ActivateRoom(currentRoom);
+            }
+        }
+
+        if (playerController != null)
+        {
+            playerController.enabled = true;
+        }
+
+        Debug.Log($"[MapBridge] Successfully transitioned to land '{targetLand}' ({collectionName}), current room: {currentRoom?.id}");
+    }
+
+    private static string ResolveCollectionName(string targetLand)
+    {
+        if (string.IsNullOrWhiteSpace(targetLand)) return "Base";
+        string lower = targetLand.Trim().ToLowerInvariant();
+        return lower switch
+        {
+            "surf" => "Surf",
+            "base" or "begin" => "Base",
+            "camp" => "Camp",
+            "canter" => "Canter",
+            "encl" => "Encl",
+            "mane" => "Mane",
+            "mbase" => "Mbase",
+            "pi" => "Pi",
+            "plant" => "Plant",
+            "prob" => "Prob",
+            "sewer" => "Sewer",
+            "stable" => "Stable",
+            _ => char.ToUpperInvariant(targetLand[0]) + targetLand.Substring(1)
+        };
+    }
+
+    private static Vector3Int ResolveEntrancePosition(List<RoomTemplate> templates, string collectionName)
+    {
+        if (string.Equals(collectionName, "Surf", StringComparison.OrdinalIgnoreCase))
+        {
+            // The outside bunker exit room in rooms_surf is room_0_1 at (0, 1, 0)
+            return new Vector3Int(0, 1, 0);
+        }
+
+        // Look for beg0 or first spawn point
+        var entry = templates.Find(t => t.type == "beg0")
+                 ?? templates.Find(t => t.spawnPoints != null && t.spawnPoints.Exists(sp => sp.type == 0))
+                 ?? templates.Find(t => t.fixedPosition.x >= 0);
+
+        return entry != null ? entry.fixedPosition : Vector3Int.zero;
     }
 }

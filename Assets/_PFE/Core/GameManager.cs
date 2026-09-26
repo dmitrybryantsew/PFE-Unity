@@ -304,6 +304,30 @@ namespace PFE.Core
             return loadedRoomTemplates;
         }
 
+        public List<RoomTemplate> GetTemplatesForCollection(string collectionId)
+        {
+            if (string.IsNullOrWhiteSpace(collectionId))
+                return new List<RoomTemplate>();
+
+            var templates = loadedRoomTemplates.FindAll(t =>
+                t != null && string.Equals(t.sourceCollectionId, collectionId, StringComparison.OrdinalIgnoreCase));
+
+            if (templates.Count == 0)
+            {
+                // Try reloading if newly imported or not yet cached
+                ReloadRoomTemplates();
+                templates = loadedRoomTemplates.FindAll(t =>
+                    t != null && string.Equals(t.sourceCollectionId, collectionId, StringComparison.OrdinalIgnoreCase));
+            }
+
+            return templates;
+        }
+
+        public void ReloadRoomTemplates()
+        {
+            loadedRoomTemplates = LoadRoomTemplates();
+        }
+
         /// <summary>
         /// Get current room.
         /// </summary>

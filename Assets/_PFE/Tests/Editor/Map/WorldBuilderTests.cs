@@ -143,6 +143,34 @@ namespace PFE.Tests.Editor.Map
         }
 
         [Test]
+        public void BuildSpecificWorld_WithoutMatchingDoors_DoesNotCreateFallbackConnection()
+        {
+            // Arrange: room1 has doors, roomBelow has NO doors (all 0 quality)
+            var room1 = CreateTestTemplate("room1", "beg0", new Vector3Int(0, 0, 0));
+            var roomBelow = CreateTestTemplate("roomBelow", "pass", new Vector3Int(0, 1, 0));
+            for (int i = 0; i < 24; i++)
+            {
+                roomBelow.doorQuality[i] = 0;
+            }
+
+            // Act
+            bool success = worldBuilder.BuildSpecificWorld(new List<RoomTemplate> { room1, roomBelow });
+
+            // Assert
+            Assert.That(success, Is.True);
+            var instance1 = landMap.GetRoom(new Vector3Int(0, 0, 0));
+            Assert.That(instance1, Is.Not.Null);
+
+            foreach (var door in instance1.doors)
+            {
+                if (door.side == DoorSide.Bottom)
+                {
+                    Assert.That(door.isActive, Is.False, "Authored world must not force fallback doors to roomBelow without matching doors");
+                }
+            }
+        }
+
+        [Test]
         public void BuildSpecificWorld_StartsAtBeginningRoom()
         {
             // Arrange

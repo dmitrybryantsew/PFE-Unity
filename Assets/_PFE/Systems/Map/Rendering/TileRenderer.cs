@@ -250,7 +250,14 @@ namespace PFE.Systems.Map.Rendering
             SetVisible(false);
 
             // Destroy after effect
-            Destroy(gameObject, 0.5f);
+            if (Application.isPlaying)
+            {
+                Destroy(gameObject, 0.5f);
+            }
+            else
+            {
+                DestroyImmediate(gameObject);
+            }
         }
 
         /// <summary>

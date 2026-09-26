@@ -1,3 +1,4 @@
+using System;
 using System.Text;
 using UnityEngine;
 using PFE.Systems.Map;
@@ -81,6 +82,11 @@ namespace PFE.Systems.Map.Rendering
         /// Get the area trigger system for this room.
         /// </summary>
         public PFE.Systems.Map.Scripting.AreaTriggerSystem AreaTriggerSystem => areaTriggerSystem;
+
+        /// <summary>
+        /// Fired when an area trigger executes a gotoland command to transition to another land.
+        /// </summary>
+        public event Action<string> OnGotoLand;
 
         /// <summary>
         /// Get the tile asset database used for rendering this room.
@@ -280,6 +286,7 @@ namespace PFE.Systems.Map.Rendering
                 roomBackdropRenderer.CreateVisuals();
             }
             areaTriggerSystem = new PFE.Systems.Map.Scripting.AreaTriggerSystem();
+            areaTriggerSystem.OnGotoLand += land => OnGotoLand?.Invoke(land);
             roomObjectVisualManager = new RoomObjectVisualManager(room, backgroundObjectParent, backgroundPhysicalObjectParent, areaTriggerSystem);
             roomObjectVisualManager.RefreshAll();
             Profiler.Mark("room.objects.refreshAll");
@@ -366,6 +373,13 @@ namespace PFE.Systems.Map.Rendering
             {
                 DoorInstance door = room.doors[i];
                 if (door == null || !door.isActive) continue;
+
+                // Validate that the door position is NOT inside a solid wall
+                TileData tile = room.GetTileAtCoord(door.tilePosition);
+                if (tile != null && tile.physicsType == TilePhysicsType.Wall)
+                {
+                    continue;
+                }
 
                 string doorName = $"DoorTrigger_{door.doorIndex}_{door.side}";
                 Transform existing = doorParent.Find(doorName);
@@ -1029,6 +1043,9 @@ namespace PFE.Systems.Map.Rendering
             roomObjectVisualManager = null;
             visibilityRevealTargetTransform = null;
             isInitialized = false;
+            // Nothing is drawn any more, so the room must stop claiming to be visible. Without this
+            // IsVisible stayed true after a clear even though every visual had been destroyed.
+            isVisible = false;
 
             DestroyChildren(tileParent);
             DestroyChildren(backgroundParent);

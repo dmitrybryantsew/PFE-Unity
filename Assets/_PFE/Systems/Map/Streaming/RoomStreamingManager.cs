@@ -58,11 +58,31 @@ namespace PFE.Systems.Map.Streaming
         #region Public API
 
         /// <summary>
+        /// Reset streaming tracking and deactivate current and previous rooms (used during land transitions).
+        /// </summary>
+        public void ResetStreaming()
+        {
+            if (currentActiveRoom != null)
+            {
+                currentActiveRoom.isActive = false;
+                currentActiveRoom = null;
+            }
+
+            if (previousRoom != null)
+            {
+                previousRoom.isActive = false;
+                previousRoom = null;
+            }
+
+            framesSinceDeactivation.Clear();
+        }
+
+        /// <summary>
         /// Activate a new room and deactivate the current one.
         /// </summary>
         /// <param name="newRoom">The room to activate</param>
         /// <param name="oldRoom">The room to deactivate (can be null)</param>
-        public void ActivateRoom(RoomInstance newRoom, RoomInstance oldRoom)
+        public void ActivateRoom(RoomInstance newRoom, RoomInstance oldRoom = null)
         {
             if (newRoom == null)
             {

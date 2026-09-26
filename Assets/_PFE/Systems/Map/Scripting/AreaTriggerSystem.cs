@@ -15,23 +15,27 @@ namespace PFE.Systems.Map.Scripting
     {
         private readonly IPublisher<TutorialPromptMessage> _promptPublisher;
         private readonly IPublisher<ObjectiveMarkerMessage> _markerPublisher;
+        private readonly IPublisher<LandTransitionMessage> _landTransitionPublisher;
 
         private readonly Dictionary<string, string> _localizedTextOverrides = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
         public event Action<TutorialPromptMessage> OnPromptChanged;
         public event Action<ObjectiveMarkerMessage> OnMarkerChanged;
         public event Action<ObjectInstance> OnObjectStateChanged;
+        public event Action<string> OnGotoLand;
 
-        public AreaTriggerSystem() : this(null, null)
+        public AreaTriggerSystem() : this(null, null, null)
         {
         }
 
         public AreaTriggerSystem(
             IPublisher<TutorialPromptMessage> promptPublisher,
-            IPublisher<ObjectiveMarkerMessage> markerPublisher)
+            IPublisher<ObjectiveMarkerMessage> markerPublisher,
+            IPublisher<LandTransitionMessage> landTransitionPublisher = null)
         {
             _promptPublisher = promptPublisher;
             _markerPublisher = markerPublisher;
+            _landTransitionPublisher = landTransitionPublisher;
         }
 
         public void SetTextOverride(string key, string text)
@@ -197,10 +201,23 @@ namespace PFE.Systems.Map.Scripting
 
         public void ExecuteAction(RoomInstance room, MapObjectScriptActionData action)
         {
-            if (room == null || action == null || string.IsNullOrEmpty(action.targ)) return;
+            if (room == null || action == null) return;
+
+            string command = action.act?.ToLowerInvariant() ?? string.Empty;
+
+            if (command == "gotoland")
+            {
+                string targetLand = action.val;
+                Debug.Log($"[AreaTriggerSystem] Executing gotoland: '{targetLand}'");
+                OnGotoLand?.Invoke(targetLand);
+                var landMsg = new LandTransitionMessage(targetLand);
+                _landTransitionPublisher?.Publish(landMsg);
+                return;
+            }
+
+            if (string.IsNullOrEmpty(action.targ)) return;
 
             string targetUid = action.targ;
-            string command = action.act?.ToLowerInvariant() ?? string.Empty;
 
             List<ObjectInstance> targets = FindObjectsByUidOrCode(room, targetUid);
 
