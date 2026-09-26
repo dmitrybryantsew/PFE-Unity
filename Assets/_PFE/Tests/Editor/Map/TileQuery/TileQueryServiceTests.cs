@@ -8,6 +8,7 @@ using PFE.Systems.Map;
 using PFE.Systems.Map.Serialization;
 using PFE.Systems.Map.TileQuery;
 using PFE.Systems.Physics;
+using PFE.Tests.EditMode.Systems.Map.TileCollision;
 
 namespace PFE.Tests.Editor.Map.TileQuery
 {
@@ -16,13 +17,20 @@ namespace PFE.Tests.Editor.Map.TileQuery
     ///
     /// Two kinds of test live here and they serve different purposes:
     ///
-    /// 1. STAGE A EQUIVALENCE GUARDS - prove GridTileQuery is a pure pass-through and returns
-    ///    byte-identical results to the TileCollisionSystem it wraps. If one of these fails, the
-    ///    seam changed behaviour and must not ship.
+    /// 1. SEAM GUARDS - prove the bound implementation is a pure pass-through to the reconciled
+    ///    collision math and returns byte-identical results to it. If one of these fails, the seam
+    ///    changed behaviour and must not ship.
     ///
     /// 2. PARAMETERISED DIFF TESTS - run the same probe set through every implemented backend and
-    ///    assert they agree. The point is not to test the grid (already covered by
-    ///    TileCollisionSystemTests); it is to make adding a backend automatically produce a diff.
+    ///    assert they agree. Today that is one backend (Unified), so these are cheap no-ops; the
+    ///    point is that adding a backend automatically produces a diff with no further edits.
+    ///
+    /// A second backend used to exist (GridTileQuery, shadowed behind TileQueryDivergenceLogger).
+    /// It was deleted: both sides forwarded to the same TileCollisionMath, so it could not stand in
+    /// for pre-P2 behaviour, and its one genuine difference - a hardcoded platformThreshold of 8
+    /// where AS3 says 10 - was a port invention, not a legacy behaviour worth preserving. The AS3
+    /// half of that fact is pinned by PlatformThreshold_* below. See
+    /// docs/Roadmap/LLP2D_IMPLEMENTATION_GUIDE.md section 4.3 and decision L4.
     ///
     /// TODO(ChainTileQuery): add TileQueryBackend.Chain to ImplementedBackends when it lands.
     /// Every diff test below then covers it with no further edits.
@@ -38,7 +46,6 @@ namespace PFE.Tests.Editor.Map.TileQuery
         /// </summary>
         private static readonly TileQueryBackend[] ImplementedBackends =
         {
-            TileQueryBackend.Grid,
             TileQueryBackend.Unified,
         };
 
@@ -58,6 +65,25 @@ namespace PFE.Tests.Editor.Map.TileQuery
         public void TearDown()
         {
             _room = null;
+        }
+
+        /// <summary>
+        /// Mixed-geometry fixture: border walls, a one-way platform, a ladder and a slope.
+        /// ASCII row 0 is the TOP row (SyntheticRoomBuilder maps it to the highest Y), so with
+        /// 7 rows: row 0 -> y=6 (ceiling), row 2 -> y=4 (platform), row 6 -> y=0 (floor).
+        /// </summary>
+        private static RoomInstance BuildAsciiRoom()
+        {
+            return SyntheticRoomBuilder.BuildFromAscii(new[]
+            {
+                "################",
+                "#..............#",
+                "#....====......#",
+                "#....H.........#",
+                "#....H..../....#",
+                "#....H.../.....#",
+                "################"
+            });
         }
 
         private static RoomInstance BuildEmptyRoom()
@@ -96,8 +122,6 @@ namespace PFE.Tests.Editor.Map.TileQuery
         {
             switch (backend)
             {
-                case TileQueryBackend.Grid:
-                    return new GridTileQuery(room);
                 case TileQueryBackend.Unified:
                     return new UnifiedTileQueryService(room);
                 default:
@@ -106,19 +130,19 @@ namespace PFE.Tests.Editor.Map.TileQuery
             }
         }
 
-        // ── Stage A equivalence guards ────────────────────────────────────────────────────
+        // ── Seam guards: the bound implementation must stay a pass-through ────────────────
 
         [Test]
-        public void StageA_GridBackend_CheckCollision_MatchesTileCollisionMath()
+        public void Seam_Unified_CheckCollision_MatchesTileCollisionMath()
         {
-            ITileQueryService subject = new GridTileQuery(_room);
+            ITileQueryService subject = new UnifiedTileQueryService(_room);
 
             foreach (Rect probe in ProbeRects())
             {
                 foreach (TileQueryOptions options in ProbeOptions())
                 {
                     bool expected = TileCollisionMath.CheckCollision(
-                        _room, probe, 0f, 0f, 8f,
+                        _room, probe, 0f, 0f, TileQueryConstants.PorogGrounded,
                         options.IsTransparent, options.CanFallThroughPlatforms, options.VelocityY);
                     bool actual = subject.CheckCollision(probe, options);
                     Assert.AreEqual(expected, actual,
@@ -128,10 +152,10 @@ namespace PFE.Tests.Editor.Map.TileQuery
         }
 
         [Test]
-        public void StageA_GridBackend_Raycast_MatchesTileCollisionSystem()
+        public void Seam_Unified_Raycast_MatchesTileCollisionSystem()
         {
             TileCollisionSystem reference = new TileCollisionSystem(_room);
-            ITileQueryService subject = new GridTileQuery(_room);
+            ITileQueryService subject = new UnifiedTileQueryService(_room);
 
             foreach (Vector2 origin in ProbePoints())
             {
@@ -148,9 +172,9 @@ namespace PFE.Tests.Editor.Map.TileQuery
         }
 
         [Test]
-        public void StageA_GridBackend_GetGroundHeight_MatchesTileCollisionMath()
+        public void Seam_Unified_GetGroundHeight_MatchesTileCollisionMath()
         {
-            ITileQueryService subject = new GridTileQuery(_room);
+            ITileQueryService subject = new UnifiedTileQueryService(_room);
 
             foreach (Vector2 point in ProbePoints())
             {
@@ -161,9 +185,9 @@ namespace PFE.Tests.Editor.Map.TileQuery
         }
 
         [Test]
-        public void StageA_GridBackend_IsSolidAt_MatchesTileCollisionMath()
+        public void Seam_Unified_IsSolidAt_MatchesTileCollisionMath()
         {
-            ITileQueryService subject = new GridTileQuery(_room);
+            ITileQueryService subject = new UnifiedTileQueryService(_room);
 
             for (int x = 0; x < RoomW; x++)
             {
@@ -175,6 +199,68 @@ namespace PFE.Tests.Editor.Map.TileQuery
                     Assert.AreEqual(expected, actual, "IsSolidAt diverged at " + coord);
                 }
             }
+        }
+
+        // ── AS3 platform threshold (porog) ────────────────────────────────────────────────
+        //
+        // These pin the one fact the deleted GridTileQuery shadow used to carry: the platform
+        // pass-through band is AS3's porog = 10 px (Unit.as:278). GridTileQuery hardcoded 8 px,
+        // which was a port invention, not an AS3 behaviour, so the shadow measured distance from
+        // a value that was itself wrong.
+        //
+        // The probe must stay INSIDE the platform's own tile row (y = 160..200). A taller probe
+        // (this used to be 50 px tall, spanning 191..241) reaches the ceiling wall row above
+        // (y = 240..280), so every backend collides on that wall and the threshold is masked.
+
+        [Test]
+        public void PlatformThreshold_InsideAs3Porog_Collides()
+        {
+            ITileQueryService query = new UnifiedTileQueryService(BuildAsciiRoom());
+
+            // Platform at y=4 -> top is at (4 + 1) * 40 = 200 px. Feet 9 px below that are
+            // inside porog 10 (200 - 10 = 190) and outside the port's old porog 8 (192).
+            Rect feet9pxBelowTop = new Rect(200f, 191f, 30f, 5f);
+
+            Assert.IsTrue(query.CheckCollision(feet9pxBelowTop, TileQueryOptions.Default),
+                "AS3 porog is 10 (Unit.as:278), so feet 9 px below a platform top must collide.");
+        }
+
+        [Test]
+        public void PlatformThreshold_BeyondAs3Porog_DoesNotCollide()
+        {
+            ITileQueryService query = new UnifiedTileQueryService(BuildAsciiRoom());
+
+            // Feet 11 px below the top are outside porog 10 entirely.
+            Rect feet11pxBelowTop = new Rect(200f, 189f, 30f, 5f);
+
+            Assert.IsFalse(query.CheckCollision(feet11pxBelowTop, TileQueryOptions.Default),
+                "porog is a band, not 'always collide': feet 11 px below the top must pass through.");
+        }
+
+        // ── Classification and swept move (mixed-geometry fixture) ─────────────────────────
+
+        [Test]
+        public void Classify_ReportsFlagsForEachTileType()
+        {
+            ITileQueryService query = new UnifiedTileQueryService(BuildAsciiRoom());
+
+            Assert.AreEqual(TileQueryFlags.Solid, query.Classify(new Vector2Int(0, 0)) & TileQueryFlags.Solid);
+            Assert.AreEqual(TileQueryFlags.Platform, query.Classify(new Vector2Int(5, 4)) & TileQueryFlags.Platform);
+            Assert.AreEqual(TileQueryFlags.Ladder, query.Classify(new Vector2Int(5, 3)) & TileQueryFlags.Ladder);
+            Assert.AreEqual(TileQueryFlags.Slope, query.Classify(new Vector2Int(10, 2)) & TileQueryFlags.Slope);
+        }
+
+        [Test]
+        public void ResolveMove_IntoLeftWall_BlocksAndReportsSide()
+        {
+            ITileQueryService query = new UnifiedTileQueryService(BuildAsciiRoom());
+
+            // Moving into the left border wall (x = 0..40) from x = 80 toward x = -20.
+            TileBox box = TileBox.FromFeet(new Vector2(80f, 40f), halfWidth: 15f, height: 50f);
+            TileMoveResult result = query.ResolveMove(box, new Vector2(-100f, 0f), TileQueryFlags.Solid);
+
+            Assert.IsTrue(result.HitLeft, "A leftward move into the border wall must report HitLeft.");
+            Assert.Greater(result.Position.x, 0f, "The box must not tunnel through the border wall.");
         }
 
         // ── Contract tests (parameterised over every implemented backend) ──────────────────

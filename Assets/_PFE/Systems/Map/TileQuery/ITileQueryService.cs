@@ -11,13 +11,17 @@ namespace PFE.Systems.Map.TileQuery
     /// </summary>
     public enum TileQueryBackend
     {
-        /// <summary>AS3-faithful grid sampling. The Replica reference and the default.</summary>
-        Grid = 0,
-
-        /// <summary>Experimental Box2D v3 / LowLevelPhysics2D chain-shape backend. Not implemented yet.</summary>
+        /// <summary>
+        /// Reserved for the Box2D v3 / LowLevelPhysics2D chain-shape backend. Not implemented yet;
+        /// it is the "new" side of the Stage B dual-run in
+        /// docs/Roadmap/LLP2D_IMPLEMENTATION_GUIDE.md.
+        /// </summary>
         Chain = 1,
 
-        /// <summary>Unified tile collision service (P2). Reconciled constants and full model coverage.</summary>
+        /// <summary>
+        /// Unified tile collision service (P2). The only implementation: reconciled constants
+        /// (AS3 ddy=1, porog=10, maxdelta=9) and full model coverage.
+        /// </summary>
         Unified = 2,
     }
 

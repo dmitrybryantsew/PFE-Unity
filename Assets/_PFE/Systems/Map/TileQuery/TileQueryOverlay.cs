@@ -5,7 +5,7 @@ namespace PFE.Systems.Map.TileQuery
 {
     /// <summary>
     /// Debug overlay for tile collision queries (P2 Stage B4).
-    /// Displays the active backend, divergence counts, and timing on screen.
+    /// Displays the active backend and room on screen.
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class TileQueryOverlay : MonoBehaviour
@@ -25,23 +25,21 @@ namespace PFE.Systems.Map.TileQuery
         private void OnGUI()
         {
             if (!showOverlay) return;
-            if (debugSettings != null && !debugSettings.TileQueryUnified && !debugSettings.TileQueryLogDivergence)
+            if (debugSettings != null && !debugSettings.TileQueryUnified)
             {
                 return;
             }
 
             InitStyles();
 
-            int divergences = (_queryService is TileQueryDivergenceLogger logger) ? logger.DivergenceCount : 0;
             string backendName = _queryService != null ? _queryService.Backend.ToString() : "None";
 
             string text = $"[P2 Tile Collision Query]\n" +
                           $"Backend: {backendName}\n" +
-                          $"Divergences: {divergences}\n" +
                           $"Room: {(_queryService?.Room?.id ?? "None")}";
 
-            GUI.Box(new Rect(10, 200, 220, 80), GUIContent.none, _boxStyle);
-            GUI.Label(new Rect(15, 205, 210, 70), text, _style);
+            GUI.Box(new Rect(10, 200, 220, 70), GUIContent.none, _boxStyle);
+            GUI.Label(new Rect(15, 205, 210, 60), text, _style);
         }
 
         private void InitStyles()

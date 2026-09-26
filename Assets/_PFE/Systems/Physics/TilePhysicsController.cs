@@ -183,8 +183,7 @@ namespace PFE.Systems.Physics
         // Room reference
         private RoomInstance currentRoom;
         private ITileQueryService tileQueryService;
-        [SerializeField] private PfeDebugSettings debugSettings;
-        
+
         // Room's world pixel position (for converting between world and room-local coordinates)
         private float roomWorldPixelX;
         private float roomWorldPixelY;
@@ -346,17 +345,12 @@ namespace PFE.Systems.Physics
                 roomWorldPixelY = room.landPosition.y * WorldConstants.ROOM_HEIGHT * WorldConstants.TILE_SIZE
                                   - borderOffsetTiles * WorldConstants.TILE_SIZE;
 
-                ITileQueryService unified = new UnifiedTileQueryService(room);
-                var settings = debugSettings ?? Resources.Load<PfeDebugSettings>("PfeDebugSettings");
-                if (settings != null && settings.TileQueryLogDivergence)
-                {
-                    ITileQueryService legacy = new GridTileQuery(room);
-                    tileQueryService = new TileQueryDivergenceLogger(primary: unified, shadow: legacy, debugSettings: settings);
-                }
-                else
-                {
-                    tileQueryService = unified;
-                }
+                // UnifiedTileQueryService is the only implementation. A dual-run shadow used to be
+                // selectable here (GridTileQuery behind TileQueryDivergenceLogger); it was removed
+                // because both sides forwarded to the same reconciled TileCollisionMath, so it could
+                // no longer represent pre-P2 behaviour and reported zero divergences while looking
+                // healthy. See docs/Roadmap/LLP2D_IMPLEMENTATION_GUIDE.md section 4.3 and decision L4.
+                tileQueryService = new UnifiedTileQueryService(room);
             }
             else
             {
@@ -364,11 +358,6 @@ namespace PFE.Systems.Physics
                 roomWorldPixelX = 0;
                 roomWorldPixelY = 0;
             }
-        }
-
-        public void SetDebugSettings(PfeDebugSettings settings)
-        {
-            debugSettings = settings;
         }
 
         /// <summary>

@@ -182,12 +182,8 @@ namespace PFE.Core
 
         [Header("Tile Collision Query (P2)")]
         [SerializeField]
-        [Tooltip("Flips tile collision consumers to UnifiedTileQueryService instead of legacy paths. OFF = legacy behavior.")]
+        [Tooltip("Enables the UnifiedTileQueryService seam for tile collision consumers. Retained as the escape hatch for the P2 migration; Unified is the only implementation left, so this is a display/behaviour toggle only.")]
         private bool tileQueryUnified = true;
-
-        [SerializeField]
-        [Tooltip("Logs divergences between legacy and unified tile query services during Stage B diffing.")]
-        private bool tileQueryLogDivergence = false;
 
         // ── Public accessors ─────────────────────────────────────────────────
 
@@ -252,7 +248,6 @@ namespace PFE.Core
 
         // Tile Query flags (P2)
         public bool TileQueryUnified                             => tileQueryUnified;
-        public bool TileQueryLogDivergence                       => runtimeLoggingEnabled && tileQueryLogDivergence;
 
         // RNG & Entity ID flags (P3)
         [Header("RNG & Entity IDs (P3)")]
