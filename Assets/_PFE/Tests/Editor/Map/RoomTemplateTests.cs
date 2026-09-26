@@ -86,12 +86,58 @@ namespace PFE.Tests.Editor.Map
             RoomTemplate template = ScriptableObject.CreateInstance<RoomTemplate>();
             template.tileDataString = "";
 
-            TileData[,] tiles = template.ParseTiles(null);
+            TileData[,] tiles = template.ParseTiles(LoadTileFormDatabase());
 
             Assert.IsNotNull(tiles);
             Assert.AreEqual(WorldConstants.ROOM_WIDTH, tiles.GetLength(0));
             Assert.AreEqual(WorldConstants.ROOM_HEIGHT, tiles.GetLength(1));
         }
+
+        /// <summary>
+        /// Path of the project's real tile form database (imported from tile_forms.json by
+        /// <c>PFE &gt; Import Tile Forms JSON</c>).
+        /// </summary>
+        private const string TileFormDatabasePath = "Assets/_PFE/Data/TileFormDatabase.asset";
+
+        /// <summary>
+        /// Loads the project's real <see cref="TileFormDatabase"/> so ParseTiles is exercised
+        /// against the same data the game runs on.
+        ///
+        /// <para><b>Why the real asset and not a hand-built one.</b> These tests used to call
+        /// <c>ParseTiles(null)</c>, which throws a NullReferenceException inside
+        /// <see cref="TileDecoder.Decode"/> (it dereferences the database to look up the first
+        /// character). The obvious fix — build a small synthetic database — was rejected: it would
+        /// encode whatever the test author assumed about the character set, and those assumptions
+        /// were already wrong. The real data says otherwise on nearly every point:
+        /// <list type="bullet">
+        /// <item><description>every fForm <c>A..T</c> is <c>phis=1</c> — there is no "air" letter.
+        /// Air is <c>.</c>, <c>_</c>, an empty cell, or an unregistered character.</description></item>
+        /// <item><description>one-way platforms, stairs and slopes are <b>overlays</b> (oForms,
+        /// <c>ed=4</c>/<c>ed=3</c>), never first characters: <c>-</c> is a shelf, Cyrillic
+        /// <c>А</c>/<c>Б</c> are stairs, Cyrillic <c>В</c>/<c>Г</c> are diagonals.</description></item>
+        /// <item><description>a slope (<c>diagon</c>) is not a stair (<c>stair</c>) and stays
+        /// <see cref="TilePhysicsType.Air"/> — see tile-format.md.</description></item>
+        /// </list>
+        /// Loading the shipped asset keeps the tests honest: if the imported data changes, the
+        /// tests change with it.</para>
+        /// </summary>
+        private static TileFormDatabase LoadTileFormDatabase()
+        {
+            TileFormDatabase database =
+                UnityEditor.AssetDatabase.LoadAssetAtPath<TileFormDatabase>(TileFormDatabasePath);
+
+            Assert.NotNull(database,
+                $"Expected the tile form database at '{TileFormDatabasePath}'. " +
+                "Re-import it via PFE > Import Tile Forms JSON.");
+            return database;
+        }
+
+        /// <summary>
+        /// Tile row 0 of <see cref="RoomTemplate.tileDataString"/> is the TOP row of the room
+        /// (AS3 order), which <see cref="TileDecoder.ParseRoom"/> stores at the highest Unity Y.
+        /// Single-row templates therefore land here, not at <c>tiles[x, 0]</c>.
+        /// </summary>
+        private static int TopRow => WorldConstants.ROOM_HEIGHT - 1;
 
         [Test]
         public void ParseTiles_WallChar_CreatesWallTile()
@@ -99,111 +145,138 @@ namespace PFE.Tests.Editor.Map
             RoomTemplate template = ScriptableObject.CreateInstance<RoomTemplate>();
             template.tileDataString = "B";
 
-            TileData[,] tiles = template.ParseTiles(null);
+            TileData[,] tiles = template.ParseTiles(LoadTileFormDatabase());
 
-            Assert.AreEqual(TilePhysicsType.Wall, tiles[0, 0].physicsType);
-            Assert.AreEqual("tWall1", tiles[0, 0].GetFrontGraphic());
+            // Real data: fForm 'B' is phis=1, mat=2, hp=5000, front "B".
+            Assert.AreEqual(TilePhysicsType.Wall, tiles[0, TopRow].physicsType);
+            Assert.AreEqual("B", tiles[0, TopRow].GetFrontGraphic());
+            Assert.AreEqual(5000, tiles[0, TopRow].hitPoints);
         }
 
         [Test]
-        public void ParseTiles_AirChar_CreatesAirTile()
+        public void ParseTiles_UnregisteredChar_CreatesAirTile()
         {
             RoomTemplate template = ScriptableObject.CreateInstance<RoomTemplate>();
-            template.tileDataString = "A";
+            template.tileDataString = "z";
 
-            TileData[,] tiles = template.ParseTiles(null);
+            TileData[,] tiles = template.ParseTiles(LoadTileFormDatabase());
 
-            Assert.AreEqual(TilePhysicsType.Air, tiles[0, 0].physicsType);
+            // 'z' is an oForm (background texture) but never an fForm, so as the FIRST character
+            // it has no form to apply — exactly what AS3 does when Form.fForms[char] is undefined.
+            Assert.AreEqual(TilePhysicsType.Air, tiles[0, TopRow].physicsType);
         }
 
         [Test]
-        public void ParseTiles_PlatformChar_CreatesPlatformTile()
+        public void ParseTiles_DotSeparatedRow_FillsEveryColumnLeftToRight()
         {
             RoomTemplate template = ScriptableObject.CreateInstance<RoomTemplate>();
-            template.tileDataString = "P";
+            template.tileDataString = "B.C._";
 
-            TileData[,] tiles = template.ParseTiles(null);
+            TileData[,] tiles = template.ParseTiles(LoadTileFormDatabase());
 
-            Assert.AreEqual(TilePhysicsType.Platform, tiles[0, 0].physicsType);
-            Assert.IsTrue(tiles[0, 0].IsPlatform());
+            Assert.AreEqual(TilePhysicsType.Wall, tiles[0, TopRow].physicsType);
+            Assert.AreEqual(TilePhysicsType.Wall, tiles[1, TopRow].physicsType);
+            Assert.AreEqual(TilePhysicsType.Air, tiles[2, TopRow].physicsType);
         }
 
         [Test]
-        public void ParseTiles_StairChar_CreatesStairTile()
+        public void ParseTiles_ShelfOverlay_CreatesPlatformTile()
         {
             RoomTemplate template = ScriptableObject.CreateInstance<RoomTemplate>();
-            template.tileDataString = "S";
+            // '_' keeps the tile air, then the '-' oForm (ed=4, shelf=1) turns it into a ledge.
+            // This is the real encoding: platforms are overlays, never first characters.
+            template.tileDataString = "_-";
 
-            TileData[,] tiles = template.ParseTiles(null);
+            TileData[,] tiles = template.ParseTiles(LoadTileFormDatabase());
 
-            Assert.AreEqual(TilePhysicsType.Stair, tiles[0, 0].physicsType);
-            Assert.IsTrue(tiles[0, 0].IsStair());
+            Assert.AreEqual(TilePhysicsType.Platform, tiles[0, TopRow].physicsType);
+            Assert.IsTrue(tiles[0, TopRow].IsPlatform());
+            Assert.IsTrue(tiles[0, TopRow].isLedge);
+        }
+
+        [Test]
+        public void ParseTiles_StairOverlay_CreatesStairTile()
+        {
+            RoomTemplate template = ScriptableObject.CreateInstance<RoomTemplate>();
+            // Cyrillic 'А' is the oForm stair (+1). '_' + stair is how walkable stairs are authored.
+            template.tileDataString = "_А";
+
+            TileData[,] tiles = template.ParseTiles(LoadTileFormDatabase());
+
+            Assert.AreEqual(TilePhysicsType.Stair, tiles[0, TopRow].physicsType);
+            Assert.IsTrue(tiles[0, TopRow].IsStair());
+            Assert.AreEqual(1, tiles[0, TopRow].stairType);
         }
 
         [Test]
         public void ParseTiles_SlopeUpChar_CreatesSlopedTile()
         {
             RoomTemplate template = ScriptableObject.CreateInstance<RoomTemplate>();
-            template.tileDataString = "/";
+            // Cyrillic 'В' is the oForm diagonal (+1). A slope is `diagon`, NOT `stair`, and it
+            // stays Air — see tile-format.md "a slope is NOT a stair".
+            template.tileDataString = "_В";
 
-            TileData[,] tiles = template.ParseTiles(null);
+            TileData[,] tiles = template.ParseTiles(LoadTileFormDatabase());
 
-            Assert.AreEqual(TilePhysicsType.Stair, tiles[0, 0].physicsType);
-            Assert.AreEqual(1, tiles[0, 0].slopeType);
+            Assert.AreEqual(TilePhysicsType.Air, tiles[0, TopRow].physicsType);
+            Assert.AreEqual(1, tiles[0, TopRow].slopeType);
+            Assert.AreEqual(0, tiles[0, TopRow].stairType);
         }
 
         [Test]
         public void ParseTiles_SlopeDownChar_CreatesSlopedTile()
         {
             RoomTemplate template = ScriptableObject.CreateInstance<RoomTemplate>();
-            template.tileDataString = "\\";
+            // Cyrillic 'Г' is the oForm diagonal (-1), the mirror of 'В'.
+            template.tileDataString = "_Г";
 
-            TileData[,] tiles = template.ParseTiles(null);
+            TileData[,] tiles = template.ParseTiles(LoadTileFormDatabase());
 
-            Assert.AreEqual(TilePhysicsType.Stair, tiles[0, 0].physicsType);
-            Assert.AreEqual(-1, tiles[0, 0].slopeType);
+            Assert.AreEqual(TilePhysicsType.Air, tiles[0, TopRow].physicsType);
+            Assert.AreEqual(-1, tiles[0, TopRow].slopeType);
         }
 
         [Test]
         public void ParseTiles_MultipleRows_ParsesCorrectly()
         {
             RoomTemplate template = ScriptableObject.CreateInstance<RoomTemplate>();
-            template.tileDataString = "AAA\nBBB\nXXX";
+            template.tileDataString = "...\nBBB\nZZZ";
 
-            TileData[,] tiles = template.ParseTiles(null);
+            TileData[,] tiles = template.ParseTiles(LoadTileFormDatabase());
 
-            // Row 0: AAA
-            Assert.AreEqual(TilePhysicsType.Air, tiles[0, 0].physicsType);
-            Assert.AreEqual(TilePhysicsType.Air, tiles[1, 0].physicsType);
-            Assert.AreEqual(TilePhysicsType.Air, tiles[2, 0].physicsType);
+            // Row 0 (top of the room => highest Unity Y): dots are air
+            Assert.AreEqual(TilePhysicsType.Air, tiles[0, TopRow].physicsType);
+            Assert.AreEqual(TilePhysicsType.Air, tiles[1, TopRow].physicsType);
+            Assert.AreEqual(TilePhysicsType.Air, tiles[2, TopRow].physicsType);
 
             // Row 1: BBB
-            Assert.AreEqual(TilePhysicsType.Wall, tiles[0, 1].physicsType);
-            Assert.AreEqual(TilePhysicsType.Wall, tiles[1, 1].physicsType);
-            Assert.AreEqual(TilePhysicsType.Wall, tiles[2, 1].physicsType);
+            Assert.AreEqual(TilePhysicsType.Wall, tiles[0, TopRow - 1].physicsType);
+            Assert.AreEqual(TilePhysicsType.Wall, tiles[1, TopRow - 1].physicsType);
+            Assert.AreEqual(TilePhysicsType.Wall, tiles[2, TopRow - 1].physicsType);
 
-            // Row 2: XXX (unknown char defaults to Air)
-            Assert.AreEqual(TilePhysicsType.Air, tiles[0, 2].physicsType);
-            Assert.AreEqual(TilePhysicsType.Air, tiles[1, 2].physicsType);
-            Assert.AreEqual(TilePhysicsType.Air, tiles[2, 2].physicsType);
+            // Row 2: ZZZ (unregistered as an fForm -> Air)
+            Assert.AreEqual(TilePhysicsType.Air, tiles[0, TopRow - 2].physicsType);
+            Assert.AreEqual(TilePhysicsType.Air, tiles[1, TopRow - 2].physicsType);
+            Assert.AreEqual(TilePhysicsType.Air, tiles[2, TopRow - 2].physicsType);
         }
 
         [Test]
         public void ParseTiles_PreservesGridPositions()
         {
             RoomTemplate template = ScriptableObject.CreateInstance<RoomTemplate>();
-            template.tileDataString = "ABC\nDEF";
+            template.tileDataString = "B.C\nD.E";
 
-            TileData[,] tiles = template.ParseTiles(null);
+            TileData[,] tiles = template.ParseTiles(LoadTileFormDatabase());
 
-            Assert.AreEqual(0, tiles[0, 0].gridPosition.x);
-            Assert.AreEqual(0, tiles[0, 0].gridPosition.y);
+            // Row 0 is the TOP row of the room, stored at the highest Unity Y.
+            Assert.AreEqual(0, tiles[0, TopRow].gridPosition.x);
+            Assert.AreEqual(TopRow, tiles[0, TopRow].gridPosition.y);
 
-            Assert.AreEqual(1, tiles[1, 0].gridPosition.x);
-            Assert.AreEqual(0, tiles[1, 0].gridPosition.y);
+            Assert.AreEqual(1, tiles[1, TopRow].gridPosition.x);
+            Assert.AreEqual(TopRow, tiles[1, TopRow].gridPosition.y);
 
-            Assert.AreEqual(0, tiles[0, 1].gridPosition.x);
-            Assert.AreEqual(1, tiles[0, 1].gridPosition.y);
+            Assert.AreEqual(0, tiles[0, TopRow - 1].gridPosition.x);
+            Assert.AreEqual(TopRow - 1, tiles[0, TopRow - 1].gridPosition.y);
         }
 
         [Test]
@@ -284,16 +357,20 @@ namespace PFE.Tests.Editor.Map
         public void ParseTiles_RussianCharacters_ParseCorrectly()
         {
             RoomTemplate template = ScriptableObject.CreateInstance<RoomTemplate>();
-            template.tileDataString = "БА";  // Russian Б (wall) and А (platform)
+            // Cyrillic forms exist only as OVERLAYS: 'Б' is the -1 stair, 'Д' a shelf.
+            // The old version of this test treated 'Б' as a wall and 'А' as a platform, which is
+            // not what the imported form data says.
+            template.tileDataString = "_Б._Д";
 
-            TileData[,] tiles = template.ParseTiles(null);
+            TileData[,] tiles = template.ParseTiles(LoadTileFormDatabase());
 
-            // Russian Б should be Wall
-            Assert.AreEqual(TilePhysicsType.Wall, tiles[0, 0].physicsType);
-            Assert.IsTrue(tiles[0, 0].indestructible);
+            // '_Б' -> stair facing down-left
+            Assert.AreEqual(TilePhysicsType.Stair, tiles[0, TopRow].physicsType);
+            Assert.AreEqual(-1, tiles[0, TopRow].stairType);
 
-            // Russian А should be Platform
-            Assert.AreEqual(TilePhysicsType.Platform, tiles[1, 0].physicsType);
+            // '_Д' -> one-way platform
+            Assert.AreEqual(TilePhysicsType.Platform, tiles[1, TopRow].physicsType);
+            Assert.IsTrue(tiles[1, TopRow].isLedge);
         }
 
         [Test]
@@ -302,23 +379,24 @@ namespace PFE.Tests.Editor.Map
             RoomTemplate template = ScriptableObject.CreateInstance<RoomTemplate>();
             template.tileDataString = "._";
 
-            TileData[,] tiles = template.ParseTiles(null);
+            TileData[,] tiles = template.ParseTiles(LoadTileFormDatabase());
 
-            Assert.AreEqual(TilePhysicsType.Air, tiles[0, 0].physicsType);
-            Assert.AreEqual(TilePhysicsType.Air, tiles[1, 0].physicsType);
+            Assert.AreEqual(TilePhysicsType.Air, tiles[0, TopRow].physicsType);
+            Assert.AreEqual(TilePhysicsType.Air, tiles[1, TopRow].physicsType);
         }
 
         [Test]
         public void ParseTiles_CHaracter_ParsesAsWall()
         {
             RoomTemplate template = ScriptableObject.CreateInstance<RoomTemplate>();
-            template.tileDataString = "CCC";
+            // Dots separate tile codes; without them "CCC" is ONE tile: 'C' plus two 'C' overlays.
+            template.tileDataString = "C.C.C";
 
-            TileData[,] tiles = template.ParseTiles(null);
+            TileData[,] tiles = template.ParseTiles(LoadTileFormDatabase());
 
-            Assert.AreEqual(TilePhysicsType.Wall, tiles[0, 0].physicsType);
-            Assert.AreEqual(TilePhysicsType.Wall, tiles[1, 0].physicsType);
-            Assert.AreEqual(TilePhysicsType.Wall, tiles[2, 0].physicsType);
+            Assert.AreEqual(TilePhysicsType.Wall, tiles[0, TopRow].physicsType);
+            Assert.AreEqual(TilePhysicsType.Wall, tiles[1, TopRow].physicsType);
+            Assert.AreEqual(TilePhysicsType.Wall, tiles[2, TopRow].physicsType);
         }
 
         // TODO: Add comprehensive tests for TileFormDatabase integration

@@ -42,9 +42,13 @@ namespace PFE.Tests.Editor.Map
             DoorCarver.CarveDoor(room, 0, (int)DoorQuality.Narrow);
 
             int rightCol = WorldConstants.ROOM_WIDTH - 1;
-            Assert.AreEqual(TilePhysicsType.Air, room.tiles[rightCol, 23].physicsType);
-            Assert.AreEqual(TilePhysicsType.Air, room.tiles[rightCol, 24].physicsType);
-            Assert.AreEqual(string.Empty, room.tiles[rightCol, 23].GetFrontGraphic());
+            // AS3 Location.setDoor() for right index 0 carves TOP-DOWN rows 3 and 3 - 1, i.e.
+            // Unity rows ROOM_HEIGHT - 1 - 3 = 21 and 22. (These read 23/24 while ROOM_HEIGHT was 27.)
+            int row0 = WorldConstants.ROOM_HEIGHT - 1 - 3;
+            int row1 = row0 + 1;
+            Assert.AreEqual(TilePhysicsType.Air, room.tiles[rightCol, row0].physicsType);
+            Assert.AreEqual(TilePhysicsType.Air, room.tiles[rightCol, row1].physicsType);
+            Assert.AreEqual(string.Empty, room.tiles[rightCol, row0].GetFrontGraphic());
         }
 
         [Test]
@@ -93,8 +97,10 @@ namespace PFE.Tests.Editor.Map
         {
             RoomInstance room = CreateAirRoom();
             int rightCol = WorldConstants.ROOM_WIDTH - 1;
-            room.tiles[rightCol, 23].physicsType = TilePhysicsType.Wall;
-            room.tiles[rightCol, 24].physicsType = TilePhysicsType.Wall;
+            int doorRow0 = WorldConstants.ROOM_HEIGHT - 1 - 3; // right door 0 -> AS3 row 3
+            int doorRow1 = doorRow0 + 1;                       // AS3 row 2
+            room.tiles[rightCol, doorRow0].physicsType = TilePhysicsType.Wall;
+            room.tiles[rightCol, doorRow1].physicsType = TilePhysicsType.Wall;
             room.doors.Add(new DoorInstance
             {
                 doorIndex = 0,
@@ -108,8 +114,8 @@ namespace PFE.Tests.Editor.Map
 
             RoomSetup.FinalizeSpecificRoom(room, template);
 
-            Assert.AreEqual(TilePhysicsType.Wall, room.tiles[rightCol, 23].physicsType);
-            Assert.AreEqual(TilePhysicsType.Wall, room.tiles[rightCol, 24].physicsType);
+            Assert.AreEqual(TilePhysicsType.Wall, room.tiles[rightCol, doorRow0].physicsType);
+            Assert.AreEqual(TilePhysicsType.Wall, room.tiles[rightCol, doorRow1].physicsType);
 
             Object.DestroyImmediate(template);
         }

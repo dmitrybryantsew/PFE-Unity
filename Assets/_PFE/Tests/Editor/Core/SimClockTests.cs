@@ -55,15 +55,21 @@ namespace PFE.Tests.Editor.Core
         [Test]
         public void StepScale_TimesRate_ReproducesCanonicalUnit()
         {
-            // The defining property: canonical_rate * StepScale == configured_rate, i.e. a rate
-            // expressed per canonical frame advances the same distance per second at any tick rate.
+            // The defining property is  TicksPerSecond * StepScale == CanonicalTicksPerSecond:
+            // a rate expressed per canonical frame must advance the SAME distance per wall-clock
+            // second at every tick rate, and that distance is 30 canonical frames by definition.
+            //
+            // The original assertion had the operands swapped (Canonical * StepScale == rate), which
+            // is 900/rate — it passes only at rate == 30 and is meaningless everywhere else.
             foreach (int rate in SimClock.SupportedTicksPerSecond)
             {
                 var clock = new SimClock(rate);
-                float canonicalUnitsPerSecond = SimClock.CanonicalTicksPerSecond * clock.StepScale;
+                float canonicalFramesPerSecond = clock.TicksPerSecond * clock.StepScale;
 
-                Assert.That(canonicalUnitsPerSecond, Is.EqualTo((float)rate).Within(1e-4f),
-                    $"30 canonical frames/sec scaled at {rate} Hz must still cover one second");
+                Assert.That(canonicalFramesPerSecond,
+                    Is.EqualTo((float)SimClock.CanonicalTicksPerSecond).Within(1e-4f),
+                    $"{rate} Hz at step scale {clock.StepScale} must still advance " +
+                    $"{SimClock.CanonicalTicksPerSecond} canonical frames per wall-clock second");
             }
         }
 
@@ -117,7 +123,18 @@ namespace PFE.Tests.Editor.Core
         public void IsSupported_IsFalseOnlyAfterASnap()
         {
             Assert.That(new SimClock(60).IsSupported, Is.True);
-            Assert.That(new SimClock(45).IsSupported, Is.False, "45 was snapped, so it is not a live rate");
+
+            // 45 is equidistant from 30 and 60; SnapToSupported uses a strict '<' comparison, so the
+            // tie keeps the lower candidate (30). Assert the snap flag and the retained request
+            // rather than the exact target, so the tie-break can change without breaking this test.
+            var snapped = new SimClock(45);
+            Assert.That(snapped.IsSupported, Is.False, "45 was snapped, so it is not a live rate");
+            Assert.That(snapped.RequestedTicksPerSecond, Is.EqualTo(45),
+                "the original request must survive so boot can report 'asked for 45, running at 30'");
+            Assert.That(SimClock.SnapToSupported(45), Is.EqualTo(snapped.TicksPerSecond));
+
+            // Contrast: a supported request is its own snap target, so IsSupported is true.
+            Assert.That(new SimClock(90).RequestedTicksPerSecond, Is.EqualTo(90));
         }
 
         [Test]

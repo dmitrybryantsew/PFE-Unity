@@ -1,9 +1,11 @@
 using NUnit.Framework;
 using PFE.Entities.Weapons;
 using PFE.Entities.Units;
+using PFE.Systems.Audio;
 using PFE.Systems.Combat;
 using PFE.Core.Time;
 using PFE.Data.Definitions;
+using System.Reflection;
 using UnityEngine;
 
 namespace PFE.Tests.PlayMode.Combat
@@ -23,6 +25,8 @@ namespace PFE.Tests.PlayMode.Combat
         private ICombatCalculator combatCalculator;
         private IDurabilitySystem durabilitySystem;
         private IProjectileFactory mockProjectileFactory;
+        private ISoundService mockSoundService;
+        private PFE.Core.PfeDebugSettings debugSettings;
         private WeaponDefinition weaponDef;
 
         [SetUp]
@@ -49,18 +53,27 @@ namespace PFE.Tests.PlayMode.Combat
 
             // Create owner stats
             ownerStats = new UnitStats();
-            //ownerStats.Initialize();
 
-            // Create mock projectile factory
+            // Stand-ins for the remaining injected dependencies.
+            // Construct() dereferences _debugSettings, so it must be a real instance.
             mockProjectileFactory = new MockProjectileFactory();
+            mockSoundService = new MockSoundService();
+            debugSettings = ScriptableObject.CreateInstance<PFE.Core.PfeDebugSettings>();
 
-            // Create WeaponView GameObject
+            // Create the WeaponView GameObject. A child named "Muzzle" is the documented setup
+            // and must exist before AddComponent, because Awake() resolves the muzzle point.
             weaponObject = new GameObject("TestWeapon");
+            var muzzle = new GameObject("Muzzle");
+            muzzle.transform.SetParent(weaponObject.transform);
             weaponView = weaponObject.AddComponent<WeaponView>();
 
-            // Manually inject dependencies (simulating VContainer)
-            weaponView.GetType().GetMethod("Construct").Invoke(weaponView,
-                new object[] { testTimeProvider, mockProjectileFactory });
+            // Manually inject dependencies (simulating VContainer).
+            // Called directly rather than through reflection on purpose: a reflective
+            // GetMethod("Construct").Invoke() silently rots whenever the injected signature
+            // changes — it did, Construct grew from 2 to 4 parameters and every test in this
+            // fixture failed in [SetUp] with TargetParameterCountException instead of failing
+            // to compile. A direct call turns that class of drift into a build error.
+            weaponView.Construct(testTimeProvider, mockProjectileFactory, mockSoundService, debugSettings);
         }
 
         [TearDown]
@@ -74,6 +87,22 @@ namespace PFE.Tests.PlayMode.Combat
             {
                 Object.DestroyImmediate(weaponDef);
             }
+            if (debugSettings != null)
+            {
+                Object.DestroyImmediate(debugSettings);
+            }
+        }
+
+        /// <summary>
+        /// Reads a private instance field so the DI tests can assert what Construct actually
+        /// stored, instead of asserting on the local they just assigned.
+        /// </summary>
+        private static T GetPrivateField<T>(object target, string fieldName)
+        {
+            FieldInfo field = target.GetType().GetField(
+                fieldName, BindingFlags.NonPublic | BindingFlags.Instance);
+            Assert.NotNull(field, $"Expected a private instance field '{fieldName}' on {target.GetType().Name}.");
+            return (T)field.GetValue(target);
         }
 
         #region Initialization Tests
@@ -111,16 +140,18 @@ namespace PFE.Tests.PlayMode.Combat
         [Description("WeaponView_InjectsTimeProvider")]
         public void WeaponView_Construct_InjectsTimeProvider()
         {
-            // Assert - Setup should have injected the time provider
-            Assert.IsNotNull(testTimeProvider, "TimeProvider should be injected");
+            // Assert - Construct must have stored the injected provider on the instance.
+            Assert.AreSame(testTimeProvider, GetPrivateField<ITimeProvider>(weaponView, "_timeProvider"),
+                "WeaponView.Construct should store the injected ITimeProvider.");
         }
 
         [Test]
         [Description("WeaponView_InjectsProjectileFactory")]
         public void WeaponView_Construct_InjectsProjectileFactory()
         {
-            // Assert - Setup should have injected the projectile factory
-            Assert.IsNotNull(mockProjectileFactory, "ProjectileFactory should be injected");
+            // Assert - Construct must have stored the injected factory on the instance.
+            Assert.AreSame(mockProjectileFactory, GetPrivateField<IProjectileFactory>(weaponView, "_projectileFactory"),
+                "WeaponView.Construct should store the injected IProjectileFactory.");
         }
 
         #endregion
@@ -150,20 +181,17 @@ namespace PFE.Tests.PlayMode.Combat
             // Arrange
             weaponView.Initialize(weaponLogic, ownerStats);
 
-            // Act - Fire all shots (Fire will fail due to cooldown, so we just verify ammo consumption)
-            // We can manually drain the ammo to test the IsEmpty property
-            int initialAmmo = weaponLogic.CurrentAmmo.Value;
-
-            // Manually consume ammo (simulating successful shots)
-            for (int i = 0; i < initialAmmo; i++)
-            {
-                // Simulate ammo consumption
-                weaponLogic.CompleteReload(); // This refills ammo, not what we want
-            }
-
-            // Better approach: verify that ammo starts at expected value
+            // Assert - a fresh weapon starts full and is not empty
             Assert.AreEqual(12, weaponLogic.CurrentAmmo.Value, "Weapon should start with 12 ammo");
             Assert.IsFalse(weaponLogic.IsEmpty, "Weapon should not be empty initially");
+
+            // Drain the magazine and confirm the constraint actually bites.
+            // (The previous version of this test called CompleteReload() in a loop, which
+            // refills the magazine — so it asserted the value it had just re-set.)
+            weaponLogic.SetAmmo(0);
+
+            Assert.IsTrue(weaponLogic.IsEmpty, "Weapon should report IsEmpty once the magazine is drained");
+            Assert.IsFalse(weaponLogic.Fire(ownerStats), "Fire should fail with an empty magazine");
         }
 
         [Test]
@@ -300,11 +328,12 @@ namespace PFE.Tests.PlayMode.Combat
             var parentObject = new GameObject("TestParent");
             var weaponObj = new GameObject("TestWeapon");
             weaponObj.transform.SetParent(parentObject.transform);
+            var muzzle = new GameObject("Muzzle");
+            muzzle.transform.SetParent(weaponObj.transform);
             var testView = weaponObj.AddComponent<WeaponView>();
 
             // Manually inject dependencies
-            testView.GetType().GetMethod("Construct").Invoke(testView,
-                new object[] { testTimeProvider, mockProjectileFactory });
+            testView.Construct(testTimeProvider, mockProjectileFactory, mockSoundService, debugSettings);
 
             // Act - Initialize with WeaponLogic and UnitStats (simulating factory behavior)
             testView.Initialize(weaponLogic, ownerStats);
@@ -320,7 +349,7 @@ namespace PFE.Tests.PlayMode.Combat
 
         #endregion
 
-        #region Mock Projectile Factory
+        #region Mock Dependencies
 
         private class MockProjectileFactory : IProjectileFactory
         {
@@ -341,6 +370,19 @@ namespace PFE.Tests.PlayMode.Combat
                 CreatedProjectile = null;
                 return null;
             }
+        }
+
+        private class MockSoundService : ISoundService
+        {
+            public int PlayCount { get; private set; }
+            public float SfxVolume { get; set; } = 1f;
+
+            public void Play(string id, Vector2 worldPos, float volumeScale = 1f) => PlayCount++;
+            public void PlayLoop(string id, object key, float volume = 1f) { }
+            public void PlayLoopFromTime(string id, object key, float startTimeSec, float volume = 1f) { }
+            public float GetLoopTime(object key) => -1f;
+            public void StopLoop(object key) { }
+            public void StopAll() { }
         }
 
         #endregion

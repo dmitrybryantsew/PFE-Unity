@@ -24,15 +24,18 @@ namespace PFE.Tests.Editor.Map
             Assert.AreEqual(1920f, result.x, 0.001f);
             Assert.AreEqual(0f, result.y, 0.001f);
 
-            // Test: Land (0,1,0) + local (0,0) = world (0,1080) - one room down
+            // Test: Land (0,1,0) + local (0,0) = world (0,1000) - one room down.
+            // Room height is 25 tiles, not 27: AS3 World.as:40/42 cellsX=48, cellsY=25 with
+            // World.tileX/tileY = 40 (World.as:36/38), so a room is 1920 x 1000 px. These
+            // assertions previously used 1080 (= 27 tiles), which no AS3 source supports.
             result = WorldCoordinates.LandToWorld(new Vector3Int(0, 1, 0), new Vector2(0, 0));
             Assert.AreEqual(0f, result.x, 0.001f);
-            Assert.AreEqual(1080f, result.y, 0.001f);
+            Assert.AreEqual(1000f, result.y, 0.001f);
 
-            // Test: Land (1,1,0) + local (100,50) = world (2020,1130)
+            // Test: Land (1,1,0) + local (100,50) = world (2020,1050)
             result = WorldCoordinates.LandToWorld(new Vector3Int(1, 1, 0), new Vector2(100, 50));
             Assert.AreEqual(2020f, result.x, 0.001f);
-            Assert.AreEqual(1130f, result.y, 0.001f);
+            Assert.AreEqual(1050f, result.y, 0.001f);
         }
 
         [Test]
@@ -194,7 +197,8 @@ namespace PFE.Tests.Editor.Map
         {
             // Test: Within bounds
             Assert.IsTrue(WorldCoordinates.IsTileInBounds(new Vector2Int(0, 0)));
-            Assert.IsTrue(WorldCoordinates.IsTileInBounds(new Vector2Int(47, 26)));
+            // 47 is the last valid X (cellsX=48) and 24 the last valid Y (cellsY=25) — AS3 World.as:40/42.
+            Assert.IsTrue(WorldCoordinates.IsTileInBounds(new Vector2Int(47, 24)));
             Assert.IsTrue(WorldCoordinates.IsTileInBounds(new Vector2Int(24, 13)));
 
             // Test: Out of bounds
@@ -218,10 +222,10 @@ namespace PFE.Tests.Editor.Map
             Assert.AreEqual(47, result.x);
             Assert.AreEqual(10, result.y);
 
-            // Test: Y too high
+            // Test: Y too high — clamps to the last valid row, 24 (cellsY=25, AS3 World.as:42).
             result = WorldCoordinates.ClampTileToBounds(new Vector2Int(10, 30));
             Assert.AreEqual(10, result.x);
-            Assert.AreEqual(26, result.y);
+            Assert.AreEqual(24, result.y);
 
             // Test: Both negative
             result = WorldCoordinates.ClampTileToBounds(new Vector2Int(-1, -1));

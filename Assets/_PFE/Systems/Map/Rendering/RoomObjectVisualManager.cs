@@ -461,7 +461,13 @@ namespace PFE.Systems.Map.Rendering
 
             if (obj.runtimeState.isOpen)
             {
-                return visual.frames.Length >= 3 ? 2 : Mathf.Min(lastFrameIndex, 1);
+                // Imported prop sheets are in AS3 movieclip order: 0 = closed, 1 = open,
+                // 2 = looted/empty, and (when present) the last frame = destroyed.
+                // This branch used to return 2 for any sheet with 3+ frames, which collapsed
+                // "open", "looted" and "destroyed" onto the same sprite and made the lootState
+                // branch above dead code. Openable props are animated by DoorPropPresenter anyway,
+                // so this is the container/box state mapping.
+                return visual.frames.Length >= 3 ? 1 : Mathf.Min(lastFrameIndex, 1);
             }
 
             return 0;

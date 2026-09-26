@@ -67,6 +67,12 @@ namespace PFE.Core
 
         private int _ticksPerSecond;
 
+        // The rate actually asked for, kept separately because the setter snaps _ticksPerSecond to a
+        // supported value. Without this, IsSupported could only ever report "true" (the snapped
+        // result is by definition supported), which made it a tautology instead of the snap detector
+        // its documentation promises.
+        private int _requestedTicksPerSecond;
+
         /// <summary>Creates a clock at <see cref="DefaultTicksPerSecond"/>.</summary>
         public SimClock() : this(DefaultTicksPerSecond)
         {
@@ -89,7 +95,11 @@ namespace PFE.Core
         public int TicksPerSecond
         {
             get => _ticksPerSecond;
-            set => _ticksPerSecond = SnapToSupported(value);
+            set
+            {
+                _requestedTicksPerSecond = value;
+                _ticksPerSecond = SnapToSupported(value);
+            }
         }
 
         /// <summary>Seconds of wall time advanced by exactly one simulation tick.</summary>
@@ -111,10 +121,21 @@ namespace PFE.Core
         public bool IsCanonical => _ticksPerSecond == CanonicalTicksPerSecond;
 
         /// <summary>
-        /// True when the current rate is one of <see cref="SupportedTicksPerSecond"/>. False means
-        /// the requested rate was snapped, which is worth surfacing once at boot.
+        /// True when the <b>requested</b> rate was one of <see cref="SupportedTicksPerSecond"/>.
+        /// False means the requested rate was snapped, which is worth surfacing once at boot.
+        ///
+        /// <para>This deliberately tests the requested rate, not the effective one: the setter always
+        /// snaps, so <c>_ticksPerSecond</c> is <i>always</i> supported and testing it would make this
+        /// property a tautology (it could never return false). Pair it with
+        /// <see cref="RequestedTicksPerSecond"/> to build the "asked for 45, running at 30" message.</para>
         /// </summary>
-        public bool IsSupported => System.Array.IndexOf(SupportedTicksPerSecond, _ticksPerSecond) >= 0;
+        public bool IsSupported => System.Array.IndexOf(SupportedTicksPerSecond, _requestedTicksPerSecond) >= 0;
+
+        /// <summary>
+        /// The rate originally requested, before snapping. Equals <see cref="TicksPerSecond"/> when
+        /// <see cref="IsSupported"/> is true; differs when a snap occurred.
+        /// </summary>
+        public int RequestedTicksPerSecond => _requestedTicksPerSecond;
 
         /// <summary>
         /// Snaps an arbitrary requested rate to the nearest supported one. Non-positive input

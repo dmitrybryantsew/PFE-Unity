@@ -193,7 +193,7 @@ namespace PFE.Systems.Map
         private Vector2Int GetDoorTilePosition(int doorIndex)
         {
             int width = WorldConstants.ROOM_WIDTH;   // 48
-            int height = WorldConstants.ROOM_HEIGHT; // 27
+            int height = WorldConstants.ROOM_HEIGHT; // 25 — AS3 World.cellsY
 
             if (doorIndex >= 0 && doorIndex <= 5)
             {

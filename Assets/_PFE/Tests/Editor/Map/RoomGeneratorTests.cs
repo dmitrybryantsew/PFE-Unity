@@ -12,6 +12,20 @@ namespace PFE.Tests.Editor.Map
     [TestFixture]
     public class RoomGeneratorTests
     {
+        /// <summary>
+        /// The project's real tile form database. <see cref="RoomGenerator.GenerateRoom"/> decodes
+        /// <see cref="RoomTemplate.tileDataString"/> through it, so constructing the generator with
+        /// <c>null</c> makes any template with tile data throw inside <see cref="TileDecoder.Decode"/>.
+        /// </summary>
+        private static TileFormDatabase LoadTileFormDatabase()
+        {
+            TileFormDatabase database = UnityEditor.AssetDatabase
+                .LoadAssetAtPath<TileFormDatabase>("Assets/_PFE/Data/TileFormDatabase.asset");
+
+            Assert.NotNull(database, "Expected the tile form database at Assets/_PFE/Data/TileFormDatabase.asset");
+            return database;
+        }
+
         private List<RoomTemplate> CreateTestTemplates()
         {
             List<RoomTemplate> templates = new List<RoomTemplate>();
@@ -65,18 +79,21 @@ namespace PFE.Tests.Editor.Map
         [Test]
         public void GenerateRoom_ParsesTiles()
         {
-            RoomGenerator generator = new RoomGenerator();
+            RoomGenerator generator = new RoomGenerator(LoadTileFormDatabase());
             List<RoomTemplate> templates = CreateTestTemplates();
 
-            templates[0].tileDataString = "B\nP\nA"; // Wall, Platform, Air
+            // Real tile codes: 'B' is a wall fForm, "_-" is air + the '-' shelf overlay, "." is air.
+            // Row 0 of the template is the TOP row, stored at the highest Unity Y.
+            templates[0].tileDataString = "B\n_-\n.";
 
             generator.Initialize(templates);
             RoomInstance room = generator.GenerateRoom(templates[0], new Vector3Int(0, 0, 0));
 
+            int topRow = WorldConstants.ROOM_HEIGHT - 1;
             Assert.IsNotNull(room.tiles);
-            Assert.AreEqual(TilePhysicsType.Wall, room.tiles[0, 0].physicsType);
-            Assert.AreEqual(TilePhysicsType.Platform, room.tiles[0, 1].physicsType);
-            Assert.AreEqual(TilePhysicsType.Air, room.tiles[0, 2].physicsType);
+            Assert.AreEqual(TilePhysicsType.Wall, room.tiles[0, topRow].physicsType);
+            Assert.AreEqual(TilePhysicsType.Platform, room.tiles[0, topRow - 1].physicsType);
+            Assert.AreEqual(TilePhysicsType.Air, room.tiles[0, topRow - 2].physicsType);
         }
 
         [Test]
@@ -348,7 +365,9 @@ namespace PFE.Tests.Editor.Map
             Assert.AreEqual(DoorSide.Bottom, bottom.side);
             Assert.AreEqual(new Vector2Int(4, 0), bottom.tilePosition);
             Assert.AreEqual(DoorSide.Left, left.side);
-            Assert.AreEqual(new Vector2Int(0, 23), left.tilePosition);
+            // AS3 Location.setDoor(): left row = (index - 11) * 4 + 3 = 3, counted from the TOP,
+            // so the Unity row is ROOM_HEIGHT - 1 - 3 = 21 (was 23 while ROOM_HEIGHT was still 27).
+            Assert.AreEqual(new Vector2Int(0, 21), left.tilePosition);
             Assert.AreEqual(DoorSide.Top, top.side);
             Assert.AreEqual(new Vector2Int(4, WorldConstants.ROOM_HEIGHT - 1), top.tilePosition);
         }
