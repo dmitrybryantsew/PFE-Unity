@@ -61,6 +61,12 @@ namespace PFE.Systems.Combat
             // AS3 pixel-speed → Unity units/s  (PPU=100, 30fps source)
             // Formula: speed_u_per_s = speed_px_per_frame * FlashFps / PPU
             // Example: sniper speed=500 px/frame → 500 * 30 / 100 = 150 u/s
+            //
+            // Speed and radius convert here because they are a per-frame VELOCITY and a LENGTH.
+            // `bulletAccel` is deliberately NOT converted here: it is a per-frame² ACCELERATION, which
+            // needs a different factor (× fps²/PPU, not × fps/PPU). Converting it in the wrong place
+            // is how thrust ended up 30× too weak — see ProjectilePhysicsMath. Pass it raw, like
+            // `bulletGravity`, and let Projectile do the one conversion.
             const float FlashFps = 30f;
             float unitySpeed = Mathf.Max(weapon.projectileSpeed * FlashFps / 100f, 2f);
             float unityExplRad = weapon.explRadius / 100f;
@@ -77,7 +83,7 @@ namespace PFE.Systems.Combat
                 unityExplRad,
                 weapon.explosionDamage,
                 weapon.damageType,
-                accel:    weapon.bulletAccel / 100f,
+                accel:    weapon.bulletAccel,
                 flame:    weapon.bulletFlame,
                 navod:    weapon.bulletNavod,
                 piercing: weapon.piercing);

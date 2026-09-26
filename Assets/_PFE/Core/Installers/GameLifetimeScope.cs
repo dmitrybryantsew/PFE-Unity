@@ -10,6 +10,7 @@ using PFE.Systems.Combat;
 using PFE.Data.Definitions;
 using PFE.Systems.Map;
 using PFE.Systems.Map.Rendering;
+using PFE.Systems.Physics;
 using PFE.Data;
 using PFE.Entities.Player;
 using PFE.Entities.Weapons;
@@ -111,6 +112,9 @@ public class GameLifetimeScope : LifetimeScope
         builder.Register<IDamageCalculator, DamageCalculator>(Lifetime.Singleton);
         builder.Register<ICriticalHitSystem, CriticalHitSystem>(Lifetime.Singleton);
         builder.Register<IDurabilitySystem, DurabilitySystem>(Lifetime.Singleton);
+
+        // === LowLevelPhysics2D World (Stage B) ===
+        builder.Register<IPhysicsWorldService, PhysicsWorldService>(Lifetime.Singleton).AsSelf();
 
         // === Factory Pattern ===
         builder.Register<IWeaponFactory, WeaponFactory>(Lifetime.Singleton);

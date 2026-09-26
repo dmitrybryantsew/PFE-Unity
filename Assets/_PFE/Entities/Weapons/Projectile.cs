@@ -148,8 +148,11 @@ namespace PFE.Entities.Weapons
         ///
         /// Parameters match AS3 Weapon.shoot() locals:
         ///   speed        → initial |velocity| in Unity units/s
-        ///   gravityScale → ddy per flash-frame from gravity (0 = no gravity)
-        ///   accel        → ddx/ddy per flash-frame forward thrust (rockets)
+        ///   gravityScale → AS3 `grav`, a MULTIPLIER on World.ddy (0 = no gravity, 1 = full).
+        ///                  Pass the raw `phis.@grav`; the px/frame² → units/s² conversion happens here.
+        ///   accel        → AS3 `phis.@accel`, forward thrust in px/frame² (rockets). Pass the raw
+        ///                  data value, exactly like `gravityScale` — the px/frame² → units/s²
+        ///                  conversion happens in `ProjectilePhysicsMath.BulletAcceleration`.
         ///   flame        → 0=none, 1=strong up arc, 2=weak up arc
         ///   navod        → homing strength per flash-frame
         ///   piercing     → probiv chance 0–1
@@ -197,34 +200,32 @@ namespace PFE.Entities.Weapons
             Vector2 dir = direction.normalized;
             _velocity = dir * speed;
 
-            // ── Per-second acceleration components ────────────────────────────
-            // AS3 worked in pixels/frame at 30fps. We keep frame-cadence by
-            // computing per-frame deltas then multiplying by FlashFps for Unity.
+            // ── Per-second acceleration ───────────────────────────────────────
+            // AS3 `Weapon.as:1524` zeroes `b.ddx`/`b.ddy`, then 1536-1537 (thrust), 1545/1551
+            // (flame lift) and 1558 (gravity) each `+=` into them. All three are px/frame²
+            // accelerations and they ACCUMULATE — assigning instead of adding silently drops a
+            // term (a flame weapon would lose gravity).
+            //
+            // The conversion lives in ProjectilePhysicsMath, which is a pure function so the numbers
+            // can be pinned by tests. Do not reintroduce a local `* FlashFps` here: that is the
+            // per-frame VELOCITY idiom, 3.33× too strong for a per-frame² acceleration.
+            Vector2 acceleration = ProjectilePhysicsMath.BulletAcceleration(dir, gravityScale, accel, flame);
+            _ddx = acceleration.x;
+            _ddy = acceleration.y;
 
-            // Gravity: ddy += World.ddy * grav each flash frame.
-            // World.ddy ≈ 0.6 px/frame² in AS3.  Unity: negate Y (screen→world).
-            _ddy = -gravityScale * 0.6f * FlashFps;  // units/s² downward
-
-            // Flame lift overrides gravity (ddy -= liftAmount each frame).
+            // Lifetime depends on flame type; the lift itself is handled above.
             if (flame == 1)
             {
-                _ddy          = 0.8f * FlashFps;      // strong upward
                 _lifetimeTimer = FlameLifetime1;
             }
             else if (flame == 2)
             {
-                _ddy          = 0.2f * FlashFps;      // weak upward
                 _lifetimeTimer = FlameLifetime2;
             }
             else
             {
                 _lifetimeTimer = DefaultLifetime;
             }
-
-            // Accel: forward thrust along aim dir.
-            // AS3: dx += cos(rot)*accel, dy += sin(rot)*accel each frame.
-            _ddx = dir.x * accel * FlashFps;
-            _ddy += dir.y * accel * FlashFps;   // add to existing vertical (gravity+flame already set)
 
             _rb.linearVelocity = _velocity;
             _rb.angularVelocity = 0f;

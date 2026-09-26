@@ -18,6 +18,36 @@ namespace PFE.Systems.Map.TileQuery
         public const float Gravity = 1.0f;
 
         /// <summary>
+        /// The project's pixels-per-Unity-unit scale: 100 px = 1 unit.
+        /// </summary>
+        public const float PixelToUnit = 0.01f;
+
+        /// <summary>
+        /// Converts any AS3 <b>per-frame²</b> acceleration (px/frame²) into Unity units/s²:
+        /// <c>px/frame² × 0.01 units/px × 30² frame²/s² = × 9</c>.
+        ///
+        /// <para><b>Do not use <see cref="Gravity"/> or a bare frame rate for this.</b> A
+        /// per-frame acceleration needs the frame rate <i>squared</i> and the pixel scale; using
+        /// <c>× fps</c> alone is wrong by <c>fps / (fps² × PixelToUnit)</c> = 100/30 ≈ 3.33×, and
+        /// using <c>× fps / 100</c> (the correct idiom for a per-frame <i>velocity</i>) is wrong by
+        /// 30×. Both mistakes exist in the port — see the change log in
+        /// <c>REPLICA_BEHAVIOR_CONTRACT.md</c> §6.</para>
+        /// </summary>
+        public const float PerFrameAccelerationToUnitsPerSecondSquared =
+            PixelToUnit * PFE.Core.SimClock.CanonicalTicksPerSecond * PFE.Core.SimClock.CanonicalTicksPerSecond;
+
+        /// <summary>
+        /// AS3 <c>World.ddy</c> expressed as an acceleration in Unity units/s²: 9.0.
+        ///
+        /// <para>This is the form a physics engine consumes. Anything applying gravity against a
+        /// <i>seconds</i>-based delta must use this rather than <see cref="Gravity"/>: the raw
+        /// per-frame value is 30× too small for that, and hand-converted literals are how the port
+        /// ended up with three different gravities (0.98, 0.6, 1800 px/s²).</para>
+        /// </summary>
+        public const float GravityUnitsPerSecondSquared =
+            Gravity * PerFrameAccelerationToUnitsPerSecondSquared;
+
+        /// <summary>
         /// Maximum distance a single collision sub-step may move before subdivision: 9 pixels.
         /// AS3: World.as:48 (maxdelta = 9).
         /// </summary>

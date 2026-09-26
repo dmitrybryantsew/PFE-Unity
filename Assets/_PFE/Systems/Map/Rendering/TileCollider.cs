@@ -285,12 +285,29 @@ namespace PFE.Systems.Map.Rendering
                 }
             }
 
-            // NOTE: the tile grid is authoritative and read live, so no collision cache
-            // needs invalidating. What IS now stale is the kontur (edge) data of the
-            // surrounding tiles — their visible borders assume this tile is still solid.
-            // TODO(P2): recompute neighbours via KonturCalculator and route the mutation
-            // through ITileQueryService.NotifyTilesMutated so cached geometry backends
-            // (e.g. the Box2D chain path) rebuild.
+            // The tile grid is authoritative and read live, so no *collision* cache needs
+            // invalidating. Two other things are stale:
+            //
+            //   1. Derived geometry — the LowLevelPhysics2D chain mirror still describes this tile
+            //      as solid, and the run it belonged to has changed shape. Routed below.
+            //   2. The kontur (edge) data of the surrounding tiles — their visible borders still
+            //      assume this tile is solid. TODO(P2): recompute via KonturCalculator.
+            //
+            // Deliberately NOT via ITileQueryService.NotifyTilesMutated: this component holds no
+            // query service, and constructing one here would MarkDirty a throwaway instance that
+            // nobody reads. The room is the object both the visual side and the derived-geometry
+            // side already share.
+            //
+            // The region carries a one-tile border. Removing a tile splits the run it belonged to
+            // and can expose new faces on its neighbours, so the affected area is never just the
+            // tile itself — a listener that rebuilt only the exact coordinate would leave stale
+            // geometry one tile out.
+            RoomInstance room = owner != null ? owner.Room : null;
+            if (room != null)
+            {
+                Vector2Int coord = tileData.gridPosition;
+                room.NotifyTilesMutated(new RectInt(coord.x - 1, coord.y - 1, 3, 3));
+            }
         }
 
         #endregion

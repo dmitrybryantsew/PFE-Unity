@@ -158,9 +158,12 @@ namespace PFE.Systems.Weapons
                 fuseFrames:      plan.FuseFrames,
                 explRadius:      _currentDef.explRadius / 100f,
                 bumc:            _currentDef.isPhysBullet,  // bumc reuses isPhysBullet flag for now
-                skok:            0.5f,
-                tormoz:          0.7f,
-                brake:           2f);
+                // AS3's thrown-object constants come from WThrow, not from the bullet class's own
+                // defaults. Passed explicitly rather than left to Initialize's defaults so the
+                // source is visible at the call site.
+                skok:            ProjectilePhysicsMath.ThrowBounceRetention,
+                tormoz:          ProjectilePhysicsMath.ThrowFloorDamping,
+                brake:           ProjectilePhysicsMath.BrakePxPerFrame2);
 
             obj.SetDamageContext(plan.Damage);
         }

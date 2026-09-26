@@ -76,6 +76,22 @@ namespace PFE.Tests.EditMode.Systems.Physics.LowLevelPhysics2D
             /// formulation, but the one a solver can actually evaluate.
             /// </summary>
             ApproachDirection = 1,
+
+            /// <summary>
+            /// AS3's positional test (<c>Unit.as:2578</c>) evaluated against the body's position at
+            /// the START of the tick, rather than the post-integration position the callback sees.
+            ///
+            /// <para>This is the rescue attempt for Stage A Q4. That measurement showed the callback
+            /// runs after integration, so the literal test reads an already-penetrating body, decides
+            /// "below the surface", disables the contact, and the body falls forever — only 3
+            /// callbacks fired. AS3 never has this problem because it sub-steps to
+            /// <c>maxdelta = 9</c> px and evaluates before moving.</para>
+            ///
+            /// <para>The pre-integration position is exactly what AS3 tests against, and it is free
+            /// here: <c>SimLoop</c> drives stepping, so the harness snapshots the body's bottom
+            /// before each <c>Simulate</c>.</para>
+            /// </summary>
+            As3PositionPrevTick = 2,
         }
 
         public Rule RuleMode = Rule.ApproachDirection;
@@ -104,6 +120,26 @@ namespace PFE.Tests.EditMode.Systems.Physics.LowLevelPhysics2D
         public int InvocationCount;
 
         /// <summary>
+        /// Bottom Y the tracked body had at the START of the current tick, Unity units.
+        /// Only consulted by <see cref="Rule.As3PositionPrevTick"/>. The harness sets this before
+        /// every <c>Simulate</c>.
+        ///
+        /// <para>Spike simplification: one dynamic body per scenario, so a single float is enough.
+        /// A real implementation keys the cache by body (for example via
+        /// <c>PhysicsBody.userData</c>) and snapshots every fast body in the tick.</para>
+        /// </summary>
+        public float PreviousBottomY = float.NaN;
+
+        /// <summary>Tick number, stamped by the harness. Used to report when a callback first fired.</summary>
+        public int TickIndex;
+
+        /// <summary>Body bottom Y seen at the FIRST callback, Unity units. <c>NaN</c> if never called.</summary>
+        public float FirstCallbackBottomY = float.NaN;
+
+        /// <summary>Tick on which the first callback fired. -1 if never called.</summary>
+        public int FirstCallbackTick = -1;
+
+        /// <summary>
         /// Called during the world step, possibly from a worker thread. Only safe reads are allowed
         /// here — no writes to the world. See the API docs on <c>IPreSolveCallback</c>.
         /// </summary>
@@ -111,6 +147,19 @@ namespace PFE.Tests.EditMode.Systems.Physics.LowLevelPhysics2D
         public bool OnPreSolve2D(PhysicsEvents.PreSolveEvent e)
         {
             InvocationCount++;
+
+            // Diagnostics only: capture what the callback actually sees the first time it is
+            // consulted. This is the datum that decides whether CCD helps the positional rule —
+            // if this reads a deeply penetrating body, the literal AS3 test can never work here.
+            if (float.IsNaN(FirstCallbackBottomY))
+            {
+                PhysicsBody seen = PickDynamicBody(e.shapeA, e.shapeB);
+                if (seen.isValid)
+                {
+                    FirstCallbackBottomY = seen.position.y - BodyHalfHeight;
+                    FirstCallbackTick = TickIndex;
+                }
+            }
 
             switch (SolverMode)
             {
@@ -139,6 +188,21 @@ namespace PFE.Tests.EditMode.Systems.Physics.LowLevelPhysics2D
                 // Descending onto the surface, or already resting on it. Rising past it does not
                 // collide, which is the one-way behaviour players expect.
                 return body.linearVelocity.y <= 0f;
+            }
+
+            if (RuleMode == Rule.As3PositionPrevTick)
+            {
+                // Same inequality as As3Position, but against where the body was when the tick
+                // began — the state AS3's Unit.as:2578 actually tests. A body that starts the tick
+                // above the surface blocks; one that starts below it passes.
+                if (float.IsNaN(PreviousBottomY))
+                {
+                    // No snapshot was supplied; fall back to the current position so the run is
+                    // still measurable rather than silently passing everything.
+                    return body.position.y - BodyHalfHeight >= ShelfTopY - PorogUnits;
+                }
+
+                return PreviousBottomY >= ShelfTopY - PorogUnits;
             }
 
             // AS3: Y2 - porog > phY1 means no collision. Y-flipped for a +Y-up world, so a contact

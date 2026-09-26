@@ -5,6 +5,7 @@ using UnityEngine;
 using UnityEngine.LowLevelPhysics2D;
 using PFE.Core;
 using PFE.Systems.Map;
+using PFE.Systems.Map.TileQuery;
 using PFE.Tests.EditMode.Systems.Map.TileCollision;
 
 namespace PFE.Tests.EditMode.Systems.Physics.LowLevelPhysics2D
@@ -320,6 +321,136 @@ namespace PFE.Tests.EditMode.Systems.Physics.LowLevelPhysics2D
                       $"(callbacks={positionalCallbacks}).");
         }
 
+        // ── L3 follow-up ─────────────────────────────────────────────────────────────────────
+        // Q4 concluded "AS3's shelf is expressible via approach direction, but not via AS3's own
+        // positional porog test", and L3 defaulted to "keep classic colliders". Two rescue attempts
+        // were never measured, and both are cheap:
+        //
+        //   (A) CCD. Q4 ran with continuousAllowed on (CreateScriptWorld defaults to true), so this
+        //       variant mostly documents that CCD did not rescue it — and the FirstCallbackBottomY
+        //       datum says why: if the callback sees an already-penetrating body, the TOI never
+        //       matters because we disable the contact before the solver can use it.
+        //   (B) Previous-tick position. We drive stepping from SimLoop, so the pre-integration
+        //       position is free, and that is the state AS3's Unit.as:2578 actually tests.
+        //
+        // Observation-only, following the precedent of Q4 part (d): asserting an outcome here would
+        // bake in a guess about solver timing. The two sanity assertions below only prove the
+        // harness itself is sound.
+        [Test]
+        public void L3_ShelfPositionalRule_RescueAttempts()
+        {
+            // Same geometry as Q4 so the numbers are comparable.
+            const float shelfSizeY = 0.1f;
+            const float shelfHalfHeight = shelfSizeY * 0.5f;
+            const float shelfTopY = 0.05f;
+            const float bodySizeY = 0.4f;
+            const float bodyHalfHeight = bodySizeY * 0.5f;
+
+            // Measured by Q4's calibration probe, re-asserted below: false DISABLES the contact.
+            const bool disableValue = false;
+
+            // ── Sanity: the shelf and the callback gate really are load-bearing ────────────────
+            ShelfRunResult keep = RunShelfScenarioEx(
+                startY: 3f, initialVelocityY: 0f, ticks: 200, gravityY: Llp2d.GravityUnitsPerSecondSquared,
+                mode: ShelfPassThroughSolver.Mode.ForceTrue, rule: ShelfPassThroughSolver.Rule.ApproachDirection,
+                dropThrough: false, shelfTopY: shelfTopY, bodyHalfHeight: bodyHalfHeight,
+                shelfHalfHeight: shelfHalfHeight, disableValue: disableValue,
+                continuous: true, trackPrevTick: false, fastBody: false);
+
+            ShelfRunResult disable = RunShelfScenarioEx(
+                startY: 3f, initialVelocityY: 0f, ticks: 200, gravityY: Llp2d.GravityUnitsPerSecondSquared,
+                mode: ShelfPassThroughSolver.Mode.ForceFalse, rule: ShelfPassThroughSolver.Rule.ApproachDirection,
+                dropThrough: false, shelfTopY: shelfTopY, bodyHalfHeight: bodyHalfHeight,
+                shelfHalfHeight: shelfHalfHeight, disableValue: disableValue,
+                continuous: true, trackPrevTick: false, fastBody: false);
+
+            Assert.AreEqual(shelfTopY, keep.BottomY, 0.06f,
+                "Harness sanity failed: a contact that is always kept must land the body on the shelf.");
+            Assert.Less(disable.BottomY, -1f,
+                "Harness sanity failed: a contact that is always disabled must let the body fall past.");
+
+            // ── (A) AS3 positional rule, CCD on and off ───────────────────────────────────────
+            ShelfRunResult posCcd = RunShelfScenarioEx(
+                startY: 3f, initialVelocityY: 0f, ticks: 200, gravityY: Llp2d.GravityUnitsPerSecondSquared,
+                mode: ShelfPassThroughSolver.Mode.As3Rule, rule: ShelfPassThroughSolver.Rule.As3Position,
+                dropThrough: false, shelfTopY: shelfTopY, bodyHalfHeight: bodyHalfHeight,
+                shelfHalfHeight: shelfHalfHeight, disableValue: disableValue,
+                continuous: true, trackPrevTick: false, fastBody: false);
+
+            ShelfRunResult posNoCcd = RunShelfScenarioEx(
+                startY: 3f, initialVelocityY: 0f, ticks: 200, gravityY: Llp2d.GravityUnitsPerSecondSquared,
+                mode: ShelfPassThroughSolver.Mode.As3Rule, rule: ShelfPassThroughSolver.Rule.As3Position,
+                dropThrough: false, shelfTopY: shelfTopY, bodyHalfHeight: bodyHalfHeight,
+                shelfHalfHeight: shelfHalfHeight, disableValue: disableValue,
+                continuous: false, trackPrevTick: false, fastBody: false);
+
+            // A "high speed" body does CCD against dynamic and kinematic bodies; worth measuring
+            // whether it changes what the callback sees against a static shelf.
+            ShelfRunResult posFastBody = RunShelfScenarioEx(
+                startY: 3f, initialVelocityY: 0f, ticks: 200, gravityY: Llp2d.GravityUnitsPerSecondSquared,
+                mode: ShelfPassThroughSolver.Mode.As3Rule, rule: ShelfPassThroughSolver.Rule.As3Position,
+                dropThrough: false, shelfTopY: shelfTopY, bodyHalfHeight: bodyHalfHeight,
+                shelfHalfHeight: shelfHalfHeight, disableValue: disableValue,
+                continuous: true, trackPrevTick: false, fastBody: true);
+
+            // ── (B) AS3 positional rule against the PREVIOUS tick's position ───────────────────
+            ShelfRunResult prevCcd = RunShelfScenarioEx(
+                startY: 3f, initialVelocityY: 0f, ticks: 200, gravityY: Llp2d.GravityUnitsPerSecondSquared,
+                mode: ShelfPassThroughSolver.Mode.As3Rule, rule: ShelfPassThroughSolver.Rule.As3PositionPrevTick,
+                dropThrough: false, shelfTopY: shelfTopY, bodyHalfHeight: bodyHalfHeight,
+                shelfHalfHeight: shelfHalfHeight, disableValue: disableValue,
+                continuous: true, trackPrevTick: true, fastBody: false);
+
+            ShelfRunResult prevNoCcd = RunShelfScenarioEx(
+                startY: 3f, initialVelocityY: 0f, ticks: 200, gravityY: Llp2d.GravityUnitsPerSecondSquared,
+                mode: ShelfPassThroughSolver.Mode.As3Rule, rule: ShelfPassThroughSolver.Rule.As3PositionPrevTick,
+                dropThrough: false, shelfTopY: shelfTopY, bodyHalfHeight: bodyHalfHeight,
+                shelfHalfHeight: shelfHalfHeight, disableValue: disableValue,
+                continuous: false, trackPrevTick: true, fastBody: false);
+
+            // Rising from below. Gravity off so the result is the rule, not the trajectory.
+            //
+            // Read this one carefully: the solver has a single PorogUnits (grounded porog = 10 px),
+            // but AS3 uses porog_jump = 4 px (Unit.as:279) when the unit is airborne. A body that
+            // starts a tick within 10 px below the surface therefore BLOCKS here, which is AS3's
+            // step-up band, not a bug — AS3 lifts a unit that close onto the surface. A production
+            // rule must select porog vs porog_jump by the AS3 `stay` flag. Observation only.
+            ShelfRunResult prevRising = RunShelfScenarioEx(
+                startY: -3f, initialVelocityY: 6f, ticks: 30, gravityY: 0f,
+                mode: ShelfPassThroughSolver.Mode.As3Rule, rule: ShelfPassThroughSolver.Rule.As3PositionPrevTick,
+                dropThrough: false, shelfTopY: shelfTopY, bodyHalfHeight: bodyHalfHeight,
+                shelfHalfHeight: shelfHalfHeight, disableValue: disableValue,
+                continuous: true, trackPrevTick: true, fastBody: false);
+
+            // AS3 `throu`: explicit drop-through must still win.
+            ShelfRunResult prevDropThrough = RunShelfScenarioEx(
+                startY: 3f, initialVelocityY: 0f, ticks: 200, gravityY: Llp2d.GravityUnitsPerSecondSquared,
+                mode: ShelfPassThroughSolver.Mode.As3Rule, rule: ShelfPassThroughSolver.Rule.As3PositionPrevTick,
+                dropThrough: true, shelfTopY: shelfTopY, bodyHalfHeight: bodyHalfHeight,
+                shelfHalfHeight: shelfHalfHeight, disableValue: disableValue,
+                continuous: true, trackPrevTick: true, fastBody: false);
+
+            // A contact must have been created at all, or the run measured nothing.
+            Assert.Greater(prevCcd.CallbackCount, 0,
+                "Pre-solve never fired for the previous-tick rule; the run measured nothing.");
+
+            Debug.Log(
+                $"[LLP2D L3] shelfTop={shelfTopY:F3} porog={TileQueryConstants.PorogGrounded * Llp2d.PixelToUnit:F3} " +
+                $"bodyHalfHeight={bodyHalfHeight:F3}\n" +
+                $"  A ccd        bottom={posCcd.BottomY:F4} landed={posCcd.Landed(shelfTopY)} " +
+                $"firstCbBottom={posCcd.FirstCallbackBottomY:F4}@tick{posCcd.FirstCallbackTick} cb={posCcd.CallbackCount}\n" +
+                $"  A no-ccd     bottom={posNoCcd.BottomY:F4} landed={posNoCcd.Landed(shelfTopY)} " +
+                $"firstCbBottom={posNoCcd.FirstCallbackBottomY:F4}@tick{posNoCcd.FirstCallbackTick} cb={posNoCcd.CallbackCount}\n" +
+                $"  A fastBody   bottom={posFastBody.BottomY:F4} landed={posFastBody.Landed(shelfTopY)} " +
+                $"firstCbBottom={posFastBody.FirstCallbackBottomY:F4}@tick{posFastBody.FirstCallbackTick} cb={posFastBody.CallbackCount}\n" +
+                $"  B prev+ccd   bottom={prevCcd.BottomY:F4} landed={prevCcd.Landed(shelfTopY)} " +
+                $"firstCbBottom={prevCcd.FirstCallbackBottomY:F4}@tick{prevCcd.FirstCallbackTick} cb={prevCcd.CallbackCount}\n" +
+                $"  B prev-noCcd bottom={prevNoCcd.BottomY:F4} landed={prevNoCcd.Landed(shelfTopY)} " +
+                $"firstCbBottom={prevNoCcd.FirstCallbackBottomY:F4}@tick{prevNoCcd.FirstCallbackTick} cb={prevNoCcd.CallbackCount}\n" +
+                $"  B rising     bottom={prevRising.BottomY:F4} passedThrough={prevRising.BottomY > shelfTopY} cb={prevRising.CallbackCount}\n" +
+                $"  B throu      bottom={prevDropThrough.BottomY:F4} cb={prevDropThrough.CallbackCount}");
+        }
+
         // ── Q5 ───────────────────────────────────────────────────────────────────────────────
         // Determinism probe: workers = 1, fixed inputs, 1000 ticks, hash body transforms, repeat
         // and compare. If it is not reproducible it can never enter a golden trace.
@@ -385,6 +516,23 @@ namespace PFE.Tests.EditMode.Systems.Physics.LowLevelPhysics2D
         }
 
         // ── Scenario runners ─────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Outcome of one shelf scenario, carrying the diagnostics the L3 measurement needs: not
+        /// just where the body ended, but what the pre-solve callback saw the first time it ran.
+        /// </summary>
+        private struct ShelfRunResult
+        {
+            public float BottomY;
+            public float FirstCallbackBottomY;
+            public int FirstCallbackTick;
+            public int CallbackCount;
+
+            public bool Landed(float shelfTopY)
+            {
+                return Mathf.Abs(BottomY - shelfTopY) < 0.06f;
+            }
+        }
 
         /// <summary>
         /// One body, one shelf, gravity on. Returns the body's bottom Y after <paramref name="ticks"/>.
@@ -454,6 +602,90 @@ namespace PFE.Tests.EditMode.Systems.Physics.LowLevelPhysics2D
         }
 
         /// <summary>
+        /// Shelf scenario with the knobs the L3 measurement needs: continuous collision on/off,
+        /// the "high speed body" flag, and pre-tick position snapshotting.
+        ///
+        /// <para>Separate from <see cref="RunShelfScenario"/> so Q4's seven call sites keep the exact
+        /// behaviour they were measured with — the point is that L3's numbers stay comparable to
+        /// Q4's.</para>
+        /// </summary>
+        private static ShelfRunResult RunShelfScenarioEx(
+            float startY,
+            float initialVelocityY,
+            int ticks,
+            float gravityY,
+            ShelfPassThroughSolver.Mode mode,
+            ShelfPassThroughSolver.Rule rule,
+            bool dropThrough,
+            float shelfTopY,
+            float bodyHalfHeight,
+            float shelfHalfHeight,
+            bool disableValue,
+            bool continuous,
+            bool trackPrevTick,
+            bool fastBody)
+        {
+            ShelfRunResult result = default;
+
+            PhysicsWorld world = Llp2d.CreateScriptWorld(gravityY: -gravityY, continuousAllowed: continuous);
+            try
+            {
+                world.sleepingAllowed = false;
+
+                PhysicsBody shelf = Llp2d.CreateBody(
+                    world, PhysicsBody.BodyType.Static, new Vector2(0f, shelfTopY - shelfHalfHeight));
+                PhysicsShape shelfShape = Llp2d.CreateBox(shelf, new Vector2(4f, shelfHalfHeight * 2f));
+
+                world.preSolveCallbacks = true;
+                shelfShape.preSolveCallbacks = true;
+
+                ShelfPassThroughSolver solver = ScriptableObject.CreateInstance<ShelfPassThroughSolver>();
+                solver.ShelfTopY = shelfTopY;
+                solver.BodyHalfHeight = bodyHalfHeight;
+                solver.SolverMode = mode;
+                solver.RuleMode = rule;
+                solver.DisableReturnValue = disableValue;
+                solver.DropThroughRequested = dropThrough;
+                shelfShape.callbackTarget = solver;
+
+                PhysicsBody body = Llp2d.CreateBody(
+                    world, PhysicsBody.BodyType.Dynamic, new Vector2(0f, startY));
+                Llp2d.CreateBox(body, new Vector2(bodyHalfHeight * 2f, bodyHalfHeight * 2f));
+                body.linearVelocity = new Vector2(0f, initialVelocityY);
+                if (fastBody)
+                {
+                    body.fastCollisionsAllowed = true;
+                }
+
+                for (int i = 0; i < ticks; i++)
+                {
+                    solver.TickIndex = i;
+
+                    // Snapshot BEFORE the step. This is the state AS3's Unit.as:2578 tests against,
+                    // and it is free in production because SimLoop owns stepping.
+                    if (trackPrevTick)
+                    {
+                        solver.PreviousBottomY = body.position.y - bodyHalfHeight;
+                    }
+
+                    world.Simulate(StepSeconds);
+                }
+
+                result.BottomY = body.position.y - bodyHalfHeight;
+                result.FirstCallbackBottomY = solver.FirstCallbackBottomY;
+                result.FirstCallbackTick = solver.FirstCallbackTick;
+                result.CallbackCount = solver.InvocationCount;
+
+                UnityEngine.Object.DestroyImmediate(solver);
+                return result;
+            }
+            finally
+            {
+                Llp2d.DestroyWorld(world);
+            }
+        }
+
+        /// <summary>
         /// A projectile fired at a wall. Returns its final X. Gravity is off so the result isolates
         /// collision detection from trajectory.
         /// </summary>
@@ -487,37 +719,9 @@ namespace PFE.Tests.EditMode.Systems.Physics.LowLevelPhysics2D
 
         /// <summary>Ten stacked bodies, one second of identical input, hashed.</summary>
         private static uint RunHash(int ticks, float seedOffset)
-        {
-            PhysicsWorld world = Llp2d.CreateScriptWorld();
-            try
-            {
-                PhysicsBody ground = Llp2d.CreateBody(
-                    world, PhysicsBody.BodyType.Static, new Vector2(0f, -1f));
-                Llp2d.CreateBox(ground, new Vector2(20f, 1f));
-
-                var bodies = new PhysicsBody[10];
-                for (int i = 0; i < bodies.Length; i++)
-                {
-                    // seedOffset is the perturbation the control case uses to prove the hash varies.
-                    float x = i * 0.13f + seedOffset;
-                    bodies[i] = Llp2d.CreateBody(
-                        world, PhysicsBody.BodyType.Dynamic, new Vector2(x, 2f + i * 0.5f));
-                    Llp2d.CreateBox(bodies[i], new Vector2(0.4f, 0.4f));
-                    bodies[i].linearVelocity = new Vector2(0.5f, 0f);
-                }
-
-                for (int i = 0; i < ticks; i++)
-                {
-                    world.Simulate(StepSeconds);
-                }
-
-                return Llp2d.HashBodies(bodies);
-            }
-            finally
-            {
-                Llp2d.DestroyWorld(world);
-            }
-        }
+            // Delegates to the shared probe in Llp2d so the cross-process golden recorded by
+            // Llp2dStageB0Tests and this in-process comparison cannot drift apart.
+            => Llp2d.RunDeterminismProbe(ticks, seedOffset, StepSeconds);
 
         /// <summary>
         /// A 48x25 room with the surfaces a generated room actually has: floor, ceiling, side walls,

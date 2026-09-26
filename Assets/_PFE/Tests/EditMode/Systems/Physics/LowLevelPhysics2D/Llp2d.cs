@@ -192,6 +192,51 @@ namespace PFE.Tests.EditMode.Systems.Physics.LowLevelPhysics2D
             return hash;
         }
 
+        /// <summary>
+        /// The Q5 determinism probe, shared so the cross-process golden and the in-process Q5 test
+        /// cannot drift apart. Ten boxes with a fixed initial state fall onto a static ground for
+        /// <paramref name="ticks"/> ticks; the returned hash covers every body's position and
+        /// velocity bit-exactly.
+        /// </summary>
+        /// <param name="ticks">Ticks to simulate. 1000 is the guide's number (§5 Q5).</param>
+        /// <param name="seedOffset">
+        /// Added to each body's initial x. A non-zero value is the perturbed control run that proves
+        /// the hash is measuring something rather than being constant by accident.
+        /// </param>
+        /// <param name="stepSeconds">One tick. Must stay <c>1 / SimTicksPerSecond</c>.</param>
+        public static uint RunDeterminismProbe(int ticks, float seedOffset, float stepSeconds)
+        {
+            PhysicsWorld world = CreateScriptWorld();
+            try
+            {
+                PhysicsBody ground = CreateBody(
+                    world, PhysicsBody.BodyType.Static, new Vector2(0f, -1f));
+                CreateBox(ground, new Vector2(20f, 1f));
+
+                var bodies = new PhysicsBody[10];
+                for (int i = 0; i < bodies.Length; i++)
+                {
+                    // seedOffset is the perturbation the control case uses to prove the hash varies.
+                    float x = i * 0.13f + seedOffset;
+                    bodies[i] = CreateBody(
+                        world, PhysicsBody.BodyType.Dynamic, new Vector2(x, 2f + i * 0.5f));
+                    CreateBox(bodies[i], new Vector2(0.4f, 0.4f));
+                    bodies[i].linearVelocity = new Vector2(0.5f, 0f);
+                }
+
+                for (int i = 0; i < ticks; i++)
+                {
+                    world.Simulate(stepSeconds);
+                }
+
+                return HashBodies(bodies);
+            }
+            finally
+            {
+                DestroyWorld(world);
+            }
+        }
+
         private const uint FnvPrime = 16777619u;
 
         private static uint Mix(uint hash, float value)

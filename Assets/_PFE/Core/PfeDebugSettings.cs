@@ -175,6 +175,10 @@ namespace PFE.Core
         private bool simTickMotor = false;
 
         [SerializeField]
+        [Tooltip("Drives the room heartbeat (LandMap -> RoomInstance -> RoomObjectPhysicsLayer) from SimLoop at the configured tick rate instead of Unity's per-frame ITickable. OFF = per-frame driver with the historical hardcoded 1/60 step, so simulated time advances by (fps / 60) per real second: correct only at exactly 60 fps, 2.4x fast at 144 fps and 2x SLOW at 30 fps. ON = one step per sim tick at exactly SimClock.SimDt, i.e. AS3's 30 fps, independent of the display. The prop physics constants are identical in both modes; only the clock differs. Behaviour toggle, NOT gated by runtimeLoggingEnabled.")]
+        private bool simTickRoom = false;
+
+        [SerializeField]
         [Tooltip("Logs each field-level divergence found by the dual-run harness, with tick index. Very noisy — opt in only while diffing Stage B.")]
         private bool simTickLogDivergence = false;
 
@@ -242,6 +246,7 @@ namespace PFE.Core
         public bool SimTickOverlayEnabled                        => simTickOverlayEnabled;
         public bool SimTickDualRun                               => simTickDualRun;
         public bool SimTickMotor                                 => simTickMotor;
+        public bool SimTickRoom                                  => simTickRoom;
 
         /// <summary>Divergence logging is a log, so it does respect the master toggle.</summary>
         public bool SimTickLogDivergence                         => runtimeLoggingEnabled && simTickLogDivergence;

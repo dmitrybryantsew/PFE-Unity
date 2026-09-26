@@ -132,9 +132,13 @@ namespace PFE.Data.Definitions
         [Header("Projectile — Physics")]
         [Tooltip("Gravity multiplier on the bullet (phis.@grav). 0 = no gravity. Explosive/flame weapons use 1.")]
         public float bulletGravity;
-        [Tooltip("Bullet acceleration magnitude per frame (phis.@accel). Rockets use this.")]
+        [Tooltip("Bullet thrust along the aim direction, in AS3 pixels/frame² (phis.@accel). " +
+                 "Rockets use this. Stored RAW — Projectile applies the px/frame² -> units/s² " +
+                 "conversion (x9), not the x0.3 velocity one.")]
         public float bulletAccel;
-        [Tooltip("Flame type (phis.@flame). 0=none, 1=strong flame arc, 2=weak. Affects lifetime and gravity.")]
+        [Tooltip("Flame type (phis.@flame). 0=none, 1=strong upward arc, 2=weak. Sets the upward " +
+                 "lift acceleration (Weapon.as:1545/1551) and the bullet's lifetime. Lift ADDS to " +
+                 "gravity, as in AS3; it does not replace it.")]
         public int bulletFlame;
         [Tooltip("Homing strength (phis.@navod). >0 spawns a SmartBullet that tracks nearest enemy.")]
         public float bulletNavod;

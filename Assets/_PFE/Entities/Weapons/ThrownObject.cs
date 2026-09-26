@@ -5,6 +5,7 @@ using PFE.Systems.Weapons;
 using PFE.Core.Messages;
 using MessagePipe;
 using System;
+using PFE.Systems.Map.TileQuery;
 
 namespace PFE.Entities.Weapons
 {
@@ -33,14 +34,37 @@ namespace PFE.Entities.Weapons
         // ── Constants ─────────────────────────────────────────────────────────
 
         private const float FlashFps = 30f;
-        private const float GravityPerSec = 0.6f * FlashFps;   // World.ddy * FlashFps (units/s²)
+
+        /// <summary>
+        /// Gravity as a per-second acceleration, in Unity units/s².
+        ///
+        /// <para>AS3 <c>WThrow.as:240</c> <c>trasser.ddy = World.ddy</c> (and <c>1651-1653</c>
+        /// <c>trasser.ddy += World.ddy</c> when the weapon's <c>grav</c> is set), so the value is
+        /// exactly <c>World.ddy</c> = 1 px/frame² (<c>World.as:46</c>) — not the 0.6 the old
+        /// literal assumed, which made this 2× too strong. Converted by the canonical
+        /// px/frame² → units/s² factor; see <c>REPLICA_BEHAVIOR_CONTRACT.md</c> §6.</para>
+        /// </summary>
+        private const float GravityPerSec = TileQueryConstants.GravityUnitsPerSecondSquared;
 
         // ── Physics params (set from ShotPlan at spawn) ───────────────────────
 
         private Vector2 _velocity;
-        private float   _skok      = 0.5f;   // bounce retention coefficient
-        private float   _tormoz    = 0.7f;   // horizontal damping on floor bounce
-        private float   _brake     = 2f / FlashFps * 60f; // sliding friction (units/s)
+
+        // Bounce retention and floor damping. AS3's effective values for a thrown object come from
+        // WThrow's own fields, which OVERRIDE the bullet class's defaults (PhisBullet.as:23/25 say
+        // 0.5/0.7, but WThrow.as:188/189 assign 0.4/0.6). See ProjectilePhysicsMath for citations.
+        private float   _skok      = ProjectilePhysicsMath.ThrowBounceRetention;
+        private float   _tormoz    = ProjectilePhysicsMath.ThrowFloorDamping;
+
+        /// <summary>
+        /// Sliding friction while resting, in units/s².
+        ///
+        /// <para>AS3 <c>Trasser.as:78/82</c> applies <c>dx -= brake</c> once per 30 Hz frame, so
+        /// <c>brake</c> (2 px/frame, <c>Trasser.as:45</c>) is a px/frame² acceleration and converts
+        /// by the squared-frame-rate factor → 18 units/s². The old
+        /// <c>brake / FlashFps * 60f</c> (= 4) was neither idiom and left friction 4.5× too weak.</para>
+        /// </summary>
+        private float   _brake     = ProjectilePhysicsMath.SlidingFriction(ProjectilePhysicsMath.BrakePxPerFrame2);
         private bool    _bumc;               // detonate on contact
         private bool    _stay;               // resting on floor
 
@@ -86,9 +110,9 @@ namespace PFE.Entities.Weapons
             int     fuseFrames,
             float   explRadius,
             bool    bumc      = false,
-            float   skok      = 0.5f,
-            float   tormoz    = 0.7f,
-            float   brake     = 2f)
+            float   skok      = ProjectilePhysicsMath.ThrowBounceRetention,
+            float   tormoz    = ProjectilePhysicsMath.ThrowFloorDamping,
+            float   brake     = ProjectilePhysicsMath.BrakePxPerFrame2)
         {
             _velocity      = initialVelocity;
             _fuseTimer     = fuseFrames / FlashFps;
@@ -96,7 +120,7 @@ namespace PFE.Entities.Weapons
             _bumc          = bumc;
             _skok          = skok;
             _tormoz        = tormoz;
-            _brake         = brake / FlashFps * 60f;  // convert px/frame → units/s friction
+            _brake         = ProjectilePhysicsMath.SlidingFriction(brake);
             _stay          = false;
             _armed         = true;
             _isInitialized = true;
@@ -189,8 +213,10 @@ namespace PFE.Entities.Weapons
                 // Floor / ceiling bounce.
                 if (_velocity.y < 0f)
                 {
-                    // Hitting floor.
-                    if (Mathf.Abs(_velocity.y) > 0.5f / FlashFps * 60f)
+                    // Hitting floor. AS3 Trasser.as:204 bounces only while `dy > 2` px/frame; below
+                    // that the object settles. `dy` is a VELOCITY, so this threshold converts by the
+                    // velocity factor (→ 0.6 units/s), not the acceleration one.
+                    if (Mathf.Abs(_velocity.y) > ProjectilePhysicsMath.SettleThresholdVelocity)
                     {
                         _velocity.y  = Mathf.Abs(_velocity.y) * _skok;
                         _velocity.x *= _tormoz;

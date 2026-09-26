@@ -121,6 +121,19 @@ namespace PFE.Systems.Map.TileQuery
         [LocalOnly]
         RoomInstance Room { get; }
 
+        /// <summary>
+        /// This room's origin in <b>world pixels</b> — the offset between room-local pixels and the
+        /// world pixels every other method here expects. Add it to a room-local pixel coordinate to
+        /// get the world coordinate of the same point.
+        ///
+        /// <para>Zero for a room at land position (0,0) with no border, which is exactly why a
+        /// consumer that forgets it looks correct in every test built on an origin room. Derived
+        /// geometry — the LowLevelPhysics2D chain mirror — MUST add it, or a room one land step away
+        /// from the origin has its whole mirror displaced by one room width.</para>
+        /// </summary>
+        [LocalOnly]
+        Vector2 OriginPixel { get; }
+
         // ── Queries. Computed locally on every machine; never transmitted. ──────────────────
 
         /// <summary>Primitive solidity test at a room-local tile coordinate.</summary>

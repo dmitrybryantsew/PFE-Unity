@@ -195,9 +195,19 @@ namespace PFE.Systems.Map
         /// </summary>
         public void Update()
         {
+            Update(RoomObjectPhysicsLayer.LegacyPerFrameDeltaTime);
+        }
+
+        /// <summary>
+        /// Update the active room with an explicit simulation step. The step is forwarded to the
+        /// current room only — the previous room gets <see cref="RoomInstance.UpdateLimited"/>, which
+        /// runs no physics.
+        /// </summary>
+        public void Update(float deltaTime)
+        {
             if (currentRoom != null)
             {
-                currentRoom.Update();
+                currentRoom.Update(deltaTime);
             }
 
             // Optionally update previous room (limited updates)

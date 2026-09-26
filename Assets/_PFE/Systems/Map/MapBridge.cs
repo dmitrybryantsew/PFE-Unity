@@ -37,6 +37,7 @@ public class MapBridge : MonoBehaviour
     private PFE.Core.PfeDebugSettings _debugSettings;
     private PFE.Core.SimClock _simClock;
     private PFE.Core.SimLoop _simLoop;
+    private PFE.Systems.Physics.IPhysicsWorldService _physicsWorldService;
 
     // Inject GameManager via VContainer
     //
@@ -46,7 +47,7 @@ public class MapBridge : MonoBehaviour
     // parameter below must be registered, and `= null` defaults are deliberately omitted rather
     // than left in to imply an optionality the container does not honour.
     [Inject]
-    public void Construct(GameManager gameManager, RoomGenerator roomGenerator, TileTextureLookup tileTextureLookup, MaterialRenderDatabase materialRenderDatabase, TileMaskLookup tileMaskLookup, RoomBackgroundLookup roomBackgroundLookup, PFE.Core.PfeDebugSettings debugSettings, PFE.Core.SimClock simClock, PFE.Core.SimLoop simLoop)
+    public void Construct(GameManager gameManager, RoomGenerator roomGenerator, TileTextureLookup tileTextureLookup, MaterialRenderDatabase materialRenderDatabase, TileMaskLookup tileMaskLookup, RoomBackgroundLookup roomBackgroundLookup, PFE.Core.PfeDebugSettings debugSettings, PFE.Core.SimClock simClock, PFE.Core.SimLoop simLoop, PFE.Systems.Physics.IPhysicsWorldService physicsWorldService)
     {
         _gameManager = gameManager;
         _roomGenerator = roomGenerator;
@@ -57,6 +58,7 @@ public class MapBridge : MonoBehaviour
         _debugSettings = debugSettings;
         _simClock = simClock;
         _simLoop = simLoop;
+        _physicsWorldService = physicsWorldService;
 
         if (_useRoomOverride)
             gameManager.SetSkipWorldBuild(true);
@@ -218,6 +220,19 @@ public class MapBridge : MonoBehaviour
                     streamingManager = rsmGo.AddComponent<RoomStreamingManager>();
                 }
                 transitionManager.SetStreamingManager(streamingManager);
+
+                // Wire LowLevelPhysics2D room geometry lifecycle (Stage B).
+                if (_physicsWorldService != null)
+                {
+                    _physicsWorldService.SubscribeToRoomEvents(streamingManager);
+
+                    // A PhysicsWorld only advances when Simulate() is called, and this service is
+                    // the only thing that calls it. Without this registration the world would be
+                    // built and never stepped — a failure with no visible symptom, since Stage B
+                    // has no consumers yet. SimLoop.Register de-duplicates, so re-running this
+                    // path cannot double-register.
+                    _simLoop?.Register(_physicsWorldService);
+                }
             }
             else
             {

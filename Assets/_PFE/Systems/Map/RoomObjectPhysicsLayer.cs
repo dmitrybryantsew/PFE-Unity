@@ -10,14 +10,114 @@ namespace PFE.Systems.Map
     /// </summary>
     public sealed class RoomObjectPhysicsLayer
     {
-        const float DefaultDeltaTime = 1f / 60f;
-        const float GravityPixelsPerSecond = 1800f;
-        const float GroundDrag = 10f;
-        const float AirDrag = 2f;
+        /// <summary>
+        /// The legacy per-frame step. Deliberately <b>not</b> the canonical sim step: the per-frame
+        /// driver calls <see cref="Update"/> once per rendered frame and has always used 1/60, so this
+        /// value is kept for that path. The sim-driven path passes <c>SimClock.SimDt</c> (1/30)
+        /// explicitly — see <c>PfeDebugSettings.SimTickRoom</c>. Public so the room heartbeat and this
+        /// default cannot drift apart.
+        /// </summary>
+        public const float LegacyPerFrameDeltaTime = 1f / 60f;
+
+        // ── Physics tuning surface ───────────────────────────────────────────────────────────────
+        // Public so tests can pin them. This is deliberate: the projectile census found that the
+        // reason four divergent gravity/acceleration literals coexisted for years was that none of
+        // them was assertable. Every value below carries its AS3 citation for the same reason.
+
+        /// <summary>
+        /// Fall acceleration. AS3 applies <c>dy += World.ddy</c> once per 30 Hz frame
+        /// (<c>Box.as:895</c>) and <c>World.ddy</c> is <c>1</c> px/frame² (<c>World.as:46</c>), so the
+        /// correct value is <c>1 × 30² = 900</c> px/s². The old 1800 was 2× too strong — the same
+        /// doubling as the divergent <c>ddy</c> literals reconciled in the projectile census.
+        /// </summary>
+        public const float GravityPixelsPerSecond = 900f;
+
+        /// <summary>
+        /// Terminal fall speed. AS3 gates the integrator with <c>if(!isPlav &amp;&amp; dy &lt;
+        /// World.maxdy)</c> (<c>Box.as:893</c>) where <c>World.maxdy = 20</c> px/frame
+        /// (<c>World.as:48</c>) → <c>20 × 30 = 600</c> px/s. The port had no clamp at all, so a long
+        /// fall could exceed AS3's terminal velocity.
+        /// </summary>
+        public const float MaxFallSpeedPixelsPerSecond = 600f;
+
+        /// <summary>
+        /// Ground friction. AS3 damps horizontal speed on landing: <c>dx *= 0.92</c>, and snaps to a
+        /// full stop when <c>|dx| &lt; 5</c> px/frame (<c>Box.as:1090-1096</c>). Applied here as a
+        /// <i>rate</i> — <c>Pow(0.92, deltaTime × 30)</c> — so one 1/30 sim tick is exactly one AS3
+        /// frame and the legacy 1/60 per-frame path decays at the same speed per unit time.
+        /// </summary>
+        public const float GroundFriction = 0.92f;
+        public const float GroundStopPixelsPerFrame = 5f;
+
+        /// <summary>Stop threshold in the port's px/s units (<c>5 × 30 = 150</c>).</summary>
+        public const float GroundStopPixelsPerSecond =
+            GroundStopPixelsPerFrame * PFE.Core.SimClock.CanonicalTicksPerSecond;
+
+        /// <summary>
+        /// Telekinesis follow rate. <b>Not</b> an AS3 constant: AS3 models telekinesis as the
+        /// <c>levit</c> flag plus a 0.8 per-frame damping in <c>forces()</c> (<c>Box.as:907-910</c>),
+        /// not as position tracking, so there is no AS3 number to copy. Left as-is and flagged rather
+        /// than silently "corrected" to a value with no citation.
+        /// </summary>
         const float TelekinesisFollowSpeed = 14f;
+
         const float MinimumImpactSpeed = 220f;
         const float ThrowGraceDuration = 0.18f;
-        const float StepDistancePixels = 8f;
+
+        /// <summary>
+        /// Maximum movement per collision check. AS3 substeps with <c>World.maxdelta = 9</c> px
+        /// (<c>World.as:52</c>, used at <c>Box.as:610-620</c>); the port used 8. The substep count is
+        /// AS3's <c>floor(max / maxdelta) + 1</c>, not the port's old <c>ceil(max / 8)</c>. The two
+        /// agree at small distances but diverge in bands — at 17 px the old form took 3 substeps where
+        /// AS3 takes 2, so the old code subdivided more than AS3 did in exactly the range where the
+        /// limit was being exceeded. Verified numerically before changing it (17 → 2, not 3).
+        /// </summary>
+        public const float SubstepDistancePixels = 9f;
+
+        /// <summary>
+        /// AS3's substep count: <c>floor(maxDistance / maxdelta) + 1</c> (<c>Box.as:616</c>). Pure, so
+        /// it can be asserted directly without a room. AS3 wraps it in a two-branch guard — when
+        /// <c>|dx| &lt; maxdelta &amp;&amp; |dy| &lt; maxdelta</c> it takes a single un-subdivided step
+        /// (<c>Box.as:610-613</c>), otherwise it uses this count (<c>Box.as:614-623</c>). The formula
+        /// already returns 1 for exactly that first range, so the two branches collapse into one here
+        /// and the port needs no guard of its own.
+        /// </summary>
+        public static int SubstepCount(float maxDistance)
+        {
+            return Mathf.FloorToInt(Mathf.Max(0f, maxDistance) / SubstepDistancePixels) + 1;
+        }
+
+        /// <summary>
+        /// Ground friction for one step: below the stop threshold the box is halted outright,
+        /// otherwise damped by <see cref="GroundFriction"/> per AS3 frame. Pure, so the rate and the
+        /// threshold can be asserted without a room. AS3 <c>Box.as:1090-1096</c>.
+        /// </summary>
+        public static float ApplyGroundFriction(float velocityX, float deltaTime)
+        {
+            if (Mathf.Abs(velocityX) < GroundStopPixelsPerSecond)
+            {
+                return 0f;
+            }
+
+            return velocityX * Mathf.Pow(
+                GroundFriction, deltaTime * PFE.Core.SimClock.CanonicalTicksPerSecond);
+        }
+
+        /// <summary>
+        /// Fall speed for one step: gravity accelerates until the AS3 terminal velocity, then stops
+        /// accelerating. Pure, and the clamp is inside the gate exactly as AS3 writes it
+        /// (<c>Box.as:893</c> — <c>if(!isPlav &amp;&amp; dy &lt; World.maxdy)</c>).
+        /// </summary>
+        public static float IntegrateFallSpeed(float velocityY, float deltaTime)
+        {
+            if (velocityY <= -MaxFallSpeedPixelsPerSecond)
+            {
+                return velocityY;
+            }
+
+            return Mathf.Max(
+                -MaxFallSpeedPixelsPerSecond, velocityY - GravityPixelsPerSecond * deltaTime);
+        }
 
         readonly List<ObjectInstance> _dynamicObjects = new List<ObjectInstance>();
         readonly HashSet<ObjectInstance> _dynamicObjectLookup = new HashSet<ObjectInstance>();
@@ -184,7 +284,7 @@ namespace PFE.Systems.Map
             return true;
         }
 
-        public void Update(RoomInstance room, float deltaTime = DefaultDeltaTime)
+        public void Update(RoomInstance room, float deltaTime = LegacyPerFrameDeltaTime)
         {
             if (room == null)
             {
@@ -262,11 +362,15 @@ namespace PFE.Systems.Map
             }
 
             Vector2 velocity = state.velocity;
-            velocity.y -= GravityPixelsPerSecond * deltaTime;
 
-            float drag = state.isGrounded ? GroundDrag : AirDrag;
-            float dragFactor = Mathf.Clamp01(1f - drag * deltaTime);
-            velocity.x *= dragFactor;
+            velocity.y = IntegrateFallSpeed(velocity.y, deltaTime);
+
+            // There is no air damping in AS3 at all — the old AirDrag = 2 was an invented force and is
+            // gone. Ground friction applies only while in contact (Box.as:1090-1096).
+            if (state.isGrounded)
+            {
+                velocity.x = ApplyGroundFriction(velocity.x, deltaTime);
+            }
 
             state.velocity = velocity;
             MoveWithCollision(room, obj, state, velocity * deltaTime);
@@ -287,7 +391,7 @@ namespace PFE.Systems.Map
         void MoveWithCollision(RoomInstance room, ObjectInstance obj, MapObjectDynamicStateData state, Vector2 totalDelta)
         {
             float maxDistance = Mathf.Max(Mathf.Abs(totalDelta.x), Mathf.Abs(totalDelta.y));
-            int steps = Mathf.Max(1, Mathf.CeilToInt(maxDistance / StepDistancePixels));
+            int steps = SubstepCount(maxDistance);
             Vector2 stepDelta = totalDelta / steps;
 
             for (int i = 0; i < steps; i++)

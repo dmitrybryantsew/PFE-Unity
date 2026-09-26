@@ -74,6 +74,33 @@ namespace PFE.Systems.Map
             }
         }
 
+        // ── Tile mutation notification ──────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Raised when tiles in this room change by a path outside the motor's own move
+        /// resolution — tile destruction today, scripted edits and streaming later.
+        ///
+        /// <para>The region is in ROOM-LOCAL tile coordinates and <b>includes a one-tile border
+        /// around the change</b>. That is not padding: derived geometry is built from runs of
+        /// adjacent solid tiles, so removing one tile changes the surfaces of its neighbours too
+        /// (a run splits in two, a vertical face appears). A listener that rebuilt only the exact
+        /// tile would leave stale geometry one tile out.</para>
+        ///
+        /// <para>Listeners holding derived geometry — today the LowLevelPhysics2D chain mirror —
+        /// rebuild here. This is a host-authoritative mutation notification, not Sim state;
+        /// replication of the change itself is P4's concern.</para>
+        /// </summary>
+        public event Action<RoomInstance, RectInt> TilesMutated;
+
+        /// <summary>
+        /// Announces that tiles changed. Called by tile destruction and forwarded by
+        /// <see cref="ITileQueryService.NotifyTilesMutated"/>. Safe to call with no listeners.
+        /// </summary>
+        public void NotifyTilesMutated(RectInt tileRegion)
+        {
+            TilesMutated?.Invoke(this, tileRegion);
+        }
+
         public void RebuildRuntimeLayers()
         {
             ObjectPhysicsLayer.Rebuild(objects);
@@ -281,11 +308,26 @@ namespace PFE.Systems.Map
         /// Update room (called every frame if active).
         /// From AS3: Location.step()
         /// </summary>
+        /// <remarks>
+        /// Uses <see cref="RoomObjectPhysicsLayer.LegacyPerFrameDeltaTime"/>, the historical hardcoded
+        /// 1/60 step, so the per-frame driver's behaviour is unchanged by the sim-tick work. The
+        /// sim-driven heartbeat calls <see cref="Update(float)"/> with <c>SimClock.SimDt</c> instead.
+        /// </remarks>
         public void Update()
+        {
+            Update(RoomObjectPhysicsLayer.LegacyPerFrameDeltaTime);
+        }
+
+        /// <summary>
+        /// Update room with an explicit simulation step. One call advances the room by
+        /// <paramref name="deltaTime"/> seconds; at <c>SimClock.SimDt</c> that is exactly one AS3
+        /// frame at 30 fps.
+        /// </summary>
+        public void Update(float deltaTime)
         {
             if (!isActive) return;
 
-            ObjectPhysicsLayer.Update(this);
+            ObjectPhysicsLayer.Update(this, deltaTime);
 
             // Update units
             for (int i = units.Count - 1; i >= 0; i--)

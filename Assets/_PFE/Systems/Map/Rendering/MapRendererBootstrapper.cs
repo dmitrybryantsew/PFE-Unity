@@ -29,6 +29,11 @@ namespace PFE.Systems.Map.Rendering
         private SimClock simClock;
         private SimLoop simLoop;
 
+        // Stage B: same reason as above — MapBridge.Construct gained the physics world service, so
+        // this call site has to forward it. Named `worldService` rather than `physicsWorldService`
+        // because `PhysicsWorld` is also a type name in scope here.
+        private PFE.Systems.Physics.IPhysicsWorldService worldService;
+
         [Inject]
         public void Construct(
             GameManager gm,
@@ -39,7 +44,8 @@ namespace PFE.Systems.Map.Rendering
             RoomBackgroundLookup backgroundLookup,
             PfeDebugSettings debug,
             SimClock clock,
-            SimLoop loop)
+            SimLoop loop,
+            PFE.Systems.Physics.IPhysicsWorldService physicsWorldService)
         {
             gameManager = gm;
             roomGenerator = generator;
@@ -50,6 +56,7 @@ namespace PFE.Systems.Map.Rendering
             debugSettings = debug;
             simClock = clock;
             simLoop = loop;
+            worldService = physicsWorldService;
         }
         
         private void Start()
@@ -123,7 +130,8 @@ namespace PFE.Systems.Map.Rendering
                     roomBackgroundLookup,
                     debugSettings,
                     simClock,
-                    simLoop);
+                    simLoop,
+                    worldService);
                 Debug.Log("[MapRendererBootstrapper] Injected runtime dependencies into MapBridge");
             }
             else

@@ -41,7 +41,7 @@ namespace PFE.Systems.Map.TileQuery
 
         public bool CheckCollision(Rect boundsPx, TileQueryOptions options)
         {
-            Vector2 origin = RoomOriginPixel;
+            Vector2 origin = OriginPixel;
             return TileCollisionMath.CheckCollision(
                 Room,
                 boundsPx,
@@ -54,7 +54,7 @@ namespace PFE.Systems.Map.TileQuery
 
         public float GetGroundHeight(Vector2 positionPx)
         {
-            Vector2 origin = RoomOriginPixel;
+            Vector2 origin = OriginPixel;
             return TileCollisionMath.GetGroundHeight(
                 Room,
                 positionPx.x, positionPx.y,
@@ -63,7 +63,7 @@ namespace PFE.Systems.Map.TileQuery
 
         public bool IsOnGround(Rect boundsPx)
         {
-            Vector2 origin = RoomOriginPixel;
+            Vector2 origin = OriginPixel;
             return TileCollisionMath.IsOnGround(
                 Room,
                 boundsPx,
@@ -104,7 +104,7 @@ namespace PFE.Systems.Map.TileQuery
             Vector2 currentCenter = box.Center;
             float hw = box.HalfSize.x;
             float hh = box.Height;
-            Vector2 origin = RoomOriginPixel;
+            Vector2 origin = OriginPixel;
 
             bool hitCeiling = false;
             bool hitFloor = false;
@@ -201,9 +201,13 @@ namespace PFE.Systems.Map.TileQuery
             bool damaged = _legacyInner.ApplyDamage(positionPx, damage, radiusTiles);
 
             Vector2Int centre = WorldCoordinates.PixelToTile(new Vector2(
-                positionPx.x - RoomOriginPixel.x,
-                positionPx.y - RoomOriginPixel.y));
-            MarkDirty(new RectInt(
+                positionPx.x - OriginPixel.x,
+                positionPx.y - OriginPixel.y));
+
+            // Goes through NotifyTilesMutated rather than MarkDirty so the damage path and the
+            // "something else changed the tiles" path have exactly one exit: mark dirty AND tell
+            // the room. Two exits is how one of them ends up missing the room notification.
+            NotifyTilesMutated(new RectInt(
                 centre.x - radiusTiles,
                 centre.y - radiusTiles,
                 radiusTiles * 2 + 1,
@@ -215,6 +219,13 @@ namespace PFE.Systems.Map.TileQuery
         public void NotifyTilesMutated(RectInt tileRegion)
         {
             MarkDirty(tileRegion);
+
+            // Forward to the room so listeners holding derived geometry *outside* this service
+            // rebuild too — today the LowLevelPhysics2D chain mirror, owned by PhysicsWorldService.
+            // MarkDirty alone only touches this instance's own dirty set, and this service is not a
+            // shared instance: PhysicsWorldService news up its own, so a caller here and a listener
+            // there would otherwise have no channel between them. RoomInstance is that channel.
+            Room?.NotifyTilesMutated(tileRegion);
         }
 
         // ── Replication plumbing ───────────────────────────────────────────────────────────
@@ -296,7 +307,12 @@ namespace PFE.Systems.Map.TileQuery
             }
         }
 
-        private Vector2 RoomOriginPixel
+        /// <summary>
+        /// This room's origin in world pixels. Public because it is a seam contract, not an internal
+        /// detail: any consumer building derived geometry in world space needs it, and re-deriving
+        /// the formula elsewhere would be a second definition of where a room is.
+        /// </summary>
+        public Vector2 OriginPixel
         {
             get
             {

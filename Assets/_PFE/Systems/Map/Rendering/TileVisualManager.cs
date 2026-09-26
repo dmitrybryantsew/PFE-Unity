@@ -24,6 +24,16 @@ namespace PFE.Systems.Map.Rendering
         private Dictionary<Vector2Int, TileRenderer> tileRenderers = new Dictionary<Vector2Int, TileRenderer>();
 
         /// <summary>
+        /// The room this manager renders.
+        ///
+        /// <para>Exposed so a per-tile <see cref="TileCollider"/> can route its mutation
+        /// notification through the room — the shared object both the visual side and the derived
+        /// geometry side already agree on. The collider holds no query service, so
+        /// <c>ITileQueryService.NotifyTilesMutated</c> is not reachable from there.</para>
+        /// </summary>
+        public RoomInstance Room => room;
+
+        /// <summary>
         /// Initialize the tile visual manager.
         /// </summary>
         public TileVisualManager(RoomInstance room, TileAssetDatabase assetDatabase, Transform parent, TileCompositor compositor)

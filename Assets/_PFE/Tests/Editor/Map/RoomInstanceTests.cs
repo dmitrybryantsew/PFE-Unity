@@ -436,9 +436,11 @@ namespace PFE.Tests.Editor.Map
 
             // Gravity pulls DOWN. This asserted `Greater` because RoomObjectPhysicsLayer applied
             // gravity as `velocity.y += GravityPixelsPerSecond * deltaTime` — an inverted sign that
-            // made props rise. With the sign corrected to `-=`, one Update() at the layer's
-            // hardcoded 1/60 step moves a zero-velocity prop down by
-            // 1800 px/s² * (1/60)² = 0.5 px. See docs/Roadmap/LLP2D_STAGE_A_RESULTS.md §5.
+            // made props rise. With the sign corrected, one Update() at the layer's legacy 1/60 step
+            // moves a zero-velocity prop down by 900 px/s² * (1/60)² = 0.25 px (it was 0.5 px while
+            // gravity was still 2x too strong). See docs/Roadmap/LLP2D_STAGE_A_RESULTS.md §5.
+            // The step rate, the constants and the grounded-friction rule are pinned in
+            // RoomObjectPhysicsLayerTests.
             Assert.Less(dynamicObject.position.y, initialY);
             Assert.AreEqual(1, room.ObjectPhysicsLayer.DynamicObjectCount);
         }
