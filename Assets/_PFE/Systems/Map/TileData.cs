@@ -100,22 +100,22 @@ namespace PFE.Systems.Map
             if (slopeType > 0)
             {
                 // Slope: / (low on left, high on right)
-                // At left edge (xMin), height is yMax (low)
-                // At right edge (xMax), height is yMin (high)
-                if (x < bounds.xMin) return bounds.yMax;
-                if (x > bounds.xMax) return bounds.yMin;
+                // At left edge (xMin), height is yMin (bottom of tile)
+                // At right edge (xMax), height is yMax (top of tile)
+                if (x <= bounds.xMin) return bounds.yMin;
+                if (x >= bounds.xMax) return bounds.yMax;
                 float t = (x - bounds.xMin) / (bounds.xMax - bounds.xMin);
-                return bounds.yMax - (bounds.yMax - bounds.yMin) * t;
+                return bounds.yMin + (bounds.yMax - bounds.yMin) * t;
             }
             else
             {
                 // Slope: \ (high on left, low on right)
-                // At left edge (xMin), height is yMin (high)
-                // At right edge (xMax), height is yMax (low)
-                if (x < bounds.xMin) return bounds.yMin;
-                if (x > bounds.xMax) return bounds.yMax;
+                // At left edge (xMin), height is yMax (top of tile)
+                // At right edge (xMax), height is yMin (bottom of tile)
+                if (x <= bounds.xMin) return bounds.yMax;
+                if (x >= bounds.xMax) return bounds.yMin;
                 float t = (bounds.xMax - x) / (bounds.xMax - bounds.xMin);
-                return bounds.yMax - (bounds.yMax - bounds.yMin) * t;
+                return bounds.yMin + (bounds.yMax - bounds.yMin) * t;
             }
         }
 

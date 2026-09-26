@@ -219,23 +219,23 @@ namespace PFE.Tests.Editor.Map
             {
                 gridPosition = new Vector2Int(2, 2),
                 physicsType = TilePhysicsType.Wall,
-                slopeType = 1 // / slope (high at left/yMax, low at right/yMin)
+                slopeType = 1 // / slope (low at left/yMin, high at right/yMax)
             };
             testRoom.tiles[2, 2] = slopeTile;
 
-            // Test at left edge INSIDE tile (should be near yMax = 120)
+            // Test at left edge INSIDE tile (should be near yMin = 80)
             // Position must be in tile (2,2): x in [80,120), y in [80,120)
             float leftHeight = collisionSystem.GetGroundHeight(new Vector2(85f, 90f));
 
-            // Test at right edge INSIDE tile (should be near yMin = 80)
+            // Test at right edge INSIDE tile (should be near yMax = 120)
             float rightHeight = collisionSystem.GetGroundHeight(new Vector2(115f, 90f));
 
-            // Assert - verify slope direction (left higher than right)
-            Assert.Greater(leftHeight, rightHeight, "Left edge should be higher than right edge on / slope");
-            // At X=85 (5px from left edge of 80-120), height should be 120 - 5*(40/40) = 115
-            Assert.AreEqual(115f, leftHeight, 1f, "Left edge should be near yMax");
-            // At X=115 (35px from left edge), height should be 120 - 35 = 85
-            Assert.AreEqual(85f, rightHeight, 1f, "Right edge should be near yMin");
+            // Assert - verify slope direction (left lower than right on / slope)
+            Assert.Less(leftHeight, rightHeight, "Left edge should be lower than right edge on / slope");
+            // At X=85 (5px from left edge of 80-120), height should be 80 + 5*(40/40) = 85
+            Assert.AreEqual(85f, leftHeight, 1f, "Left edge should be near yMin");
+            // At X=115 (35px from left edge), height should be 80 + 35 = 115
+            Assert.AreEqual(115f, rightHeight, 1f, "Right edge should be near yMax");
         }
 
         [Test]
@@ -246,22 +246,22 @@ namespace PFE.Tests.Editor.Map
             {
                 gridPosition = new Vector2Int(2, 2),
                 physicsType = TilePhysicsType.Wall,
-                slopeType = -1 // \ slope (low at left/yMin, high at right/yMax)
+                slopeType = -1 // \ slope (high at left/yMax, low at right/yMin)
             };
             testRoom.tiles[2, 2] = slopeTile;
 
-            // Test at left edge INSIDE tile (should be near yMin = 80)
+            // Test at left edge INSIDE tile (should be near yMax = 120)
             float leftHeight = collisionSystem.GetGroundHeight(new Vector2(85f, 90f));
 
-            // Test at right edge INSIDE tile (should be near yMax = 120)
+            // Test at right edge INSIDE tile (should be near yMin = 80)
             float rightHeight = collisionSystem.GetGroundHeight(new Vector2(115f, 90f));
 
-            // Assert - verify slope direction (left lower than right)
-            Assert.Less(leftHeight, rightHeight, "Left edge should be lower than right edge on \\ slope");
-            // At X=85 (5px from left edge), height should be 80 + 5*(40/40) = 85
-            Assert.AreEqual(85f, leftHeight, 1f, "Left edge should be near yMin");
-            // At X=115 (35px from left edge), height should be 80 + 35 = 115
-            Assert.AreEqual(115f, rightHeight, 1f, "Right edge should be near yMax");
+            // Assert - verify slope direction (left higher than right on \ slope)
+            Assert.Greater(leftHeight, rightHeight, "Left edge should be higher than right edge on \\ slope");
+            // At X=85 (5px from left edge), height should be 120 - 5*(40/40) = 115
+            Assert.AreEqual(115f, leftHeight, 1f, "Left edge should be near yMax");
+            // At X=115 (35px from left edge), height should be 120 - 35 = 85
+            Assert.AreEqual(85f, rightHeight, 1f, "Right edge should be near yMin");
         }
 
         [Test]

@@ -83,13 +83,13 @@ namespace PFE.Tests.Editor.Map
 
             Rect bounds = tile.GetBounds();
 
-            // At left edge, should be at bottom
+            // At left edge, should be at bottom (yMin)
             float height = tile.GetGroundHeight(bounds.xMin);
-            Assert.AreEqual(bounds.yMax, height, 0.001f);
-
-            // At right edge, should be at top
-            height = tile.GetGroundHeight(bounds.xMax);
             Assert.AreEqual(bounds.yMin, height, 0.001f);
+
+            // At right edge, should be at top (yMax)
+            height = tile.GetGroundHeight(bounds.xMax);
+            Assert.AreEqual(bounds.yMax, height, 0.001f);
 
             // At middle, should be halfway
             height = tile.GetGroundHeight(bounds.center.x);
@@ -107,13 +107,13 @@ namespace PFE.Tests.Editor.Map
 
             Rect bounds = tile.GetBounds();
 
-            // At left edge, should be at top
+            // At left edge, should be at top (yMax)
             float height = tile.GetGroundHeight(bounds.xMin);
-            Assert.AreEqual(bounds.yMin, height, 0.001f);
-
-            // At right edge, should be at bottom
-            height = tile.GetGroundHeight(bounds.xMax);
             Assert.AreEqual(bounds.yMax, height, 0.001f);
+
+            // At right edge, should be at bottom (yMin)
+            height = tile.GetGroundHeight(bounds.xMax);
+            Assert.AreEqual(bounds.yMin, height, 0.001f);
 
             // At middle, should be halfway
             height = tile.GetGroundHeight(bounds.center.x);

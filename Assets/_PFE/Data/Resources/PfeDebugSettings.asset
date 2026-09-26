@@ -38,8 +38,12 @@ MonoBehaviour:
   logTileVisualCreationSummary: 0
   logTileColliderCreation: 0
   showAreaTriggerDebug: 1
+  showDoorColliderDebug: 1
+  showObjectColliderDebug: 1
   simTickEnabled: 1
   simTickOverlayEnabled: 1
   simTickDualRun: 1
   simTickMotor: 1
   simTickLogDivergence: 1
+  tileQueryUnified: 1
+  tileQueryLogDivergence: 0

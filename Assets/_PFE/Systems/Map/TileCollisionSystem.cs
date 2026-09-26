@@ -58,25 +58,15 @@ namespace PFE.Systems.Map
         {
             if (room == null) return false;
 
-            // Convert world pixel coordinates to room-local tile coordinates
-            Vector2Int minTile = WorldCoordinates.PixelToTile(new Vector2(bounds.xMin - roomWorldPixelX, bounds.yMin - roomWorldPixelY));
-            Vector2Int maxTile = WorldCoordinates.PixelToTile(new Vector2(bounds.xMax - roomWorldPixelX, bounds.yMax - roomWorldPixelY));
-
-            for (int x = minTile.x; x <= maxTile.x; x++)
-            {
-                for (int y = minTile.y; y <= maxTile.y; y++)
-                {
-                    TileData tile = room.GetTileAtCoord(new Vector2Int(x, y));
-                    if (tile == null) continue;
-
-                    if (CheckTileCollision(tile, bounds, isTransparent, canFallThroughPlatforms, velocityY))
-                    {
-                        return true;
-                    }
-                }
-            }
-
-            return false;
+            return TileCollisionMath.CheckCollision(
+                room,
+                bounds,
+                roomWorldPixelX,
+                roomWorldPixelY,
+                platformThreshold: PLATFORM_COLLISION_THRESHOLD,
+                isTransparent: isTransparent,
+                canFallThroughPlatforms: canFallThroughPlatforms,
+                velocityY: velocityY);
         }
 
         /// <summary>

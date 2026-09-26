@@ -1,5 +1,7 @@
 using UnityEngine;
+using PFE.Core;
 using PFE.Systems.Map;
+using PFE.Systems.Map.TileQuery;
 using PFE.Entities.Units;
 
 namespace PFE.Systems.Physics
@@ -134,10 +136,10 @@ namespace PFE.Systems.Physics
 
         [Header("Physics Constants")]
         [Tooltip("Global gravity (World.ddy in AS3)")]
-        [SerializeField] private float globalGravity = 0.98f;
+        [SerializeField] private float globalGravity = 1.0f;
 
         [Tooltip("Platform pass-through threshold (porog in AS3)")]
-        [SerializeField] private float platformThreshold = 8f;
+        [SerializeField] private float platformThreshold = TileQueryConstants.PorogGrounded;
 
         [Tooltip("Maximum distance a single collision sub-step is allowed to move before movement is subdivided.")]
         [SerializeField] private float maxSubStepDistance = 9f;
@@ -180,7 +182,8 @@ namespace PFE.Systems.Physics
 
         // Room reference
         private RoomInstance currentRoom;
-        private TileCollisionSystem collisionSystem;
+        private ITileQueryService tileQueryService;
+        [SerializeField] private PfeDebugSettings debugSettings;
         
         // Room's world pixel position (for converting between world and room-local coordinates)
         private float roomWorldPixelX;
@@ -311,6 +314,7 @@ namespace PFE.Systems.Physics
         public float VelocityY => dy;
         public Vector2 PixelPosition => new Vector2(posX, posY);
         public RoomInstance CurrentRoom => currentRoom;
+        public ITileQueryService TileQuery => tileQueryService;
         public Vector2 ColliderOffsetPixels => colliderOffsetPixels;
         public MovementMotorState State => new MovementMotorState(
             isGrounded,
@@ -334,8 +338,6 @@ namespace PFE.Systems.Physics
             currentRoom = room;
             if (room != null)
             {
-                collisionSystem = new TileCollisionSystem(room);
-                
                 // Calculate room's world pixel position
                 // This accounts for land position and border offset
                 int borderOffsetTiles = room.borderOffset;
@@ -343,13 +345,30 @@ namespace PFE.Systems.Physics
                                   - borderOffsetTiles * WorldConstants.TILE_SIZE;
                 roomWorldPixelY = room.landPosition.y * WorldConstants.ROOM_HEIGHT * WorldConstants.TILE_SIZE
                                   - borderOffsetTiles * WorldConstants.TILE_SIZE;
+
+                ITileQueryService unified = new UnifiedTileQueryService(room);
+                var settings = debugSettings ?? Resources.Load<PfeDebugSettings>("PfeDebugSettings");
+                if (settings != null && settings.TileQueryLogDivergence)
+                {
+                    ITileQueryService legacy = new GridTileQuery(room);
+                    tileQueryService = new TileQueryDivergenceLogger(primary: unified, shadow: legacy, debugSettings: settings);
+                }
+                else
+                {
+                    tileQueryService = unified;
+                }
             }
             else
             {
-                collisionSystem = null;
+                tileQueryService = null;
                 roomWorldPixelX = 0;
                 roomWorldPixelY = 0;
             }
+        }
+
+        public void SetDebugSettings(PfeDebugSettings settings)
+        {
+            debugSettings = settings;
         }
 
         /// <summary>
@@ -442,16 +461,24 @@ namespace PFE.Systems.Physics
         /// </summary>
         public bool CanTeleportTo(float targetPixelX, float targetPixelY, float halfWidth, float halfHeight)
         {
-            if (collisionSystem == null) return false;
+            if (currentRoom == null) return false;
 
             // Build AABB at target in world pixel space
             Rect targetBounds = new Rect(
                 targetPixelX - halfWidth,
                 targetPixelY,
                 halfWidth * 2f,
-                halfHeight);
+                halfHeight * 2f);
 
-            return !collisionSystem.CheckCollision(targetBounds, isTransparent: false, canFallThroughPlatforms: true, velocityY: 0f);
+            return !TileCollisionMath.CheckCollision(
+                currentRoom,
+                targetBounds,
+                roomWorldPixelX,
+                roomWorldPixelY,
+                platformThreshold: TileQueryConstants.PorogGrounded,
+                isTransparent: false,
+                canFallThroughPlatforms: true,
+                velocityY: 0f);
         }
 
         /// <summary>
@@ -815,7 +842,7 @@ namespace PFE.Systems.Physics
             }
 
             float maxDistance = Mathf.Max(Mathf.Abs(moveX), Mathf.Abs(moveY));
-            int subSteps = Mathf.Max(1, Mathf.CeilToInt(maxDistance / Mathf.Max(1f, maxSubStepDistance)));
+            int subSteps = TileCollisionMath.CalculateSubSteps(maxDistance, maxSubStepDistance);
             float stepMoveX = moveX / subSteps;
             float stepMoveY = moveY / subSteps;
 
@@ -829,7 +856,7 @@ namespace PFE.Systems.Physics
         {
             float hw = Mathf.Min(collisionWidth * 0.5f, Mathf.Max(2f, ladderProbeHalfWidth));
             float hh = collisionHeight;
-            int subSteps = Mathf.Max(1, Mathf.CeilToInt(Mathf.Abs(moveY) / Mathf.Max(1f, maxSubStepDistance)));
+            int subSteps = TileCollisionMath.CalculateSubSteps(Mathf.Abs(moveY), maxSubStepDistance);
             float stepMoveY = moveY / subSteps;
 
             posX = activeLadderSnapX;
@@ -1175,47 +1202,7 @@ namespace PFE.Systems.Physics
 
         private bool HasSolidOverlapAt(float x, float y, float hw, float hh)
         {
-            if (currentRoom == null || currentRoom.tiles == null)
-            {
-                return false;
-            }
-
-            Rect bounds = Rect.MinMaxRect(
-                x - hw + 0.01f,
-                y + 0.01f,
-                x + hw - 0.01f,
-                y + hh - 0.01f);
-
-            if (bounds.width <= 0f || bounds.height <= 0f)
-            {
-                return false;
-            }
-
-            int tileLeft = Mathf.FloorToInt((bounds.xMin - roomWorldPixelX) / WorldConstants.TILE_SIZE);
-            int tileRight = Mathf.FloorToInt((bounds.xMax - roomWorldPixelX) / WorldConstants.TILE_SIZE);
-            int tileBottom = Mathf.FloorToInt((bounds.yMin - roomWorldPixelY) / WorldConstants.TILE_SIZE);
-            int tileTop = Mathf.FloorToInt((bounds.yMax - roomWorldPixelY) / WorldConstants.TILE_SIZE);
-
-            for (int tx = tileLeft; tx <= tileRight; tx++)
-            {
-                for (int ty = tileBottom; ty <= tileTop; ty++)
-                {
-                    TileData tile = currentRoom.GetTileAtCoord(new Vector2Int(tx, ty));
-                    if (tile == null || tile.physicsType != TilePhysicsType.Wall)
-                    {
-                        continue;
-                    }
-
-                    Rect tileBounds = tile.GetBounds();
-                    tileBounds.position += new Vector2(roomWorldPixelX, roomWorldPixelY);
-                    if (bounds.Overlaps(tileBounds))
-                    {
-                        return true;
-                    }
-                }
-            }
-
-            return false;
+            return TileCollisionMath.HasSolidOverlapAt(currentRoom, x, y, hw, hh, roomWorldPixelX, roomWorldPixelY);
         }
 
         /// <summary>
@@ -1225,30 +1212,7 @@ namespace PFE.Systems.Physics
         /// </summary>
         private bool CheckTileCollisionAt(float x, float y, float hw, float hh)
         {
-            // Entity box: x-hw to x+hw, y to y+hh (y is feet, y+hh is head)
-            float left = x - hw;
-            float right = x + hw;
-            float bottom = y;
-            float top = y + hh;
-
-            // Convert world pixel coordinates to room-local tile coordinates
-            int tileLeft = Mathf.FloorToInt((left - roomWorldPixelX) / WorldConstants.TILE_SIZE);
-            int tileRight = Mathf.FloorToInt((right - roomWorldPixelX) / WorldConstants.TILE_SIZE);
-            int tileBottom = Mathf.FloorToInt((bottom - roomWorldPixelY) / WorldConstants.TILE_SIZE);
-            int tileTop = Mathf.FloorToInt((top - roomWorldPixelY) / WorldConstants.TILE_SIZE);
-
-            for (int tx = tileLeft; tx <= tileRight; tx++)
-            {
-                for (int ty = tileBottom; ty <= tileTop; ty++)
-                {
-                    var tile = currentRoom.GetTileAtCoord(new Vector2Int(tx, ty));
-                    if (tile != null && tile.physicsType == TilePhysicsType.Wall)
-                    {
-                        return true;
-                    }
-                }
-            }
-            return false;
+            return TileCollisionMath.CheckTileCollisionAt(currentRoom, x, y, hw, hh, roomWorldPixelX, roomWorldPixelY);
         }
 
         /// <summary>
@@ -1257,54 +1221,25 @@ namespace PFE.Systems.Physics
         /// </summary>
         private bool CheckGroundCollisionAt(float x, float y, float hw)
         {
-            float left = x - hw;
-            float right = x + hw;
-
-            // Convert world pixel coordinates to room-local tile coordinates
-            int tileLeft = Mathf.FloorToInt((left - roomWorldPixelX) / WorldConstants.TILE_SIZE);
-            int tileRight = Mathf.FloorToInt((right - roomWorldPixelX) / WorldConstants.TILE_SIZE);
-            int tileY = Mathf.FloorToInt((y - roomWorldPixelY) / WorldConstants.TILE_SIZE);
-
             // Don't fall through platforms when pressing down
             bool canFallThrough = inputDown ||
                 platformDropTimer > 0f ||
                 (isOnLadder && ladderInputY < -0.1f);
 
-            for (int tx = tileLeft; tx <= tileRight; tx++)
+            bool hitPlatform;
+            bool hit = TileCollisionMath.CheckGroundCollisionAt(
+                currentRoom, x, y, hw,
+                roomWorldPixelX, roomWorldPixelY,
+                platformThreshold,
+                canFallThrough,
+                out hitPlatform);
+
+            if (hitPlatform)
             {
-                var tile = currentRoom.GetTileAtCoord(new Vector2Int(tx, tileY));
-                if (tile == null) continue;
-
-                if (tile.physicsType == TilePhysicsType.Wall)
-                {
-                    return true;
-                }
-
-                if (tile.physicsType == TilePhysicsType.Platform && !canFallThrough)
-                {
-                    // Platform collision: only from above
-                    // Convert tile top from room-local to world pixel coordinates
-                    float tileTop = roomWorldPixelY + (tileY + 1) * WorldConstants.TILE_SIZE;
-                    if (y <= tileTop && y >= tileTop - platformThreshold)
-                    {
-                        isOnPlatform = true;
-                        return true;
-                    }
-                }
-
-                // Only real slopes should act as walkable ground surfaces.
-                if (tile.IsSlopeSurface())
-                {
-                    // Get ground height in room-local coordinates, then convert to world
-                    float localX = x - roomWorldPixelX;
-                    float groundH = tile.GetGroundHeight(localX) + roomWorldPixelY;
-                    if (y <= groundH)
-                    {
-                        return true;
-                    }
-                }
+                isOnPlatform = true;
             }
-            return false;
+
+            return hit;
         }
 
         private void StartPlatformDropThrough()
@@ -1326,33 +1261,7 @@ namespace PFE.Systems.Physics
         /// </summary>
         private bool CheckCeilingCollisionAt(float x, float y, float hw, float hh)
         {
-            float headY = y + hh;
-            
-            // Convert world pixel coordinates to room-local tile coordinates
-            int tileY = Mathf.FloorToInt((headY - roomWorldPixelY) / WorldConstants.TILE_SIZE);
-
-            int tileLeft = Mathf.FloorToInt((x - hw - roomWorldPixelX) / WorldConstants.TILE_SIZE);
-            int tileRight = Mathf.FloorToInt((x + hw - roomWorldPixelX) / WorldConstants.TILE_SIZE);
-
-            for (int tx = tileLeft; tx <= tileRight; tx++)
-            {
-                var tile = currentRoom.GetTileAtCoord(new Vector2Int(tx, tileY));
-                if (tile == null)
-                {
-                    continue;
-                }
-
-                if (tile.physicsType == TilePhysicsType.Wall)
-                {
-                    if (isOnLadder && tile.stairType != 0)
-                    {
-                        continue;
-                    }
-
-                    return true;
-                }
-            }
-            return false;
+            return TileCollisionMath.CheckCeilingCollisionAt(currentRoom, x, y, hw, hh, roomWorldPixelX, roomWorldPixelY, isOnLadder);
         }
 
         /// <summary>
@@ -1360,20 +1269,7 @@ namespace PFE.Systems.Physics
         /// </summary>
         private float ResolveHorizontal(float fromX, float toX, float y, float hw, float hh)
         {
-            float dir = Mathf.Sign(toX - fromX);
-            float step = 1f; // 1 pixel steps
-
-            float testX = fromX;
-            while (Mathf.Abs(testX - fromX) < Mathf.Abs(toX - fromX))
-            {
-                float nextX = testX + dir * step;
-                if (CheckTileCollisionAt(nextX, y, hw, hh))
-                {
-                    return testX;
-                }
-                testX = nextX;
-            }
-            return testX;
+            return TileCollisionMath.ResolveHorizontal(currentRoom, fromX, toX, y, hw, hh, roomWorldPixelX, roomWorldPixelY);
         }
 
         /// <summary>
@@ -1382,23 +1278,7 @@ namespace PFE.Systems.Physics
         /// </summary>
         private float ResolveVerticalDown(float x, float fromY, float toY, float hw)
         {
-            // Convert world pixel coordinates to room-local tile coordinates
-            int tileY = Mathf.FloorToInt((toY - roomWorldPixelY) / WorldConstants.TILE_SIZE);
-            
-            // Tile top in world pixel coordinates
-            float tileTop = roomWorldPixelY + (tileY + 1) * WorldConstants.TILE_SIZE;
-
-            // Check for slope
-            int tileCenterX = Mathf.FloorToInt((x - roomWorldPixelX) / WorldConstants.TILE_SIZE);
-            var tile = currentRoom.GetTileAtCoord(new Vector2Int(tileCenterX, tileY));
-            if (tile != null && tile.IsSlopeSurface())
-            {
-                // Get ground height in room-local coordinates, then convert to world
-                float localX = x - roomWorldPixelX;
-                return tile.GetGroundHeight(localX) + roomWorldPixelY;
-            }
-
-            return tileTop;
+            return TileCollisionMath.ResolveVerticalDown(currentRoom, x, fromY, toY, hw, roomWorldPixelX, roomWorldPixelY);
         }
 
         /// <summary>
@@ -1407,15 +1287,7 @@ namespace PFE.Systems.Physics
         /// </summary>
         private float ResolveVerticalUp(float x, float fromY, float toY, float hw, float hh)
         {
-            float headY = toY + hh;
-            
-            // Convert world pixel coordinates to room-local tile coordinates
-            int tileY = Mathf.FloorToInt((headY - roomWorldPixelY) / WorldConstants.TILE_SIZE);
-            
-            // Tile bottom in world pixel coordinates
-            float tileBottom = roomWorldPixelY + tileY * WorldConstants.TILE_SIZE;
-
-            return tileBottom - hh;
+            return TileCollisionMath.ResolveVerticalUp(currentRoom, x, fromY, toY, hw, hh, roomWorldPixelX, roomWorldPixelY);
         }
 
         /// <summary>
@@ -1425,27 +1297,11 @@ namespace PFE.Systems.Physics
         /// </summary>
         private void CheckWater()
         {
-            if (currentRoom == null)
-            {
-                isInWater = false;
-                isFullySubmerged = false;
-                return;
-            }
-
             float height = isCrouching ? resolvedCrouchedCollisionHeight : collisionHeight;
-            int tileX = Mathf.FloorToInt((posX - roomWorldPixelX) / WorldConstants.TILE_SIZE);
-
-            // 25% height check — wading / partial submersion
-            float lowSampleY = posY + height * 0.25f;
-            int lowTileY = Mathf.FloorToInt((lowSampleY - roomWorldPixelY) / WorldConstants.TILE_SIZE);
-            var lowTile = currentRoom.GetTileAtCoord(new Vector2Int(tileX, lowTileY));
-            isInWater = lowTile != null && lowTile.hasWater;
-
-            // 75% height check — fully submerged (AS3 isPlav)
-            float highSampleY = posY + height * 0.75f;
-            int highTileY = Mathf.FloorToInt((highSampleY - roomWorldPixelY) / WorldConstants.TILE_SIZE);
-            var highTile = currentRoom.GetTileAtCoord(new Vector2Int(tileX, highTileY));
-            isFullySubmerged = isInWater && highTile != null && highTile.hasWater;
+            TileCollisionMath.CheckWater(
+                currentRoom, posX, posY, height,
+                roomWorldPixelX, roomWorldPixelY,
+                out isInWater, out isFullySubmerged);
         }
 
         /// <summary>

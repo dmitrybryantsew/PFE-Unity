@@ -178,6 +178,17 @@ namespace PFE.Core
         [Tooltip("Logs each field-level divergence found by the dual-run harness, with tick index. Very noisy — opt in only while diffing Stage B.")]
         private bool simTickLogDivergence = false;
 
+        // ── Tile Collision Query (P2) ────────────────────────────────────────
+
+        [Header("Tile Collision Query (P2)")]
+        [SerializeField]
+        [Tooltip("Flips tile collision consumers to UnifiedTileQueryService instead of legacy paths. OFF = legacy behavior.")]
+        private bool tileQueryUnified = true;
+
+        [SerializeField]
+        [Tooltip("Logs divergences between legacy and unified tile query services during Stage B diffing.")]
+        private bool tileQueryLogDivergence = false;
+
         // ── Public accessors ─────────────────────────────────────────────────
 
         /// <summary>
@@ -238,5 +249,9 @@ namespace PFE.Core
 
         /// <summary>Divergence logging is a log, so it does respect the master toggle.</summary>
         public bool SimTickLogDivergence                         => runtimeLoggingEnabled && simTickLogDivergence;
+
+        // Tile Query flags (P2)
+        public bool TileQueryUnified                             => tileQueryUnified;
+        public bool TileQueryLogDivergence                       => runtimeLoggingEnabled && tileQueryLogDivergence;
     }
 }

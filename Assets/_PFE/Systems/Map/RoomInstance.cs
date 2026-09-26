@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Globalization;
 using UnityEngine;
 using PFE.Data.Definitions;
+using PFE.Systems.Physics;
+using PFE.Systems.Map.TileQuery;
 
 namespace PFE.Systems.Map
 {
@@ -184,25 +186,27 @@ namespace PFE.Systems.Map
         }
 
         /// <summary>
-        /// Check collision with tiles at position.
+        /// Check collision with tiles at position (room-local coordinates).
+        /// Converted to world-pixel bounds and evaluated against unified tile collision logic.
         /// </summary>
         public bool CheckCollision(Vector2 pos, Vector2 size)
         {
-            Vector2Int topLeft = WorldCoordinates.PixelToTile(pos);
-            Vector2Int bottomRight = WorldCoordinates.PixelToTile(pos + size);
+            float roomWorldPixelX = landPosition.x * WorldConstants.ROOM_WIDTH * WorldConstants.TILE_SIZE
+                                  - borderOffset * WorldConstants.TILE_SIZE;
+            float roomWorldPixelY = landPosition.y * WorldConstants.ROOM_HEIGHT * WorldConstants.TILE_SIZE
+                                  - borderOffset * WorldConstants.TILE_SIZE;
 
-            for (int x = topLeft.x; x <= bottomRight.x; x++)
-            {
-                for (int y = topLeft.y; y <= bottomRight.y; y++)
-                {
-                    TileData tile = GetTileAtCoord(new Vector2Int(x, y));
-                    if (tile != null && tile.IsSolid())
-                    {
-                        return true;
-                    }
-                }
-            }
-            return false;
+            Rect worldBounds = new Rect(pos.x + roomWorldPixelX, pos.y + roomWorldPixelY, size.x, size.y);
+
+            return TileCollisionMath.CheckCollision(
+                this,
+                worldBounds,
+                roomWorldPixelX,
+                roomWorldPixelY,
+                platformThreshold: TileQueryConstants.PorogGrounded,
+                isTransparent: false,
+                canFallThroughPlatforms: false,
+                velocityY: 0f);
         }
 
         /// <summary>
