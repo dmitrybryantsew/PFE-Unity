@@ -25,16 +25,19 @@ namespace PFE.Systems.Map
         // Hidden enemies
         public int hiddenEnemyCount = 0;
 
+        private static PFE.Core.Rng.IRngService s_spawnRng;
+
         /// <summary>
         /// Set enemy count for a specific enemy type.
         /// From AS3: setKolEn(tip, min, max, rnd)
         /// </summary>
-        public void SetEnemyCount(int enemyType, int minCount, int maxCount)
+        public void SetEnemyCount(int enemyType, int minCount, int maxCount, PFE.Core.Rng.IRngService rng = null)
         {
             if (enemyType >= 1 && enemyType < enemyCounts.Length)
             {
+                var r = rng ?? (s_spawnRng ??= new PFE.Core.Rng.PcgRngService().GetStream(PFE.Core.Rng.RngStream.Spawn));
                 // Random count between min and max
-                enemyCounts[enemyType] = UnityEngine.Random.Range(minCount, maxCount + 1);
+                enemyCounts[enemyType] = r.Range(minCount, maxCount + 1);
             }
         }
 

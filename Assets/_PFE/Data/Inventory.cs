@@ -19,6 +19,7 @@ namespace PFE.Data
     /// - Save/load of runtime state
     /// - Item modification without affecting base definition
     /// </summary>
+    [System.Obsolete("Use PFE.Systems.Inventory.GameInventory instead.")]
     [System.Serializable]
     public class Inventory
     {

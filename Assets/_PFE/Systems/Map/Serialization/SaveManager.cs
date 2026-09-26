@@ -323,12 +323,54 @@ namespace PFE.Systems.Map.Serialization
             DontDestroyOnLoad(gameObject);
         }
 
+        // Active inventory reference
+        public PFE.Systems.Inventory.GameInventory CurrentInventory { get; set; }
+
         // Private helper methods
 
         private PlayerStateSnapshot CreatePlayerStateSnapshot()
         {
-            // TODO: Get actual player state from player controller
-            return PlayerStateSnapshot.CreateFromPlayer();
+            var snapshot = PlayerStateSnapshot.CreateFromPlayer();
+
+            var player = FindFirstObjectByType<PFE.Entities.Player.PlayerController>();
+            if (player != null)
+            {
+                var pos = player.transform.position;
+                snapshot.posX = pos.x;
+                snapshot.posY = pos.y;
+                snapshot.health = player.CurrentHealth;
+                snapshot.maxHealth = player.MaxHealth;
+
+                // RPG Stats
+                var stats = player.GetComponent<PFE.Systems.RPG.CharacterStats>();
+                if (stats != null)
+                {
+                    snapshot.rpgStats = PFE.Systems.RPG.RPGSaveData.FromCharacterStats(stats);
+                    snapshot.level = stats.Level;
+                    snapshot.experience = stats.Xp;
+                }
+
+                // Weapon loadout & Ammo source
+                var loadout = player.GetComponent<PFE.Systems.Weapons.PlayerWeaponLoadout>();
+                var inv = (loadout?.AmmoSource as PFE.Systems.Inventory.GameInventory) ?? CurrentInventory;
+                if (inv != null)
+                {
+                    snapshot.inventory = inv.CreateSaveData();
+                    snapshot.equippedWeaponId = inv.CurrentWeaponId;
+                    snapshot.equippedArmorId = inv.CurrentArmorId;
+                }
+
+                if (loadout != null && loadout.Current?.State != null)
+                {
+                    snapshot.weaponRuntime = PFE.Systems.Weapons.WeaponRuntimeSaveData.FromRuntimeState(loadout.Current.State);
+                    if (string.IsNullOrEmpty(snapshot.equippedWeaponId) && loadout.Current.State.Def != null)
+                    {
+                        snapshot.equippedWeaponId = loadout.Current.State.Def.weaponId;
+                    }
+                }
+            }
+
+            return snapshot;
         }
 
         private void RestorePlayerState(PlayerStateSnapshot playerState)
@@ -338,8 +380,29 @@ namespace PFE.Systems.Map.Serialization
                 return;
             }
 
-            // TODO: Restore player state to player controller
-            // This would position the player, restore health, etc.
+            var player = FindFirstObjectByType<PFE.Entities.Player.PlayerController>();
+            if (player != null)
+            {
+                player.transform.position = new Vector3(playerState.posX, playerState.posY, player.transform.position.z);
+
+                var stats = player.GetComponent<PFE.Systems.RPG.CharacterStats>();
+                if (stats != null && playerState.rpgStats != null)
+                {
+                    PFE.Systems.RPG.CharacterStatsExtensions.LoadSaveData(stats, playerState.rpgStats);
+                }
+
+                var loadout = player.GetComponent<PFE.Systems.Weapons.PlayerWeaponLoadout>();
+                var inv = (loadout?.AmmoSource as PFE.Systems.Inventory.GameInventory) ?? CurrentInventory;
+                if (inv != null && playerState.inventory != null)
+                {
+                    inv.RestoreFromSaveData(playerState.inventory);
+                }
+
+                if (loadout != null && playerState.weaponRuntime != null && loadout.Current?.State != null)
+                {
+                    playerState.weaponRuntime.RestoreTo(loadout.Current.State);
+                }
+            }
 
             Debug.Log($"Player state restore: pos=({playerState.posX}, {playerState.posY}), " +
                      $"room=({playerState.roomX}, {playerState.roomY}, {playerState.roomZ}), " +

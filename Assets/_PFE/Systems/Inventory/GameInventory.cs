@@ -684,5 +684,140 @@ namespace PFE.Systems.Inventory
             // TODO: Find next usable item
             CurrentItemIndex = -1;
         }
+
+        // ===== Save / Load Persistence =====
+
+        public IReadOnlyDictionary<string, GameWeaponInstance> Weapons => weapons;
+        public IReadOnlyDictionary<string, GameArmorInstance> Armors => armors;
+        public IReadOnlyDictionary<string, GameItemInstance> Items => items;
+        public IReadOnlyDictionary<string, int> FavoriteSlots => favoriteSlots;
+        public float[] CategoryMass => categoryMass;
+
+        public GameInventorySaveData CreateSaveData()
+        {
+            var data = new GameInventorySaveData
+            {
+                currentWeaponId = CurrentWeaponId ?? "",
+                currentArmorId = CurrentArmorId ?? "",
+                categoryMass = (float[])categoryMass.Clone()
+            };
+
+            foreach (var kvp in weapons)
+            {
+                if (kvp.Value != null)
+                {
+                    data.weapons.Add(kvp.Value.GetSaveData());
+                }
+            }
+
+            foreach (var kvp in armors)
+            {
+                if (kvp.Value != null)
+                {
+                    data.armors.Add(kvp.Value.GetSaveData());
+                }
+            }
+
+            foreach (var kvp in items)
+            {
+                if (kvp.Value != null)
+                {
+                    data.items.Add(kvp.Value.GetSaveData());
+                }
+            }
+
+            foreach (var kvp in favoriteSlots)
+            {
+                data.favoriteSlots.Add(new GameInventorySaveData.FavoriteSlotSaveEntry
+                {
+                    itemId = kvp.Key,
+                    slot = kvp.Value
+                });
+            }
+
+            return data;
+        }
+
+        public void RestoreFromSaveData(GameInventorySaveData data, Func<string, ItemDefinition> definitionResolver = null)
+        {
+            if (data == null) return;
+
+            weapons.Clear();
+            armors.Clear();
+            items.Clear();
+            favoriteSlots.Clear();
+
+            CurrentWeaponId = data.currentWeaponId ?? "";
+            CurrentArmorId = data.currentArmorId ?? "";
+            if (data.categoryMass != null && data.categoryMass.Length >= 4)
+            {
+                Array.Copy(data.categoryMass, categoryMass, 4);
+            }
+
+            if (data.items != null)
+            {
+                foreach (var itemData in data.items)
+                {
+                    if (itemData == null || string.IsNullOrEmpty(itemData.itemId)) continue;
+                    ItemDefinition def = definitionResolver?.Invoke(itemData.itemId);
+                    if (def == null)
+                    {
+                        def = ScriptableObject.CreateInstance<ItemDefinition>();
+                        def.itemId = itemData.itemId;
+                        def.name = itemData.itemId;
+                    }
+                    var item = new GameItemInstance(def, itemData);
+                    items[itemData.itemId] = item;
+                }
+            }
+
+            if (data.weapons != null)
+            {
+                foreach (var weaponData in data.weapons)
+                {
+                    if (weaponData == null || string.IsNullOrEmpty(weaponData.weaponId)) continue;
+                    ItemDefinition def = definitionResolver?.Invoke(weaponData.weaponId);
+                    if (def == null)
+                    {
+                        def = ScriptableObject.CreateInstance<ItemDefinition>();
+                        def.itemId = weaponData.weaponId;
+                        def.name = weaponData.weaponId;
+                    }
+                    var weapon = new GameWeaponInstance(def, weaponData);
+                    weapons[weaponData.weaponId] = weapon;
+                }
+            }
+
+            if (data.armors != null)
+            {
+                foreach (var armorData in data.armors)
+                {
+                    if (armorData == null || string.IsNullOrEmpty(armorData.armorId)) continue;
+                    ItemDefinition def = definitionResolver?.Invoke(armorData.armorId);
+                    if (def == null)
+                    {
+                        def = ScriptableObject.CreateInstance<ItemDefinition>();
+                        def.itemId = armorData.armorId;
+                        def.name = armorData.armorId;
+                    }
+                    var armor = new GameArmorInstance(def, armorData);
+                    armors[armorData.armorId] = armor;
+                }
+            }
+
+            if (data.favoriteSlots != null)
+            {
+                foreach (var fav in data.favoriteSlots)
+                {
+                    if (fav != null && !string.IsNullOrEmpty(fav.itemId))
+                    {
+                        favoriteSlots[fav.itemId] = fav.slot;
+                    }
+                }
+            }
+
+            CalculateMass();
+            CalculateWeaponMass();
+        }
     }
 }

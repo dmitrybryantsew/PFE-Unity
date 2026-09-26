@@ -54,16 +54,18 @@ namespace PFE.Systems.Weapons.Controllers
 
         // Shot plan accumulator — filled during flash frames, flushed by FlushShotPlans.
         private readonly List<ShotPlan> _plans = new();
+        private readonly PFE.Core.Rng.IRngService _rng;
 
         // ── Constructor ───────────────────────────────────────────────────────
 
         public RangedWeaponController(WeaponRuntimeState state, PfeDebugSettings debugSettings = null,
-                                      IAmmoSource ammoSource = null)
+                                      IAmmoSource ammoSource = null, PFE.Core.Rng.IRngService rng = null)
         {
             State          = state;
             _def           = state.Def;
             _debugSettings = debugSettings;
             _ammoSource    = ammoSource;
+            _rng           = rng != null ? rng.GetStream(PFE.Core.Rng.RngStream.Combat) : new PFE.Core.Rng.PcgRngService().GetStream(PFE.Core.Rng.RngStream.Combat);
 
             // Weapons with rechargeFrames start with a full magazine.
             if (_def.rechargeFrames > 0)
@@ -318,7 +320,7 @@ namespace PFE.Systems.Weapons.Controllers
             float breaking = State.Breaking();
             if (breaking > 0f)
             {
-                float rnd = Random.value;
+                float rnd = _rng.NextFloat();
                 int   holderSafe = Mathf.Max(20, _def.magazineSize);
 
                 // Jam: weapon gets stuck, must reload to clear.
@@ -468,7 +470,7 @@ namespace PFE.Systems.Weapons.Controllers
         {
             float breaking = State.Breaking();
             float effective = _def.deviation * (1f + breaking * 2f);
-            return (Random.value - 0.5f) * effective * Mathf.Deg2Rad;
+            return (_rng.NextFloat() - 0.5f) * effective * Mathf.Deg2Rad;
         }
 
         /// <summary>

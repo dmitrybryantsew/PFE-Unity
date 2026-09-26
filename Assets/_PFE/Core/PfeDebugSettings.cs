@@ -253,5 +253,32 @@ namespace PFE.Core
         // Tile Query flags (P2)
         public bool TileQueryUnified                             => tileQueryUnified;
         public bool TileQueryLogDivergence                       => runtimeLoggingEnabled && tileQueryLogDivergence;
+
+        // RNG & Entity ID flags (P3)
+        [Header("RNG & Entity IDs (P3)")]
+        [SerializeField]
+        [Tooltip("If non-zero, overrides the session seed with a fixed deterministic seed. 0 = dynamic seed.")]
+        private int rngSeedOverride = 0;
+
+        [SerializeField]
+        [Tooltip("Logs RNG call sites and outcomes for debugging determinism.")]
+        private bool rngLogCallSites = false;
+
+        [SerializeField]
+        [Tooltip("Logs deterministic entity ID assignment at spawn time.")]
+        private bool logEntityIdAssignment = false;
+
+        [SerializeField]
+        [Tooltip("Renders debug overlay of runtime entity IDs above characters/objects.")]
+        private bool showEntityIdOverlay = false;
+
+        public int RngSeedOverride                               => rngSeedOverride;
+        public bool RngLogCallSites                              => runtimeLoggingEnabled && rngLogCallSites;
+        public bool LogEntityIdAssignment                        => runtimeLoggingEnabled && logEntityIdAssignment;
+        public bool ShowEntityIdOverlay
+        {
+            get => showEntityIdOverlay;
+            set => showEntityIdOverlay = value;
+        }
     }
 }

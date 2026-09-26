@@ -2,6 +2,7 @@ using UnityEngine;
 using PFE.Systems.Combat;
 using MessagePipe;
 using PFE.Core.Messages;
+using PFE.Core.Rng;
 
 namespace PFE.Systems.Weapons
 {
@@ -22,6 +23,14 @@ namespace PFE.Systems.Weapons
     /// </summary>
     public static class DamageResolver
     {
+        private static IRngService s_fallbackCombatRng;
+
+        private static IRngService GetRng(IRngService explicitRng)
+        {
+            if (explicitRng != null) return explicitRng;
+            return s_fallbackCombatRng ??= new PcgRngService().GetStream(RngStream.Combat);
+        }
+
         /// <summary>
         /// Compute final damage from a DamageContext and apply it to a target.
         /// Returns the final damage dealt (after all modifiers).
@@ -30,7 +39,8 @@ namespace PFE.Systems.Weapons
             in DamageContext ctx,
             IDamageable target,
             Vector3 impactPos,
-            IPublisher<DamageDealtMessage> publisher = null)
+            IPublisher<DamageDealtMessage> publisher = null,
+            IRngService rng = null)
         {
             if (target == null || !target.IsAlive) return 0f;
 
@@ -45,7 +55,7 @@ namespace PFE.Systems.Weapons
 
             // ── Critical hit ─────────────────────────────────────────────────
             // AS3: if (rnd < critCh) finalDam *= critDamMult + critM
-            bool isCrit = Random.value < ctx.CritChance;
+            bool isCrit = GetRng(rng).Chance(ctx.CritChance);
             float critMultiplier = isCrit ? (ctx.CritMultiplier) : 1f;
             float finalDamage = afterArmour * critMultiplier;
 
@@ -77,7 +87,8 @@ namespace PFE.Systems.Weapons
             Vector3 targetPos,
             Vector3 explosionCentre,
             float explRadius,
-            IPublisher<DamageDealtMessage> publisher = null)
+            IPublisher<DamageDealtMessage> publisher = null,
+            IRngService rng = null)
         {
             if (target == null || !target.IsAlive || ctx.ExplosionDamage <= 0f) return 0f;
 
@@ -86,7 +97,7 @@ namespace PFE.Systems.Weapons
             float falloff = explRadius > 0f ? Mathf.Clamp01(1f - dist / explRadius) : 1f;
             float scaled  = ctx.ExplosionDamage * falloff;
 
-            bool isCrit = Random.value < ctx.CritChance;
+            bool isCrit = GetRng(rng).Chance(ctx.CritChance);
             float final  = Mathf.Max(0f, scaled * (isCrit ? ctx.CritMultiplier : 1f));
 
             target.TakeDamage(final);

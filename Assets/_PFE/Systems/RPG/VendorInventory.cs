@@ -12,6 +12,20 @@ namespace PFE.Systems.RPG
     public class VendorInventory : MonoBehaviour
     {
         [SerializeField] private CharacterStats playerStats;
+        private PFE.Core.Rng.IRngService _rng;
+        private static PFE.Core.Rng.IRngService s_lootRng;
+        private PFE.Core.Rng.IRngService Rng => _rng ?? (s_lootRng ??= new PFE.Core.Rng.PcgRngService().GetStream(PFE.Core.Rng.RngStream.Loot));
+
+        [VContainer.Inject]
+        public void Construct(PFE.Core.Rng.IRngService rng = null)
+        {
+            _rng = rng?.GetStream(PFE.Core.Rng.RngStream.Loot);
+        }
+
+        public void SetRng(PFE.Core.Rng.IRngService rng)
+        {
+            _rng = rng?.GetStream(PFE.Core.Rng.RngStream.Loot);
+        }
 
         [Header("Vendor Settings")]
         [SerializeField] private bool isDoctor = false;
@@ -85,11 +99,11 @@ namespace PFE.Systems.RPG
             }
 
             // Add randomness (0-2 for doctor, 0-4 for regular)
-            int randomBonus = Random.Range(0, isDoctor ? 3 : 5);
+            int randomBonus = Rng.Range(0, isDoctor ? 3 : 5);
             calculatedItems += randomBonus;
 
             // Apply randomness multiplier (0.5 - 1.2 of calculated)
-            float randomMultiplier = Random.Range(0.5f, 1.2f);
+            float randomMultiplier = Rng.Range(0.5f, 1.2f);
             calculatedItems = Mathf.RoundToInt(calculatedItems * randomMultiplier);
 
             return Mathf.Max(0, calculatedItems);

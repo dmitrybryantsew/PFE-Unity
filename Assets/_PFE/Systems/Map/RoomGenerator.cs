@@ -21,10 +21,13 @@ namespace PFE.Systems.Map
             "beg0", "beg1", "roof", "vert", "surf", "back", "end", "end1"
         };
 
+        private readonly PFE.Core.Rng.IRngService _rng;
+
         [Inject]  // Add this constructor
-        public RoomGenerator(TileFormDatabase formDb = null)
+        public RoomGenerator(TileFormDatabase formDb = null, PFE.Core.Rng.IRngService rng = null)
         {
             _formDatabase = formDb;
+            _rng = rng != null ? rng.GetStream(PFE.Core.Rng.RngStream.Spawn) : new PFE.Core.Rng.PcgRngService().GetStream(PFE.Core.Rng.RngStream.Spawn);
         }
         /// <summary>
         /// Initialize with all templates.
@@ -305,7 +308,7 @@ namespace PFE.Systems.Map
             int totalWeight = 0;
             foreach (int w in weights) totalWeight += w;
 
-            int random = UnityEngine.Random.Range(0, totalWeight);
+            int random = _rng.Range(0, totalWeight);
             int cumulative = 0;
             for (int i = 0; i < candidates.Count; i++)
             {
@@ -368,7 +371,7 @@ namespace PFE.Systems.Map
             }
 
             // Select random candidate
-            RoomTemplate selected = candidates[UnityEngine.Random.Range(0, candidates.Count)];
+            RoomTemplate selected = candidates[_rng.Range(0, candidates.Count)];
 
             // Increment usage count
             string selectedKey = selected.GetContentId();

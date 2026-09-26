@@ -1,5 +1,6 @@
 using UnityEngine;
 using PFE.Data.Definitions;
+using PFE.Core.Rng;
 
 namespace PFE.Systems.Combat
 {
@@ -11,10 +12,12 @@ namespace PFE.Systems.Combat
     public class DurabilitySystem : IDurabilitySystem
     {
         private readonly ICombatCalculator _combatCalculator;
+        private readonly IRngService _rng;
 
-        public DurabilitySystem(ICombatCalculator combatCalculator)
+        public DurabilitySystem(ICombatCalculator combatCalculator, IRngService rng = null)
         {
             _combatCalculator = combatCalculator;
+            _rng = rng != null ? rng.GetStream(RngStream.Combat) : new PcgRngService().GetStream(RngStream.Combat);
         }
 
         /// <summary>
@@ -80,7 +83,7 @@ namespace PFE.Systems.Combat
         /// </summary>
         public bool RollJam(float jamChance)
         {
-            return Random.value < jamChance;
+            return _rng.Chance(jamChance);
         }
 
         /// <summary>
@@ -89,7 +92,7 @@ namespace PFE.Systems.Combat
         /// </summary>
         public bool RollMisfire(float misfireChance)
         {
-            return Random.value < misfireChance;
+            return _rng.Chance(misfireChance);
         }
 
         /// <summary>

@@ -14,6 +14,8 @@ using PFE.Data;
 using PFE.Entities.Player;
 using PFE.Entities.Weapons;
 using PFE.Systems.Weapons;
+using PFE.Core.Rng;
+using PFE.Core.Ids;
 using UnityEngine;
 
 public class GameLifetimeScope : LifetimeScope
@@ -86,6 +88,17 @@ public class GameLifetimeScope : LifetimeScope
 
         // === Time System ===
         builder.Register<ITimeProvider, UnityTimeProvider>(Lifetime.Singleton);
+
+        // === Deterministic PRNG System (P3) ===
+        ulong masterSeed = 0x853c49e6748fea9bUL;
+        if (_debugSettings != null && _debugSettings.RngSeedOverride != 0)
+        {
+            masterSeed = (ulong)_debugSettings.RngSeedOverride;
+        }
+        builder.RegisterInstance<IRngService>(new PcgRngService(masterSeed));
+
+        // === Entity Registry (P3) ===
+        builder.Register<IEntityRegistry, EntityRegistry>(Lifetime.Singleton);
 
         // === Combat Systems ===
         builder.Register<ICombatCalculator, CombatCalculator>(Lifetime.Singleton);

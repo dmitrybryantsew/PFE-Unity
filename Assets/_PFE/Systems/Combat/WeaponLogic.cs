@@ -21,6 +21,7 @@ namespace PFE.Systems.Combat
         private readonly ITimeProvider _timeProvider;
         private readonly ICombatCalculator _combatCalculator;
         private readonly IDurabilitySystem _durabilitySystem;
+        private readonly PFE.Core.Rng.IRngService _rng;
 
         private int currentDurability;
         private int currentAmmo;
@@ -37,7 +38,7 @@ namespace PFE.Systems.Combat
         public bool IsEmpty => weaponDef.magazineSize > 0 && currentAmmo <= 0;
         public bool IsBroken => currentDurability <= 0;
 
-        public WeaponLogic(WeaponDefinition definition, ITimeProvider timeProvider, ICombatCalculator combatCalculator, IDurabilitySystem durabilitySystem)
+        public WeaponLogic(WeaponDefinition definition, ITimeProvider timeProvider, ICombatCalculator combatCalculator, IDurabilitySystem durabilitySystem, PFE.Core.Rng.IRngService rng = null)
         {
             if (definition == null)
                 throw new System.ArgumentNullException(nameof(definition), "Weapon definition cannot be null");
@@ -46,6 +47,7 @@ namespace PFE.Systems.Combat
             _timeProvider = timeProvider;
             _combatCalculator = combatCalculator;
             _durabilitySystem = durabilitySystem;
+            _rng = rng != null ? rng.GetStream(PFE.Core.Rng.RngStream.Combat) : new PFE.Core.Rng.PcgRngService().GetStream(PFE.Core.Rng.RngStream.Combat);
             currentDurability = definition.maxDurability;
             currentAmmo = definition.magazineSize;
 
@@ -138,7 +140,7 @@ namespace PFE.Systems.Combat
         private bool CheckJam(float breaking, int magazineSize)
         {
             float jamChance = _combatCalculator.CalculateJamChance(breaking, magazineSize);
-            return UnityEngine.Random.value < jamChance;
+            return _durabilitySystem != null ? _durabilitySystem.RollJam(jamChance) : _rng.Chance(jamChance);
         }
 
         /// <summary>
@@ -148,7 +150,7 @@ namespace PFE.Systems.Combat
         private bool CheckMisfire(float breaking)
         {
             float misfireChance = _combatCalculator.CalculateMisfireChance(breaking);
-            return UnityEngine.Random.value < misfireChance;
+            return _durabilitySystem != null ? _durabilitySystem.RollMisfire(misfireChance) : _rng.Chance(misfireChance);
         }
 
         /// <summary>

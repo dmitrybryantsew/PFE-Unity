@@ -1,5 +1,6 @@
 using UnityEngine;
 using PFE.Data.Definitions;
+using PFE.Core.Rng;
 
 namespace PFE.Systems.Combat
 {
@@ -11,6 +12,13 @@ namespace PFE.Systems.Combat
     /// </summary>
     public class CombatCalculator : ICombatCalculator
     {
+        private readonly IRngService _rng;
+
+        public CombatCalculator(IRngService rng = null)
+        {
+            _rng = rng != null ? rng.GetStream(RngStream.Combat) : new PcgRngService().GetStream(RngStream.Combat);
+        }
+
         /// <summary>
         /// Original game FPS for frame-based calculations.
         /// All rapid/duration values in AS3 are based on 30 FPS.
@@ -215,7 +223,7 @@ namespace PFE.Systems.Combat
         /// </summary>
         public bool RollCriticalHit(float critChance)
         {
-            return UnityEngine.Random.value < critChance;
+            return _rng.Chance(critChance);
         }
 
         #endregion

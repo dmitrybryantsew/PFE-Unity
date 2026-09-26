@@ -131,6 +131,16 @@ namespace PFE.Systems.Inventory
             variant = variantLevel;
         }
 
+        public GameWeaponInstance(ItemDefinition weaponDefinition, GameWeaponSaveData saveData)
+            : this(weaponDefinition, saveData?.currentHealth ?? float.MaxValue, saveData?.currentAmmo ?? 0,
+                   (WeaponRespect)(saveData?.respect ?? 0), saveData?.variant ?? 0)
+        {
+            if (saveData != null)
+            {
+                loadedAmmoType = saveData.loadedAmmoType ?? "";
+            }
+        }
+
         // ===== Public Methods =====
 
         /// <summary>

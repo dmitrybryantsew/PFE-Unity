@@ -46,6 +46,12 @@ namespace PFE.Systems.Map.Serialization
         // Objects (items, containers, etc.)
         public ObjectStateSnapshot[] objects;
 
+        // Destroyed tiles (for delta persistence)
+        public Vector2Int[] destroyedTiles;
+
+        // Per-entity unit overrides
+        public UnitOverrideSnapshot[] unitOverrides;
+
         // Special features
         public bool hasBackgroundLayer;
         public string roomType;
@@ -123,6 +129,44 @@ namespace PFE.Systems.Map.Serialization
             {
                 snapshot.objects[i] = ObjectStateSnapshot.CreateFrom(room.objects[i]);
             }
+
+            // Collect destroyed tiles
+            var destroyed = new List<Vector2Int>();
+            if (room.tiles != null)
+            {
+                for (int x = 0; x < room.width; x++)
+                {
+                    for (int y = 0; y < room.height; y++)
+                    {
+                        var tile = room.tiles[x, y];
+                        if (tile != null && tile.IsDestroyed())
+                        {
+                            destroyed.Add(new Vector2Int(x, y));
+                        }
+                    }
+                }
+            }
+            snapshot.destroyedTiles = destroyed.ToArray();
+
+            // Collect unit overrides
+            var overrides = new List<UnitOverrideSnapshot>();
+            if (room.units != null)
+            {
+                foreach (var u in room.units)
+                {
+                    if (u != null && !string.IsNullOrEmpty(u.entityId))
+                    {
+                        overrides.Add(new UnitOverrideSnapshot
+                        {
+                            entityId = u.entityId,
+                            isDead = u.IsDead,
+                            health = u.currentHealth,
+                            position = u.position
+                        });
+                    }
+                }
+            }
+            snapshot.unitOverrides = overrides.ToArray();
 
             return snapshot;
         }
@@ -241,6 +285,43 @@ namespace PFE.Systems.Map.Serialization
                     if (objects[i] != null)
                     {
                         room.AddObject(objects[i].ToObjectInstance());
+                    }
+                }
+            }
+
+            // Apply destroyed tiles if present
+            if (destroyedTiles != null && room.tiles != null)
+            {
+                foreach (var coord in destroyedTiles)
+                {
+                    if (coord.x >= 0 && coord.x < room.width && coord.y >= 0 && coord.y < room.height)
+                    {
+                        var tile = room.tiles[coord.x, coord.y];
+                        if (tile != null)
+                        {
+                            tile.Destroy();
+                        }
+                    }
+                }
+            }
+
+            // Apply unit overrides if present
+            if (unitOverrides != null && unitOverrides.Length > 0 && room.units != null)
+            {
+                var overrideMap = new Dictionary<string, UnitOverrideSnapshot>();
+                foreach (var o in unitOverrides)
+                {
+                    if (o != null && !string.IsNullOrEmpty(o.entityId))
+                        overrideMap[o.entityId] = o;
+                }
+
+                foreach (var u in room.units)
+                {
+                    if (u != null && !string.IsNullOrEmpty(u.entityId) && overrideMap.TryGetValue(u.entityId, out var ov))
+                    {
+                        u.isDead = ov.isDead;
+                        u.currentHealth = ov.health;
+                        u.position = ov.position;
                     }
                 }
             }
@@ -471,6 +552,7 @@ namespace PFE.Systems.Map.Serialization
     public class UnitStateSnapshot
     {
         public string unitId;
+        public string entityId;
         public string unitType;
         public float posX;
         public float posY;
@@ -485,6 +567,7 @@ namespace PFE.Systems.Map.Serialization
             return new UnitStateSnapshot
             {
                 unitId = unit.unitId,
+                entityId = unit.entityId ?? "",
                 unitType = unit.unitType ?? "",
                 posX = unit.position.x,
                 posY = unit.position.y,
@@ -499,6 +582,7 @@ namespace PFE.Systems.Map.Serialization
             return new UnitInstance
             {
                 unitId = unitId,
+                entityId = entityId ?? "",
                 unitType = unitType,
                 position = new Vector2(posX, posY),
                 isDead = isDead,
@@ -509,12 +593,25 @@ namespace PFE.Systems.Map.Serialization
     }
 
     /// <summary>
+    /// Lightweight override for a unit identified by its stable EntityId.
+    /// </summary>
+    [Serializable]
+    public class UnitOverrideSnapshot
+    {
+        public string entityId;
+        public bool isDead;
+        public float health;
+        public Vector2 position;
+    }
+
+    /// <summary>
     /// Snapshot of object state (item, container, etc.).
     /// </summary>
     [Serializable]
     public class ObjectStateSnapshot
     {
         public string objectId;
+        public string entityId;
         public string objectType;
         public string definitionId;
         public string code;
@@ -537,6 +634,7 @@ namespace PFE.Systems.Map.Serialization
             return new ObjectStateSnapshot
             {
                 objectId = obj.objectId,
+                entityId = obj.entityId ?? "",
                 objectType = obj.objectType ?? "",
                 definitionId = obj.GetResolvedDefinitionId(),
                 code = obj.code ?? "",
@@ -557,6 +655,7 @@ namespace PFE.Systems.Map.Serialization
             ObjectInstance instance = new ObjectInstance
             {
                 objectId = objectId,
+                entityId = entityId ?? "",
                 objectType = objectType,
                 definitionId = definitionId ?? objectId ?? "",
                 code = code ?? "",

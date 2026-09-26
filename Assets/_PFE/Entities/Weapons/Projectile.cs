@@ -8,6 +8,7 @@ using PFE.Core.Messages;
 using MessagePipe;
 using System;
 using System.Text;
+using PFE.Core.Rng;
 namespace PFE.Entities.Weapons
 {
     /// <summary>
@@ -56,6 +57,8 @@ namespace PFE.Entities.Weapons
         private DamageType _damageType;
         private float      _lifetimeTimer;
         private float      _piercing;       // probiv: chance 0–1 to pass through on hit
+        private static IRngService s_projectileRng;
+        private static IRngService ProjectileRng => s_projectileRng ??= new PcgRngService().GetStream(RngStream.Combat);
 
         // ── Manual velocity integration (mirrors AS3 dx/dy/ddx/ddy) ──────────
 
@@ -424,7 +427,7 @@ namespace PFE.Entities.Weapons
             {
                 // Penetration (probiv): roll against piercing chance before applying damage.
                 // If bullet passes through, do not stop — continue moving.
-                if (_piercing > 0f && UnityEngine.Random.value < _piercing)
+                if (_piercing > 0f && ProjectileRng.Chance(_piercing))
                 {
                     // Graze: apply damage but don't stop.
                     ApplyDirectDamage(damageable, other.transform.position);

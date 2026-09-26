@@ -67,6 +67,11 @@ namespace PFE.Systems.Inventory
             level = armorLevel;
         }
 
+        public GameArmorInstance(ItemDefinition armorDefinition, GameArmorSaveData saveData)
+            : this(armorDefinition, saveData?.currentHealth ?? float.MaxValue, saveData?.level ?? 0)
+        {
+        }
+
         // ===== Public Methods =====
 
         /// <summary>

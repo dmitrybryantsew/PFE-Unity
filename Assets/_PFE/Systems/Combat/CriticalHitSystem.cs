@@ -1,6 +1,7 @@
 using UnityEngine;
 using PFE.Data.Definitions;
 using PFE.Entities.Units;
+using PFE.Core.Rng;
 
 namespace PFE.Systems.Combat
 {
@@ -12,10 +13,12 @@ namespace PFE.Systems.Combat
     public class CriticalHitSystem : ICriticalHitSystem
     {
         private readonly ICombatCalculator _combatCalculator;
+        private readonly IRngService _rng;
 
-        public CriticalHitSystem(ICombatCalculator combatCalculator)
+        public CriticalHitSystem(ICombatCalculator combatCalculator, IRngService rng = null)
         {
             _combatCalculator = combatCalculator;
+            _rng = rng != null ? rng.GetStream(RngStream.Combat) : new PcgRngService().GetStream(RngStream.Combat);
         }
 
         /// <summary>
@@ -82,7 +85,7 @@ namespace PFE.Systems.Combat
             if (absolutePierceChance <= 0)
                 return false;
 
-            return Random.value < absolutePierceChance;
+            return _rng.Chance(absolutePierceChance);
         }
 
         /// <summary>

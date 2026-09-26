@@ -77,6 +77,7 @@ namespace PFE.Systems.Weapons
         private IObjectResolver    _resolver;
         private PfeDebugSettings   _debugSettings;
         private ISoundService      _soundService;
+        private PFE.Core.Rng.IRngService _rng;
 
         /// <summary>
         /// Ammo source (player inventory). Assign before equipping when inventory is live.
@@ -89,20 +90,22 @@ namespace PFE.Systems.Weapons
             {
                 _ammoSource = value;
                 // Rebuild factory so future Equip() calls pick up the source.
-                _factory = new WeaponControllerFactory(_debugSettings, _ammoSource);
+                _factory = new WeaponControllerFactory(_debugSettings, _ammoSource, _rng);
             }
         }
         private IAmmoSource _ammoSource;
 
         [Inject]
         public void Construct(IProjectileFactory projectileFactory, IObjectResolver resolver,
-                              PfeDebugSettings debugSettings, ISoundService soundService)
+                              PfeDebugSettings debugSettings, ISoundService soundService,
+                              PFE.Core.Rng.IRngService rng = null)
         {
             _projectileFactory = projectileFactory;
             _resolver          = resolver;
             _soundService      = soundService;
             _debugSettings     = debugSettings;
-            _factory         ??= new WeaponControllerFactory(_debugSettings, _ammoSource);
+            _rng               = rng;
+            _factory         ??= new WeaponControllerFactory(_debugSettings, _ammoSource, _rng);
         }
 
         // ── Runtime ──────────────────────────────────────────────────────────

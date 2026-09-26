@@ -26,11 +26,13 @@ namespace PFE.Systems.Weapons
     {
         private readonly PfeDebugSettings _debugSettings;
         private readonly IAmmoSource      _ammoSource;
+        private readonly PFE.Core.Rng.IRngService _rng;
 
-        public WeaponControllerFactory(PfeDebugSettings debugSettings = null, IAmmoSource ammoSource = null)
+        public WeaponControllerFactory(PfeDebugSettings debugSettings = null, IAmmoSource ammoSource = null, PFE.Core.Rng.IRngService rng = null)
         {
             _debugSettings = debugSettings;
             _ammoSource    = ammoSource;
+            _rng           = rng;
         }
 
         /// <summary>
@@ -59,7 +61,7 @@ namespace PFE.Systems.Weapons
                 WeaponType.Thrown  => new ThrownWeaponController(state),
                 WeaponType.Magic   => new MagicWeaponController(state),
                 WeaponType.Internal => new UnarmedWeaponController(state),
-                _                  => new RangedWeaponController(state, _debugSettings, _ammoSource),
+                _                  => new RangedWeaponController(state, _debugSettings, _ammoSource, _rng),
             };
 
             Debug.Log($"[WeaponControllerFactory] Created {controller.GetType().Name} for weapon '{def.weaponId}'.");

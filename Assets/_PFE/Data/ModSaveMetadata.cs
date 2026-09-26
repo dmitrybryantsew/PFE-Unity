@@ -25,6 +25,7 @@ namespace PFE.Data
             public string modId;
             public string version;
             public bool isCosmeticOnly;
+            public string contentHash;
         }
 
         /// <summary>

@@ -11,6 +11,13 @@ namespace PFE.Systems.Map.Serialization
     /// </summary>
     public static class WorldDeserializer
     {
+        private static readonly SaveMigrationChain s_migrationChain = new SaveMigrationChain();
+
+        /// <summary>
+        /// Global migration chain instance used by WorldDeserializer.
+        /// </summary>
+        public static SaveMigrationChain MigrationChain => s_migrationChain;
+
         /// <summary>
         /// Deserialize world from file.
         /// </summary>
@@ -50,6 +57,9 @@ namespace PFE.Systems.Map.Serialization
                     return null;
                 }
 
+                // Apply migrations if needed
+                saveData = s_migrationChain.Migrate(saveData);
+
                 // Validate save data
                 if (!ValidateSaveData(saveData))
                 {
@@ -87,6 +97,9 @@ namespace PFE.Systems.Map.Serialization
                     Debug.LogError("Failed to deserialize save data from JSON");
                     return null;
                 }
+
+                // Apply migrations if needed
+                saveData = s_migrationChain.Migrate(saveData);
 
                 if (!ValidateSaveData(saveData))
                 {
@@ -144,6 +157,12 @@ namespace PFE.Systems.Map.Serialization
             if (saveData.timestamp <= 0)
             {
                 Debug.LogError($"Invalid timestamp: {saveData.timestamp}");
+                return false;
+            }
+
+            if (saveData.saveFormatVersion > SaveMigrationChain.CurrentFormatVersion)
+            {
+                Debug.LogError($"Unsupported save format version: {saveData.saveFormatVersion}");
                 return false;
             }
 

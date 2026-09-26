@@ -26,16 +26,24 @@ namespace PFE.Systems.Map
 
         // Starting position
         private Vector3Int startPosition;
+        private PFE.Core.Rng.IRngService _rng;
+
+        [VContainer.Inject]
+        public WorldBuilder(PFE.Core.Rng.IRngService rng = null)
+        {
+            _rng = rng != null ? rng.GetStream(PFE.Core.Rng.RngStream.Spawn) : new PFE.Core.Rng.PcgRngService().GetStream(PFE.Core.Rng.RngStream.Spawn);
+        }
 
         /// <summary>
         /// Initialize world builder.
         /// </summary>
-        public void Initialize(LandMap map, RoomGenerator generator, List<RoomTemplate> templates, PfeDebugSettings debugSettings = null)
+        public void Initialize(LandMap map, RoomGenerator generator, List<RoomTemplate> templates, PfeDebugSettings debugSettings = null, PFE.Core.Rng.IRngService rng = null)
         {
             landMap = map;
             roomGenerator = generator;
             allTemplates = templates;
             _debugSettings = debugSettings;
+            if (rng != null) _rng = rng.GetStream(PFE.Core.Rng.RngStream.Spawn);
 
             // Set default bounds (4x6x1 world like AS3)
             minBounds = new Vector3Int(0, 0, 0);
@@ -415,12 +423,12 @@ namespace PFE.Systems.Map
             // Determine number of doors to activate
             int doorCount = connectAllMatching
                 ? possibleConnections.Count
-                : ((side == DoorSide.Right) ? UnityEngine.Random.Range(2, 4) : 1);
+                : ((side == DoorSide.Right) ? _rng.Range(2, 4) : 1);
 
             // Activate doors
             for (int i = 0; i < doorCount && possibleConnections.Count > 0; i++)
             {
-                int idx = connectAllMatching ? 0 : UnityEngine.Random.Range(0, possibleConnections.Count);
+                int idx = connectAllMatching ? 0 : _rng.Range(0, possibleConnections.Count);
                 DoorConnection connection = possibleConnections[idx];
                 possibleConnections.RemoveAt(idx);
 

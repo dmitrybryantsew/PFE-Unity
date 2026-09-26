@@ -405,6 +405,7 @@ namespace PFE.Systems.Map
     public class UnitInstance
     {
         public string unitId;
+        public string entityId = "";
         public string unitType = "";
         public Vector2 position;
         public bool isDead = false;
@@ -426,6 +427,7 @@ namespace PFE.Systems.Map
     public class ObjectInstance
     {
         public string objectId;
+        public string entityId = "";
         public string objectType = "";
         public string definitionId = "";
         public MapObjectDefinition definition;

@@ -16,7 +16,9 @@ namespace PFE.Systems.Map.Serialization
         public string saveId;
         public long timestamp;  // Unix timestamp
         public string saveVersion = "1.0";
+        public int saveFormatVersion = 1;
         public int gameVersion;
+        public bool isDegraded;
 
         // World bounds
         public int minX;
@@ -194,8 +196,18 @@ namespace PFE.Systems.Map.Serialization
         public int level;
         public float experience;
 
-        // Equipment and inventory would be serialized separately
-        // through their respective systems
+        // RPG progression and stats
+        public PFE.Systems.RPG.RPGSaveData rpgStats;
+
+        // Inventory state
+        public PFE.Systems.Inventory.GameInventorySaveData inventory;
+
+        // Equipped items
+        public string equippedWeaponId = "";
+        public string equippedArmorId = "";
+
+        // Equipped weapon runtime state (integer ticks!)
+        public PFE.Systems.Weapons.WeaponRuntimeSaveData weaponRuntime;
 
         /// <summary>
         /// Create snapshot from player controller.
