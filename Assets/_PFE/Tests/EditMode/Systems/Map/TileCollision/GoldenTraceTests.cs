@@ -332,10 +332,13 @@ namespace PFE.Tests.EditMode.Systems.Map.TileCollision
             };
             RoomInstance room = SyntheticRoomBuilder.BuildFromAscii(ascii);
 
-            // Platform top is at y = 2 * 40 = 80px. Start slightly above at y=85, falling
-            using var harness = new GoldenTraceHarness(room, startX: 140f, startY: 85f);
+            // The platform sits in tile row 2, i.e. cell [80, 120]. Its walkable surface is the
+            // cell TOP (120px) — the same convention these tests already use for the floor
+            // ("start on floor at y=40", floor row 0 => cell [0,40], surface 40).
+            // Start above it and fall into the porog window [110, 120].
+            using var harness = new GoldenTraceHarness(room, startX: 140f, startY: 125f);
 
-            harness.Step(); // Step 1 tick downward
+            harness.StepN(4); // fall into the 10px porog window below the surface
 
             Assert.IsTrue(harness.Motor.IsGrounded, "Expected motor to land on platform");
             Assert.IsTrue(harness.Motor.IsOnPlatform, "Expected isOnPlatform flag to be true");
@@ -379,8 +382,12 @@ namespace PFE.Tests.EditMode.Systems.Map.TileCollision
             };
             RoomInstance room = SyntheticRoomBuilder.BuildFromAscii(ascii);
 
-            // Platform top is 80px. PlatformThreshold = 8px. Exactly at top is 80px.
-            using var harness = new GoldenTraceHarness(room, startX: 140f, startY: 80f);
+            // Platform surface = cell top = 120px (see P1). AS3 passes through when
+            // feet are MORE than porog below the surface, so the landing window is
+            // [tileTop - porog, tileTop] = [110, 120]. Start at 111 so that one tick of
+            // gravity (1 px/frame^2) lands the feet exactly on 110 — the boundary.
+            // '>' is strict in AS3, so the boundary must LAND, not pass through.
+            using var harness = new GoldenTraceHarness(room, startX: 140f, startY: 111f);
 
             harness.Step();
 
@@ -426,10 +433,10 @@ namespace PFE.Tests.EditMode.Systems.Map.TileCollision
             };
             RoomInstance room = SyntheticRoomBuilder.BuildFromAscii(ascii);
 
-            using var harness = new GoldenTraceHarness(room, startX: 140f, startY: 80f);
+            using var harness = new GoldenTraceHarness(room, startX: 140f, startY: 125f);
 
-            // Settle on platform
-            harness.Step();
+            // Settle on platform (surface = 120px, see P1)
+            harness.StepN(4);
             Assert.IsTrue(harness.Motor.IsOnPlatform);
 
             // Press down to drop through
@@ -437,7 +444,7 @@ namespace PFE.Tests.EditMode.Systems.Map.TileCollision
             harness.StepN(10);
 
             // Should fall down toward floor (40px)
-            Assert.Less(harness.Motor.PixelPosition.y, 80f, "Should drop below platform surface");
+            Assert.Less(harness.Motor.PixelPosition.y, 120f, "Should drop below platform surface");
 
             ulong hash = harness.Recorder.ComputeHash();
             Assert.AreNotEqual(0UL, hash);
@@ -687,8 +694,13 @@ namespace PFE.Tests.EditMode.Systems.Map.TileCollision
             };
             RoomInstance room = SyntheticRoomBuilder.BuildFromAscii(ascii);
 
-            // Feet in water (y=40), head in air (collisionHeight = 50px -> head at y=90)
-            using var harness = new GoldenTraceHarness(room, startX: 100f, startY: 40f);
+            // Water tile is row 1 => cell [40, 80]. AS3 samples the body at 25% and 75% of its
+            // height (Unit.as:2631, 2642) — NOT the head. Standing on the floor (feet at 40) puts
+            // the whole 50px body inside a 40px water cell, so the 75% sample is wet and the unit
+            // IS fully submerged — that was unachievable as a "partial" case.
+            // Waist-deep instead: feet at 60 -> 25% sample at ~72 (in water), 75% sample at ~97
+            // (row 2, dry). That is genuine partial submersion.
+            using var harness = new GoldenTraceHarness(room, startX: 100f, startY: 60f);
 
             harness.Step();
 

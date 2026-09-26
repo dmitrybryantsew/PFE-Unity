@@ -128,6 +128,25 @@ namespace PFE.Systems.Map.Rendering
             }
         }
 
+        private void GetVisualBounds(out Vector3 localCenter, out Vector3 localSize)
+        {
+            var sr = GetComponent<SpriteRenderer>();
+            if (sr != null && sr.sprite != null)
+            {
+                localCenter = sr.sprite.bounds.center;
+                localSize = new Vector3(sr.sprite.bounds.size.x, sr.sprite.bounds.size.y, 1f);
+                return;
+            }
+
+            Vector2 pixelSize = _visual != null && _visual.pixelSize != Vector2Int.zero
+                ? (Vector2)_visual.pixelSize
+                : new Vector2(40f, 40f);
+            float wUnits = pixelSize.x * 0.01f;
+            float hUnits = pixelSize.y * 0.01f;
+            localCenter = Vector3.zero;
+            localSize = new Vector3(wUnits, hUnits, 1f);
+        }
+
         private void EnsureDebugVisual()
         {
             if (_debugVisualGo != null) return;
@@ -135,19 +154,9 @@ namespace PFE.Systems.Map.Rendering
             _debugVisualGo = new GameObject("__ObjectDebugVisual");
             _debugVisualGo.transform.SetParent(transform, false);
 
-            Vector2 pixelSize = _visual != null && _visual.pixelSize != Vector2Int.zero
-                ? (Vector2)_visual.pixelSize
-                : new Vector2(40f, 40f);
-            Vector2 pivot = _visual != null ? _visual.pivot : new Vector2(0.5f, 0f);
-
-            float wUnits = pixelSize.x * 0.01f;
-            float hUnits = pixelSize.y * 0.01f;
-
-            // Offset relative to presenter position based on pivot
-            float localX = (0.5f - pivot.x) * wUnits;
-            float localY = (0.5f - pivot.y) * hUnits;
-            _debugVisualGo.transform.localPosition = new Vector3(localX, localY, 0f);
-            _debugVisualGo.transform.localScale = new Vector3(wUnits, hUnits, 1f);
+            GetVisualBounds(out Vector3 localCenter, out Vector3 localSize);
+            _debugVisualGo.transform.localPosition = localCenter;
+            _debugVisualGo.transform.localScale = localSize;
 
             _debugSpriteRenderer = _debugVisualGo.AddComponent<SpriteRenderer>();
             _debugSpriteRenderer.sprite = GetWhiteDebugSprite();
@@ -172,16 +181,10 @@ namespace PFE.Systems.Map.Rendering
         {
             if (!ShowDebugVisuals) return;
 
-            Vector2 pixelSize = _visual != null && _visual.pixelSize != Vector2Int.zero
-                ? (Vector2)_visual.pixelSize
-                : new Vector2(40f, 40f);
-            Vector2 pivot = _visual != null ? _visual.pivot : new Vector2(0.5f, 0f);
+            GetVisualBounds(out Vector3 localCenter, out Vector3 localSize);
 
-            float wUnits = pixelSize.x * 0.01f;
-            float hUnits = pixelSize.y * 0.01f;
-
-            Vector3 center = transform.position + new Vector3((0.5f - pivot.x) * wUnits, (0.5f - pivot.y) * hUnits, 0f);
-            Vector3 size = new Vector3(wUnits, hUnits, 0.05f);
+            Vector3 center = transform.position + localCenter;
+            Vector3 size = new Vector3(localSize.x, localSize.y, 0.05f);
 
             Gizmos.color = TealFillColor;
             Gizmos.DrawCube(center, size);

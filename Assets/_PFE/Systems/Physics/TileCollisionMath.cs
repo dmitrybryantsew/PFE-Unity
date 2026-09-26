@@ -324,17 +324,42 @@ namespace PFE.Systems.Physics
 
             int tileX = Mathf.FloorToInt((posX - roomWorldPixelX) / WorldConstants.TILE_SIZE);
 
+            // Transcription of AS3 Unit.as:2627-2655 (checkWater). Order matters:
+            //
+            //   if (tile at Y - scY*0.75).water > 0   ->  isPlav = true;   inWater = true
+            //   else { isPlav = false;
+            //          if (scY <= Tile.tileY)              inWater = false;
+            //          else                                inWater = (tile at Y - scY*0.25).water > 0; }
+            //
+            // The 25% sample is consulted ONLY when the body is taller than one tile. A short or
+            // crouched unit (scY <= 40) standing in a single tile of water is NOT "in water" in
+            // AS3 unless the 75% sample is also wet.
+
+            // 75% height check — full submersion (AS3 isPlav). Takes priority.
+            float highSampleY = posY + height * 0.75f;
+            int highTileY = Mathf.FloorToInt((highSampleY - roomWorldPixelY) / WorldConstants.TILE_SIZE);
+            var highTile = room.GetTileAtCoord(new Vector2Int(tileX, highTileY));
+
+            if (highTile != null && highTile.hasWater)
+            {
+                isInWater = true;
+                isFullySubmerged = true;
+                return;
+            }
+
+            isFullySubmerged = false;
+
+            if (height <= WorldConstants.TILE_SIZE)
+            {
+                isInWater = false;
+                return;
+            }
+
             // 25% height check — wading / partial submersion
             float lowSampleY = posY + height * 0.25f;
             int lowTileY = Mathf.FloorToInt((lowSampleY - roomWorldPixelY) / WorldConstants.TILE_SIZE);
             var lowTile = room.GetTileAtCoord(new Vector2Int(tileX, lowTileY));
             isInWater = lowTile != null && lowTile.hasWater;
-
-            // 75% height check — fully submerged (AS3 isPlav)
-            float highSampleY = posY + height * 0.75f;
-            int highTileY = Mathf.FloorToInt((highSampleY - roomWorldPixelY) / WorldConstants.TILE_SIZE);
-            var highTile = room.GetTileAtCoord(new Vector2Int(tileX, highTileY));
-            isFullySubmerged = isInWater && highTile != null && highTile.hasWater;
         }
 
         // ── Ground height query (for ITileQueryService.GetGroundHeight) ────────────────────

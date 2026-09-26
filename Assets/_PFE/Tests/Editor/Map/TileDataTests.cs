@@ -363,13 +363,14 @@ namespace PFE.Tests.Editor.Map
 
             Rect bounds = tile.GetBounds();
 
-            // Far left of tile
+            // slopeType = 1 is '/' — low on the left, high on the right (Y-up: yMin -> yMax).
+            // Far left of tile (clamped to the left edge)
             float height = tile.GetGroundHeight(bounds.xMin - 100);
-            Assert.AreEqual(bounds.yMax, height, 0.001f);
-
-            // Far right of tile
-            height = tile.GetGroundHeight(bounds.xMax + 100);
             Assert.AreEqual(bounds.yMin, height, 0.001f);
+
+            // Far right of tile (clamped to the right edge)
+            height = tile.GetGroundHeight(bounds.xMax + 100);
+            Assert.AreEqual(bounds.yMax, height, 0.001f);
         }
     }
 }

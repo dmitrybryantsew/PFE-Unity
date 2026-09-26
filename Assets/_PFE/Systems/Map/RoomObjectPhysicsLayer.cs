@@ -262,7 +262,7 @@ namespace PFE.Systems.Map
             }
 
             Vector2 velocity = state.velocity;
-            velocity.y += GravityPixelsPerSecond * deltaTime;
+            velocity.y -= GravityPixelsPerSecond * deltaTime;
 
             float drag = state.isGrounded ? GroundDrag : AirDrag;
             float dragFactor = Mathf.Clamp01(1f - drag * deltaTime);
@@ -322,7 +322,7 @@ namespace PFE.Systems.Map
 
                 if (verticalAxis)
                 {
-                    if (delta.y > 0f)
+                    if (delta.y < 0f)
                     {
                         state.isGrounded = true;
                     }
@@ -363,7 +363,7 @@ namespace PFE.Systems.Map
 
             return new Vector2(
                 Mathf.Clamp(candidatePosition.x, sizePixels.x * 0.5f, roomWidthPixels - sizePixels.x * 0.5f),
-                Mathf.Clamp(candidatePosition.y, sizePixels.y, roomHeightPixels));
+                Mathf.Clamp(candidatePosition.y, 0f, roomHeightPixels - sizePixels.y));
         }
     }
 }

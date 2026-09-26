@@ -604,7 +604,7 @@ namespace PFE.Systems.Map
             Vector2 sizePixels = GetApproximatePixelSize();
             return new Rect(
                 targetPosition.x - sizePixels.x * 0.5f,
-                targetPosition.y - sizePixels.y,
+                targetPosition.y,
                 sizePixels.x,
                 sizePixels.y);
         }

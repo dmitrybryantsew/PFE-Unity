@@ -426,6 +426,13 @@ namespace PFE.Tests.Editor.Map.TileQuery
 
             foreach (MethodInfo method in typeof(ITileQueryService).GetMethods())
             {
+                // Property getters/setters are IsSpecialName; they are classified via the
+                // PROPERTY declaration below (attributes sit on the property, not the accessor).
+                if (method.IsSpecialName)
+                {
+                    continue;
+                }
+
                 if (AuthorityResolver.Of(method) == SimAuthority.Unspecified)
                 {
                     unclassified.Add("method " + method.Name);

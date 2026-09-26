@@ -875,9 +875,12 @@ namespace PFE.Systems.Physics
                     break;
                 }
 
-                if (stepMoveY < 0f &&
-                    CheckGroundCollisionAt(posX, targetY, hw) &&
-                    !TryGetLadderContactAt(posX, targetY, hh, out _))
+                // AS3 Unit.as:2597-2600 — a solid tile WINS over a stair: checkStairs() sets
+                // isLaz = 0 and returns false on the phis >= 1 branch, before it ever tests
+                // .stair. Solid ground therefore ends the climb even while a ladder contact is
+                // still present. Exempting ladder contacts here let a unit descending a ladder
+                // sink straight through the floor at the foot of it.
+                if (stepMoveY < 0f && CheckGroundCollisionAt(posX, targetY, hw))
                 {
                     dy = 0f;
                     posY = ResolveVerticalDown(posX, posY, targetY, hw);

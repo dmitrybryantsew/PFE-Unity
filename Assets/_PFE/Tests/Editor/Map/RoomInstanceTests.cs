@@ -169,10 +169,11 @@ namespace PFE.Tests.Editor.Map
 
             Rect bounds = room.tiles[5, 5].GetBounds();
 
-            // At left edge of tile, should be at bottom (high y = yMax)
+            // slopeType = 1 is '/' — low-left, high-right. In Unity Y-up that means the left
+            // edge sits at the tile's yMin (the bottom), NOT yMax.
             // Need to pass a Y position within the tile so GetTileAt finds tile (5,5)
             float height = room.GetGroundHeight(new Vector2(bounds.xMin, bounds.center.y));
-            Assert.AreEqual(bounds.yMax, height, 0.001f);
+            Assert.AreEqual(bounds.yMin, height, 0.001f);
         }
 
         [Test]
@@ -433,7 +434,12 @@ namespace PFE.Tests.Editor.Map
 
             room.Update();
 
-            Assert.Greater(dynamicObject.position.y, initialY);
+            // Gravity pulls DOWN. This asserted `Greater` because RoomObjectPhysicsLayer applied
+            // gravity as `velocity.y += GravityPixelsPerSecond * deltaTime` — an inverted sign that
+            // made props rise. With the sign corrected to `-=`, one Update() at the layer's
+            // hardcoded 1/60 step moves a zero-velocity prop down by
+            // 1800 px/s² * (1/60)² = 0.5 px. See docs/Roadmap/LLP2D_STAGE_A_RESULTS.md §5.
+            Assert.Less(dynamicObject.position.y, initialY);
             Assert.AreEqual(1, room.ObjectPhysicsLayer.DynamicObjectCount);
         }
     }

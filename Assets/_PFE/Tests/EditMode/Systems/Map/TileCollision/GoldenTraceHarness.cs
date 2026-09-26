@@ -64,10 +64,11 @@ namespace PFE.Tests.EditMode.Systems.Map.TileCollision
 
             _motor.SetInput(horizontal, jump, down);
 
-            if (ladderClimb || Mathf.Abs(ladderY) > 0.01f)
-            {
-                _motor.SetLadderInput(ladderY, ladderClimb);
-            }
+            // Always apply ladder input, including the "none" case. The motor keeps the last
+            // ladder input it was given, so skipping the call would leave the PREVIOUS tick's
+            // `wantsToUseLadder` / `ladderInputY` live and silently re-attach a ladder the
+            // caller just jumped off. Inputs must not persist across Step() calls.
+            _motor.SetLadderInput(ladderY, ladderClimb);
 
             if (jump)
             {
