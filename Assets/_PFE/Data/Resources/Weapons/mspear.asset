@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: mspear
   weaponType: 1
+  punch: 0
   skillLevel: 1
   weaponLevel: 5
   baseDamage: 64
   rapid: 20
+  autoMode: 0
   precision: 0
   deviation: 0
   armorPenetration: 0

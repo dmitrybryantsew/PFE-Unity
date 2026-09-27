@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: minigun
   weaponType: 3
+  punch: 0
   skillLevel: 2
   weaponLevel: 4
   baseDamage: 7
   rapid: 1
+  autoMode: 0
   precision: 400
   deviation: 5
   armorPenetration: 0

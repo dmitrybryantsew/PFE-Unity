@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: gatl
   weaponType: 3
+  punch: 0
   skillLevel: 4
   weaponLevel: 4
   baseDamage: 12
   rapid: 2
+  autoMode: 0
   precision: 320
   deviation: 6
   armorPenetration: 0

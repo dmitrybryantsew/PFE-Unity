@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: aglau
   weaponType: 3
+  punch: 0
   skillLevel: 5
   weaponLevel: 4
   baseDamage: 0
   rapid: 12
+  autoMode: 2
   precision: 280
   deviation: 8
   armorPenetration: 0

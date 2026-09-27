@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: r375
   weaponType: 2
+  punch: 0
   skillLevel: 2
   weaponLevel: 2
   baseDamage: 24
   rapid: 18
+  autoMode: 0
   precision: 400
   deviation: 5
   armorPenetration: 0

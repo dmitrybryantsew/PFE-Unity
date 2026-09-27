@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: r32
   weaponType: 2
+  punch: 0
   skillLevel: 2
   weaponLevel: 0
   baseDamage: 14
   rapid: 16
+  autoMode: 0
   precision: 320
   deviation: 5
   armorPenetration: 0

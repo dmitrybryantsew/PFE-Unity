@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: incin
   weaponType: 3
+  punch: 0
   skillLevel: 4
   weaponLevel: 3
   baseDamage: 12
   rapid: 10
+  autoMode: 0
   precision: 240
   deviation: 4
   armorPenetration: 0

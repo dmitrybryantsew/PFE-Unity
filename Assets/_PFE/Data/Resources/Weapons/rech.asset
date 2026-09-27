@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: rech
   weaponType: 2
+  punch: 0
   skillLevel: 4
   weaponLevel: 0
   baseDamage: 5
   rapid: 12
+  autoMode: 2
   precision: 320
   deviation: 5
   armorPenetration: 0

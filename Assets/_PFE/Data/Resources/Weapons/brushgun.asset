@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: brushgun
   weaponType: 3
+  punch: 0
   skillLevel: 2
   weaponLevel: 4
   baseDamage: 58
   rapid: 25
+  autoMode: 0
   precision: 640
   deviation: 2
   armorPenetration: 0

@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: drongr
   weaponType: 4
+  punch: 0
   skillLevel: 0
   weaponLevel: 0
   baseDamage: 10
   rapid: 10
+  autoMode: 0
   precision: 0
   deviation: 45
   armorPenetration: 0

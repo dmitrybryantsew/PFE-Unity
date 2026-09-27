@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: dray
   weaponType: 5
+  punch: 0
   skillLevel: 6
   weaponLevel: 20
   baseDamage: 90
   rapid: 20
+  autoMode: 0
   precision: 800
   deviation: 0
   armorPenetration: 0

@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: hgren
   weaponType: 4
+  punch: 0
   skillLevel: 5
   weaponLevel: 0
   baseDamage: 10
   rapid: 15
+  autoMode: 0
   precision: 0
   deviation: 6
   armorPenetration: 0

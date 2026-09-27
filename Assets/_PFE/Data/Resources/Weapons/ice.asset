@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: ice
   weaponType: 5
+  punch: 0
   skillLevel: 6
   weaponLevel: 4
   baseDamage: 5
   rapid: 15
+  autoMode: 0
   precision: 160
   deviation: 6
   armorPenetration: 0

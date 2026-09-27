@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: nova
   weaponType: 3
+  punch: 0
   skillLevel: 4
   weaponLevel: 4
   baseDamage: 25
   rapid: 6
+  autoMode: 0
   precision: 520
   deviation: 3
   armorPenetration: 0

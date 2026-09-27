@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: wquest1
   weaponType: 2
+  punch: 0
   skillLevel: 2
   weaponLevel: 3
   baseDamage: 26
   rapid: 9
+  autoMode: 0
   precision: 400
   deviation: 5
   armorPenetration: 0

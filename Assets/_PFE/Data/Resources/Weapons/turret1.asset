@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: turret1
   weaponType: 0
+  punch: 0
   skillLevel: 0
   weaponLevel: 0
   baseDamage: 6.5
   rapid: 3
+  autoMode: 0
   precision: 400
   deviation: 8
   armorPenetration: 0

@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using NUnit.Framework;
 using UnityEngine;
 using PFE.Data.Definitions;
@@ -21,12 +24,10 @@ namespace PFE.Tests.EditMode.Systems.Weapons
     /// is the only place the two halves can be kept together, so the rule lives there and the
     /// controllers read it.</para>
     ///
-    /// <para><b>What is not tested here.</b> That the <i>data</i> carries the override: these are unit
-    /// tests over the predicate, not a content contract. Every one of the 204 assets still holds the
-    /// default <c>autoMode = 0</c> until <c>WeaponDataImporter</c> is re-run, so a content contract
-    /// would be red today for a reason that has nothing to do with this rule. Add one after the
-    /// re-bake, asserting <c>Resources.Load&lt;WeaponDefinition&gt;("Weapons/shotgun").IsAuto</c> is
-    /// true and that a rapid-3 weapon with no override is still auto.</para>
+    /// <para>The last three tests are the <b>content contract</b> — they read the real imported assets,
+    /// so they fail if the importer ever stops reading <c>char@auto</c>. They were deliberately withheld
+    /// until <c>WeaponDataImporter</c> had been re-run: before that every asset held the default
+    /// <c>autoMode = 0</c>, so they would have been red for a reason unrelated to this rule.</para>
     /// </summary>
     [TestFixture]
     public class WeaponAutoRuleTests
@@ -47,7 +48,10 @@ namespace PFE.Tests.EditMode.Systems.Weapons
         [TearDown]
         public void TearDown()
         {
-            Object.DestroyImmediate(_def);
+            // Qualified because this file also needs `using System;` (StringComparer.Ordinal at the
+            // content contract), which brings System.Object into scope and makes a bare `Object`
+            // ambiguous between it and UnityEngine.Object (CS0104).
+            UnityEngine.Object.DestroyImmediate(_def);
         }
 
         // ── The heuristic half (Weapon.as:856) ────────────────────────────────
@@ -143,6 +147,66 @@ namespace PFE.Tests.EditMode.Systems.Weapons
             Assert.IsFalse(forcedOff, "explicit '0' at rapid 12 → single-shot");
             Assert.IsTrue(forcedOn,   "explicit '1' at rapid 12 → continuous");
             Assert.AreNotEqual(absent, forcedOn, "absent and '1' must differ, or the override does nothing.");
+        }
+
+        // ── Content contract ──────────────────────────────────────────────────
+        //
+        // These read the imported assets, so they are the half that proves the *data* carries the
+        // override — the unit tests above only prove the predicate is right.
+
+        private static List<WeaponDefinition> LoadAllWeapons() =>
+            Resources.LoadAll<WeaponDefinition>("Weapons").ToList();
+
+        [Test]
+        public void ImportedContent_TheSixteenCharAutoWeaponsCarryTheOverride()
+        {
+            var forcedAuto = LoadAllWeapons()
+                .Where(d => d.autoMode == ForcedOn)
+                .Select(d => d.weaponId)
+                .OrderBy(id => id, StringComparer.Ordinal)
+                .ToList();
+
+            CollectionAssert.AreEqual(
+                new[]
+                {
+                    "a_expl", "aglau", "autoaxe", "bfg", "cdagger", "cknife", "edagger", "knife",
+                    "lasp", "mont", "pshot", "railway", "rech", "saf9", "shotgun", "zknife",
+                },
+                forcedAuto,
+                "AllData.as carries char auto='1' on 23 <char> variants across these 16 weapons " +
+                "(7 of them have two variants; the importer reads tier-1 only). An empty list means the " +
+                "importer is not reading char@auto at all; a different list means it is reading the " +
+                "wrong <char>. Re-run PFE/Data/Import Weapons from AllData.as.");
+        }
+
+        [Test]
+        public void ImportedContent_NoWeaponForcesSingleShot()
+        {
+            var forcedOff = LoadAllWeapons()
+                .Where(d => d.autoMode == ForcedOff)
+                .Select(d => d.weaponId)
+                .ToList();
+
+            CollectionAssert.IsEmpty(forcedOff,
+                "Every one of the 23 char@auto overrides in AllData.as is auto='1' — none is auto='0'. " +
+                "So autoMode == 1 anywhere means the importer is mis-parsing the attribute value. " +
+                "Re-run PFE/Data/Import Weapons from AllData.as.");
+        }
+
+        [Test]
+        public void ImportedContent_ShotgunIsAuto_WhereTheHeuristicAloneSaysNo()
+        {
+            var shotgun = Resources.Load<WeaponDefinition>("Weapons/shotgun");
+            Assert.IsNotNull(shotgun, "shotgun.asset not found under Resources/Weapons.");
+
+            // Guard the premise. If rapid ever drops to <= 6 the assertion below would pass on the
+            // heuristic alone and this test would silently stop testing the override.
+            Assert.Greater(shotgun.rapid, 6f,
+                "shotgun.rapid must stay > 6, or this test can pass without the override.");
+
+            Assert.IsTrue(shotgun.IsAuto,
+                "AS3 fires the shotgun continuously — <char rapid='12' auto='1'>. Without the override " +
+                "the rapid<=6 heuristic makes it single-shot with a tap debounce.");
         }
     }
 }

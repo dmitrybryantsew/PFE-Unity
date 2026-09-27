@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: p127mm
   weaponType: 2
+  punch: 0
   skillLevel: 2
   weaponLevel: 4
   baseDamage: 32
   rapid: 8
+  autoMode: 0
   precision: 400
   deviation: 5
   armorPenetration: 0

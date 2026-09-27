@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: dragon
   weaponType: 5
+  punch: 0
   skillLevel: 6
   weaponLevel: 6
   baseDamage: 1.8
   rapid: 1
+  autoMode: 0
   precision: 320
   deviation: 8
   armorPenetration: 0

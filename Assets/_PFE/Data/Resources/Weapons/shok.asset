@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: shok
   weaponType: 2
+  punch: 0
   skillLevel: 4
   weaponLevel: 0
   baseDamage: 10
   rapid: 15
+  autoMode: 0
   precision: 0
   deviation: 7
   armorPenetration: 0

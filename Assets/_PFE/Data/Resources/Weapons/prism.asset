@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: prism
   weaponType: 3
+  punch: 0
   skillLevel: 4
   weaponLevel: 2
   baseDamage: 8
   rapid: 15
+  autoMode: 0
   precision: 320
   deviation: 8
   armorPenetration: 0

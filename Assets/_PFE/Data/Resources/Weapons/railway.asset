@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: railway
   weaponType: 3
+  punch: 0
   skillLevel: 3
   weaponLevel: 5
   baseDamage: 30
   rapid: 6
+  autoMode: 2
   precision: 400
   deviation: 5
   armorPenetration: 0

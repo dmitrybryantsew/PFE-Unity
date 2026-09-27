@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: oldshot
   weaponType: 2
+  punch: 0
   skillLevel: 2
   weaponLevel: 1
   baseDamage: 6
   rapid: 10
+  autoMode: 0
   precision: 240
   deviation: 5
   armorPenetration: 0

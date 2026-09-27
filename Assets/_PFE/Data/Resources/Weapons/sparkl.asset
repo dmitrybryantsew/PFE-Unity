@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: sparkl
   weaponType: 3
+  punch: 0
   skillLevel: 4
   weaponLevel: 3
   baseDamage: 14
   rapid: 3
+  autoMode: 0
   precision: 640
   deviation: 3
   armorPenetration: 0

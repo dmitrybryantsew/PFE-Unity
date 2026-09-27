@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: robogas
   weaponType: 0
+  punch: 0
   skillLevel: 0
   weaponLevel: 0
   baseDamage: 0
   rapid: 90
+  autoMode: 0
   precision: 0
   deviation: 2
   armorPenetration: 0

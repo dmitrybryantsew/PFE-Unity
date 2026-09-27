@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: plap
   weaponType: 2
+  punch: 0
   skillLevel: 4
   weaponLevel: 2
   baseDamage: 20
   rapid: 12
+  autoMode: 0
   precision: 240
   deviation: 5
   armorPenetration: 0

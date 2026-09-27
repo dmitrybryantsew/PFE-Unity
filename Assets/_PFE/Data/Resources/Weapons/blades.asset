@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: blades
   weaponType: 5
+  punch: 0
   skillLevel: 6
   weaponLevel: 8
   baseDamage: 14
   rapid: 24
+  autoMode: 0
   precision: 240
   deviation: 6
   armorPenetration: 0

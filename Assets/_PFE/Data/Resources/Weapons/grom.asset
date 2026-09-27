@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: grom
   weaponType: 3
+  punch: 0
   skillLevel: 4
   weaponLevel: 5
   baseDamage: 76
   rapid: 20
+  autoMode: 0
   precision: 960
   deviation: 2
   armorPenetration: 0

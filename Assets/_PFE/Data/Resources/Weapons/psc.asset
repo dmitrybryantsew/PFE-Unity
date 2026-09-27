@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: psc
   weaponType: 2
+  punch: 0
   skillLevel: 2
   weaponLevel: 5
   baseDamage: 55
   rapid: 12
+  autoMode: 0
   precision: 360
   deviation: 5
   armorPenetration: 0

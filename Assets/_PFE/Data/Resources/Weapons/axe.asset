@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: axe
   weaponType: 1
+  punch: 0
   skillLevel: 1
   weaponLevel: 3
   baseDamage: 34
   rapid: 17
+  autoMode: 0
   precision: 0
   deviation: 0
   armorPenetration: 0

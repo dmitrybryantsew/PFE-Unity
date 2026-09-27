@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: a_magic
   weaponType: 5
+  punch: 0
   skillLevel: 6
   weaponLevel: 28
   baseDamage: 38
   rapid: 8
+  autoMode: 0
   precision: 480
   deviation: 10
   armorPenetration: 0

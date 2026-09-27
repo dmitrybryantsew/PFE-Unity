@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: defwave
   weaponType: 5
+  punch: 0
   skillLevel: 6
   weaponLevel: 16
   baseDamage: 75
   rapid: 25
+  autoMode: 0
   precision: 0
   deviation: 3
   armorPenetration: 0

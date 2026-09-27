@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: saf9
   weaponType: 2
+  punch: 0
   skillLevel: 2
   weaponLevel: 4
   baseDamage: 10
   rapid: 11
+  autoMode: 2
   precision: 280
   deviation: 5
   armorPenetration: 0

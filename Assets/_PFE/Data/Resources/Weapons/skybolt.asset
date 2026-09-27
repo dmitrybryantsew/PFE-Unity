@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: skybolt
   weaponType: 5
+  punch: 0
   skillLevel: 6
   weaponLevel: 24
   baseDamage: 30
   rapid: 6
+  autoMode: 0
   precision: 320
   deviation: 5
   armorPenetration: 0

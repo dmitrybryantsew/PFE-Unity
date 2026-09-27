@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: antidrak
   weaponType: 3
+  punch: 0
   skillLevel: 2
   weaponLevel: 5
   baseDamage: 44
   rapid: 5
+  autoMode: 0
   precision: 560
   deviation: 5
   armorPenetration: 0

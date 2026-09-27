@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: lasr
   weaponType: 3
+  punch: 0
   skillLevel: 4
   weaponLevel: 2
   baseDamage: 18
   rapid: 13
+  autoMode: 0
   precision: 600
   deviation: 4
   armorPenetration: 0

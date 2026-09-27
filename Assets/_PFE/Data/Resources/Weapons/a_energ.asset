@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: a_energ
   weaponType: 3
+  punch: 0
   skillLevel: 4
   weaponLevel: 5
   baseDamage: 16
   rapid: 3
+  autoMode: 0
   precision: 480
   deviation: 5
   armorPenetration: 0

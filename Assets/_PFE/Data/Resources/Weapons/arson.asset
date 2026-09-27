@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: arson
   weaponType: 2
+  punch: 0
   skillLevel: 3
   weaponLevel: 0
   baseDamage: 1.6
   rapid: 1
+  autoMode: 0
   precision: 160
   deviation: 6
   armorPenetration: 0

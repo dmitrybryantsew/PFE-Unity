@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: quick
   weaponType: 3
+  punch: 0
   skillLevel: 4
   weaponLevel: 5
   baseDamage: 13
   rapid: 2
+  autoMode: 0
   precision: 400
   deviation: 5
   armorPenetration: 0

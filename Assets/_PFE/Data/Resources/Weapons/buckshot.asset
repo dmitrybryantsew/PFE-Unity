@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: buckshot
   weaponType: 3
+  punch: 0
   skillLevel: 3
   weaponLevel: 4
   baseDamage: 16
   rapid: 18
+  autoMode: 0
   precision: 240
   deviation: 5
   armorPenetration: 0

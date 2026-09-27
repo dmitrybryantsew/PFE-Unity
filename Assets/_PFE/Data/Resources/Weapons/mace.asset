@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: mace
   weaponType: 1
+  punch: 0
   skillLevel: 1
   weaponLevel: 2
   baseDamage: 30
   rapid: 20
+  autoMode: 0
   precision: 0
   deviation: 0
   armorPenetration: 0

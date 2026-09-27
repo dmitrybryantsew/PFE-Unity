@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: oldr
   weaponType: 3
+  punch: 0
   skillLevel: 2
   weaponLevel: 1
   baseDamage: 16
   rapid: 25
+  autoMode: 0
   precision: 640
   deviation: 3
   armorPenetration: 0

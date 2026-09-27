@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: punch
   weaponType: 0
+  punch: 0
   skillLevel: 1
   weaponLevel: 0
   baseDamage: 10
   rapid: 13
+  autoMode: 0
   precision: 0
   deviation: 0
   armorPenetration: 0

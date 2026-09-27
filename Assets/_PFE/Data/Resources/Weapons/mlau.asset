@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: mlau
   weaponType: 3
+  punch: 0
   skillLevel: 5
   weaponLevel: 4
   baseDamage: 50
   rapid: 30
+  autoMode: 0
   precision: 360
   deviation: 3
   armorPenetration: 0

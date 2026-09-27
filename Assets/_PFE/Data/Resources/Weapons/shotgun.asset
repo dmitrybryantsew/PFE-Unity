@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: shotgun
   weaponType: 2
+  punch: 0
   skillLevel: 2
   weaponLevel: 3
   baseDamage: 9
   rapid: 12
+  autoMode: 2
   precision: 160
   deviation: 7
   armorPenetration: 0

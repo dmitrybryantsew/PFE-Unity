@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: balemine
   weaponType: 4
+  punch: 0
   skillLevel: 5
   weaponLevel: 5
   baseDamage: 10
   rapid: 30
+  autoMode: 0
   precision: 0
   deviation: 0
   armorPenetration: 0

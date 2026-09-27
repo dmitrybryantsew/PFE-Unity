@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: winchester
   weaponType: 3
+  punch: 0
   skillLevel: 2
   weaponLevel: 3
   baseDamage: 36
   rapid: 20
+  autoMode: 0
   precision: 640
   deviation: 2
   armorPenetration: 0

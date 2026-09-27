@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: mbul
   weaponType: 5
+  punch: 0
   skillLevel: 6
   weaponLevel: 2
   baseDamage: 8
   rapid: 6
+  autoMode: 0
   precision: 360
   deviation: 5
   armorPenetration: 0

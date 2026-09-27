@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: revo
   weaponType: 2
+  punch: 0
   skillLevel: 2
   weaponLevel: 3
   baseDamage: 36
   rapid: 16
+  autoMode: 0
   precision: 520
   deviation: 3
   armorPenetration: 0

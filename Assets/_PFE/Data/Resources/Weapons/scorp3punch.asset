@@ -19,6 +19,7 @@ MonoBehaviour:
   weaponLevel: 0
   baseDamage: 48
   rapid: 15
+  autoMode: 0
   precision: 0
   deviation: 0
   armorPenetration: 0

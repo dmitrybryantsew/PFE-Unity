@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: glau1
   weaponType: 3
+  punch: 0
   skillLevel: 5
   weaponLevel: 2
   baseDamage: 0
   rapid: 20
+  autoMode: 0
   precision: 240
   deviation: 10
   armorPenetration: 0

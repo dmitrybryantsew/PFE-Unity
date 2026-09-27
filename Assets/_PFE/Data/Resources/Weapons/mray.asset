@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: mray
   weaponType: 5
+  punch: 0
   skillLevel: 6
   weaponLevel: 14
   baseDamage: 4
   rapid: 1
+  autoMode: 0
   precision: 600
   deviation: 1
   armorPenetration: 0

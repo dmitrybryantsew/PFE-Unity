@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: knife
   weaponType: 1
+  punch: 0
   skillLevel: 1
   weaponLevel: 0
   baseDamage: 9
   rapid: 8
+  autoMode: 2
   precision: 0
   deviation: 0
   armorPenetration: 0

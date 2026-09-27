@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: lshot
   weaponType: 2
+  punch: 0
   skillLevel: 2
   weaponLevel: 2
   baseDamage: 8
   rapid: 15
+  autoMode: 0
   precision: 160
   deviation: 7
   armorPenetration: 0
