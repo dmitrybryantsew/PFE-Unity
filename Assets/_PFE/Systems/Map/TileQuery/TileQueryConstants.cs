@@ -23,6 +23,22 @@ namespace PFE.Systems.Map.TileQuery
         public const float PixelToUnit = 0.01f;
 
         /// <summary>
+        /// The inverse of <see cref="PixelToUnit"/>: 1 unit = 100 px.
+        ///
+        /// <para><b>Use this rather than a hand-written <c>100f</c>.</b> The project keeps two unit
+        /// systems side by side — Unity units for anything the engine or a Rigidbody touches, and
+        /// pixels for anything that speaks to <c>ITileQueryService</c> — so conversions happen at
+        /// several boundaries and a bare literal at each one is how a factor goes missing. It did:
+        /// <c>Projectile.SimTick</c> passed its <i>units</i> position straight to
+        /// <c>TrySweepTiles</c>, which takes <i>pixels</i>, so every tile query ran at 1/100 scale
+        /// near the world origin, found nothing, and let projectiles fly through every wall.</para>
+        ///
+        /// <para>This is deliberately a compile-time constant and not a method, so it folds away and
+        /// costs nothing at a call site that runs per projectile per tick.</para>
+        /// </summary>
+        public const float UnitToPixel = 100f;
+
+        /// <summary>
         /// Converts any AS3 <b>per-frame²</b> acceleration (px/frame²) into Unity units/s²:
         /// <c>px/frame² × 0.01 units/px × 30² frame²/s² = × 9</c>.
         ///

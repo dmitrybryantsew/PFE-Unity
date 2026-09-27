@@ -4,11 +4,14 @@ using PFE.Systems.Audio;
 using PFE.Systems.Combat;
 using PFE.Systems.Weapons;
 using PFE.Data.Definitions;
+using PFE.Core;
 using PFE.Core.Messages;
 using MessagePipe;
 using System;
 using System.Text;
 using PFE.Core.Rng;
+using PFE.Systems.Map.Rendering;
+using PFE.Systems.Map.TileQuery;
 namespace PFE.Entities.Weapons
 {
     /// <summary>
@@ -38,9 +41,26 @@ namespace PFE.Entities.Weapons
     ///
     /// AoE (Explosive archetype): on any impact, additionally overlaps a circle and
     /// damages all IDamageable + IDestructibleTile within explRadius.
+    ///
+    /// <para><b>Stage C — two tile-collision paths, selected by
+    /// <c>PfeDebugSettings.ProjectilesUseLowLevelPhysics</c>.</b> With the flag OFF (default) nothing
+    /// here changed: tile hits arrive through <see cref="OnTriggerEnter2D"/> from Unity's per-tile
+    /// <c>BoxCollider2D</c> grid, and the integration runs in <see cref="FixedUpdate"/> against
+    /// <c>Time.fixedDeltaTime</c>. With it ON, the tile-hit <i>decision</i> comes from a swept query
+    /// against the LowLevelPhysics2D chain mirror (single-sourced from <c>ITileQueryService</c>, so it
+    /// cannot drift from the motor's notion of solid, and a chain has no seam to produce ghost
+    /// collisions), and the integration runs on <see cref="SimLoop"/> at the clock's own tick rate —
+    /// <c>SimClock.SimDt</c> per tick, which is exactly AS3's 1/30 s at the default canonical rate, so
+    /// a 0.7 s flame lifetime is 21 ticks rather than the 35 that <c>FixedUpdate</c>'s 50 Hz produced.
+    /// </para>
+    ///
+    /// <para><b>What the flip deliberately does NOT change.</b> Entity hits. Enemies, the player and
+    /// destructible props are still Unity colliders, so <c>IDamageable</c> resolution keeps coming
+    /// from <see cref="OnTriggerEnter2D"/> in both modes. Moving entities into the Box2D world is not
+    /// Stage C's job, and doing it here would have coupled the flip to every entity type at once.</para>
     /// </summary>
     [RequireComponent(typeof(Rigidbody2D))]
-    public class Projectile : MonoBehaviour
+    public class Projectile : MonoBehaviour, ISimTickable
     {
         [Header("Visual")]
         [SerializeField] private SpriteRenderer _visualRenderer;
@@ -80,6 +100,44 @@ namespace PFE.Entities.Weapons
         private bool          _hasDetonated;
         private bool          _isImpacting;       // true while playing impact frames before pool
 
+        // ── Stage C: sim-owned state (only used when ProjectilesUseLowLevelPhysics is on) ──────
+        // The simulation owns the position; the Transform is a *view* of it, written in LateUpdate.
+        // ISimTickable's contract forbids a tick from reading Transform, so SimTick touches neither
+        // transform nor _rb — everything it produces goes through the deferred write below.
+
+        /// <summary>Authoritative position in world units while the flip is on.</summary>
+        private Vector2 _simPosition;
+
+        /// <summary>True while this instance is registered on SimLoop and must be unregistered.</summary>
+        private bool _registeredOnSimLoop;
+
+        /// <summary>Set by <see cref="SimTick"/>, consumed by <see cref="LateUpdate"/>.</summary>
+        private bool _viewDirty;
+
+        /// <summary>Set by <see cref="SimTick"/>, consumed by <see cref="LateUpdate"/> — a tick must
+        /// not destroy a GameObject, and the pool's release path is a Unity-side operation.</summary>
+        private bool _pendingReturnToPool;
+
+        /// <summary>
+        /// The projectile's collision capsule as (length, thickness) in pixels, read from the prefab's
+        /// <c>CapsuleCollider2D</c> at <see cref="Awake"/>. Read rather than hardcoded so that editing
+        /// the prefab cannot silently desync the tile query from the hitbox that damages entities.
+        /// </summary>
+        private Vector2 _shapeSizePx = new Vector2(93f, 6f);
+
+        /// <summary>
+        /// Contact latch. The legacy path is enter-only — Unity reports a surface once on entry — so a
+        /// per-tick sweep would otherwise re-report the same surface every tick, and a piercing round
+        /// that keeps flying while overlapping would re-roll its damage chance each time.
+        /// </summary>
+        private bool _tileContactActive;
+
+        /// <summary>
+        /// Normal of the most recent chain contact, in world units. Zero when the contact came from an
+        /// initial overlap — <c>CastResult</c> documents the normal as degenerate in exactly that case.
+        /// </summary>
+        private Vector2 _lastContactNormal;
+
         // ── Visual ───────────────────────────────────────────────────────────
 
         private ProjectileVisualDefinition _currentVisual;
@@ -104,6 +162,12 @@ namespace PFE.Entities.Weapons
         [Inject] private PFE.Core.PfeDebugSettings      _debugSettings;
         [Inject] private ISoundService                  _soundService;
         [Inject] private ImpactSoundTable               _impactSoundTable;
+
+        // Stage C. Fully qualified: this file is not in the PFE.Systems.Physics namespace, but being
+        // explicit here keeps the "which IPhysicsWorldService" question answerable at a glance.
+        [Inject] private PFE.Systems.Physics.IPhysicsWorldService _physicsWorld;
+        [Inject] private SimLoop                        _simLoop;
+        [Inject] private SimClock                       _simClock;
 #pragma warning restore CS0649
 
         /// <summary>Called by GameObjectPool to return the instance after use.</summary>
@@ -118,6 +182,300 @@ namespace PFE.Entities.Weapons
             if (_rb == null)
                 _rb = GetComponent<Rigidbody2D>();
             _triggerCollider = GetComponent<Collider2D>();
+            CacheShapeSize();
+        }
+
+        /// <summary>
+        /// Captures the collision capsule's local (length, thickness) in pixels. The prefab uses a
+        /// <c>CapsuleCollider2D</c> with a horizontal axis, and the projectile rotates to face travel,
+        /// so <c>size.x</c> is the length along the flight direction and <c>size.y</c> the thickness
+        /// across it. Box colliders are accepted too so a future archetype cannot silently fall back
+        /// to the default without the log telling someone.
+        /// </summary>
+        private void CacheShapeSize()
+        {
+            if (_triggerCollider == null) return;
+
+            if (_triggerCollider is CapsuleCollider2D capsule)
+            {
+                _shapeSizePx = capsule.size * TileQueryConstants.UnitToPixel;
+                return;
+            }
+
+            if (_triggerCollider is BoxCollider2D box)
+            {
+                _shapeSizePx = box.size * TileQueryConstants.UnitToPixel;
+                return;
+            }
+
+            // Anything else (polygon, circle) has no local size to read. Fall back to the world AABB
+            // rather than the built-in default, and say so — a silent mismatch here would look like a
+            // collision bug much later.
+            _shapeSizePx = (Vector2)_triggerCollider.bounds.size * TileQueryConstants.UnitToPixel;
+            if (_debugSettings?.LogProjectileLifecycle == true)
+            {
+                Debug.LogWarning(
+                    $"[Projectile] '{name}' has a {_triggerCollider.GetType().Name} rather than a " +
+                    $"Capsule/Box collider; the tile sweep is using its world AABB " +
+                    $"({_shapeSizePx.x:F1}x{_shapeSizePx.y:F1} px), which is rotation-dependent.");
+            }
+        }
+
+        /// <summary>
+        /// Projectiles move in the <c>Projectiles</c> slot, after the player motor and units have
+        /// finalised their positions for this tick.
+        ///
+        /// <para>That slot is shared with <c>PhysicsWorldService</c>, which is harmless: the chain
+        /// mirror is <b>static</b> geometry, and a query against static geometry does not depend on
+        /// whether <c>Simulate()</c> has run. That is measured, not assumed — Stage B1's
+        /// <c>ChainMirror_AnswersQueries_BeforeTheFirstStep</c> asserts the mirror answers queries with
+        /// no step ever taken. So no write/step/read split is needed here, contrary to what
+        /// <c>PhysicsWorldService</c>'s "open for Stage C" note anticipated: that note was written for
+        /// a consumer that would own <i>bodies</i>, and this consumer owns none.</para>
+        /// </summary>
+        public int TickOrder => SimTickOrder.Projectiles;
+
+        // ── Stage C: sim registration and tick ───────────────────────────────────────────────
+
+        /// <summary>
+        /// True when this instance is actually running the flipped path.
+        ///
+        /// <para>Keyed off the registration rather than off the settings flag on purpose. If the flag
+        /// is on but SimLoop was unavailable, <see cref="RegisterOnSimLoop"/> leaves this false and the
+        /// instance stays wholly on the legacy path. Reading the flag instead would leave such an
+        /// instance driven by <i>neither</i> loop — it would hang motionless in mid-air, which is a far
+        /// worse failure than quietly staying on the old path.</para>
+        /// </summary>
+        private bool FlipActive => _registeredOnSimLoop;
+
+        /// <summary>
+        /// Registers this instance on <see cref="SimLoop"/> so <see cref="SimTick"/> drives it.
+        ///
+        /// <para>Called from <see cref="Initialize"/>, by which point injection has already happened:
+        /// <c>ProjectileFactory.Spawn</c> runs <c>_resolver.Inject(p)</c> inside the pool's onGet
+        /// callback, and <c>Initialize</c> only runs after that. Registering from <see cref="Awake"/>
+        /// would be too early — the injected fields are still null there.</para>
+        ///
+        /// <para><c>SimLoop.Register</c> de-duplicates, so a pooled instance re-initialised without a
+        /// matching reset cannot end up ticked twice.</para>
+        /// </summary>
+        private void RegisterOnSimLoop()
+        {
+            if (_simLoop == null || _simClock == null)
+            {
+                if (_debugSettings?.LogProjectileLifecycle == true)
+                {
+                    Debug.LogWarning(
+                        "[Projectile] ProjectilesUseLowLevelPhysics is on but SimLoop/SimClock is " +
+                        "unavailable; staying on the FixedUpdate path.");
+                }
+                return;
+            }
+
+            _simLoop.Register(this);
+            _registeredOnSimLoop = true;
+        }
+
+        /// <summary>Releases the SimLoop registration. Idempotent, and safe before any registration.</summary>
+        private void UnregisterFromSimLoop()
+        {
+            if (!_registeredOnSimLoop) return;
+
+            _simLoop?.Unregister(this);
+            _registeredOnSimLoop = false;
+        }
+
+        /// <summary>
+        /// One AS3 frame of projectile flight: integrate, sweep for tiles, then advance or resolve.
+        ///
+        /// <para>Reads no <c>Time</c>, no <c>Transform</c> and no <c>Input</c> — the step comes from
+        /// <c>SimClock.SimDt</c> and the position from <see cref="_simPosition"/>. The Transform write
+        /// is deferred to <see cref="LateUpdate"/>, which is the "separate view pass" the
+        /// <see cref="ISimTickable"/> contract describes.</para>
+        /// </summary>
+        public void SimTick(int tickIndex)
+        {
+            if (!_isInitialized || _isImpacting) return;
+
+            // The per-tick advance is SimDt (a duration in seconds), NOT StepScale, and the two are
+            // NOT interchangeable here. StepScale converts a rate stored per canonical 30 Hz frame
+            // into a per-tick advance; this file does not store rates that way. _velocity is Unity
+            // units/s and _ddx/_ddy are units/s², because FixedUpdate hands _velocity straight to
+            // Rigidbody2D.linearVelocity, which is units/s. For a units/s rate the advance is simply
+            // the tick's duration. Substituting StepScale would be a 30x error at the canonical rate
+            // (SimDt is 1/30 where StepScale is 1) — the velocity-vs-acceleration confusion
+            // TileQueryConstants warns about. ISimTickable's "derive the advance from StepScale" note
+            // is written for the per-canonical-frame convention, not for this one.
+            float dt = _simClock.SimDt;
+
+            // AS3: dx += ddx, dy += ddy, then x += dx, y += dy — once per 30 Hz frame.
+            _velocity.x += _ddx * dt;
+            _velocity.y += _ddy * dt;
+
+            if (_navod > 0f)
+            {
+                ApplyHoming(dt, _simPosition);
+            }
+
+            // Two unit systems meet here, and the conversion has to happen exactly once. The sim
+            // integrates in UNITY UNITS because _velocity is units/s (the legacy path hands it
+            // straight to Rigidbody2D.linearVelocity), but the tile seam takes WORLD PIXELS, because
+            // that is the space ITileQueryService uses. Converting on the way out AND on the way back
+            // is the whole of it — passing units straight through put every query at 1/100 scale near
+            // the world origin, where no room has geometry, so every projectile flew through every
+            // wall. See TileQueryConstants.UnitToPixel.
+            Vector2 fromUnits  = _simPosition;
+            Vector2 deltaUnits = _velocity * dt;
+
+            Vector2 fromPx  = fromUnits  * TileQueryConstants.UnitToPixel;
+            Vector2 deltaPx = deltaUnits * TileQueryConstants.UnitToPixel;
+
+            if (TryTileContact(fromPx, deltaPx, out Vector2 contactPx))
+            {
+                // contactPx comes back in world pixels; the sim's own position is in units.
+                _simPosition = contactPx * TileQueryConstants.PixelToUnit;
+                _viewDirty   = true;
+                ResolveTileImpact(contactPx);
+                return;
+            }
+
+            _simPosition = fromUnits + deltaUnits;
+            _viewDirty   = true;
+
+            _lifetimeTimer -= dt;
+            if (_lifetimeTimer <= 0f)
+            {
+                // Not ReturnToPool() here: the pool release disables a GameObject, and a tick must not
+                // do that mid-iteration over the tickable list. LateUpdate performs it.
+                _pendingReturnToPool = true;
+            }
+        }
+
+        /// <summary>
+        /// Asks the chain mirror whether this step's sweep reaches a tile.
+        ///
+        /// <para><b>Coordinates here are WORLD PIXELS, not the sim's Unity units.</b> This method is
+        /// the boundary, and <see cref="SimTick"/> does the conversion — keeping the seam's own unit
+        /// at this edge means there is exactly one place to get it wrong, and the parameter names say
+        /// which unit they want. They did not, once: units were passed to a pixel seam, every query
+        /// landed at 1/100 scale near the world origin, and projectiles flew through walls.</para>
+        ///
+        /// <para>Applies the enter-only latch, so a surface is reported on the tick its contact begins
+        /// rather than on every tick it persists — which is what <c>OnTriggerEnter2D</c> gives the
+        /// legacy path. Without it, a piercing round overlapping a wall would re-roll its pass-through
+        /// chance on every tick of the overlap.</para>
+        /// </summary>
+        /// <param name="fromPx">Sweep origin, world pixels.</param>
+        /// <param name="deltaPx">Translation over this step, world pixels.</param>
+        /// <param name="contactPx">Contact point in world pixels — the same unit the seam reports.</param>
+        private bool TryTileContact(Vector2 fromPx, Vector2 deltaPx, out Vector2 contactPx)
+        {
+            contactPx          = default;
+            _lastContactNormal = Vector2.zero;
+
+            if (_physicsWorld == null || !_physicsWorld.IsWorldValid)
+            {
+                // No chain geometry to consult — an unbuilt room, or the world already torn down.
+                // Answer "nothing in the way" rather than "hit": stopping at an invisible wall would
+                // be a much louder failure than flying on.
+                _tileContactActive = false;
+                return false;
+            }
+
+            Vector2 facing = _velocity.sqrMagnitude > 0.0001f ? _velocity.normalized : Vector2.right;
+
+            bool touching = _physicsWorld.TrySweepTiles(
+                fromPx, deltaPx, _shapeSizePx, facing, out Vector2 point, out Vector2 normal);
+
+            if (!touching)
+            {
+                _tileContactActive = false;
+                return false;
+            }
+
+            if (_tileContactActive) return false;
+
+            _tileContactActive = true;
+            _lastContactNormal = normal;
+            contactPx          = point;
+            return true;
+        }
+
+        /// <summary>
+        /// Resolves a tile contact found by the chain sweep, reusing the legacy impact path verbatim so
+        /// sound, damage, tile destruction, AoE and the impact animation all behave identically.
+        ///
+        /// <para><b>The one step that is not single-sourced.</b> The chain decides <i>whether</i> a tile
+        /// was hit and <i>where</i>; the tile's identity still comes from Unity. That is not laziness:
+        /// <c>ImpactSoundResolver</c> reads the collider's <c>TileSurface</c> material, and
+        /// <c>IDestructibleTile</c> is implemented on <c>TileCollider</c>, which lives on the tile's
+        /// GameObject. Neither is reachable from a chain. Keeping the lookup on Unity is deliberate —
+        /// it is a lookup, not a decision — and Stage D is what removes the per-tile colliders.</para>
+        ///
+        /// <para>If no collider can be identified the projectile still stops. Stopping is the safe
+        /// failure; continuing would fly it through a wall it demonstrably hit.</para>
+        /// </summary>
+        private void ResolveTileImpact(Vector2 contactPx)
+        {
+            // _spawnPosition.z rather than transform.position.z: this runs inside a tick, and a tick
+            // may not read Transform.
+            var impactWorld = new Vector3(
+                contactPx.x * TileQueryConstants.PixelToUnit,
+                contactPx.y * TileQueryConstants.PixelToUnit,
+                _spawnPosition.z);
+
+            Collider2D tile = FindTileCollider(contactPx);
+            if (tile != null)
+            {
+                HandleImpact(tile, impactWorld);
+                return;
+            }
+
+            if (_debugSettings?.LogProjectileLifecycle == true)
+            {
+                Debug.LogWarning(
+                    $"[Projectile] '{name}' chain contact at {contactPx} px identified no tile " +
+                    "collider; stopping without surface sound or tile destruction.");
+            }
+
+            StartImpactAnimation();
+        }
+
+        /// <summary>
+        /// Maps a world-pixel contact point back to the tile collider that owns it, supplying the
+        /// identity the chain cannot carry (surface material, destructibility).
+        ///
+        /// <para>The probe is offset slightly <i>behind</i> the contact along the surface normal,
+        /// because the contact point lies exactly on the chain — the boundary of the solid — where a
+        /// point overlap is ambiguous. With no normal (the initial-overlap case) it probes the contact
+        /// point itself. The probe box is 6 px, comfortably inside a 40 px tile and inside the 10 px
+        /// one-way platform slab.</para>
+        /// </summary>
+        private Collider2D FindTileCollider(Vector2 contactPx)
+        {
+            Vector2 probePx = _lastContactNormal.sqrMagnitude > 0f
+                ? contactPx - _lastContactNormal * 2f
+                : contactPx;
+
+            var centre = new Vector2(
+                probePx.x * TileQueryConstants.PixelToUnit,
+                probePx.y * TileQueryConstants.PixelToUnit);
+            Collider2D[] hits = Physics2D.OverlapBoxAll(centre, new Vector2(0.06f, 0.06f), 0f);
+
+            for (int i = 0; i < hits.Length; i++)
+            {
+                Collider2D hit = hits[i];
+                if (hit == null || hit.isTrigger) continue;
+
+                // Identified by component rather than by layer number: the tile layers are private
+                // constants inside TileCollider, and a lookup that silently stops matching if those
+                // numbers are ever renumbered would present as "bullets no longer break tiles".
+                if (hit.GetComponent<TileCollider>() == null) continue;
+
+                return hit;
+            }
+
+            return null;
         }
 
         /// <summary>
@@ -236,6 +594,17 @@ namespace PFE.Entities.Weapons
             transform.rotation = Quaternion.Euler(0f, 0f, angle);
             _rb.rotation       = angle;
 
+            // ── Stage C: hand this flight to the sim, or leave it on the legacy path ───────────
+            _tileContactActive   = false;
+            _viewDirty           = false;
+            _pendingReturnToPool = false;
+            _simPosition         = _spawnPosition;   // world units — the sim's origin for this flight
+
+            if (_debugSettings?.ProjectilesUseLowLevelPhysics == true)
+            {
+                RegisterOnSimLoop();
+            }
+
             if (_debugSettings?.LogProjectileLifecycle == true)
             {
                 Debug.Log(
@@ -307,9 +676,18 @@ namespace PFE.Entities.Weapons
 
         // ── Unity lifecycle ──────────────────────────────────────────────────
 
+        /// <summary>
+        /// Legacy integration path. Active only when the Stage C flip is <i>not</i> running for this
+        /// instance — see <see cref="FlipActive"/>, which is keyed off the SimLoop registration rather
+        /// than off the settings flag so an instance whose registration failed is still driven.
+        /// </summary>
         private void FixedUpdate()
         {
             if (!_isInitialized) return;
+
+            // With the flip running, SimLoop owns integration. Standing down here is essential:
+            // leaving both drivers active would step the projectile twice per frame, at two rates.
+            if (FlipActive) return;
 
             float dt = Time.fixedDeltaTime;
 
@@ -319,7 +697,7 @@ namespace PFE.Entities.Weapons
 
             // ── Homing (navod) ────────────────────────────────────────────────
             if (_navod > 0f)
-                ApplyHoming(dt);
+                ApplyHoming(dt, transform.position);
 
             _rb.linearVelocity = _velocity;
 
@@ -336,6 +714,47 @@ namespace PFE.Entities.Weapons
             if (_lifetimeTimer <= 0f) ReturnToPool();
         }
 
+        /// <summary>
+        /// The flipped path's view pass: writes sim state out to the Transform and the Rigidbody, and
+        /// performs the pool return that <see cref="SimTick"/> deferred.
+        ///
+        /// <para><b>Position is written and velocity is zeroed, never both set.</b> A kinematic body
+        /// given both a velocity and an explicit position would advance twice — once from our own
+        /// integration and once from Box2D sweeping the velocity we handed it. The Rigidbody still has
+        /// to be moved, because Unity's trigger detection (which resolves <c>IDamageable</c> hits in
+        /// <i>both</i> modes) reads the body's position, not the Transform.</para>
+        /// </summary>
+        private void LateUpdate()
+        {
+            if (!FlipActive) return;
+
+            if (_pendingReturnToPool)
+            {
+                _pendingReturnToPool = false;
+                ReturnToPool();
+                return;
+            }
+
+            if (!_viewDirty) return;
+            _viewDirty = false;
+
+            transform.position = new Vector3(_simPosition.x, _simPosition.y, _spawnPosition.z);
+
+            if (_rb != null)
+            {
+                _rb.position       = _simPosition;
+                _rb.linearVelocity = Vector2.zero;
+            }
+
+            // Facing is a view concern, so it lives here rather than in the tick.
+            if (!_isImpacting && _velocity.sqrMagnitude > 0.0001f)
+            {
+                float angle = Mathf.Atan2(_velocity.y, _velocity.x) * Mathf.Rad2Deg;
+                transform.rotation = Quaternion.Euler(0f, 0f, angle);
+                if (_rb != null) _rb.rotation = angle;
+            }
+        }
+
         private void Update()
         {
             if (!_isInitialized) return;
@@ -345,6 +764,17 @@ namespace PFE.Entities.Weapons
         private void OnTriggerEnter2D(Collider2D other)
         {
             if (!_isInitialized) return;
+
+            // Stage C: with the flip running, tile contacts are the chain sweep's job. Without this
+            // the per-tile BoxCollider2D would still report the same surface and every wall hit would
+            // be resolved twice — two impact sounds, two damage rolls, two destruction calls, and two
+            // AoE detonations. Entity hits are deliberately NOT skipped: enemies, the player and
+            // destructible props are still Unity colliders in both modes.
+            if (FlipActive && other.GetComponent<TileCollider>() != null)
+            {
+                return;
+            }
+
             if (other.isTrigger)
             {
                 if (_debugSettings?.LogProjectileLifecycle == true)
@@ -365,12 +795,20 @@ namespace PFE.Entities.Weapons
         /// <summary>
         /// Steers velocity toward the nearest IDamageable each tick.
         /// AS3: finds nearest enemy, rotates dx/dy toward it by navod strength.
+        ///
+        /// <para><b>Accepted Stage C divergence.</b> This is the one part of the tick that is not
+        /// deterministic under <c>ISimTickable</c>'s contract: it reads other objects'
+        /// <c>Transform</c>s, and targets (enemies, props) are Unity objects that the simulation does
+        /// not own. The projectile's <i>own</i> position is passed in so at least this side of the
+        /// calculation comes from sim state. Making homing deterministic needs targets in the sim,
+        /// which is a later stage's problem — it is recorded here rather than quietly ignored.</para>
         /// </summary>
-        private void ApplyHoming(float dt)
+        /// <param name="selfPosition">This projectile's position in world units, from sim state.</param>
+        private void ApplyHoming(float dt, Vector2 selfPosition)
         {
             // Find nearest IDamageable in scene (simple OverlapCircle approach).
             // navod strength controls how sharply we turn per second.
-            Collider2D[] hits = Physics2D.OverlapCircleAll(transform.position, 20f);
+            Collider2D[] hits = Physics2D.OverlapCircleAll(selfPosition, 20f);
             Transform best = null;
             float bestDist = float.MaxValue;
 
@@ -381,7 +819,7 @@ namespace PFE.Entities.Weapons
                 if (dmg == null || !dmg.IsAlive) continue;
 
                 // Skip the owner if we ever track it — for now skip same-layer objects.
-                float d = Vector2.Distance(transform.position, hit.transform.position);
+                float d = Vector2.Distance(selfPosition, hit.transform.position);
                 if (d < bestDist)
                 {
                     bestDist = d;
@@ -391,7 +829,7 @@ namespace PFE.Entities.Weapons
 
             if (best == null) return;
 
-            Vector2 toTarget = ((Vector2)best.position - (Vector2)transform.position).normalized;
+            Vector2 toTarget = ((Vector2)best.position - selfPosition).normalized;
             // AS3: rotate dx/dy toward target by navod radians per frame.
             float turnSpeed = _navod * FlashFps * dt;   // radians/sec
             float speed     = _velocity.magnitude;
@@ -474,7 +912,11 @@ namespace PFE.Entities.Weapons
             }
             else
             {
-                ReturnToPool();
+                // A tick must not deactivate a GameObject — the tickable list is being iterated while
+                // this runs. With the flip active the release is deferred to LateUpdate; on the legacy
+                // path (called from OnTriggerEnter2D) it is safe to do immediately.
+                if (FlipActive) _pendingReturnToPool = true;
+                else            ReturnToPool();
             }
         }
 
@@ -541,6 +983,18 @@ namespace PFE.Entities.Weapons
             _hasDetonated     = false;
             _hasDamageContext = false;
             _isImpacting      = false;
+
+            // Stage C: a pooled instance must not stay registered after release. SimLoop.Register
+            // de-duplicates, so leaving it registered would not double-register — it would keep the
+            // released instance ticked, which is worse: a parked projectile at the pool position
+            // would still integrate and could report tile contacts from inside the parking corner.
+            UnregisterFromSimLoop();
+            _viewDirty           = false;
+            _pendingReturnToPool = false;
+            _tileContactActive   = false;
+            _lastContactNormal   = Vector2.zero;
+            _simPosition         = Vector2.zero;
+
             if (_triggerCollider != null) _triggerCollider.enabled = true;
             _lifetimeTimer    = DefaultLifetime;
             _damage = _destroyTiles = _explRadius = _explDamage = _piercing = 0f;

@@ -145,6 +145,49 @@ namespace PFE.Systems.Physics
         }
 
         /// <summary>
+        /// Nearest tile contact along a swept box, across every room currently mirrored.
+        ///
+        /// <para>One world serves the whole active room set (decision L1) and each room keeps its own
+        /// chains, so the search is per-room and then reduced to the closest hit. Rooms are few (one
+        /// or two during a transition) and each sweep is AABB-filtered, so this stays cheap enough to
+        /// call once per projectile per tick.</para>
+        ///
+        /// <para>Rooms are compared by contact distance rather than by iteration order: dictionary
+        /// order is not stable, and a projectile straddling a doorway would otherwise get whichever
+        /// room happened to come first.</para>
+        /// </summary>
+        public bool TrySweepTiles(Vector2 fromPx, Vector2 deltaPx, Vector2 sizePx, Vector2 facing,
+                                  out Vector2 contactPointPx, out Vector2 contactNormal)
+        {
+            contactPointPx = default;
+            contactNormal  = default;
+
+            if (!_world.isValid || _roomGeometry.Count == 0) return false;
+
+            bool found = false;
+            float bestDistanceSq = float.MaxValue;
+
+            foreach (KeyValuePair<RoomInstance, RoomChainGeometry> entry in _roomGeometry)
+            {
+                if (!entry.Value.TrySweep(
+                        fromPx, deltaPx, sizePx, facing, out Vector2 point, out Vector2 normal))
+                {
+                    continue;
+                }
+
+                float distanceSq = (point - fromPx).sqrMagnitude;
+                if (distanceSq >= bestDistanceSq) continue;
+
+                bestDistanceSq = distanceSq;
+                contactPointPx = point;
+                contactNormal  = normal;
+                found          = true;
+            }
+
+            return found;
+        }
+
+        /// <summary>
         /// Releases every room's geometry and then the world itself. Idempotent.
         /// </summary>
         public void Dispose()

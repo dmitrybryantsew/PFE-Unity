@@ -75,6 +75,7 @@ namespace PFE.Systems.Physics
         private const float TileSizePx = TileQueryConstants.TileSize;
 
         private readonly ITileQueryService _query;
+        private readonly PhysicsWorld _world;
         private readonly Llp2dBody _staticBody;
 
         /// <summary>
@@ -88,6 +89,18 @@ namespace PFE.Systems.Physics
         /// </summary>
         private readonly List<PhysicsChain> _chains = new List<PhysicsChain>();
 
+        /// <summary>
+        /// World-unit AABB of each chain, parallel to <see cref="_chains"/> by index.
+        ///
+        /// <para>This exists to keep <see cref="TrySweep"/> affordable. <c>PhysicsChain.CastShape</c>
+        /// is narrow-phase only — it has no broadphase of its own — so testing every chain of the
+        /// room on every projectile tick would be O(chains × segments) per projectile. A projectile
+        /// sweep touches one or two runs, so the AABB rejects the rest in a couple of comparisons.
+        /// The bounds are recorded at emission time from the actual emitted points (including the
+        /// lead-in/lead-out), so they cannot drift from the geometry.</para>
+        /// </summary>
+        private readonly List<Rect> _chainBoundsUnits = new List<Rect>();
+
         /// <summary>Number of chains emitted by the last <see cref="Build"/>.</summary>
         public int ChainCount { get; private set; }
 
@@ -99,6 +112,8 @@ namespace PFE.Systems.Physics
             _query = query ?? throw new System.ArgumentNullException(nameof(query));
             if (!world.isValid)
                 throw new System.ArgumentException("World must be valid", nameof(world));
+
+            _world = world;
 
             PhysicsBodyDefinition def = PhysicsBodyDefinition.defaultDefinition;
             def.type = Llp2dBody.BodyType.Static;
@@ -157,6 +172,7 @@ namespace PFE.Systems.Physics
             }
 
             _chains.Clear();
+            _chainBoundsUnits.Clear();
         }
 
         /// <summary>
@@ -296,9 +312,223 @@ namespace PFE.Systems.Physics
                 return;
             }
 
+            // AABB of the points actually handed to Box2D — lead-in and lead-out included, so the
+            // bounds can never be narrower than the geometry they describe. TrySweep rejects
+            // non-candidate chains with this before paying for a narrow-phase cast.
+            float minX = points[0].x, maxX = points[0].x;
+            float minY = points[0].y, maxY = points[0].y;
+            for (int i = 1; i < points.Length; i++)
+            {
+                Vector2 p = points[i];
+                if (p.x < minX) minX = p.x;
+                if (p.x > maxX) maxX = p.x;
+                if (p.y < minY) minY = p.y;
+                if (p.y > maxY) maxY = p.y;
+            }
+
             _chains.Add(chain);
+            _chainBoundsUnits.Add(Rect.MinMaxRect(minX, minY, maxX, maxY));
             ChainCount++;
             PointCount += points.Length;
+        }
+
+        // ── Swept query (Stage C) ────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Sweeps the projectile's shape through this room's chains and reports the nearest contact.
+        ///
+        /// <para><b>Why a sweep and not an overlap.</b> A chain is a <i>zero-thickness</i> surface, so
+        /// a projectile overlaps it only while its shape straddles the line. AS3 bullets move up to
+        /// 500 px/frame, far wider than that window, so an end-of-step overlap test would tunnel
+        /// straight through walls. The sweep is the projectile's CCD, and it is the whole reason this
+        /// query exists rather than reusing <c>TestOverlapGeometry</c> the way the B1 harness does.</para>
+        ///
+        /// <para><b>Why a capsule and not a box.</b> The shipped projectile prefab's collider is a
+        /// <c>CapsuleCollider2D</c> of 0.93 x 0.06 units with a horizontal axis, and the projectile
+        /// rotates to face its travel direction. So the hitbox is a <i>needle pointing where it
+        /// flies</i>, whose leading tip is ~46 px ahead of the transform centre — not a dot. Treating
+        /// it as a small box at the centre would let every bullet bury itself half a tile into a wall
+        /// before registering the hit. Passing <paramref name="facing"/> is what keeps the leading tip
+        /// leading.</para>
+        ///
+        /// <para><b>A square size is a circle, and must be built as one.</b> A capsule's straight
+        /// section is its length less the two hemispherical caps, so a size whose length equals its
+        /// thickness collapses that section to zero — and the engine <i>rejects</i> the resulting
+        /// degenerate capsule rather than tolerating it. <c>PhysicsShape.ShapeProxy</c> throws
+        /// <c>ArgumentException "Capsule Geometry is not valid"</c> for coincident centres. The shape
+        /// is therefore built as a <c>CircleGeometry</c> in exactly that case. This is not
+        /// hypothetical: <c>Llp2dStageCSweepTests</c> caught it, because the B1 size class it reuses
+        /// (8x8 px) makes the section exactly zero, so every one of those scenarios threw instead of
+        /// sweeping — and a square-ish projectile would have done the same in production.</para>
+        ///
+        /// <para><b>Initially-touching is handled explicitly.</b> The shipped docs for
+        /// <c>PhysicsChain.CastShape</c> say <i>"Initially touching shapes are treated as a miss. You
+        /// should check for overlap first if initial overlap is required."</i> Without that check a
+        /// projectile spawned with its capsule already straddling a surface — muzzle inside a wall —
+        /// would sweep clean through it.</para>
+        ///
+        /// <para><b>Cost.</b> Narrow-phase only, so the per-chain AABB recorded at emission time
+        /// rejects non-candidates first. A typical sweep pays for one or two casts, not one per
+        /// chain in the room.</para>
+        /// </summary>
+        /// <param name="fromPx">Shape centre at the start of the move, world pixels.</param>
+        /// <param name="deltaPx">Translation over this step, world pixels.</param>
+        /// <param name="sizePx">Shape (length, thickness) in pixels — length along
+        /// <paramref name="facing"/>, thickness across it. Mirrors the prefab collider's size. A
+        /// thickness equal to the length yields a circle; see the note above. Zero thickness has no
+        /// geometry to sweep and is refused.</param>
+        /// <param name="facing">Unit direction of the shape's long axis, normally the travel
+        /// direction. Falls back to +X if degenerate, which only affects a zero-velocity query.</param>
+        /// <param name="contactPointPx">Contact point in world pixels. Equals <paramref name="fromPx"/>
+        /// when the report comes from an initial overlap, since no sweep fraction exists then.</param>
+        /// <param name="contactNormal">Surface normal, unit-length, or zero for an initial overlap —
+        /// <c>CastResult</c> documents the normal as degenerate in exactly that case.</param>
+        /// <returns>True if the shape is already touching, or would touch during the move.</returns>
+        /// <exception cref="System.ArgumentOutOfRangeException">If <paramref name="sizePx"/> has zero
+        /// thickness, which cannot be swept.</exception>
+        public bool TrySweep(Vector2 fromPx, Vector2 deltaPx, Vector2 sizePx, Vector2 facing,
+                             out Vector2 contactPointPx, out Vector2 contactNormal)
+        {
+            contactPointPx = default;
+            contactNormal  = default;
+
+            if (_chains.Count == 0) return false;
+
+            Vector2 fromUnits  = fromPx * PixelToUnit;
+            Vector2 deltaUnits = deltaPx * PixelToUnit;
+            Vector2 axis       = facing.sqrMagnitude > 0f ? facing.normalized : Vector2.right;
+
+            float lengthUnits = sizePx.x * PixelToUnit;
+            float radiusUnits = sizePx.y * PixelToUnit * 0.5f;
+
+            // A shape with no thickness has no volume to sweep, and both the capsule and the circle
+            // below would be rejected by the engine anyway — so this guard does not add a failure
+            // mode, it only replaces a cryptic engine ArgumentException with one that names the cause.
+            // Throwing is deliberate: reporting "no contact" would make bullets pass through walls,
+            // the exact silent failure this seam exists to prevent.
+            if (radiusUnits <= 0f)
+            {
+                throw new System.ArgumentOutOfRangeException(
+                    nameof(sizePx),
+                    $"Sweep size {sizePx} px has zero thickness, so it has no geometry to sweep.");
+            }
+
+            // A capsule's straight section is its total length less the two hemispherical caps.
+            float halfSegment = Mathf.Max(0f, (lengthUnits - radiusUnits * 2f) * 0.5f);
+
+            // When that section collapses to nothing the shape IS a circle, and the degenerate
+            // capsule is REJECTED by the engine, not tolerated: PhysicsShape.ShapeProxy throws
+            // "Capsule Geometry is not valid" for coincident centres. Built as a circle instead.
+            // Both branches are chosen together so the overlap test and the cast cannot end up
+            // holding different shapes.
+            //
+            // This also covers thickness > length, where the (length, thickness) pair is not
+            // well-formed and Mathf.Max clamps the section to zero: the shape is then swept as a
+            // circle of radius thickness/2. That is the larger reading of the two, so it errs toward
+            // registering a contact rather than tunnelling through one.
+            bool isCircle = halfSegment <= 0f;
+
+            CapsuleGeometry capsule = default;
+            CircleGeometry circle = default;
+
+            if (isCircle)
+            {
+                circle = CircleGeometry.Create(radiusUnits, fromUnits);
+            }
+            else
+            {
+                capsule = CapsuleGeometry.Create(
+                    fromUnits - axis * halfSegment,
+                    fromUnits + axis * halfSegment,
+                    radiusUnits);
+            }
+
+            // How far the shape reaches from its centre along any axis. Expanding both end poses
+            // by this gives a conservative swept AABB — it may admit a few extra candidates, which
+            // the narrow-phase cast then rejects. Cheap and, crucially, never too small. For the
+            // circle case halfSegment is zero, so this correctly reduces to just the radius.
+            float reach = halfSegment + radiusUnits;
+
+            var filter = new PhysicsQuery.QueryFilter();
+
+            // Scoped deliberately: TestOverlapGeometry answers for the whole world, and one world
+            // serves the whole active room set (decision L1). Requiring the shape to be near THIS
+            // room's own chains first keeps a projectile from being stopped by a neighbouring room's
+            // geometry that merely happens to share the boundary.
+            bool overlapsOwnGeometry = isCircle
+                ? _world.TestOverlapGeometry(circle, filter)
+                : _world.TestOverlapGeometry(capsule, filter);
+
+            if (NearOwnGeometry(fromUnits, reach) && overlapsOwnGeometry)
+            {
+                contactPointPx = fromPx;
+                contactNormal  = Vector2.zero;
+                return true;
+            }
+
+            if (deltaUnits == Vector2.zero) return false;
+
+            Vector2 toUnits = fromUnits + deltaUnits;
+            var swept = Rect.MinMaxRect(
+                Mathf.Min(fromUnits.x, toUnits.x) - reach,
+                Mathf.Min(fromUnits.y, toUnits.y) - reach,
+                Mathf.Max(fromUnits.x, toUnits.x) + reach,
+                Mathf.Max(fromUnits.y, toUnits.y) + reach);
+
+            var castInput = isCircle
+                ? new PhysicsQuery.CastShapeInput(circle, deltaUnits)
+                : new PhysicsQuery.CastShapeInput(capsule, deltaUnits);
+
+            // Set explicitly rather than inherited from the constructor's default. The shipped docs
+            // describe this field only as "typically 1", and this suite already carries a live
+            // example of an unverified default being wrong (PhysicsQuery.QueryFilter: a
+            // default-initialised one matches nothing, where `new QueryFilter()` hits everything).
+            // A zero here would make every cast report a miss — silently, and only at runtime.
+            castInput.maxFraction = 1f;
+
+            // NOTE: CastShapeInput.canEncroach is the shipped flag for "an initially-touching shape
+            // should count". It is deliberately NOT used: its initial-overlap output is documented
+            // only as "normal zero, fraction zero", which does not say what `point` holds, and the
+            // explicit overlap branch above is built on TestOverlapGeometry — already exercised by
+            // the B1 suite. Revisit if the extra world query ever shows up in a profile.
+
+            bool found = false;
+            float bestFraction = float.MaxValue;
+
+            for (int i = 0; i < _chains.Count; i++)
+            {
+                if (!_chainBoundsUnits[i].Overlaps(swept)) continue;
+
+                PhysicsChain chain = _chains[i];
+                if (!chain.isValid) continue;
+
+                // The out parameter is the chain segment that was found; the projectile does not need
+                // its identity (the contact point is what resolves the tile), so it is discarded.
+                PhysicsQuery.CastResult cast = chain.CastShape(castInput, out PhysicsShape _);
+                if (!cast.hit) continue;
+                if (cast.fraction > bestFraction) continue;
+
+                bestFraction   = cast.fraction;
+                contactPointPx = cast.point * (1f / PixelToUnit);
+                contactNormal  = cast.normal;
+                found          = true;
+            }
+
+            return found;
+        }
+
+        /// <summary>True if any chain's recorded AABB lies within <paramref name="reach"/> of a point.</summary>
+        private bool NearOwnGeometry(Vector2 centreUnits, float reach)
+        {
+            var probe = Rect.MinMaxRect(
+                centreUnits.x - reach, centreUnits.y - reach,
+                centreUnits.x + reach, centreUnits.y + reach);
+
+            for (int i = 0; i < _chainBoundsUnits.Count; i++)
+            {
+                if (_chainBoundsUnits[i].Overlaps(probe)) return true;
+            }
+            return false;
         }
 
         // ── Single-sourcing predicate ────────────────────────────────────────────────────────

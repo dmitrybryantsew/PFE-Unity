@@ -52,5 +52,39 @@ namespace PFE.Systems.Physics
         /// Called via <see cref="PFE.Systems.Map.TileQuery.ITileQueryService.NotifyTilesMutated"/>.
         /// </summary>
         void RebuildRegion(RoomInstance room, RectInt tileRegion);
+
+        /// <summary>
+        /// Sweeps a projectile-shaped capsule through the active rooms' chain geometry and reports the
+        /// nearest tile contact. All coordinates are <b>world pixels</b> — the same space
+        /// <c>ITileQueryService</c> uses, so a caller never converts.
+        ///
+        /// <para><b>This is Stage C's whole purpose.</b> Until now the only thing that answered "is
+        /// there a tile in my way?" for a projectile was Unity's per-tile <c>BoxCollider2D</c> grid,
+        /// which owns its own interpretation of the slope and produces ghost collisions at the seams
+        /// between adjacent cells. Answering it here instead means the geometry comes from
+        /// <c>ITileQueryService</c> via the chain mirror, so it cannot drift.</para>
+        ///
+        /// <para><b>Swept, not sampled.</b> A chain is a zero-thickness surface, so the window in
+        /// which a shape overlaps it is only as wide as the shape. AS3 bullets travel up to 500 px per
+        /// frame, far wider than that window, so this must be a swept test — an end-of-step overlap
+        /// test would let them tunnel through walls. See
+        /// <see cref="RoomChainGeometry.TrySweep"/>.</para>
+        ///
+        /// <para>Returns false when the world is invalid or no active room has geometry, which is the
+        /// correct answer for a projectile in an unbuilt room: nothing is there to hit.</para>
+        /// </summary>
+        /// <param name="fromPx">Shape centre at the start of the move, world pixels.</param>
+        /// <param name="deltaPx">Translation over this step, world pixels.</param>
+        /// <param name="sizePx">Shape (length, thickness) in pixels; mirrors the projectile
+        /// prefab's collider. Length runs along <paramref name="facing"/>. A thickness equal to the
+        /// length has no straight section and is swept as a circle — see
+        /// <see cref="RoomChainGeometry.TrySweep"/> for why that case needs its own shape.</param>
+        /// <param name="facing">Unit direction of the shape's long axis — the travel direction.
+        /// Without it a needle-shaped hitbox would be modelled as a dot at its centre and every
+        /// bullet would register its hit ~46 px late, i.e. buried halfway into the wall.</param>
+        /// <param name="contactPointPx">Nearest contact point, world pixels.</param>
+        /// <param name="contactNormal">Surface normal at the contact, or zero for an initial overlap.</param>
+        bool TrySweepTiles(Vector2 fromPx, Vector2 deltaPx, Vector2 sizePx, Vector2 facing,
+                           out Vector2 contactPointPx, out Vector2 contactNormal);
     }
 }
