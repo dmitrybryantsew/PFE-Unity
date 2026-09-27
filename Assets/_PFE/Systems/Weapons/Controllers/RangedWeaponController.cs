@@ -182,7 +182,7 @@ namespace PFE.Systems.Weapons.Controllers
             if (State.IsBroken) return;
 
             // Single-shot debounce (auto=false && t_auto > 0 → increment pow, skip fire).
-            bool isAuto = IsAuto();
+            bool isAuto = _def.IsAuto;
             if (!isAuto && State.TAuto > 0)
             {
                 State.TAuto = 3; // refresh debounce window
@@ -465,12 +465,6 @@ namespace PFE.Systems.Weapons.Controllers
             float effective = _def.deviation * (1f + breaking * 2f);
             return (_rng.NextFloat() - 0.5f) * effective * Mathf.Deg2Rad;
         }
-
-        /// <summary>
-        /// Whether this weapon fires continuously (auto=true in AS3).
-        /// AS3: auto = (rapid <= 6), overridden by explicit @auto attribute.
-        /// </summary>
-        private bool IsAuto() => _def.rapid <= 6;
 
         /// <summary>
         /// Start reload sequence. Mirrors Weapon.initReload().

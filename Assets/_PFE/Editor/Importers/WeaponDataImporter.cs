@@ -237,6 +237,13 @@ namespace PFE.Editor.Importers
             def.maxDurability       = AttrI(charT1, "maxhp",   100);
             def.baseDamage          = AttrF(charT1, "damage",  10f);
             def.rapid               = AttrF(charT1, "rapid",   10f);
+
+            // char@auto — AS3 tests PRESENCE first, then `!= "0"` (Weapon.as:856-859), so absent
+            // and '0' are different answers and a bool cannot carry both. 0 = absent.
+            // 14 weapons carry auto='1' on their tier-1 <char> with rapid > 6 (shotgun 12, bfg 15,
+            // mont 15, knife 8, lasp 7, …); without this they fire single-shot here.
+            string autoAttr         = Attr(charT1, "auto");
+            def.autoMode            = string.IsNullOrEmpty(autoAttr) ? 0 : (autoAttr != "0" ? 2 : 1);
             def.precision           = AttrF(charT1, "prec",    0f) * 40f; // AS3 scales by 40
             def.knockback           = AttrF(charT1, "knock",   0f);
             def.destroyTiles        = AttrF(charT1, "destroy", 0f);

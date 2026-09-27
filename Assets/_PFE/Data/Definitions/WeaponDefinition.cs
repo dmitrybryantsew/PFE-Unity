@@ -69,6 +69,47 @@ namespace PFE.Data.Definitions
         [Tooltip("Fire cooldown in frames (rapid in AS3, 30 FPS = 1 second)")]
         public float rapid = 10f;
 
+        /// <summary>
+        /// AS3's <c>char@auto</c> override. <b>0 = attribute absent</b>, 1 = <c>auto='0'</c>
+        /// (force single-shot), 2 = <c>auto='1'</c> (force continuous).
+        ///
+        /// <para>AS3 tests <i>presence</i> first and only then the value (<c>Weapon.as:856-859</c>),
+        /// so "absent" and "'0'" are different answers and a plain <c>bool</c> cannot carry both.
+        /// Imported from the <b>tier-1</b> <c>&lt;char&gt;</c> node, alongside <c>rapid</c> — both live
+        /// on <c>&lt;char&gt;</c>, not on the <c>&lt;weapon&gt;</c> root.</para>
+        ///
+        /// <para><b>Why "absent" is the zero value rather than -1.</b> Every one of the 204 existing
+        /// assets predates this field, so its value on load comes from the fallback for a field the
+        /// YAML does not mention — not from the importer. Encoding "absent" as 0 makes that fallback
+        /// correct whether the engine applies the field initializer or zero-fills. The cost of getting
+        /// it wrong is severe and silent in one direction only: zero-fill with -1-as-absent would make
+        /// every weapon read as <i>explicitly single-shot</i>, so the SMG, minigun and every other
+        /// fast weapon would stop firing while the attack key is held.</para>
+        /// </summary>
+        [Tooltip("AS3 char@auto: 0 = absent (use rapid<=6), 1 = forced single-shot, 2 = forced auto")]
+        public int autoMode;
+
+        /// <summary>
+        /// True when the weapon fires continuously while the attack key is held.
+        ///
+        /// Mirrors <c>Weapon.as:856-859</c> exactly:
+        /// <code>
+        /// this.auto = this.rapid &lt;= 6;
+        /// if(param1.@auto.length()) this.auto = param1.@auto != "0";
+        /// </code>
+        ///
+        /// <para><b>Single source of truth</b>, like <see cref="IsUnarmed"/>: all three weapon
+        /// controllers read this instead of repeating <c>rapid &lt;= 6</c> inline. Three copies of
+        /// the heuristic is how the <c>@auto</c> half went missing from all of them at once —
+        /// 14 weapons (shotgun, bfg, mont, knife, lasp, …) fired single-shot in Unity where AS3
+        /// fires them continuously.</para>
+        ///
+        /// <para>Not modelled here: AS3 also forces <c>auto = true</c> for every non-player unit
+        /// (<c>Weapon.as:339-342</c>). Nothing equips an enemy yet, so that rule has no call site —
+        /// add it when an enemy weapon loadout lands.</para>
+        /// </summary>
+        public bool IsAuto => autoMode == 1 ? false : autoMode == 2 ? true : rapid <= 6f;
+
         // Legacy property for compatibility
         public int FireRateFrames => (int)rapid;
 

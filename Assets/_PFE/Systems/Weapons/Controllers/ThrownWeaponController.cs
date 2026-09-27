@@ -133,7 +133,7 @@ namespace PFE.Systems.Weapons.Controllers
             State.IsAttack = true;
 
             // Single-shot debounce (non-auto thrown weapons).
-            bool isAuto = _def.rapid <= 6;
+            bool isAuto = _def.IsAuto;
             if (!isAuto && State.TAuto > 0)
             {
                 State.TAuto = 3;

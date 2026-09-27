@@ -135,7 +135,7 @@ namespace PFE.Systems.Weapons.Controllers
         private void RunAttack()
         {
             // Single-shot debounce (non-auto fists — tap timing).
-            bool isAuto = _def.rapid <= 6;
+            bool isAuto = _def.IsAuto;
             if (!isAuto && State.TAuto > 0)
             {
                 State.TAuto = 3;
