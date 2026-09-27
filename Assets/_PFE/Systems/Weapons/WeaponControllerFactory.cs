@@ -12,18 +12,34 @@ namespace PFE.Systems.Weapons
     /// Mirrors Weapon.create() in AS3 — the same switch on tip / punch that
     /// decides which class (Weapon / WClub / WThrow / WMagic / WPunch) to instantiate.
     ///
+    /// AS3 (Weapon.as:345-394), evaluated in this exact order — tip is tested BEFORE punch:
+    ///   tip == 1        → WClub   → MeleeWeaponController
+    ///   tip == 12       → WPaint  → no Unity counterpart (see below)
+    ///   tip == 4        → WThrow  → ThrownWeaponController
+    ///   tip == 5        → WMagic  → MagicWeaponController
+    ///   punch > 0       → WPunch  → UnarmedWeaponController
+    ///   everything else → Weapon  → RangedWeaponController
+    ///
+    /// The last two lines are the whole point of this class. **tip alone never selects WPunch** —
+    /// `punch` is a separate attribute — and the base `Weapon` that everything else falls through
+    /// to is a *ranged* weapon. So tip == 0 (WeaponType.Internal) means RANGED, not "unarmed";
+    /// reading it as unarmed drove 57 of the 60 tip==0 weapons (every turret, drone laser, zombie
+    /// spitter, alimray, robominigun, ttweap1..6) into the punch controller, which spawns no
+    /// projectile and draws no sprite.
+    /// See docs/OnWeaponsSystemImplementation/13_WeaponTypeBehaviourAudit_2026-09-27.md §1.
+    ///
+    /// tip == 12 (WPaint) never occurs in AllData.as — count is 0. AS3 only ever builds WPaint
+    /// directly (UnitPlayer.as:432), and the port has no WPaint class, so it is reported loudly
+    /// rather than silently mis-routed.
+    ///
     /// Pure C# — no MonoBehaviour. Instantiated and owned by PlayerWeaponLoadout.
     /// Enemies will use this factory too (future EnemyWeaponLoadout).
-    ///
-    /// AS3 mapping:
-    ///   tip == 1       → WClub   → MeleeWeaponController
-    ///   tip == 4       → WThrow  → ThrownWeaponController
-    ///   tip == 5       → WMagic  → MagicWeaponController
-    ///   Internal (0)   → WPunch  → UnarmedWeaponController  (punch/kick, no held vis)
-    ///   everything else → Weapon → RangedWeaponController   (Guns=2, BigGun=3)
     /// </summary>
     public sealed class WeaponControllerFactory
     {
+        /// <summary>AS3 tip value that selects WPaint — not represented in <see cref="WeaponType"/>.</summary>
+        private const int PaintTip = 12;
+
         private readonly PfeDebugSettings _debugSettings;
         private readonly IAmmoSource      _ammoSource;
         private readonly PFE.Core.Rng.IRngService _rng;
@@ -51,18 +67,37 @@ namespace PFE.Systems.Weapons
 
             var state = new WeaponRuntimeState(def);
 
-            // Mirror Weapon.create() dispatch in AS3.
-            // WeaponType.Internal (0) covers punch/unarmed (WPunch in AS3 — punch > 0 on node).
-            // All ranged families (Guns=2, BigGun=3, Internal non-punch) → RangedWeaponController.
-            // Punch detection could refine Internal further in Stage 5 using def.meleeType or a flag.
-            IWeaponController controller = def.weaponType switch
+            // Mirror Weapon.create() dispatch in AS3 (Weapon.as:345-394), same precedence:
+            // tip first, then punch, then the ranged base class.
+            IWeaponController controller;
+            switch (def.weaponType)
             {
-                WeaponType.Melee   => new MeleeWeaponController(state),
-                WeaponType.Thrown  => new ThrownWeaponController(state),
-                WeaponType.Magic   => new MagicWeaponController(state),
-                WeaponType.Internal => new UnarmedWeaponController(state),
-                _                  => new RangedWeaponController(state, _debugSettings, _ammoSource, _rng),
-            };
+                case WeaponType.Melee:          // tip 1 → WClub
+                    controller = new MeleeWeaponController(state);
+                    break;
+
+                case WeaponType.Thrown:         // tip 4 → WThrow
+                    controller = new ThrownWeaponController(state);
+                    break;
+
+                case WeaponType.Magic:          // tip 5 → WMagic
+                    controller = new MagicWeaponController(state);
+                    break;
+
+                case (WeaponType)PaintTip:      // tip 12 → WPaint — no Unity class, and no data uses it
+                    Debug.LogWarning(
+                        $"[WeaponControllerFactory] Weapon '{def.weaponId}' has tip=12 (AS3 WPaint), which has no " +
+                        "Unity counterpart. Falling back to the ranged controller. " +
+                        "See 13_WeaponTypeBehaviourAudit_2026-09-27.md §1.6.");
+                    controller = new RangedWeaponController(state, _debugSettings, _ammoSource, _rng);
+                    break;
+
+                default:                        // tip 0 (Internal), 2 (Guns), 3 (BigGun), and anything >= 6
+                    controller = def.IsUnarmed  // punch > 0 → WPunch; tip alone never selects it
+                        ? new UnarmedWeaponController(state)
+                        : new RangedWeaponController(state, _debugSettings, _ammoSource, _rng);
+                    break;
+            }
 
             Debug.Log($"[WeaponControllerFactory] Created {controller.GetType().Name} for weapon '{def.weaponId}'.");
             return controller;

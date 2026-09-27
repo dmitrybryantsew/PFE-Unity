@@ -30,7 +30,7 @@ namespace PFE.Entities.Weapons
     /// points from mindlina to dlina along the weapon arc each frame.
     /// </summary>
     [RequireComponent(typeof(CapsuleCollider2D))]
-    public sealed class MeleeHitVolume : MonoBehaviour
+    public sealed class MeleeHitVolume : MonoBehaviour, IMeleeHitVolume
     {
         // ── State ─────────────────────────────────────────────────────────────
 

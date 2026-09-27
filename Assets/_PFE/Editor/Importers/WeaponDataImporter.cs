@@ -211,6 +211,18 @@ namespace PFE.Editor.Importers
             // ── Root tag attributes ──────────────────────────────────────────
             def.weaponId    = id;
             def.weaponType  = (WeaponType)AttrI(rootAttrs, "tip", 0);
+
+            // AS3's second class selector. Weapon.as:345-394 dispatches on tip AND punch:
+            // tip==1/12/4/5 → WClub/WPaint/WThrow/WMagic, then punch>0 → WPunch, else the base
+            // (RANGED) Weapon. Dropping `punch` here is what made every tip==0 weapon look
+            // "unarmed" — 57 of the 60 tip==0 weapons are plain ranged `Weapon` in AS3.
+            def.punch       = AttrI(rootAttrs, "punch", 0);
+
+            // Melee sub-type. WClub.as:115-118 reads `node.@mtip` — the weapon ROOT, not <phis>.
+            // 0 = swing arc, 1 = Thrust, 2 = Overhead. Only 6 weapons set it (spear/mspear/tlance
+            // and autoaxe/bsaw/ripper); until now those six values existed only as hand-edited YAML
+            // in the assets, which a reimport preserved by accident rather than by design.
+            def.meleeType   = (MeleeType)AttrI(rootAttrs, "mtip", 0);
             def.skillLevel  = AttrI(rootAttrs, "skill", 0);
             def.weaponLevel = AttrI(rootAttrs, "lvl",   0);
             def.alicornOnly = AttrBool(rootAttrs, "alicorn");

@@ -15,19 +15,21 @@ namespace PFE.Systems.Weapons.Controllers
     ///   X += del.x;  Y += del.y   (weapon chases cursor-clamped target)
     ///   On first frame or krep>0: snap to holdPoint.
     ///
-    /// mtip sub-behaviors:
-    ///   0 = swing (club/sword) — rot sweeps arc driven by anim value
-    ///   1 = thrust (spear)     — weapon lunges along aim axis
-    ///   2 = slash (knife)      — hit fires once at TAttack==1
+    /// mtip sub-behaviors — all three drive the hit volume (see UpdateHitWindow):
+    ///   0 = swing (club/sword) — rot sweeps an arc driven by anim
+    ///   1 = thrust (spear)     — rot points at the cursor, tip lunges by anim * atDlina
+    ///   2 = overhead (axe/saw) — ONE bindMove from mindlina to dlina at TAttack == 1
     ///
     /// Attack:
     ///   weaponAttack() → t_attack = rapid_act (= rapid, no multiplier here)
-    ///   shoot() called immediately on weaponAttack for mtip==0/2
-    ///   For mtip==1 shoot fires at t_attack==rapid/2 (thrust peak)
+    ///   mtip==0 emits its hit plan on weaponAttack; mtip==1 at t_attack == rapid/2 (thrust peak);
+    ///   mtip==2 at t_attack == 1. AS3 drives all three from t_attack, not from attack start.
     ///
-    /// Hit window (mtip==0):
-    ///   active when t_attack is in range [rapid*1/6 .. rapid*5/6]
-    ///   → emits MeleeSweep ShotPlan with MeleePrevTip / MeleeCurrTip each frame
+    /// Hit window:
+    ///   mtip 0: rapid*1/6 &lt; t_attack &lt; rapid*5/6  (AS3 uses rapid_act/2 .. 5/6 — audit §4)
+    ///   mtip 1: rapid/2   &lt;= t_attack &lt; rapid*5/6
+    ///   mtip 2: t_attack == 1, once
+    ///   Each active frame emits a MeleeSweep ShotPlan and calls MeleeHitVolume.BindMove().
     ///
     /// Combo system (meleeCombo=true):
     ///   combo counter increments each attack; at combo>=4: powerMult=2, reset
@@ -53,6 +55,10 @@ namespace PFE.Systems.Weapons.Controllers
 
         // Default reach in Unity units when WeaponDefinition.meleeDlina not set.
         private const float DefaultReach = 1f;
+
+        // AS3 WClub.atDlina (WClub.as:59) — the lunge distance the thrust tip travels along the
+        // aim axis, in AS3 pixels. Only mtip==1 uses it (WClub.as:433-434).
+        private const float AtDlinaPx = 100f;
 
         // ── State ─────────────────────────────────────────────────────────────
 
@@ -88,8 +94,13 @@ namespace PFE.Systems.Weapons.Controllers
         private float _dlina;
         private float _minDlina;
 
-        // External MeleeHitVolume — assigned by PlayerWeaponLoadout after equip.
-        public MeleeHitVolume HitVolume { get; set; }
+        /// <summary>WClub.atDlina in Unity units — the mtip==1 thrust lunge distance.</summary>
+        private float AtDlina => AtDlinaPx / PpuScale;
+
+        // External hit volume — assigned by PlayerWeaponLoadout after equip.
+        // Typed as the interface so EditMode tests can substitute a recording stub; the real
+        // MeleeHitVolume caches its collider in Awake, which never runs for AddComponent in EditMode.
+        public IMeleeHitVolume HitVolume { get; set; }
 
         private readonly List<ShotPlan> _plans = new();
 
@@ -158,10 +169,16 @@ namespace PFE.Systems.Weapons.Controllers
                 State.Y += del.y;
             }
 
-            // ── Rotation (swing arc driven by anim) ───────────────────────────
+            // ── Rotation ──────────────────────────────────────────────────────
+            // AS3 sets `rot` inside each mtip branch (WClub.as:377 / :430 / :466):
+            //   mtip 0 → the anim-driven swing arc
+            //   mtip 1 / 2 → straight at the cursor
+            // AS3 aims the latter from `owner.Y - owner.scY/2`; this controller has no owner
+            // offset, so it aims from the weapon's own position like the rest of the class.
             UpdateAnim();
-            // AS3: rot = -PI/2 + (-PI/6 + anim*PI) * storona
-            State.Rot   = -Mathf.PI / 2f + (-Mathf.PI / 6f + _anim * Mathf.PI) * _storona;
+            State.Rot = _def.meleeType == MeleeType.Horizontal
+                ? -Mathf.PI / 2f + (-Mathf.PI / 6f + _anim * Mathf.PI) * _storona
+                : Mathf.Atan2(aimTarget.y - State.Y, aimTarget.x - State.X);
             State.Ready = true;
 
             // ── attack() ─────────────────────────────────────────────────────
@@ -172,7 +189,7 @@ namespace PFE.Systems.Weapons.Controllers
             RunActions(aimTarget);
 
             // ── Hit window & MeleeSweep emission ─────────────────────────────
-            UpdateHitWindow(holdPoint);
+            UpdateHitWindow(holdPoint, aimTarget);
 
             State.IsShoot   = false;
             State.WasAttack = State.IsAttack;
@@ -213,9 +230,11 @@ namespace PFE.Systems.Weapons.Controllers
             State.IsAttack = true;
             _anim          = 0f;
 
-            // Horizontal (mtip==0) and Overhead/slash (mtip==2) emit hit on attack start.
-            if (_def.meleeType == MeleeType.Horizontal || _def.meleeType == MeleeType.Overhead)
-                Shoot(aimTarget, holdPoint, isInstant: _def.meleeType == MeleeType.Overhead);
+            // Only mtip==0 emits its hit plan at attack start. AS3 drives all three sub-types from
+            // t_attack rather than from attack start: mtip==1 fires at the thrust peak (RunActions)
+            // and mtip==2 fires once at t_attack==1 (UpdateHitWindow). WClub.as:435-483.
+            if (_def.meleeType == MeleeType.Horizontal)
+                Shoot(aimTarget, holdPoint);
 
             State.CurrentDurability = Mathf.Max(0, State.CurrentDurability - 1);
             State.KolShoot++;
@@ -318,47 +337,138 @@ namespace PFE.Systems.Weapons.Controllers
         // ── Hit window ────────────────────────────────────────────────────────
 
         /// <summary>
-        /// During the strike window (middle third of attack duration) emit MeleeSweep
-        /// each frame so MeleeHitVolume sweeps between previous and current tip.
-        /// AS3: active between rapid*1/6 < t_attack < rapid*5/6.
+        /// Per-subtype strike window and tip sweep, mirroring the three branches of
+        /// WClub.actions(). Each branch drives MeleeHitVolume through BindMove(prev, curr).
+        ///
+        ///   mtip 0 Horizontal — WClub.as:378-408: a fan of kolvzz+1 lines along the swing arc,
+        ///                       active while rapid_act/2 &lt;= t_attack &lt; rapid_act*5/6.
+        ///   mtip 1 Thrust     — WClub.as:435-454: ONE line at X + cos2*dlina + plX, where
+        ///                       plX/plY = cos2/sin2 * anim * atDlina (the lunge). Same window.
+        ///   mtip 2 Overhead   — WClub.as:469-483: ONE bindMove from mindlina to dlina, taken when
+        ///                       t_attack == 1 — i.e. once, at the END of the attack.
+        ///
+        /// This method used to early-return for every meleeType except Horizontal, and
+        /// <c>HitVolume.SetActive(true)</c> exists only past that guard — so Thrust and Overhead
+        /// had a permanently disabled hit volume and could never hit anything (spear / mspear /
+        /// tlance, autoaxe / bsaw / ripper). Audit §3.
+        ///
+        /// NOTE: AS3's thresholds use <c>rapid_act</c> (resultRapid() plus the water doubling), and
+        /// this controller has no rapid_act, so all three branches use <c>_def.rapid</c>. That
+        /// divergence is audit §4 and must be converted for all branches together, not one at a time.
         /// </summary>
-        private void UpdateHitWindow(Vector2 holdPoint)
+        private void UpdateHitWindow(Vector2 holdPoint, Vector2 aimTarget)
         {
-            if (State.TAttack <= 0 || _def.meleeType != MeleeType.Horizontal)
+            if (State.TAttack <= 0)
             {
-                if (_inStrikeWindow)
-                {
-                    HitVolume?.SetActive(false);
-                    _inStrikeWindow = false;
-                }
+                EndStrikeWindow();
                 return;
             }
 
+            switch (_def.meleeType)
+            {
+                case MeleeType.Thrust:
+                    UpdateThrustWindow(aimTarget);
+                    break;
+
+                case MeleeType.Overhead:
+                    UpdateOverheadWindow(holdPoint, aimTarget);
+                    break;
+
+                default:   // MeleeType.Horizontal
+                    UpdateHorizontalWindow(holdPoint);
+                    break;
+            }
+        }
+
+        /// <summary>mtip 0 — the swing-arc sweep (WClub.as:378-408).</summary>
+        private void UpdateHorizontalWindow(Vector2 holdPoint)
+        {
             float rapid = _def.rapid;
             bool inWindow = State.TAttack < rapid * 5f / 6f &&
                             State.TAttack > rapid * 1f / 6f;
 
-            if (inWindow)
+            if (!inWindow)
             {
-                Vector2 tip = CalculateTipPosition(holdPoint, new Vector2(
-                    State.X + Mathf.Cos(State.Rot) * _dlina,
-                    State.Y + Mathf.Sin(State.Rot) * _dlina));
-
-                if (!_inStrikeWindow)
-                {
-                    _prevTip        = tip;
-                    _inStrikeWindow = true;
-                    HitVolume?.SetActive(true);
-                }
-
-                HitVolume?.BindMove(_prevTip, tip);
-                _prevTip = tip;
+                EndStrikeWindow();
+                return;
             }
-            else if (_inStrikeWindow)
+
+            Vector2 tip = CalculateTipPosition(holdPoint, new Vector2(
+                State.X + Mathf.Cos(State.Rot) * _dlina,
+                State.Y + Mathf.Sin(State.Rot) * _dlina));
+
+            BeginOrExtendStrike(tip);
+        }
+
+        /// <summary>mtip 1 — the lunge: one line pushed out by anim * atDlina (WClub.as:435-454).</summary>
+        private void UpdateThrustWindow(Vector2 aimTarget)
+        {
+            float rapid = _def.rapid;
+            if (State.TAttack < rapid / 2f || State.TAttack >= rapid * 5f / 6f)
             {
-                HitVolume?.SetActive(false);
-                _inStrikeWindow = false;
+                EndStrikeWindow();
+                return;
             }
+
+            // AS3: _loc6_ = X + cos2 * dlina + plX, with plX = cos2 * anim * atDlina.
+            // Factoring cos2 out gives dir * (dlina + anim * atDlina) along the aim axis.
+            Vector2 weaponPos = new Vector2(State.X, State.Y);
+            Vector2 tip = weaponPos + DirectionTo(aimTarget, weaponPos) * (_dlina + _anim * AtDlina);
+
+            BeginOrExtendStrike(tip);
+        }
+
+        /// <summary>
+        /// mtip 2 — one bindMove from mindlina to dlina, taken on the frame t_attack == 1
+        /// (WClub.as:469-483). This is also where the hit plan is emitted, because AS3 fires at the
+        /// END of the overhead swing, not at attack start.
+        /// </summary>
+        private void UpdateOverheadWindow(Vector2 holdPoint, Vector2 aimTarget)
+        {
+            if (State.TAttack != 1)
+            {
+                EndStrikeWindow();
+                return;
+            }
+
+            Shoot(aimTarget, holdPoint, isInstant: true);
+
+            Vector2 weaponPos = new Vector2(State.X, State.Y);
+            Vector2 dir       = DirectionTo(aimTarget, weaponPos);
+
+            HitVolume?.SetActive(true);
+            HitVolume?.BindMove(weaponPos + dir * _minDlina, weaponPos + dir * _dlina);
+
+            _prevTip        = weaponPos + dir * _dlina;
+            _inStrikeWindow = true;
+        }
+
+        /// <summary>Open the strike window on the first active frame, then sweep prevTip → tip.</summary>
+        private void BeginOrExtendStrike(Vector2 tip)
+        {
+            if (!_inStrikeWindow)
+            {
+                _prevTip        = tip;
+                _inStrikeWindow = true;
+                HitVolume?.SetActive(true);
+            }
+
+            HitVolume?.BindMove(_prevTip, tip);
+            _prevTip = tip;
+        }
+
+        private void EndStrikeWindow()
+        {
+            if (!_inStrikeWindow) return;
+            HitVolume?.SetActive(false);
+            _inStrikeWindow = false;
+        }
+
+        /// <summary>Unit vector from origin toward target, falling back to +X when they coincide.</summary>
+        private static Vector2 DirectionTo(Vector2 target, Vector2 origin)
+        {
+            Vector2 d = target - origin;
+            return d.sqrMagnitude > 1e-8f ? d.normalized : Vector2.right;
         }
 
         // ── Helpers ───────────────────────────────────────────────────────────

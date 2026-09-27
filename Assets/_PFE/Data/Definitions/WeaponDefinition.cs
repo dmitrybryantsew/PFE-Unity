@@ -27,6 +27,33 @@ namespace PFE.Data.Definitions
         [Tooltip("Weapon type determines firing behavior")]
         public WeaponType weaponType;
 
+        /// <summary>
+        /// AS3's `punch` attribute — a class selector *separate* from <see cref="weaponType"/>.
+        ///
+        /// This is a trap worth stating plainly: `tip` is NOT the class selector on its own.
+        /// Weapon.as:345-394 dispatches tip==1 → WClub, tip==12 → WPaint, tip==4 → WThrow,
+        /// tip==5 → WMagic, **then punch &gt; 0 → WPunch**, and everything else falls through to
+        /// the base `Weapon` class — which is a *ranged* weapon, not "unarmed".
+        ///
+        /// Only 3 weapons in AllData.as carry punch='1' (scorppunch / scorp2punch / scorp3punch,
+        /// all created by UnitMonstrik.as). Treating tip==0 as unarmed mis-routes the other 57
+        /// tip==0 weapons (every turret, drone laser, zombie spitter, alimray, robominigun, …)
+        /// to the punch controller, which spawns no projectile and draws no sprite.
+        ///
+        /// See docs/OnWeaponsSystemImplementation/13_WeaponTypeBehaviourAudit_2026-09-27.md §1.
+        /// </summary>
+        [Tooltip("AS3 `punch` attribute — 1 selects WPunch. Separate from tip; tip==0 alone means RANGED.")]
+        public int punch;
+
+        /// <summary>
+        /// True only for the punch/kick family (AS3 WPunch / WKick).
+        ///
+        /// Single source of truth for "unarmed": both the controller factory and the sprite
+        /// presenter read this, so the two cannot drift apart the way
+        /// `weaponType == WeaponType.Internal` did (which hid the held sprite for 57 ranged weapons).
+        /// </summary>
+        public bool IsUnarmed => punch > 0;
+
         // Legacy property for compatibility
         public WeaponType Type => weaponType;
 

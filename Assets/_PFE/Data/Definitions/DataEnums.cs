@@ -84,16 +84,27 @@ namespace PFE.Data.Definitions
     }
 
     /// <summary>
-    /// Weapon type enumeration from AS3.
-    /// tip='0' = Internal/Unarmed
+    /// Weapon type enumeration from AS3 — these values are AS3's `tip` attribute, verbatim.
+    /// tip='0' = the base ranged Weapon  (⚠ NOT "unarmed" — see Internal below)
     /// tip='1' = Melee
     /// tip='2' = Guns (Small guns, pistols, rifles)
     /// tip='3' = Big guns (Heavy weapons)
     /// tip='4' = Thrown
     /// tip='5' = Magic
+    ///
+    /// `tip` is not the class selector on its own: AS3's Weapon.create() (Weapon.as:345-394) tests
+    /// tip first, then the separate `punch` attribute, and only then falls through to the base
+    /// (ranged) Weapon. Use <see cref="WeaponDefinition.IsUnarmed"/> for the punch/kick family.
     /// </summary>
     public enum WeaponType
     {
+        /// <summary>
+        /// AS3 tip='0' — the base `Weapon` class, which is a RANGED weapon.
+        ///
+        /// The name is a historical trap: reading it as "unarmed" is what mis-routed 57 of the 60
+        /// tip==0 weapons (turrets, drone lasers, zombie spitters, alimray, robominigun) into the
+        /// punch controller. Unarmed is `punch > 0`, i.e. <see cref="WeaponDefinition.IsUnarmed"/>.
+        /// </summary>
         Internal = 0,
         Melee = 1,
         Guns = 2,

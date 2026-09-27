@@ -233,8 +233,11 @@ namespace PFE.Systems.Weapons
         private void UpdateRendererEnabled()
         {
             if (_spriteRenderer == null) return;
-            // Unarmed (Internal) weapons have no held sprite.
-            bool isUnarmed = _def != null && _def.weaponType == WeaponType.Internal;
+            // Punch/kick weapons (AS3 WPunch / WKick) have no held sprite.
+            // Use def.IsUnarmed (punch > 0) — NOT weaponType == WeaponType.Internal, which is
+            // tip==0 and means RANGED. That predicate hid the sprite for all 57 mis-routed
+            // tip==0 ranged weapons; see 13_WeaponTypeBehaviourAudit_2026-09-27.md §1.5.
+            bool isUnarmed = _def != null && _def.IsUnarmed;
             _spriteRenderer.enabled = !isUnarmed;
         }
 
