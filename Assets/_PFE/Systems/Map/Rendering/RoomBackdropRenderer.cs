@@ -27,8 +27,19 @@ namespace PFE.Systems.Map.Rendering
         private const float DefaultOuterLightRadiusPixels = 1000f;
         private const float LightRevealRiseSpeed = 0.1f;
         private const float LightRevealFallSpeed = 0.025f;
+
+        /// <summary>
+        /// AS3 `Location.lighting():3142` sets <c>relight_t = 10</c>, and `step():3402` runs that many
+        /// <c>lighting2()</c> frames after every full pass. At 30 fps that is the ~0.33 s fade-in.
+        /// </summary>
+        private const int RelightFollowUpFrames = 10;
         private const float LightSourceSpreadPixels = 10f;
-        private const float LightOcclusionStepPixels = 20f;
+        // AS3 walks the shadow ray one *tile* at a time: `Location.lighting()` uses
+        // `_loc13_ = Tile.tileX` (40, `Tile.as:8`) and `_loc15_ = _loc9_ / _loc13_`. The port
+        // shipped 20 px, which is twice AS3's sample count along an axis and ~2.8x on a diagonal
+        // (AS3 walks the dominant axis, the port walked the euclidean length). Restored to 40 px
+        // with the dominant-axis walk in SampleLightTransmission.
+        private const float LightOcclusionStepPixels = 40f;
         private static readonly Vector3 BackgroundScale = new Vector3(1f, 1f, 1f);
 
         private readonly RoomInstance _room;
@@ -59,6 +70,18 @@ namespace PFE.Systems.Map.Rendering
 
         public bool FogOfWarDisabled => _fogOfWarDisabled;
 
+        /// <summary>
+        /// Number of baked, non-moving light sources — the AS3 <c>lightAll()</c> set — as of the last
+        /// <see cref="RebuildLightSources"/> (which <see cref="CreateVisuals"/> calls once per room
+        /// activation). Reading it before any bake returns 0.
+        ///
+        /// Exposed so the fog regression tests can pin the emitter rule without a running engine:
+        /// an id-substring match ("light"/"lamp"/"torch") must **not** create a source, and a room
+        /// object must only emit when it carries the <c>light</c> attribute. Each emitter contributes
+        /// three sources (the ±10 px softness triplet, AS3 `lightAll()`).
+        /// </summary>
+        public int StaticLightSourceCount => _staticLightSources.Count;
+
         public void SetFogOfWarDisabled(bool disabled)
         {
             _fogOfWarDisabled = disabled;
@@ -88,6 +111,15 @@ namespace PFE.Systems.Map.Rendering
                 _visibilityMaskCurrentVisibility[i] = 1f;
                 _visibilityMaskPixels[i] = Color.clear;
             }
+
+            // Pin the targets too, and stop any relight follow-up: otherwise the next frames would
+            // keep converging toward the pre-reveal targets and darken the room again.
+            for (int i = 0; i < _visibilityMaskTargetVisibility.Length; i++)
+            {
+                _visibilityMaskTargetVisibility[i] = 1f;
+            }
+
+            _relightFramesRemaining = 0;
 
             if (_visibilityMaskTexture != null)
             {
@@ -129,14 +161,63 @@ namespace PFE.Systems.Map.Rendering
             return pixels;
         }
 
+        /// <summary>
+        /// Scratch list rebuilt on every visibility refresh: the baked static set plus the player triplet.
+        /// </summary>
         private readonly List<LightSource> _lightSources = new List<LightSource>();
+
+        /// <summary>
+        /// The non-moving emitters of this room — AS3's <c>Location.lightAll()</c> set, baked once per
+        /// room build rather than re-derived on every refresh.
+        ///
+        /// AS3 bakes these exactly once, from <c>Land.ativateLoc()</c> (<c>Land.as:1273</c>), and its
+        /// per-frame <c>Location.step()</c> path then calls <c>lighting()</c> with **no arguments** —
+        /// a single source at the camera. Re-deriving the lamp set per refresh is a port invention and
+        /// was the dominant cost of the fog pass (see docs/Perf_FogOfWar_RoomLag_Investigation.md).
+        /// </summary>
+        private readonly List<LightSource> _staticLightSources = new List<LightSource>();
+
+        /// <summary>
+        /// <c>_room.objects.Count</c> at the time the static set was baked. A change means props were
+        /// added or removed, so the lamp set is re-derived. Cheap O(1) guard; AS3 has no equivalent
+        /// because its object list is fixed for the life of a room activation.
+        /// </summary>
+        private int _staticLightSourceObjectCount = -1;
 
         private Texture2D _visibilityMaskTexture;
         private Sprite _visibilityMaskSprite;
         private Vector2Int _visibilityMaskTextureSize = Vector2Int.zero;
         private float[] _visibilityMaskCurrentVisibility = Array.Empty<float>();
+
+        /// <summary>
+        /// AS3 <c>Tile.t_visi</c> — the target visibility the light pass computed for each texel.
+        /// Cached so the follow-up frames can converge toward it without re-running the light loop.
+        /// </summary>
+        private float[] _visibilityMaskTargetVisibility = Array.Empty<float>();
+
         private Color[] _visibilityMaskPixels = Array.Empty<Color>();
         private bool _visibilityMaskDirty = true;
+
+        /// <summary>
+        /// AS3 <c>Location.relight_t</c> — set to 10 at the top of <c>lighting():3142</c>, decremented
+        /// by <c>lighting2():3266</c>, which <c>step():3402</c> calls on the frames that follow a full
+        /// pass. This is what performs the reveal *animation*: <c>lighting()</c> only writes
+        /// <c>t_visi</c> and takes a single <c>updVisi()</c> step, and the remaining ten
+        /// <c>lighting2()</c> frames finish it. Without it the port's reveal would advance only when
+        /// the player crossed a tile boundary and would stall while the player stood still.
+        /// </summary>
+        private int _relightFramesRemaining;
+
+        /// <summary>
+        /// True while <see cref="_visibilityMaskPixels"/> is known to disagree with the uploaded
+        /// texture — set whenever the buffer is (re)allocated. Needed because
+        /// <see cref="UpdateVisibilityMask"/> only uploads when a texel changed, and a buffer that was
+        /// just (re)allocated has never been pushed. See <see cref="EnsureVisibilityMaskBuffers"/> for
+        /// why the buffer is initialised to opaque darkness rather than left at the
+        /// <c>Color[]</c> default.
+        /// </summary>
+        private bool _visibilityMaskUploadPending = true;
+
         private bool _lastPlayerSampleValid;
         private Vector2Int _lastPlayerSample = new Vector2Int(int.MinValue, int.MinValue);
 
@@ -252,6 +333,9 @@ namespace PFE.Systems.Map.Rendering
             {
                 using (Profiler.Region("backdrop.visibilityMask", "boot: CreateVisibilityMaskOverlay + UpdateVisibilityMask — per-pixel light loop"))
                 {
+                    // AS3 bakes the room's lamp lights here — `Land.ativateLoc()` -> `Location.lightAll()`
+                    // — once per room activation, not once per visibility pass.
+                    RebuildLightSources();
                     CreateVisibilityMaskOverlay();
                     UpdateVisibilityMask();
                 }
@@ -270,9 +354,14 @@ namespace PFE.Systems.Map.Rendering
             _visibilityMaskSprite = null;
             _visibilityMaskTextureSize = Vector2Int.zero;
             _visibilityMaskCurrentVisibility = Array.Empty<float>();
+            _visibilityMaskTargetVisibility = Array.Empty<float>();
             _visibilityMaskPixels = Array.Empty<Color>();
+            _relightFramesRemaining = 0;
             _lightSources.Clear();
+            _staticLightSources.Clear();
+            _staticLightSourceObjectCount = -1;
             _visibilityMaskDirty = true;
+            _visibilityMaskUploadPending = true;
             _lastPlayerSampleValid = false;
             _lastPlayerSample = new Vector2Int(int.MinValue, int.MinValue);
         }
@@ -291,39 +380,83 @@ namespace PFE.Systems.Map.Rendering
             }
 
             EnsureVisibilityMaskBuffers(roomPixelSize);
-            if (!ShouldRefreshVisibilityMask(playerWorldPosition, roomPixelSize))
+
+            // AS3 has two phases. `lighting()` is the full pass — it re-rays the lights, writes
+            // `t_visi`, and sets `relight_t = 10` (`Location.as:3142`). `step():3402` then runs
+            // `lighting2()` on the next ten frames, which only walks the tiles and pushes the ones
+            // whose smoothed value is still moving. That split is what makes the reveal an animation:
+            // the expensive part happens once and the cheap part finishes it. The port used to run
+            // the full pass on every refresh, which meant the reveal advanced one 0.1 step per tile
+            // of player movement and stalled completely while the player stood still.
+            bool fullPass = ShouldRefreshVisibilityMask(playerWorldPosition, roomPixelSize);
+            if (!fullPass && _relightFramesRemaining <= 0)
             {
                 return;
             }
 
-            BuildLightSources(playerWorldPosition);
+            if (fullPass)
+            {
+                BuildLightSources(playerWorldPosition);
+                _relightFramesRemaining = RelightFollowUpFrames;
+            }
+            else
+            {
+                _relightFramesRemaining--;
+            }
 
-            float darknessAlpha = ResolveVisibilityMaskDarknessAlpha();
             bool returnsToDarkness = _room.environment != null && _room.environment.returnsToDarkness;
             float ambientVisibility = ResolveAmbientVisibility();
             int width = _visibilityMaskTextureSize.x;
             int height = _visibilityMaskTextureSize.y;
+
+            // Only upload when a texel actually moved — a follow-up frame that finds everything
+            // already converged must not cost a texture upload.
+            bool anyPixelChanged = _visibilityMaskUploadPending;
 
             for (int y = 0; y < height; y++)
             {
                 int rowStart = y * width;
                 for (int x = 0; x < width; x++)
                 {
-                    float sampleX = (x + 0.5f) * TileSizePixels;
-                    float sampleY = (y + 0.5f) * TileSizePixels;
-                    float targetVisibility = ambientVisibility;
-
-                    for (int i = 0; i < _lightSources.Count; i++)
-                    {
-                        float contribution = SampleLightContribution(_lightSources[i], sampleX, sampleY);
-                        if (contribution > targetVisibility)
-                        {
-                            targetVisibility = contribution;
-                        }
-                    }
-
                     int index = rowStart + x;
                     float currentVisibility = _visibilityMaskCurrentVisibility[index];
+                    float targetVisibility = _visibilityMaskTargetVisibility[index];
+
+                    if (fullPass)
+                    {
+                        // AS3 `Location.lighting():3140` is `if(!(!this.retDark && _loc5_ >= 1))` — a
+                        // tile already at visibility 1, in a room that does not return to darkness, is
+                        // skipped entirely. Such a tile is absorbing: SampleLightContribution clamps to
+                        // [0,1] so the target can never exceed 1, and the fall branch is disabled, so
+                        // neither the visibility nor its mask pixel can change again. This is what makes
+                        // a repeat pass over an explored room ~free instead of a full re-raycast.
+                        if (!returnsToDarkness && currentVisibility >= 1f)
+                        {
+                            continue;
+                        }
+
+                        float sampleX = (x + 0.5f) * TileSizePixels;
+                        float sampleY = (y + 0.5f) * TileSizePixels;
+                        targetVisibility = ambientVisibility;
+
+                        for (int i = 0; i < _lightSources.Count; i++)
+                        {
+                            float contribution = SampleLightContribution(_lightSources[i], sampleX, sampleY);
+                            if (contribution > targetVisibility)
+                            {
+                                targetVisibility = contribution;
+                            }
+                        }
+
+                        _visibilityMaskTargetVisibility[index] = targetVisibility;
+                    }
+                    else if (currentVisibility == targetVisibility)
+                    {
+                        // AS3 `lighting2()` only touches a tile when `visi != t_visi`.
+                        continue;
+                    }
+
+                    // AS3 `Tile.updVisi()`: `visi += 0.1; if(visi > t_visi) visi = t_visi;`
                     if (targetVisibility > currentVisibility)
                     {
                         currentVisibility = Mathf.MoveTowards(currentVisibility, targetVisibility, LightRevealRiseSpeed);
@@ -337,13 +470,25 @@ namespace PFE.Systems.Map.Rendering
                         currentVisibility = Mathf.Max(currentVisibility, targetVisibility);
                     }
 
+                    if (currentVisibility == _visibilityMaskCurrentVisibility[index])
+                    {
+                        continue;
+                    }
+
                     _visibilityMaskCurrentVisibility[index] = currentVisibility;
-                    _visibilityMaskPixels[index] = new Color(0f, 0f, 0f, darknessAlpha * (1f - currentVisibility));
+                    _visibilityMaskPixels[index] = ResolveMaskPixel(currentVisibility);
+                    anyPixelChanged = true;
                 }
+            }
+
+            if (!anyPixelChanged)
+            {
+                return;
             }
 
             _visibilityMaskTexture.SetPixels(_visibilityMaskPixels);
             _visibilityMaskTexture.Apply(false, false);
+            _visibilityMaskUploadPending = false;
         }
 
         private bool ShouldRefreshVisibilityMask(Vector3? playerWorldPosition, Vector2Int roomPixelSize)
@@ -426,6 +571,7 @@ namespace PFE.Systems.Map.Rendering
 
             if (_visibilityMaskTextureSize == desiredSize &&
                 _visibilityMaskCurrentVisibility.Length == desiredSize.x * desiredSize.y &&
+                _visibilityMaskTargetVisibility.Length == desiredSize.x * desiredSize.y &&
                 _visibilityMaskPixels.Length == desiredSize.x * desiredSize.y)
             {
                 return;
@@ -433,58 +579,93 @@ namespace PFE.Systems.Map.Rendering
 
             _visibilityMaskTextureSize = desiredSize;
             _visibilityMaskCurrentVisibility = new float[desiredSize.x * desiredSize.y];
+            _visibilityMaskTargetVisibility = new float[desiredSize.x * desiredSize.y];
             _visibilityMaskPixels = new Color[desiredSize.x * desiredSize.y];
+            _relightFramesRemaining = 0;
+
+            // The buffer must start **fully dark**, not left at the `Color[]` default.
+            //
+            // A new `Color[]` is `(0,0,0,0)` — alpha 0, i.e. fully *transparent*, i.e. fully *lit*.
+            // But the correct pixel for `visibility == 0` is `(0,0,0,1)`: opaque darkness. The
+            // change guard in UpdateVisibilityMask skips a texel whose visibility did not move, so
+            // if the buffer starts transparent every texel the light never reaches is skipped
+            // forever and renders lit — the whole room appears revealed while the areas the light
+            // *does* reach get written at `1 - 0.1` alpha and look dark. That is the fog rendered
+            // exactly inverted. Initialising through the same helper the update loop uses keeps the
+            // "stored pixel == colour for stored visibility" invariant true from the start.
+            Color opaqueDarkness = ResolveMaskPixel(0f);
+            for (int i = 0; i < _visibilityMaskPixels.Length; i++)
+            {
+                _visibilityMaskPixels[i] = opaqueDarkness;
+            }
+
+            _visibilityMaskUploadPending = true;
         }
 
+        /// <summary>
+        /// Re-derives this room's non-moving light emitters — the AS3 <c>Location.lightAll()</c> set.
+        ///
+        /// AS3's only emitters are room objects carrying the <c>light</c> attribute: <c>Box.as:377-379</c>
+        /// parses <c>xml.@light</c>, <c>Location.lightAll():3096-3107</c> iterates <c>this.objs</c>, and
+        /// <c>Land.ativateLoc():1273</c> calls it once per room activation.
+        ///
+        /// Backdrop art is **not** an emitter. <c>BackObj.light</c> is a MovieClip
+        /// (<c>BackObj.as:25</c>) — the <c>_l</c> "lit" graphic drawn into <c>colorBmp</c> at
+        /// <c>Grafon.as:607</c> — and <c>&lt;back&gt;</c> nodes live in <c>Location.backobjs</c>
+        /// (<c>Location.as:704</c>), which <c>lightAll()</c> never visits.
+        ///
+        /// The port used to *also* accept any id containing "light"/"lamp"/"torch", applied to objects
+        /// and to background decorations. In <c>Base/room_2_0</c> that turned six
+        /// <c>&lt;back id="light4|light5"&gt;</c> decorations into 18 of 21 light sources and made the
+        /// per-refresh pass ~20 ms (43 FPS in play). **Do not reintroduce a name heuristic.**
+        /// </summary>
+        public void RebuildLightSources()
+        {
+            _staticLightSources.Clear();
+
+            if (_room?.objects == null)
+            {
+                _staticLightSourceObjectCount = -1;
+                return;
+            }
+
+            _staticLightSourceObjectCount = _room.objects.Count;
+            ResolveLightRadii(out float innerRadiusPixels, out float outerRadiusPixels);
+
+            for (int i = 0; i < _room.objects.Count; i++)
+            {
+                ObjectInstance obj = _room.objects[i];
+                if (obj == null || !obj.isActive || !obj.HasEnabledLightFlag())
+                {
+                    continue;
+                }
+
+                Vector2 lightPosition = obj.position + new Vector2(0f, -TileSizePixels * 0.5f);
+                AddLightTriplet(_staticLightSources, lightPosition, innerRadiusPixels, outerRadiusPixels, 0.9f);
+            }
+        }
+
+        /// <summary>
+        /// Assembles the list the visibility pass iterates: the baked static set, plus the player's
+        /// triplet at its current position. AS3's per-frame path does the same thing — <c>lightAll()</c>
+        /// baked the lamps, then <c>Location.step()</c> calls <c>lighting()</c> with no arguments, i.e.
+        /// a single source at the camera.
+        /// </summary>
         private void BuildLightSources(Vector3? playerWorldPosition)
         {
+            if (_room?.objects != null && _room.objects.Count != _staticLightSourceObjectCount)
+            {
+                RebuildLightSources();
+            }
+
             _lightSources.Clear();
+            _lightSources.AddRange(_staticLightSources);
 
             ResolveLightRadii(out float innerRadiusPixels, out float outerRadiusPixels);
 
             if (TryGetRoomLocalPixelPosition(playerWorldPosition, out Vector2 playerLocalPixels))
             {
-                AddLightTriplet(playerLocalPixels, innerRadiusPixels, outerRadiusPixels, 1f);
-            }
-
-            if (_room?.backgroundDecorations != null)
-            {
-                for (int i = 0; i < _room.backgroundDecorations.Count; i++)
-                {
-                    BackgroundDecorationInstance decoration = _room.backgroundDecorations[i];
-                    if (decoration == null || !ShouldTreatAsLightSource(decoration.decorationId))
-                    {
-                        continue;
-                    }
-
-                    if (TryGetDecorationLocalPixelPosition(decoration, out Vector2 lightPosition))
-                    {
-                        AddLightTriplet(lightPosition, innerRadiusPixels, outerRadiusPixels, 0.9f);
-                    }
-                }
-            }
-
-            if (_room?.objects != null)
-            {
-                for (int i = 0; i < _room.objects.Count; i++)
-                {
-                    ObjectInstance obj = _room.objects[i];
-                    if (obj == null || !obj.isActive)
-                    {
-                        continue;
-                    }
-
-                    bool emitsLight = obj.HasEnabledLightFlag() ||
-                        ShouldTreatAsLightSource(obj.objectId) ||
-                        ShouldTreatAsLightSource(obj.objectType);
-                    if (!emitsLight)
-                    {
-                        continue;
-                    }
-
-                    Vector2 lightPosition = obj.position + new Vector2(0f, -TileSizePixels * 0.5f);
-                    AddLightTriplet(lightPosition, innerRadiusPixels, outerRadiusPixels, 0.9f);
-                }
+                AddLightTriplet(_lightSources, playerLocalPixels, innerRadiusPixels, outerRadiusPixels, 1f);
             }
         }
 
@@ -498,14 +679,14 @@ namespace PFE.Systems.Map.Rendering
             outerRadiusPixels = DefaultOuterLightRadiusPixels * visibilityMultiplier;
         }
 
-        private void AddLightTriplet(Vector2 centerPixels, float innerRadiusPixels, float outerRadiusPixels, float intensity)
+        private void AddLightTriplet(List<LightSource> target, Vector2 centerPixels, float innerRadiusPixels, float outerRadiusPixels, float intensity)
         {
-            AddLightSource(centerPixels, innerRadiusPixels, outerRadiusPixels, intensity);
-            AddLightSource(centerPixels + new Vector2(-LightSourceSpreadPixels, 0f), innerRadiusPixels, outerRadiusPixels, intensity * 0.92f);
-            AddLightSource(centerPixels + new Vector2(LightSourceSpreadPixels, 0f), innerRadiusPixels, outerRadiusPixels, intensity * 0.92f);
+            AddLightSource(target, centerPixels, innerRadiusPixels, outerRadiusPixels, intensity);
+            AddLightSource(target, centerPixels + new Vector2(-LightSourceSpreadPixels, 0f), innerRadiusPixels, outerRadiusPixels, intensity * 0.92f);
+            AddLightSource(target, centerPixels + new Vector2(LightSourceSpreadPixels, 0f), innerRadiusPixels, outerRadiusPixels, intensity * 0.92f);
         }
 
-        private void AddLightSource(Vector2 positionPixels, float innerRadiusPixels, float outerRadiusPixels, float intensity)
+        private void AddLightSource(List<LightSource> target, Vector2 positionPixels, float innerRadiusPixels, float outerRadiusPixels, float intensity)
         {
             Vector2Int roomPixelSize = GetRoomPixelSize();
             if (positionPixels.x < 0f || positionPixels.y < 0f || positionPixels.x > roomPixelSize.x || positionPixels.y > roomPixelSize.y)
@@ -513,12 +694,28 @@ namespace PFE.Systems.Map.Rendering
                 return;
             }
 
-            _lightSources.Add(new LightSource(positionPixels, innerRadiusPixels, outerRadiusPixels, intensity));
+            target.Add(new LightSource(positionPixels, innerRadiusPixels, outerRadiusPixels, intensity));
         }
 
         private float ResolveVisibilityMaskDarknessAlpha()
         {
             return 1f;
+        }
+
+        /// <summary>
+        /// The mask colour for a texel at <paramref name="visibility"/> — black, with alpha falling
+        /// from <see cref="ResolveVisibilityMaskDarknessAlpha"/> at visibility 0 (fully dark) to 0 at
+        /// visibility 1 (fully revealed).
+        ///
+        /// Both the update loop and <see cref="EnsureVisibilityMaskBuffers"/> go through this, so the
+        /// invariant "a stored pixel equals the colour for its stored visibility" holds from
+        /// allocation. Keep it that way: the change guard in <see cref="UpdateVisibilityMask"/> skips
+        /// texels whose visibility did not move, which is only safe if a skipped texel is already
+        /// correct.
+        /// </summary>
+        private Color ResolveMaskPixel(float visibility)
+        {
+            return new Color(0f, 0f, 0f, ResolveVisibilityMaskDarknessAlpha() * (1f - visibility));
         }
 
         private float ResolveAmbientVisibility()
@@ -535,22 +732,27 @@ namespace PFE.Systems.Map.Rendering
 
         private float SampleLightContribution(LightSource lightSource, float sampleX, float sampleY)
         {
-            Vector2 samplePosition = new Vector2(sampleX, sampleY);
-            float distance = Vector2.Distance(lightSource.PositionPixels, samplePosition);
-            if (distance >= lightSource.OuterRadiusPixels)
+            Vector2 offset = lightSource.PositionPixels - new Vector2(sampleX, sampleY);
+            float outerRadius = lightSource.OuterRadiusPixels;
+            float squaredDistance = offset.x * offset.x + offset.y * offset.y;
+
+            // Squared compare first — the sqrt is only needed for the radial falloff, and most samples in
+            // a room sit inside no light's outer radius at all.
+            if (squaredDistance >= outerRadius * outerRadius)
             {
                 return 0f;
             }
 
+            float distance = Mathf.Sqrt(squaredDistance);
             float radialContribution = distance <= lightSource.InnerRadiusPixels
                 ? 1f
-                : (lightSource.OuterRadiusPixels - distance) / Mathf.Max(1f, lightSource.OuterRadiusPixels - lightSource.InnerRadiusPixels);
+                : (outerRadius - distance) / Mathf.Max(1f, outerRadius - lightSource.InnerRadiusPixels);
             if (radialContribution <= 0f)
             {
                 return 0f;
             }
 
-            float transmission = SampleLightTransmission(lightSource.PositionPixels, samplePosition);
+            float transmission = SampleLightTransmission(lightSource.PositionPixels, new Vector2(sampleX, sampleY));
             return Mathf.Clamp01(radialContribution * transmission * lightSource.Intensity);
         }
 
@@ -562,13 +764,18 @@ namespace PFE.Systems.Map.Rendering
             }
 
             Vector2 delta = targetPixels - sourcePixels;
-            float distance = delta.magnitude;
-            if (distance <= LightOcclusionStepPixels)
+
+            // AS3 walks the **dominant axis**, not the euclidean length. In `Location.lighting()` the
+            // step vector is derived from `_loc13_ = Tile.tileX` (or `Tile.tileY`) and the step count is
+            // `_loc15_ = _loc9_ / _loc13_`, i.e. max(|dx|,|dy|) / 40. Charging `delta.magnitude` instead
+            // gave a diagonal ray ~1.41x the samples of an axis-aligned ray of the same reach.
+            float dominantDistance = Mathf.Max(Mathf.Abs(delta.x), Mathf.Abs(delta.y));
+            if (dominantDistance <= LightOcclusionStepPixels)
             {
                 return 1f;
             }
 
-            int steps = Mathf.Max(1, Mathf.CeilToInt(distance / LightOcclusionStepPixels));
+            int steps = Mathf.Max(1, Mathf.CeilToInt(dominantDistance / LightOcclusionStepPixels));
             float transmission = 1f;
             for (int step = 1; step < steps; step++)
             {
@@ -590,6 +797,11 @@ namespace PFE.Systems.Map.Rendering
             return Mathf.Clamp01(transmission);
         }
 
+        /// <summary>
+        /// AS3 <c>Tile.opac</c> for one tile — see <see cref="FogOcclusionMath"/>, which owns the rule
+        /// and is pinned by <c>FogOcclusionMathTests</c>. This wrapper only supplies the room's
+        /// <c>wopac</c> option.
+        /// </summary>
         private float ResolveLightBlockingOpacity(TileData tile)
         {
             if (tile == null)
@@ -597,24 +809,12 @@ namespace PFE.Systems.Map.Rendering
                 return 0f;
             }
 
-            float opacity = 0f;
-            bool hasSolidVisual = tile.physicsType != TilePhysicsType.Air
-                || tile.heightLevel > 0
-                || tile.slopeType != 0
-                || tile.stairType != 0
-                || !string.IsNullOrWhiteSpace(tile.GetFrontGraphic());
-
-            if (hasSolidVisual)
-            {
-                opacity = Mathf.Max(opacity, 0.6f);
-            }
-
-            if (tile.hasWater && _room?.environment != null && _room.environment.waterOpacity > 0f)
-            {
-                opacity = Mathf.Max(opacity, Mathf.Clamp01(_room.environment.waterOpacity * 0.5f));
-            }
-
-            return opacity;
+            float waterOpacity = _room?.environment != null ? _room.environment.waterOpacity : 0f;
+            return FogOcclusionMath.ResolveTileOcclusionOpacity(
+                tile.physicsType,
+                tile.heightLevel,
+                tile.hasWater,
+                waterOpacity);
         }
 
         private bool TryGetRoomLocalPixelPosition(Vector3? worldPosition, out Vector2 localPixels)
@@ -634,28 +834,6 @@ namespace PFE.Systems.Map.Rendering
                 localPixels.y >= 0f &&
                 localPixels.x <= roomPixelSize.x &&
                 localPixels.y <= roomPixelSize.y;
-        }
-
-        private bool TryGetDecorationLocalPixelPosition(BackgroundDecorationInstance decoration, out Vector2 localPixels)
-        {
-            localPixels = Vector2.zero;
-            if (decoration == null || _backgroundLookup == null)
-            {
-                return false;
-            }
-
-            IReadOnlyList<Sprite> frames = _backgroundLookup.GetFrames(decoration.decorationId);
-            if (frames == null || frames.Count == 0 || frames[0] == null)
-            {
-                return false;
-            }
-
-            Sprite sprite = frames[0];
-            Vector2Int renderTileCoord = ConvertAs3TileCoord(decoration.tileCoord, sprite);
-            Vector2 pixelOffset = _backgroundLookup.GetPixelOffset(decoration.decorationId);
-            Vector2 spriteExtentsPixels = WorldCoordinates.UnityToPixel(sprite.bounds.extents);
-            localPixels = WorldCoordinates.TileToPixel(renderTileCoord) + pixelOffset + spriteExtentsPixels;
-            return true;
         }
 
         private Vector2 GetRoomOriginPixels()
@@ -678,85 +856,12 @@ namespace PFE.Systems.Map.Rendering
                 Mathf.Max(0, _room.height * TileSizePixels));
         }
 
-        private static bool ShouldTreatAsLightSource(string id)
-        {
-            if (string.IsNullOrWhiteSpace(id))
-            {
-                return false;
-            }
-
-            string normalized = id.Trim().ToLowerInvariant();
-            return normalized.Contains("light") ||
-                normalized.Contains("lamp") ||
-                normalized.Contains("torch");
-        }
-
-        private static bool HasEnabledLightFlag(string parameters)
-        {
-            if (string.IsNullOrWhiteSpace(parameters))
-            {
-                return false;
-            }
-
-            int keyIndex = parameters.IndexOf("light=", StringComparison.OrdinalIgnoreCase);
-            if (keyIndex < 0)
-            {
-                return false;
-            }
-
-            int valueStart = keyIndex + "light=".Length;
-            while (valueStart < parameters.Length && char.IsWhiteSpace(parameters[valueStart]))
-            {
-                valueStart++;
-            }
-
-            if (valueStart >= parameters.Length)
-            {
-                return false;
-            }
-
-            char quote = parameters[valueStart];
-            if (quote == '"' || quote == '\'')
-            {
-                valueStart++;
-                int valueEnd = parameters.IndexOf(quote, valueStart);
-                if (valueEnd > valueStart)
-                {
-                    return IsTruthyFlag(parameters.Substring(valueStart, valueEnd - valueStart));
-                }
-            }
-            else
-            {
-                int valueEnd = valueStart;
-                while (valueEnd < parameters.Length && !char.IsWhiteSpace(parameters[valueEnd]))
-                {
-                    valueEnd++;
-                }
-
-                return IsTruthyFlag(parameters.Substring(valueStart, valueEnd - valueStart));
-            }
-
-            return false;
-        }
-
-        private static bool IsTruthyFlag(string value)
-        {
-            if (string.IsNullOrWhiteSpace(value))
-            {
-                return false;
-            }
-
-            switch (value.Trim().ToLowerInvariant())
-            {
-                case "1":
-                case "true":
-                case "yes":
-                case "on":
-                    return true;
-                default:
-                    return false;
-            }
-        }
+        // NOTE: `ShouldTreatAsLightSource(id)` (an id-substring test for "light"/"lamp"/"torch") and the
+        // unused `HasEnabledLightFlag(string)` / `IsTruthyFlag` parameter parsers were deleted with the
+        // fog fix. They had no AS3 counterpart: AS3 reads the `light` attribute on room objects only
+        // (Box.as:377-379). The name heuristic is what turned six `light4`/`light5` backdrop decorations
+        // into 18 phantom light sources in Base/room_2_0. Do not reintroduce either.
+        // See docs/Perf_FogOfWar_RoomLag_Investigation.md.
 
         private void CreateRoomBackdrop(Vector2 contentOriginPixels, Vector2Int contentPixelSize, BackdropCompositeData compositeData)
         {
