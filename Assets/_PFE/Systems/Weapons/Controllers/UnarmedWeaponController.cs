@@ -201,7 +201,7 @@ namespace PFE.Systems.Weapons.Controllers
                 zadok = true;
 
             // ── Build damage context ──────────────────────────────────────────
-            DamageContext baseDmg = DamageContext.FromWeapon(_def, null);
+            DamageContext baseDmg = DamageContext.FromWeapon(_def, null, State.OwnerFaction);
 
             float finalDamage   = baseDmg.BaseDamage;
             float finalKnockback = baseDmg.Knockback;

@@ -57,7 +57,15 @@ namespace PFE.Systems.Weapons
         /// The returned controller owns its WeaponRuntimeState. Dispose() the
         /// controller when the weapon is unequipped to release reactive subscriptions.
         /// </summary>
-        public IWeaponController Create(WeaponDefinition def)
+        /// <param name="ownerFaction">
+        /// Faction of the unit equipping the weapon — the attacker side of
+        /// <see cref="FactionRule"/>. Stamped onto the state here because this factory sees only a
+        /// definition, while the caller that equips the weapon knows whose it is. Defaults to
+        /// <see cref="PFE.Data.Definitions.FactionType.Neutral"/>, so an unowned weapon hits everyone
+        /// rather than silently becoming friendly to one side.
+        /// </param>
+        public IWeaponController Create(
+            WeaponDefinition def, PFE.Data.Definitions.FactionType ownerFaction = PFE.Data.Definitions.FactionType.Neutral)
         {
             if (def == null)
             {
@@ -66,6 +74,7 @@ namespace PFE.Systems.Weapons
             }
 
             var state = new WeaponRuntimeState(def);
+            state.OwnerFaction = ownerFaction;
 
             // Mirror Weapon.create() dispatch in AS3 (Weapon.as:345-394), same precedence:
             // tip first, then punch, then the ranged base class.

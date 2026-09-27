@@ -766,18 +766,14 @@ namespace PFE.Entities.Weapons
         {
             if (!_isInitialized) return;
 
-            // A tile collider only stops a bullet when the tile is a WALL.
+            // A tile collider only stops a bullet when the tile is a WALL — see
+            // ProjectileOcclusionRule for the AS3 citations and for why this is not
+            // `TileData.IsSolid()` (that helper includes Platform and Stair, which is how bullets
+            // came to stop in mid-air on every catwalk and ladder).
             //
-            // AS3's bullet has exactly one tile test and it reads `phis` alone — `_loc3_.phis == 1 ||
-            // _loc3_.phis == 2` against the cell the bullet occupies (weapon/Bullet.as:476). `shelf`,
-            // `diagon` and `stair` are never consulted, and every one of those forms carries
-            // `phis = 0`. In the port `phis` 1 and 2 both decode to TilePhysicsType.Wall, so `Wall`
-            // is the whole rule. A catwalk decodes to Platform and a ladder to Stair, and BOTH get a
-            // real collider from TileCollider — so the legacy path used to stop bullets in mid-air on
-            // every catwalk and ladder. (Slopes decode to Air, so they were already passing.)
-            //
-            // This must stay the same rule as RoomChainGeometry.IsSolidAt, which is the flipped
-            // path's half of it; the two are the only places a bullet asks "is this tile in my way".
+            // The rule lives in one shared place because RoomChainGeometry.IsSolidAt is the flipped
+            // path's half of it: the two must agree or the Stage C flag would change gameplay rather
+            // than only the implementation.
             TileCollider tileCollider = other.GetComponent<TileCollider>();
             if (tileCollider != null)
             {
@@ -787,8 +783,7 @@ namespace PFE.Entities.Weapons
                 // AoE detonations.
                 if (FlipActive) return;
 
-                TileData tile = tileCollider.GetTileData();
-                if (tile != null && tile.physicsType != TilePhysicsType.Wall) return;
+                if (!ProjectileOcclusionRule.BlocksProjectile(tileCollider.GetTileData())) return;
             }
             // Entity hits are deliberately NOT filtered: enemies, the player and destructible props
             // are still Unity colliders in both modes.
@@ -836,7 +831,14 @@ namespace PFE.Entities.Weapons
                 var dmg = hit.GetComponent<IDamageable>();
                 if (dmg == null || !dmg.IsAlive) continue;
 
-                // Skip the owner if we ever track it — for now skip same-layer objects.
+                // Do not lock onto a unit the round could not damage anyway — otherwise a homing
+                // round fired at close range picks its own shooter (or an ally) as the nearest
+                // IDamageable and steers back into the muzzle. Same predicate as the hit test, so
+                // "will not be hit" and "will not be tracked" cannot drift apart.
+                var candidate = hit.GetComponent<PFE.Entities.Units.UnitController>();
+                if (candidate != null && !FactionRule.CanHitDirectly(OwnerFaction, candidate.Faction))
+                    continue;
+
                 float d = Vector2.Distance(selfPosition, hit.transform.position);
                 if (d < bestDist)
                 {
@@ -864,8 +866,59 @@ namespace PFE.Entities.Weapons
 
         // ── Impact handling ──────────────────────────────────────────────────
 
+        // ── Faction (friendly fire) ──────────────────────────────────────────
+
+        /// <summary>
+        /// Faction of the unit that fired this projectile — the attacker side of
+        /// <see cref="FactionRule"/>, carried in from the damage context.
+        ///
+        /// <para>Neutral when no context was set. That is AS3's own default (<c>Unit.as:454</c>) and
+        /// it means an unowned projectile hits everyone — the same behaviour the port had
+        /// unconditionally before this existed, so a caller that never sets a context is not silently
+        /// given a side.</para>
+        /// </summary>
+        private FactionType OwnerFaction =>
+            _hasDamageContext ? _damageContext.OwnerFaction : FactionType.Neutral;
+
+        /// <summary>
+        /// Whether the faction rule permits a <i>direct</i> hit on <paramref name="other"/>.
+        ///
+        /// <para>Non-unit damageables — crates and other destructible props — always pass: AS3's
+        /// bullet faction test iterates <c>loc.units</c> only (<c>weapon/Bullet.as:505</c>), and a
+        /// crate has no <c>fraction</c> to compare against.</para>
+        ///
+        /// <para>The guided-target exemption (AS3 <c>this.targetObj</c>) is not modelled: the port's
+        /// homing re-picks its target every tick without storing one, so there is no <c>targetObj</c>
+        /// to test. The behaviour that actually matters — a round not locking onto, or damaging, the
+        /// side that fired it — is enforced by the faction comparison itself.</para>
+        /// </summary>
+        private bool FactionAllowsHit(Collider2D other)
+        {
+            var unit = other.GetComponent<PFE.Entities.Units.UnitController>();
+            if (unit == null) return true;
+            return FactionRule.CanHitDirectly(OwnerFaction, unit.Faction);
+        }
+
+        /// <summary>
+        /// Damage multiplier for an explosion of this projectile's faction hitting
+        /// <paramref name="other"/>. AS3 <c>weapon/Bullet.as:764-786</c>; 1 for a non-unit, and 1 for
+        /// a unit of a different faction.
+        /// </summary>
+        private float ExplosionMultiplierFor(Collider2D other)
+        {
+            var unit = other.GetComponent<PFE.Entities.Units.UnitController>();
+            if (unit == null) return 1f;
+            return FactionRule.ExplosionMultiplier(OwnerFaction, unit.Faction, unit.IsPlayer);
+        }
+
         private void HandleImpact(Collider2D other, Vector3 impactPos)
         {
+            // Faction gate, before any effect at all. AS3's bullet test (weapon/Bullet.as:515) simply
+            // fails for a same-faction unit, so the bullet does not "hit with zero damage" — it does
+            // not hit, plays no sound, triggers no explosion, and carries on through. Returning here
+            // reproduces that pass-through rather than merely zeroing the damage.
+            if (!FactionAllowsHit(other)) return;
+
             if (_debugSettings?.LogProjectileLifecycle == true)
             {
                 Debug.Log(
@@ -954,7 +1007,16 @@ namespace PFE.Entities.Weapons
 
                 var damageable = hit.GetComponent<IDamageable>();
                 if (damageable != null && damageable.IsAlive)
-                    ApplyDirectDamage(damageable, hit.transform.position, aoeHitDamage);
+                {
+                    // AS3 Bullet.explRun (weapon/Bullet.as:763-789): the blast damage is scaled per
+                    // target — ×0.25 when the target shares the firer's fraction (and is not the
+                    // player), then ×pers.autoExpl when the firer is the player and the target is the
+                    // player. Note the second gate multiplies *after* the first and the first excludes
+                    // F_PLAYER entirely, so the player's own explosion is full damage by default
+                    // (pers.autoExpl defaults to 1) — that is the oracle's behaviour, not a bug.
+                    float factionMult = ExplosionMultiplierFor(hit);
+                    ApplyDirectDamage(damageable, hit.transform.position, aoeHitDamage * factionMult);
+                }
 
                 var tile = hit.GetComponent<IDestructibleTile>();
                 if (tile != null)

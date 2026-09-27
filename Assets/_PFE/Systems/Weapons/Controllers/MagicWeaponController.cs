@@ -198,7 +198,7 @@ namespace PFE.Systems.Weapons.Controllers
             if (State.IsBroken) return;
 
             // Build damage context and cues.
-            DamageContext damCtx = DamageContext.FromWeapon(_def, null);
+            DamageContext damCtx = DamageContext.FromWeapon(_def, null, State.OwnerFaction);
 
             ShotCues cues = new ShotCues(
                 playShootSound:   !string.IsNullOrEmpty(_def.soundShoot),

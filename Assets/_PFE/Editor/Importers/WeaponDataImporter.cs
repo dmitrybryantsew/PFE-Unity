@@ -33,7 +33,7 @@ namespace PFE.Editor.Importers
     /// </summary>
     public class WeaponDataImporter
     {
-        private static readonly string AllDataPath = SourceImportPaths.AllDataAsPath;
+        private static string AllDataPath => SourceImportPaths.AllDataAsPath;
         private static readonly string OutputPath =
             "Assets/_PFE/Data/Resources/Weapons";
 
@@ -139,7 +139,7 @@ namespace PFE.Editor.Importers
         {
             if (!File.Exists(AllDataPath))
             {
-                Debug.LogError($"[WeaponDataImporter] AllData.as not found at: {AllDataPath}");
+                Debug.LogError(SourceImportPaths.MissingSourceMessage(AllDataPath, "AllData.as"));
                 return;
             }
 

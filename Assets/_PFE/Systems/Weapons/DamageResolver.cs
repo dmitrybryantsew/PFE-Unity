@@ -81,6 +81,13 @@ namespace PFE.Systems.Weapons
         /// AoE variant — resolve explosion damage (damageExpl) against a target.
         /// Distance falloff is linear from centre to explRadius edge.
         /// </summary>
+        /// <param name="factionMultiplier">
+        /// Per-target friendly-fire scale, from <see cref="FactionRule.ExplosionMultiplier"/>. Applied
+        /// to the damage <b>before</b> crit and falloff are combined with it, so a same-faction target
+        /// gets a quarter-strength crit rather than a full-strength one truncated afterwards. The
+        /// default of 1 is the no-faction case: a caller that has no owner (or no faction to compare)
+        /// gets exactly the behaviour this method had before the parameter existed.
+        /// </param>
         public static float ResolveExplosion(
             in DamageContext ctx,
             IDamageable target,
@@ -88,14 +95,15 @@ namespace PFE.Systems.Weapons
             Vector3 explosionCentre,
             float explRadius,
             IPublisher<DamageDealtMessage> publisher = null,
-            IRngService rng = null)
+            IRngService rng = null,
+            float factionMultiplier = 1f)
         {
             if (target == null || !target.IsAlive || ctx.ExplosionDamage <= 0f) return 0f;
 
             // Distance falloff: 1 at centre, 0 at edge.
             float dist    = Vector3.Distance(targetPos, explosionCentre);
             float falloff = explRadius > 0f ? Mathf.Clamp01(1f - dist / explRadius) : 1f;
-            float scaled  = ctx.ExplosionDamage * falloff;
+            float scaled  = ctx.ExplosionDamage * falloff * factionMultiplier;
 
             bool isCrit = GetRng(rng).Chance(ctx.CritChance);
             float final  = Mathf.Max(0f, scaled * (isCrit ? ctx.CritMultiplier : 1f));

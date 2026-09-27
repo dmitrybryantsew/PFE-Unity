@@ -13,7 +13,7 @@ namespace PFE.Editor
     /// </summary>
     public static class SimpleDataImporter
     {
-        private static readonly string SourceFilePath = SourceImportPaths.AllDataAsPath;
+        private static string SourceFilePath => SourceImportPaths.AllDataAsPath;
 
         [MenuItem("PFE/Data/Simple Import All Data")]
         public static void ImportAll()

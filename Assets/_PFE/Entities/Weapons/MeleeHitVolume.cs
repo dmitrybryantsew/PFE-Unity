@@ -96,6 +96,17 @@ namespace PFE.Entities.Weapons
 
         // ── Trigger detection ─────────────────────────────────────────────────
 
+        /// <summary>
+        /// Applies melee damage to anything the volume overlaps.
+        ///
+        /// <para><b>Deliberately not faction-filtered.</b> AS3 melee has no <c>fraction</c> test:
+        /// <c>Unit.udarUnit</c> (<c>fe/unit/Unit.as:4125-4167</c>) applies damage unconditionally, and
+        /// neither does its caller <c>Unit.udar</c> (<c>:3277</c>). Of the 38 <c>fraction</c>
+        /// comparisons in AS3, none is on the melee path — so a club really does hit an ally, and
+        /// adding a <c>FactionRule</c> check here would be a gameplay change dressed up as a port fix.
+        /// Ranged and thrown weapons are filtered (see <see cref="PFE.Systems.Weapons.FactionRule"/>);
+        /// melee is not, and that asymmetry is the oracle's.</para>
+        /// </summary>
         private void OnTriggerEnter2D(Collider2D other)
         {
             if (!_isActive || other.isTrigger) return;

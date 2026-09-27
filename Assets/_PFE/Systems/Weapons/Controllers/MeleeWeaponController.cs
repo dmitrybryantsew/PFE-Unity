@@ -252,7 +252,7 @@ namespace PFE.Systems.Weapons.Controllers
         {
             Vector2 tipPos = CalculateTipPosition(holdPoint, aimTarget);
 
-            DamageContext baseDmg  = DamageContext.FromWeapon(_def, null);
+            DamageContext baseDmg  = DamageContext.FromWeapon(_def, null, State.OwnerFaction);
             // Apply power / combo multiplier to base damage.
             DamageContext finalDmg = _powerMult != 1f
                 ? new DamageContext(

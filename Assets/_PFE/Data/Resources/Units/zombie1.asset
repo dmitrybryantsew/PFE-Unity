@@ -17,7 +17,7 @@ MonoBehaviour:
   id: zombie1
   parentId: zombie
   controllerId: zombie
-  fraction: 2
+  fraction: 1
   category: 3
   xpReward: 150
   displayName: "\u041F\u0440\u044B\u0433\u0443\u043D"
@@ -96,8 +96,9 @@ MonoBehaviour:
   drawDimensions: {x: 60, y: 60}
   gender: 1
   musicTrack: 
-  deathSound: {fileID: 0}
-  fallingSound: {fileID: 0}
+  deathSoundId: 
+  fallingSoundId: 
+  soundRun: 
   detectionDistance: 400
   grenadeCount: 0
   stalkDistance: 0

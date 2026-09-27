@@ -15,7 +15,7 @@ namespace PFE.Editor
     /// </summary>
     public class AllDataImportWindow : EditorWindow
     {
-        private static readonly string DefaultPath = Importers.SourceImportPaths.AllDataAsPath;
+        private static string DefaultPath => Importers.SourceImportPaths.AllDataAsPath;
 
         private string _sourcePath = "";
         private AllDataParser _parser;

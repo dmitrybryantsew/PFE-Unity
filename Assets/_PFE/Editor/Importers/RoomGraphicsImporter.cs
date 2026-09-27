@@ -25,8 +25,8 @@ namespace PFE.Editor.Importers
             { "maskFloor", "FloorMask" }
         };
 
-        private static readonly string[] DefaultExportRoots = SourceImportPaths.RoomGraphicsExportRoots;
-        private static readonly string Texture1ImagesRoot = SourceImportPaths.TextureImagesRoot("texture1");
+        private static string[] DefaultExportRoots => SourceImportPaths.RoomGraphicsExportRoots;
+        private static string Texture1ImagesRoot => SourceImportPaths.TextureImagesRoot("texture1");
         private const string TileAssetDatabasePath = "Assets/_PFE/Data/Map/TileAssetDatabase.asset";
         private const string MaterialDatabasePath = "Assets/_PFE/Data/MaterialRenderDatabase.asset";
         private const string RoomBackgroundLookupPath = "Assets/_PFE/Data/RoomBackgroundLookup.asset";

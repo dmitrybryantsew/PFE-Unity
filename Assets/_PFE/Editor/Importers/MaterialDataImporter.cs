@@ -17,7 +17,7 @@ namespace PFE.Editor.Importers
     /// </summary>
     public static class MaterialDataImporter
     {
-        private static readonly string DefaultSourcePath = SourceImportPaths.AllDataAsPath;
+        private static string DefaultSourcePath => SourceImportPaths.AllDataAsPath;
         private static readonly string OutputPath =
             "Assets/_PFE/Data/MaterialRenderDatabase.asset";
 

@@ -174,6 +174,12 @@ namespace PFE.Entities.Weapons
                     var damageable = hit.GetComponent<IDamageable>();
                     if (damageable != null && damageable.IsAlive)
                     {
+                        // Deliberately NO faction multiplier. AS3's explosion scaling is guarded by
+                        // `this.weap && …` (Bullet.as:764/782), and a mine's explosion is built by
+                        // Unit.explosion (Unit.as:3328-3349) as `new Bullet(this, X, Y - 3, null, …)`
+                        // — weap is null, so both gates short-circuit and the blast does FULL damage
+                        // to the mine's own faction and to the player. Passing a multiplier here
+                        // would be inventing a rule the oracle does not have.
                         if (_hasDamageContext)
                             DamageResolver.ResolveExplosion(
                                 _damageContext, damageable,

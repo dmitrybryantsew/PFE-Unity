@@ -23,8 +23,26 @@ namespace PFE.Systems.Weapons
     /// </summary>
     public readonly struct DamageContext
     {
-        /// <summary>GameObject that owns this weapon (used for friendly-fire filtering).</summary>
+        /// <summary>
+        /// GameObject that owns this weapon.
+        ///
+        /// <para><b>Correction:</b> this was documented as "used for friendly-fire filtering", but
+        /// nothing ever filtered on it — it is <c>null</c> on every production path, because all six
+        /// weapon controllers pass <c>null</c> and the spawner never fills it in. Friendly-fire
+        /// filtering is <see cref="OwnerFaction"/>, which carries the value the filtering actually
+        /// needs and does not require a <c>GetComponent</c> at hit time.</para>
+        /// </summary>
         public readonly GameObject Owner;
+
+        /// <summary>
+        /// Faction of the unit that owns this weapon — the attacker side of
+        /// <see cref="FactionRule"/>. AS3 reads the equivalent as <c>this.weap.owner.fraction</c>.
+        ///
+        /// <para>Defaults to <see cref="FactionType.Neutral"/> so a context built without an owner
+        /// hits everyone, which is AS3's own default (<c>Unit.as:454</c>) and the safe direction for
+        /// a value that was previously ignored entirely.</para>
+        /// </summary>
+        public readonly FactionType OwnerFaction;
 
         /// <summary>Static definition of the weapon that fired.</summary>
         public readonly WeaponDefinition Weapon;
@@ -96,9 +114,11 @@ namespace PFE.Systems.Weapons
             float penetrationChance,
             string dopEffect,
             float dopDamage,
-            float dopChance)
+            float dopChance,
+            FactionType ownerFaction = FactionType.Neutral)
         {
             Owner             = owner;
+            OwnerFaction      = ownerFaction;
             Weapon            = weapon;
             BaseDamage        = baseDamage;
             ExplosionDamage   = explosionDamage;
@@ -121,7 +141,14 @@ namespace PFE.Systems.Weapons
         /// applying base weapon values without ammo modifiers.
         /// Ammo modifiers are applied by the controller after ammo type is resolved.
         /// </summary>
-        public static DamageContext FromWeapon(WeaponDefinition def, GameObject owner)
+        /// <param name="ownerFaction">
+        /// The firing unit's faction, from <c>WeaponRuntimeState.OwnerFaction</c>. Passed explicitly
+        /// rather than resolved from <paramref name="owner"/> because the hit path needs it on every
+        /// contact and a <c>GetComponent</c> per hit is not free; the loadout already knows whose
+        /// weapon this is at equip time.
+        /// </param>
+        public static DamageContext FromWeapon(
+            WeaponDefinition def, GameObject owner, FactionType ownerFaction = FactionType.Neutral)
         {
             return new DamageContext(
                 owner:             owner,
@@ -139,7 +166,8 @@ namespace PFE.Systems.Weapons
                 penetrationChance: def.piercing,
                 dopEffect:         null,
                 dopDamage:         0f,
-                dopChance:         1f
+                dopChance:         1f,
+                ownerFaction:      ownerFaction
             );
         }
     }

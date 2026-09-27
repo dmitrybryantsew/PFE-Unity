@@ -16,9 +16,9 @@ namespace PFE.Editor.Importers.SWF
     /// </summary>
     public class CharacterStyleImportWindow : EditorWindow
     {
-        static readonly string DefaultSwfPath = SourceImportPaths.AssetsSwfPath;
+        static string DefaultSwfPath => SourceImportPaths.AssetsSwfPath;
 
-        static readonly string DefaultJpexsExportPath = SourceImportPaths.AssetsExportRoot;
+        static string DefaultJpexsExportPath => SourceImportPaths.AssetsExportRoot;
 
         string _swfPath = DefaultSwfPath;
         string _jpexsExportPath = DefaultJpexsExportPath;

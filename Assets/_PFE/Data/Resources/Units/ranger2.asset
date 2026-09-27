@@ -17,7 +17,7 @@ MonoBehaviour:
   id: ranger2
   parentId: ranger
   controllerId: 
-  fraction: 2
+  fraction: 4
   category: 3
   xpReward: 750
   displayName: "\u0420\u0435\u0439\u043D\u0434\u0436\u0435\u0440-\u0440\u044B\u0446\u0430\u0440\u044C"
@@ -46,8 +46,8 @@ MonoBehaviour:
   observationRange: 0
   radiationDamage: 0
   skinThickness: 0
-  dexterity: 1
-  skill: 1
+  dexterity: 0.8
+  skill: 1.5
   waterAbility: 1
   hearingRange: 5
   damageType: 2
@@ -96,8 +96,9 @@ MonoBehaviour:
   drawDimensions: {x: 60, y: 60}
   gender: 2
   musicTrack: 
-  deathSound: {fileID: 0}
-  fallingSound: {fileID: 0}
+  deathSoundId: 
+  fallingSoundId: 
+  soundRun: 
   detectionDistance: 400
   grenadeCount: 0
   stalkDistance: 0

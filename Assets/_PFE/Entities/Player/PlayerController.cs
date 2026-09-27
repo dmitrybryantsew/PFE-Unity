@@ -344,6 +344,28 @@ namespace PFE.Entities.Player
             _weaponView?.EndFiring();
         }
 
+        // ── Identity ──────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// The player is player-controlled. AS3's <c>Unit.player</c>.
+        ///
+        /// <para><b>This was a latent lie until now:</b> <c>UnitController.IsPlayer</c> is
+        /// <c>virtual … => false</c> and nothing overrode it, so every unit — the player included —
+        /// reported <c>false</c>. Nothing in production read it, which is why it never showed, but
+        /// AS3 branches on <c>_loc1_.player</c> in the explosion path
+        /// (<c>weapon/Bullet.as:782</c>, <c>:817</c>) and that branch is exactly where the player's
+        /// own-explosion multiplier lives.</para>
+        /// </summary>
+        public override bool IsPlayer => true;
+
+        /// <summary>
+        /// The player's faction. AS3 sets this in code, not in data — <c>UnitPlayer.as:385</c>
+        /// <c>fraction = F_PLAYER</c> — because <c>littlepip</c> carries no <c>fraction</c> attribute
+        /// in <c>AllData.as</c> at all. Overriding here rather than writing <c>Stats.fraction</c>
+        /// keeps the shared <c>UnitDefinition</c> asset untouched.
+        /// </summary>
+        public override PFE.Data.Definitions.FactionType Faction => PFE.Data.Definitions.FactionType.Player;
+
         /// <summary>
         /// Apply damage to the player.
         /// Overrides base implementation to add player-specific death handling.

@@ -13,7 +13,7 @@ namespace PFE.Editor.Importers
     /// </summary>
     public class EffectDataImporter
     {
-        private static readonly string AllDataPath = SourceImportPaths.AllDataAsPath;
+        private static string AllDataPath => SourceImportPaths.AllDataAsPath;
         private static readonly string OutputPath = "Assets/_PFE/Data/Resources/Effects";
 
         [MenuItem("PFE/Data/Import Effects from AllData.as")]
@@ -24,7 +24,7 @@ namespace PFE.Editor.Importers
 
             if (!File.Exists(AllDataPath))
             {
-                Debug.LogError($"AllData.as not found at: {AllDataPath}");
+                Debug.LogError(SourceImportPaths.MissingSourceMessage(AllDataPath, "AllData.as"));
                 return;
             }
 

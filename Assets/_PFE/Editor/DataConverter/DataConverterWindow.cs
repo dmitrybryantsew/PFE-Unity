@@ -168,7 +168,7 @@ namespace PFE.Editor.DataConverter
                 sample += "--- Unit Sample ---\n";
                 sample += $"ID: {GetAttribute(unit, "id")}\n";
                 sample += $"Category: {GetAttribute(unit, "cat")} (1=Template, 2=Faction, 3=Spawnable)\n";
-                sample += $"Faction: {GetAttribute(unit, "fraction")} (0=Neutral, 1=Player, 2=Enemy)\n";
+                sample += $"Faction: {GetAttribute(unit, "fraction")} (0=Neutral, 1=Monster, 2=Raider, 3=Zombie, 4=Robot, 100=Player)\n";
                 sample += $"XP: {GetAttribute(unit, "xp")}\n";
                 sample += $"Parent: {GetAttribute(unit, "parent")}\n";
 

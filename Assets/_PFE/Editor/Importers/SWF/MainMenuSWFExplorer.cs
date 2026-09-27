@@ -18,9 +18,9 @@ namespace PFE.Editor.Importers.SWF
     /// </summary>
     public class MainMenuSWFExplorer : EditorWindow
     {
-        static readonly string DefaultSwfPath = SourceImportPaths.AssetsSwfPath;
+        static string DefaultSwfPath => SourceImportPaths.AssetsSwfPath;
 
-        static readonly string DefaultJpexsRoot = SourceImportPaths.AssetsExportRoot;
+        static string DefaultJpexsRoot => SourceImportPaths.AssetsExportRoot;
 
         const int VisMainMenuSymbolId = 559;
 

@@ -47,8 +47,10 @@ namespace PFE.Data.Definitions
         [Tooltip("AI controller ID")]
         public string controllerId;
 
-        [Tooltip("Faction type: 0=Neutral, 1=Player, 2=Enemy, 3=Unknown, 4=Special")]
-        public FactionType fraction = FactionType.Enemy;
+        [Tooltip("Faction (AS3 `fraction`). AS3 values: 0=Neutral (the default for a unit with no " +
+                 "attribute), 1=Monster, 2=Raider, 3=Zombie, 4=Robot, 100=Player. The player is not " +
+                 "in the data — PlayerController overrides this to Player at runtime.")]
+        public FactionType fraction = FactionType.Neutral;
 
         [Tooltip("Category: 1=Template, 2=Faction, 3=Spawnable")]
         public UnitCategory category = UnitCategory.Template;

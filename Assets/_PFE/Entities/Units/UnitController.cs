@@ -45,15 +45,20 @@ namespace PFE.Entities.Units
         // Stats (optional - subclasses like PlayerController will provide their own)
         protected UnitStats _unitStats;
 
-        // PFE Physics Constants (From Unit.as in AS3)
-        // These were global constants in the original game
-        protected const float FRICTION_GROUND = 1.0f; // 'brake' in AS3
-        protected const float FRICTION_AIR = 0.1f; // Less friction in air
-        protected const float GRAVITY = 30.0f; // 'grav' * World.ddy in AS3
-
-        // Unity conversion constants
-        // PFE used pixels, Unity uses units. Assuming 100 pixels = 1 Unity unit.
-        protected const float PIXELS_TO_UNITS = 0.01f;
+        // PFE physics constants (from Unit.as in AS3).
+        //
+        // These are no longer literals here. They were the last site of the gravity census: GRAVITY
+        // was a hand-derived 30.0f, documented as "'grav' * World.ddy", which is the per-frame
+        // VELOCITY idiom applied to an ACCELERATION slot — 1 px/frame² × 30 frames/s instead of
+        // × 30² / 100 px-per-unit, i.e. 3.33× too strong. FRICTION_GROUND had the mirror-image
+        // error: 1.0f scaled by `deltaTime * 60f`, so the frame rate was wrong (60, not AS3's 30)
+        // AND the value was used as a px/frame velocity rather than a px/frame² acceleration,
+        // netting 6.67× too strong. Both now come from UnitFallPhysics, which carries the AS3
+        // file:line citations and is asserted directly by UnitFallPhysicsTests.
+        //
+        // The unit conversion is TileQueryConstants.PixelToUnit (0.01f) — never a hand-written
+        // literal, which is how the port ended up with a `100f` and a `0.01f` in places that had
+        // already drifted apart from the canonical pair.
 
         protected virtual void Awake()
         {
@@ -93,34 +98,49 @@ namespace PFE.Entities.Units
         /// <summary>
         /// Apply gravity if not grounded.
         /// Replaces: if (!levit) dy += World.ddy * grav (from Unit.as)
+        ///
+        /// <para>AS3's gate is <c>!levit &amp;&amp; this.isLaz == 0</c> (<c>Unit.as:1962</c>), where
+        /// <c>isLaz</c> means "standing on something"; <see cref="_isGrounded"/> is this port's
+        /// equivalent and is set by the collision callbacks below. The magnitude and the terminal
+        /// clamp live in <see cref="UnitFallPhysics.FallSpeed"/>, which is pure and tested — the
+        /// value was the wrong part, not the shape of the branch.</para>
+        ///
+        /// <para><b>Known divergence, recorded.</b> This runs in <c>FixedUpdate</c> against
+        /// <c>Time.fixedDeltaTime</c> (Unity's default 50 Hz), not on <c>SimLoop</c> at the clock's
+        /// 30 Hz tick. That is a <i>cadence</i> difference, not a magnitude one: an acceleration
+        /// integrated against any fixed delta produces the same speed after the same wall-clock
+        /// time, so the census's "one value, 1 px/frame², everywhere that falls" holds. Moving this
+        /// path onto the sim clock is separate work, and it is deliberately not bundled here because
+        /// it would change when every motor-less unit moves rather than how fast it falls.</para>
         /// </summary>
         protected void ApplyGravity()
         {
             if (!_isGrounded)
             {
-                _velocity.y -= GRAVITY * Time.fixedDeltaTime;
+                _velocity.y = UnitFallPhysics.FallSpeed(_velocity.y, Time.fixedDeltaTime);
             }
         }
 
         /// <summary>
         /// Apply friction to slow down horizontal movement.
         /// Replaces: dx -= brake (from Unit.as)
+        ///
+        /// <para><b>The invented air-friction branch is gone.</b> <c>FRICTION_AIR = 0.1f</c> had no
+        /// AS3 counterpart: the only damping AS3 applies outside the <c>stay</c> branch is the water
+        /// branch <c>dx *= 0.5</c> (<c>Unit.as:1958</c>) and the flight branch's speed cap, neither
+        /// of which is "air friction". This is the same removal the prop census made when it deleted
+        /// <c>RoomObjectPhysicsLayer.AirDrag</c>, and for the same reason: a force AS3 does not have
+        /// is not a tuning choice, it is a different game.</para>
+        ///
+        /// <para><b>Still divergent, and named rather than silently changed:</b> AS3 applies braking
+        /// only while <c>stay</c> and branches on the walk input toward <c>maxSpeed</c>
+        /// (<c>Unit.as:1970-1990</c>). This path has no walk input — it exists for units with no
+        /// motor — so it brakes toward rest unconditionally. See
+        /// <see cref="UnitFallPhysics.GroundBrake"/>.</para>
         /// </summary>
         protected void ApplyFriction()
         {
-            float friction = _isGrounded ? FRICTION_GROUND : FRICTION_AIR;
-            friction *= Time.fixedDeltaTime * 60f; // Scale to frame-based
-
-            if (_velocity.x > 0)
-            {
-                _velocity.x -= friction;
-                if (_velocity.x < 0) _velocity.x = 0;
-            }
-            else if (_velocity.x < 0)
-            {
-                _velocity.x += friction;
-                if (_velocity.x > 0) _velocity.x = 0;
-            }
+            _velocity.x = UnitFallPhysics.GroundBrake(_velocity.x, Time.fixedDeltaTime);
         }
 
         /// <summary>
@@ -219,6 +239,25 @@ namespace PFE.Entities.Units
         public Vector2 Velocity => _velocity;
         public int FacingDirection => _facingDirection;
         public UnitDefinition Stats => _stats;
+
+        /// <summary>
+        /// This unit's faction — the team id that decides who may damage whom
+        /// (<see cref="PFE.Systems.Weapons.FactionRule"/>).
+        ///
+        /// <para>AS3 keeps it on the unit and sets the player's <i>in code</i>, not in data:
+        /// <c>UnitPlayer.as:385</c> assigns <c>fraction = F_PLAYER</c>, and <c>littlepip</c> carries no
+        /// <c>fraction</c> attribute at all. <see cref="PFE.Entities.Player.PlayerController"/>
+        /// mirrors that with an override rather than by writing to <c>_stats</c>, which is a
+        /// ScriptableObject shared by every instance of the unit — mutating it at runtime would leak
+        /// a value into the project asset.</para>
+        ///
+        /// <para><b>Data caveat, read before relying on this for NPC-vs-NPC.</b> The imported unit
+        /// assets predate the parent-chain resolution added to <c>UnitDataImporter</c>, so a spawnable
+        /// that inherits its faction currently reads as <c>Raider</c> whatever its template says —
+        /// monsters and robots included. Player-versus-everyone is unaffected, because the player's
+        /// value comes from the override; the finer distinctions need a re-import.</para>
+        /// </summary>
+        public virtual FactionType Faction => _stats != null ? _stats.fraction : FactionType.Neutral;
 
         /// <summary>
         /// Whether this unit is player-controlled.

@@ -20,7 +20,7 @@ namespace PFE.Editor.Importers
     /// </summary>
     public class ProjectileGraphicsImportWindow : EditorWindow
     {
-        static readonly string DefaultProjectRoot = SourceImportPaths.PfeRoot;
+        static string DefaultProjectRoot => SourceImportPaths.PfeRoot;
 
         string _projectRoot = DefaultProjectRoot;
         bool _importSprites = true;

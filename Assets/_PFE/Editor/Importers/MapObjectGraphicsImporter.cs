@@ -17,11 +17,11 @@ namespace PFE.Editor.Importers
     /// </summary>
     public static class MapObjectGraphicsImporter
     {
-        static readonly string[] DefaultExportRoots = SourceImportPaths.MapObjectExportRoots;
+        static string[] DefaultExportRoots => SourceImportPaths.MapObjectExportRoots;
 
-        static readonly string[] DefaultSymbolInventoryPaths = SourceImportPaths.MapObjectSymbolInventoryPaths;
+        static string[] DefaultSymbolInventoryPaths => SourceImportPaths.MapObjectSymbolInventoryPaths;
 
-        static readonly string[] DefaultWrapperScriptRoots = SourceImportPaths.MapObjectWrapperScriptRoots;
+        static string[] DefaultWrapperScriptRoots => SourceImportPaths.MapObjectWrapperScriptRoots;
 
         const string CatalogSearchFilter = "t:MapObjectCatalog";
         const string ImportedArtRoot = "Assets/_PFE/Art/Imported/MapObjects";

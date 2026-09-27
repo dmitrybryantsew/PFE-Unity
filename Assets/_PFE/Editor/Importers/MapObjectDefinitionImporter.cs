@@ -16,7 +16,7 @@ namespace PFE.Editor.Importers
     /// </summary>
     public static class MapObjectDefinitionImporter
     {
-        static readonly string DefaultSourcePath = SourceImportPaths.AllDataAsPath;
+        static string DefaultSourcePath => SourceImportPaths.AllDataAsPath;
 
         static readonly string OutputDirectory =
             "Assets/_PFE/Data/Resources/MapObjects/Definitions";

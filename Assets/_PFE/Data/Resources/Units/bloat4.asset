@@ -17,7 +17,7 @@ MonoBehaviour:
   id: bloat4
   parentId: bloat
   controllerId: 
-  fraction: 2
+  fraction: 1
   category: 3
   xpReward: 60
   displayName: "\u0417\u0443\u0431\u0430\u0441\u0442\u044B\u0439 \u0411\u043B\u043E\u0442\u0441\u043F\u0440\u0430\u0439\u0442"
@@ -46,7 +46,7 @@ MonoBehaviour:
   observationRange: 0
   radiationDamage: 0
   skinThickness: 0
-  dexterity: 1
+  dexterity: 1.2
   skill: 1
   waterAbility: 1
   hearingRange: 5
@@ -96,8 +96,9 @@ MonoBehaviour:
   drawDimensions: {x: 60, y: 60}
   gender: 2
   musicTrack: 
-  deathSound: {fileID: 0}
-  fallingSound: {fileID: 0}
+  deathSoundId: 
+  fallingSoundId: 
+  soundRun: 
   detectionDistance: 400
   grenadeCount: 0
   stalkDistance: 0

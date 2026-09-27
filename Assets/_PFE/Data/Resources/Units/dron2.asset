@@ -46,7 +46,7 @@ MonoBehaviour:
   observationRange: 0
   radiationDamage: 0
   skinThickness: 0
-  dexterity: 1
+  dexterity: 1.3
   skill: 1
   waterAbility: 0.85
   hearingRange: 5
@@ -96,8 +96,9 @@ MonoBehaviour:
   drawDimensions: {x: 60, y: 60}
   gender: 2
   musicTrack: 
-  deathSound: {fileID: 0}
-  fallingSound: {fileID: 0}
+  deathSoundId: 
+  fallingSoundId: 
+  soundRun: 
   detectionDistance: 400
   grenadeCount: 0
   stalkDistance: 0

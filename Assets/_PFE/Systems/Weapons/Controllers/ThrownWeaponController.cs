@@ -174,7 +174,7 @@ namespace PFE.Systems.Weapons.Controllers
         /// </summary>
         private void Shoot()
         {
-            DamageContext damCtx = DamageContext.FromWeapon(_def, null);
+            DamageContext damCtx = DamageContext.FromWeapon(_def, null, State.OwnerFaction);
 
             ShotCues cues = new ShotCues(
                 playShootSound:   !string.IsNullOrEmpty(_def.soundShoot),
@@ -255,7 +255,7 @@ namespace PFE.Systems.Weapons.Controllers
                 worldPosition: new Vector2(State.X, State.Y),
                 angleRad:      0f,
                 kind:          ShotKind.Mine,
-                damage:        DamageContext.FromWeapon(_def, null),
+                damage:        DamageContext.FromWeapon(_def, null, State.OwnerFaction),
                 pelletIndex:   0,
                 totalPellets:  1,
                 speed:         0f,

@@ -359,7 +359,7 @@ namespace PFE.Systems.Weapons.Controllers
             Vector2 muzzleWorld = new Vector2(State.X, State.Y);
 
             // ── Shared damage context (same for all pellets in this shot) ─────
-            DamageContext damCtx = DamageContext.FromWeapon(_def, null /* owner set by spawner */);
+            DamageContext damCtx = DamageContext.FromWeapon(_def, null, State.OwnerFaction);
 
             // ── Cues (same for all pellets) ───────────────────────────────────
             bool playSound = State.KolShoot % Mathf.Max(1, _def.magazineSize > 0 ? 1 : 1) == 0;

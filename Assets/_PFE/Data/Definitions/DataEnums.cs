@@ -8,16 +8,41 @@ namespace PFE.Data.Definitions
     /// </summary>
 
     /// <summary>
-    /// Fraction (Faction) type from AS3.
-    /// 0 = Neutral, 1 = Player, 2 = Enemy, 3 = Unknown, 4 = Special (robots)
+    /// Faction (<c>fraction</c> in AS3) — the team id that decides who may damage whom.
+    ///
+    /// <para><b>The numbers are AS3's, deliberately.</b> <c>Unit.as:78-86</c> declares
+    /// <c>F_PLAYER = 100</c>, <c>F_MONSTER = 1</c>, <c>F_RAIDER = 2</c>, <c>F_ZOMBIE = 3</c> and
+    /// <c>F_ROBOT = 4</c>, and <c>Unit.as:454</c> defaults <c>fraction = 0</c>. The port previously
+    /// renumbered these as Neutral/Player/Enemy/Unknown/Special, which put <c>Player</c> at <b>1</b> —
+    /// the value AS3 uses for a <i>monster</i>. Since the importer casts the raw attribute
+    /// (<c>(FactionType)fraction</c>), that made all 29 <c>fraction='1'</c> monsters decode as the
+    /// player's faction. Keeping AS3's numbers makes the import a plain cast and lets a faction be
+    /// compared against the oracle by eye.</para>
+    ///
+    /// <para>Note the player is <i>not</i> in the data: <c>littlepip</c> carries no <c>fraction</c>
+    /// attribute at all, and <c>UnitPlayer.as:385</c> assigns <c>fraction = F_PLAYER</c> in code. The
+    /// port mirrors that with an override on <c>PlayerController</c> rather than by writing to the
+    /// shared <c>UnitDefinition</c> asset.</para>
     /// </summary>
     public enum FactionType
     {
+        /// <summary>AS3 <c>Unit.as:454</c> default — a unit with no <c>fraction</c> attribute.</summary>
         Neutral = 0,
-        Player = 1,
-        Enemy = 2,
-        Unknown = 3,
-        Special = 4  // Robots
+
+        /// <summary>AS3 <c>F_MONSTER</c> (<c>Unit.as:80</c>).</summary>
+        Monster = 1,
+
+        /// <summary>AS3 <c>F_RAIDER</c> (<c>Unit.as:82</c>).</summary>
+        Raider = 2,
+
+        /// <summary>AS3 <c>F_ZOMBIE</c> (<c>Unit.as:84</c>).</summary>
+        Zombie = 3,
+
+        /// <summary>AS3 <c>F_ROBOT</c> (<c>Unit.as:86</c>).</summary>
+        Robot = 4,
+
+        /// <summary>AS3 <c>F_PLAYER</c> (<c>Unit.as:78</c>) — the player and their allies.</summary>
+        Player = 100
     }
 
     /// <summary>

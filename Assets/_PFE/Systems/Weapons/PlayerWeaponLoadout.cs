@@ -139,7 +139,18 @@ namespace PFE.Systems.Weapons
             _soundService?.StopLoop(_prepSoundKey);
             _prepWasAttacking = false;
             _current?.Dispose();
-            _current = _factory.Create(def);
+
+            // Stamp the owner's faction onto the weapon state — this is the only place that knows
+            // both the weapon and whose it is, and FactionRule needs the attacker's side at hit time.
+            // AS3 reads the same value as `this.weap.owner.fraction`. Resolved through the parent
+            // because the loadout sits on the player or one of its children; a missing UnitController
+            // leaves Neutral, which makes the weapon hit everyone (AS3's own default) rather than
+            // silently picking a side.
+            FactionType ownerFaction = FactionType.Neutral;
+            var ownerUnit = GetComponentInParent<PFE.Entities.Units.UnitController>();
+            if (ownerUnit != null) ownerFaction = ownerUnit.Faction;
+
+            _current = _factory.Create(def, ownerFaction);
 
             // Wire MeleeHitVolume to the controller when it's a melee weapon.
             if (_current is MeleeWeaponController meleeCtrl)

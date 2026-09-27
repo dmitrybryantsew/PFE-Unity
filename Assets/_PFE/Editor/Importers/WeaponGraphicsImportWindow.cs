@@ -25,8 +25,8 @@ namespace PFE.Editor.Importers
     public class WeaponGraphicsImportWindow : EditorWindow
     {
         // ── Default paths ──────────────────────────────────────────────────────
-        static readonly string DefaultPfeRoot = SourceImportPaths.PfeRoot;
-        static readonly string DefaultSwfPath = SourceImportPaths.PfeSwfPath;
+        static string DefaultPfeRoot => SourceImportPaths.PfeRoot;
+        static string DefaultSwfPath => SourceImportPaths.PfeSwfPath;
 
         // ── State ──────────────────────────────────────────────────────────────
         string _pfeRoot  = DefaultPfeRoot;

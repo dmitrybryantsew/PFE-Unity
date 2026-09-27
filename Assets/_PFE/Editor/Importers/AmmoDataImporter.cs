@@ -14,7 +14,7 @@ namespace PFE.Editor.Importers
     /// </summary>
     public static class AmmoDefinitionImporter
     {
-        private static readonly string SourceFilePath = SourceImportPaths.AllDataAsPath;
+        private static string SourceFilePath => SourceImportPaths.AllDataAsPath;
         private static readonly string OutputPath = "Assets/_PFE/Data/Resources/Ammo";
 
         /// <summary>

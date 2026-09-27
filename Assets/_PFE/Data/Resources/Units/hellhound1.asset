@@ -17,7 +17,7 @@ MonoBehaviour:
   id: hellhound1
   parentId: hellhound
   controllerId: 
-  fraction: 2
+  fraction: 4
   category: 3
   xpReward: 500
   displayName: hellhound1
@@ -96,8 +96,9 @@ MonoBehaviour:
   drawDimensions: {x: 60, y: 60}
   gender: 2
   musicTrack: 
-  deathSound: {fileID: 0}
-  fallingSound: {fileID: 0}
+  deathSoundId: 
+  fallingSoundId: 
+  soundRun: 
   detectionDistance: 400
   grenadeCount: 0
   stalkDistance: 0

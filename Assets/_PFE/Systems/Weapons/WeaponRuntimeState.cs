@@ -63,6 +63,18 @@ namespace PFE.Systems.Weapons
         public float X;
         public float Y;
 
+        /// <summary>
+        /// Faction of the unit that owns this weapon — the attacker side of
+        /// <see cref="FactionRule"/>, and what AS3 reads as <c>this.weap.owner.fraction</c>.
+        ///
+        /// <para>It lives on the state rather than on the controller because the state is created by
+        /// <c>WeaponControllerFactory</c> from a definition alone, with no unit in scope, while the
+        /// loadout that equips the weapon <i>does</i> know whose it is. Set once at equip time;
+        /// defaults to <see cref="FactionType.Neutral"/>, which is AS3's own default
+        /// (<c>Unit.as:454</c>) and makes an unowned weapon hit everyone.</para>
+        /// </summary>
+        public FactionType OwnerFaction = FactionType.Neutral;
+
         // ── Reactive properties for UI (HUD ammo counter, reload bar) ─────────
         public readonly ReactiveProperty<int>   CurrentAmmoRP;
         public readonly ReactiveProperty<int>   CurrentDurabilityRP;

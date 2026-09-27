@@ -17,7 +17,7 @@ MonoBehaviour:
   id: encl4
   parentId: encl
   controllerId: 
-  fraction: 2
+  fraction: 4
   category: 3
   xpReward: 1200
   displayName: "\u0428\u0442\u0443\u0440\u043C\u043E\u0432\u0438\u043A"
@@ -46,8 +46,8 @@ MonoBehaviour:
   observationRange: 0
   radiationDamage: 0
   skinThickness: 0
-  dexterity: 1
-  skill: 1
+  dexterity: 1.6
+  skill: 2
   waterAbility: 1
   hearingRange: 5
   damageType: 2
@@ -96,8 +96,9 @@ MonoBehaviour:
   drawDimensions: {x: 60, y: 60}
   gender: 2
   musicTrack: 
-  deathSound: {fileID: 0}
-  fallingSound: {fileID: 0}
+  deathSoundId: 
+  fallingSoundId: 
+  soundRun: 
   detectionDistance: 400
   grenadeCount: 0
   stalkDistance: 0
