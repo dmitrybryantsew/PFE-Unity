@@ -53,6 +53,23 @@ namespace PFE.Systems.Map.TileQuery
             PixelToUnit * PFE.Core.SimClock.CanonicalTicksPerSecond * PFE.Core.SimClock.CanonicalTicksPerSecond;
 
         /// <summary>
+        /// Converts any AS3 <b>per-frame</b> velocity (px/frame) into Unity units/s:
+        /// <c>px/frame × 0.01 units/px × 30 frame/s = × 0.3</c>.
+        ///
+        /// <para>The counterpart of
+        /// <see cref="PerFrameAccelerationToUnitsPerSecondSquared"/>, and the two are <b>not</b>
+        /// interchangeable — one frame rate, not two. A per-frame velocity needs
+        /// <c>× fps / PixelToUnit</c> (0.3); a per-frame² acceleration needs
+        /// <c>× fps² / PixelToUnit</c> (9). Using the acceleration factor on a velocity is 30× too
+        /// strong, and using <c>× fps</c> on either is the 3.33× error the port shipped for years.</para>
+        ///
+        /// <para>Used for anything AS3 stores as a velocity — <c>World.maxdy</c> (terminal fall
+        /// speed), a thrown object's settle threshold, a weapon's projectile speed.</para>
+        /// </summary>
+        public const float PerFrameVelocityToUnitsPerSecond =
+            PixelToUnit * PFE.Core.SimClock.CanonicalTicksPerSecond;
+
+        /// <summary>
         /// AS3 <c>World.ddy</c> expressed as an acceleration in Unity units/s²: 9.0.
         ///
         /// <para>This is the form a physics engine consumes. Anything applying gravity against a

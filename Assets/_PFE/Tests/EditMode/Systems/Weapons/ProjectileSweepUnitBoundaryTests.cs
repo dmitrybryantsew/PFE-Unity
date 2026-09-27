@@ -236,6 +236,18 @@ namespace PFE.Tests.EditMode.Systems.Weapons
                 contactNormal  = ContactNormal;
                 return ReportsContact;
             }
+
+            /// <summary>
+            /// Not exercised here: this fixture is about the sweep's unit boundary. Returns false —
+            /// "outside every mirrored room" — which is what a caller would see with no room active,
+            /// and is the answer that makes a consumer stay on its legacy path rather than act on a
+            /// null seam.
+            /// </summary>
+            public bool TryGetRoomTileQueryAt(Vector2 worldPx, out RoomTileQuery query)
+            {
+                query = default;
+                return false;
+            }
         }
     }
 }

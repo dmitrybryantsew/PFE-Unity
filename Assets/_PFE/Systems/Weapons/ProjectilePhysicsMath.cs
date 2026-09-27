@@ -37,8 +37,13 @@ namespace PFE.Systems.Weapons
         /// px/frame → units/s. Equal to <c>PixelToUnit × fps</c> = 0.3.
         /// Use for anything AS3 writes as <c>dx</c> / <c>dy</c> / <c>vel</c> — including thresholds
         /// compared against them.
+        ///
+        /// <para>An alias for the canonical constant rather than a second copy of the expression.
+        /// The two were identical, which is the state that precedes a drift: the unit path's gravity
+        /// census found a hand-written <c>100f</c> and <c>0.01f</c> that had already diverged from
+        /// the canonical pair in other files. One expression, one place.</para>
         /// </summary>
-        public const float VelocityScale = TileQueryConstants.PixelToUnit * PFE.Core.SimClock.CanonicalTicksPerSecond;
+        public const float VelocityScale = TileQueryConstants.PerFrameVelocityToUnitsPerSecond;
 
         // ── AS3 source values (px, never hand-converted) ─────────────────────────────────────
 

@@ -3,6 +3,7 @@ using UnityEngine.LowLevelPhysics2D;
 using PFE.Core;
 using PFE.Systems.Map;
 using PFE.Systems.Map.Streaming;
+using PFE.Systems.Map.TileQuery;
 
 namespace PFE.Systems.Physics
 {
@@ -86,5 +87,57 @@ namespace PFE.Systems.Physics
         /// <param name="contactNormal">Surface normal at the contact, or zero for an initial overlap.</param>
         bool TrySweepTiles(Vector2 fromPx, Vector2 deltaPx, Vector2 sizePx, Vector2 facing,
                            out Vector2 contactPointPx, out Vector2 contactNormal);
+
+        /// <summary>
+        /// The tile-query seam of the mirrored room containing a world-pixel point, or <c>null</c>
+        /// when the point is outside every room this service currently mirrors.
+        ///
+        /// <para><b>Why this exists, and why it is not <see cref="TrySweepTiles"/>.</b> A thrown
+        /// object's tile collision in AS3 is <i>not</i> a swept shape. <c>PhisBullet.run()</c>
+        /// (<c>PhisBullet.as:209-347</c>) advances a <b>point</b> by at most <c>World.maxdelta</c>
+        /// (9 px, <c>World.as:48</c>) and asks <c>loc.getAbsTile(X, Y)</c> whether the cell it landed
+        /// in is solid — so tunnelling is prevented by sub-stepping, not by a sweep, and the
+        /// collision shape is a point rather than the prefab's capsule. Reproducing that with a
+        /// swept capsule would give a grenade a hitbox it does not have in the original, which is a
+        /// behaviour change disguised as an implementation change. What the flip needs from this
+        /// seam is therefore the <i>room's own</i> query service, not the chain mirror's sweep.</para>
+        ///
+        /// <para><b>Room identity, not just a query.</b> AS3 binds a thrown object to one
+        /// <c>Location</c> for its whole life — <c>loc.getAbsTile</c>, <c>loc.spaceX</c> — and removes
+        /// it when it leaves that room (<c>PhisBullet.as:234-238</c>). Resolving the room once, at
+        /// spawn, is what makes that removal rule expressible; a world-wide query cannot say where
+        /// "outside" begins.</para>
+        ///
+        /// <para>The returned service must not be cached across room streaming: it is created per
+        /// room activation and dies with it. Resolve once per object at spawn, which is exactly the
+        /// AS3 lifetime, and do not hold it past that.</para>
+        /// </summary>
+        /// <param name="worldPx">Query point, world pixels.</param>
+        /// <param name="query">The room's tile seam and its world-pixel bounds.</param>
+        bool TryGetRoomTileQueryAt(Vector2 worldPx, out RoomTileQuery query);
+    }
+
+    /// <summary>
+    /// One mirrored room's tile seam together with the world-pixel rectangle it answers for.
+    ///
+    /// <para>The two travel together on purpose. A caller that needs <i>both</i> — a thrown object
+    /// asking "is this cell solid" and "have I left the room" — must not derive the rectangle from
+    /// <c>OriginPixel</c> a second time; that is precisely the kind of duplicated formula that let
+    /// the chain mirror sit one room width out of place for the whole of Stage B (see
+    /// <see cref="RoomChainGeometry.EmitChain"/>).</para>
+    /// </summary>
+    public readonly struct RoomTileQuery
+    {
+        /// <summary>The room's own query service. Valid only while the room stays mirrored.</summary>
+        public readonly ITileQueryService Service;
+
+        /// <summary>The room's world-pixel bounds — AS3 <c>loc.limX</c>/<c>limY</c>.</summary>
+        public readonly Rect WorldBoundsPx;
+
+        public RoomTileQuery(ITileQueryService service, Rect worldBoundsPx)
+        {
+            Service = service;
+            WorldBoundsPx = worldBoundsPx;
+        }
     }
 }

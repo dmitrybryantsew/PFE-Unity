@@ -188,6 +188,35 @@ namespace PFE.Systems.Physics
         }
 
         /// <summary>
+        /// The tile seam and world-pixel bounds of the mirrored room containing a point.
+        ///
+        /// <para>Rooms are compared by <see cref="Rect.Contains"/>, whose maximum edges are
+        /// <i>exclusive</i> — which is the convention AS3 uses too (<c>X &gt;= loc.spaceX * Tile.tileX</c>
+        /// is outside, <c>PhisBullet.as:234</c>), so a point on the shared boundary between two rooms
+        /// resolves to the lower one rather than to neither. At most one or two rooms are mirrored at
+        /// a time (decision L1), so the scan is a couple of <c>Rect</c> tests.</para>
+        ///
+        /// <para>Returns false outside every mirrored room, which is the honest answer: the caller
+        /// then has no tile semantics to consult and must not pretend otherwise. For a thrown object
+        /// that means staying on the legacy path rather than registering a sim object that would fly
+        /// through every wall.</para>
+        /// </summary>
+        public bool TryGetRoomTileQueryAt(Vector2 worldPx, out RoomTileQuery query)
+        {
+            foreach (KeyValuePair<RoomInstance, RoomChainGeometry> entry in _roomGeometry)
+            {
+                if (entry.Value.WorldBoundsPx.Contains(worldPx))
+                {
+                    query = new RoomTileQuery(entry.Value.Query, entry.Value.WorldBoundsPx);
+                    return true;
+                }
+            }
+
+            query = default;
+            return false;
+        }
+
+        /// <summary>
         /// Releases every room's geometry and then the world itself. Idempotent.
         /// </summary>
         public void Dispose()

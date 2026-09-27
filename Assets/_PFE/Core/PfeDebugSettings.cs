@@ -186,6 +186,13 @@ namespace PFE.Core
         private bool projectilesUseLowLevelPhysics = false;
 
         [SerializeField]
+        [Tooltip("Stage C flip: moves a thrown object's (grenade, bottle, sticky bomb) TILE collision onto the tile-query seam and its integration onto SimLoop at exactly SimClock.SimDt (AS3's 30 Hz). " +
+                 "OFF = unchanged: tile hits come from Unity's per-tile BoxCollider2D grid via OnTriggerEnter2D, and the object integrates in FixedUpdate at Time.fixedDeltaTime (50 Hz, i.e. 1.67x fast). " +
+                 "ON = the hit decision comes from the tile seam, reproduced from AS3 PhisBullet.run() exactly — a point swept in sub-steps of at most World.maxdelta (9 px), X resolved before Y, bounce retention skok=0.4, floor damping tormoz=0.6, and settle below 2 px/frame of fall speed. " +
+                 "Entity hits (IDamageable) and the AoE detonation are unaffected in both modes. The fuse is 72 canonical frames either way, so it burns for 2.4 s with the flag on and 1.44 s with it off — the same 1.67x clock error the rest of the legacy path has. Behaviour toggle, NOT gated by runtimeLoggingEnabled. This is the Stage C rollback switch; it stays until Stage D removes the old path.")]
+        private bool thrownObjectsUseTileSeam = false;
+
+        [SerializeField]
         [Tooltip("Logs each field-level divergence found by the dual-run harness, with tick index. Very noisy — opt in only while diffing Stage B.")]
         private bool simTickLogDivergence = false;
 
@@ -255,6 +262,7 @@ namespace PFE.Core
         public bool SimTickMotor                                 => simTickMotor;
         public bool SimTickRoom                                  => simTickRoom;
         public bool ProjectilesUseLowLevelPhysics                => projectilesUseLowLevelPhysics;
+        public bool ThrownObjectsUseTileSeam                     => thrownObjectsUseTileSeam;
 
         /// <summary>Divergence logging is a log, so it does respect the master toggle.</summary>
         public bool SimTickLogDivergence                         => runtimeLoggingEnabled && simTickLogDivergence;

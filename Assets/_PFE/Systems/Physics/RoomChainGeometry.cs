@@ -125,6 +125,16 @@ namespace PFE.Systems.Physics
 
             _world = world;
 
+            // Cached here rather than derived per query: both come from the same OriginPixel the
+            // chains are emitted with, so caching them cannot drift from the geometry, and a caller
+            // that needs "which room is this point in" must not pay a room lookup per projectile tick.
+            RoomInstance room = query.Room;
+            Vector2 originPx = query.OriginPixel;
+            WorldBoundsPx = new Rect(
+                originPx.x, originPx.y,
+                (room != null ? room.width : 0) * TileSizePx,
+                (room != null ? room.height : 0) * TileSizePx);
+
             PhysicsBodyDefinition def = PhysicsBodyDefinition.defaultDefinition;
             def.type = Llp2dBody.BodyType.Static;
             def.position = Vector2.zero;
@@ -138,6 +148,28 @@ namespace PFE.Systems.Physics
 
         /// <summary>The static body that owns all chains for this room.</summary>
         public Llp2dBody StaticBody => _staticBody;
+
+        /// <summary>
+        /// The tile-query seam this room's geometry was built from, so a consumer that needs the
+        /// room's <i>tile</i> semantics (rather than its chain silhouette) can reach the same single
+        /// definition of them. See <see cref="IPhysicsWorldService.TryGetRoomTileQueryAt"/> for why a
+        /// thrown object needs this rather than <see cref="TrySweep"/>.
+        ///
+        /// <para>Lifetime is the geometry's: created per room activation, dead on
+        /// <see cref="Destroy"/>. Do not cache past that.</para>
+        /// </summary>
+        public ITileQueryService Query => _query;
+
+        /// <summary>
+        /// The room's world-pixel bounds — room-local <c>[0, width*TileSize] × [0, height*TileSize]</c>
+        /// translated by <see cref="ITileQueryService.OriginPixel"/>, i.e. exactly the region
+        /// <see cref="ITileQueryService.Classify"/> will answer for.
+        ///
+        /// <para>This is the port's stand-in for AS3 <c>loc.limX</c>/<c>loc.limY</c>
+        /// (<c>Location.as:267-268</c>, <c>spaceX * Tile.tileX</c>), which is what a thrown object is
+        /// removed against when it leaves the room.</para>
+        /// </summary>
+        public Rect WorldBoundsPx { get; }
 
         /// <summary>
         /// Build all chains for the room. Destroys any previously built chains on this body first,
@@ -556,10 +588,18 @@ namespace PFE.Systems.Physics
         /// mid-air on catwalks and above slopes.</para>
         ///
         /// <para><b>This is one of exactly two places a bullet asks "is this tile in my way".</b> The
-        /// other is <c>Projectile.OnTriggerEnter2D</c>, which is the legacy per-tile path and tests
-        /// <c>TileData.physicsType != Wall</c>. Both resolve to the same set of tiles — the two paths
-        /// must agree or the rollback flag would change gameplay rather than only the
-        /// implementation.</para>
+        /// other is <c>Projectile.OnTriggerEnter2D</c>, which is the legacy per-tile path. Both resolve
+        /// to the same set of tiles — <see cref="PFE.Systems.Map.TileQuery.ProjectileOcclusionRule"/>
+        /// is that shared rule, stated once and asserted directly — because the two paths must agree or
+        /// the rollback flag would change gameplay rather than only the implementation. The
+        /// implementation here stays on <c>Classify</c> rather than calling the shared predicate
+        /// directly, so the geometry continues to come through the tile-query seam; the two are pinned
+        /// to each other by <c>ProjectileOcclusionRuleTests</c>.</para>
+        ///
+        /// <para><b>Not <c>TileData.IsSolid()</c>.</b> That helper is <c>physicsType &gt;= Wall</c>,
+        /// so it includes <c>Platform</c> and <c>Stair</c> — it answers "does this block
+        /// <i>movement</i>", which is a different question. Accepting those here is how bullets came to
+        /// stop in mid-air on catwalks and above slopes.</para>
         ///
         /// <para>Note this is also the exposure predicate — a surface is emitted where a solid tile
         /// meets a non-solid one — so a solid block whose neighbour is a catwalk or a slope still gets
