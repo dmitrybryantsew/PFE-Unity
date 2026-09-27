@@ -644,6 +644,11 @@ public class MapBridge : MonoBehaviour
         // Clear visuals
         _visualController.ClearVisuals();
 
+        // The tileset is about to change, so the shared sprite cache is both stale and otherwise
+        // unbounded across lands. Safe here: ClearVisuals already destroyed the old tiles (and a
+        // yield passed before it), so no live renderer still references these sprites.
+        _visualController.ReleaseBakedTileSprites();
+
         // Get LandMap and clear
         var landMap = _gameManager.GetLandMap();
         if (landMap != null)

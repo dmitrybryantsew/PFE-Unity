@@ -72,7 +72,7 @@ namespace PFE.Systems.Map.Rendering
                 }
             }
 
-            EnsureChildRenderers();
+            EnsureChildRenderers(useProvidedSprites ? visualData : null);
             ApplyVisualData(assetDatabase, visualData, useProvidedSprites);
 
             // Tile sprites use centered pivots, so place them at the tile bounds center.
@@ -123,7 +123,7 @@ namespace PFE.Systems.Map.Rendering
             if (spriteRenderer == null || tileData == null)
                 return;
 
-            EnsureChildRenderers();
+            EnsureChildRenderers(useProvidedSprites ? visualData : null);
             ApplyVisualData(assetDatabase, visualData, useProvidedSprites);
             ApplyScale(visualData != null ? visualData.HeightScale : GetHeightScale());
             ApplySorting();
@@ -293,11 +293,11 @@ namespace PFE.Systems.Map.Rendering
                     visualData = new TileVisualData();
                 }
                 spriteRenderer.sprite = visualData.MainSprite;
-                secondarySpriteRenderer.sprite = visualData.BackSprite;
-                rearOverlaySpriteRenderer.sprite = visualData.RearOverlaySprite1;
-                rearOverlaySpriteRenderer2.sprite = visualData.RearOverlaySprite2;
-                frontOverlaySpriteRenderer.sprite = visualData.FrontOverlaySprite1;
-                frontOverlaySpriteRenderer2.sprite = visualData.FrontOverlaySprite2;
+                AssignChildSprite(secondarySpriteRenderer, visualData.BackSprite);
+                AssignChildSprite(rearOverlaySpriteRenderer, visualData.RearOverlaySprite1);
+                AssignChildSprite(rearOverlaySpriteRenderer2, visualData.RearOverlaySprite2);
+                AssignChildSprite(frontOverlaySpriteRenderer, visualData.FrontOverlaySprite1);
+                AssignChildSprite(frontOverlaySpriteRenderer2, visualData.FrontOverlaySprite2);
 
                 SetVisible(isVisible);
                 return;
@@ -325,29 +325,46 @@ namespace PFE.Systems.Map.Rendering
                 spriteRenderer.enabled = isVisible && sprite != null;
             }
 
-            secondarySpriteRenderer.sprite = null;
-            rearOverlaySpriteRenderer.sprite = null;
-            rearOverlaySpriteRenderer2.sprite = null;
-            frontOverlaySpriteRenderer.sprite = null;
-            frontOverlaySpriteRenderer2.sprite = null;
+            AssignChildSprite(secondarySpriteRenderer, null);
+            AssignChildSprite(rearOverlaySpriteRenderer, null);
+            AssignChildSprite(rearOverlaySpriteRenderer2, null);
+            AssignChildSprite(frontOverlaySpriteRenderer, null);
+            AssignChildSprite(frontOverlaySpriteRenderer2, null);
             SetVisible(isVisible);
         }
 
-        private void EnsureChildRenderers()
+        /// <summary>
+        /// Ensure the child renderers this tile's visuals actually need exist.
+        ///
+        /// The five overlay/background slots used to be created unconditionally, so a tile showing a
+        /// single sprite still carried 6 GameObjects and 6 SpriteRenderers. At ~1136 tiles per room
+        /// that is ~6800 of each, all transform-updated, culled and sorted every frame, while the
+        /// statistics show ~1.13 quads per draw call — i.e. almost every one of them was empty. A
+        /// slot is now created only when it is about to receive a non-null sprite.
+        /// </summary>
+        private void EnsureChildRenderers(TileVisualData visualData)
         {
-            secondarySpriteRenderer = EnsureChildRenderer("BackgroundSprite", secondarySpriteRenderer);
-            rearOverlaySpriteRenderer = EnsureChildRenderer("RearOverlaySprite", rearOverlaySpriteRenderer);
-            rearOverlaySpriteRenderer2 = EnsureChildRenderer("RearOverlaySprite2", rearOverlaySpriteRenderer2);
-            frontOverlaySpriteRenderer = EnsureChildRenderer("FrontOverlaySprite", frontOverlaySpriteRenderer);
-            frontOverlaySpriteRenderer2 = EnsureChildRenderer("FrontOverlaySprite2", frontOverlaySpriteRenderer2);
+            secondarySpriteRenderer = EnsureChildRenderer("BackgroundSprite", secondarySpriteRenderer, visualData != null ? visualData.BackSprite : null);
+            rearOverlaySpriteRenderer = EnsureChildRenderer("RearOverlaySprite", rearOverlaySpriteRenderer, visualData != null ? visualData.RearOverlaySprite1 : null);
+            rearOverlaySpriteRenderer2 = EnsureChildRenderer("RearOverlaySprite2", rearOverlaySpriteRenderer2, visualData != null ? visualData.RearOverlaySprite2 : null);
+            frontOverlaySpriteRenderer = EnsureChildRenderer("FrontOverlaySprite", frontOverlaySpriteRenderer, visualData != null ? visualData.FrontOverlaySprite1 : null);
+            frontOverlaySpriteRenderer2 = EnsureChildRenderer("FrontOverlaySprite2", frontOverlaySpriteRenderer2, visualData != null ? visualData.FrontOverlaySprite2 : null);
             ApplyChildRendererTransforms();
         }
 
-        private SpriteRenderer EnsureChildRenderer(string childName, SpriteRenderer existingRenderer)
+        private SpriteRenderer EnsureChildRenderer(string childName, SpriteRenderer existingRenderer, Sprite sprite)
         {
             if (existingRenderer != null)
             {
                 return existingRenderer;
+            }
+
+            // Nothing to show in this slot, so leave it uncreated. A slot created on an earlier pass
+            // and now empty is kept — the caller clears its sprite and SetVisible disables it — so
+            // this only ever skips the initial creation.
+            if (sprite == null)
+            {
+                return null;
             }
 
             Transform child = transform.Find(childName);
@@ -365,6 +382,20 @@ namespace PFE.Systems.Map.Rendering
             }
 
             return renderer;
+        }
+
+        /// <summary>
+        /// Assign a sprite to an optional child renderer. The slot may legitimately not exist — see
+        /// <see cref="EnsureChildRenderers"/>.
+        /// </summary>
+        private static void AssignChildSprite(SpriteRenderer renderer, Sprite sprite)
+        {
+            if (renderer == null)
+            {
+                return;
+            }
+
+            renderer.sprite = sprite;
         }
 
         private void ApplyChildRendererTransforms()
@@ -456,7 +487,7 @@ namespace PFE.Systems.Map.Rendering
 
             Sprite sizeReference = spriteRenderer.sprite != null
                 ? spriteRenderer.sprite
-                : secondarySpriteRenderer.sprite;
+                : (secondarySpriteRenderer != null ? secondarySpriteRenderer.sprite : null);
 
             if (sizeReference != null)
             {

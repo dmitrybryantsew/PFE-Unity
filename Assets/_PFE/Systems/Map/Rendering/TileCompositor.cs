@@ -122,6 +122,7 @@ namespace PFE.Systems.Map.Rendering
         private struct SpriteSampleInfo
         {
             public Texture2D readable;
+            public Color[] pixels;   // cached GetPixels buffer for `readable`; null => GetPixel fallback
             public Rect rect;
             public int texWidth;
             public bool valid;
@@ -146,15 +147,22 @@ namespace PFE.Systems.Map.Rendering
             if (CacheNativeProps && _spriteSampleCache.TryGetValue(sprite, out SpriteSampleInfo cached))
                 return cached;
 
+            Texture2D readable = GetReadableTexture(sprite.texture);
+
             var info = new SpriteSampleInfo
             {
                 rect = sprite.rect,
-                readable = GetReadableTexture(sprite.texture)
+                readable = readable,
+                // Resolve the CPU pixel buffer here, once per sprite, for the same reason the tiling
+                // path does it in BuildTilingSampler: GetCachedPixels keys on Texture2D, and every
+                // lookup runs UnityEngine.Object.Equals -> CompareBaseObjects -> IsNativeObjectAlive,
+                // which is a native call. See SampleSpriteAlphaCore.
+                pixels = GetCachedPixels(readable)
             };
 
-            if (info.readable != null)
+            if (readable != null)
             {
-                info.texWidth = info.readable.width;
+                info.texWidth = readable.width;
                 info.valid = true;
             }
 
@@ -477,22 +485,17 @@ namespace PFE.Systems.Map.Rendering
                 return cached;
             }
 
-            Texture2D tileTex;
+            Color[] pixels;
             using (Profiler.Region("tiles.generateFront", "boot: per-miss front tile pixel generation. Region call count == front cache misses"))
             {
-                tileTex = GenerateTile(matRender, FallbackWall, keyX, keyY,
+                pixels = GenerateTilePixels(matRender, FallbackWall, keyX, keyY,
                     kont1, kont2, kont3, kont4);
             }
 
             Sprite sprite;
             using (Profiler.Region("tiles.spriteCreate", "boot: Sprite.Create per generated tile — measured 20-43ms total, trivial"))
             {
-                sprite = Sprite.Create(tileTex,
-                    new Rect(0, 0, TILE_PX, TILE_PX),
-                    new Vector2(0.5f, 0.5f),
-                    100f,
-                    0,
-                    SpriteMeshType.FullRect); // Avoid tight-mesh cracks between adjacent tiles
+                sprite = CreateTileSprite(pixels, key);
             }
 
             sprite.name = key;
@@ -523,22 +526,17 @@ namespace PFE.Systems.Map.Rendering
                 return cached;
             }
 
-            Texture2D tileTex;
+            Color[] pixels;
             using (Profiler.Region("tiles.generateBack", "boot: per-miss back tile pixel generation. Region call count == back cache misses"))
             {
-                tileTex = GenerateTile(matRender, FallbackBack, keyX, keyY,
+                pixels = GenerateTilePixels(matRender, FallbackBack, keyX, keyY,
                     pont1, pont2, pont3, pont4);
             }
 
             Sprite sprite;
             using (Profiler.Region("tiles.spriteCreate", "boot: Sprite.Create per generated tile — measured 20-43ms total, trivial"))
             {
-                sprite = Sprite.Create(tileTex,
-                    new Rect(0, 0, TILE_PX, TILE_PX),
-                    new Vector2(0.5f, 0.5f),
-                    100f,
-                    0,
-                    SpriteMeshType.FullRect);
+                sprite = CreateTileSprite(pixels, key);
             }
 
             sprite.name = key;
@@ -560,38 +558,229 @@ namespace PFE.Systems.Map.Rendering
                 ? _materialDb?.GetFrontMaterial(materialId)
                 : _materialDb?.GetBackMaterial(materialId);
 
-            Texture2D tileTex = GenerateTile(matRender,
+            Color[] pixels = GenerateTilePixels(matRender,
                 isFront ? FallbackWall : FallbackBack, 0, 0, 0, 0, 0, 0);
 
-            Sprite sprite = Sprite.Create(tileTex,
-                new Rect(0, 0, TILE_PX, TILE_PX),
-                new Vector2(0.5f, 0.5f),
-                100f,
-                0,
-                SpriteMeshType.FullRect);
+            Sprite sprite = CreateTileSprite(pixels, key);
 
             sprite.name = key;
             _spriteCache[key] = sprite;
             return sprite;
         }
 
+        // ── Tile atlas ────────────────────────────────────────────────────────────────
+        // ROLLBACK: set this to false to restore one generated 40x40 Texture2D per tile.
+        //
+        // One texture per tile is exactly what makes the tile layer unbatchable. Unity's batching —
+        // dynamic, static, and the 2D renderer's sprite batcher — all key on texture/material, so
+        // ~1122 unique textures draw as ~1122 separate quads with "saved by batching: 0". Packing the
+        // same pixels into one atlas gives every tile the SAME texture, which is the one property
+        // batching needs; nothing about the sprite objects, their sorting, opacity or mutation paths
+        // changes.
+        //
+        // Measured: ~1122 generations for a 1136-tile room, so one 2048x2048 atlas (2304 slots at
+        // 42 px) holds a whole room.
+        private const bool PackTileTexturesIntoAtlas = true;
+
+        private const int AtlasSize = 2048;
+        private const int AtlasGutter = 1;                        // extruded edge — see BuildExtrudedSlot
+        private const int AtlasSlot = TILE_PX + AtlasGutter * 2;  // 42
+        private const int AtlasSlotsPerRow = AtlasSize / AtlasSlot;
+        private const int AtlasSlotsPerTexture = AtlasSlotsPerRow * AtlasSlotsPerRow;
+
+        private readonly List<Texture2D> _tileAtlases = new List<Texture2D>();
+        private int _nextAtlasSlot;
+        private bool _atlasDirty;
+        private int _bakeDepth;
+
         /// <summary>
-        /// Generate a tile texture by sampling a tiling texture and applying edge mask.
+        /// Begin a batch of tile generations whose atlas uploads are coalesced into a single Apply()
+        /// per atlas. Nestable; pair with <see cref="EndTileBake"/>. Without it, every generated tile
+        /// would upload the whole 2048x2048 atlas.
         /// </summary>
-        private Texture2D GenerateTile(MaterialRenderEntry material, Color fallbackColor,
+        public void BeginTileBake()
+        {
+            _bakeDepth++;
+        }
+
+        /// <summary>
+        /// Close a batch opened by <see cref="BeginTileBake"/>; the outermost close performs the
+        /// upload. A caller that never opens a batch gets an immediate upload per sprite instead.
+        /// </summary>
+        public void EndTileBake()
+        {
+            _bakeDepth--;
+            if (_bakeDepth <= 0)
+            {
+                _bakeDepth = 0;
+                ApplyDirtyAtlases();
+            }
+        }
+
+        /// <summary>
+        /// Turn one tile's 40x40 pixel block into a sprite: a slot in the shared atlas when
+        /// <see cref="PackTileTexturesIntoAtlas"/>, otherwise a dedicated texture as before.
+        /// </summary>
+        private Sprite CreateTileSprite(Color[] pixels, string key)
+        {
+            if (!PackTileTexturesIntoAtlas)
+            {
+                Texture2D dedicated = new Texture2D(TILE_PX, TILE_PX, TextureFormat.RGBA32, false);
+                dedicated.filterMode = FilterMode.Point;
+                dedicated.wrapMode = TextureWrapMode.Clamp;
+
+                using (Profiler.Region("tiles.upload", "boot: SetPixels + Apply for one tile texture"))
+                {
+                    dedicated.SetPixels(pixels);
+                    dedicated.Apply();
+                }
+
+                Sprite dedicatedSprite = Sprite.Create(dedicated,
+                    new Rect(0, 0, TILE_PX, TILE_PX),
+                    new Vector2(0.5f, 0.5f),
+                    100f,
+                    0,
+                    SpriteMeshType.FullRect); // Avoid tight-mesh cracks between adjacent tiles
+                dedicatedSprite.name = key;
+                return dedicatedSprite;
+            }
+
+            Texture2D atlas = AllocateAtlasSlot(out int slotX, out int slotY);
+
+            using (Profiler.Region("tiles.upload", "boot: SetPixels into one atlas slot; the Apply is coalesced by Begin/EndTileBake"))
+            {
+                atlas.SetPixels(slotX, slotY, AtlasSlot, AtlasSlot, BuildExtrudedSlot(pixels));
+            }
+
+            _atlasDirty = true;
+            if (_bakeDepth <= 0)
+            {
+                ApplyDirtyAtlases();
+            }
+
+            // The sprite covers only the inner 40x40; the ring around it is the extruded edge that
+            // stops a fragment sampling just past the rect from reading the neighbouring tile.
+            Sprite sprite = Sprite.Create(atlas,
+                new Rect(slotX + AtlasGutter, slotY + AtlasGutter, TILE_PX, TILE_PX),
+                new Vector2(0.5f, 0.5f),
+                100f,
+                0,
+                SpriteMeshType.FullRect); // Avoid tight-mesh cracks between adjacent tiles
+            sprite.name = key;
+            return sprite;
+        }
+
+        private Texture2D AllocateAtlasSlot(out int slotX, out int slotY)
+        {
+            if (_tileAtlases.Count == 0 || _nextAtlasSlot >= AtlasSlotsPerTexture)
+            {
+                Texture2D created = new Texture2D(AtlasSize, AtlasSize, TextureFormat.RGBA32, false);
+                created.filterMode = FilterMode.Point;
+                created.wrapMode = TextureWrapMode.Clamp;
+                created.name = $"TileAtlas_{_tileAtlases.Count}";
+                _tileAtlases.Add(created);
+                _nextAtlasSlot = 0;
+            }
+
+            int index = _nextAtlasSlot++;
+            slotX = (index % AtlasSlotsPerRow) * AtlasSlot;
+            slotY = (index / AtlasSlotsPerRow) * AtlasSlot;
+            return _tileAtlases[_tileAtlases.Count - 1];
+        }
+
+        /// <summary>
+        /// Expand a 40x40 tile block into an <see cref="AtlasSlot"/>-sized slot by extruding its edge
+        /// pixels by <see cref="AtlasGutter"/>.
+        ///
+        /// Without this, a fragment whose UV lands just outside the sprite rect samples whatever the
+        /// neighbouring slot happens to hold — a one-pixel seam along tile edges whenever the sprite
+        /// is not drawn at an integer scale (this room is drawn at roughly 0.57x, so that is the
+        /// normal case, not the exception). With the ring filled from the tile's own edge, such a
+        /// sample is indistinguishable from the tile itself.
+        /// </summary>
+        private static Color[] BuildExtrudedSlot(Color[] tilePixels)
+        {
+            Color[] slot = new Color[AtlasSlot * AtlasSlot];
+
+            for (int y = 0; y < TILE_PX; y++)
+            {
+                int destination = (y + AtlasGutter) * AtlasSlot + AtlasGutter;
+                int source = y * TILE_PX;
+                for (int x = 0; x < TILE_PX; x++)
+                {
+                    slot[destination + x] = tilePixels[source + x];
+                }
+            }
+
+            int last = AtlasSlot - 1;
+            int firstInner = AtlasGutter;
+            int lastInner = AtlasGutter + TILE_PX - 1;
+
+            // Left/right ring, along the interior rows.
+            for (int y = firstInner; y <= lastInner; y++)
+            {
+                int row = y * AtlasSlot;
+                slot[row] = slot[row + firstInner];
+                slot[row + last] = slot[row + lastInner];
+            }
+
+            // Bottom/top ring, along the interior columns.
+            for (int x = firstInner; x <= lastInner; x++)
+            {
+                slot[x] = slot[firstInner * AtlasSlot + x];
+                slot[last * AtlasSlot + x] = slot[lastInner * AtlasSlot + x];
+            }
+
+            // Corners take the nearest interior corner.
+            slot[0] = slot[firstInner * AtlasSlot + firstInner];
+            slot[last] = slot[firstInner * AtlasSlot + lastInner];
+            slot[last * AtlasSlot] = slot[lastInner * AtlasSlot + firstInner];
+            slot[last * AtlasSlot + last] = slot[lastInner * AtlasSlot + lastInner];
+
+            return slot;
+        }
+
+        private void ApplyDirtyAtlases()
+        {
+            if (!_atlasDirty)
+            {
+                return;
+            }
+
+            using (Profiler.Region("tiles.atlasApply", "boot: one Apply per atlas instead of one per tile"))
+            {
+                for (int i = 0; i < _tileAtlases.Count; i++)
+                {
+                    if (_tileAtlases[i] != null)
+                    {
+                        // Kept readable on purpose: further tiles still need SetPixels into it.
+                        _tileAtlases[i].Apply();
+                    }
+                }
+            }
+
+            _atlasDirty = false;
+        }
+
+        /// <summary>
+        /// Generate the 40x40 pixel block for one tile by sampling a tiling texture and applying the
+        /// edge mask.
+        ///
+        /// Returns raw pixels in Unity's bottom-up order. It deliberately does NOT allocate a texture:
+        /// the caller decides whether these pixels become a dedicated texture or a slot in the shared
+        /// atlas (see <see cref="CreateTileSprite"/>).
+        /// </summary>
+        private Color[] GenerateTilePixels(MaterialRenderEntry material, Color fallbackColor,
             int tileX, int tileY, int k1, int k2, int k3, int k4)
         {
-            Texture2D result = new Texture2D(TILE_PX, TILE_PX, TextureFormat.RGBA32, false);
-            result.filterMode = FilterMode.Point;
-            result.wrapMode = TextureWrapMode.Clamp;
-
             Color[] pixels = new Color[TILE_PX * TILE_PX];
 
             // Run 17: tiles.generateFront 919.5 + tiles.generateBack 909.1 = 1828.6 ms, the largest
-            // item in boot and the only big one with no sub-regions. These three split it into the
-            // per-pixel composition, the post-pass filter, and the texture upload. Ids are shared by
-            // the front and back paths on purpose — the parent region already tells us which one,
-            // and sharing keeps the id set static instead of forwarding a label.
+            // item in boot and the only big one with no sub-regions. These two split the per-pixel
+            // composition from the post-pass filter; the upload (tiles.upload) now lives in
+            // CreateTileSprite, because these pixels no longer own a texture. Ids are shared by the
+            // front and back paths on purpose — the parent region already tells us which one, and
+            // sharing keeps the id set static instead of forwarding a label.
             using (Profiler.Region("tiles.compose", "boot: ComposeTilePixelHoisted per pixel — mask sampling + edge mask + alpha composite"))
             {
                 if (HoistSamplers)
@@ -648,13 +837,7 @@ namespace PFE.Systems.Map.Rendering
                 ApplyMaterialFilter(pixels, TILE_PX, TILE_PX, material?.filterType);
             }
 
-            using (Profiler.Region("tiles.upload", "boot: SetPixels + Apply for one tile texture"))
-            {
-                result.SetPixels(pixels);
-                result.Apply();
-            }
-
-            return result;
+            return pixels;
         }
 
         private Color ComposeTilePixel(
@@ -1255,9 +1438,16 @@ namespace PFE.Systems.Map.Rendering
             int sampleX = Mathf.Clamp(Mathf.FloorToInt(sampleRect.x + ((px + 0.5f) / width) * sampleRect.width), Mathf.FloorToInt(sampleRect.x), Mathf.FloorToInt(sampleRect.xMax) - 1);
             float flippedPy = (height - 1f) - py;
             int sampleY = Mathf.Clamp(Mathf.FloorToInt(sampleRect.y + ((flippedPy + 0.5f) / height) * sampleRect.height), Mathf.FloorToInt(sampleRect.y), Mathf.FloorToInt(sampleRect.yMax) - 1);
-            Color[] alphaPixels = GetCachedPixels(info.readable);
-            return alphaPixels != null
-                ? alphaPixels[sampleY * info.texWidth + sampleX].a
+            // Read the buffer resolved once in GetSpriteSampleInfo instead of calling GetCachedPixels
+            // here. This runs once per mask sample per pixel — ~2.5M calls per room — and the
+            // dictionary lookup, not the sample itself, was the cost: Dictionary<Texture2D, Color[]>
+            // resolves its key through UnityEngine.Object.Equals -> CompareBaseObjects ->
+            // IsNativeObjectAlive, a managed->native interop call, on every hit.
+            //
+            // It also removes the last way this path touches `readable`: a destroyed texture makes
+            // GetPixel throw MissingReferenceException, whereas a stale Color[] is still readable.
+            return info.pixels != null
+                ? info.pixels[sampleY * info.texWidth + sampleX].a
                 : info.readable.GetPixel(sampleX, sampleY).a;
         }
 
@@ -1544,23 +1734,89 @@ namespace PFE.Systems.Map.Rendering
         /// </summary>
         public void ClearCache()
         {
-            // Destroy cached textures to free memory
-            foreach (var kvp in _spriteCache)
+            // Destroy cached textures to free memory.
+            //
+            // These are runtime-generated Texture2D objects, not assets, but Object.Destroy is still
+            // illegal outside play mode ("Destroy may not be called from edit mode"), and
+            // RoomVisualController runs an editor preview that is not playing. Hence the branch in
+            // DestroyGenerated — without it every preview teardown logged one error per texture.
+            if (PackTileTexturesIntoAtlas)
             {
-                if (kvp.Value != null && kvp.Value.texture != null)
-                    Object.Destroy(kvp.Value.texture);
+                // Every tile sprite points into one of these, so destroy each atlas once rather than
+                // once per sprite that references it.
+                for (int i = 0; i < _tileAtlases.Count; i++)
+                {
+                    DestroyGenerated(_tileAtlases[i]);
+                }
+                _tileAtlases.Clear();
+                _nextAtlasSlot = 0;
+                _atlasDirty = false;
+            }
+            else
+            {
+                foreach (var kvp in _spriteCache)
+                {
+                    if (kvp.Value != null && kvp.Value.texture != null)
+                        DestroyGenerated(kvp.Value.texture);
+                }
             }
             _spriteCache.Clear();
 
             foreach (var kvp in _readableTextureCache)
             {
-                if (kvp.Value != null)
-                {
-                    Object.Destroy(kvp.Value);
-                }
+                DestroyGenerated(kvp.Value);
             }
             _readableTextureCache.Clear();
+
+            // The pixel buffers are memoised reads of the source/readable textures — several KB
+            // each — and are keyed by textures this call has just destroyed (or by source textures
+            // that are about to stop being used). Dropping them keeps them from being pinned;
+            // they rebuild lazily on the next miss.
+            _pixelsCache.Clear();
             _opaqueSpriteBoundsCache.Clear();
+
+            // Everything below is keyed by, or carries a value that points at, one of the readable
+            // copies destroyed above, so it has to go with them. Leaving these behind is not a slow
+            // leak, it is a correctness bug — and the reason it matters now is that ClearCache is no
+            // longer only a teardown call. ReleaseBakedTileSprites (land change) and
+            // ConfigureCompositorAssets (asset change) both clear the cache and then KEEP this
+            // compositor alive, so these entries get read again by the next room:
+            //
+            //   _materialSamplerCache -> TilingSampler.readable is a destroyed object. Unity's
+            //     fake-null makes SampleTilingTexture take its `readable == null` branch, so every
+            //     wall silently renders as FallbackWall — a flat colour, no exception.
+            //   _maskSamplerCache / _spriteSampleCache -> SpriteSampleInfo.readable is destroyed, and
+            //     SampleSpriteAlphaCore's GetPixel fallback throws MissingReferenceException.
+            //
+            // _tilingInfoCache and _maskFramesCache carry no texture references themselves, but they
+            // are keyed by objects in the same generation and _maskFramesCache memoises TileMaskLookup,
+            // which an asset change is allowed to reconfigure. Cheap enough to rebuild to be worth
+            // dropping on the same boundary.
+            _materialSamplerCache.Clear();
+            _maskSamplerCache.Clear();
+            _spriteSampleCache.Clear();
+            _tilingInfoCache.Clear();
+            _maskFramesCache.Clear();
+        }
+
+        /// <summary>
+        /// Destroy a runtime-generated object with the correct call for the current mode.
+        /// </summary>
+        private static void DestroyGenerated(Object generated)
+        {
+            if (generated == null)
+            {
+                return;
+            }
+
+            if (Application.isPlaying)
+            {
+                Object.Destroy(generated);
+            }
+            else
+            {
+                Object.DestroyImmediate(generated);
+            }
         }
 
         /// <summary>
@@ -1568,7 +1824,9 @@ namespace PFE.Systems.Map.Rendering
         /// </summary>
         public string GetCacheStats()
         {
-            return $"TileCompositor cache: {_spriteCache.Count} sprites";
+            return PackTileTexturesIntoAtlas
+                ? $"TileCompositor cache: {_spriteCache.Count} sprites across {_tileAtlases.Count} atlas texture(s)"
+                : $"TileCompositor cache: {_spriteCache.Count} sprites, one texture each (atlas packing off)";
         }
     }
 }

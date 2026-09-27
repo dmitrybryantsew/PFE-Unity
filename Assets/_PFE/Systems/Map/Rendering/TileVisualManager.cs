@@ -86,36 +86,48 @@ namespace PFE.Systems.Map.Rendering
             int skippedAirCount = 0;
             int nullTileCount = 0;
 
-            for (int x = 0; x < room.width; x++)
+            // Coalesce the tile atlas uploads for the whole room into one Apply() per atlas. Without
+            // this every generated tile would re-upload the full 2048x2048 texture it lives in.
+            // try/finally because a stuck bake depth would leave later rooms with sprites that were
+            // never uploaded, i.e. invisible tiles.
+            compositor?.BeginTileBake();
+            try
             {
-                for (int y = 0; y < room.height; y++)
+                for (int x = 0; x < room.width; x++)
                 {
-                    Vector2Int coord = new Vector2Int(x, y);
-                    TileData tile = room.GetTileAtCoord(coord);
+                    for (int y = 0; y < room.height; y++)
+                    {
+                        Vector2Int coord = new Vector2Int(x, y);
+                        TileData tile = room.GetTileAtCoord(coord);
 
-                    if (tile == null)
-                    {
-                        nullTileCount++;
-                        continue;
-                    }
+                        if (tile == null)
+                        {
+                            nullTileCount++;
+                            continue;
+                        }
 
-                    TileVisualData visualData = null;
-                    bool renderTile;
-                    using (Profiler.Region("tiles.shouldRender", "boot: MEASURED 0.008ms/call (2026-09-25) — was 13.6ms/call before the TileCompositor fixes. Now effectively free"))
-                    {
-                        renderTile = ShouldRenderTile(tile, out visualData);
-                    }
+                        TileVisualData visualData = null;
+                        bool renderTile;
+                        using (Profiler.Region("tiles.shouldRender", "boot: MEASURED 0.008ms/call (2026-09-25) — was 13.6ms/call before the TileCompositor fixes. Now effectively free"))
+                        {
+                            renderTile = ShouldRenderTile(tile, out visualData);
+                        }
 
-                    if (renderTile)
-                    {
-                        CreateTile(tile, visualData);
-                        createdCount++;
-                    }
-                    else
-                    {
-                        skippedAirCount++;
+                        if (renderTile)
+                        {
+                            CreateTile(tile, visualData);
+                            createdCount++;
+                        }
+                        else
+                        {
+                            skippedAirCount++;
+                        }
                     }
                 }
+            }
+            finally
+            {
+                compositor?.EndTileBake();
             }
 
             if (debugSettings != null && debugSettings.LogTileVisualCreationSummary)

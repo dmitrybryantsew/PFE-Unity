@@ -28,6 +28,18 @@ namespace PFE.Systems.Map.Rendering
         [SerializeField] private TileTextureLookup tileTextureLookup = null;
         [SerializeField] private MaterialRenderDatabase materialRenderDb = null;
         [SerializeField] private TileMaskLookup tileMaskLookup = null;
+
+        /// <summary>
+        /// Baked tile sprites, shared across every room this controller renders.
+        ///
+        /// This used to be a local in <see cref="Initialize"/>, so each room transition threw away
+        /// ~1100 baked 40x40 textures and rebuilt them from scratch — and, because
+        /// <c>TileCompositor.ClearCache</c> had no caller anywhere, never released the old ones.
+        /// Materials and textures do not vary per room, so the cache stays valid across a transition
+        /// and is dropped only when the dependency assets change
+        /// (<see cref="ConfigureCompositorAssets"/>) or the controller dies.
+        /// </summary>
+        private TileCompositor tileCompositor = null;
         [SerializeField] private RoomBackgroundLookup roomBackgroundLookup = null;
         [SerializeField] private RoomBackdropSettingsLookup roomBackdropSettingsLookup = null;
         [SerializeField] private PfeDebugSettings debugSettings = null;
@@ -148,6 +160,11 @@ namespace PFE.Systems.Map.Rendering
 
         public void ConfigureCompositorAssets(TileTextureLookup textureLookup, MaterialRenderDatabase materialDatabase, RoomBackgroundLookup backgroundLookup = null, TileMaskLookup maskLookup = null)
         {
+            // The shared compositor caches sprites baked from the current assets, so swapping the
+            // assets under it makes every cached sprite stale. Detect that before assigning.
+            bool compositorAssetsChanged = tileTextureLookup != textureLookup
+                || materialRenderDb != materialDatabase;
+
             tileTextureLookup = textureLookup;
             materialRenderDb = materialDatabase;
             if (backgroundLookup != null)
@@ -158,6 +175,66 @@ namespace PFE.Systems.Map.Rendering
             {
                 tileMaskLookup = maskLookup;
             }
+
+            if (compositorAssetsChanged)
+            {
+                ReleaseCompositor();
+            }
+        }
+
+        /// <summary>
+        /// Get the shared tile compositor, creating it on first use.
+        ///
+        /// Deliberately kept alive across <see cref="Initialize"/> calls: a room transition then
+        /// reuses the sprites baked for any material it shares with the previous room instead of
+        /// regenerating ~1100 textures. Released by <see cref="ReleaseCompositor"/>.
+        /// </summary>
+        private TileCompositor ResolveCompositor()
+        {
+            if (tileCompositor != null)
+            {
+                return tileCompositor;
+            }
+
+            if (tileTextureLookup == null || materialRenderDb == null)
+            {
+                Debug.LogWarning("[RoomVisualController] TileCompositor disabled: TileTextureLookup or MaterialRenderDatabase is missing.");
+                return null;
+            }
+
+            tileCompositor = new TileCompositor(tileTextureLookup, materialRenderDb, tileMaskLookup);
+            return tileCompositor;
+        }
+
+        /// <summary>
+        /// Release the baked tile sprites but keep the compositor itself.
+        ///
+        /// The sprite cache is shared across rooms — that is what makes a room transition cheap — but
+        /// it is keyed by material + texture phase, so it keeps growing as more materials are seen.
+        /// A land change is the natural bound, because the whole tileset differs afterwards.
+        ///
+        /// Safe to call only when no live tile renderer still references these sprites. MapBridge
+        /// calls it after <see cref="ClearVisuals"/> on the land-switch path, which is two frames
+        /// before the next <see cref="Initialize"/>, so the old tiles are already destroyed.
+        /// </summary>
+        public void ReleaseBakedTileSprites()
+        {
+            tileCompositor?.ClearCache();
+        }
+
+        /// <summary>
+        /// Destroy the shared compositor's baked textures and drop it, so the next
+        /// <see cref="ResolveCompositor"/> rebuilds against the current assets.
+        /// </summary>
+        private void ReleaseCompositor()
+        {
+            if (tileCompositor == null)
+            {
+                return;
+            }
+
+            tileCompositor.ClearCache();
+            tileCompositor = null;
         }
 
         /// <summary>
@@ -225,15 +302,9 @@ namespace PFE.Systems.Map.Rendering
             {
                 Debug.Log($"[RoomVisualController] Creating TileVisualManager for {room.width}x{room.height} room");
             }
-            TileCompositor compositor = null;
-            if (tileTextureLookup != null && materialRenderDb != null)
-            {
-                compositor = new TileCompositor(tileTextureLookup, materialRenderDb, tileMaskLookup);
-            }
-            else
-            {
-                Debug.LogWarning("[RoomVisualController] TileCompositor disabled: TileTextureLookup or MaterialRenderDatabase is missing.");
-            }
+            // Shared across rooms — see the tileCompositor field. Deliberately NOT cleared by
+            // ClearVisuals, so a transition reuses the sprites already baked for this controller.
+            TileCompositor compositor = ResolveCompositor();
 
             tileVisualManager = new TileVisualManager(
                 room,
@@ -592,6 +663,7 @@ namespace PFE.Systems.Map.Rendering
             roomObjectVisualManager?.DestroyAll();
             roomObjectVisualManager = null;
             visibilityRevealTargetTransform = null;
+            ReleaseCompositor();
 
             if (Application.isPlaying)
             {
@@ -656,6 +728,11 @@ namespace PFE.Systems.Map.Rendering
             roomObjectVisualManager?.DestroyAll();
             roomObjectVisualManager = null;
             visibilityRevealTargetTransform = null;
+
+            // The shared compositor outlives every room, so this is the one place its ~1100 baked
+            // textures are guaranteed to be released. Ordered after the tile GameObjects are gone so
+            // nothing is left holding a sprite whose texture has just been destroyed.
+            ReleaseCompositor();
         }
 
         private void OnValidate()
