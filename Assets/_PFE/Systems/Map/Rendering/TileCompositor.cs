@@ -583,12 +583,36 @@ namespace PFE.Systems.Map.Rendering
         private const bool PackTileTexturesIntoAtlas = true;
 
         private const int AtlasSize = 2048;
-        private const int AtlasGutter = 1;                        // extruded edge — see BuildExtrudedSlot
+        private const int AtlasGutter = 1;                        // extruded edge — see WriteExtrudedSlot
         private const int AtlasSlot = TILE_PX + AtlasGutter * 2;  // 42
         private const int AtlasSlotsPerRow = AtlasSize / AtlasSlot;
         private const int AtlasSlotsPerTexture = AtlasSlotsPerRow * AtlasSlotsPerRow;
 
         private readonly List<Texture2D> _tileAtlases = new List<Texture2D>();
+
+        // ONE 42x42 block, reused by every tile upload. WriteExtrudedSlot fills it in BLOCK-LOCAL
+        // coordinates and the caller hands it straight to Texture2D.SetPixels, which copies out of it
+        // synchronously — so a single buffer is enough, and the 1764-Color (28 KB) array that used to
+        // be allocated and thrown away for every generated tile (~43 MB of gen-0 churn per session)
+        // is gone. That allocation removal was the whole point of T5; the rest of T5 is reverted here.
+        //
+        // WHY THIS IS NOT A MANAGED Color32[] ATLAS BUFFER PUSHED WITH ONE WHOLE-TEXTURE SetPixels32
+        // PER BAKE (that was T5, 2026-09-27, and it measured WORSE — see section 4.11 of
+        // docs/Perf_TileDrawCalls_Investigation.md):
+        //   T5 assumed a bulk SetPixels32 would beat the region overload by ~8x. Measured, it lost.
+        //   tiles.upload went 0.083-0.125 ms/tile -> 0.182 ms/tile, i.e. 127-191 ms -> 270-282 ms per
+        //   session at an IDENTICAL 1531 calls, and tiles.atlasApply went 0.1 ms -> 5.3 ms. The cause
+        //   is the one line `atlasBuffer[dst] = tilePixels[src]`: Color32[] = Color[] is an implicit
+        //   Color32.op_Implicit(Color), i.e. four (Mathf.Clamp01 + multiply + cast) in managed code
+        //   for each of the 1764 pixels — ~57 ns/px. SetPixels(Color[]) performs that same
+        //   quantisation in NATIVE code, which is ~4x cheaper per pixel, and its element-wise marshal
+        //   is the smaller cost of the two. The 16.8 MB managed buffer also had to be copied to the
+        //   texture in full on the main thread, which is what moved tiles.atlasApply.
+        //
+        // Do NOT "optimise" this back into a managed Color32[] buffer without re-measuring
+        // tiles.upload: the conversion has to happen somewhere, and managed is the slow side.
+        private Color[] _slotScratch;
+
         private int _nextAtlasSlot;
         private bool _atlasDirty;
         private int _bakeDepth;
@@ -647,9 +671,13 @@ namespace PFE.Systems.Map.Rendering
 
             Texture2D atlas = AllocateAtlasSlot(out int slotX, out int slotY);
 
-            using (Profiler.Region("tiles.upload", "boot: SetPixels into one atlas slot; the Apply is coalesced by Begin/EndTileBake"))
+            using (Profiler.Region("tiles.upload", "boot: fill the reused 42x42 block and SetPixels it into one atlas slot; the Apply is coalesced by Begin/EndTileBake"))
             {
-                atlas.SetPixels(slotX, slotY, AtlasSlot, AtlasSlot, BuildExtrudedSlot(pixels));
+                // Reused, not reallocated: see the _slotScratch comment. SetPixels copies out of it
+                // before returning, so the next tile may overwrite it immediately.
+                Color[] slot = _slotScratch ?? (_slotScratch = new Color[AtlasSlot * AtlasSlot]);
+                WriteExtrudedSlot(slot, pixels);
+                atlas.SetPixels(slotX, slotY, AtlasSlot, AtlasSlot, slot);
             }
 
             _atlasDirty = true;
@@ -670,6 +698,10 @@ namespace PFE.Systems.Map.Rendering
             return sprite;
         }
 
+        /// <summary>
+        /// Reserve the next free <see cref="AtlasSlot"/>x<see cref="AtlasSlot"/> slot in the current
+        /// atlas, allocating a new atlas once the current one is full.
+        /// </summary>
         private Texture2D AllocateAtlasSlot(out int slotX, out int slotY)
         {
             if (_tileAtlases.Count == 0 || _nextAtlasSlot >= AtlasSlotsPerTexture)
@@ -689,22 +721,32 @@ namespace PFE.Systems.Map.Rendering
         }
 
         /// <summary>
-        /// Expand a 40x40 tile block into an <see cref="AtlasSlot"/>-sized slot by extruding its edge
-        /// pixels by <see cref="AtlasGutter"/>.
+        /// Fill the caller's <see cref="AtlasSlot"/>x<see cref="AtlasSlot"/> block from one tile's
+        /// 40x40 pixels, extruding the edge pixels outward by <see cref="AtlasGutter"/>.
         ///
-        /// Without this, a fragment whose UV lands just outside the sprite rect samples whatever the
-        /// neighbouring slot happens to hold — a one-pixel seam along tile edges whenever the sprite
-        /// is not drawn at an integer scale (this room is drawn at roughly 0.57x, so that is the
-        /// normal case, not the exception). With the ring filled from the tile's own edge, such a
+        /// Without the extrusion, a fragment whose UV lands just outside the sprite rect samples
+        /// whatever the neighbouring slot happens to hold — a one-pixel seam along tile edges whenever
+        /// the sprite is not drawn at an integer scale (this room is drawn at roughly 0.57x, so that is
+        /// the normal case, not the exception). With the ring filled from the tile's own edge, such a
         /// sample is indistinguishable from the tile itself.
+        ///
+        /// Writes into the caller's buffer rather than returning a new one: this runs once per
+        /// generated tile (~1531 per session), and the 1764-element array it used to allocate was
+        /// ~28 KB of gen-0 garbage each time.
+        ///
+        /// Coordinates here are BLOCK-LOCAL, not atlas-absolute: the block is handed to
+        /// SetPixels(slotX, slotY, ...), which places it. Both buffers are Color[], so the per-pixel
+        /// store is a plain 16-byte copy with no Color -> Color32 conversion — the conversion is left
+        /// to SetPixels, which does it in native code. That distinction is worth ~57 ns/px; see the
+        /// _slotScratch comment.
         /// </summary>
-        private static Color[] BuildExtrudedSlot(Color[] tilePixels)
+        private static void WriteExtrudedSlot(Color[] slot, Color[] tilePixels)
         {
-            Color[] slot = new Color[AtlasSlot * AtlasSlot];
+            const int stride = AtlasSlot;
 
             for (int y = 0; y < TILE_PX; y++)
             {
-                int destination = (y + AtlasGutter) * AtlasSlot + AtlasGutter;
+                int destination = (y + AtlasGutter) * stride + AtlasGutter;
                 int source = y * TILE_PX;
                 for (int x = 0; x < TILE_PX; x++)
                 {
@@ -712,14 +754,14 @@ namespace PFE.Systems.Map.Rendering
                 }
             }
 
-            int last = AtlasSlot - 1;
-            int firstInner = AtlasGutter;
-            int lastInner = AtlasGutter + TILE_PX - 1;
+            const int last = AtlasSlot - 1;
+            const int firstInner = AtlasGutter;
+            const int lastInner = AtlasGutter + TILE_PX - 1;
 
             // Left/right ring, along the interior rows.
             for (int y = firstInner; y <= lastInner; y++)
             {
-                int row = y * AtlasSlot;
+                int row = y * stride;
                 slot[row] = slot[row + firstInner];
                 slot[row + last] = slot[row + lastInner];
             }
@@ -727,19 +769,23 @@ namespace PFE.Systems.Map.Rendering
             // Bottom/top ring, along the interior columns.
             for (int x = firstInner; x <= lastInner; x++)
             {
-                slot[x] = slot[firstInner * AtlasSlot + x];
-                slot[last * AtlasSlot + x] = slot[lastInner * AtlasSlot + x];
+                slot[x] = slot[firstInner * stride + x];
+                slot[last * stride + x] = slot[lastInner * stride + x];
             }
 
-            // Corners take the nearest interior corner.
-            slot[0] = slot[firstInner * AtlasSlot + firstInner];
-            slot[last] = slot[firstInner * AtlasSlot + lastInner];
-            slot[last * AtlasSlot] = slot[lastInner * AtlasSlot + firstInner];
-            slot[last * AtlasSlot + last] = slot[lastInner * AtlasSlot + lastInner];
-
-            return slot;
+            // Corners take the nearest interior corner. Written after the rings, which have just
+            // filled those four cells from the ring rather than from the interior.
+            slot[0] = slot[firstInner * stride + firstInner];
+            slot[last] = slot[firstInner * stride + lastInner];
+            slot[last * stride] = slot[lastInner * stride + firstInner];
+            slot[last * stride + last] = slot[lastInner * stride + lastInner];
         }
 
+        /// <summary>
+        /// Push every atlas written since its last upload: ONE Apply per atlas, instead of one per
+        /// tile. The per-tile SetPixels already staged the pixels in the texture's CPU-side image;
+        /// Apply is what hands them to the GPU.
+        /// </summary>
         private void ApplyDirtyAtlases()
         {
             if (!_atlasDirty)
@@ -1433,6 +1479,41 @@ namespace PFE.Systems.Map.Rendering
                 return 1f;
             }
 
+            // 1:1 FAST PATH. Every mask call site passes sampleWidth == sampleHeight == TILE_PX, and a
+            // tile sprite's rect is exactly TILE_PX square at an integral origin. Under those
+            // conditions the general transform below collapses to an identity plus an offset:
+            //     sampleX = FloorToInt(rect.x + ((px + 0.5f) / TILE_PX) * TILE_PX) = rect.x + px
+            //     sampleY = FloorToInt(rect.y + ((TILE_PX - 1 - py + 0.5f) / TILE_PX) * TILE_PX)
+            //             = rect.y + (TILE_PX - 1 - py)
+            // and, because px and py are in [0, TILE_PX), BOTH Clamps and BOTH Mathf.Max calls are
+            // provably no-ops — the clamp window is [base, base + TILE_PX - 1] and the index is already
+            // inside it. So this drops 6 Mathf.FloorToInt (each one a Math.Floor call), 2 float
+            // divisions, 2 Clamps and 2 Mathf.Max per sample. This method runs ~2.5M times per room
+            // (~2 samples per pixel over 1531 tiles), so it is the largest single item in tiles.compose
+            // — the 52%-of-createAll region. See section 4.12 of
+            // docs/Perf_TileDrawCalls_Investigation.md for the equivalence proof over the domain.
+            //
+            // The guard is a RUNTIME CHECK, not an assumption about the callers: it re-tests the range
+            // of px/py itself, so a future call site with out-of-range coordinates cannot silently
+            // index outside the rect. Anything that fails it — a cropped mask whose opaqueBounds is
+            // smaller than a tile, any non-40 rect, the 20x20 preview path — falls through to the
+            // general path below, which is unchanged.
+            if (px >= 0 && px < TILE_PX && py >= 0 && py < TILE_PX &&
+                sampleWidth == TILE_PX && sampleHeight == TILE_PX &&
+                sampleRect.width == TILE_PX && sampleRect.height == TILE_PX &&
+                sampleRect.x == Mathf.FloorToInt(sampleRect.x) &&
+                sampleRect.y == Mathf.FloorToInt(sampleRect.y))
+            {
+                // The guard has already established that each origin equals its own floor, so the
+                // truncating cast and Mathf.FloorToInt agree here.
+                int texX = (int)sampleRect.x + px;
+                int texY = (int)sampleRect.y + (TILE_PX - 1) - py;
+
+                return info.pixels != null
+                    ? info.pixels[texY * info.texWidth + texX].a
+                    : info.readable.GetPixel(texX, texY).a;
+            }
+
             float width = Mathf.Max(1f, sampleWidth);
             float height = Mathf.Max(1f, sampleHeight);
             int sampleX = Mathf.Clamp(Mathf.FloorToInt(sampleRect.x + ((px + 0.5f) / width) * sampleRect.width), Mathf.FloorToInt(sampleRect.x), Mathf.FloorToInt(sampleRect.xMax) - 1);
@@ -1749,6 +1830,9 @@ namespace PFE.Systems.Map.Rendering
                     DestroyGenerated(_tileAtlases[i]);
                 }
                 _tileAtlases.Clear();
+
+                // _slotScratch is deliberately NOT cleared: it is one reused 42x42 block, not a
+                // per-atlas buffer, so it holds nothing that belongs to a destroyed texture.
                 _nextAtlasSlot = 0;
                 _atlasDirty = false;
             }
@@ -1824,9 +1908,16 @@ namespace PFE.Systems.Map.Rendering
         /// </summary>
         public string GetCacheStats()
         {
-            return PackTileTexturesIntoAtlas
-                ? $"TileCompositor cache: {_spriteCache.Count} sprites across {_tileAtlases.Count} atlas texture(s)"
-                : $"TileCompositor cache: {_spriteCache.Count} sprites, one texture each (atlas packing off)";
+            if (!PackTileTexturesIntoAtlas)
+            {
+                return $"TileCompositor cache: {_spriteCache.Count} sprites, one texture each (atlas packing off)";
+            }
+
+            // No managed per-atlas buffer to report: the upload path uses one reused 42x42 block
+            // (T5's 16.8 MB-per-atlas managed buffers were removed after they measured slower —
+            // see the _slotScratch comment).
+            return $"TileCompositor cache: {_spriteCache.Count} sprites across {_tileAtlases.Count} " +
+                   $"atlas texture(s)";
         }
     }
 }
