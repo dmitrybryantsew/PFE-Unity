@@ -52,6 +52,58 @@ namespace PFE.Tests.EditMode.Systems.Physics.LowLevelPhysics2D
             "################"
         };
 
+        // The surfaces a projectile must NOT be stopped by, one room each so each test's reasoning is
+        // local, plus one room for the complement (a solid tile that must still stop it). All use the
+        // 8x8 size class rather than the 93 px needle: the question is whether the surface blocks at
+        // all, and a 93 px needle cannot be positioned between two 40 px tile rows without overlapping
+        // one of them, which would make the fixture — not the rule — decide the answer.
+        //
+        // Rows are ASCII rows; ASCII row r is tile y = height - 1 - r, so for these 6-row rooms:
+        //
+        //   RoomWithCatwalk         catwalk row y=3, columns 5..8:      px x 200..360, y 120..160
+        //   RoomWithSlope           slope tile y=1, column 10:          px x 400..440, y  40..80
+        //   RoomWithLadder          ladder tile y=3, column 5:          px x 200..240, y 120..160
+        //   RoomWithCatwalkOnSolid  catwalk y=3 over solid y=2, col 5:  solid px x 200..240, y 80..120
+        private static readonly string[] RoomWithCatwalk =
+        {
+            "################",
+            "#..............#",
+            "#....====......#",
+            "#..............#",
+            "#..............#",
+            "################"
+        };
+
+        private static readonly string[] RoomWithSlope =
+        {
+            "################",
+            "#..............#",
+            "#..............#",
+            "#..............#",
+            "#........./....#",
+            "################"
+        };
+
+        private static readonly string[] RoomWithLadder =
+        {
+            "################",
+            "#..............#",
+            "#....H.........#",
+            "#..............#",
+            "#..............#",
+            "################"
+        };
+
+        private static readonly string[] RoomWithCatwalkOnSolid =
+        {
+            "################",
+            "#..............#",
+            "#....=.........#",
+            "#....#.........#",
+            "#..............#",
+            "################"
+        };
+
         // The five surfaces the B1 contact scenarios aim at, in world pixels. Named so a failure says
         // which surface moved rather than which float was off.
         private const float FloorTopPx = 40f;
@@ -433,6 +485,150 @@ namespace PFE.Tests.EditMode.Systems.Physics.LowLevelPhysics2D
                                       new Vector2(0f, -1f), out _, out _),
                 "Geometry was also found at the room-local coordinates, so the room is mirrored twice " +
                 "or the origin step is not applied at all.");
+        }
+
+        // ── (4) What must NOT block a bullet ────────────────────────────────────────────────────
+
+        /// <summary>
+        /// A catwalk (AS3 <c>shelf</c>) must not stop a projectile.
+        ///
+        /// <para>AS3's bullet test reads <c>phis</c> and nothing else (<c>weapon/Bullet.as:476</c>:
+        /// <c>_loc3_.phis == 1 || _loc3_.phis == 2</c> against the cell the bullet occupies), and a
+        /// <c>shelf</c> form carries <c>phis = 0</c>. A shelf is a <b>one-way platform</b> — its
+        /// behaviour lives in <c>Box.as:1270</c> / <c>Unit.as:2578</c>, which gate it on the moving
+        /// body's own bottom edge. Emitting it as a chain surface made bullets stop in mid-air on
+        /// every catwalk.</para>
+        ///
+        /// <para>The control at the end is the point: the same column swept further must still find
+        /// the floor, so the <c>false</c> above cannot be "this room has no geometry".</para>
+        /// </summary>
+        [Test]
+        public void Sweep_IntoACatwalk_PassesThrough_ButStillFindsTheFloor()
+        {
+            using var service = new PhysicsWorldService();
+            service.BuildRoomGeometry(SyntheticRoomBuilder.BuildFromAscii(RoomWithCatwalk));
+
+            // The catwalk's top would sit at y=160 and the floor's at y=40, so a step of 60 px from
+            // y=190 crosses the catwalk and stops well short of the floor.
+            var from = new Vector2(280f, 190f);
+
+            Assert.IsFalse(
+                service.TrySweepTiles(from, new Vector2(0f, -60f), BoxSizePx,
+                                      new Vector2(0f, -1f), out _, out _),
+                "The sweep reported a contact on a catwalk. AS3 shelves are phis=0, so a bullet passes " +
+                "straight through them.");
+
+            Assert.IsTrue(
+                service.TrySweepTiles(from, new Vector2(0f, -200f), BoxSizePx,
+                                      new Vector2(0f, -1f), out Vector2 point, out _),
+                "Sanity: the same column must still find the floor, or the assertion above holds " +
+                "because the room produced no geometry at all.");
+
+            Assert.That(point.y, Is.EqualTo(FloorTopPx).Within(ContactTolerancePx),
+                $"The floor contact must be at y={FloorTopPx} px, got y={point.y:F2} px.");
+        }
+
+        /// <summary>
+        /// A slope (AS3 <c>diagon</c>) must not stop a projectile either — and this is the answer to
+        /// the question the implementation guide's Stage C checklist raises, "one new trace covers
+        /// projectiles vs. a slope": the trace must assert <b>no contact</b>.
+        ///
+        /// <para>A <c>diagon</c> form carries <c>phis = 0</c> with <c>diagon = ±1</c>. The flag
+        /// describes the <i>walkable ramp height</i> — <c>Tile.getSurface</c> interpolates
+        /// <c>phY1</c> across the cell — not an occluder. Note this is why "emit the slope diagonal so
+        /// the projectile hits it correctly" was the wrong fix: there is nothing to hit.</para>
+        /// </summary>
+        [Test]
+        public void Sweep_IntoASlope_PassesThrough_ButStillFindsTheFloor()
+        {
+            using var service = new PhysicsWorldService();
+            service.BuildRoomGeometry(SyntheticRoomBuilder.BuildFromAscii(RoomWithSlope));
+
+            // The slope tile's top would sit at y=80, the floor's at y=40. A step of 120 px from
+            // y=190 crosses the slope and stops 30 px short of the floor.
+            var from = new Vector2(420f, 190f);
+
+            Assert.IsFalse(
+                service.TrySweepTiles(from, new Vector2(0f, -120f), BoxSizePx,
+                                      new Vector2(0f, -1f), out _, out _),
+                "The sweep reported a contact on a slope. AS3 diagons are phis=0 — a slope is a " +
+                "walkable ramp, not a wall — so a bullet passes through.");
+
+            Assert.IsTrue(
+                service.TrySweepTiles(from, new Vector2(0f, -200f), BoxSizePx,
+                                      new Vector2(0f, -1f), out Vector2 point, out _),
+                "Sanity: the same column must still find the floor.");
+
+            Assert.That(point.y, Is.EqualTo(FloorTopPx).Within(ContactTolerancePx),
+                $"The floor contact must be at y={FloorTopPx} px, got y={point.y:F2} px.");
+        }
+
+        /// <summary>
+        /// A ladder (AS3 <c>stair</c>) must not stop a projectile either — the third of the three
+        /// forms the class doc names, and the one the port calls a "ladder" (<c>TileQueryFlags.Ladder</c>,
+        /// <c>TileData.IsClimbableLadder()</c>) even though AS3 calls the form <c>stair</c>.
+        ///
+        /// <para>This one was never actually broken on the flipped path — <c>Ladder</c> was not in the
+        /// old <c>Solid | Platform | Slope</c> predicate — so the test pins the rule rather than a
+        /// regression. It is here because the legacy per-tile path <i>is</i> broken for ladders: a real
+        /// ladder decodes to <c>TilePhysicsType.Stair</c>, which gets a collider. Note the fixture
+        /// writes <c>H</c>, which <c>SyntheticRoomBuilder</c> builds as <c>Air</c> plus
+        /// <c>stairType</c>; the seam sees the same <c>Ladder</c> flag either way, so the assertion is
+        /// faithful for the mirror, but <c>H</c> would not reproduce the legacy bug.</para>
+        /// </summary>
+        [Test]
+        public void Sweep_IntoALadder_PassesThrough_ButStillFindsTheFloor()
+        {
+            using var service = new PhysicsWorldService();
+            service.BuildRoomGeometry(SyntheticRoomBuilder.BuildFromAscii(RoomWithLadder));
+
+            // The ladder occupies the cell y 120..160, so its top would sit at y=160; the floor's is
+            // at y=40. A step of 60 px from y=190 crosses the ladder and stops well short of the floor.
+            var from = new Vector2(220f, 190f);
+
+            Assert.IsFalse(
+                service.TrySweepTiles(from, new Vector2(0f, -60f), BoxSizePx,
+                                      new Vector2(0f, -1f), out _, out _),
+                "The sweep reported a contact on a ladder. AS3 stair forms are phis=0, so a bullet " +
+                "passes through them.");
+
+            Assert.IsTrue(
+                service.TrySweepTiles(from, new Vector2(0f, -200f), BoxSizePx,
+                                      new Vector2(0f, -1f), out Vector2 point, out _),
+                "Sanity: the same column must still find the floor.");
+
+            Assert.That(point.y, Is.EqualTo(FloorTopPx).Within(ContactTolerancePx),
+                $"The floor contact must be at y={FloorTopPx} px, got y={point.y:F2} px.");
+        }
+
+        /// <summary>
+        /// The other half of the rule, and the half a naive fix gets wrong: dropping catwalks and
+        /// slopes from the geometry must not open a hole in the <b>solid</b> tile beside them.
+        ///
+        /// <para>Here a catwalk sits directly on top of a solid block. If the exposure test still
+        /// counted the catwalk as solid, the block's top face would not be emitted and a bullet could
+        /// enter the block from above without ever being stopped. The block's top face must therefore
+        /// be present at y=120 — and the contact must be there, <i>not</i> at the catwalk's y=160,
+        /// which is what distinguishes this from the two tests above.</para>
+        /// </summary>
+        [Test]
+        public void Sweep_IntoASolidTileUnderACatwalk_StillStops_AtTheSolidTilesTop()
+        {
+            using var service = new PhysicsWorldService();
+            service.BuildRoomGeometry(SyntheticRoomBuilder.BuildFromAscii(RoomWithCatwalkOnSolid));
+
+            var from = new Vector2(220f, 190f);
+
+            Assert.IsTrue(
+                service.TrySweepTiles(from, new Vector2(0f, -100f), BoxSizePx,
+                                      new Vector2(0f, -1f), out Vector2 point, out _),
+                "The sweep passed through a solid tile because a catwalk sat on top of it. The " +
+                "exposure test must use the same solid-only predicate as the geometry, or removing " +
+                "the catwalk surface opens a hole in the solid tile behind it.");
+
+            Assert.That(point.y, Is.EqualTo(120f).Within(ContactTolerancePx),
+                $"The contact must be the solid tile's top face at y=120 px (its cell is y 80..120). " +
+                $"A contact at y=160 would mean the catwalk still blocked; y={point.y:F2} px.");
         }
 
         // ── The captured evidence ───────────────────────────────────────────────────────────────

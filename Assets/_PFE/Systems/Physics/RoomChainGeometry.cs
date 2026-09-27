@@ -28,20 +28,30 @@ namespace PFE.Systems.Physics
     /// A room at land position (0,0) with no border has a zero origin, so this is invisible to tests
     /// built on one — which is why <c>Build_RoomAwayFromOrigin_ChainsAreInWorldSpace</c> exists.</para>
     ///
-    /// <para><b>Geometry is complete, not one-sided.</b> Every exposed surface is emitted in both
-    /// directions: up-facing and down-facing horizontal runs, plus both vertical faces. A room
-    /// whose ceilings were omitted would not be a mirror of the room, and the omission would only
-    /// surface once Stage C attaches consumers. One-way platform behaviour is <i>not</i> expressed
-    /// as missing geometry — it is applied at contact time by a pre-solve callback (decision L3),
-    /// which requires the surface to be present in the first place.</para>
+    /// <para><b>What counts as a surface: AS3 <c>phis == 1</c>, and nothing else.</b> A bullet's only
+    /// tile test is <c>_loc3_.phis == 1 || _loc3_.phis == 2</c> against the cell it occupies
+    /// (<c>weapon/Bullet.as:476</c>, with <c>_loc3_ = loc.getAbsTile(X, Y)</c>); <c>shelf</c>,
+    /// <c>diagon</c> and <c>stair</c> are never consulted. So a <b>catwalk</b> (<c>shelf</c>), a
+    /// <b>slope</b> (<c>diagon</c>) and a <b>ladder</b> (<c>stair</c>) must not block a projectile —
+    /// and in the shipped form data every one of those forms carries <c>phis = 0</c>; only the 20
+    /// <c>fForms</c> and one <c>oForm</c> are <c>phis = 1</c>. Those three flags describe how things
+    /// <i>move</i>: <c>diagon</c> is the walkable ramp height (<c>Tile.getSurface</c> interpolates
+    /// <c>phY1</c>), <c>shelf</c> is the one-way platform (<c>Box.as:1270</c>, <c>Unit.as:2578</c> —
+    /// solid only once the body's bottom is below <c>phY1</c>), <c>stair</c> is climbable. This builder
+    /// therefore emits <b>solid tiles only</b>, which is also exactly the set that blocks a bullet, so
+    /// the sweep needs no per-surface filter. Emitting a catwalk or a slope as a surface made bullets
+    /// stop in mid-air on catwalks and above slopes.</para>
     ///
-    /// <para><b>Stage B scope.</b> Geometry matches the Stage A <c>RoomChainBuilder</c> that was
-    /// measured for guide §5 question 3, so Stage B0's re-measurement on a real
-    /// <c>RoomTemplate</c> stays comparable. Slope <i>diagonals</i> are deliberately not emitted
-    /// yet: <see cref="TileQueryFlags"/> exposes <see cref="TileQueryFlags.Slope"/> but no
-    /// orientation, so emitting a diagonal would require reaching around the seam into
-    /// <c>TileData.slopeType</c>. A slope tile therefore contributes its tile-top surface, exactly
-    /// as in Stage A. Adding orientation to the seam is a Stage C item.</para>
+    /// <para><b>Movement will need more than this.</b> One-way platform surfaces — decision L3 applies
+    /// their behaviour in a pre-solve callback, which does require the surface to exist — and slope
+    /// diagonals, which are not emitted at all because <see cref="TileQueryFlags.Slope"/> carries no
+    /// orientation. Both belong to the stage that flips movement; adding them means adding a
+    /// surface-kind tag here so the projectile sweep can go on ignoring them.</para>
+    ///
+    /// <para><b>Geometry is complete, not one-sided.</b> Every exposed surface is emitted in both
+    /// directions: up-facing and down-facing horizontal runs, plus both vertical faces. A room whose
+    /// ceilings were omitted would not be a mirror of the room, and the omission would only surface
+    /// once Stage C attaches consumers.</para>
     ///
     /// <para><b>Chain minimum.</b> Box2D v3's <c>ChainGeometry</c> throws for fewer than 4
     /// vertices. Short runs are subdivided to 4 collinear vertices rather than downgraded to
@@ -534,10 +544,28 @@ namespace PFE.Systems.Physics
         // ── Single-sourcing predicate ────────────────────────────────────────────────────────
 
         /// <summary>
-        /// The one solidity predicate for this builder. Goes through
-        /// <see cref="ITileQueryService.Classify"/> rather than reinterpreting
-        /// <c>TileData.physicsType</c>, because a platform and a wall are both walked on in AS3 —
-        /// the difference is applied by <c>porog</c> at contact time, not by the geometry.
+        /// Whether tile (x,y) is a surface this builder emits — equivalently, whether it blocks a
+        /// projectile.
+        ///
+        /// <para>Goes through <see cref="ITileQueryService.Classify"/> rather than reinterpreting
+        /// <c>TileData.physicsType</c>, so the seam stays the single definition of tile semantics.
+        /// Accepts <see cref="TileQueryFlags.Solid"/> <b>only</b>. Deliberately not
+        /// <see cref="TileQueryFlags.Platform"/> or <see cref="TileQueryFlags.Slope"/>: AS3 blocks a
+        /// bullet on <c>phis == 1 || phis == 2</c> alone (<c>weapon/Bullet.as:476</c>), and a catwalk, a
+        /// slope and a ladder all carry <c>phis = 0</c>. Accepting them here made bullets stop in
+        /// mid-air on catwalks and above slopes.</para>
+        ///
+        /// <para><b>This is one of exactly two places a bullet asks "is this tile in my way".</b> The
+        /// other is <c>Projectile.OnTriggerEnter2D</c>, which is the legacy per-tile path and tests
+        /// <c>TileData.physicsType != Wall</c>. Both resolve to the same set of tiles — the two paths
+        /// must agree or the rollback flag would change gameplay rather than only the
+        /// implementation.</para>
+        ///
+        /// <para>Note this is also the exposure predicate — a surface is emitted where a solid tile
+        /// meets a non-solid one — so a solid block whose neighbour is a catwalk or a slope still gets
+        /// its face emitted, and a bullet entering the solid cell is stopped exactly as AS3 stops it.
+        /// Filtering the sweep instead, while leaving exposure on the wider predicate, would have left
+        /// those faces missing and let bullets through the solid tile behind them.</para>
         /// </summary>
         private bool IsSolidAt(int x, int y)
         {
@@ -548,9 +576,7 @@ namespace PFE.Systems.Physics
             if (x >= room.width || y >= room.height) return false;
 
             TileQueryFlags flags = _query.Classify(new Vector2Int(x, y));
-            return (flags & TileQueryFlags.Solid) != 0
-                || (flags & TileQueryFlags.Platform) != 0
-                || (flags & TileQueryFlags.Slope) != 0;
+            return (flags & TileQueryFlags.Solid) != 0;
         }
     }
 }

@@ -10,6 +10,7 @@ using MessagePipe;
 using System;
 using System.Text;
 using PFE.Core.Rng;
+using PFE.Systems.Map;
 using PFE.Systems.Map.Rendering;
 using PFE.Systems.Map.TileQuery;
 namespace PFE.Entities.Weapons
@@ -765,15 +766,32 @@ namespace PFE.Entities.Weapons
         {
             if (!_isInitialized) return;
 
-            // Stage C: with the flip running, tile contacts are the chain sweep's job. Without this
-            // the per-tile BoxCollider2D would still report the same surface and every wall hit would
-            // be resolved twice — two impact sounds, two damage rolls, two destruction calls, and two
-            // AoE detonations. Entity hits are deliberately NOT skipped: enemies, the player and
-            // destructible props are still Unity colliders in both modes.
-            if (FlipActive && other.GetComponent<TileCollider>() != null)
+            // A tile collider only stops a bullet when the tile is a WALL.
+            //
+            // AS3's bullet has exactly one tile test and it reads `phis` alone — `_loc3_.phis == 1 ||
+            // _loc3_.phis == 2` against the cell the bullet occupies (weapon/Bullet.as:476). `shelf`,
+            // `diagon` and `stair` are never consulted, and every one of those forms carries
+            // `phis = 0`. In the port `phis` 1 and 2 both decode to TilePhysicsType.Wall, so `Wall`
+            // is the whole rule. A catwalk decodes to Platform and a ladder to Stair, and BOTH get a
+            // real collider from TileCollider — so the legacy path used to stop bullets in mid-air on
+            // every catwalk and ladder. (Slopes decode to Air, so they were already passing.)
+            //
+            // This must stay the same rule as RoomChainGeometry.IsSolidAt, which is the flipped
+            // path's half of it; the two are the only places a bullet asks "is this tile in my way".
+            TileCollider tileCollider = other.GetComponent<TileCollider>();
+            if (tileCollider != null)
             {
-                return;
+                // With the flip running, tile contacts are the chain sweep's job. Without this the
+                // per-tile collider would report the same surface and every wall hit would be
+                // resolved twice — two impact sounds, two damage rolls, two destruction calls, two
+                // AoE detonations.
+                if (FlipActive) return;
+
+                TileData tile = tileCollider.GetTileData();
+                if (tile != null && tile.physicsType != TilePhysicsType.Wall) return;
             }
+            // Entity hits are deliberately NOT filtered: enemies, the player and destructible props
+            // are still Unity colliders in both modes.
 
             if (other.isTrigger)
             {

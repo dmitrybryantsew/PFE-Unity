@@ -72,7 +72,7 @@ namespace PFE.Tests.EditMode.Systems.Physics
         }
 
         [Test]
-        public void Build_SlopeTile_ProducesSurfaceChain()
+        public void Build_SlopeTile_ProducesNoChain_BecauseASlopeDoesNotOcclude()
         {
             PhysicsWorld world = CreateWorld();
             try
@@ -84,13 +84,51 @@ namespace PFE.Tests.EditMode.Systems.Physics
                 var geometry = new RoomChainGeometry(query, world);
                 geometry.Build();
 
-                // Deliberately NOT named "..._CreatesDiagonalChain": Stage B emits the slope tile's
-                // tile-top surface, not a diagonal, because TileQueryFlags exposes Slope without an
-                // orientation and reaching into TileData.slopeType would breach the single-sourcing
-                // rule this builder exists to uphold. This test pins the deferral so that when
-                // diagonals land, it is a deliberate change and not an accident.
-                Assert.Greater(world.counters.shapeCount, 0,
-                    "A slope tile must produce a surface chain.");
+                // AS3's bullet test is `_loc3_.phis == 1 || _loc3_.phis == 2` and nothing else
+                // (weapon/Bullet.as:476): `diagon`, `shelf` and `stair` are never consulted, and a
+                // diagon form carries phis = 0. A slope is a walkable ramp, not an occluder, so it
+                // contributes NO surface.
+                //
+                // This test used to assert the opposite — it pinned Stage B's deferral, "emit the slope
+                // tile's tile-top surface, not a diagonal, until orientation lands in the seam". That
+                // deferral is gone, and not because orientation arrived: a flat ledge at the cell top is
+                // not a partial answer but a wrong one, and it stopped bullets in mid-air above every
+                // slope. Slope diagonals are still not emitted, and now never will be by this builder,
+                // because nothing should collide with a slope.
+                Assert.AreEqual(0, world.counters.shapeCount,
+                    "A slope tile must produce no chain shape. A non-zero count means the builder " +
+                    "treats TileQueryFlags.Slope as an occluder, and bullets will stop in mid-air " +
+                    "above every slope.");
+            }
+            finally
+            {
+                world.Destroy(0);
+            }
+        }
+
+        [Test]
+        public void Build_SolidTileBesideASlope_StillEmitsTheFacingSurface()
+        {
+            PhysicsWorld world = CreateWorld();
+            try
+            {
+                RoomInstance room = BuildEmptyRoom(4, 4);
+                room.tiles[0, 1] = MakeTile(0, 1, TilePhysicsType.Wall);
+                room.tiles[1, 1] = MakeSlopeTile(1, 1, slopeType: 1);
+                ITileQueryService query = new UnifiedTileQueryService(room);
+
+                var geometry = new RoomChainGeometry(query, world);
+                geometry.Build();
+
+                // The complement of the test above, and the reason that one cannot be satisfied by a
+                // builder that simply emits nothing: dropping non-occluders from the geometry must not
+                // drop the SOLID tiles beside them. The wall at (0,1) has a slope on its right, so the
+                // slope must not count as occluding it — its right face belongs at local x = 1 tile =
+                // 0.4 units, spanning y 0.4..0.8 units. If exposure used a wider predicate than the
+                // geometry, that face would be missing and a bullet could enter the wall from the side.
+                Assert.IsTrue(OverlapsChain(world, new Vector2(0.4f, 0.6f)),
+                    "The wall's right face must be emitted: a slope is not an occluder, so it cannot " +
+                    "hide the face of the solid tile next to it.");
             }
             finally
             {
@@ -104,31 +142,17 @@ namespace PFE.Tests.EditMode.Systems.Physics
             PhysicsWorld world = CreateWorld();
             try
             {
-                RoomInstance room = SyntheticRoomBuilder.BuildFromAscii(new[]
-                {
-                    "################",
-                    "#..............#",
-                    "#....====......#",
-                    "#....H.........#",
-                    "#....H..../....#",
-                    "#....H.../.....#",
-                    "################"
-                });
+                RoomInstance room = SyntheticRoomBuilder.BuildFromAscii(MixedRoom);
                 ITileQueryService query = new UnifiedTileQueryService(room);
 
                 var geometry = new RoomChainGeometry(query, world);
                 geometry.Build();
 
                 int shapes = world.counters.shapeCount;
-                int bodies = world.counters.bodyCount;
 
                 // One static body + however many chain segments.
-                Assert.AreEqual(1, bodies, "Exactly one static body should own all chains.");
-                Assert.Greater(shapes, 0, "The mixed-geometry room must produce chains.");
-
-                // The room has border walls, a platform row, and two slope tiles.
-                // Border walls alone produce ~4 chains (top, bottom, left, right faces),
-                // plus internal exposed surfaces.
+                Assert.AreEqual(1, world.counters.bodyCount,
+                    "Exactly one static body should own all chains.");
                 Assert.GreaterOrEqual(shapes, 4,
                     "Border walls alone should produce at least 4 chain shapes.");
             }
@@ -136,6 +160,18 @@ namespace PFE.Tests.EditMode.Systems.Physics
             {
                 world.Destroy(0);
             }
+
+            // The room's `=` row, `H` column and two `/` tiles are catwalk, ladder and slope forms —
+            // all phis = 0, so none is an occluder and none contributes geometry. Blanking them to air
+            // must therefore leave the shape count identical, which pins that without hardcoding a
+            // number and is what the test's name promises.
+            int mixedShapes      = ShapesFor(SyntheticRoomBuilder.BuildFromAscii(MixedRoom));
+            int borderOnlyShapes = ShapesFor(SyntheticRoomBuilder.BuildFromAscii(BorderOnlyRoom));
+
+            Assert.AreEqual(borderOnlyShapes, mixedShapes,
+                "The catwalk, ladder and slope tiles must contribute no chains: the room's geometry " +
+                "is its border walls alone. A difference means one of those flags is being treated " +
+                "as an occluder.");
         }
 
         [Test]
@@ -319,6 +355,57 @@ namespace PFE.Tests.EditMode.Systems.Physics
         }
 
         // ── Fixtures ─────────────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// A room whose only solids are its border walls: the <c>=</c> row is a catwalk, the <c>H</c>
+        /// column a ladder and the two <c>/</c> tiles slopes. Kept as a field so
+        /// <c>Build_MixedGeometryFromAscii_MatchesExpectedChainCount</c> can build the same room twice.
+        /// </summary>
+        private static readonly string[] MixedRoom =
+        {
+            "################",
+            "#..............#",
+            "#....====......#",
+            "#....H.........#",
+            "#....H..../....#",
+            "#....H.../.....#",
+            "################"
+        };
+
+        /// <summary>
+        /// <see cref="MixedRoom"/> with the catwalk, ladder and slope tiles blanked to air — the
+        /// control the test above compares against.
+        /// </summary>
+        private static readonly string[] BorderOnlyRoom =
+        {
+            "################",
+            "#..............#",
+            "#..............#",
+            "#..............#",
+            "#..............#",
+            "#..............#",
+            "################"
+        };
+
+        /// <summary>
+        /// Shape count for a room, in its own world. Lets two rooms' geometry be compared without
+        /// hardcoding a count, and without two <see cref="RoomChainGeometry"/> instances sharing one
+        /// world.
+        /// </summary>
+        private static int ShapesFor(RoomInstance room)
+        {
+            PhysicsWorld world = CreateWorld();
+            try
+            {
+                var geometry = new RoomChainGeometry(new UnifiedTileQueryService(room), world);
+                geometry.Build();
+                return world.counters.shapeCount;
+            }
+            finally
+            {
+                world.Destroy(0);
+            }
+        }
 
         private static PhysicsWorld CreateWorld()
         {
