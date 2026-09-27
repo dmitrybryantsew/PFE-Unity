@@ -225,13 +225,6 @@ namespace PFE.Systems.Weapons.Controllers
                     damage:        damCtx,
                     pelletIndex:   i,
                     totalPellets:  pellets,
-                    speed:         _def.projectileSpeed / PpuScale,
-                    gravity:       _def.bulletGravity,
-                    accel:         _def.bulletAccel / PpuScale,
-                    flame:         _def.bulletFlame,
-                    navod:         _def.bulletNavod,
-                    springMode:    _def.springMode,
-                    bulletAnimated:_def.bulletAnimated,
                     cues:          i == 0 ? cues : ShotCues.None
                 ));
             }

@@ -48,28 +48,34 @@ namespace PFE.Systems.Weapons
         /// <summary>Total pellets in this shot (kol). 1 for single-projectile weapons.</summary>
         public readonly int TotalPellets;
 
-        // ── Projectile physics overrides (baked from weapon def at fire time) ──
-
-        /// <summary>Initial speed in Unity units/sec.</summary>
-        public readonly float Speed;
-
-        /// <summary>Gravity multiplier (grav in AS3). 0 = no gravity.</summary>
-        public readonly float Gravity;
-
-        /// <summary>Acceleration per second along shot direction (accel in AS3). Rockets.</summary>
-        public readonly float Accel;
-
-        /// <summary>Flame type (0 = none, 1 = strong upward arc, 2 = weak arc).</summary>
-        public readonly int Flame;
-
-        /// <summary>Homing strength (navod in AS3). 0 = straight shot.</summary>
-        public readonly float Navod;
-
-        /// <summary>Spring/visual stretch mode (spring in AS3). 1=vel-scale, 2=laser, 3=multi-frame.</summary>
-        public readonly int SpringMode;
-
-        /// <summary>Bullet animates each shot (bulanim in AS3 — vis.play() on the bullet).</summary>
-        public readonly bool BulletAnimated;
+        // ── Where projectile physics went ─────────────────────────────────────
+        //
+        // This struct used to carry Speed / Gravity / Accel / Flame / Navod / SpringMode /
+        // BulletAnimated, "baked from weapon def at fire time". Those fields were written by two
+        // controllers and read by nobody: ProjectileSpawner.SpawnProjectile builds the projectile
+        // from the WeaponDefinition, so only the Speed field reached anything, and only inside a
+        // Debug.Log string. They are gone rather than wired up, for three reasons:
+        //
+        //   1. They duplicated WeaponDefinition. ProjectileFactory already derives speed, gravity,
+        //      accel, flame and navod from the definition in ONE place, with the conversion
+        //      documented at the call site. A second copy in the plan is a second place to get the
+        //      idiom wrong, and both copies were wrong: MagicWeaponController passed
+        //      `projectileSpeed / PpuScale` (a velocity scaled as a length — 30x slow) and both
+        //      ranged controllers passed `bulletAccel / PpuScale` (a length scale applied to an
+        //      acceleration). Those errors were latent only because nothing read the fields.
+        //
+        //   2. AS3 does vary velocity per shot, but not from here. Weapon.as:1499 computes
+        //      `b.vel = speed * speedMult`, and speedMult is perk-driven (Weapon.as:1018,
+        //      `speedMult *= perk[...+"Speed"]`). This port does not model speedMult yet, so a
+        //      per-shot velocity field could only ever hold a copy of the definition's value. When
+        //      speedMult is ported, the right move is to add a *consumed* field then — with the
+        //      consumer written in the same change — not to keep an unread one now.
+        //
+        //   3. The plan still reaches the physics. DamageContext.Weapon is carried on every plan,
+        //      so a consumer that needs a physics value can read it from the definition.
+        //
+        // If you are tempted to re-add one of these fields: grep for a reader first. A field that
+        // is written and never read is how the 30x magic-speed error stayed invisible.
 
         // ── Cues ─────────────────────────────────────────────────────────────
 
@@ -114,13 +120,6 @@ namespace PFE.Systems.Weapons
             DamageContext damage,
             int pelletIndex,
             int totalPellets,
-            float speed,
-            float gravity,
-            float accel,
-            int flame,
-            float navod,
-            int springMode,
-            bool bulletAnimated,
             ShotCues cues,
             Vector2 meleePrevTip  = default,
             Vector2 meleeCurrTip  = default,
@@ -135,13 +134,6 @@ namespace PFE.Systems.Weapons
             Damage         = damage;
             PelletIndex    = pelletIndex;
             TotalPellets   = totalPellets;
-            Speed          = speed;
-            Gravity        = gravity;
-            Accel          = accel;
-            Flame          = flame;
-            Navod          = navod;
-            SpringMode     = springMode;
-            BulletAnimated = bulletAnimated;
             Cues           = cues;
             MeleePrevTip   = meleePrevTip;
             MeleeCurrTip   = meleeCurrTip;

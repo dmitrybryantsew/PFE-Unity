@@ -396,13 +396,6 @@ namespace PFE.Systems.Weapons.Controllers
                     damage:        damCtx,
                     pelletIndex:   i,
                     totalPellets:  pellets,
-                    speed:         _def.projectileSpeed * FlashFps / PpuScale,
-                    gravity:       _def.bulletGravity,
-                    accel:         _def.bulletAccel / PpuScale,
-                    flame:         _def.bulletFlame,
-                    navod:         _def.bulletNavod,
-                    springMode:    _def.springMode,
-                    bulletAnimated:_def.bulletAnimated,
                     cues:          i == 0 ? cues : ShotCues.None  // sound/shell only on first pellet
                 ));
 
@@ -410,7 +403,7 @@ namespace PFE.Systems.Weapons.Controllers
                 {
                     Debug.Log(
                         $"[RangedWeaponController] Added ShotPlan weapon='{_def.weaponId}' pellet={i + 1}/{pellets} " +
-                        $"pos={muzzleWorld} angle={pelletAngle:0.###} speed={_def.projectileSpeed / PpuScale:0.###}.");
+                        $"pos={muzzleWorld} angle={pelletAngle:0.###} speedPxPerFrame={_def.projectileSpeed:0.###}.");
                 }
             }
 

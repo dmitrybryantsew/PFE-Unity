@@ -124,9 +124,13 @@ namespace PFE.Systems.Weapons
 
             if (_debugSettings?.LogProjectileSpawning == true)
             {
+                // Log the raw AS3 speed (px/frame) rather than a converted value: the one
+                // conversion lives in ProjectileFactory, and repeating it here is how the
+                // `* fps/PPU` vs `/PPU` idiom got mixed up in the first place.
                 Debug.Log(
                     $"[ProjectileSpawner] Spawning projectile weapon='{_currentDef.weaponId}' " +
-                    $"origin={plan.Origin} kind={plan.Kind} pos={spawnPos} dir={dir} speed={plan.Speed:0.###}.");
+                    $"origin={plan.Origin} kind={plan.Kind} pos={spawnPos} dir={dir} " +
+                    $"speedPxPerFrame={_currentDef.projectileSpeed:0.###}.");
             }
 
             Projectile proj = _factory.Create(_currentDef, spawnPos, dir);

@@ -253,13 +253,6 @@ namespace PFE.Systems.Weapons.Controllers
                 damage:        dmgCtx,
                 pelletIndex:   0,
                 totalPellets:  1,
-                speed:         0f,
-                gravity:       0f,
-                accel:         0f,
-                flame:         0,
-                navod:         0f,
-                springMode:    0,
-                bulletAnimated:false,
                 cues:          cues,
                 meleePrevTip:  holdPos,
                 meleeCurrTip:  impactPos
