@@ -5,8 +5,6 @@ using MessagePipe;
 using PFE.Core.Input;
 using PFE.Core.Messages;
 using PFE.Entities.Units;
-using PFE.Entities.Weapons;
-using PFE.Systems.Combat;
 using PFE.Systems.Interaction;
 using PFE.Systems.Physics;
 using PFE.Systems.Weapons;
@@ -28,10 +26,6 @@ namespace PFE.Entities.Player
     {
         [Header("Player Specifics")]
         [SerializeField]
-        [Tooltip("Weapon definition asset for the player's starting weapon")]
-        private PFE.Data.Definitions.WeaponDefinition _startingWeaponDef;
-
-        [SerializeField]
         [Tooltip("Should the player always face the mouse cursor?")]
         private bool _mouseAiming = true;
 
@@ -42,16 +36,21 @@ namespace PFE.Entities.Player
         private PlayerLocomotionController _locomotion;
         // Dependencies (injected via VContainer)
         private InputReader _input;
-        private IWeaponFactory _weaponFactory;
         private PFE.Core.PfeDebugSettings _debugSettings;
 
-        // New weapon system — primary path.
+        /// <summary>
+        /// The player's weapon, and the only weapon path there is.
+        ///
+        /// <para>The component exists from <c>Awake</c>, but the loadout does not create its
+        /// <c>IWeaponController</c> until its own <c>Start()</c> — and Unity does not order
+        /// <c>Start</c> between components. So every call below goes through the loadout's
+        /// null-guarded forwarding methods rather than reaching for the controller directly.</para>
+        ///
+        /// <para>The legacy <c>WeaponLogic</c> / <c>WeaponView</c> / <c>IWeaponFactory</c> branch was
+        /// retired in Phase 2.2. It had been unreachable since the Player prefab gained a
+        /// <c>PlayerWeaponLoadout</c>, but it kept a second, half-wired weapon system alive.</para>
+        /// </summary>
         private PlayerWeaponLoadout _loadout;
-
-        // Legacy weapon components — kept until WeaponLogic.cs / WeaponView.cs are deleted.
-        // All code paths null-guard these; _loadout takes priority when present.
-        private WeaponLogic _weaponLogic;
-        private WeaponView _weaponView;
 
         // MessagePipe subscriptions (disposable)
         private CompositeDisposable _disposables;
@@ -70,14 +69,12 @@ namespace PFE.Entities.Player
         [Inject]
         public void Construct(
             InputReader input,
-            IWeaponFactory weaponFactory,
             ISubscriber<AttackMessage> attackSubscriber,
             ISubscriber<TeleportMessage> teleportSubscriber,
             ISubscriber<InteractMessage> interactSubscriber,
             PFE.Core.PfeDebugSettings debugSettings)
         {
             _input = input;
-            _weaponFactory = weaponFactory;
             _debugSettings = debugSettings;
             if (_debugSettings.LogDependencyInjectionConstruct)
                 Debug.Log("[PlayerController] Construct() called — dependencies injected.");
@@ -123,53 +120,6 @@ namespace PFE.Entities.Player
 
             if (_locomotion != null)
                 _locomotion.SetUnitStats(base._unitStats);
-        }
-
-        private void Start()
-        {
-            // VContainer injects [Inject] methods between Awake and Start,
-            // so _weaponFactory is guaranteed to be set here.
-            //
-            // If PlayerWeaponLoadout is present it owns weapon initialization —
-            // skip the legacy InitializeWeapon() path.
-            if (_loadout == null)
-                InitializeWeapon();
-        }
-
-        /// <summary>
-        /// Initialize weapon using factory pattern.
-        /// Creates both WeaponLogic and WeaponView, then links them.
-        /// </summary>
-        private void InitializeWeapon()
-        {
-            if (_startingWeaponDef == null)
-            {
-                Debug.LogWarning("[PlayerController] No starting weapon definition assigned");
-                return;
-            }
-            if (_debugSettings?.LogWeaponLifecycle == true)
-                Debug.Log($"[PlayerController] InitializeWeapon() — factory={_weaponFactory != null}, def={_startingWeaponDef.weaponId}.");
-
-            // Create WeaponLogic (pure C# class)
-            _weaponLogic = _weaponFactory.CreateWeaponLogic(_startingWeaponDef);
-
-            // Create or find WeaponView (MonoBehaviour component)
-            // Look for existing WeaponView component in children
-            _weaponView = GetComponentInChildren<WeaponView>();
-
-            if (_weaponView == null)
-            {
-                // Create new weapon GameObject as child of player
-                GameObject weaponObj = new GameObject("Weapon");
-                weaponObj.transform.SetParent(transform);
-                weaponObj.transform.localPosition = Vector3.zero;
-
-                // Add WeaponView component
-                _weaponView = weaponObj.AddComponent<WeaponView>();
-            }
-
-            // Link WeaponView with WeaponLogic
-            _weaponView.Initialize(_weaponLogic, base._unitStats);
         }
 
         private void OnDestroy()
@@ -313,15 +263,8 @@ namespace PFE.Entities.Player
             Vector2 aimDirection = mouseWorld - transform.position;
             _aimAngle = Mathf.Atan2(aimDirection.y, aimDirection.x) * Mathf.Rad2Deg;
 
-            // New path: push aim target into the loadout (controller + presenter read it).
-            if (_loadout != null)
-            {
-                _loadout.SetAimTarget(mouseWorld);
-                return;
-            }
-
-            // Legacy fallback.
-            _weaponView?.RotateTowards(mouseWorld);
+            // Push the aim target into the loadout; the controller and the presenter read it from there.
+            _loadout?.SetAimTarget(mouseWorld);
         }
 
         /// <summary>Start attacking when attack button is pressed.</summary>
@@ -333,15 +276,13 @@ namespace PFE.Entities.Player
                 return;
             }
 
-            if (_loadout != null) { _loadout.BeginAttack(); return; }
-            _weaponView?.BeginFiring();
+            _loadout?.BeginAttack();
         }
 
         /// <summary>Stop attacking when attack button is released.</summary>
         private void HandleAttackEnd()
         {
-            if (_loadout != null) { _loadout.EndAttack(); return; }
-            _weaponView?.EndFiring();
+            _loadout?.EndAttack();
         }
 
         // ── Identity ──────────────────────────────────────────────────────────

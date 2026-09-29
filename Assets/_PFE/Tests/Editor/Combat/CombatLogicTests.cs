@@ -1,8 +1,6 @@
 using NUnit.Framework;
-using PFE.Systems.Combat;
 using PFE.Systems.RPG;
 using PFE.Systems.RPG.Data;
-using PFE.Core.Time;
 using UnityEngine;
 
 namespace PFE.Tests.Editor.Combat
@@ -25,18 +23,11 @@ namespace PFE.Tests.Editor.Combat
         private GameObject testCharacter;
         private CharacterStats playerStats;
         private GameObject testWeaponObject;
-        private WeaponLogic weaponLogic;
-        private ITimeProvider testTimeProvider;
-        private ICombatCalculator combatCalculator;
         private LevelCurve testLevelCurve;
 
         [SetUp]
         public void Setup()
         {
-            // Create test infrastructure
-            testTimeProvider = new UnityTimeProvider();
-            combatCalculator = new CombatCalculator();
-
             // Create level curve
             testLevelCurve = ScriptableObject.CreateInstance<LevelCurve>();
             testLevelCurve.xpDelta = 5000;
@@ -50,21 +41,6 @@ namespace PFE.Tests.Editor.Combat
             testCharacter = new GameObject("TestPlayer");
             playerStats = testCharacter.AddComponent<CharacterStats>();
             playerStats.Initialize(testLevelCurve);
-
-            // Create test weapon (WeaponLogic is not a MonoBehaviour, so we create it directly)
-            // Create a test WeaponDefinition
-            var testWeaponDef = ScriptableObject.CreateInstance<PFE.Data.Definitions.WeaponDefinition>();
-            testWeaponDef.weaponId = "test_weapon";
-            testWeaponDef.weaponType = PFE.Data.Definitions.WeaponType.Guns;
-            testWeaponDef.baseDamage = 15f;
-            testWeaponDef.rapid = 10f;
-            testWeaponDef.deviation = 4f;
-            testWeaponDef.maxDurability = 100;
-            testWeaponDef.magazineSize = 12;
-            testWeaponDef.reloadTime = 50f;
-
-            var durabilitySystem = new DurabilitySystem(combatCalculator);
-            weaponLogic = new WeaponLogic(testWeaponDef, testTimeProvider, combatCalculator, durabilitySystem);
 
             // Store the test weapon object for cleanup
             testWeaponObject = new GameObject("TestWeapon");

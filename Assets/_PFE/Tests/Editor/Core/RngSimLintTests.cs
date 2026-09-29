@@ -22,7 +22,6 @@ namespace PFE.Tests.Editor.Core
             "Systems/Combat/CombatCalculator.cs",
             "Systems/Combat/CriticalHitSystem.cs",
             "Systems/Combat/DurabilitySystem.cs",
-            "Systems/Combat/WeaponLogic.cs",
             "Systems/Weapons/DamageResolver.cs",
             "Systems/Weapons/Controllers/RangedWeaponController.cs",
             "Entities/Weapons/Projectile.cs",

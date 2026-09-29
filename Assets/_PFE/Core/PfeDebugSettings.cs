@@ -69,7 +69,7 @@ namespace PFE.Core
 
         [Header("Weapon / Combat")]
         [SerializeField]
-        [Tooltip("Logs WeaponView initialization, BeginFiring/EndFiring, and AttackMessage delivery to PlayerController.")]
+        [Tooltip("Logs AttackMessage delivery to PlayerController, and the weapon controller's BeginAttack/EndAttack.")]
         private bool logWeaponLifecycle = false;
 
         [SerializeField]

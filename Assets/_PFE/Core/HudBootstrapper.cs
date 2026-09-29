@@ -16,8 +16,9 @@ namespace PFE.Core
     /// There is no <c>Canvas</c> in that scene at all, so this had to be created either way. Doing
     /// it here rather than by editing the scene's YAML means the wiring is reviewable as code, it
     /// cannot be broken by a bad <c>fileID</c>, and it survives the player being a prefab instance
-    /// whose <c>WeaponLogic</c> is null. The views are ordinary components — the moment the HUD is
-    /// worth art-directing, run <c>GameObject/Create HUD</c> once and this bootstrapper retires.</para>
+    /// whose <c>PlayerWeaponLoadout</c> has not equipped a weapon yet. The views are ordinary
+    /// components — the moment the HUD is worth art-directing, run <c>GameObject/Create HUD</c> once
+    /// and this bootstrapper retires.</para>
     ///
     /// <para><b>The ordering problem this exists to solve.</b> The HUD's two data sources appear at
     /// different times: <c>UnitStats</c> is created in <c>PlayerController.Awake</c>, but the

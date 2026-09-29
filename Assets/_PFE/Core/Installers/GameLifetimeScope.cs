@@ -13,7 +13,6 @@ using PFE.Systems.Map.Rendering;
 using PFE.Systems.Physics;
 using PFE.Data;
 using PFE.Entities.Player;
-using PFE.Entities.Weapons;
 using PFE.Systems.Weapons;
 using PFE.Core.Rng;
 using PFE.Core.Ids;
@@ -153,7 +152,6 @@ public class GameLifetimeScope : LifetimeScope
         builder.Register<IPhysicsWorldService, PhysicsWorldService>(Lifetime.Singleton).AsSelf();
 
         // === Factory Pattern ===
-        builder.Register<IWeaponFactory, WeaponFactory>(Lifetime.Singleton);
         builder.Register<IProjectileFactory, ProjectileFactory>(Lifetime.Singleton);
 
         // === Projectile Prefab Registry ===
@@ -171,10 +169,6 @@ public class GameLifetimeScope : LifetimeScope
             builder.RegisterComponent(playerController);
         else
             Debug.LogWarning("[GameLifetimeScope] No PlayerController found in scene.");
-
-        var weaponView = FindFirstObjectByType<WeaponView>(FindObjectsInactive.Include);
-        if (weaponView != null)
-            builder.RegisterComponent(weaponView);
 
         var weaponLoadout = FindFirstObjectByType<PlayerWeaponLoadout>(FindObjectsInactive.Include);
         if (weaponLoadout != null)

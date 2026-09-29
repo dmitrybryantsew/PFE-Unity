@@ -19,7 +19,7 @@ namespace PFE.Systems.Weapons
     ///   - Unarmed: renderer disabled entirely.
     ///
     /// AS3 flip parity note:
-    ///   Old WeaponView used localScale.y = -1 which is WRONG.
+    ///   The retired WeaponView (Phase 2.2) used localScale.y = -1, which is WRONG.
     ///   AS3 Weapon.as sets scaleX = -1 + rotation += 180 when (X > owner.celX),
     ///   i.e. when the weapon's world X is right of the cursor X.
     ///   In Unity: when _aimTarget.x < State.X → facing left → flip.

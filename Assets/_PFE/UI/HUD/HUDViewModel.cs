@@ -1,6 +1,5 @@
 using UnityEngine;
 using R3;
-using PFE.Systems.Combat;
 using PFE.Systems.Weapons;
 using PFE.Entities.Units;
 
@@ -8,11 +7,11 @@ namespace PFE.UI.HUD
 {
     /// <summary>
     /// ViewModel for the Heads-Up Display (HUD).
-    /// Bridges the gap between game logic (WeaponLogic, UnitStats) and UI components.
+    /// Bridges the gap between game logic (PlayerWeaponLoadout, UnitStats) and UI components.
     /// Exposes reactive properties that UI views can bind to using R3.
     ///
     /// Design Pattern: Model-View-ViewModel (MVVM)
-    /// - Model: WeaponLogic, UnitStats (game data and logic)
+    /// - Model: PlayerWeaponLoadout, UnitStats (game data and logic)
     /// - ViewModel: This class (transforms data for UI consumption)
     /// - View: HealthBarView, AmmoCounterView, etc. (display data)
     ///
@@ -26,13 +25,8 @@ namespace PFE.UI.HUD
     {
         [Header("Game Data Sources")]
         [SerializeField]
-        [Tooltip("Legacy weapon logic to display ammo and reload state for. Null on the shipped player.")]
-        internal WeaponLogic playerWeapon;
-
-        [SerializeField]
-        [Tooltip("Primary weapon path. Takes priority over playerWeapon when both are set — " +
-                 "the shipped Player prefab has a PlayerWeaponLoadout and no WeaponLogic, so this " +
-                 "is the one that actually carries ammo at runtime.")]
+        [Tooltip("The player's weapon loadout. Null until the player is found; the bootstrapper " +
+                 "re-binds when it appears.")]
         internal PlayerWeaponLoadout playerLoadout;
 
         [SerializeField]
@@ -117,15 +111,14 @@ namespace PFE.UI.HUD
         public ReadOnlyReactiveProperty<float> ManaPercent => _manaPercent;
 
         /// <summary>
-        /// Initialize the ViewModel with game data sources.
+        /// Initialize the ViewModel with its game data sources.
         /// Call this when setting up the HUD.
         /// </summary>
-        /// <param name="weapon">Player's weapon logic</param>
+        /// <param name="loadout">Player's weapon loadout</param>
         /// <param name="stats">Player's stats</param>
-        public void Initialize(WeaponLogic weapon, UnitStats stats)
+        public void Initialize(PlayerWeaponLoadout loadout, UnitStats stats)
         {
-            playerWeapon = weapon;
-            playerLoadout = null;
+            playerLoadout = loadout;
             playerStats = stats;
 
             // Rebind, not SetupBindings: rebinding replaces the ReadOnlyReactiveProperty instances,
@@ -134,50 +127,22 @@ namespace PFE.UI.HUD
             Rebind();
         }
 
-        /// <summary>
-        /// Initialize from the primary weapon path (<see cref="PlayerWeaponLoadout"/>).
-        /// Preferred over <see cref="Initialize(WeaponLogic, UnitStats)"/> whenever the player has a
-        /// loadout, which is the shipped configuration.
-        /// </summary>
-        /// <param name="loadout">Player's weapon loadout</param>
-        /// <param name="stats">Player's stats</param>
-        public void Initialize(PlayerWeaponLoadout loadout, UnitStats stats)
-        {
-            playerLoadout = loadout;
-            playerWeapon = null;
-            playerStats = stats;
-
-            Rebind();
-        }
-
         // ── Source selection ──────────────────────────────────────────────────
-        // The two weapon paths expose the same reactive shape (CurrentAmmo / IsReloading /
-        // ReloadProgress as ReactiveProperty<T>), so the bindings below are written once against
-        // these accessors. The loadout wins when both are present.
+        // The loadout exposes the reactive shape the bindings below need (CurrentAmmo / IsReloading /
+        // ReloadProgress as ReactiveProperty<T>). It is the only weapon source since Phase 2.2 retired
+        // the legacy WeaponLogic path; a null loadout means "no weapon yet", not "try the other path".
 
-        private ReactiveProperty<int> AmmoSource =>
-            playerLoadout != null ? playerLoadout.CurrentAmmo : playerWeapon?.CurrentAmmo;
+        private ReactiveProperty<int> AmmoSource => playerLoadout?.CurrentAmmo;
 
-        private ReactiveProperty<bool> ReloadingSource =>
-            playerLoadout != null ? playerLoadout.IsReloading : playerWeapon?.IsReloading;
+        private ReactiveProperty<bool> ReloadingSource => playerLoadout?.IsReloading;
 
-        private ReactiveProperty<float> ReloadProgressSource =>
-            playerLoadout != null ? playerLoadout.ReloadProgress : playerWeapon?.ReloadProgress;
+        private ReactiveProperty<float> ReloadProgressSource => playerLoadout?.ReloadProgress;
 
         /// <summary>
         /// Magazine capacity for the equipped weapon. Read through the live controller rather than
         /// cached: the loadout can swap weapons, and a stale capacity makes the ammo bar lie.
         /// </summary>
-        private int MagazineSize
-        {
-            get
-            {
-                if (playerLoadout != null)
-                    return playerLoadout.Current?.State?.Def?.magazineSize ?? 0;
-
-                return playerWeapon?.WeaponDef?.magazineSize ?? 0;
-            }
-        }
+        private int MagazineSize => playerLoadout?.Current?.State?.Def?.magazineSize ?? 0;
 
         /// <summary>True when a weapon source exists and is currently carrying a live weapon.</summary>
         public bool HasWeapon => AmmoSource != null;
@@ -317,23 +282,10 @@ namespace PFE.UI.HUD
         /// Update the weapon source (e.g., when switching weapons).
         /// Re-establishes bindings for the new weapon.
         /// </summary>
-        /// <param name="newWeapon">New weapon to display</param>
-        public void SetWeapon(WeaponLogic newWeapon)
-        {
-            playerWeapon = newWeapon;
-            playerLoadout = null;
-
-            Rebind();
-        }
-
-        /// <summary>
-        /// Update the weapon source to the primary path (e.g., when switching weapons).
-        /// </summary>
         /// <param name="newLoadout">New loadout to display</param>
         public void SetLoadout(PlayerWeaponLoadout newLoadout)
         {
             playerLoadout = newLoadout;
-            playerWeapon = null;
 
             Rebind();
         }
