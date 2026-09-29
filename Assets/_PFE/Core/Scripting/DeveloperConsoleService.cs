@@ -178,10 +178,24 @@ namespace PFE.Core.Scripting
             // ── Debug shortcuts ──────────────────────────────────────────────────
             // These are thin sugar over the same objects Lua reaches as `player` / `sim`, so the
             // console is usable without knowing Lua. Lua remains the fallback for everything else.
-            if (TryRunDebugShortcut(trimmed, out string shortcutResult))
+            //
+            // Wrapped, because this path sits ABOVE the Lua try/catch below. A shortcut that threw
+            // used to escape to Unity's console and leave the REPL showing the echoed command and
+            // nothing else - indistinguishable from a command that quietly did nothing, which is
+            // the worst thing a debug tool can look like.
+            try
             {
-                AppendLog(shortcutResult);
-                return shortcutResult;
+                if (TryRunDebugShortcut(trimmed, out string shortcutResult))
+                {
+                    AppendLog(shortcutResult);
+                    return shortcutResult;
+                }
+            }
+            catch (Exception ex)
+            {
+                string shortcutError = $"[console] '{trimmed}' threw {ex.GetType().Name}: {ex.Message}";
+                AppendLog(shortcutError);
+                return shortcutError;
             }
 
             // Fallback to Lua execution

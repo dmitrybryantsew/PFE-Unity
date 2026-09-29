@@ -22,6 +22,9 @@ namespace PFE.Core.Scripting
         private string _inputBuffer = string.Empty;
         private Vector2 _scrollPos;
 
+        // Tracks the history length so the log can follow new output (see OnGUI).
+        private int _lastHistoryCount = -1;
+
         // Debug command objects. Built once, then re-wired on every SyncDependencies so a
         // respawned player or a rebuilt container is picked up without reallocating them.
         private DevConsolePlayerCommands _playerCommands;
@@ -239,6 +242,16 @@ namespace PFE.Core.Scripting
             GUILayout.EndHorizontal();
 
             var history = _service.History;
+
+            // Follow the tail. GUILayout's scroll view has no notion of "follow", so a command's
+            // reply is appended below the fold and stays there until the user drags - which is
+            // exactly how a command that worked reads as "it did nothing".
+            if (history.Count != _lastHistoryCount)
+            {
+                _lastHistoryCount = history.Count;
+                _scrollPos.y = float.MaxValue;
+            }
+
             _scrollPos = GUILayout.BeginScrollView(_scrollPos, GUILayout.Height(height - 95));
             for (int i = 0; i < history.Count; i++)
             {

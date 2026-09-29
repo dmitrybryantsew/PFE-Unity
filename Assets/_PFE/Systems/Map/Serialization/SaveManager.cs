@@ -347,6 +347,18 @@ namespace PFE.Systems.Map.Serialization
                 snapshot.health = player.CurrentHealth;
                 snapshot.maxHealth = player.MaxHealth;
 
+                // Which room the save belongs to. The fields existed but were never written, so
+                // every save carried (0,0,0) - and a load had no way to tell the motor which tile
+                // grid to resolve against. Taken from the map because that is exactly what
+                // WorldSaveData.RestoreToMap puts back via SwitchRoom, keeping the two symmetric.
+                if (currentLandMap != null)
+                {
+                    Vector3Int coord = currentLandMap.GetCurrentPosition();
+                    snapshot.roomX = coord.x;
+                    snapshot.roomY = coord.y;
+                    snapshot.roomZ = coord.z;
+                }
+
                 // RPG Stats
                 var stats = player.GetComponent<PFE.Systems.RPG.CharacterStats>();
                 if (stats != null)
@@ -389,7 +401,56 @@ namespace PFE.Systems.Map.Serialization
             var player = FindFirstObjectByType<PFE.Entities.Player.PlayerController>();
             if (player != null)
             {
-                player.transform.position = new Vector3(playerState.posX, playerState.posY, player.transform.position.z);
+                var worldPos = new Vector3(
+                    playerState.posX,
+                    playerState.posY,
+                    player.transform.position.z);
+
+                // Position must go through the motor, not the transform.
+                // TilePhysicsController owns its own pixel position (posX/posY) and WRITES
+                // transform.position from it every tick via SyncUnityPosition, so a raw transform
+                // assignment is overwritten on the next tick - the player appeared not to move at
+                // all, which reads as "load did not restore position".
+                var motor = player.GetComponent<PFE.Systems.Physics.TilePhysicsController>();
+
+                RoomInstance room = null;
+                if (currentLandMap != null)
+                {
+                    room = currentLandMap.GetRoom(
+                        new Vector3Int(playerState.roomX, playerState.roomY, playerState.roomZ));
+                }
+
+                if (motor != null && room != null)
+                {
+                    // RepositionForRoom sets the room BEFORE the position, which the motor requires:
+                    // it resolves tiles against its current room, so a stale room means colliding
+                    // against the old grid at the new coordinates. It also clears velocity, matching
+                    // AS3, where a unit is rebuilt on every location change.
+                    motor.RepositionForRoom(room, worldPos);
+                }
+                else if (motor != null)
+                {
+                    motor.SetUnityPosition(worldPos);
+                }
+                else
+                {
+                    player.transform.position = worldPos;
+                }
+
+                // Health. UnitController.CurrentHealth is a read-only expression over
+                // Stats.CurrentHp (see UnitController.cs), so there is nothing to assign on the
+                // controller - which is why this was captured on save and then silently dropped.
+                // MaxHp first: CurrentHp is clamped against it.
+                var unitStats = player.Stats;
+                if (unitStats != null)
+                {
+                    if (playerState.maxHealth > 0f)
+                    {
+                        unitStats.MaxHp.Value = playerState.maxHealth;
+                    }
+
+                    unitStats.CurrentHp.Value = Mathf.Clamp(playerState.health, 0f, unitStats.MaxHp.Value);
+                }
 
                 var stats = player.GetComponent<PFE.Systems.RPG.CharacterStats>();
                 if (stats != null && playerState.rpgStats != null)
@@ -410,9 +471,21 @@ namespace PFE.Systems.Map.Serialization
                 }
             }
 
-            Debug.Log($"Player state restore: pos=({playerState.posX}, {playerState.posY}), " +
-                     $"room=({playerState.roomX}, {playerState.roomY}, {playerState.roomZ}), " +
-                     $"health={playerState.health}/{playerState.maxHealth}");
+            // Report what the player actually has, not just what the snapshot asked for. The
+            // previous version echoed the snapshot back, so it read identically whether the restore
+            // worked or the motor immediately undid it - which is precisely the bug fixed above.
+            var restored = FindFirstObjectByType<PFE.Entities.Player.PlayerController>();
+            string actualPos = restored != null ? restored.transform.position.ToString() : "n/a";
+            var restoredStats = restored != null ? restored.Stats : null;
+            string actualHp = restoredStats != null
+                ? $"{restoredStats.CurrentHp.Value}/{restoredStats.MaxHp.Value}"
+                : "n/a";
+
+            Debug.Log(
+                $"Player state restore: saved pos=({playerState.posX}, {playerState.posY}) " +
+                $"room=({playerState.roomX}, {playerState.roomY}, {playerState.roomZ}) " +
+                $"hp={playerState.health}/{playerState.maxHealth} -> " +
+                $"actual pos={actualPos} hp={actualHp}");
         }
     }
 }

@@ -67,11 +67,10 @@ namespace PFE.Core.Scripting
             if (!_gameManager.LoadGame())
                 return "[save] Load FAILED - see the Unity console for the exception.";
 
-            var player = UnityEngine.Object.FindFirstObjectByType<PlayerController>();
-            string playerText = player != null ? $"{player.transform.position}" : "not found";
-
+            // Reports the player's ACTUAL state after the restore, not the snapshot it was asked to
+            // apply - a readback is the only way the console can tell you the restore stuck.
             return $"[save] Loaded quicksave; room=({_landMap.GetCurrentPosition().x}, " +
-                   $"{_landMap.GetCurrentPosition().y}) player={playerText}";
+                   $"{_landMap.GetCurrentPosition().y}) player={PlayerStateText()}";
         }
 
         /// <summary>
@@ -109,12 +108,35 @@ namespace PFE.Core.Scripting
 
             var player = UnityEngine.Object.FindFirstObjectByType<PlayerController>();
             if (player != null)
+            {
+                // Explicit != null rather than ?. : null-conditional bypasses UnityEngine.Object's
+                // overloaded equality, so it would not catch a destroyed-but-not-null object.
                 sb.Append($" player={player.transform.position}");
+
+                var stats = player.Stats;
+                if (stats != null)
+                    sb.Append($" hp={stats.CurrentHp.Value:0.#}/{stats.MaxHp.Value:0.#}");
+            }
 
             return sb.ToString();
         }
 
         // ── Helpers ───────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// The player's live position and health, as one string. Shared by <see cref="Load"/> so a
+        /// load's reply carries the values a caller would otherwise have to go and check.
+        /// </summary>
+        private static string PlayerStateText()
+        {
+            var player = UnityEngine.Object.FindFirstObjectByType<PlayerController>();
+            if (player == null) return "not found";
+
+            var stats = player.Stats;
+            return stats != null
+                ? $"{player.transform.position} hp={stats.CurrentHp.Value:0.#}/{stats.MaxHp.Value:0.#}"
+                : $"{player.transform.position}";
+        }
 
         /// <summary>
         /// The one gate shared by <see cref="Save"/> and <see cref="Load"/>. Returns false with a
