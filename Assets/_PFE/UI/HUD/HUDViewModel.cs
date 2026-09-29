@@ -1,6 +1,7 @@
 using UnityEngine;
 using R3;
 using PFE.Systems.Combat;
+using PFE.Systems.Weapons;
 using PFE.Entities.Units;
 
 namespace PFE.UI.HUD
@@ -25,8 +26,14 @@ namespace PFE.UI.HUD
     {
         [Header("Game Data Sources")]
         [SerializeField]
-        [Tooltip("Weapon logic to display ammo and reload state for")]
+        [Tooltip("Legacy weapon logic to display ammo and reload state for. Null on the shipped player.")]
         internal WeaponLogic playerWeapon;
+
+        [SerializeField]
+        [Tooltip("Primary weapon path. Takes priority over playerWeapon when both are set — " +
+                 "the shipped Player prefab has a PlayerWeaponLoadout and no WeaponLogic, so this " +
+                 "is the one that actually carries ammo at runtime.")]
+        internal PlayerWeaponLoadout playerLoadout;
 
         [SerializeField]
         [Tooltip("Player stats to display health for")]
@@ -118,10 +125,68 @@ namespace PFE.UI.HUD
         public void Initialize(WeaponLogic weapon, UnitStats stats)
         {
             playerWeapon = weapon;
+            playerLoadout = null;
             playerStats = stats;
 
-            SetupBindings();
+            // Rebind, not SetupBindings: rebinding replaces the ReadOnlyReactiveProperty instances,
+            // and the previous set must be disposed or every re-initialise leaks a live subscription
+            // on UnitStats.CurrentHp.
+            Rebind();
         }
+
+        /// <summary>
+        /// Initialize from the primary weapon path (<see cref="PlayerWeaponLoadout"/>).
+        /// Preferred over <see cref="Initialize(WeaponLogic, UnitStats)"/> whenever the player has a
+        /// loadout, which is the shipped configuration.
+        /// </summary>
+        /// <param name="loadout">Player's weapon loadout</param>
+        /// <param name="stats">Player's stats</param>
+        public void Initialize(PlayerWeaponLoadout loadout, UnitStats stats)
+        {
+            playerLoadout = loadout;
+            playerWeapon = null;
+            playerStats = stats;
+
+            Rebind();
+        }
+
+        // ── Source selection ──────────────────────────────────────────────────
+        // The two weapon paths expose the same reactive shape (CurrentAmmo / IsReloading /
+        // ReloadProgress as ReactiveProperty<T>), so the bindings below are written once against
+        // these accessors. The loadout wins when both are present.
+
+        private ReactiveProperty<int> AmmoSource =>
+            playerLoadout != null ? playerLoadout.CurrentAmmo : playerWeapon?.CurrentAmmo;
+
+        private ReactiveProperty<bool> ReloadingSource =>
+            playerLoadout != null ? playerLoadout.IsReloading : playerWeapon?.IsReloading;
+
+        private ReactiveProperty<float> ReloadProgressSource =>
+            playerLoadout != null ? playerLoadout.ReloadProgress : playerWeapon?.ReloadProgress;
+
+        /// <summary>
+        /// Magazine capacity for the equipped weapon. Read through the live controller rather than
+        /// cached: the loadout can swap weapons, and a stale capacity makes the ammo bar lie.
+        /// </summary>
+        private int MagazineSize
+        {
+            get
+            {
+                if (playerLoadout != null)
+                    return playerLoadout.Current?.State?.Def?.magazineSize ?? 0;
+
+                return playerWeapon?.WeaponDef?.magazineSize ?? 0;
+            }
+        }
+
+        /// <summary>True when a weapon source exists and is currently carrying a live weapon.</summary>
+        public bool HasWeapon => AmmoSource != null;
+
+        /// <summary>
+        /// The stats this ViewModel is currently bound to, or null. Exposed so a bootstrapper can
+        /// tell "already bound to this player" from "the player was replaced" without guessing.
+        /// </summary>
+        public UnitStats StatsSource => playerStats;
 
         private void Awake()
         {
@@ -130,11 +195,51 @@ namespace PFE.UI.HUD
 
         private void Start()
         {
-            // If sources are assigned via Inspector, setup bindings on Start
-            if (playerWeapon != null && playerStats != null)
+            // If sources are assigned via Inspector, setup bindings on Start.
+            //
+            // Rebind, not SetupBindings: the bootstrapper adds this component and then drives
+            // Initialize() from its own Update, and Unity does not order Start against that. If
+            // Start lands after an Initialize, a bare SetupBindings() would append a second set of
+            // subscriptions to _disposables instead of replacing the first — the same
+            // double-subscription trap the three HUD views had. Rebind() disposes first, so either
+            // order converges on exactly one set. The guard stays so the normal path (sources
+            // assigned later, at runtime) does not log "stats is null" as an error.
+            if (playerStats != null && HasWeapon)
             {
-                SetupBindings();
+                Rebind();
             }
+        }
+
+        /// <summary>
+        /// Re-establish bindings against the current sources.
+        ///
+        /// <para>Needed because a <see cref="PlayerWeaponLoadout"/> creates its controller in its own
+        /// <c>Start()</c>, and Unity does not order <c>Start</c> between components — so a HUD that
+        /// bound in <c>Start</c> may have run before the weapon existed. The bootstrapper polls
+        /// <c>Current</c> and calls this when the equipped controller changes (including weapon
+        /// swaps, where the ammo <c>ReactiveProperty</c> instance itself is replaced).</para>
+        /// </summary>
+        public void Rebind()
+        {
+            // Drop the previous subscriptions, then take a fresh set. Without the dispose the old
+            // ReactivePropertys would keep firing into a view that no longer reads them.
+            _disposables?.Dispose();
+            _disposables = new CompositeDisposable();
+
+            _currentAmmo = null;
+            _maxAmmo = null;
+            _ammoPercent = null;
+            _reloadProgress = null;
+            _isReloading = null;
+            _healthPercent = null;
+            _currentHealth = null;
+            _maxHealth = null;
+            _isAlive = null;
+            _currentMana = null;
+            _maxMana = null;
+            _manaPercent = null;
+
+            SetupBindings();
         }
 
         /// <summary>
@@ -143,35 +248,69 @@ namespace PFE.UI.HUD
         /// </summary>
         private void SetupBindings()
         {
-            if (playerWeapon == null || playerStats == null)
+            if (playerStats == null)
             {
-                Debug.LogError("[HUDViewModel] Cannot setup bindings: weapon or stats is null!");
+                Debug.LogError("[HUDViewModel] Cannot setup bindings: stats is null!");
                 return;
             }
 
-            // Weapon bindings
-            _currentAmmo = playerWeapon.CurrentAmmo.ToReadOnlyReactiveProperty();
-            _maxAmmo = playerWeapon.CurrentAmmo.Select(_ => playerWeapon.WeaponDef.magazineSize).ToReadOnlyReactiveProperty();
-            _ammoPercent = playerWeapon.CurrentAmmo.Select(ammo =>
-                playerWeapon.WeaponDef.magazineSize > 0 ? (float)ammo / playerWeapon.WeaponDef.magazineSize : 0
-            ).ToReadOnlyReactiveProperty();
-            _reloadProgress = playerWeapon.ReloadProgress.ToReadOnlyReactiveProperty();
-            _isReloading = playerWeapon.IsReloading.ToReadOnlyReactiveProperty();
+            var ammo = AmmoSource;
+            if (ammo == null)
+            {
+                // Not an error: the loadout equips its starting weapon in Start(), and a HUD built
+                // before that legitimately has nothing to show yet. Rebind() will be called when it
+                // arrives. Health below still binds, so the player is not left without a HUD.
+                Debug.Log("[HUDViewModel] No weapon equipped yet — ammo bindings deferred until Rebind().");
+            }
+            else
+            {
+                // Weapon bindings
+                _currentAmmo = ammo.ToReadOnlyReactiveProperty();
+                _maxAmmo = ammo.Select(_ => MagazineSize).ToReadOnlyReactiveProperty();
+                _ammoPercent = ammo.Select(a =>
+                {
+                    int size = MagazineSize;
+                    return size > 0 ? (float)a / size : 0f;
+                }).ToReadOnlyReactiveProperty();
+                _reloadProgress = ReloadProgressSource.ToReadOnlyReactiveProperty();
+                _isReloading = ReloadingSource.ToReadOnlyReactiveProperty();
 
-            // Stats bindings
-            _healthPercent = playerStats.HpPercent;
+                _disposables.Add(_currentAmmo);
+                _disposables.Add(_maxAmmo);
+                _disposables.Add(_ammoPercent);
+                _disposables.Add(_reloadProgress);
+                _disposables.Add(_isReloading);
+            }
+
+            // Stats bindings.
+            //
+            // Built here rather than using UnitStats.HpPercent: that property allocates a fresh
+            // CombineLatest subscription on every read and never disposes it, so reading it once per
+            // bind leaks a live subscription each time. Owning it here means Rebind() cleans it up.
+            _healthPercent = playerStats.CurrentHp
+                .CombineLatest(playerStats.MaxHp, (current, max) => max > 0 ? current / max : 0f)
+                .ToReadOnlyReactiveProperty();
             _currentHealth = playerStats.CurrentHp.ToReadOnlyReactiveProperty();
             _maxHealth = playerStats.MaxHp.ToReadOnlyReactiveProperty();
             _isAlive = playerStats.CurrentHp.Select(hp => hp > 0).ToReadOnlyReactiveProperty();
+
+            _disposables.Add(_healthPercent);
+            _disposables.Add(_currentHealth);
+            _disposables.Add(_maxHealth);
+            _disposables.Add(_isAlive);
 
             // Mana bindings
             _currentMana = playerStats.Mana.ToReadOnlyReactiveProperty();
             _maxMana = playerStats.MaxMana.ToReadOnlyReactiveProperty();
             _manaPercent = playerStats.Mana.CombineLatest(playerStats.MaxMana, (current, max) =>
-                max > 0 ? current / max : 0
+                max > 0 ? current / max : 0f
             ).ToReadOnlyReactiveProperty();
 
-            Debug.Log("[HUDViewModel] Reactive bindings established");
+            _disposables.Add(_currentMana);
+            _disposables.Add(_maxMana);
+            _disposables.Add(_manaPercent);
+
+            Debug.Log($"[HUDViewModel] Reactive bindings established (weapon={(ammo != null ? "yes" : "none")}).");
         }
 
         /// <summary>
@@ -182,9 +321,21 @@ namespace PFE.UI.HUD
         public void SetWeapon(WeaponLogic newWeapon)
         {
             playerWeapon = newWeapon;
+            playerLoadout = null;
 
-            // Re-setup bindings with new weapon
-            SetupBindings();
+            Rebind();
+        }
+
+        /// <summary>
+        /// Update the weapon source to the primary path (e.g., when switching weapons).
+        /// </summary>
+        /// <param name="newLoadout">New loadout to display</param>
+        public void SetLoadout(PlayerWeaponLoadout newLoadout)
+        {
+            playerLoadout = newLoadout;
+            playerWeapon = null;
+
+            Rebind();
         }
 
         /// <summary>
@@ -196,8 +347,7 @@ namespace PFE.UI.HUD
         {
             playerStats = newStats;
 
-            // Re-setup bindings with new stats
-            SetupBindings();
+            Rebind();
         }
 
         private void OnDestroy()
@@ -211,12 +361,10 @@ namespace PFE.UI.HUD
         /// <returns>Formatted ammo string</returns>
         public string GetAmmoText()
         {
-            if (playerWeapon == null) return "-- / --";
+            var ammo = AmmoSource;
+            if (ammo == null) return "-- / --";
 
-            int current = playerWeapon.CurrentAmmo.Value;
-            int max = playerWeapon.WeaponDef?.magazineSize ?? 0;
-
-            return $"{current} / {max}";
+            return $"{ammo.Value} / {MagazineSize}";
         }
 
         /// <summary>

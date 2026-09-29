@@ -16,6 +16,18 @@ namespace PFE.Core.Input
         public ButtonBinding dash     = new ButtonBinding("<Keyboard>/leftShift",  "",                      "<Gamepad>/buttonEast");
         public ButtonBinding teleport = new ButtonBinding("<Keyboard>/q",          "",                      "<Gamepad>/leftShoulder");
 
+        [Header("Save / Load")]
+        // F11, not the conventional F9. F9 is already taken by a DIFFERENT input system:
+        // DoorPropPresenter toggles the door-collider debug overlay on a raw Input.GetKeyDown(KeyCode.F9)
+        // (its siblings use F8 and F10). The two systems do not know about each other, so binding
+        // QuickLoad to F9 made one key press do both. QuickLoad yields rather than the overlay, because
+        // the overlays are pre-existing and documented ("Hotkey: F9" in PfeDebugSettings) and because
+        // an unintended world reload mid-play-test is the more disruptive of the two failures.
+        // F5/F11 rather than F5/F6: keeping load off the key adjacent to save is the same reason the
+        // convention was F5/F9 in the first place.
+        public ButtonBinding quickSave = new ButtonBinding("<Keyboard>/f5",  "", "<Gamepad>/select");
+        public ButtonBinding quickLoad = new ButtonBinding("<Keyboard>/f11", "", "<Gamepad>/start");
+
         // ---- Defaults (used by editor Reset buttons) ----
 
         public static MoveBindings DefaultMove => new MoveBindings();
@@ -25,6 +37,8 @@ namespace PFE.Core.Input
         public static ButtonBinding DefaultInteract => new ButtonBinding("<Keyboard>/e",          "",                     "<Gamepad>/buttonWest");
         public static ButtonBinding DefaultDash     => new ButtonBinding("<Keyboard>/leftShift",  "",                     "<Gamepad>/buttonEast");
         public static ButtonBinding DefaultTeleport => new ButtonBinding("<Keyboard>/q",          "",                     "<Gamepad>/leftShoulder");
+        public static ButtonBinding DefaultQuickSave => new ButtonBinding("<Keyboard>/f5",        "",                     "<Gamepad>/select");
+        public static ButtonBinding DefaultQuickLoad => new ButtonBinding("<Keyboard>/f11",       "",                     "<Gamepad>/start");
     }
 
     [Serializable]

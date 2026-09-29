@@ -43,6 +43,9 @@ namespace PFE.UI.HUD
         private CompositeDisposable _disposables;
         private Color _originalColor;
 
+        /// <summary>True once <see cref="BindToViewModel"/> has run — see the note in HealthBarView.</summary>
+        private bool _bound;
+
         private void Awake()
         {
             // Auto-find image if not assigned
@@ -62,11 +65,11 @@ namespace PFE.UI.HUD
 
         private void Start()
         {
-            if (_viewModel != null)
+            if (_viewModel != null && !_bound)
             {
                 BindToViewModel(_viewModel);
             }
-            else
+            else if (_viewModel == null)
             {
                 Debug.LogWarning("[ReloadIndicatorView] No ViewModel assigned - reload indicator will not update");
 
@@ -77,6 +80,12 @@ namespace PFE.UI.HUD
                 }
             }
         }
+
+        /// <summary>
+        /// Assign the ViewModel <b>without</b> binding; the view binds itself in <c>Start</c>.
+        /// See the equivalent note on <see cref="HealthBarView.SetViewModel"/>.
+        /// </summary>
+        public void SetViewModel(HUDViewModel viewModel) => _viewModel = viewModel;
 
         /// <summary>
         /// Bind to HUDViewModel for reactive updates.
@@ -91,44 +100,59 @@ namespace PFE.UI.HUD
                 return;
             }
 
-            // Bind reload progress
-            _viewModel.ReloadProgress.Subscribe(progress =>
+            // Replace, don't accumulate — see HealthBarView.BindToViewModel.
+            _disposables?.Dispose();
+            _disposables = new CompositeDisposable();
+            _bound = true;
+
+            // Bind reload progress. Guarded because the loadout may not have equipped yet, in which
+            // case HUDViewModel leaves these properties null and Rebind() will re-enter here.
+            // Explicit ifs rather than `x?.Subscribe(...).AddTo(...)` — see AmmoCounterView.
+            if (_viewModel.ReloadProgress != null)
             {
-                if (_reloadImage != null)
+                _viewModel.ReloadProgress.Subscribe(progress =>
                 {
-                    _reloadImage.fillAmount = progress;
-                }
+                    if (_reloadImage != null)
+                    {
+                        _reloadImage.fillAmount = progress;
+                    }
 
-                // Update reload text if assigned
-                if (_reloadText != null)
-                {
-                    _reloadText.text = $"{Mathf.RoundToInt(progress * 100)}%";
-                }
+                    // Update reload text if assigned
+                    if (_reloadText != null)
+                    {
+                        _reloadText.text = $"{Mathf.RoundToInt(progress * 100)}%";
+                    }
 
-            }).AddTo(_disposables);
+                }).AddTo(_disposables);
+            }
 
             // Bind reload state to show/hide indicator
-            _viewModel.IsReloading.Subscribe(isReloading =>
+            if (_viewModel.IsReloading != null)
             {
+                _viewModel.IsReloading.Subscribe(isReloading =>
+                {
+                    if (_autoShowHide)
+                    {
+                        gameObject.SetActive(isReloading);
+                    }
+
+                    // Change color when reloading
+                    if (_reloadImage != null)
+                    {
+                        _reloadImage.color = isReloading ? _reloadColor : _originalColor;
+                    }
+
+                }).AddTo(_disposables);
+
+                // Set initial state. Read the current value rather than subscribing a second time
+                // just to sample it — the old code added a permanent extra subscriber per bind.
+                //
+                // CurrentValue, not Value: IsReloading is a ReadOnlyReactiveProperty<bool>, and R3
+                // only puts `Value` on the mutable ReactiveProperty<T>. Same trap as AmmoCounterView.
                 if (_autoShowHide)
                 {
-                    gameObject.SetActive(isReloading);
+                    gameObject.SetActive(_viewModel.IsReloading.CurrentValue);
                 }
-
-                // Change color when reloading
-                if (_reloadImage != null)
-                {
-                    _reloadImage.color = isReloading ? _reloadColor : _originalColor;
-                }
-
-            }).AddTo(_disposables);
-
-            // Set initial state
-            if (_autoShowHide)
-            {
-                bool isReloading = false;
-                _viewModel.IsReloading.Subscribe(v => isReloading = v).AddTo(_disposables);
-                gameObject.SetActive(isReloading);
             }
 
             Debug.Log("[ReloadIndicatorView] Bound to ViewModel");

@@ -3,6 +3,7 @@ using VContainer.Unity;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 using PFE.Systems.Map;
+using PFE.Systems.Map.Serialization;
 using PFE.Data;
 using PFE.Core.Profiling;
 using System;
@@ -91,6 +92,14 @@ namespace PFE.Core
                 await BuildWorldAsync();
             else if (debugSettings.LogGameManagerLifecycle)
                 Debug.Log("[GameManager] Skipping full world generation (room override active).");
+
+            // Hand the freshly built map to SaveManager. P3 built the serialiser, the migration
+            // chain and its tests; nothing had ever called SetLandMap, so SaveManager.currentLandMap
+            // stayed null and every SaveGame() would have failed with "No LandMap available".
+            // Touching SaveManager.Instance here also creates its host GameObject, which is not in
+            // any scene — this is the one place that is guaranteed to run before a save is possible.
+            SaveManager.Instance.SetLandMap(landMap);
+            PfeProfiler.Mark("game.save.wired");
 
             isInitialized = true;
             PfeProfiler.Mark("game.world.ready");
@@ -252,33 +261,49 @@ namespace PFE.Core
         }
 
         /// <summary>
-        /// Save game state.
+        /// Save game state to the quick-save slot.
+        ///
+        /// <para>Two mechanisms, and both are needed. <c>landMap.SaveState()</c> snapshots each
+        /// <c>RoomInstance</c>'s own state; <c>SaveManager.QuickSave()</c> then serialises the whole
+        /// <c>LandMap</c> (rooms, doors, fog, player) to disk through P3's
+        /// <c>WorldSerializer</c> + migration chain. Dropping the first would save whatever the rooms
+        /// last snapshotted rather than what they look like now.</para>
         /// </summary>
-        public void SaveGame()
+        public bool SaveGame()
         {
             if (debugSettings.LogGameManagerLifecycle)
                 Debug.Log("[GameManager] Saving game...");
 
             landMap.SaveState();
 
-            // TODO: Save to file
+            bool saved = SaveManager.Instance.QuickSave(landMap);
+
             if (debugSettings.LogGameManagerLifecycle)
-                Debug.Log("[GameManager] Game saved");
+                Debug.Log(saved ? "[GameManager] Game saved" : "[GameManager] Game save FAILED");
+
+            return saved;
         }
 
         /// <summary>
-        /// Load game state.
+        /// Load game state from the quick-save slot.
         /// </summary>
-        public void LoadGame()
+        public bool LoadGame()
         {
             if (debugSettings.LogGameManagerLifecycle)
                 Debug.Log("[GameManager] Loading game...");
 
-            landMap.LoadState();
+            // QuickLoad restores the map from disk itself, so the in-memory SaveState()/LoadState()
+            // snapshot round-trip that used to be here would only be overwritten. LoadState() is
+            // still what non-serialised room streaming uses, so it is called for that path.
+            bool loaded = SaveManager.Instance.QuickLoad(landMap);
 
-            // TODO: Load from file
+            if (loaded)
+                landMap.LoadState();
+
             if (debugSettings.LogGameManagerLifecycle)
-                Debug.Log("[GameManager] Game loaded");
+                Debug.Log(loaded ? "[GameManager] Game loaded" : "[GameManager] Game load FAILED (no quick save?)");
+
+            return loaded;
         }
 
         /// <summary>

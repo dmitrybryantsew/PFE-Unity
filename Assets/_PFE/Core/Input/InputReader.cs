@@ -32,6 +32,11 @@ namespace PFE.Core.Input
         public InputAction Dash { get; private set; }
         public InputAction Teleport { get; private set; }
 
+        // Save/load. These are polled by SaveHotkeys rather than published as messages: saving is
+        // not gameplay state, so it has no business on the sim's message bus.
+        public InputAction QuickSave { get; private set; }
+        public InputAction QuickLoad { get; private set; }
+
         // Reactive Properties (for UI binding with R3)
         public readonly ReactiveProperty<Vector2> MoveInput = new(Vector2.zero);
         public readonly ReactiveProperty<bool> IsJumping = new(false);
@@ -107,6 +112,14 @@ namespace PFE.Core.Input
 
             Teleport = BuildButtonAction("Teleport", s?.teleport,
                 "<Keyboard>/q", "", "<Gamepad>/leftShoulder");
+
+            QuickSave = BuildButtonAction("QuickSave", s?.quickSave,
+                "<Keyboard>/f5", "", "<Gamepad>/select");
+
+            // f11, not f9 — see the comment on PfeInputSettings.quickLoad: F9 belongs to the
+            // door-collider debug overlay, which reads it through the legacy Input class.
+            QuickLoad = BuildButtonAction("QuickLoad", s?.quickLoad,
+                "<Keyboard>/f11", "", "<Gamepad>/start");
         }
 
         private InputAction BuildButtonAction(string name, ButtonBinding b,

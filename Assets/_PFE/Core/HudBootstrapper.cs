@@ -1,0 +1,351 @@
+using UnityEngine;
+using UnityEngine.UI;
+using VContainer;
+using PFE.Entities.Player;
+using PFE.Entities.Units;
+using PFE.Systems.Weapons;
+using PFE.UI.HUD;
+
+namespace PFE.Core
+{
+    /// <summary>
+    /// Builds the HUD (health bar, ammo counter, reload indicator) at runtime and wires it to the
+    /// player.
+    ///
+    /// <para><b>Why the HUD is built in code rather than authored into <c>SampleScene</c>.</b>
+    /// There is no <c>Canvas</c> in that scene at all, so this had to be created either way. Doing
+    /// it here rather than by editing the scene's YAML means the wiring is reviewable as code, it
+    /// cannot be broken by a bad <c>fileID</c>, and it survives the player being a prefab instance
+    /// whose <c>WeaponLogic</c> is null. The views are ordinary components — the moment the HUD is
+    /// worth art-directing, run <c>GameObject/Create HUD</c> once and this bootstrapper retires.</para>
+    ///
+    /// <para><b>The ordering problem this exists to solve.</b> The HUD's two data sources appear at
+    /// different times: <c>UnitStats</c> is created in <c>PlayerController.Awake</c>, but the
+    /// equipped weapon is created in <c>PlayerWeaponLoadout.Start</c>. Unity does not order
+    /// <c>Start</c> between components, so a HUD that binds once in <c>Start</c> may bind before the
+    /// weapon exists and then show "&#45;&#45; / &#45;&#45;" forever. This polls until the weapon
+    /// appears, and re-binds on weapon swaps (where the ammo property instance is replaced).</para>
+    /// </summary>
+    [LocalOnly]
+    public sealed class HudBootstrapper : MonoBehaviour
+    {
+        private IObjectResolver _resolver;
+
+        private HUDViewModel _viewModel;
+        private HealthBarView _healthBar;
+        private AmmoCounterView _ammoCounter;
+        private ReloadIndicatorView _reloadIndicator;
+
+        /// <summary>The controller the current bindings point at, so a swap can be detected.</summary>
+        private object _boundController;
+
+        /// <summary>
+        /// Cached data sources. Held so the steady state costs no scene search at all: Unity's
+        /// <c>== null</c> on a destroyed object is a native liveness check, not a scene walk, so the
+        /// common path below is two reference comparisons per frame.
+        /// </summary>
+        private PlayerController _player;
+        private PlayerWeaponLoadout _loadout;
+
+        /// <summary>Earliest unscaled time at which a failed lookup may be retried.</summary>
+        private float _nextRescanTime;
+
+        /// <summary>
+        /// How long to wait before re-searching the scene for a data source that is still missing.
+        /// A respawn or a late-spawned player is picked up within half a second, which is
+        /// imperceptible for a HUD that has nothing to show until then anyway — whereas searching
+        /// every frame is two full scene walks per frame for as long as the player is absent.
+        /// </summary>
+        private const float RescanInterval = 0.5f;
+
+        [Inject]
+        public void Construct(IObjectResolver resolver)
+        {
+            _resolver = resolver;
+        }
+
+        private void Start()
+        {
+            BuildHud();
+        }
+
+        private void Update()
+        {
+            if (_viewModel == null) return;
+
+            // Steady state: both sources cached and alive. No lookups, no allocations.
+            if (_player == null || _loadout == null)
+            {
+                // UnityEngine.Time, fully qualified: this file lives in namespace PFE.Core, which
+                // also contains the namespace PFE.Core.Time (UnityTimeProvider.cs). Inside PFE.Core
+                // a bare `Time` binds to that NAMESPACE rather than to UnityEngine.Time, giving
+                // CS0234 "the type or namespace name 'unscaledTime' does not exist in the namespace
+                // 'PFE.Core.Time'".
+                if (UnityEngine.Time.unscaledTime < _nextRescanTime) return;
+                _nextRescanTime = UnityEngine.Time.unscaledTime + RescanInterval;
+                RefreshSources();
+            }
+
+            if (_player == null || _player.Stats == null) return;
+
+            object controller = _loadout != null ? _loadout.Current : null;
+
+            // First successful resolve, or the equipped weapon changed underneath us.
+            if (_boundController == controller && ReferenceEquals(_viewModel.StatsSource, _player.Stats))
+                return;
+
+            _boundController = controller;
+
+            _viewModel.Initialize(_loadout, _player.Stats);
+            RebindViews();
+        }
+
+        // ── Construction ──────────────────────────────────────────────────────
+
+        private void BuildHud()
+        {
+            var canvasGo = new GameObject("HUD Canvas", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
+            canvasGo.transform.SetParent(transform, false);
+
+            var canvas = canvasGo.GetComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+
+            var scaler = canvasGo.GetComponent<CanvasScaler>();
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(1920f, 1080f);
+            scaler.matchWidthOrHeight = 0.5f;
+
+            // The ViewModel lives on the canvas so its lifetime is the HUD's.
+            _viewModel = canvasGo.AddComponent<HUDViewModel>();
+
+            _healthBar = BuildHealthBar(canvasGo.transform);
+            _ammoCounter = BuildAmmoCounter(canvasGo.transform);
+            _reloadIndicator = BuildReloadIndicator(canvasGo.transform);
+
+            // Hand over the reference but do NOT bind here. Each view binds itself in its own
+            // Start(), which removes any dependence on whether this Start() or theirs runs first,
+            // and avoids the double-subscription the views' Start() would otherwise create.
+            _healthBar.SetViewModel(_viewModel);
+            _ammoCounter.SetViewModel(_viewModel);
+            _reloadIndicator.SetViewModel(_viewModel);
+
+            Debug.Log("[HudBootstrapper] HUD built (health bar, ammo counter, reload indicator).");
+        }
+
+        /// <summary>
+        /// Resolved once and shared by every <c>Text</c> in the HUD. The OS-font fallback builds a
+        /// brand-new dynamic <c>Font</c> on each call, so without this cache the health readout and
+        /// the ammo readout would render from two separate font assets.
+        /// </summary>
+        private static Font _cachedFont;
+
+        private static Font ResolveFont()
+        {
+            if (_cachedFont != null) return _cachedFont;
+
+            // Unity 2022 renamed the builtin Arial to LegacyRuntime.ttf, and the name is not
+            // discoverable by grepping the editor install (the font lives inside the packed
+            // `unity default resources` bundle). So this tries the known names in order and then
+            // falls back to an OS font, rather than depending on one magic string: a null font
+            // renders nothing at all, silently, which is the worst possible failure for a HUD whose
+            // entire job is to make numbers visible.
+            //
+            // Wrapped because GetBuiltinResource's behaviour on an unknown name has varied between
+            // Unity versions (null-with-an-error in some, throw in others), and a throw here would
+            // abort BuildHud before it logs anything — a silent no-HUD that looks like the
+            // component was never created.
+            Font font = null;
+            try
+            {
+                font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf")
+                       ?? Resources.GetBuiltinResource<Font>("Arial.ttf");
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning($"[HudBootstrapper] Builtin font lookup threw ({e.GetType().Name}); " +
+                                 "falling back to an OS font.");
+            }
+
+            if (font == null)
+            {
+                // Last resort: any OS font. CreateDynamicFontFromOSFont needs no builtin resource.
+                font = Font.CreateDynamicFontFromOSFont(
+                    new[] { "Segoe UI", "Arial", "Helvetica", "DejaVu Sans" }, 16);
+            }
+
+            if (font == null)
+            {
+                Debug.LogError("[HudBootstrapper] No font could be resolved — HUD text will be " +
+                               "invisible. The health bar and reload indicator still work.");
+            }
+
+            _cachedFont = font;
+            return font;
+        }
+
+        private static RectTransform CreateRect(string name, Transform parent, Vector2 anchor,
+            Vector2 pivot, Vector2 anchoredPosition, Vector2 size)
+        {
+            var go = new GameObject(name, typeof(RectTransform));
+            var rect = go.GetComponent<RectTransform>();
+            rect.SetParent(parent, false);
+            rect.anchorMin = anchor;
+            rect.anchorMax = anchor;
+            rect.pivot = pivot;
+            rect.anchoredPosition = anchoredPosition;
+            rect.sizeDelta = size;
+            return rect;
+        }
+
+        private static Image CreateImage(string name, Transform parent, Color color)
+        {
+            var go = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            var rect = go.GetComponent<RectTransform>();
+            rect.SetParent(parent, false);
+            var image = go.GetComponent<Image>();
+            image.color = color;
+            return image;
+        }
+
+        private HealthBarView BuildHealthBar(Transform parent)
+        {
+            // Bottom-left, above the ammo line.
+            var barRect = CreateRect("Health Bar", parent,
+                anchor: new Vector2(0f, 0f), pivot: new Vector2(0f, 0f),
+                anchoredPosition: new Vector2(32f, 64f), size: new Vector2(320f, 24f));
+
+            // Slider must exist and have fillRect assigned BEFORE HealthBarView is added: its Awake
+            // auto-finds GetComponent<Slider>() and _healthSlider.fillRect, so the component order
+            // here is load-bearing.
+            var slider = barRect.gameObject.AddComponent<Slider>();
+            slider.minValue = 0f;
+            slider.maxValue = 1f;
+            slider.value = 1f;
+            slider.transition = Selectable.Transition.None;
+            slider.interactable = false;
+
+            // Background
+            var background = CreateImage("Background", barRect, new Color(0f, 0f, 0f, 0.6f));
+            Stretch(background.rectTransform);
+
+            // Fill area (inset) + fill image
+            var fillArea = CreateRect("Fill Area", barRect,
+                anchor: new Vector2(0.5f, 0.5f), pivot: new Vector2(0.5f, 0.5f),
+                anchoredPosition: Vector2.zero, size: Vector2.zero);
+            Stretch(fillArea, 2f);
+
+            var fill = CreateImage("Fill", fillArea, new Color(0.2f, 0.85f, 0.25f, 0.95f));
+            Stretch(fill.rectTransform);
+
+            slider.fillRect = fill.rectTransform;
+            slider.targetGraphic = fill;
+            slider.direction = Slider.Direction.LeftToRight;
+
+            var view = barRect.gameObject.AddComponent<HealthBarView>();
+
+            // Health readout, to the right of the bar.
+            var textRect = CreateRect("Health Text", parent,
+                anchor: new Vector2(0f, 0f), pivot: new Vector2(0f, 0f),
+                anchoredPosition: new Vector2(360f, 66f), size: new Vector2(160f, 24f));
+            var text = textRect.gameObject.AddComponent<Text>();
+            text.font = ResolveFont();
+            text.fontSize = 18;
+            text.color = Color.white;
+            text.alignment = TextAnchor.MiddleLeft;
+            text.text = "-- / --";
+
+            view.SetHealthText(text);
+
+            return view;
+        }
+
+        private AmmoCounterView BuildAmmoCounter(Transform parent)
+        {
+            var rect = CreateRect("Ammo Counter", parent,
+                anchor: new Vector2(1f, 0f), pivot: new Vector2(1f, 0f),
+                anchoredPosition: new Vector2(-32f, 64f), size: new Vector2(220f, 32f));
+
+            // Text before the view: AmmoCounterView.Awake does GetComponent<Text>().
+            var text = rect.gameObject.AddComponent<Text>();
+            text.font = ResolveFont();
+            text.fontSize = 24;
+            text.color = Color.white;
+            text.alignment = TextAnchor.MiddleRight;
+            text.text = "-- / --";
+
+            return rect.gameObject.AddComponent<AmmoCounterView>();
+        }
+
+        private ReloadIndicatorView BuildReloadIndicator(Transform parent)
+        {
+            var rect = CreateRect("Reload Indicator", parent,
+                anchor: new Vector2(0.5f, 0f), pivot: new Vector2(0.5f, 0f),
+                anchoredPosition: new Vector2(0f, 64f), size: new Vector2(96f, 12f));
+
+            // Image before the view: ReloadIndicatorView.Awake does GetComponent<Image>() and caches
+            // its colour as the "not reloading" colour — so starting transparent is what makes the
+            // idle state invisible.
+            //
+            // The GameObject deliberately stays ACTIVE. Deactivating it would stop its Start() from
+            // ever running, and Start() is where the view binds the very subscription that would
+            // re-activate it — a deadlock. Transparency, not deactivation, is the initial hide.
+            var image = rect.gameObject.AddComponent<Image>();
+            image.color = new Color(1f, 0.5f, 0f, 0f);
+            image.type = Image.Type.Filled;
+            image.fillMethod = Image.FillMethod.Horizontal;
+            image.fillAmount = 0f;
+
+            return rect.gameObject.AddComponent<ReloadIndicatorView>();
+        }
+
+        private static void Stretch(RectTransform rect, float inset = 0f)
+        {
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.offsetMin = new Vector2(inset, inset);
+            rect.offsetMax = new Vector2(-inset, -inset);
+        }
+
+        // ── Binding ───────────────────────────────────────────────────────────
+
+        private void RebindViews()
+        {
+            _healthBar?.BindToViewModel(_viewModel);
+            _ammoCounter?.BindToViewModel(_viewModel);
+            _reloadIndicator?.BindToViewModel(_viewModel);
+        }
+
+        /// <summary>
+        /// Re-read both data sources. Only called from <see cref="Update"/> when a cached reference
+        /// has died, and throttled — see <see cref="RescanInterval"/>. Both lookups prefer the
+        /// container and fall back to a scene search, so this is the only place a scene walk can
+        /// happen at all.
+        /// </summary>
+        private void RefreshSources()
+        {
+            _player = ResolvePlayer();
+            _loadout = ResolveLoadout();
+        }
+
+        private PlayerController ResolvePlayer()
+        {
+            // Container first: GameLifetimeScope registers the scene's PlayerController as an
+            // instance (RegisterComponent), so this is a dictionary hit rather than a scene walk.
+            if (_resolver != null && _resolver.TryResolve(out PlayerController resolved) && resolved != null)
+                return resolved;
+
+            // Fallback for a player that appeared after the scope was built. This IS a full scene
+            // search — which is why it is only reachable through the throttled RefreshSources.
+            return FindFirstObjectByType<PlayerController>();
+        }
+
+        private PlayerWeaponLoadout ResolveLoadout()
+        {
+            if (_resolver != null && _resolver.TryResolve(out PlayerWeaponLoadout resolved) && resolved != null)
+                return resolved;
+
+            return FindFirstObjectByType<PlayerWeaponLoadout>();
+        }
+    }
+}

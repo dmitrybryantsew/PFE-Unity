@@ -54,6 +54,9 @@ namespace PFE.UI.HUD
         private CompositeDisposable _disposables;
         private string _previousAmmoText;
 
+        /// <summary>True once <see cref="BindToViewModel"/> has run — see the note in HealthBarView.</summary>
+        private bool _bound;
+
         private void Awake()
         {
             // Auto-find text if not assigned
@@ -67,15 +70,21 @@ namespace PFE.UI.HUD
 
         private void Start()
         {
-            if (_viewModel != null)
+            if (_viewModel != null && !_bound)
             {
                 BindToViewModel(_viewModel);
             }
-            else
+            else if (_viewModel == null)
             {
                 Debug.LogWarning("[AmmoCounterView] No ViewModel assigned - ammo counter will not update");
             }
         }
+
+        /// <summary>
+        /// Assign the ViewModel <b>without</b> binding; the view binds itself in <c>Start</c>.
+        /// See the equivalent note on <see cref="HealthBarView.SetViewModel"/>.
+        /// </summary>
+        public void SetViewModel(HUDViewModel viewModel) => _viewModel = viewModel;
 
         /// <summary>
         /// Bind to HUDViewModel for reactive updates.
@@ -90,37 +99,55 @@ namespace PFE.UI.HUD
                 return;
             }
 
-            // Bind current ammo changes
-            _viewModel.CurrentAmmo.Subscribe(_ =>
+            // Replace, don't accumulate — see HealthBarView.BindToViewModel.
+            _disposables?.Dispose();
+            _disposables = new CompositeDisposable();
+            _bound = true;
+
+            // Bind current ammo changes. Guarded because the loadout may not have equipped its
+            // starting weapon yet; HUDViewModel leaves the ammo properties null until Rebind().
+            // Written as explicit ifs rather than `x?.Subscribe(...).AddTo(...)`: the null-conditional
+            // form makes the safety of the AddTo call depend on chain short-circuiting rules, which is
+            // not something a reader should have to reason about.
+            if (_viewModel.CurrentAmmo != null)
             {
-                UpdateAmmoDisplay();
-            }).AddTo(_disposables);
+                _viewModel.CurrentAmmo.Subscribe(_ =>
+                {
+                    UpdateAmmoDisplay();
+                }).AddTo(_disposables);
+            }
 
             // Bind reload state to show/hide reload text
-            _viewModel.IsReloading.Subscribe(isReloading =>
+            if (_viewModel.IsReloading != null)
             {
-                if (isReloading && _showReloadText)
+                _viewModel.IsReloading.Subscribe(isReloading =>
                 {
-                    _previousAmmoText = _ammoText?.text;
-                    if (_ammoText != null)
+                    if (isReloading && _showReloadText)
                     {
-                        _ammoText.text = _reloadText;
+                        _previousAmmoText = _ammoText?.text;
+                        if (_ammoText != null)
+                        {
+                            _ammoText.text = _reloadText;
+                        }
                     }
-                }
-                else if (_ammoText != null)
-                {
-                    _ammoText.text = _previousAmmoText ?? _viewModel.GetAmmoText();
-                }
+                    else if (_ammoText != null)
+                    {
+                        _ammoText.text = _previousAmmoText ?? _viewModel.GetAmmoText();
+                    }
 
-                UpdateAmmoColor();
+                    UpdateAmmoColor();
 
-            }).AddTo(_disposables);
+                }).AddTo(_disposables);
+            }
 
             // Bind ammo percent for color updates
-            _viewModel.AmmoPercent.Subscribe(_ =>
+            if (_viewModel.AmmoPercent != null)
             {
-                UpdateAmmoColor();
-            }).AddTo(_disposables);
+                _viewModel.AmmoPercent.Subscribe(_ =>
+                {
+                    UpdateAmmoColor();
+                }).AddTo(_disposables);
+            }
 
             // Initial update
             UpdateAmmoDisplay();
@@ -146,12 +173,18 @@ namespace PFE.UI.HUD
         /// </summary>
         private void UpdateAmmoColor()
         {
-            if (_ammoIcon == null || _viewModel == null)
+            if (_ammoIcon == null || _viewModel?.AmmoPercent == null)
                 return;
 
-            // Get ammo percent from the reactive property
-            float ammoPercent = 1f;
-            _viewModel.AmmoPercent.Subscribe(v => ammoPercent = v).AddTo(_disposables);
+            // Read the current value. This used to Subscribe() and stash the value in a local,
+            // which added a brand-new subscription to _disposables on every call — and it is called
+            // from inside the AmmoPercent subscription, so each ammo change spawned another
+            // subscriber that fired immediately. Quadratic growth on a hot path.
+            //
+            // CurrentValue, not Value: R3's ReadOnlyReactiveProperty<T> has no `Value` — only the
+            // mutable ReactiveProperty<T> does. (CharacterStatsView reads .CurrentValue off the same
+            // type.)
+            float ammoPercent = _viewModel.AmmoPercent.CurrentValue;
 
             if (ammoPercent <= 0)
             {

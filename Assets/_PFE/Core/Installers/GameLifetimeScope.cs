@@ -62,6 +62,11 @@ public class GameLifetimeScope : LifetimeScope
         // Combat messages
         builder.RegisterMessageBroker<DamageDealtMessage>(pipe);
         builder.RegisterMessageBroker<DamageTakenMessage>(pipe);
+        // HealMessage was declared in GameMessages.cs and consumed by
+        // PFE.Systems.Combat.FloatingTextManager, but never registered — so every heal published
+        // into a broker that did not exist and no floating "+N" ever appeared. Registering the
+        // broker is the whole fix; both publisher and subscriber already existed.
+        builder.RegisterMessageBroker<HealMessage>(pipe);
         builder.RegisterMessageBroker<WeaponFiredMessage>(pipe);
         builder.RegisterMessageBroker<WeaponReloadStartedMessage>(pipe);
         builder.RegisterMessageBroker<WeaponReloadCompletedMessage>(pipe);
@@ -106,6 +111,37 @@ public class GameLifetimeScope : LifetimeScope
         builder.Register<ILuaEngine, MoonSharpScriptEngine>(Lifetime.Singleton);
         builder.Register<DeveloperConsoleService>(Lifetime.Singleton).AsSelf();
         builder.RegisterComponentOnNewGameObject<DeveloperConsoleController>(Lifetime.Singleton, "DeveloperConsole");
+
+        // === Instruments (Phase 1) ===
+        // Both are built at runtime rather than authored into the scene. Neither exists in
+        // SampleScene today, and both need data that only exists at runtime (the player's UnitStats,
+        // the loadout's equipped controller), so there is nothing to author.
+        builder.RegisterComponentOnNewGameObject<SaveHotkeys>(Lifetime.Singleton, "SaveHotkeys");
+        builder.RegisterComponentOnNewGameObject<HudBootstrapper>(Lifetime.Singleton, "Hud");
+
+        // RegisterComponentOnNewGameObject is LAZY, and that is not obvious from its name.
+        // RegisterComponent<T>(instance) and RegisterComponentInHierarchy both call
+        // RegisterBuildCallback internally ("Force inject execution", ContainerBuilderUnityExtensions
+        // lines 130/150); RegisterComponentOnNewGameObject does not. A registration nothing depends
+        // on is therefore never constructed — no GameObject, no Awake, no Start.
+        //
+        // Nothing injects any of these three, so none of them existed: the HUD never built
+        // ("[HudBootstrapper] HUD built" is absent from Editor.log) and F5/F9 did nothing. The
+        // console was the tell — it renders only because DeveloperConsoleController carries its own
+        // [RuntimeInitializeOnLoadMethod] self-install hook, and that instance is created with
+        // AddComponent, so [Inject] never runs and its _resolver stays null. That is exactly why
+        // `room 2 1` answered "LandMap not available" while `damage 100` worked: the damage path has
+        // a FindFirstObjectByType fallback, the LandMap path does not, and the console had no
+        // container wiring at all — no LandMap, no SimClock, no Lua engine.
+        //
+        // Resolving them here gives each one its injection, and makes the console's own hook a
+        // no-op (it checks Instance != null first). These callbacks are registered before the
+        // player/loadout registrations below, and that is fine: ContainerBuilder.Build() completes
+        // the whole registry before EmitCallbacks runs it, so registration order cannot affect what
+        // is resolvable from inside a callback.
+        builder.RegisterBuildCallback(container => container.Resolve<DeveloperConsoleController>());
+        builder.RegisterBuildCallback(container => container.Resolve<SaveHotkeys>());
+        builder.RegisterBuildCallback(container => container.Resolve<HudBootstrapper>());
 
         // === Combat Systems ===
         builder.Register<ICombatCalculator, CombatCalculator>(Lifetime.Singleton);

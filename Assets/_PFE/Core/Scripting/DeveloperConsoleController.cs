@@ -22,6 +22,11 @@ namespace PFE.Core.Scripting
         private string _inputBuffer = string.Empty;
         private Vector2 _scrollPos;
 
+        // Debug command objects. Built once, then re-wired on every SyncDependencies so a
+        // respawned player or a rebuilt container is picked up without reallocating them.
+        private DevConsolePlayerCommands _playerCommands;
+        private DevConsoleSimCommands _simCommands;
+
         private const KeyCode ToggleKey1 = KeyCode.BackQuote;
         private const KeyCode ToggleKey2 = KeyCode.F1;
 
@@ -105,6 +110,49 @@ namespace PFE.Core.Scripting
             }
 
             _service.SetDependencies(null, landMap, setFogAction, revealFogAction, isFogDisabledFunc);
+            SyncCommandObjects(landMap);
+        }
+
+        /// <summary>
+        /// Resolve everything the <c>player</c> / <c>sim</c> console commands need and hand them to
+        /// the service.
+        ///
+        /// <para>Every lookup is a TryResolve because the console is a debug tool that must survive
+        /// a partially built container — it is most useful exactly when something else has failed to
+        /// wire up. A missing dependency degrades to "that command says it is unavailable", which is
+        /// more useful than an exception thrown from the tool you opened to debug the problem.</para>
+        /// </summary>
+        private void SyncCommandObjects(LandMap landMap)
+        {
+            _playerCommands ??= new DevConsolePlayerCommands();
+            _simCommands ??= new DevConsoleSimCommands();
+
+            if (_resolver != null)
+            {
+                _resolver.TryResolve(out PFE.Data.GameDatabase database);
+                _resolver.TryResolve(out PFE.Systems.Weapons.PlayerWeaponLoadout loadout);
+                _resolver.TryResolve(out PFE.Core.SimClock simClock);
+                _resolver.TryResolve(out MessagePipe.IPublisher<PFE.Core.Messages.HealMessage> healPublisher);
+
+                _playerCommands.Wire(
+                    landMap ?? ResolveLandMap(),
+                    database,
+                    loadout,
+                    healPublisher,
+                    () => FindFirstObjectByType<PFE.Entities.Player.PlayerController>());
+
+                _simCommands.Wire(simClock);
+            }
+
+            _service.SetCommandObjects(_playerCommands, _simCommands);
+        }
+
+        private LandMap ResolveLandMap()
+        {
+            if (_resolver != null && _resolver.TryResolve(out LandMap resolved) && resolved != null)
+                return resolved;
+
+            return null;
         }
 
         private RoomVisualController GetRoomVisualController()
