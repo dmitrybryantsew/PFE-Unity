@@ -86,6 +86,9 @@ namespace PFE.Core
         // Rolling tick-rate measurement: ticks observed per RateWindowFrames frames.
         private int _rateWindowTicks;
         private int _rateWindowFrames;
+
+        /// <summary>Wall time actually covered by the current window, accumulated per frame.</summary>
+        private float _rateWindowSeconds;
         private float _averageTicksPerSecond;
 
         private GameObject _overlayObject;
@@ -189,7 +192,7 @@ namespace PFE.Core
         /// <summary>
         /// Advances the accumulator by an explicit amount of wall time.
         ///
-        /// <para><see cref="Tick"/> is a thin wrapper that passes <c>Time.unscaledDeltaTime</c>; this
+        /// <para><see cref="Tick"/> is a thin wrapper that passes <c>UnityEngine.Time.unscaledDeltaTime</c>; this
         /// overload exists so tests can drive the accumulator, the catch-up budget and the spiral
         /// guard directly, without the engine or a running player loop.</para>
         /// </summary>
@@ -251,19 +254,27 @@ namespace PFE.Core
 
         private void UpdateRateMeasurement(float deltaSeconds)
         {
+            _rateWindowSeconds += Mathf.Max(0f, deltaSeconds);
             _rateWindowFrames++;
             if (_rateWindowFrames < RateWindowFrames)
             {
                 return;
             }
 
-            // Ticks over the window, divided by the wall time the window actually covered. Using the
-            // measured frame time (not an assumed frame rate) keeps this honest on variable displays.
-            float windowSeconds = RateWindowFrames * Mathf.Max(deltaSeconds, 1e-5f);
+            // Ticks over the window, divided by the wall time the window actually covered.
+            //
+            // Accumulated per frame. This used to be `RateWindowFrames * deltaSeconds` — the last
+            // frame's duration applied to all 60 frames — which reports a rate inflated by
+            // (window average frame time / last frame time). On an uneven frame time that is not
+            // small: the live overlay read "measured 46.6 ticks/s" against a canonical 30 Hz clock
+            // whose alpha and accumulator both showed the correct 33.3 ms period. The clock was
+            // right; the instrument was wrong, and it was the only timing number on screen.
+            float windowSeconds = Mathf.Max(_rateWindowSeconds, 1e-5f);
             _averageTicksPerSecond = _rateWindowTicks / windowSeconds;
 
             _rateWindowTicks = 0;
             _rateWindowFrames = 0;
+            _rateWindowSeconds = 0f;
         }
 
         /// <summary>

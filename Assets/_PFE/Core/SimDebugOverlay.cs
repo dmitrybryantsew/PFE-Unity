@@ -17,6 +17,11 @@ namespace PFE.Core
     ///     the catch-up budget — the sim is losing ticks.</description></item>
     ///   <item><description><b>Ticks</b> (this frame) should be 1 on a healthy 30 Hz sim on a 60 Hz
     ///     display, alternating 0/1/2 with occasional 2s.</description></item>
+    ///   <item><description><b>FPS</b> is measured over the same 60-frame window as the tick rate, so
+    ///     the two numbers are directly comparable. This is the reading to quote when asking whether
+    ///     a change cost frames: it is a real average over 60 frames, not an instantaneous sample, and
+    ///     it is independent of the tick rate — a sim that drops ticks and a renderer that drops frames
+    ///     are different faults, and only this line distinguishes them.</description></item>
     /// </list>
     /// </summary>
     [DisallowMultipleComponent]
@@ -25,15 +30,48 @@ namespace PFE.Core
         private const int Width = 268;
         private const int LineHeight = 16;
 
+        /// <summary>Frames per averaged frame-time sample. Matches SimLoop's rate window so the two
+        /// readings cover the same stretch of time.</summary>
+        private const int FrameWindow = 60;
+
         private SimLoop _loop;
 
         private GUIStyle _style;
         private Texture2D _background;
 
+        // Frame timing. Measured in Update, never in OnGUI: OnGUI runs twice per frame (Layout then
+        // Repaint), so sampling there would halve the reported frame time.
+        private int _frameCount;
+        private float _frameSeconds;
+        private float _averageFps;
+        private float _averageFrameMs;
+
         /// <summary>Points the overlay at the loop it reports on. Called once by <see cref="SimLoop"/>.</summary>
         public void Bind(SimLoop loop)
         {
             _loop = loop;
+        }
+
+        private void Update()
+        {
+            // UnityEngine.Time, fully qualified: this file lives in namespace PFE.Core, which also
+            // contains the namespace PFE.Core.Time (UnityTimeProvider.cs). Inside PFE.Core a bare
+            // `Time` binds to that NAMESPACE, not to UnityEngine.Time, giving
+            // CS0234 "the type or namespace name 'unscaledDeltaTime' does not exist in the namespace
+            // 'PFE.Core.Time'". SimLoop.cs:186 already qualifies it for the same reason.
+            _frameSeconds += UnityEngine.Time.unscaledDeltaTime;
+            _frameCount++;
+
+            if (_frameCount < FrameWindow)
+            {
+                return;
+            }
+
+            _averageFrameMs = _frameSeconds / _frameCount * 1000f;
+            _averageFps = _frameCount / Mathf.Max(_frameSeconds, 1e-5f);
+
+            _frameCount = 0;
+            _frameSeconds = 0f;
         }
 
         private void OnGUI()
@@ -57,7 +95,8 @@ namespace PFE.Core
                 "accum      " + (m.Accumulator * 1000f).ToString("0.0") + " ms",
                 "alpha      " + m.Alpha.ToString("0.00"),
                 "dropped    " + m.DroppedTicks,
-                "consumers  " + m.TickableCount
+                "consumers  " + m.TickableCount,
+                "fps        " + _averageFps.ToString("0.0") + "  (" + _averageFrameMs.ToString("0.0") + " ms)"
             };
 
             int height = lines.Length * LineHeight + 10;
