@@ -49,9 +49,9 @@ namespace PFE.Tests.EditMode.Systems.Weapons
             // AreNotEqual(double, double, double, string) overload, so that call silently binds to
             // AreNotEqual(object, object, string, params object[]) and fails to compile.
             Assert.That(ProjectilePhysicsMath.AccelerationScale, Is.Not.EqualTo(30f).Within(Tolerance),
-                "`× FlashFps` is the VELOCITY idiom; using it on an acceleration is 3.33× too strong.");
+                "`× SimClock.FramesPerSecond` is the VELOCITY idiom; using it on an acceleration is 3.33× too strong.");
             Assert.That(ProjectilePhysicsMath.AccelerationScale, Is.Not.EqualTo(0.3f).Within(Tolerance),
-                "`× FlashFps / PPU` is also the velocity idiom; using it on an acceleration is 30× too weak.");
+                "`× SimClock.FramesPerSecond / PPU` is also the velocity idiom; using it on an acceleration is 30× too weak.");
         }
 
         [Test]
@@ -105,7 +105,7 @@ namespace PFE.Tests.EditMode.Systems.Weapons
                 "Weapon.as:1545 lift is 0.8 px/frame² upward → 0.8 × 9 = 7.2 units/s².");
 
             Assert.That(a.y, Is.Not.EqualTo(24f).Within(Tolerance),
-                "0.8 × FlashFps = 24 is the velocity idiom: 3.33× too strong.");
+                "0.8 × SimClock.FramesPerSecond = 24 is the velocity idiom: 3.33× too strong.");
         }
 
         [Test]
@@ -116,7 +116,7 @@ namespace PFE.Tests.EditMode.Systems.Weapons
                 "Weapon.as:1551 lift is 0.2 px/frame² upward → 0.2 × 9 = 1.8 units/s².");
 
             Assert.That(a.y, Is.Not.EqualTo(6f).Within(Tolerance),
-                "0.2 × FlashFps = 6 is the velocity idiom: 3.33× too strong.");
+                "0.2 × SimClock.FramesPerSecond = 6 is the velocity idiom: 3.33× too strong.");
         }
 
         [Test]
@@ -143,7 +143,7 @@ namespace PFE.Tests.EditMode.Systems.Weapons
                 "Weapon.as:1536 `b.ddx += cos(rot) * accel` is px/frame² → 1 × 9.");
 
             Assert.That(a.x, Is.Not.EqualTo(30f).Within(Tolerance),
-                "`accel × FlashFps` = 30 is the velocity idiom: 3.33× too strong.");
+                "`accel × SimClock.FramesPerSecond` = 30 is the velocity idiom: 3.33× too strong.");
         }
 
         [Test]
@@ -185,7 +185,7 @@ namespace PFE.Tests.EditMode.Systems.Weapons
                 + "is a px/frame² quantity → 2 × 9 = 18 units/s².");
 
             Assert.That(ProjectilePhysicsMath.SlidingFriction(2f), Is.Not.EqualTo(4f).Within(Tolerance),
-                "The port's `brake / FlashFps * 60f` = 4 was neither idiom: 4.5× too weak.");
+                "The port's `brake / SimClock.FramesPerSecond * 60f` = 4 was neither idiom: 4.5× too weak.");
         }
 
         [Test]
@@ -204,7 +204,7 @@ namespace PFE.Tests.EditMode.Systems.Weapons
                 "Trasser.as:204 `else if(this.dy > 2)`: 2 px/frame × 0.3 = 0.6 units/s.");
 
             Assert.That(ProjectilePhysicsMath.SettleThresholdVelocity, Is.Not.EqualTo(1f).Within(Tolerance),
-                "The port's `0.5f / FlashFps * 60f` = 1.0 was 1.667× too high.");
+                "The port's `0.5f / SimClock.FramesPerSecond * 60f` = 1.0 was 1.667× too high.");
             Assert.That(ProjectilePhysicsMath.SettleThresholdVelocity, Is.Not.EqualTo(18f).Within(Tolerance),
                 "2 × 9 would be the acceleration idiom, applied to a velocity.");
         }

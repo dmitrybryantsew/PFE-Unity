@@ -1,4 +1,5 @@
 using UnityEngine;
+using PFE.Core;
 using PFE.Data.Definitions;
 
 namespace PFE.Systems.Weapons
@@ -47,9 +48,9 @@ namespace PFE.Systems.Weapons
 
         // ── Animation ────────────────────────────────────────────────────────
 
-        // Flash-frame accumulator for animation tick (30fps matching controller).
+        // Flash-frame accumulator for the animation tick, advanced at SimClock.FramesPerSecond so
+        // it matches the weapon controllers.
         private float _frameAccum;
-        private const float FlashFps = 30f;
 
         // ── Physics / recoil ─────────────────────────────────────────────────
 
@@ -105,7 +106,7 @@ namespace PFE.Systems.Weapons
             ApplyRotation();
 
             // Advance animation at 30fps.
-            _frameAccum += Time.deltaTime * FlashFps;
+            _frameAccum += Time.deltaTime * SimClock.FramesPerSecond;
             int ticks = Mathf.FloorToInt(_frameAccum);
             _frameAccum -= ticks;
             for (int i = 0; i < ticks; i++)

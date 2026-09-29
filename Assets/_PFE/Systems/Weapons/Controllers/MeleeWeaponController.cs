@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using PFE.Core;
 using PFE.Data.Definitions;
 using PFE.Entities.Weapons;
 
@@ -50,7 +51,6 @@ namespace PFE.Systems.Weapons.Controllers
     {
         // ── Constants ─────────────────────────────────────────────────────────
 
-        private const float FlashFps = 30f;
         private const float PpuScale = 100f;
 
         // Default reach in Unity units when WeaponDefinition.meleeDlina not set.
@@ -122,7 +122,7 @@ namespace PFE.Systems.Weapons.Controllers
 
         public void Tick(float dt, Vector2 holdPoint, Vector2 hornPoint, Vector2 aimTarget)
         {
-            _frameAccum += dt * FlashFps;
+            _frameAccum += dt * SimClock.FramesPerSecond;
             int frames = Mathf.FloorToInt(_frameAccum);
             _frameAccum -= frames;
 

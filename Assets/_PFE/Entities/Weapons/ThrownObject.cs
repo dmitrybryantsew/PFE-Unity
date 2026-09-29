@@ -49,10 +49,6 @@ namespace PFE.Entities.Weapons
     [RequireComponent(typeof(Rigidbody2D), typeof(Collider2D))]
     public sealed class ThrownObject : MonoBehaviour, ISimTickable
     {
-        // ── Constants ─────────────────────────────────────────────────────────
-
-        private const float FlashFps = 30f;
-
         /// <summary>
         /// Gravity as a per-second acceleration, in Unity units/s² — the <b>legacy</b> path's form.
         ///
@@ -83,7 +79,7 @@ namespace PFE.Entities.Weapons
         ///
         /// <para>AS3 <c>PhisBullet.as:63/67</c> applies <c>dx -= brake</c> once per 30 Hz frame, so
         /// <c>brake</c> (2 px/frame, <c>WThrow.as:20</c>) is a px/frame² acceleration and converts by
-        /// the squared-frame-rate factor → 18 units/s². The old <c>brake / FlashFps * 60f</c> (= 4)
+        /// the squared-frame-rate factor → 18 units/s². The old <c>brake / SimClock.FramesPerSecond * 60f</c> (= 4)
         /// was neither idiom and left friction 4.5× too weak.</para>
         /// </summary>
         private float   _brake     = ProjectilePhysicsMath.SlidingFriction(ProjectilePhysicsMath.BrakePxPerFrame2);
@@ -265,7 +261,7 @@ namespace PFE.Entities.Weapons
 
             // Two fuses from one argument — see the field comments. AS3's explosion lead-in is why
             // they differ: `liv == 3` fires it, so 3 of the requested frames are the explosion.
-            _fuseTimer = fuseFrames / FlashFps;
+            _fuseTimer = fuseFrames / SimClock.FramesPerSecond;
             _fuseTicks = Mathf.Max(0, fuseFrames - ThrownObjectPhysics.ExplosionLeadInFrames);
 
             _rb.linearVelocity = _velocity;

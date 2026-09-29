@@ -47,6 +47,24 @@ namespace PFE.Core
         public const int CanonicalTicksPerSecond = 30;
 
         /// <summary>
+        /// <see cref="CanonicalTicksPerSecond"/> as a <see cref="float"/>, for the AS3 per-frame →
+        /// per-second conversions that dominate the port: a speed in px/frame becomes px/s via
+        /// <c>* FramesPerSecond</c>, a frame count becomes seconds via <c>/ FramesPerSecond</c>.
+        ///
+        /// <para><b>Why a float alias and not a cast at each site.</b> Those conversions are
+        /// frequently a division of an <c>int</c> frame count — <c>armingFrames / FramesPerSecond</c>
+        /// in <c>MineObject</c>, <c>fuseFrames / FramesPerSecond</c> in <c>ThrownObject</c>. With
+        /// both operands <c>int</c> that is INTEGER division and silently truncates. The original
+        /// code declared these as <c>const float FlashFps = 30f</c> precisely to avoid that, so the
+        /// replacement must keep the <c>float</c> type to stay behaviour-identical.</para>
+        ///
+        /// <para>This replaces ten independent <c>private const float FlashFps = 30f</c>
+        /// declarations. <see cref="CanonicalTicksPerSecond"/>'s "nothing may derive from a
+        /// different value" is only enforceable if there is one value to derive from.</para>
+        /// </summary>
+        public const float FramesPerSecond = CanonicalTicksPerSecond;
+
+        /// <summary>
         /// The rate used when nothing configures one. Matches the original 30 FPS target, so the
         /// default build is the replica.
         /// </summary>

@@ -24,7 +24,6 @@ namespace PFE.Systems.Weapons.Controllers
     {
         // ── Constants ─────────────────────────────────────────────────────────
 
-        private const float FlashFps   = 30f;
         private const float PpuScale   = 100f;   // Flash pixels → Unity units
 
         // ── State ─────────────────────────────────────────────────────────────
@@ -104,7 +103,7 @@ namespace PFE.Systems.Weapons.Controllers
             _lastAimTarget = aimTarget;
 
             // Accumulate flash frames.
-            _frameAccum += dt * FlashFps;
+            _frameAccum += dt * SimClock.FramesPerSecond;
             int frames = Mathf.FloorToInt(_frameAccum);
             _frameAccum -= frames;
 

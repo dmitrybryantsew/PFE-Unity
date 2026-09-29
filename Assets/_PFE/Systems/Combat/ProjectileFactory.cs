@@ -59,7 +59,7 @@ namespace PFE.Systems.Combat
             }
 
             // AS3 pixel-speed → Unity units/s  (PPU=100, 30fps source)
-            // Formula: speed_u_per_s = speed_px_per_frame * FlashFps / PPU
+            // Formula: speed_u_per_s = speed_px_per_frame * SimClock.FramesPerSecond / PPU
             // Example: sniper speed=500 px/frame → 500 * 30 / 100 = 150 u/s
             //
             // Speed and radius convert here because they are a per-frame VELOCITY and a LENGTH.
@@ -67,8 +67,7 @@ namespace PFE.Systems.Combat
             // needs a different factor (× fps²/PPU, not × fps/PPU). Converting it in the wrong place
             // is how thrust ended up 30× too weak — see ProjectilePhysicsMath. Pass it raw, like
             // `bulletGravity`, and let Projectile do the one conversion.
-            const float FlashFps = 30f;
-            float unitySpeed = Mathf.Max(weapon.projectileSpeed * FlashFps / 100f, 2f);
+            float unitySpeed = Mathf.Max(weapon.projectileSpeed * SimClock.FramesPerSecond / 100f, 2f);
             float unityExplRad = weapon.explRadius / 100f;
 
             var proj = Spawn(prefab, position, Quaternion.identity);

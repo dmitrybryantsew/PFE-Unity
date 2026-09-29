@@ -3,6 +3,7 @@ using UnityEngine;
 using VContainer;
 using PFE.Systems.Combat;
 using PFE.Systems.Weapons;
+using PFE.Core;
 using PFE.Core.Messages;
 using MessagePipe;
 using System;
@@ -52,7 +53,6 @@ namespace PFE.Entities.Weapons
 
         // ── Constants ─────────────────────────────────────────────────────────
 
-        private const float FlashFps      = 30f;
         private const float ArmingFrames  = 75f;
         private const float ProximityRange = 0.5f;  // Unity units; AS3 uses collision overlap
 
@@ -93,8 +93,8 @@ namespace PFE.Entities.Weapons
         {
             _weaponId    = weaponId;
             _explRadius  = explRadius;
-            _armingTimer = armingFrames / FlashFps;
-            _explTimer   = fuseFrames / FlashFps * 0.3f;   // AS3: explTime *= 0.3 after radio
+            _armingTimer = armingFrames / SimClock.FramesPerSecond;
+            _explTimer   = fuseFrames / SimClock.FramesPerSecond * 0.3f;   // AS3: explTime *= 0.3 after radio
             _state       = MineState.Arming;
         }
 

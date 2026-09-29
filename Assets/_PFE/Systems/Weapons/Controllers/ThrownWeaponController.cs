@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using PFE.Core;
 using PFE.Data.Definitions;
 
 namespace PFE.Systems.Weapons.Controllers
@@ -26,7 +27,6 @@ namespace PFE.Systems.Weapons.Controllers
     {
         // ── Constants ─────────────────────────────────────────────────────────
 
-        private const float FlashFps = 30f;
         private const float PpuScale = 100f;
 
         // ── State ─────────────────────────────────────────────────────────────
@@ -71,7 +71,7 @@ namespace PFE.Systems.Weapons.Controllers
 
         public void Tick(float dt, Vector2 holdPoint, Vector2 hornPoint, Vector2 aimTarget)
         {
-            _frameAccum += dt * FlashFps;
+            _frameAccum += dt * SimClock.FramesPerSecond;
             int frames = Mathf.FloorToInt(_frameAccum);
             _frameAccum -= frames;
 
@@ -286,7 +286,7 @@ namespace PFE.Systems.Weapons.Controllers
             float aimAngle = State.Rot + rotOffset;
 
             // Convert px/frame → Unity units/sec.
-            float velUnity = velPx / PpuScale * FlashFps;
+            float velUnity = velPx / PpuScale * SimClock.FramesPerSecond;
 
             return new Vector2(Mathf.Cos(aimAngle), Mathf.Sin(aimAngle)) * velUnity;
         }

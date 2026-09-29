@@ -89,7 +89,6 @@ namespace PFE.Entities.Weapons
         private float   _navod;             // homing strength (0=no homing)
 
         // Scaled to Unity units from AS3 pixel values where needed by caller.
-        private const float FlashFps        = 30f;
         private const float DefaultLifetime = 30f;
         private const float FlameLifetime1  = 0.7f;   // flame==1 short lifetime (AS3 ~21 frames)
         private const float FlameLifetime2  = 1.2f;   // flame==2 medium lifetime
@@ -566,8 +565,8 @@ namespace PFE.Entities.Weapons
             // term (a flame weapon would lose gravity).
             //
             // The conversion lives in ProjectilePhysicsMath, which is a pure function so the numbers
-            // can be pinned by tests. Do not reintroduce a local `* FlashFps` here: that is the
-            // per-frame VELOCITY idiom, 3.33× too strong for a per-frame² acceleration.
+            // can be pinned by tests. Do not reintroduce a local `* SimClock.FramesPerSecond` here:
+            // that is the per-frame VELOCITY idiom, 3.33× too strong for a per-frame² acceleration.
             Vector2 acceleration = ProjectilePhysicsMath.BulletAcceleration(dir, gravityScale, accel, flame);
             _ddx = acceleration.x;
             _ddy = acceleration.y;
@@ -851,7 +850,7 @@ namespace PFE.Entities.Weapons
 
             Vector2 toTarget = ((Vector2)best.position - selfPosition).normalized;
             // AS3: rotate dx/dy toward target by navod radians per frame.
-            float turnSpeed = _navod * FlashFps * dt;   // radians/sec
+            float turnSpeed = _navod * SimClock.FramesPerSecond * dt;   // radians/sec
             float speed     = _velocity.magnitude;
             if (speed < 0.001f) return;
 
