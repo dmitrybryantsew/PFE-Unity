@@ -474,7 +474,11 @@ namespace PFE.Systems.Weapons.Controllers
             if (_def.magazineSize <= 0)    return; // no magazine (melee, unarmed, "not" ammo)
             if (_def.ammoType == "not")    return; // infinite-ammo weapon — never reloads
 
-            State.Jammed = false;
+            // NOTE: State.Jammed is deliberately NOT cleared here. AS3 clears it in
+            // reloadWeapon() (Weapon.as:1710) — the function that FILLS the magazine, which this
+            // class models as CompleteReload(). Clearing it at reload START made the flag dead:
+            // Shoot() sets Jammed = true and then calls InitReload() in the same frame, so no
+            // reader could ever observe a jam. CompleteReload() still clears it.
 
             if (_def.reloadTime > 0)
             {

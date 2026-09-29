@@ -410,7 +410,8 @@ namespace PFE.Tests.EditMode.Systems.Weapons
         {
             // durability 25 of 100 → breaking = 0.5. holderSafe = max(20, magazineSize) = 30, so the
             // jam threshold is 0.5/30 ≈ 0.0167 and a roll of 0.005 lands inside it.
-            // reloadTime is non-zero so the jam survives: an instant reload would clear the flag.
+            // reloadTime is non-zero so the jam survives the assertion: an instant reload would
+            // complete — and therefore clear the jam — within the same frame.
             using var rig = new Rig(MakeDef(magazineSize: 30, maxDurability: 100, reloadTime: 90f),
                                     rng: new FixedRng(0.005f));
             rig.State.CurrentDurability = 25;
@@ -421,6 +422,15 @@ namespace PFE.Tests.EditMode.Systems.Weapons
             Assert.IsTrue(rig.State.Jammed, "The jam must be recorded so the presenter can show it.");
             Assert.AreEqual(30, rig.State.CurrentAmmo, "A jam costs no round.");
             Assert.Greater(rig.State.TReload, 0, "A jam must start the reload that clears it.");
+
+            // AS3: jammed is set in shoot() (Weapon.as:1433) and cleared in reloadWeapon()
+            // (Weapon.as:1710) — the function that FILLS the magazine. So the flag has to survive the
+            // whole reload and clear only on completion. Clearing it at reload start makes it dead:
+            // set and cleared in one frame, observable by nobody.
+            TickFrames(rig, 90);
+
+            Assert.IsFalse(rig.State.Jammed, "Completing the reload must clear the jam.");
+            Assert.AreEqual(0, rig.State.TReload);
         }
 
         [Test]
@@ -546,14 +556,22 @@ namespace PFE.Tests.EditMode.Systems.Weapons
         public void Recharge_RefillsTheMagazineOverTime()
         {
             // rechargeFrames > 0 is the "recharg" ammo type: the weapon never reloads from inventory,
-            // it ticks one round back in every rechargeFrames once t_attack has drained.
+            // it ticks one round back in every rechargeFrames ticks once t_attack has drained.
+            //
+            // Driven with HoldFor, not PressOnce: PressOnce drains rapid + 4 = 14 frames, which is
+            // exactly long enough for this 5-frame recharge to complete — the "the shot spent a
+            // round" assertion would then fail on a weapon that had already refilled itself.
             using var rig = new Rig(MakeDef(magazineSize: 3, rapid: 10f, rechargeFrames: 5, reloadTime: 0f));
 
-            Assert.AreEqual(1, PressOnce(rig));
+            int plans = HoldFor(rig, 1);
+            Assert.AreEqual(1, plans, "One trigger press fires one shot.");
             Assert.AreEqual(2, rig.State.CurrentAmmo, "The shot spent one of the three rounds.");
 
-            TickFrames(rig, 30);
+            // t_attack is still draining, so the recharge timer has not started.
+            TickFrames(rig, 5);
+            Assert.AreEqual(2, rig.State.CurrentAmmo, "No round may return while t_attack is still running.");
 
+            TickFrames(rig, 25);
             Assert.AreEqual(3, rig.State.CurrentAmmo, "The weapon must recharge back to a full magazine.");
             Assert.IsFalse(rig.State.NeedsReload);
         }
