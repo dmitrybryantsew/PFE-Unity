@@ -115,6 +115,43 @@ namespace PFE.Tests.Scripting
         }
 
         [Test]
+        public void ExecuteInput_HelpCommand_ListsSaveVerbs()
+        {
+            string help = _console.ExecuteInput("help");
+            Assert.That(help, Does.Contain("save"));
+            Assert.That(help, Does.Contain("load"));
+        }
+
+        [Test]
+        public void ExecuteInput_SaveVerb_IsDispatchedToSaveCommandsNotLua()
+        {
+            // A bare (unwired) command object: every dependency is null, so Save() returns its
+            // "GameManager not available" line. That the reply is a [save] message at all is the
+            // assertion - an unregistered verb would fall through to Lua and come back as "nil".
+            _console.SetCommandObjects(null, null, new DevConsoleSaveCommands());
+
+            string save = _console.ExecuteInput("save");
+            Assert.That(save, Does.StartWith("[save]"));
+
+            string status = _console.ExecuteInput("saves");
+            Assert.That(status, Does.StartWith("[save]"));
+
+            // 'load' on an unwired object must report the missing GameManager, not a load failure.
+            string load = _console.ExecuteInput("load");
+            Assert.That(load, Does.StartWith("[save]"));
+        }
+
+        [Test]
+        public void ExecuteInput_SaveVerb_WithoutCommandObjects_FallsThroughToLua()
+        {
+            // The console can be opened long before the container is wired, so an unregistered
+            // save verb must degrade to Lua evaluation rather than throwing. The assertion is
+            // deliberately about the *absence* of a save-command reply: whether the Lua fallback
+            // yields nil or a Lua error is not this test's business.
+            Assert.That(_console.ExecuteInput("save"), Does.Not.StartWith("[save]"));
+        }
+
+        [Test]
         public void ExecuteInput_LuaCode_EvaluatesCorrectly()
         {
             string result = _console.ExecuteInput("return 33 * 3");

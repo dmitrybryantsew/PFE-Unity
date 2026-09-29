@@ -26,6 +26,7 @@ namespace PFE.Core.Scripting
         // respawned player or a rebuilt container is picked up without reallocating them.
         private DevConsolePlayerCommands _playerCommands;
         private DevConsoleSimCommands _simCommands;
+        private DevConsoleSaveCommands _saveCommands;
 
         private const KeyCode ToggleKey1 = KeyCode.BackQuote;
         private const KeyCode ToggleKey2 = KeyCode.F1;
@@ -126,25 +127,34 @@ namespace PFE.Core.Scripting
         {
             _playerCommands ??= new DevConsolePlayerCommands();
             _simCommands ??= new DevConsoleSimCommands();
+            _saveCommands ??= new DevConsoleSaveCommands();
 
             if (_resolver != null)
             {
                 _resolver.TryResolve(out PFE.Data.GameDatabase database);
                 _resolver.TryResolve(out PFE.Systems.Weapons.PlayerWeaponLoadout loadout);
                 _resolver.TryResolve(out PFE.Core.SimClock simClock);
+                _resolver.TryResolve(out PFE.Core.GameManager gameManager);
                 _resolver.TryResolve(out MessagePipe.IPublisher<PFE.Core.Messages.HealMessage> healPublisher);
 
+                LandMap resolvedMap = landMap ?? ResolveLandMap();
+
                 _playerCommands.Wire(
-                    landMap ?? ResolveLandMap(),
+                    resolvedMap,
                     database,
                     loadout,
                     healPublisher,
                     () => FindFirstObjectByType<PFE.Entities.Player.PlayerController>());
 
                 _simCommands.Wire(simClock);
+
+                // SaveManager.Instance is a self-creating singleton, so the save commands need no
+                // registration of their own - only the GameManager, which owns the IsInitialized
+                // gate that stops a save during the world build.
+                _saveCommands.Wire(gameManager, resolvedMap);
             }
 
-            _service.SetCommandObjects(_playerCommands, _simCommands);
+            _service.SetCommandObjects(_playerCommands, _simCommands, _saveCommands);
         }
 
         private LandMap ResolveLandMap()
@@ -196,6 +206,23 @@ namespace PFE.Core.Scripting
             {
                 SyncDependencies();
                 _service.ExecuteInput("fog");
+            }
+            // One-click save/load: the F-row is claimed by plugins and debug overlays, so the
+            // round-trip is exercised from here instead.
+            if (GUILayout.Button("Save (save)", GUILayout.Width(95)))
+            {
+                SyncDependencies();
+                _service.ExecuteInput("save");
+            }
+            if (GUILayout.Button("Load (load)", GUILayout.Width(95)))
+            {
+                SyncDependencies();
+                _service.ExecuteInput("load");
+            }
+            if (GUILayout.Button("Saves", GUILayout.Width(60)))
+            {
+                SyncDependencies();
+                _service.ExecuteInput("saves");
             }
             if (GUILayout.Button("Help", GUILayout.Width(60)))
             {

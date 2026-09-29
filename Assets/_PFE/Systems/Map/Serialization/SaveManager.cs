@@ -41,6 +41,12 @@ namespace PFE.Systems.Map.Serialization
         private const string QuickSaveSlot = "quicksave";
         private const string AutoSaveSlot = "autosave";
 
+        /// <summary>
+        /// Slot id that <see cref="QuickSave"/> and <see cref="QuickLoad"/> address. Public so the
+        /// developer console (and tests) can name the slot without duplicating the literal.
+        /// </summary>
+        public const string QuickSaveSlotId = QuickSaveSlot;
+
         // Events
         public event Action<string> OnGameSaved;
         public event Action<string> OnGameLoaded;

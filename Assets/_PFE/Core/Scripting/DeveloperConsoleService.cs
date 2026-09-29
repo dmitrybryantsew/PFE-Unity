@@ -21,9 +21,10 @@ namespace PFE.Core.Scripting
         private Action _revealFogAction;
         private Func<bool> _isFogDisabledFunc;
 
-        // Debug command objects, exposed to Lua as the globals `player` and `sim`.
+        // Debug command objects, exposed to Lua as the globals `player`, `sim` and `save`.
         private DevConsolePlayerCommands _playerCommands;
         private DevConsoleSimCommands _simCommands;
+        private DevConsoleSaveCommands _saveCommands;
         private bool _commandObjectsRegistered;
 
         private bool _isOpen;
@@ -66,8 +67,9 @@ namespace PFE.Core.Scripting
         }
 
         /// <summary>
-        /// Attach the debug command objects and publish them to Lua as the globals <c>player</c>
-        /// and <c>sim</c>, enabling <c>player:Heal(50)</c> / <c>sim:SetTickRate(120)</c>.
+        /// Attach the debug command objects and publish them to Lua as the globals <c>player</c>,
+        /// <c>sim</c> and <c>save</c>, enabling <c>player:Heal(50)</c> / <c>sim:SetTickRate(120)</c>
+        /// / <c>save:Load()</c>.
         ///
         /// <para>Idempotent: the console re-wires its dependencies on every open and on every
         /// submit (so a respawned player is picked up), and re-registering the MoonSharp types on
@@ -76,10 +78,12 @@ namespace PFE.Core.Scripting
         /// </summary>
         public void SetCommandObjects(
             DevConsolePlayerCommands playerCommands,
-            DevConsoleSimCommands simCommands)
+            DevConsoleSimCommands simCommands,
+            DevConsoleSaveCommands saveCommands = null)
         {
             if (playerCommands != null) _playerCommands = playerCommands;
             if (simCommands != null) _simCommands = simCommands;
+            if (saveCommands != null) _saveCommands = saveCommands;
 
             if (_luaEngine == null) return;
 
@@ -89,11 +93,13 @@ namespace PFE.Core.Scripting
             {
                 _luaEngine.RegisterType<DevConsolePlayerCommands>();
                 _luaEngine.RegisterType<DevConsoleSimCommands>();
+                _luaEngine.RegisterType<DevConsoleSaveCommands>();
                 _commandObjectsRegistered = true;
             }
 
             if (_playerCommands != null) _luaEngine.SetGlobal("player", _playerCommands);
             if (_simCommands != null) _luaEngine.SetGlobal("sim", _simCommands);
+            if (_saveCommands != null) _luaEngine.SetGlobal("save", _saveCommands);
         }
 
         /// <summary>
@@ -132,9 +138,13 @@ namespace PFE.Core.Scripting
                               "  status          - Report position, health and equipped weapon\n" +
                               "  -- simulation --\n" +
                               "  tick <n>        - Set the sim tick rate (30/60/90/120)\n" +
+                              "  -- save (console-only: the F-row is taken by plugins/overlays) --\n" +
+                              "  save            - Quick-save the world to the 'quicksave' slot\n" +
+                              "  load            - Quick-load the world from the 'quicksave' slot\n" +
+                              "  saves           - Report the save file, size, write time and position\n" +
                               "  -- lua --\n" +
                               "  <lua code>      - Run any Lua expression (e.g. 'return 2+2', 'player:Heal(50)')\n" +
-                              "                    Globals: pfe.* (map/fog/rng), player, sim";
+                              "                    Globals: pfe.* (map/fog/rng), player, sim, save";
                 AppendLog(help);
                 return help;
             }
@@ -358,6 +368,25 @@ namespace PFE.Core.Scripting
                 case "pos":
                     if (_playerCommands == null) return false;
                     result = _playerCommands.Status();
+                    return true;
+
+                case "save":
+                case "quicksave":
+                    if (_saveCommands == null) return false;
+                    result = _saveCommands.Save();
+                    return true;
+
+                case "load":
+                case "quickload":
+                    if (_saveCommands == null) return false;
+                    result = _saveCommands.Load();
+                    return true;
+
+                case "saves":
+                case "saveinfo":
+                case "savestatus":
+                    if (_saveCommands == null) return false;
+                    result = _saveCommands.Status();
                     return true;
 
                 case "tick":
