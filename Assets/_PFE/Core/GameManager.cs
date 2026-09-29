@@ -4,6 +4,7 @@ using Cysharp.Threading.Tasks;
 using UnityEngine;
 using PFE.Systems.Map;
 using PFE.Systems.Map.Serialization;
+using PFE.Systems.Map.Streaming;
 using PFE.Data;
 using PFE.Core.Profiling;
 using System;
@@ -298,7 +299,22 @@ namespace PFE.Core
             bool loaded = SaveManager.Instance.QuickLoad(landMap);
 
             if (loaded)
+            {
                 landMap.LoadState();
+
+                // A load is a room swap, and the swap is three steps, not one. RestoreToMap's
+                // SwitchRoom only updated the LandMap's own bookkeeping, so RoomStreamingManager
+                // still had the OLD room active and the visual controller still drew the OLD room:
+                // loading into a different room left the player standing at the new room's
+                // coordinates over the old room's tiles, with the new room's units frozen (an
+                // inactive RoomInstance does not tick). Deliberately AFTER LoadState() - the
+                // re-render reads tile state, so it has to see the restored tiles.
+                var transitionManager = RoomTransitionManager.Instance;
+                if (transitionManager != null)
+                {
+                    transitionManager.ApplyRestoredRoom(landMap.currentRoom);
+                }
+            }
 
             if (debugSettings.LogGameManagerLifecycle)
                 Debug.Log(loaded ? "[GameManager] Game loaded" : "[GameManager] Game load FAILED (no quick save?)");

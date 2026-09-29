@@ -204,6 +204,88 @@ namespace PFE.Systems.Map.Streaming
             return true;
         }
 
+        /// <summary>
+        /// Apply a room that came out of a save file. Same swap as <see cref="PerformTransition"/>,
+        /// but synchronous - a load has no door and no transition to animate.
+        ///
+        /// <para>A load is not a door transition, so it used to skip the swap entirely.
+        /// <c>WorldSaveData.RestoreToMap</c> calls <c>LandMap.SwitchRoom</c>, which only flips the
+        /// LandMap's OWN bookkeeping (<c>currentRoom</c> / <c>currentCoord</c>, plus
+        /// <c>RoomInstance.isActive</c>). Nothing told <see cref="RoomStreamingManager"/> and
+        /// nothing told the visual controller, so loading into a different room reported the right
+        /// room, moved the player to the right coordinates, and then drew, ticked and collided
+        /// against the room the player had been standing in before.</para>
+        ///
+        /// <para>Order is the same three steps, and it matters: activate in the streaming manager
+        /// (which also rebuilds the low-level physics world geometry, via
+        /// <c>PhysicsWorldService.OnRoomActivated</c>), mirror the bookkeeping onto the LandMap,
+        /// then re-render last - <c>RoomVisualController.Initialize</c> reads the room's tile
+        /// state, so it has to run after the restored tiles are in place.</para>
+        /// </summary>
+        /// <param name="room">Room to make current - normally <c>landMap.currentRoom</c> after a load.</param>
+        /// <param name="player">Optional; used only for the camera snap. Located by type when null.</param>
+        public void ApplyRestoredRoom(RoomInstance room, GameObject player = null)
+        {
+            if (room == null || landMap == null)
+            {
+                Debug.LogWarning("RoomTransitionManager: Cannot apply a null room (or no LandMap is wired)");
+                return;
+            }
+
+            // Read the streaming manager's idea of the current room BEFORE activating it, so the
+            // room being left is what gets recorded as previous/buffered rather than the new one.
+            RoomInstance previous = streamingManager != null ? streamingManager.CurrentRoom : landMap.previousRoom;
+
+            if (streamingManager != null)
+            {
+                // No-ops when the load stayed in the same room (ActivateRoom refuses to reactivate);
+                // the re-render below still has to run, because the tiles may have been restored.
+                streamingManager.ActivateRoom(room, previous);
+            }
+
+            landMap.SetCurrentRoom(room);
+
+            if (visualController != null)
+            {
+                TileAssetDatabase db = tileDatabase != null ? tileDatabase : visualController.TileAssetDatabase;
+                if (db != null)
+                {
+                    visualController.Initialize(room, db);
+                }
+                else
+                {
+                    Debug.LogWarning("[RoomTransitionManager] Restored room left unrendered: no TileAssetDatabase available.");
+                }
+            }
+            else
+            {
+                Debug.LogWarning("[RoomTransitionManager] Restored room left unrendered: no RoomVisualController wired.");
+            }
+
+            // Snap the camera the way a door transition does. CameraFollow smooths, so without this
+            // the view pans in from the room the player just left.
+            GameObject target = player;
+            if (target == null)
+            {
+                var pc = FindFirstObjectByType<PFE.Entities.Player.PlayerController>();
+                if (pc != null)
+                {
+                    target = pc.gameObject;
+                }
+            }
+
+            Camera mainCam = Camera.main;
+            if (mainCam != null && target != null)
+            {
+                var follow = mainCam.GetComponent<PFE.Core.CameraFollow>();
+                float camZ = follow != null ? follow.offset.z : -10f;
+                Vector3 playerPos = target.transform.position;
+                mainCam.transform.position = new Vector3(playerPos.x, playerPos.y, camZ);
+            }
+
+            Debug.Log($"[RoomTransitionManager] Applied restored room {room.id} (left: {(previous != null ? previous.id : "None")})");
+        }
+
         #endregion
 
         #region Private Methods

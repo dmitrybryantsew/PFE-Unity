@@ -183,16 +183,46 @@ namespace PFE.Core.Scripting
                 return $"[player] No room at ({x}, {y}).";
 
             Vector3 spawn = RoomSetup.FindPlayerSpawnUnity(room);
-            var previous = _landMap.currentRoom;
 
-            player.transform.position = spawn;
             // Explicit cast: SwitchRoom takes Vector2? and chaining a user-defined Vector3->Vector2
             // conversion into the nullable wrap is exactly the kind of implicit that reads as fine
             // and compiles differently than it looks.
             _landMap.SwitchRoom(coord, (Vector2)spawn);
 
-            var streaming = UnityEngine.Object.FindFirstObjectByType<RoomStreamingManager>();
-            streaming?.ActivateRoom(room, previous);
+            // SwitchRoom only moves the LandMap's own bookkeeping. The rest of the swap - streaming
+            // activation (which also rebuilds the low-level physics world geometry), the re-render
+            // and the camera snap - is RoomTransitionManager's job, and this command used to skip
+            // all of it while its doc comment claimed otherwise: the room was never activated in
+            // the streaming manager, so the room the player teleported INTO never ticked, and the
+            // visuals still came from the room they left.
+            var transitionManager = UnityEngine.Object.FindFirstObjectByType<RoomTransitionManager>();
+            if (transitionManager != null)
+            {
+                transitionManager.ApplyRestoredRoom(room);
+            }
+            else
+            {
+                // No transition manager in the scene (bare test scene): do the one step that was
+                // always done here, so the room at least becomes the active one.
+                var streaming = UnityEngine.Object.FindFirstObjectByType<RoomStreamingManager>();
+                if (streaming != null)
+                {
+                    streaming.ActivateRoom(room, _landMap.previousRoom);
+                }
+            }
+
+            // The transform move alone desyncs the movement motor. TilePhysicsController keeps its
+            // own pixel position and WRITES transform.position from it every tick, so a raw move is
+            // undone on the next tick and the player snaps back to where they were.
+            var motor = player.GetComponent<PFE.Systems.Physics.IMovementMotor>();
+            if (motor != null)
+            {
+                motor.RepositionForRoom(room, spawn);
+            }
+            else
+            {
+                player.transform.position = spawn;
+            }
 
             return $"[player] Teleported to room ({x}, {y}) at {spawn}.";
         }

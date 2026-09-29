@@ -937,5 +937,142 @@ namespace PFE.Tests.Editor.Map.Streaming
 
             Assert.DoesNotThrow(() => rvc.ClearVisuals());
         }
+
+        // ---------------------------------------------------------------------------------------
+        // ApplyRestoredRoom. Loading a save IS a room swap, and it used to skip the swap entirely:
+        // WorldSaveData.RestoreToMap calls LandMap.SwitchRoom, which only flips the LandMap's own
+        // bookkeeping. The streaming manager kept the OLD room active (so the restored room never
+        // ticked - RoomInstance.Update early-returns when inactive) and the visual controller kept
+        // drawing the OLD room. The symptom was a load that reported the right room and put the
+        // player at the right coordinates, over the wrong room's tiles.
+        // ---------------------------------------------------------------------------------------
+
+        private static RoomInstance CreateRoom(string id, Vector3Int pos)
+        {
+            var room = new RoomInstance
+            {
+                id = id,
+                landPosition = pos,
+                width = WorldConstants.ROOM_WIDTH,
+                height = WorldConstants.ROOM_HEIGHT
+            };
+            room.InitializeTiles();
+            return room;
+        }
+
+        /// <summary>LandMap holding roomA at (0,0,0) and roomB at (1,0,0), current = roomA.</summary>
+        private (LandMap map, RoomInstance roomA, RoomInstance roomB) CreateTwoRoomMap()
+        {
+            var map = new LandMap();
+            RoomInstance roomA = CreateRoom("roomA", new Vector3Int(0, 0, 0));
+            RoomInstance roomB = CreateRoom("roomB", new Vector3Int(1, 0, 0));
+            map.AddRoom(roomA, new Vector3Int(0, 0, 0));
+            map.AddRoom(roomB, new Vector3Int(1, 0, 0));
+            map.SwitchRoom(new Vector3Int(0, 0, 0));
+            return (map, roomA, roomB);
+        }
+
+        private RoomTransitionManager CreateManager(LandMap map, RoomStreamingManager streaming)
+        {
+            var managerGo = new GameObject("RestoreManager");
+            managerGo.transform.SetParent(_holderGo.transform);
+            var manager = managerGo.AddComponent<RoomTransitionManager>();
+            manager.SetLandMap(map);
+            if (streaming != null)
+            {
+                manager.SetStreamingManager(streaming);
+            }
+            return manager;
+        }
+
+        private RoomStreamingManager CreateStreamingManager()
+        {
+            var go = new GameObject("RestoreStreaming");
+            go.transform.SetParent(_holderGo.transform);
+            return go.AddComponent<RoomStreamingManager>();
+        }
+
+        [Test]
+        public void ApplyRestoredRoom_LoadIntoDifferentRoom_ActivatesItInStreamingManager()
+        {
+            var (map, roomA, roomB) = CreateTwoRoomMap();
+            var streaming = CreateStreamingManager();
+            streaming.ActivateRoom(roomA);          // the player stood in A when the save was taken
+            var manager = CreateManager(map, streaming);
+
+            // What WorldSaveData.RestoreToMap does - and the ONLY step the load path used to take.
+            map.SwitchRoom(new Vector3Int(1, 0, 0));
+
+            manager.ApplyRestoredRoom(roomB);
+
+            Assert.That(streaming.CurrentRoom, Is.SameAs(roomB),
+                "The streaming manager must follow the load, or the restored room never ticks.");
+            Assert.That(streaming.PreviousRoom, Is.SameAs(roomA),
+                "The room being left must be recorded as previous, not the restored one.");
+            Assert.That(roomB.isActive, Is.True, "The restored room must be active.");
+            Assert.That(roomA.isActive, Is.False, "The room left behind must be deactivated.");
+            Assert.That(map.currentRoom, Is.SameAs(roomB), "LandMap bookkeeping must follow.");
+            Assert.That(map.GetCurrentPosition(), Is.EqualTo(new Vector3Int(1, 0, 0)));
+        }
+
+        [Test]
+        public void ApplyRestoredRoom_WithoutPriorSwitchRoom_UpdatesLandMapBookkeeping()
+        {
+            var (map, roomA, roomB) = CreateTwoRoomMap();
+            var streaming = CreateStreamingManager();
+            streaming.ActivateRoom(roomA);
+            var manager = CreateManager(map, streaming);
+
+            // No SwitchRoom first: ApplyRestoredRoom must do all of the bookkeeping itself, since a
+            // caller that hands it a room is entitled to a consistent LandMap afterwards.
+            manager.ApplyRestoredRoom(roomB);
+
+            Assert.That(map.currentRoom, Is.SameAs(roomB));
+            Assert.That(map.previousRoom, Is.SameAs(roomA));
+            Assert.That(map.GetCurrentPosition(), Is.EqualTo(new Vector3Int(1, 0, 0)));
+            Assert.That(streaming.CurrentRoom, Is.SameAs(roomB));
+        }
+
+        [Test]
+        public void ApplyRestoredRoom_SameRoom_KeepsItActive()
+        {
+            var (map, roomA, _) = CreateTwoRoomMap();
+            var streaming = CreateStreamingManager();
+            streaming.ActivateRoom(roomA);
+            var manager = CreateManager(map, streaming);
+
+            // Saving and loading without moving rooms. ActivateRoom refuses to reactivate, so this
+            // is the path where only the re-render has anything to do - it must not deactivate.
+            Assert.DoesNotThrow(() => manager.ApplyRestoredRoom(roomA));
+
+            Assert.That(streaming.CurrentRoom, Is.SameAs(roomA));
+            Assert.That(roomA.isActive, Is.True, "A same-room load must not leave the room inactive.");
+            Assert.That(map.currentRoom, Is.SameAs(roomA));
+        }
+
+        [Test]
+        public void ApplyRestoredRoom_NullRoom_DoesNotThrow()
+        {
+            var (map, _, _) = CreateTwoRoomMap();
+            var manager = CreateManager(map, CreateStreamingManager());
+
+            Assert.DoesNotThrow(() => manager.ApplyRestoredRoom(null));
+        }
+
+        [Test]
+        public void ApplyRestoredRoom_NoVisualControllerWired_StillSwapsTheRoom()
+        {
+            // EditMode has no Camera.main and no render assets, so this is also the "degrades
+            // gracefully" path: the warnings fire but the room swap must still complete.
+            var (map, roomA, roomB) = CreateTwoRoomMap();
+            var streaming = CreateStreamingManager();
+            streaming.ActivateRoom(roomA);
+            var manager = CreateManager(map, streaming);
+
+            Assert.DoesNotThrow(() => manager.ApplyRestoredRoom(roomB));
+
+            Assert.That(streaming.CurrentRoom, Is.SameAs(roomB));
+            Assert.That(roomB.isActive, Is.True);
+        }
     }
 }
