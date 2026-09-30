@@ -30,6 +30,12 @@ namespace PFE.Systems.Physics
         private readonly Dictionary<RoomInstance, RoomChainGeometry> _roomGeometry = new Dictionary<RoomInstance, RoomChainGeometry>();
         private readonly float _stepSeconds;
 
+        /// <summary>
+        /// The last draw-option value written to the world, so <see cref="ApplyDrawOptions"/> can skip
+        /// redundant writes. Initialised to the constructor's value so the first tick does not write.
+        /// </summary>
+        private PhysicsWorld.DrawOptions _appliedDrawOptions = PhysicsWorld.DrawOptions.Off;
+
         public PhysicsWorld World => _world;
         public bool IsWorldValid => _world.isValid;
 
@@ -61,11 +67,65 @@ namespace PFE.Systems.Physics
             // literal: this is the one place the Box2D world's gravity comes from.
             def.gravity = new Vector2(0f, -TileQueryConstants.GravityUnitsPerSecondSquared);
 
+            // The ENGINE debug-draws this world by default, and it is not one of our channels, so
+            // `col off` could never silence it — the "connected grey circles" along every mirrored
+            // surface. Start Off unconditionally rather than reading settings here: this constructor
+            // runs before the settings asset is necessarily loaded (and in test fixtures), and a world
+            // that starts noisy and is quietened a tick later is worse than one that starts quiet.
+            // SimTick applies the resolved value, so `col on physics` still turns it back on live.
+            def.drawOptions = PhysicsWorld.DrawOptions.Off;
+
             _world = PhysicsWorld.Create(def);
             if (!_world.isValid)
             {
                 throw new System.InvalidOperationException("PhysicsWorld.Create returned an invalid world.");
             }
+
+            ApplyDrawOptions();
+        }
+
+        /// <summary>
+        /// Push the current diagnostic state onto the world's built-in draw.
+        ///
+        /// <para><c>drawOptions</c> is a settable field on <see cref="PhysicsWorld"/> itself (not only
+        /// on the definition), so this needs no world rebuild and takes effect on the next frame. The
+        /// write is guarded by a comparison because <see cref="SimTick"/> runs every tick and the
+        /// value changes only when someone types a command.</para>
+        ///
+        /// <para><b>Why the settings lookup is shared, and why that matters.</b> This reads the same
+        /// <see cref="DebugOverlays.Settings"/> instance the console writes through
+        /// (<c>DevConsoleColliderCommands</c> takes its settings from <c>DebugOverlays.Settings</c>
+        /// too), so <c>col on physics</c> is visible here on the next tick. Reading a different
+        /// <see cref="PfeDebugSettings"/> reference — an injected one, say — would make the console
+        /// and this method disagree, which is the "toggle is on and nothing happens" failure this
+        /// project keeps hitting.</para>
+        ///
+        /// <para><b>Known, deliberate coupling of the ON direction.</b> <see cref="SimTick"/> is the
+        /// only per-frame hook this service has, and <c>SimLoop</c> gates dispatch on
+        /// <c>PfeDebugSettings.SimTickEnabled</c>. So with that flag off, this method is never called
+        /// and <c>col on physics</c> would not bring the engine draw back. The OFF direction is not
+        /// affected — the constructor sets <c>Off</c> unconditionally, so the shipping default holds
+        /// whatever the flag says. That asymmetry is accepted rather than papered over: with the sim
+        /// tick disabled the world is not being stepped either, so a live re-enable of its debug draw
+        /// has little to show. Both flags ship ON in <c>PfeDebugSettings.asset</c>.</para>
+        /// </summary>
+        private void ApplyDrawOptions()
+        {
+            if (!_world.isValid)
+            {
+                return;
+            }
+
+            PhysicsWorld.DrawOptions desired = PhysicsWorldDraw.For(
+                DebugOverlays.IsOn(DebugOverlayChannel.LowLevelPhysics));
+
+            if (desired == _appliedDrawOptions)
+            {
+                return;
+            }
+
+            _world.drawOptions = desired;
+            _appliedDrawOptions = desired;
         }
 
         /// <summary>
@@ -143,6 +203,9 @@ namespace PFE.Systems.Physics
         {
             if (_world.isValid)
             {
+                // Before the step, so `col on physics` / `col off` is visible on the very next frame.
+                // See PhysicsWorldDraw for why the engine's own draw needs switching at all.
+                ApplyDrawOptions();
                 _world.Simulate(_stepSeconds);
             }
         }
