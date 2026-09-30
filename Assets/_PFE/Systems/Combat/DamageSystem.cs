@@ -217,10 +217,15 @@ namespace PFE.Systems.Combat
                 armourMultiplier: ctx.ArmorMultiplier,
                 critChance: ctx.CritChance,
                 critMultiplier: ctx.CritMultiplier,
-                // skinResistance is left at 0: no unit carries skin data yet, and AS3's own default is
-                // 0, so 0 is the faithful value rather than a placeholder. It is a real term though —
-                // see ArmourWear.ChannelFor, where it is gated on the damage type like the armour is.
-                skinResistance: 0f);
+                // AS3 `Unit.damage():3611-3632` — the target's natural resistance, assigned as the
+                // floor of whichever reduction branch the damage type reaches, before the
+                // probabilistic armour roll adds to it. Read from the target, because it is not a
+                // constant: UnitTrain raises it to 20 for the armoured variant and Unit.setLevel()
+                // scales it by level (:1611). This used to be a literal 0f — the calculator applied
+                // a term no caller could ever supply, so the armoured training dummy resolved
+                // identically to the plain one. A target with no stats answers 0, which is AS3's
+                // default and leaves every unarmoured unit's numbers unchanged.
+                skinResistance: target.SkinResistance);
 
             target.ApplyDamage(outcome);
             ResolvedCount++;

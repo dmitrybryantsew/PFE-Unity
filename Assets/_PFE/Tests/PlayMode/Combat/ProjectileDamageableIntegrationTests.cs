@@ -320,6 +320,10 @@ namespace PFE.Tests.PlayMode.Combat
             /// </summary>
             public VulnerabilityData Vulnerabilities => VulnerabilityData.Neutral;
 
+            /// <summary>No natural resistance — AS3's own default for a unit that declares no
+            /// <c>skin</c>.</summary>
+            public float SkinResistance => 0f;
+
             public float CurrentHealth => _health;
             public float MaxHealth => 100f;
             public bool IsAlive => _health > 0;

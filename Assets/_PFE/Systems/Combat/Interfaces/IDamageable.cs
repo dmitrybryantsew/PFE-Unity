@@ -72,6 +72,35 @@ namespace PFE.Systems.Combat
         VulnerabilityData Vulnerabilities { get; }
 
         /// <summary>
+        /// The target's natural resistance — AS3 <c>Unit.skin</c>, the <b>always-on floor</b> of the
+        /// reduction block. <c>0</c> when the target has none, which is AS3's own default.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Where the oracle puts it.</b> <c>Unit.damage():3611-3632</c> has two branches and
+        /// each one opens by assigning the skin <i>before</i> the probabilistic armour roll:
+        /// <c>_loc8_ = this.skin</c> at <c>:3615</c> (bullet, blade, explosion, physics, fang, acid)
+        /// and again at <c>:3623</c> (fire, laser, plasma, spark, cryo, astro). So unlike the armour
+        /// pool it is not a chance and not a pool — it is a flat subtraction on <b>every</b> hit of a
+        /// type that reaches a branch. A type in neither branch gets no skin at all, which is the
+        /// twelve types <c>ArmourWear.ChannelFor</c> maps to <c>ArmourChannel.None</c>.</para>
+        ///
+        /// <para><b>It sits on this interface for the same reason <see cref="Armour"/> and
+        /// <see cref="Vulnerabilities"/> do</b>: the formula reads it, so it must be readable, and it
+        /// must never cross a network boundary — the resolver reads it locally and sends only the
+        /// resulting <see cref="DamageOutcome"/>.</para>
+        ///
+        /// <para><b>This member was added to close a one-way channel.</b>
+        /// <c>DamageCalculator.ResolveDamage</c> has accepted and applied a <c>skinResistance</c>
+        /// parameter, and <c>ArmourResolutionTests</c> exercises it, since the armour work landed — but
+        /// the only production caller, <c>DamageSystem</c>, passed the literal <c>0f</c>, and nothing
+        /// could have passed anything else because this read did not exist. The producer was likewise
+        /// already written: <c>TrainingDummyController</c> sets <c>skinResistance = 20</c> on the
+        /// <c>tr='1'</c> variant. The value was being computed and then dropped on the floor, which
+        /// made the armoured training dummy indistinguishable from the plain one.</para>
+        /// </remarks>
+        float SkinResistance { get; }
+
+        /// <summary>
         /// Current health of this entity.
         /// Used for UI, death checks, and damage calculations.
         /// </summary>

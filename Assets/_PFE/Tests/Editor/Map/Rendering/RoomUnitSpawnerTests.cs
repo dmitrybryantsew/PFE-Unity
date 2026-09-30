@@ -348,6 +348,11 @@ namespace PFE.Tests.Editor.Map.Rendering
             var controller = _parent.GetChild(0).GetComponent<TrainingDummyController>();
             Assert.IsTrue(controller.IsArmored);
             Assert.AreEqual(TrainingDummyController.ArmoredVisualClassName, controller.VisualClassName);
+            Assert.AreEqual(TrainingDummyController.ArmoredSkin, controller.SkinResistance, 1e-4f,
+                "UnitTrain.as:44 raises skin to 20 for the armoured variant. Asserted on " +
+                "SkinResistance — the IDamageable member DamageSystem reads — not on UnitStats, " +
+                "because the whole point of the A7b shape is that the value has to survive the trip " +
+                "from the controller to the resolver.");
         }
 
         [Test]
@@ -365,6 +370,11 @@ namespace PFE.Tests.Editor.Map.Rendering
             var controller = _parent.GetChild(0).GetComponent<TrainingDummyController>();
             Assert.IsFalse(controller.IsArmored);
             Assert.AreEqual(TrainingDummyController.PlainVisualClassName, controller.VisualClassName);
+            Assert.AreEqual(0f, controller.SkinResistance, 1e-4f,
+                "The plain dummy has no skin: AllData.as declares <comb hp='500' armor='0' " +
+                "marmor='0'/> with no skin attribute, and only the tr='1' branch raises it. " +
+                "Without this the two variants could differ by 20 and a test on the armoured one " +
+                "alone would not notice.");
         }
 
         [Test]

@@ -463,6 +463,26 @@ namespace PFE.Entities.Units
         }
 
         /// <summary>
+        /// The unit's natural resistance, read by the damage resolver — AS3 <c>Unit.skin</c>.
+        /// <c>0</c> when no stats are assigned, which is AS3's own default.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Read from <see cref="UnitStats"/> and not from the definition, deliberately.</b>
+        /// <c>skin</c> is not a constant: <c>UnitTrain</c> raises it for the armoured variant
+        /// (<c>UnitTrain.as:41-45</c>, <c>skin = 20</c>) and <c>Unit.setLevel()</c> scales it by level
+        /// (<c>Unit.as:1611</c>, <c>this.skin *= 1 + this.level * 0.05</c>). So the definition's value is
+        /// the <i>baseline</i> and the live value belongs on the mutable stats object — the same split
+        /// as <see cref="Armour"/> and <see cref="Vulnerabilities"/>.</para>
+        ///
+        /// <para><b>Nothing was reading this, which is why the armoured dummy looked unarmoured.</b>
+        /// <see cref="TrainingDummyController"/> has written <c>skinResistance = 20</c> for the
+        /// <c>tr='1'</c> variant since the unit slice landed, and <c>DamageCalculator</c> has applied a
+        /// <c>skinResistance</c> argument for longer than that — but the only production caller passed a
+        /// literal <c>0f</c>. Exposing it here is what lets <c>DamageSystem</c> read it instead.</para>
+        /// </remarks>
+        public virtual float SkinResistance => _unitStats?.skinResistance ?? 0f;
+
+        /// <summary>
         /// Current health from stats.
         /// Returns 0 if no stats assigned.
         /// </summary>

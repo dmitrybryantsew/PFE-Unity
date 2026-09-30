@@ -77,6 +77,13 @@ namespace PFE.Tests.Editor.Combat
             /// </summary>
             public VulnerabilityData Vulnerabilities { get; set; } = VulnerabilityData.Neutral;
 
+            /// <summary>
+            /// Settable so a test can hand the resolver a natural resistance. Defaults to <c>0</c>,
+            /// which is both AS3's default and what every unit in the port has today except the
+            /// armoured training dummy.
+            /// </summary>
+            public float SkinResistance { get; set; } = 0f;
+
             public int ApplyDamageCalls;
             public DamageOutcome LastOutcome;
 
@@ -246,6 +253,51 @@ namespace PFE.Tests.Editor.Combat
             Assert.AreEqual(0, system.PendingCount);
             Assert.AreEqual(1, target.ApplyDamageCalls);
             Assert.AreEqual(80f, target.Health, 1e-4f);
+        }
+
+        // ── Natural resistance (AS3 skin) ────────────────────────────────────
+
+        [Test]
+        public void SkinResistance_IsReadFromTheTarget_NotPassedAsZero()
+        {
+            // AS3 `Unit.damage():3611-3632` opens each reduction branch with `_loc8_ = this.skin`,
+            // so it is a flat subtraction that lands before the probabilistic armour roll. The
+            // calculator has applied the term since the armour work landed and ArmourResolutionTests
+            // exercises it — but DamageSystem, the only production caller, passed a literal 0f, so no
+            // target could ever supply one. TrainingDummyController had been writing 20 for its
+            // `tr='1'` variant the whole time; the value was computed and then dropped, which made the
+            // armoured training dummy resolve identically to the plain one.
+            var system = MakeImmediate();
+
+            var bare = new FakeTarget { Health = 100f };
+            var thickSkinned = new FakeTarget { Health = 100f, SkinResistance = 20f };
+
+            system.Report(PendingDamage.Direct(Context(baseDamage: 50f), bare, Vector3.zero));
+            system.Report(PendingDamage.Direct(Context(baseDamage: 50f), thickSkinned, Vector3.zero));
+
+            Assert.AreEqual(50f, bare.Health, 1e-4f,
+                "No skin and no armour: a physical hit lands whole.");
+            Assert.AreEqual(70f, thickSkinned.Health, 1e-4f,
+                "20 skin is a flat 20 off every physical hit, so 50 becomes 30.");
+        }
+
+        [Test]
+        public void SkinResistance_DoesNotApply_ToATypeThatReachesNoReductionBranch()
+        {
+            // The gating is the subtle half and the reason this is not "target.SkinResistance" applied
+            // universally: `_loc8_ = this.skin` sits *inside* each of AS3's two branches, so a type
+            // that reaches neither gets no skin at all. Ten of the port's twenty-one types are in that
+            // position (venom, poison, bleed, necrotic, pink, balefire, psionic, EMP, internal,
+            // friendly fire — ArmourWear.ChannelFor maps them to ArmourChannel.None). Subtracting skin
+            // for those would be a silent buff against all ten.
+            var system = MakeImmediate();
+            var target = new FakeTarget { Health = 100f, SkinResistance = 20f };
+
+            system.Report(PendingDamage.Direct(
+                Context(baseDamage: 50f, damageType: DamageType.Poison), target, Vector3.zero));
+
+            Assert.AreEqual(50f, target.Health, 1e-4f,
+                "Poison reaches no reduction branch, so the target's skin must not be subtracted.");
         }
 
         // ── Deferred-liveness edge cases ─────────────────────────────────────
