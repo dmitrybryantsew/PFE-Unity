@@ -1,8 +1,10 @@
+using System.Collections.Generic;
 using System.Globalization;
 using UnityEngine;
 using PFE.Data.Definitions;
 using PFE.Systems.Combat;
 using PFE.Systems.Map;
+using PFE.Systems.Map.TileQuery;
 using PFE.Systems.Physics;
 namespace PFE.Entities.Units
 {
@@ -43,6 +45,21 @@ namespace PFE.Entities.Units
         protected Collider2D _collider;
         private TilePhysicsController _cachedTilePhysics;
         private bool _hasTilePhysics;
+
+        /// <summary>
+        /// The room's tile query — AS3's <c>loc</c>, and the authority for <see cref="_isGrounded"/>.
+        /// Assigned by the spawner (<c>RoomUnitSpawner</c>), which is the layer that knows the room.
+        /// Null for a unit built without one (a bare test spawn), in which case the collision callbacks
+        /// below remain the only source of groundedness.
+        /// </summary>
+        protected ITileQueryService _tileQuery;
+
+        /// <summary>
+        /// Colliders currently providing upward support, keyed by the <i>other</i> collider. Only used
+        /// on the callback fallback path — see <see cref="OnCollisionExit2D"/> for why a set rather than
+        /// a bool.
+        /// </summary>
+        readonly HashSet<Collider2D> _supportingColliders = new HashSet<Collider2D>();
 
         // Stats (optional - subclasses like PlayerController will provide their own)
         protected UnitStats _unitStats;
@@ -118,6 +135,69 @@ namespace PFE.Entities.Units
             _stats = stats;
             _unitStats = unitStats;
             ApplyDefinitionToCollider();
+            SeedEvasionFromDefinition();
+        }
+
+        /// <summary>
+        /// Copy the definition's authored evasion onto the live stats — the producer for
+        /// <c>@dexter</c>.
+        ///
+        /// <para>AS3 sets <c>dexter</c> in the <i>base</i> <c>Unit</c> constructor from the unit node
+        /// (<c>Unit.as:1170-1172</c>), so it is a property of the unit, not of a subclass — which is why
+        /// this lives here and not in a per-controller override. 71 units in <c>AllData.as</c> carry the
+        /// attribute (up to <c>dexter='100'</c> on the stationary <c>npc</c>), and without this copy the
+        /// imported value would sit on the definition and never reach the hit test — the same
+        /// computed-then-dropped shape as the sprite pivot and the armoured dummy's <c>skin</c>.</para>
+        ///
+        /// <para>Only <c>dexter</c> is seeded. <c>dexterPlus</c> and <c>dodge</c> have no definition
+        /// field because the oracle has no data for them — they are runtime, player-only values driven
+        /// by the armour/RPG bridge. Seeding them here would invent a source.</para>
+        ///
+        /// <para><b>Data caveat.</b> Unit assets imported before <c>UnitDataImporter</c> stopped writing
+        /// its defaults last carry <c>dexterity = 1</c> regardless of the template (the importer's own
+        /// comment records that <c>dexter='100'</c> was being overwritten). So a stale asset reads as
+        /// baseline evasion; a re-import is what makes the authored values live.</para>
+        /// </summary>
+        void SeedEvasionFromDefinition()
+        {
+            if (_stats == null || _unitStats == null)
+            {
+                return;
+            }
+
+            _unitStats.dexterity = _stats.dexterity;
+        }
+
+        /// <summary>
+        /// The unit's evasion projection, read by the hit-avoidance test — AS3
+        /// <c>Unit.dexter</c>/<c>dexterPlus</c>/<c>dodge</c>.
+        ///
+        /// <para>Falls back to <see cref="EvasionState.Default"/> when no stats are assigned, which is
+        /// the oracle's own field defaults (dexter 1, the rest 0) — <b>not</b> all-zeroes, which would
+        /// mean <c>dexter &lt;= 0</c>, i.e. "hit by everything".</para>
+        /// </summary>
+        public virtual EvasionState Evasion => _unitStats?.Evasion ?? EvasionState.Default;
+
+        /// <summary>
+        /// Give this unit the room's tile query, so groundedness can be answered the way AS3 answers
+        /// it — <c>isLaz</c> (<c>Unit.as:1962</c>) — instead of from Unity collision callbacks.
+        ///
+        /// <para><b>Why this is the fix for "units fall through the floor when I walk past them".</b>
+        /// A unit is seated 1 px above the tile surface, which is exactly Box2D's contact tolerance, so
+        /// a resting unit's floor contact is a coin flip on float rounding. Meanwhile
+        /// <c>OnCollisionExit2D</c> cleared <c>_isGrounded</c> for <b>any</b> collider — including the
+        /// player, who only interpenetrates because both bodies are Kinematic. Once gravity starts on a
+        /// Kinematic body, <c>MovePosition</c> is not stopped by static geometry and the unit walks out
+        /// of the room. <see cref="UnitGroundProbe"/> documents the measurement;
+        /// <c>ITileQueryService.IsOnGround</c> has a 10 px band and is not boundary-sensitive.</para>
+        ///
+        /// <para>Idempotent, and deliberately not called from <see cref="Awake"/>: <c>AddComponent</c>
+        /// runs <c>Awake</c> before the spawner has a definition or a room, which is the same ordering
+        /// trap <see cref="Initialize"/> exists for.</para>
+        /// </summary>
+        public virtual void SetTileQuery(ITileQueryService tileQuery)
+        {
+            _tileQuery = tileQuery;
         }
 
         protected virtual void FixedUpdate()
@@ -127,9 +207,35 @@ namespace PFE.Entities.Units
             if (_hasTilePhysics)
                 return;
 
+            ResolveGroundState();
             ApplyGravity();
             ApplyFriction();
             Move();
+        }
+
+        /// <summary>
+        /// Ask the room whether this unit is standing on something, before gravity reads the answer.
+        ///
+        /// <para>Runs every physics step rather than being event-driven, because the question is about
+        /// the <i>current</i> tile under the feet, not about a contact that happened. This is what makes
+        /// a stale collision exit harmless: whatever the callbacks left in
+        /// <see cref="_isGrounded"/>, it is overwritten here from the tile data.</para>
+        ///
+        /// <para>No query means no room (a unit spawned outside one) — leave
+        /// <see cref="_isGrounded"/> to the collision callbacks rather than forcing it false, which
+        /// would make every such unit fall.</para>
+        /// </summary>
+        protected void ResolveGroundState()
+        {
+            if (_tileQuery == null || _collider == null)
+            {
+                return;
+            }
+
+            Rect probe = UnitGroundProbe.ToProbeRectPixels(
+                _collider.bounds, TileQueryConstants.PixelToUnit);
+
+            _isGrounded = _tileQuery.IsOnGround(probe);
         }
 
         /// <summary>
@@ -138,8 +244,10 @@ namespace PFE.Entities.Units
         ///
         /// <para>AS3's gate is <c>!levit &amp;&amp; this.isLaz == 0</c> (<c>Unit.as:1962</c>), where
         /// <c>isLaz</c> means "standing on something"; <see cref="_isGrounded"/> is this port's
-        /// equivalent and is set by the collision callbacks below. The magnitude and the terminal
-        /// clamp live in <see cref="UnitFallPhysics.FallSpeed"/>, which is pure and tested — the
+        /// equivalent and is now resolved from the room's tile query by
+        /// <see cref="ResolveGroundState"/> (the collision callbacks below are the fallback for a unit
+        /// with no room). The magnitude and the terminal clamp live in
+        /// <see cref="UnitFallPhysics.FallSpeed"/>, which is pure and tested — the
         /// value was the wrong part, not the shape of the branch.</para>
         ///
         /// <para><b>Known divergence, recorded.</b> This runs in <c>FixedUpdate</c> against
@@ -152,10 +260,22 @@ namespace PFE.Entities.Units
         /// </summary>
         protected void ApplyGravity()
         {
-            if (!_isGrounded)
+            if (_isGrounded)
             {
-                _velocity.y = UnitFallPhysics.FallSpeed(_velocity.y, Time.fixedDeltaTime);
+                // Grounded: AS3 integrates nothing while `isLaz` (Unit.as:1962), so dy does not grow.
+                // Cancelling a DOWNWARD dy is the part that matters — a residual negative velocity is
+                // still applied by Move(), and MovePosition on a Kinematic body is not blocked by static
+                // geometry, so even a small one walks the unit into the tile it is standing on. Upward
+                // velocity is left alone so a jump is not swallowed.
+                if (_velocity.y < 0f)
+                {
+                    _velocity.y = 0f;
+                }
+
+                return;
             }
+
+            _velocity.y = UnitFallPhysics.FallSpeed(_velocity.y, Time.fixedDeltaTime);
         }
 
         /// <summary>
@@ -305,38 +425,75 @@ namespace PFE.Entities.Units
         }
 
         /// <summary>
-        /// Ground detection using collision normals.
+        /// Ground detection using collision normals — the <b>fallback</b> path, used only when this
+        /// unit has no room and therefore no tile query (see <see cref="SetTileQuery"/>).
         /// Replaces the tile-based ground checking from AS3.
         /// </summary>
         private void OnCollisionEnter2D(Collision2D collision)
         {
-            foreach (var contact in collision.contacts)
+            if (HasUpwardContact(collision))
             {
-                // If the collision normal is pointing up, we're on ground
-                if (contact.normal.y > 0.7f)
-                {
-                    _isGrounded = true;
-                    _velocity.y = 0; // Stop falling
-                }
+                _supportingColliders.Add(collision.collider);
+                _isGrounded = true;
+                _velocity.y = 0; // Stop falling
             }
         }
 
         private void OnCollisionStay2D(Collision2D collision)
         {
-            foreach (var contact in collision.contacts)
+            if (HasUpwardContact(collision))
             {
-                if (contact.normal.y > 0.7f)
-                {
-                    _isGrounded = true;
-                    _velocity.y = Mathf.Min(_velocity.y, 0); // Don't fall through floor
-                }
+                _supportingColliders.Add(collision.collider);
+                _isGrounded = true;
+                _velocity.y = Mathf.Min(_velocity.y, 0); // Don't fall through floor
+            }
+            else
+            {
+                // A side contact: it never made this unit grounded, so it must not keep it that way.
+                _supportingColliders.Remove(collision.collider);
             }
         }
 
+        /// <summary>
+        /// Clear groundedness only when the collider that left was one of the supports.
+        ///
+        /// <para><b>This was unconditional, and that was a real defect.</b> Any collider leaving
+        /// cleared the flag — including the player, who only interpenetrates a unit because both
+        /// Rigidbody2D bodies are Kinematic (<c>m_BodyType: 1</c>) and neither can push the other. So
+        /// brushing past a unit cancelled its groundedness, gravity started, and because a Kinematic
+        /// body's <c>MovePosition</c> is not blocked by static geometry the unit then sank out of the
+        /// room. The user's report — "I pass through them, they start to fall down" — is this line.</para>
+        ///
+        /// <para>A set rather than a bool, because a unit can rest on more than one collider and only
+        /// the last support's exit may unground it. Entries are dropped by
+        /// <see cref="OnCollisionStay2D"/> when a contact stops being upward, so a support that
+        /// silently disappears cannot strand a stale entry.</para>
+        /// </summary>
         private void OnCollisionExit2D(Collision2D collision)
         {
-            // Simple ground exit - might need refinement for complex geometry
-            _isGrounded = false;
+            _supportingColliders.Remove(collision.collider);
+
+            if (_supportingColliders.Count == 0)
+            {
+                _isGrounded = false;
+            }
+        }
+
+        /// <summary>
+        /// Whether any contact in this collision has a normal pointing up — the port's stand-in for
+        /// AS3's <c>isLaz</c> on the no-tile-query path.
+        /// </summary>
+        private static bool HasUpwardContact(Collision2D collision)
+        {
+            foreach (ContactPoint2D contact in collision.contacts)
+            {
+                if (contact.normal.y > 0.7f)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         // Public getters

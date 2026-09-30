@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using PFE.Data.Definitions;
 using PFE.Entities.Units;
+using PFE.Systems.Map.TileQuery;
 using UnityEngine;
 
 namespace PFE.Systems.Map.Rendering
@@ -44,6 +45,15 @@ namespace PFE.Systems.Map.Rendering
         readonly IUnitDefinitionProvider _definitions;
         readonly Dictionary<UnitInstance, GameObject> _spawned = new Dictionary<UnitInstance, GameObject>();
         readonly List<UnitInstance> _stale = new List<UnitInstance>();
+
+        /// <summary>
+        /// The room's tile query, shared by every unit this spawner builds and created lazily on the
+        /// first spawn. Shared rather than per-unit because it is a stateless reader over
+        /// <c>RoomInstance.tiles</c> — which it reads live, so one instance stays correct as tiles are
+        /// destroyed — and because constructing one per unit would rebuild a
+        /// <c>TileCollisionSystem</c> for each.
+        /// </summary>
+        ITileQueryService _tileQuery;
 
         /// <summary>Unit ids already warned about, so a room full of them warns once each.</summary>
         readonly HashSet<string> _warnedMissingSprite = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -178,9 +188,31 @@ namespace PFE.Systems.Map.Rendering
             // no health, no <vulner> table, and logs "no UnitStats assigned" on every hit.
             UnitStats stats = definition != null ? new UnitStats(definition.health, 100f) : null;
             controller.Initialize(definition, stats);
+
+            // ...and this is the seam that stops it falling through the floor. A unit's groundedness is
+            // AS3's `isLaz` (Unit.as:1962) — a question about the tile under its feet — and the port was
+            // answering it from Unity collision callbacks instead, whose answer is marginal because the
+            // seat is 1 px and 1 px IS Box2D's contact tolerance. UnitGroundProbe documents it.
+            controller.SetTileQuery(ResolveTileQuery());
+
             controller.ApplyPlacement(unit);
 
             return unitObject;
+        }
+
+        /// <summary>
+        /// The room's tile query, built once. Null when this spawner was constructed without a room
+        /// (which is legal — the tests do it), in which case a unit keeps the collision-callback
+        /// fallback in <c>UnitController</c> rather than being forced ungrounded.
+        /// </summary>
+        ITileQueryService ResolveTileQuery()
+        {
+            if (_tileQuery == null && _room != null)
+            {
+                _tileQuery = new UnifiedTileQueryService(_room);
+            }
+
+            return _tileQuery;
         }
 
         /// <summary>
