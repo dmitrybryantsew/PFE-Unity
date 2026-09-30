@@ -116,9 +116,29 @@ namespace PFE.Core
         /// screenshotted without the text plate over it.</summary>
         Legend = 1 << 10,
 
+        /// <summary>
+        /// The LowLevelPhysics2D (Box2D v3) chain mirror — the geometry a projectile actually sweeps
+        /// against, drawn as world-space polylines.
+        ///
+        /// <para><b>Why this is its own channel and not part of <see cref="Tiles"/>.</b> They answer
+        /// different questions and they can disagree. <see cref="Tiles"/> draws Unity's per-tile
+        /// <c>Collider2D</c> grid, which owns its own interpretation of the slope and has ghost
+        /// collisions at the seams between adjacent cells. The chain mirror is built from
+        /// <c>ITileQueryService</c> instead, and it is what <c>TrySweepTiles</c> consults. When a bullet
+        /// stops somewhere the tile boxes say is empty — or passes through somewhere they say is solid —
+        /// the disagreement between these two drawings is the entire diagnosis, and until now only one
+        /// half of it could be seen at all.</para>
+        ///
+        /// <para>Drawn from the vertices handed to Box2D, including the one-vertex lead-in and
+        /// lead-out that <c>RoomChainGeometry.EmitChain</c> adds because Box2D discards an open
+        /// chain's first and final edge. So the drawing shows slightly more than the collidable
+        /// surface on purpose: it is what the engine was given.</para>
+        /// </summary>
+        LowLevelPhysics = 1 << 11,
+
         /// <summary>Everything. <see cref="Legend"/> included — it is a channel like the rest.</summary>
         All = Tiles | Units | Doors | Triggers | Transitions | Objects
-            | TileQuery | RoomData | PoolData | Clock | Legend
+            | TileQuery | RoomData | PoolData | Clock | Legend | LowLevelPhysics
     }
 
     /// <summary>
@@ -146,6 +166,7 @@ namespace PFE.Core
             (DebugOverlayChannel.PoolData,    "pool",        "the Object Pool Status text readout"),
             (DebugOverlayChannel.Clock,       "clock",       "the SIM CLOCK text readout"),
             (DebugOverlayChannel.Legend,      "legend",      "the collider legend plate"),
+            (DebugOverlayChannel.LowLevelPhysics, "physics",   "the LowLevelPhysics2D (Box2D v3) chain mirror a projectile sweeps against"),
         };
 
         /// <summary>
@@ -238,6 +259,16 @@ namespace PFE.Core
 
                 case "legend": case "key":
                     channel = DebugOverlayChannel.Legend; return true;
+
+                // The LowLevelPhysics2D chain mirror. "physics" is the name the request used; the rest
+                // are what someone who has read the code will actually type. "chain"/"chains" because
+                // that is the Box2D shape kind, "box2d" because that is the engine, "llp2d" because
+                // that is what every doc in the repo calls the system.
+                case "physics": case "phys":
+                case "llp2d": case "lowlevelphysics": case "lowlevelphysics2d":
+                case "chain": case "chains":
+                case "box2d":
+                    channel = DebugOverlayChannel.LowLevelPhysics; return true;
 
                 default:
                     channel = DebugOverlayChannel.None;

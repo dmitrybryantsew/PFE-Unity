@@ -144,10 +144,23 @@ namespace PFE.Systems.Map.Rendering
             BoxCollider2D collider = unitObject.AddComponent<BoxCollider2D>();
             if (definition != null)
             {
+                // AS3 Unit.as:1875-1876 -- `Y1 = Y - scY; Y2 = Y;`. The collision box sits ENTIRELY
+                // ABOVE the origin, because the origin is the unit's feet. A box centred on the origin
+                // puts half of it inside the floor tile the unit is standing on, which is what a
+                // half-buried collider looks like from the physics side.
                 collider.size = new Vector2(definition.Width, definition.Height);
+                collider.offset = new Vector2(0f, definition.Height * 0.5f);
             }
 
-            SpriteRenderer renderer = unitObject.AddComponent<SpriteRenderer>();
+            // The sprite lives on a CHILD, and that is load-bearing. The unit's own transform has to stay
+            // on the feet — the collider above, UnitController's MovePosition and every ground/tile query
+            // read it as the unit's position — while the sprite must be drawn 10px BELOW those feet
+            // (AS3 `visBmp.y = -blitY + 10`). One transform cannot be both, so the visual moves and the
+            // unit does not. UnitSpriteAnchor explains the pivot mismatch this compensates for.
+            var visualObject = new GameObject("Visual");
+            visualObject.transform.SetParent(unitObject.transform, false);
+
+            SpriteRenderer renderer = visualObject.AddComponent<SpriteRenderer>();
             renderer.sortingLayerName = MapSortingLayers.BackgroundPhysicalObjects;
             // Same depth convention as props: lower on screen draws in front.
             renderer.sortingOrder = -Mathf.FloorToInt(unit.position.y / Mathf.Max(1f, WorldConstants.TILE_SIZE));
@@ -156,7 +169,7 @@ namespace PFE.Systems.Map.Rendering
             // The reader the importers were writing animation data for and nothing was reading. Added
             // unconditionally — it early-returns when the state has no frames, so a single-frame unit
             // keeps the resting sprite ApplySprite just drew, and a 40-cell looping `stay` starts moving.
-            unitObject.AddComponent<UnitAnimator>().Initialize(definition, renderer);
+            visualObject.AddComponent<UnitAnimator>().Initialize(definition, renderer);
 
             Type controllerType = ResolveControllerType(unit.controllerId);
             var controller = (UnitController)unitObject.AddComponent(controllerType);
@@ -200,11 +213,20 @@ namespace PFE.Systems.Map.Rendering
         /// <para>Naming the gap rather than rendering nothing silently is the point: an invisible enemy
         /// that is really there is the hardest kind to diagnose. The collider is still built, so the
         /// unit is targetable and damageable while its art is pending.</para>
+        ///
+        /// <para><b>The sprite is anchored, not just assigned.</b> It goes through
+        /// <see cref="UnitSpriteAnchor.ApplyTo"/> rather than a bare <c>renderer.sprite =</c>, because the
+        /// imported per-frame PNGs carry Unity's default centre pivot while AS3 draws the frame 10px
+        /// below the unit's origin. That is the "units clip under the floor" defect; the type documents
+        /// the measurement.</para>
         /// </summary>
         void ApplySprite(SpriteRenderer renderer, UnitInstance unit, UnitDefinition definition)
         {
             Sprite sprite = definition != null ? definition.sprite : null;
-            renderer.sprite = sprite;
+            UnitSpriteAnchor.ApplyTo(
+                renderer,
+                sprite,
+                definition != null ? definition.registrationPoint : new Vector2Int(-1, -1));
             renderer.enabled = sprite != null;
 
             if (sprite == null && _warnedMissingSprite.Add(unit.unitId))

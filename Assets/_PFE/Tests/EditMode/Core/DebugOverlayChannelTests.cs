@@ -27,6 +27,7 @@ namespace PFE.Tests.EditMode.Core
             DebugOverlayChannel.PoolData,
             DebugOverlayChannel.Clock,
             DebugOverlayChannel.Legend,
+            DebugOverlayChannel.LowLevelPhysics,
         };
 
         private PfeDebugSettings _settings;

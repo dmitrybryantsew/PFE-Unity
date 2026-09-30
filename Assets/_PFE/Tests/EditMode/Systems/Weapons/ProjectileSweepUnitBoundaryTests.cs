@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
@@ -215,6 +216,14 @@ namespace PFE.Tests.EditMode.Systems.Weapons
             public PhysicsWorld World       => default;
             public bool         IsWorldValid => true;
             public int          TickOrder    => SimTickOrder.Projectiles;
+
+            /// <summary>
+            /// Empty, not null. The debug overlay reads this to draw the chain mirror, and an
+            /// implementation that answered null would be claiming "I mirror no rooms" in a way the
+            /// overlay has to special-case; "no rooms" is what an empty dictionary says.
+            /// </summary>
+            public IReadOnlyDictionary<RoomInstance, RoomChainGeometry> MirroredRooms { get; } =
+                new Dictionary<RoomInstance, RoomChainGeometry>();
 
             public void SimTick(int tickIndex) { }
 

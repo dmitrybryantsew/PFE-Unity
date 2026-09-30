@@ -6,6 +6,7 @@ using PFE.Entities.Units;
 using PFE.Systems.Map;
 using PFE.Systems.Map.Streaming;
 using PFE.Systems.Map.TileQuery;
+using PFE.Systems.Physics;
 using UnityEngine;
 
 namespace PFE.Systems.Map.Rendering
@@ -101,6 +102,17 @@ namespace PFE.Systems.Map.Rendering
         /// the other thing that is a statement rather than an object.</summary>
         private static readonly Color TransitionColor = new Color(1f, 0.35f, 1f, 0.95f);
 
+        /// <summary>
+        /// The LowLevelPhysics2D chain mirror. Deliberately a colour no other channel uses — it is the
+        /// one drawing that is <i>not</i> a Unity collider, and the whole point of showing it is to be
+        /// able to tell at a glance which of the two collision pictures a given edge belongs to.
+        /// </summary>
+        private static readonly Color ChainColor = new Color(0.35f, 1f, 1f, 0.9f);
+
+        /// <summary>Line thickness for the chain polylines. Thinner than a tile box: a chain is a
+        /// zero-thickness surface, and drawing it fat would imply a volume it does not have.</summary>
+        private const float ChainLineWidth = 0.03f;
+
         /// <summary>1 world unit is 100 game pixels; AS3's porog thresholds are in game pixels.</summary>
         private const float PixelsPerUnit = 100f;
 
@@ -135,6 +147,9 @@ namespace PFE.Systems.Map.Rendering
         private int _playersDrawn;
         private int _npcsDrawn;
         private bool _transitionsDrawn;
+
+        /// <summary>Chain edges drawn by the LowLevelPhysics2D channel on the last refresh.</summary>
+        private int _chainSegmentsDrawn;
         private bool _quadsExhausted;
         private bool _legendVisible;
         private GUIStyle _legendStyle;
@@ -351,6 +366,8 @@ namespace PFE.Systems.Map.Rendering
             sb.Append($"\n        units {Instance._unitsDrawn} drawn in view " +
                       $"({Instance._playersDrawn} player, {Instance._npcsDrawn} npc)");
             sb.Append($"\n        room boundary {(Instance._transitionsDrawn ? "drawn" : "not drawn")}");
+            sb.Append($"\n        llp2d chains {Instance._chainSegmentsDrawn} edges drawn in view " +
+                      "(the Box2D geometry a projectile sweeps against)");
 
             if (Instance._quadsExhausted)
             {
@@ -388,8 +405,9 @@ namespace PFE.Systems.Map.Rendering
             bool unitsOn = (channels & DebugOverlayChannel.Units) != 0;
             bool transitionsOn = (channels & DebugOverlayChannel.Transitions) != 0;
             bool legendOn = (channels & DebugOverlayChannel.Legend) != 0;
+            bool chainsOn = (channels & DebugOverlayChannel.LowLevelPhysics) != 0;
 
-            if (!tilesOn && !unitsOn && !transitionsOn && !legendOn)
+            if (!tilesOn && !unitsOn && !transitionsOn && !legendOn && !chainsOn)
             {
                 _legendVisible = false;
                 _usedQuads = 0;
@@ -409,6 +427,7 @@ namespace PFE.Systems.Map.Rendering
             _playersDrawn = 0;
             _npcsDrawn = 0;
             _transitionsDrawn = false;
+            _chainSegmentsDrawn = 0;
             _quadsExhausted = false;
 
             Rect view = GetViewRect();
@@ -416,6 +435,7 @@ namespace PFE.Systems.Map.Rendering
             if (tilesOn) DrawTiles(settings.TileColliderFilter, view);
             if (unitsOn) DrawUnits(settings.UnitColliderFilter, view);
             if (transitionsOn) DrawTransitions(view);
+            if (chainsOn) DrawLowLevelPhysicsChains(view);
 
             HideUnusedQuads();
 
@@ -635,6 +655,91 @@ namespace PFE.Systems.Map.Rendering
         }
 
         /// <summary>
+        /// Draw the LowLevelPhysics2D chain mirror — the Box2D v3 geometry a projectile actually sweeps
+        /// against — as world-space polylines.
+        ///
+        /// <para><b>Why it is worth its own channel.</b> Everything else this overlay draws is a Unity
+        /// <c>Collider2D</c> on a GameObject, found by <c>FindObjectsByType</c>. The chain mirror has
+        /// neither: it is geometry inside a <see cref="PhysicsWorld"/>, reachable only through
+        /// <see cref="MapBridge.PhysicsWorldService"/>. So a projectile that stops somewhere the tile
+        /// boxes say is empty — or passes through somewhere they say is solid — was previously
+        /// <i>undiagnosable from the overlay</i>, because the half of the picture that disagreed was
+        /// the half that could not be drawn.</para>
+        ///
+        /// <para><b>What is drawn is what the engine was handed.</b> The vertices come from
+        /// <c>RoomChainGeometry.ChainPoints</c>, recorded at emission from the same array passed to
+        /// <c>CreateChain</c>. That includes the one-vertex lead-in and lead-out added because Box2D
+        /// discards an open chain's first and final edge, so the polyline is slightly longer than the
+        /// collidable surface at each end — deliberately, and the honest direction to err.</para>
+        ///
+        /// <para>Segments are culled against the camera view before being emitted, for the same reason
+        /// tiles are: a room's silhouette is thousands of edges and a view holds a few hundred.</para>
+        /// </summary>
+        private void DrawLowLevelPhysicsChains(Rect view)
+        {
+            IPhysicsWorldService service = ResolvePhysicsWorldService();
+            if (service == null)
+            {
+                return;
+            }
+
+            IReadOnlyDictionary<RoomInstance, RoomChainGeometry> rooms = service.MirroredRooms;
+            if (rooms == null)
+            {
+                return;
+            }
+
+            foreach (KeyValuePair<RoomInstance, RoomChainGeometry> entry in rooms)
+            {
+                RoomChainGeometry geometry = entry.Value;
+                if (geometry == null) continue;
+
+                IReadOnlyList<Vector2[]> chains = geometry.ChainPoints;
+                if (chains == null) continue;
+
+                for (int c = 0; c < chains.Count; c++)
+                {
+                    Vector2[] points = chains[c];
+                    if (points == null) continue;
+
+                    for (int i = 0; i + 1 < points.Length; i++)
+                    {
+                        Vector2 from = points[i];
+                        Vector2 to = points[i + 1];
+                        if (!SegmentNearView(from, to, view)) continue;
+
+                        EmitSegment(from, to, ChainLineWidth, ChainColor);
+                        _chainSegmentsDrawn++;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// The physics service, or null when the map bridge has not been constructed yet (a debug
+        /// overlay can run in a scene with no game). Resolved per refresh rather than cached: it is one
+        /// scene lookup at 5 Hz, against the per-refresh <c>FindObjectsByType</c> over every tile that
+        /// this component already does, and a cached service would go stale across a scene reload.
+        /// </summary>
+        private static IPhysicsWorldService ResolvePhysicsWorldService()
+        {
+            MapBridge bridge = FindFirstObjectByType<MapBridge>();
+            return bridge != null ? bridge.PhysicsWorldService : null;
+        }
+
+        /// <summary>Cheap AABB overlap between a segment and the view rect, before paying for a quad.</summary>
+        private static bool SegmentNearView(Vector2 from, Vector2 to, Rect view)
+        {
+            float minX = Mathf.Min(from.x, to.x);
+            float maxX = Mathf.Max(from.x, to.x);
+            float minY = Mathf.Min(from.y, to.y);
+            float maxY = Mathf.Max(from.y, to.y);
+
+            return maxX >= view.xMin && minX <= view.xMax
+                && maxY >= view.yMin && minY <= view.yMax;
+        }
+
+        /// <summary>
         /// Do two world rects describe the same box, to within <paramref name="epsilon"/> on every
         /// edge? Used to skip the duplicate box rather than to decide anything about physics.
         /// </summary>
@@ -723,7 +828,37 @@ namespace PFE.Systems.Map.Rendering
 
             Transform t = sr.transform;
             t.position = new Vector3(center.x, center.y, 0f);
+            // Reset, not left alone: the pool is shared with EmitSegment, which rotates. A quad drawn
+            // from a recycled renderer that still carries a segment's angle would be silently wrong,
+            // and the pool is large enough that the reuse happens on the very next refresh.
+            t.rotation = Quaternion.identity;
             t.localScale = new Vector3(Mathf.Max(size.x, 0.001f), Mathf.Max(size.y, 0.001f), 1f);
+        }
+
+        /// <summary>
+        /// Draw one straight segment as a rotated quad.
+        ///
+        /// <para><b>Why a segment and not a box.</b> A Box2D chain is a zero-thickness polyline, so the
+        /// things being drawn are edges at arbitrary angles — an axis-aligned box cannot express them.
+        /// The quad is stretched to the segment's length and rotated to its direction, which is why
+        /// <see cref="EmitQuad"/> has to clear the rotation it inherits from the shared pool.</para>
+        /// </summary>
+        private void EmitSegment(Vector2 from, Vector2 to, float thickness, Color color)
+        {
+            Vector2 delta = to - from;
+            float length = delta.magnitude;
+            if (length <= 0.0001f) return;
+
+            SpriteRenderer sr = RentQuad();
+            if (sr == null) return;
+
+            sr.enabled = true;
+            sr.color = color;
+
+            Transform t = sr.transform;
+            t.position = new Vector3((from.x + to.x) * 0.5f, (from.y + to.y) * 0.5f, 0f);
+            t.rotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(delta.y, delta.x) * Mathf.Rad2Deg);
+            t.localScale = new Vector3(length, Mathf.Max(thickness, 0.001f), 1f);
         }
 
         private SpriteRenderer RentQuad()
@@ -1255,10 +1390,11 @@ namespace PFE.Systems.Map.Rendering
                       "<color=#ff00ff>MISMATCH / boundary</color> " +
                       "<color=#33e5ff>player</color> " +
                       "<color=#ff991f>npc</color> " +
+                      "<color=#59ffff>llp2d chain</color> " +
                       "| white bar = feet | thin white box = sprite, only where it differs");
 
             const float width = 640f;
-            const float height = 78f;
+            const float height = 92f;
 
             // Bottom-left, not top-left. (10, 10) is already owned by RoomStreamingManager.OnGUI and
             // (10, 200)/(10, 220) by TileQueryOverlay and RoomObjectPool; the top-right belongs to

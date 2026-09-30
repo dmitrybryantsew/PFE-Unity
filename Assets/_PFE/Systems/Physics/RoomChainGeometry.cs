@@ -100,6 +100,28 @@ namespace PFE.Systems.Physics
         private readonly List<PhysicsChain> _chains = new List<PhysicsChain>();
 
         /// <summary>
+        /// The world-unit vertices of each emitted chain, parallel to <see cref="_chains"/> by index.
+        ///
+        /// <para><b>Recorded at emission, from the same array handed to Box2D.</b> That is the whole
+        /// point: a debug view built by re-deriving the silhouette would be a <i>second</i>
+        /// interpretation of the tile semantics, and the first one is already the thing under
+        /// suspicion whenever a projectile behaves oddly. These are the bytes Box2D received,
+        /// lead-in and lead-out included, so what the overlay draws is what the sweep can hit.</para>
+        ///
+        /// <para>Held rather than read back from the engine: <c>PhysicsChain</c> offers no
+        /// point-enumeration route that does not need a <c>NativeArray</c> to be disposed, and the
+        /// geometry is already in managed memory at this point.</para>
+        /// </summary>
+        private readonly List<Vector2[]> _chainPoints = new List<Vector2[]>();
+
+        /// <summary>
+        /// The emitted chain vertices, in world units. Empty until <see cref="Build"/> has run, and
+        /// emptied by <see cref="Destroy"/>. Read-only to callers; the arrays are owned by this
+        /// builder and must not be mutated.
+        /// </summary>
+        public IReadOnlyList<Vector2[]> ChainPoints => _chainPoints;
+
+        /// <summary>
         /// World-unit AABB of each chain, parallel to <see cref="_chains"/> by index.
         ///
         /// <para>This exists to keep <see cref="TrySweep"/> affordable. <c>PhysicsChain.CastShape</c>
@@ -215,6 +237,7 @@ namespace PFE.Systems.Physics
 
             _chains.Clear();
             _chainBoundsUnits.Clear();
+            _chainPoints.Clear();
         }
 
         /// <summary>
@@ -370,6 +393,9 @@ namespace PFE.Systems.Physics
 
             _chains.Add(chain);
             _chainBoundsUnits.Add(Rect.MinMaxRect(minX, minY, maxX, maxY));
+            // The same array that was handed to ChainGeometry. Recorded only for a chain Box2D
+            // accepted, so the debug view and the destroy list stay parallel by index.
+            _chainPoints.Add(points);
             ChainCount++;
             PointCount += points.Length;
         }

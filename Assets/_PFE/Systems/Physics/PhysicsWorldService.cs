@@ -33,6 +33,9 @@ namespace PFE.Systems.Physics
         public PhysicsWorld World => _world;
         public bool IsWorldValid => _world.isValid;
 
+        /// <inheritdoc />
+        public IReadOnlyDictionary<RoomInstance, RoomChainGeometry> MirroredRooms => _roomGeometry;
+
         /// <summary>
         /// Stepped in the <see cref="SimTickOrder.Projectiles"/> slot — the first intended consumer.
         ///

@@ -39,6 +39,17 @@ public class MapBridge : MonoBehaviour
     private PFE.Core.SimLoop _simLoop;
     private PFE.Systems.Physics.IPhysicsWorldService _physicsWorldService;
 
+    /// <summary>
+    /// The LowLevelPhysics2D world service, for the debug overlay.
+    ///
+    /// <para><b>Why this is exposed at all.</b> The chain mirror is Box2D geometry inside a
+    /// <c>PhysicsWorld</c> — there is no GameObject and no <c>Collider2D</c> to find by type, so
+    /// <c>ColliderDebugOverlay</c>'s usual <c>FindObjectsByType</c> route cannot reach it. This
+    /// property is the seam that lets <c>col on physics</c> draw the geometry a projectile actually
+    /// sweeps against. Null until <see cref="Construct"/> has run.</para>
+    /// </summary>
+    public PFE.Systems.Physics.IPhysicsWorldService PhysicsWorldService => _physicsWorldService;
+
     // Inject GameManager via VContainer
     //
     // Note: C# default values would NOT make a parameter optional here. VContainer's

@@ -280,6 +280,12 @@ namespace PFE.Tests.Editor.Map.Rendering
             Assert.IsNotNull(collider);
             Assert.AreEqual(2f, collider.size.x, 0.001f);
             Assert.AreEqual(2f, collider.size.y, 0.001f);
+
+            // AS3 Unit.as:1875-1876 -- `Y1 = Y - scY; Y2 = Y;`. The unit's origin is its feet, so the
+            // box has to be pushed UP by half its height to sit on top of them. Without this the box
+            // straddles the origin and its lower half is inside the floor tile.
+            Assert.AreEqual(0f, collider.offset.x, 0.001f, "the box is horizontally centred (X1/X2 = X -+ scX/2)");
+            Assert.AreEqual(1f, collider.offset.y, 0.001f, "the box's bottom is the feet, not its centre");
         }
 
         [Test]
@@ -292,8 +298,11 @@ namespace PFE.Tests.Editor.Map.Rendering
             var spawner = new RoomUnitSpawner(room, _parent, TrainingDummyProvider());
             spawner.RefreshAll();
 
-            var lower = _parent.GetChild(0).GetComponent<SpriteRenderer>();
-            var higher = _parent.GetChild(1).GetComponent<SpriteRenderer>();
+            // The renderer sits on the unit's "Visual" child, not on the unit itself: the unit transform
+            // has to stay on the feet (the collider and the controllers read it there) while the sprite
+            // is drawn 10px below them. See UnitSpriteAnchor.
+            var lower = _parent.GetChild(0).GetComponentInChildren<SpriteRenderer>();
+            var higher = _parent.GetChild(1).GetComponentInChildren<SpriteRenderer>();
 
             Assert.AreEqual(MapSortingLayers.BackgroundPhysicalObjects, lower.sortingLayerName);
             Assert.Greater(lower.sortingOrder, higher.sortingOrder,

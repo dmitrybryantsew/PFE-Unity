@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.LowLevelPhysics2D;
 using PFE.Core;
@@ -24,6 +25,22 @@ namespace PFE.Systems.Physics
     {
         /// <summary>The owned Box2D v3 world. Valid after first room activation.</summary>
         PhysicsWorld World { get; }
+
+        /// <summary>
+        /// The rooms this service currently mirrors, each with the chain geometry it built.
+        ///
+        /// <para><b>For the debug overlay, and only for it.</b> The chain mirror is invisible from the
+        /// scene — it is Box2D geometry inside a <see cref="PhysicsWorld"/>, not a
+        /// <c>Collider2D</c> on a GameObject — so <c>ColliderDebugOverlay</c>'s existing tile boxes
+        /// show Unity's collider grid and say nothing at all about what a projectile actually sweeps
+        /// against. When those two disagree, that difference <i>is</i> the bug, and it cannot be seen
+        /// without this. <c>col on physics</c> draws it.</para>
+        ///
+        /// <para>Keys are live <see cref="RoomInstance"/> references and the values die with
+        /// <see cref="DestroyRoomGeometry"/>, so a caller must not hold either past a room
+        /// transition.</para>
+        /// </summary>
+        IReadOnlyDictionary<RoomInstance, RoomChainGeometry> MirroredRooms { get; }
 
         /// <summary>True once the world has been created and is ready for bodies.</summary>
         bool IsWorldValid { get; }

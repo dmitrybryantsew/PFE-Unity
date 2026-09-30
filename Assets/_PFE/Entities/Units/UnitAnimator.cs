@@ -205,7 +205,12 @@ namespace PFE.Entities.Units
 
             _drawnCell = index;
             Sprite cell = sheet[index];
-            _renderer.sprite = cell;
+
+            // Anchored, not just assigned: cells sliced from the sheet carry the oracle's pivot while the
+            // per-frame resting frame does not, so a unit that starts animating would otherwise jump by
+            // the difference. UnitSpriteAnchor derives the offset from the sprite actually drawn, so a
+            // correctly-pivoted cell yields zero and a centre-pivoted one yields the correction.
+            UnitSpriteAnchor.ApplyTo(_renderer, cell, _definition.registrationPoint);
             _renderer.enabled = cell != null;
         }
 
