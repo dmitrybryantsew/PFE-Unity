@@ -82,13 +82,17 @@ namespace PFE.Systems.Map.TileQuery
 
         /// <summary>
         /// Maximum distance a single collision sub-step may move before subdivision: 9 pixels.
-        /// AS3: World.as:48 (maxdelta = 9).
+        /// AS3: World.as:52 (maxdelta = 9).
+        ///
+        /// <para>Also mirrored by <see cref="PFE.Systems.Weapons.UnitSweepMath.MaxDeltaPx"/>, which
+        /// holds its own copy so that file stays Unity-free and can be executed offline. A test pins
+        /// the two equal.</para>
         /// </summary>
         public const float MaxDelta = 9.0f;
 
         /// <summary>
         /// Maximum vertical velocity (terminal fall velocity): 20 pixels/frame.
-        /// AS3: World.as:49 (maxdy = 20), overridable per location via Location.maxdy.
+        /// AS3: World.as:48 (maxdy = 20), overridable per location via Location.maxdy.
         /// </summary>
         public const float MaxDy = 20.0f;
 

@@ -8,6 +8,7 @@ using PFE.Core;
 using PFE.Core.Messages;
 using MessagePipe;
 using System;
+using System.Collections.Generic;
 using System.Text;
 using PFE.Core.Rng;
 using PFE.Systems.Map;
@@ -88,6 +89,18 @@ namespace PFE.Entities.Weapons
         private float   _ddy;               // per-second Y acceleration (gravity / flame lift)
         private float   _navod;             // homing strength (0=no homing)
 
+        /// <summary>
+        /// Arc length flown since spawn, in <b>pixels</b> — AS3 <c>Bullet.dist</c>
+        /// (<c>weapon/Bullet.as:416</c>, <c>this.dist += this.vel / param1</c>). Feeds
+        /// <see cref="HitAvoidance.Accuracy"/>, where a weapon's <c>prec * 40</c> is divided by it.
+        ///
+        /// <para><b>Accumulated along the path, not measured start-to-target.</b> The two differ for
+        /// anything that curves — a homing round, a grenade, a flame arc — and AS3 accumulates, so a
+        /// straight-line measurement would make exactly those weapons <i>more</i> accurate than the
+        /// oracle. Both integration paths add to it, because only one of them runs at a time.</para>
+        /// </summary>
+        private float   _traveledDistancePixels;
+
         // Scaled to Unity units from AS3 pixel values where needed by caller.
         private const float DefaultLifetime = 30f;
         private const float FlameLifetime1  = 0.7f;   // flame==1 short lifetime (AS3 ~21 frames)
@@ -99,6 +112,30 @@ namespace PFE.Entities.Weapons
         private bool          _isInitialized;
         private bool          _hasDetonated;
         private bool          _isImpacting;       // true while playing impact frames before pool
+
+        // ── Unit collision — the sim's sub-stepped probe (Stage C) ──────────────────────────────
+        // AS3's bullet keeps `parr`: the units it has already struck (`Bullet.as:69`, and `udar()` at
+        // `:392-409` refuses a unit already in it), so one bullet hits each unit at most once. The port
+        // got that for free from Unity's enter-only trigger semantics; an explicit probe does not, so
+        // the list has to exist. Cleared per shot in ResetProjectile — a pooled instance would
+        // otherwise carry the previous shot's victims into the next one.
+        private readonly List<Collider2D> _struckUnits   = new List<Collider2D>(4);
+
+        // Parallel lists, index-for-index: UnitSweepMath takes only the boxes, and the caller needs the
+        // collider back to hand to HandleImpact. Reused rather than rebuilt so a held trigger does not
+        // allocate per tick.
+        private readonly List<UnitBoxPx>  _unitBoxes     = new List<UnitBoxPx>(8);
+        private readonly List<Collider2D> _unitColliders = new List<Collider2D>(8);
+
+        /// <summary>
+        /// Broad-phase results. Fixed rather than grown: a bullet's swept box is at most ~40 px on a
+        /// side, so 32 overlapping colliders is far past anything a room produces, and a silently
+        /// truncated list would look exactly like the tunnelling this probe exists to fix.
+        /// </summary>
+        private readonly Collider2D[]     _unitBuffer    = new Collider2D[32];
+
+        private static ContactFilter2D    _unitFilter;
+        private static bool               _unitFilterBuilt;
 
         // ── Stage C: sim-owned state (only used when ProjectilesUseLowLevelPhysics is on) ──────
         // The simulation owns the position; the Transform is a *view* of it, written in LateUpdate.
@@ -331,13 +368,51 @@ namespace PFE.Entities.Weapons
             Vector2 fromPx  = fromUnits  * TileQueryConstants.UnitToPixel;
             Vector2 deltaPx = deltaUnits * TileQueryConstants.UnitToPixel;
 
-            if (TryTileContact(fromPx, deltaPx, out Vector2 contactPx))
+            // Both collision questions are asked over the SAME segment, and the nearer answer wins.
+            // The tile side is one swept test over the whole segment; the unit side is AS3's sub-step
+            // loop (UnitSweepMath). AS3 decides by testing both at each sub-step and acting on the
+            // first that fires, which for a segment is the same thing as taking the nearer contact —
+            // the two agree everywhere except within a single 9 px sub-step.
+            //
+            // Asking the tile question first and returning on its answer would be wrong, not merely
+            // less accurate: a unit standing in front of a wall is the ordinary case in a room, the
+            // sweep would report the wall, and the unit would never be hit. That is precisely the
+            // "bullet went through the enemy" report this probe exists to fix.
+            bool  tileHit        = TryTileContact(fromPx, deltaPx, out Vector2 contactPx);
+            float tileDistancePx = tileHit ? (contactPx - fromPx).magnitude : float.PositiveInfinity;
+
+            if (TryUnitContact(fromPx, deltaPx, out Collider2D unit, out Vector2 unitHitPx, out float unitDistancePx)
+                && unitDistancePx < tileDistancePx)
+            {
+                _traveledDistancePixels += unitDistancePx;
+                _simPosition = unitHitPx * TileQueryConstants.PixelToUnit;
+                _viewDirty   = true;
+
+                ResolveUnitImpact(unit, unitHitPx);
+
+                // Stopped: impact frames playing, or already handed back to the pool.
+                if (_isImpacting || _pendingReturnToPool) return;
+
+                // Survived — the round pierced through, or the faction gate declined it and AS3's
+                // bullet simply carries on (`Bullet.as:515` fails for a same-faction unit). A wall
+                // further along the segment is deliberately NOT resolved here: TryTileContact's
+                // enter-only latch is per-tick state, so re-running it inside one tick would be told
+                // "already in contact" and skip the wall entirely. The cost is bounded by one tick of
+                // travel, and the next tick's sweep starts from the far side.
+                _traveledDistancePixels += deltaPx.magnitude - unitDistancePx;
+            }
+            else if (tileHit)
             {
                 // contactPx comes back in world pixels; the sim's own position is in units.
                 _simPosition = contactPx * TileQueryConstants.PixelToUnit;
                 _viewDirty   = true;
+                _traveledDistancePixels += tileDistancePx;
                 ResolveTileImpact(contactPx);
                 return;
+            }
+            else
+            {
+                _traveledDistancePixels += deltaPx.magnitude;
             }
 
             _simPosition = fromUnits + deltaUnits;
@@ -400,6 +475,147 @@ namespace PFE.Entities.Weapons
             _lastContactNormal = normal;
             contactPx          = point;
             return true;
+        }
+
+        /// <summary>
+        /// Asks whether this tick's segment reaches a unit, using AS3's sub-step loop rather than an
+        /// overlap sample.
+        ///
+        /// <para><b>Why the tile sweep's approach does not transfer.</b> <c>TrySweepTiles</c> can be a
+        /// swept shape because a chain is zero-thickness and a sampled test would step over it. Units
+        /// are the opposite problem: AS3's test <i>is</i> a point (<c>Bullet.as:515</c>), so what
+        /// prevents tunnelling there is the advance per test, not the shape. AS3 advances at most
+        /// <c>World.maxdelta</c> = 9 px (<c>World.as:52</c>, loop at <c>Bullet.as:199-205</c>) and
+        /// tests the point against each unit's bounds after every sub-step. A tick here covers 40 px
+        /// against a 12–24 px box, so one sample is a coin flip — the reported "sometimes".</para>
+        ///
+        /// <para>Candidates come from one broad-phase query over the segment's box; the sub-step
+        /// arithmetic lives in <see cref="UnitSweepMath"/>, which has no Unity dependency and is
+        /// exercised offline.</para>
+        /// </summary>
+        /// <param name="unit">First unit struck, in broad-phase order.</param>
+        /// <param name="hitPx">Sub-step position that struck it, world pixels.</param>
+        /// <param name="distancePx">How far along the segment that is, for the tile-versus-unit comparison.</param>
+        private bool TryUnitContact(Vector2 fromPx, Vector2 deltaPx,
+                                    out Collider2D unit, out Vector2 hitPx, out float distancePx)
+        {
+            unit       = null;
+            hitPx      = default;
+            distancePx = 0f;
+
+            if (GatherUnitBoxes(fromPx, deltaPx) == 0) return false;
+
+            if (!UnitSweepMath.TryFirstHit(
+                    fromPx.x, fromPx.y, deltaPx.x, deltaPx.y, _unitBoxes,
+                    UnitSweepMath.MaxDeltaPx, out int index, out float hitX, out float hitY))
+            {
+                return false;
+            }
+
+            unit       = _unitColliders[index];
+            hitPx      = new Vector2(hitX, hitY);
+            distancePx = (hitPx - fromPx).magnitude;
+            return true;
+        }
+
+        /// <summary>
+        /// Collects the units this tick's segment could reach into <see cref="_unitBoxes"/> /
+        /// <see cref="_unitColliders"/>, index-for-index. Returns the count.
+        ///
+        /// <para>The filters mirror <see cref="OnTriggerEnter2D"/>'s so the probe sees the set the
+        /// trigger would have seen: triggers are skipped (that callback returns on them), the tile grid
+        /// is skipped (the chain sweep owns tiles whenever this probe runs), and units already struck
+        /// are skipped — that last one is AS3's <c>parr</c>, and without it a piercing round would
+        /// damage the same unit on every tick it spent inside the box.</para>
+        ///
+        /// <para>Bounds come from the collider's world AABB, the closest thing the port has to AS3's
+        /// <c>X1..X2</c>/<c>Y1..Y2</c> logical box. That is a Unity read, like the tile-identity lookup
+        /// in <see cref="FindTileCollider"/> — a read, not a decision, and Stage D is what moves it.</para>
+        /// </summary>
+        private int GatherUnitBoxes(Vector2 fromPx, Vector2 deltaPx)
+        {
+            _unitBoxes.Clear();
+            _unitColliders.Clear();
+
+            // The broad phase speaks world UNITS; everything else in this method is pixels.
+            Vector2 endPx = fromPx + deltaPx;
+            var minPx = new Vector2(Mathf.Min(fromPx.x, endPx.x), Mathf.Min(fromPx.y, endPx.y));
+            var maxPx = new Vector2(Mathf.Max(fromPx.x, endPx.x), Mathf.Max(fromPx.y, endPx.y));
+
+            int count = Physics2D.OverlapArea(
+                minPx * TileQueryConstants.PixelToUnit,
+                maxPx * TileQueryConstants.PixelToUnit,
+                UnitFilter, _unitBuffer);
+
+            for (int i = 0; i < count; i++)
+            {
+                Collider2D candidate = _unitBuffer[i];
+                if (candidate == null) continue;
+                if (candidate.isTrigger) continue;
+                if (candidate == _triggerCollider) continue;
+                if (candidate.GetComponent<TileCollider>() != null) continue;
+                if (_struckUnits.Contains(candidate)) continue;
+
+                Bounds bounds = candidate.bounds;
+                _unitBoxes.Add(new UnitBoxPx(
+                    bounds.min.x * TileQueryConstants.UnitToPixel,
+                    bounds.max.x * TileQueryConstants.UnitToPixel,
+                    bounds.min.y * TileQueryConstants.UnitToPixel,
+                    bounds.max.y * TileQueryConstants.UnitToPixel));
+                _unitColliders.Add(candidate);
+            }
+
+            return _unitBoxes.Count;
+        }
+
+        /// <summary>
+        /// Resolves a unit contact found by the probe, reusing the legacy impact path verbatim so
+        /// damage, armour, sound, AoE and the impact animation all behave as they do on the trigger
+        /// path — the same single-sourcing <see cref="ResolveTileImpact"/> does for tiles.
+        /// </summary>
+        private void ResolveUnitImpact(Collider2D unit, Vector2 hitPx)
+        {
+            // Recorded before the impact, matching AS3: `udar()` pushes the unit onto `parr` and only
+            // then does the caller apply damage (`Bullet.as:519-521`), so a round that pierces is
+            // already immune to re-hitting the unit it pierced.
+            if (!_struckUnits.Contains(unit)) _struckUnits.Add(unit);
+
+            // _spawnPosition.z rather than transform.position.z: this runs inside a tick, and a tick
+            // may not read Transform.
+            var impactWorld = new Vector3(
+                hitPx.x * TileQueryConstants.PixelToUnit,
+                hitPx.y * TileQueryConstants.PixelToUnit,
+                _spawnPosition.z);
+
+            HandleImpact(unit, impactWorld);
+        }
+
+        /// <summary>
+        /// The broad-phase filter for <see cref="GatherUnitBoxes"/>. Triggers are excluded because
+        /// <see cref="OnTriggerEnter2D"/> ignores them too; every other dimension is left unfiltered so
+        /// the probe cannot be narrower than the trigger it replaces — which would present as hits that
+        /// quietly stopped working in the flip.
+        /// </summary>
+        private static ContactFilter2D UnitFilter
+        {
+            get
+            {
+                if (!_unitFilterBuilt)
+                {
+                    _unitFilter = new ContactFilter2D
+                    {
+                        useTriggers           = false,
+                        useLayerMask          = false,
+                        useDepth              = false,
+                        useNormalAngle        = false,
+                        useOutsideDepth       = false,
+                        useOutsideNormalAngle = false,
+                    };
+                    _unitFilterBuilt = true;
+                }
+
+                return _unitFilter;
+            }
         }
 
         /// <summary>
@@ -536,6 +752,7 @@ namespace PFE.Entities.Weapons
             _navod        = navod;
             _isInitialized = true;
             _hasDetonated  = false;
+            _traveledDistancePixels = 0f;
 
             if (_rb == null) _rb = GetComponent<Rigidbody2D>();
 
@@ -702,6 +919,11 @@ namespace PFE.Entities.Weapons
 
             _rb.linearVelocity = _velocity;
 
+            // AS3 accumulates `dist` from the step it just took (`Bullet.as:416`); the legacy path's
+            // step is the velocity handed to the rigidbody for this frame. See
+            // _traveledDistancePixels for why this is arc length rather than start-to-target.
+            _traveledDistancePixels += _velocity.magnitude * dt * TileQueryConstants.UnitToPixel;
+
             // ── Rotate sprite to face direction of travel ─────────────────────
             if (!_isImpacting && _velocity.sqrMagnitude > 0.0001f)
             {
@@ -785,8 +1007,9 @@ namespace PFE.Entities.Weapons
 
                 if (!ProjectileOcclusionRule.BlocksProjectile(tileCollider.GetTileData())) return;
             }
-            // Entity hits are deliberately NOT filtered: enemies, the player and destructible props
-            // are still Unity colliders in both modes.
+            // Entity hits are NOT filtered by surface kind — enemies, the player and destructible props
+            // are still Unity colliders in both modes. They ARE filtered by which path owns them, and
+            // that gate sits below the trigger diagnostic so the log keeps working in both modes.
 
             if (other.isTrigger)
             {
@@ -799,6 +1022,14 @@ namespace PFE.Entities.Weapons
                 }
                 return;
             }
+
+            // With the flip running, the sim's sub-stepped unit probe owns entity contacts — see
+            // TryUnitContact and its call site in SimTick. Resolving them here as well would fire every
+            // impact twice: two damage rolls, two impact sounds, two AoE detonations. Same argument as
+            // the tile branch above, and safe for the same reason — FlipActive IS the SimLoop
+            // registration, so the probe runs exactly when this returns, and the legacy path is
+            // untouched when it does not.
+            if (FlipActive) return;
 
             HandleImpact(other, transform.position);
         }
@@ -1032,7 +1263,12 @@ namespace PFE.Entities.Weapons
                 // Report, do not resolve. DamageSystem owns the formula, and owns the tick that runs
                 // it when PfeDebugSettings.SimTickDamage is on. A source that resolved its own hit
                 // would make the result depend on the order the physics engine reported contacts.
-                _damageSystem.Report(PendingDamage.Direct(_damageContext, target, targetPos));
+                //
+                // The travel distance goes with it: it is the one input the hit-avoidance roll needs
+                // that is a property of this hit rather than of the shot (AS3 Bullet.dist). Melee and
+                // hitscan pass nothing, because their branch of the oracle has no distance term.
+                _damageSystem.Report(PendingDamage.Direct(
+                    _damageContext, target, targetPos, _traveledDistancePixels));
                 return;
             }
 
@@ -1084,6 +1320,10 @@ namespace PFE.Entities.Weapons
             _viewDirty           = false;
             _pendingReturnToPool = false;
             _tileContactActive   = false;
+            // AS3's `parr` dies with the bullet because AS3 allocates a new one per shot. This instance
+            // is pooled, so the equivalent list has to be cleared explicitly or a recycled bullet
+            // inherits the previous shot's victims and flies through them.
+            _struckUnits.Clear();
             _lastContactNormal   = Vector2.zero;
             _simPosition         = Vector2.zero;
 
