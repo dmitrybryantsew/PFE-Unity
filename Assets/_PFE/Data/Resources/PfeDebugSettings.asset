@@ -44,9 +44,10 @@ MonoBehaviour:
   simTickOverlayEnabled: 1
   simTickDualRun: 1
   simTickMotor: 1
-  simTickRoom: 0
+  simTickRoom: 1
+  simTickDamage: 0
   projectilesUseLowLevelPhysics: 1
-  thrownObjectsUseTileSeam: 0
+  thrownObjectsUseTileSeam: 1
   simTickLogDivergence: 1
   tileQueryUnified: 1
   rngSeedOverride: 0

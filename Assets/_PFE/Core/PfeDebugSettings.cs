@@ -179,6 +179,14 @@ namespace PFE.Core
         private bool simTickRoom = false;
 
         [SerializeField]
+        [Tooltip("Drives damage resolution from SimLoop at SimTickOrder.Damage instead of resolving each hit inline at the moment of contact. " +
+                 "OFF = a hit is resolved by the source that reported it, immediately (the historical path). " +
+                 "ON = the source only records the hit, and DamageSystem resolves it once per tick after every source has moved — which is what makes a hit reproducible and replicable across peers, because the result stops depending on the order the physics engine reported contacts. " +
+                 "The formula is armour-aware in BOTH modes; this flag chooses only WHEN it runs. With no unit carrying armour the two modes give identical numbers, so it is safe to flip while play-testing. " +
+                 "Ignored (falls back to immediate) while SimTickEnabled is off, because nothing would drain the queue. Behaviour toggle, NOT gated by runtimeLoggingEnabled.")]
+        private bool simTickDamage = false;
+
+        [SerializeField]
         [Tooltip("Stage C flip: moves a projectile's TILE collision onto the LowLevelPhysics2D chain mirror, and its integration onto SimLoop at exactly SimClock.SimDt (AS3's 30 Hz). " +
                  "OFF = unchanged: tile hits come from Unity's per-tile BoxCollider2D grid via OnTriggerEnter2D, and the projectile integrates in FixedUpdate at Time.fixedDeltaTime. " +
                  "ON = the hit decision comes from a swept query against the chain mirror (single-sourced from ITileQueryService, no ghost collisions at tile seams), and the projectile integrates once per sim tick. " +
@@ -195,6 +203,17 @@ namespace PFE.Core
         [SerializeField]
         [Tooltip("Logs each field-level divergence found by the dual-run harness, with tick index. Very noisy — opt in only while diffing Stage B.")]
         private bool simTickLogDivergence = false;
+
+        // ── Damage Formula ───────────────────────────────────────────────────
+
+        [SerializeField]
+        [Tooltip("Applies the target's vulnerability table to incoming damage (AS3 Unit.vulner, applied at Unit.damage():3527-3530). " +
+                 "OFF = the term does not exist, every hit is multiplied by 1, and the numbers are byte-identical to the pre-A7 behaviour. " +
+                 "ON = each hit is multiplied by the target's multiplier for its own damage type, BEFORE the armour pool is worn — which is the oracle's order (:3529 precedes the pool block at :3578). " +
+                 "Gameplay-affecting, in one specific way: AS3's baseline is 1 everywhere EXCEPT emp = 0 (Unit.as:583-590), so every unit becomes EMP-immune until a <vulner> element grants it back — 25 of the 94 elements do. " +
+                 "The table comes from UnitDefinition.vulnerabilities, which is imported but has zero other combat callers, so this flag is what makes that data live. " +
+                 "Behaviour toggle, NOT gated by runtimeLoggingEnabled.")]
+        private bool applyVulnerabilities = false;
 
         // ── Tile Collision Query (P2) ────────────────────────────────────────
 
@@ -261,6 +280,20 @@ namespace PFE.Core
         public bool SimTickDualRun                               => simTickDualRun;
         public bool SimTickMotor                                 => simTickMotor;
         public bool SimTickRoom                                  => simTickRoom;
+
+        /// <summary>
+        /// Whether damage resolves on the tick (<c>SimTickOrder.Damage</c>) rather than inline at
+        /// report time. See <c>DamageSystem</c>; it also requires <see cref="SimTickEnabled"/>, because
+        /// a queued hit with nothing to drain it would never land.
+        /// </summary>
+        public bool SimTickDamage                                => simTickDamage;
+
+        /// <summary>
+        /// Whether a target's vulnerability table is applied to incoming damage. See
+        /// <c>DamageSystem</c>; the data it reads is <c>UnitDefinition.vulnerabilities</c>, which this
+        /// flag is the only combat caller of.
+        /// </summary>
+        public bool ApplyVulnerabilities                         => applyVulnerabilities;
         public bool ProjectilesUseLowLevelPhysics                => projectilesUseLowLevelPhysics;
         public bool ThrownObjectsUseTileSeam                     => thrownObjectsUseTileSeam;
 
