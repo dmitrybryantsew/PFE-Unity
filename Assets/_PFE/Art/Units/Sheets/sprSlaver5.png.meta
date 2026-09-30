@@ -1,0 +1,2776 @@
+fileFormatVersion: 2
+guid: 166b162e57d3e9c45893fa85d6084324
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: -2020879929856921689
+    second: sprSlaver5_0
+  - first:
+      213: 3327978845077175649
+    second: sprSlaver5_1
+  - first:
+      213: 534625568895447429
+    second: sprSlaver5_2
+  - first:
+      213: 3612287347817139961
+    second: sprSlaver5_3
+  - first:
+      213: -6211764317772527389
+    second: sprSlaver5_4
+  - first:
+      213: 3220088736008948118
+    second: sprSlaver5_5
+  - first:
+      213: 6443323184355866498
+    second: sprSlaver5_6
+  - first:
+      213: -3072498543530752184
+    second: sprSlaver5_7
+  - first:
+      213: -3416583954589272138
+    second: sprSlaver5_8
+  - first:
+      213: -9167425157628753519
+    second: sprSlaver5_9
+  - first:
+      213: 3356262992576773349
+    second: sprSlaver5_10
+  - first:
+      213: -6747853396711023887
+    second: sprSlaver5_11
+  - first:
+      213: -1059752158387339808
+    second: sprSlaver5_12
+  - first:
+      213: -4361906413533578854
+    second: sprSlaver5_13
+  - first:
+      213: 5815901690021433724
+    second: sprSlaver5_14
+  - first:
+      213: -7033769327096261063
+    second: sprSlaver5_15
+  - first:
+      213: -5854824873910102522
+    second: sprSlaver5_16
+  - first:
+      213: 6288061044659657702
+    second: sprSlaver5_17
+  - first:
+      213: 1514571467483286620
+    second: sprSlaver5_18
+  - first:
+      213: 979399770505383647
+    second: sprSlaver5_19
+  - first:
+      213: -2959976783491718745
+    second: sprSlaver5_20
+  - first:
+      213: 4952006585412167327
+    second: sprSlaver5_21
+  - first:
+      213: -2471276571587260486
+    second: sprSlaver5_22
+  - first:
+      213: -1983271771922914641
+    second: sprSlaver5_23
+  - first:
+      213: 4155665487152136019
+    second: sprSlaver5_24
+  - first:
+      213: 5117170188061906360
+    second: sprSlaver5_25
+  - first:
+      213: -2855727937394887386
+    second: sprSlaver5_26
+  - first:
+      213: -5723092546527856477
+    second: sprSlaver5_27
+  - first:
+      213: -8823894229328980668
+    second: sprSlaver5_28
+  - first:
+      213: -4552310944054717158
+    second: sprSlaver5_29
+  - first:
+      213: -6689090158397895049
+    second: sprSlaver5_30
+  - first:
+      213: 4921990872584745296
+    second: sprSlaver5_31
+  - first:
+      213: 7360587502692370350
+    second: sprSlaver5_32
+  - first:
+      213: -690280597405925022
+    second: sprSlaver5_33
+  - first:
+      213: 1949106721176786996
+    second: sprSlaver5_34
+  - first:
+      213: 3121601200821261753
+    second: sprSlaver5_35
+  - first:
+      213: -2005530209845437983
+    second: sprSlaver5_36
+  - first:
+      213: 6293169740655396901
+    second: sprSlaver5_37
+  - first:
+      213: -159090752607179082
+    second: sprSlaver5_38
+  - first:
+      213: -7865035545449504616
+    second: sprSlaver5_39
+  - first:
+      213: 4093990128116986384
+    second: sprSlaver5_40
+  - first:
+      213: 4571478490274641493
+    second: sprSlaver5_41
+  - first:
+      213: 282077990636023859
+    second: sprSlaver5_42
+  - first:
+      213: 5377311202710907014
+    second: sprSlaver5_43
+  - first:
+      213: -7586673547370135150
+    second: sprSlaver5_44
+  - first:
+      213: -6778366602988135570
+    second: sprSlaver5_45
+  - first:
+      213: -5107915640521589336
+    second: sprSlaver5_46
+  - first:
+      213: 8476146121912743956
+    second: sprSlaver5_47
+  - first:
+      213: 3400266029258555448
+    second: sprSlaver5_48
+  - first:
+      213: -3668860582597150309
+    second: sprSlaver5_49
+  - first:
+      213: 4029112960771116252
+    second: sprSlaver5_50
+  - first:
+      213: 3080533562620728811
+    second: sprSlaver5_51
+  - first:
+      213: 2203186828630534646
+    second: sprSlaver5_52
+  - first:
+      213: 3891616098640481405
+    second: sprSlaver5_53
+  - first:
+      213: 6724938165515841723
+    second: sprSlaver5_54
+  - first:
+      213: -1690657778024179482
+    second: sprSlaver5_55
+  - first:
+      213: -2587650701820111891
+    second: sprSlaver5_56
+  - first:
+      213: -3246809406033195676
+    second: sprSlaver5_57
+  - first:
+      213: -5249163068561948536
+    second: sprSlaver5_58
+  - first:
+      213: -1284321632759645537
+    second: sprSlaver5_59
+  - first:
+      213: -7462045157900185762
+    second: sprSlaver5_60
+  - first:
+      213: -4829186712899587763
+    second: sprSlaver5_61
+  - first:
+      213: -4938852561670752509
+    second: sprSlaver5_62
+  - first:
+      213: 6320950182274673511
+    second: sprSlaver5_63
+  - first:
+      213: 1176199612970813771
+    second: sprSlaver5_64
+  - first:
+      213: -7645008848722706328
+    second: sprSlaver5_65
+  - first:
+      213: -2120990784495171362
+    second: sprSlaver5_66
+  - first:
+      213: 8513345675155874659
+    second: sprSlaver5_67
+  - first:
+      213: -6364967448785608851
+    second: sprSlaver5_68
+  - first:
+      213: 5418771866665243595
+    second: sprSlaver5_69
+  - first:
+      213: 3164033966423277579
+    second: sprSlaver5_70
+  - first:
+      213: -5597620314185887100
+    second: sprSlaver5_71
+  - first:
+      213: 1463512900718442527
+    second: sprSlaver5_72
+  - first:
+      213: -8957522633038700990
+    second: sprSlaver5_73
+  - first:
+      213: 7275433675632789529
+    second: sprSlaver5_74
+  - first:
+      213: 93402334303006558
+    second: sprSlaver5_75
+  - first:
+      213: 8548147401039394106
+    second: sprSlaver5_76
+  - first:
+      213: -2277614549192696543
+    second: sprSlaver5_77
+  - first:
+      213: 2331219313152376797
+    second: sprSlaver5_78
+  - first:
+      213: -3946856320834271436
+    second: sprSlaver5_79
+  - first:
+      213: 7464826229654089310
+    second: sprSlaver5_80
+  - first:
+      213: -2733204150766163285
+    second: sprSlaver5_81
+  - first:
+      213: -6142795918007543294
+    second: sprSlaver5_82
+  - first:
+      213: -9209900431887423095
+    second: sprSlaver5_83
+  - first:
+      213: -3032666258262656092
+    second: sprSlaver5_84
+  - first:
+      213: 8348823695215359303
+    second: sprSlaver5_85
+  - first:
+      213: -1687704169957123652
+    second: sprSlaver5_86
+  - first:
+      213: -4526903089290692458
+    second: sprSlaver5_87
+  - first:
+      213: 2552066100380170564
+    second: sprSlaver5_88
+  - first:
+      213: 5000447351641157956
+    second: sprSlaver5_89
+  - first:
+      213: -8560163395041372610
+    second: sprSlaver5_90
+  - first:
+      213: -8883759553661230923
+    second: sprSlaver5_91
+  - first:
+      213: -2387865644685329764
+    second: sprSlaver5_92
+  - first:
+      213: 3603558569658910139
+    second: sprSlaver5_93
+  - first:
+      213: -6895260115827618052
+    second: sprSlaver5_94
+  - first:
+      213: 9021548235183281438
+    second: sprSlaver5_95
+  - first:
+      213: -1492140924198289372
+    second: sprSlaver5_96
+  - first:
+      213: -7084178951455279538
+    second: sprSlaver5_97
+  - first:
+      213: -7748911339760455094
+    second: sprSlaver5_98
+  - first:
+      213: -5145875113993214677
+    second: sprSlaver5_99
+  - first:
+      213: 64904876875472889
+    second: sprSlaver5_100
+  - first:
+      213: -8414098706922190907
+    second: sprSlaver5_101
+  - first:
+      213: 8509439658604583139
+    second: sprSlaver5_102
+  - first:
+      213: -9134449572652588012
+    second: sprSlaver5_103
+  - first:
+      213: 754275906401508880
+    second: sprSlaver5_104
+  - first:
+      213: -5204856970677643258
+    second: sprSlaver5_105
+  - first:
+      213: -7677417725955883822
+    second: sprSlaver5_106
+  - first:
+      213: 7367580227196220069
+    second: sprSlaver5_107
+  - first:
+      213: -8481643576871506386
+    second: sprSlaver5_108
+  - first:
+      213: -5713834320378593799
+    second: sprSlaver5_109
+  - first:
+      213: 2258022305000802185
+    second: sprSlaver5_110
+  - first:
+      213: 3014413618771856900
+    second: sprSlaver5_111
+  - first:
+      213: 816953023205511899
+    second: sprSlaver5_112
+  - first:
+      213: 4788787184968699903
+    second: sprSlaver5_113
+  - first:
+      213: -4096308361924744815
+    second: sprSlaver5_114
+  - first:
+      213: 951823766774606995
+    second: sprSlaver5_115
+  - first:
+      213: 1160125686360269095
+    second: sprSlaver5_116
+  - first:
+      213: 8113931686339267145
+    second: sprSlaver5_117
+  - first:
+      213: -6710224571751197340
+    second: sprSlaver5_118
+  - first:
+      213: 5748605727698037859
+    second: sprSlaver5_119
+  - first:
+      213: 3271455384474895040
+    second: sprSlaver5_120
+  - first:
+      213: -6667209348220785892
+    second: sprSlaver5_121
+  - first:
+      213: 4832566944331993954
+    second: sprSlaver5_122
+  - first:
+      213: 7642451324143682565
+    second: sprSlaver5_123
+  - first:
+      213: 3770950641528208473
+    second: sprSlaver5_124
+  - first:
+      213: -4448162442715582052
+    second: sprSlaver5_125
+  - first:
+      213: -8622092623818605227
+    second: sprSlaver5_126
+  - first:
+      213: -1828250440709358802
+    second: sprSlaver5_127
+  - first:
+      213: -4670080810977666103
+    second: sprSlaver5_128
+  - first:
+      213: -7208677744188603244
+    second: sprSlaver5_129
+  - first:
+      213: 1077005827405532916
+    second: sprSlaver5_130
+  - first:
+      213: -3268695025639145953
+    second: sprSlaver5_131
+  - first:
+      213: 6182870562371644478
+    second: sprSlaver5_132
+  - first:
+      213: -3816071916484900395
+    second: sprSlaver5_133
+  - first:
+      213: -3526468744874431455
+    second: sprSlaver5_134
+  - first:
+      213: 2262813997180496817
+    second: sprSlaver5_135
+  - first:
+      213: -8088824086655626768
+    second: sprSlaver5_136
+  - first:
+      213: 3164590611873559616
+    second: sprSlaver5_137
+  - first:
+      213: 3616177029743221609
+    second: sprSlaver5_138
+  - first:
+      213: 2897604850663934496
+    second: sprSlaver5_139
+  - first:
+      213: -7358100082390256264
+    second: sprSlaver5_140
+  - first:
+      213: -8203727660587815977
+    second: sprSlaver5_141
+  - first:
+      213: 1888642693126157119
+    second: sprSlaver5_142
+  - first:
+      213: -540184699238576430
+    second: sprSlaver5_143
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 0
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 8192
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 0
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Android
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: sprSlaver5_r0_c0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 650
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7ee90f8c2385f7941a6ebd2b7654221e
+      internalID: 1235167267
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r0_c1
+      rect:
+        serializedVersion: 2
+        x: 130
+        y: 650
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 57a5ca07e15eb0e449d43a4e0aa3b4ea
+      internalID: -795053973
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r0_c2
+      rect:
+        serializedVersion: 2
+        x: 260
+        y: 650
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 72e2cdaa5c8a0da4c97daa2e68f070fb
+      internalID: -2027007116
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r0_c3
+      rect:
+        serializedVersion: 2
+        x: 390
+        y: 650
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 23372da003e203e44a7e32babe94aca8
+      internalID: -316111563
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r0_c4
+      rect:
+        serializedVersion: 2
+        x: 520
+        y: 650
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 4abd68a82df408d47aa2d854254d0667
+      internalID: 1506446727
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r0_c5
+      rect:
+        serializedVersion: 2
+        x: 650
+        y: 650
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 57fa95068dc80fd4192afa3ee83d4f27
+      internalID: -214825158
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r0_c6
+      rect:
+        serializedVersion: 2
+        x: 780
+        y: 650
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 4c30bc1c5367b8a47889ae6620d64df1
+      internalID: -27124416
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r0_c7
+      rect:
+        serializedVersion: 2
+        x: 910
+        y: 650
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 010d7e5769699504393154fbe9756868
+      internalID: -1249677721
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r0_c8
+      rect:
+        serializedVersion: 2
+        x: 1040
+        y: 650
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 637ac58adff20234e88bd66fa6c68e4f
+      internalID: -509316417
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r0_c9
+      rect:
+        serializedVersion: 2
+        x: 1170
+        y: 650
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 44891cd19adede644becf9b86514e001
+      internalID: -1748491905
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r0_c10
+      rect:
+        serializedVersion: 2
+        x: 1300
+        y: 650
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6c2589ee69366fe43bc9c6f27cb68b3e
+      internalID: 627167688
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r0_c11
+      rect:
+        serializedVersion: 2
+        x: 1430
+        y: 650
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b6410bdfa8970984bae553cd3a351a66
+      internalID: 253135393
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r0_c12
+      rect:
+        serializedVersion: 2
+        x: 1560
+        y: 650
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c27c9ecceab6c39479ef791f1fa241e2
+      internalID: 1918634664
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r0_c13
+      rect:
+        serializedVersion: 2
+        x: 1690
+        y: 650
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 4add9650118e143468e181cb047d22cd
+      internalID: -1601296869
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r0_c14
+      rect:
+        serializedVersion: 2
+        x: 1820
+        y: 650
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 4a78a183a51af324a959ba69d4db519f
+      internalID: -676421263
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r1_c0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 520
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e6a78f9b7e2970746bf8861841da2029
+      internalID: -1777183589
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r1_c1
+      rect:
+        serializedVersion: 2
+        x: 130
+        y: 520
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7f2db9097e227834c8af6d85e3e89953
+      internalID: -826477170
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r1_c2
+      rect:
+        serializedVersion: 2
+        x: 260
+        y: 520
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: cb83d08ed2b287948a12088fef9bd899
+      internalID: 1773024831
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r1_c3
+      rect:
+        serializedVersion: 2
+        x: 390
+        y: 520
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 0eebd9f5e85bf28418efdb3687a53ca1
+      internalID: 2059305811
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r1_c4
+      rect:
+        serializedVersion: 2
+        x: 520
+        y: 520
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9dd150e885aeefe45b7ce561c052964e
+      internalID: -109444720
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r1_c5
+      rect:
+        serializedVersion: 2
+        x: 650
+        y: 520
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 0ced395f5e6fc594b9933d517a158433
+      internalID: 273272597
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r1_c6
+      rect:
+        serializedVersion: 2
+        x: 780
+        y: 520
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 368b75fcfd0dfe543b19bb6241905374
+      internalID: -1145108517
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r1_c7
+      rect:
+        serializedVersion: 2
+        x: 910
+        y: 520
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9ea6b83887cdb004ca4cda55fc12079d
+      internalID: -715103890
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r1_c8
+      rect:
+        serializedVersion: 2
+        x: 1040
+        y: 520
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 2d767a3f49ad87a438a282d83b8db041
+      internalID: -420171950
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r1_c9
+      rect:
+        serializedVersion: 2
+        x: 1170
+        y: 520
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9705656cb7b3a484aa04f6ae29c6e3da
+      internalID: -1259865746
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r1_c10
+      rect:
+        serializedVersion: 2
+        x: 1300
+        y: 520
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 765a39babd1d27343b217e4f9dc0f439
+      internalID: 971098990
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r1_c11
+      rect:
+        serializedVersion: 2
+        x: 1430
+        y: 520
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f43604ca6065d664389f396d631b4e9c
+      internalID: -11149844
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r1_c12
+      rect:
+        serializedVersion: 2
+        x: 1560
+        y: 520
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 0661c37b1071cc04f94f5b2d3c68c7f6
+      internalID: -556604663
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r1_c13
+      rect:
+        serializedVersion: 2
+        x: 1690
+        y: 520
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a65c5a562929dfb4f82c19f285d385fc
+      internalID: 194755691
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r1_c14
+      rect:
+        serializedVersion: 2
+        x: 1820
+        y: 520
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 41dce82bfa4070a49817899f917b7bdb
+      internalID: 790917751
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r2_c0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 390
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6c3c9a2f655dcbf409e0c0904270a686
+      internalID: -1904857108
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r2_c1
+      rect:
+        serializedVersion: 2
+        x: 130
+        y: 390
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6f86bd8827d74ec4bb8fa72a8c9adc9b
+      internalID: 240848819
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r2_c2
+      rect:
+        serializedVersion: 2
+        x: 260
+        y: 390
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 5f75ba5b34c4d0340a97317a2facb09c
+      internalID: -1266859952
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r2_c3
+      rect:
+        serializedVersion: 2
+        x: 390
+        y: 390
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 626b50139d0a78f4c9afcc19ba518771
+      internalID: 17829312
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r2_c4
+      rect:
+        serializedVersion: 2
+        x: 520
+        y: 390
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 04890d5f27dc2f245b81091eaca79f09
+      internalID: -1631583623
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r2_c5
+      rect:
+        serializedVersion: 2
+        x: 650
+        y: 390
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: aa2bd9d0ba5022b4185e22d7d07ebdeb
+      internalID: -1434717975
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r2_c6
+      rect:
+        serializedVersion: 2
+        x: 780
+        y: 390
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 867b38881d3d66e4cad5555537d2f0b3
+      internalID: 77164326
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r2_c7
+      rect:
+        serializedVersion: 2
+        x: 910
+        y: 390
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a0c3936534fabd041908b3aa3f17566c
+      internalID: 1855269343
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r2_c8
+      rect:
+        serializedVersion: 2
+        x: 1040
+        y: 390
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a5aba561351254947bfb715706516aec
+      internalID: -859742510
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r2_c9
+      rect:
+        serializedVersion: 2
+        x: 1170
+        y: 390
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 0c015b7d5e3884f43be82a310b0b3c26
+      internalID: -862530022
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r2_c10
+      rect:
+        serializedVersion: 2
+        x: 1300
+        y: 390
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7e8bb42a97542004c97146ff4f4caaab
+      internalID: 450623994
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r2_c11
+      rect:
+        serializedVersion: 2
+        x: 1430
+        y: 390
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 0b6f9ce02eaca1740b90d096eb65fa04
+      internalID: 252186412
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r2_c12
+      rect:
+        serializedVersion: 2
+        x: 1560
+        y: 390
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9996f4f9d3dca6e4193c2995e040886b
+      internalID: 608566907
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r2_c13
+      rect:
+        serializedVersion: 2
+        x: 1690
+        y: 390
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: af4fd4d4b57dab54ea31b24a5333873e
+      internalID: 1448408074
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r2_c14
+      rect:
+        serializedVersion: 2
+        x: 1820
+        y: 390
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: efdbe2c2a6eb1f140bdfe3cddf5360a5
+      internalID: -1836361919
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r3_c0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 795c4819566736d4d9ade2aceffa2323
+      internalID: -109348079
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r3_c1
+      rect:
+        serializedVersion: 2
+        x: 130
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 5495072e11d618342936dc65e5f38b42
+      internalID: 1545998084
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r3_c2
+      rect:
+        serializedVersion: 2
+        x: 260
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c7e339399a7d3144799ecf25d1ce83c7
+      internalID: 1230398243
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r3_c3
+      rect:
+        serializedVersion: 2
+        x: 390
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 86c42e5c1c6b93d44ab5755d73d804bf
+      internalID: 1950109994
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r3_c4
+      rect:
+        serializedVersion: 2
+        x: 520
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e348a4d7e49fc4e4b8103002fc069b3e
+      internalID: -37831256
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r3_c5
+      rect:
+        serializedVersion: 2
+        x: 650
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 05417445ffdf7134bab714776d6ddcb1
+      internalID: 972991166
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r3_c6
+      rect:
+        serializedVersion: 2
+        x: 780
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 567db6afea4d04649ab3f7a15056468e
+      internalID: 409845479
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r3_c7
+      rect:
+        serializedVersion: 2
+        x: 910
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 56ceb9e949a73364da95bd0f4f72dd39
+      internalID: 480650520
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r3_c8
+      rect:
+        serializedVersion: 2
+        x: 1040
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 02d2ae91ec5200948bfe550eb5b82e5d
+      internalID: 880818701
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r3_c9
+      rect:
+        serializedVersion: 2
+        x: 1170
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 4b5c19134bdfee14e800546c1c0244b3
+      internalID: 428800135
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r3_c10
+      rect:
+        serializedVersion: 2
+        x: 1300
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 8a75ae4e570cb7d4b9e705d012de5fab
+      internalID: -255831813
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r3_c11
+      rect:
+        serializedVersion: 2
+        x: 1430
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d1a1036179e863744805d7b10efcf638
+      internalID: 676254218
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r3_c12
+      rect:
+        serializedVersion: 2
+        x: 1560
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: bf34337e1b48bed46a75d6ae2790ec19
+      internalID: 1923464994
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r3_c13
+      rect:
+        serializedVersion: 2
+        x: 1690
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6859e1694d215c3428c98e1cdc9a1c5e
+      internalID: 853340509
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r3_c14
+      rect:
+        serializedVersion: 2
+        x: 1820
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ca27168a89abca64b9d369694a806ceb
+      internalID: 1206428199
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r4_c0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 130
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7c7822af0d6181d4795ece147a8d669e
+      internalID: 1080959583
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r4_c1
+      rect:
+        serializedVersion: 2
+        x: 130
+        y: 130
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 34ade0d20dbc938479136022e193407a
+      internalID: -2007838158
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r4_c2
+      rect:
+        serializedVersion: 2
+        x: 260
+        y: 130
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: be186947cf7f0084eae8f6a1fe263225
+      internalID: -321464342
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r4_c3
+      rect:
+        serializedVersion: 2
+        x: 390
+        y: 130
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 3478f3c50281fb24bbf3917bf6564af5
+      internalID: -1590774833
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r4_c4
+      rect:
+        serializedVersion: 2
+        x: 520
+        y: 130
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 450ba66e20c4eec439a6fc3b348439f4
+      internalID: -1693610822
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r4_c5
+      rect:
+        serializedVersion: 2
+        x: 650
+        y: 130
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 49602cad71a5bd841a4259f4f22b709e
+      internalID: -77675663
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r4_c6
+      rect:
+        serializedVersion: 2
+        x: 780
+        y: 130
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 29f0783b427163b4d9f32bd6422d805e
+      internalID: -1095701301
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r4_c7
+      rect:
+        serializedVersion: 2
+        x: 910
+        y: 130
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 41a58990aed034e4c8fb2952b0958b22
+      internalID: -987950631
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r4_c8
+      rect:
+        serializedVersion: 2
+        x: 1040
+        y: 130
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 8c4fcc5d588a51c4f9a49bb70e31fc68
+      internalID: -1459854274
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r4_c9
+      rect:
+        serializedVersion: 2
+        x: 1170
+        y: 130
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 5732045472e9f124aaf9757ad18ef712
+      internalID: 942748281
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r4_c10
+      rect:
+        serializedVersion: 2
+        x: 1300
+        y: 130
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 1dac9ee5dd61b044fb660f70a0a7f96d
+      internalID: 266055161
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r4_c11
+      rect:
+        serializedVersion: 2
+        x: 1430
+        y: 130
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 97b4a31b58be981429b5534bac9b6660
+      internalID: -962595008
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r4_c12
+      rect:
+        serializedVersion: 2
+        x: 1560
+        y: 130
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 3741d68efae6dc04c98c93edf4ae902c
+      internalID: 1638997115
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r4_c13
+      rect:
+        serializedVersion: 2
+        x: 1690
+        y: 130
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 884a50564a186514b96f72cd412764b8
+      internalID: 1389907471
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r4_c14
+      rect:
+        serializedVersion: 2
+        x: 1820
+        y: 130
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f16e3585b46514743aea9058fb561da6
+      internalID: 570752032
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r5_c0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d9b9d96810e4c7a43a01ec31eb9a7253
+      internalID: -1490061759
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r5_c1
+      rect:
+        serializedVersion: 2
+        x: 130
+        y: 0
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b1bc84ab2cc5dad44a5aab9dfba8ea62
+      internalID: 269908870
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r5_c2
+      rect:
+        serializedVersion: 2
+        x: 260
+        y: 0
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 495f781d836c2304daf74275d14be47f
+      internalID: -82707664
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r5_c3
+      rect:
+        serializedVersion: 2
+        x: 390
+        y: 0
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 1d93c5666b0e9f4489a4ee22ca72a840
+      internalID: 2110707815
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r5_c4
+      rect:
+        serializedVersion: 2
+        x: 520
+        y: 0
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9fd9f8fb31568dc428d164f3503da67b
+      internalID: -1606090231
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r5_c5
+      rect:
+        serializedVersion: 2
+        x: 650
+        y: 0
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: fe8625e9ca6a2b948b2ce1255934cf33
+      internalID: 1960120746
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r5_c6
+      rect:
+        serializedVersion: 2
+        x: 780
+        y: 0
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9fe8bf706197cf74e979cb4829568434
+      internalID: -2011920665
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r5_c7
+      rect:
+        serializedVersion: 2
+        x: 910
+        y: 0
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 348c7e165c128834a90257fe1838d48d
+      internalID: -511520735
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r5_c8
+      rect:
+        serializedVersion: 2
+        x: 1040
+        y: 0
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 1d5225200ec5d144eb256e078f78182d
+      internalID: 1568890563
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r5_c9
+      rect:
+        serializedVersion: 2
+        x: 1170
+        y: 0
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 552397554492e574292eb8e0032a6d41
+      internalID: 1977250327
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r5_c10
+      rect:
+        serializedVersion: 2
+        x: 1300
+        y: 0
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7c5e1c398691f5f41a232336a5ad74b4
+      internalID: 362167972
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r5_c11
+      rect:
+        serializedVersion: 2
+        x: 1430
+        y: 0
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 836683655c275b1459f76d22fecd6e54
+      internalID: -1909316461
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r5_c12
+      rect:
+        serializedVersion: 2
+        x: 1560
+        y: 0
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 16486478964f374438c70a15fd5acfcd
+      internalID: -2088432108
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r5_c13
+      rect:
+        serializedVersion: 2
+        x: 1690
+        y: 0
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 72cfc16eaed7e0a43ad70b869b4bdb1c
+      internalID: 1690979295
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprSlaver5_r5_c14
+      rect:
+        serializedVersion: 2
+        x: 1820
+        y: 0
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a5d7ec68b65786948af1d846000d1414
+      internalID: -1730590039
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 54c25cce3b227cd45a0fa47a21800aea
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      sprSlaver5_0: -2020879929856921689
+      sprSlaver5_1: 3327978845077175649
+      sprSlaver5_10: 3356262992576773349
+      sprSlaver5_100: 64904876875472889
+      sprSlaver5_101: -8414098706922190907
+      sprSlaver5_102: 8509439658604583139
+      sprSlaver5_103: -9134449572652588012
+      sprSlaver5_104: 754275906401508880
+      sprSlaver5_105: -5204856970677643258
+      sprSlaver5_106: -7677417725955883822
+      sprSlaver5_107: 7367580227196220069
+      sprSlaver5_108: -8481643576871506386
+      sprSlaver5_109: -5713834320378593799
+      sprSlaver5_11: -6747853396711023887
+      sprSlaver5_110: 2258022305000802185
+      sprSlaver5_111: 3014413618771856900
+      sprSlaver5_112: 816953023205511899
+      sprSlaver5_113: 4788787184968699903
+      sprSlaver5_114: -4096308361924744815
+      sprSlaver5_115: 951823766774606995
+      sprSlaver5_116: 1160125686360269095
+      sprSlaver5_117: 8113931686339267145
+      sprSlaver5_118: -6710224571751197340
+      sprSlaver5_119: 5748605727698037859
+      sprSlaver5_12: -1059752158387339808
+      sprSlaver5_120: 3271455384474895040
+      sprSlaver5_121: -6667209348220785892
+      sprSlaver5_122: 4832566944331993954
+      sprSlaver5_123: 7642451324143682565
+      sprSlaver5_124: 3770950641528208473
+      sprSlaver5_125: -4448162442715582052
+      sprSlaver5_126: -8622092623818605227
+      sprSlaver5_127: -1828250440709358802
+      sprSlaver5_128: -4670080810977666103
+      sprSlaver5_129: -7208677744188603244
+      sprSlaver5_13: -4361906413533578854
+      sprSlaver5_130: 1077005827405532916
+      sprSlaver5_131: -3268695025639145953
+      sprSlaver5_132: 6182870562371644478
+      sprSlaver5_133: -3816071916484900395
+      sprSlaver5_134: -3526468744874431455
+      sprSlaver5_135: 2262813997180496817
+      sprSlaver5_136: -8088824086655626768
+      sprSlaver5_137: 3164590611873559616
+      sprSlaver5_138: 3616177029743221609
+      sprSlaver5_139: 2897604850663934496
+      sprSlaver5_14: 5815901690021433724
+      sprSlaver5_140: -7358100082390256264
+      sprSlaver5_141: -8203727660587815977
+      sprSlaver5_142: 1888642693126157119
+      sprSlaver5_143: -540184699238576430
+      sprSlaver5_15: -7033769327096261063
+      sprSlaver5_16: -5854824873910102522
+      sprSlaver5_17: 6288061044659657702
+      sprSlaver5_18: 1514571467483286620
+      sprSlaver5_19: 979399770505383647
+      sprSlaver5_2: 534625568895447429
+      sprSlaver5_20: -2959976783491718745
+      sprSlaver5_21: 4952006585412167327
+      sprSlaver5_22: -2471276571587260486
+      sprSlaver5_23: -1983271771922914641
+      sprSlaver5_24: 4155665487152136019
+      sprSlaver5_25: 5117170188061906360
+      sprSlaver5_26: -2855727937394887386
+      sprSlaver5_27: -5723092546527856477
+      sprSlaver5_28: -8823894229328980668
+      sprSlaver5_29: -4552310944054717158
+      sprSlaver5_3: 3612287347817139961
+      sprSlaver5_30: -6689090158397895049
+      sprSlaver5_31: 4921990872584745296
+      sprSlaver5_32: 7360587502692370350
+      sprSlaver5_33: -690280597405925022
+      sprSlaver5_34: 1949106721176786996
+      sprSlaver5_35: 3121601200821261753
+      sprSlaver5_36: -2005530209845437983
+      sprSlaver5_37: 6293169740655396901
+      sprSlaver5_38: -159090752607179082
+      sprSlaver5_39: -7865035545449504616
+      sprSlaver5_4: -6211764317772527389
+      sprSlaver5_40: 4093990128116986384
+      sprSlaver5_41: 4571478490274641493
+      sprSlaver5_42: 282077990636023859
+      sprSlaver5_43: 5377311202710907014
+      sprSlaver5_44: -7586673547370135150
+      sprSlaver5_45: -6778366602988135570
+      sprSlaver5_46: -5107915640521589336
+      sprSlaver5_47: 8476146121912743956
+      sprSlaver5_48: 3400266029258555448
+      sprSlaver5_49: -3668860582597150309
+      sprSlaver5_5: 3220088736008948118
+      sprSlaver5_50: 4029112960771116252
+      sprSlaver5_51: 3080533562620728811
+      sprSlaver5_52: 2203186828630534646
+      sprSlaver5_53: 3891616098640481405
+      sprSlaver5_54: 6724938165515841723
+      sprSlaver5_55: -1690657778024179482
+      sprSlaver5_56: -2587650701820111891
+      sprSlaver5_57: -3246809406033195676
+      sprSlaver5_58: -5249163068561948536
+      sprSlaver5_59: -1284321632759645537
+      sprSlaver5_6: 6443323184355866498
+      sprSlaver5_60: -7462045157900185762
+      sprSlaver5_61: -4829186712899587763
+      sprSlaver5_62: -4938852561670752509
+      sprSlaver5_63: 6320950182274673511
+      sprSlaver5_64: 1176199612970813771
+      sprSlaver5_65: -7645008848722706328
+      sprSlaver5_66: -2120990784495171362
+      sprSlaver5_67: 8513345675155874659
+      sprSlaver5_68: -6364967448785608851
+      sprSlaver5_69: 5418771866665243595
+      sprSlaver5_7: -3072498543530752184
+      sprSlaver5_70: 3164033966423277579
+      sprSlaver5_71: -5597620314185887100
+      sprSlaver5_72: 1463512900718442527
+      sprSlaver5_73: -8957522633038700990
+      sprSlaver5_74: 7275433675632789529
+      sprSlaver5_75: 93402334303006558
+      sprSlaver5_76: 8548147401039394106
+      sprSlaver5_77: -2277614549192696543
+      sprSlaver5_78: 2331219313152376797
+      sprSlaver5_79: -3946856320834271436
+      sprSlaver5_8: -3416583954589272138
+      sprSlaver5_80: 7464826229654089310
+      sprSlaver5_81: -2733204150766163285
+      sprSlaver5_82: -6142795918007543294
+      sprSlaver5_83: -9209900431887423095
+      sprSlaver5_84: -3032666258262656092
+      sprSlaver5_85: 8348823695215359303
+      sprSlaver5_86: -1687704169957123652
+      sprSlaver5_87: -4526903089290692458
+      sprSlaver5_88: 2552066100380170564
+      sprSlaver5_89: 5000447351641157956
+      sprSlaver5_9: -9167425157628753519
+      sprSlaver5_90: -8560163395041372610
+      sprSlaver5_91: -8883759553661230923
+      sprSlaver5_92: -2387865644685329764
+      sprSlaver5_93: 3603558569658910139
+      sprSlaver5_94: -6895260115827618052
+      sprSlaver5_95: 9021548235183281438
+      sprSlaver5_96: -1492140924198289372
+      sprSlaver5_97: -7084178951455279538
+      sprSlaver5_98: -7748911339760455094
+      sprSlaver5_99: -5145875113993214677
+      sprSlaver5_r0_c0: 1235167267
+      sprSlaver5_r0_c1: -795053973
+      sprSlaver5_r0_c10: 627167688
+      sprSlaver5_r0_c11: 253135393
+      sprSlaver5_r0_c12: 1918634664
+      sprSlaver5_r0_c13: -1601296869
+      sprSlaver5_r0_c14: -676421263
+      sprSlaver5_r0_c2: -2027007116
+      sprSlaver5_r0_c3: -316111563
+      sprSlaver5_r0_c4: 1506446727
+      sprSlaver5_r0_c5: -214825158
+      sprSlaver5_r0_c6: -27124416
+      sprSlaver5_r0_c7: -1249677721
+      sprSlaver5_r0_c8: -509316417
+      sprSlaver5_r0_c9: -1748491905
+      sprSlaver5_r1_c0: -1777183589
+      sprSlaver5_r1_c1: -826477170
+      sprSlaver5_r1_c10: 971098990
+      sprSlaver5_r1_c11: -11149844
+      sprSlaver5_r1_c12: -556604663
+      sprSlaver5_r1_c13: 194755691
+      sprSlaver5_r1_c14: 790917751
+      sprSlaver5_r1_c2: 1773024831
+      sprSlaver5_r1_c3: 2059305811
+      sprSlaver5_r1_c4: -109444720
+      sprSlaver5_r1_c5: 273272597
+      sprSlaver5_r1_c6: -1145108517
+      sprSlaver5_r1_c7: -715103890
+      sprSlaver5_r1_c8: -420171950
+      sprSlaver5_r1_c9: -1259865746
+      sprSlaver5_r2_c0: -1904857108
+      sprSlaver5_r2_c1: 240848819
+      sprSlaver5_r2_c10: 450623994
+      sprSlaver5_r2_c11: 252186412
+      sprSlaver5_r2_c12: 608566907
+      sprSlaver5_r2_c13: 1448408074
+      sprSlaver5_r2_c14: -1836361919
+      sprSlaver5_r2_c2: -1266859952
+      sprSlaver5_r2_c3: 17829312
+      sprSlaver5_r2_c4: -1631583623
+      sprSlaver5_r2_c5: -1434717975
+      sprSlaver5_r2_c6: 77164326
+      sprSlaver5_r2_c7: 1855269343
+      sprSlaver5_r2_c8: -859742510
+      sprSlaver5_r2_c9: -862530022
+      sprSlaver5_r3_c0: -109348079
+      sprSlaver5_r3_c1: 1545998084
+      sprSlaver5_r3_c10: -255831813
+      sprSlaver5_r3_c11: 676254218
+      sprSlaver5_r3_c12: 1923464994
+      sprSlaver5_r3_c13: 853340509
+      sprSlaver5_r3_c14: 1206428199
+      sprSlaver5_r3_c2: 1230398243
+      sprSlaver5_r3_c3: 1950109994
+      sprSlaver5_r3_c4: -37831256
+      sprSlaver5_r3_c5: 972991166
+      sprSlaver5_r3_c6: 409845479
+      sprSlaver5_r3_c7: 480650520
+      sprSlaver5_r3_c8: 880818701
+      sprSlaver5_r3_c9: 428800135
+      sprSlaver5_r4_c0: 1080959583
+      sprSlaver5_r4_c1: -2007838158
+      sprSlaver5_r4_c10: 266055161
+      sprSlaver5_r4_c11: -962595008
+      sprSlaver5_r4_c12: 1638997115
+      sprSlaver5_r4_c13: 1389907471
+      sprSlaver5_r4_c14: 570752032
+      sprSlaver5_r4_c2: -321464342
+      sprSlaver5_r4_c3: -1590774833
+      sprSlaver5_r4_c4: -1693610822
+      sprSlaver5_r4_c5: -77675663
+      sprSlaver5_r4_c6: -1095701301
+      sprSlaver5_r4_c7: -987950631
+      sprSlaver5_r4_c8: -1459854274
+      sprSlaver5_r4_c9: 942748281
+      sprSlaver5_r5_c0: -1490061759
+      sprSlaver5_r5_c1: 269908870
+      sprSlaver5_r5_c10: 362167972
+      sprSlaver5_r5_c11: -1909316461
+      sprSlaver5_r5_c12: -2088432108
+      sprSlaver5_r5_c13: 1690979295
+      sprSlaver5_r5_c14: -1730590039
+      sprSlaver5_r5_c2: -82707664
+      sprSlaver5_r5_c3: 2110707815
+      sprSlaver5_r5_c4: -1606090231
+      sprSlaver5_r5_c5: 1960120746
+      sprSlaver5_r5_c6: -2011920665
+      sprSlaver5_r5_c7: -511520735
+      sprSlaver5_r5_c8: 1568890563
+      sprSlaver5_r5_c9: 1977250327
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

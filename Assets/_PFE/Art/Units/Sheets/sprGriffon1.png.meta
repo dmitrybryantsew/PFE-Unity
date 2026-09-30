@@ -1,0 +1,730 @@
+fileFormatVersion: 2
+guid: 75385c8e86aac664e9cf7ce337dc27d8
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: -8392837945018656670
+    second: sprGriffon1_0
+  - first:
+      213: -7095854493015411591
+    second: sprGriffon1_1
+  - first:
+      213: -7738357408749292468
+    second: sprGriffon1_2
+  - first:
+      213: 7097182039730437749
+    second: sprGriffon1_3
+  - first:
+      213: 1013813390622257640
+    second: sprGriffon1_4
+  - first:
+      213: 9194535535327961331
+    second: sprGriffon1_5
+  - first:
+      213: -3414552251161168480
+    second: sprGriffon1_6
+  - first:
+      213: 4111427757106162428
+    second: sprGriffon1_7
+  - first:
+      213: -3512255520710169474
+    second: sprGriffon1_8
+  - first:
+      213: 6453964966111385337
+    second: sprGriffon1_9
+  - first:
+      213: -3807690250955833617
+    second: sprGriffon1_10
+  - first:
+      213: 8745405571635168803
+    second: sprGriffon1_11
+  - first:
+      213: -7487330751147159281
+    second: sprGriffon1_12
+  - first:
+      213: 794314105376846762
+    second: sprGriffon1_13
+  - first:
+      213: -2438124406933944783
+    second: sprGriffon1_14
+  - first:
+      213: -2255292700496184873
+    second: sprGriffon1_15
+  - first:
+      213: -5495355285156217061
+    second: sprGriffon1_16
+  - first:
+      213: -9002508062679810355
+    second: sprGriffon1_17
+  - first:
+      213: -277111941308622004
+    second: sprGriffon1_18
+  - first:
+      213: -1709383962857257647
+    second: sprGriffon1_19
+  - first:
+      213: -2874150822034756111
+    second: sprGriffon1_20
+  - first:
+      213: -5389362079753958727
+    second: sprGriffon1_21
+  - first:
+      213: -2952222196850404625
+    second: sprGriffon1_22
+  - first:
+      213: 1363764030964366779
+    second: sprGriffon1_23
+  - first:
+      213: 7484166571318686476
+    second: sprGriffon1_24
+  - first:
+      213: 5097223148028520233
+    second: sprGriffon1_25
+  - first:
+      213: 505885714224482404
+    second: sprGriffon1_26
+  - first:
+      213: -2879176934334184760
+    second: sprGriffon1_27
+  - first:
+      213: -6585475849064881876
+    second: sprGriffon1_28
+  - first:
+      213: -8339103182816165
+    second: sprGriffon1_29
+  - first:
+      213: 7576901940451132226
+    second: sprGriffon1_30
+  - first:
+      213: 3457305735041922830
+    second: sprGriffon1_31
+  - first:
+      213: -8865729050406619187
+    second: sprGriffon1_32
+  - first:
+      213: 8579619208545481687
+    second: sprGriffon1_33
+  - first:
+      213: 5802940975245178333
+    second: sprGriffon1_34
+  - first:
+      213: 7046084746198156239
+    second: sprGriffon1_35
+  - first:
+      213: 8023363964979859893
+    second: sprGriffon1_36
+  - first:
+      213: -4706290409462413822
+    second: sprGriffon1_37
+  - first:
+      213: -5124663751648154476
+    second: sprGriffon1_38
+  - first:
+      213: 2911383463138250937
+    second: sprGriffon1_39
+  - first:
+      213: 4107183088370299237
+    second: sprGriffon1_40
+  - first:
+      213: 8059721448536849934
+    second: sprGriffon1_41
+  - first:
+      213: -3442817723965524490
+    second: sprGriffon1_42
+  - first:
+      213: -1942624556274042708
+    second: sprGriffon1_43
+  - first:
+      213: -3411177134486411814
+    second: sprGriffon1_44
+  - first:
+      213: -4925898395100622140
+    second: sprGriffon1_45
+  - first:
+      213: -6816346061971590286
+    second: sprGriffon1_46
+  - first:
+      213: 8915947395971269713
+    second: sprGriffon1_47
+  - first:
+      213: 6017715341280955775
+    second: sprGriffon1_48
+  - first:
+      213: -3656104699756152867
+    second: sprGriffon1_49
+  - first:
+      213: 784887628196957431
+    second: sprGriffon1_50
+  - first:
+      213: -6377490427563259561
+    second: sprGriffon1_51
+  - first:
+      213: -6502153912358536295
+    second: sprGriffon1_52
+  - first:
+      213: -7212094436416051253
+    second: sprGriffon1_53
+  - first:
+      213: 5229852776065265839
+    second: sprGriffon1_54
+  - first:
+      213: -3589815432985616547
+    second: sprGriffon1_55
+  - first:
+      213: 5098668496879174890
+    second: sprGriffon1_56
+  - first:
+      213: 1138187260217754587
+    second: sprGriffon1_57
+  - first:
+      213: -4836165421067830490
+    second: sprGriffon1_58
+  - first:
+      213: 5197520649321110251
+    second: sprGriffon1_59
+  - first:
+      213: -2536891890960049008
+    second: sprGriffon1_60
+  - first:
+      213: -5947099111823766801
+    second: sprGriffon1_61
+  - first:
+      213: 6907181336534165393
+    second: sprGriffon1_62
+  - first:
+      213: 1268451561019278736
+    second: sprGriffon1_63
+  - first:
+      213: -2455477362095017937
+    second: sprGriffon1_64
+  - first:
+      213: 4479049791622136660
+    second: sprGriffon1_65
+  - first:
+      213: 967862208884361902
+    second: sprGriffon1_66
+  - first:
+      213: -3793111133696816874
+    second: sprGriffon1_67
+  - first:
+      213: -7688606336519719885
+    second: sprGriffon1_68
+  - first:
+      213: 9004338042033102128
+    second: sprGriffon1_69
+  - first:
+      213: 6824158091528188782
+    second: sprGriffon1_70
+  - first:
+      213: 7620935444345142148
+    second: sprGriffon1_71
+  - first:
+      213: 6534745065729102555
+    second: sprGriffon1_72
+  - first:
+      213: -1077503864573691963
+    second: sprGriffon1_73
+  - first:
+      213: 4885777623394348827
+    second: sprGriffon1_74
+  - first:
+      213: 7856621600315454850
+    second: sprGriffon1_75
+  - first:
+      213: 5163929388155433932
+    second: sprGriffon1_76
+  - first:
+      213: 5335109467885213563
+    second: sprGriffon1_77
+  - first:
+      213: -1308050701078317836
+    second: sprGriffon1_78
+  - first:
+      213: -3203016608376054411
+    second: sprGriffon1_79
+  - first:
+      213: -1645471998350708223
+    second: sprGriffon1_80
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 0
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 8192
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 0
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Android
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: sprGriffon1_r0_c0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 4619963deb160e84caf79a1b3b0be012
+      internalID: 710876165
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon1_r0_c1
+      rect:
+        serializedVersion: 2
+        x: 170
+        y: 0
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 5c4dfbb24432a744d920d68b7667bde9
+      internalID: -313974261
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon1_r0_c2
+      rect:
+        serializedVersion: 2
+        x: 340
+        y: 0
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9abc53b8d47244e48b83dd35adffe5ba
+      internalID: 804844570
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon1_r0_c3
+      rect:
+        serializedVersion: 2
+        x: 510
+        y: 0
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: edd23b2daa96b4c42886fe12102a2531
+      internalID: 798572135
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon1_r0_c4
+      rect:
+        serializedVersion: 2
+        x: 680
+        y: 0
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: eb97f56b496770748ac5cf65839099ca
+      internalID: -82956414
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon1_r0_c5
+      rect:
+        serializedVersion: 2
+        x: 850
+        y: 0
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ef1269b36d0767e439ed4acf32c95579
+      internalID: -397561308
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon1_r0_c6
+      rect:
+        serializedVersion: 2
+        x: 1020
+        y: 0
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f9fd5440fd77ee94f918b0835a4f28c0
+      internalID: -1432040126
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon1_r0_c7
+      rect:
+        serializedVersion: 2
+        x: 1190
+        y: 0
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9a777c22bd604aa43854593772702b4f
+      internalID: -919447082
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon1_r0_c8
+      rect:
+        serializedVersion: 2
+        x: 1360
+        y: 0
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 1c95e1d060499124bafd316df988b001
+      internalID: 983401483
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon1_r0_c9
+      rect:
+        serializedVersion: 2
+        x: 1530
+        y: 0
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 13ece166669624e43b3a2fe743f6a368
+      internalID: -1467653176
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon1_r0_c10
+      rect:
+        serializedVersion: 2
+        x: 1700
+        y: 0
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9456a592955d9a447bfbc5195a134ad9
+      internalID: 108569194
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon1_r0_c11
+      rect:
+        serializedVersion: 2
+        x: 1870
+        y: 0
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 08521116ccf415740bd317b06f9ce553
+      internalID: -1001132406
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 9c001979c667a3b4fb9fd0ea7ec7e3e3
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      sprGriffon1_0: -8392837945018656670
+      sprGriffon1_1: -7095854493015411591
+      sprGriffon1_10: -3807690250955833617
+      sprGriffon1_11: 8745405571635168803
+      sprGriffon1_12: -7487330751147159281
+      sprGriffon1_13: 794314105376846762
+      sprGriffon1_14: -2438124406933944783
+      sprGriffon1_15: -2255292700496184873
+      sprGriffon1_16: -5495355285156217061
+      sprGriffon1_17: -9002508062679810355
+      sprGriffon1_18: -277111941308622004
+      sprGriffon1_19: -1709383962857257647
+      sprGriffon1_2: -7738357408749292468
+      sprGriffon1_20: -2874150822034756111
+      sprGriffon1_21: -5389362079753958727
+      sprGriffon1_22: -2952222196850404625
+      sprGriffon1_23: 1363764030964366779
+      sprGriffon1_24: 7484166571318686476
+      sprGriffon1_25: 5097223148028520233
+      sprGriffon1_26: 505885714224482404
+      sprGriffon1_27: -2879176934334184760
+      sprGriffon1_28: -6585475849064881876
+      sprGriffon1_29: -8339103182816165
+      sprGriffon1_3: 7097182039730437749
+      sprGriffon1_30: 7576901940451132226
+      sprGriffon1_31: 3457305735041922830
+      sprGriffon1_32: -8865729050406619187
+      sprGriffon1_33: 8579619208545481687
+      sprGriffon1_34: 5802940975245178333
+      sprGriffon1_35: 7046084746198156239
+      sprGriffon1_36: 8023363964979859893
+      sprGriffon1_37: -4706290409462413822
+      sprGriffon1_38: -5124663751648154476
+      sprGriffon1_39: 2911383463138250937
+      sprGriffon1_4: 1013813390622257640
+      sprGriffon1_40: 4107183088370299237
+      sprGriffon1_41: 8059721448536849934
+      sprGriffon1_42: -3442817723965524490
+      sprGriffon1_43: -1942624556274042708
+      sprGriffon1_44: -3411177134486411814
+      sprGriffon1_45: -4925898395100622140
+      sprGriffon1_46: -6816346061971590286
+      sprGriffon1_47: 8915947395971269713
+      sprGriffon1_48: 6017715341280955775
+      sprGriffon1_49: -3656104699756152867
+      sprGriffon1_5: 9194535535327961331
+      sprGriffon1_50: 784887628196957431
+      sprGriffon1_51: -6377490427563259561
+      sprGriffon1_52: -6502153912358536295
+      sprGriffon1_53: -7212094436416051253
+      sprGriffon1_54: 5229852776065265839
+      sprGriffon1_55: -3589815432985616547
+      sprGriffon1_56: 5098668496879174890
+      sprGriffon1_57: 1138187260217754587
+      sprGriffon1_58: -4836165421067830490
+      sprGriffon1_59: 5197520649321110251
+      sprGriffon1_6: -3414552251161168480
+      sprGriffon1_60: -2536891890960049008
+      sprGriffon1_61: -5947099111823766801
+      sprGriffon1_62: 6907181336534165393
+      sprGriffon1_63: 1268451561019278736
+      sprGriffon1_64: -2455477362095017937
+      sprGriffon1_65: 4479049791622136660
+      sprGriffon1_66: 967862208884361902
+      sprGriffon1_67: -3793111133696816874
+      sprGriffon1_68: -7688606336519719885
+      sprGriffon1_69: 9004338042033102128
+      sprGriffon1_7: 4111427757106162428
+      sprGriffon1_70: 6824158091528188782
+      sprGriffon1_71: 7620935444345142148
+      sprGriffon1_72: 6534745065729102555
+      sprGriffon1_73: -1077503864573691963
+      sprGriffon1_74: 4885777623394348827
+      sprGriffon1_75: 7856621600315454850
+      sprGriffon1_76: 5163929388155433932
+      sprGriffon1_77: 5335109467885213563
+      sprGriffon1_78: -1308050701078317836
+      sprGriffon1_79: -3203016608376054411
+      sprGriffon1_8: -3512255520710169474
+      sprGriffon1_80: -1645471998350708223
+      sprGriffon1_9: 6453964966111385337
+      sprGriffon1_r0_c0: 710876165
+      sprGriffon1_r0_c1: -313974261
+      sprGriffon1_r0_c10: 108569194
+      sprGriffon1_r0_c11: -1001132406
+      sprGriffon1_r0_c2: 804844570
+      sprGriffon1_r0_c3: 798572135
+      sprGriffon1_r0_c4: -82956414
+      sprGriffon1_r0_c5: -397561308
+      sprGriffon1_r0_c6: -1432040126
+      sprGriffon1_r0_c7: -919447082
+      sprGriffon1_r0_c8: 983401483
+      sprGriffon1_r0_c9: -1467653176
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

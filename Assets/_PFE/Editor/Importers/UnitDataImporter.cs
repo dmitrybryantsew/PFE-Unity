@@ -66,6 +66,16 @@ namespace PFE.Editor.Importers
             int skipped  = 0;
             int unresolved = 0;
 
+            // Animation coverage, reported at the end. A unit whose rows silently failed to parse
+            // would otherwise look identical to a unit the source gives no animations for — which is
+            // the normal state of the 24 vclass units, so the two must be distinguishable in the log.
+            int animUnits = 0;
+            int animRows = 0;
+            int animOverrides = 0;
+            int animRowsWithoutId = 0;
+            var animUnmapped = new HashSet<string>();
+            var animMissingFamily = new List<string>();
+
             if (!File.Exists(AllDataPath))
             {
                 Debug.LogError(SourceImportPaths.MissingSourceMessage(AllDataPath, "AllData.as"));
@@ -98,6 +108,21 @@ namespace PFE.Editor.Importers
             var explicitFraction = new Dictionary<string, int>();
             var explicitParent   = new Dictionary<string, string>();
 
+            // ── Pass 1 also captures each unit's node text ──────────────────────────────────────
+            //
+            // Needed for the animation family/variant join. The oracle splits a unit's animations
+            // across two nodes: the family (`raider`) declares the <blit> rows and no sheet, the
+            // variant (`raider5`) declares the sheet and, usually, no rows. The controller joins them
+            // with a double call — UnitAlicorn.as:233-234 `super.getXmlParam("alicorn"); super.getXmlParam();`
+            // — and the family id is always the unit's own `parent='…'` attribute.
+            //
+            // So resolving the join needs the *family's node text*, which means this has to be
+            // collected before the per-unit loop runs. Collecting it here is free: the loop below
+            // already walks every match.
+            var nodeText = new Dictionary<string, string>();
+
+            var duplicateUnitIds = new List<string>();
+
             foreach (Match m in matches)
             {
                 string uid   = m.Groups[1].Value;
@@ -108,6 +133,23 @@ namespace PFE.Editor.Importers
 
                 var pm = Regex.Match(attrs, @"parent='([^']+)'");
                 if (pm.Success) explicitParent[uid] = pm.Groups[1].Value;
+            }
+
+            // Node text comes from the shared extractor rather than a local scan for the next
+            // `</unit>`. See UnitNodeExtractor's remarks: seven self-closing marker units in AllData.as
+            // (pony, monster, other, robot, bigrobot, smallrobot, turret) have no body, and a naive
+            // forward scan made each one inherit the FOLLOWING unit's physics, combat, vis and
+            // animations. Each of those ids appears exactly once, so nothing overwrote the damage.
+            nodeText = UnitNodeExtractor.ExtractAllNodes(content, duplicateUnitIds);
+
+            if (duplicateUnitIds.Count > 0)
+            {
+                // AS3's `AllData.d.unit.(@id == mid)[0]` takes the FIRST node with an id, so a
+                // duplicate means this importer and the game would disagree about which one wins.
+                Debug.LogWarning(
+                    $"AllData.as declares {duplicateUnitIds.Count} duplicate unit id(s): " +
+                    $"{string.Join(", ", duplicateUnitIds)}. AS3 reads the first; this importer keeps " +
+                    "the last. The definitions are ambiguous until the source is fixed.");
             }
 
             // Resolve a unit's faction through the `parent` chain. Depth-capped so a malformed cycle
@@ -143,21 +185,10 @@ namespace PFE.Editor.Importers
 
                 try
                 {
-                    // Get the full unit content (from <unit> to </unit>)
-                    int unitStart = match.Index;
-                    int unitEnd = content.IndexOf("</unit>", unitStart);
-                    if (unitEnd == -1)
-                    {
-                        // Self-closing tag or find next <unit>
-                        int nextUnit = content.IndexOf("<unit", unitStart + 1);
-                        unitEnd = nextUnit != -1 ? nextUnit : content.Length;
-                    }
-                    else
-                    {
-                        unitEnd += "</unit>".Length;
-                    }
-
-                    string unitContent = content.Substring(unitStart, unitEnd - unitStart);
+                    // Get the full unit content (from <unit> to </unit>), or just the tag when it is
+                    // self-closing — see UnitNodeExtractor's remarks for why that distinction is
+                    // load-bearing rather than cosmetic.
+                    string unitContent = UnitNodeExtractor.ExtractNode(content, match.Index, match.Value);
 
                     // Load the existing asset when refreshing so its GUID survives; create otherwise.
                     UnitDefinition unit = exists
@@ -271,6 +302,31 @@ namespace PFE.Editor.Importers
                     // Parse vision (<vis> tag)
                     ParseVision(unit, unitContent);
 
+                    // Parse animations (<blit> rows), joined with the unit's family node.
+                    //
+                    // After ParseVision on purpose: the family node is the unit's `parent`, which is
+                    // resolved from data rather than from the controller class (the two coincide in
+                    // every case — see AnimationSet's remarks). `parent` is only read here, never
+                    // written, so ordering against ParseVision is not load-bearing — but keeping the
+                    // visual tags adjacent is.
+                    string familyId = explicitParent.TryGetValue(id, out string parentId) ? parentId : null;
+                    string familyContent = null;
+                    if (familyId != null && !nodeText.TryGetValue(familyId, out familyContent))
+                    {
+                        // A parent that is not a unit in this file. AS3 would throw on the lookup; here
+                        // it just means no family pass, which leaves the unit with its own rows only.
+                        animMissingFamily.Add($"{id}->{familyId}");
+                    }
+
+                    var anim = UnitAnimationParser.Parse(unitContent, familyContent);
+                    SetPrivateField(unit, "animations", anim.Animations);
+
+                    if (anim.HasAnyState) animUnits++;
+                    animRows += anim.RowsRead;
+                    animOverrides += anim.RowsOverridingTemplate;
+                    foreach (string unmapped in anim.UnmappedIds) animUnmapped.Add(unmapped);
+                    if (anim.RowsWithoutId > 0) animRowsWithoutId += anim.RowsWithoutId;
+
                     // Parse weapons (<w> tags)
                     ParseWeapons(unit, unitContent);
 
@@ -312,8 +368,32 @@ namespace PFE.Editor.Importers
                   "player's), so the source has no value to import."
                 : string.Empty;
 
+            // Animation coverage. Reported separately from the faction note because the two failure
+            // modes look the same from outside: a unit with no animations is CORRECT for the 24
+            // vclass units (they are drawn as DisplayObjects), so "0 rows" alone proves nothing. The
+            // numbers below are what makes a silent parse failure distinguishable from a real absence.
+            string animNote = animRows == 0
+                ? "  No <blit> rows were found anywhere — the animation channel imported nothing."
+                : $"  Animations: {animUnits} unit(s) with states, {animRows} row(s) read, " +
+                  $"{animOverrides} overriding a family row.";
+
+            string unmappedNote = animUnmapped.Count > 0
+                ? $"  States with no field in AnimationSet (dropped, not mapped): " +
+                  $"{string.Join(", ", animUnmapped)}."
+                : string.Empty;
+
+            string noIdNote = animRowsWithoutId > 0
+                ? $"  {animRowsWithoutId} <blit> row(s) carried no id and were skipped."
+                : string.Empty;
+
+            string missingFamilyNote = animMissingFamily.Count > 0
+                ? $"  {animMissingFamily.Count} unit(s) name a parent that is not a unit in AllData.as, " +
+                  $"so no family pass ran: {string.Join(", ", animMissingFamily)}."
+                : string.Empty;
+
             Debug.Log($"Unit import complete. Imported: {imported}  Updated: {updated}  " +
-                      $"Skipped: {skipped}  Faction-unspecified: {unresolved}{note}{factionNote}");
+                      $"Skipped: {skipped}  Faction-unspecified: {unresolved}{note}{factionNote}" +
+                      $"{animNote}{unmappedNote}{noIdNote}{missingFamilyNote}");
         }
 
         private static void ParsePhysics(UnitDefinition unit, string content)
@@ -513,22 +593,73 @@ namespace PFE.Editor.Importers
 
             string attrs = visMatch.Groups[1].Value;
 
-            // Parse blit (sprite ID)
+            // Parse blit (sprite sheet id).
+            //
+            // This is the NAME OF THE SPRITE SHEET — 'sprRaider5', 'sprAnt1', 'sprZombie3' — and it is
+            // the join key the sprite importer needs to slice the right PNG. It used to be matched and
+            // then dropped into an empty if-block with the comment "would load sprite from resources",
+            // so no unit carried its sheet name and nothing downstream could resolve one. Note it is
+            // present on the VARIANT nodes, not the family ones: `raider` declares the blit rows and no
+            // sheet, `raider5` declares the sheet and no rows.
             var blitMatch = Regex.Match(attrs, @"blit='([^']+)'");
             if (blitMatch.Success)
             {
-                // Would load sprite from resources
-                // For now, just store the ID
+                SetPrivateField(unit, "spriteSheetId", blitMatch.Groups[1].Value);
             }
 
-            // Parse sprX (sprite width/height)
+            // Parse vclass (DisplayObject class name).
+            //
+            // The other visual kind. 24 of the ids rooms place have no sheet at all — including the
+            // most-placed unit in the game (slime, 152 placements) and the training dummy — and are
+            // drawn as a DisplayObject symbol instead.
+            var vclassMatch = Regex.Match(attrs, @"vclass='([^']+)'");
+            if (vclassMatch.Success)
+            {
+                SetPrivateField(unit, "visualClassName", vclassMatch.Groups[1].Value);
+            }
+
+            // Parse sprX/sprY (cell size).
+            //
+            // sprY is NOT just sprX. AS3: `sprY = xml.vis.@sprY > 0 ? int(@sprY) : sprX`
+            // (Unit.as:936) — it DEFAULTS to sprX but is a separate attribute, and the data does use
+            // non-square cells: ant1 is 78x32, tarakan 60x30, molerat 85x58, hellhound1 200x170.
+            // Writing (sprX, sprX) silently gave every one of those the wrong cell height, which is the
+            // kind of error that shows up only as a subtly wrong-looking sprite much later.
             var sprXMatch = Regex.Match(attrs, @"sprX='(\d+)'");
+            var sprYMatch = Regex.Match(attrs, @"sprY='(\d+)'");
             if (sprXMatch.Success)
             {
                 int sprX = int.Parse(sprXMatch.Groups[1].Value);
-                var dims = new Vector2Int(sprX, sprX);
-                SetPrivateField(unit, "spriteDimensions", dims);
+                int sprY = sprYMatch.Success ? int.Parse(sprYMatch.Groups[1].Value) : sprX;
+                SetPrivateField(unit, "spriteDimensions", new Vector2Int(sprX, sprY));
             }
+
+            // Parse sprDX/sprDY — the REGISTRATION POINT, not a draw size.
+            //
+            // These used to feed a field called "drawDimensions", which is not what they are. AS3
+            // offsets the cell by them so that this point lands on the unit's origin:
+            //     if(this.blitDX >= 0) visBmp.x = -this.blitDX; else visBmp.x = -this.blitX / 2;
+            //     if(this.blitDY >= 0) visBmp.y = -this.blitDY; else visBmp.y = -this.blitY + 10;
+            // (Unit.as:2846-2858). The declared default is -1 (Unit.as:511-514), which is exactly what
+            // makes the `>= 0` test a PRESENCE test — so -1 is carried through as "not declared" rather
+            // than normalised to 0, because 0 is a legal registration point (the cell's top-left).
+            var sprDXMatch = Regex.Match(attrs, @"sprDX='(-?\d+)'");
+            var sprDYMatch = Regex.Match(attrs, @"sprDY='(-?\d+)'");
+            SetPrivateField(unit, "registrationPoint", new Vector2Int(
+                sprDXMatch.Success ? int.Parse(sprDXMatch.Groups[1].Value) : -1,
+                sprDYMatch.Success ? int.Parse(sprDYMatch.Groups[1].Value) : -1));
+
+            // Parse icoX/icoY — the icon's cell within this same sheet.
+            //
+            // AS3 defaults a non-positive or absent value to 0 in BOTH axes
+            // (`begSprX = xml.vis.@icoX > 0 ? int(@icoX) : 0`, Unit.as:940-941), so "not declared"
+            // means cell (0,0) and not "no icon". -1 is stored for "absent" so that the consumer can
+            // tell an explicit icoX='0' apart from a missing attribute.
+            var icoXMatch = Regex.Match(attrs, @"icoX='(-?\d+)'");
+            var icoYMatch = Regex.Match(attrs, @"icoY='(-?\d+)'");
+            SetPrivateField(unit, "iconCell", new Vector2Int(
+                icoXMatch.Success ? int.Parse(icoXMatch.Groups[1].Value) : -1,
+                icoYMatch.Success ? int.Parse(icoYMatch.Groups[1].Value) : -1));
 
             // Parse sex (gender)
             var sexMatch = Regex.Match(attrs, @"sex='(\w)'");

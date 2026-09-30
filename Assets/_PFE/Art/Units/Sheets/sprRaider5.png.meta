@@ -1,0 +1,2956 @@
+fileFormatVersion: 2
+guid: f5c372e026fff1a43b92c6667372ca27
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: -4280640605969620510
+    second: sprRaider5_0
+  - first:
+      213: -3105325184408990552
+    second: sprRaider5_1
+  - first:
+      213: -5287753086636974203
+    second: sprRaider5_2
+  - first:
+      213: -6077808288361935959
+    second: sprRaider5_3
+  - first:
+      213: -6973730412224134359
+    second: sprRaider5_4
+  - first:
+      213: 6307621921241459806
+    second: sprRaider5_5
+  - first:
+      213: 8326527839046553682
+    second: sprRaider5_6
+  - first:
+      213: -4492567731709918906
+    second: sprRaider5_7
+  - first:
+      213: -1822581757614172641
+    second: sprRaider5_8
+  - first:
+      213: 701054116877762528
+    second: sprRaider5_9
+  - first:
+      213: 1336176722387176712
+    second: sprRaider5_10
+  - first:
+      213: -495854492069861026
+    second: sprRaider5_11
+  - first:
+      213: 8687593679430355291
+    second: sprRaider5_12
+  - first:
+      213: 4303987350023544858
+    second: sprRaider5_13
+  - first:
+      213: -281005189872875003
+    second: sprRaider5_14
+  - first:
+      213: 6130309722644289900
+    second: sprRaider5_15
+  - first:
+      213: -5550187010580457625
+    second: sprRaider5_16
+  - first:
+      213: -4880101513278649933
+    second: sprRaider5_17
+  - first:
+      213: -4650712112944628332
+    second: sprRaider5_18
+  - first:
+      213: -2190756947458750705
+    second: sprRaider5_19
+  - first:
+      213: 4818602050966376166
+    second: sprRaider5_20
+  - first:
+      213: -1791443300567010532
+    second: sprRaider5_21
+  - first:
+      213: -8667645010908671028
+    second: sprRaider5_22
+  - first:
+      213: 1749835544726496004
+    second: sprRaider5_23
+  - first:
+      213: -4258069245272704056
+    second: sprRaider5_24
+  - first:
+      213: 154386477884471059
+    second: sprRaider5_25
+  - first:
+      213: -7058431739491727271
+    second: sprRaider5_26
+  - first:
+      213: -4400752240144526987
+    second: sprRaider5_27
+  - first:
+      213: 527745385762871798
+    second: sprRaider5_28
+  - first:
+      213: 7348555287533679541
+    second: sprRaider5_29
+  - first:
+      213: 1411173460424399015
+    second: sprRaider5_30
+  - first:
+      213: -6210896390163849122
+    second: sprRaider5_31
+  - first:
+      213: 2775055599508203092
+    second: sprRaider5_32
+  - first:
+      213: 8167423682530686353
+    second: sprRaider5_33
+  - first:
+      213: -4792553186969466710
+    second: sprRaider5_34
+  - first:
+      213: 5132568174409880792
+    second: sprRaider5_35
+  - first:
+      213: 2206231543433225554
+    second: sprRaider5_36
+  - first:
+      213: -5676779385215222327
+    second: sprRaider5_37
+  - first:
+      213: -8725991002735235691
+    second: sprRaider5_38
+  - first:
+      213: 7906507734843719541
+    second: sprRaider5_39
+  - first:
+      213: 8920482741637605988
+    second: sprRaider5_40
+  - first:
+      213: 675803920014437679
+    second: sprRaider5_41
+  - first:
+      213: -2282712174199173746
+    second: sprRaider5_42
+  - first:
+      213: -3378656168046266670
+    second: sprRaider5_43
+  - first:
+      213: 6822442419863567868
+    second: sprRaider5_44
+  - first:
+      213: 6974513614856190207
+    second: sprRaider5_45
+  - first:
+      213: 1569550878243964519
+    second: sprRaider5_46
+  - first:
+      213: -56774370051204121
+    second: sprRaider5_47
+  - first:
+      213: -2670602733230586629
+    second: sprRaider5_48
+  - first:
+      213: -5127950893066328739
+    second: sprRaider5_49
+  - first:
+      213: 6524744053141269569
+    second: sprRaider5_50
+  - first:
+      213: 8824825379297864093
+    second: sprRaider5_51
+  - first:
+      213: 8985620974263983330
+    second: sprRaider5_52
+  - first:
+      213: 3344032779735487630
+    second: sprRaider5_53
+  - first:
+      213: 7611850050927961373
+    second: sprRaider5_54
+  - first:
+      213: 139544588793952373
+    second: sprRaider5_55
+  - first:
+      213: -6950994181981529668
+    second: sprRaider5_56
+  - first:
+      213: 4841411542655895470
+    second: sprRaider5_57
+  - first:
+      213: -6428450193584207351
+    second: sprRaider5_58
+  - first:
+      213: -396014939488789770
+    second: sprRaider5_59
+  - first:
+      213: -8395987470160841745
+    second: sprRaider5_60
+  - first:
+      213: -568521530901404249
+    second: sprRaider5_61
+  - first:
+      213: 4149462186511188806
+    second: sprRaider5_62
+  - first:
+      213: 2511943646946874033
+    second: sprRaider5_63
+  - first:
+      213: -4860144554364810860
+    second: sprRaider5_64
+  - first:
+      213: -1493226967628797227
+    second: sprRaider5_65
+  - first:
+      213: 3479982371430849321
+    second: sprRaider5_66
+  - first:
+      213: 4258908049513850705
+    second: sprRaider5_67
+  - first:
+      213: 1703924593333471293
+    second: sprRaider5_68
+  - first:
+      213: 5489558527945395595
+    second: sprRaider5_69
+  - first:
+      213: 5753306298440018812
+    second: sprRaider5_70
+  - first:
+      213: 3157350849884355962
+    second: sprRaider5_71
+  - first:
+      213: -5496049772253602845
+    second: sprRaider5_72
+  - first:
+      213: 6400909525278647882
+    second: sprRaider5_73
+  - first:
+      213: 4128761523027154704
+    second: sprRaider5_74
+  - first:
+      213: 2358168084611259995
+    second: sprRaider5_75
+  - first:
+      213: 7879736314278473658
+    second: sprRaider5_76
+  - first:
+      213: 7692788720304601823
+    second: sprRaider5_77
+  - first:
+      213: -7951202738327448481
+    second: sprRaider5_78
+  - first:
+      213: -7547016035768952809
+    second: sprRaider5_79
+  - first:
+      213: -2156499079230144483
+    second: sprRaider5_80
+  - first:
+      213: -3306094936406001111
+    second: sprRaider5_81
+  - first:
+      213: -889393990741940150
+    second: sprRaider5_82
+  - first:
+      213: 9104733621417920578
+    second: sprRaider5_83
+  - first:
+      213: 6841806435093352172
+    second: sprRaider5_84
+  - first:
+      213: -68654519186396869
+    second: sprRaider5_85
+  - first:
+      213: 9150075826965784909
+    second: sprRaider5_86
+  - first:
+      213: -1745569446485754888
+    second: sprRaider5_87
+  - first:
+      213: -6644140584204983464
+    second: sprRaider5_88
+  - first:
+      213: 1319553630379325198
+    second: sprRaider5_89
+  - first:
+      213: 3208185916031405509
+    second: sprRaider5_90
+  - first:
+      213: -1964165669177741926
+    second: sprRaider5_91
+  - first:
+      213: 4318537251536897802
+    second: sprRaider5_92
+  - first:
+      213: 8293153876134278518
+    second: sprRaider5_93
+  - first:
+      213: 6399168319921418507
+    second: sprRaider5_94
+  - first:
+      213: 2538810044167490277
+    second: sprRaider5_95
+  - first:
+      213: -8654668631852942933
+    second: sprRaider5_96
+  - first:
+      213: 3962091939817297430
+    second: sprRaider5_97
+  - first:
+      213: 2085831317498793210
+    second: sprRaider5_98
+  - first:
+      213: 8679243073638738820
+    second: sprRaider5_99
+  - first:
+      213: 1803124832816260166
+    second: sprRaider5_100
+  - first:
+      213: 1779871997841288326
+    second: sprRaider5_101
+  - first:
+      213: 6028106848070961784
+    second: sprRaider5_102
+  - first:
+      213: -7036930175347924863
+    second: sprRaider5_103
+  - first:
+      213: 5793484889151876901
+    second: sprRaider5_104
+  - first:
+      213: -459112788161838691
+    second: sprRaider5_105
+  - first:
+      213: 2688868024853234650
+    second: sprRaider5_106
+  - first:
+      213: 7827713598238283912
+    second: sprRaider5_107
+  - first:
+      213: 2208381364284950024
+    second: sprRaider5_108
+  - first:
+      213: -6209451009467860762
+    second: sprRaider5_109
+  - first:
+      213: -78878608837789377
+    second: sprRaider5_110
+  - first:
+      213: 6697530335552334795
+    second: sprRaider5_111
+  - first:
+      213: 2565041586966583993
+    second: sprRaider5_112
+  - first:
+      213: 2073390503967275293
+    second: sprRaider5_113
+  - first:
+      213: -5966720473141976209
+    second: sprRaider5_114
+  - first:
+      213: 2497853426940841819
+    second: sprRaider5_115
+  - first:
+      213: 8848498218772438688
+    second: sprRaider5_116
+  - first:
+      213: 5868886134417643300
+    second: sprRaider5_117
+  - first:
+      213: 2746777548851524005
+    second: sprRaider5_118
+  - first:
+      213: 2345279371371484697
+    second: sprRaider5_119
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 0
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 8192
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 0
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Android
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: sprRaider5_r0_c0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 600
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d05f9fcaa8902af42b0dbdf2c352aa0e
+      internalID: 360151117
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r0_c1
+      rect:
+        serializedVersion: 2
+        x: 120
+        y: 600
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a957551e7c8824244ab02a4bde142c5c
+      internalID: -998206500
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r0_c2
+      rect:
+        serializedVersion: 2
+        x: 240
+        y: 600
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 880b9d94d37e54c47a28690036374530
+      internalID: -668442339
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r0_c3
+      rect:
+        serializedVersion: 2
+        x: 360
+        y: 600
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: eea51ef324d9eb245b9677c9714ce462
+      internalID: 573220522
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r0_c4
+      rect:
+        serializedVersion: 2
+        x: 480
+        y: 600
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 8bde70e1b86853d45b4fea6192060d9d
+      internalID: 168566963
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r0_c5
+      rect:
+        serializedVersion: 2
+        x: 600
+        y: 600
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c42617cd753beb741ad98b1608a59113
+      internalID: -497608746
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r0_c6
+      rect:
+        serializedVersion: 2
+        x: 720
+        y: 600
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: daadfcb1ba7e24b4cb1a334c4b7c19c1
+      internalID: -1178064198
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r0_c7
+      rect:
+        serializedVersion: 2
+        x: 840
+        y: 600
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 675cc805f3424eb4aa5f3ff4b390a745
+      internalID: -622503936
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r0_c8
+      rect:
+        serializedVersion: 2
+        x: 960
+        y: 600
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 8e6e64ceebf6c784d9ebc79af4c71fab
+      internalID: -587494456
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r0_c9
+      rect:
+        serializedVersion: 2
+        x: 1080
+        y: 600
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 171c7ae5b1716644a9694cd0d4b67b5f
+      internalID: 958205353
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r0_c10
+      rect:
+        serializedVersion: 2
+        x: 1200
+        y: 600
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 574fad5454acf3f43b7d010987887178
+      internalID: -27345965
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r0_c11
+      rect:
+        serializedVersion: 2
+        x: 1320
+        y: 600
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: cc49cdbe9b02194458dd66215ad2f7d9
+      internalID: -1355830799
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r0_c12
+      rect:
+        serializedVersion: 2
+        x: 1440
+        y: 600
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 284f7814cc5fdb74d87fe18e874a2ab4
+      internalID: -153752241
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r0_c13
+      rect:
+        serializedVersion: 2
+        x: 1560
+        y: 600
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f6cea892e82968e44bc7ff464f156ca0
+      internalID: -25136211
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r0_c14
+      rect:
+        serializedVersion: 2
+        x: 1680
+        y: 600
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ab87279f5a56cf64ba7917517e88afe6
+      internalID: 1573654055
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r0_c15
+      rect:
+        serializedVersion: 2
+        x: 1800
+        y: 600
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 1efde5500d0dead44a909c499829dc4a
+      internalID: -429407216
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r0_c16
+      rect:
+        serializedVersion: 2
+        x: 1920
+        y: 600
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 23f8b29cebeaa184a9a2a11e7ccd2a86
+      internalID: 252072161
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r1_c0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 480
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 4eec11da920aecc4ba81f35433021be8
+      internalID: 1496955961
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r1_c1
+      rect:
+        serializedVersion: 2
+        x: 120
+        y: 480
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 884b27eb26b1fe947a73d2bdae250aaf
+      internalID: 1695618315
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r1_c2
+      rect:
+        serializedVersion: 2
+        x: 240
+        y: 480
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 09711134302c43f4998340f5ee43425a
+      internalID: -329374792
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r1_c3
+      rect:
+        serializedVersion: 2
+        x: 360
+        y: 480
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e780d97b512d40d44a93eebb0d2bfb84
+      internalID: 1963146247
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r1_c4
+      rect:
+        serializedVersion: 2
+        x: 480
+        y: 480
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7e049f88c804b8648b55193b738174ad
+      internalID: -1823504800
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r1_c5
+      rect:
+        serializedVersion: 2
+        x: 600
+        y: 480
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 2e52448f7fd632446b51b703c7ec5e5f
+      internalID: 394314607
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r1_c6
+      rect:
+        serializedVersion: 2
+        x: 720
+        y: 480
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 971eeda33d578f64bb854c5fa8f791e8
+      internalID: -532231797
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r1_c7
+      rect:
+        serializedVersion: 2
+        x: 840
+        y: 480
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: fefebe630d3baac4fa8770d1803fe9da
+      internalID: 392629136
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r1_c8
+      rect:
+        serializedVersion: 2
+        x: 960
+        y: 480
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e3f03b9e1515b014aa144b48b7a034c5
+      internalID: 1337069654
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r1_c9
+      rect:
+        serializedVersion: 2
+        x: 1080
+        y: 480
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9f509fcbfe2905d4788cf82313bed115
+      internalID: 752344240
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r1_c10
+      rect:
+        serializedVersion: 2
+        x: 1200
+        y: 480
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 1c606d8858591f94c8f3ebbd0ba45ccf
+      internalID: 533884388
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r1_c11
+      rect:
+        serializedVersion: 2
+        x: 1320
+        y: 480
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 32409a08a93d82a42a6e490e84c276e2
+      internalID: -193278313
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r1_c12
+      rect:
+        serializedVersion: 2
+        x: 1440
+        y: 480
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c67b079763a00d342bfccdb545aa3a60
+      internalID: 2042496228
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r1_c13
+      rect:
+        serializedVersion: 2
+        x: 1560
+        y: 480
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d2e2bbd8fa1952b45b0a5326d66dcb7c
+      internalID: 2092803634
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r1_c14
+      rect:
+        serializedVersion: 2
+        x: 1680
+        y: 480
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: cccf78011f5dfed449451e862c5fffd0
+      internalID: 1865664123
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r1_c15
+      rect:
+        serializedVersion: 2
+        x: 1800
+        y: 480
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 8c8012ff21088734aa261927fc2fc4cf
+      internalID: -458861641
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r1_c16
+      rect:
+        serializedVersion: 2
+        x: 1920
+        y: 480
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 2732845c904a0d54b8a1e4c7ebcaee1a
+      internalID: 501173314
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r2_c0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 360
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 266adb506a0e8614fa05bbbfd0a54bfe
+      internalID: -89379414
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r2_c1
+      rect:
+        serializedVersion: 2
+        x: 120
+        y: 360
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9fa37d6639620ab428ef9c0fef5a97ad
+      internalID: 1554329714
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r2_c2
+      rect:
+        serializedVersion: 2
+        x: 240
+        y: 360
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b93cb942aaf13424691a70d6dfc267dd
+      internalID: 678761798
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r2_c3
+      rect:
+        serializedVersion: 2
+        x: 360
+        y: 360
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 39cdcc8983f0f8049a98dd657af31398
+      internalID: -43839483
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r2_c4
+      rect:
+        serializedVersion: 2
+        x: 480
+        y: 360
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7ed41baad7d51da429e0a554538e5466
+      internalID: -401683623
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r2_c5
+      rect:
+        serializedVersion: 2
+        x: 600
+        y: 360
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c64bbd8f87a28b54e9077971b6799522
+      internalID: 1817491913
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r2_c6
+      rect:
+        serializedVersion: 2
+        x: 720
+        y: 360
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 98e769ef40e9b0e4fb0dca3302222988
+      internalID: 1794253498
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r2_c7
+      rect:
+        serializedVersion: 2
+        x: 840
+        y: 360
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 20af6eaab68f68c4f9fedf790655013a
+      internalID: -1607052454
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r2_c8
+      rect:
+        serializedVersion: 2
+        x: 960
+        y: 360
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 88cbb73b0894fa94b92fe94d4832ff5e
+      internalID: -892154189
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r2_c9
+      rect:
+        serializedVersion: 2
+        x: 1080
+        y: 360
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 004d017e00c147749b846aa2b5129eaa
+      internalID: -1436078146
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r2_c10
+      rect:
+        serializedVersion: 2
+        x: 1200
+        y: 360
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a3c881e02cba60e449fe4eb82fb93e06
+      internalID: -69021850
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r2_c11
+      rect:
+        serializedVersion: 2
+        x: 1320
+        y: 360
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9e5776574db5b0e4ea57e936d3412f3e
+      internalID: 285149434
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r2_c12
+      rect:
+        serializedVersion: 2
+        x: 1440
+        y: 360
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 5eb1eccb7579de641b11fc77cd9cf635
+      internalID: 25514335
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r2_c13
+      rect:
+        serializedVersion: 2
+        x: 1560
+        y: 360
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 600df08849516274aac7b2d438c70880
+      internalID: -1348502565
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r2_c14
+      rect:
+        serializedVersion: 2
+        x: 1680
+        y: 360
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 0655b4b0454943346a7a2cc5d39d2ce4
+      internalID: 1019804071
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r2_c15
+      rect:
+        serializedVersion: 2
+        x: 1800
+        y: 360
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 2b7eb2b501873554b81b2230d1f9aa45
+      internalID: 330872216
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r2_c16
+      rect:
+        serializedVersion: 2
+        x: 1920
+        y: 360
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 5e9a26ab5bcbda741baaf6050a511b96
+      internalID: -9913199
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r3_c0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 240
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 5fc69f30d2ad78245b7f78b9f79a4926
+      internalID: 1614080826
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r3_c1
+      rect:
+        serializedVersion: 2
+        x: 120
+        y: 240
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7738ffde805b04a4fa4a555d4e205af0
+      internalID: 1665025292
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r3_c2
+      rect:
+        serializedVersion: 2
+        x: 240
+        y: 240
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: bb9ab7cab618e654da57e96954beea25
+      internalID: 646786000
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r3_c3
+      rect:
+        serializedVersion: 2
+        x: 360
+        y: 240
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9ae25c0a8354dec40af31cccb71b6a31
+      internalID: 904028846
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r3_c4
+      rect:
+        serializedVersion: 2
+        x: 480
+        y: 240
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 3406033f9b01a514c94f0e6ee30a1c89
+      internalID: -1106979924
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r3_c5
+      rect:
+        serializedVersion: 2
+        x: 600
+        y: 240
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e831241e175a04a43a116e5cca488cc8
+      internalID: -2081885452
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r3_c6
+      rect:
+        serializedVersion: 2
+        x: 720
+        y: 240
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 1a490f7816f914649b074e8d9835b281
+      internalID: -316595544
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r3_c7
+      rect:
+        serializedVersion: 2
+        x: 840
+        y: 240
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 884464f7df82515408e537d2f5c8a0be
+      internalID: -324178430
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r3_c8
+      rect:
+        serializedVersion: 2
+        x: 960
+        y: 240
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ed8918ff1acb6a74d9409e42154c39a2
+      internalID: -632607937
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r3_c9
+      rect:
+        serializedVersion: 2
+        x: 1080
+        y: 240
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 752b68a68d649054fbb8a182e3fcbf34
+      internalID: -917193290
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r3_c10
+      rect:
+        serializedVersion: 2
+        x: 1200
+        y: 240
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 74c4cb8471aad9047823654b2ad1258c
+      internalID: -790006659
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r3_c11
+      rect:
+        serializedVersion: 2
+        x: 1320
+        y: 240
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d0b2a6d86120e9248b1b501e590ba11e
+      internalID: -109931366
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r3_c12
+      rect:
+        serializedVersion: 2
+        x: 1440
+        y: 240
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c3e12f97c5db28f408929c4379612a43
+      internalID: 720230599
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r3_c13
+      rect:
+        serializedVersion: 2
+        x: 1560
+        y: 240
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: bdffc9066b370b640a0e3f9f7d5102af
+      internalID: 1754281958
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r3_c14
+      rect:
+        serializedVersion: 2
+        x: 1680
+        y: 240
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: bd1a112c78535ec408bf85e1b38b0e6b
+      internalID: -490414493
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r3_c15
+      rect:
+        serializedVersion: 2
+        x: 1800
+        y: 240
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 0cadf04c47b4c924b844b2f61675b3d1
+      internalID: -493854462
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r3_c16
+      rect:
+        serializedVersion: 2
+        x: 1920
+        y: 240
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 03a7e8f981a142e43b89c6099a896cfa
+      internalID: -1544558442
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r4_c0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 120
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: cc6dc46bac9d0134bb5b540ec2a26989
+      internalID: 137806157
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r4_c1
+      rect:
+        serializedVersion: 2
+        x: 120
+        y: 120
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c488086c91acce94bab03545fce4cef3
+      internalID: 2065457901
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r4_c2
+      rect:
+        serializedVersion: 2
+        x: 240
+        y: 120
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e51f61656e277f046aa9af91b14acbc0
+      internalID: -1372217259
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r4_c3
+      rect:
+        serializedVersion: 2
+        x: 360
+        y: 120
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: abdca57edb49fa34385ac4136718e101
+      internalID: 1196447990
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r4_c4
+      rect:
+        serializedVersion: 2
+        x: 480
+        y: 120
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f58d6d6d93c2aaf4b8b342b4429c0698
+      internalID: -1907264399
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r4_c5
+      rect:
+        serializedVersion: 2
+        x: 600
+        y: 120
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 61594cf7107f1cf4f8eae27e639b6698
+      internalID: -319534374
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r4_c6
+      rect:
+        serializedVersion: 2
+        x: 720
+        y: 120
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 01c84e9c8f32174468462757e62e8a62
+      internalID: -1835243688
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r4_c7
+      rect:
+        serializedVersion: 2
+        x: 840
+        y: 120
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 1757a38a5d9522c41866b048e42b7df3
+      internalID: 538927483
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r4_c8
+      rect:
+        serializedVersion: 2
+        x: 960
+        y: 120
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: fa1fa358223802843a603d85ce488742
+      internalID: -681438342
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r4_c9
+      rect:
+        serializedVersion: 2
+        x: 1080
+        y: 120
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: faa013dd704c0e342bb36aa2268ae80b
+      internalID: 2100839436
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r4_c10
+      rect:
+        serializedVersion: 2
+        x: 1200
+        y: 120
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e76f61d4900a27a40a8c393a0d4c03d8
+      internalID: 804170999
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r4_c11
+      rect:
+        serializedVersion: 2
+        x: 1320
+        y: 120
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 74edd514e6bbd024b8fdba1c04e93621
+      internalID: -2052693774
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r4_c12
+      rect:
+        serializedVersion: 2
+        x: 1440
+        y: 120
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 5d2cea3b99f7ffd49a8e86f572bedfc9
+      internalID: -1392834006
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r4_c13
+      rect:
+        serializedVersion: 2
+        x: 1560
+        y: 120
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e04bb3465b8a7f24287749cd523d0cb1
+      internalID: -1314061244
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r4_c14
+      rect:
+        serializedVersion: 2
+        x: 1680
+        y: 120
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 0d6439df6e6b2e64d93b08da3739e065
+      internalID: 2123175924
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r4_c15
+      rect:
+        serializedVersion: 2
+        x: 1800
+        y: 120
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a7ec276d4ff08b548b7b4f38dfb07b61
+      internalID: -1233712701
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r4_c16
+      rect:
+        serializedVersion: 2
+        x: 1920
+        y: 120
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 495881172d9c9c648af810c796a98422
+      internalID: 59040279
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r5_c0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 3ee138b9b8044254b907df39f35e6146
+      internalID: 54917476
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r5_c1
+      rect:
+        serializedVersion: 2
+        x: 120
+        y: 0
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: fcadeeddc4651c94ebe75c81ac42e586
+      internalID: 1516403539
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r5_c2
+      rect:
+        serializedVersion: 2
+        x: 240
+        y: 0
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e0e6f65d5f248774aa24e14a006e6565
+      internalID: 1508424553
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r5_c3
+      rect:
+        serializedVersion: 2
+        x: 360
+        y: 0
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 4d527d9291510cf4487bfca7d82ee988
+      internalID: 1956171028
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r5_c4
+      rect:
+        serializedVersion: 2
+        x: 480
+        y: 0
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 1e592f767cf10a040b74cb6052b5e44e
+      internalID: -348134065
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r5_c5
+      rect:
+        serializedVersion: 2
+        x: 600
+        y: 0
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a0f4e9365c819f446b03b2a287504522
+      internalID: 2115889
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r5_c6
+      rect:
+        serializedVersion: 2
+        x: 720
+        y: 0
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 5b86b62ac0e77c44abaae2c33bae4fe8
+      internalID: -1824693388
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r5_c7
+      rect:
+        serializedVersion: 2
+        x: 840
+        y: 0
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 37742469bc91033468fa4396bbcd4e0b
+      internalID: -1952634151
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r5_c8
+      rect:
+        serializedVersion: 2
+        x: 960
+        y: 0
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7f6aad5179eff9e4e86af379139af6a9
+      internalID: 1673897163
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r5_c9
+      rect:
+        serializedVersion: 2
+        x: 1080
+        y: 0
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e5e1219494ad3684a8e902fd533df37b
+      internalID: -1616430592
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r5_c10
+      rect:
+        serializedVersion: 2
+        x: 1200
+        y: 0
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 77906383c6652a1468a7b7154d1da95c
+      internalID: 831465933
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r5_c11
+      rect:
+        serializedVersion: 2
+        x: 1320
+        y: 0
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 70c006a967f306848b289f9f844f52e7
+      internalID: -992978699
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r5_c12
+      rect:
+        serializedVersion: 2
+        x: 1440
+        y: 0
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e8d67248534da7c40b90827b4df7a0cb
+      internalID: 2046096511
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r5_c13
+      rect:
+        serializedVersion: 2
+        x: 1560
+        y: 0
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 5c37e28dd68bfab41a83082426492ef9
+      internalID: 472524123
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r5_c14
+      rect:
+        serializedVersion: 2
+        x: 1680
+        y: 0
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9ade2de6e7659364292196be2ba2dd98
+      internalID: -959859861
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r5_c15
+      rect:
+        serializedVersion: 2
+        x: 1800
+        y: 0
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f58973240f6aaa1489111d37ba1c912d
+      internalID: -475539720
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider5_r5_c16
+      rect:
+        serializedVersion: 2
+        x: 1920
+        y: 0
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 4e66fd0c8b0b14b498a6451626121e6b
+      internalID: 1490137299
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: bb63c4347bfaac146ad96b90bfa1854b
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      sprRaider5_0: -4280640605969620510
+      sprRaider5_1: -3105325184408990552
+      sprRaider5_10: 1336176722387176712
+      sprRaider5_100: 1803124832816260166
+      sprRaider5_101: 1779871997841288326
+      sprRaider5_102: 6028106848070961784
+      sprRaider5_103: -7036930175347924863
+      sprRaider5_104: 5793484889151876901
+      sprRaider5_105: -459112788161838691
+      sprRaider5_106: 2688868024853234650
+      sprRaider5_107: 7827713598238283912
+      sprRaider5_108: 2208381364284950024
+      sprRaider5_109: -6209451009467860762
+      sprRaider5_11: -495854492069861026
+      sprRaider5_110: -78878608837789377
+      sprRaider5_111: 6697530335552334795
+      sprRaider5_112: 2565041586966583993
+      sprRaider5_113: 2073390503967275293
+      sprRaider5_114: -5966720473141976209
+      sprRaider5_115: 2497853426940841819
+      sprRaider5_116: 8848498218772438688
+      sprRaider5_117: 5868886134417643300
+      sprRaider5_118: 2746777548851524005
+      sprRaider5_119: 2345279371371484697
+      sprRaider5_12: 8687593679430355291
+      sprRaider5_13: 4303987350023544858
+      sprRaider5_14: -281005189872875003
+      sprRaider5_15: 6130309722644289900
+      sprRaider5_16: -5550187010580457625
+      sprRaider5_17: -4880101513278649933
+      sprRaider5_18: -4650712112944628332
+      sprRaider5_19: -2190756947458750705
+      sprRaider5_2: -5287753086636974203
+      sprRaider5_20: 4818602050966376166
+      sprRaider5_21: -1791443300567010532
+      sprRaider5_22: -8667645010908671028
+      sprRaider5_23: 1749835544726496004
+      sprRaider5_24: -4258069245272704056
+      sprRaider5_25: 154386477884471059
+      sprRaider5_26: -7058431739491727271
+      sprRaider5_27: -4400752240144526987
+      sprRaider5_28: 527745385762871798
+      sprRaider5_29: 7348555287533679541
+      sprRaider5_3: -6077808288361935959
+      sprRaider5_30: 1411173460424399015
+      sprRaider5_31: -6210896390163849122
+      sprRaider5_32: 2775055599508203092
+      sprRaider5_33: 8167423682530686353
+      sprRaider5_34: -4792553186969466710
+      sprRaider5_35: 5132568174409880792
+      sprRaider5_36: 2206231543433225554
+      sprRaider5_37: -5676779385215222327
+      sprRaider5_38: -8725991002735235691
+      sprRaider5_39: 7906507734843719541
+      sprRaider5_4: -6973730412224134359
+      sprRaider5_40: 8920482741637605988
+      sprRaider5_41: 675803920014437679
+      sprRaider5_42: -2282712174199173746
+      sprRaider5_43: -3378656168046266670
+      sprRaider5_44: 6822442419863567868
+      sprRaider5_45: 6974513614856190207
+      sprRaider5_46: 1569550878243964519
+      sprRaider5_47: -56774370051204121
+      sprRaider5_48: -2670602733230586629
+      sprRaider5_49: -5127950893066328739
+      sprRaider5_5: 6307621921241459806
+      sprRaider5_50: 6524744053141269569
+      sprRaider5_51: 8824825379297864093
+      sprRaider5_52: 8985620974263983330
+      sprRaider5_53: 3344032779735487630
+      sprRaider5_54: 7611850050927961373
+      sprRaider5_55: 139544588793952373
+      sprRaider5_56: -6950994181981529668
+      sprRaider5_57: 4841411542655895470
+      sprRaider5_58: -6428450193584207351
+      sprRaider5_59: -396014939488789770
+      sprRaider5_6: 8326527839046553682
+      sprRaider5_60: -8395987470160841745
+      sprRaider5_61: -568521530901404249
+      sprRaider5_62: 4149462186511188806
+      sprRaider5_63: 2511943646946874033
+      sprRaider5_64: -4860144554364810860
+      sprRaider5_65: -1493226967628797227
+      sprRaider5_66: 3479982371430849321
+      sprRaider5_67: 4258908049513850705
+      sprRaider5_68: 1703924593333471293
+      sprRaider5_69: 5489558527945395595
+      sprRaider5_7: -4492567731709918906
+      sprRaider5_70: 5753306298440018812
+      sprRaider5_71: 3157350849884355962
+      sprRaider5_72: -5496049772253602845
+      sprRaider5_73: 6400909525278647882
+      sprRaider5_74: 4128761523027154704
+      sprRaider5_75: 2358168084611259995
+      sprRaider5_76: 7879736314278473658
+      sprRaider5_77: 7692788720304601823
+      sprRaider5_78: -7951202738327448481
+      sprRaider5_79: -7547016035768952809
+      sprRaider5_8: -1822581757614172641
+      sprRaider5_80: -2156499079230144483
+      sprRaider5_81: -3306094936406001111
+      sprRaider5_82: -889393990741940150
+      sprRaider5_83: 9104733621417920578
+      sprRaider5_84: 6841806435093352172
+      sprRaider5_85: -68654519186396869
+      sprRaider5_86: 9150075826965784909
+      sprRaider5_87: -1745569446485754888
+      sprRaider5_88: -6644140584204983464
+      sprRaider5_89: 1319553630379325198
+      sprRaider5_9: 701054116877762528
+      sprRaider5_90: 3208185916031405509
+      sprRaider5_91: -1964165669177741926
+      sprRaider5_92: 4318537251536897802
+      sprRaider5_93: 8293153876134278518
+      sprRaider5_94: 6399168319921418507
+      sprRaider5_95: 2538810044167490277
+      sprRaider5_96: -8654668631852942933
+      sprRaider5_97: 3962091939817297430
+      sprRaider5_98: 2085831317498793210
+      sprRaider5_99: 8679243073638738820
+      sprRaider5_r0_c0: 360151117
+      sprRaider5_r0_c1: -998206500
+      sprRaider5_r0_c10: -27345965
+      sprRaider5_r0_c11: -1355830799
+      sprRaider5_r0_c12: -153752241
+      sprRaider5_r0_c13: -25136211
+      sprRaider5_r0_c14: 1573654055
+      sprRaider5_r0_c15: -429407216
+      sprRaider5_r0_c16: 252072161
+      sprRaider5_r0_c2: -668442339
+      sprRaider5_r0_c3: 573220522
+      sprRaider5_r0_c4: 168566963
+      sprRaider5_r0_c5: -497608746
+      sprRaider5_r0_c6: -1178064198
+      sprRaider5_r0_c7: -622503936
+      sprRaider5_r0_c8: -587494456
+      sprRaider5_r0_c9: 958205353
+      sprRaider5_r1_c0: 1496955961
+      sprRaider5_r1_c1: 1695618315
+      sprRaider5_r1_c10: 533884388
+      sprRaider5_r1_c11: -193278313
+      sprRaider5_r1_c12: 2042496228
+      sprRaider5_r1_c13: 2092803634
+      sprRaider5_r1_c14: 1865664123
+      sprRaider5_r1_c15: -458861641
+      sprRaider5_r1_c16: 501173314
+      sprRaider5_r1_c2: -329374792
+      sprRaider5_r1_c3: 1963146247
+      sprRaider5_r1_c4: -1823504800
+      sprRaider5_r1_c5: 394314607
+      sprRaider5_r1_c6: -532231797
+      sprRaider5_r1_c7: 392629136
+      sprRaider5_r1_c8: 1337069654
+      sprRaider5_r1_c9: 752344240
+      sprRaider5_r2_c0: -89379414
+      sprRaider5_r2_c1: 1554329714
+      sprRaider5_r2_c10: -69021850
+      sprRaider5_r2_c11: 285149434
+      sprRaider5_r2_c12: 25514335
+      sprRaider5_r2_c13: -1348502565
+      sprRaider5_r2_c14: 1019804071
+      sprRaider5_r2_c15: 330872216
+      sprRaider5_r2_c16: -9913199
+      sprRaider5_r2_c2: 678761798
+      sprRaider5_r2_c3: -43839483
+      sprRaider5_r2_c4: -401683623
+      sprRaider5_r2_c5: 1817491913
+      sprRaider5_r2_c6: 1794253498
+      sprRaider5_r2_c7: -1607052454
+      sprRaider5_r2_c8: -892154189
+      sprRaider5_r2_c9: -1436078146
+      sprRaider5_r3_c0: 1614080826
+      sprRaider5_r3_c1: 1665025292
+      sprRaider5_r3_c10: -790006659
+      sprRaider5_r3_c11: -109931366
+      sprRaider5_r3_c12: 720230599
+      sprRaider5_r3_c13: 1754281958
+      sprRaider5_r3_c14: -490414493
+      sprRaider5_r3_c15: -493854462
+      sprRaider5_r3_c16: -1544558442
+      sprRaider5_r3_c2: 646786000
+      sprRaider5_r3_c3: 904028846
+      sprRaider5_r3_c4: -1106979924
+      sprRaider5_r3_c5: -2081885452
+      sprRaider5_r3_c6: -316595544
+      sprRaider5_r3_c7: -324178430
+      sprRaider5_r3_c8: -632607937
+      sprRaider5_r3_c9: -917193290
+      sprRaider5_r4_c0: 137806157
+      sprRaider5_r4_c1: 2065457901
+      sprRaider5_r4_c10: 804170999
+      sprRaider5_r4_c11: -2052693774
+      sprRaider5_r4_c12: -1392834006
+      sprRaider5_r4_c13: -1314061244
+      sprRaider5_r4_c14: 2123175924
+      sprRaider5_r4_c15: -1233712701
+      sprRaider5_r4_c16: 59040279
+      sprRaider5_r4_c2: -1372217259
+      sprRaider5_r4_c3: 1196447990
+      sprRaider5_r4_c4: -1907264399
+      sprRaider5_r4_c5: -319534374
+      sprRaider5_r4_c6: -1835243688
+      sprRaider5_r4_c7: 538927483
+      sprRaider5_r4_c8: -681438342
+      sprRaider5_r4_c9: 2100839436
+      sprRaider5_r5_c0: 54917476
+      sprRaider5_r5_c1: 1516403539
+      sprRaider5_r5_c10: 831465933
+      sprRaider5_r5_c11: -992978699
+      sprRaider5_r5_c12: 2046096511
+      sprRaider5_r5_c13: 472524123
+      sprRaider5_r5_c14: -959859861
+      sprRaider5_r5_c15: -475539720
+      sprRaider5_r5_c16: 1490137299
+      sprRaider5_r5_c2: 1508424553
+      sprRaider5_r5_c3: 1956171028
+      sprRaider5_r5_c4: -348134065
+      sprRaider5_r5_c5: 2115889
+      sprRaider5_r5_c6: -1824693388
+      sprRaider5_r5_c7: -1952634151
+      sprRaider5_r5_c8: 1673897163
+      sprRaider5_r5_c9: -1616430592
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

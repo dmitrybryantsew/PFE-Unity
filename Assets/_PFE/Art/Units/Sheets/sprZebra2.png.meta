@@ -1,0 +1,2776 @@
+fileFormatVersion: 2
+guid: 4e3cebb737298244fa95d11fbdfc0adb
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: -6334164618008965366
+    second: sprZebra2_0
+  - first:
+      213: -2617217674105998209
+    second: sprZebra2_1
+  - first:
+      213: 7963690436512078713
+    second: sprZebra2_2
+  - first:
+      213: -888140729665637607
+    second: sprZebra2_3
+  - first:
+      213: 8514743469347492616
+    second: sprZebra2_4
+  - first:
+      213: 751708509119211257
+    second: sprZebra2_5
+  - first:
+      213: 2589960318994294378
+    second: sprZebra2_6
+  - first:
+      213: 5803410029485668588
+    second: sprZebra2_7
+  - first:
+      213: -5888795501833155129
+    second: sprZebra2_8
+  - first:
+      213: -4975351542788274902
+    second: sprZebra2_9
+  - first:
+      213: -6516118880306969046
+    second: sprZebra2_10
+  - first:
+      213: -7879317280726513860
+    second: sprZebra2_11
+  - first:
+      213: -5207069124781769716
+    second: sprZebra2_12
+  - first:
+      213: 5002310836261673616
+    second: sprZebra2_13
+  - first:
+      213: -6505906428415466887
+    second: sprZebra2_14
+  - first:
+      213: 6004458127013116265
+    second: sprZebra2_15
+  - first:
+      213: -247587215183302047
+    second: sprZebra2_16
+  - first:
+      213: 3454716105895978529
+    second: sprZebra2_17
+  - first:
+      213: -4636779353980702994
+    second: sprZebra2_18
+  - first:
+      213: -8863419742289517906
+    second: sprZebra2_19
+  - first:
+      213: 7336843105496506631
+    second: sprZebra2_20
+  - first:
+      213: 7274726220665987195
+    second: sprZebra2_21
+  - first:
+      213: 534794679367357935
+    second: sprZebra2_22
+  - first:
+      213: -6483517545422609875
+    second: sprZebra2_23
+  - first:
+      213: -1167994109774427446
+    second: sprZebra2_24
+  - first:
+      213: 7419227228356819186
+    second: sprZebra2_25
+  - first:
+      213: -5283307182685143900
+    second: sprZebra2_26
+  - first:
+      213: 3227659050550987616
+    second: sprZebra2_27
+  - first:
+      213: 7529804535785348768
+    second: sprZebra2_28
+  - first:
+      213: 37759877841240656
+    second: sprZebra2_29
+  - first:
+      213: 3269101524199903346
+    second: sprZebra2_30
+  - first:
+      213: -1357756262151618601
+    second: sprZebra2_31
+  - first:
+      213: 1042645299130876038
+    second: sprZebra2_32
+  - first:
+      213: -8825097196736813709
+    second: sprZebra2_33
+  - first:
+      213: 8400137353234552148
+    second: sprZebra2_34
+  - first:
+      213: 3902837766862493379
+    second: sprZebra2_35
+  - first:
+      213: 8671542907486817195
+    second: sprZebra2_36
+  - first:
+      213: -1569851442941077688
+    second: sprZebra2_37
+  - first:
+      213: -4092105406044288979
+    second: sprZebra2_38
+  - first:
+      213: -1613563506928646612
+    second: sprZebra2_39
+  - first:
+      213: 6872317374362898835
+    second: sprZebra2_40
+  - first:
+      213: 6930006474222142504
+    second: sprZebra2_41
+  - first:
+      213: 3604950282714127119
+    second: sprZebra2_42
+  - first:
+      213: 2354973591428618091
+    second: sprZebra2_43
+  - first:
+      213: 7919677226042807091
+    second: sprZebra2_44
+  - first:
+      213: 4251304386431065697
+    second: sprZebra2_45
+  - first:
+      213: -4740818320786876458
+    second: sprZebra2_46
+  - first:
+      213: -5380492332398293603
+    second: sprZebra2_47
+  - first:
+      213: -1781911299680938374
+    second: sprZebra2_48
+  - first:
+      213: -2973378900066876890
+    second: sprZebra2_49
+  - first:
+      213: -7665768591906222290
+    second: sprZebra2_50
+  - first:
+      213: 5106623606960366095
+    second: sprZebra2_51
+  - first:
+      213: 6145026063505567116
+    second: sprZebra2_52
+  - first:
+      213: -1436225433993253447
+    second: sprZebra2_53
+  - first:
+      213: 9183075962798429417
+    second: sprZebra2_54
+  - first:
+      213: -2808961118666868720
+    second: sprZebra2_55
+  - first:
+      213: -1098472983990108911
+    second: sprZebra2_56
+  - first:
+      213: 6109308972939766095
+    second: sprZebra2_57
+  - first:
+      213: 3611822347360273290
+    second: sprZebra2_58
+  - first:
+      213: -4194608378921535267
+    second: sprZebra2_59
+  - first:
+      213: 5822169522991378214
+    second: sprZebra2_60
+  - first:
+      213: -3764196916068062389
+    second: sprZebra2_61
+  - first:
+      213: 4334384103765134510
+    second: sprZebra2_62
+  - first:
+      213: -6962732759144833881
+    second: sprZebra2_63
+  - first:
+      213: 266673220142850466
+    second: sprZebra2_64
+  - first:
+      213: 3893716049401271887
+    second: sprZebra2_65
+  - first:
+      213: -4822557148231448722
+    second: sprZebra2_66
+  - first:
+      213: 662559679846678573
+    second: sprZebra2_67
+  - first:
+      213: -5152766517195084113
+    second: sprZebra2_68
+  - first:
+      213: 5237006061538799831
+    second: sprZebra2_69
+  - first:
+      213: 8851961102624461672
+    second: sprZebra2_70
+  - first:
+      213: -4031387106766979789
+    second: sprZebra2_71
+  - first:
+      213: 8551658987885292869
+    second: sprZebra2_72
+  - first:
+      213: 2797785238275145961
+    second: sprZebra2_73
+  - first:
+      213: 548267912341279621
+    second: sprZebra2_74
+  - first:
+      213: -1260809169912240076
+    second: sprZebra2_75
+  - first:
+      213: -3596902780328253449
+    second: sprZebra2_76
+  - first:
+      213: 6375004824410943439
+    second: sprZebra2_77
+  - first:
+      213: 5956072782622336014
+    second: sprZebra2_78
+  - first:
+      213: 392491337095466561
+    second: sprZebra2_79
+  - first:
+      213: 4338849251517716632
+    second: sprZebra2_80
+  - first:
+      213: -2399284315800595593
+    second: sprZebra2_81
+  - first:
+      213: 5992219487289914511
+    second: sprZebra2_82
+  - first:
+      213: 7484810660267220019
+    second: sprZebra2_83
+  - first:
+      213: 7174214257519636437
+    second: sprZebra2_84
+  - first:
+      213: 4658945176877830795
+    second: sprZebra2_85
+  - first:
+      213: -4237296186446846440
+    second: sprZebra2_86
+  - first:
+      213: 8338522746810941940
+    second: sprZebra2_87
+  - first:
+      213: 5140868751972862599
+    second: sprZebra2_88
+  - first:
+      213: 8967431593945430528
+    second: sprZebra2_89
+  - first:
+      213: 4220801731969522984
+    second: sprZebra2_90
+  - first:
+      213: -9179349704521586269
+    second: sprZebra2_91
+  - first:
+      213: -3311598960269630058
+    second: sprZebra2_92
+  - first:
+      213: 4511280574523722966
+    second: sprZebra2_93
+  - first:
+      213: 7991657213022167947
+    second: sprZebra2_94
+  - first:
+      213: 5005639302201911855
+    second: sprZebra2_95
+  - first:
+      213: -3169870645097809118
+    second: sprZebra2_96
+  - first:
+      213: -2275842039337285165
+    second: sprZebra2_97
+  - first:
+      213: 3990234945297043354
+    second: sprZebra2_98
+  - first:
+      213: -3353866380876030370
+    second: sprZebra2_99
+  - first:
+      213: -4375889673466218411
+    second: sprZebra2_100
+  - first:
+      213: -6188709558686904919
+    second: sprZebra2_101
+  - first:
+      213: -5158248983679143960
+    second: sprZebra2_102
+  - first:
+      213: 5051420136515609049
+    second: sprZebra2_103
+  - first:
+      213: 5603581784520469103
+    second: sprZebra2_104
+  - first:
+      213: 6407650170271706802
+    second: sprZebra2_105
+  - first:
+      213: 8636249129035306817
+    second: sprZebra2_106
+  - first:
+      213: 2173366945374562898
+    second: sprZebra2_107
+  - first:
+      213: -5354037937292098043
+    second: sprZebra2_108
+  - first:
+      213: 2479945999074907965
+    second: sprZebra2_109
+  - first:
+      213: 739115521195025829
+    second: sprZebra2_110
+  - first:
+      213: -2866594497767212309
+    second: sprZebra2_111
+  - first:
+      213: 7166459684239693216
+    second: sprZebra2_112
+  - first:
+      213: -1178315562898141053
+    second: sprZebra2_113
+  - first:
+      213: 4933851877334535491
+    second: sprZebra2_114
+  - first:
+      213: -344618393427724820
+    second: sprZebra2_115
+  - first:
+      213: 2966980905915647685
+    second: sprZebra2_116
+  - first:
+      213: 6082338959062902627
+    second: sprZebra2_117
+  - first:
+      213: -8599133130115748898
+    second: sprZebra2_118
+  - first:
+      213: 4883956123227275520
+    second: sprZebra2_119
+  - first:
+      213: -3272947975457363678
+    second: sprZebra2_120
+  - first:
+      213: 1569244287791908219
+    second: sprZebra2_121
+  - first:
+      213: -2078016959417604932
+    second: sprZebra2_122
+  - first:
+      213: -2647546413567795039
+    second: sprZebra2_123
+  - first:
+      213: 3019381753356435668
+    second: sprZebra2_124
+  - first:
+      213: -7069029554469774680
+    second: sprZebra2_125
+  - first:
+      213: -3685779175902792319
+    second: sprZebra2_126
+  - first:
+      213: -2520432856830103064
+    second: sprZebra2_127
+  - first:
+      213: 3225371157855262896
+    second: sprZebra2_128
+  - first:
+      213: 8279391181548358622
+    second: sprZebra2_129
+  - first:
+      213: -1119576981247923206
+    second: sprZebra2_130
+  - first:
+      213: 8134757663884620494
+    second: sprZebra2_131
+  - first:
+      213: -776097761505911819
+    second: sprZebra2_132
+  - first:
+      213: -5626852935612044870
+    second: sprZebra2_133
+  - first:
+      213: -7014127524566265408
+    second: sprZebra2_134
+  - first:
+      213: -1136706095133046274
+    second: sprZebra2_135
+  - first:
+      213: -6278770346144268480
+    second: sprZebra2_136
+  - first:
+      213: 2925063821744293510
+    second: sprZebra2_137
+  - first:
+      213: 9119432426832329323
+    second: sprZebra2_138
+  - first:
+      213: 3073014673123892953
+    second: sprZebra2_139
+  - first:
+      213: -4722321699888932743
+    second: sprZebra2_140
+  - first:
+      213: 8160692365930304379
+    second: sprZebra2_141
+  - first:
+      213: -8061456390647209075
+    second: sprZebra2_142
+  - first:
+      213: -1845639607838898259
+    second: sprZebra2_143
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 0
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 8192
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 0
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Android
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: sprZebra2_r0_c0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 650
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 2f8f76cc6f2e06a43b2c2ff1a70a391a
+      internalID: -715499575
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r0_c1
+      rect:
+        serializedVersion: 2
+        x: 130
+        y: 650
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 2430c2305556860498895ed505bc0a03
+      internalID: -489939182
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r0_c2
+      rect:
+        serializedVersion: 2
+        x: 260
+        y: 650
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 3b8ab136216068d44a036f5b7e3fa7bd
+      internalID: -1856131130
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r0_c3
+      rect:
+        serializedVersion: 2
+        x: 390
+        y: 650
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e408790d93990364eb0509fd9be2455d
+      internalID: -1472518752
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r0_c4
+      rect:
+        serializedVersion: 2
+        x: 520
+        y: 650
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 78edacbf5af9f2b4aa32e8f49b1c14c9
+      internalID: 1362910821
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r0_c5
+      rect:
+        serializedVersion: 2
+        x: 650
+        y: 650
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 8d1d6ac1e7a25ab4fba54e420f479aa3
+      internalID: -1589130803
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r0_c6
+      rect:
+        serializedVersion: 2
+        x: 780
+        y: 650
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 1e3226df3977a82428f00835c7a7e647
+      internalID: -7195672
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r0_c7
+      rect:
+        serializedVersion: 2
+        x: 910
+        y: 650
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: cca9b3aef0e1b294b8cf014f2e728e17
+      internalID: -2056503570
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r0_c8
+      rect:
+        serializedVersion: 2
+        x: 1040
+        y: 650
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b52d347ba78590541aa30b84dc6fd76f
+      internalID: 306427853
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r0_c9
+      rect:
+        serializedVersion: 2
+        x: 1170
+        y: 650
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6cd00a457f6ecc34ca40a565482ebd01
+      internalID: -600119567
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r0_c10
+      rect:
+        serializedVersion: 2
+        x: 1300
+        y: 650
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 248e8d244fc813749927f6f1f22ea255
+      internalID: -520468052
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r0_c11
+      rect:
+        serializedVersion: 2
+        x: 1430
+        y: 650
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 0d8911e89d460304b82d21e010879888
+      internalID: -161448025
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r0_c12
+      rect:
+        serializedVersion: 2
+        x: 1560
+        y: 650
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a3be0f03304859c4d970a723e1b7ecc3
+      internalID: 1131279550
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r0_c13
+      rect:
+        serializedVersion: 2
+        x: 1690
+        y: 650
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 825f1204db8983643ab1d796fc114db0
+      internalID: -471817691
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r0_c14
+      rect:
+        serializedVersion: 2
+        x: 1820
+        y: 650
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 8ecfbdf7f0ba37f4f8367a6c49186c0a
+      internalID: 63857552
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r1_c0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 520
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7b74173fbbd28d3459618ec5c00bf2cd
+      internalID: -424494227
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r1_c1
+      rect:
+        serializedVersion: 2
+        x: 130
+        y: 520
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a2636f24573a80a4cbec02c13463376c
+      internalID: -161979224
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r1_c2
+      rect:
+        serializedVersion: 2
+        x: 260
+        y: 520
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c13d3cec76ec2364b90c19d86035092d
+      internalID: 1363172738
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r1_c3
+      rect:
+        serializedVersion: 2
+        x: 390
+        y: 520
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 3bb0f620d3f383141949dcf0d51f961c
+      internalID: 350152778
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r1_c4
+      rect:
+        serializedVersion: 2
+        x: 520
+        y: 520
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d05e13607fa783046b745d53c8a9e348
+      internalID: -1579156804
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r1_c5
+      rect:
+        serializedVersion: 2
+        x: 650
+        y: 520
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7ee0cfad3a0385d49bd1087d5b3299c3
+      internalID: -1194012616
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r1_c6
+      rect:
+        serializedVersion: 2
+        x: 780
+        y: 520
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f279609fca35f43499a980d40af0f177
+      internalID: -915888142
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r1_c7
+      rect:
+        serializedVersion: 2
+        x: 910
+        y: 520
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e57d113cc85593d42a5044ca45a66fe8
+      internalID: -531020620
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r1_c8
+      rect:
+        serializedVersion: 2
+        x: 1040
+        y: 520
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9cb9e5c9b00d3924da9678641604806a
+      internalID: -395539858
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r1_c9
+      rect:
+        serializedVersion: 2
+        x: 1170
+        y: 520
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a5ca7ceb507d01d4cba5fe1a5a4c31a3
+      internalID: -1807675762
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r1_c10
+      rect:
+        serializedVersion: 2
+        x: 1300
+        y: 520
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 767d93d5633a60d46b86a410e99e542a
+      internalID: -1334877555
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r1_c11
+      rect:
+        serializedVersion: 2
+        x: 1430
+        y: 520
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 643fe03b8bc485545bc5c4214a3ff129
+      internalID: 827367595
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r1_c12
+      rect:
+        serializedVersion: 2
+        x: 1560
+        y: 520
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d783e776e41e111498fb1bb56a870bac
+      internalID: -1618711396
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r1_c13
+      rect:
+        serializedVersion: 2
+        x: 1690
+        y: 520
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b14c9a02328aa0b45a00d32252f55c3e
+      internalID: 716223216
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r1_c14
+      rect:
+        serializedVersion: 2
+        x: 1820
+        y: 520
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 3d12ba1530c46f9448bcab1f1123c070
+      internalID: 17173169
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r2_c0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 390
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: bc64e74f2d0a74f48a6958051a63fb65
+      internalID: 163692860
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r2_c1
+      rect:
+        serializedVersion: 2
+        x: 130
+        y: 390
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d2fc81b0fecdb934a87125c588601f73
+      internalID: -1780566372
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r2_c2
+      rect:
+        serializedVersion: 2
+        x: 260
+        y: 390
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e70635c9b473f4d499de473df2a31804
+      internalID: 1045523007
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r2_c3
+      rect:
+        serializedVersion: 2
+        x: 390
+        y: 390
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 89c1f74b6c1089a419a39717fefc6844
+      internalID: 73765348
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r2_c4
+      rect:
+        serializedVersion: 2
+        x: 520
+        y: 390
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 481e74b49e0418d41978d30e530f113d
+      internalID: -1305379139
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r2_c5
+      rect:
+        serializedVersion: 2
+        x: 650
+        y: 390
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c3d6e119ef194814685cf5ae0dff9c86
+      internalID: -782849908
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r2_c6
+      rect:
+        serializedVersion: 2
+        x: 780
+        y: 390
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 2263441e101a06849907ccb700e4741f
+      internalID: -1431148498
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r2_c7
+      rect:
+        serializedVersion: 2
+        x: 910
+        y: 390
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c2a5bd58df2578c46bdd5110caf44aef
+      internalID: 84922515
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r2_c8
+      rect:
+        serializedVersion: 2
+        x: 1040
+        y: 390
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a04e97c30e84d774c937a220af02cb24
+      internalID: 750268372
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r2_c9
+      rect:
+        serializedVersion: 2
+        x: 1170
+        y: 390
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ae3a04e2d29a4894fa483935b1af9db8
+      internalID: -428729945
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r2_c10
+      rect:
+        serializedVersion: 2
+        x: 1300
+        y: 390
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 21490a3764425da4697e62b9369defa4
+      internalID: -730034623
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r2_c11
+      rect:
+        serializedVersion: 2
+        x: 1430
+        y: 390
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7a3d9a0ab8609194e861fb3e01f989b9
+      internalID: -1810579146
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r2_c12
+      rect:
+        serializedVersion: 2
+        x: 1560
+        y: 390
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 009a9f6fb82f3274eb3e2b73e6384430
+      internalID: 2081131411
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r2_c13
+      rect:
+        serializedVersion: 2
+        x: 1690
+        y: 390
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ad16a93494a69b344a04a107e3f4a176
+      internalID: -1716754239
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r2_c14
+      rect:
+        serializedVersion: 2
+        x: 1820
+        y: 390
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 76baca8f6b20e5e48a4ce54811179145
+      internalID: 1283562780
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r3_c0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b0883e903bd278b4c86ecee146f858ac
+      internalID: -242417052
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r3_c1
+      rect:
+        serializedVersion: 2
+        x: 130
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 884ff3c75e96718409678112b03f9c4d
+      internalID: -1313699602
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r3_c2
+      rect:
+        serializedVersion: 2
+        x: 260
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 614a7ecec4bf5de46b36dd5987714737
+      internalID: 981686164
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r3_c3
+      rect:
+        serializedVersion: 2
+        x: 390
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 32461d2b5c68802469e885117f3125a2
+      internalID: -1020767637
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r3_c4
+      rect:
+        serializedVersion: 2
+        x: 520
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 921c0c16d3f383642bb99c8cc5c62990
+      internalID: 472266158
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r3_c5
+      rect:
+        serializedVersion: 2
+        x: 650
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d73cc0794f077774fae33c1559a0c2fa
+      internalID: -1457860677
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r3_c6
+      rect:
+        serializedVersion: 2
+        x: 780
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 808240aeb9fa09949abce50dba6e4b1f
+      internalID: -1438668339
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r3_c7
+      rect:
+        serializedVersion: 2
+        x: 910
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9c4ee11511e374943861e31f26a2fb23
+      internalID: 1288656905
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r3_c8
+      rect:
+        serializedVersion: 2
+        x: 1040
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 465fe0f1259799440a80982a7c94b88a
+      internalID: -407547503
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r3_c9
+      rect:
+        serializedVersion: 2
+        x: 1170
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 60b68a173dc4d4f429ef1c934cec9b77
+      internalID: -1015672917
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r3_c10
+      rect:
+        serializedVersion: 2
+        x: 1300
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7b2a5fe75a646c6499eadf16c1018432
+      internalID: 1963313759
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r3_c11
+      rect:
+        serializedVersion: 2
+        x: 1430
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 64eef1a04e306714190f1683cc877a89
+      internalID: -65389285
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r3_c12
+      rect:
+        serializedVersion: 2
+        x: 1560
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d389e9225b8e5ca42bd8c88d0da4b150
+      internalID: -351035930
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r3_c13
+      rect:
+        serializedVersion: 2
+        x: 1690
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7b9cd9ba33a2efd46a5969f9dd0ade90
+      internalID: -1763378181
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r3_c14
+      rect:
+        serializedVersion: 2
+        x: 1820
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 40ff12e140b38224291ac301690e7351
+      internalID: -2076377108
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r4_c0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 130
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a88c561aea4c54242a0b5f36826a6f21
+      internalID: -209343314
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r4_c1
+      rect:
+        serializedVersion: 2
+        x: 130
+        y: 130
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b75bf049e179d694da801a7ea7b0828c
+      internalID: 937971322
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r4_c2
+      rect:
+        serializedVersion: 2
+        x: 260
+        y: 130
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7ba91275ea8b2854b848fd58a19adb6b
+      internalID: 696729400
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r4_c3
+      rect:
+        serializedVersion: 2
+        x: 390
+        y: 130
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 21d5122fc8eda3449b4dafb92f4f66c0
+      internalID: -68863271
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r4_c4
+      rect:
+        serializedVersion: 2
+        x: 520
+        y: 130
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 902b62c9246ad00478d443004f95bbaa
+      internalID: -738222296
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r4_c5
+      rect:
+        serializedVersion: 2
+        x: 650
+        y: 130
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 2d93625bb9e6c8b48bc1636e6ad95dcd
+      internalID: 457060263
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r4_c6
+      rect:
+        serializedVersion: 2
+        x: 780
+        y: 130
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7c59b528d82f47c42b074b977bf2cfbb
+      internalID: 1644080139
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r4_c7
+      rect:
+        serializedVersion: 2
+        x: 910
+        y: 130
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6306a53cce3ed4743b953b0e76ae64d9
+      internalID: 719495458
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r4_c8
+      rect:
+        serializedVersion: 2
+        x: 1040
+        y: 130
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a3b198ac8a100bd43b0f72ae8e3b63db
+      internalID: 2019197125
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r4_c9
+      rect:
+        serializedVersion: 2
+        x: 1170
+        y: 130
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a329d7b4bf04a954094d772804ede602
+      internalID: -261086495
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r4_c10
+      rect:
+        serializedVersion: 2
+        x: 1300
+        y: 130
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 132ee265448bdf44ebbfe9f94f7c5b55
+      internalID: -748818709
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r4_c11
+      rect:
+        serializedVersion: 2
+        x: 1430
+        y: 130
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6cccb294c0719f54fadd142b0c64faa0
+      internalID: -845741967
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r4_c12
+      rect:
+        serializedVersion: 2
+        x: 1560
+        y: 130
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 09f411d68bbb9184e80435210182da66
+      internalID: 1431896222
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r4_c13
+      rect:
+        serializedVersion: 2
+        x: 1690
+        y: 130
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: fb9691fcb4942d444a425abbacb810d4
+      internalID: -1396613562
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r4_c14
+      rect:
+        serializedVersion: 2
+        x: 1820
+        y: 130
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: de3e5f2a46cc19e4d862dcf45fb4ca5c
+      internalID: -1902515519
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r5_c0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: dcdcf6b2f5f248741b14ff8d59e9663a
+      internalID: 1723157846
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r5_c1
+      rect:
+        serializedVersion: 2
+        x: 130
+        y: 0
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 2a6e64fe2cf3ac74ea22da182975a464
+      internalID: -1717762004
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r5_c2
+      rect:
+        serializedVersion: 2
+        x: 260
+        y: 0
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 0853a7d56c4b0ef49a513f6466144546
+      internalID: -2005169379
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r5_c3
+      rect:
+        serializedVersion: 2
+        x: 390
+        y: 0
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: accb42c6ccc35c34689946537fa0e088
+      internalID: 151699975
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r5_c4
+      rect:
+        serializedVersion: 2
+        x: 520
+        y: 0
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: db67078d22eb6014d8fa84783f953d10
+      internalID: -1730252871
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r5_c5
+      rect:
+        serializedVersion: 2
+        x: 650
+        y: 0
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 84a9fb0863f19c840bf1c2f23a1112aa
+      internalID: 501841821
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r5_c6
+      rect:
+        serializedVersion: 2
+        x: 780
+        y: 0
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 218a80b84c56ebb4f9725244c72d5881
+      internalID: 1792005065
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r5_c7
+      rect:
+        serializedVersion: 2
+        x: 910
+        y: 0
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 93af99be0748a0147a534d8eaf88315b
+      internalID: -187215292
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r5_c8
+      rect:
+        serializedVersion: 2
+        x: 1040
+        y: 0
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 8c4285c16c4209346a532bb1b79c474f
+      internalID: -1553493109
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r5_c9
+      rect:
+        serializedVersion: 2
+        x: 1170
+        y: 0
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 1ff2b38b560bcfe4899cd757717e1799
+      internalID: 1977909495
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r5_c10
+      rect:
+        serializedVersion: 2
+        x: 1300
+        y: 0
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 3238a7c4f0a178e44b8c66a474fa0785
+      internalID: 1963207211
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r5_c11
+      rect:
+        serializedVersion: 2
+        x: 1430
+        y: 0
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e822526eae8d76142ac56eee19182a28
+      internalID: 1155729063
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r5_c12
+      rect:
+        serializedVersion: 2
+        x: 1560
+        y: 0
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e6c0d576fd4f1d449934abfeedb84832
+      internalID: 1848011106
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r5_c13
+      rect:
+        serializedVersion: 2
+        x: 1690
+        y: 0
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 540fdfe9e24978746ae9771f4c005cd3
+      internalID: -1053557563
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZebra2_r5_c14
+      rect:
+        serializedVersion: 2
+        x: 1820
+        y: 0
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 8b5ecb1c1fc185f44a1576b5e5952874
+      internalID: -932071901
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 98777066e6882154aad76a99823f89ca
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      sprZebra2_0: -6334164618008965366
+      sprZebra2_1: -2617217674105998209
+      sprZebra2_10: -6516118880306969046
+      sprZebra2_100: -4375889673466218411
+      sprZebra2_101: -6188709558686904919
+      sprZebra2_102: -5158248983679143960
+      sprZebra2_103: 5051420136515609049
+      sprZebra2_104: 5603581784520469103
+      sprZebra2_105: 6407650170271706802
+      sprZebra2_106: 8636249129035306817
+      sprZebra2_107: 2173366945374562898
+      sprZebra2_108: -5354037937292098043
+      sprZebra2_109: 2479945999074907965
+      sprZebra2_11: -7879317280726513860
+      sprZebra2_110: 739115521195025829
+      sprZebra2_111: -2866594497767212309
+      sprZebra2_112: 7166459684239693216
+      sprZebra2_113: -1178315562898141053
+      sprZebra2_114: 4933851877334535491
+      sprZebra2_115: -344618393427724820
+      sprZebra2_116: 2966980905915647685
+      sprZebra2_117: 6082338959062902627
+      sprZebra2_118: -8599133130115748898
+      sprZebra2_119: 4883956123227275520
+      sprZebra2_12: -5207069124781769716
+      sprZebra2_120: -3272947975457363678
+      sprZebra2_121: 1569244287791908219
+      sprZebra2_122: -2078016959417604932
+      sprZebra2_123: -2647546413567795039
+      sprZebra2_124: 3019381753356435668
+      sprZebra2_125: -7069029554469774680
+      sprZebra2_126: -3685779175902792319
+      sprZebra2_127: -2520432856830103064
+      sprZebra2_128: 3225371157855262896
+      sprZebra2_129: 8279391181548358622
+      sprZebra2_13: 5002310836261673616
+      sprZebra2_130: -1119576981247923206
+      sprZebra2_131: 8134757663884620494
+      sprZebra2_132: -776097761505911819
+      sprZebra2_133: -5626852935612044870
+      sprZebra2_134: -7014127524566265408
+      sprZebra2_135: -1136706095133046274
+      sprZebra2_136: -6278770346144268480
+      sprZebra2_137: 2925063821744293510
+      sprZebra2_138: 9119432426832329323
+      sprZebra2_139: 3073014673123892953
+      sprZebra2_14: -6505906428415466887
+      sprZebra2_140: -4722321699888932743
+      sprZebra2_141: 8160692365930304379
+      sprZebra2_142: -8061456390647209075
+      sprZebra2_143: -1845639607838898259
+      sprZebra2_15: 6004458127013116265
+      sprZebra2_16: -247587215183302047
+      sprZebra2_17: 3454716105895978529
+      sprZebra2_18: -4636779353980702994
+      sprZebra2_19: -8863419742289517906
+      sprZebra2_2: 7963690436512078713
+      sprZebra2_20: 7336843105496506631
+      sprZebra2_21: 7274726220665987195
+      sprZebra2_22: 534794679367357935
+      sprZebra2_23: -6483517545422609875
+      sprZebra2_24: -1167994109774427446
+      sprZebra2_25: 7419227228356819186
+      sprZebra2_26: -5283307182685143900
+      sprZebra2_27: 3227659050550987616
+      sprZebra2_28: 7529804535785348768
+      sprZebra2_29: 37759877841240656
+      sprZebra2_3: -888140729665637607
+      sprZebra2_30: 3269101524199903346
+      sprZebra2_31: -1357756262151618601
+      sprZebra2_32: 1042645299130876038
+      sprZebra2_33: -8825097196736813709
+      sprZebra2_34: 8400137353234552148
+      sprZebra2_35: 3902837766862493379
+      sprZebra2_36: 8671542907486817195
+      sprZebra2_37: -1569851442941077688
+      sprZebra2_38: -4092105406044288979
+      sprZebra2_39: -1613563506928646612
+      sprZebra2_4: 8514743469347492616
+      sprZebra2_40: 6872317374362898835
+      sprZebra2_41: 6930006474222142504
+      sprZebra2_42: 3604950282714127119
+      sprZebra2_43: 2354973591428618091
+      sprZebra2_44: 7919677226042807091
+      sprZebra2_45: 4251304386431065697
+      sprZebra2_46: -4740818320786876458
+      sprZebra2_47: -5380492332398293603
+      sprZebra2_48: -1781911299680938374
+      sprZebra2_49: -2973378900066876890
+      sprZebra2_5: 751708509119211257
+      sprZebra2_50: -7665768591906222290
+      sprZebra2_51: 5106623606960366095
+      sprZebra2_52: 6145026063505567116
+      sprZebra2_53: -1436225433993253447
+      sprZebra2_54: 9183075962798429417
+      sprZebra2_55: -2808961118666868720
+      sprZebra2_56: -1098472983990108911
+      sprZebra2_57: 6109308972939766095
+      sprZebra2_58: 3611822347360273290
+      sprZebra2_59: -4194608378921535267
+      sprZebra2_6: 2589960318994294378
+      sprZebra2_60: 5822169522991378214
+      sprZebra2_61: -3764196916068062389
+      sprZebra2_62: 4334384103765134510
+      sprZebra2_63: -6962732759144833881
+      sprZebra2_64: 266673220142850466
+      sprZebra2_65: 3893716049401271887
+      sprZebra2_66: -4822557148231448722
+      sprZebra2_67: 662559679846678573
+      sprZebra2_68: -5152766517195084113
+      sprZebra2_69: 5237006061538799831
+      sprZebra2_7: 5803410029485668588
+      sprZebra2_70: 8851961102624461672
+      sprZebra2_71: -4031387106766979789
+      sprZebra2_72: 8551658987885292869
+      sprZebra2_73: 2797785238275145961
+      sprZebra2_74: 548267912341279621
+      sprZebra2_75: -1260809169912240076
+      sprZebra2_76: -3596902780328253449
+      sprZebra2_77: 6375004824410943439
+      sprZebra2_78: 5956072782622336014
+      sprZebra2_79: 392491337095466561
+      sprZebra2_8: -5888795501833155129
+      sprZebra2_80: 4338849251517716632
+      sprZebra2_81: -2399284315800595593
+      sprZebra2_82: 5992219487289914511
+      sprZebra2_83: 7484810660267220019
+      sprZebra2_84: 7174214257519636437
+      sprZebra2_85: 4658945176877830795
+      sprZebra2_86: -4237296186446846440
+      sprZebra2_87: 8338522746810941940
+      sprZebra2_88: 5140868751972862599
+      sprZebra2_89: 8967431593945430528
+      sprZebra2_9: -4975351542788274902
+      sprZebra2_90: 4220801731969522984
+      sprZebra2_91: -9179349704521586269
+      sprZebra2_92: -3311598960269630058
+      sprZebra2_93: 4511280574523722966
+      sprZebra2_94: 7991657213022167947
+      sprZebra2_95: 5005639302201911855
+      sprZebra2_96: -3169870645097809118
+      sprZebra2_97: -2275842039337285165
+      sprZebra2_98: 3990234945297043354
+      sprZebra2_99: -3353866380876030370
+      sprZebra2_r0_c0: -715499575
+      sprZebra2_r0_c1: -489939182
+      sprZebra2_r0_c10: -520468052
+      sprZebra2_r0_c11: -161448025
+      sprZebra2_r0_c12: 1131279550
+      sprZebra2_r0_c13: -471817691
+      sprZebra2_r0_c14: 63857552
+      sprZebra2_r0_c2: -1856131130
+      sprZebra2_r0_c3: -1472518752
+      sprZebra2_r0_c4: 1362910821
+      sprZebra2_r0_c5: -1589130803
+      sprZebra2_r0_c6: -7195672
+      sprZebra2_r0_c7: -2056503570
+      sprZebra2_r0_c8: 306427853
+      sprZebra2_r0_c9: -600119567
+      sprZebra2_r1_c0: -424494227
+      sprZebra2_r1_c1: -161979224
+      sprZebra2_r1_c10: -1334877555
+      sprZebra2_r1_c11: 827367595
+      sprZebra2_r1_c12: -1618711396
+      sprZebra2_r1_c13: 716223216
+      sprZebra2_r1_c14: 17173169
+      sprZebra2_r1_c2: 1363172738
+      sprZebra2_r1_c3: 350152778
+      sprZebra2_r1_c4: -1579156804
+      sprZebra2_r1_c5: -1194012616
+      sprZebra2_r1_c6: -915888142
+      sprZebra2_r1_c7: -531020620
+      sprZebra2_r1_c8: -395539858
+      sprZebra2_r1_c9: -1807675762
+      sprZebra2_r2_c0: 163692860
+      sprZebra2_r2_c1: -1780566372
+      sprZebra2_r2_c10: -730034623
+      sprZebra2_r2_c11: -1810579146
+      sprZebra2_r2_c12: 2081131411
+      sprZebra2_r2_c13: -1716754239
+      sprZebra2_r2_c14: 1283562780
+      sprZebra2_r2_c2: 1045523007
+      sprZebra2_r2_c3: 73765348
+      sprZebra2_r2_c4: -1305379139
+      sprZebra2_r2_c5: -782849908
+      sprZebra2_r2_c6: -1431148498
+      sprZebra2_r2_c7: 84922515
+      sprZebra2_r2_c8: 750268372
+      sprZebra2_r2_c9: -428729945
+      sprZebra2_r3_c0: -242417052
+      sprZebra2_r3_c1: -1313699602
+      sprZebra2_r3_c10: 1963313759
+      sprZebra2_r3_c11: -65389285
+      sprZebra2_r3_c12: -351035930
+      sprZebra2_r3_c13: -1763378181
+      sprZebra2_r3_c14: -2076377108
+      sprZebra2_r3_c2: 981686164
+      sprZebra2_r3_c3: -1020767637
+      sprZebra2_r3_c4: 472266158
+      sprZebra2_r3_c5: -1457860677
+      sprZebra2_r3_c6: -1438668339
+      sprZebra2_r3_c7: 1288656905
+      sprZebra2_r3_c8: -407547503
+      sprZebra2_r3_c9: -1015672917
+      sprZebra2_r4_c0: -209343314
+      sprZebra2_r4_c1: 937971322
+      sprZebra2_r4_c10: -748818709
+      sprZebra2_r4_c11: -845741967
+      sprZebra2_r4_c12: 1431896222
+      sprZebra2_r4_c13: -1396613562
+      sprZebra2_r4_c14: -1902515519
+      sprZebra2_r4_c2: 696729400
+      sprZebra2_r4_c3: -68863271
+      sprZebra2_r4_c4: -738222296
+      sprZebra2_r4_c5: 457060263
+      sprZebra2_r4_c6: 1644080139
+      sprZebra2_r4_c7: 719495458
+      sprZebra2_r4_c8: 2019197125
+      sprZebra2_r4_c9: -261086495
+      sprZebra2_r5_c0: 1723157846
+      sprZebra2_r5_c1: -1717762004
+      sprZebra2_r5_c10: 1963207211
+      sprZebra2_r5_c11: 1155729063
+      sprZebra2_r5_c12: 1848011106
+      sprZebra2_r5_c13: -1053557563
+      sprZebra2_r5_c14: -932071901
+      sprZebra2_r5_c2: -2005169379
+      sprZebra2_r5_c3: 151699975
+      sprZebra2_r5_c4: -1730252871
+      sprZebra2_r5_c5: 501841821
+      sprZebra2_r5_c6: 1792005065
+      sprZebra2_r5_c7: -187215292
+      sprZebra2_r5_c8: -1553493109
+      sprZebra2_r5_c9: 1977909495
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

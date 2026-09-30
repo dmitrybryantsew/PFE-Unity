@@ -90,10 +90,117 @@ MonoBehaviour:
   tripDamage: 0
   dialogueSet: 
   teleportColor: {r: 1, g: 1, b: 1, a: 1}
-  sprite: {fileID: 0}
-  spriteSheet: []
+  sprite: {fileID: 1743909848, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  spriteSheetId: sprRaider9
+  visualClassName: 
+  spriteSheet:
+  - {fileID: 1743909848, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: 2038937877, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: -1713916716, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: -115481424, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: 1706473610, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: 1876038544, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: 1965135044, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: 1907053150, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: -1068981559, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: -931535693, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: 1564528619, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: -515511685, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: 144100624, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: -1407526626, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: 992173889, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: -1405836092, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: 1467089235, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: 520220761, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: 1856768326, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: -298980509, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: 108565324, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: -1478607602, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: 1083000527, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: 770426824, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: -580486631, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: 987143458, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: -519380891, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: -1966684683, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: -171836194, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: 796031062, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: 1843268157, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: -585377574, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: 854039055, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: 720534773, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: 833493654, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: 2050682081, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: 1700698459, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: -2095323401, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: 346584703, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: 287065760, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: 1160656075, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: -105130184, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: -1730759983, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: -1472310594, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: -657002896, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: 1284913301, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: 140182166, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: 1118783707, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: 1386049520, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: 675387470, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: -1392999412, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: -1611020215, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: 1832392606, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: -1555835710, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: -1173336682, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: -387806998, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: 2030917868, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: -1017431384, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: 133693065, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: -585002231, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: -1795262913, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: 859157869, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: -720313679, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: 568056385, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: -1715928719, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: 1798002290, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: 1762410963, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: -1392669541, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: 1446839556, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: 1750475235, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: 1213192253, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: -282591092, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: -1536614354, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: -1777886036, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: -1646184906, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: 393424176, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: -1918311451, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: -1682440468, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: 1868421025, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: 585769229, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: -1548227929, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: -244428143, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: -746098647, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: 1779044989, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: 1016900732, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: 2073204030, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: 2133414177, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: 309239977, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: -171732742, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: 1382711003, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: -507946948, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: -1290546287, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: 2041375113, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: 1789430368, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: -1457962853, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: 2116317603, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: 1416677739, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: 696614764, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: 1653450222, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: 2103429009, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: 575830475, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
+  - {fileID: -1305273350, guid: 8118a6888bce962498e786c2f9e193ee, type: 3}
   spriteDimensions: {x: 120, y: 120}
-  drawDimensions: {x: 60, y: 60}
+  spriteSheetColumns: 17
+  spriteSheetRows: 6
+  registrationPoint: {x: -1, y: -1}
+  iconCell: {x: -1, y: -1}
   gender: 1
   musicTrack: 
   deathSoundId: 
@@ -125,138 +232,138 @@ MonoBehaviour:
     difficulty: 0
   animations:
     stay:
-      y: 0
-      length: 0
-      rep: 0
-      ff: 0
-      rf: 0
-      df: 0
-      stab: 0
+      row: 0
+      length: 1
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 1
+      replay: 0
+      isStatic: 0
     walk:
-      y: 0
-      length: 0
-      rep: 0
-      ff: 0
-      rf: 0
-      df: 0
-      stab: 0
+      row: 9
+      length: 24
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 1
+      replay: 1
+      isStatic: 0
     trot:
-      y: 0
-      length: 0
-      rep: 0
-      ff: 0
-      rf: 0
-      df: 0
-      stab: 0
+      row: 1
+      length: 17
+      firstFrame: 0
+      returnFrame: 1
+      frameStep: 1
+      replay: 1
+      isStatic: 0
     run:
-      y: 0
-      length: 0
-      rep: 0
-      ff: 0
-      rf: 0
-      df: 0
-      stab: 0
+      row: 2
+      length: 8
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 1
+      replay: 1
+      isStatic: 0
     jump:
-      y: 0
-      length: 0
-      rep: 0
-      ff: 0
-      rf: 0
-      df: 0
-      stab: 0
+      row: 3
+      length: 16
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 1
+      replay: 0
+      isStatic: 1
     die:
-      y: 0
-      length: 0
-      rep: 0
-      ff: 0
-      rf: 0
-      df: 0
-      stab: 0
+      row: 4
+      length: 20
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 1
+      replay: 0
+      isStatic: 0
     death:
-      y: 0
-      length: 0
-      rep: 0
-      ff: 0
-      rf: 0
-      df: 0
-      stab: 0
+      row: 5
+      length: 1
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 1
+      replay: 0
+      isStatic: 0
     fall:
-      y: 0
-      length: 0
-      rep: 0
-      ff: 0
-      rf: 0
-      df: 0
-      stab: 0
-    drag:
-      y: 0
-      length: 0
-      rep: 0
-      ff: 0
-      rf: 0
-      df: 0
-      stab: 0
-    swim:
-      y: 0
-      length: 0
-      rep: 0
-      ff: 0
-      rf: 0
-      df: 0
-      stab: 0
-    climb:
-      y: 0
-      length: 0
-      rep: 0
-      ff: 0
-      rf: 0
-      df: 0
-      stab: 0
+      row: 5
+      length: 13
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 1
+      replay: 0
+      isStatic: 0
     sit:
-      y: 0
+      row: 0
       length: 0
-      rep: 0
-      ff: 0
-      rf: 0
-      df: 0
-      stab: 0
-    crawl:
-      y: 0
-      length: 0
-      rep: 0
-      ff: 0
-      rf: 0
-      df: 0
-      stab: 0
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 0
+      replay: 0
+      isStatic: 0
     fly:
-      y: 0
+      row: 0
       length: 0
-      rep: 0
-      ff: 0
-      rf: 0
-      df: 0
-      stab: 0
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 0
+      replay: 0
+      isStatic: 0
     dig:
-      y: 0
+      row: 0
       length: 0
-      rep: 0
-      ff: 0
-      rf: 0
-      df: 0
-      stab: 0
-    transform:
-      y: 0
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 0
+      replay: 0
+      isStatic: 0
+    swim:
+      row: 7
+      length: 24
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 1
+      replay: 1
+      isStatic: 0
+    crawl:
+      row: 0
       length: 0
-      rep: 0
-      ff: 0
-      rf: 0
-      df: 0
-      stab: 0
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 0
+      replay: 0
+      isStatic: 0
+    climb:
+      row: 8
+      length: 12
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 1
+      replay: 1
+      isStatic: 0
     preAttack:
-      y: 0
+      row: 0
       length: 0
-      rep: 0
-      ff: 0
-      rf: 0
-      df: 0
-      stab: 0
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 0
+      replay: 0
+      isStatic: 0
+    drag:
+      row: 0
+      length: 0
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 0
+      replay: 0
+      isStatic: 0
+    transform:
+      row: 0
+      length: 0
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 0
+      replay: 0
+      isStatic: 0

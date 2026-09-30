@@ -90,10 +90,35 @@ MonoBehaviour:
   tripDamage: 0
   dialogueSet: 
   teleportColor: {r: 1, g: 1, b: 1, a: 1}
-  sprite: {fileID: 0}
-  spriteSheet: []
-  spriteDimensions: {x: 200, y: 200}
-  drawDimensions: {x: 60, y: 60}
+  sprite: {fileID: 1950308109, guid: 145693f2d990a3a4babfe0056f7795b3, type: 3}
+  spriteSheetId: sprHellhound
+  visualClassName: 
+  spriteSheet:
+  - {fileID: 1950308109, guid: 145693f2d990a3a4babfe0056f7795b3, type: 3}
+  - {fileID: 183132011, guid: 145693f2d990a3a4babfe0056f7795b3, type: 3}
+  - {fileID: -1665327573, guid: 145693f2d990a3a4babfe0056f7795b3, type: 3}
+  - {fileID: 16818187, guid: 145693f2d990a3a4babfe0056f7795b3, type: 3}
+  - {fileID: 96407089, guid: 145693f2d990a3a4babfe0056f7795b3, type: 3}
+  - {fileID: 784129783, guid: 145693f2d990a3a4babfe0056f7795b3, type: 3}
+  - {fileID: 1938976486, guid: 145693f2d990a3a4babfe0056f7795b3, type: 3}
+  - {fileID: 1509471865, guid: 145693f2d990a3a4babfe0056f7795b3, type: 3}
+  - {fileID: -745639302, guid: 145693f2d990a3a4babfe0056f7795b3, type: 3}
+  - {fileID: 891732031, guid: 145693f2d990a3a4babfe0056f7795b3, type: 3}
+  - {fileID: -1712773546, guid: 145693f2d990a3a4babfe0056f7795b3, type: 3}
+  - {fileID: 1642874431, guid: 145693f2d990a3a4babfe0056f7795b3, type: 3}
+  - {fileID: 928028488, guid: 145693f2d990a3a4babfe0056f7795b3, type: 3}
+  - {fileID: -1224074747, guid: 145693f2d990a3a4babfe0056f7795b3, type: 3}
+  - {fileID: -1118765772, guid: 145693f2d990a3a4babfe0056f7795b3, type: 3}
+  - {fileID: 965439016, guid: 145693f2d990a3a4babfe0056f7795b3, type: 3}
+  - {fileID: -1181398541, guid: 145693f2d990a3a4babfe0056f7795b3, type: 3}
+  - {fileID: -1537164784, guid: 145693f2d990a3a4babfe0056f7795b3, type: 3}
+  - {fileID: 539925102, guid: 145693f2d990a3a4babfe0056f7795b3, type: 3}
+  - {fileID: 674729301, guid: 145693f2d990a3a4babfe0056f7795b3, type: 3}
+  spriteDimensions: {x: 200, y: 170}
+  spriteSheetColumns: 10
+  spriteSheetRows: 2
+  registrationPoint: {x: 100, y: 160}
+  iconCell: {x: -1, y: -1}
   gender: 2
   musicTrack: 
   deathSoundId: 
@@ -119,138 +144,138 @@ MonoBehaviour:
   weapons: []
   animations:
     stay:
-      y: 0
-      length: 0
-      rep: 0
-      ff: 0
-      rf: 0
-      df: 0
-      stab: 0
+      row: 0
+      length: 1
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 1
+      replay: 0
+      isStatic: 0
     walk:
-      y: 0
-      length: 0
-      rep: 0
-      ff: 0
-      rf: 0
-      df: 0
-      stab: 0
+      row: 0
+      length: 25
+      firstFrame: 0
+      returnFrame: 1
+      frameStep: 1
+      replay: 1
+      isStatic: 0
     trot:
-      y: 0
+      row: 0
       length: 0
-      rep: 0
-      ff: 0
-      rf: 0
-      df: 0
-      stab: 0
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 0
+      replay: 0
+      isStatic: 0
     run:
-      y: 0
-      length: 0
-      rep: 0
-      ff: 0
-      rf: 0
-      df: 0
-      stab: 0
+      row: 2
+      length: 12
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 1
+      replay: 1
+      isStatic: 0
     jump:
-      y: 0
-      length: 0
-      rep: 0
-      ff: 0
-      rf: 0
-      df: 0
-      stab: 0
+      row: 3
+      length: 16
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 1
+      replay: 0
+      isStatic: 1
     die:
-      y: 0
-      length: 0
-      rep: 0
-      ff: 0
-      rf: 0
-      df: 0
-      stab: 0
+      row: 4
+      length: 20
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 1
+      replay: 0
+      isStatic: 0
     death:
-      y: 0
-      length: 0
-      rep: 0
-      ff: 0
-      rf: 0
-      df: 0
-      stab: 0
+      row: 5
+      length: 1
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 1
+      replay: 0
+      isStatic: 0
     fall:
-      y: 0
-      length: 0
-      rep: 0
-      ff: 0
-      rf: 0
-      df: 0
-      stab: 0
-    drag:
-      y: 0
-      length: 0
-      rep: 0
-      ff: 0
-      rf: 0
-      df: 0
-      stab: 0
-    swim:
-      y: 0
-      length: 0
-      rep: 0
-      ff: 0
-      rf: 0
-      df: 0
-      stab: 0
-    climb:
-      y: 0
-      length: 0
-      rep: 0
-      ff: 0
-      rf: 0
-      df: 0
-      stab: 0
+      row: 5
+      length: 13
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 1
+      replay: 0
+      isStatic: 0
     sit:
-      y: 0
-      length: 0
-      rep: 0
-      ff: 0
-      rf: 0
-      df: 0
-      stab: 0
-    crawl:
-      y: 0
-      length: 0
-      rep: 0
-      ff: 0
-      rf: 0
-      df: 0
-      stab: 0
+      row: 1
+      length: 1
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 1
+      replay: 0
+      isStatic: 0
     fly:
-      y: 0
+      row: 0
       length: 0
-      rep: 0
-      ff: 0
-      rf: 0
-      df: 0
-      stab: 0
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 0
+      replay: 0
+      isStatic: 0
     dig:
-      y: 0
+      row: 0
       length: 0
-      rep: 0
-      ff: 0
-      rf: 0
-      df: 0
-      stab: 0
-    transform:
-      y: 0
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 0
+      replay: 0
+      isStatic: 0
+    swim:
+      row: 0
       length: 0
-      rep: 0
-      ff: 0
-      rf: 0
-      df: 0
-      stab: 0
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 0
+      replay: 0
+      isStatic: 0
+    crawl:
+      row: 1
+      length: 25
+      firstFrame: 0
+      returnFrame: 1
+      frameStep: 1
+      replay: 1
+      isStatic: 0
+    climb:
+      row: 6
+      length: 12
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 1
+      replay: 1
+      isStatic: 0
     preAttack:
-      y: 0
+      row: 0
       length: 0
-      rep: 0
-      ff: 0
-      rf: 0
-      df: 0
-      stab: 0
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 0
+      replay: 0
+      isStatic: 0
+    drag:
+      row: 0
+      length: 0
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 0
+      replay: 0
+      isStatic: 0
+    transform:
+      row: 0
+      length: 0
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 0
+      replay: 0
+      isStatic: 0

@@ -1,0 +1,1690 @@
+fileFormatVersion: 2
+guid: 7cf1dfdce0b4ddf4c8b8f067a17e2b93
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: -1717033557740477132
+    second: sprGutsy1_0
+  - first:
+      213: -7026368976781132066
+    second: sprGutsy1_1
+  - first:
+      213: 7045004671167594146
+    second: sprGutsy1_2
+  - first:
+      213: -1069396674609139882
+    second: sprGutsy1_3
+  - first:
+      213: -1673018959221824139
+    second: sprGutsy1_4
+  - first:
+      213: -7939052999890062410
+    second: sprGutsy1_5
+  - first:
+      213: 4493551066677776793
+    second: sprGutsy1_6
+  - first:
+      213: 4519054344106456305
+    second: sprGutsy1_7
+  - first:
+      213: 5465941238754817374
+    second: sprGutsy1_8
+  - first:
+      213: -3434386939140009280
+    second: sprGutsy1_9
+  - first:
+      213: -4884888856457543439
+    second: sprGutsy1_10
+  - first:
+      213: 7208226120263748250
+    second: sprGutsy1_11
+  - first:
+      213: 582421853830954390
+    second: sprGutsy1_12
+  - first:
+      213: -7449626489908186328
+    second: sprGutsy1_13
+  - first:
+      213: 2642931103921443843
+    second: sprGutsy1_14
+  - first:
+      213: -5504308163154519768
+    second: sprGutsy1_15
+  - first:
+      213: 2849492178573483535
+    second: sprGutsy1_16
+  - first:
+      213: 1581660095186802477
+    second: sprGutsy1_17
+  - first:
+      213: -8004365473354873771
+    second: sprGutsy1_18
+  - first:
+      213: -1386341665026214131
+    second: sprGutsy1_19
+  - first:
+      213: -3121092132099378369
+    second: sprGutsy1_20
+  - first:
+      213: -6194096940784438572
+    second: sprGutsy1_21
+  - first:
+      213: -371591507743438942
+    second: sprGutsy1_22
+  - first:
+      213: 6669001625180819209
+    second: sprGutsy1_23
+  - first:
+      213: -7658026704562293891
+    second: sprGutsy1_24
+  - first:
+      213: -2200129850407963201
+    second: sprGutsy1_25
+  - first:
+      213: 3626403889676207780
+    second: sprGutsy1_26
+  - first:
+      213: -6554846056517173853
+    second: sprGutsy1_27
+  - first:
+      213: 120501090901876968
+    second: sprGutsy1_28
+  - first:
+      213: -7871692190382381692
+    second: sprGutsy1_29
+  - first:
+      213: 6001670085250450929
+    second: sprGutsy1_30
+  - first:
+      213: -9155996026681767287
+    second: sprGutsy1_31
+  - first:
+      213: 785551048770574196
+    second: sprGutsy1_32
+  - first:
+      213: -8525087785966906156
+    second: sprGutsy1_33
+  - first:
+      213: 8424918469281053546
+    second: sprGutsy1_34
+  - first:
+      213: 1108362906178546156
+    second: sprGutsy1_35
+  - first:
+      213: 7789586719724710845
+    second: sprGutsy1_36
+  - first:
+      213: 2724227516933058830
+    second: sprGutsy1_37
+  - first:
+      213: -473680944013909136
+    second: sprGutsy1_38
+  - first:
+      213: 8343397244242338833
+    second: sprGutsy1_39
+  - first:
+      213: 7922425348196047104
+    second: sprGutsy1_40
+  - first:
+      213: 7724391870840347110
+    second: sprGutsy1_41
+  - first:
+      213: 3165498557769987839
+    second: sprGutsy1_42
+  - first:
+      213: -4231738020105378559
+    second: sprGutsy1_43
+  - first:
+      213: 3507364394705289022
+    second: sprGutsy1_44
+  - first:
+      213: 4637286926629322647
+    second: sprGutsy1_45
+  - first:
+      213: -4428498557311040236
+    second: sprGutsy1_46
+  - first:
+      213: 1092120019999679807
+    second: sprGutsy1_47
+  - first:
+      213: -7263909808464804659
+    second: sprGutsy1_48
+  - first:
+      213: -2581879848004173468
+    second: sprGutsy1_49
+  - first:
+      213: 328392937950825539
+    second: sprGutsy1_50
+  - first:
+      213: -7573139646110444641
+    second: sprGutsy1_51
+  - first:
+      213: -1669431613624357510
+    second: sprGutsy1_52
+  - first:
+      213: -6948471534423520399
+    second: sprGutsy1_53
+  - first:
+      213: 8783243245996575077
+    second: sprGutsy1_54
+  - first:
+      213: -3878655227025012738
+    second: sprGutsy1_55
+  - first:
+      213: 5802871960307874196
+    second: sprGutsy1_56
+  - first:
+      213: -7269646341508049127
+    second: sprGutsy1_57
+  - first:
+      213: -3807306747879332502
+    second: sprGutsy1_58
+  - first:
+      213: -5933859125174237587
+    second: sprGutsy1_59
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 0
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 0
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Android
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: sprGutsy1_0
+      rect:
+        serializedVersion: 2
+        x: 22
+        y: 137
+        width: 88
+        height: 92
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4352473931fdb28e0800000000000000
+      internalID: -1717033557740477132
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGutsy1_1
+      rect:
+        serializedVersion: 2
+        x: 152
+        y: 134
+        width: 88
+        height: 95
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: edeb22694a25d7e90800000000000000
+      internalID: -7026368976781132066
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGutsy1_2
+      rect:
+        serializedVersion: 2
+        x: 283
+        y: 137
+        width: 87
+        height: 92
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2ae79e12c62e4c160800000000000000
+      internalID: 7045004671167594146
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGutsy1_3
+      rect:
+        serializedVersion: 2
+        x: 414
+        y: 141
+        width: 86
+        height: 88
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 65f20fde36db821f0800000000000000
+      internalID: -1069396674609139882
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGutsy1_4
+      rect:
+        serializedVersion: 2
+        x: 544
+        y: 137
+        width: 85
+        height: 92
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 575e611ee1e38c8e0800000000000000
+      internalID: -1673018959221824139
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGutsy1_5
+      rect:
+        serializedVersion: 2
+        x: 675
+        y: 134
+        width: 84
+        height: 96
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6b3bd880c51d2d190800000000000000
+      internalID: -7939052999890062410
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGutsy1_6
+      rect:
+        serializedVersion: 2
+        x: 805
+        y: 137
+        width: 84
+        height: 93
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 991186523ec4c5e30800000000000000
+      internalID: 4493551066677776793
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGutsy1_7
+      rect:
+        serializedVersion: 2
+        x: 936
+        y: 141
+        width: 83
+        height: 89
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1f4b625abf7e6be30800000000000000
+      internalID: 4519054344106456305
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGutsy1_8
+      rect:
+        serializedVersion: 2
+        x: 1066
+        y: 137
+        width: 82
+        height: 93
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e55b32bc89ceadb40800000000000000
+      internalID: 5465941238754817374
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGutsy1_9
+      rect:
+        serializedVersion: 2
+        x: 1197
+        y: 134
+        width: 81
+        height: 96
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0c29157664b9650d0800000000000000
+      internalID: -3434386939140009280
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGutsy1_10
+      rect:
+        serializedVersion: 2
+        x: 1328
+        y: 137
+        width: 80
+        height: 94
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1f0859f5773653cb0800000000000000
+      internalID: -4884888856457543439
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGutsy1_11
+      rect:
+        serializedVersion: 2
+        x: 1458
+        y: 141
+        width: 80
+        height: 90
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a9a430f2773c80460800000000000000
+      internalID: 7208226120263748250
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGutsy1_12
+      rect:
+        serializedVersion: 2
+        x: 1589
+        y: 137
+        width: 78
+        height: 94
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 69db40b179d251800800000000000000
+      internalID: 582421853830954390
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGutsy1_13
+      rect:
+        serializedVersion: 2
+        x: 1719
+        y: 134
+        width: 78
+        height: 97
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 823beaf5d2c9d9890800000000000000
+      internalID: -7449626489908186328
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGutsy1_14
+      rect:
+        serializedVersion: 2
+        x: 1849
+        y: 137
+        width: 78
+        height: 94
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 304911f06d39da420800000000000000
+      internalID: 2642931103921443843
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGutsy1_15
+      rect:
+        serializedVersion: 2
+        x: 1979
+        y: 141
+        width: 77
+        height: 91
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 82954e083e4cc93b0800000000000000
+      internalID: -5504308163154519768
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGutsy1_16
+      rect:
+        serializedVersion: 2
+        x: 2109
+        y: 137
+        width: 77
+        height: 95
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f0e50260a0e6b8720800000000000000
+      internalID: 2849492178573483535
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGutsy1_17
+      rect:
+        serializedVersion: 2
+        x: 2239
+        y: 134
+        width: 77
+        height: 98
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d2715010a7f23f510800000000000000
+      internalID: 1581660095186802477
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGutsy1_18
+      rect:
+        serializedVersion: 2
+        x: 2370
+        y: 137
+        width: 76
+        height: 95
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 554084cc208cae090800000000000000
+      internalID: -8004365473354873771
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGutsy1_19
+      rect:
+        serializedVersion: 2
+        x: 2500
+        y: 141
+        width: 75
+        height: 91
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d07f9cec999b2cce0800000000000000
+      internalID: -1386341665026214131
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGutsy1_20
+      rect:
+        serializedVersion: 2
+        x: 2630
+        y: 137
+        width: 76
+        height: 95
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f3333fafd37afa4d0800000000000000
+      internalID: -3121092132099378369
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGutsy1_21
+      rect:
+        serializedVersion: 2
+        x: 2759
+        y: 134
+        width: 77
+        height: 98
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4d2b53c66a52a0aa0800000000000000
+      internalID: -6194096940784438572
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGutsy1_22
+      rect:
+        serializedVersion: 2
+        x: 2889
+        y: 137
+        width: 77
+        height: 95
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2a786631e77d7daf0800000000000000
+      internalID: -371591507743438942
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGutsy1_23
+      rect:
+        serializedVersion: 2
+        x: 3019
+        y: 141
+        width: 77
+        height: 91
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 90fc76be4ad0d8c50800000000000000
+      internalID: 6669001625180819209
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGutsy1_24
+      rect:
+        serializedVersion: 2
+        x: 3149
+        y: 137
+        width: 78
+        height: 94
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d73fb12494939b590800000000000000
+      internalID: -7658026704562293891
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGutsy1_25
+      rect:
+        serializedVersion: 2
+        x: 3279
+        y: 134
+        width: 78
+        height: 97
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: fb533bece819771e0800000000000000
+      internalID: -2200129850407963201
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGutsy1_26
+      rect:
+        serializedVersion: 2
+        x: 3409
+        y: 137
+        width: 78
+        height: 94
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4a6ce38cf13935230800000000000000
+      internalID: 3626403889676207780
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGutsy1_27
+      rect:
+        serializedVersion: 2
+        x: 3538
+        y: 141
+        width: 79
+        height: 90
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3ad7ceb9d328805a0800000000000000
+      internalID: -6554846056517173853
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGutsy1_28
+      rect:
+        serializedVersion: 2
+        x: 3668
+        y: 137
+        width: 80
+        height: 94
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8e0e04e8a1b1ca100800000000000000
+      internalID: 120501090901876968
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGutsy1_29
+      rect:
+        serializedVersion: 2
+        x: 3797
+        y: 134
+        width: 81
+        height: 97
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 485aa0ba8a122c290800000000000000
+      internalID: -7871692190382381692
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGutsy1_30
+      rect:
+        serializedVersion: 2
+        x: 3927
+        y: 137
+        width: 81
+        height: 93
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1f50172f4273a4350800000000000000
+      internalID: 6001670085250450929
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGutsy1_31
+      rect:
+        serializedVersion: 2
+        x: 4056
+        y: 141
+        width: 82
+        height: 89
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 98aceb0df1e5fe080800000000000000
+      internalID: -9155996026681767287
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGutsy1_32
+      rect:
+        serializedVersion: 2
+        x: 4186
+        y: 137
+        width: 82
+        height: 93
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 477d7ee4486d6ea00800000000000000
+      internalID: 785551048770574196
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGutsy1_33
+      rect:
+        serializedVersion: 2
+        x: 4315
+        y: 134
+        width: 84
+        height: 96
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4d4db6693ddc0b980800000000000000
+      internalID: -8525087785966906156
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGutsy1_34
+      rect:
+        serializedVersion: 2
+        x: 4445
+        y: 137
+        width: 84
+        height: 93
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a6bff1fe5b25be470800000000000000
+      internalID: 8424918469281053546
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGutsy1_35
+      rect:
+        serializedVersion: 2
+        x: 4574
+        y: 143
+        width: 85
+        height: 87
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ce9edf8d032b16f00800000000000000
+      internalID: 1108362906178546156
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGutsy1_36
+      rect:
+        serializedVersion: 2
+        x: 4704
+        y: 137
+        width: 85
+        height: 92
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: dbbaa40c9db2a1c60800000000000000
+      internalID: 7789586719724710845
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGutsy1_37
+      rect:
+        serializedVersion: 2
+        x: 4833
+        y: 134
+        width: 87
+        height: 95
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e01b32a3e766ec520800000000000000
+      internalID: 2724227516933058830
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGutsy1_38
+      rect:
+        serializedVersion: 2
+        x: 4962
+        y: 137
+        width: 88
+        height: 92
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 073ed2be0b52d69f0800000000000000
+      internalID: -473680944013909136
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGutsy1_39
+      rect:
+        serializedVersion: 2
+        x: 5092
+        y: 142
+        width: 88
+        height: 87
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 114a903a693b9c370800000000000000
+      internalID: 8343397244242338833
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGutsy1_40
+      rect:
+        serializedVersion: 2
+        x: 22
+        y: 12
+        width: 88
+        height: 87
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 00996ce11eb12fd60800000000000000
+      internalID: 7922425348196047104
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGutsy1_41
+      rect:
+        serializedVersion: 2
+        x: 153
+        y: 8
+        width: 86
+        height: 88
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6e99a5f1b7d823b60800000000000000
+      internalID: 7724391870840347110
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGutsy1_42
+      rect:
+        serializedVersion: 2
+        x: 284
+        y: 5
+        width: 84
+        height: 88
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ff634e0ba2c1eeb20800000000000000
+      internalID: 3165498557769987839
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGutsy1_43
+      rect:
+        serializedVersion: 2
+        x: 412
+        y: 3
+        width: 85
+        height: 88
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 105aa1101b8d545c0800000000000000
+      internalID: -4231738020105378559
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGutsy1_44
+      rect:
+        serializedVersion: 2
+        x: 540
+        y: 2
+        width: 87
+        height: 87
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e3ff24c8559aca030800000000000000
+      internalID: 3507364394705289022
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGutsy1_45
+      rect:
+        serializedVersion: 2
+        x: 668
+        y: 1
+        width: 89
+        height: 86
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 79fbd4fe3e3fa5040800000000000000
+      internalID: 4637286926629322647
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGutsy1_46
+      rect:
+        serializedVersion: 2
+        x: 796
+        y: 0
+        width: 91
+        height: 86
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 415452b7600da82c0800000000000000
+      internalID: -4428498557311040236
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGutsy1_47
+      rect:
+        serializedVersion: 2
+        x: 924
+        y: 0
+        width: 93
+        height: 86
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f356c243f5df72f00800000000000000
+      internalID: 1092120019999679807
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGutsy1_48
+      rect:
+        serializedVersion: 2
+        x: 1053
+        y: 0
+        width: 95
+        height: 85
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: dc4caf9d388613b90800000000000000
+      internalID: -7263909808464804659
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGutsy1_49
+      rect:
+        serializedVersion: 2
+        x: 1182
+        y: 0
+        width: 94
+        height: 82
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 461c8f625f15b2cd0800000000000000
+      internalID: -2581879848004173468
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGutsy1_50
+      rect:
+        serializedVersion: 2
+        x: 1310
+        y: 0
+        width: 95
+        height: 78
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 34c4e4d13afae8400800000000000000
+      internalID: 328392937950825539
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGutsy1_51
+      rect:
+        serializedVersion: 2
+        x: 1439
+        y: 0
+        width: 94
+        height: 75
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f93d827bd9dc6e690800000000000000
+      internalID: -7573139646110444641
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGutsy1_52
+      rect:
+        serializedVersion: 2
+        x: 1567
+        y: 0
+        width: 94
+        height: 71
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a7dec1ddaccf4d8e0800000000000000
+      internalID: -1669431613624357510
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGutsy1_53
+      rect:
+        serializedVersion: 2
+        x: 1696
+        y: 0
+        width: 96
+        height: 68
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 17bc5ca34f1129f90800000000000000
+      internalID: -6948471534423520399
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGutsy1_54
+      rect:
+        serializedVersion: 2
+        x: 1824
+        y: 0
+        width: 99
+        height: 65
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5698975523954e970800000000000000
+      internalID: 8783243245996575077
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGutsy1_55
+      rect:
+        serializedVersion: 2
+        x: 1953
+        y: 0
+        width: 100
+        height: 61
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ef746fafe9f3c2ac0800000000000000
+      internalID: -3878655227025012738
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGutsy1_56
+      rect:
+        serializedVersion: 2
+        x: 2082
+        y: 0
+        width: 101
+        height: 58
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 499b93f8d41f78050800000000000000
+      internalID: 5802871960307874196
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGutsy1_57
+      rect:
+        serializedVersion: 2
+        x: 2211
+        y: 0
+        width: 102
+        height: 55
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 917d1bb2b270d1b90800000000000000
+      internalID: -7269646341508049127
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGutsy1_58
+      rect:
+        serializedVersion: 2
+        x: 2340
+        y: 0
+        width: 102
+        height: 53
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a6564bd4faab92bc0800000000000000
+      internalID: -3807306747879332502
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGutsy1_59
+      rect:
+        serializedVersion: 2
+        x: 2469
+        y: 0
+        width: 102
+        height: 50
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d6687c88092b6ada0800000000000000
+      internalID: -5933859125174237587
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      sprGutsy1_0: -1717033557740477132
+      sprGutsy1_1: -7026368976781132066
+      sprGutsy1_10: -4884888856457543439
+      sprGutsy1_11: 7208226120263748250
+      sprGutsy1_12: 582421853830954390
+      sprGutsy1_13: -7449626489908186328
+      sprGutsy1_14: 2642931103921443843
+      sprGutsy1_15: -5504308163154519768
+      sprGutsy1_16: 2849492178573483535
+      sprGutsy1_17: 1581660095186802477
+      sprGutsy1_18: -8004365473354873771
+      sprGutsy1_19: -1386341665026214131
+      sprGutsy1_2: 7045004671167594146
+      sprGutsy1_20: -3121092132099378369
+      sprGutsy1_21: -6194096940784438572
+      sprGutsy1_22: -371591507743438942
+      sprGutsy1_23: 6669001625180819209
+      sprGutsy1_24: -7658026704562293891
+      sprGutsy1_25: -2200129850407963201
+      sprGutsy1_26: 3626403889676207780
+      sprGutsy1_27: -6554846056517173853
+      sprGutsy1_28: 120501090901876968
+      sprGutsy1_29: -7871692190382381692
+      sprGutsy1_3: -1069396674609139882
+      sprGutsy1_30: 6001670085250450929
+      sprGutsy1_31: -9155996026681767287
+      sprGutsy1_32: 785551048770574196
+      sprGutsy1_33: -8525087785966906156
+      sprGutsy1_34: 8424918469281053546
+      sprGutsy1_35: 1108362906178546156
+      sprGutsy1_36: 7789586719724710845
+      sprGutsy1_37: 2724227516933058830
+      sprGutsy1_38: -473680944013909136
+      sprGutsy1_39: 8343397244242338833
+      sprGutsy1_4: -1673018959221824139
+      sprGutsy1_40: 7922425348196047104
+      sprGutsy1_41: 7724391870840347110
+      sprGutsy1_42: 3165498557769987839
+      sprGutsy1_43: -4231738020105378559
+      sprGutsy1_44: 3507364394705289022
+      sprGutsy1_45: 4637286926629322647
+      sprGutsy1_46: -4428498557311040236
+      sprGutsy1_47: 1092120019999679807
+      sprGutsy1_48: -7263909808464804659
+      sprGutsy1_49: -2581879848004173468
+      sprGutsy1_5: -7939052999890062410
+      sprGutsy1_50: 328392937950825539
+      sprGutsy1_51: -7573139646110444641
+      sprGutsy1_52: -1669431613624357510
+      sprGutsy1_53: -6948471534423520399
+      sprGutsy1_54: 8783243245996575077
+      sprGutsy1_55: -3878655227025012738
+      sprGutsy1_56: 5802871960307874196
+      sprGutsy1_57: -7269646341508049127
+      sprGutsy1_58: -3807306747879332502
+      sprGutsy1_59: -5933859125174237587
+      sprGutsy1_6: 4493551066677776793
+      sprGutsy1_7: 4519054344106456305
+      sprGutsy1_8: 5465941238754817374
+      sprGutsy1_9: -3434386939140009280
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

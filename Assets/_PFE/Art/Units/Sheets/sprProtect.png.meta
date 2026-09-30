@@ -1,0 +1,1505 @@
+fileFormatVersion: 2
+guid: 726c20703ef155b49bee50279fc0e448
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: 4082055050763176039
+    second: sprProtect_0
+  - first:
+      213: 2747226024902809262
+    second: sprProtect_1
+  - first:
+      213: -2675824836074615805
+    second: sprProtect_2
+  - first:
+      213: -6066211240083347239
+    second: sprProtect_3
+  - first:
+      213: -4392514668962237964
+    second: sprProtect_4
+  - first:
+      213: -675062786639455412
+    second: sprProtect_5
+  - first:
+      213: 6980529652736158963
+    second: sprProtect_6
+  - first:
+      213: 1836239890402940546
+    second: sprProtect_7
+  - first:
+      213: -8783392345796716726
+    second: sprProtect_8
+  - first:
+      213: 7058855627033232004
+    second: sprProtect_9
+  - first:
+      213: -8171341943979920684
+    second: sprProtect_10
+  - first:
+      213: 4008037445168635746
+    second: sprProtect_11
+  - first:
+      213: 7674221454750741882
+    second: sprProtect_12
+  - first:
+      213: 8722553482447577852
+    second: sprProtect_13
+  - first:
+      213: -616301016051336116
+    second: sprProtect_14
+  - first:
+      213: -8463488258250312743
+    second: sprProtect_15
+  - first:
+      213: -5471912087160544104
+    second: sprProtect_16
+  - first:
+      213: -8964070165500435904
+    second: sprProtect_17
+  - first:
+      213: -8800632350738438005
+    second: sprProtect_18
+  - first:
+      213: -3669322546920074367
+    second: sprProtect_19
+  - first:
+      213: -3503265632393121719
+    second: sprProtect_20
+  - first:
+      213: 515646486014266439
+    second: sprProtect_21
+  - first:
+      213: -8064909963437435488
+    second: sprProtect_22
+  - first:
+      213: 8089461682867180705
+    second: sprProtect_23
+  - first:
+      213: 4434231372141768858
+    second: sprProtect_24
+  - first:
+      213: 2026891231026681264
+    second: sprProtect_25
+  - first:
+      213: 3686535478597367872
+    second: sprProtect_26
+  - first:
+      213: -5683566889114839734
+    second: sprProtect_27
+  - first:
+      213: -4898909546750104012
+    second: sprProtect_28
+  - first:
+      213: 1404589528296262710
+    second: sprProtect_29
+  - first:
+      213: -632095892765160947
+    second: sprProtect_30
+  - first:
+      213: -2364887211596543909
+    second: sprProtect_31
+  - first:
+      213: -4809881569123311055
+    second: sprProtect_32
+  - first:
+      213: 5032996347892657866
+    second: sprProtect_33
+  - first:
+      213: 1586382006352502475
+    second: sprProtect_34
+  - first:
+      213: 3092232313665949494
+    second: sprProtect_35
+  - first:
+      213: 5119141158113867712
+    second: sprProtect_36
+  - first:
+      213: -3427219836556669788
+    second: sprProtect_37
+  - first:
+      213: 195844389313976959
+    second: sprProtect_38
+  - first:
+      213: -6880006956821205225
+    second: sprProtect_39
+  - first:
+      213: -5961681333192299435
+    second: sprProtect_40
+  - first:
+      213: -8939182319421505341
+    second: sprProtect_41
+  - first:
+      213: 9183611393754347264
+    second: sprProtect_42
+  - first:
+      213: -2642381046236258122
+    second: sprProtect_43
+  - first:
+      213: -5237089271296472390
+    second: sprProtect_44
+  - first:
+      213: 7274194542565802492
+    second: sprProtect_45
+  - first:
+      213: 8893839005907276583
+    second: sprProtect_46
+  - first:
+      213: 42603538104144710
+    second: sprProtect_47
+  - first:
+      213: -7281005346792325900
+    second: sprProtect_48
+  - first:
+      213: -7423798163361080441
+    second: sprProtect_49
+  - first:
+      213: 4079845132738629808
+    second: sprProtect_50
+  - first:
+      213: -6828155928445034961
+    second: sprProtect_51
+  - first:
+      213: 5907719586366481874
+    second: sprProtect_52
+  - first:
+      213: -6353142555441264309
+    second: sprProtect_53
+  - first:
+      213: -2398006848441957289
+    second: sprProtect_54
+  - first:
+      213: -340847980125091536
+    second: sprProtect_55
+  - first:
+      213: -3167783579489989154
+    second: sprProtect_56
+  - first:
+      213: -328035837489505223
+    second: sprProtect_57
+  - first:
+      213: -410716864514953314
+    second: sprProtect_58
+  - first:
+      213: -2479428246383800101
+    second: sprProtect_59
+  - first:
+      213: -7993829634737215698
+    second: sprProtect_60
+  - first:
+      213: 5555496871970640654
+    second: sprProtect_61
+  - first:
+      213: 8636659177723428783
+    second: sprProtect_62
+  - first:
+      213: -6564577951193366556
+    second: sprProtect_63
+  - first:
+      213: 2063884642541897724
+    second: sprProtect_64
+  - first:
+      213: 5964797479483064376
+    second: sprProtect_65
+  - first:
+      213: 546081064406606833
+    second: sprProtect_66
+  - first:
+      213: -8551791527648535524
+    second: sprProtect_67
+  - first:
+      213: -5522902291225025946
+    second: sprProtect_68
+  - first:
+      213: 4297943592372425882
+    second: sprProtect_69
+  - first:
+      213: -4850029884415028652
+    second: sprProtect_70
+  - first:
+      213: -2574559400282090851
+    second: sprProtect_71
+  - first:
+      213: 7522271631610575889
+    second: sprProtect_72
+  - first:
+      213: -8634488845228683668
+    second: sprProtect_73
+  - first:
+      213: -6133794476268019395
+    second: sprProtect_74
+  - first:
+      213: 9135815646757570616
+    second: sprProtect_75
+  - first:
+      213: -1722418032863541435
+    second: sprProtect_76
+  - first:
+      213: -7761095147461277832
+    second: sprProtect_77
+  - first:
+      213: -8150213004446709983
+    second: sprProtect_78
+  - first:
+      213: 6374460730100324788
+    second: sprProtect_79
+  - first:
+      213: 743584151608487727
+    second: sprProtect_80
+  - first:
+      213: 4008742451361129389
+    second: sprProtect_81
+  - first:
+      213: 8853883519589852484
+    second: sprProtect_82
+  - first:
+      213: 5131004527477231074
+    second: sprProtect_83
+  - first:
+      213: -2798497611574165606
+    second: sprProtect_84
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 0
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 8192
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 0
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Android
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: sprProtect_r0_c0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 11ed54aa11a03b14e924a6231e532b45
+      internalID: -833535301
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprProtect_r0_c1
+      rect:
+        serializedVersion: 2
+        x: 130
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9b47c0a9ce9508f4d8cf4664e0d50e44
+      internalID: 609818390
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprProtect_r0_c2
+      rect:
+        serializedVersion: 2
+        x: 260
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 56407bd0683bc5e40bc7542496f751dd
+      internalID: -1039068506
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprProtect_r0_c3
+      rect:
+        serializedVersion: 2
+        x: 390
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 15352177cc86c124bb380d203109ea44
+      internalID: 1994870013
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprProtect_r0_c4
+      rect:
+        serializedVersion: 2
+        x: 520
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 071964340e9a5b644834b23a90d337bb
+      internalID: -1774364531
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprProtect_r0_c5
+      rect:
+        serializedVersion: 2
+        x: 650
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 3db7990963fd3d04cb313540c8c39b98
+      internalID: 75063409
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprProtect_r0_c6
+      rect:
+        serializedVersion: 2
+        x: 780
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 99884183dcd7c844a90468464558fadc
+      internalID: 97290142
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprProtect_r0_c7
+      rect:
+        serializedVersion: 2
+        x: 910
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 36c89785f524e8f418833bb6f7f4cf11
+      internalID: 1237477338
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprProtect_r0_c8
+      rect:
+        serializedVersion: 2
+        x: 1040
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9a9afc213ef61624494076ec0c3ffec5
+      internalID: 636155938
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprProtect_r0_c9
+      rect:
+        serializedVersion: 2
+        x: 1170
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d2def11228c3cde44835a8a84c3a3e44
+      internalID: 920150027
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprProtect_r0_c10
+      rect:
+        serializedVersion: 2
+        x: 1300
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d835a926e6416f746acb34bb87cccde3
+      internalID: -1110188063
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprProtect_r0_c11
+      rect:
+        serializedVersion: 2
+        x: 1430
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 0adc99602dd6ebb448cb56794c567f78
+      internalID: 2090813362
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprProtect_r0_c12
+      rect:
+        serializedVersion: 2
+        x: 1560
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6e7f5625df9cb9140b4b1ee1612cce70
+      internalID: -853975347
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprProtect_r0_c13
+      rect:
+        serializedVersion: 2
+        x: 1690
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f7c2d19500080364291aa517822d963b
+      internalID: 2137825833
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprProtect_r0_c14
+      rect:
+        serializedVersion: 2
+        x: 1820
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ae60a0327d3fb934191cbb6963bc2649
+      internalID: -779414762
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprProtect_r1_c0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 130
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 4f3f08a08514b7940a9708b397423b8d
+      internalID: 4352709
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprProtect_r1_c1
+      rect:
+        serializedVersion: 2
+        x: 130
+        y: 130
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c844e3fd98ffe8c42be6acaeb6535566
+      internalID: -1017988436
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprProtect_r1_c2
+      rect:
+        serializedVersion: 2
+        x: 260
+        y: 130
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 326c3d8e34befe64698f6c6da6ecb722
+      internalID: 168040016
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprProtect_r1_c3
+      rect:
+        serializedVersion: 2
+        x: 390
+        y: 130
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6fd320bc67ad0564eb4a036d0b4fdb6c
+      internalID: -1116843154
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprProtect_r1_c4
+      rect:
+        serializedVersion: 2
+        x: 520
+        y: 130
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: dce38acdebd5d3e4e8195028e2e85d7d
+      internalID: 727301007
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprProtect_r1_c5
+      rect:
+        serializedVersion: 2
+        x: 650
+        y: 130
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ce6e2396609c50d48b3f7f403699e34f
+      internalID: 426101985
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprProtect_r1_c6
+      rect:
+        serializedVersion: 2
+        x: 780
+        y: 130
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 2b6a207bf876eed4797f07753da25e3e
+      internalID: -1271224051
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprProtect_r1_c7
+      rect:
+        serializedVersion: 2
+        x: 910
+        y: 130
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d2815e0aeef19d848ac9fd34bcc7ea74
+      internalID: -71133700
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprProtect_r1_c8
+      rect:
+        serializedVersion: 2
+        x: 1040
+        y: 130
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 4a957c256c69c884da881edc264a2bce
+      internalID: -457877511
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprProtect_r1_c9
+      rect:
+        serializedVersion: 2
+        x: 1170
+        y: 130
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f01d0344da4c54b49b316508684e6cb8
+      internalID: 821034469
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprProtect_r1_c10
+      rect:
+        serializedVersion: 2
+        x: 1300
+        y: 130
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: fd2c4d872aeaeaf45892efd4127a3168
+      internalID: -1613034119
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprProtect_r1_c11
+      rect:
+        serializedVersion: 2
+        x: 1430
+        y: 130
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 945288a51cbfb344b839037a5c446f34
+      internalID: 72096358
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprProtect_r1_c12
+      rect:
+        serializedVersion: 2
+        x: 1560
+        y: 130
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 157f09e47ce1ef641a9fb9861413e8f7
+      internalID: 1486220886
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprProtect_r1_c13
+      rect:
+        serializedVersion: 2
+        x: 1690
+        y: 130
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b28a50daf16a62e469b5b891acd5302b
+      internalID: 690050276
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprProtect_r1_c14
+      rect:
+        serializedVersion: 2
+        x: 1820
+        y: 130
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e830179e443e8f042a70933ca109c593
+      internalID: -2041815982
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprProtect_r2_c0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c9a5debcb70efbb4899af6392333f4be
+      internalID: -1639432539
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprProtect_r2_c1
+      rect:
+        serializedVersion: 2
+        x: 130
+        y: 0
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 883d46c437e8af4449c28b59d55668b8
+      internalID: 1807650962
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprProtect_r2_c2
+      rect:
+        serializedVersion: 2
+        x: 260
+        y: 0
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e0db100bf5bf98d49ae8317c8744d6ac
+      internalID: 851078836
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprProtect_r2_c3
+      rect:
+        serializedVersion: 2
+        x: 390
+        y: 0
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 08ea72cd6c0739c4b81934257e15858b
+      internalID: 2096200998
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprProtect_r2_c4
+      rect:
+        serializedVersion: 2
+        x: 520
+        y: 0
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c65bc2de759a3934c95ae783169da73c
+      internalID: 1788754038
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprProtect_r2_c5
+      rect:
+        serializedVersion: 2
+        x: 650
+        y: 0
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c586f4a7c51cb8b45b4058adb876927d
+      internalID: 410700490
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprProtect_r2_c6
+      rect:
+        serializedVersion: 2
+        x: 780
+        y: 0
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f24fc9dd9201a23499fb20825e5232d7
+      internalID: -251944838
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprProtect_r2_c7
+      rect:
+        serializedVersion: 2
+        x: 910
+        y: 0
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 41b9451c387d0fc45a29f1b6bcc91f9a
+      internalID: 1193799981
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprProtect_r2_c8
+      rect:
+        serializedVersion: 2
+        x: 1040
+        y: 0
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 34736f816a3d2c9438480a8304051d16
+      internalID: -1494607434
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprProtect_r2_c9
+      rect:
+        serializedVersion: 2
+        x: 1170
+        y: 0
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7ac50a59a14e7864cbf39ec54bd1ea00
+      internalID: 1625995049
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprProtect_r2_c10
+      rect:
+        serializedVersion: 2
+        x: 1300
+        y: 0
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b934d269c28e0a346a431c009fa4f77b
+      internalID: 18503748
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprProtect_r2_c11
+      rect:
+        serializedVersion: 2
+        x: 1430
+        y: 0
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 51496f70154eff44583c581ccf78819b
+      internalID: -733902083
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprProtect_r2_c12
+      rect:
+        serializedVersion: 2
+        x: 1560
+        y: 0
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 4fd19c676ae50504a89f00ccef9d6bf3
+      internalID: 662356462
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprProtect_r2_c13
+      rect:
+        serializedVersion: 2
+        x: 1690
+        y: 0
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ef17f6a50b0c31d459e69edd3515ec6a
+      internalID: -855113060
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprProtect_r2_c14
+      rect:
+        serializedVersion: 2
+        x: 1820
+        y: 0
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e6bf41aabf994ed4dbe9dadf84c0d121
+      internalID: 345685612
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: a04f5baf043ce5e42b5ff6ead842d515
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      sprProtect_0: 4082055050763176039
+      sprProtect_1: 2747226024902809262
+      sprProtect_10: -8171341943979920684
+      sprProtect_11: 4008037445168635746
+      sprProtect_12: 7674221454750741882
+      sprProtect_13: 8722553482447577852
+      sprProtect_14: -616301016051336116
+      sprProtect_15: -8463488258250312743
+      sprProtect_16: -5471912087160544104
+      sprProtect_17: -8964070165500435904
+      sprProtect_18: -8800632350738438005
+      sprProtect_19: -3669322546920074367
+      sprProtect_2: -2675824836074615805
+      sprProtect_20: -3503265632393121719
+      sprProtect_21: 515646486014266439
+      sprProtect_22: -8064909963437435488
+      sprProtect_23: 8089461682867180705
+      sprProtect_24: 4434231372141768858
+      sprProtect_25: 2026891231026681264
+      sprProtect_26: 3686535478597367872
+      sprProtect_27: -5683566889114839734
+      sprProtect_28: -4898909546750104012
+      sprProtect_29: 1404589528296262710
+      sprProtect_3: -6066211240083347239
+      sprProtect_30: -632095892765160947
+      sprProtect_31: -2364887211596543909
+      sprProtect_32: -4809881569123311055
+      sprProtect_33: 5032996347892657866
+      sprProtect_34: 1586382006352502475
+      sprProtect_35: 3092232313665949494
+      sprProtect_36: 5119141158113867712
+      sprProtect_37: -3427219836556669788
+      sprProtect_38: 195844389313976959
+      sprProtect_39: -6880006956821205225
+      sprProtect_4: -4392514668962237964
+      sprProtect_40: -5961681333192299435
+      sprProtect_41: -8939182319421505341
+      sprProtect_42: 9183611393754347264
+      sprProtect_43: -2642381046236258122
+      sprProtect_44: -5237089271296472390
+      sprProtect_45: 7274194542565802492
+      sprProtect_46: 8893839005907276583
+      sprProtect_47: 42603538104144710
+      sprProtect_48: -7281005346792325900
+      sprProtect_49: -7423798163361080441
+      sprProtect_5: -675062786639455412
+      sprProtect_50: 4079845132738629808
+      sprProtect_51: -6828155928445034961
+      sprProtect_52: 5907719586366481874
+      sprProtect_53: -6353142555441264309
+      sprProtect_54: -2398006848441957289
+      sprProtect_55: -340847980125091536
+      sprProtect_56: -3167783579489989154
+      sprProtect_57: -328035837489505223
+      sprProtect_58: -410716864514953314
+      sprProtect_59: -2479428246383800101
+      sprProtect_6: 6980529652736158963
+      sprProtect_60: -7993829634737215698
+      sprProtect_61: 5555496871970640654
+      sprProtect_62: 8636659177723428783
+      sprProtect_63: -6564577951193366556
+      sprProtect_64: 2063884642541897724
+      sprProtect_65: 5964797479483064376
+      sprProtect_66: 546081064406606833
+      sprProtect_67: -8551791527648535524
+      sprProtect_68: -5522902291225025946
+      sprProtect_69: 4297943592372425882
+      sprProtect_7: 1836239890402940546
+      sprProtect_70: -4850029884415028652
+      sprProtect_71: -2574559400282090851
+      sprProtect_72: 7522271631610575889
+      sprProtect_73: -8634488845228683668
+      sprProtect_74: -6133794476268019395
+      sprProtect_75: 9135815646757570616
+      sprProtect_76: -1722418032863541435
+      sprProtect_77: -7761095147461277832
+      sprProtect_78: -8150213004446709983
+      sprProtect_79: 6374460730100324788
+      sprProtect_8: -8783392345796716726
+      sprProtect_80: 743584151608487727
+      sprProtect_81: 4008742451361129389
+      sprProtect_82: 8853883519589852484
+      sprProtect_83: 5131004527477231074
+      sprProtect_84: -2798497611574165606
+      sprProtect_9: 7058855627033232004
+      sprProtect_r0_c0: -833535301
+      sprProtect_r0_c1: 609818390
+      sprProtect_r0_c10: -1110188063
+      sprProtect_r0_c11: 2090813362
+      sprProtect_r0_c12: -853975347
+      sprProtect_r0_c13: 2137825833
+      sprProtect_r0_c14: -779414762
+      sprProtect_r0_c2: -1039068506
+      sprProtect_r0_c3: 1994870013
+      sprProtect_r0_c4: -1774364531
+      sprProtect_r0_c5: 75063409
+      sprProtect_r0_c6: 97290142
+      sprProtect_r0_c7: 1237477338
+      sprProtect_r0_c8: 636155938
+      sprProtect_r0_c9: 920150027
+      sprProtect_r1_c0: 4352709
+      sprProtect_r1_c1: -1017988436
+      sprProtect_r1_c10: -1613034119
+      sprProtect_r1_c11: 72096358
+      sprProtect_r1_c12: 1486220886
+      sprProtect_r1_c13: 690050276
+      sprProtect_r1_c14: -2041815982
+      sprProtect_r1_c2: 168040016
+      sprProtect_r1_c3: -1116843154
+      sprProtect_r1_c4: 727301007
+      sprProtect_r1_c5: 426101985
+      sprProtect_r1_c6: -1271224051
+      sprProtect_r1_c7: -71133700
+      sprProtect_r1_c8: -457877511
+      sprProtect_r1_c9: 821034469
+      sprProtect_r2_c0: -1639432539
+      sprProtect_r2_c1: 1807650962
+      sprProtect_r2_c10: 18503748
+      sprProtect_r2_c11: -733902083
+      sprProtect_r2_c12: 662356462
+      sprProtect_r2_c13: -855113060
+      sprProtect_r2_c14: 345685612
+      sprProtect_r2_c2: 851078836
+      sprProtect_r2_c3: 2096200998
+      sprProtect_r2_c4: 1788754038
+      sprProtect_r2_c5: 410700490
+      sprProtect_r2_c6: -251944838
+      sprProtect_r2_c7: 1193799981
+      sprProtect_r2_c8: -1494607434
+      sprProtect_r2_c9: 1625995049
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

@@ -294,31 +294,140 @@ namespace PFE.Data.Definitions
     }
 
     /// <summary>
-    /// Animation frame definition for sprite animations.
+    /// One animation state of a unit — the port of AS3's <c>BlitAnim</c> (<c>fe/serv/BlitAnim.as</c>).
+    ///
+    /// <para><b>A state is a ROW of the unit's sprite sheet.</b> The unit's sheet comes from
+    /// <c>&lt;vis blit='sprX' sprX='W' [sprY='H']/&gt;</c>; it is a grid of <c>sprX</c> x
+    /// (<c>sprY</c>, defaulting to <c>sprX</c>) cells, 24 columns wide. This struct names one row of
+    /// that grid and how to walk along it. The cell for the current frame is
+    /// <c>(frame * sprX, row * sprY, sprX, sprY)</c>.</para>
+    ///
+    /// <para><b>Field names, and why they are not AS3's.</b> AS3's <c>BlitAnim</c> fields are
+    /// <c>id</c>, <c>firstf</c>, <c>maxf</c>, <c>retf</c>, <c>replay</c>, <c>stab</c>, <c>df</c>, and
+    /// the XML attributes are the terse <c>y/len/ff/rf/df/rep/stab</c>. The previous revision of this
+    /// struct kept the terse names <i>and</i> documented two of them wrongly — <c>ff</c> was labelled
+    /// "frame skip (speed)" when <c>BlitAnim.as:3688</c> assigns it to <c>firstf</c>, the first frame
+    /// <i>index</i> of the row, and <c>rf</c> was labelled "reverse frame" when <c>:3696</c> assigns it
+    /// to <c>retf</c>, the index <c>replay</c> restarts from. Neither was read anywhere, so the
+    /// comments were the only thing a reader had. They are now named for what the oracle does.</para>
+    ///
+    /// <para><b>The stepping rule</b> (<c>BlitAnim.as:3715-3733</c>):
+    /// <c>if (isStatic) return; if (frame &lt; firstFrame + length - 1) frame += frameStep;
+    /// else if (replay) frame = returnFrame; else stopped = true;</c>. So <c>length</c> is the count of
+    /// usable cells, the cursor never leaves <c>[firstFrame, firstFrame + length - 1]</c>, and a
+    /// <c>replay</c> state wraps to <c>returnFrame</c> rather than to <c>firstFrame</c>.</para>
+    ///
+    /// <para><b><c>isStatic</c> means the state does not advance itself</b> — <c>step()</c> returns
+    /// immediately — and is driven externally by <c>setStab(progress)</c>, which sets
+    /// <c>frame = length * clamp(progress, 0, 0.999)</c> (<c>:3741-3751</c>). That is how a
+    /// <c>stab='1'</c> state like <c>jump</c> shows a pose chosen from the jump's own progress rather
+    /// than from a timer. It is <b>not</b> "a stable/idle animation", which is what the old comment
+    /// implied.</para>
     /// </summary>
     [System.Serializable]
     public struct AnimationFrame
     {
-        public int y;               // Y position in sprite sheet
-        public int length;          // Number of frames
-        public bool rep;            // Repeat (looping)
-        public float ff;            // Frame skip (speed)
-        public float rf;            // Reverse frame
-        public float df;            // Double frame (speed)
-        public bool stab;           // Stable animation
+        /// <summary>Sheet row index. AS3 <c>@y</c> → <c>BlitAnim.id</c> (<c>BlitAnim.as:3684</c>).</summary>
+        public int row;
 
-        public AnimationFrame(int yPos, int len, bool repeat = false)
+        /// <summary>Usable cell count in the row. AS3 <c>@len</c> → <c>maxf</c> (default 1).</summary>
+        public int length;
+
+        /// <summary>
+        /// First cell index of the row. AS3 <c>@ff</c> → <c>firstf</c>. <b>Not</b> a speed — the
+        /// cursor starts here and stops before <c>firstFrame + length</c>.
+        /// </summary>
+        public int firstFrame;
+
+        /// <summary>
+        /// Cell index a <see cref="replay"/> state wraps back to. AS3 <c>@rf</c> → <c>retf</c>.
+        /// <b>Not</b> a reverse flag.
+        /// </summary>
+        public int returnFrame;
+
+        /// <summary>Cells advanced per step. AS3 <c>@df</c> (default 1).</summary>
+        public float frameStep;
+
+        /// <summary>Loop. AS3 <c>@rep</c>, which is <b>presence</b>-tested, so <c>rep='0'</c> is true.</summary>
+        public bool replay;
+
+        /// <summary>Do not self-advance; driven by <c>setStab</c>. AS3 <c>@stab</c>, also presence-tested.</summary>
+        public bool isStatic;
+
+        /// <summary>True when this state actually names cells in the sheet.</summary>
+        public bool HasFrames => length > 0;
+
+        /// <summary>
+        /// The cell index to draw for a normalised <paramref name="progress"/> 0..1 — AS3
+        /// <c>BlitAnim.setStab</c> (<c>BlitAnim.as:3741-3751</c>):
+        /// <c>f = maxf * clamp(progress, 0, 0.999)</c>.
+        ///
+        /// <para><b><paramref name="firstFrame"/> is deliberately NOT added.</b> The oracle writes
+        /// <c>this.f = this.maxf * param1</c> and ignores <c>firstf</c> entirely, even though
+        /// <c>step()</c> otherwise keeps the cursor inside <c>[firstf, firstf + maxf - 1]</c>. That is an
+        /// inconsistency in the source, and a port that quietly "fixed" it would draw a different cell
+        /// from the game. It is unobservable in this data set either way: the only three <c>stab</c> rows
+        /// in <c>AllData.as</c> are all <c>jump</c>, and none of them carries <c>ff</c>, so
+        /// <c>firstf</c> is 0 for every one.</para>
+        /// </summary>
+        public int FrameAtProgress(float progress)
         {
-            y = yPos;
-            length = len;
-            rep = repeat;
-            ff = rf = df = 0f;
-            stab = false;
+            float p = progress < 0f ? 0f : (progress > 0.999f ? 0.999f : progress);
+            return (int)(length * p);
         }
     }
 
     /// <summary>
-    /// Complete animation set for a unit.
+    /// Every animation state a unit can be in — the port of AS3's <c>Unit.anims</c>, the array
+    /// <c>Unit.as:1430-1436</c> fills as <c>anims[xbl.@id] = new BlitAnim(xbl)</c>.
+    ///
+    /// <para><b>The ids are the oracle's, and they are mostly Russian.</b> There are 176
+    /// <c>&lt;blit&gt;</c> rows in <c>AllData.as</c> across 18 distinct ids. Five of them do not
+    /// translate one-to-one, so <see cref="TrySet"/> owns that mapping in one place:</para>
+    /// <list type="table">
+    /// <item><term>plav</term><description>плавать — swim</description></item>
+    /// <item><term>polz</term><description>ползать — crawl</description></item>
+    /// <item><term>laz</term><description>лазать — climb</description></item>
+    /// <item><term>pre</term><description>pre-attack</description></item>
+    /// </list>
+    /// <para><c>derg</c>, <c>super</c> and <c>attack</c> have no field here and are reported by the
+    /// importer rather than dropped silently. <see cref="drag"/> and <see cref="transform"/> appear in
+    /// no oracle row, so they are never populated — kept so the field set is not silently narrowed.
+    /// </para>
+    ///
+    /// <para><b>Where the states come from — and why the parent chain matters.</b> The oracle splits
+    /// animation data across two nodes and joins them in the controller:</para>
+    ///
+    /// <list type="number">
+    /// <item>The <b>family node</b> (<c>raider</c>, <c>zombie</c>, <c>alicorn</c>, <c>hellhound</c>,
+    /// <c>ant</c>, <c>bloat</c>…) declares the <c>&lt;blit&gt;</c> rows but names <b>no sheet</b> —
+    /// <c>&lt;vis noise='600' visdam='1'/&gt;</c>.</item>
+    /// <item>The <b>variant node</b> (<c>raider5</c>, <c>zombie3</c>, <c>alicorn1</c>…) declares the sheet
+    /// — <c>&lt;vis blit='sprRaider5' sprX='120'/&gt;</c> — and usually <b>no blit rows at all</b>. When it
+    /// does carry rows (<c>zombie1..7,9</c> each carry one <c>pre</c> row) they are a <b>delta</b>.</item>
+    /// </list>
+    ///
+    /// <para>The join is the controller's double call — <c>UnitAlicorn.as:233-234</c>:
+    /// <c>super.getXmlParam("alicorn"); super.getXmlParam();</c>. The first pass reads the family node
+    /// (stats <i>and</i> blits); the second reads the unit's own node and overwrites. Because
+    /// <c>Unit.as:1430</c> only assigns <c>anims[xbl.@id]</c> for rows it actually finds, the second pass
+    /// <b>overlays per id</b> rather than replacing the set. <c>UnitRaider.as:302</c> does the same with a
+    /// dynamic key, <c>super.getXmlParam(this.parentId)</c>, where subclasses set
+    /// <c>parentId</c> to <c>"encl"</c>/<c>"merc"</c>/<c>"zebra"</c>/<c>"slaver"</c>/<c>"ranger"</c>.</para>
+    ///
+    /// <para><b>In every case the family id is exactly the unit's own <c>parent='…'</c> attribute</b>
+    /// (<c>raider5 parent='raider'</c>, <c>zombie3 parent='zombie'</c>, <c>alicorn1 parent='alicorn'</c>),
+    /// so the importer can reproduce the join from data alone without a controller→template table. That
+    /// resolution is done <b>at import time and baked into the asset</b>, so the runtime needs no
+    /// inheritance logic — the same choice already made for <c>fraction</c>.</para>
+    ///
+    /// <para><b>A unit with neither blits nor a sheet is not broken.</b> 24 of the ids rooms place have
+    /// no blit rows — including the most-placed unit in the game (<c>slime</c>, 152 placements),
+    /// <c>turret</c> (97) and <c>training</c> (6). Those are drawn by a <c>&lt;vis vclass='visualX'/&gt;</c>
+    /// DisplayObject instead, and a handful (<c>training</c>, <c>npc</c>, <c>spectre</c>, <c>thunderhead</c>)
+    /// declare no <c>&lt;vis&gt;</c> at all because their controller assigns the visual in code —
+    /// <c>UnitTrain.as:41-49</c> picks <c>visualTrainArmor</c> when <c>tr == 1</c>, else
+    /// <c>visualTrain</c>. See <c>TOPIC_unit_visuals_and_animation.md</c>.</para>
     /// </summary>
     [System.Serializable]
     public class AnimationSet
@@ -331,15 +440,113 @@ namespace PFE.Data.Definitions
         public AnimationFrame die;
         public AnimationFrame death;
         public AnimationFrame fall;
-        public AnimationFrame drag;
-        public AnimationFrame swim;
-        public AnimationFrame climb;
         public AnimationFrame sit;
-        public AnimationFrame crawl;
         public AnimationFrame fly;
         public AnimationFrame dig;
-        public AnimationFrame transform;
+
+        /// <summary>AS3 <c>plav</c>.</summary>
+        public AnimationFrame swim;
+
+        /// <summary>AS3 <c>polz</c>.</summary>
+        public AnimationFrame crawl;
+
+        /// <summary>AS3 <c>laz</c>.</summary>
+        public AnimationFrame climb;
+
+        /// <summary>AS3 <c>pre</c>.</summary>
         public AnimationFrame preAttack;
+
+        /// <summary>No oracle id — never populated.</summary>
+        public AnimationFrame drag;
+
+        /// <summary>No oracle id — never populated.</summary>
+        public AnimationFrame transform;
+
+        /// <summary>
+        /// Store the state named by an AS3 <c>&lt;blit id='…'&gt;</c>. Returns <c>false</c> for an id
+        /// this set has no field for, so the caller can report it instead of losing it.
+        /// </summary>
+        public bool TrySet(string as3Id, AnimationFrame frame)
+        {
+            if (!IsMapped(as3Id))
+            {
+                return false;
+            }
+
+            Assign(as3Id, frame);
+            return true;
+        }
+
+        /// <summary>True when <paramref name="as3Id"/> has a field in this set.</summary>
+        public static bool IsMapped(string as3Id)
+        {
+            return System.Array.IndexOf(As3Ids, as3Id) >= 0;
+        }
+
+        /// <summary>
+        /// The frame for an AS3 id, or an empty frame when the id has no field here.
+        ///
+        /// <para><b>Read-only.</b> An earlier revision wrote
+        /// <c>TrySet(as3Id, default) ? GetMapped(as3Id) : default</c>, which used <c>TrySet</c> as a
+        /// predicate — but <c>TrySet</c> assigns, so every read silently blanked the state it was reading.
+        /// The mapped check is now its own predicate.</para>
+        /// </summary>
+        public AnimationFrame Get(string as3Id)
+        {
+            return IsMapped(as3Id) ? GetMapped(as3Id) : default;
+        }
+
+        void Assign(string as3Id, AnimationFrame frame)
+        {
+            switch (as3Id)
+            {
+                case "stay": stay = frame; break;
+                case "walk": walk = frame; break;
+                case "trot": trot = frame; break;
+                case "run": run = frame; break;
+                case "jump": jump = frame; break;
+                case "die": die = frame; break;
+                case "death": death = frame; break;
+                case "fall": fall = frame; break;
+                case "sit": sit = frame; break;
+                case "fly": fly = frame; break;
+                case "dig": dig = frame; break;
+                case "plav": swim = frame; break;
+                case "polz": crawl = frame; break;
+                case "laz": climb = frame; break;
+                case "pre": preAttack = frame; break;
+            }
+        }
+
+        /// <summary>Every AS3 id this set can hold.</summary>
+        public static readonly string[] As3Ids =
+        {
+            "stay", "walk", "trot", "run", "jump", "die", "death", "fall", "sit", "fly", "dig",
+            "plav", "polz", "laz", "pre"
+        };
+
+        AnimationFrame GetMapped(string as3Id)
+        {
+            switch (as3Id)
+            {
+                case "stay": return stay;
+                case "walk": return walk;
+                case "trot": return trot;
+                case "run": return run;
+                case "jump": return jump;
+                case "die": return die;
+                case "death": return death;
+                case "fall": return fall;
+                case "sit": return sit;
+                case "fly": return fly;
+                case "dig": return dig;
+                case "plav": return swim;
+                case "polz": return crawl;
+                case "laz": return climb;
+                case "pre": return preAttack;
+                default: return default;
+            }
+        }
     }
 
     /// <summary>

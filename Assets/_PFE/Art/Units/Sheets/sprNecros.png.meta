@@ -1,0 +1,858 @@
+fileFormatVersion: 2
+guid: 64d7333634d14e7438fb1eb2c54251cc
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: -5739629327191142738
+    second: sprNecros_0
+  - first:
+      213: 767136840364386155
+    second: sprNecros_1
+  - first:
+      213: 3972837232098413294
+    second: sprNecros_2
+  - first:
+      213: 4518956018978133353
+    second: sprNecros_3
+  - first:
+      213: 2770868499877589794
+    second: sprNecros_4
+  - first:
+      213: 8212128063514208445
+    second: sprNecros_5
+  - first:
+      213: -6182302085229594548
+    second: sprNecros_6
+  - first:
+      213: 5436457973980748232
+    second: sprNecros_7
+  - first:
+      213: -2622545444568971684
+    second: sprNecros_8
+  - first:
+      213: 1217027769788931288
+    second: sprNecros_9
+  - first:
+      213: 1532527103959436331
+    second: sprNecros_10
+  - first:
+      213: -4114525407199330589
+    second: sprNecros_11
+  - first:
+      213: 4459790658160706107
+    second: sprNecros_12
+  - first:
+      213: 5161578986645665355
+    second: sprNecros_13
+  - first:
+      213: -5474864727417389473
+    second: sprNecros_14
+  - first:
+      213: 7647203368025049509
+    second: sprNecros_15
+  - first:
+      213: -2789357622734620210
+    second: sprNecros_16
+  - first:
+      213: -1923149222563389468
+    second: sprNecros_17
+  - first:
+      213: -5985746225556665553
+    second: sprNecros_18
+  - first:
+      213: -4832690000086205175
+    second: sprNecros_19
+  - first:
+      213: 2366915052741776177
+    second: sprNecros_20
+  - first:
+      213: 4458830099609615322
+    second: sprNecros_21
+  - first:
+      213: -3993659339379059128
+    second: sprNecros_22
+  - first:
+      213: -4298953732603670348
+    second: sprNecros_23
+  - first:
+      213: -3789481668865136617
+    second: sprNecros_24
+  - first:
+      213: -125025934540341622
+    second: sprNecros_25
+  - first:
+      213: 5856121330346048595
+    second: sprNecros_26
+  - first:
+      213: 475451901204233699
+    second: sprNecros_27
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 0
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 0
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Android
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: sprNecros_0
+      rect:
+        serializedVersion: 2
+        x: 68
+        y: 130
+        width: 15
+        height: 14
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: eae8b5a698db850b0800000000000000
+      internalID: -5739629327191142738
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprNecros_1
+      rect:
+        serializedVersion: 2
+        x: 180
+        y: 20
+        width: 122
+        height: 121
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b67e80054ea65aa00800000000000000
+      internalID: 767136840364386155
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprNecros_2
+      rect:
+        serializedVersion: 2
+        x: 235
+        y: 129
+        width: 15
+        height: 14
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: eea0ca1e96a522730800000000000000
+      internalID: 3972837232098413294
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprNecros_3
+      rect:
+        serializedVersion: 2
+        x: 339
+        y: 17
+        width: 125
+        height: 131
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9651eca8e8e86be30800000000000000
+      internalID: 4518956018978133353
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprNecros_4
+      rect:
+        serializedVersion: 2
+        x: 497
+        y: 14
+        width: 130
+        height: 136
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 223f58e483a147620800000000000000
+      internalID: 2770868499877589794
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprNecros_5
+      rect:
+        serializedVersion: 2
+        x: 655
+        y: 13
+        width: 133
+        height: 136
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: db8e7cbc6f657f170800000000000000
+      internalID: 8212128063514208445
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprNecros_6
+      rect:
+        serializedVersion: 2
+        x: 815
+        y: 13
+        width: 132
+        height: 132
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c48bbbb320d043aa0800000000000000
+      internalID: -6182302085229594548
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprNecros_7
+      rect:
+        serializedVersion: 2
+        x: 971
+        y: 14
+        width: 137
+        height: 123
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8c9567749bd227b40800000000000000
+      internalID: 5436457973980748232
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprNecros_8
+      rect:
+        serializedVersion: 2
+        x: 1289
+        y: 19
+        width: 138
+        height: 118
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c56c52120d8da9bd0800000000000000
+      internalID: -2622545444568971684
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprNecros_9
+      rect:
+        serializedVersion: 2
+        x: 1450
+        y: 19
+        width: 134
+        height: 121
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8dc1e0cfe40c3e010800000000000000
+      internalID: 1217027769788931288
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprNecros_10
+      rect:
+        serializedVersion: 2
+        x: 1616
+        y: 18
+        width: 126
+        height: 126
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b2c09280841a44510800000000000000
+      internalID: 1532527103959436331
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprNecros_11
+      rect:
+        serializedVersion: 2
+        x: 1777
+        y: 17
+        width: 124
+        height: 129
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3ee709c11f446e6c0800000000000000
+      internalID: -4114525407199330589
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprNecros_12
+      rect:
+        serializedVersion: 2
+        x: 1939
+        y: 18
+        width: 118
+        height: 130
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b32464089fb54ed30800000000000000
+      internalID: 4459790658160706107
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprNecros_13
+      rect:
+        serializedVersion: 2
+        x: 2099
+        y: 18
+        width: 122
+        height: 131
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b46b22bbdbc91a740800000000000000
+      internalID: 5161578986645665355
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprNecros_14
+      rect:
+        serializedVersion: 2
+        x: 2260
+        y: 18
+        width: 125
+        height: 131
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f5e78f8998f5504b0800000000000000
+      internalID: -5474864727417389473
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprNecros_15
+      rect:
+        serializedVersion: 2
+        x: 2421
+        y: 15
+        width: 126
+        height: 132
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5a9cd4452f2502a60800000000000000
+      internalID: 7647203368025049509
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprNecros_16
+      rect:
+        serializedVersion: 2
+        x: 2579
+        y: 14
+        width: 128
+        height: 131
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ec9ff5155063a49d0800000000000000
+      internalID: -2789357622734620210
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprNecros_17
+      rect:
+        serializedVersion: 2
+        x: 2738
+        y: 16
+        width: 129
+        height: 126
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4ef5a0ba8f99f45e0800000000000000
+      internalID: -1923149222563389468
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprNecros_18
+      rect:
+        serializedVersion: 2
+        x: 2897
+        y: 16
+        width: 128
+        height: 125
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f2b4f0e858b5eeca0800000000000000
+      internalID: -5985746225556665553
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprNecros_19
+      rect:
+        serializedVersion: 2
+        x: 3057
+        y: 16
+        width: 124
+        height: 128
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 90d7743bc06deecb0800000000000000
+      internalID: -4832690000086205175
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprNecros_20
+      rect:
+        serializedVersion: 2
+        x: 3219
+        y: 17
+        width: 123
+        height: 129
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 133d23433b8f8d020800000000000000
+      internalID: 2366915052741776177
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprNecros_21
+      rect:
+        serializedVersion: 2
+        x: 3380
+        y: 16
+        width: 126
+        height: 129
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: adbfc090a52f0ed30800000000000000
+      internalID: 4458830099609615322
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprNecros_22
+      rect:
+        serializedVersion: 2
+        x: 3542
+        y: 15
+        width: 126
+        height: 127
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 846d36a7dfba398c0800000000000000
+      internalID: -3993659339379059128
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprNecros_23
+      rect:
+        serializedVersion: 2
+        x: 3701
+        y: 17
+        width: 125
+        height: 122
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4b091566b5c0754c0800000000000000
+      internalID: -4298953732603670348
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprNecros_24
+      rect:
+        serializedVersion: 2
+        x: 3748
+        y: 137
+        width: 14
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 718607cef7e096bc0800000000000000
+      internalID: -3789481668865136617
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprNecros_25
+      rect:
+        serializedVersion: 2
+        x: 3752
+        y: 131
+        width: 10
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a8ef2003391d34ef0800000000000000
+      internalID: -125025934540341622
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprNecros_26
+      rect:
+        serializedVersion: 2
+        x: 21
+        y: 17
+        width: 125
+        height: 119
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 35c3dd8a25f154150800000000000000
+      internalID: 5856121330346048595
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprNecros_27
+      rect:
+        serializedVersion: 2
+        x: 1128
+        y: 16
+        width: 141
+        height: 117
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3edff0f2cf4299600800000000000000
+      internalID: 475451901204233699
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      sprNecros_0: -5739629327191142738
+      sprNecros_1: 767136840364386155
+      sprNecros_10: 1532527103959436331
+      sprNecros_11: -4114525407199330589
+      sprNecros_12: 4459790658160706107
+      sprNecros_13: 5161578986645665355
+      sprNecros_14: -5474864727417389473
+      sprNecros_15: 7647203368025049509
+      sprNecros_16: -2789357622734620210
+      sprNecros_17: -1923149222563389468
+      sprNecros_18: -5985746225556665553
+      sprNecros_19: -4832690000086205175
+      sprNecros_2: 3972837232098413294
+      sprNecros_20: 2366915052741776177
+      sprNecros_21: 4458830099609615322
+      sprNecros_22: -3993659339379059128
+      sprNecros_23: -4298953732603670348
+      sprNecros_24: -3789481668865136617
+      sprNecros_25: -125025934540341622
+      sprNecros_26: 5856121330346048595
+      sprNecros_27: 475451901204233699
+      sprNecros_3: 4518956018978133353
+      sprNecros_4: 2770868499877589794
+      sprNecros_5: 8212128063514208445
+      sprNecros_6: -6182302085229594548
+      sprNecros_7: 5436457973980748232
+      sprNecros_8: -2622545444568971684
+      sprNecros_9: 1217027769788931288
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

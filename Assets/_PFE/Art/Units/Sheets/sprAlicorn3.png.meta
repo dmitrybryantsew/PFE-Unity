@@ -1,0 +1,1156 @@
+fileFormatVersion: 2
+guid: 1dd81f239d9ae6a4ea93e278ec5a9841
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: 7600689003830915726
+    second: sprAlicorn3_0
+  - first:
+      213: -1810996239242462086
+    second: sprAlicorn3_1
+  - first:
+      213: -1552841234721968067
+    second: sprAlicorn3_2
+  - first:
+      213: -5963497151459024102
+    second: sprAlicorn3_3
+  - first:
+      213: -4288198705733494281
+    second: sprAlicorn3_4
+  - first:
+      213: 1778936127318415112
+    second: sprAlicorn3_5
+  - first:
+      213: 2008468844973862135
+    second: sprAlicorn3_6
+  - first:
+      213: -7368145057265428515
+    second: sprAlicorn3_7
+  - first:
+      213: -5300483055276911838
+    second: sprAlicorn3_8
+  - first:
+      213: 1306659585556536955
+    second: sprAlicorn3_9
+  - first:
+      213: 6402531223496503867
+    second: sprAlicorn3_10
+  - first:
+      213: -7760234540771999500
+    second: sprAlicorn3_11
+  - first:
+      213: -8382201885816087366
+    second: sprAlicorn3_12
+  - first:
+      213: 1464885690191035488
+    second: sprAlicorn3_13
+  - first:
+      213: -4791342217234206148
+    second: sprAlicorn3_14
+  - first:
+      213: 2511666625813304103
+    second: sprAlicorn3_15
+  - first:
+      213: 570580057270450257
+    second: sprAlicorn3_16
+  - first:
+      213: 7491597640174226740
+    second: sprAlicorn3_17
+  - first:
+      213: 5461946301741688306
+    second: sprAlicorn3_18
+  - first:
+      213: 8263330129770369773
+    second: sprAlicorn3_19
+  - first:
+      213: 1697568365187717662
+    second: sprAlicorn3_20
+  - first:
+      213: -8044251361538699325
+    second: sprAlicorn3_21
+  - first:
+      213: 35929347338477230
+    second: sprAlicorn3_22
+  - first:
+      213: 4173344271288966438
+    second: sprAlicorn3_23
+  - first:
+      213: -4258057415392162948
+    second: sprAlicorn3_24
+  - first:
+      213: 7031882620659509173
+    second: sprAlicorn3_25
+  - first:
+      213: 2607424943713533722
+    second: sprAlicorn3_26
+  - first:
+      213: 1769506260312340268
+    second: sprAlicorn3_27
+  - first:
+      213: 5982024640713052551
+    second: sprAlicorn3_28
+  - first:
+      213: 5600632997667130328
+    second: sprAlicorn3_29
+  - first:
+      213: -1243220172123830165
+    second: sprAlicorn3_30
+  - first:
+      213: -3120415620254216436
+    second: sprAlicorn3_31
+  - first:
+      213: -1242101257670610207
+    second: sprAlicorn3_32
+  - first:
+      213: 3103848181127985641
+    second: sprAlicorn3_33
+  - first:
+      213: -7012388359984366251
+    second: sprAlicorn3_34
+  - first:
+      213: -4465026044385165
+    second: sprAlicorn3_35
+  - first:
+      213: -9155595941665192894
+    second: sprAlicorn3_36
+  - first:
+      213: 3094248915745165986
+    second: sprAlicorn3_37
+  - first:
+      213: -5244825441090596327
+    second: sprAlicorn3_38
+  - first:
+      213: -3119253097905841599
+    second: sprAlicorn3_39
+  - first:
+      213: -7827332016157486526
+    second: sprAlicorn3_40
+  - first:
+      213: -6515840233939896473
+    second: sprAlicorn3_41
+  - first:
+      213: 4780490985622791672
+    second: sprAlicorn3_42
+  - first:
+      213: 253173086054741779
+    second: sprAlicorn3_43
+  - first:
+      213: -2693886589237628201
+    second: sprAlicorn3_44
+  - first:
+      213: 822009053264438461
+    second: sprAlicorn3_45
+  - first:
+      213: -9139622695773283087
+    second: sprAlicorn3_46
+  - first:
+      213: 4919344574844490570
+    second: sprAlicorn3_47
+  - first:
+      213: -650034724495463365
+    second: sprAlicorn3_48
+  - first:
+      213: 6350712948648705608
+    second: sprAlicorn3_49
+  - first:
+      213: -2168466366943216076
+    second: sprAlicorn3_50
+  - first:
+      213: 4781209124524003288
+    second: sprAlicorn3_51
+  - first:
+      213: 8335966579727177118
+    second: sprAlicorn3_52
+  - first:
+      213: -8152525066183649317
+    second: sprAlicorn3_53
+  - first:
+      213: -4382224797653036960
+    second: sprAlicorn3_54
+  - first:
+      213: -5526075078049153995
+    second: sprAlicorn3_55
+  - first:
+      213: -5732732889376429634
+    second: sprAlicorn3_56
+  - first:
+      213: 3244391091239732099
+    second: sprAlicorn3_57
+  - first:
+      213: -8957867063359269047
+    second: sprAlicorn3_58
+  - first:
+      213: -5560596464437575804
+    second: sprAlicorn3_59
+  - first:
+      213: -411002767447533387
+    second: sprAlicorn3_60
+  - first:
+      213: -2431936823353206757
+    second: sprAlicorn3_61
+  - first:
+      213: 8001927504429128544
+    second: sprAlicorn3_62
+  - first:
+      213: -6391309151011572153
+    second: sprAlicorn3_63
+  - first:
+      213: -1239961546818423359
+    second: sprAlicorn3_64
+  - first:
+      213: -4228917483355383329
+    second: sprAlicorn3_65
+  - first:
+      213: 744904739849120542
+    second: sprAlicorn3_66
+  - first:
+      213: -8707170287780089388
+    second: sprAlicorn3_67
+  - first:
+      213: -3286343593407906400
+    second: sprAlicorn3_68
+  - first:
+      213: -437438546826502699
+    second: sprAlicorn3_69
+  - first:
+      213: -4293660706820294745
+    second: sprAlicorn3_70
+  - first:
+      213: -643517154321029832
+    second: sprAlicorn3_71
+  - first:
+      213: 6166653496039465309
+    second: sprAlicorn3_72
+  - first:
+      213: -1971344520377174695
+    second: sprAlicorn3_73
+  - first:
+      213: 2861195773690051133
+    second: sprAlicorn3_74
+  - first:
+      213: 7085464159481201915
+    second: sprAlicorn3_75
+  - first:
+      213: 919441474726759734
+    second: sprAlicorn3_76
+  - first:
+      213: -7883111851515141021
+    second: sprAlicorn3_77
+  - first:
+      213: -3653323003169779272
+    second: sprAlicorn3_78
+  - first:
+      213: -731628643821559862
+    second: sprAlicorn3_79
+  - first:
+      213: -9019247102754172304
+    second: sprAlicorn3_80
+  - first:
+      213: 9107565598590888691
+    second: sprAlicorn3_81
+  - first:
+      213: -1906488511543636987
+    second: sprAlicorn3_82
+  - first:
+      213: -5651111159012350688
+    second: sprAlicorn3_83
+  - first:
+      213: 6361735379034463146
+    second: sprAlicorn3_84
+  - first:
+      213: 7764939597278028120
+    second: sprAlicorn3_85
+  - first:
+      213: 6545474053508001744
+    second: sprAlicorn3_86
+  - first:
+      213: 6510116586002080891
+    second: sprAlicorn3_87
+  - first:
+      213: 7061229625431326432
+    second: sprAlicorn3_88
+  - first:
+      213: 9199901095722041467
+    second: sprAlicorn3_89
+  - first:
+      213: 278111933323908525
+    second: sprAlicorn3_90
+  - first:
+      213: -170585011824637638
+    second: sprAlicorn3_91
+  - first:
+      213: 6451802039777724230
+    second: sprAlicorn3_92
+  - first:
+      213: 7576475202200671928
+    second: sprAlicorn3_93
+  - first:
+      213: 2573814662856015894
+    second: sprAlicorn3_94
+  - first:
+      213: 7727364217311953494
+    second: sprAlicorn3_95
+  - first:
+      213: 7262000774654090797
+    second: sprAlicorn3_96
+  - first:
+      213: 3396501668129571197
+    second: sprAlicorn3_97
+  - first:
+      213: -5979580760511049577
+    second: sprAlicorn3_98
+  - first:
+      213: -4072909626798574129
+    second: sprAlicorn3_99
+  - first:
+      213: 5043169871294440624
+    second: sprAlicorn3_100
+  - first:
+      213: 92069887824504374
+    second: sprAlicorn3_101
+  - first:
+      213: -115758518275499445
+    second: sprAlicorn3_102
+  - first:
+      213: -7569803150800067890
+    second: sprAlicorn3_103
+  - first:
+      213: -6906853706374994708
+    second: sprAlicorn3_104
+  - first:
+      213: -4792191979674855686
+    second: sprAlicorn3_105
+  - first:
+      213: -1139761490427869295
+    second: sprAlicorn3_106
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 0
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 8192
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 0
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Android
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: sprAlicorn3_r0_c0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 150
+        width: 150
+        height: 150
+      alignment: 9
+      pivot: {x: 0.6333333, y: 0.15333334}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6622e311ebfa0964a9a14ce4f61616ba
+      internalID: -1558837203
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprAlicorn3_r0_c1
+      rect:
+        serializedVersion: 2
+        x: 150
+        y: 150
+        width: 150
+        height: 150
+      alignment: 9
+      pivot: {x: 0.6333333, y: 0.15333334}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 036759c69d750b04db37d9377ff566da
+      internalID: -1106298497
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprAlicorn3_r0_c2
+      rect:
+        serializedVersion: 2
+        x: 300
+        y: 150
+        width: 150
+        height: 150
+      alignment: 9
+      pivot: {x: 0.6333333, y: 0.15333334}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 157f365f15e98914a99a49babc0c3825
+      internalID: -988755259
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprAlicorn3_r0_c3
+      rect:
+        serializedVersion: 2
+        x: 450
+        y: 150
+        width: 150
+        height: 150
+      alignment: 9
+      pivot: {x: 0.6333333, y: 0.15333334}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 5ba1135019ed30f4d8e24d82f7ebb8fd
+      internalID: 1223735990
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprAlicorn3_r0_c4
+      rect:
+        serializedVersion: 2
+        x: 600
+        y: 150
+        width: 150
+        height: 150
+      alignment: 9
+      pivot: {x: 0.6333333, y: 0.15333334}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d7017a0115719fa4b90ec79cf0862eb7
+      internalID: -31024552
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprAlicorn3_r0_c5
+      rect:
+        serializedVersion: 2
+        x: 750
+        y: 150
+        width: 150
+        height: 150
+      alignment: 9
+      pivot: {x: 0.6333333, y: 0.15333334}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 4b7b8536103023548a4e37eb2b106b46
+      internalID: 1127223303
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprAlicorn3_r0_c6
+      rect:
+        serializedVersion: 2
+        x: 900
+        y: 150
+        width: 150
+        height: 150
+      alignment: 9
+      pivot: {x: 0.6333333, y: 0.15333334}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 173a8e1fd9866304c97aae3d14633ffd
+      internalID: -71393587
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprAlicorn3_r0_c7
+      rect:
+        serializedVersion: 2
+        x: 1050
+        y: 150
+        width: 150
+        height: 150
+      alignment: 9
+      pivot: {x: 0.6333333, y: 0.15333334}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 362e8e41c364c7244bf786bb9aecf8a2
+      internalID: 539349990
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprAlicorn3_r0_c8
+      rect:
+        serializedVersion: 2
+        x: 1200
+        y: 150
+        width: 150
+        height: 150
+      alignment: 9
+      pivot: {x: 0.6333333, y: 0.15333334}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b0845310b4ecc5548b519a6e07c63730
+      internalID: 2035565868
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprAlicorn3_r0_c9
+      rect:
+        serializedVersion: 2
+        x: 1350
+        y: 150
+        width: 150
+        height: 150
+      alignment: 9
+      pivot: {x: 0.6333333, y: 0.15333334}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 0f125f1678b631a42abc287a41cce254
+      internalID: 255167681
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprAlicorn3_r0_c10
+      rect:
+        serializedVersion: 2
+        x: 1500
+        y: 150
+        width: 150
+        height: 150
+      alignment: 9
+      pivot: {x: 0.6333333, y: 0.15333334}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 8d06901cd94cf7649a98d40a5fe44ee7
+      internalID: -235054691
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprAlicorn3_r0_c11
+      rect:
+        serializedVersion: 2
+        x: 1650
+        y: 150
+        width: 150
+        height: 150
+      alignment: 9
+      pivot: {x: 0.6333333, y: 0.15333334}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b0d38728a7259474ba56985b83620598
+      internalID: -1056408534
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprAlicorn3_r0_c12
+      rect:
+        serializedVersion: 2
+        x: 1800
+        y: 150
+        width: 150
+        height: 150
+      alignment: 9
+      pivot: {x: 0.6333333, y: 0.15333334}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 076c8ac168989834d84549cfe4c48ad2
+      internalID: 974358617
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprAlicorn3_r1_c0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 150
+        height: 150
+      alignment: 9
+      pivot: {x: 0.6333333, y: 0.15333334}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 1ee541b5963b37a498761a9a0a9cec4b
+      internalID: 1506614585
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprAlicorn3_r1_c1
+      rect:
+        serializedVersion: 2
+        x: 150
+        y: 0
+        width: 150
+        height: 150
+      alignment: 9
+      pivot: {x: 0.6333333, y: 0.15333334}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e5eb0d5ddae31844b886b28bc27200ca
+      internalID: 716358200
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprAlicorn3_r1_c2
+      rect:
+        serializedVersion: 2
+        x: 300
+        y: 0
+        width: 150
+        height: 150
+      alignment: 9
+      pivot: {x: 0.6333333, y: 0.15333334}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6b5fc580f8f047747b08c0b2f01ae72a
+      internalID: -1653676467
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprAlicorn3_r1_c3
+      rect:
+        serializedVersion: 2
+        x: 450
+        y: 0
+        width: 150
+        height: 150
+      alignment: 9
+      pivot: {x: 0.6333333, y: 0.15333334}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b931b6bae8aaa5b4fbfd526aa74d7e64
+      internalID: 1717342528
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprAlicorn3_r1_c4
+      rect:
+        serializedVersion: 2
+        x: 600
+        y: 0
+        width: 150
+        height: 150
+      alignment: 9
+      pivot: {x: 0.6333333, y: 0.15333334}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e7e1a5640ff85f04797f470c93434171
+      internalID: -1914917172
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprAlicorn3_r1_c5
+      rect:
+        serializedVersion: 2
+        x: 750
+        y: 0
+        width: 150
+        height: 150
+      alignment: 9
+      pivot: {x: 0.6333333, y: 0.15333334}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a49a794ef0fdcff4088c6ee4ac1020b8
+      internalID: -851150305
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprAlicorn3_r1_c6
+      rect:
+        serializedVersion: 2
+        x: 900
+        y: 0
+        width: 150
+        height: 150
+      alignment: 9
+      pivot: {x: 0.6333333, y: 0.15333334}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 09298b679ecb95848946dda193edb176
+      internalID: -1001165088
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprAlicorn3_r1_c7
+      rect:
+        serializedVersion: 2
+        x: 1050
+        y: 0
+        width: 150
+        height: 150
+      alignment: 9
+      pivot: {x: 0.6333333, y: 0.15333334}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f18d0862fa85a4448a1ff2328b45c942
+      internalID: -1788304020
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprAlicorn3_r1_c8
+      rect:
+        serializedVersion: 2
+        x: 1200
+        y: 0
+        width: 150
+        height: 150
+      alignment: 9
+      pivot: {x: 0.6333333, y: 0.15333334}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e7d0855bfbaf3de4e9da7fa5ffc40a8c
+      internalID: -174334944
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprAlicorn3_r1_c9
+      rect:
+        serializedVersion: 2
+        x: 1350
+        y: 0
+        width: 150
+        height: 150
+      alignment: 9
+      pivot: {x: 0.6333333, y: 0.15333334}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7c4eab860634cbe4d845b0f30c56cfd7
+      internalID: -2038812214
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprAlicorn3_r1_c10
+      rect:
+        serializedVersion: 2
+        x: 1500
+        y: 0
+        width: 150
+        height: 150
+      alignment: 9
+      pivot: {x: 0.6333333, y: 0.15333334}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 3e7ae97d902baa44dbc54f20275c585f
+      internalID: -811005315
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprAlicorn3_r1_c11
+      rect:
+        serializedVersion: 2
+        x: 1650
+        y: 0
+        width: 150
+        height: 150
+      alignment: 9
+      pivot: {x: 0.6333333, y: 0.15333334}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 62394e70e56d95e4fad3097d7c6aab4c
+      internalID: 1985034132
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprAlicorn3_r1_c12
+      rect:
+        serializedVersion: 2
+        x: 1800
+        y: 0
+        width: 150
+        height: 150
+      alignment: 9
+      pivot: {x: 0.6333333, y: 0.15333334}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: aa539c6e3e84e804e8d521e6aa365290
+      internalID: -1306329267
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 98609ad73a6eb8b41a003bd1a511bf00
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      sprAlicorn3_0: 7600689003830915726
+      sprAlicorn3_1: -1810996239242462086
+      sprAlicorn3_10: 6402531223496503867
+      sprAlicorn3_100: 5043169871294440624
+      sprAlicorn3_101: 92069887824504374
+      sprAlicorn3_102: -115758518275499445
+      sprAlicorn3_103: -7569803150800067890
+      sprAlicorn3_104: -6906853706374994708
+      sprAlicorn3_105: -4792191979674855686
+      sprAlicorn3_106: -1139761490427869295
+      sprAlicorn3_11: -7760234540771999500
+      sprAlicorn3_12: -8382201885816087366
+      sprAlicorn3_13: 1464885690191035488
+      sprAlicorn3_14: -4791342217234206148
+      sprAlicorn3_15: 2511666625813304103
+      sprAlicorn3_16: 570580057270450257
+      sprAlicorn3_17: 7491597640174226740
+      sprAlicorn3_18: 5461946301741688306
+      sprAlicorn3_19: 8263330129770369773
+      sprAlicorn3_2: -1552841234721968067
+      sprAlicorn3_20: 1697568365187717662
+      sprAlicorn3_21: -8044251361538699325
+      sprAlicorn3_22: 35929347338477230
+      sprAlicorn3_23: 4173344271288966438
+      sprAlicorn3_24: -4258057415392162948
+      sprAlicorn3_25: 7031882620659509173
+      sprAlicorn3_26: 2607424943713533722
+      sprAlicorn3_27: 1769506260312340268
+      sprAlicorn3_28: 5982024640713052551
+      sprAlicorn3_29: 5600632997667130328
+      sprAlicorn3_3: -5963497151459024102
+      sprAlicorn3_30: -1243220172123830165
+      sprAlicorn3_31: -3120415620254216436
+      sprAlicorn3_32: -1242101257670610207
+      sprAlicorn3_33: 3103848181127985641
+      sprAlicorn3_34: -7012388359984366251
+      sprAlicorn3_35: -4465026044385165
+      sprAlicorn3_36: -9155595941665192894
+      sprAlicorn3_37: 3094248915745165986
+      sprAlicorn3_38: -5244825441090596327
+      sprAlicorn3_39: -3119253097905841599
+      sprAlicorn3_4: -4288198705733494281
+      sprAlicorn3_40: -7827332016157486526
+      sprAlicorn3_41: -6515840233939896473
+      sprAlicorn3_42: 4780490985622791672
+      sprAlicorn3_43: 253173086054741779
+      sprAlicorn3_44: -2693886589237628201
+      sprAlicorn3_45: 822009053264438461
+      sprAlicorn3_46: -9139622695773283087
+      sprAlicorn3_47: 4919344574844490570
+      sprAlicorn3_48: -650034724495463365
+      sprAlicorn3_49: 6350712948648705608
+      sprAlicorn3_5: 1778936127318415112
+      sprAlicorn3_50: -2168466366943216076
+      sprAlicorn3_51: 4781209124524003288
+      sprAlicorn3_52: 8335966579727177118
+      sprAlicorn3_53: -8152525066183649317
+      sprAlicorn3_54: -4382224797653036960
+      sprAlicorn3_55: -5526075078049153995
+      sprAlicorn3_56: -5732732889376429634
+      sprAlicorn3_57: 3244391091239732099
+      sprAlicorn3_58: -8957867063359269047
+      sprAlicorn3_59: -5560596464437575804
+      sprAlicorn3_6: 2008468844973862135
+      sprAlicorn3_60: -411002767447533387
+      sprAlicorn3_61: -2431936823353206757
+      sprAlicorn3_62: 8001927504429128544
+      sprAlicorn3_63: -6391309151011572153
+      sprAlicorn3_64: -1239961546818423359
+      sprAlicorn3_65: -4228917483355383329
+      sprAlicorn3_66: 744904739849120542
+      sprAlicorn3_67: -8707170287780089388
+      sprAlicorn3_68: -3286343593407906400
+      sprAlicorn3_69: -437438546826502699
+      sprAlicorn3_7: -7368145057265428515
+      sprAlicorn3_70: -4293660706820294745
+      sprAlicorn3_71: -643517154321029832
+      sprAlicorn3_72: 6166653496039465309
+      sprAlicorn3_73: -1971344520377174695
+      sprAlicorn3_74: 2861195773690051133
+      sprAlicorn3_75: 7085464159481201915
+      sprAlicorn3_76: 919441474726759734
+      sprAlicorn3_77: -7883111851515141021
+      sprAlicorn3_78: -3653323003169779272
+      sprAlicorn3_79: -731628643821559862
+      sprAlicorn3_8: -5300483055276911838
+      sprAlicorn3_80: -9019247102754172304
+      sprAlicorn3_81: 9107565598590888691
+      sprAlicorn3_82: -1906488511543636987
+      sprAlicorn3_83: -5651111159012350688
+      sprAlicorn3_84: 6361735379034463146
+      sprAlicorn3_85: 7764939597278028120
+      sprAlicorn3_86: 6545474053508001744
+      sprAlicorn3_87: 6510116586002080891
+      sprAlicorn3_88: 7061229625431326432
+      sprAlicorn3_89: 9199901095722041467
+      sprAlicorn3_9: 1306659585556536955
+      sprAlicorn3_90: 278111933323908525
+      sprAlicorn3_91: -170585011824637638
+      sprAlicorn3_92: 6451802039777724230
+      sprAlicorn3_93: 7576475202200671928
+      sprAlicorn3_94: 2573814662856015894
+      sprAlicorn3_95: 7727364217311953494
+      sprAlicorn3_96: 7262000774654090797
+      sprAlicorn3_97: 3396501668129571197
+      sprAlicorn3_98: -5979580760511049577
+      sprAlicorn3_99: -4072909626798574129
+      sprAlicorn3_r0_c0: -1558837203
+      sprAlicorn3_r0_c1: -1106298497
+      sprAlicorn3_r0_c10: -235054691
+      sprAlicorn3_r0_c11: -1056408534
+      sprAlicorn3_r0_c12: 974358617
+      sprAlicorn3_r0_c2: -988755259
+      sprAlicorn3_r0_c3: 1223735990
+      sprAlicorn3_r0_c4: -31024552
+      sprAlicorn3_r0_c5: 1127223303
+      sprAlicorn3_r0_c6: -71393587
+      sprAlicorn3_r0_c7: 539349990
+      sprAlicorn3_r0_c8: 2035565868
+      sprAlicorn3_r0_c9: 255167681
+      sprAlicorn3_r1_c0: 1506614585
+      sprAlicorn3_r1_c1: 716358200
+      sprAlicorn3_r1_c10: -811005315
+      sprAlicorn3_r1_c11: 1985034132
+      sprAlicorn3_r1_c12: -1306329267
+      sprAlicorn3_r1_c2: -1653676467
+      sprAlicorn3_r1_c3: 1717342528
+      sprAlicorn3_r1_c4: -1914917172
+      sprAlicorn3_r1_c5: -851150305
+      sprAlicorn3_r1_c6: -1001165088
+      sprAlicorn3_r1_c7: -1788304020
+      sprAlicorn3_r1_c8: -174334944
+      sprAlicorn3_r1_c9: -2038812214
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

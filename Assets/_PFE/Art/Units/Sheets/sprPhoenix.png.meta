@@ -1,0 +1,427 @@
+fileFormatVersion: 2
+guid: 5c17d197d456c414e9f0a40eaf46d093
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: -7329754866690732196
+    second: sprPhoenix_0
+  - first:
+      213: -3741495924602032915
+    second: sprPhoenix_1
+  - first:
+      213: -6530376436674745501
+    second: sprPhoenix_2
+  - first:
+      213: 7454840341428674790
+    second: sprPhoenix_3
+  - first:
+      213: 7514808828532009099
+    second: sprPhoenix_4
+  - first:
+      213: 2193563221706732909
+    second: sprPhoenix_5
+  - first:
+      213: 1869775462524924159
+    second: sprPhoenix_6
+  - first:
+      213: -1787937800677545641
+    second: sprPhoenix_7
+  - first:
+      213: -4731053081195314235
+    second: sprPhoenix_8
+  - first:
+      213: 8068608212863205777
+    second: sprPhoenix_9
+  - first:
+      213: 2358515399770607243
+    second: sprPhoenix_10
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 0
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 8192
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 0
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Android
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: sprPhoenix_r0_c0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 121
+        height: 121
+      alignment: 9
+      pivot: {x: 0.6280992, y: 0.40495867}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 4f3660d5d4b35ab48aa83088fd7db6fb
+      internalID: -449279418
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprPhoenix_r0_c1
+      rect:
+        serializedVersion: 2
+        x: 121
+        y: 0
+        width: 121
+        height: 121
+      alignment: 9
+      pivot: {x: 0.6280992, y: 0.40495867}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 218f69fb571a29242b1e3ef2e5958ba0
+      internalID: -266823309
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprPhoenix_r0_c2
+      rect:
+        serializedVersion: 2
+        x: 242
+        y: 0
+        width: 121
+        height: 121
+      alignment: 9
+      pivot: {x: 0.6280992, y: 0.40495867}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 86d2d9f6eb6b8ce4dbaf1dcb90fe0a49
+      internalID: 1733364334
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprPhoenix_r0_c3
+      rect:
+        serializedVersion: 2
+        x: 363
+        y: 0
+        width: 121
+        height: 121
+      alignment: 9
+      pivot: {x: 0.6280992, y: 0.40495867}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 123b30461b63cb2409afdbfc70d6743d
+      internalID: 774354507
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprPhoenix_r0_c4
+      rect:
+        serializedVersion: 2
+        x: 484
+        y: 0
+        width: 121
+        height: 121
+      alignment: 9
+      pivot: {x: 0.6280992, y: 0.40495867}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7d95b0315df388d4dbef2b464f11c050
+      internalID: 1681807147
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprPhoenix_r0_c5
+      rect:
+        serializedVersion: 2
+        x: 605
+        y: 0
+        width: 121
+        height: 121
+      alignment: 9
+      pivot: {x: 0.6280992, y: 0.40495867}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 61fb326ba591b224cb3764900d7c31af
+      internalID: -570215432
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprPhoenix_r0_c6
+      rect:
+        serializedVersion: 2
+        x: 726
+        y: 0
+        width: 121
+        height: 121
+      alignment: 9
+      pivot: {x: 0.6280992, y: 0.40495867}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7ba9556820f2bd544b06fb74d73a67c3
+      internalID: -842031632
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprPhoenix_r0_c7
+      rect:
+        serializedVersion: 2
+        x: 847
+        y: 0
+        width: 121
+        height: 121
+      alignment: 9
+      pivot: {x: 0.6280992, y: 0.40495867}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 598cc1bade1889d45a4dcf10226f7feb
+      internalID: 154541303
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprPhoenix_r0_c8
+      rect:
+        serializedVersion: 2
+        x: 968
+        y: 0
+        width: 121
+        height: 121
+      alignment: 9
+      pivot: {x: 0.6280992, y: 0.40495867}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6bfb35c05f8a75c45a809c3a5d2033ca
+      internalID: -2044962377
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprPhoenix_r0_c9
+      rect:
+        serializedVersion: 2
+        x: 1089
+        y: 0
+        width: 121
+        height: 121
+      alignment: 9
+      pivot: {x: 0.6280992, y: 0.40495867}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 06752103e06c88443b95629e711f272e
+      internalID: 300790774
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprPhoenix_r0_c10
+      rect:
+        serializedVersion: 2
+        x: 1210
+        y: 0
+        width: 121
+        height: 121
+      alignment: 9
+      pivot: {x: 0.6280992, y: 0.40495867}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f11188bd7aa05ac46b83bfc57fa827cc
+      internalID: 155397789
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: ad6a4f023f235db4499c17d7bf770ec3
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      sprPhoenix_0: -7329754866690732196
+      sprPhoenix_1: -3741495924602032915
+      sprPhoenix_10: 2358515399770607243
+      sprPhoenix_2: -6530376436674745501
+      sprPhoenix_3: 7454840341428674790
+      sprPhoenix_4: 7514808828532009099
+      sprPhoenix_5: 2193563221706732909
+      sprPhoenix_6: 1869775462524924159
+      sprPhoenix_7: -1787937800677545641
+      sprPhoenix_8: -4731053081195314235
+      sprPhoenix_9: 8068608212863205777
+      sprPhoenix_r0_c0: -449279418
+      sprPhoenix_r0_c1: -266823309
+      sprPhoenix_r0_c10: 155397789
+      sprPhoenix_r0_c2: 1733364334
+      sprPhoenix_r0_c3: 774354507
+      sprPhoenix_r0_c4: 1681807147
+      sprPhoenix_r0_c5: -570215432
+      sprPhoenix_r0_c6: -842031632
+      sprPhoenix_r0_c7: 154541303
+      sprPhoenix_r0_c8: -2044962377
+      sprPhoenix_r0_c9: 300790774
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

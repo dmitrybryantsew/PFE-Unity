@@ -1,0 +1,1866 @@
+fileFormatVersion: 2
+guid: 60c9828b805084c49bfe6c630a9d9320
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: 8573281771934436215
+    second: sprRanger2_0
+  - first:
+      213: -294789311749346474
+    second: sprRanger2_1
+  - first:
+      213: -807755473949069172
+    second: sprRanger2_2
+  - first:
+      213: -147561802464658525
+    second: sprRanger2_3
+  - first:
+      213: -8438118672473805025
+    second: sprRanger2_4
+  - first:
+      213: 5098812175560664962
+    second: sprRanger2_5
+  - first:
+      213: -1906032162896638304
+    second: sprRanger2_6
+  - first:
+      213: 6203046654168335131
+    second: sprRanger2_7
+  - first:
+      213: -8273312495600251584
+    second: sprRanger2_8
+  - first:
+      213: -7318761890808986690
+    second: sprRanger2_9
+  - first:
+      213: 4094681994363256319
+    second: sprRanger2_10
+  - first:
+      213: 8163083327804259598
+    second: sprRanger2_11
+  - first:
+      213: 6103439802517625324
+    second: sprRanger2_12
+  - first:
+      213: -3738450023591150926
+    second: sprRanger2_13
+  - first:
+      213: -4703172116173063380
+    second: sprRanger2_14
+  - first:
+      213: 6643033095952356088
+    second: sprRanger2_15
+  - first:
+      213: 7867402350340275104
+    second: sprRanger2_16
+  - first:
+      213: 7664518279359362571
+    second: sprRanger2_17
+  - first:
+      213: 5210823568346310379
+    second: sprRanger2_18
+  - first:
+      213: 5855455047582753356
+    second: sprRanger2_19
+  - first:
+      213: 8420633991102112773
+    second: sprRanger2_20
+  - first:
+      213: -4690462664408601452
+    second: sprRanger2_21
+  - first:
+      213: -146275110278981341
+    second: sprRanger2_22
+  - first:
+      213: 829332415115188152
+    second: sprRanger2_23
+  - first:
+      213: 6333812577841088461
+    second: sprRanger2_24
+  - first:
+      213: 1860333987587143085
+    second: sprRanger2_25
+  - first:
+      213: 2303098732969822669
+    second: sprRanger2_26
+  - first:
+      213: -4617693243138353569
+    second: sprRanger2_27
+  - first:
+      213: 7793365010883496644
+    second: sprRanger2_28
+  - first:
+      213: 6538619554068437621
+    second: sprRanger2_29
+  - first:
+      213: -2461673595766730753
+    second: sprRanger2_30
+  - first:
+      213: -4421116402813449298
+    second: sprRanger2_31
+  - first:
+      213: 6127062607226309462
+    second: sprRanger2_32
+  - first:
+      213: 8744023112307597627
+    second: sprRanger2_33
+  - first:
+      213: 5098850325211457844
+    second: sprRanger2_34
+  - first:
+      213: 8561903231380403757
+    second: sprRanger2_35
+  - first:
+      213: 3261539731607800531
+    second: sprRanger2_36
+  - first:
+      213: -3026230209264434754
+    second: sprRanger2_37
+  - first:
+      213: -3719618330292846567
+    second: sprRanger2_38
+  - first:
+      213: 9063154367185308946
+    second: sprRanger2_39
+  - first:
+      213: -8517129773718329835
+    second: sprRanger2_40
+  - first:
+      213: 5413884188339341051
+    second: sprRanger2_41
+  - first:
+      213: 1928900386343131063
+    second: sprRanger2_42
+  - first:
+      213: -8529217289804936398
+    second: sprRanger2_43
+  - first:
+      213: 324634724492838310
+    second: sprRanger2_44
+  - first:
+      213: 8459705158213327370
+    second: sprRanger2_45
+  - first:
+      213: 5853713789324033192
+    second: sprRanger2_46
+  - first:
+      213: 8062366617785094717
+    second: sprRanger2_47
+  - first:
+      213: -9195966841793537677
+    second: sprRanger2_48
+  - first:
+      213: -548607127964819339
+    second: sprRanger2_49
+  - first:
+      213: 7054619411802782090
+    second: sprRanger2_50
+  - first:
+      213: -2027971031152098988
+    second: sprRanger2_51
+  - first:
+      213: -2592981877095950051
+    second: sprRanger2_52
+  - first:
+      213: -2117702015302300673
+    second: sprRanger2_53
+  - first:
+      213: 3190513988594190435
+    second: sprRanger2_54
+  - first:
+      213: -135519549207368870
+    second: sprRanger2_55
+  - first:
+      213: -6990508525726356225
+    second: sprRanger2_56
+  - first:
+      213: 5519556730906953241
+    second: sprRanger2_57
+  - first:
+      213: -8637695329260922454
+    second: sprRanger2_58
+  - first:
+      213: -2440437512869454460
+    second: sprRanger2_59
+  - first:
+      213: -3542053815918751581
+    second: sprRanger2_60
+  - first:
+      213: 2320029009831356510
+    second: sprRanger2_61
+  - first:
+      213: -8809703324276638717
+    second: sprRanger2_62
+  - first:
+      213: -603729168194519130
+    second: sprRanger2_63
+  - first:
+      213: 3278939314136299288
+    second: sprRanger2_64
+  - first:
+      213: -3817750017235856769
+    second: sprRanger2_65
+  - first:
+      213: -8525091746473234490
+    second: sprRanger2_66
+  - first:
+      213: -3967184688349951648
+    second: sprRanger2_67
+  - first:
+      213: -6035902903226822264
+    second: sprRanger2_68
+  - first:
+      213: -7752183718300514741
+    second: sprRanger2_69
+  - first:
+      213: 2801892163299375184
+    second: sprRanger2_70
+  - first:
+      213: -4433958030471931220
+    second: sprRanger2_71
+  - first:
+      213: 8349395682391493977
+    second: sprRanger2_72
+  - first:
+      213: 2816186894111797442
+    second: sprRanger2_73
+  - first:
+      213: 3019796505016066592
+    second: sprRanger2_74
+  - first:
+      213: 7267294091999149082
+    second: sprRanger2_75
+  - first:
+      213: -7193372678999546299
+    second: sprRanger2_76
+  - first:
+      213: -1749863251503676745
+    second: sprRanger2_77
+  - first:
+      213: 6642339661556756729
+    second: sprRanger2_78
+  - first:
+      213: -581701840081060469
+    second: sprRanger2_79
+  - first:
+      213: -4851588703232513186
+    second: sprRanger2_80
+  - first:
+      213: 7949268624591265452
+    second: sprRanger2_81
+  - first:
+      213: 5665291248759975899
+    second: sprRanger2_82
+  - first:
+      213: 9205285605850921893
+    second: sprRanger2_83
+  - first:
+      213: -1170072629813625195
+    second: sprRanger2_84
+  - first:
+      213: -3425801095154737172
+    second: sprRanger2_85
+  - first:
+      213: 3252706833636351534
+    second: sprRanger2_86
+  - first:
+      213: -6420205412313031409
+    second: sprRanger2_87
+  - first:
+      213: -8081102592493630322
+    second: sprRanger2_88
+  - first:
+      213: 9073547649911280576
+    second: sprRanger2_89
+  - first:
+      213: -2826937128530576007
+    second: sprRanger2_90
+  - first:
+      213: 3696578697821950364
+    second: sprRanger2_91
+  - first:
+      213: -1926539230816270288
+    second: sprRanger2_92
+  - first:
+      213: 1548619118329100703
+    second: sprRanger2_93
+  - first:
+      213: -746771622959850894
+    second: sprRanger2_94
+  - first:
+      213: -6702139198836443473
+    second: sprRanger2_95
+  - first:
+      213: 5627722865491611501
+    second: sprRanger2_96
+  - first:
+      213: -5973458743541126388
+    second: sprRanger2_97
+  - first:
+      213: 5003964457778473846
+    second: sprRanger2_98
+  - first:
+      213: -2211479811173532696
+    second: sprRanger2_99
+  - first:
+      213: 2504757104107930426
+    second: sprRanger2_100
+  - first:
+      213: 135544896978773492
+    second: sprRanger2_101
+  - first:
+      213: 4359823142940411620
+    second: sprRanger2_102
+  - first:
+      213: -5085725306677960898
+    second: sprRanger2_103
+  - first:
+      213: 4722479554467846582
+    second: sprRanger2_104
+  - first:
+      213: 1961933639248284441
+    second: sprRanger2_105
+  - first:
+      213: -7441578607842605675
+    second: sprRanger2_106
+  - first:
+      213: -6649516960065153132
+    second: sprRanger2_107
+  - first:
+      213: -106591709461026682
+    second: sprRanger2_108
+  - first:
+      213: 5141930949078574752
+    second: sprRanger2_109
+  - first:
+      213: -4719023934791744031
+    second: sprRanger2_110
+  - first:
+      213: 954709951693548113
+    second: sprRanger2_111
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 0
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 8192
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 0
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Android
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: sprRanger2_r0_c0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 420
+        width: 140
+        height: 140
+      alignment: 9
+      pivot: {x: 0.5, y: 0.071428575}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 473d45026d1a0e64db9d04918db5432c
+      internalID: 1048972691
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRanger2_r0_c1
+      rect:
+        serializedVersion: 2
+        x: 140
+        y: 420
+        width: 140
+        height: 140
+      alignment: 9
+      pivot: {x: 0.5, y: 0.071428575}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 59b822b3bd9f90d40ba4a4e48959bf23
+      internalID: 56434898
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRanger2_r0_c2
+      rect:
+        serializedVersion: 2
+        x: 280
+        y: 420
+        width: 140
+        height: 140
+      alignment: 9
+      pivot: {x: 0.5, y: 0.071428575}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: cb4cfc05e49b1254f94b17eef40d2fe6
+      internalID: -1849329330
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRanger2_r0_c3
+      rect:
+        serializedVersion: 2
+        x: 420
+        y: 420
+        width: 140
+        height: 140
+      alignment: 9
+      pivot: {x: 0.5, y: 0.071428575}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e9eedc0788c5b6d4abfa4bc5d6d005c9
+      internalID: -52876175
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRanger2_r0_c4
+      rect:
+        serializedVersion: 2
+        x: 560
+        y: 420
+        width: 140
+        height: 140
+      alignment: 9
+      pivot: {x: 0.5, y: 0.071428575}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7e32f963b7c9bd64283480824563121d
+      internalID: 80037262
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRanger2_r0_c5
+      rect:
+        serializedVersion: 2
+        x: 700
+        y: 420
+        width: 140
+        height: 140
+      alignment: 9
+      pivot: {x: 0.5, y: 0.071428575}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9bd5e10236be9a943aaeadd6c5ca935b
+      internalID: 1692043861
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRanger2_r0_c6
+      rect:
+        serializedVersion: 2
+        x: 840
+        y: 420
+        width: 140
+        height: 140
+      alignment: 9
+      pivot: {x: 0.5, y: 0.071428575}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6e2d9319f8f8ebd46a7efc9c1b40114e
+      internalID: 1221449278
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRanger2_r0_c7
+      rect:
+        serializedVersion: 2
+        x: 980
+        y: 420
+        width: 140
+        height: 140
+      alignment: 9
+      pivot: {x: 0.5, y: 0.071428575}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 48d50bd6fc1139446b472d19b9e72bc3
+      internalID: -1760873106
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRanger2_r0_c8
+      rect:
+        serializedVersion: 2
+        x: 1120
+        y: 420
+        width: 140
+        height: 140
+      alignment: 9
+      pivot: {x: 0.5, y: 0.071428575}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 0fc7bdb6e7a155b49b985c17455ed0eb
+      internalID: 278840535
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRanger2_r0_c9
+      rect:
+        serializedVersion: 2
+        x: 1260
+        y: 420
+        width: 140
+        height: 140
+      alignment: 9
+      pivot: {x: 0.5, y: 0.071428575}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 56f1072c2cc67b9499ed0d90a70ee27c
+      internalID: -2102094596
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRanger2_r0_c10
+      rect:
+        serializedVersion: 2
+        x: 1400
+        y: 420
+        width: 140
+        height: 140
+      alignment: 9
+      pivot: {x: 0.5, y: 0.071428575}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b400efb93a557af468c7acac807e4fe4
+      internalID: -1866429382
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRanger2_r0_c11
+      rect:
+        serializedVersion: 2
+        x: 1540
+        y: 420
+        width: 140
+        height: 140
+      alignment: 9
+      pivot: {x: 0.5, y: 0.071428575}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 57d559b380361764fb9e523269bd9735
+      internalID: 1789463236
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRanger2_r0_c12
+      rect:
+        serializedVersion: 2
+        x: 1680
+        y: 420
+        width: 140
+        height: 140
+      alignment: 9
+      pivot: {x: 0.5, y: 0.071428575}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 56789ab3384321f4691f85968a58ace6
+      internalID: -1825823852
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRanger2_r0_c13
+      rect:
+        serializedVersion: 2
+        x: 1820
+        y: 420
+        width: 140
+        height: 140
+      alignment: 9
+      pivot: {x: 0.5, y: 0.071428575}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 947ac1f2ed14e8549b20ee8af0082480
+      internalID: 355079889
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRanger2_r1_c0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 280
+        width: 140
+        height: 140
+      alignment: 9
+      pivot: {x: 0.5, y: 0.071428575}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 36e4003dbee680945a0732d777c205f2
+      internalID: 538429682
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRanger2_r1_c1
+      rect:
+        serializedVersion: 2
+        x: 140
+        y: 280
+        width: 140
+        height: 140
+      alignment: 9
+      pivot: {x: 0.5, y: 0.071428575}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 570dd6dbd13af5d419a61863fd8be2f7
+      internalID: -172844458
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRanger2_r1_c2
+      rect:
+        serializedVersion: 2
+        x: 280
+        y: 280
+        width: 140
+        height: 140
+      alignment: 9
+      pivot: {x: 0.5, y: 0.071428575}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 16f5ce4a26aa1af4d83eb2da1f4f5fdf
+      internalID: -600191865
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRanger2_r1_c3
+      rect:
+        serializedVersion: 2
+        x: 420
+        y: 280
+        width: 140
+        height: 140
+      alignment: 9
+      pivot: {x: 0.5, y: 0.071428575}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 2ceaea4c12fb90e46997dc4976199b22
+      internalID: 1706283122
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRanger2_r1_c4
+      rect:
+        serializedVersion: 2
+        x: 560
+        y: 280
+        width: 140
+        height: 140
+      alignment: 9
+      pivot: {x: 0.5, y: 0.071428575}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6c9dbcdf36d8945479a03bfd3fcafce3
+      internalID: -603444747
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRanger2_r1_c5
+      rect:
+        serializedVersion: 2
+        x: 700
+        y: 280
+        width: 140
+        height: 140
+      alignment: 9
+      pivot: {x: 0.5, y: 0.071428575}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 4f351506cec154b41ae5d7e67ae9e6ca
+      internalID: 1736207506
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRanger2_r1_c6
+      rect:
+        serializedVersion: 2
+        x: 840
+        y: 280
+        width: 140
+        height: 140
+      alignment: 9
+      pivot: {x: 0.5, y: 0.071428575}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 3e9709c4e85366846a5c3a516a3af4e3
+      internalID: 1061287825
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRanger2_r1_c7
+      rect:
+        serializedVersion: 2
+        x: 980
+        y: 280
+        width: 140
+        height: 140
+      alignment: 9
+      pivot: {x: 0.5, y: 0.071428575}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 84a290d98e0749a419088c4af0db93b6
+      internalID: 179267858
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRanger2_r1_c8
+      rect:
+        serializedVersion: 2
+        x: 1120
+        y: 280
+        width: 140
+        height: 140
+      alignment: 9
+      pivot: {x: 0.5, y: 0.071428575}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 57ad30e6aed272640b0b2e7eb455d4d8
+      internalID: -14861848
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRanger2_r1_c9
+      rect:
+        serializedVersion: 2
+        x: 1260
+        y: 280
+        width: 140
+        height: 140
+      alignment: 9
+      pivot: {x: 0.5, y: 0.071428575}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f8b41ce8ec1915b459ab4cb52fa5aedd
+      internalID: 638129278
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRanger2_r1_c10
+      rect:
+        serializedVersion: 2
+        x: 1400
+        y: 280
+        width: 140
+        height: 140
+      alignment: 9
+      pivot: {x: 0.5, y: 0.071428575}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ae53c758c090dbb49b6a3e953a744806
+      internalID: -89346112
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRanger2_r1_c11
+      rect:
+        serializedVersion: 2
+        x: 1540
+        y: 280
+        width: 140
+        height: 140
+      alignment: 9
+      pivot: {x: 0.5, y: 0.071428575}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c4ac6269d7930e845882ab0bb6fba47a
+      internalID: -1464883613
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRanger2_r1_c12
+      rect:
+        serializedVersion: 2
+        x: 1680
+        y: 280
+        width: 140
+        height: 140
+      alignment: 9
+      pivot: {x: 0.5, y: 0.071428575}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 13f12a664264ca24cb5f4a6d9a402b17
+      internalID: 899691980
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRanger2_r1_c13
+      rect:
+        serializedVersion: 2
+        x: 1820
+        y: 280
+        width: 140
+        height: 140
+      alignment: 9
+      pivot: {x: 0.5, y: 0.071428575}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f80f7879b0c46314fa4ee5e392f14c4a
+      internalID: -739437710
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRanger2_r2_c0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 140
+        width: 140
+        height: 140
+      alignment: 9
+      pivot: {x: 0.5, y: 0.071428575}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 3aa52ce08938cc745a4dcc6421dfcd6e
+      internalID: 1342716012
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRanger2_r2_c1
+      rect:
+        serializedVersion: 2
+        x: 140
+        y: 140
+        width: 140
+        height: 140
+      alignment: 9
+      pivot: {x: 0.5, y: 0.071428575}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 444e24cf9d008b24597fc6f2698cad3f
+      internalID: -128616518
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRanger2_r2_c2
+      rect:
+        serializedVersion: 2
+        x: 280
+        y: 140
+        width: 140
+        height: 140
+      alignment: 9
+      pivot: {x: 0.5, y: 0.071428575}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e4a0245c61419884a89c1f82649bdaac
+      internalID: -1463256156
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRanger2_r2_c3
+      rect:
+        serializedVersion: 2
+        x: 420
+        y: 140
+        width: 140
+        height: 140
+      alignment: 9
+      pivot: {x: 0.5, y: 0.071428575}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 53f71ed9e63f6164c82d51d661cbecc8
+      internalID: -200557371
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRanger2_r2_c4
+      rect:
+        serializedVersion: 2
+        x: 560
+        y: 140
+        width: 140
+        height: 140
+      alignment: 9
+      pivot: {x: 0.5, y: 0.071428575}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c8c450f4456f49c49aac3b789ec53555
+      internalID: 1351528804
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRanger2_r2_c5
+      rect:
+        serializedVersion: 2
+        x: 700
+        y: 140
+        width: 140
+        height: 140
+      alignment: 9
+      pivot: {x: 0.5, y: 0.071428575}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c6c3a39905cd2f44ea30ff6b952bd38e
+      internalID: -860863437
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRanger2_r2_c6
+      rect:
+        serializedVersion: 2
+        x: 840
+        y: 140
+        width: 140
+        height: 140
+      alignment: 9
+      pivot: {x: 0.5, y: 0.071428575}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 61090ae5cf18a1b458809fdcd1ec12fe
+      internalID: -1082398098
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRanger2_r2_c7
+      rect:
+        serializedVersion: 2
+        x: 980
+        y: 140
+        width: 140
+        height: 140
+      alignment: 9
+      pivot: {x: 0.5, y: 0.071428575}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 43cd8d06eef415c4f8fa6906289ce318
+      internalID: 1882893547
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRanger2_r2_c8
+      rect:
+        serializedVersion: 2
+        x: 1120
+        y: 140
+        width: 140
+        height: 140
+      alignment: 9
+      pivot: {x: 0.5, y: 0.071428575}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9aee2b6a20daeaa41ba14914f4c2bdb8
+      internalID: 989050397
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRanger2_r2_c9
+      rect:
+        serializedVersion: 2
+        x: 1260
+        y: 140
+        width: 140
+        height: 140
+      alignment: 9
+      pivot: {x: 0.5, y: 0.071428575}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: fed76953ca9fbdc41b3f7e8f785fe91e
+      internalID: 321574093
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRanger2_r2_c10
+      rect:
+        serializedVersion: 2
+        x: 1400
+        y: 140
+        width: 140
+        height: 140
+      alignment: 9
+      pivot: {x: 0.5, y: 0.071428575}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 3cf632ff4d8f92441ae81448f27d0e8e
+      internalID: 904622225
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRanger2_r2_c11
+      rect:
+        serializedVersion: 2
+        x: 1540
+        y: 140
+        width: 140
+        height: 140
+      alignment: 9
+      pivot: {x: 0.5, y: 0.071428575}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 723e1f56cb9e5e5458febc8505f6cb58
+      internalID: -1510212394
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRanger2_r2_c12
+      rect:
+        serializedVersion: 2
+        x: 1680
+        y: 140
+        width: 140
+        height: 140
+      alignment: 9
+      pivot: {x: 0.5, y: 0.071428575}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 3a67b04b38f06ac45a44a4a06b800663
+      internalID: 690864811
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRanger2_r2_c13
+      rect:
+        serializedVersion: 2
+        x: 1820
+        y: 140
+        width: 140
+        height: 140
+      alignment: 9
+      pivot: {x: 0.5, y: 0.071428575}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 5904b51f0a655a64d88fac345de8a5cd
+      internalID: -616844827
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRanger2_r3_c0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 140
+        height: 140
+      alignment: 9
+      pivot: {x: 0.5, y: 0.071428575}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 0629501dd53b4c748bc6b1ae46f685b5
+      internalID: -1270932279
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRanger2_r3_c1
+      rect:
+        serializedVersion: 2
+        x: 140
+        y: 0
+        width: 140
+        height: 140
+      alignment: 9
+      pivot: {x: 0.5, y: 0.071428575}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: fb949ccac11f77148957c8f057ef81c3
+      internalID: 734135754
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRanger2_r3_c2
+      rect:
+        serializedVersion: 2
+        x: 280
+        y: 0
+        width: 140
+        height: 140
+      alignment: 9
+      pivot: {x: 0.5, y: 0.071428575}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 71ce146e24fca904d9a23dc5c8d17c4e
+      internalID: -716672860
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRanger2_r3_c3
+      rect:
+        serializedVersion: 2
+        x: 420
+        y: 0
+        width: 140
+        height: 140
+      alignment: 9
+      pivot: {x: 0.5, y: 0.071428575}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ac497a5ffbaa55e47ad924f171376f8a
+      internalID: 417869041
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRanger2_r3_c4
+      rect:
+        serializedVersion: 2
+        x: 560
+        y: 0
+        width: 140
+        height: 140
+      alignment: 9
+      pivot: {x: 0.5, y: 0.071428575}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f0d79593e12974147a3ddf524af59e92
+      internalID: -1578392158
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRanger2_r3_c5
+      rect:
+        serializedVersion: 2
+        x: 700
+        y: 0
+        width: 140
+        height: 140
+      alignment: 9
+      pivot: {x: 0.5, y: 0.071428575}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 63d24503d6773a64baf77f04e80ab392
+      internalID: 645564002
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRanger2_r3_c6
+      rect:
+        serializedVersion: 2
+        x: 840
+        y: 0
+        width: 140
+        height: 140
+      alignment: 9
+      pivot: {x: 0.5, y: 0.071428575}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c8dafb48c8f4da040ae90782ec8cf4a0
+      internalID: -1101153538
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRanger2_r3_c7
+      rect:
+        serializedVersion: 2
+        x: 980
+        y: 0
+        width: 140
+        height: 140
+      alignment: 9
+      pivot: {x: 0.5, y: 0.071428575}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7292b876d52bc604ebf8c84ffe22e06e
+      internalID: -691908353
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRanger2_r3_c8
+      rect:
+        serializedVersion: 2
+        x: 1120
+        y: 0
+        width: 140
+        height: 140
+      alignment: 9
+      pivot: {x: 0.5, y: 0.071428575}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 15c0fe49940a1ab4fba05ef59dab5c6c
+      internalID: -2024373402
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRanger2_r3_c9
+      rect:
+        serializedVersion: 2
+        x: 1260
+        y: 0
+        width: 140
+        height: 140
+      alignment: 9
+      pivot: {x: 0.5, y: 0.071428575}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 79b3073296b444044bcebc4d1a4b7e12
+      internalID: -1497597513
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRanger2_r3_c10
+      rect:
+        serializedVersion: 2
+        x: 1400
+        y: 0
+        width: 140
+        height: 140
+      alignment: 9
+      pivot: {x: 0.5, y: 0.071428575}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ce02f095abeab634db65acaf3a62ef29
+      internalID: 492230324
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRanger2_r3_c11
+      rect:
+        serializedVersion: 2
+        x: 1540
+        y: 0
+        width: 140
+        height: 140
+      alignment: 9
+      pivot: {x: 0.5, y: 0.071428575}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 8bcb3d9d7510a3243850df96a2b49321
+      internalID: -483217174
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRanger2_r3_c12
+      rect:
+        serializedVersion: 2
+        x: 1680
+        y: 0
+        width: 140
+        height: 140
+      alignment: 9
+      pivot: {x: 0.5, y: 0.071428575}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 1c0d1e0f0d8d32147ab9dfa208c783b6
+      internalID: 358758854
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRanger2_r3_c13
+      rect:
+        serializedVersion: 2
+        x: 1820
+        y: 0
+        width: 140
+        height: 140
+      alignment: 9
+      pivot: {x: 0.5, y: 0.071428575}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 0e3fe7e713d0cfa47b64c6e60086c7fd
+      internalID: 1133336354
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 0ff1be4b94a638d43b79075dd2bc767a
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      sprRanger2_0: 8573281771934436215
+      sprRanger2_1: -294789311749346474
+      sprRanger2_10: 4094681994363256319
+      sprRanger2_100: 2504757104107930426
+      sprRanger2_101: 135544896978773492
+      sprRanger2_102: 4359823142940411620
+      sprRanger2_103: -5085725306677960898
+      sprRanger2_104: 4722479554467846582
+      sprRanger2_105: 1961933639248284441
+      sprRanger2_106: -7441578607842605675
+      sprRanger2_107: -6649516960065153132
+      sprRanger2_108: -106591709461026682
+      sprRanger2_109: 5141930949078574752
+      sprRanger2_11: 8163083327804259598
+      sprRanger2_110: -4719023934791744031
+      sprRanger2_111: 954709951693548113
+      sprRanger2_12: 6103439802517625324
+      sprRanger2_13: -3738450023591150926
+      sprRanger2_14: -4703172116173063380
+      sprRanger2_15: 6643033095952356088
+      sprRanger2_16: 7867402350340275104
+      sprRanger2_17: 7664518279359362571
+      sprRanger2_18: 5210823568346310379
+      sprRanger2_19: 5855455047582753356
+      sprRanger2_2: -807755473949069172
+      sprRanger2_20: 8420633991102112773
+      sprRanger2_21: -4690462664408601452
+      sprRanger2_22: -146275110278981341
+      sprRanger2_23: 829332415115188152
+      sprRanger2_24: 6333812577841088461
+      sprRanger2_25: 1860333987587143085
+      sprRanger2_26: 2303098732969822669
+      sprRanger2_27: -4617693243138353569
+      sprRanger2_28: 7793365010883496644
+      sprRanger2_29: 6538619554068437621
+      sprRanger2_3: -147561802464658525
+      sprRanger2_30: -2461673595766730753
+      sprRanger2_31: -4421116402813449298
+      sprRanger2_32: 6127062607226309462
+      sprRanger2_33: 8744023112307597627
+      sprRanger2_34: 5098850325211457844
+      sprRanger2_35: 8561903231380403757
+      sprRanger2_36: 3261539731607800531
+      sprRanger2_37: -3026230209264434754
+      sprRanger2_38: -3719618330292846567
+      sprRanger2_39: 9063154367185308946
+      sprRanger2_4: -8438118672473805025
+      sprRanger2_40: -8517129773718329835
+      sprRanger2_41: 5413884188339341051
+      sprRanger2_42: 1928900386343131063
+      sprRanger2_43: -8529217289804936398
+      sprRanger2_44: 324634724492838310
+      sprRanger2_45: 8459705158213327370
+      sprRanger2_46: 5853713789324033192
+      sprRanger2_47: 8062366617785094717
+      sprRanger2_48: -9195966841793537677
+      sprRanger2_49: -548607127964819339
+      sprRanger2_5: 5098812175560664962
+      sprRanger2_50: 7054619411802782090
+      sprRanger2_51: -2027971031152098988
+      sprRanger2_52: -2592981877095950051
+      sprRanger2_53: -2117702015302300673
+      sprRanger2_54: 3190513988594190435
+      sprRanger2_55: -135519549207368870
+      sprRanger2_56: -6990508525726356225
+      sprRanger2_57: 5519556730906953241
+      sprRanger2_58: -8637695329260922454
+      sprRanger2_59: -2440437512869454460
+      sprRanger2_6: -1906032162896638304
+      sprRanger2_60: -3542053815918751581
+      sprRanger2_61: 2320029009831356510
+      sprRanger2_62: -8809703324276638717
+      sprRanger2_63: -603729168194519130
+      sprRanger2_64: 3278939314136299288
+      sprRanger2_65: -3817750017235856769
+      sprRanger2_66: -8525091746473234490
+      sprRanger2_67: -3967184688349951648
+      sprRanger2_68: -6035902903226822264
+      sprRanger2_69: -7752183718300514741
+      sprRanger2_7: 6203046654168335131
+      sprRanger2_70: 2801892163299375184
+      sprRanger2_71: -4433958030471931220
+      sprRanger2_72: 8349395682391493977
+      sprRanger2_73: 2816186894111797442
+      sprRanger2_74: 3019796505016066592
+      sprRanger2_75: 7267294091999149082
+      sprRanger2_76: -7193372678999546299
+      sprRanger2_77: -1749863251503676745
+      sprRanger2_78: 6642339661556756729
+      sprRanger2_79: -581701840081060469
+      sprRanger2_8: -8273312495600251584
+      sprRanger2_80: -4851588703232513186
+      sprRanger2_81: 7949268624591265452
+      sprRanger2_82: 5665291248759975899
+      sprRanger2_83: 9205285605850921893
+      sprRanger2_84: -1170072629813625195
+      sprRanger2_85: -3425801095154737172
+      sprRanger2_86: 3252706833636351534
+      sprRanger2_87: -6420205412313031409
+      sprRanger2_88: -8081102592493630322
+      sprRanger2_89: 9073547649911280576
+      sprRanger2_9: -7318761890808986690
+      sprRanger2_90: -2826937128530576007
+      sprRanger2_91: 3696578697821950364
+      sprRanger2_92: -1926539230816270288
+      sprRanger2_93: 1548619118329100703
+      sprRanger2_94: -746771622959850894
+      sprRanger2_95: -6702139198836443473
+      sprRanger2_96: 5627722865491611501
+      sprRanger2_97: -5973458743541126388
+      sprRanger2_98: 5003964457778473846
+      sprRanger2_99: -2211479811173532696
+      sprRanger2_r0_c0: 1048972691
+      sprRanger2_r0_c1: 56434898
+      sprRanger2_r0_c10: -1866429382
+      sprRanger2_r0_c11: 1789463236
+      sprRanger2_r0_c12: -1825823852
+      sprRanger2_r0_c13: 355079889
+      sprRanger2_r0_c2: -1849329330
+      sprRanger2_r0_c3: -52876175
+      sprRanger2_r0_c4: 80037262
+      sprRanger2_r0_c5: 1692043861
+      sprRanger2_r0_c6: 1221449278
+      sprRanger2_r0_c7: -1760873106
+      sprRanger2_r0_c8: 278840535
+      sprRanger2_r0_c9: -2102094596
+      sprRanger2_r1_c0: 538429682
+      sprRanger2_r1_c1: -172844458
+      sprRanger2_r1_c10: -89346112
+      sprRanger2_r1_c11: -1464883613
+      sprRanger2_r1_c12: 899691980
+      sprRanger2_r1_c13: -739437710
+      sprRanger2_r1_c2: -600191865
+      sprRanger2_r1_c3: 1706283122
+      sprRanger2_r1_c4: -603444747
+      sprRanger2_r1_c5: 1736207506
+      sprRanger2_r1_c6: 1061287825
+      sprRanger2_r1_c7: 179267858
+      sprRanger2_r1_c8: -14861848
+      sprRanger2_r1_c9: 638129278
+      sprRanger2_r2_c0: 1342716012
+      sprRanger2_r2_c1: -128616518
+      sprRanger2_r2_c10: 904622225
+      sprRanger2_r2_c11: -1510212394
+      sprRanger2_r2_c12: 690864811
+      sprRanger2_r2_c13: -616844827
+      sprRanger2_r2_c2: -1463256156
+      sprRanger2_r2_c3: -200557371
+      sprRanger2_r2_c4: 1351528804
+      sprRanger2_r2_c5: -860863437
+      sprRanger2_r2_c6: -1082398098
+      sprRanger2_r2_c7: 1882893547
+      sprRanger2_r2_c8: 989050397
+      sprRanger2_r2_c9: 321574093
+      sprRanger2_r3_c0: -1270932279
+      sprRanger2_r3_c1: 734135754
+      sprRanger2_r3_c10: 492230324
+      sprRanger2_r3_c11: -483217174
+      sprRanger2_r3_c12: 358758854
+      sprRanger2_r3_c13: 1133336354
+      sprRanger2_r3_c2: -716672860
+      sprRanger2_r3_c3: 417869041
+      sprRanger2_r3_c4: -1578392158
+      sprRanger2_r3_c5: 645564002
+      sprRanger2_r3_c6: -1101153538
+      sprRanger2_r3_c7: -691908353
+      sprRanger2_r3_c8: -2024373402
+      sprRanger2_r3_c9: -1497597513
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

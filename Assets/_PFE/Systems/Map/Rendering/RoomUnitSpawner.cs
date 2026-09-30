@@ -168,13 +168,24 @@ namespace PFE.Systems.Map.Rendering
         /// <summary>
         /// Draw the unit's sprite, or say plainly that there is none.
         ///
-        /// <para><b>This is the honest state of the unit art today, not a placeholder.</b> Every one of
-        /// the ~296 assets in <c>Resources/Units</c> has <c>sprite: {fileID: 0}</c>, because no importer
-        /// populates it. The art itself does exist in the oracle — <c>UnitTrain.as:43/48</c> names
-        /// <c>visualTrainArmor</c>/<c>visualTrain</c> and both are extracted at
-        /// <c>pfe/sprites/DefineSprite_3107_visualTrainArmor</c> and
-        /// <c>pfe/sprites/DefineSprite_3110_visualTrain</c> — so what is missing is a pipeline, not the
-        /// assets.</para>
+        /// <para><b>The art pipeline exists now: <c>UnitSpriteImporter</c></b> (menu
+        /// <c>PFE/Art/Import Unit Sprites</c>) slices each unit's sheet into a cell grid and writes the
+        /// unit's <b>resting frame</b> — the first cell of its <c>stay</c> state — into
+        /// <see cref="UnitDefinition.sprite"/>, which is what this method draws. So a null sprite here
+        /// means one of three concrete things, and the warning below says which:</para>
+        ///
+        /// <list type="number">
+        /// <item>the importer has not been run since the sheet data changed;</item>
+        /// <item>the unit has no <c>&lt;vis&gt;</c> art at all (the family templates and structural ids —
+        /// 44 of them — are not drawable units);</item>
+        /// <item>its <c>stay</c> cell fell outside its own sheet, which the importer reports as
+        /// <c>OutOfRange</c> rather than clamping onto a different animation's row.</item>
+        /// </list>
+        ///
+        /// <para><b>Only the resting frame is drawn.</b> The full per-state animation data is on
+        /// <see cref="UnitDefinition.spriteSheet"/> / <c>animations</c> and has no runtime reader yet, so
+        /// a spawned unit stands still. Walking, attacking and dying need a player component that steps
+        /// <c>animations</c> and indexes the row-major grid; that is not this class.</para>
         ///
         /// <para>Naming the gap rather than rendering nothing silently is the point: an invisible enemy
         /// that is really there is the hardest kind to diagnose. The collider is still built, so the
@@ -190,8 +201,9 @@ namespace PFE.Systems.Map.Rendering
             {
                 Debug.LogWarning(
                     $"[RoomUnitSpawner] Unit '{unit.unitId}' has no sprite on its UnitDefinition, so it " +
-                    $"is spawned as a collider with no visual. The unit-art pipeline is not built yet; " +
-                    $"the sprites exist in the AS3 export under pfe/sprites/DefineSprite_*_visual*.");
+                    $"is spawned as a collider with no visual. Run PFE/Art/Import Unit Sprites to " +
+                    $"populate it; if it stays empty after that, the unit has no <vis> art or its " +
+                    $"`stay` cell lies outside its sheet (the importer lists both).");
             }
 
             Material material = SpritePresenterMaterial.Get();

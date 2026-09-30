@@ -1,0 +1,2972 @@
+fileFormatVersion: 2
+guid: f811cb9034c63e54f88e5b2d9ef329ca
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: 586164103109218101
+    second: sprZombie0_0
+  - first:
+      213: 2774057840822143606
+    second: sprZombie0_1
+  - first:
+      213: -2775202768457316780
+    second: sprZombie0_2
+  - first:
+      213: 5582718760251477917
+    second: sprZombie0_3
+  - first:
+      213: 5952584029125126082
+    second: sprZombie0_4
+  - first:
+      213: 4787568271073061251
+    second: sprZombie0_5
+  - first:
+      213: -6686065701266363415
+    second: sprZombie0_6
+  - first:
+      213: -4417031816419615045
+    second: sprZombie0_7
+  - first:
+      213: -5279419484486376504
+    second: sprZombie0_8
+  - first:
+      213: -6596115191009193698
+    second: sprZombie0_9
+  - first:
+      213: -5154547055932368191
+    second: sprZombie0_10
+  - first:
+      213: -6258796255984734575
+    second: sprZombie0_11
+  - first:
+      213: -3845632801409940011
+    second: sprZombie0_12
+  - first:
+      213: -7079305450031169142
+    second: sprZombie0_13
+  - first:
+      213: 2818168399044293324
+    second: sprZombie0_14
+  - first:
+      213: 934874365530414805
+    second: sprZombie0_15
+  - first:
+      213: -141012432860223531
+    second: sprZombie0_16
+  - first:
+      213: -3966329386058516222
+    second: sprZombie0_17
+  - first:
+      213: 7166195129324614573
+    second: sprZombie0_18
+  - first:
+      213: 6518147583095782003
+    second: sprZombie0_19
+  - first:
+      213: 8420891751128235896
+    second: sprZombie0_20
+  - first:
+      213: 2207315946063408811
+    second: sprZombie0_21
+  - first:
+      213: -1283348358870774993
+    second: sprZombie0_22
+  - first:
+      213: -8005699882932193156
+    second: sprZombie0_23
+  - first:
+      213: 6007785377402592944
+    second: sprZombie0_24
+  - first:
+      213: -6588115967176533487
+    second: sprZombie0_25
+  - first:
+      213: 6798774733846387896
+    second: sprZombie0_26
+  - first:
+      213: 2259992527202110606
+    second: sprZombie0_27
+  - first:
+      213: 6388592285868802795
+    second: sprZombie0_28
+  - first:
+      213: -568845476443580388
+    second: sprZombie0_29
+  - first:
+      213: -5846818882313749554
+    second: sprZombie0_30
+  - first:
+      213: -3598791586646552416
+    second: sprZombie0_31
+  - first:
+      213: 5119314718473048223
+    second: sprZombie0_32
+  - first:
+      213: 6062984385940179860
+    second: sprZombie0_33
+  - first:
+      213: -3817328878096471113
+    second: sprZombie0_34
+  - first:
+      213: 2830521311667125744
+    second: sprZombie0_35
+  - first:
+      213: 1124825928101477679
+    second: sprZombie0_36
+  - first:
+      213: -6573782155547165572
+    second: sprZombie0_37
+  - first:
+      213: 5821540183698102151
+    second: sprZombie0_38
+  - first:
+      213: -7738066531773326284
+    second: sprZombie0_39
+  - first:
+      213: 3346018976644573174
+    second: sprZombie0_40
+  - first:
+      213: 6854303098647884098
+    second: sprZombie0_41
+  - first:
+      213: 4220405092219039639
+    second: sprZombie0_42
+  - first:
+      213: -1763624485788122663
+    second: sprZombie0_43
+  - first:
+      213: 22258025934892246
+    second: sprZombie0_44
+  - first:
+      213: -4755282928645267450
+    second: sprZombie0_45
+  - first:
+      213: 8207316989719441619
+    second: sprZombie0_46
+  - first:
+      213: -3397171695985133357
+    second: sprZombie0_47
+  - first:
+      213: 7963841912040494502
+    second: sprZombie0_48
+  - first:
+      213: -6961014899770390998
+    second: sprZombie0_49
+  - first:
+      213: -6238769048892764870
+    second: sprZombie0_50
+  - first:
+      213: 3084707865735379952
+    second: sprZombie0_51
+  - first:
+      213: -106898515559376879
+    second: sprZombie0_52
+  - first:
+      213: -6544130128843656774
+    second: sprZombie0_53
+  - first:
+      213: 1446775769995720771
+    second: sprZombie0_54
+  - first:
+      213: -7677646797233014132
+    second: sprZombie0_55
+  - first:
+      213: -8769820637647167966
+    second: sprZombie0_56
+  - first:
+      213: -8832951477808886600
+    second: sprZombie0_57
+  - first:
+      213: -8287161906647254995
+    second: sprZombie0_58
+  - first:
+      213: -9174405388060717081
+    second: sprZombie0_59
+  - first:
+      213: 4092967617733261004
+    second: sprZombie0_60
+  - first:
+      213: -4649170176344763562
+    second: sprZombie0_61
+  - first:
+      213: 2537791114986126861
+    second: sprZombie0_62
+  - first:
+      213: -2883842585241755722
+    second: sprZombie0_63
+  - first:
+      213: -3891626268622128829
+    second: sprZombie0_64
+  - first:
+      213: 8451106523989595899
+    second: sprZombie0_65
+  - first:
+      213: 5436402316630954985
+    second: sprZombie0_66
+  - first:
+      213: 2988173533379683561
+    second: sprZombie0_67
+  - first:
+      213: 8826584328811801108
+    second: sprZombie0_68
+  - first:
+      213: 2607411146428144277
+    second: sprZombie0_69
+  - first:
+      213: 551700349829971951
+    second: sprZombie0_70
+  - first:
+      213: -667867304251945246
+    second: sprZombie0_71
+  - first:
+      213: -5007791074446424979
+    second: sprZombie0_72
+  - first:
+      213: -8596397749231163399
+    second: sprZombie0_73
+  - first:
+      213: 7940203045574141972
+    second: sprZombie0_74
+  - first:
+      213: -4056556137914345962
+    second: sprZombie0_75
+  - first:
+      213: 6194638868500685901
+    second: sprZombie0_76
+  - first:
+      213: 7965809922529082514
+    second: sprZombie0_77
+  - first:
+      213: -119160762029024698
+    second: sprZombie0_78
+  - first:
+      213: 5192701975278670443
+    second: sprZombie0_79
+  - first:
+      213: -6912340087835040001
+    second: sprZombie0_80
+  - first:
+      213: -4772657407864075772
+    second: sprZombie0_81
+  - first:
+      213: 4407414847884509455
+    second: sprZombie0_82
+  - first:
+      213: -6654249847186167356
+    second: sprZombie0_83
+  - first:
+      213: -8967882185486394967
+    second: sprZombie0_84
+  - first:
+      213: 4218022497824040532
+    second: sprZombie0_85
+  - first:
+      213: 3585805527021056604
+    second: sprZombie0_86
+  - first:
+      213: -2366921482886337304
+    second: sprZombie0_87
+  - first:
+      213: 5275676631689181057
+    second: sprZombie0_88
+  - first:
+      213: 4411102748668648926
+    second: sprZombie0_89
+  - first:
+      213: 819791220233126808
+    second: sprZombie0_90
+  - first:
+      213: -6886366418871391591
+    second: sprZombie0_91
+  - first:
+      213: 8967678668203743354
+    second: sprZombie0_92
+  - first:
+      213: 4907887564680609042
+    second: sprZombie0_93
+  - first:
+      213: -3559754380704784043
+    second: sprZombie0_94
+  - first:
+      213: 5748360893831898334
+    second: sprZombie0_95
+  - first:
+      213: -2630089297297541922
+    second: sprZombie0_96
+  - first:
+      213: -5830040357805037439
+    second: sprZombie0_97
+  - first:
+      213: -5101771891823080063
+    second: sprZombie0_98
+  - first:
+      213: 6254133296940916566
+    second: sprZombie0_99
+  - first:
+      213: -2288482590435015368
+    second: sprZombie0_100
+  - first:
+      213: -5726256367633546444
+    second: sprZombie0_101
+  - first:
+      213: -8840571038225598576
+    second: sprZombie0_102
+  - first:
+      213: 8328918817894461746
+    second: sprZombie0_103
+  - first:
+      213: -4881355592495636466
+    second: sprZombie0_104
+  - first:
+      213: -891379473063378515
+    second: sprZombie0_105
+  - first:
+      213: 5832431650326843971
+    second: sprZombie0_106
+  - first:
+      213: -1483495379401856791
+    second: sprZombie0_107
+  - first:
+      213: 7903046378683673937
+    second: sprZombie0_108
+  - first:
+      213: -692245416726861910
+    second: sprZombie0_109
+  - first:
+      213: 451802736500116574
+    second: sprZombie0_110
+  - first:
+      213: 487130016673098488
+    second: sprZombie0_111
+  - first:
+      213: -9161816730944237952
+    second: sprZombie0_112
+  - first:
+      213: 8904731184767609444
+    second: sprZombie0_113
+  - first:
+      213: 4783612860211563086
+    second: sprZombie0_114
+  - first:
+      213: -4669694037745364502
+    second: sprZombie0_115
+  - first:
+      213: -7641668665468721192
+    second: sprZombie0_116
+  - first:
+      213: 4139738902549188657
+    second: sprZombie0_117
+  - first:
+      213: 7162578417909164340
+    second: sprZombie0_118
+  - first:
+      213: -2450577414066825114
+    second: sprZombie0_119
+  - first:
+      213: -4006686440048652851
+    second: sprZombie0_120
+  - first:
+      213: -2644009601925667020
+    second: sprZombie0_121
+  - first:
+      213: 5848788900362846758
+    second: sprZombie0_122
+  - first:
+      213: -2196562125161044568
+    second: sprZombie0_123
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 0
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 8192
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 0
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Android
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: sprZombie0_r0_c0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 600
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: bdca3379c39fbc347bf28c86551e771d
+      internalID: -1597136923
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r0_c1
+      rect:
+        serializedVersion: 2
+        x: 120
+        y: 600
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 72ebc917e40cdf04c88d77f3b0f9758e
+      internalID: -503613934
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r0_c2
+      rect:
+        serializedVersion: 2
+        x: 240
+        y: 600
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 0b1076e76a16e8d499382b910e9bfec4
+      internalID: 2121099131
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r0_c3
+      rect:
+        serializedVersion: 2
+        x: 360
+        y: 600
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: af6d4228d9d90c042820289f4bdce87d
+      internalID: -298944039
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r0_c4
+      rect:
+        serializedVersion: 2
+        x: 480
+        y: 600
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: dae01e9e15c39fb4583094ccb6d280da
+      internalID: 1316397170
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r0_c5
+      rect:
+        serializedVersion: 2
+        x: 600
+        y: 600
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 740e048003ec8e74db6fd4c7abdd9bfb
+      internalID: 2110841424
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r0_c6
+      rect:
+        serializedVersion: 2
+        x: 720
+        y: 600
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9c7d6f82e8dd667479d69f591efe8820
+      internalID: -1212858071
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r0_c7
+      rect:
+        serializedVersion: 2
+        x: 840
+        y: 600
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 679130b7bd9a4fd4696ce33497817faf
+      internalID: 1121515634
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r0_c8
+      rect:
+        serializedVersion: 2
+        x: 960
+        y: 600
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6079a70f24781274e951edd350d44603
+      internalID: -742931937
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r0_c9
+      rect:
+        serializedVersion: 2
+        x: 1080
+        y: 600
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c811a69addaab494baa9d9b8bd418827
+      internalID: -91219595
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r0_c10
+      rect:
+        serializedVersion: 2
+        x: 1200
+        y: 600
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 0c5033da82bc3fe42bd8d4ac1ebad2ac
+      internalID: 1512909267
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r0_c11
+      rect:
+        serializedVersion: 2
+        x: 1320
+        y: 600
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 64d3f3ba1bc09d14093648f9c79c61ea
+      internalID: -180244933
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r0_c12
+      rect:
+        serializedVersion: 2
+        x: 1440
+        y: 600
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f0f9c08e6afbe744d96045c544140f24
+      internalID: -379769656
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r0_c13
+      rect:
+        serializedVersion: 2
+        x: 1560
+        y: 600
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ccfb2c41036c125418350a4c6fa090e9
+      internalID: 1415389615
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r0_c14
+      rect:
+        serializedVersion: 2
+        x: 1680
+        y: 600
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d9c9db6e3e1d9e24b9e0f9ab1a0b3651
+      internalID: -1289182316
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r0_c15
+      rect:
+        serializedVersion: 2
+        x: 1800
+        y: 600
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 981ca61c604a8b545abff56c07e4ba5c
+      internalID: 166695226
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r0_c16
+      rect:
+        serializedVersion: 2
+        x: 1920
+        y: 600
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 8836e01714fc98043956c0f4a0ecaa3d
+      internalID: 663540420
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r1_c0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 480
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 1d384631392477140aaadc69d75707fe
+      internalID: -1565330717
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r1_c1
+      rect:
+        serializedVersion: 2
+        x: 120
+        y: 480
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 21d332bbe9df8444d86fcef6c63ffb08
+      internalID: 166910905
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r1_c2
+      rect:
+        serializedVersion: 2
+        x: 240
+        y: 480
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 2f02715fc42a7eb41968f8a63ac4d356
+      internalID: -527095440
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r1_c3
+      rect:
+        serializedVersion: 2
+        x: 360
+        y: 480
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 5b495dda6eb78d94ab8be305784da8ac
+      internalID: -443681254
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r1_c4
+      rect:
+        serializedVersion: 2
+        x: 480
+        y: 480
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ff8d2bf379e26f9478d6ae60f17c1a9d
+      internalID: 1692041064
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r1_c5
+      rect:
+        serializedVersion: 2
+        x: 600
+        y: 480
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c278c54b8c29c454b9d94ba4f8818731
+      internalID: -1833457156
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r1_c6
+      rect:
+        serializedVersion: 2
+        x: 720
+        y: 480
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: dd2a9cd5ff61b5643b5aa82da8152e28
+      internalID: -382951405
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r1_c7
+      rect:
+        serializedVersion: 2
+        x: 840
+        y: 480
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 3b5828412737bd54ba7337220d99247b
+      internalID: -729402158
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r1_c8
+      rect:
+        serializedVersion: 2
+        x: 960
+        y: 480
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a58f9fe3338d21b4e9a2a7a7ad0a2e6a
+      internalID: -1404134963
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r1_c9
+      rect:
+        serializedVersion: 2
+        x: 1080
+        y: 480
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a68d6ca321fce7547ad9d445a7c0ee99
+      internalID: -1121106735
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r1_c10
+      rect:
+        serializedVersion: 2
+        x: 1200
+        y: 480
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 606d0aac30731fd45bced668b791242b
+      internalID: -1312301737
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r1_c11
+      rect:
+        serializedVersion: 2
+        x: 1320
+        y: 480
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c3917551093e80244bc6903d6ec56080
+      internalID: 151842462
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r1_c12
+      rect:
+        serializedVersion: 2
+        x: 1440
+        y: 480
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d931eb9cf6c9949488800f86d9b64b25
+      internalID: -262726909
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r1_c13
+      rect:
+        serializedVersion: 2
+        x: 1560
+        y: 480
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 222c5386124a7e8419a44ed9334435b2
+      internalID: -183078075
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r1_c14
+      rect:
+        serializedVersion: 2
+        x: 1680
+        y: 480
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 8769999f5a2c0094093f441d14ea112d
+      internalID: -1031428556
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r1_c15
+      rect:
+        serializedVersion: 2
+        x: 1800
+        y: 480
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ca38f985f69c56c4ca2e585741002e11
+      internalID: -113276597
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r1_c16
+      rect:
+        serializedVersion: 2
+        x: 1920
+        y: 480
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7840e32da91410542ad1270316cc7d8b
+      internalID: -329727806
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r2_c0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 360
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 74451f2e5159f5c4ba51e82f04bc7399
+      internalID: -2096126279
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r2_c1
+      rect:
+        serializedVersion: 2
+        x: 120
+        y: 360
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: acb4c2e904839aa4ead1d917ce7a30a6
+      internalID: 1556122312
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r2_c2
+      rect:
+        serializedVersion: 2
+        x: 240
+        y: 360
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c2c941d0768440c4cbf589794cb9010e
+      internalID: -1839188733
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r2_c3
+      rect:
+        serializedVersion: 2
+        x: 360
+        y: 360
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 84632d7261a01394c97b676800a1fa6a
+      internalID: 1699704306
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r2_c4
+      rect:
+        serializedVersion: 2
+        x: 480
+        y: 360
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 4027c00bfc804b6449f652225acb7b6a
+      internalID: -122531958
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r2_c5
+      rect:
+        serializedVersion: 2
+        x: 600
+        y: 360
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 984f82cd61f850f47bd936eaaf783224
+      internalID: 366274698
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r2_c6
+      rect:
+        serializedVersion: 2
+        x: 720
+        y: 360
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 2d1c24425876fb34b97065f5f9b55013
+      internalID: 1127136135
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r2_c7
+      rect:
+        serializedVersion: 2
+        x: 840
+        y: 360
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 987629b2fe8a27441847fb068e363911
+      internalID: 312220255
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r2_c8
+      rect:
+        serializedVersion: 2
+        x: 960
+        y: 360
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 75cb70eff47c3c3459b8fbc947313342
+      internalID: -389411783
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r2_c9
+      rect:
+        serializedVersion: 2
+        x: 1080
+        y: 360
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 1d26f75a2a08e304783995bd45ea6348
+      internalID: 1576009328
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r2_c10
+      rect:
+        serializedVersion: 2
+        x: 1200
+        y: 360
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: cc2b716400f31624aaa098dcdc3e0085
+      internalID: -826765949
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r2_c11
+      rect:
+        serializedVersion: 2
+        x: 1320
+        y: 360
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: df71ec4c98289a24686589f2e1e2968a
+      internalID: -180135680
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r2_c12
+      rect:
+        serializedVersion: 2
+        x: 1440
+        y: 360
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: fa2e5292d89749747bdda71c59ed6ade
+      internalID: 1015978808
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r2_c13
+      rect:
+        serializedVersion: 2
+        x: 1560
+        y: 360
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 193d87d999ed67746a10c29b44319cab
+      internalID: -1633006610
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r2_c14
+      rect:
+        serializedVersion: 2
+        x: 1680
+        y: 360
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f2cecc2b5b454854ea539513ed25f556
+      internalID: -626325778
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r2_c15
+      rect:
+        serializedVersion: 2
+        x: 1800
+        y: 360
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f66a058b43019c546a72c05fe1597dec
+      internalID: -1798030537
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r2_c16
+      rect:
+        serializedVersion: 2
+        x: 1920
+        y: 360
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e4587917035184042a6348f65406d313
+      internalID: -237965319
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r3_c0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 240
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b4d2b7d99e8e89947975398efdf78d16
+      internalID: 1781284090
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r3_c1
+      rect:
+        serializedVersion: 2
+        x: 120
+        y: 240
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6135e53117f44a646a163a62416743f0
+      internalID: 288820053
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r3_c2
+      rect:
+        serializedVersion: 2
+        x: 240
+        y: 240
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: cde01e43e633b9d43b731b62582e9263
+      internalID: -955794224
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r3_c3
+      rect:
+        serializedVersion: 2
+        x: 360
+        y: 240
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 844e464551ccb7649a7fb8be3461a9ea
+      internalID: 169932211
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r3_c4
+      rect:
+        serializedVersion: 2
+        x: 480
+        y: 240
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 8eac753900319a042a1001ef4338df15
+      internalID: -869111754
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r3_c5
+      rect:
+        serializedVersion: 2
+        x: 600
+        y: 240
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 46ecf074659257f4a9c5f747914277f4
+      internalID: 1850476505
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r3_c6
+      rect:
+        serializedVersion: 2
+        x: 720
+        y: 240
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: dbcc90525cf890a499a69aab31997cad
+      internalID: -1215488862
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r3_c7
+      rect:
+        serializedVersion: 2
+        x: 840
+        y: 240
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 613bb61c865cb734490c0bc3f420197e
+      internalID: 619740205
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r3_c8
+      rect:
+        serializedVersion: 2
+        x: 960
+        y: 240
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 3b59a778f0b92514894a2a13a0416806
+      internalID: 1307723178
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r3_c9
+      rect:
+        serializedVersion: 2
+        x: 1080
+        y: 240
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e713663afa9c31b4b9f78fa8801784d9
+      internalID: 1755615070
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r3_c10
+      rect:
+        serializedVersion: 2
+        x: 1200
+        y: 240
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 32761a0f87ed9874a83dacf545919cd0
+      internalID: -1406952911
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r3_c11
+      rect:
+        serializedVersion: 2
+        x: 1320
+        y: 240
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 1f7382a8119041b4b8aff0810fa35ce8
+      internalID: -1063686981
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r3_c12
+      rect:
+        serializedVersion: 2
+        x: 1440
+        y: 240
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 29ccf7ffc4f3e324fae27f60b8b320f2
+      internalID: 564888134
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r3_c13
+      rect:
+        serializedVersion: 2
+        x: 1560
+        y: 240
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c22b7668c08c90b4e9ab0d838db7db56
+      internalID: -1223700274
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r3_c14
+      rect:
+        serializedVersion: 2
+        x: 1680
+        y: 240
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b4e035992557209499403bbae4913d5e
+      internalID: 1576225454
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r3_c15
+      rect:
+        serializedVersion: 2
+        x: 1800
+        y: 240
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 2c69595e4fad70c4cac63938d5c23ace
+      internalID: -1139904785
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r3_c16
+      rect:
+        serializedVersion: 2
+        x: 1920
+        y: 240
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 3ff9b32bafca8104c85c95189b41fdfc
+      internalID: -669075272
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r4_c0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 120
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: be0c745646f656c44bff04138eb3b872
+      internalID: -1884633321
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r4_c1
+      rect:
+        serializedVersion: 2
+        x: 120
+        y: 120
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 70bf52a51d54cf54caf7562dc5155135
+      internalID: -691840502
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r4_c2
+      rect:
+        serializedVersion: 2
+        x: 240
+        y: 120
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 09a5d9bcd2dfdb24da246157637c7a2b
+      internalID: -1311407662
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r4_c3
+      rect:
+        serializedVersion: 2
+        x: 360
+        y: 120
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e1062f9a78e43e041bd57711e76c5c5d
+      internalID: 2024148850
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r4_c4
+      rect:
+        serializedVersion: 2
+        x: 480
+        y: 120
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a6dc86e5861bdf747b4d5aa5df5ecf60
+      internalID: -1092964148
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r4_c5
+      rect:
+        serializedVersion: 2
+        x: 600
+        y: 120
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 810f01058d5e76e418a9305b99619ef2
+      internalID: 1564372852
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r4_c6
+      rect:
+        serializedVersion: 2
+        x: 720
+        y: 120
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c0847d44ff2dc9a4fa8ddbf5be5fef31
+      internalID: -1170450717
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r4_c7
+      rect:
+        serializedVersion: 2
+        x: 840
+        y: 120
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 8caea7fc41a2af944b18755470c4de6f
+      internalID: -1800403105
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r4_c8
+      rect:
+        serializedVersion: 2
+        x: 960
+        y: 120
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f4c0c620b45ff3249a4fc74992aeb20b
+      internalID: 539662116
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r4_c9
+      rect:
+        serializedVersion: 2
+        x: 1080
+        y: 120
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 3c698cbf0f2eaef4487b68b874501126
+      internalID: 303832868
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r4_c10
+      rect:
+        serializedVersion: 2
+        x: 1200
+        y: 120
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 263efc8426306ea46996d6da797d66e4
+      internalID: -1393907775
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r4_c11
+      rect:
+        serializedVersion: 2
+        x: 1320
+        y: 120
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6528c6336e18aad4eb5d7d97161eac00
+      internalID: -2028665905
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r4_c12
+      rect:
+        serializedVersion: 2
+        x: 1440
+        y: 120
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: dbd94b99135fc6946a91f2777d48e62a
+      internalID: -1587792639
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r4_c13
+      rect:
+        serializedVersion: 2
+        x: 1560
+        y: 120
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6fc0dc7da2eadda44b4f07ba1fbe71af
+      internalID: -496258367
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r4_c14
+      rect:
+        serializedVersion: 2
+        x: 1680
+        y: 120
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 62fb4579e647ce243bf3eede23be38eb
+      internalID: -338716635
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r4_c15
+      rect:
+        serializedVersion: 2
+        x: 1800
+        y: 120
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 3cd2c9ae79d0d464bb9c231b50b08bd5
+      internalID: -594710134
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r4_c16
+      rect:
+        serializedVersion: 2
+        x: 1920
+        y: 120
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7d21679d4d30ff2459df65058685c171
+      internalID: 1476371974
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r5_c0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 07d2a3fe098f46a4a96aa8167e85bb25
+      internalID: -771817963
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r5_c1
+      rect:
+        serializedVersion: 2
+        x: 120
+        y: 0
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: fada9a73c95793f40b924ad154ef0587
+      internalID: -2012350174
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r5_c2
+      rect:
+        serializedVersion: 2
+        x: 240
+        y: 0
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f05a8961706c2a340b00cfc9938604b8
+      internalID: 1095211725
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r5_c3
+      rect:
+        serializedVersion: 2
+        x: 360
+        y: 0
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f4d78ae71cf0b354fa4992e9164c4d9e
+      internalID: 723946896
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r5_c4
+      rect:
+        serializedVersion: 2
+        x: 480
+        y: 0
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7c4badcf892f17f42bcc1269d99e2a53
+      internalID: 1188915980
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r5_c5
+      rect:
+        serializedVersion: 2
+        x: 600
+        y: 0
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b8da14a1963b1d0408925f8fc0ccb4dc
+      internalID: 1534451034
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r5_c6
+      rect:
+        serializedVersion: 2
+        x: 720
+        y: 0
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: cf2bbfea13315c548ab1401887071209
+      internalID: 406907333
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r5_c7
+      rect:
+        serializedVersion: 2
+        x: 840
+        y: 0
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: dc69d76d5911ae542a09f1bd093773f7
+      internalID: -282351482
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r5_c8
+      rect:
+        serializedVersion: 2
+        x: 960
+        y: 0
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: de7a0c0b23444924b926c982d092705c
+      internalID: -1726872295
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r5_c9
+      rect:
+        serializedVersion: 2
+        x: 1080
+        y: 0
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d8a7c9578b1d4cc4f93f84445616bb80
+      internalID: 1212001727
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r5_c10
+      rect:
+        serializedVersion: 2
+        x: 1200
+        y: 0
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 12a85c6b4a95ff54ba99e651841fe150
+      internalID: -589169650
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r5_c11
+      rect:
+        serializedVersion: 2
+        x: 1320
+        y: 0
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 337d9e051c3090344a1ef94195c19095
+      internalID: 1541260907
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r5_c12
+      rect:
+        serializedVersion: 2
+        x: 1440
+        y: 0
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: fbec70d70d73bd940a277929155b2b27
+      internalID: 313092266
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r5_c13
+      rect:
+        serializedVersion: 2
+        x: 1560
+        y: 0
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 345347a50d4ba844480e156c5bdb9830
+      internalID: 70566838
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r5_c14
+      rect:
+        serializedVersion: 2
+        x: 1680
+        y: 0
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 8ee59d3fd2bbb604dbfc4c2d2c7a1b5e
+      internalID: -2127511506
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r5_c15
+      rect:
+        serializedVersion: 2
+        x: 1800
+        y: 0
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 1c78eb05d1965074d968091ab74c6c5a
+      internalID: -1512252462
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprZombie0_r5_c16
+      rect:
+        serializedVersion: 2
+        x: 1920
+        y: 0
+        width: 120
+        height: 120
+      alignment: 9
+      pivot: {x: 0.5, y: 0.083333336}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 0fe7c1ebb3a357847b5c7b003880df5f
+      internalID: 1719290331
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: bf56fc711f260ac4ca34428056391973
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      sprZombie0_0: 586164103109218101
+      sprZombie0_1: 2774057840822143606
+      sprZombie0_10: -5154547055932368191
+      sprZombie0_100: -2288482590435015368
+      sprZombie0_101: -5726256367633546444
+      sprZombie0_102: -8840571038225598576
+      sprZombie0_103: 8328918817894461746
+      sprZombie0_104: -4881355592495636466
+      sprZombie0_105: -891379473063378515
+      sprZombie0_106: 5832431650326843971
+      sprZombie0_107: -1483495379401856791
+      sprZombie0_108: 7903046378683673937
+      sprZombie0_109: -692245416726861910
+      sprZombie0_11: -6258796255984734575
+      sprZombie0_110: 451802736500116574
+      sprZombie0_111: 487130016673098488
+      sprZombie0_112: -9161816730944237952
+      sprZombie0_113: 8904731184767609444
+      sprZombie0_114: 4783612860211563086
+      sprZombie0_115: -4669694037745364502
+      sprZombie0_116: -7641668665468721192
+      sprZombie0_117: 4139738902549188657
+      sprZombie0_118: 7162578417909164340
+      sprZombie0_119: -2450577414066825114
+      sprZombie0_12: -3845632801409940011
+      sprZombie0_120: -4006686440048652851
+      sprZombie0_121: -2644009601925667020
+      sprZombie0_122: 5848788900362846758
+      sprZombie0_123: -2196562125161044568
+      sprZombie0_13: -7079305450031169142
+      sprZombie0_14: 2818168399044293324
+      sprZombie0_15: 934874365530414805
+      sprZombie0_16: -141012432860223531
+      sprZombie0_17: -3966329386058516222
+      sprZombie0_18: 7166195129324614573
+      sprZombie0_19: 6518147583095782003
+      sprZombie0_2: -2775202768457316780
+      sprZombie0_20: 8420891751128235896
+      sprZombie0_21: 2207315946063408811
+      sprZombie0_22: -1283348358870774993
+      sprZombie0_23: -8005699882932193156
+      sprZombie0_24: 6007785377402592944
+      sprZombie0_25: -6588115967176533487
+      sprZombie0_26: 6798774733846387896
+      sprZombie0_27: 2259992527202110606
+      sprZombie0_28: 6388592285868802795
+      sprZombie0_29: -568845476443580388
+      sprZombie0_3: 5582718760251477917
+      sprZombie0_30: -5846818882313749554
+      sprZombie0_31: -3598791586646552416
+      sprZombie0_32: 5119314718473048223
+      sprZombie0_33: 6062984385940179860
+      sprZombie0_34: -3817328878096471113
+      sprZombie0_35: 2830521311667125744
+      sprZombie0_36: 1124825928101477679
+      sprZombie0_37: -6573782155547165572
+      sprZombie0_38: 5821540183698102151
+      sprZombie0_39: -7738066531773326284
+      sprZombie0_4: 5952584029125126082
+      sprZombie0_40: 3346018976644573174
+      sprZombie0_41: 6854303098647884098
+      sprZombie0_42: 4220405092219039639
+      sprZombie0_43: -1763624485788122663
+      sprZombie0_44: 22258025934892246
+      sprZombie0_45: -4755282928645267450
+      sprZombie0_46: 8207316989719441619
+      sprZombie0_47: -3397171695985133357
+      sprZombie0_48: 7963841912040494502
+      sprZombie0_49: -6961014899770390998
+      sprZombie0_5: 4787568271073061251
+      sprZombie0_50: -6238769048892764870
+      sprZombie0_51: 3084707865735379952
+      sprZombie0_52: -106898515559376879
+      sprZombie0_53: -6544130128843656774
+      sprZombie0_54: 1446775769995720771
+      sprZombie0_55: -7677646797233014132
+      sprZombie0_56: -8769820637647167966
+      sprZombie0_57: -8832951477808886600
+      sprZombie0_58: -8287161906647254995
+      sprZombie0_59: -9174405388060717081
+      sprZombie0_6: -6686065701266363415
+      sprZombie0_60: 4092967617733261004
+      sprZombie0_61: -4649170176344763562
+      sprZombie0_62: 2537791114986126861
+      sprZombie0_63: -2883842585241755722
+      sprZombie0_64: -3891626268622128829
+      sprZombie0_65: 8451106523989595899
+      sprZombie0_66: 5436402316630954985
+      sprZombie0_67: 2988173533379683561
+      sprZombie0_68: 8826584328811801108
+      sprZombie0_69: 2607411146428144277
+      sprZombie0_7: -4417031816419615045
+      sprZombie0_70: 551700349829971951
+      sprZombie0_71: -667867304251945246
+      sprZombie0_72: -5007791074446424979
+      sprZombie0_73: -8596397749231163399
+      sprZombie0_74: 7940203045574141972
+      sprZombie0_75: -4056556137914345962
+      sprZombie0_76: 6194638868500685901
+      sprZombie0_77: 7965809922529082514
+      sprZombie0_78: -119160762029024698
+      sprZombie0_79: 5192701975278670443
+      sprZombie0_8: -5279419484486376504
+      sprZombie0_80: -6912340087835040001
+      sprZombie0_81: -4772657407864075772
+      sprZombie0_82: 4407414847884509455
+      sprZombie0_83: -6654249847186167356
+      sprZombie0_84: -8967882185486394967
+      sprZombie0_85: 4218022497824040532
+      sprZombie0_86: 3585805527021056604
+      sprZombie0_87: -2366921482886337304
+      sprZombie0_88: 5275676631689181057
+      sprZombie0_89: 4411102748668648926
+      sprZombie0_9: -6596115191009193698
+      sprZombie0_90: 819791220233126808
+      sprZombie0_91: -6886366418871391591
+      sprZombie0_92: 8967678668203743354
+      sprZombie0_93: 4907887564680609042
+      sprZombie0_94: -3559754380704784043
+      sprZombie0_95: 5748360893831898334
+      sprZombie0_96: -2630089297297541922
+      sprZombie0_97: -5830040357805037439
+      sprZombie0_98: -5101771891823080063
+      sprZombie0_99: 6254133296940916566
+      sprZombie0_r0_c0: -1597136923
+      sprZombie0_r0_c1: -503613934
+      sprZombie0_r0_c10: 1512909267
+      sprZombie0_r0_c11: -180244933
+      sprZombie0_r0_c12: -379769656
+      sprZombie0_r0_c13: 1415389615
+      sprZombie0_r0_c14: -1289182316
+      sprZombie0_r0_c15: 166695226
+      sprZombie0_r0_c16: 663540420
+      sprZombie0_r0_c2: 2121099131
+      sprZombie0_r0_c3: -298944039
+      sprZombie0_r0_c4: 1316397170
+      sprZombie0_r0_c5: 2110841424
+      sprZombie0_r0_c6: -1212858071
+      sprZombie0_r0_c7: 1121515634
+      sprZombie0_r0_c8: -742931937
+      sprZombie0_r0_c9: -91219595
+      sprZombie0_r1_c0: -1565330717
+      sprZombie0_r1_c1: 166910905
+      sprZombie0_r1_c10: -1312301737
+      sprZombie0_r1_c11: 151842462
+      sprZombie0_r1_c12: -262726909
+      sprZombie0_r1_c13: -183078075
+      sprZombie0_r1_c14: -1031428556
+      sprZombie0_r1_c15: -113276597
+      sprZombie0_r1_c16: -329727806
+      sprZombie0_r1_c2: -527095440
+      sprZombie0_r1_c3: -443681254
+      sprZombie0_r1_c4: 1692041064
+      sprZombie0_r1_c5: -1833457156
+      sprZombie0_r1_c6: -382951405
+      sprZombie0_r1_c7: -729402158
+      sprZombie0_r1_c8: -1404134963
+      sprZombie0_r1_c9: -1121106735
+      sprZombie0_r2_c0: -2096126279
+      sprZombie0_r2_c1: 1556122312
+      sprZombie0_r2_c10: -826765949
+      sprZombie0_r2_c11: -180135680
+      sprZombie0_r2_c12: 1015978808
+      sprZombie0_r2_c13: -1633006610
+      sprZombie0_r2_c14: -626325778
+      sprZombie0_r2_c15: -1798030537
+      sprZombie0_r2_c16: -237965319
+      sprZombie0_r2_c2: -1839188733
+      sprZombie0_r2_c3: 1699704306
+      sprZombie0_r2_c4: -122531958
+      sprZombie0_r2_c5: 366274698
+      sprZombie0_r2_c6: 1127136135
+      sprZombie0_r2_c7: 312220255
+      sprZombie0_r2_c8: -389411783
+      sprZombie0_r2_c9: 1576009328
+      sprZombie0_r3_c0: 1781284090
+      sprZombie0_r3_c1: 288820053
+      sprZombie0_r3_c10: -1406952911
+      sprZombie0_r3_c11: -1063686981
+      sprZombie0_r3_c12: 564888134
+      sprZombie0_r3_c13: -1223700274
+      sprZombie0_r3_c14: 1576225454
+      sprZombie0_r3_c15: -1139904785
+      sprZombie0_r3_c16: -669075272
+      sprZombie0_r3_c2: -955794224
+      sprZombie0_r3_c3: 169932211
+      sprZombie0_r3_c4: -869111754
+      sprZombie0_r3_c5: 1850476505
+      sprZombie0_r3_c6: -1215488862
+      sprZombie0_r3_c7: 619740205
+      sprZombie0_r3_c8: 1307723178
+      sprZombie0_r3_c9: 1755615070
+      sprZombie0_r4_c0: -1884633321
+      sprZombie0_r4_c1: -691840502
+      sprZombie0_r4_c10: -1393907775
+      sprZombie0_r4_c11: -2028665905
+      sprZombie0_r4_c12: -1587792639
+      sprZombie0_r4_c13: -496258367
+      sprZombie0_r4_c14: -338716635
+      sprZombie0_r4_c15: -594710134
+      sprZombie0_r4_c16: 1476371974
+      sprZombie0_r4_c2: -1311407662
+      sprZombie0_r4_c3: 2024148850
+      sprZombie0_r4_c4: -1092964148
+      sprZombie0_r4_c5: 1564372852
+      sprZombie0_r4_c6: -1170450717
+      sprZombie0_r4_c7: -1800403105
+      sprZombie0_r4_c8: 539662116
+      sprZombie0_r4_c9: 303832868
+      sprZombie0_r5_c0: -771817963
+      sprZombie0_r5_c1: -2012350174
+      sprZombie0_r5_c10: -589169650
+      sprZombie0_r5_c11: 1541260907
+      sprZombie0_r5_c12: 313092266
+      sprZombie0_r5_c13: 70566838
+      sprZombie0_r5_c14: -2127511506
+      sprZombie0_r5_c15: -1512252462
+      sprZombie0_r5_c16: 1719290331
+      sprZombie0_r5_c2: 1095211725
+      sprZombie0_r5_c3: 723946896
+      sprZombie0_r5_c4: 1188915980
+      sprZombie0_r5_c5: 1534451034
+      sprZombie0_r5_c6: 406907333
+      sprZombie0_r5_c7: -282351482
+      sprZombie0_r5_c8: -1726872295
+      sprZombie0_r5_c9: 1212001727
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

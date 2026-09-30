@@ -1,0 +1,1074 @@
+fileFormatVersion: 2
+guid: 145693f2d990a3a4babfe0056f7795b3
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: 3554125302857725891
+    second: sprHellhound_0
+  - first:
+      213: -7198218775374767499
+    second: sprHellhound_1
+  - first:
+      213: 5528587540781795521
+    second: sprHellhound_2
+  - first:
+      213: -5264045509055233341
+    second: sprHellhound_3
+  - first:
+      213: 3153297652828564441
+    second: sprHellhound_4
+  - first:
+      213: -6507167492270002136
+    second: sprHellhound_5
+  - first:
+      213: 5719370800634106950
+    second: sprHellhound_6
+  - first:
+      213: 8078197120002732796
+    second: sprHellhound_7
+  - first:
+      213: 6367321224175034727
+    second: sprHellhound_8
+  - first:
+      213: -4683524608196624688
+    second: sprHellhound_9
+  - first:
+      213: 5189982542267109963
+    second: sprHellhound_10
+  - first:
+      213: -7234767836360691837
+    second: sprHellhound_11
+  - first:
+      213: -2817510989411969830
+    second: sprHellhound_12
+  - first:
+      213: 3826123473234251689
+    second: sprHellhound_13
+  - first:
+      213: -7496469465166571024
+    second: sprHellhound_14
+  - first:
+      213: 4037339908921670955
+    second: sprHellhound_15
+  - first:
+      213: 8900247960556226380
+    second: sprHellhound_16
+  - first:
+      213: -2206485951847080522
+    second: sprHellhound_17
+  - first:
+      213: 920395814917111988
+    second: sprHellhound_18
+  - first:
+      213: 4674140602584866358
+    second: sprHellhound_19
+  - first:
+      213: 1060529728757272918
+    second: sprHellhound_20
+  - first:
+      213: 7067259636243077784
+    second: sprHellhound_21
+  - first:
+      213: -37664814073486305
+    second: sprHellhound_22
+  - first:
+      213: -4633908255974237299
+    second: sprHellhound_23
+  - first:
+      213: 558100437330249824
+    second: sprHellhound_24
+  - first:
+      213: 4477719995933814345
+    second: sprHellhound_25
+  - first:
+      213: -7580034846284198358
+    second: sprHellhound_26
+  - first:
+      213: -2859000710412673461
+    second: sprHellhound_27
+  - first:
+      213: 5555836208566114807
+    second: sprHellhound_28
+  - first:
+      213: 1271046264998706242
+    second: sprHellhound_29
+  - first:
+      213: -7691466616332083529
+    second: sprHellhound_30
+  - first:
+      213: -1189864897339619852
+    second: sprHellhound_31
+  - first:
+      213: 5977455617388809899
+    second: sprHellhound_32
+  - first:
+      213: -6452366126804200404
+    second: sprHellhound_33
+  - first:
+      213: -4120351841662528373
+    second: sprHellhound_34
+  - first:
+      213: -5604363137551299741
+    second: sprHellhound_35
+  - first:
+      213: -567959116625715716
+    second: sprHellhound_36
+  - first:
+      213: -4331328852388267181
+    second: sprHellhound_37
+  - first:
+      213: 6180361890041833740
+    second: sprHellhound_38
+  - first:
+      213: -6018329101226679771
+    second: sprHellhound_39
+  - first:
+      213: -7262997344372617207
+    second: sprHellhound_40
+  - first:
+      213: 4023228167866100259
+    second: sprHellhound_41
+  - first:
+      213: -6681027902818383551
+    second: sprHellhound_42
+  - first:
+      213: -1828954110578024861
+    second: sprHellhound_43
+  - first:
+      213: 675972123760586398
+    second: sprHellhound_44
+  - first:
+      213: -2083994632038582917
+    second: sprHellhound_45
+  - first:
+      213: -2388458838644916019
+    second: sprHellhound_46
+  - first:
+      213: 9149431595393378899
+    second: sprHellhound_47
+  - first:
+      213: 3859628089395100425
+    second: sprHellhound_48
+  - first:
+      213: 4619563724728460227
+    second: sprHellhound_49
+  - first:
+      213: -1264894485096047220
+    second: sprHellhound_50
+  - first:
+      213: 1022525205644126557
+    second: sprHellhound_51
+  - first:
+      213: -1535195242220006444
+    second: sprHellhound_52
+  - first:
+      213: 4538942737608105264
+    second: sprHellhound_53
+  - first:
+      213: -4508460721172647967
+    second: sprHellhound_54
+  - first:
+      213: 3567191041007031431
+    second: sprHellhound_55
+  - first:
+      213: -169027176990952148
+    second: sprHellhound_56
+  - first:
+      213: 4087148235839549773
+    second: sprHellhound_57
+  - first:
+      213: 4373695300053612347
+    second: sprHellhound_58
+  - first:
+      213: 1108383001690883853
+    second: sprHellhound_59
+  - first:
+      213: 8991761657667213589
+    second: sprHellhound_60
+  - first:
+      213: -3712515056287782626
+    second: sprHellhound_61
+  - first:
+      213: 1498685316666023004
+    second: sprHellhound_62
+  - first:
+      213: -1838700166183206736
+    second: sprHellhound_63
+  - first:
+      213: 5317101317977314501
+    second: sprHellhound_64
+  - first:
+      213: 2953524283809375204
+    second: sprHellhound_65
+  - first:
+      213: -1630355105406476457
+    second: sprHellhound_66
+  - first:
+      213: 2766819755008906970
+    second: sprHellhound_67
+  - first:
+      213: -1380482401926061484
+    second: sprHellhound_68
+  - first:
+      213: 7154379076490450285
+    second: sprHellhound_69
+  - first:
+      213: -1655999125731686256
+    second: sprHellhound_70
+  - first:
+      213: -8760150378466794087
+    second: sprHellhound_71
+  - first:
+      213: -5321280693521578597
+    second: sprHellhound_72
+  - first:
+      213: -4890921878266308273
+    second: sprHellhound_73
+  - first:
+      213: -667621931321668529
+    second: sprHellhound_74
+  - first:
+      213: -5619358975883381574
+    second: sprHellhound_75
+  - first:
+      213: 8162974627560988947
+    second: sprHellhound_76
+  - first:
+      213: 1790041073883839299
+    second: sprHellhound_77
+  - first:
+      213: 3436308106411874625
+    second: sprHellhound_78
+  - first:
+      213: -4375761508223943135
+    second: sprHellhound_79
+  - first:
+      213: -8114154222569169912
+    second: sprHellhound_80
+  - first:
+      213: 7271416740838891786
+    second: sprHellhound_81
+  - first:
+      213: -6321788973161705055
+    second: sprHellhound_82
+  - first:
+      213: -7476817466292224819
+    second: sprHellhound_83
+  - first:
+      213: 3537577610160318244
+    second: sprHellhound_84
+  - first:
+      213: 5625139450303200380
+    second: sprHellhound_85
+  - first:
+      213: 8856923331525389968
+    second: sprHellhound_86
+  - first:
+      213: 3497943283827474875
+    second: sprHellhound_87
+  - first:
+      213: -8356209180730712990
+    second: sprHellhound_88
+  - first:
+      213: -9190752409330230092
+    second: sprHellhound_89
+  - first:
+      213: -8552639959146323720
+    second: sprHellhound_90
+  - first:
+      213: 7306204114422610693
+    second: sprHellhound_91
+  - first:
+      213: 2239967075450912589
+    second: sprHellhound_92
+  - first:
+      213: 6619496741910622066
+    second: sprHellhound_93
+  - first:
+      213: 5500558989849575322
+    second: sprHellhound_94
+  - first:
+      213: -997021788217507681
+    second: sprHellhound_95
+  - first:
+      213: 4469923893171383468
+    second: sprHellhound_96
+  - first:
+      213: -4612981428246093079
+    second: sprHellhound_97
+  - first:
+      213: -4040940631594412597
+    second: sprHellhound_98
+  - first:
+      213: 4367431708079644849
+    second: sprHellhound_99
+  - first:
+      213: 9165334348243197903
+    second: sprHellhound_100
+  - first:
+      213: -7782184408307931459
+    second: sprHellhound_101
+  - first:
+      213: 4475168916907765581
+    second: sprHellhound_102
+  - first:
+      213: -6307792758984274465
+    second: sprHellhound_103
+  - first:
+      213: 6363191588760599426
+    second: sprHellhound_104
+  - first:
+      213: -773156334066061226
+    second: sprHellhound_105
+  - first:
+      213: -4810105709953819987
+    second: sprHellhound_106
+  - first:
+      213: -2517513684364883057
+    second: sprHellhound_107
+  - first:
+      213: 1748032170069135291
+    second: sprHellhound_108
+  - first:
+      213: 2008511505892271673
+    second: sprHellhound_109
+  - first:
+      213: 5326108023343707254
+    second: sprHellhound_110
+  - first:
+      213: -922722653938581202
+    second: sprHellhound_111
+  - first:
+      213: 1243229048264431285
+    second: sprHellhound_112
+  - first:
+      213: 2050676882332826288
+    second: sprHellhound_113
+  - first:
+      213: 3068865277520048739
+    second: sprHellhound_114
+  - first:
+      213: 2567928680784957361
+    second: sprHellhound_115
+  - first:
+      213: 2621437597242948153
+    second: sprHellhound_116
+  - first:
+      213: -2448432125019415607
+    second: sprHellhound_117
+  - first:
+      213: 6316485897681718765
+    second: sprHellhound_118
+  - first:
+      213: -7911938603034561128
+    second: sprHellhound_119
+  - first:
+      213: -820036076919901610
+    second: sprHellhound_120
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 0
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 8192
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 0
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Android
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: sprHellhound_r0_c0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 170
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9360c4c2a6aca684893508622944239b
+      internalID: 1950308109
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r0_c1
+      rect:
+        serializedVersion: 2
+        x: 200
+        y: 170
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c1242413ed9ea964087c8ef996e9bda1
+      internalID: 183132011
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r0_c2
+      rect:
+        serializedVersion: 2
+        x: 400
+        y: 170
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 0d5afb0ef88dd2848b7d49a840f79d05
+      internalID: -1665327573
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r0_c3
+      rect:
+        serializedVersion: 2
+        x: 600
+        y: 170
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: cc0da616b58c28345859bf45dc06b366
+      internalID: 16818187
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r0_c4
+      rect:
+        serializedVersion: 2
+        x: 800
+        y: 170
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9e211ddc39f1af74abbdf255515de3ea
+      internalID: 96407089
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r0_c5
+      rect:
+        serializedVersion: 2
+        x: 1000
+        y: 170
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a8380c95eadf48c49966bb2c69b66a61
+      internalID: 784129783
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r0_c6
+      rect:
+        serializedVersion: 2
+        x: 1200
+        y: 170
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b7c530b9b30465f4f8d7de6199c32d41
+      internalID: 1938976486
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r0_c7
+      rect:
+        serializedVersion: 2
+        x: 1400
+        y: 170
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 566142af69b2eb040989a7a86e34725e
+      internalID: 1509471865
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r0_c8
+      rect:
+        serializedVersion: 2
+        x: 1600
+        y: 170
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: cad3f9c5e9f9d2043b2ad097f85f97b7
+      internalID: -745639302
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r0_c9
+      rect:
+        serializedVersion: 2
+        x: 1800
+        y: 170
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 670cf2c493e868641ad591cfdc6f0fa3
+      internalID: 891732031
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r1_c0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7106cb4ec87ad504689a6c2ef0bcc914
+      internalID: -1712773546
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r1_c1
+      rect:
+        serializedVersion: 2
+        x: 200
+        y: 0
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c61f838da94f3d548bb8edf512390528
+      internalID: 1642874431
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r1_c2
+      rect:
+        serializedVersion: 2
+        x: 400
+        y: 0
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 0168b1369e5ed7c41b50e2e8c8d654f4
+      internalID: 928028488
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r1_c3
+      rect:
+        serializedVersion: 2
+        x: 600
+        y: 0
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f8f716f03cf85b74b93d7d0ba5a662cb
+      internalID: -1224074747
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r1_c4
+      rect:
+        serializedVersion: 2
+        x: 800
+        y: 0
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 87f2cf183b1442a419840efd292090f4
+      internalID: -1118765772
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r1_c5
+      rect:
+        serializedVersion: 2
+        x: 1000
+        y: 0
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ab2abb0100caac44e9e3128ec6c302b2
+      internalID: 965439016
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r1_c6
+      rect:
+        serializedVersion: 2
+        x: 1200
+        y: 0
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: cfacedcc163d8ac4a8e62a0d4962a8ec
+      internalID: -1181398541
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r1_c7
+      rect:
+        serializedVersion: 2
+        x: 1400
+        y: 0
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 45eacf94dabab1e4bb9abc3960c76619
+      internalID: -1537164784
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r1_c8
+      rect:
+        serializedVersion: 2
+        x: 1600
+        y: 0
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 02501de17a7ea504888dc7679ddf43b3
+      internalID: 539925102
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r1_c9
+      rect:
+        serializedVersion: 2
+        x: 1800
+        y: 0
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: fb885e9418c6ccf4c94a61c8bc1579bd
+      internalID: 674729301
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 8672f516be0926c41bc316b98c1e2454
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      sprHellhound_0: 3554125302857725891
+      sprHellhound_1: -7198218775374767499
+      sprHellhound_10: 5189982542267109963
+      sprHellhound_100: 9165334348243197903
+      sprHellhound_101: -7782184408307931459
+      sprHellhound_102: 4475168916907765581
+      sprHellhound_103: -6307792758984274465
+      sprHellhound_104: 6363191588760599426
+      sprHellhound_105: -773156334066061226
+      sprHellhound_106: -4810105709953819987
+      sprHellhound_107: -2517513684364883057
+      sprHellhound_108: 1748032170069135291
+      sprHellhound_109: 2008511505892271673
+      sprHellhound_11: -7234767836360691837
+      sprHellhound_110: 5326108023343707254
+      sprHellhound_111: -922722653938581202
+      sprHellhound_112: 1243229048264431285
+      sprHellhound_113: 2050676882332826288
+      sprHellhound_114: 3068865277520048739
+      sprHellhound_115: 2567928680784957361
+      sprHellhound_116: 2621437597242948153
+      sprHellhound_117: -2448432125019415607
+      sprHellhound_118: 6316485897681718765
+      sprHellhound_119: -7911938603034561128
+      sprHellhound_12: -2817510989411969830
+      sprHellhound_120: -820036076919901610
+      sprHellhound_13: 3826123473234251689
+      sprHellhound_14: -7496469465166571024
+      sprHellhound_15: 4037339908921670955
+      sprHellhound_16: 8900247960556226380
+      sprHellhound_17: -2206485951847080522
+      sprHellhound_18: 920395814917111988
+      sprHellhound_19: 4674140602584866358
+      sprHellhound_2: 5528587540781795521
+      sprHellhound_20: 1060529728757272918
+      sprHellhound_21: 7067259636243077784
+      sprHellhound_22: -37664814073486305
+      sprHellhound_23: -4633908255974237299
+      sprHellhound_24: 558100437330249824
+      sprHellhound_25: 4477719995933814345
+      sprHellhound_26: -7580034846284198358
+      sprHellhound_27: -2859000710412673461
+      sprHellhound_28: 5555836208566114807
+      sprHellhound_29: 1271046264998706242
+      sprHellhound_3: -5264045509055233341
+      sprHellhound_30: -7691466616332083529
+      sprHellhound_31: -1189864897339619852
+      sprHellhound_32: 5977455617388809899
+      sprHellhound_33: -6452366126804200404
+      sprHellhound_34: -4120351841662528373
+      sprHellhound_35: -5604363137551299741
+      sprHellhound_36: -567959116625715716
+      sprHellhound_37: -4331328852388267181
+      sprHellhound_38: 6180361890041833740
+      sprHellhound_39: -6018329101226679771
+      sprHellhound_4: 3153297652828564441
+      sprHellhound_40: -7262997344372617207
+      sprHellhound_41: 4023228167866100259
+      sprHellhound_42: -6681027902818383551
+      sprHellhound_43: -1828954110578024861
+      sprHellhound_44: 675972123760586398
+      sprHellhound_45: -2083994632038582917
+      sprHellhound_46: -2388458838644916019
+      sprHellhound_47: 9149431595393378899
+      sprHellhound_48: 3859628089395100425
+      sprHellhound_49: 4619563724728460227
+      sprHellhound_5: -6507167492270002136
+      sprHellhound_50: -1264894485096047220
+      sprHellhound_51: 1022525205644126557
+      sprHellhound_52: -1535195242220006444
+      sprHellhound_53: 4538942737608105264
+      sprHellhound_54: -4508460721172647967
+      sprHellhound_55: 3567191041007031431
+      sprHellhound_56: -169027176990952148
+      sprHellhound_57: 4087148235839549773
+      sprHellhound_58: 4373695300053612347
+      sprHellhound_59: 1108383001690883853
+      sprHellhound_6: 5719370800634106950
+      sprHellhound_60: 8991761657667213589
+      sprHellhound_61: -3712515056287782626
+      sprHellhound_62: 1498685316666023004
+      sprHellhound_63: -1838700166183206736
+      sprHellhound_64: 5317101317977314501
+      sprHellhound_65: 2953524283809375204
+      sprHellhound_66: -1630355105406476457
+      sprHellhound_67: 2766819755008906970
+      sprHellhound_68: -1380482401926061484
+      sprHellhound_69: 7154379076490450285
+      sprHellhound_7: 8078197120002732796
+      sprHellhound_70: -1655999125731686256
+      sprHellhound_71: -8760150378466794087
+      sprHellhound_72: -5321280693521578597
+      sprHellhound_73: -4890921878266308273
+      sprHellhound_74: -667621931321668529
+      sprHellhound_75: -5619358975883381574
+      sprHellhound_76: 8162974627560988947
+      sprHellhound_77: 1790041073883839299
+      sprHellhound_78: 3436308106411874625
+      sprHellhound_79: -4375761508223943135
+      sprHellhound_8: 6367321224175034727
+      sprHellhound_80: -8114154222569169912
+      sprHellhound_81: 7271416740838891786
+      sprHellhound_82: -6321788973161705055
+      sprHellhound_83: -7476817466292224819
+      sprHellhound_84: 3537577610160318244
+      sprHellhound_85: 5625139450303200380
+      sprHellhound_86: 8856923331525389968
+      sprHellhound_87: 3497943283827474875
+      sprHellhound_88: -8356209180730712990
+      sprHellhound_89: -9190752409330230092
+      sprHellhound_9: -4683524608196624688
+      sprHellhound_90: -8552639959146323720
+      sprHellhound_91: 7306204114422610693
+      sprHellhound_92: 2239967075450912589
+      sprHellhound_93: 6619496741910622066
+      sprHellhound_94: 5500558989849575322
+      sprHellhound_95: -997021788217507681
+      sprHellhound_96: 4469923893171383468
+      sprHellhound_97: -4612981428246093079
+      sprHellhound_98: -4040940631594412597
+      sprHellhound_99: 4367431708079644849
+      sprHellhound_r0_c0: 1950308109
+      sprHellhound_r0_c1: 183132011
+      sprHellhound_r0_c2: -1665327573
+      sprHellhound_r0_c3: 16818187
+      sprHellhound_r0_c4: 96407089
+      sprHellhound_r0_c5: 784129783
+      sprHellhound_r0_c6: 1938976486
+      sprHellhound_r0_c7: 1509471865
+      sprHellhound_r0_c8: -745639302
+      sprHellhound_r0_c9: 891732031
+      sprHellhound_r1_c0: -1712773546
+      sprHellhound_r1_c1: 1642874431
+      sprHellhound_r1_c2: 928028488
+      sprHellhound_r1_c3: -1224074747
+      sprHellhound_r1_c4: -1118765772
+      sprHellhound_r1_c5: 965439016
+      sprHellhound_r1_c6: -1181398541
+      sprHellhound_r1_c7: -1537164784
+      sprHellhound_r1_c8: 539925102
+      sprHellhound_r1_c9: 674729301
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

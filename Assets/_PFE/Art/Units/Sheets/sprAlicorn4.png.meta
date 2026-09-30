@@ -1,0 +1,622 @@
+fileFormatVersion: 2
+guid: bf97a71127682554d94eecb1a5bda39f
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: -1093029721132268511
+    second: sprAlicorn4_0
+  - first:
+      213: -9147367856947272583
+    second: sprAlicorn4_1
+  - first:
+      213: -970451895936094198
+    second: sprAlicorn4_2
+  - first:
+      213: 607023008127637027
+    second: sprAlicorn4_3
+  - first:
+      213: 1746579830895027322
+    second: sprAlicorn4_4
+  - first:
+      213: -229739723228183566
+    second: sprAlicorn4_5
+  - first:
+      213: -8137397999526333803
+    second: sprAlicorn4_6
+  - first:
+      213: -2011220213213065345
+    second: sprAlicorn4_7
+  - first:
+      213: 9117229321340782
+    second: sprAlicorn4_8
+  - first:
+      213: -3074412051861049015
+    second: sprAlicorn4_9
+  - first:
+      213: 6509087276425203082
+    second: sprAlicorn4_10
+  - first:
+      213: 7852064505743101499
+    second: sprAlicorn4_11
+  - first:
+      213: -4660998236158405014
+    second: sprAlicorn4_12
+  - first:
+      213: 5723871595102376573
+    second: sprAlicorn4_13
+  - first:
+      213: -6036300581374603164
+    second: sprAlicorn4_14
+  - first:
+      213: -426249084907568075
+    second: sprAlicorn4_15
+  - first:
+      213: -1425163724473523487
+    second: sprAlicorn4_16
+  - first:
+      213: -7592387753269847894
+    second: sprAlicorn4_17
+  - first:
+      213: 8518231860241210547
+    second: sprAlicorn4_18
+  - first:
+      213: 2444315515383684930
+    second: sprAlicorn4_19
+  - first:
+      213: 9012112000219366886
+    second: sprAlicorn4_20
+  - first:
+      213: 6985932921036087645
+    second: sprAlicorn4_21
+  - first:
+      213: -7276720546986391349
+    second: sprAlicorn4_22
+  - first:
+      213: -5994079003857364244
+    second: sprAlicorn4_23
+  - first:
+      213: -1982611238614984622
+    second: sprAlicorn4_24
+  - first:
+      213: 3653171731146369832
+    second: sprAlicorn4_25
+  - first:
+      213: -2604052403619325317
+    second: sprAlicorn4_26
+  - first:
+      213: -8553850883314219128
+    second: sprAlicorn4_27
+  - first:
+      213: 2546376838218481269
+    second: sprAlicorn4_28
+  - first:
+      213: 7081681720702006548
+    second: sprAlicorn4_29
+  - first:
+      213: -6562565165971500868
+    second: sprAlicorn4_30
+  - first:
+      213: 9154643361013218936
+    second: sprAlicorn4_31
+  - first:
+      213: -541554351563246246
+    second: sprAlicorn4_32
+  - first:
+      213: 6747481667782870095
+    second: sprAlicorn4_33
+  - first:
+      213: -1348519239471047301
+    second: sprAlicorn4_34
+  - first:
+      213: 3459240013098446425
+    second: sprAlicorn4_35
+  - first:
+      213: 8188199269989925694
+    second: sprAlicorn4_36
+  - first:
+      213: -2675773093838724241
+    second: sprAlicorn4_37
+  - first:
+      213: 1584412391498369750
+    second: sprAlicorn4_38
+  - first:
+      213: 6148878259768846573
+    second: sprAlicorn4_39
+  - first:
+      213: -2821700987768138026
+    second: sprAlicorn4_40
+  - first:
+      213: 6015993090917218172
+    second: sprAlicorn4_41
+  - first:
+      213: 5172179674747021483
+    second: sprAlicorn4_42
+  - first:
+      213: 3040460591267482372
+    second: sprAlicorn4_43
+  - first:
+      213: 7705733280960853095
+    second: sprAlicorn4_44
+  - first:
+      213: -4997928340641852430
+    second: sprAlicorn4_45
+  - first:
+      213: 5009981557328907998
+    second: sprAlicorn4_46
+  - first:
+      213: 990278443069515554
+    second: sprAlicorn4_47
+  - first:
+      213: 690897241496559678
+    second: sprAlicorn4_48
+  - first:
+      213: -2489970416929020048
+    second: sprAlicorn4_49
+  - first:
+      213: 7855308518901227450
+    second: sprAlicorn4_50
+  - first:
+      213: 6438138657795212966
+    second: sprAlicorn4_51
+  - first:
+      213: 6337692269449252462
+    second: sprAlicorn4_52
+  - first:
+      213: 3601506198843700053
+    second: sprAlicorn4_53
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 0
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 8192
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 0
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Android
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: sprAlicorn4_r0_c0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.61764705, y: 0.11764706}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b627d7ddcf6e6644382abdebf1b5d80a
+      internalID: 81244539
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprAlicorn4_r0_c1
+      rect:
+        serializedVersion: 2
+        x: 170
+        y: 0
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.61764705, y: 0.11764706}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 686f9b7f424baad4ab173ccb157d77b0
+      internalID: 784251177
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprAlicorn4_r0_c2
+      rect:
+        serializedVersion: 2
+        x: 340
+        y: 0
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.61764705, y: 0.11764706}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 0f79c2bdf4c62cc4892aab73ff117fe8
+      internalID: 1577982736
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprAlicorn4_r0_c3
+      rect:
+        serializedVersion: 2
+        x: 510
+        y: 0
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.61764705, y: 0.11764706}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 8a8f0cbb9a00038409a7985ecaf2c934
+      internalID: -963122763
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprAlicorn4_r0_c4
+      rect:
+        serializedVersion: 2
+        x: 680
+        y: 0
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.61764705, y: 0.11764706}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e2135faea686ecf47a839faec2114225
+      internalID: 961586947
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprAlicorn4_r0_c5
+      rect:
+        serializedVersion: 2
+        x: 850
+        y: 0
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.61764705, y: 0.11764706}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 058acb7a34fe541478ec46748efb7201
+      internalID: 2102446232
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprAlicorn4_r0_c6
+      rect:
+        serializedVersion: 2
+        x: 1020
+        y: 0
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.61764705, y: 0.11764706}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: eab63b2823a34ad488c44b4eee067584
+      internalID: 1296568962
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprAlicorn4_r0_c7
+      rect:
+        serializedVersion: 2
+        x: 1190
+        y: 0
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.61764705, y: 0.11764706}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 39dfb1f14ad8f3b46b5cacad4e380df1
+      internalID: 275864169
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprAlicorn4_r0_c8
+      rect:
+        serializedVersion: 2
+        x: 1360
+        y: 0
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.61764705, y: 0.11764706}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 15c614d9c11abb24b84d9e472d3b27ad
+      internalID: 2029379612
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprAlicorn4_r0_c9
+      rect:
+        serializedVersion: 2
+        x: 1530
+        y: 0
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.61764705, y: 0.11764706}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d73e295cef8adbd4ba16622d1cad1370
+      internalID: -249511599
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprAlicorn4_r0_c10
+      rect:
+        serializedVersion: 2
+        x: 1700
+        y: 0
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.61764705, y: 0.11764706}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9916130515789864385cbdd570f1c6af
+      internalID: 1692259676
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprAlicorn4_r0_c11
+      rect:
+        serializedVersion: 2
+        x: 1870
+        y: 0
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.61764705, y: 0.11764706}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ac42d7d38da0f394cb96b44534141245
+      internalID: -492139563
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: d670c9a4deaf2da408f26ebb90c48c85
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      sprAlicorn4_0: -1093029721132268511
+      sprAlicorn4_1: -9147367856947272583
+      sprAlicorn4_10: 6509087276425203082
+      sprAlicorn4_11: 7852064505743101499
+      sprAlicorn4_12: -4660998236158405014
+      sprAlicorn4_13: 5723871595102376573
+      sprAlicorn4_14: -6036300581374603164
+      sprAlicorn4_15: -426249084907568075
+      sprAlicorn4_16: -1425163724473523487
+      sprAlicorn4_17: -7592387753269847894
+      sprAlicorn4_18: 8518231860241210547
+      sprAlicorn4_19: 2444315515383684930
+      sprAlicorn4_2: -970451895936094198
+      sprAlicorn4_20: 9012112000219366886
+      sprAlicorn4_21: 6985932921036087645
+      sprAlicorn4_22: -7276720546986391349
+      sprAlicorn4_23: -5994079003857364244
+      sprAlicorn4_24: -1982611238614984622
+      sprAlicorn4_25: 3653171731146369832
+      sprAlicorn4_26: -2604052403619325317
+      sprAlicorn4_27: -8553850883314219128
+      sprAlicorn4_28: 2546376838218481269
+      sprAlicorn4_29: 7081681720702006548
+      sprAlicorn4_3: 607023008127637027
+      sprAlicorn4_30: -6562565165971500868
+      sprAlicorn4_31: 9154643361013218936
+      sprAlicorn4_32: -541554351563246246
+      sprAlicorn4_33: 6747481667782870095
+      sprAlicorn4_34: -1348519239471047301
+      sprAlicorn4_35: 3459240013098446425
+      sprAlicorn4_36: 8188199269989925694
+      sprAlicorn4_37: -2675773093838724241
+      sprAlicorn4_38: 1584412391498369750
+      sprAlicorn4_39: 6148878259768846573
+      sprAlicorn4_4: 1746579830895027322
+      sprAlicorn4_40: -2821700987768138026
+      sprAlicorn4_41: 6015993090917218172
+      sprAlicorn4_42: 5172179674747021483
+      sprAlicorn4_43: 3040460591267482372
+      sprAlicorn4_44: 7705733280960853095
+      sprAlicorn4_45: -4997928340641852430
+      sprAlicorn4_46: 5009981557328907998
+      sprAlicorn4_47: 990278443069515554
+      sprAlicorn4_48: 690897241496559678
+      sprAlicorn4_49: -2489970416929020048
+      sprAlicorn4_5: -229739723228183566
+      sprAlicorn4_50: 7855308518901227450
+      sprAlicorn4_51: 6438138657795212966
+      sprAlicorn4_52: 6337692269449252462
+      sprAlicorn4_53: 3601506198843700053
+      sprAlicorn4_6: -8137397999526333803
+      sprAlicorn4_7: -2011220213213065345
+      sprAlicorn4_8: 9117229321340782
+      sprAlicorn4_9: -3074412051861049015
+      sprAlicorn4_r0_c0: 81244539
+      sprAlicorn4_r0_c1: 784251177
+      sprAlicorn4_r0_c10: 1692259676
+      sprAlicorn4_r0_c11: -492139563
+      sprAlicorn4_r0_c2: 1577982736
+      sprAlicorn4_r0_c3: -963122763
+      sprAlicorn4_r0_c4: 961586947
+      sprAlicorn4_r0_c5: 2102446232
+      sprAlicorn4_r0_c6: 1296568962
+      sprAlicorn4_r0_c7: 275864169
+      sprAlicorn4_r0_c8: 2029379612
+      sprAlicorn4_r0_c9: -249511599
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

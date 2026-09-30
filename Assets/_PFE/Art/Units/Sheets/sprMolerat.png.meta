@@ -1,0 +1,1586 @@
+fileFormatVersion: 2
+guid: 467e4369c6be03240a5df3a4bb7da058
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: 4777325071300088345
+    second: sprMolerat_0
+  - first:
+      213: -7374636131254046146
+    second: sprMolerat_1
+  - first:
+      213: -8238888369333542790
+    second: sprMolerat_2
+  - first:
+      213: -176581548323213498
+    second: sprMolerat_3
+  - first:
+      213: 3549880098945260558
+    second: sprMolerat_4
+  - first:
+      213: 223796029591140326
+    second: sprMolerat_5
+  - first:
+      213: -2771527378685181923
+    second: sprMolerat_6
+  - first:
+      213: 1609751287557529879
+    second: sprMolerat_7
+  - first:
+      213: -4325333043278048217
+    second: sprMolerat_8
+  - first:
+      213: -1943723158664326029
+    second: sprMolerat_9
+  - first:
+      213: 150356184254910194
+    second: sprMolerat_10
+  - first:
+      213: 3843284752348050902
+    second: sprMolerat_11
+  - first:
+      213: -2021354361825188567
+    second: sprMolerat_12
+  - first:
+      213: 6611710815312860294
+    second: sprMolerat_13
+  - first:
+      213: -2303586188657234415
+    second: sprMolerat_14
+  - first:
+      213: -6910478269577222631
+    second: sprMolerat_15
+  - first:
+      213: -1294416412092042532
+    second: sprMolerat_16
+  - first:
+      213: -7371271504691217025
+    second: sprMolerat_17
+  - first:
+      213: 790298314850191205
+    second: sprMolerat_18
+  - first:
+      213: -4644479565198744005
+    second: sprMolerat_19
+  - first:
+      213: 8274285194445588471
+    second: sprMolerat_20
+  - first:
+      213: -6872649404415941397
+    second: sprMolerat_21
+  - first:
+      213: -5362246748072743511
+    second: sprMolerat_22
+  - first:
+      213: -1378805345554521079
+    second: sprMolerat_23
+  - first:
+      213: -7718639645063187620
+    second: sprMolerat_24
+  - first:
+      213: -3420352988684752092
+    second: sprMolerat_25
+  - first:
+      213: 1097533357997818075
+    second: sprMolerat_26
+  - first:
+      213: 1522745741887398896
+    second: sprMolerat_27
+  - first:
+      213: -8462222562303009154
+    second: sprMolerat_28
+  - first:
+      213: 8895747441602552268
+    second: sprMolerat_29
+  - first:
+      213: -7600736715568345652
+    second: sprMolerat_30
+  - first:
+      213: -4478930215154416635
+    second: sprMolerat_31
+  - first:
+      213: -5095407916533678000
+    second: sprMolerat_32
+  - first:
+      213: 6649853638648015645
+    second: sprMolerat_33
+  - first:
+      213: 298647201531575215
+    second: sprMolerat_34
+  - first:
+      213: 4824996969773896787
+    second: sprMolerat_35
+  - first:
+      213: 2722078222515593988
+    second: sprMolerat_36
+  - first:
+      213: 5099846366981255723
+    second: sprMolerat_37
+  - first:
+      213: -2240236577968623400
+    second: sprMolerat_38
+  - first:
+      213: -719255029413466091
+    second: sprMolerat_39
+  - first:
+      213: -6809516314011903967
+    second: sprMolerat_40
+  - first:
+      213: -697784525716368905
+    second: sprMolerat_41
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 0
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 8192
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 0
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Android
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: sprMolerat_r0_c0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 174
+        width: 85
+        height: 58
+      alignment: 9
+      pivot: {x: 0.5411765, y: 0.15517241}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 5f89979fc7e631141b284c83e12030a1
+      internalID: 108003366
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprMolerat_r0_c1
+      rect:
+        serializedVersion: 2
+        x: 85
+        y: 174
+        width: 85
+        height: 58
+      alignment: 9
+      pivot: {x: 0.5411765, y: 0.15517241}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 038cdb092eb86a34588f30c24e0e46ae
+      internalID: -900790969
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprMolerat_r0_c2
+      rect:
+        serializedVersion: 2
+        x: 170
+        y: 174
+        width: 85
+        height: 58
+      alignment: 9
+      pivot: {x: 0.5411765, y: 0.15517241}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 76eb30bf8a9e84c409dec80e921a3099
+      internalID: -476730606
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprMolerat_r0_c3
+      rect:
+        serializedVersion: 2
+        x: 255
+        y: 174
+        width: 85
+        height: 58
+      alignment: 9
+      pivot: {x: 0.5411765, y: 0.15517241}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b8f0bd65c643f9c43afd7c3fcd77bc77
+      internalID: -1996118904
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprMolerat_r0_c4
+      rect:
+        serializedVersion: 2
+        x: 340
+        y: 174
+        width: 85
+        height: 58
+      alignment: 9
+      pivot: {x: 0.5411765, y: 0.15517241}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 5c3dd78cbba34e440898b333c0a3cb63
+      internalID: -13432634
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprMolerat_r0_c5
+      rect:
+        serializedVersion: 2
+        x: 425
+        y: 174
+        width: 85
+        height: 58
+      alignment: 9
+      pivot: {x: 0.5411765, y: 0.15517241}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 14ace01afe7e7974883a9bcaf8662bda
+      internalID: -1487019771
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprMolerat_r0_c6
+      rect:
+        serializedVersion: 2
+        x: 510
+        y: 174
+        width: 85
+        height: 58
+      alignment: 9
+      pivot: {x: 0.5411765, y: 0.15517241}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b176b7cce0b9f384182df3b2f2aba80e
+      internalID: 1435150531
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprMolerat_r0_c7
+      rect:
+        serializedVersion: 2
+        x: 595
+        y: 174
+        width: 85
+        height: 58
+      alignment: 9
+      pivot: {x: 0.5411765, y: 0.15517241}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 0caf430dd6f31dd4b80f35f6727d6652
+      internalID: -1691882499
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprMolerat_r0_c8
+      rect:
+        serializedVersion: 2
+        x: 680
+        y: 174
+        width: 85
+        height: 58
+      alignment: 9
+      pivot: {x: 0.5411765, y: 0.15517241}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 27d346127720f0345b528fd14d4a3625
+      internalID: -796916888
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprMolerat_r0_c9
+      rect:
+        serializedVersion: 2
+        x: 765
+        y: 174
+        width: 85
+        height: 58
+      alignment: 9
+      pivot: {x: 0.5411765, y: 0.15517241}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 4a559526cad6228459e1195bf51b3385
+      internalID: 4446582
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprMolerat_r0_c10
+      rect:
+        serializedVersion: 2
+        x: 850
+        y: 174
+        width: 85
+        height: 58
+      alignment: 9
+      pivot: {x: 0.5411765, y: 0.15517241}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f0507090ca0e80b49a5ebebaa4274bec
+      internalID: -677904184
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprMolerat_r0_c11
+      rect:
+        serializedVersion: 2
+        x: 935
+        y: 174
+        width: 85
+        height: 58
+      alignment: 9
+      pivot: {x: 0.5411765, y: 0.15517241}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 027f6e07f0e787f41a8d21919164ba8a
+      internalID: 983494595
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprMolerat_r0_c12
+      rect:
+        serializedVersion: 2
+        x: 1020
+        y: 174
+        width: 85
+        height: 58
+      alignment: 9
+      pivot: {x: 0.5411765, y: 0.15517241}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a4ee8401fe64ef241925e66878b93454
+      internalID: 1294878463
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprMolerat_r0_c13
+      rect:
+        serializedVersion: 2
+        x: 1105
+        y: 174
+        width: 85
+        height: 58
+      alignment: 9
+      pivot: {x: 0.5411765, y: 0.15517241}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 73bdd8702e3e3574c8daeef4509a85a2
+      internalID: -530976704
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprMolerat_r1_c0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 116
+        width: 85
+        height: 58
+      alignment: 9
+      pivot: {x: 0.5411765, y: 0.15517241}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 2f862e8bd58957e488681b69a18322f9
+      internalID: 560420445
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprMolerat_r1_c1
+      rect:
+        serializedVersion: 2
+        x: 85
+        y: 116
+        width: 85
+        height: 58
+      alignment: 9
+      pivot: {x: 0.5411765, y: 0.15517241}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 5d3014e8ff03c404e9bb7a6eccd5770d
+      internalID: 773390692
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprMolerat_r1_c2
+      rect:
+        serializedVersion: 2
+        x: 170
+        y: 116
+        width: 85
+        height: 58
+      alignment: 9
+      pivot: {x: 0.5411765, y: 0.15517241}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 939df39f189ed184289c34971c39b131
+      internalID: 260107743
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprMolerat_r1_c3
+      rect:
+        serializedVersion: 2
+        x: 255
+        y: 116
+        width: 85
+        height: 58
+      alignment: 9
+      pivot: {x: 0.5411765, y: 0.15517241}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 80cd17c14f96ac147a3447e2e9dbe7d8
+      internalID: -525934383
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprMolerat_r1_c4
+      rect:
+        serializedVersion: 2
+        x: 340
+        y: 116
+        width: 85
+        height: 58
+      alignment: 9
+      pivot: {x: 0.5411765, y: 0.15517241}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 037112603097bec4899764d0a7d313af
+      internalID: -1106103943
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprMolerat_r1_c5
+      rect:
+        serializedVersion: 2
+        x: 425
+        y: 116
+        width: 85
+        height: 58
+      alignment: 9
+      pivot: {x: 0.5411765, y: 0.15517241}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 1c21c535ef80d9940a6706c862674f9f
+      internalID: 2135956333
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprMolerat_r1_c6
+      rect:
+        serializedVersion: 2
+        x: 510
+        y: 116
+        width: 85
+        height: 58
+      alignment: 9
+      pivot: {x: 0.5411765, y: 0.15517241}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 34b8c85b2a12c174580afe94517825a5
+      internalID: -1684517471
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprMolerat_r1_c7
+      rect:
+        serializedVersion: 2
+        x: 595
+        y: 116
+        width: 85
+        height: 58
+      alignment: 9
+      pivot: {x: 0.5411765, y: 0.15517241}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 8688d3911c6ef9644901d6ba3f871dda
+      internalID: -944967906
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprMolerat_r1_c8
+      rect:
+        serializedVersion: 2
+        x: 680
+        y: 116
+        width: 85
+        height: 58
+      alignment: 9
+      pivot: {x: 0.5411765, y: 0.15517241}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 5287aa942d2c6e84bad9b2b07563b01b
+      internalID: -1222243237
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprMolerat_r1_c9
+      rect:
+        serializedVersion: 2
+        x: 765
+        y: 116
+        width: 85
+        height: 58
+      alignment: 9
+      pivot: {x: 0.5411765, y: 0.15517241}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 0165acbebcfff7c49a56e62b7fd68ba3
+      internalID: 1567070217
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprMolerat_r1_c10
+      rect:
+        serializedVersion: 2
+        x: 850
+        y: 116
+        width: 85
+        height: 58
+      alignment: 9
+      pivot: {x: 0.5411765, y: 0.15517241}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: cb8427363c81c28458f74a21af6a60d6
+      internalID: 344644020
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprMolerat_r1_c11
+      rect:
+        serializedVersion: 2
+        x: 935
+        y: 116
+        width: 85
+        height: 58
+      alignment: 9
+      pivot: {x: 0.5411765, y: 0.15517241}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 96c643bd9ddb0db4c9efb6563ff1e3c0
+      internalID: 1130194163
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprMolerat_r1_c12
+      rect:
+        serializedVersion: 2
+        x: 1020
+        y: 116
+        width: 85
+        height: 58
+      alignment: 9
+      pivot: {x: 0.5411765, y: 0.15517241}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 24f3e416854884345bf67b29f1a2d06c
+      internalID: 974105724
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprMolerat_r1_c13
+      rect:
+        serializedVersion: 2
+        x: 1105
+        y: 116
+        width: 85
+        height: 58
+      alignment: 9
+      pivot: {x: 0.5411765, y: 0.15517241}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b46d7c826e6b72445b25d0b047a23617
+      internalID: -1736897964
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprMolerat_r2_c0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 58
+        width: 85
+        height: 58
+      alignment: 9
+      pivot: {x: 0.5411765, y: 0.15517241}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f8ad45fe5de5393469efa7abf2891290
+      internalID: 1955440583
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprMolerat_r2_c1
+      rect:
+        serializedVersion: 2
+        x: 85
+        y: 58
+        width: 85
+        height: 58
+      alignment: 9
+      pivot: {x: 0.5411765, y: 0.15517241}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: bb100ac9a17b1294d8e657e1ee406036
+      internalID: -1260807086
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprMolerat_r2_c2
+      rect:
+        serializedVersion: 2
+        x: 170
+        y: 58
+        width: 85
+        height: 58
+      alignment: 9
+      pivot: {x: 0.5411765, y: 0.15517241}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: aa289d2b8ca0dd1419fda85f2ccb61ab
+      internalID: -131094507
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprMolerat_r2_c3
+      rect:
+        serializedVersion: 2
+        x: 255
+        y: 58
+        width: 85
+        height: 58
+      alignment: 9
+      pivot: {x: 0.5411765, y: 0.15517241}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b30442f1896838547935572a7d02f634
+      internalID: 484542059
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprMolerat_r2_c4
+      rect:
+        serializedVersion: 2
+        x: 340
+        y: 58
+        width: 85
+        height: 58
+      alignment: 9
+      pivot: {x: 0.5411765, y: 0.15517241}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 21223357b653b684f99781b069f97205
+      internalID: -281681668
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprMolerat_r2_c5
+      rect:
+        serializedVersion: 2
+        x: 425
+        y: 58
+        width: 85
+        height: 58
+      alignment: 9
+      pivot: {x: 0.5411765, y: 0.15517241}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 903094a3db772ef46b7a65599f49a1f1
+      internalID: -1391132801
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprMolerat_r2_c6
+      rect:
+        serializedVersion: 2
+        x: 510
+        y: 58
+        width: 85
+        height: 58
+      alignment: 9
+      pivot: {x: 0.5411765, y: 0.15517241}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d6a5d024074c9734c99e821c28655ce1
+      internalID: -617503257
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprMolerat_r2_c7
+      rect:
+        serializedVersion: 2
+        x: 595
+        y: 58
+        width: 85
+        height: 58
+      alignment: 9
+      pivot: {x: 0.5411765, y: 0.15517241}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6606792df95100e4fa490d5cdee6ac72
+      internalID: 1719220295
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprMolerat_r2_c8
+      rect:
+        serializedVersion: 2
+        x: 680
+        y: 58
+        width: 85
+        height: 58
+      alignment: 9
+      pivot: {x: 0.5411765, y: 0.15517241}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b4e09ca2cc86e3d44b074809e4febaf0
+      internalID: 706436025
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprMolerat_r2_c9
+      rect:
+        serializedVersion: 2
+        x: 765
+        y: 58
+        width: 85
+        height: 58
+      alignment: 9
+      pivot: {x: 0.5411765, y: 0.15517241}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 33b83d3c82c8c7c4d984bc3a7de0353f
+      internalID: 1520148609
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprMolerat_r2_c10
+      rect:
+        serializedVersion: 2
+        x: 850
+        y: 58
+        width: 85
+        height: 58
+      alignment: 9
+      pivot: {x: 0.5411765, y: 0.15517241}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d8acb4b961bff6d4c9265c3610bcb47f
+      internalID: -1646700702
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprMolerat_r2_c11
+      rect:
+        serializedVersion: 2
+        x: 935
+        y: 58
+        width: 85
+        height: 58
+      alignment: 9
+      pivot: {x: 0.5411765, y: 0.15517241}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 38a83d49f50764347a75f1621546140c
+      internalID: -318916510
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprMolerat_r2_c12
+      rect:
+        serializedVersion: 2
+        x: 1020
+        y: 58
+        width: 85
+        height: 58
+      alignment: 9
+      pivot: {x: 0.5411765, y: 0.15517241}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 65fc9c33989c3cf4b96e347d913dce12
+      internalID: -1432317143
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprMolerat_r2_c13
+      rect:
+        serializedVersion: 2
+        x: 1105
+        y: 58
+        width: 85
+        height: 58
+      alignment: 9
+      pivot: {x: 0.5411765, y: 0.15517241}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 687e690745782534f8599d3b8acc439b
+      internalID: -635279727
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprMolerat_r3_c0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 85
+        height: 58
+      alignment: 9
+      pivot: {x: 0.5411765, y: 0.15517241}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7c07c294b3b23c948a889315db0f8f32
+      internalID: 1135532373
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprMolerat_r3_c1
+      rect:
+        serializedVersion: 2
+        x: 85
+        y: 0
+        width: 85
+        height: 58
+      alignment: 9
+      pivot: {x: 0.5411765, y: 0.15517241}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f86576ae0d76a9144a36a4d67c228b50
+      internalID: 2071710704
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprMolerat_r3_c2
+      rect:
+        serializedVersion: 2
+        x: 170
+        y: 0
+        width: 85
+        height: 58
+      alignment: 9
+      pivot: {x: 0.5411765, y: 0.15517241}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: cad57317c9b3c424a9414dd0ff0007aa
+      internalID: -1683582451
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprMolerat_r3_c3
+      rect:
+        serializedVersion: 2
+        x: 255
+        y: 0
+        width: 85
+        height: 58
+      alignment: 9
+      pivot: {x: 0.5411765, y: 0.15517241}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 3cb17cc876a744b419916fe08590ae63
+      internalID: -857914491
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprMolerat_r3_c4
+      rect:
+        serializedVersion: 2
+        x: 340
+        y: 0
+        width: 85
+        height: 58
+      alignment: 9
+      pivot: {x: 0.5411765, y: 0.15517241}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 80696f9033b927940ac8430b80fad2a8
+      internalID: -1036789445
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprMolerat_r3_c5
+      rect:
+        serializedVersion: 2
+        x: 425
+        y: 0
+        width: 85
+        height: 58
+      alignment: 9
+      pivot: {x: 0.5411765, y: 0.15517241}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 5d3aa03cc9cbd8b4081cb5a4c565f190
+      internalID: -1855394935
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprMolerat_r3_c6
+      rect:
+        serializedVersion: 2
+        x: 510
+        y: 0
+        width: 85
+        height: 58
+      alignment: 9
+      pivot: {x: 0.5411765, y: 0.15517241}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 817900331e8155a4a859a4b7600ba703
+      internalID: -1954246587
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprMolerat_r3_c7
+      rect:
+        serializedVersion: 2
+        x: 595
+        y: 0
+        width: 85
+        height: 58
+      alignment: 9
+      pivot: {x: 0.5411765, y: 0.15517241}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 0ab6d042f0351364cae84f041fd76d71
+      internalID: -1199208078
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprMolerat_r3_c8
+      rect:
+        serializedVersion: 2
+        x: 680
+        y: 0
+        width: 85
+        height: 58
+      alignment: 9
+      pivot: {x: 0.5411765, y: 0.15517241}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d26cb16448c1fb34d8bd111361704b90
+      internalID: 23759234
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprMolerat_r3_c9
+      rect:
+        serializedVersion: 2
+        x: 765
+        y: 0
+        width: 85
+        height: 58
+      alignment: 9
+      pivot: {x: 0.5411765, y: 0.15517241}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7012ec10d32fa4d408601adaec64dd6d
+      internalID: -2101016424
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprMolerat_r3_c10
+      rect:
+        serializedVersion: 2
+        x: 850
+        y: 0
+        width: 85
+        height: 58
+      alignment: 9
+      pivot: {x: 0.5411765, y: 0.15517241}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 99847c5ac8a1aad468f55ca318fca8d1
+      internalID: -579010666
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprMolerat_r3_c11
+      rect:
+        serializedVersion: 2
+        x: 935
+        y: 0
+        width: 85
+        height: 58
+      alignment: 9
+      pivot: {x: 0.5411765, y: 0.15517241}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 35b8fcb9fc0ef754abb7250376ff2f63
+      internalID: -2118248867
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprMolerat_r3_c12
+      rect:
+        serializedVersion: 2
+        x: 1020
+        y: 0
+        width: 85
+        height: 58
+      alignment: 9
+      pivot: {x: 0.5411765, y: 0.15517241}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b8556eb4a3366e64fbebc7f516df0539
+      internalID: -1260263465
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprMolerat_r3_c13
+      rect:
+        serializedVersion: 2
+        x: 1105
+        y: 0
+        width: 85
+        height: 58
+      alignment: 9
+      pivot: {x: 0.5411765, y: 0.15517241}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: cd5480928167ed64c8642955c66e0b5a
+      internalID: -487089564
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 9900398cd0a4d524c9bec84eed320a8d
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      sprMolerat_0: 4777325071300088345
+      sprMolerat_1: -7374636131254046146
+      sprMolerat_10: 150356184254910194
+      sprMolerat_11: 3843284752348050902
+      sprMolerat_12: -2021354361825188567
+      sprMolerat_13: 6611710815312860294
+      sprMolerat_14: -2303586188657234415
+      sprMolerat_15: -6910478269577222631
+      sprMolerat_16: -1294416412092042532
+      sprMolerat_17: -7371271504691217025
+      sprMolerat_18: 790298314850191205
+      sprMolerat_19: -4644479565198744005
+      sprMolerat_2: -8238888369333542790
+      sprMolerat_20: 8274285194445588471
+      sprMolerat_21: -6872649404415941397
+      sprMolerat_22: -5362246748072743511
+      sprMolerat_23: -1378805345554521079
+      sprMolerat_24: -7718639645063187620
+      sprMolerat_25: -3420352988684752092
+      sprMolerat_26: 1097533357997818075
+      sprMolerat_27: 1522745741887398896
+      sprMolerat_28: -8462222562303009154
+      sprMolerat_29: 8895747441602552268
+      sprMolerat_3: -176581548323213498
+      sprMolerat_30: -7600736715568345652
+      sprMolerat_31: -4478930215154416635
+      sprMolerat_32: -5095407916533678000
+      sprMolerat_33: 6649853638648015645
+      sprMolerat_34: 298647201531575215
+      sprMolerat_35: 4824996969773896787
+      sprMolerat_36: 2722078222515593988
+      sprMolerat_37: 5099846366981255723
+      sprMolerat_38: -2240236577968623400
+      sprMolerat_39: -719255029413466091
+      sprMolerat_4: 3549880098945260558
+      sprMolerat_40: -6809516314011903967
+      sprMolerat_41: -697784525716368905
+      sprMolerat_5: 223796029591140326
+      sprMolerat_6: -2771527378685181923
+      sprMolerat_7: 1609751287557529879
+      sprMolerat_8: -4325333043278048217
+      sprMolerat_9: -1943723158664326029
+      sprMolerat_r0_c0: 108003366
+      sprMolerat_r0_c1: -900790969
+      sprMolerat_r0_c10: -677904184
+      sprMolerat_r0_c11: 983494595
+      sprMolerat_r0_c12: 1294878463
+      sprMolerat_r0_c13: -530976704
+      sprMolerat_r0_c2: -476730606
+      sprMolerat_r0_c3: -1996118904
+      sprMolerat_r0_c4: -13432634
+      sprMolerat_r0_c5: -1487019771
+      sprMolerat_r0_c6: 1435150531
+      sprMolerat_r0_c7: -1691882499
+      sprMolerat_r0_c8: -796916888
+      sprMolerat_r0_c9: 4446582
+      sprMolerat_r1_c0: 560420445
+      sprMolerat_r1_c1: 773390692
+      sprMolerat_r1_c10: 344644020
+      sprMolerat_r1_c11: 1130194163
+      sprMolerat_r1_c12: 974105724
+      sprMolerat_r1_c13: -1736897964
+      sprMolerat_r1_c2: 260107743
+      sprMolerat_r1_c3: -525934383
+      sprMolerat_r1_c4: -1106103943
+      sprMolerat_r1_c5: 2135956333
+      sprMolerat_r1_c6: -1684517471
+      sprMolerat_r1_c7: -944967906
+      sprMolerat_r1_c8: -1222243237
+      sprMolerat_r1_c9: 1567070217
+      sprMolerat_r2_c0: 1955440583
+      sprMolerat_r2_c1: -1260807086
+      sprMolerat_r2_c10: -1646700702
+      sprMolerat_r2_c11: -318916510
+      sprMolerat_r2_c12: -1432317143
+      sprMolerat_r2_c13: -635279727
+      sprMolerat_r2_c2: -131094507
+      sprMolerat_r2_c3: 484542059
+      sprMolerat_r2_c4: -281681668
+      sprMolerat_r2_c5: -1391132801
+      sprMolerat_r2_c6: -617503257
+      sprMolerat_r2_c7: 1719220295
+      sprMolerat_r2_c8: 706436025
+      sprMolerat_r2_c9: 1520148609
+      sprMolerat_r3_c0: 1135532373
+      sprMolerat_r3_c1: 2071710704
+      sprMolerat_r3_c10: -579010666
+      sprMolerat_r3_c11: -2118248867
+      sprMolerat_r3_c12: -1260263465
+      sprMolerat_r3_c13: -487089564
+      sprMolerat_r3_c2: -1683582451
+      sprMolerat_r3_c3: -857914491
+      sprMolerat_r3_c4: -1036789445
+      sprMolerat_r3_c5: -1855394935
+      sprMolerat_r3_c6: -1954246587
+      sprMolerat_r3_c7: -1199208078
+      sprMolerat_r3_c8: 23759234
+      sprMolerat_r3_c9: -2101016424
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

@@ -300,14 +300,87 @@ namespace PFE.Data.Definitions
         [Tooltip("Sprite")]
         public Sprite sprite;
 
-        [Tooltip("Sprite sheet array")]
+        /// <summary>
+        /// The AS3 sheet id from <c>&lt;vis blit='sprRaider5' …/&gt;</c> — the name of the sprite sheet
+        /// this unit is drawn from, e.g. <c>sprRaider5</c>, <c>sprAnt1</c>, <c>sprZombie3</c>.
+        ///
+        /// <para>Kept as a string because it is the <b>join key</b> to the imported sheet assets, and
+        /// because the units that are drawn as a DisplayObject rather than a sheet (<c>slime</c>,
+        /// <c>turret</c>, <c>training</c>) have none — an empty value here is meaningful, not an error.
+        /// A sheet unit whose family declared the blits gets its sheet from the variant node, so this is
+        /// the variant's value: <c>raider5</c> is <c>sprRaider5</c> while the family <c>raider</c> has
+        /// none at all.</para>
+        /// </summary>
+        [Tooltip("AS3 sprite sheet id (vis@blit), e.g. sprRaider5 — empty for DisplayObject units")]
+        public string spriteSheetId;
+
+        /// <summary>
+        /// The AS3 <c>vclass</c> DisplayObject name from <c>&lt;vis vclass='visualSlime'/&gt;</c>, for the
+        /// 24 room-placed units that have no sprite sheet. Empty for sheet units. Note that AS3 gives
+        /// <c>blit</c> precedence over <c>vclass</c> when a node somehow carries both
+        /// (<c>Unit.as:886-890</c>).
+        /// </summary>
+        [Tooltip("AS3 DisplayObject class name (vis@vclass), e.g. visualSlime — empty for sheet units")]
+        public string visualClassName;
+
+        /// <summary>
+        /// The sliced sheet, <b>row-major over the whole grid</b>: index = <c>row * spriteSheetColumns + column</c>.
+        ///
+        /// <para>Row-major over the <i>whole</i> sheet rather than a per-state list on purpose. AS3 keeps
+        /// the state's row (<c>BlitAnim.id</c>, from <c>@y</c>) and its frame (<c>BlitAnim.f</c>) as two
+        /// independent numbers and indexes the sheet with both — <c>Unit.as:2866</c>,
+        /// <c>blitRect.x = col * blitX; blitRect.y = row * blitY;</c> — so a flat grid array is the shape
+        /// the runtime actually needs. Two states can share a row (<c>raider</c>'s <c>death</c> and
+        /// <c>fall</c> are both <c>y='5'</c>), which a per-state list could not express without
+        /// duplicating sprites.</para>
+        /// </summary>
+        [Tooltip("Sliced sheet, row-major: index = row * spriteSheetColumns + column")]
         public Sprite[] spriteSheet;
 
-        [Tooltip("Sprite dimensions (width, height)")]
+        /// <summary>
+        /// Cell size in pixels, from <c>&lt;vis sprX= sprY=/&gt;</c>. <c>sprY</c> defaults to <c>sprX</c>
+        /// when absent — <c>Unit.as:939</c>, <c>sprY = @sprY &gt; 0 ? int(@sprY) : sprX</c> — but the two
+        /// are genuinely separate, because the data uses non-square cells: <c>ant1</c> is 78x32,
+        /// <c>tarakan</c> 60x30, <c>molerat</c> 85x58, <c>hellhound1</c> 200x170. Collapsing them to
+        /// <c>(sprX, sprX)</c> gives every one of those the wrong cell height.
+        /// </summary>
+        [Tooltip("Cell size in pixels (vis@sprX, vis@sprY); sprY defaults to sprX")]
         public Vector2Int spriteDimensions = new Vector2Int(120, 120);
 
-        [Tooltip("Draw dimensions")]
-        public Vector2Int drawDimensions = new Vector2Int(60, 60);
+        /// <summary>
+        /// Columns in the imported sheet, <c>textureWidth / sprX</c>. 0 until the sprite import has run.
+        /// The divisor is the unit's <b>own</b> <c>sprX</c>, never a global constant: the column count
+        /// varies (24, 26, 25, 15, 11, 8, 14 …) and only the unit's own cell size divides its sheet exactly.
+        /// </summary>
+        [Tooltip("Columns in the imported sheet (width / sprX); 0 before the sprite import has run")]
+        public int spriteSheetColumns;
+
+        /// <summary>Rows in the imported sheet, <c>textureHeight / sprY</c>. 0 until the sprite import has run.</summary>
+        [Tooltip("Rows in the imported sheet (height / sprY); 0 before the sprite import has run")]
+        public int spriteSheetRows;
+
+        /// <summary>
+        /// The AS3 registration point, from <c>&lt;vis sprDX= sprDY=/&gt;</c> — the pixel <i>inside the
+        /// cell</i> that lands on the unit's origin. <b>Not a draw size</b>, which is what the previous
+        /// field name claimed: <c>Unit.as:2848-2858</c> reads <c>visBmp.x = -blitDX</c>, i.e. it offsets
+        /// the cell so that this point sits at (0,0).
+        ///
+        /// <para>A negative component means "not declared", and AS3 then falls back to centring
+        /// horizontally (<c>-blitX / 2</c>) and anchoring 10px above the cell's bottom
+        /// (<c>-blitY + 10</c>). That fallback is the "feet on the ground" default, so it is reproduced
+        /// rather than replaced with a plain centre pivot.</para>
+        /// </summary>
+        [Tooltip("AS3 registration point (vis@sprDX/sprDY) in pixels; negative = not declared")]
+        public Vector2Int registrationPoint = new Vector2Int(-1, -1);
+
+        /// <summary>
+        /// The icon cell within the same sheet, from <c>&lt;vis icoX= icoY=/&gt;</c>
+        /// (<c>Unit.as:940-941</c>, which defaults both to 0 when absent or non-positive). Combined with
+        /// <see cref="spriteSheetId"/> and <see cref="spriteDimensions"/> this is enough to lift the
+        /// unit's portrait straight out of the sheet it is already drawn from.
+        /// </summary>
+        [Tooltip("Icon cell within the sheet (vis@icoX/icoY); (-1,-1) = not declared")]
+        public Vector2Int iconCell = new Vector2Int(-1, -1);
 
         [Tooltip("Gender")]
         public Gender gender = Gender.Other;
