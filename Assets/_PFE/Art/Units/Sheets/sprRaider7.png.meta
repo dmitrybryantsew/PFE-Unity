@@ -546,7 +546,7 @@ TextureImporter:
       rect:
         serializedVersion: 2
         x: 0
-        y: 650
+        y: 1170
         width: 130
         height: 130
       alignment: 9
@@ -557,7 +557,7 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: aad45c41485eb704fafb1f589d5f8d8a
+      spriteID: 54b6ce1e4ea06534c97bcb2ef372ccff
       internalID: -34456300
       vertices: []
       indices: 
@@ -568,7 +568,7 @@ TextureImporter:
       rect:
         serializedVersion: 2
         x: 130
-        y: 650
+        y: 1170
         width: 130
         height: 130
       alignment: 9
@@ -579,7 +579,7 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 170bfab4090d9a140a6c310dfda09fd0
+      spriteID: e5cae29e921ca854aac3b6ac7979be92
       internalID: 1746179210
       vertices: []
       indices: 
@@ -590,7 +590,7 @@ TextureImporter:
       rect:
         serializedVersion: 2
         x: 260
-        y: 650
+        y: 1170
         width: 130
         height: 130
       alignment: 9
@@ -601,7 +601,7 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 053db7372ab974e4aba74b1910f4e1dd
+      spriteID: 83a65bb337ec92c4c85cc515fe65e63f
       internalID: -2115407375
       vertices: []
       indices: 
@@ -612,7 +612,7 @@ TextureImporter:
       rect:
         serializedVersion: 2
         x: 390
-        y: 650
+        y: 1170
         width: 130
         height: 130
       alignment: 9
@@ -623,7 +623,7 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 911ed8378ab5f8c439f7097fd004029e
+      spriteID: f9601eb6c2b35a54e9e3e77bc2ab56ee
       internalID: -862386977
       vertices: []
       indices: 
@@ -634,7 +634,7 @@ TextureImporter:
       rect:
         serializedVersion: 2
         x: 520
-        y: 650
+        y: 1170
         width: 130
         height: 130
       alignment: 9
@@ -645,7 +645,7 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 655402f2a9a0d5f4ca60dfe48d952a25
+      spriteID: 1cf151a724f72e74bad787fdef220505
       internalID: -581261152
       vertices: []
       indices: 
@@ -656,7 +656,7 @@ TextureImporter:
       rect:
         serializedVersion: 2
         x: 650
-        y: 650
+        y: 1170
         width: 130
         height: 130
       alignment: 9
@@ -667,7 +667,7 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 121eca77455fabb4d864826da1e42d78
+      spriteID: c01fba7e21bd7d5469ac9e2176a20bac
       internalID: -1581822446
       vertices: []
       indices: 
@@ -678,7 +678,7 @@ TextureImporter:
       rect:
         serializedVersion: 2
         x: 780
-        y: 650
+        y: 1170
         width: 130
         height: 130
       alignment: 9
@@ -689,7 +689,7 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 001c2ab43f772c24db8084f71fbc378a
+      spriteID: 07f528b3a8026c440ae17961ecd8b1c1
       internalID: 577590675
       vertices: []
       indices: 
@@ -700,7 +700,7 @@ TextureImporter:
       rect:
         serializedVersion: 2
         x: 910
-        y: 650
+        y: 1170
         width: 130
         height: 130
       alignment: 9
@@ -711,7 +711,7 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 0d274a8bf7841b3449375beb1da3bbfa
+      spriteID: a0afd2085a3b4f043b81e8eecb811293
       internalID: 1658608794
       vertices: []
       indices: 
@@ -722,7 +722,7 @@ TextureImporter:
       rect:
         serializedVersion: 2
         x: 1040
-        y: 650
+        y: 1170
         width: 130
         height: 130
       alignment: 9
@@ -733,7 +733,7 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: fa42e9c7abef10043bc8f914772807c4
+      spriteID: fa00a21e34b22904891ed6aa0dd29778
       internalID: 1810323145
       vertices: []
       indices: 
@@ -744,7 +744,7 @@ TextureImporter:
       rect:
         serializedVersion: 2
         x: 1170
-        y: 650
+        y: 1170
         width: 130
         height: 130
       alignment: 9
@@ -755,7 +755,7 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 73ab39e293c7c1242b7ac7074104c65f
+      spriteID: 53b61552cea3fdd4f8383a5e35250640
       internalID: -417701364
       vertices: []
       indices: 
@@ -766,7 +766,7 @@ TextureImporter:
       rect:
         serializedVersion: 2
         x: 1300
-        y: 650
+        y: 1170
         width: 130
         height: 130
       alignment: 9
@@ -777,7 +777,7 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 9d86629a38074354eb7c312cdee12ab5
+      spriteID: 62de8a5289aef4945abf95b732ad454c
       internalID: 1963560157
       vertices: []
       indices: 
@@ -788,7 +788,7 @@ TextureImporter:
       rect:
         serializedVersion: 2
         x: 1430
-        y: 650
+        y: 1170
         width: 130
         height: 130
       alignment: 9
@@ -799,7 +799,7 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: a8969801bf8796343a5707a5402c4f16
+      spriteID: d056491004db04d49b0cca37a12d24f7
       internalID: -790959670
       vertices: []
       indices: 
@@ -810,7 +810,7 @@ TextureImporter:
       rect:
         serializedVersion: 2
         x: 1560
-        y: 650
+        y: 1170
         width: 130
         height: 130
       alignment: 9
@@ -821,7 +821,7 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: eb2ffdd7a357d0240b18148f9fc95637
+      spriteID: 1f48981652e64744aa427a869c98a347
       internalID: -992003755
       vertices: []
       indices: 
@@ -832,7 +832,7 @@ TextureImporter:
       rect:
         serializedVersion: 2
         x: 1690
-        y: 650
+        y: 1170
         width: 130
         height: 130
       alignment: 9
@@ -843,7 +843,7 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 8853f8709a259a84d8f88b3106cc48df
+      spriteID: 3a99a6182c4a7774787d55a2fc6df387
       internalID: 1901417760
       vertices: []
       indices: 
@@ -854,6 +854,1810 @@ TextureImporter:
       rect:
         serializedVersion: 2
         x: 1820
+        y: 1170
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f855b67f77cda934bb6709ccc0b0afd4
+      internalID: -2102134449
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r0_c15
+      rect:
+        serializedVersion: 2
+        x: 1950
+        y: 1170
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 5e40c44e0627d4e40b95d7715aa4cd0f
+      internalID: -216684676
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r0_c16
+      rect:
+        serializedVersion: 2
+        x: 2080
+        y: 1170
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: eccf2f530948f604fbb276ee25113792
+      internalID: 1406576399
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r0_c17
+      rect:
+        serializedVersion: 2
+        x: 2210
+        y: 1170
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 99114d438ecbd834d8576949c7622f6f
+      internalID: 440435848
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r0_c18
+      rect:
+        serializedVersion: 2
+        x: 2340
+        y: 1170
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 3a4ca1d23e34545438eba6e59b07c0ea
+      internalID: -1228126638
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r0_c19
+      rect:
+        serializedVersion: 2
+        x: 2470
+        y: 1170
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 2edae37d7d8800f47b2a907d4871b58d
+      internalID: -2011765406
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r0_c20
+      rect:
+        serializedVersion: 2
+        x: 2600
+        y: 1170
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: de1df96f63eeeb045ab320beecb80e68
+      internalID: -2092423600
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r0_c21
+      rect:
+        serializedVersion: 2
+        x: 2730
+        y: 1170
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e23c75161a6bc8049b4dfc871735e46d
+      internalID: 930924667
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r0_c22
+      rect:
+        serializedVersion: 2
+        x: 2860
+        y: 1170
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f136eb460015b7f4caacdeccbb2bd41c
+      internalID: 763253284
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r0_c23
+      rect:
+        serializedVersion: 2
+        x: 2990
+        y: 1170
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 83763b3082f26b449a6f00612be0ee07
+      internalID: -1697617929
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r1_c0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 1040
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 0cc9690c15819fa49b1f2d6899c93c16
+      internalID: 122749555
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r1_c1
+      rect:
+        serializedVersion: 2
+        x: 130
+        y: 1040
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 915d267c168c7af49afa3eb67b7ca2c8
+      internalID: -1097839071
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r1_c2
+      rect:
+        serializedVersion: 2
+        x: 260
+        y: 1040
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 218cbeb939b8ef541b3aa0fa23d21033
+      internalID: -2044394041
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r1_c3
+      rect:
+        serializedVersion: 2
+        x: 390
+        y: 1040
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7adb91705f909734c8d2f51e9133e416
+      internalID: 133649708
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r1_c4
+      rect:
+        serializedVersion: 2
+        x: 520
+        y: 1040
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ffcdd0179f271d040b17e7da042d6208
+      internalID: -1273966269
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r1_c5
+      rect:
+        serializedVersion: 2
+        x: 650
+        y: 1040
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 400e27f360421c34a8924fc805a46202
+      internalID: -229306974
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r1_c6
+      rect:
+        serializedVersion: 2
+        x: 780
+        y: 1040
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ced6219f0af6f954ab62775f98c8810c
+      internalID: -1827595818
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r1_c7
+      rect:
+        serializedVersion: 2
+        x: 910
+        y: 1040
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: bf572e0d31a98a441a996b1e23697840
+      internalID: -200571972
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r1_c8
+      rect:
+        serializedVersion: 2
+        x: 1040
+        y: 1040
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c498ee9e133381d4989aad62e1d0510f
+      internalID: -280653534
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r1_c9
+      rect:
+        serializedVersion: 2
+        x: 1170
+        y: 1040
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7a6120c5225c6ad45a86f310580e90de
+      internalID: -669996728
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r1_c10
+      rect:
+        serializedVersion: 2
+        x: 1300
+        y: 1040
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 83759ecea927a944cb73f456f2b4fe5a
+      internalID: 17118494
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r1_c11
+      rect:
+        serializedVersion: 2
+        x: 1430
+        y: 1040
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d0613560e06825b47ae4f84a30129c90
+      internalID: -304584924
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r1_c12
+      rect:
+        serializedVersion: 2
+        x: 1560
+        y: 1040
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 4bd55feaaffe8e745bc2a178c2ed5e42
+      internalID: -946146480
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r1_c13
+      rect:
+        serializedVersion: 2
+        x: 1690
+        y: 1040
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 02e3784d40b11664fb04e8820e056cc5
+      internalID: 461794276
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r1_c14
+      rect:
+        serializedVersion: 2
+        x: 1820
+        y: 1040
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e0b7989131c509d4282b6d4d28263dd6
+      internalID: -1684422511
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r1_c15
+      rect:
+        serializedVersion: 2
+        x: 1950
+        y: 1040
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 4a53877e5a83bf14da28f2dc4028cf3f
+      internalID: -244199212
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r1_c16
+      rect:
+        serializedVersion: 2
+        x: 2080
+        y: 1040
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 979b345fb2f16dc4e868e9bfc1d8c311
+      internalID: 510402372
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r1_c17
+      rect:
+        serializedVersion: 2
+        x: 2210
+        y: 1040
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 474ed3c47107c6746b6b2d099b6c48cb
+      internalID: 1407828436
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r1_c18
+      rect:
+        serializedVersion: 2
+        x: 2340
+        y: 1040
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 734343f1d523a7149916a4c1debae427
+      internalID: -1684239690
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r1_c19
+      rect:
+        serializedVersion: 2
+        x: 2470
+        y: 1040
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 74f9bd5e4c8d0374fb0475bad1ea0860
+      internalID: -448986271
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r1_c20
+      rect:
+        serializedVersion: 2
+        x: 2600
+        y: 1040
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 327a13913bf38be43aaedbce8765dbd0
+      internalID: -1438641949
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r1_c21
+      rect:
+        serializedVersion: 2
+        x: 2730
+        y: 1040
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 3ecf017be47a9414ca022c52499777b2
+      internalID: 1783297233
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r1_c22
+      rect:
+        serializedVersion: 2
+        x: 2860
+        y: 1040
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c7f2fcf66042a78409b1f128b543a85f
+      internalID: 1058433393
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r1_c23
+      rect:
+        serializedVersion: 2
+        x: 2990
+        y: 1040
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ca2e03ae6ec008c4faac37d404d4b9d0
+      internalID: 370872025
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r2_c0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 910
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e556e78428da8a6409c29a178438a68e
+      internalID: -314427746
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r2_c1
+      rect:
+        serializedVersion: 2
+        x: 130
+        y: 910
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 146634d9eb51253478469da3e05eeb75
+      internalID: 1419699211
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r2_c2
+      rect:
+        serializedVersion: 2
+        x: 260
+        y: 910
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e6f1f539528aba34cbf459952f978d70
+      internalID: 496898633
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r2_c3
+      rect:
+        serializedVersion: 2
+        x: 390
+        y: 910
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e2b01e43ff5fda948af70eab279b948c
+      internalID: 904923599
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r2_c4
+      rect:
+        serializedVersion: 2
+        x: 520
+        y: 910
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9fc696ba7826a164eadb5dd5deefb377
+      internalID: 857869419
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r2_c5
+      rect:
+        serializedVersion: 2
+        x: 650
+        y: 910
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 75abe22dbe71d9e44b52aa3999a4e304
+      internalID: -756065707
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r2_c6
+      rect:
+        serializedVersion: 2
+        x: 780
+        y: 910
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b11b3649f409be3498b67fb9cb1225bd
+      internalID: 1095923305
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r2_c7
+      rect:
+        serializedVersion: 2
+        x: 910
+        y: 910
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6a99eceec9d8bdd4fb61a3391afcd0f6
+      internalID: -1932090692
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r2_c8
+      rect:
+        serializedVersion: 2
+        x: 1040
+        y: 910
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 220c914f7e5f790498c8d3a6da53c0b4
+      internalID: 1121801382
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r2_c9
+      rect:
+        serializedVersion: 2
+        x: 1170
+        y: 910
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 436b6e7faa545864180b60e67ce5d55c
+      internalID: 984234103
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r2_c10
+      rect:
+        serializedVersion: 2
+        x: 1300
+        y: 910
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 81bc318b59ad44147a842c6237e60b18
+      internalID: -1549424934
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r2_c11
+      rect:
+        serializedVersion: 2
+        x: 1430
+        y: 910
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 312be361302f02f40b3730a7906f897c
+      internalID: 276338407
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r2_c12
+      rect:
+        serializedVersion: 2
+        x: 1560
+        y: 910
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: dd8e183cd64c8384288b47750b743f13
+      internalID: -918620105
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r2_c13
+      rect:
+        serializedVersion: 2
+        x: 1690
+        y: 910
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 319430f19e24c6c44a1d0ce4aac668ff
+      internalID: 1567040369
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r2_c14
+      rect:
+        serializedVersion: 2
+        x: 1820
+        y: 910
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b813ef91c29d72a40a5219c0f82d51a6
+      internalID: -876671198
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r2_c15
+      rect:
+        serializedVersion: 2
+        x: 1950
+        y: 910
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 0a3723df19e5ff1429c357531453417e
+      internalID: -1927930654
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r2_c16
+      rect:
+        serializedVersion: 2
+        x: 2080
+        y: 910
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 1aaef3db1c60e0d48b5f888a6dd243d4
+      internalID: 243232034
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r2_c17
+      rect:
+        serializedVersion: 2
+        x: 2210
+        y: 910
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 29c30bc2f161d334fbec460d37d7b701
+      internalID: 635837189
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r2_c18
+      rect:
+        serializedVersion: 2
+        x: 2340
+        y: 910
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 02464c97e0ee2bf4694e12767a5ffdad
+      internalID: -231297305
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r2_c19
+      rect:
+        serializedVersion: 2
+        x: 2470
+        y: 910
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 1b14c674243c6284fa9613a17c4526a6
+      internalID: -697619541
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r2_c20
+      rect:
+        serializedVersion: 2
+        x: 2600
+        y: 910
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: fcb318f9a4464e442be1adc9c31cd78f
+      internalID: 1968222567
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r2_c21
+      rect:
+        serializedVersion: 2
+        x: 2730
+        y: 910
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6e66e1fffb001974988d36e88d042df7
+      internalID: 400733212
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r2_c22
+      rect:
+        serializedVersion: 2
+        x: 2860
+        y: 910
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 654ae2608eea3534c86d08c0a5357e2c
+      internalID: -313509808
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r2_c23
+      rect:
+        serializedVersion: 2
+        x: 2990
+        y: 910
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6d1b5c6405a0559428020039a50e1c9f
+      internalID: -1311091330
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r3_c0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 780
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d149a112f486e9845b7a7151c39ca1de
+      internalID: 121462016
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r3_c1
+      rect:
+        serializedVersion: 2
+        x: 130
+        y: 780
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: dad8eb9553aef524a918c6eeef9cd2b1
+      internalID: -1368445779
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r3_c2
+      rect:
+        serializedVersion: 2
+        x: 260
+        y: 780
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: fd682c9836b9c9f4fa1fa8c1c132a4ac
+      internalID: -857316438
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r3_c3
+      rect:
+        serializedVersion: 2
+        x: 390
+        y: 780
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ea9951195a4703b47b88750e1fee9fa0
+      internalID: -22471617
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r3_c4
+      rect:
+        serializedVersion: 2
+        x: 520
+        y: 780
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c3b9ed59d163e614da972428399410aa
+      internalID: -1530373183
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r3_c5
+      rect:
+        serializedVersion: 2
+        x: 650
+        y: 780
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 5152f31472e4e7549b08bbd788aa6423
+      internalID: -1285497984
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r3_c6
+      rect:
+        serializedVersion: 2
+        x: 780
+        y: 780
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 11f2967049b9ad14c80b0cdd4dc572ea
+      internalID: -492306251
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r3_c7
+      rect:
+        serializedVersion: 2
+        x: 910
+        y: 780
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f3e6e3a691fb79b45bf91ac226e47af8
+      internalID: 1156629552
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r3_c8
+      rect:
+        serializedVersion: 2
+        x: 1040
+        y: 780
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 3c99e54c21a5cb544a796440d50e66cc
+      internalID: -1945974042
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r3_c9
+      rect:
+        serializedVersion: 2
+        x: 1170
+        y: 780
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 4f47c5327b7a04c4e925877675f32923
+      internalID: 381159910
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r3_c10
+      rect:
+        serializedVersion: 2
+        x: 1300
+        y: 780
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 4e2c555e3e328d24994459e774bd3f67
+      internalID: 1149072357
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r3_c11
+      rect:
+        serializedVersion: 2
+        x: 1430
+        y: 780
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 3ed0cd0aa751e4947849a9be89f52ed1
+      internalID: -1971430901
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r3_c12
+      rect:
+        serializedVersion: 2
+        x: 1560
+        y: 780
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 1484bb9add465df46a0a7b3fca2f7957
+      internalID: -946682013
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r3_c13
+      rect:
+        serializedVersion: 2
+        x: 1690
+        y: 780
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f2058ca9c6777ba4ba126783f402a1b0
+      internalID: -217201484
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r3_c14
+      rect:
+        serializedVersion: 2
+        x: 1820
+        y: 780
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 0b20d14bd18c187429338044ce878427
+      internalID: -43688229
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r3_c15
+      rect:
+        serializedVersion: 2
+        x: 1950
+        y: 780
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 2f6cd9bc564308a4f8f6fe25b784b262
+      internalID: -2138636025
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r3_c16
+      rect:
+        serializedVersion: 2
+        x: 2080
+        y: 780
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 49bd9ec01cb75a54d9584fa3d7b33284
+      internalID: -588895343
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r3_c17
+      rect:
+        serializedVersion: 2
+        x: 2210
+        y: 780
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ddacd80fe74878741a11551bbd12aea0
+      internalID: 625604393
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r3_c18
+      rect:
+        serializedVersion: 2
+        x: 2340
+        y: 780
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 31a0bbd6466773c448c18d7d453d4929
+      internalID: 459201923
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r3_c19
+      rect:
+        serializedVersion: 2
+        x: 2470
+        y: 780
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c516b80e10feb6a499e6e1f66f165b7a
+      internalID: -291911322
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r3_c20
+      rect:
+        serializedVersion: 2
+        x: 2600
+        y: 780
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d5fc0835201f77f46836bc62edf5ba88
+      internalID: -1562042373
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r3_c21
+      rect:
+        serializedVersion: 2
+        x: 2730
+        y: 780
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: bf90bf11e98d5854ea3dfe3705c232c1
+      internalID: 638339319
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r3_c22
+      rect:
+        serializedVersion: 2
+        x: 2860
+        y: 780
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 753e3417a85dc4d41a6de7995f79a2f6
+      internalID: 1171563433
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r3_c23
+      rect:
+        serializedVersion: 2
+        x: 2990
+        y: 780
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 3a19ee7c1d2c17c4492dae98b7862cf0
+      internalID: -454007431
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r4_c0
+      rect:
+        serializedVersion: 2
+        x: 0
         y: 650
         width: 130
         height: 130
@@ -865,1019 +2669,7 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 3dcdec4070e6e6145969eaaae6d43b58
-      internalID: -2102134449
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: sprRaider7_r1_c0
-      rect:
-        serializedVersion: 2
-        x: 0
-        y: 520
-        width: 130
-        height: 130
-      alignment: 9
-      pivot: {x: 0.5, y: 0.07692308}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: 332735e1aa216124da5d76da75600210
-      internalID: 122749555
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: sprRaider7_r1_c1
-      rect:
-        serializedVersion: 2
-        x: 130
-        y: 520
-        width: 130
-        height: 130
-      alignment: 9
-      pivot: {x: 0.5, y: 0.07692308}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: c6a4bc6e47bf34648b3e6d4d1bd1d522
-      internalID: -1097839071
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: sprRaider7_r1_c2
-      rect:
-        serializedVersion: 2
-        x: 260
-        y: 520
-        width: 130
-        height: 130
-      alignment: 9
-      pivot: {x: 0.5, y: 0.07692308}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: cdd8eefb2354d514cabd26e55eabc296
-      internalID: -2044394041
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: sprRaider7_r1_c3
-      rect:
-        serializedVersion: 2
-        x: 390
-        y: 520
-        width: 130
-        height: 130
-      alignment: 9
-      pivot: {x: 0.5, y: 0.07692308}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: f93d53790f6f3f049b0cb592a0dae5ed
-      internalID: 133649708
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: sprRaider7_r1_c4
-      rect:
-        serializedVersion: 2
-        x: 520
-        y: 520
-        width: 130
-        height: 130
-      alignment: 9
-      pivot: {x: 0.5, y: 0.07692308}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: 02343fbf5f9aff742bf48a5c4cdca238
-      internalID: -1273966269
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: sprRaider7_r1_c5
-      rect:
-        serializedVersion: 2
-        x: 650
-        y: 520
-        width: 130
-        height: 130
-      alignment: 9
-      pivot: {x: 0.5, y: 0.07692308}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: cf0500dd3e493d84485aef0991735ed3
-      internalID: -229306974
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: sprRaider7_r1_c6
-      rect:
-        serializedVersion: 2
-        x: 780
-        y: 520
-        width: 130
-        height: 130
-      alignment: 9
-      pivot: {x: 0.5, y: 0.07692308}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: 0fda54eea849db947a777b2d78d3f17c
-      internalID: -1827595818
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: sprRaider7_r1_c7
-      rect:
-        serializedVersion: 2
-        x: 910
-        y: 520
-        width: 130
-        height: 130
-      alignment: 9
-      pivot: {x: 0.5, y: 0.07692308}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: 2e388ba65e8ab5842ac96e0114112074
-      internalID: -200571972
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: sprRaider7_r1_c8
-      rect:
-        serializedVersion: 2
-        x: 1040
-        y: 520
-        width: 130
-        height: 130
-      alignment: 9
-      pivot: {x: 0.5, y: 0.07692308}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: f9d650c092da4634f9bc0f6abade291d
-      internalID: -280653534
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: sprRaider7_r1_c9
-      rect:
-        serializedVersion: 2
-        x: 1170
-        y: 520
-        width: 130
-        height: 130
-      alignment: 9
-      pivot: {x: 0.5, y: 0.07692308}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: d994ea18c5f64ae4dbd4d8f4463b37ec
-      internalID: -669996728
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: sprRaider7_r1_c10
-      rect:
-        serializedVersion: 2
-        x: 1300
-        y: 520
-        width: 130
-        height: 130
-      alignment: 9
-      pivot: {x: 0.5, y: 0.07692308}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: f1ce569cb619fdf43af0723a1e875ce7
-      internalID: 17118494
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: sprRaider7_r1_c11
-      rect:
-        serializedVersion: 2
-        x: 1430
-        y: 520
-        width: 130
-        height: 130
-      alignment: 9
-      pivot: {x: 0.5, y: 0.07692308}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: 4d145bf9893ef9742b9675912a8a1433
-      internalID: -304584924
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: sprRaider7_r1_c12
-      rect:
-        serializedVersion: 2
-        x: 1560
-        y: 520
-        width: 130
-        height: 130
-      alignment: 9
-      pivot: {x: 0.5, y: 0.07692308}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: 36800360c3cb314429d062cf9570db95
-      internalID: -946146480
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: sprRaider7_r1_c13
-      rect:
-        serializedVersion: 2
-        x: 1690
-        y: 520
-        width: 130
-        height: 130
-      alignment: 9
-      pivot: {x: 0.5, y: 0.07692308}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: c1dcd84e59c66764680eb79032543484
-      internalID: 461794276
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: sprRaider7_r1_c14
-      rect:
-        serializedVersion: 2
-        x: 1820
-        y: 520
-        width: 130
-        height: 130
-      alignment: 9
-      pivot: {x: 0.5, y: 0.07692308}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: 72575003fbaf75a4290487d5fb0fce50
-      internalID: -1684422511
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: sprRaider7_r2_c0
-      rect:
-        serializedVersion: 2
-        x: 0
-        y: 390
-        width: 130
-        height: 130
-      alignment: 9
-      pivot: {x: 0.5, y: 0.07692308}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: 8c18e1ed6253c924598049719d32e131
-      internalID: -314427746
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: sprRaider7_r2_c1
-      rect:
-        serializedVersion: 2
-        x: 130
-        y: 390
-        width: 130
-        height: 130
-      alignment: 9
-      pivot: {x: 0.5, y: 0.07692308}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: 829d88fdcfc44fa4d90c1948e2f35b73
-      internalID: 1419699211
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: sprRaider7_r2_c2
-      rect:
-        serializedVersion: 2
-        x: 260
-        y: 390
-        width: 130
-        height: 130
-      alignment: 9
-      pivot: {x: 0.5, y: 0.07692308}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: 872c3b6a86dae744cba972165d8e0566
-      internalID: 496898633
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: sprRaider7_r2_c3
-      rect:
-        serializedVersion: 2
-        x: 390
-        y: 390
-        width: 130
-        height: 130
-      alignment: 9
-      pivot: {x: 0.5, y: 0.07692308}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: be19cc5bbd186634baa7c01ac07d2c16
-      internalID: 904923599
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: sprRaider7_r2_c4
-      rect:
-        serializedVersion: 2
-        x: 520
-        y: 390
-        width: 130
-        height: 130
-      alignment: 9
-      pivot: {x: 0.5, y: 0.07692308}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: 715ee3b47760bfc4fb6318dac942cf29
-      internalID: 857869419
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: sprRaider7_r2_c5
-      rect:
-        serializedVersion: 2
-        x: 650
-        y: 390
-        width: 130
-        height: 130
-      alignment: 9
-      pivot: {x: 0.5, y: 0.07692308}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: 6f892c03eecdc9f448a7aae31946e265
-      internalID: -756065707
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: sprRaider7_r2_c6
-      rect:
-        serializedVersion: 2
-        x: 780
-        y: 390
-        width: 130
-        height: 130
-      alignment: 9
-      pivot: {x: 0.5, y: 0.07692308}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: 6bc7ab86b3d86c6448e52c81865038f4
-      internalID: 1095923305
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: sprRaider7_r2_c7
-      rect:
-        serializedVersion: 2
-        x: 910
-        y: 390
-        width: 130
-        height: 130
-      alignment: 9
-      pivot: {x: 0.5, y: 0.07692308}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: 2184c66fd508b2642b46574d91b4c9cb
-      internalID: -1932090692
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: sprRaider7_r2_c8
-      rect:
-        serializedVersion: 2
-        x: 1040
-        y: 390
-        width: 130
-        height: 130
-      alignment: 9
-      pivot: {x: 0.5, y: 0.07692308}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: b002fa0371574a64789afe4959c484d0
-      internalID: 1121801382
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: sprRaider7_r2_c9
-      rect:
-        serializedVersion: 2
-        x: 1170
-        y: 390
-        width: 130
-        height: 130
-      alignment: 9
-      pivot: {x: 0.5, y: 0.07692308}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: 006c9229fe98b3f4480a86acc0d7c510
-      internalID: 984234103
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: sprRaider7_r2_c10
-      rect:
-        serializedVersion: 2
-        x: 1300
-        y: 390
-        width: 130
-        height: 130
-      alignment: 9
-      pivot: {x: 0.5, y: 0.07692308}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: b7c25437c1fa6024bba1199d69d85a12
-      internalID: -1549424934
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: sprRaider7_r2_c11
-      rect:
-        serializedVersion: 2
-        x: 1430
-        y: 390
-        width: 130
-        height: 130
-      alignment: 9
-      pivot: {x: 0.5, y: 0.07692308}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: 7b76e6bed5b2b0c47af145e828888e73
-      internalID: 276338407
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: sprRaider7_r2_c12
-      rect:
-        serializedVersion: 2
-        x: 1560
-        y: 390
-        width: 130
-        height: 130
-      alignment: 9
-      pivot: {x: 0.5, y: 0.07692308}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: ecad2c3e948480e4a8cd1a33252f729d
-      internalID: -918620105
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: sprRaider7_r2_c13
-      rect:
-        serializedVersion: 2
-        x: 1690
-        y: 390
-        width: 130
-        height: 130
-      alignment: 9
-      pivot: {x: 0.5, y: 0.07692308}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: bd4dbef6ff485e94eae5a05d78aeb706
-      internalID: 1567040369
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: sprRaider7_r2_c14
-      rect:
-        serializedVersion: 2
-        x: 1820
-        y: 390
-        width: 130
-        height: 130
-      alignment: 9
-      pivot: {x: 0.5, y: 0.07692308}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: 8f07cf78cc432604f8aa6e62de9aa481
-      internalID: -876671198
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: sprRaider7_r3_c0
-      rect:
-        serializedVersion: 2
-        x: 0
-        y: 260
-        width: 130
-        height: 130
-      alignment: 9
-      pivot: {x: 0.5, y: 0.07692308}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: 0d76eee9aa93ae7488d85ffc2302287b
-      internalID: 121462016
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: sprRaider7_r3_c1
-      rect:
-        serializedVersion: 2
-        x: 130
-        y: 260
-        width: 130
-        height: 130
-      alignment: 9
-      pivot: {x: 0.5, y: 0.07692308}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: 4c26822f60d0bf44790796b4419f9f91
-      internalID: -1368445779
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: sprRaider7_r3_c2
-      rect:
-        serializedVersion: 2
-        x: 260
-        y: 260
-        width: 130
-        height: 130
-      alignment: 9
-      pivot: {x: 0.5, y: 0.07692308}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: 064dbe63a53ae424bb296e1cf134f5cb
-      internalID: -857316438
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: sprRaider7_r3_c3
-      rect:
-        serializedVersion: 2
-        x: 390
-        y: 260
-        width: 130
-        height: 130
-      alignment: 9
-      pivot: {x: 0.5, y: 0.07692308}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: 3808f21e568e78b4e893929cbf05a6ea
-      internalID: -22471617
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: sprRaider7_r3_c4
-      rect:
-        serializedVersion: 2
-        x: 520
-        y: 260
-        width: 130
-        height: 130
-      alignment: 9
-      pivot: {x: 0.5, y: 0.07692308}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: 9d0589b8eefae2248b53bac2a24aa40c
-      internalID: -1530373183
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: sprRaider7_r3_c5
-      rect:
-        serializedVersion: 2
-        x: 650
-        y: 260
-        width: 130
-        height: 130
-      alignment: 9
-      pivot: {x: 0.5, y: 0.07692308}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: 762f7eaf44549a84d8b33c7c66e09ad8
-      internalID: -1285497984
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: sprRaider7_r3_c6
-      rect:
-        serializedVersion: 2
-        x: 780
-        y: 260
-        width: 130
-        height: 130
-      alignment: 9
-      pivot: {x: 0.5, y: 0.07692308}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: 1bafd5b46b3aeee41b3d00bb3d1be816
-      internalID: -492306251
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: sprRaider7_r3_c7
-      rect:
-        serializedVersion: 2
-        x: 910
-        y: 260
-        width: 130
-        height: 130
-      alignment: 9
-      pivot: {x: 0.5, y: 0.07692308}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: 8e10ce9c4e00bd945adb121657ab32f6
-      internalID: 1156629552
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: sprRaider7_r3_c8
-      rect:
-        serializedVersion: 2
-        x: 1040
-        y: 260
-        width: 130
-        height: 130
-      alignment: 9
-      pivot: {x: 0.5, y: 0.07692308}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: 688568d870ee379409c08ca8783b8db5
-      internalID: -1945974042
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: sprRaider7_r3_c9
-      rect:
-        serializedVersion: 2
-        x: 1170
-        y: 260
-        width: 130
-        height: 130
-      alignment: 9
-      pivot: {x: 0.5, y: 0.07692308}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: 3a5d9990e9a83724fa6667bb447e2923
-      internalID: 381159910
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: sprRaider7_r3_c10
-      rect:
-        serializedVersion: 2
-        x: 1300
-        y: 260
-        width: 130
-        height: 130
-      alignment: 9
-      pivot: {x: 0.5, y: 0.07692308}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: 0d9bd9a3e099d5e4890bedf73e7d9bb7
-      internalID: 1149072357
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: sprRaider7_r3_c11
-      rect:
-        serializedVersion: 2
-        x: 1430
-        y: 260
-        width: 130
-        height: 130
-      alignment: 9
-      pivot: {x: 0.5, y: 0.07692308}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: 77cc4c2db64b9d24385f4eb4c0cc0426
-      internalID: -1971430901
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: sprRaider7_r3_c12
-      rect:
-        serializedVersion: 2
-        x: 1560
-        y: 260
-        width: 130
-        height: 130
-      alignment: 9
-      pivot: {x: 0.5, y: 0.07692308}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: 4dc03c820a3e00840bb6c9d573038489
-      internalID: -946682013
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: sprRaider7_r3_c13
-      rect:
-        serializedVersion: 2
-        x: 1690
-        y: 260
-        width: 130
-        height: 130
-      alignment: 9
-      pivot: {x: 0.5, y: 0.07692308}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: c051a5db6f36c67488e11de165856639
-      internalID: -217201484
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: sprRaider7_r3_c14
-      rect:
-        serializedVersion: 2
-        x: 1820
-        y: 260
-        width: 130
-        height: 130
-      alignment: 9
-      pivot: {x: 0.5, y: 0.07692308}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: 2921cd7833f0c6c4cbbec19fe3e2ac70
-      internalID: -43688229
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: sprRaider7_r4_c0
-      rect:
-        serializedVersion: 2
-        x: 0
-        y: 130
-        width: 130
-        height: 130
-      alignment: 9
-      pivot: {x: 0.5, y: 0.07692308}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: 09bd8b3dbb99a454482cebabffe8ff85
+      spriteID: fee73d450a13cba4f927dc1f9d945f69
       internalID: 2100462480
       vertices: []
       indices: 
@@ -1888,6 +2680,2096 @@ TextureImporter:
       rect:
         serializedVersion: 2
         x: 130
+        y: 650
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 258e88e21c4653045a34a02601ee8dbd
+      internalID: -733423224
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r4_c2
+      rect:
+        serializedVersion: 2
+        x: 260
+        y: 650
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 86b75f781d5df9c4984fa568b4efca48
+      internalID: -1353724886
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r4_c3
+      rect:
+        serializedVersion: 2
+        x: 390
+        y: 650
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 974960e85aecf2c4a9290248545f8e65
+      internalID: -1491316535
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r4_c4
+      rect:
+        serializedVersion: 2
+        x: 520
+        y: 650
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 18ec3f6b744dd984fa5b03a0d4c179c8
+      internalID: 1322260035
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r4_c5
+      rect:
+        serializedVersion: 2
+        x: 650
+        y: 650
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: cdca7893b0cd7044e803e73d73a8efcf
+      internalID: -176395278
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r4_c6
+      rect:
+        serializedVersion: 2
+        x: 780
+        y: 650
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 8a0381159e22cf541b724d9130ed7e9d
+      internalID: 964110966
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r4_c7
+      rect:
+        serializedVersion: 2
+        x: 910
+        y: 650
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ef6b6c2b0ce8bf7478b8d77bce9af427
+      internalID: 1977959254
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r4_c8
+      rect:
+        serializedVersion: 2
+        x: 1040
+        y: 650
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 123a3bc1b48444e4fb2605688b6462ad
+      internalID: -1365292221
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r4_c9
+      rect:
+        serializedVersion: 2
+        x: 1170
+        y: 650
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c42781d4302ac074e808b59a9a2689e5
+      internalID: -981672183
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r4_c10
+      rect:
+        serializedVersion: 2
+        x: 1300
+        y: 650
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 59c835fd170bd414fa3b2da352b71046
+      internalID: -1280481434
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r4_c11
+      rect:
+        serializedVersion: 2
+        x: 1430
+        y: 650
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 1ea4ed1cb527e904abd159e1f2a51423
+      internalID: 1549685920
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r4_c12
+      rect:
+        serializedVersion: 2
+        x: 1560
+        y: 650
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 472da55011a3cda49895be0e2246a88d
+      internalID: 1077624016
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r4_c13
+      rect:
+        serializedVersion: 2
+        x: 1690
+        y: 650
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 2e12d0b6815970f4bb280afaf6981cc0
+      internalID: -1611028355
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r4_c14
+      rect:
+        serializedVersion: 2
+        x: 1820
+        y: 650
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 02e59cbe70b6a3246ace6e02f3059350
+      internalID: -1514296054
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r4_c15
+      rect:
+        serializedVersion: 2
+        x: 1950
+        y: 650
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: baf5ecfeb5e769a49bcd399d16014712
+      internalID: 2053709144
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r4_c16
+      rect:
+        serializedVersion: 2
+        x: 2080
+        y: 650
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 34c40c2fb1884e140ae678b06eb8d9ae
+      internalID: 139767194
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r4_c17
+      rect:
+        serializedVersion: 2
+        x: 2210
+        y: 650
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6496e895b715b9e4aab0bae674030d54
+      internalID: 283573592
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r4_c18
+      rect:
+        serializedVersion: 2
+        x: 2340
+        y: 650
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: cc0fedbb81f5e204293f0dbf033adac9
+      internalID: 957225118
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r4_c19
+      rect:
+        serializedVersion: 2
+        x: 2470
+        y: 650
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c409e5ee7ef1f2548a6e8cd47de9ed6b
+      internalID: 219824828
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r4_c20
+      rect:
+        serializedVersion: 2
+        x: 2600
+        y: 650
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f89ec09c24ddd4a4fbf0dfc123e9fa83
+      internalID: -622807496
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r4_c21
+      rect:
+        serializedVersion: 2
+        x: 2730
+        y: 650
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f36028fca6e78b645a84eac711e1c738
+      internalID: -263746383
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r4_c22
+      rect:
+        serializedVersion: 2
+        x: 2860
+        y: 650
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 95d95315cffdaea40946d8f0ebb27d5a
+      internalID: -316051185
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r4_c23
+      rect:
+        serializedVersion: 2
+        x: 2990
+        y: 650
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 3acd4c1ff35a49e40a923179a06a0281
+      internalID: 2044588242
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r5_c0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 520
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 5e4d8ab2e4e988e45bdf5e16dd55d1b7
+      internalID: -624272243
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r5_c1
+      rect:
+        serializedVersion: 2
+        x: 130
+        y: 520
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: fc63a9f0bf8724e4ead8bb8c32193b25
+      internalID: 1766304158
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r5_c2
+      rect:
+        serializedVersion: 2
+        x: 260
+        y: 520
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 64f74215d3c5f66429f4a5489b85bd8b
+      internalID: -180729930
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r5_c3
+      rect:
+        serializedVersion: 2
+        x: 390
+        y: 520
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 5089acd5c1409ef43afc292770e4aebf
+      internalID: -1803355151
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r5_c4
+      rect:
+        serializedVersion: 2
+        x: 520
+        y: 520
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b8ea92938f3d13e448a36087a6262f71
+      internalID: 528709416
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r5_c5
+      rect:
+        serializedVersion: 2
+        x: 650
+        y: 520
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 83f50d1909641674fab0bbf6132ca882
+      internalID: -1597746673
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r5_c6
+      rect:
+        serializedVersion: 2
+        x: 780
+        y: 520
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 77e5d543188a7dc4b8f824a9580c9f48
+      internalID: -333273449
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r5_c7
+      rect:
+        serializedVersion: 2
+        x: 910
+        y: 520
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 013665e8e3dce9e43a3e14d1b7278830
+      internalID: -542198173
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r5_c8
+      rect:
+        serializedVersion: 2
+        x: 1040
+        y: 520
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d99aef3729d2fca4287ef90a1160aba2
+      internalID: 6585201
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r5_c9
+      rect:
+        serializedVersion: 2
+        x: 1170
+        y: 520
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 0727bf6fe9c41204f971c44e244bc960
+      internalID: 345086884
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r5_c10
+      rect:
+        serializedVersion: 2
+        x: 1300
+        y: 520
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 537f1ae7d5a92c74290730d2426dea7e
+      internalID: -1180359006
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r5_c11
+      rect:
+        serializedVersion: 2
+        x: 1430
+        y: 520
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 216997b49a841a0479e774ef4b382afc
+      internalID: 583302939
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r5_c12
+      rect:
+        serializedVersion: 2
+        x: 1560
+        y: 520
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 71f34f298adca324da42aa6b43579a44
+      internalID: -508164593
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r5_c13
+      rect:
+        serializedVersion: 2
+        x: 1690
+        y: 520
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 3cd2e0969b820ca4b8a08db95d0e3b3c
+      internalID: -865655454
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r5_c14
+      rect:
+        serializedVersion: 2
+        x: 1820
+        y: 520
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d90cecc4868217742b646e943464bb34
+      internalID: 433982372
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r5_c15
+      rect:
+        serializedVersion: 2
+        x: 1950
+        y: 520
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 334949d9d62706844a57a77395eb9733
+      internalID: 775439815
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r5_c16
+      rect:
+        serializedVersion: 2
+        x: 2080
+        y: 520
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d5b21bd774a6e6545bb0333291ca5062
+      internalID: 415856174
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r5_c17
+      rect:
+        serializedVersion: 2
+        x: 2210
+        y: 520
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9268daffce8e4324287d5dcb60b7f89c
+      internalID: 850997373
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r5_c18
+      rect:
+        serializedVersion: 2
+        x: 2340
+        y: 520
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 56a3b33cc938d5c41b41aaa97250e97c
+      internalID: -1757401041
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r5_c19
+      rect:
+        serializedVersion: 2
+        x: 2470
+        y: 520
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 1564a1b7f00e3774fbf11eb6fc02ec9d
+      internalID: 625762462
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r5_c20
+      rect:
+        serializedVersion: 2
+        x: 2600
+        y: 520
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 20935b71a2969e44f8bb61713063cac6
+      internalID: 2040017264
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r5_c21
+      rect:
+        serializedVersion: 2
+        x: 2730
+        y: 520
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a72fef98a0601d443bc2fab24898689f
+      internalID: 548807019
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r5_c22
+      rect:
+        serializedVersion: 2
+        x: 2860
+        y: 520
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 1a5b7e729fc4a2c45ac9e6e34204f10f
+      internalID: -1527621431
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r5_c23
+      rect:
+        serializedVersion: 2
+        x: 2990
+        y: 520
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 24718798423044e4e91984c7793ddfad
+      internalID: 89612047
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r6_c0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 390
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 8d8d1769bb4905243919f1ec4b8154a1
+      internalID: -278779056
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r6_c1
+      rect:
+        serializedVersion: 2
+        x: 130
+        y: 390
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: cf43154df2c845b43b3744e0cf1d048c
+      internalID: 1399316952
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r6_c2
+      rect:
+        serializedVersion: 2
+        x: 260
+        y: 390
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 04ac7d5012f030743b3e1b5ac73f64cf
+      internalID: -166198214
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r6_c3
+      rect:
+        serializedVersion: 2
+        x: 390
+        y: 390
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: af49e30eef22d714481ead65d33a3fba
+      internalID: -1516277691
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r6_c4
+      rect:
+        serializedVersion: 2
+        x: 520
+        y: 390
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 8ae26ea739d0eac47bf0805591120747
+      internalID: -163208879
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r6_c5
+      rect:
+        serializedVersion: 2
+        x: 650
+        y: 390
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e11e8ad0b89c9b545aa0cdef4d0f6d74
+      internalID: -2127163960
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r6_c6
+      rect:
+        serializedVersion: 2
+        x: 780
+        y: 390
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: fcd308eaebc870d4baac9c24794735a1
+      internalID: 1752055197
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r6_c7
+      rect:
+        serializedVersion: 2
+        x: 910
+        y: 390
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 83c6f0b92d0b3fb42984d66471ddc131
+      internalID: 197671111
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r6_c8
+      rect:
+        serializedVersion: 2
+        x: 1040
+        y: 390
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: abd6d07a327243e41986c99413a2e23c
+      internalID: -1286071379
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r6_c9
+      rect:
+        serializedVersion: 2
+        x: 1170
+        y: 390
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: bbead2d908992a243bc26fcc80990426
+      internalID: -1327892408
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r6_c10
+      rect:
+        serializedVersion: 2
+        x: 1300
+        y: 390
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 83ffaa6622f2ad84ab57aea82261e6e0
+      internalID: 463902282
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r6_c11
+      rect:
+        serializedVersion: 2
+        x: 1430
+        y: 390
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ab9976436b2388e48ab9cf4c966cad6f
+      internalID: 1478974917
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r6_c12
+      rect:
+        serializedVersion: 2
+        x: 1560
+        y: 390
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 475dc611d9458d54d9a785c984cfc570
+      internalID: 1294020496
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r6_c13
+      rect:
+        serializedVersion: 2
+        x: 1690
+        y: 390
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d2482aa0774ec1041ab36e66dc22f620
+      internalID: -1542783978
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r6_c14
+      rect:
+        serializedVersion: 2
+        x: 1820
+        y: 390
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e225f223b76ff0f42b7cf9d6839307e7
+      internalID: 2110865543
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r6_c15
+      rect:
+        serializedVersion: 2
+        x: 1950
+        y: 390
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 25e69ede97cdac94995c0d9ecd4b99ff
+      internalID: -175127670
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r6_c16
+      rect:
+        serializedVersion: 2
+        x: 2080
+        y: 390
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 5a7e518135ae4714d9bffbd47307ae90
+      internalID: -1491186404
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r6_c17
+      rect:
+        serializedVersion: 2
+        x: 2210
+        y: 390
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 626026988aad70345b924212308016da
+      internalID: 154306172
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r6_c18
+      rect:
+        serializedVersion: 2
+        x: 2340
+        y: 390
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 2ef3e2a417549024c91f083347f294f0
+      internalID: 536877187
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r6_c19
+      rect:
+        serializedVersion: 2
+        x: 2470
+        y: 390
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 8e26ac6f43ece5044b11abd12d407957
+      internalID: 2103924426
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r6_c20
+      rect:
+        serializedVersion: 2
+        x: 2600
+        y: 390
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f49484ac514b89b4bb094560a511c56e
+      internalID: -279825093
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r6_c21
+      rect:
+        serializedVersion: 2
+        x: 2730
+        y: 390
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 0326ffe211f5671458452579aee10314
+      internalID: 1122077218
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r6_c22
+      rect:
+        serializedVersion: 2
+        x: 2860
+        y: 390
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7babed72be9951741b06b6798451e51d
+      internalID: -347865579
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r6_c23
+      rect:
+        serializedVersion: 2
+        x: 2990
+        y: 390
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a484240c6dbce9d44a592836c66abe30
+      internalID: 1851960140
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r7_c0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 390040bb526b994439b3b73e2fb92b81
+      internalID: 306559639
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r7_c1
+      rect:
+        serializedVersion: 2
+        x: 130
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 47a50ce13a77e6f4d811ec24fa7b1067
+      internalID: 1830718001
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r7_c2
+      rect:
+        serializedVersion: 2
+        x: 260
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 610ee268aea3dc14a8a61dd4c4aa6c8c
+      internalID: -656710822
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r7_c3
+      rect:
+        serializedVersion: 2
+        x: 390
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 59f2ab28ca8a63f47b42f64dacdc9703
+      internalID: 1314668828
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r7_c4
+      rect:
+        serializedVersion: 2
+        x: 520
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 763d7b2b66e5a684bb2994774a58cb26
+      internalID: -1068025154
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r7_c5
+      rect:
+        serializedVersion: 2
+        x: 650
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 66a71eef2eb230149ae0bb288cf8ee2c
+      internalID: 1001939769
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r7_c6
+      rect:
+        serializedVersion: 2
+        x: 780
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 285189a596a72d1418051a95b1d4b957
+      internalID: -1578344379
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r7_c7
+      rect:
+        serializedVersion: 2
+        x: 910
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 2ba938f5be459c54ab6c6bc65123838e
+      internalID: -91843330
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r7_c8
+      rect:
+        serializedVersion: 2
+        x: 1040
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 2a83c5c13209ca14aaa0d1e1618c886c
+      internalID: 409030453
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r7_c9
+      rect:
+        serializedVersion: 2
+        x: 1170
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 164b8d2066707044f96c1241263a4a4f
+      internalID: 1670281266
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r7_c10
+      rect:
+        serializedVersion: 2
+        x: 1300
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6e5e94f9e89f032488dfdcc830a098f8
+      internalID: -512248821
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r7_c11
+      rect:
+        serializedVersion: 2
+        x: 1430
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 3ffe2b6dd565f4d4e92bf1c233dc3542
+      internalID: -814852129
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r7_c12
+      rect:
+        serializedVersion: 2
+        x: 1560
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b68605661be368540ad15170b7b2ee29
+      internalID: 709608533
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r7_c13
+      rect:
+        serializedVersion: 2
+        x: 1690
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7c1494c5b1be8f9409c4613507e95047
+      internalID: 2146448032
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r7_c14
+      rect:
+        serializedVersion: 2
+        x: 1820
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: bc2075d30a49f104a9e9d0c30cccc398
+      internalID: 1700766757
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r7_c15
+      rect:
+        serializedVersion: 2
+        x: 1950
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 74aa706eb2888c64f9314f631d3db1d9
+      internalID: -1322967950
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r7_c16
+      rect:
+        serializedVersion: 2
+        x: 2080
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 047e35d9f36c0ca4c865b57cedd3be1c
+      internalID: 1602296621
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r7_c17
+      rect:
+        serializedVersion: 2
+        x: 2210
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: bd0b85224e5d07445ae8df8a986ba41a
+      internalID: 188310747
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r7_c18
+      rect:
+        serializedVersion: 2
+        x: 2340
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 83342c3eba9bac54c8027927a664086b
+      internalID: -1717065739
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r7_c19
+      rect:
+        serializedVersion: 2
+        x: 2470
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7688dc2078ad97845a5d8c8d1fb3f572
+      internalID: 1169348324
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r7_c20
+      rect:
+        serializedVersion: 2
+        x: 2600
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b27aded288e451a4f8b56929fc222799
+      internalID: -321486677
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r7_c21
+      rect:
+        serializedVersion: 2
+        x: 2730
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a013c0094bb44fe4cbdcefe3d1e12058
+      internalID: -1194142713
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r7_c22
+      rect:
+        serializedVersion: 2
+        x: 2860
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 2a434293daac9e04eb3d18911907bc3f
+      internalID: 1623482240
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r7_c23
+      rect:
+        serializedVersion: 2
+        x: 2990
+        y: 260
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: fcabbf1a76c4e2141ba5b4b665bf5dc6
+      internalID: 2012068023
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r8_c0
+      rect:
+        serializedVersion: 2
+        x: 0
         y: 130
         width: 130
         height: 130
@@ -1899,14 +4781,36 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 65bf3f0b257fe214ca3bb34d8f5c1ed8
-      internalID: -733423224
+      spriteID: e94ff0785ed96f94a8a6e34d8bba5620
+      internalID: -1493587183
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: sprRaider7_r4_c2
+      name: sprRaider7_r8_c1
+      rect:
+        serializedVersion: 2
+        x: 130
+        y: 130
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 5eab8ea5dc3a3bb4cbaeddef09725bc1
+      internalID: -381265968
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r8_c2
       rect:
         serializedVersion: 2
         x: 260
@@ -1921,14 +4825,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: b41728dc0a5180042bc17401770eeabb
-      internalID: -1353724886
+      spriteID: a291ea62c209684429e9c2ef8868fdc8
+      internalID: -16087460
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: sprRaider7_r4_c3
+      name: sprRaider7_r8_c3
       rect:
         serializedVersion: 2
         x: 390
@@ -1943,14 +4847,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 4a9c3d3f2eb0c25418af8a60af04101c
-      internalID: -1491316535
+      spriteID: 454b2299e5d184d4baacf6243d20dc07
+      internalID: -1139537418
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: sprRaider7_r4_c4
+      name: sprRaider7_r8_c4
       rect:
         serializedVersion: 2
         x: 520
@@ -1965,14 +4869,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 865e78d081b028d4b91b30e6cc14236f
-      internalID: 1322260035
+      spriteID: 2fe8d4b07b3e40d42b201766a2f6105d
+      internalID: -1549543611
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: sprRaider7_r4_c5
+      name: sprRaider7_r8_c5
       rect:
         serializedVersion: 2
         x: 650
@@ -1987,14 +4891,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 5ea640c57667c8740ba739214de6cda9
-      internalID: -176395278
+      spriteID: 825e35a362a3a2e4ca1196b5c015ad45
+      internalID: -1728120386
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: sprRaider7_r4_c6
+      name: sprRaider7_r8_c6
       rect:
         serializedVersion: 2
         x: 780
@@ -2009,14 +4913,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: fb7982a51dbff5845b10a0b9576514d8
-      internalID: 964110966
+      spriteID: d4125f538dc59e3469e4baa57f75d27b
+      internalID: -660777064
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: sprRaider7_r4_c7
+      name: sprRaider7_r8_c7
       rect:
         serializedVersion: 2
         x: 910
@@ -2031,14 +4935,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 043fc9a659d17df4184210346cc690bb
-      internalID: 1977959254
+      spriteID: 54c76bd1f948411419ecf8326370c52a
+      internalID: -971324643
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: sprRaider7_r4_c8
+      name: sprRaider7_r8_c8
       rect:
         serializedVersion: 2
         x: 1040
@@ -2053,14 +4957,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: c82c7382b16d6994dbe51512d64cc145
-      internalID: -1365292221
+      spriteID: 03e938fed0f0759499667fcd3ffb2af6
+      internalID: -1441295693
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: sprRaider7_r4_c9
+      name: sprRaider7_r8_c9
       rect:
         serializedVersion: 2
         x: 1170
@@ -2075,14 +4979,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 1a2cea75070dd4a409edc84fc995db16
-      internalID: -981672183
+      spriteID: 2d9b16b57acbb7046818bf427fefac39
+      internalID: 2013517972
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: sprRaider7_r4_c10
+      name: sprRaider7_r8_c10
       rect:
         serializedVersion: 2
         x: 1300
@@ -2097,14 +5001,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 586542107ee8d8849bbb6f7ad0aa9024
-      internalID: -1280481434
+      spriteID: e91e0ea1d9918fd4dbcc9780a4a08076
+      internalID: 760180528
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: sprRaider7_r4_c11
+      name: sprRaider7_r8_c11
       rect:
         serializedVersion: 2
         x: 1430
@@ -2119,14 +5023,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 72cd9723597cd4c49bc790f63c3c1ff5
-      internalID: 1549685920
+      spriteID: feea61a508a03b14caea58f842064afa
+      internalID: -401411509
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: sprRaider7_r4_c12
+      name: sprRaider7_r8_c12
       rect:
         serializedVersion: 2
         x: 1560
@@ -2141,14 +5045,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: cec316ee451b89a4ab0ff2f2a55499c6
-      internalID: 1077624016
+      spriteID: b065d02f2f0bc9347a0ec234d9225cb4
+      internalID: 656255611
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: sprRaider7_r4_c13
+      name: sprRaider7_r8_c13
       rect:
         serializedVersion: 2
         x: 1690
@@ -2163,14 +5067,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 496f70a4967fc9544bf39de24e21b155
-      internalID: -1611028355
+      spriteID: cf33a5ab4d1f18a4d960b572d298e96d
+      internalID: -957713460
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: sprRaider7_r4_c14
+      name: sprRaider7_r8_c14
       rect:
         serializedVersion: 2
         x: 1820
@@ -2185,14 +5089,212 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 13e0f1127a6a72c4e9c5ff796998d54a
-      internalID: -1514296054
+      spriteID: 8080b630f7b696743be59d62709bdec2
+      internalID: -10103745
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: sprRaider7_r5_c0
+      name: sprRaider7_r8_c15
+      rect:
+        serializedVersion: 2
+        x: 1950
+        y: 130
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6c0f322e2caf19743b7645d0f6550af1
+      internalID: 164459980
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r8_c16
+      rect:
+        serializedVersion: 2
+        x: 2080
+        y: 130
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 755ad768b6636454e8442da5d3ce24d5
+      internalID: 1172405387
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r8_c17
+      rect:
+        serializedVersion: 2
+        x: 2210
+        y: 130
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c63a50d94e82d314496805cc73059b03
+      internalID: 2093410059
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r8_c18
+      rect:
+        serializedVersion: 2
+        x: 2340
+        y: 130
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: aca78793f0f90164d80c024058a70ff5
+      internalID: -1035781615
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r8_c19
+      rect:
+        serializedVersion: 2
+        x: 2470
+        y: 130
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d0aef1a396b847541b7581b1a1d08e1c
+      internalID: 1256352167
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r8_c20
+      rect:
+        serializedVersion: 2
+        x: 2600
+        y: 130
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 4765dd7cf25cdf64c880ffb08e4e37d1
+      internalID: 1188692239
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r8_c21
+      rect:
+        serializedVersion: 2
+        x: 2730
+        y: 130
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 80a4bfe35c9ad074dae3f33032b3b0d9
+      internalID: -118374985
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r8_c22
+      rect:
+        serializedVersion: 2
+        x: 2860
+        y: 130
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ba4009f12bcbe4b4a8cb4c56400da0cf
+      internalID: -1259481901
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r8_c23
+      rect:
+        serializedVersion: 2
+        x: 2990
+        y: 130
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 2f03754e2fe909347a9843f1484db5f6
+      internalID: -1600123145
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r9_c0
       rect:
         serializedVersion: 2
         x: 0
@@ -2207,14 +5309,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 1ab4803abdaa20647821de3c82922c76
-      internalID: -624272243
+      spriteID: 992e7eb5eabad4c4fb2b1dfb10bc27f4
+      internalID: -804143215
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: sprRaider7_r5_c1
+      name: sprRaider7_r9_c1
       rect:
         serializedVersion: 2
         x: 130
@@ -2229,14 +5331,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 3f2790aec79f60248a8adf925c856866
-      internalID: 1766304158
+      spriteID: 488baccee0819fc47850ecb0cb31e336
+      internalID: -831257779
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: sprRaider7_r5_c2
+      name: sprRaider7_r9_c2
       rect:
         serializedVersion: 2
         x: 260
@@ -2251,14 +5353,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: e3339e9b20e4cd34c8fd1dc0ec82f286
-      internalID: -180729930
+      spriteID: 9fbf67e835eb2a34383ce9910d87227d
+      internalID: 1749834505
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: sprRaider7_r5_c3
+      name: sprRaider7_r9_c3
       rect:
         serializedVersion: 2
         x: 390
@@ -2273,14 +5375,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 19a810f6cd6e7bd4eaa59c396b2a1d83
-      internalID: -1803355151
+      spriteID: c824820daa56d964aa8b5e432bc251ba
+      internalID: -380729034
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: sprRaider7_r5_c4
+      name: sprRaider7_r9_c4
       rect:
         serializedVersion: 2
         x: 520
@@ -2295,14 +5397,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: eda27dd57aa542a478839738a4fe5ffe
-      internalID: 528709416
+      spriteID: 76090cc1f005dbc4f84a5591ad76a2c6
+      internalID: -1919256331
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: sprRaider7_r5_c5
+      name: sprRaider7_r9_c5
       rect:
         serializedVersion: 2
         x: 650
@@ -2317,14 +5419,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 83686a744f502014cadf8bbff59a0fcb
-      internalID: -1597746673
+      spriteID: 42f7a74714a86be42b1062891d29407b
+      internalID: 477026326
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: sprRaider7_r5_c6
+      name: sprRaider7_r9_c6
       rect:
         serializedVersion: 2
         x: 780
@@ -2339,14 +5441,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: e1e324cb85e0264489d01a161d53aead
-      internalID: -333273449
+      spriteID: 1375d15e2b860974e8a129994389c764
+      internalID: -641253859
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: sprRaider7_r5_c7
+      name: sprRaider7_r9_c7
       rect:
         serializedVersion: 2
         x: 910
@@ -2361,14 +5463,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: d88d852b34228d943ab55543ea70a4d3
-      internalID: -542198173
+      spriteID: 08715daf047bb5c4e91be704a6d5def2
+      internalID: -1126628692
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: sprRaider7_r5_c8
+      name: sprRaider7_r9_c8
       rect:
         serializedVersion: 2
         x: 1040
@@ -2383,14 +5485,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 140ca90513aba744c9b11f6816cdf788
-      internalID: 6585201
+      spriteID: b71dfc34fa79f394996ac99a4ad32be1
+      internalID: 795780753
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: sprRaider7_r5_c9
+      name: sprRaider7_r9_c9
       rect:
         serializedVersion: 2
         x: 1170
@@ -2405,14 +5507,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: f058b8bb98aaeae4ab1fba35c31d7da4
-      internalID: 345086884
+      spriteID: 6fcdd57f26a47944c8e56f243268fb71
+      internalID: 1082216771
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: sprRaider7_r5_c10
+      name: sprRaider7_r9_c10
       rect:
         serializedVersion: 2
         x: 1300
@@ -2427,14 +5529,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: eae7defb9f1e8444ebf39c01b9f1895e
-      internalID: -1180359006
+      spriteID: 8e8c9f1ff2a354149adf39a1dec3bcc7
+      internalID: 831322247
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: sprRaider7_r5_c11
+      name: sprRaider7_r9_c11
       rect:
         serializedVersion: 2
         x: 1430
@@ -2449,14 +5551,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: b9d5e477c3f043045be42ae519d7c2b3
-      internalID: 583302939
+      spriteID: 43d930cfbbe16964b8f6c88863e9ed08
+      internalID: 1556271502
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: sprRaider7_r5_c12
+      name: sprRaider7_r9_c12
       rect:
         serializedVersion: 2
         x: 1560
@@ -2471,14 +5573,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: aeaf09e736c6f324786b7471d0a4d17d
-      internalID: -508164593
+      spriteID: 3d45ed12d83a52d4597d25e1ef15a8e7
+      internalID: -219445051
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: sprRaider7_r5_c13
+      name: sprRaider7_r9_c13
       rect:
         serializedVersion: 2
         x: 1690
@@ -2493,14 +5595,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: e340aae3f202699439c544a2c428923c
-      internalID: -865655454
+      spriteID: 1db9754ce53f825449b3d2e23fc0429f
+      internalID: -1921285468
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: sprRaider7_r5_c14
+      name: sprRaider7_r9_c14
       rect:
         serializedVersion: 2
         x: 1820
@@ -2515,8 +5617,206 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 197f907185b73364eae3bc977091d782
-      internalID: 433982372
+      spriteID: c15c29af648d7e44f97c8e60295cc98d
+      internalID: -1178903925
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r9_c15
+      rect:
+        serializedVersion: 2
+        x: 1950
+        y: 0
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 41238c32a3d6f734682ad8ab3c3a58df
+      internalID: -2102077981
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r9_c16
+      rect:
+        serializedVersion: 2
+        x: 2080
+        y: 0
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 0ff5ca45f1e5b8344aaed6fcf648e76c
+      internalID: -688673420
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r9_c17
+      rect:
+        serializedVersion: 2
+        x: 2210
+        y: 0
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a501df54d81ad1d478259d32abcde894
+      internalID: 696912190
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r9_c18
+      rect:
+        serializedVersion: 2
+        x: 2340
+        y: 0
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 782138ce2e6375a4499ad99513c21394
+      internalID: 221538572
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r9_c19
+      rect:
+        serializedVersion: 2
+        x: 2470
+        y: 0
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9b97da21fbe25b3489fa46a15dcf5c11
+      internalID: 1385427543
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r9_c20
+      rect:
+        serializedVersion: 2
+        x: 2600
+        y: 0
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 74a41238efde5fa4294b61499a40bb9a
+      internalID: 100899134
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r9_c21
+      rect:
+        serializedVersion: 2
+        x: 2730
+        y: 0
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 62aabe7cf1567814095c51796f0728d5
+      internalID: 513583167
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r9_c22
+      rect:
+        serializedVersion: 2
+        x: 2860
+        y: 0
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: bf204570b6ee90b45a6c3b2354f57426
+      internalID: -595108184
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprRaider7_r9_c23
+      rect:
+        serializedVersion: 2
+        x: 2990
+        y: 0
+        width: 130
+        height: 130
+      alignment: 9
+      pivot: {x: 0.5, y: 0.07692308}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 5770da603545d324b97433a10a4005a5
+      internalID: 943346317
       vertices: []
       indices: 
       edges: []
@@ -2686,7 +5986,16 @@ TextureImporter:
       sprRaider7_r0_c12: -992003755
       sprRaider7_r0_c13: 1901417760
       sprRaider7_r0_c14: -2102134449
+      sprRaider7_r0_c15: -216684676
+      sprRaider7_r0_c16: 1406576399
+      sprRaider7_r0_c17: 440435848
+      sprRaider7_r0_c18: -1228126638
+      sprRaider7_r0_c19: -2011765406
       sprRaider7_r0_c2: -2115407375
+      sprRaider7_r0_c20: -2092423600
+      sprRaider7_r0_c21: 930924667
+      sprRaider7_r0_c22: 763253284
+      sprRaider7_r0_c23: -1697617929
       sprRaider7_r0_c3: -862386977
       sprRaider7_r0_c4: -581261152
       sprRaider7_r0_c5: -1581822446
@@ -2701,7 +6010,16 @@ TextureImporter:
       sprRaider7_r1_c12: -946146480
       sprRaider7_r1_c13: 461794276
       sprRaider7_r1_c14: -1684422511
+      sprRaider7_r1_c15: -244199212
+      sprRaider7_r1_c16: 510402372
+      sprRaider7_r1_c17: 1407828436
+      sprRaider7_r1_c18: -1684239690
+      sprRaider7_r1_c19: -448986271
       sprRaider7_r1_c2: -2044394041
+      sprRaider7_r1_c20: -1438641949
+      sprRaider7_r1_c21: 1783297233
+      sprRaider7_r1_c22: 1058433393
+      sprRaider7_r1_c23: 370872025
       sprRaider7_r1_c3: 133649708
       sprRaider7_r1_c4: -1273966269
       sprRaider7_r1_c5: -229306974
@@ -2716,7 +6034,16 @@ TextureImporter:
       sprRaider7_r2_c12: -918620105
       sprRaider7_r2_c13: 1567040369
       sprRaider7_r2_c14: -876671198
+      sprRaider7_r2_c15: -1927930654
+      sprRaider7_r2_c16: 243232034
+      sprRaider7_r2_c17: 635837189
+      sprRaider7_r2_c18: -231297305
+      sprRaider7_r2_c19: -697619541
       sprRaider7_r2_c2: 496898633
+      sprRaider7_r2_c20: 1968222567
+      sprRaider7_r2_c21: 400733212
+      sprRaider7_r2_c22: -313509808
+      sprRaider7_r2_c23: -1311091330
       sprRaider7_r2_c3: 904923599
       sprRaider7_r2_c4: 857869419
       sprRaider7_r2_c5: -756065707
@@ -2731,7 +6058,16 @@ TextureImporter:
       sprRaider7_r3_c12: -946682013
       sprRaider7_r3_c13: -217201484
       sprRaider7_r3_c14: -43688229
+      sprRaider7_r3_c15: -2138636025
+      sprRaider7_r3_c16: -588895343
+      sprRaider7_r3_c17: 625604393
+      sprRaider7_r3_c18: 459201923
+      sprRaider7_r3_c19: -291911322
       sprRaider7_r3_c2: -857316438
+      sprRaider7_r3_c20: -1562042373
+      sprRaider7_r3_c21: 638339319
+      sprRaider7_r3_c22: 1171563433
+      sprRaider7_r3_c23: -454007431
       sprRaider7_r3_c3: -22471617
       sprRaider7_r3_c4: -1530373183
       sprRaider7_r3_c5: -1285497984
@@ -2746,7 +6082,16 @@ TextureImporter:
       sprRaider7_r4_c12: 1077624016
       sprRaider7_r4_c13: -1611028355
       sprRaider7_r4_c14: -1514296054
+      sprRaider7_r4_c15: 2053709144
+      sprRaider7_r4_c16: 139767194
+      sprRaider7_r4_c17: 283573592
+      sprRaider7_r4_c18: 957225118
+      sprRaider7_r4_c19: 219824828
       sprRaider7_r4_c2: -1353724886
+      sprRaider7_r4_c20: -622807496
+      sprRaider7_r4_c21: -263746383
+      sprRaider7_r4_c22: -316051185
+      sprRaider7_r4_c23: 2044588242
       sprRaider7_r4_c3: -1491316535
       sprRaider7_r4_c4: 1322260035
       sprRaider7_r4_c5: -176395278
@@ -2761,7 +6106,16 @@ TextureImporter:
       sprRaider7_r5_c12: -508164593
       sprRaider7_r5_c13: -865655454
       sprRaider7_r5_c14: 433982372
+      sprRaider7_r5_c15: 775439815
+      sprRaider7_r5_c16: 415856174
+      sprRaider7_r5_c17: 850997373
+      sprRaider7_r5_c18: -1757401041
+      sprRaider7_r5_c19: 625762462
       sprRaider7_r5_c2: -180729930
+      sprRaider7_r5_c20: 2040017264
+      sprRaider7_r5_c21: 548807019
+      sprRaider7_r5_c22: -1527621431
+      sprRaider7_r5_c23: 89612047
       sprRaider7_r5_c3: -1803355151
       sprRaider7_r5_c4: 528709416
       sprRaider7_r5_c5: -1597746673
@@ -2769,6 +6123,102 @@ TextureImporter:
       sprRaider7_r5_c7: -542198173
       sprRaider7_r5_c8: 6585201
       sprRaider7_r5_c9: 345086884
+      sprRaider7_r6_c0: -278779056
+      sprRaider7_r6_c1: 1399316952
+      sprRaider7_r6_c10: 463902282
+      sprRaider7_r6_c11: 1478974917
+      sprRaider7_r6_c12: 1294020496
+      sprRaider7_r6_c13: -1542783978
+      sprRaider7_r6_c14: 2110865543
+      sprRaider7_r6_c15: -175127670
+      sprRaider7_r6_c16: -1491186404
+      sprRaider7_r6_c17: 154306172
+      sprRaider7_r6_c18: 536877187
+      sprRaider7_r6_c19: 2103924426
+      sprRaider7_r6_c2: -166198214
+      sprRaider7_r6_c20: -279825093
+      sprRaider7_r6_c21: 1122077218
+      sprRaider7_r6_c22: -347865579
+      sprRaider7_r6_c23: 1851960140
+      sprRaider7_r6_c3: -1516277691
+      sprRaider7_r6_c4: -163208879
+      sprRaider7_r6_c5: -2127163960
+      sprRaider7_r6_c6: 1752055197
+      sprRaider7_r6_c7: 197671111
+      sprRaider7_r6_c8: -1286071379
+      sprRaider7_r6_c9: -1327892408
+      sprRaider7_r7_c0: 306559639
+      sprRaider7_r7_c1: 1830718001
+      sprRaider7_r7_c10: -512248821
+      sprRaider7_r7_c11: -814852129
+      sprRaider7_r7_c12: 709608533
+      sprRaider7_r7_c13: 2146448032
+      sprRaider7_r7_c14: 1700766757
+      sprRaider7_r7_c15: -1322967950
+      sprRaider7_r7_c16: 1602296621
+      sprRaider7_r7_c17: 188310747
+      sprRaider7_r7_c18: -1717065739
+      sprRaider7_r7_c19: 1169348324
+      sprRaider7_r7_c2: -656710822
+      sprRaider7_r7_c20: -321486677
+      sprRaider7_r7_c21: -1194142713
+      sprRaider7_r7_c22: 1623482240
+      sprRaider7_r7_c23: 2012068023
+      sprRaider7_r7_c3: 1314668828
+      sprRaider7_r7_c4: -1068025154
+      sprRaider7_r7_c5: 1001939769
+      sprRaider7_r7_c6: -1578344379
+      sprRaider7_r7_c7: -91843330
+      sprRaider7_r7_c8: 409030453
+      sprRaider7_r7_c9: 1670281266
+      sprRaider7_r8_c0: -1493587183
+      sprRaider7_r8_c1: -381265968
+      sprRaider7_r8_c10: 760180528
+      sprRaider7_r8_c11: -401411509
+      sprRaider7_r8_c12: 656255611
+      sprRaider7_r8_c13: -957713460
+      sprRaider7_r8_c14: -10103745
+      sprRaider7_r8_c15: 164459980
+      sprRaider7_r8_c16: 1172405387
+      sprRaider7_r8_c17: 2093410059
+      sprRaider7_r8_c18: -1035781615
+      sprRaider7_r8_c19: 1256352167
+      sprRaider7_r8_c2: -16087460
+      sprRaider7_r8_c20: 1188692239
+      sprRaider7_r8_c21: -118374985
+      sprRaider7_r8_c22: -1259481901
+      sprRaider7_r8_c23: -1600123145
+      sprRaider7_r8_c3: -1139537418
+      sprRaider7_r8_c4: -1549543611
+      sprRaider7_r8_c5: -1728120386
+      sprRaider7_r8_c6: -660777064
+      sprRaider7_r8_c7: -971324643
+      sprRaider7_r8_c8: -1441295693
+      sprRaider7_r8_c9: 2013517972
+      sprRaider7_r9_c0: -804143215
+      sprRaider7_r9_c1: -831257779
+      sprRaider7_r9_c10: 831322247
+      sprRaider7_r9_c11: 1556271502
+      sprRaider7_r9_c12: -219445051
+      sprRaider7_r9_c13: -1921285468
+      sprRaider7_r9_c14: -1178903925
+      sprRaider7_r9_c15: -2102077981
+      sprRaider7_r9_c16: -688673420
+      sprRaider7_r9_c17: 696912190
+      sprRaider7_r9_c18: 221538572
+      sprRaider7_r9_c19: 1385427543
+      sprRaider7_r9_c2: 1749834505
+      sprRaider7_r9_c20: 100899134
+      sprRaider7_r9_c21: 513583167
+      sprRaider7_r9_c22: -595108184
+      sprRaider7_r9_c23: 943346317
+      sprRaider7_r9_c3: -380729034
+      sprRaider7_r9_c4: -1919256331
+      sprRaider7_r9_c5: 477026326
+      sprRaider7_r9_c6: -641253859
+      sprRaider7_r9_c7: -1126628692
+      sprRaider7_r9_c8: 795780753
+      sprRaider7_r9_c9: 1082216771
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

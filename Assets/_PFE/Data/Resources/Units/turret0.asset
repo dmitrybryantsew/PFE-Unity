@@ -90,7 +90,7 @@ MonoBehaviour:
   tripDamage: 0
   dialogueSet: 
   teleportColor: {r: 1, g: 1, b: 1, a: 1}
-  sprite: {fileID: 0}
+  sprite: {fileID: 21300000, guid: c874b0e339f2de14daa00ecbf93ed0c0, type: 3}
   spriteSheetId: 
   visualClassName: visualTurret0
   spriteSheet:

@@ -60,6 +60,15 @@ namespace PFE.Editor.Importers
         const int MaxTextureSize = 8192;
 
         /// <summary>
+        /// How many times to re-issue a <c>SaveAndReimport</c> whose <c>.meta</c> write collided with the
+        /// import already in flight, and the base backoff between attempts in milliseconds (it grows
+        /// linearly, since the thing being waited on is a texture decode rather than a fixed-length lock).
+        /// See <c>Reimport</c> for the run this cost.
+        /// </summary>
+        const int ReimportAttempts = 4;
+        const int ReimportRetryDelayMs = 150;
+
+        /// <summary>
         /// Units whose visual is chosen in the controller class rather than declared in data, so it
         /// cannot be derived from <c>AllData.as</c> alone.
         ///
@@ -163,9 +172,21 @@ namespace PFE.Editor.Importers
                     continue;
                 }
 
-                if (SliceSheet(unit, sourcePng, result))
+                try
                 {
-                    result.UnitsWired++;
+                    if (SliceSheet(unit, sourcePng, result))
+                    {
+                        result.UnitsWired++;
+                    }
+                }
+                catch (Exception e)
+                {
+                    // One unit must never be able to kill the run. This loop drives ~62 sheet imports
+                    // and ~228 frame imports through the asset pipeline, and an unhandled throw anywhere
+                    // inside it unwinds out of Run — so the summary never prints and a half-imported
+                    // project looks like nothing happened at all. That is precisely what a .meta write
+                    // collision did on 5 sheets. Reported, and the run continues.
+                    result.Warnings.Add($"{unit.id}: sheet import threw {e.GetType().Name}: {e.Message}");
                 }
             }
 
@@ -188,9 +209,18 @@ namespace PFE.Editor.Importers
                     continue;
                 }
 
-                if (ImportVisual(unit, visualNames, result))
+                try
                 {
-                    result.UnitsWired++;
+                    if (ImportVisual(unit, visualNames, result))
+                    {
+                        result.UnitsWired++;
+                    }
+                }
+                catch (Exception e)
+                {
+                    // Same reason as pass 1: the frame loop issues one import per frame, so it is the
+                    // longest-running part of the run and the most likely place to lose a race.
+                    result.Warnings.Add($"{unit.id}: visual import threw {e.GetType().Name}: {e.Message}");
                 }
             }
 
@@ -243,7 +273,11 @@ namespace PFE.Editor.Importers
             // altogether with a 15x0 grid. A too-low maxTextureSize never errors — it just resamples.
             ConfigureBase(importer, MaxTextureSize);
             importer.spriteImportMode = SpriteImportMode.Multiple;
-            importer.SaveAndReimport();
+
+            if (!Reimport(importer, destAssetPath, unit, result))
+            {
+                return false;
+            }
 
             // The authoritative size is the FILE's, not the imported texture's. Reading the PNG header
             // makes the grid independent of every import setting, so no default can move it again.
@@ -393,18 +427,28 @@ namespace PFE.Editor.Importers
         static bool ApplySpriteGrid(TextureImporter importer, string assetPath, SpriteRect[] rects,
                                     UnitDefinition unit, Result result)
         {
-            // The import mode has to be Multiple before the provider is built, or the provider exposes a
-            // single-sprite sheet and the whole grid is discarded without complaint.
-            ConfigureBase(importer, MaxTextureSize);
-            importer.spriteImportMode = SpriteImportMode.Multiple;
-            importer.SaveAndReimport();
-
             // SaveAndReimport invalidates the importer instance we hold, so re-acquire it by path.
             var current = AssetImporter.GetAtPath(assetPath) as TextureImporter;
             if (current == null)
             {
                 result.Warnings.Add($"{unit.id}: importer disappeared after reimport of {assetPath}");
                 return false;
+            }
+
+            // Deliberately NOT re-imported here. The import mode has to be Multiple before the
+            // provider is built, or the provider exposes a single-sprite sheet and the whole grid is
+            // discarded without complaint — but SliceSheet already ran ConfigureBase + Multiple and
+            // persisted both with its own reimport, so the provider below is looking at a
+            // multi-sprite sheet already. Repeating the reimport made this a THIRD consecutive full
+            // import of the same texture, and on the large sheets the previous one was still in
+            // flight when the grid write landed, so the .meta write failed and the exception
+            // propagated out of Run — aborting an entire run, with no summary, on 5 sheets
+            // (sprGriffon2/4, sprGutsy1, sprProtect1, sprRanger1). Asserted instead of re-set, so a
+            // mode that somehow did not stick is reported rather than silently throwing the grid away.
+            if (current.spriteImportMode != SpriteImportMode.Multiple)
+            {
+                result.Warnings.Add($"{unit.id}: {assetPath} is in {current.spriteImportMode} sprite " +
+                                    "mode, not Multiple, so the cell grid will be discarded.");
             }
 
             try
@@ -429,8 +473,48 @@ namespace PFE.Editor.Importers
                 return false;
             }
 
-            current.SaveAndReimport();
-            return true;
+            return Reimport(current, assetPath, unit, result);
+        }
+
+        /// <summary>
+        /// Persist an importer and reimport its asset, retrying a write that loses a race with the
+        /// import already in flight.
+        ///
+        /// <para><b>Why a retry is not paranoia here.</b> <c>SaveAndReimport</c> starts an import and
+        /// returns before it finishes, so a write issued straight afterwards can collide with it. On
+        /// Windows that surfaces as <c>Cannot open file '…meta' for write</c> and then <c>Failed to
+        /// write meta file</c>, and the exception unwinds all the way out of <c>Run</c>. It is purely
+        /// timing-dependent, which is why a real run lost exactly the slow sheets — <c>sprGriffon2</c>,
+        /// <c>sprGriffon4</c>, <c>sprGutsy1</c>, <c>sprProtect1</c>, <c>sprRanger1</c> — and printed no
+        /// summary at all. A locked <c>.meta</c> must degrade to a reported warning, never to a dead run:
+        /// a half-imported project that claims nothing happened is the worst of the available outcomes.</para>
+        /// </summary>
+        static bool Reimport(TextureImporter importer, string assetPath, UnitDefinition unit, Result result)
+        {
+            for (int attempt = 1; attempt <= ReimportAttempts; attempt++)
+            {
+                try
+                {
+                    importer.SaveAndReimport();
+                    return true;
+                }
+                catch (Exception e)
+                {
+                    if (attempt == ReimportAttempts)
+                    {
+                        result.Warnings.Add($"{unit.id}: could not reimport {assetPath} after " +
+                                            $"{ReimportAttempts} attempts: {e.Message}");
+                        return false;
+                    }
+
+                    // Back off, so the in-flight import can finish and release the .meta. Grows each
+                    // round because the thing being waited on is a large texture decode, not a lock
+                    // that clears in a fixed time.
+                    System.Threading.Thread.Sleep(ReimportRetryDelayMs * attempt);
+                }
+            }
+
+            return false;
         }
 
         /// <summary>
@@ -620,7 +704,9 @@ namespace PFE.Editor.Importers
                     settings.spriteAlignment = (int)SpriteAlignment.Center;
                     importer.SetTextureSettings(settings);
 
-                    importer.SaveAndReimport();
+                    // Same retry as the sheet path: these are single frames, but there are ~228 of them
+                    // and the loop issues one import per frame, so the same .meta collision applies.
+                    Reimport(importer, assetPath, unit, result);
 
                     var sprite = AssetDatabase.LoadAssetAtPath<Sprite>(assetPath);
                     if (sprite != null)

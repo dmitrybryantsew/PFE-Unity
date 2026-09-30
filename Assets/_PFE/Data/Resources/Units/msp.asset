@@ -90,7 +90,7 @@ MonoBehaviour:
   tripDamage: 0
   dialogueSet: 
   teleportColor: {r: 1, g: 1, b: 1, a: 1}
-  sprite: {fileID: 0}
+  sprite: {fileID: 21300000, guid: 05e3831317da5704f8bd372c2aef3d1b, type: 3}
   spriteSheetId: 
   visualClassName: visualMsp
   spriteSheet:

@@ -90,7 +90,7 @@ MonoBehaviour:
   tripDamage: 0
   dialogueSet: 
   teleportColor: {r: 1, g: 1, b: 1, a: 1}
-  sprite: {fileID: 0}
+  sprite: {fileID: 21300000, guid: c7f3604701e898b44b6ae6bb7e6273c2, type: 3}
   spriteSheetId: 
   visualClassName: visualDron1
   spriteSheet:

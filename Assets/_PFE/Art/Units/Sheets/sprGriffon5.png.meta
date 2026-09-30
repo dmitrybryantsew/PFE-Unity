@@ -357,6 +357,1656 @@ TextureImporter:
       rect:
         serializedVersion: 2
         x: 0
+        y: 510
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b2f0324003ca8c94d90629bdc21e8f0c
+      internalID: -1920387840
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r0_c1
+      rect:
+        serializedVersion: 2
+        x: 170
+        y: 510
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 3598ecfcda333e340994ec815e9758c7
+      internalID: -1547160019
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r0_c2
+      rect:
+        serializedVersion: 2
+        x: 340
+        y: 510
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9b0e26c8b0789ed4088a919cc02ccba4
+      internalID: -326924752
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r0_c3
+      rect:
+        serializedVersion: 2
+        x: 510
+        y: 510
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 11d95424da1e56745a623c2fd2e4d968
+      internalID: -893815424
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r0_c4
+      rect:
+        serializedVersion: 2
+        x: 680
+        y: 510
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 66a6a5d296aaa3e4eab895bce8699462
+      internalID: -602872855
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r0_c5
+      rect:
+        serializedVersion: 2
+        x: 850
+        y: 510
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 41487105e15d8ff40947f46da382d444
+      internalID: -526970673
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r0_c6
+      rect:
+        serializedVersion: 2
+        x: 1020
+        y: 510
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 4fe7bdfb17878864cb279b1334d8f835
+      internalID: -100185996
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r0_c7
+      rect:
+        serializedVersion: 2
+        x: 1190
+        y: 510
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 22b039bd3f13b1248bc324f685b53313
+      internalID: 1167353304
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r0_c8
+      rect:
+        serializedVersion: 2
+        x: 1360
+        y: 510
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6df2939061be9914bb52ae6967e6bfb0
+      internalID: -64301796
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r0_c9
+      rect:
+        serializedVersion: 2
+        x: 1530
+        y: 510
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 82c1ba10ab149944cb29134b3387ba58
+      internalID: 1887198367
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r0_c10
+      rect:
+        serializedVersion: 2
+        x: 1700
+        y: 510
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: dd738bd523a900a47adf143ed3e677db
+      internalID: 1094013567
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r0_c11
+      rect:
+        serializedVersion: 2
+        x: 1870
+        y: 510
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 68ec325799259f943bc670882b6bc3ab
+      internalID: -606018982
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r0_c12
+      rect:
+        serializedVersion: 2
+        x: 2040
+        y: 510
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 543fe45a6d6491f4ea3b069f2843fba0
+      internalID: -61829373
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r0_c13
+      rect:
+        serializedVersion: 2
+        x: 2210
+        y: 510
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6ca1727508b1ff7479ed3661c53ddde2
+      internalID: -30091535
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r0_c14
+      rect:
+        serializedVersion: 2
+        x: 2380
+        y: 510
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 0fcc017be40d89d47adf847202736758
+      internalID: -1223661971
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r0_c15
+      rect:
+        serializedVersion: 2
+        x: 2550
+        y: 510
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 64ed5b220b488d44aad77b23fafc2435
+      internalID: -219500621
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r0_c16
+      rect:
+        serializedVersion: 2
+        x: 2720
+        y: 510
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a1fe5a00af90c9c45b2efe9bf5263de4
+      internalID: 182651078
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r0_c17
+      rect:
+        serializedVersion: 2
+        x: 2890
+        y: 510
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 3408614801657be4687721c7addcb56c
+      internalID: -1769233293
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r0_c18
+      rect:
+        serializedVersion: 2
+        x: 3060
+        y: 510
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 2bc82474d29307245880defa185c404a
+      internalID: -562549913
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r0_c19
+      rect:
+        serializedVersion: 2
+        x: 3230
+        y: 510
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 32fd1b1396c7bf143861ac7e294649b2
+      internalID: -2128984893
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r0_c20
+      rect:
+        serializedVersion: 2
+        x: 3400
+        y: 510
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d17e18d94ce020848a1fd55f334fc3df
+      internalID: -411381298
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r0_c21
+      rect:
+        serializedVersion: 2
+        x: 3570
+        y: 510
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a98a3f0513d9acd4eb2bc8c03d084cc7
+      internalID: -1772521674
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r0_c22
+      rect:
+        serializedVersion: 2
+        x: 3740
+        y: 510
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 62a999b1d41217446aad25b7502241c3
+      internalID: 1138068328
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r0_c23
+      rect:
+        serializedVersion: 2
+        x: 3910
+        y: 510
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6f79db912e1e1f24388ca57c2f13e1f4
+      internalID: -121048111
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r0_c24
+      rect:
+        serializedVersion: 2
+        x: 4080
+        y: 510
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 5439cdfc64926964aa9147122b557393
+      internalID: 394933199
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r1_c0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 340
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 5d7ba12490846664fb35dc64385a9405
+      internalID: 1975663384
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r1_c1
+      rect:
+        serializedVersion: 2
+        x: 170
+        y: 340
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 90373b7f93d8aea42b19a6bd9f77900b
+      internalID: -81197329
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r1_c2
+      rect:
+        serializedVersion: 2
+        x: 340
+        y: 340
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 992170f360a2c854a96c460688bd5fa9
+      internalID: -1801137071
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r1_c3
+      rect:
+        serializedVersion: 2
+        x: 510
+        y: 340
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: cc49a38be4da42e45aed7ff68d0b2fd3
+      internalID: -353592229
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r1_c4
+      rect:
+        serializedVersion: 2
+        x: 680
+        y: 340
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f9807692aa9416843ae509836e0bfde3
+      internalID: 1450826984
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r1_c5
+      rect:
+        serializedVersion: 2
+        x: 850
+        y: 340
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 099755caaf2f69a4788361d55dbd3325
+      internalID: -682096204
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r1_c6
+      rect:
+        serializedVersion: 2
+        x: 1020
+        y: 340
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 108a916d1c59c09489ff0db0f0f2a6e6
+      internalID: 1611710587
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r1_c7
+      rect:
+        serializedVersion: 2
+        x: 1190
+        y: 340
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 3601bd297389170419167b6234c4a790
+      internalID: 529341998
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r1_c8
+      rect:
+        serializedVersion: 2
+        x: 1360
+        y: 340
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: df44004d1c5949143b7057f585f7222d
+      internalID: -568143017
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r1_c9
+      rect:
+        serializedVersion: 2
+        x: 1530
+        y: 340
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 8595620d93006e9498c684e0a370e18e
+      internalID: -71970482
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r1_c10
+      rect:
+        serializedVersion: 2
+        x: 1700
+        y: 340
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 153b8bea975ba0c46a81609b3d9097a2
+      internalID: 1567515225
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r1_c11
+      rect:
+        serializedVersion: 2
+        x: 1870
+        y: 340
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 5f9d2949f4ef5b947a7594315b6a89cb
+      internalID: -1965390280
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r1_c12
+      rect:
+        serializedVersion: 2
+        x: 2040
+        y: 340
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c8ba90bb1fb62c241ad38fd0f4194a57
+      internalID: -1431397305
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r1_c13
+      rect:
+        serializedVersion: 2
+        x: 2210
+        y: 340
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: cd06776ce315b044889be185fe78aaa9
+      internalID: -149245419
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r1_c14
+      rect:
+        serializedVersion: 2
+        x: 2380
+        y: 340
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c42fe7a10af05d944af0d01a8b1d50c2
+      internalID: 772295536
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r1_c15
+      rect:
+        serializedVersion: 2
+        x: 2550
+        y: 340
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7af498d0ddb9b7845b04054a34b10082
+      internalID: -2075126180
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r1_c16
+      rect:
+        serializedVersion: 2
+        x: 2720
+        y: 340
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6eee0585acfd0e94495627d300ec3d2a
+      internalID: 987514240
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r1_c17
+      rect:
+        serializedVersion: 2
+        x: 2890
+        y: 340
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 30d87cf46324a0f42a09e92ec4de12d2
+      internalID: -1164454209
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r1_c18
+      rect:
+        serializedVersion: 2
+        x: 3060
+        y: 340
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c1dd6ddb29a2a564b9a34416de6d2fb5
+      internalID: 1584305204
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r1_c19
+      rect:
+        serializedVersion: 2
+        x: 3230
+        y: 340
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 3d8a1b1f810ac7540b2c18b94ed802a6
+      internalID: 1952258131
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r1_c20
+      rect:
+        serializedVersion: 2
+        x: 3400
+        y: 340
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ded7ec36a4a707d4bac28a417c9424e9
+      internalID: 1624738203
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r1_c21
+      rect:
+        serializedVersion: 2
+        x: 3570
+        y: 340
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c21a38425f56a8f488dcccb540ee6cef
+      internalID: 1693299357
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r1_c22
+      rect:
+        serializedVersion: 2
+        x: 3740
+        y: 340
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c366d5a7f46ba894a98cea308499d7db
+      internalID: 2106159249
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r1_c23
+      rect:
+        serializedVersion: 2
+        x: 3910
+        y: 340
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 5a280ed3d1308fc42ab08671a56edce4
+      internalID: -855210036
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r1_c24
+      rect:
+        serializedVersion: 2
+        x: 4080
+        y: 340
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 0a96cbaf00a57664a88fc369c6af4c41
+      internalID: 2014342990
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r2_c0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 170
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b53bc0e2aefd5c14583e137c12c8ad7d
+      internalID: 619721925
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r2_c1
+      rect:
+        serializedVersion: 2
+        x: 170
+        y: 170
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 74d6fa13058319e49a9374981724418c
+      internalID: 124819679
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r2_c2
+      rect:
+        serializedVersion: 2
+        x: 340
+        y: 170
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ad72dba640cb7e64f8132fcfc06d68d7
+      internalID: 964141265
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r2_c3
+      rect:
+        serializedVersion: 2
+        x: 510
+        y: 170
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e3e9099fb6eb2314a8bf5e89cdffb968
+      internalID: -1795023909
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r2_c4
+      rect:
+        serializedVersion: 2
+        x: 680
+        y: 170
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f8ea6df5bcc3e7242b73a819a26772b3
+      internalID: 1397595192
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r2_c5
+      rect:
+        serializedVersion: 2
+        x: 850
+        y: 170
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ac424f6ef2b401d4aabe910122610f49
+      internalID: 6897381
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r2_c6
+      rect:
+        serializedVersion: 2
+        x: 1020
+        y: 170
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 4a62fa836c242ab4e9433d4501fb4229
+      internalID: -1129633420
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r2_c7
+      rect:
+        serializedVersion: 2
+        x: 1190
+        y: 170
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 48139f9383ca27c47975f0016e469f14
+      internalID: 158123113
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r2_c8
+      rect:
+        serializedVersion: 2
+        x: 1360
+        y: 170
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c684137d067cbb04ea4b3a993971bc62
+      internalID: -1272631223
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r2_c9
+      rect:
+        serializedVersion: 2
+        x: 1530
+        y: 170
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 48b01a2000f207846bcc0528afd1d5c6
+      internalID: -543903600
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r2_c10
+      rect:
+        serializedVersion: 2
+        x: 1700
+        y: 170
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d5441ec0d19baa1499703dbe04bb72c7
+      internalID: -218638039
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r2_c11
+      rect:
+        serializedVersion: 2
+        x: 1870
+        y: 170
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 2e1ab2e6693a7d24a87e19ab23f3e0ea
+      internalID: 2006032332
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r2_c12
+      rect:
+        serializedVersion: 2
+        x: 2040
+        y: 170
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6b1611ff1020112448748185bcbb1fa7
+      internalID: -593506944
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r2_c13
+      rect:
+        serializedVersion: 2
+        x: 2210
+        y: 170
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 379821484bd64384e9a9293957c43c8b
+      internalID: 808978736
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r2_c14
+      rect:
+        serializedVersion: 2
+        x: 2380
+        y: 170
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: fbd3191d6e2051d44a726215c085fd95
+      internalID: 1958429181
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r2_c15
+      rect:
+        serializedVersion: 2
+        x: 2550
+        y: 170
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ecd55ee20c171b34d98dfbd9d66a0033
+      internalID: -1924939350
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r2_c16
+      rect:
+        serializedVersion: 2
+        x: 2720
+        y: 170
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 713109d5e112d69458abf2c082f496fc
+      internalID: -1295919476
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r2_c17
+      rect:
+        serializedVersion: 2
+        x: 2890
+        y: 170
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a94ef54b2f9201e4896d0cc7660de11b
+      internalID: -316521282
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r2_c18
+      rect:
+        serializedVersion: 2
+        x: 3060
+        y: 170
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a8b5f2463c559c94b9d65995cdd754b1
+      internalID: -1110555646
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r2_c19
+      rect:
+        serializedVersion: 2
+        x: 3230
+        y: 170
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f656ca08529f3ab49a8f7e701f22e9a4
+      internalID: 1698665930
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r2_c20
+      rect:
+        serializedVersion: 2
+        x: 3400
+        y: 170
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: bfc564a8a3044534abd277a917a3097e
+      internalID: -580802098
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r2_c21
+      rect:
+        serializedVersion: 2
+        x: 3570
+        y: 170
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c21b703a9103b3f4d91a266093a9bb8e
+      internalID: -465638411
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r2_c22
+      rect:
+        serializedVersion: 2
+        x: 3740
+        y: 170
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 873ea7c0090cab640a4c427bead61086
+      internalID: 692560646
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r2_c23
+      rect:
+        serializedVersion: 2
+        x: 3910
+        y: 170
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: fff94f4defe0d5c4cbf722619ab37af0
+      internalID: -866563528
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r2_c24
+      rect:
+        serializedVersion: 2
+        x: 4080
+        y: 170
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 48b8254dd7c3c09448637f1f48b92ad7
+      internalID: 226468985
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r3_c0
+      rect:
+        serializedVersion: 2
+        x: 0
         y: 0
         width: 170
         height: 170
@@ -368,14 +2018,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 8fd1adb397d462147bd16f3f291b2ad3
-      internalID: -1920387840
+      spriteID: 3c79362b929911b459138a748475c5f9
+      internalID: -946873905
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: sprGriffon5_r0_c1
+      name: sprGriffon5_r3_c1
       rect:
         serializedVersion: 2
         x: 170
@@ -390,14 +2040,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: f2f986258a5a1e34eb2d8d6e09bebcb1
-      internalID: -1547160019
+      spriteID: e31204dfa348bd746805633cf9ed52e7
+      internalID: 116049021
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: sprGriffon5_r0_c2
+      name: sprGriffon5_r3_c2
       rect:
         serializedVersion: 2
         x: 340
@@ -412,14 +2062,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: b8f58f85b7a7a38459d9fb23d86aa7c6
-      internalID: -326924752
+      spriteID: 9e9f995504078bf43b386e5edfcb4136
+      internalID: 619628871
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: sprGriffon5_r0_c3
+      name: sprGriffon5_r3_c3
       rect:
         serializedVersion: 2
         x: 510
@@ -434,14 +2084,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: c83f6831548191d46b115b4b719c2d43
-      internalID: -893815424
+      spriteID: 33e3638ca802aa5459f2ebdea44c5896
+      internalID: 1762531510
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: sprGriffon5_r0_c4
+      name: sprGriffon5_r3_c4
       rect:
         serializedVersion: 2
         x: 680
@@ -456,14 +2106,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: d440e6debd313b94baa384be444bba04
-      internalID: -602872855
+      spriteID: 45e02c641e7e9e24581b0f6656a39ff5
+      internalID: -1094444943
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: sprGriffon5_r0_c5
+      name: sprGriffon5_r3_c5
       rect:
         serializedVersion: 2
         x: 850
@@ -478,14 +2128,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 7b5b38b8fb03d4542abbdb471407ec85
-      internalID: -526970673
+      spriteID: 5adadc16f5ed8c245b4d2c1cc9bb82e3
+      internalID: -148285717
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: sprGriffon5_r0_c6
+      name: sprGriffon5_r3_c6
       rect:
         serializedVersion: 2
         x: 1020
@@ -500,14 +2150,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 7e40fbf897755aa4ca9713f1a0372b0a
-      internalID: -100185996
+      spriteID: 533faefaf061aca4580e0a00878bb0ee
+      internalID: 1543990207
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: sprGriffon5_r0_c7
+      name: sprGriffon5_r3_c7
       rect:
         serializedVersion: 2
         x: 1190
@@ -522,14 +2172,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: cb29398ecb4cc024db0ac4f2135769a2
-      internalID: 1167353304
+      spriteID: 7776a1dc245377e46b4a30f14b09b845
+      internalID: 1716838675
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: sprGriffon5_r0_c8
+      name: sprGriffon5_r3_c8
       rect:
         serializedVersion: 2
         x: 1360
@@ -544,14 +2194,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: a2f2b52953a57df44999b056fa4e8555
-      internalID: -64301796
+      spriteID: 42e887b1fa7e1ca43a5abc9ef95a2011
+      internalID: -755340813
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: sprGriffon5_r0_c9
+      name: sprGriffon5_r3_c9
       rect:
         serializedVersion: 2
         x: 1530
@@ -566,14 +2216,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 82f3505251f822a40bb5a2d5aaa71fcc
-      internalID: 1887198367
+      spriteID: 8b8c37ca72bb3a444bfdf02ad19c5955
+      internalID: -2030823930
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: sprGriffon5_r0_c10
+      name: sprGriffon5_r3_c10
       rect:
         serializedVersion: 2
         x: 1700
@@ -588,14 +2238,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 1e401b6035ae41044bc660ce59ded89c
-      internalID: 1094013567
+      spriteID: 6d49345be9f74074aa3a12a405debdbc
+      internalID: 1080784818
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: sprGriffon5_r0_c11
+      name: sprGriffon5_r3_c11
       rect:
         serializedVersion: 2
         x: 1870
@@ -610,8 +2260,294 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 7315d59da52d20043819bfdac15eaf4d
-      internalID: -606018982
+      spriteID: c2b0aeddf6474014b8335721d2d1b423
+      internalID: 260806689
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r3_c12
+      rect:
+        serializedVersion: 2
+        x: 2040
+        y: 0
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e4fc88a02509bb149b6ce92e0708b7f3
+      internalID: -784064775
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r3_c13
+      rect:
+        serializedVersion: 2
+        x: 2210
+        y: 0
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 8a7b01696d625b9478d5222448381a80
+      internalID: -2057314231
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r3_c14
+      rect:
+        serializedVersion: 2
+        x: 2380
+        y: 0
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6ea293575596d37409728feba0039bc8
+      internalID: 1376215657
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r3_c15
+      rect:
+        serializedVersion: 2
+        x: 2550
+        y: 0
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 65a75f9303674ac46b1a6218219faca3
+      internalID: -354519374
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r3_c16
+      rect:
+        serializedVersion: 2
+        x: 2720
+        y: 0
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 3b4fac4ea53d1d14c8ab9f7ab5209d6c
+      internalID: -659603462
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r3_c17
+      rect:
+        serializedVersion: 2
+        x: 2890
+        y: 0
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: fede48bfdd040d6469c776b0b32b64e3
+      internalID: -1789679605
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r3_c18
+      rect:
+        serializedVersion: 2
+        x: 3060
+        y: 0
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 2a3a48c8fae7a98428385f2dec2f83d6
+      internalID: -1688477383
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r3_c19
+      rect:
+        serializedVersion: 2
+        x: 3230
+        y: 0
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9a5c67aacc864f9489f947f2a9c3ec43
+      internalID: 1305515107
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r3_c20
+      rect:
+        serializedVersion: 2
+        x: 3400
+        y: 0
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a2d534fed089b9241a4b532ca06fe906
+      internalID: -1169911216
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r3_c21
+      rect:
+        serializedVersion: 2
+        x: 3570
+        y: 0
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: da6eafd32e560c5448d1645d760c68f6
+      internalID: 1272288840
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r3_c22
+      rect:
+        serializedVersion: 2
+        x: 3740
+        y: 0
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c61f850f647fd9342bf7a36c208fde92
+      internalID: -516178366
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r3_c23
+      rect:
+        serializedVersion: 2
+        x: 3910
+        y: 0
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 0327b6d92a8e5b749a4cac0a4f34ea71
+      internalID: 758060627
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprGriffon5_r3_c24
+      rect:
+        serializedVersion: 2
+        x: 4080
+        y: 0
+        width: 170
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5647059, y: 0.22352941}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 33d90cc6c5fbfde44b3bbe28b4589f58
+      internalID: 565437556
       vertices: []
       indices: 
       edges: []
@@ -715,7 +2651,20 @@ TextureImporter:
       sprGriffon5_r0_c1: -1547160019
       sprGriffon5_r0_c10: 1094013567
       sprGriffon5_r0_c11: -606018982
+      sprGriffon5_r0_c12: -61829373
+      sprGriffon5_r0_c13: -30091535
+      sprGriffon5_r0_c14: -1223661971
+      sprGriffon5_r0_c15: -219500621
+      sprGriffon5_r0_c16: 182651078
+      sprGriffon5_r0_c17: -1769233293
+      sprGriffon5_r0_c18: -562549913
+      sprGriffon5_r0_c19: -2128984893
       sprGriffon5_r0_c2: -326924752
+      sprGriffon5_r0_c20: -411381298
+      sprGriffon5_r0_c21: -1772521674
+      sprGriffon5_r0_c22: 1138068328
+      sprGriffon5_r0_c23: -121048111
+      sprGriffon5_r0_c24: 394933199
       sprGriffon5_r0_c3: -893815424
       sprGriffon5_r0_c4: -602872855
       sprGriffon5_r0_c5: -526970673
@@ -723,6 +2672,81 @@ TextureImporter:
       sprGriffon5_r0_c7: 1167353304
       sprGriffon5_r0_c8: -64301796
       sprGriffon5_r0_c9: 1887198367
+      sprGriffon5_r1_c0: 1975663384
+      sprGriffon5_r1_c1: -81197329
+      sprGriffon5_r1_c10: 1567515225
+      sprGriffon5_r1_c11: -1965390280
+      sprGriffon5_r1_c12: -1431397305
+      sprGriffon5_r1_c13: -149245419
+      sprGriffon5_r1_c14: 772295536
+      sprGriffon5_r1_c15: -2075126180
+      sprGriffon5_r1_c16: 987514240
+      sprGriffon5_r1_c17: -1164454209
+      sprGriffon5_r1_c18: 1584305204
+      sprGriffon5_r1_c19: 1952258131
+      sprGriffon5_r1_c2: -1801137071
+      sprGriffon5_r1_c20: 1624738203
+      sprGriffon5_r1_c21: 1693299357
+      sprGriffon5_r1_c22: 2106159249
+      sprGriffon5_r1_c23: -855210036
+      sprGriffon5_r1_c24: 2014342990
+      sprGriffon5_r1_c3: -353592229
+      sprGriffon5_r1_c4: 1450826984
+      sprGriffon5_r1_c5: -682096204
+      sprGriffon5_r1_c6: 1611710587
+      sprGriffon5_r1_c7: 529341998
+      sprGriffon5_r1_c8: -568143017
+      sprGriffon5_r1_c9: -71970482
+      sprGriffon5_r2_c0: 619721925
+      sprGriffon5_r2_c1: 124819679
+      sprGriffon5_r2_c10: -218638039
+      sprGriffon5_r2_c11: 2006032332
+      sprGriffon5_r2_c12: -593506944
+      sprGriffon5_r2_c13: 808978736
+      sprGriffon5_r2_c14: 1958429181
+      sprGriffon5_r2_c15: -1924939350
+      sprGriffon5_r2_c16: -1295919476
+      sprGriffon5_r2_c17: -316521282
+      sprGriffon5_r2_c18: -1110555646
+      sprGriffon5_r2_c19: 1698665930
+      sprGriffon5_r2_c2: 964141265
+      sprGriffon5_r2_c20: -580802098
+      sprGriffon5_r2_c21: -465638411
+      sprGriffon5_r2_c22: 692560646
+      sprGriffon5_r2_c23: -866563528
+      sprGriffon5_r2_c24: 226468985
+      sprGriffon5_r2_c3: -1795023909
+      sprGriffon5_r2_c4: 1397595192
+      sprGriffon5_r2_c5: 6897381
+      sprGriffon5_r2_c6: -1129633420
+      sprGriffon5_r2_c7: 158123113
+      sprGriffon5_r2_c8: -1272631223
+      sprGriffon5_r2_c9: -543903600
+      sprGriffon5_r3_c0: -946873905
+      sprGriffon5_r3_c1: 116049021
+      sprGriffon5_r3_c10: 1080784818
+      sprGriffon5_r3_c11: 260806689
+      sprGriffon5_r3_c12: -784064775
+      sprGriffon5_r3_c13: -2057314231
+      sprGriffon5_r3_c14: 1376215657
+      sprGriffon5_r3_c15: -354519374
+      sprGriffon5_r3_c16: -659603462
+      sprGriffon5_r3_c17: -1789679605
+      sprGriffon5_r3_c18: -1688477383
+      sprGriffon5_r3_c19: 1305515107
+      sprGriffon5_r3_c2: 619628871
+      sprGriffon5_r3_c20: -1169911216
+      sprGriffon5_r3_c21: 1272288840
+      sprGriffon5_r3_c22: -516178366
+      sprGriffon5_r3_c23: 758060627
+      sprGriffon5_r3_c24: 565437556
+      sprGriffon5_r3_c3: 1762531510
+      sprGriffon5_r3_c4: -1094444943
+      sprGriffon5_r3_c5: -148285717
+      sprGriffon5_r3_c6: 1543990207
+      sprGriffon5_r3_c7: 1716838675
+      sprGriffon5_r3_c8: -755340813
+      sprGriffon5_r3_c9: -2030823930
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

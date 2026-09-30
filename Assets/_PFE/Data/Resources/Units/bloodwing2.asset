@@ -90,7 +90,7 @@ MonoBehaviour:
   tripDamage: 0
   dialogueSet: 
   teleportColor: {r: 1, g: 1, b: 1, a: 1}
-  sprite: {fileID: 0}
+  sprite: {fileID: 21300000, guid: b4e6059c8c862a645844ddd1dfd8faee, type: 3}
   spriteSheetId: 
   visualClassName: visualBloodwing2
   spriteSheet:

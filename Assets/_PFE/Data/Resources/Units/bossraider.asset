@@ -90,7 +90,7 @@ MonoBehaviour:
   tripDamage: 0
   dialogueSet: 
   teleportColor: {r: 1, g: 1, b: 1, a: 1}
-  sprite: {fileID: 0}
+  sprite: {fileID: 21300000, guid: dcdea4dfae91f0546b194c2911542ec9, type: 3}
   spriteSheetId: 
   visualClassName: visualRaiderBoss2
   spriteSheet:

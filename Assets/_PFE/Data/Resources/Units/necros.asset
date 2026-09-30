@@ -90,13 +90,37 @@ MonoBehaviour:
   tripDamage: 0
   dialogueSet: 
   teleportColor: {r: 1, g: 1, b: 1, a: 1}
-  sprite: {fileID: 0}
+  sprite: {fileID: -718238432, guid: 64d7333634d14e7438fb1eb2c54251cc, type: 3}
   spriteSheetId: sprNecros
   visualClassName: 
-  spriteSheet: []
+  spriteSheet:
+  - {fileID: -718238432, guid: 64d7333634d14e7438fb1eb2c54251cc, type: 3}
+  - {fileID: -1676554555, guid: 64d7333634d14e7438fb1eb2c54251cc, type: 3}
+  - {fileID: 96612429, guid: 64d7333634d14e7438fb1eb2c54251cc, type: 3}
+  - {fileID: 1503156487, guid: 64d7333634d14e7438fb1eb2c54251cc, type: 3}
+  - {fileID: 962218763, guid: 64d7333634d14e7438fb1eb2c54251cc, type: 3}
+  - {fileID: -1397268322, guid: 64d7333634d14e7438fb1eb2c54251cc, type: 3}
+  - {fileID: -876787160, guid: 64d7333634d14e7438fb1eb2c54251cc, type: 3}
+  - {fileID: 984582279, guid: 64d7333634d14e7438fb1eb2c54251cc, type: 3}
+  - {fileID: -1064921414, guid: 64d7333634d14e7438fb1eb2c54251cc, type: 3}
+  - {fileID: 1190151399, guid: 64d7333634d14e7438fb1eb2c54251cc, type: 3}
+  - {fileID: -1541037600, guid: 64d7333634d14e7438fb1eb2c54251cc, type: 3}
+  - {fileID: 508706581, guid: 64d7333634d14e7438fb1eb2c54251cc, type: 3}
+  - {fileID: 1558579800, guid: 64d7333634d14e7438fb1eb2c54251cc, type: 3}
+  - {fileID: 761400979, guid: 64d7333634d14e7438fb1eb2c54251cc, type: 3}
+  - {fileID: 1526136133, guid: 64d7333634d14e7438fb1eb2c54251cc, type: 3}
+  - {fileID: 2061609761, guid: 64d7333634d14e7438fb1eb2c54251cc, type: 3}
+  - {fileID: 836313927, guid: 64d7333634d14e7438fb1eb2c54251cc, type: 3}
+  - {fileID: 555867941, guid: 64d7333634d14e7438fb1eb2c54251cc, type: 3}
+  - {fileID: 788520866, guid: 64d7333634d14e7438fb1eb2c54251cc, type: 3}
+  - {fileID: -1011649516, guid: 64d7333634d14e7438fb1eb2c54251cc, type: 3}
+  - {fileID: 557545194, guid: 64d7333634d14e7438fb1eb2c54251cc, type: 3}
+  - {fileID: -792399939, guid: 64d7333634d14e7438fb1eb2c54251cc, type: 3}
+  - {fileID: 766731645, guid: 64d7333634d14e7438fb1eb2c54251cc, type: 3}
+  - {fileID: -415272729, guid: 64d7333634d14e7438fb1eb2c54251cc, type: 3}
   spriteDimensions: {x: 160, y: 160}
-  spriteSheetColumns: 0
-  spriteSheetRows: 0
+  spriteSheetColumns: 24
+  spriteSheetRows: 1
   registrationPoint: {x: 80, y: 120}
   iconCell: {x: -1, y: -1}
   gender: 2

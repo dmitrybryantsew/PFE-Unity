@@ -113,6 +113,7 @@ MonoBehaviour:
   - {fileID: -595082070, guid: c9ccddfa07056a8448582a8771fe68c9, type: 3}
   - {fileID: -1006850937, guid: c9ccddfa07056a8448582a8771fe68c9, type: 3}
   - {fileID: 1800991464, guid: c9ccddfa07056a8448582a8771fe68c9, type: 3}
+  - {fileID: -372144565, guid: c9ccddfa07056a8448582a8771fe68c9, type: 3}
   - {fileID: -1667612495, guid: c9ccddfa07056a8448582a8771fe68c9, type: 3}
   - {fileID: -1826215984, guid: c9ccddfa07056a8448582a8771fe68c9, type: 3}
   - {fileID: -1596195242, guid: c9ccddfa07056a8448582a8771fe68c9, type: 3}
@@ -132,9 +133,30 @@ MonoBehaviour:
   - {fileID: -662536978, guid: c9ccddfa07056a8448582a8771fe68c9, type: 3}
   - {fileID: 373282507, guid: c9ccddfa07056a8448582a8771fe68c9, type: 3}
   - {fileID: -1177656137, guid: c9ccddfa07056a8448582a8771fe68c9, type: 3}
+  - {fileID: 1353858271, guid: c9ccddfa07056a8448582a8771fe68c9, type: 3}
+  - {fileID: 1142648579, guid: c9ccddfa07056a8448582a8771fe68c9, type: 3}
+  - {fileID: -51270068, guid: c9ccddfa07056a8448582a8771fe68c9, type: 3}
+  - {fileID: -876225283, guid: c9ccddfa07056a8448582a8771fe68c9, type: 3}
+  - {fileID: 415669722, guid: c9ccddfa07056a8448582a8771fe68c9, type: 3}
+  - {fileID: -1519620679, guid: c9ccddfa07056a8448582a8771fe68c9, type: 3}
+  - {fileID: -8140827, guid: c9ccddfa07056a8448582a8771fe68c9, type: 3}
+  - {fileID: 1329709477, guid: c9ccddfa07056a8448582a8771fe68c9, type: 3}
+  - {fileID: 1762030176, guid: c9ccddfa07056a8448582a8771fe68c9, type: 3}
+  - {fileID: 1362351492, guid: c9ccddfa07056a8448582a8771fe68c9, type: 3}
+  - {fileID: -803299699, guid: c9ccddfa07056a8448582a8771fe68c9, type: 3}
+  - {fileID: -659163971, guid: c9ccddfa07056a8448582a8771fe68c9, type: 3}
+  - {fileID: 791391921, guid: c9ccddfa07056a8448582a8771fe68c9, type: 3}
+  - {fileID: 1379644077, guid: c9ccddfa07056a8448582a8771fe68c9, type: 3}
+  - {fileID: 1876749551, guid: c9ccddfa07056a8448582a8771fe68c9, type: 3}
+  - {fileID: 1237307519, guid: c9ccddfa07056a8448582a8771fe68c9, type: 3}
+  - {fileID: 491399918, guid: c9ccddfa07056a8448582a8771fe68c9, type: 3}
+  - {fileID: 1664277928, guid: c9ccddfa07056a8448582a8771fe68c9, type: 3}
+  - {fileID: -1539899213, guid: c9ccddfa07056a8448582a8771fe68c9, type: 3}
+  - {fileID: -278698512, guid: c9ccddfa07056a8448582a8771fe68c9, type: 3}
+  - {fileID: 1790512624, guid: c9ccddfa07056a8448582a8771fe68c9, type: 3}
   spriteDimensions: {x: 106, y: 76}
-  spriteSheetColumns: 19
-  spriteSheetRows: 2
+  spriteSheetColumns: 20
+  spriteSheetRows: 3
   registrationPoint: {x: 50, y: 67}
   iconCell: {x: -1, y: -1}
   gender: 2

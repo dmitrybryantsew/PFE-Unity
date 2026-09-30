@@ -477,6 +477,2646 @@ TextureImporter:
       rect:
         serializedVersion: 2
         x: 0
+        y: 1020
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 8144c45a6a2b05a4e8ec3786b5ece638
+      internalID: 1950308109
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r0_c1
+      rect:
+        serializedVersion: 2
+        x: 200
+        y: 1020
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6209c1dd4376436458f98073dfe7cdde
+      internalID: 183132011
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r0_c2
+      rect:
+        serializedVersion: 2
+        x: 400
+        y: 1020
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e2b686ea12013fe4aacb3e39959640c2
+      internalID: -1665327573
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r0_c3
+      rect:
+        serializedVersion: 2
+        x: 600
+        y: 1020
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 5e0c0ac2a0ed0fc41821cdce160dc57e
+      internalID: 16818187
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r0_c4
+      rect:
+        serializedVersion: 2
+        x: 800
+        y: 1020
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 2a11f7f91c5ecef458d2512c22d8406c
+      internalID: 96407089
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r0_c5
+      rect:
+        serializedVersion: 2
+        x: 1000
+        y: 1020
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 40c6f293c280e4c4fb1744d1eae40c0a
+      internalID: 784129783
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r0_c6
+      rect:
+        serializedVersion: 2
+        x: 1200
+        y: 1020
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 14aff7c03a21c8a42bd53d20391206ec
+      internalID: 1938976486
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r0_c7
+      rect:
+        serializedVersion: 2
+        x: 1400
+        y: 1020
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 77d3b96c0fe9bb94cab5815215e02031
+      internalID: 1509471865
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r0_c8
+      rect:
+        serializedVersion: 2
+        x: 1600
+        y: 1020
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: da412516c0632db41b7556ada1b58f3d
+      internalID: -745639302
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r0_c9
+      rect:
+        serializedVersion: 2
+        x: 1800
+        y: 1020
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 8fe59f9c2af28dc4caf81d1eb8504dc2
+      internalID: 891732031
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r0_c10
+      rect:
+        serializedVersion: 2
+        x: 2000
+        y: 1020
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ce9afe2ff2fd1534dbb598b926d8f492
+      internalID: -1843988384
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r0_c11
+      rect:
+        serializedVersion: 2
+        x: 2200
+        y: 1020
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 8cee7fd0b1bf21344ae7d26e1704dd5a
+      internalID: 1415277030
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r0_c12
+      rect:
+        serializedVersion: 2
+        x: 2400
+        y: 1020
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 63b5b72ea6a3727439b2d427d5206836
+      internalID: -524802122
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r0_c13
+      rect:
+        serializedVersion: 2
+        x: 2600
+        y: 1020
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 53beffc50ec828a41aacc4a59ab4cb95
+      internalID: -783968987
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r0_c14
+      rect:
+        serializedVersion: 2
+        x: 2800
+        y: 1020
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 667a0a4d051846246a57e556737dd61f
+      internalID: 302942455
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r0_c15
+      rect:
+        serializedVersion: 2
+        x: 3000
+        y: 1020
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d52d88307154f2743850bc84bfdb0190
+      internalID: 1924612266
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r0_c16
+      rect:
+        serializedVersion: 2
+        x: 3200
+        y: 1020
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7f3d8a80c92f2454fad6de4e5e8dd05a
+      internalID: -1413924015
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r0_c17
+      rect:
+        serializedVersion: 2
+        x: 3400
+        y: 1020
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9dda0a12cfa723f4e9abe304ce478220
+      internalID: 67831699
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r0_c18
+      rect:
+        serializedVersion: 2
+        x: 3600
+        y: 1020
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 06db9f9581a7f8842b42df19fa8f63ac
+      internalID: 536722573
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r0_c19
+      rect:
+        serializedVersion: 2
+        x: 3800
+        y: 1020
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: fc191030fe3b1ec4b91aea2f68159743
+      internalID: 1070865213
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r0_c20
+      rect:
+        serializedVersion: 2
+        x: 4000
+        y: 1020
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: fb9ba8ea2364e694698013634d5bc6fb
+      internalID: 496571403
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r0_c21
+      rect:
+        serializedVersion: 2
+        x: 4200
+        y: 1020
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 87cf74c88bb4cd640b96dbdb36bc4fb2
+      internalID: -596898765
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r0_c22
+      rect:
+        serializedVersion: 2
+        x: 4400
+        y: 1020
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 1cca2f745d256de48aa36ddcab29e17d
+      internalID: 1182864490
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r0_c23
+      rect:
+        serializedVersion: 2
+        x: 4600
+        y: 1020
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 37557971101d5b5479cc09685b33094f
+      internalID: 2146929920
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r1_c0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 850
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 2c0618ddd0929e142905c07e7d6759db
+      internalID: -1712773546
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r1_c1
+      rect:
+        serializedVersion: 2
+        x: 200
+        y: 850
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: eb3b72f372057014cac7d8baca7908c2
+      internalID: 1642874431
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r1_c2
+      rect:
+        serializedVersion: 2
+        x: 400
+        y: 850
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 45fc093b7516f8343b2e9b49fa418569
+      internalID: 928028488
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r1_c3
+      rect:
+        serializedVersion: 2
+        x: 600
+        y: 850
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 92008f0e55d3877488f7b164af3e9fba
+      internalID: -1224074747
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r1_c4
+      rect:
+        serializedVersion: 2
+        x: 800
+        y: 850
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9fcd4bc8a95bf0d44b159dc05378bbaf
+      internalID: -1118765772
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r1_c5
+      rect:
+        serializedVersion: 2
+        x: 1000
+        y: 850
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e903e3056ca3d9341be5cf2e2938af66
+      internalID: 965439016
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r1_c6
+      rect:
+        serializedVersion: 2
+        x: 1200
+        y: 850
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 071ba001c83dc2b4d9914013bab0fd59
+      internalID: -1181398541
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r1_c7
+      rect:
+        serializedVersion: 2
+        x: 1400
+        y: 850
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 221b8c83f7c271945b184d4bf24aa481
+      internalID: -1537164784
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r1_c8
+      rect:
+        serializedVersion: 2
+        x: 1600
+        y: 850
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 35a7999fe8bee494f90d0070f4fd6dd9
+      internalID: 539925102
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r1_c9
+      rect:
+        serializedVersion: 2
+        x: 1800
+        y: 850
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 3d7ec1e959073c0469b37e1bc85f7396
+      internalID: 674729301
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r1_c10
+      rect:
+        serializedVersion: 2
+        x: 2000
+        y: 850
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 1572d73b181589644bd22af902f5d68c
+      internalID: -1715599144
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r1_c11
+      rect:
+        serializedVersion: 2
+        x: 2200
+        y: 850
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 28eba9a4c34d46d44a89bb504b22bab7
+      internalID: -976432138
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r1_c12
+      rect:
+        serializedVersion: 2
+        x: 2400
+        y: 850
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f0b3e303ae80df54092902ec2e003776
+      internalID: 1671222435
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r1_c13
+      rect:
+        serializedVersion: 2
+        x: 2600
+        y: 850
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c7f9b34be7822cb43a0c771030eabf54
+      internalID: 1681601942
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r1_c14
+      rect:
+        serializedVersion: 2
+        x: 2800
+        y: 850
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: fe4b2bcfedafb1244b19ecd30f62c3f4
+      internalID: 1733182457
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r1_c15
+      rect:
+        serializedVersion: 2
+        x: 3000
+        y: 850
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9ac42f01996283a47a2eb8d02c0e6f94
+      internalID: 717743165
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r1_c16
+      rect:
+        serializedVersion: 2
+        x: 3200
+        y: 850
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 865d5367b0d38fd4fa93bbed4b02541e
+      internalID: 352126492
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r1_c17
+      rect:
+        serializedVersion: 2
+        x: 3400
+        y: 850
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 16f3133148862dd44888fca257da1f0d
+      internalID: -555194520
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r1_c18
+      rect:
+        serializedVersion: 2
+        x: 3600
+        y: 850
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a3b1672b68d1b0645953a5c3cb01800c
+      internalID: 1557843073
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r1_c19
+      rect:
+        serializedVersion: 2
+        x: 3800
+        y: 850
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 74f7baaa79d2bcb4f8d80f409956b64c
+      internalID: -1699226002
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r1_c20
+      rect:
+        serializedVersion: 2
+        x: 4000
+        y: 850
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 44312f025cf05924ebe92802c20bdeb9
+      internalID: -1390711477
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r1_c21
+      rect:
+        serializedVersion: 2
+        x: 4200
+        y: 850
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 93895876c789d764abcc8dfdcd75bbbe
+      internalID: -602420945
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r1_c22
+      rect:
+        serializedVersion: 2
+        x: 4400
+        y: 850
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7d50ca987a38263459732d464fabd7e0
+      internalID: -133735615
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r1_c23
+      rect:
+        serializedVersion: 2
+        x: 4600
+        y: 850
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: bfc9b8bb8009a59499bd996254cd9556
+      internalID: -2011998481
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r2_c0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 680
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 0d9ab05ec5246f24c9c636b83057e5f2
+      internalID: -114646077
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r2_c1
+      rect:
+        serializedVersion: 2
+        x: 200
+        y: 680
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 509a155c1fe72da488b8319a9d896cf3
+      internalID: -694805695
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r2_c2
+      rect:
+        serializedVersion: 2
+        x: 400
+        y: 680
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 21bb353f10007a34caadf1cb5b4d922b
+      internalID: -674916654
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r2_c3
+      rect:
+        serializedVersion: 2
+        x: 600
+        y: 680
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ac6bf708bf2e82c42981d5094256bc88
+      internalID: 674129583
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r2_c4
+      rect:
+        serializedVersion: 2
+        x: 800
+        y: 680
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 879de58a915c114409d75a4056f78d75
+      internalID: -302260836
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r2_c5
+      rect:
+        serializedVersion: 2
+        x: 1000
+        y: 680
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 171748b8ce27c5a4e814562727410ea5
+      internalID: -594680187
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r2_c6
+      rect:
+        serializedVersion: 2
+        x: 1200
+        y: 680
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6267a38ccd3d4eb45a2feef2184abc2b
+      internalID: -952919454
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r2_c7
+      rect:
+        serializedVersion: 2
+        x: 1400
+        y: 680
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 4467348046d796c4aba5cb323d33aa0b
+      internalID: 916727729
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r2_c8
+      rect:
+        serializedVersion: 2
+        x: 1600
+        y: 680
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 249d3de25685f374f93d57519029b3a5
+      internalID: 960586037
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r2_c9
+      rect:
+        serializedVersion: 2
+        x: 1800
+        y: 680
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 69ddc9efdfcfbc5458d72e8c8e6bec95
+      internalID: 590336242
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r2_c10
+      rect:
+        serializedVersion: 2
+        x: 2000
+        y: 680
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 606c6911ffbd84a4388cf30401c3f361
+      internalID: 2116340726
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r2_c11
+      rect:
+        serializedVersion: 2
+        x: 2200
+        y: 680
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 3c3f513298dff8f48a6911efe6ec715b
+      internalID: 577075144
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r2_c12
+      rect:
+        serializedVersion: 2
+        x: 2400
+        y: 680
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f2014ea0a7086a040947b370e1256567
+      internalID: -2007812785
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r2_c13
+      rect:
+        serializedVersion: 2
+        x: 2600
+        y: 680
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9fb1c5aef65585e4fa0c2a800814d906
+      internalID: -686307703
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r2_c14
+      rect:
+        serializedVersion: 2
+        x: 2800
+        y: 680
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d93bbd80144a5c74fa249f28f9e127aa
+      internalID: 123064340
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r2_c15
+      rect:
+        serializedVersion: 2
+        x: 3000
+        y: 680
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: fc7b622e46da0034cb9a44d96d6478ca
+      internalID: -766808819
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r2_c16
+      rect:
+        serializedVersion: 2
+        x: 3200
+        y: 680
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e94697b23905b434b92d087d7a85c5d0
+      internalID: -786389851
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r2_c17
+      rect:
+        serializedVersion: 2
+        x: 3400
+        y: 680
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 5f18bbd67ed586e46b9c1643e7337726
+      internalID: -1975040522
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r2_c18
+      rect:
+        serializedVersion: 2
+        x: 3600
+        y: 680
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ef1e81a58d283e941af35caa914f85dc
+      internalID: 8709186
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r2_c19
+      rect:
+        serializedVersion: 2
+        x: 3800
+        y: 680
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a4a78aacf69cd2e49a31c9310bbf101d
+      internalID: 983651024
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r2_c20
+      rect:
+        serializedVersion: 2
+        x: 4000
+        y: 680
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9e6b9b2cec44c774d9b0fbd048969492
+      internalID: -1598582434
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r2_c21
+      rect:
+        serializedVersion: 2
+        x: 4200
+        y: 680
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 39a30a868a178734691252e2fff6df08
+      internalID: 540037246
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r2_c22
+      rect:
+        serializedVersion: 2
+        x: 4400
+        y: 680
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: fcdb366830826474cbea591390a30a83
+      internalID: 2067664261
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r2_c23
+      rect:
+        serializedVersion: 2
+        x: 4600
+        y: 680
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6c6887c0aa80b1b468b3853ef2867abd
+      internalID: 596641157
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r3_c0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 510
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 5ba8c37dcbd22fd4c93dc2a8f89c1152
+      internalID: 938605886
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r3_c1
+      rect:
+        serializedVersion: 2
+        x: 200
+        y: 510
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a16077699a2fa2d4492486e59cc9e7b3
+      internalID: -1621797658
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r3_c2
+      rect:
+        serializedVersion: 2
+        x: 400
+        y: 510
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a091cc68e1caa3740bbb376cc73f42ed
+      internalID: -1127191600
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r3_c3
+      rect:
+        serializedVersion: 2
+        x: 600
+        y: 510
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: fe97a2e171863934bbce2e5a5762ce62
+      internalID: 21594854
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r3_c4
+      rect:
+        serializedVersion: 2
+        x: 800
+        y: 510
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6e55f3231a194a8498e7eb27bb7bdc29
+      internalID: -1264026119
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r3_c5
+      rect:
+        serializedVersion: 2
+        x: 1000
+        y: 510
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 15f1ca73c10bb38439c058f30d559244
+      internalID: -1895998250
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r3_c6
+      rect:
+        serializedVersion: 2
+        x: 1200
+        y: 510
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 2a28c11f01b2bbc47929b05d436fe7c9
+      internalID: -1714126971
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r3_c7
+      rect:
+        serializedVersion: 2
+        x: 1400
+        y: 510
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d41010f0ea4016b489453cdd234412a0
+      internalID: 343515285
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r3_c8
+      rect:
+        serializedVersion: 2
+        x: 1600
+        y: 510
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c1cbb4ebaf337d5499268af5ce02a2b1
+      internalID: 1425920055
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r3_c9
+      rect:
+        serializedVersion: 2
+        x: 1800
+        y: 510
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 43be4d138ef38884dafdc0472bc45691
+      internalID: -1269916273
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r3_c10
+      rect:
+        serializedVersion: 2
+        x: 2000
+        y: 510
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 5be08a21985d10b469365f26e8af7c89
+      internalID: -1175835528
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r3_c11
+      rect:
+        serializedVersion: 2
+        x: 2200
+        y: 510
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6c6a8c865005640449894267c391888f
+      internalID: -346073245
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r3_c12
+      rect:
+        serializedVersion: 2
+        x: 2400
+        y: 510
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: cac9064e17a5a114f80b0fede4abd343
+      internalID: -270177952
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r3_c13
+      rect:
+        serializedVersion: 2
+        x: 2600
+        y: 510
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6a309d38274e615428c0fbab37fbaf74
+      internalID: 590430053
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r3_c14
+      rect:
+        serializedVersion: 2
+        x: 2800
+        y: 510
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 8976da832adda5c49811428f78d2a690
+      internalID: -674104296
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r3_c15
+      rect:
+        serializedVersion: 2
+        x: 3000
+        y: 510
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 2b1093e44bb2d0043b7286b85c37818a
+      internalID: -1515450284
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r3_c16
+      rect:
+        serializedVersion: 2
+        x: 3200
+        y: 510
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 160790c8001a853429aba7d57728e109
+      internalID: 947598376
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r3_c17
+      rect:
+        serializedVersion: 2
+        x: 3400
+        y: 510
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e3724065d874d8b4ab0a8c7868019a30
+      internalID: 956475543
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r3_c18
+      rect:
+        serializedVersion: 2
+        x: 3600
+        y: 510
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: db50d362befa78a47ba84314e519dfca
+      internalID: 108914439
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r3_c19
+      rect:
+        serializedVersion: 2
+        x: 3800
+        y: 510
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7178df14f810d284b9912639508d838b
+      internalID: -15644282
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r3_c20
+      rect:
+        serializedVersion: 2
+        x: 4000
+        y: 510
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d60a8b3953ea4f446942db4d300ef5b4
+      internalID: -1077077295
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r3_c21
+      rect:
+        serializedVersion: 2
+        x: 4200
+        y: 510
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 5bee79306faf8be4e9eff175b5e67865
+      internalID: 1080640538
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r3_c22
+      rect:
+        serializedVersion: 2
+        x: 4400
+        y: 510
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 25e4176c2bc52e648a5e404a782f1d83
+      internalID: 1355631447
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r3_c23
+      rect:
+        serializedVersion: 2
+        x: 4600
+        y: 510
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: be142faa07adc184b9b55d99aa940398
+      internalID: 560793410
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r4_c0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 340
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a58a513de423c4442a82556b2d778c6d
+      internalID: 1354172900
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r4_c1
+      rect:
+        serializedVersion: 2
+        x: 200
+        y: 340
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: dd0c34024dc2656408062b13e5d5f33b
+      internalID: -907194837
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r4_c2
+      rect:
+        serializedVersion: 2
+        x: 400
+        y: 340
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 0d6abf05b9292244fb594ace3ee3eb2b
+      internalID: 555477011
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r4_c3
+      rect:
+        serializedVersion: 2
+        x: 600
+        y: 340
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c28781d991b414f40b8a0aa1243ddc76
+      internalID: 1459942239
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r4_c4
+      rect:
+        serializedVersion: 2
+        x: 800
+        y: 340
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 72046c9d83b2eec4899c30774cb93080
+      internalID: 1807071287
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r4_c5
+      rect:
+        serializedVersion: 2
+        x: 1000
+        y: 340
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 58ab288da2ff89c47997ec99ae526c1b
+      internalID: -278838542
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r4_c6
+      rect:
+        serializedVersion: 2
+        x: 1200
+        y: 340
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 05e7e79b2955eaf47baa9bbfaf78a760
+      internalID: -122885069
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r4_c7
+      rect:
+        serializedVersion: 2
+        x: 1400
+        y: 340
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f6c9bc4a876074e488b7d41edc33b9f1
+      internalID: -1241153050
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r4_c8
+      rect:
+        serializedVersion: 2
+        x: 1600
+        y: 340
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 14f647671f0e7204e940ad0408d8e174
+      internalID: 1203225578
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r4_c9
+      rect:
+        serializedVersion: 2
+        x: 1800
+        y: 340
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: fddebb3f0715adb4f876d8e51a3ab020
+      internalID: -1640534007
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r4_c10
+      rect:
+        serializedVersion: 2
+        x: 2000
+        y: 340
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 3d40666c5b7c10846ad85d24fdcf6a74
+      internalID: 1861134803
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r4_c11
+      rect:
+        serializedVersion: 2
+        x: 2200
+        y: 340
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a418237413be95e478dad757e6b4034f
+      internalID: 206983806
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r4_c12
+      rect:
+        serializedVersion: 2
+        x: 2400
+        y: 340
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a3c241ea190bcb148976458af9e805d9
+      internalID: 1811425164
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r4_c13
+      rect:
+        serializedVersion: 2
+        x: 2600
+        y: 340
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 479f821c63c667d439fc1857804dbbd6
+      internalID: 655954541
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r4_c14
+      rect:
+        serializedVersion: 2
+        x: 2800
+        y: 340
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7532134a7e69ca549ac5b64f0ef71be5
+      internalID: 776545489
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r4_c15
+      rect:
+        serializedVersion: 2
+        x: 3000
+        y: 340
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6ca136163f53f83448448e8a5b464110
+      internalID: 338888204
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r4_c16
+      rect:
+        serializedVersion: 2
+        x: 3200
+        y: 340
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 636ec5ce450912343ae4377aca0cc093
+      internalID: -1321756319
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r4_c17
+      rect:
+        serializedVersion: 2
+        x: 3400
+        y: 340
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 44534821e33f2fe438e9d3bc46d2ead4
+      internalID: 132957353
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r4_c18
+      rect:
+        serializedVersion: 2
+        x: 3600
+        y: 340
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 52b1e5e9e7385cf42958229b99d27a47
+      internalID: 974153620
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r4_c19
+      rect:
+        serializedVersion: 2
+        x: 3800
+        y: 340
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: aba9fb87e22cdfb4da5c4d8e79520218
+      internalID: 1563469082
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r4_c20
+      rect:
+        serializedVersion: 2
+        x: 4000
+        y: 340
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 10bdeec3d8a90da468946341076272cc
+      internalID: -1263671106
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r4_c21
+      rect:
+        serializedVersion: 2
+        x: 4200
+        y: 340
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6f39ce3e8b96f184c97d85840a94cf80
+      internalID: 1855875274
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r4_c22
+      rect:
+        serializedVersion: 2
+        x: 4400
+        y: 340
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 4b0d269d781e5a14fbadb5db8142d489
+      internalID: -978326016
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r4_c23
+      rect:
+        serializedVersion: 2
+        x: 4600
+        y: 340
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7d854146b3f4fc14785d24a97e1cca8a
+      internalID: 1215879372
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r5_c0
+      rect:
+        serializedVersion: 2
+        x: 0
         y: 170
         width: 200
         height: 170
@@ -488,14 +3128,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 9360c4c2a6aca684893508622944239b
-      internalID: 1950308109
+      spriteID: c1e83d7e72017bc4f8b1199b6e40ac8a
+      internalID: 1253625638
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: sprHellhound_r0_c1
+      name: sprHellhound_r5_c1
       rect:
         serializedVersion: 2
         x: 200
@@ -510,14 +3150,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: c1242413ed9ea964087c8ef996e9bda1
-      internalID: 183132011
+      spriteID: c1ac15469e86b364a86107b6a786d7e0
+      internalID: -609871947
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: sprHellhound_r0_c2
+      name: sprHellhound_r5_c2
       rect:
         serializedVersion: 2
         x: 400
@@ -532,14 +3172,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 0d5afb0ef88dd2848b7d49a840f79d05
-      internalID: -1665327573
+      spriteID: 608821469255a7d49926371e6a1fa5f5
+      internalID: -1634803684
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: sprHellhound_r0_c3
+      name: sprHellhound_r5_c3
       rect:
         serializedVersion: 2
         x: 600
@@ -554,14 +3194,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: cc0da616b58c28345859bf45dc06b366
-      internalID: 16818187
+      spriteID: 6e8b4db7644092b468d894c9bdd2541a
+      internalID: 99036973
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: sprHellhound_r0_c4
+      name: sprHellhound_r5_c4
       rect:
         serializedVersion: 2
         x: 800
@@ -576,14 +3216,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 9e211ddc39f1af74abbdf255515de3ea
-      internalID: 96407089
+      spriteID: 82371cd041d22d440bf1667510cbb980
+      internalID: -1662452435
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: sprHellhound_r0_c5
+      name: sprHellhound_r5_c5
       rect:
         serializedVersion: 2
         x: 1000
@@ -598,14 +3238,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: a8380c95eadf48c49966bb2c69b66a61
-      internalID: 784129783
+      spriteID: e110f5ee089799f43a2f54b63ed7e64b
+      internalID: -28987030
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: sprHellhound_r0_c6
+      name: sprHellhound_r5_c6
       rect:
         serializedVersion: 2
         x: 1200
@@ -620,14 +3260,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: b7c530b9b30465f4f8d7de6199c32d41
-      internalID: 1938976486
+      spriteID: 1ea4649590876294aa06f5753732faf0
+      internalID: -1442832299
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: sprHellhound_r0_c7
+      name: sprHellhound_r5_c7
       rect:
         serializedVersion: 2
         x: 1400
@@ -642,14 +3282,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 566142af69b2eb040989a7a86e34725e
-      internalID: 1509471865
+      spriteID: 87dd8ba85fc66894996d660b6e486c0d
+      internalID: -1671112650
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: sprHellhound_r0_c8
+      name: sprHellhound_r5_c8
       rect:
         serializedVersion: 2
         x: 1600
@@ -664,14 +3304,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: cad3f9c5e9f9d2043b2ad097f85f97b7
-      internalID: -745639302
+      spriteID: e70adfac989d84948a70c0f72852b4a9
+      internalID: 1889451405
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: sprHellhound_r0_c9
+      name: sprHellhound_r5_c9
       rect:
         serializedVersion: 2
         x: 1800
@@ -686,14 +3326,322 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 670cf2c493e868641ad591cfdc6f0fa3
-      internalID: 891732031
+      spriteID: 6662b05e32282c944bf5adcb95b81440
+      internalID: 35819296
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: sprHellhound_r1_c0
+      name: sprHellhound_r5_c10
+      rect:
+        serializedVersion: 2
+        x: 2000
+        y: 170
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b08071b0efb39b7478c3e2e964ca8fe1
+      internalID: 191405236
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r5_c11
+      rect:
+        serializedVersion: 2
+        x: 2200
+        y: 170
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 2cd653a547cd5774ba72e0205c80cc9e
+      internalID: -726808036
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r5_c12
+      rect:
+        serializedVersion: 2
+        x: 2400
+        y: 170
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 99e15df3e9979374b90838d42f1b3235
+      internalID: 597845702
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r5_c13
+      rect:
+        serializedVersion: 2
+        x: 2600
+        y: 170
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d6543a624c17f6540b1ac8198ca1601e
+      internalID: 1632205261
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r5_c14
+      rect:
+        serializedVersion: 2
+        x: 2800
+        y: 170
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9a3ddcfb056727544888783b209ac5d8
+      internalID: -668536509
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r5_c15
+      rect:
+        serializedVersion: 2
+        x: 3000
+        y: 170
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 988a07045c1c5384da5f461c9f761583
+      internalID: 1170324416
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r5_c16
+      rect:
+        serializedVersion: 2
+        x: 3200
+        y: 170
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 8610fc25a1654b344b408d2c61f04775
+      internalID: -1342971120
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r5_c17
+      rect:
+        serializedVersion: 2
+        x: 3400
+        y: 170
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 0057c8637017d0344a4d8ecd6354c03b
+      internalID: 21057477
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r5_c18
+      rect:
+        serializedVersion: 2
+        x: 3600
+        y: 170
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6f4ffce6af8fb4e439dabdd229f89490
+      internalID: -1915893783
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r5_c19
+      rect:
+        serializedVersion: 2
+        x: 3800
+        y: 170
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: bd0f2192c3ac7c041ae8d5f354ba1445
+      internalID: -84772245
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r5_c20
+      rect:
+        serializedVersion: 2
+        x: 4000
+        y: 170
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 77f05d68242b6154aa7df59919e28bd9
+      internalID: -289078910
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r5_c21
+      rect:
+        serializedVersion: 2
+        x: 4200
+        y: 170
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a82df489272eae249ad92b92a3974f10
+      internalID: 982999551
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r5_c22
+      rect:
+        serializedVersion: 2
+        x: 4400
+        y: 170
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 43a7c63981440f64b934468a9d5d922a
+      internalID: -831506318
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r5_c23
+      rect:
+        serializedVersion: 2
+        x: 4600
+        y: 170
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9faab60391ecf664d9de31490fba4e38
+      internalID: 1902321965
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r6_c0
       rect:
         serializedVersion: 2
         x: 0
@@ -708,14 +3656,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 7106cb4ec87ad504689a6c2ef0bcc914
-      internalID: -1712773546
+      spriteID: f05cfd282fd6add4093e8904fb608863
+      internalID: 2113128758
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: sprHellhound_r1_c1
+      name: sprHellhound_r6_c1
       rect:
         serializedVersion: 2
         x: 200
@@ -730,14 +3678,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: c61f838da94f3d548bb8edf512390528
-      internalID: 1642874431
+      spriteID: ff76d7e46ad37e940a64cb124039c5b3
+      internalID: 635464633
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: sprHellhound_r1_c2
+      name: sprHellhound_r6_c2
       rect:
         serializedVersion: 2
         x: 400
@@ -752,14 +3700,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 0168b1369e5ed7c41b50e2e8c8d654f4
-      internalID: 928028488
+      spriteID: ddcf504360744774f972f3927e9e72df
+      internalID: -1438594725
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: sprHellhound_r1_c3
+      name: sprHellhound_r6_c3
       rect:
         serializedVersion: 2
         x: 600
@@ -774,14 +3722,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: f8f716f03cf85b74b93d7d0ba5a662cb
-      internalID: -1224074747
+      spriteID: 56afc0db226413a4cad8a9e3d9b5db95
+      internalID: -1108728302
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: sprHellhound_r1_c4
+      name: sprHellhound_r6_c4
       rect:
         serializedVersion: 2
         x: 800
@@ -796,14 +3744,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 87f2cf183b1442a419840efd292090f4
-      internalID: -1118765772
+      spriteID: f8e67f382e7548d4db1d7ec0481a681f
+      internalID: -617931564
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: sprHellhound_r1_c5
+      name: sprHellhound_r6_c5
       rect:
         serializedVersion: 2
         x: 1000
@@ -818,14 +3766,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: ab2abb0100caac44e9e3128ec6c302b2
-      internalID: 965439016
+      spriteID: a726447cbbdb2454b9b3f751e7e63691
+      internalID: 1630278760
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: sprHellhound_r1_c6
+      name: sprHellhound_r6_c6
       rect:
         serializedVersion: 2
         x: 1200
@@ -840,14 +3788,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: cfacedcc163d8ac4a8e62a0d4962a8ec
-      internalID: -1181398541
+      spriteID: a1df6ab1f2e1f5a4e9e905fe2731fa63
+      internalID: 575316841
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: sprHellhound_r1_c7
+      name: sprHellhound_r6_c7
       rect:
         serializedVersion: 2
         x: 1400
@@ -862,14 +3810,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 45eacf94dabab1e4bb9abc3960c76619
-      internalID: -1537164784
+      spriteID: d8b9fdc16c9a1074b95235b46bd28fb3
+      internalID: 261132270
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: sprHellhound_r1_c8
+      name: sprHellhound_r6_c8
       rect:
         serializedVersion: 2
         x: 1600
@@ -884,14 +3832,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 02501de17a7ea504888dc7679ddf43b3
-      internalID: 539925102
+      spriteID: c1eef263bb4c22845899bf71d0f274f2
+      internalID: -1666960613
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: sprHellhound_r1_c9
+      name: sprHellhound_r6_c9
       rect:
         serializedVersion: 2
         x: 1800
@@ -906,8 +3854,316 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: fb885e9418c6ccf4c94a61c8bc1579bd
-      internalID: 674729301
+      spriteID: 9b72a71bb0e5a1043b5d8c349e53e832
+      internalID: -347896
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r6_c10
+      rect:
+        serializedVersion: 2
+        x: 2000
+        y: 0
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 73812e96bea8f9b44a8ae31bf85251f9
+      internalID: -119165381
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r6_c11
+      rect:
+        serializedVersion: 2
+        x: 2200
+        y: 0
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f9c32f3069cd1784d8a54ade1bc1c8d7
+      internalID: 1749367917
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r6_c12
+      rect:
+        serializedVersion: 2
+        x: 2400
+        y: 0
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ce6f87e5cfbc1b842960af6886fac76e
+      internalID: -149094654
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r6_c13
+      rect:
+        serializedVersion: 2
+        x: 2600
+        y: 0
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d8d465a7eff01ea4486e1f79867b1e7a
+      internalID: 400349003
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r6_c14
+      rect:
+        serializedVersion: 2
+        x: 2800
+        y: 0
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c4e85309d8bdb204f8d82a8098a1d288
+      internalID: -1422712477
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r6_c15
+      rect:
+        serializedVersion: 2
+        x: 3000
+        y: 0
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 2062d691221f9814b896eb5da13104dd
+      internalID: -512876371
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r6_c16
+      rect:
+        serializedVersion: 2
+        x: 3200
+        y: 0
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 817b1e2bf6b5a4e4d810e0c0f5dbf27a
+      internalID: 135233393
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r6_c17
+      rect:
+        serializedVersion: 2
+        x: 3400
+        y: 0
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f03881153f0b13d41a1640e3d1a60cee
+      internalID: -452750720
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r6_c18
+      rect:
+        serializedVersion: 2
+        x: 3600
+        y: 0
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: beaa7f716d0e68c4780e8a880883dea9
+      internalID: 1237345146
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r6_c19
+      rect:
+        serializedVersion: 2
+        x: 3800
+        y: 0
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 205c1c9330fa3724d95d8d9bd1c7221c
+      internalID: -1632242587
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r6_c20
+      rect:
+        serializedVersion: 2
+        x: 4000
+        y: 0
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: fef0d8baf55a0cc48af4a9eb73ba244c
+      internalID: 780323619
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r6_c21
+      rect:
+        serializedVersion: 2
+        x: 4200
+        y: 0
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 0a931bef3694d534ba0202171d589f58
+      internalID: 1381187853
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r6_c22
+      rect:
+        serializedVersion: 2
+        x: 4400
+        y: 0
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ea840bc49eb8cc5408f4470efe8ae950
+      internalID: -52371464
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sprHellhound_r6_c23
+      rect:
+        serializedVersion: 2
+        x: 4600
+        y: 0
+        width: 200
+        height: 170
+      alignment: 9
+      pivot: {x: 0.5, y: 0.05882353}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 159d0f1465167f248b212a2b82d25482
+      internalID: 880591523
       vertices: []
       indices: 
       edges: []
@@ -1049,7 +4305,21 @@ TextureImporter:
       sprHellhound_99: 4367431708079644849
       sprHellhound_r0_c0: 1950308109
       sprHellhound_r0_c1: 183132011
+      sprHellhound_r0_c10: -1843988384
+      sprHellhound_r0_c11: 1415277030
+      sprHellhound_r0_c12: -524802122
+      sprHellhound_r0_c13: -783968987
+      sprHellhound_r0_c14: 302942455
+      sprHellhound_r0_c15: 1924612266
+      sprHellhound_r0_c16: -1413924015
+      sprHellhound_r0_c17: 67831699
+      sprHellhound_r0_c18: 536722573
+      sprHellhound_r0_c19: 1070865213
       sprHellhound_r0_c2: -1665327573
+      sprHellhound_r0_c20: 496571403
+      sprHellhound_r0_c21: -596898765
+      sprHellhound_r0_c22: 1182864490
+      sprHellhound_r0_c23: 2146929920
       sprHellhound_r0_c3: 16818187
       sprHellhound_r0_c4: 96407089
       sprHellhound_r0_c5: 784129783
@@ -1059,7 +4329,21 @@ TextureImporter:
       sprHellhound_r0_c9: 891732031
       sprHellhound_r1_c0: -1712773546
       sprHellhound_r1_c1: 1642874431
+      sprHellhound_r1_c10: -1715599144
+      sprHellhound_r1_c11: -976432138
+      sprHellhound_r1_c12: 1671222435
+      sprHellhound_r1_c13: 1681601942
+      sprHellhound_r1_c14: 1733182457
+      sprHellhound_r1_c15: 717743165
+      sprHellhound_r1_c16: 352126492
+      sprHellhound_r1_c17: -555194520
+      sprHellhound_r1_c18: 1557843073
+      sprHellhound_r1_c19: -1699226002
       sprHellhound_r1_c2: 928028488
+      sprHellhound_r1_c20: -1390711477
+      sprHellhound_r1_c21: -602420945
+      sprHellhound_r1_c22: -133735615
+      sprHellhound_r1_c23: -2011998481
       sprHellhound_r1_c3: -1224074747
       sprHellhound_r1_c4: -1118765772
       sprHellhound_r1_c5: 965439016
@@ -1067,6 +4351,126 @@ TextureImporter:
       sprHellhound_r1_c7: -1537164784
       sprHellhound_r1_c8: 539925102
       sprHellhound_r1_c9: 674729301
+      sprHellhound_r2_c0: -114646077
+      sprHellhound_r2_c1: -694805695
+      sprHellhound_r2_c10: 2116340726
+      sprHellhound_r2_c11: 577075144
+      sprHellhound_r2_c12: -2007812785
+      sprHellhound_r2_c13: -686307703
+      sprHellhound_r2_c14: 123064340
+      sprHellhound_r2_c15: -766808819
+      sprHellhound_r2_c16: -786389851
+      sprHellhound_r2_c17: -1975040522
+      sprHellhound_r2_c18: 8709186
+      sprHellhound_r2_c19: 983651024
+      sprHellhound_r2_c2: -674916654
+      sprHellhound_r2_c20: -1598582434
+      sprHellhound_r2_c21: 540037246
+      sprHellhound_r2_c22: 2067664261
+      sprHellhound_r2_c23: 596641157
+      sprHellhound_r2_c3: 674129583
+      sprHellhound_r2_c4: -302260836
+      sprHellhound_r2_c5: -594680187
+      sprHellhound_r2_c6: -952919454
+      sprHellhound_r2_c7: 916727729
+      sprHellhound_r2_c8: 960586037
+      sprHellhound_r2_c9: 590336242
+      sprHellhound_r3_c0: 938605886
+      sprHellhound_r3_c1: -1621797658
+      sprHellhound_r3_c10: -1175835528
+      sprHellhound_r3_c11: -346073245
+      sprHellhound_r3_c12: -270177952
+      sprHellhound_r3_c13: 590430053
+      sprHellhound_r3_c14: -674104296
+      sprHellhound_r3_c15: -1515450284
+      sprHellhound_r3_c16: 947598376
+      sprHellhound_r3_c17: 956475543
+      sprHellhound_r3_c18: 108914439
+      sprHellhound_r3_c19: -15644282
+      sprHellhound_r3_c2: -1127191600
+      sprHellhound_r3_c20: -1077077295
+      sprHellhound_r3_c21: 1080640538
+      sprHellhound_r3_c22: 1355631447
+      sprHellhound_r3_c23: 560793410
+      sprHellhound_r3_c3: 21594854
+      sprHellhound_r3_c4: -1264026119
+      sprHellhound_r3_c5: -1895998250
+      sprHellhound_r3_c6: -1714126971
+      sprHellhound_r3_c7: 343515285
+      sprHellhound_r3_c8: 1425920055
+      sprHellhound_r3_c9: -1269916273
+      sprHellhound_r4_c0: 1354172900
+      sprHellhound_r4_c1: -907194837
+      sprHellhound_r4_c10: 1861134803
+      sprHellhound_r4_c11: 206983806
+      sprHellhound_r4_c12: 1811425164
+      sprHellhound_r4_c13: 655954541
+      sprHellhound_r4_c14: 776545489
+      sprHellhound_r4_c15: 338888204
+      sprHellhound_r4_c16: -1321756319
+      sprHellhound_r4_c17: 132957353
+      sprHellhound_r4_c18: 974153620
+      sprHellhound_r4_c19: 1563469082
+      sprHellhound_r4_c2: 555477011
+      sprHellhound_r4_c20: -1263671106
+      sprHellhound_r4_c21: 1855875274
+      sprHellhound_r4_c22: -978326016
+      sprHellhound_r4_c23: 1215879372
+      sprHellhound_r4_c3: 1459942239
+      sprHellhound_r4_c4: 1807071287
+      sprHellhound_r4_c5: -278838542
+      sprHellhound_r4_c6: -122885069
+      sprHellhound_r4_c7: -1241153050
+      sprHellhound_r4_c8: 1203225578
+      sprHellhound_r4_c9: -1640534007
+      sprHellhound_r5_c0: 1253625638
+      sprHellhound_r5_c1: -609871947
+      sprHellhound_r5_c10: 191405236
+      sprHellhound_r5_c11: -726808036
+      sprHellhound_r5_c12: 597845702
+      sprHellhound_r5_c13: 1632205261
+      sprHellhound_r5_c14: -668536509
+      sprHellhound_r5_c15: 1170324416
+      sprHellhound_r5_c16: -1342971120
+      sprHellhound_r5_c17: 21057477
+      sprHellhound_r5_c18: -1915893783
+      sprHellhound_r5_c19: -84772245
+      sprHellhound_r5_c2: -1634803684
+      sprHellhound_r5_c20: -289078910
+      sprHellhound_r5_c21: 982999551
+      sprHellhound_r5_c22: -831506318
+      sprHellhound_r5_c23: 1902321965
+      sprHellhound_r5_c3: 99036973
+      sprHellhound_r5_c4: -1662452435
+      sprHellhound_r5_c5: -28987030
+      sprHellhound_r5_c6: -1442832299
+      sprHellhound_r5_c7: -1671112650
+      sprHellhound_r5_c8: 1889451405
+      sprHellhound_r5_c9: 35819296
+      sprHellhound_r6_c0: 2113128758
+      sprHellhound_r6_c1: 635464633
+      sprHellhound_r6_c10: -119165381
+      sprHellhound_r6_c11: 1749367917
+      sprHellhound_r6_c12: -149094654
+      sprHellhound_r6_c13: 400349003
+      sprHellhound_r6_c14: -1422712477
+      sprHellhound_r6_c15: -512876371
+      sprHellhound_r6_c16: 135233393
+      sprHellhound_r6_c17: -452750720
+      sprHellhound_r6_c18: 1237345146
+      sprHellhound_r6_c19: -1632242587
+      sprHellhound_r6_c2: -1438594725
+      sprHellhound_r6_c20: 780323619
+      sprHellhound_r6_c21: 1381187853
+      sprHellhound_r6_c22: -52371464
+      sprHellhound_r6_c23: 880591523
+      sprHellhound_r6_c3: -1108728302
+      sprHellhound_r6_c4: -617931564
+      sprHellhound_r6_c5: 1630278760
+      sprHellhound_r6_c6: 575316841
+      sprHellhound_r6_c7: 261132270
+      sprHellhound_r6_c8: -1666960613
+      sprHellhound_r6_c9: -347896
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 
