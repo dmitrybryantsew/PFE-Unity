@@ -324,6 +324,10 @@ namespace PFE.Tests.PlayMode.Combat
             /// <c>skin</c>.</summary>
             public float SkinResistance => 0f;
 
+            /// <summary>AS3's own evasion field defaults (dexter 1, dodge 0) — the baseline, not
+            /// "cannot evade", which is what a zero dexterity would mean.</summary>
+            public EvasionState Evasion => EvasionState.Default;
+
             public float CurrentHealth => _health;
             public float MaxHealth => 100f;
             public bool IsAlive => _health > 0;

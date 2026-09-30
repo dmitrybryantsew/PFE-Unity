@@ -97,6 +97,39 @@ public readonly ReactiveProperty<float> MaxMana;
     /// <summary>Base natural resistance, always applied. AS3 <c>Unit.skin</c>.</summary>
     public float skinResistance = 0f;
 
+    // === Evasion (AS3 Unit.dexter / dexterPlus / dodge) ===
+    //
+    // The ranged/melee avoidance terms. Held here rather than on the definition because two of the
+    // three are mutable at runtime — `dexterPlus` while the player sits or lurks, `dodge` while they
+    // dash — and because `dexter` is level-scaled like `skin`. The definition's value is the baseline.
+
+    /// <summary>
+    /// Ranged evasion divisor — AS3 <c>Unit.dexter</c> (<c>Unit.as:166</c>), seeded from
+    /// <c>@dexter</c> on the unit node. Defaults to <c>1</c>, which is AS3's own field default, so an
+    /// unseeded unit evades at the baseline rather than not at all.
+    /// </summary>
+    public float dexterity = 1f;
+
+    /// <summary>
+    /// Flat addition to the ranged divisor — AS3 <c>Unit.dexterPlus</c>. Player sit/lurk only
+    /// (<c>UnitPlayer.as:1117-1126</c>); 0 for an NPC, which is the oracle's default.
+    /// </summary>
+    public float dexterityPlus = 0f;
+
+    /// <summary>
+    /// Melee avoidance probability 0..1 — AS3 <c>Unit.dodge</c> (<c>Unit.as:170</c>). The player gets
+    /// <c>1 + dodgePlus</c> while dashing (<c>UnitPlayer.as:1416-1422</c>); 0 for an NPC, which is why
+    /// a club always lands on one.
+    /// </summary>
+    public float dodge = 0f;
+
+    /// <summary>
+    /// The evasion projection <see cref="PFE.Systems.Combat.IDamageable"/> exposes. A computed read of
+    /// the three fields, so it cannot fall out of step with them — and a struct, so it allocates
+    /// nothing on the hit path.
+    /// </summary>
+    public EvasionState Evasion => new EvasionState(dexterity, dexterityPlus, dodge);
+
     /// <summary>Scales the armour's flat reduction. AS3 <c>armorMult</c>. 1 = unmodified.</summary>
     public float armorEffectiveness = 1f;
 

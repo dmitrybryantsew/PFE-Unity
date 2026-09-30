@@ -101,6 +101,25 @@ namespace PFE.Systems.Combat
         float SkinResistance { get; }
 
         /// <summary>
+        /// The target's evasion projection — dexterity, dexterity-plus and melee dodge. Read by
+        /// <see cref="HitAvoidance.RollsHit"/> to decide whether a reported hit lands at all.
+        /// </summary>
+        /// <remarks>
+        /// <para>AS3 <c>Unit.dexter</c>/<c>dexterPlus</c>/<c>dodge</c> (<c>Unit.as:166-172</c>), all
+        /// three read together at <c>Unit.udarBullet():4072</c>. It sits on this interface for the same
+        /// reason <see cref="Armour"/>, <see cref="Vulnerabilities"/> and <see cref="SkinResistance"/>
+        /// do: the formula reads it, so it must be readable, and it must never cross a network
+        /// boundary — the check is resolved locally and only its boolean result matters.</para>
+        ///
+        /// <para><b><see cref="EvasionState.Default"/>, not all-zeroes, is the right fallback.</b> A
+        /// zero dexterity is not "no data" in the oracle — it is the <c>dexter &lt;= 0</c> term, which
+        /// means the target is hit by everything. AS3's field default is <c>dexter = 1</c>, so a target
+        /// the port knows nothing about must answer 1, or every hit on it would bypass evasion rather
+        /// than merely be unmodified by it.</para>
+        /// </remarks>
+        EvasionState Evasion { get; }
+
+        /// <summary>
         /// Current health of this entity.
         /// Used for UI, death checks, and damage calculations.
         /// </summary>

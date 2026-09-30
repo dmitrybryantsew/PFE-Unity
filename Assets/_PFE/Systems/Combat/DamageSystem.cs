@@ -23,6 +23,15 @@ namespace PFE.Systems.Combat
     /// mutable fallback RNG (<c>s_fallbackCombatRng</c>) that is exactly the hidden global singleton a
     /// lockstep peer cannot reproduce.</para>
     ///
+    /// <para><b>It also owns whether a hit happens at all, and how hard.</b> Before any damage term runs,
+    /// <see cref="HitAvoidance.RollsHit"/> ports AS3's four-term <c>udarBullet</c> conjunction —
+    /// the attacker's under-skill <c>miss</c>, then the target's evasion, which is
+    /// <i>accuracy vs dexterity</i> for a projectile and a <i>dodge</i> probability for a melee swing.
+    /// A miss resolves to nothing (no wear, no crit) and is published as
+    /// <c>DamageDealtMessage.isMiss</c>. A hit that lands is then spread by
+    /// <see cref="DamageVariance"/>, AS3's <c>× (0.7 .. 1.3)</c> (<c>Unit.as:4085</c>). Blasts skip both,
+    /// as they do in AS3.</para>
+    ///
     /// <para><b>Timing is a flag, the formula is not.</b> <c>PfeDebugSettings.SimTickDamage</c> chooses
     /// <i>when</i> a reported hit resolves — on the tick, or immediately at report time. It does not
     /// choose the formula; that is now armour-aware in both modes. With no unit carrying armour the two
@@ -101,6 +110,17 @@ namespace PFE.Systems.Combat
         /// normal — but a number that should be small, so it is worth being able to see.
         /// </summary>
         public int SkippedCount { get; private set; }
+
+        /// <summary>
+        /// Hits that reached a live target and were <b>evaded</b> — the
+        /// <see cref="HitAvoidance.RollsHit"/> conjunction returned false.
+        ///
+        /// <para>Distinct from <see cref="SkippedCount"/>, which counts hits that found nothing to land
+        /// on. This one counts hits that landed on something and were dodged, so it is the observable
+        /// that proves the evasion path is live rather than inert: if it stays 0 while shooting at a
+        /// high-<c>dexter</c> target, the roll is not running.</para>
+        /// </summary>
+        public int MissedCount { get; private set; }
 
         /// <summary>
         /// True when a reported hit will actually be drained: the flag is on <b>and</b> this system is
@@ -183,12 +203,71 @@ namespace PFE.Systems.Combat
 
             DamageContext ctx = hit.Context;
 
+            // ── Hit avoidance ────────────────────────────────────────────────────────────────────
+            // AS3 `Unit.udarBullet():4067-4131` gates the ENTIRE hit on a four-term conjunction, and a
+            // missed shot does nothing at all: no damage, no armour wear, no crit, no knockback, no
+            // floating damage number. So this runs before every damage term rather than as a zeroing
+            // term inside them — a miss that still wore the armour would be a different game.
+            //
+            // Two exclusions, both the oracle's:
+            //   * a blast never rolls. AS3's explosion path (`Bullet.explRun`) calls `unit.damage()`
+            //     directly and never reaches `udarBullet`, so `miss`/`precision`/`dodge` do not apply
+            //     to AoE at all.
+            //   * the roll uses the same per-tick stream as the armour and crit rolls, in the oracle's
+            //     order. `HitAvoidance.RollsHit` reproduces AS3's short-circuits exactly, so a shot
+            //     with `miss = 0` against a non-evading target consumes no roll here and the crit
+            //     stream stays where AS3 would leave it.
+            if (!hit.IsExplosion
+                && !HitAvoidance.RollsHit(ctx, target.Evasion, hit.TravelDistancePixels, rng))
+            {
+                MissedCount++;
+
+                // Published as a miss rather than silence: AS3 shows a "miss" number
+                // (`Unit.as:4103-4117`, `txtMiss`), and this message is the only hook the presentation
+                // layer has for it.
+                _publisher?.Publish(new DamageDealtMessage
+                {
+                    damage     = 0f,
+                    position   = hit.ImpactPosition,
+                    isCritical = false,
+                    isMiss     = true,
+                });
+
+                // The floating-damage overlay's feed. Written unconditionally and gated at the view, so
+                // the overlay can be switched on mid-burst without having missed the hits that led up to
+                // it — a diagnostic that only records from the moment you enable it cannot show you the
+                // shot you enabled it to catch.
+                DamageEventFeed.Default.Report(
+                    hit.ImpactPosition, amount: 0f, isCritical: false, isMiss: true);
+
+                return;
+            }
+
             float incoming = hit.IsExplosion
                 ? ExplosionDamageFor(ctx, hit)
                 : ctx.BaseDamage;
 
             if (incoming <= 0f)
                 return;
+
+            // ── Damage spread ───────────────────────────────────────────────────────────────────
+            // AS3 `Unit.as:4085` — `_loc4_ = param1.damage * (Math.random() * 0.6 + 0.7)`, inside the
+            // `if (param1.damage > 0)` block, so it sits AFTER that gate (hence below, not above) and
+            // BEFORE `this.damage()`, whose body applies vulnerability then armour then crit. So the
+            // spread lands on the pre-armour number, and crit amplifies the spread value — the
+            // oracle's order.
+            //
+            // Blasts are excluded: AS3's explosion path (`Bullet.explRun`) calls `unit.damage()`
+            // directly and never reaches `udarBullet`, so an explosion does its falloff damage exactly.
+            //
+            // The draw happens even under the testDam debug toggle — `DamageVariance.Roll` takes the
+            // roll first and only then decides whether to report it — because the combat stream is
+            // shared with the armour-reliability and crit rolls below. Skipping the draw would shift
+            // every later roll in the same tick, which is a replication bug, not a debug convenience.
+            if (!hit.IsExplosion)
+            {
+                incoming *= DamageVariance.Roll(rng, _debugSettings != null && _debugSettings.TestDamage);
+            }
 
             // ── Vulnerability ───────────────────────────────────────────────────────────────────
             // AS3 `Unit.damage():3527-3530` — `if(param2 < kolVulners) param1 *= this.vulner[param2]`.
@@ -235,8 +314,13 @@ namespace PFE.Systems.Combat
                 damage = outcome.HpDamage,
                 position = hit.ImpactPosition,
                 isCritical = outcome.IsCritical,
+                // Reached only past the avoidance roll above, so a published hit genuinely landed.
                 isMiss = false,
             });
+
+            // See the miss path above for why this is unconditional rather than gated on the channel.
+            DamageEventFeed.Default.Report(
+                hit.ImpactPosition, outcome.HpDamage, outcome.IsCritical, isMiss: false);
         }
 
         /// <summary>

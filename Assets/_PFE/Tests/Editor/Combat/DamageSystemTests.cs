@@ -84,6 +84,13 @@ namespace PFE.Tests.Editor.Combat
             /// </summary>
             public float SkinResistance { get; set; } = 0f;
 
+            /// <summary>
+            /// Settable so a test can give the target real evasion. Defaults to
+            /// <see cref="EvasionState.Default"/> — AS3's own field defaults (dexter 1, dodge 0) — and
+            /// <b>not</b> all-zeroes, which would mean <c>dexter &lt;= 0</c>, i.e. "hit by everything".
+            /// </summary>
+            public EvasionState Evasion { get; set; } = EvasionState.Default;
+
             public int ApplyDamageCalls;
             public DamageOutcome LastOutcome;
 
@@ -112,7 +119,10 @@ namespace PFE.Tests.Editor.Combat
             float piercing = 0f,
             float critChance = 0f,
             float critMultiplier = 1f,
-            DamageType damageType = DamageType.PhysicalBullet)
+            DamageType damageType = DamageType.PhysicalBullet,
+            float missChance = 0f,
+            float precision = 0f,
+            bool isMelee = false)
             => new DamageContext(
                 owner: null,
                 weapon: null,
@@ -129,21 +139,68 @@ namespace PFE.Tests.Editor.Combat
                 penetrationChance: 0f,
                 dopEffect: null,
                 dopDamage: 0f,
-                dopChance: 1f);
+                dopChance: 1f,
+                missChance: missChance,
+                precision: precision,
+                isMelee: isMelee);
 
         /// <summary>
-        /// Builds the settings asset with both gates set explicitly. The fields are private and
+        /// An RNG that returns scripted values and counts the rolls consumed. Needed for the avoidance
+        /// tests because the outcome has to be forced, and — for the inert-context test — because the
+        /// roll COUNT is itself the assertion.
+        /// </summary>
+        private sealed class ScriptedRng : IRngService
+        {
+            private readonly Queue<float> _values;
+
+            public int RollsConsumed { get; private set; }
+
+            public ScriptedRng(params float[] values) => _values = new Queue<float>(values);
+
+            public float NextFloat()
+            {
+                RollsConsumed++;
+                return _values.Count > 0 ? _values.Dequeue() : 0f;
+            }
+
+            public IRngService GetStream(RngStream stream, int? salt = null) => this;
+
+            public uint NextUInt() => 0u;
+            public int NextInt(int maxExclusive) => 0;
+            public int Range(int minInclusive, int maxExclusive) => minInclusive;
+            public float Range(float min, float max) => min;
+            public bool Chance(float probability) => NextFloat() < probability;
+            public void Shuffle<T>(IList<T> list) { }
+        }
+
+        /// <summary>
+        /// Builds the settings asset with every gate set explicitly. The fields are private and
         /// serialized, so they are set reflectively — the same way Unity's serializer would, and the
         /// same way <c>SimLoopTests</c> does it.
+        ///
+        /// <para><b><paramref name="testDamage"/> defaults to <c>true</c> here, which is the opposite of
+        /// the asset's own default — deliberately.</b> These tests pin the <i>formula chain</i>
+        /// (vulnerability, armour, crit, ordering) with exact numbers, and the damage spread multiplies
+        /// every one of those numbers by <c>[0.7, 1.3)</c>, so leaving it on would turn every assertion
+        /// into a range check and destroy what they were written to prove. The spread itself is pinned
+        /// by <c>DamageVarianceTests</c> and by the explicit <c>testDamage: false</c> cases below, and
+        /// <c>DamageVarianceTests.ProductionDefault_LeavesTheSpreadOn</c> guards that the asset really
+        /// does ship with the spread enabled — so this helper cannot hide a regression in the default.</para>
+        ///
+        /// <para>Note that <c>testDamage</c> does <b>not</b> remove the random draw — it only discards
+        /// its result (<c>Unit.as:4085-4089</c>). So the stream still advances by one per non-blast hit
+        /// whether this is on or off, and no test here depends on a fractional roll.</para>
         /// </summary>
         private static PfeDebugSettings MakeSettings(
-            bool simTickEnabled, bool simTickDamage, bool applyVulnerabilities = false)
+            bool simTickEnabled, bool simTickDamage, bool applyVulnerabilities = false,
+            bool testDamage = true)
         {
             var settings = ScriptableObject.CreateInstance<PfeDebugSettings>();
 
             SetPrivateField(settings, "simTickEnabled", simTickEnabled);
             SetPrivateField(settings, "simTickDamage", simTickDamage);
             SetPrivateField(settings, "applyVulnerabilities", applyVulnerabilities);
+            SetPrivateField(settings, "testDamage", testDamage);
 
             return settings;
         }
@@ -164,9 +221,10 @@ namespace PFE.Tests.Editor.Combat
             bool simTickDamage,
             IRngService rng = null,
             IPublisher<DamageDealtMessage> publisher = null,
-            bool applyVulnerabilities = false)
+            bool applyVulnerabilities = false,
+            bool testDamage = true)
         {
-            var settings = MakeSettings(simTickEnabled, simTickDamage, applyVulnerabilities);
+            var settings = MakeSettings(simTickEnabled, simTickDamage, applyVulnerabilities, testDamage);
 
             var system = new DamageSystem(
                 new DamageCalculator(new CombatCalculator()),
@@ -185,14 +243,16 @@ namespace PFE.Tests.Editor.Combat
         private static DamageSystem MakeTickAligned(
             IRngService rng = null,
             IPublisher<DamageDealtMessage> publisher = null,
-            bool applyVulnerabilities = false)
-            => Make(simTickEnabled: true, simTickDamage: true, rng, publisher, applyVulnerabilities);
+            bool applyVulnerabilities = false,
+            bool testDamage = true)
+            => Make(simTickEnabled: true, simTickDamage: true, rng, publisher, applyVulnerabilities, testDamage);
 
         private static DamageSystem MakeImmediate(
             IRngService rng = null,
             IPublisher<DamageDealtMessage> publisher = null,
-            bool applyVulnerabilities = false)
-            => Make(simTickEnabled: true, simTickDamage: false, rng, publisher, applyVulnerabilities);
+            bool applyVulnerabilities = false,
+            bool testDamage = true)
+            => Make(simTickEnabled: true, simTickDamage: false, rng, publisher, applyVulnerabilities, testDamage);
 
         // ── Ordering ─────────────────────────────────────────────────────────
 
@@ -696,6 +756,227 @@ namespace PFE.Tests.Editor.Combat
             system.Report(PendingDamage.Direct(Context(baseDamage: 40f), target, Vector3.zero));
 
             Assert.AreEqual(90f, target.Health, 1e-4f, "40 * 0.25 = 10, resolved inline.");
+        }
+
+        // ── Hit avoidance (Unit.udarBullet, Unit.as:4067-4131) ───────────────
+
+        [Test]
+        public void EvadedHit_AppliesNothingAtAll_NotEvenArmourWear()
+        {
+            // AS3 puts the ENTIRE hit — damage, armour wear, crit, knockback — inside the udarBullet
+            // conjunction, so a miss must not dent the armour. This is the test that fails if the
+            // avoidance roll is moved after the wear computation instead of before every damage term.
+            var system = MakeImmediate(new ScriptedRng(0.5f));
+            var target = new FakeTarget
+            {
+                Health  = 100f,
+                Armour  = ArmourState.FromItem(
+                    integrity: 100f, maxIntegrity: 100f,
+                    physicalRating: 50f, energyRating: 50f, reliability: 1f),
+                Evasion = new EvasionState(100f, 0f, 0f),
+            };
+
+            // accuracy = 320/320 = 1.0, divisor = 100.05 ⇒ a 0.5 roll misses.
+            system.Report(PendingDamage.Direct(
+                Context(baseDamage: 40f, precision: 320f), target, Vector3.zero,
+                travelDistancePixels: 320f));
+
+            Assert.AreEqual(1, system.MissedCount, "the hit must be counted as evaded");
+            Assert.AreEqual(0, system.ResolvedCount, "an evaded hit is not resolved");
+            Assert.AreEqual(0, target.ApplyDamageCalls, "a miss must not reach the target at all");
+            Assert.AreEqual(100f, target.Health, 1e-4f, "no damage");
+            Assert.AreEqual(100f, target.Armour.integrity, 1e-4f, "no armour wear");
+        }
+
+        [Test]
+        public void EvadedHit_PublishesAMiss_SoThePresentationLayerCanShowIt()
+        {
+            // AS3 draws a "miss" number (Unit.as:4103-4117, txtMiss). The message is the only hook the
+            // presentation layer has, so a miss that published nothing would silently lose the feedback.
+            var publisher = new FakePublisher();
+            var system    = MakeImmediate(new ScriptedRng(0.5f), publisher);
+            var target    = new FakeTarget { Health = 100f, Evasion = new EvasionState(100f, 0f, 0f) };
+
+            system.Report(PendingDamage.Direct(
+                Context(baseDamage: 40f, precision: 320f), target, Vector3.zero,
+                travelDistancePixels: 320f));
+
+            Assert.AreEqual(1, publisher.Messages.Count);
+            Assert.IsTrue(publisher.Messages[0].isMiss, "the message must be flagged as a miss");
+            Assert.AreEqual(0f, publisher.Messages[0].damage, 1e-4f, "a miss deals no damage");
+            Assert.IsFalse(publisher.Messages[0].isCritical, "a miss cannot crit");
+        }
+
+        [Test]
+        public void EvasionDoesNotApplyToABlast()
+        {
+            // AS3's explosion path (Bullet.explRun) calls unit.damage() directly and never reaches
+            // udarBullet, so miss/precision/dodge do not gate AoE. Without this the same high-dexterity
+            // target would dodge grenades, which the oracle does not do.
+            var system = MakeImmediate(new ScriptedRng(0.5f));
+            var target = new FakeTarget { Health = 100f, Evasion = new EvasionState(100f, 0f, 0f) };
+
+            system.Report(PendingDamage.Explosion(
+                Context(explosionDamage: 40f, precision: 320f),
+                target,
+                targetPosition: Vector3.zero,
+                explosionCentre: Vector3.zero,
+                explosionRadius: 100f));
+
+            Assert.AreEqual(0, system.MissedCount, "a blast is never evaded");
+            Assert.AreEqual(1, system.ResolvedCount);
+            Assert.AreEqual(60f, target.Health, 1e-4f, "full 40 damage, no falloff at the centre");
+        }
+
+        [Test]
+        public void InertEvasionTerms_LeaveTheExistingNumbersUntouched()
+        {
+            // The behaviour-neutrality guard at the system level. A shot with no miss penalty and no
+            // precision — which is every shot the port can currently produce — must land exactly as it
+            // did before the avoidance path existed, and must not have consumed a roll *for the
+            // avoidance conjunction*.
+            //
+            // `RollsConsumed` is 1, not 0, and that one draw is the damage spread — which runs after the
+            // conjunction and is a different term (Unit.as:4085, not :4072). The distinction is what the
+            // companion test below pins: an evading target costs an extra draw, an inert one does not.
+            var rng    = new ScriptedRng();
+            var system = MakeImmediate(rng);
+            var target = new FakeTarget { Health = 100f, Evasion = new EvasionState(100f, 0f, 0f) };
+
+            system.Report(PendingDamage.Direct(Context(baseDamage: 25f), target, Vector3.zero));
+
+            Assert.AreEqual(75f, target.Health, 1e-4f);
+            Assert.AreEqual(0, system.MissedCount);
+            Assert.AreEqual(1, rng.RollsConsumed,
+                "the avoidance conjunction short-circuits without rolling; the single draw is the spread");
+        }
+
+        [Test]
+        public void AnEvadingTargetCostsOneMoreDrawThanAnInertOne()
+        {
+            // The complement of the test above, and the reason `RollsConsumed` there is asserted as a
+            // number rather than as "no roll at all". Same shot, same everything, except the target can
+            // evade: the conjunction now takes its own draw *before* the spread, so the count goes up by
+            // exactly one. Without this pair, "1 draw" would not distinguish "the conjunction is inert"
+            // from "the conjunction rolled and something else did not".
+            var inertRng = new ScriptedRng();
+            var inert    = MakeImmediate(inertRng);
+            inert.Report(PendingDamage.Direct(
+                Context(baseDamage: 25f), new FakeTarget { Health = 100f }, Vector3.zero));
+
+            var evasiveRng = new ScriptedRng(0.001f);
+            var evasive    = MakeImmediate(evasiveRng);
+            evasive.Report(PendingDamage.Direct(
+                Context(baseDamage: 25f, precision: 320f),
+                new FakeTarget { Health = 100f, Evasion = new EvasionState(100f, 0f, 0f) },
+                Vector3.zero,
+                travelDistancePixels: 320f));
+
+            Assert.AreEqual(1, inertRng.RollsConsumed);
+            Assert.AreEqual(2, evasiveRng.RollsConsumed,
+                "one draw for accuracy-vs-dexterity, then one for the spread");
+            Assert.AreEqual(0, evasive.MissedCount,
+                "a 0.001 roll is below accuracy/divisor (1.0 / 100.05), so it lands");
+        }
+
+        // ── Damage spread (Unit.udarBullet, Unit.as:4085) ────────────────────
+
+        [Test]
+        public void DamageSpread_ScalesTheIncomingNumber()
+        {
+            // The production default: `testDamage` off, so the spread is live. A scripted 0.0 gives
+            // 0.0 * 0.6 + 0.7 = 0.7, the floor of the oracle's range — 10 damage becomes 7.
+            var system = MakeImmediate(new ScriptedRng(0f), testDamage: false);
+            var target = new FakeTarget { Health = 100f };
+
+            system.Report(PendingDamage.Direct(Context(baseDamage: 10f), target, Vector3.zero));
+
+            Assert.AreEqual(93f, target.Health, 1e-4f, "10 * 0.7 = 7");
+        }
+
+        [Test]
+        public void DamageSpread_IsAppliedBeforeTheArmourReduction_NotAfter()
+        {
+            // The ordering assertion, and the one a plausible implementation gets wrong. AS3 multiplies
+            // at :4085 and only then enters damage(), whose reduction block subtracts at :3644. So a
+            // flat subtraction bites into 7, not into 10 — and the difference is invisible unless the
+            // spread is below 1, which is why this test uses the 0.7 floor rather than a mid roll.
+            //
+            //   spread-then-reduce: max(0, 10 * 0.7 - 3) = 4.0    → health 96
+            //   reduce-then-spread: max(0, 10 - 3) * 0.7 = 4.9    → health 95.1
+            //
+            // `skinResistance` is the flat term used rather than an armour rating on purpose: skin is
+            // applied unconditionally when the damage type reaches a reduction branch, whereas a rating
+            // only lands if the reliability roll succeeds — and a roll would make this test depend on the
+            // very stream it is trying to reason about.
+            var system = MakeImmediate(new ScriptedRng(0f), testDamage: false);
+            var target = new FakeTarget { Health = 100f, SkinResistance = 3f };
+
+            system.Report(PendingDamage.Direct(Context(baseDamage: 10f), target, Vector3.zero));
+
+            Assert.AreEqual(96f, target.Health, 1e-4f,
+                "the spread lands first, so the flat reduction subtracts from 7 — not from 10");
+        }
+
+        [Test]
+        public void DamageSpread_DoesNotApplyToABlast()
+        {
+            // AS3's explosion path (Bullet.explRun) calls unit.damage() directly and never enters
+            // udarBullet, so a blast does its falloff value exactly. Scripted 0.0 would give 0.7 if the
+            // spread leaked onto this path, so 40 rather than 28 is the assertion.
+            var system = MakeImmediate(new ScriptedRng(0f), testDamage: false);
+            var target = new FakeTarget { Health = 100f };
+
+            system.Report(PendingDamage.Explosion(
+                Context(explosionDamage: 40f),
+                target,
+                targetPosition: Vector3.zero,
+                explosionCentre: Vector3.zero,
+                explosionRadius: 100f));
+
+            Assert.AreEqual(60f, target.Health, 1e-4f, "40 exactly — no spread on a blast");
+        }
+
+        [Test]
+        public void DamageSpread_IsSkippedForAZeroDamageShot_AndTakesNoDraw()
+        {
+            // AS3's spread sits inside `if (param1.damage > 0)` (:4079), so a zero-damage shot exits at
+            // `return 0` before Math.random() is reached. The draw count is the assertion, because the
+            // hp number is 0 either way — and an extra draw would shift the shared combat stream for
+            // every later hit in the tick.
+            var rng    = new ScriptedRng(0f);
+            var system = MakeImmediate(rng, testDamage: false);
+            var target = new FakeTarget { Health = 100f };
+
+            system.Report(PendingDamage.Direct(Context(baseDamage: 0f), target, Vector3.zero));
+
+            Assert.AreEqual(100f, target.Health, 1e-4f);
+            Assert.AreEqual(0, system.ResolvedCount);
+            Assert.AreEqual(0, rng.RollsConsumed, "no damage ⇒ no spread ⇒ no draw");
+        }
+
+        [Test]
+        public void TestDamageToggle_ChangesTheNumberButNotTheStream()
+        {
+            // AS3's World.w.testDam discards the rolled value on the line AFTER the roll (:4085-4089),
+            // so the draw still happens. This is the guard against "optimising" the draw away when the
+            // toggle is on — which would be a replication bug on a shared stream, not a debug nicety.
+            var offRng = new ScriptedRng(0f);
+            var off    = MakeImmediate(offRng, testDamage: false);
+            var offTarget = new FakeTarget { Health = 100f };
+            off.Report(PendingDamage.Direct(Context(baseDamage: 10f), offTarget, Vector3.zero));
+
+            var onRng = new ScriptedRng(0f);
+            var on    = MakeImmediate(onRng, testDamage: true);
+            var onTarget = new FakeTarget { Health = 100f };
+            on.Report(PendingDamage.Direct(Context(baseDamage: 10f), onTarget, Vector3.zero));
+
+            Assert.AreEqual(93f, offTarget.Health, 1e-4f, "spread on: 10 * 0.7");
+            Assert.AreEqual(90f, onTarget.Health, 1e-4f, "spread discarded: the listed 10");
+
+            Assert.AreEqual(offRng.RollsConsumed, onRng.RollsConsumed,
+                "the toggle must not change how many draws the hit takes");
+            Assert.AreEqual(1, onRng.RollsConsumed);
         }
     }
 }

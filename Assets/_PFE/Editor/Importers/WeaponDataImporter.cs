@@ -245,6 +245,9 @@ namespace PFE.Editor.Importers
             string autoAttr         = Attr(charT1, "auto");
             def.autoMode            = string.IsNullOrEmpty(autoAttr) ? 0 : (autoAttr != "0" ? 2 : 1);
             def.precision           = AttrF(charT1, "prec",    0f) * 40f; // AS3 scales by 40
+            // antiprec is scaled by 40 exactly like prec (Weapon.as:826), so the two are comparable
+            // against Bullet.dist, which is in pixels. Four weapons carry antiprec='8' (320 px).
+            def.antiPrecision       = AttrF(charT1, "antiprec", 0f) * 40f;
             def.knockback           = AttrF(charT1, "knock",   0f);
             def.destroyTiles        = AttrF(charT1, "destroy", 0f);
             def.piercing            = AttrF(charT1, "pier",    0f);

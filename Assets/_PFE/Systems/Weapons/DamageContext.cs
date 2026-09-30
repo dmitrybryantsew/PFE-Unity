@@ -1,5 +1,6 @@
 using UnityEngine;
 using PFE.Data.Definitions;
+using PFE.Systems.Combat;
 
 namespace PFE.Systems.Weapons
 {
@@ -98,6 +99,53 @@ namespace PFE.Systems.Weapons
         /// <summary>Probability 0–1 that dop effect triggers on hit.</summary>
         public readonly float DopChance;
 
+        // ── Hit avoidance (AS3 Bullet.miss / .precision / .antiprec / .tipBullet) ─────────────
+        //
+        // These four decide whether the hit happens at all, before any damage term runs. They live
+        // here rather than on PendingDamage because they are properties of the *shot*, fixed at fire
+        // time; the one hit-time input, how far the round has flown, is on PendingDamage instead.
+        // The decision itself is HitAvoidance.RollsHit.
+
+        /// <summary>
+        /// Probability 0–1 that the shot misses outright — AS3 <c>Bullet.miss</c>, set to
+        /// <c>1 - skillConf</c> at fire time (<c>Weapon.as:1523</c>). <c>0</c> = no penalty, which is
+        /// the oracle's value for an owner at or above the weapon's required skill.
+        /// </summary>
+        /// <remarks>
+        /// AS3 reads it as the <i>first</i> term of the hit conjunction, and rolls for it only when it
+        /// is positive — the term short-circuits on <c>&lt;= 0</c>. See
+        /// <see cref="HitAvoidance.MissChance"/> for the producer and for why it currently resolves to
+        /// zero on every path the port can evaluate.
+        /// </remarks>
+        public readonly float MissChance;
+
+        /// <summary>
+        /// The weapon's accuracy stat in <b>pixels</b> — AS3 <c>Bullet.precision</c>, imported as
+        /// <c>@prec * 40</c> (<c>Weapon.as:822</c>). Divided by the round's travel distance to give the
+        /// accuracy the target's dexterity is tested against. <c>0</c> = unscoped: always hits.
+        /// </summary>
+        public readonly float Precision;
+
+        /// <summary>
+        /// The weapon's minimum-range distance in <b>pixels</b> — AS3 <c>Bullet.antiprec</c>, imported
+        /// as <c>@antiprec * 40</c> (<c>Weapon.as:826</c>). Inside it, accuracy ramps from 0.25 up to
+        /// 1.0, i.e. the weapon is <i>worse</i> point-blank. <c>0</c> = no minimum range.
+        /// </summary>
+        public readonly float AntiPrecision;
+
+        /// <summary>
+        /// True when this shot is a melee swing — AS3 <c>Bullet.tipBullet == 1</c>, which only
+        /// <c>WClub.shoot()</c> sets (<c>WClub.as:150</c>). It switches the evasion test from
+        /// <i>accuracy vs dexterity</i> to the <i>dodge</i> probability, and makes the travel distance
+        /// irrelevant.
+        /// </summary>
+        /// <remarks>
+        /// <b>Not a synonym for "unarmed".</b> <c>WPunch</c> does not set <c>tipBullet</c>, so an
+        /// unarmed attack is a <c>tipBullet == 0</c> shot that happens to carry no precision — it
+        /// resolves through the ranged branch and always hits, which is the oracle's behaviour.
+        /// </remarks>
+        public readonly bool IsMelee;
+
         public DamageContext(
             GameObject owner,
             WeaponDefinition weapon,
@@ -115,7 +163,11 @@ namespace PFE.Systems.Weapons
             string dopEffect,
             float dopDamage,
             float dopChance,
-            FactionType ownerFaction = FactionType.Neutral)
+            FactionType ownerFaction = FactionType.Neutral,
+            float missChance = 0f,
+            float precision = 0f,
+            float antiPrecision = 0f,
+            bool isMelee = false)
         {
             Owner             = owner;
             OwnerFaction      = ownerFaction;
@@ -134,6 +186,50 @@ namespace PFE.Systems.Weapons
             DopEffect         = dopEffect;
             DopDamage         = dopDamage;
             DopChance         = dopChance;
+            MissChance        = missChance;
+            Precision         = precision;
+            AntiPrecision     = antiPrecision;
+            IsMelee           = isMelee;
+        }
+
+        /// <summary>
+        /// This context with its damage and knockback scaled, every other field carried over.
+        ///
+        /// <para><b>Why this exists.</b> Two controllers — melee and unarmed — used to rebuild the
+        /// context with a 16-argument positional <c>new DamageContext(...)</c> copy just to multiply
+        /// two numbers. That is a silent-drop trap: <c>MeleeWeaponController</c> and
+        /// <c>UnarmedWeaponController</c> had <i>already</i> lost <c>ownerFaction</c> that way (it was
+        /// never passed, so every melee hit carried <see cref="FactionType.Neutral"/>), and adding any
+        /// field to this struct would have lost it in both places without a compile error. Scaling
+        /// through one method means the next field added is carried automatically.</para>
+        /// </summary>
+        /// <param name="damageScale">Multiplier on <see cref="BaseDamage"/>. 1 = unchanged.</param>
+        /// <param name="knockbackScale">Multiplier on <see cref="Knockback"/>. 1 = unchanged.</param>
+        /// <param name="knockbackDir">Direction to stamp, or null to keep the original.</param>
+        public DamageContext WithScaledDamage(float damageScale, float knockbackScale, Vector2? knockbackDir = null)
+        {
+            return new DamageContext(
+                owner:             Owner,
+                weapon:            Weapon,
+                baseDamage:        BaseDamage * damageScale,
+                explosionDamage:   ExplosionDamage,
+                armorMultiplier:   ArmorMultiplier,
+                piercing:          Piercing,
+                knockback:         Knockback * knockbackScale,
+                knockbackDir:      knockbackDir ?? KnockbackDir,
+                critChance:        CritChance,
+                critMultiplier:    CritMultiplier,
+                damageType:        DamageType,
+                destroyTiles:      DestroyTiles,
+                penetrationChance: PenetrationChance,
+                dopEffect:         DopEffect,
+                dopDamage:         DopDamage,
+                dopChance:         DopChance,
+                ownerFaction:      OwnerFaction,
+                missChance:        MissChance,
+                precision:         Precision,
+                antiPrecision:     AntiPrecision,
+                isMelee:           IsMelee);
         }
 
         /// <summary>
@@ -147,8 +243,15 @@ namespace PFE.Systems.Weapons
         /// contact and a <c>GetComponent</c> per hit is not free; the loadout already knows whose
         /// weapon this is at equip time.
         /// </param>
+        /// <param name="ownerWeaponSkillLevel">
+        /// The firing unit's skill level in this weapon's category, or
+        /// <see cref="HitAvoidance.UnknownOwnerSkillLevel"/> when the caller does not know it — which
+        /// is every current caller, because weapon-skill progression is the RPG bridge. It feeds
+        /// <see cref="MissChance"/> and nothing else; see <see cref="HitAvoidance.SkillConfidence"/>.
+        /// </param>
         public static DamageContext FromWeapon(
-            WeaponDefinition def, GameObject owner, FactionType ownerFaction = FactionType.Neutral)
+            WeaponDefinition def, GameObject owner, FactionType ownerFaction = FactionType.Neutral,
+            int ownerWeaponSkillLevel = HitAvoidance.UnknownOwnerSkillLevel)
         {
             return new DamageContext(
                 owner:             owner,
@@ -167,7 +270,14 @@ namespace PFE.Systems.Weapons
                 dopEffect:         null,
                 dopDamage:         0f,
                 dopChance:         1f,
-                ownerFaction:      ownerFaction
+                ownerFaction:      ownerFaction,
+                missChance:        HitAvoidance.MissChance(def.weaponLevel, ownerWeaponSkillLevel),
+                precision:         def.precision,
+                antiPrecision:     def.antiPrecision,
+                // AS3 sets `b.tipBullet = 1` only in WClub.shoot() (WClub.as:150), and
+                // Weapon.create() routes tip==1 to WClub — so the weapon type *is* the tipBullet
+                // signal. Deriving it here means a new melee weapon cannot forget to set it.
+                isMelee:           def.weaponType == WeaponType.Melee
             );
         }
     }

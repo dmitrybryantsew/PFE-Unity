@@ -119,6 +119,19 @@ namespace PFE.Data.Definitions
         // Legacy property for compatibility
         public float Accuracy => precision;
 
+        /// <summary>
+        /// Minimum-range distance in pixels — AS3 <c>@antiprec * 40</c> (<c>Weapon.as:826</c>), the
+        /// partner of <see cref="precision"/> and scaled identically so the two are comparable against
+        /// a round's travel distance. Inside it, accuracy ramps from 0.25 to 1.0, i.e. the weapon is
+        /// <b>worse</b> point-blank. <c>0</c> = no minimum range.
+        ///
+        /// <para>Four weapons in <c>AllData.as</c> carry <c>antiprec='8'</c> (320 px, 8 tiles) —
+        /// long-range pieces with a real dead zone. Ported as data rather than dropped because
+        /// "accuracy clamped to a minimum" would invert the mechanic. Consumed by
+        /// <see cref="PFE.Systems.Combat.HitAvoidance.Accuracy"/>.</para>
+        /// </summary>
+        public float antiPrecision = 0f;
+
         [Tooltip("Spread angle in degrees (lower = better)")]
         public float deviation = 0f;
 

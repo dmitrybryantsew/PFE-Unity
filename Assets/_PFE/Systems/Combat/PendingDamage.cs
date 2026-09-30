@@ -49,6 +49,15 @@ namespace PFE.Systems.Combat
         /// </summary>
         public readonly float FactionMultiplier;
 
+        /// <summary>
+        /// How far the round had flown when it reported this hit, in <b>pixels</b> — AS3
+        /// <c>Bullet.dist</c>. The one hit-time input to
+        /// <see cref="HitAvoidance.RollsHit"/>; everything else about avoidance is a property of the
+        /// shot and lives on <see cref="Context"/>. <c>0</c> for a melee sweep and for anything that
+        /// does not travel, which is correct — the oracle's melee branch has no distance term.
+        /// </summary>
+        public readonly float TravelDistancePixels;
+
         private PendingDamage(
             in DamageContext context,
             IDamageable target,
@@ -56,29 +65,46 @@ namespace PFE.Systems.Combat
             bool isExplosion,
             Vector3 explosionCentre,
             float explosionRadius,
-            float factionMultiplier)
+            float factionMultiplier,
+            float travelDistancePixels)
         {
-            Context = context;
-            Target = target;
-            ImpactPosition = impactPosition;
-            IsExplosion = isExplosion;
-            ExplosionCentre = explosionCentre;
-            ExplosionRadius = explosionRadius;
-            FactionMultiplier = factionMultiplier;
+            Context              = context;
+            Target               = target;
+            ImpactPosition       = impactPosition;
+            IsExplosion          = isExplosion;
+            ExplosionCentre      = explosionCentre;
+            ExplosionRadius      = explosionRadius;
+            FactionMultiplier    = factionMultiplier;
+            TravelDistancePixels = travelDistancePixels;
         }
 
         /// <summary>A single-target hit — a bullet, a melee sweep, anything that reads <c>BaseDamage</c>.</summary>
-        public static PendingDamage Direct(in DamageContext context, IDamageable target, Vector3 impactPosition)
+        /// <param name="travelDistancePixels">
+        /// Distance flown, in pixels — AS3 <c>Bullet.dist</c>. Defaults to <c>0</c>, which is right for
+        /// a melee sweep and for a hitscan; a projectile should pass its own.
+        /// </param>
+        public static PendingDamage Direct(
+            in DamageContext context, IDamageable target, Vector3 impactPosition,
+            float travelDistancePixels = 0f)
             => new PendingDamage(context, target, impactPosition,
                                  isExplosion: false,
                                  explosionCentre: impactPosition,
                                  explosionRadius: 0f,
-                                 factionMultiplier: 1f);
+                                 factionMultiplier: 1f,
+                                 travelDistancePixels: travelDistancePixels);
 
         /// <summary>
         /// An AoE blast against one target in range. The caller has already enumerated the overlap and
         /// computed the per-target <paramref name="factionMultiplier"/>; the system owns the falloff.
         /// </summary>
+        /// <remarks>
+        /// <b>A blast is never subject to hit avoidance, and that is the oracle.</b> AS3's explosion
+        /// path (<c>Bullet.explRun</c>, <c>weapon/Bullet.as:763-789</c>) calls <c>unit.damage()</c>
+        /// directly; the <c>udarBullet</c> conjunction — and therefore every <c>miss</c>,
+        /// <c>precision</c> and <c>dodge</c> term — is skipped entirely. So
+        /// <see cref="TravelDistancePixels"/> is unused on this path and the resolver must not roll for
+        /// it.
+        /// </remarks>
         public static PendingDamage Explosion(
             in DamageContext context,
             IDamageable target,
@@ -90,6 +116,7 @@ namespace PFE.Systems.Combat
                                  isExplosion: true,
                                  explosionCentre: explosionCentre,
                                  explosionRadius: explosionRadius,
-                                 factionMultiplier: factionMultiplier);
+                                 factionMultiplier: factionMultiplier,
+                                 travelDistancePixels: 0f);
     }
 }

@@ -203,33 +203,17 @@ namespace PFE.Systems.Weapons.Controllers
             // ── Build damage context ──────────────────────────────────────────
             DamageContext baseDmg = DamageContext.FromWeapon(_def, null, State.OwnerFaction);
 
-            float finalDamage   = baseDmg.BaseDamage;
-            float finalKnockback = baseDmg.Knockback;
+            // AS3: b.damage = damage*2; b.otbros *= 1.5 on a back-hit (zadok).
+            float damageScale    = zadok ? 2f   : 1f;
+            float knockbackScale = zadok ? 1.5f : 1f;
 
-            if (zadok)
-            {
-                // AS3: b.damage = damage*2; b.otbros *= 1.5;
-                finalDamage   *= 2f;
-                finalKnockback *= 1.5f;
-            }
-
-            DamageContext dmgCtx = new DamageContext(
-                baseDmg.Owner,
-                baseDmg.Weapon,
-                finalDamage,
-                baseDmg.ExplosionDamage,
-                baseDmg.ArmorMultiplier,
-                baseDmg.Piercing,
-                finalKnockback,
-                new Vector2(Mathf.Cos(punchAngle), Mathf.Sin(punchAngle)),
-                baseDmg.CritChance,
-                baseDmg.CritMultiplier,
-                baseDmg.DamageType,
-                baseDmg.DestroyTiles,
-                baseDmg.PenetrationChance,
-                baseDmg.DopEffect,
-                baseDmg.DopDamage,
-                baseDmg.DopChance);
+            // Scaled through one method rather than a positional re-construction: the 16-argument
+            // copy this replaced silently dropped ownerFaction, and would drop every field added to
+            // DamageContext afterwards — including the hit-avoidance terms.
+            DamageContext dmgCtx = baseDmg.WithScaledDamage(
+                damageScale,
+                knockbackScale,
+                new Vector2(Mathf.Cos(punchAngle), Mathf.Sin(punchAngle)));
 
             // ── Emit ShotPlan ─────────────────────────────────────────────────
             // MeleeSweep — MeleeHitVolume handles the actual hit detection.

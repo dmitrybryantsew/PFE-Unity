@@ -253,25 +253,10 @@ namespace PFE.Systems.Weapons.Controllers
             Vector2 tipPos = CalculateTipPosition(holdPoint, aimTarget);
 
             DamageContext baseDmg  = DamageContext.FromWeapon(_def, null, State.OwnerFaction);
-            // Apply power / combo multiplier to base damage.
-            DamageContext finalDmg = _powerMult != 1f
-                ? new DamageContext(
-                    baseDmg.Owner, baseDmg.Weapon,
-                    baseDmg.BaseDamage * _powerMult,
-                    baseDmg.ExplosionDamage,
-                    baseDmg.ArmorMultiplier,
-                    baseDmg.Piercing,
-                    baseDmg.Knockback * _powerMult,
-                    baseDmg.KnockbackDir,
-                    baseDmg.CritChance,
-                    baseDmg.CritMultiplier,
-                    baseDmg.DamageType,
-                    baseDmg.DestroyTiles,
-                    baseDmg.PenetrationChance,
-                    baseDmg.DopEffect,
-                    baseDmg.DopDamage,
-                    baseDmg.DopChance)
-                : baseDmg;
+            // Apply power / combo multiplier to base damage. Scaled through one method rather than a
+            // positional re-construction: the 16-argument copy this replaced silently dropped
+            // ownerFaction, and would drop every field added to DamageContext afterwards.
+            DamageContext finalDmg = baseDmg.WithScaledDamage(_powerMult, _powerMult);
 
             ShotCues cues = new ShotCues(
                 playShootSound:   !string.IsNullOrEmpty(_def.soundShoot),
