@@ -136,9 +136,33 @@ namespace PFE.Core
         /// </summary>
         LowLevelPhysics = 1 << 11,
 
+        /// <summary>
+        /// Floating damage numbers — one rising, fading figure per resolved hit, at the impact point.
+        ///
+        /// <para><b>Why this is a debug channel and not simply a game feature.</b> It is the only way to
+        /// tell a bullet that <i>missed</i> from one that <i>never collided</i>: a hit produces a
+        /// number (or <c>MISS</c>), and a shot that passes through a unit produces nothing at all.
+        /// Those two look identical on screen without it, and they have completely different causes.
+        /// Nothing in the simulation reads this channel, so it is free to leave on while diagnosing and
+        /// free to leave off in a shipped build.</para>
+        /// </summary>
+        DamageNumbers = 1 << 12,
+
+        /// <summary>
+        /// Per-unit health, armour integrity and natural resistance, drawn above every unit in view.
+        ///
+        /// <para><b>Reads the target's own state, not the attacker's arithmetic</b> — the same
+        /// <c>IDamageable</c> members the damage resolver reads — so a number that does not move when a
+        /// bullet visibly lands is evidence about the hit path rather than about the formula. The
+        /// training dummies restore to full every tick by design (<c>UnitTrain.control()</c>), so on
+        /// them the useful reading is the <i>flash</i> of a drop, not a persistent value.</para>
+        /// </summary>
+        UnitHealth = 1 << 13,
+
         /// <summary>Everything. <see cref="Legend"/> included — it is a channel like the rest.</summary>
         All = Tiles | Units | Doors | Triggers | Transitions | Objects
             | TileQuery | RoomData | PoolData | Clock | Legend | LowLevelPhysics
+            | DamageNumbers | UnitHealth
     }
 
     /// <summary>
@@ -167,6 +191,8 @@ namespace PFE.Core
             (DebugOverlayChannel.Clock,       "clock",       "the SIM CLOCK text readout"),
             (DebugOverlayChannel.Legend,      "legend",      "the collider legend plate"),
             (DebugOverlayChannel.LowLevelPhysics, "physics",   "the LowLevelPhysics2D (Box2D v3) chain mirror a projectile sweeps against"),
+            (DebugOverlayChannel.DamageNumbers, "damage",      "floating damage numbers: a figure per landed hit, MISS per evaded one, nothing if the shot never collided"),
+            (DebugOverlayChannel.UnitHealth,  "health",      "per-unit hp / armour / skin, drawn above every unit in view"),
         };
 
         /// <summary>
@@ -269,6 +295,20 @@ namespace PFE.Core
                 case "chain": case "chains":
                 case "box2d":
                     channel = DebugOverlayChannel.LowLevelPhysics; return true;
+
+                // Floating damage numbers. "dmg" is the abbreviation the request itself used; "miss"
+                // and "hit" are what someone types when they are chasing exactly the bug this overlay
+                // was added for, and both are free of collisions with the verb list.
+                case "damage": case "damagenumbers": case "damagenumber":
+                case "dmg": case "numbers": case "number":
+                case "hit": case "hits": case "miss": case "misses":
+                    channel = DebugOverlayChannel.DamageNumbers; return true;
+
+                // Per-unit health. "hp" is deliberately NOT aliased: `heal/hp` is a console verb, and
+                // an alias a verb shadows is a name that can never fire (see the `help` note above).
+                case "health": case "hpbar": case "healthbar": case "healthbars":
+                case "bars": case "bar":
+                    channel = DebugOverlayChannel.UnitHealth; return true;
 
                 default:
                     channel = DebugOverlayChannel.None;

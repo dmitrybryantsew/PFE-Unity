@@ -235,6 +235,14 @@ namespace PFE.Core
                  "Behaviour toggle, NOT gated by runtimeLoggingEnabled.")]
         private bool applyVulnerabilities = false;
 
+        [SerializeField]
+        [Tooltip("AS3 World.w.testDam (World.as:202, flipped by the console at Consol.as:475) — reports every hit's listed damage instead of the rolled value, removing the 0.7-1.3 spread (Unit.as:4085). " +
+                 "OFF = normal play: a hit does (random() * 0.6 + 0.7) times its damage. " +
+                 "ON = the spread is discarded, so a weapon's numbers are readable and reproducible while tuning — this is the toggle to reach for when testing on the training dummies. " +
+                 "The random draw STILL HAPPENS while this is on, because AS3 discards the result on the line after the roll (:4086-4089); skipping the draw would shift every later roll on the shared combat stream, so this flag changes the number shown, never the stream. " +
+                 "Debug toggle, NOT gated by runtimeLoggingEnabled.")]
+        private bool testDamage = false;
+
         // ── Tile Collision Query (P2) ────────────────────────────────────────
 
         [Header("Tile Collision Query (P2)")]
@@ -382,6 +390,15 @@ namespace PFE.Core
         /// flag is the only combat caller of.
         /// </summary>
         public bool ApplyVulnerabilities                         => applyVulnerabilities;
+
+        /// <summary>
+        /// AS3 <c>World.w.testDam</c> — discard the damage spread and report each hit's listed damage.
+        /// Read by <c>DamageSystem</c>, which passes it to <c>DamageVariance.Roll</c>. Note it is
+        /// <b>not</b> a rollback switch for the spread: it changes the number, not whether the roll is
+        /// taken.
+        /// </summary>
+        public bool TestDamage                                   => testDamage;
+
         public bool ProjectilesUseLowLevelPhysics                => projectilesUseLowLevelPhysics;
         public bool ThrownObjectsUseTileSeam                     => thrownObjectsUseTileSeam;
 

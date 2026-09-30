@@ -19,6 +19,17 @@ namespace PFE.Systems.Combat
     /// - Configurable visual styles (crit, miss, heal, etc.)
     ///
     /// Phase 3 implementation from combat system status docs.
+    ///
+    /// <para><b>This class is currently inert, and that is now deliberate.</b> It renders through a
+    /// <c>TextMesh</c> prefab assigned to <see cref="_floatingTextPrefab"/> — but it is a plain
+    /// <c>IStartable</c>, not a <c>MonoBehaviour</c>, so there is no Inspector to assign one, and no
+    /// such prefab exists in the project. The result used to be a <c>LogError</c> plus a
+    /// <c>LogWarning</c> on <i>every single hit</i>, which is worse than drawing nothing: it buries the
+    /// console exactly when someone is trying to read damage behaviour out of it.</para>
+    ///
+    /// <para><b>The working renderer is <see cref="FloatingDamageOverlay"/></b>, which draws through
+    /// IMGUI and needs no prefab. Assign a prefab here and this manager starts drawing again — gated on
+    /// the same <c>DamageNumbers</c> channel, so the two can never double-draw.</para>
     /// </summary>
     public class FloatingTextManager : IStartable, IDisposable
     {
@@ -66,6 +77,8 @@ namespace PFE.Systems.Combat
         /// </summary>
         private void OnDamageDealt(DamageDealtMessage message)
         {
+            if (!IsRendererEnabled) return;
+
             if (message.isMiss)
             {
                 SpawnFloatingText("MISS", message.position, Color.gray, isCritical: false, isMiss: true);
@@ -86,6 +99,8 @@ namespace PFE.Systems.Combat
         /// </summary>
         private void OnHeal(HealMessage message)
         {
+            if (!IsRendererEnabled) return;
+
             string text = $"+{Mathf.CeilToInt(message.amount)}";
             SpawnFloatingText(text, message.position, Color.green, isCritical: false);
         }
@@ -106,7 +121,8 @@ namespace PFE.Systems.Combat
 
             if (textObj == null)
             {
-                Debug.LogWarning("[FloatingTextManager] Failed to get text from pool");
+                // Silent, not a warning: with no prefab assigned this fires on every hit, and the class
+                // remarks explain why that is the wrong failure mode for a diagnostic.
                 return;
             }
 
@@ -155,9 +171,26 @@ namespace PFE.Systems.Combat
         }
 
         /// <summary>
+        /// Whether this manager should draw at all: a prefab must be assigned <b>and</b> the
+        /// <c>DamageNumbers</c> channel must be on.
+        /// </summary>
+        /// <remarks>
+        /// The channel gate is what keeps this class and <see cref="FloatingDamageOverlay"/> from
+        /// double-drawing if a prefab is ever assigned — both are renderers for the same events, and
+        /// two renderers under one toggle is the shape that makes a toggle look broken.
+        /// </remarks>
+        private bool IsRendererEnabled
+            => _floatingTextPrefab != null
+               && PFE.Core.DebugOverlays.IsOn(PFE.Core.DebugOverlayChannel.DamageNumbers);
+
+        /// <summary>
         /// Get a text instance from the object pool.
         /// Creates new if pool is empty (up to max size).
         /// </summary>
+        /// <remarks>
+        /// Returns <c>null</c> silently when no prefab is assigned. It used to <c>LogError</c> here,
+        /// which fired once per hit — see the class remarks for why that was worse than drawing nothing.
+        /// </remarks>
         private GameObject GetFromPool()
         {
             if (_textPool.Count > 0)
@@ -173,7 +206,6 @@ namespace PFE.Systems.Combat
                 return newText;
             }
 
-            Debug.LogError("[FloatingTextManager] No prefab assigned for floating text!");
             return null;
         }
 

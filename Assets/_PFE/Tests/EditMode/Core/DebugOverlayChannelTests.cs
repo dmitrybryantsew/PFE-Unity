@@ -28,6 +28,8 @@ namespace PFE.Tests.EditMode.Core
             DebugOverlayChannel.Clock,
             DebugOverlayChannel.Legend,
             DebugOverlayChannel.LowLevelPhysics,
+            DebugOverlayChannel.DamageNumbers,
+            DebugOverlayChannel.UnitHealth,
         };
 
         private PfeDebugSettings _settings;
