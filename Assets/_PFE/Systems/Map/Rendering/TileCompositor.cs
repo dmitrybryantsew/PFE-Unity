@@ -1004,7 +1004,7 @@ namespace PFE.Systems.Map.Rendering
             }
 
             int texX = PositiveModulo(tileX * TILE_PX + x + sampler.offset.x, sampler.width);
-            int texY = PositiveModulo(tileY * TILE_PX + y + sampler.offset.y, sampler.height);
+            int texY = ToBottomUpRow(tileY * TILE_PX + y + sampler.offset.y, sampler.height);
 
             return sampler.pixels != null
                 ? sampler.pixels[texY * sampler.width + texX]
@@ -1256,7 +1256,9 @@ namespace PFE.Systems.Map.Rendering
             int w = info.width;
             int h = info.height;
             int texX = PositiveModulo(tileX * TILE_PX + x + info.offset.x, w);
-            int texY = PositiveModulo(tileY * TILE_PX + y + info.offset.y, h);
+            // Both tiling readers must agree, or flipping HoistSamplers silently reintroduces the
+            // mirrored-read bug on this rollback path. See ToBottomUpRow.
+            int texY = ToBottomUpRow(tileY * TILE_PX + y + info.offset.y, h);
 
             Color[] pixels = GetCachedPixels(readableTexture);
             return pixels != null ? pixels[texY * w + texX] : readableTexture.GetPixel(texX, texY);
@@ -1672,6 +1674,36 @@ namespace PFE.Systems.Map.Rendering
 
             int remainder = value % modulo;
             return remainder < 0 ? remainder + modulo : remainder;
+        }
+
+        /// <summary>
+        /// Convert a TOP-DOWN row within a tiling texture into the row index used by
+        /// <c>Texture2D.GetPixels()</c> / <c>GetPixel()</c>, which address row 0 at the BOTTOM.
+        ///
+        /// <para>AS3 fills tiles with <c>beginBitmapFill(texture)</c> + <c>drawRect</c> from the chunk
+        /// origin, so the bitmap's top row lands on the tile's top row and the phase runs top-down
+        /// (Grafon.as:815, :887-899). <see cref="GenerateTilePixels"/> therefore iterates <c>y</c>
+        /// top-down and mirrors at the write; <c>SampleSpriteAlphaCore</c> mirrors at the read with
+        /// <c>(TILE_PX - 1) - py</c>. This is the same mirror, named, so the tiling readers cannot
+        /// drift from the two that were already right.</para>
+        ///
+        /// <para><b>What this fixes.</b> Reading the top-down row straight into the bottom-up buffer
+        /// mirrored every tiling texture vertically. That is nearly invisible on a wall or floor fill,
+        /// where the texture only supplies interior pattern, but the beam materials
+        /// (<c>'-'</c>, <c>'Д'</c>, <c>'Е'</c>, <c>'К'</c>, <c>'Н'</c>, <c>'Р'</c> in AllData.as:6530-6570)
+        /// declare <c>shelf='1'</c> and no <c>vid</c>, so they are composited from a texture and take
+        /// their whole silhouette from its alpha. Mirrored, the beam drew 3-14 px below the cell top
+        /// (<c>tShelf</c> 6, <c>tConBeam</c> 3, <c>tCloudBeam</c> 14) while <see cref="TileCollider"/>
+        /// stayed top-aligned to the cell edge — so a unit walking the shelf stood on air.</para>
+        /// </summary>
+        public static int ToBottomUpRow(int topDownRow, int textureHeight)
+        {
+            if (textureHeight <= 0)
+            {
+                return 0;
+            }
+
+            return textureHeight - 1 - PositiveModulo(topDownRow, textureHeight);
         }
 
         /// <summary>

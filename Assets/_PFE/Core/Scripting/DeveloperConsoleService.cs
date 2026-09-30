@@ -21,10 +21,11 @@ namespace PFE.Core.Scripting
         private Action _revealFogAction;
         private Func<bool> _isFogDisabledFunc;
 
-        // Debug command objects, exposed to Lua as the globals `player`, `sim` and `save`.
+        // Debug command objects, exposed to Lua as the globals `player`, `sim`, `save` and `collider`.
         private DevConsolePlayerCommands _playerCommands;
         private DevConsoleSimCommands _simCommands;
         private DevConsoleSaveCommands _saveCommands;
+        private DevConsoleColliderCommands _colliderCommands;
         private bool _commandObjectsRegistered;
 
         private bool _isOpen;
@@ -79,11 +80,13 @@ namespace PFE.Core.Scripting
         public void SetCommandObjects(
             DevConsolePlayerCommands playerCommands,
             DevConsoleSimCommands simCommands,
-            DevConsoleSaveCommands saveCommands = null)
+            DevConsoleSaveCommands saveCommands = null,
+            DevConsoleColliderCommands colliderCommands = null)
         {
             if (playerCommands != null) _playerCommands = playerCommands;
             if (simCommands != null) _simCommands = simCommands;
             if (saveCommands != null) _saveCommands = saveCommands;
+            if (colliderCommands != null) _colliderCommands = colliderCommands;
 
             if (_luaEngine == null) return;
 
@@ -94,12 +97,14 @@ namespace PFE.Core.Scripting
                 _luaEngine.RegisterType<DevConsolePlayerCommands>();
                 _luaEngine.RegisterType<DevConsoleSimCommands>();
                 _luaEngine.RegisterType<DevConsoleSaveCommands>();
+                _luaEngine.RegisterType<DevConsoleColliderCommands>();
                 _commandObjectsRegistered = true;
             }
 
             if (_playerCommands != null) _luaEngine.SetGlobal("player", _playerCommands);
             if (_simCommands != null) _luaEngine.SetGlobal("sim", _simCommands);
             if (_saveCommands != null) _luaEngine.SetGlobal("save", _saveCommands);
+            if (_colliderCommands != null) _luaEngine.SetGlobal("collider", _colliderCommands);
         }
 
         /// <summary>
@@ -138,6 +143,17 @@ namespace PFE.Core.Scripting
                               "  status          - Report position, health and equipped weapon\n" +
                               "  -- simulation --\n" +
                               "  tick <n>        - Set the sim tick rate (30/60/90/120)\n" +
+                              "  -- overlays (col; hotkeys F5 tiles / F6 units / F8 areas / F9 doors / F10 objects) --\n" +
+                              "  col             - List every overlay and whether it is on\n" +
+                              "  col on [list]   - Turn overlays on (no list = all incl. legend). Independent.\n" +
+                              "  col off [list]  - Turn overlays off (no list = all)\n" +
+                              "  col <name>      - Shorthand for 'col on <name>'\n" +
+                              "  col tiles <t>   - Tile colliders. t = all | off | air,wall,platform,shelf,stair\n" +
+                              "  col units <t>   - Unit colliders. t = all | off | player,npc\n" +
+                              "  col probe       - What is under the player's feet, in game pixels\n" +
+                              "  col gaps        - Every tile: collider top vs VISIBLE sprite top, by type\n" +
+                              "  overlays: tiles units doors triggers transitions objects\n" +
+                              "            tilequery room pool clock legend\n" +
                               "  -- save (console-only: the F-row is taken by plugins/overlays) --\n" +
                               "  save            - Quick-save the world to the 'quicksave' slot\n" +
                               "  load            - Quick-load the world from the 'quicksave' slot\n" +
@@ -410,8 +426,92 @@ namespace PFE.Core.Scripting
                     result = _simCommands.SetTickRate(rate);
                     return true;
 
+                case "col":
+                case "collider":
+                    if (_colliderCommands == null) return false;
+                    result = RunColliderShortcut(parts);
+                    return true;
+
                 default:
                     return false;
+            }
+        }
+
+        /// <summary>
+        /// Dispatch the overlay shortcuts. Split out of the switch because this is the one verb with
+        /// sub-verbs and a free-form argument tail.
+        ///
+        /// <para>The channel list is the remainder of the line, re-joined with commas so that both
+        /// <c>col on doors,triggers</c> and <c>col on doors triggers</c> reach the parser as the same
+        /// thing. The parsers own the vocabulary; nothing here knows a channel or tile-type name.</para>
+        ///
+        /// <para><c>col</c> on its own is <b>status</b>, not "toggle". A bare verb that flips state is
+        /// one mistyped character away from an overlay silently appearing or vanishing, and the reply
+        /// is the only thing that would tell you.</para>
+        /// </summary>
+        private string RunColliderShortcut(string[] parts)
+        {
+            if (parts.Length < 2) return _colliderCommands.Status();
+
+            string sub = parts[1].ToLowerInvariant();
+            string spec = parts.Length > 2
+                ? string.Join(",", parts, 2, parts.Length - 2)
+                : string.Empty;
+
+            switch (sub)
+            {
+                // Every overlay, or a named subset. `col on` with no list means all.
+                case "on":
+                case "all":
+                case "show":
+                    return _colliderCommands.On(spec);
+
+                // `col off` with no list means all; `col off room` clears just that one.
+                case "off":
+                case "hide":
+                case "none":
+                    return _colliderCommands.Off(spec);
+
+                // Channel-scoped shorthands. These set the sub-filter as well as the channel, which
+                // is the whole reason they exist next to `col on tiles`.
+                case "tiles":
+                case "tile":
+                    return _colliderCommands.Tiles(spec);
+
+                case "units":
+                case "unit":
+                    return _colliderCommands.Units(spec);
+
+                case "probe":
+                case "under":
+                    return _colliderCommands.Probe();
+
+                // Every tile's collider top vs the VISIBLE top of its sprite. `probe` answers "what is
+                // under the player now"; this answers "is the drawn surface where the collider says it
+                // is" for the whole room, which is the question a screenshot at ~0.5 px per game px
+                // cannot resolve.
+                case "gaps":
+                case "surface":
+                    return _colliderCommands.Gaps();
+
+                case "status":
+                case "list":
+                    return _colliderCommands.Status();
+
+                case "help":
+                case "?":
+                    return _colliderCommands.Help();
+
+                default:
+                    // A bare channel name is accepted as shorthand for turning it on, because that is
+                    // overwhelmingly what is meant by `col doors`. It is still explicit about which
+                    // channel it resolved to, so a near-miss is visible rather than silent.
+                    if (DebugOverlayChannels.TryMatch(sub, out DebugOverlayChannel channel))
+                    {
+                        return _colliderCommands.On(DebugOverlayChannels.NameOf(channel));
+                    }
+
+                    return $"Unknown overlay subject '{parts[1]}'.\n" + _colliderCommands.Help();
             }
         }
 

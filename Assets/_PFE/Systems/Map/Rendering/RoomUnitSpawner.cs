@@ -153,6 +153,11 @@ namespace PFE.Systems.Map.Rendering
             renderer.sortingOrder = -Mathf.FloorToInt(unit.position.y / Mathf.Max(1f, WorldConstants.TILE_SIZE));
             ApplySprite(renderer, unit, definition);
 
+            // The reader the importers were writing animation data for and nothing was reading. Added
+            // unconditionally — it early-returns when the state has no frames, so a single-frame unit
+            // keeps the resting sprite ApplySprite just drew, and a 40-cell looping `stay` starts moving.
+            unitObject.AddComponent<UnitAnimator>().Initialize(definition, renderer);
+
             Type controllerType = ResolveControllerType(unit.controllerId);
             var controller = (UnitController)unitObject.AddComponent(controllerType);
 
@@ -182,10 +187,15 @@ namespace PFE.Systems.Map.Rendering
         /// <c>OutOfRange</c> rather than clamping onto a different animation's row.</item>
         /// </list>
         ///
-        /// <para><b>Only the resting frame is drawn.</b> The full per-state animation data is on
-        /// <see cref="UnitDefinition.spriteSheet"/> / <c>animations</c> and has no runtime reader yet, so
-        /// a spawned unit stands still. Walking, attacking and dying need a player component that steps
-        /// <c>animations</c> and indexes the row-major grid; that is not this class.</para>
+        /// <para><b>This method draws the resting frame; <see cref="UnitAnimator"/> takes over from the
+        /// next tick.</b> The full per-state animation data lives on
+        /// <see cref="UnitDefinition.spriteSheet"/> / <c>animations</c> and was written by the importers
+        /// with no reader at all until <c>UnitAnimator</c> landed, which is why a spawned unit used to
+        /// stand frozen however much animation its asset carried. The two are layered deliberately: the
+        /// resting frame is drawn here <i>first</i>, so a unit with no animation keeps a static sprite
+        /// and a unit with animation does not flicker through an empty first frame. Walking, attacking
+        /// and dying still need something to call <c>UnitAnimator.SetState</c> — that is the AI port, not
+        /// this class.</para>
         ///
         /// <para>Naming the gap rather than rendering nothing silently is the point: an invisible enemy
         /// that is really there is the hardest kind to diagnose. The collider is still built, so the

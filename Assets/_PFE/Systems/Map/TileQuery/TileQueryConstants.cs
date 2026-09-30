@@ -118,6 +118,18 @@ namespace PFE.Systems.Map.TileQuery
         public const float PlayerPorogJump = 10.0f;
 
         /// <summary>
+        /// Player grounded step-up height while a walk key is held: 20 pixels — a whole half tile, so
+        /// the player walks up stairs and low ledges instead of being stopped by them.
+        ///
+        /// <para>AS3: <c>UnitPlayer.as:2550</c> and <c>:2569</c>, set inside the two walk branches
+        /// (<c>porog = 20; this.isTake = 40;</c>). Note the asymmetry that matters: the player's
+        /// allowance is <b>0 while standing still and 20 while walking</b>, where a generic unit gets a
+        /// flat 10. The port used the unit's 10 for everyone, which is what lifted a standing player
+        /// clear of a catwalk — see <c>docs/Research/SHELF_CATWALK_DIAGNOSIS_2026-09-30.md</c> §D6.</para>
+        /// </summary>
+        public const float PlayerPorogWalk = 20.0f;
+
+        /// <summary>
         /// Ladder climb speed: 5 pixels/frame.
         /// AS3: Unit.as:72 (stairs = 5).
         /// </summary>

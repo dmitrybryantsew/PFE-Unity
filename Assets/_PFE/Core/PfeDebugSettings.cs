@@ -140,20 +140,40 @@ namespace PFE.Core
         [Tooltip("Logs each generated tile collider (TileCollider).")]
         private bool logTileColliderCreation = false;
 
-        // ── Area Triggers ────────────────────────────────────────────────────
+        // ── Debug Visual Overlays ────────────────────────────────────────────
+        //
+        // ONE mask, not a dozen booleans. The requirement is "each one can be set on, or all at once,
+        // or several of them", which is a set. The mask is also the single value behind three front
+        // ends — the Inspector, the developer console (`col on doors,triggers`) and the F5/F6/F8/F9/F10
+        // hotkeys — so the three cannot disagree.
+        //
+        // The per-feature accessors further down (ShowAreaTriggerDebug, ShowDoorColliderDebug,
+        // ShowObjectColliderDebug, SimTickOverlayEnabled, ...) are now facades over this field. They
+        // are kept deliberately: AreaTriggerPresenter, DoorPropPresenter, DoorTrigger,
+        // ObjectColliderDebugPresenter, ColliderDebugOverlay and SimLoop all read them, and rewriting
+        // six working call sites to reach into a mask would add risk for no gain.
+        //
+        // DEFAULT IS None — the game and nothing else. Three of these overlays used to draw
+        // unconditionally in a development build, which is how a debugging aid becomes permanent
+        // screen clutter nobody can switch off. Display only: never gated by runtimeLoggingEnabled,
+        // because silencing logs must not be able to hide the thing you turned on to look at.
 
-        [Header("Debug Visual Overlays")]
+        [Header("Debug Visual Overlays (console: `col on <name>`, hotkeys F5/F6/F8/F9/F10)")]
         [SerializeField]
-        [Tooltip("Draws purple debug visual overlays for area trigger zones in Scene and Game views (matches Flash AS3 World.w.showArea, Hotkey: F8).")]
-        private bool showAreaTriggerDebug = false;
+        [Tooltip("Which debug visualisations are drawn. Default None = the game, and nothing else. " +
+                 "Every entry is independent: turning one on never turns another off. " +
+                 "Console: `col on doors,triggers`, `col off`, `col` to list.")]
+        private DebugOverlayChannel enabledOverlays = DebugOverlayChannel.None;
 
         [SerializeField]
-        [Tooltip("Draws yellow/cyan debug visual overlays for door interaction triggers and boundary room transitions (Hotkey: F9).")]
-        private bool showDoorColliderDebug = false;
+        [Tooltip("Which tile physics types the tile-collider overlay draws (only consulted while the Tiles " +
+                 "overlay is on). A None filter turns the overlay off.")]
+        private ColliderDebugTileFilter tileColliderFilter = ColliderDebugTileFilter.All;
 
         [SerializeField]
-        [Tooltip("Draws teal debug visual overlays for interactive/physical objects, barricades, containers (Hotkey: F10).")]
-        private bool showObjectColliderDebug = false;
+        [Tooltip("Which units the unit-collider overlay draws (only consulted while the Units overlay is on). " +
+                 "A None filter turns the overlay off.")]
+        private ColliderDebugUnitFilter unitColliderFilter = ColliderDebugUnitFilter.All;
 
         // ── Simulation Tick (P1) ─────────────────────────────────────────────
 
@@ -162,9 +182,9 @@ namespace PFE.Core
         [Tooltip("Enables dispatch of the fixed-step simulation (SimLoop -> ISimTickable). Accumulation and the overlay keep running when this is off. Behaviour toggle, NOT gated by runtimeLoggingEnabled.")]
         private bool simTickEnabled = true;
 
-        [SerializeField]
-        [Tooltip("Draws the SimLoop timing readout (rate, tick index, accumulator, alpha, dropped ticks). Display toggle, NOT gated by runtimeLoggingEnabled.")]
-        private bool simTickOverlayEnabled = false;
+        // The SIM CLOCK readout's on/off now lives in `enabledOverlays` (channel Clock) so that it is
+        // reachable from the same console list as every other overlay. SimTickOverlayEnabled below is
+        // a facade over it, which is what SimLoop and SimDebugOverlay still read.
 
         [SerializeField]
         [Tooltip("Stage B dual-run harness: runs the legacy and sim paths side by side and compares state. Behaviour toggle, NOT gated by runtimeLoggingEnabled. Must be off in a shipped build.")]
@@ -254,29 +274,97 @@ namespace PFE.Core
         public bool LogTileVisualCreationSummary                 => runtimeLoggingEnabled && logTileVisualCreationSummary;
         public bool LogTileColliderCreation                      => runtimeLoggingEnabled && logTileColliderCreation;
 
-        // Visual debug toggles are NOT gated by runtimeLoggingEnabled
+        // ── Debug overlays: the mask, and the per-feature facades over it ────
+        //
+        // Visual debug toggles are NOT gated by runtimeLoggingEnabled.
+        //
+        // Note the asymmetry with the rest of this file: these are written at runtime by the developer
+        // console, so their value lives only for the play session unless the Inspector is used.
+        // Nothing calls EditorUtility.SetDirty, and a ScriptableObject edit made in play mode is
+        // discarded when play mode ends — which is the right default for a debug overlay.
+
+        /// <summary>The set of debug visualisations currently drawn. The single source of truth.</summary>
+        public DebugOverlayChannel EnabledOverlays
+        {
+            get => enabledOverlays;
+            set => enabledOverlays = value;
+        }
+
+        /// <summary>Is one overlay on? The mask's own membership test, exposed for consumers.</summary>
+        public bool IsOverlayEnabled(DebugOverlayChannel channel)
+        {
+            return (enabledOverlays & channel) != 0;
+        }
+
+        /// <summary>
+        /// Turn one overlay on or off, leaving every other one exactly as it was. Independence is the
+        /// contract here: tiles and units in particular must be able to be on at the same time.
+        /// </summary>
+        public void SetOverlay(DebugOverlayChannel channel, bool enabled)
+        {
+            enabledOverlays = enabled
+                ? enabledOverlays | channel
+                : enabledOverlays & ~channel;
+        }
+
+        // The six accessors below are facades over the mask, kept so the existing consumers
+        // (AreaTriggerPresenter, DoorPropPresenter, DoorTrigger, ObjectColliderDebugPresenter,
+        // ColliderDebugOverlay, SimLoop, SimDebugOverlay) need no change at all. Each is exactly the
+        // membership test for one channel — there is no second copy of the state to fall out of step.
+
         public bool ShowAreaTriggerDebug
         {
-            get => showAreaTriggerDebug;
-            set => showAreaTriggerDebug = value;
+            get => IsOverlayEnabled(DebugOverlayChannel.Triggers);
+            set => SetOverlay(DebugOverlayChannel.Triggers, value);
         }
 
         public bool ShowDoorColliderDebug
         {
-            get => showDoorColliderDebug;
-            set => showDoorColliderDebug = value;
+            get => IsOverlayEnabled(DebugOverlayChannel.Doors);
+            set => SetOverlay(DebugOverlayChannel.Doors, value);
         }
 
         public bool ShowObjectColliderDebug
         {
-            get => showObjectColliderDebug;
-            set => showObjectColliderDebug = value;
+            get => IsOverlayEnabled(DebugOverlayChannel.Objects);
+            set => SetOverlay(DebugOverlayChannel.Objects, value);
+        }
+
+        public bool ShowTileColliderDebug
+        {
+            get => IsOverlayEnabled(DebugOverlayChannel.Tiles);
+            set => SetOverlay(DebugOverlayChannel.Tiles, value);
+        }
+
+        public ColliderDebugTileFilter TileColliderFilter
+        {
+            get => tileColliderFilter;
+            set => tileColliderFilter = value;
+        }
+
+        public bool ShowUnitColliderDebug
+        {
+            get => IsOverlayEnabled(DebugOverlayChannel.Units);
+            set => SetOverlay(DebugOverlayChannel.Units, value);
+        }
+
+        public ColliderDebugUnitFilter UnitColliderFilter
+        {
+            get => unitColliderFilter;
+            set => unitColliderFilter = value;
         }
 
         // Simulation Tick flags are deliberately NOT gated by runtimeLoggingEnabled: the master
         // toggle silences logs, and must never be able to change gameplay or hide the overlay.
         public bool SimTickEnabled                               => simTickEnabled;
-        public bool SimTickOverlayEnabled                        => simTickOverlayEnabled;
+
+        /// <summary>
+        /// The SIM CLOCK readout. Now a facade over <see cref="DebugOverlayChannel.Clock"/> so that
+        /// <c>col on all</c> reaches it like every other overlay; SimLoop and SimDebugOverlay are the
+        /// two consumers and neither needed changing.
+        /// </summary>
+        public bool SimTickOverlayEnabled                        => IsOverlayEnabled(DebugOverlayChannel.Clock);
+
         public bool SimTickDualRun                               => simTickDualRun;
         public bool SimTickMotor                                 => simTickMotor;
         public bool SimTickRoom                                  => simTickRoom;

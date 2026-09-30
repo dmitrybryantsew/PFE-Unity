@@ -366,14 +366,106 @@ namespace PFE.Data.Definitions
         /// <c>this.f = this.maxf * param1</c> and ignores <c>firstf</c> entirely, even though
         /// <c>step()</c> otherwise keeps the cursor inside <c>[firstf, firstf + maxf - 1]</c>. That is an
         /// inconsistency in the source, and a port that quietly "fixed" it would draw a different cell
-        /// from the game. It is unobservable in this data set either way: the only three <c>stab</c> rows
-        /// in <c>AllData.as</c> are all <c>jump</c>, and none of them carries <c>ff</c>, so
-        /// <c>firstf</c> is 0 for every one.</para>
+        /// from the game. It is unobservable in this data set either way: all <b>eight</b> <c>stab</c>
+        /// rows in <c>AllData.as</c> are <c>jump</c> — <c>y='1' len='14'</c>, <c>y='3' len='16'</c> six
+        /// times, <c>y='5' len='16'</c> — and none of them carries <c>ff</c>, so <c>firstf</c> is 0 for
+        /// every one.</para>
         /// </summary>
         public int FrameAtProgress(float progress)
         {
             float p = progress < 0f ? 0f : (progress > 0.999f ? 0.999f : progress);
             return (int)(length * p);
+        }
+
+        /// <summary>
+        /// <see cref="frameStep"/> with AS3's declared default applied — <c>BlitAnim.as:3687</c>
+        /// <c>public var df:Number = 1;</c>.
+        ///
+        /// <para><b>Why the default lives here rather than on the field.</b> AS3 gets it from a field
+        /// <i>initializer</i>, which every <c>BlitAnim</c> receives for free. This is a serializable
+        /// struct, so a caller that builds one by hand — a test, a future spawner — gets <c>0</c>, and a
+        /// zero step is a state AS3 reaches only by explicitly writing <c>df='0'</c>, which no row in
+        /// <c>AllData.as</c> does. Reading <c>0</c> as the declared default keeps the port inside AS3's
+        /// reachable set: <c>step()</c>'s bound test would stay true forever on a zero step, so the state
+        /// would stall on its first cell with no error anywhere. <c>UnitAnimationParser</c> already writes
+        /// <c>1</c> for an absent <c>df</c>; this is the belt to that pair of braces.</para>
+        /// </summary>
+        public float EffectiveFrameStep => frameStep > 0f ? frameStep : 1f;
+
+        /// <summary>
+        /// The cell index to draw for a cursor value — AS3 <c>Unit.blit(param1:int, param2:int)</c>
+        /// (<c>Unit.as:2863-2869</c>), whose body is <c>blitRect.x = param2 * blitX</c>.
+        ///
+        /// <para><b>The cursor is fractional and the cell is not.</b> <c>BlitAnim.f</c> is an untyped
+        /// <c>Number</c> advanced by <c>df</c>, and the data really does set <c>df</c> fractionally:
+        /// <c>df='0.5'</c> six times, plus <c>df='0.4'</c> and <c>df='0.25'</c>. AS3 then hands that float
+        /// to a parameter declared <c>int</c>, so it is <b>truncated toward zero</b>, not rounded — a
+        /// <c>df='0.5'</c> row holds cell 1 for two ticks before moving to 2. Keeping the cursor a
+        /// <c>float</c> and casting only here is the point: an <c>int</c> cursor would add <c>0.5</c> to
+        /// itself forever and never leave cell 0.</para>
+        ///
+        /// <para><b>Not clamped</b>, like <see cref="UnitSheetLayout.PivotFor"/> — AS3 computes a rect
+        /// outside the sheet without complaint, so the caller bounds-checks against the sliced array and
+        /// reports it. The importer already lists the 11 states whose cells fall outside their own
+        /// sheet.</para>
+        /// </summary>
+        public int CellFor(float frame) => (int)frame;
+
+        /// <summary>
+        /// Advance the cursor one animation frame — AS3 <c>BlitAnim.step()</c>
+        /// (<c>BlitAnim.as:3715-3733</c>).
+        ///
+        /// <para>The oracle's body, line for line:</para>
+        /// <code>
+        /// if (this.stab) return;                       // isStatic — driven by setStab instead
+        /// if (this.f &lt; this.firstf + this.maxf - 1) this.f += this.df;
+        /// else if (this.replay) this.f = this.retf;    // retf, NOT firstf
+        /// else this.st = true;                         // stopped, and it stays stopped
+        /// </code>
+        ///
+        /// <para>Three details a "reasonable" rewrite loses. The bound is
+        /// <c>firstFrame + length - 1</c>, i.e. <b><c>length</c> is a cell count, not an exclusive
+        /// end</b>, so the cursor is only ever compared against the last <i>usable</i> index. A replay
+        /// wraps to <c>returnFrame</c> — the data uses <c>rf='1'</c> nineteen times — so wrapping to
+        /// <c>firstFrame</c> would replay the wind-up cells a row deliberately skips. And
+        /// <c>stopped</c> is sticky: only <see cref="Restart"/> clears it.</para>
+        ///
+        /// <para><paramref name="frame"/> is a <c>float</c> on purpose — see <see cref="CellFor"/>.</para>
+        /// </summary>
+        public void Step(ref float frame, ref bool stopped)
+        {
+            if (isStatic)
+            {
+                return;
+            }
+
+            if (frame < firstFrame + length - 1)
+            {
+                frame += EffectiveFrameStep;
+            }
+            else if (replay)
+            {
+                frame = returnFrame;
+            }
+            else
+            {
+                stopped = true;
+            }
+        }
+
+        /// <summary>
+        /// Rewind the cursor to the row's first cell and clear <c>stopped</c> — AS3
+        /// <c>BlitAnim.restart()</c> (<c>BlitAnim.as:3735-3739</c>):
+        /// <c>this.st = false; this.f = this.firstf;</c>.
+        ///
+        /// <para>Called when the unit's state <i>changes</i>, never every tick — the oracle's draw loop
+        /// restarts only when <c>animState != animState2</c> (<c>UnitAlicorn.as:317</c>). Restarting every
+        /// tick would pin every animation to its first cell.</para>
+        /// </summary>
+        public void Restart(ref float frame, ref bool stopped)
+        {
+            frame = firstFrame;
+            stopped = false;
         }
     }
 

@@ -260,7 +260,11 @@ namespace PFE.Systems.Map.Streaming
 
         private void OnGUI()
         {
+            // Off unless asked for. This readout used to draw in every development build with no way
+            // to switch it off, which is screen clutter you cannot remove exactly when you are trying
+            // to look at the thing underneath it. Console: `col on room`.
             if (!Debug.isDebugBuild) return;
+            if (!PFE.Core.DebugOverlays.IsOn(PFE.Core.DebugOverlayChannel.RoomData)) return;
 
             GUILayout.BeginArea(new Rect(10, 10, 300, 200));
             GUILayout.Label("Room Streaming Status");

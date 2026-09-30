@@ -30,6 +30,7 @@ namespace PFE.Core.Scripting
         private DevConsolePlayerCommands _playerCommands;
         private DevConsoleSimCommands _simCommands;
         private DevConsoleSaveCommands _saveCommands;
+        private DevConsoleColliderCommands _colliderCommands;
 
         private const KeyCode ToggleKey1 = KeyCode.BackQuote;
         private const KeyCode ToggleKey2 = KeyCode.F1;
@@ -131,6 +132,7 @@ namespace PFE.Core.Scripting
             _playerCommands ??= new DevConsolePlayerCommands();
             _simCommands ??= new DevConsoleSimCommands();
             _saveCommands ??= new DevConsoleSaveCommands();
+            _colliderCommands ??= new DevConsoleColliderCommands();
 
             if (_resolver != null)
             {
@@ -157,7 +159,11 @@ namespace PFE.Core.Scripting
                 _saveCommands.Wire(gameManager, resolvedMap);
             }
 
-            _service.SetCommandObjects(_playerCommands, _simCommands, _saveCommands);
+            // The collider commands need no dependency injection: the overlay finds its own scene
+            // objects, and its state lives in PfeDebugSettings. That is deliberate — this is the
+            // tool you reach for when something else failed to wire up, so it must not depend on
+            // anything having been wired up.
+            _service.SetCommandObjects(_playerCommands, _simCommands, _saveCommands, _colliderCommands);
         }
 
         private LandMap ResolveLandMap()
@@ -226,6 +232,38 @@ namespace PFE.Core.Scripting
             {
                 SyncDependencies();
                 _service.ExecuteInput("saves");
+            }
+            // One-click overlays. The console covers 45% of the screen, so the workflow is "click
+            // here, close the console, screenshot" — and the F5/F6 hotkeys cover the case where the
+            // console should not be open at all.
+            //
+            // Deliberately two groups rather than one "all": the six collider visualisations and the
+            // four text readouts answer different questions, and turning on ten things when you want
+            // one is how an overlay stops being readable.
+            // `legend` is included on purpose. This button's whole workflow is "click, close the
+            // console, screenshot", and the legend is what turns that screenshot back into something
+            // readable — coloured boxes with no key are only interpretable by whoever wrote the
+            // colours. It stays an independent channel, so `col off legend` still strips the text
+            // plate off the geometry when the geometry is the whole point.
+            if (GUILayout.Button("Colliders on", GUILayout.Width(95)))
+            {
+                SyncDependencies();
+                _service.ExecuteInput("col on tiles,units,doors,triggers,transitions,objects,legend");
+            }
+            if (GUILayout.Button("Text on", GUILayout.Width(65)))
+            {
+                SyncDependencies();
+                _service.ExecuteInput("col on tilequery,room,pool,clock");
+            }
+            if (GUILayout.Button("Probe", GUILayout.Width(55)))
+            {
+                SyncDependencies();
+                _service.ExecuteInput("col probe");
+            }
+            if (GUILayout.Button("Overlays off", GUILayout.Width(85)))
+            {
+                SyncDependencies();
+                _service.ExecuteInput("col off");
             }
             if (GUILayout.Button("Help", GUILayout.Width(60)))
             {

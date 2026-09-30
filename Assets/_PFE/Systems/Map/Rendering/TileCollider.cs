@@ -131,7 +131,14 @@ namespace PFE.Systems.Map.Rendering
             
             // Offset to top of tile
             boxCollider.offset = new Vector2(0, (WorldConstants.TILE_SIZE / 100f - height) * 0.5f);
-            
+
+            // Unity's effector coupling is OPT-IN: a Collider2D is only handed to an Effector2D on
+            // the same GameObject when this flag is set. Without it the PlatformEffector2D below is
+            // inert and the collider stays a plain SOLID box, so a catwalk could not be jumped up
+            // through and a body hitting its underside collided — neither is true in AS3, where a
+            // shelf blocks from above only (Unit.as:2570-2581).
+            boxCollider.usedByEffector = true;
+
             // Set as trigger for one-way (or use PlatformEffector2D)
             gameObject.layer = LAYER_PLATFORM;
             

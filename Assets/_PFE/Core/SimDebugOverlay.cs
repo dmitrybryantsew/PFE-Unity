@@ -4,8 +4,12 @@ namespace PFE.Core
 {
     /// <summary>
     /// Minimal IMGUI readout of <see cref="SimLoop"/> timing. Created at runtime by
-    /// <see cref="SimLoop.Start"/> only when <c>PfeDebugSettings.SimTickOverlayEnabled</c> is on,
-    /// so it costs nothing in a normal build and requires no scene setup.
+    /// <see cref="SimLoop"/> the first time <see cref="DebugOverlayChannel.Clock"/> is on — at startup
+    /// if it was already on, otherwise the first tick after `col on clock` — so it costs nothing in a
+    /// normal build and requires no scene setup. It draws only while that channel is on.
+    ///
+    /// <para>The channel is what the console's <c>col on clock</c> reaches; it is the same mask as
+    /// every other overlay, so <c>col on all</c> includes this readout and <c>col off</c> removes it.</para>
     ///
     /// <para>This is the primary verification instrument for the P1 tick migration. What to look for:</para>
     /// <list type="bullet">
@@ -77,6 +81,16 @@ namespace PFE.Core
         private void OnGUI()
         {
             if (_loop == null)
+            {
+                return;
+            }
+
+            // The channel gate, so `col off clock` hides this without destroying it. Resolved per
+            // frame rather than cached: a cached answer is a second copy of the state, and a debug
+            // overlay that disagrees with its own toggle is worse than no overlay. SimLoop still
+            // keeps measuring frame time while hidden, which costs one accumulator and means the fps
+            // figure is already warm when the readout comes back.
+            if (!DebugOverlays.IsOn(DebugOverlayChannel.Clock))
             {
                 return;
             }

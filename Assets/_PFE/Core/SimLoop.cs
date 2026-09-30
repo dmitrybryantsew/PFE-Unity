@@ -182,11 +182,31 @@ namespace PFE.Core
 
         public void Tick()
         {
+            EnsureOverlay();
+
             // Must be fully qualified. This file is in namespace PFE.Core, and PFE.Core.Time is a
             // NAMESPACE (Assets/_PFE/Core/Time/), so a bare `Time` binds to that namespace rather than
             // to UnityEngine.Time — namespace members win over `using`-imported types. Same reason
             // CameraFollow.cs, SceneLoader.cs and UnityTimeProvider.cs all write UnityEngine.Time.
             Advance(UnityEngine.Time.unscaledDeltaTime);
+        }
+
+        /// <summary>
+        /// Create the SIM CLOCK readout the first time its overlay channel is switched on.
+        ///
+        /// <para><b>Why this is not only in <see cref="Start"/>.</b> It used to be: the overlay was
+        /// created at startup if the flag happened to be on then, and never otherwise. Now that the
+        /// channel is reachable from the console mid-session (<c>col on clock</c>), a
+        /// create-only-at-Start lifecycle turns every later toggle into the worst kind of bug — the
+        /// reply says the overlay is on and the screen shows nothing, which is indistinguishable from
+        /// the overlay being broken. The check is one flag read per tick.</para>
+        /// </summary>
+        private void EnsureOverlay()
+        {
+            if (_overlay != null) return;
+            if (_debugSettings == null || !_debugSettings.SimTickOverlayEnabled) return;
+
+            CreateOverlay();
         }
 
         /// <summary>

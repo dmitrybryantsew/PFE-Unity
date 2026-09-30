@@ -189,7 +189,10 @@ namespace PFE.Systems.Map.Streaming
 
         private void OnGUI()
         {
+            // Off unless asked for — see RoomStreamingManager.OnGUI for why this is gated rather than
+            // unconditional. Console: `col on pool`.
             if (!Debug.isDebugBuild) return;
+            if (!PFE.Core.DebugOverlays.IsOn(PFE.Core.DebugOverlayChannel.PoolData)) return;
 
             GUILayout.BeginArea(new Rect(10, 220, 300, 150));
             GUILayout.Label("Object Pool Status");
