@@ -1,3 +1,5 @@
+using System;
+using System.IO;
 using NUnit.Framework;
 using UnityEngine;
 using PFE.Systems.Map.DataMigration;
@@ -274,6 +276,124 @@ namespace PFE.Tests.EditMode.Systems.Map.DataMigration
             // Assert
             Assert.AreEqual(0, collection.rooms[0].z,
                 "A room with no z attribute sits on the ground level.");
+        }
+
+        // ==========================================================
+        //  COLLECTION IDENTITY
+        //
+        //  A collection is a *land*, not a file. RoomsCamp.as declares three of them
+        //  (rooms_rbl, rooms_covert, rooms_src) and all three define room_0_0; RoomsSerial2.as declares
+        //  eight. The importer used to name the output folder after the *source file* while the parser
+        //  named the collection after the *field*, so all of a file's lands were written into one folder
+        //  and the later ones silently overwrote the earlier ones — 76 of 639 rooms were lost that way.
+        //  These tests pin the field-derived id, which is what makes per-land folders possible.
+        // ==========================================================
+
+        private string tempDir;
+
+        [SetUp]
+        public void SetupTempDir()
+        {
+            tempDir = Path.Combine(Path.GetTempPath(), "pfe_room_parser_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+        }
+
+        [TearDown]
+        public void RemoveTempDir()
+        {
+            if (tempDir != null && Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+
+        private string WriteSource(string fileName, string body)
+        {
+            string path = Path.Combine(tempDir, fileName);
+            File.WriteAllText(path, body);
+            return path;
+        }
+
+        private const string OneRoom =
+            "<room name='room_0_0' x='0' y='0'><a>C.C.C</a><a>C._.C</a><a>C.C.C</a></room>";
+
+        [Test]
+        public void ParseFile_NamedXmlField_UsesTheFieldNameAsTheCollectionId()
+        {
+            // RoomsCamp.as:7 — `internal var rooms_rbl:XML = <all>`, addressed by the oracle as
+            // GameData.as:53 `<land id='rbl' file='rooms_rbl'>` and registered by Rooms.as:2798.
+            string path = WriteSource("RoomsCamp.as",
+                "package fe.rooms { public class RoomsCamp { internal var rooms_rbl:XML = <all>" +
+                OneRoom + "</all>; } }");
+
+            AS3RoomCollection collection = parser.ParseFile(path);
+
+            Assert.AreEqual(1, collection.rooms.Count);
+            Assert.AreEqual("rooms_rbl", collection.rooms[0].sourceCollectionId,
+                "The collection id must be the AS3 field name: it is the key Rooms.as registers the land " +
+                "under and the key AS3LandDefaultsDatabase merges that land's inherited options by.");
+        }
+
+        [Test]
+        public void ParseFile_GenericRoomsField_FallsBackToTheFileDerivedId()
+        {
+            // Nine files declare the single land as plain `rooms` (RoomsPlant.as, RoomsCanter.as, ...),
+            // which names nothing. GameData.as calls those lands rooms_plant / rooms_canter, so the file
+            // name is the only thing that distinguishes them — without this all nine collapse onto "rooms".
+            string path = WriteSource("RoomsPlant.as",
+                "package fe.rooms { public class RoomsPlant { internal var rooms:XML = <all>" +
+                OneRoom + "</all>; } }");
+
+            AS3RoomCollection collection = parser.ParseFile(path);
+
+            Assert.AreEqual(1, collection.rooms.Count);
+            Assert.AreEqual("rooms_plant", collection.rooms[0].sourceCollectionId,
+                "A generic `rooms` field must fall back to the file-derived id, or all nine " +
+                "single-land files share one collection.");
+        }
+
+        [Test]
+        public void ParseFile_GenericRoomsField_DoesNotCollapseDistinctFilesOntoOneId()
+        {
+            // Complement to the test above: one file proving the fallback fires is not enough, because a
+            // hardcoded "rooms" would also pass it if the file happened to be called Rooms.as. Two files
+            // must yield two different ids.
+            string plant = parser.ParseFile(WriteSource("RoomsPlant.as",
+                "internal var rooms:XML = <all>" + OneRoom + "</all>;")).rooms[0].sourceCollectionId;
+            string canter = parser.ParseFile(WriteSource("RoomsCanter.as",
+                "internal var rooms:XML = <all>" + OneRoom + "</all>;")).rooms[0].sourceCollectionId;
+
+            Assert.AreEqual("rooms_plant", plant);
+            Assert.AreEqual("rooms_canter", canter);
+            Assert.AreNotEqual(plant, canter,
+                "Two single-land files must not share a collection id.");
+        }
+
+        [Test]
+        public void ParseFile_MultipleFieldsInOneFile_KeepsTheirRoomIdsApart()
+        {
+            // The collision that lost the camp. RoomsCamp.as declares room_0_0 in rooms_rbl AND in
+            // rooms_src; both used to be written to Camp/room_0_0.asset, so rooms_src won by load order
+            // and the camp's real main room — the one holding the two indoor2 Z doors — disappeared.
+            string path = WriteSource("RoomsCamp.as",
+                "package fe.rooms { public class RoomsCamp {" +
+                "internal var rooms_rbl:XML = <all>" + OneRoom + "</all>;" +
+                "internal var rooms_src:XML = <all>" + OneRoom + "</all>;" +
+                "} }");
+
+            AS3RoomCollection collection = parser.ParseFile(path);
+
+            Assert.AreEqual(2, collection.rooms.Count,
+                "Both fields declare a room; the parser must keep both.");
+            Assert.AreEqual(2, collection.collectionIds.Count);
+            CollectionAssert.Contains(collection.collectionIds, "rooms_rbl");
+            CollectionAssert.Contains(collection.collectionIds, "rooms_src");
+
+            string first = collection.rooms[0].sourceCollectionId;
+            string second = collection.rooms[1].sourceCollectionId;
+            Assert.AreNotEqual(first, second,
+                "Same room id in two lands must still carry two different collection ids, or the " +
+                "importer writes them to one path and one of them is lost.");
         }
     }
 }

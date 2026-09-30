@@ -1,0 +1,186 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
+  m_Name: room_3_1
+  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  id: room_3_1
+  sourceCollectionId: rooms_raiders
+  type: pass
+  fixedPosition: {x: 3, y: 1, z: 0}
+  difficultyLevel: 0
+  maxInstances: 2
+  allowRandom: 1
+  specificMapOnly: 0
+  backgroundRoomId: 
+  backgroundDecorations:
+  - id: stree
+    tileCoord: {x: 41, y: 16}
+  - id: tree
+    tileCoord: {x: 35, y: 13}
+  - id: trava
+    tileCoord: {x: 36, y: 21}
+  - id: remains1
+    tileCoord: {x: 16, y: 14}
+  - id: remains2
+    tileCoord: {x: 24, y: 16}
+  - id: remains1
+    tileCoord: {x: 37, y: 13}
+  - id: remains2
+    tileCoord: {x: 32, y: 16}
+  - id: remains1
+    tileCoord: {x: 7, y: 13}
+  - id: stree
+    tileCoord: {x: 24, y: 17}
+  - id: stree
+    tileCoord: {x: 5, y: 16}
+  - id: stree
+    tileCoord: {x: 31, y: 16}
+  - id: remains2
+    tileCoord: {x: 1, y: 16}
+  - id: stree
+    tileCoord: {x: 18, y: 16}
+  - id: tree
+    tileCoord: {x: 7, y: 13}
+  - id: tree
+    tileCoord: {x: 13, y: 14}
+  - id: tree
+    tileCoord: {x: 25, y: 13}
+  - id: trava
+    tileCoord: {x: 0, y: 21}
+  - id: trava
+    tileCoord: {x: 11, y: 21}
+  - id: trava
+    tileCoord: {x: 24, y: 21}
+  - id: heap2
+    tileCoord: {x: 21, y: 20}
+  - id: heap3
+    tileCoord: {x: 6, y: 21}
+  - id: heap3
+    tileCoord: {x: 35, y: 21}
+  doorQuality: 020000000200000002000000020000000200000002000000000000000000000000000000000000000000000000000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000
+  tileDataString: '_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
+
+    H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H
+
+    H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H
+
+    H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H'
+  objects:
+  - type: area
+    id: area
+    definitionId: area
+    definition: {fileID: 11400000, guid: 62760a6826b295d4bb7380b3dc6e5dc0, type: 2}
+    tileCoord: {x: 33, y: 23}
+    code: sdnKCSZEqMsJgsKP
+    uid: 
+    attributes:
+    - key: h
+      value: 24
+    - key: w
+      value: 14
+    - key: scr
+      value: raidersCapt
+    items: []
+    scripts: []
+    parameters: code="sdnKCSZEqMsJgsKP" h="24" w="14" scr="raidersCapt"
+  - type: obj
+    id: captive
+    definitionId: captive
+    definition: {fileID: 11400000, guid: 8358e97a7bcb3694c88de10f204d24d3, type: 2}
+    tileCoord: {x: 38, y: 19}
+    code: yD3yWoBczkn1KWHA
+    uid: 
+    attributes:
+    - key: tr
+      value: 1
+    - key: sr
+      value: 1
+    - key: turn
+      value: -1
+    - key: lock
+      value: 8
+    - key: key
+      value: key_raiders
+    - key: qid
+      value: capt_raiders
+    items: []
+    scripts: []
+    parameters: code="yD3yWoBczkn1KWHA" tr="1" sr="1" turn="-1" lock="8" key="key_raiders"
+      qid="capt_raiders"
+  spawnPoints:
+  - tileCoord: {x: 2, y: 15}
+    type: 0
+    unitId: 
+    facingDirection: 1
+  environment:
+    musicTrack: music_raiders
+    colorScheme: blue
+    backgroundColorScheme: 
+    backgroundWall: sky
+    backgroundForm: 0
+    transparentBackground: 0
+    hasSky: 0
+    borderType: 1
+    noBlackReveal: 0
+    visibilityMultiplier: 10
+    lightsOn: 0
+    returnsToDarkness: 0
+    waterLevel: 100
+    waterType: 0
+    waterOpacity: 0
+    waterDamage: 0
+    waterDamageType: 7
+    radiation: 0
+    radiationDamage: 0
+    darkness: 0

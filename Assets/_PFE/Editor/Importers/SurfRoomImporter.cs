@@ -1,151 +1,42 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Text.RegularExpressions;
 using UnityEditor;
 using UnityEngine;
-using PFE.Data.Definitions;
-using PFE.Systems.Map;
-using PFE.Systems.Map.DataMigration;
 
 namespace PFE.Editor.Importers
 {
+    /// <summary>
+    /// Disabled. Kept as a signpost because the reason it existed is a bug that has since been fixed
+    /// elsewhere, and re-arming it would now do damage.
+    ///
+    /// This importer extracted the <c>rooms_surf</c> XML field from <c>Rooms.as</c> and wrote it to
+    /// <c>Resources/Rooms/Surf</c> under the collection id <c>"Surf"</c>, then deleted thirteen rooms it
+    /// considered "misplaced" from <c>Resources/Rooms/Base</c>. Both halves were workarounds for one
+    /// defect: <c>RoomTemplateImporterWindow</c> named the output folder after the <i>source file</i>,
+    /// while the parser named the collection after the <i>XML field</i>. Because <c>Rooms.as</c> declares
+    /// four lands (<c>rooms_begin</c>, <c>rooms_surf</c>, <c>rooms_garages</c>, <c>rooms_way</c>), all
+    /// four were folded into one folder named "Base" and the later lands silently overwrote the earlier
+    /// ones — which is why surf rooms had to be fished back out and "misplaced" rooms deleted.
+    ///
+    /// That is fixed: the importer now folders by collection id, so <c>rooms_surf</c> lands in
+    /// <c>Resources/Rooms/rooms_surf</c> with collection id <c>rooms_surf</c> — the id the oracle uses
+    /// (<c>&lt;land id='surf' file='rooms_surf'&gt;</c> in GameData.as, and <c>this.rooms["rooms_surf"]</c>
+    /// in Rooms.as:2795). Running this importer again would write a second, duplicate collection named
+    /// "Surf" for the same land, under an id nothing in the oracle or the land-defaults database
+    /// recognises.
+    ///
+    /// It also no longer runs itself. It used to be wired to <c>[InitializeOnLoadMethod]</c>, so every
+    /// editor load re-imported and re-deleted without being asked — a destructive action with no
+    /// confirmation and no undo.
+    /// </summary>
     public static class SurfRoomImporter
     {
-        private const string RoomsAsPath = "E:/Games/UnityGames/pfeToUnity/pfe/scripts/fe/rooms/Rooms.as";
-        private const string GameDataAsPath = "E:/Games/UnityGames/pfeToUnity/pfe/scripts/fe/GameData.as";
-        private const string SurfOutputDir = "Assets/_PFE/Data/Resources/Rooms/Surf";
-        private const string BaseDir = "Assets/_PFE/Data/Resources/Rooms/Base";
-
-        [InitializeOnLoadMethod]
-        private static void AutoImportIfMissing()
-        {
-            if (!Directory.Exists(SurfOutputDir) || Directory.GetFiles(SurfOutputDir, "*.asset").Length < 20)
-            {
-                EditorApplication.delayCall += () =>
-                {
-                    ImportSurfRooms();
-                };
-            }
-        }
-
         [MenuItem("PFE/Map/Import Surf (Wasteland) Rooms", false, 25)]
         public static void ImportSurfRooms()
         {
-            if (!File.Exists(RoomsAsPath))
-            {
-                Debug.LogError($"[SurfRoomImporter] Could not find Rooms.as at {RoomsAsPath}");
-                return;
-            }
-
-            Debug.Log("[SurfRoomImporter] Starting extraction and import of Surf (Wasteland) rooms...");
-
-            if (!Directory.Exists(SurfOutputDir))
-            {
-                Directory.CreateDirectory(SurfOutputDir);
-            }
-
-            string content = File.ReadAllText(RoomsAsPath);
-            Match match = Regex.Match(
-                content,
-                @"(?:internal|public)\s+var\s+rooms_surf\s*:\s*XML\s*=\s*(?<xml><all>[\s\S]*?<\/all>)\s*;",
-                RegexOptions.IgnoreCase);
-
-            if (!match.Success)
-            {
-                Debug.LogError("[SurfRoomImporter] Could not find 'rooms_surf' XML block in Rooms.as");
-                return;
-            }
-
-            string xml = match.Groups["xml"].Value;
-            var parser = new AS3RoomParser();
-            var collection = parser.ParseXmlString(xml);
-
-            if (collection == null || collection.rooms.Count == 0)
-            {
-                Debug.LogError("[SurfRoomImporter] Failed to parse any rooms from rooms_surf XML");
-                return;
-            }
-
-            // Load mapping, catalog, and land defaults
-            AS3ObjectMapping mapping = null;
-            string[] mappingGuids = AssetDatabase.FindAssets($"t:{nameof(AS3ObjectMapping)}");
-            if (mappingGuids.Length > 0)
-            {
-                string mPath = AssetDatabase.GUIDToAssetPath(mappingGuids[0]);
-                mapping = AssetDatabase.LoadAssetAtPath<AS3ObjectMapping>(mPath);
-            }
-
-            MapObjectCatalog catalog = null;
-            string[] catGuids = AssetDatabase.FindAssets($"t:{nameof(MapObjectCatalog)}");
-            if (catGuids.Length > 0)
-            {
-                string cPath = AssetDatabase.GUIDToAssetPath(catGuids[0]);
-                catalog = AssetDatabase.LoadAssetAtPath<MapObjectCatalog>(cPath);
-            }
-
-            AS3LandDefaultsDatabase landDefaults = null;
-            if (File.Exists(GameDataAsPath))
-            {
-                landDefaults = AS3LandDefaultsDatabase.ParseFromFile(GameDataAsPath);
-            }
-
-            var converter = new AS3ToUnityConverter(mapping, landDefaults, catalog);
-            int importedCount = 0;
-
-            foreach (var as3Room in collection.rooms)
-            {
-                as3Room.sourceCollectionId = "Surf";
-                RoomTemplate template = converter.ConvertRoom(as3Room);
-                template.sourceCollectionId = "Surf";
-                template.name = as3Room.name;
-
-                string assetPath = $"{SurfOutputDir}/{as3Room.name}.asset";
-
-                if (File.Exists(assetPath))
-                {
-                    RoomTemplate existing = AssetDatabase.LoadAssetAtPath<RoomTemplate>(assetPath);
-                    if (existing != null)
-                    {
-                        EditorUtility.CopySerialized(template, existing);
-                        EditorUtility.SetDirty(existing);
-                    }
-                    else
-                    {
-                        AssetDatabase.CreateAsset(template, assetPath);
-                    }
-                }
-                else
-                {
-                    AssetDatabase.CreateAsset(template, assetPath);
-                }
-
-                importedCount++;
-            }
-
-            // Clean up the 13 misallocated rooms (x >= 5) from Base/
-            string[] misplacedRooms = new string[]
-            {
-                "room_5_1", "room_6_1", "room_6_2", "room_7_1", "room_8_1",
-                "room_9_1", "room_9_2", "room_9_3", "room_10_1", "room_10_2",
-                "room_10_3", "room_11_1", "room_12_1"
-            };
-
-            int cleanedCount = 0;
-            foreach (var rName in misplacedRooms)
-            {
-                string basePath = $"{BaseDir}/{rName}.asset";
-                if (File.Exists(basePath))
-                {
-                    AssetDatabase.DeleteAsset(basePath);
-                    cleanedCount++;
-                }
-            }
-
-            AssetDatabase.SaveAssets();
-            AssetDatabase.Refresh();
-
-            Debug.Log($"[SurfRoomImporter] Successfully imported {importedCount} rooms into '{SurfOutputDir}' and cleaned {cleanedCount} misplaced rooms from '{BaseDir}'.");
+            Debug.LogWarning(
+                "[SurfRoomImporter] Disabled. Surf rooms are imported by 'PFE/Map/Room Template Importer' " +
+                "into Resources/Rooms/rooms_surf with collection id 'rooms_surf'. This importer would write " +
+                "a duplicate collection named 'Surf' for the same land, under an id the oracle and the " +
+                "land-defaults database do not use. See the class comment for the history.");
         }
     }
 }

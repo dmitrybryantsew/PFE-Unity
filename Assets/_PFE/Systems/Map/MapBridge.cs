@@ -260,8 +260,9 @@ public class MapBridge : MonoBehaviour
             return false;
         }
 
-        // If the override template belongs to a multi-room collection (e.g. "Base"), build the full collection
-        // so adjacent rooms (e.g. room_2_0) and door connections exist, starting the player in the override room.
+        // If the override template belongs to a multi-room collection (e.g. "rooms_rbl"), build the full
+        // collection so adjacent rooms (e.g. room_2_0) and door connections exist, starting the player in
+        // the override room.
         var allLoaded = _gameManager?.GetLoadedRoomTemplates();
         var worldBuilder = _gameManager?.GetWorldBuilder();
         if (worldBuilder != null && allLoaded != null && !string.IsNullOrWhiteSpace(template.sourceCollectionId))
@@ -706,31 +707,85 @@ public class MapBridge : MonoBehaviour
         Debug.Log($"[MapBridge] Successfully transitioned to land '{targetLand}' ({collectionName}), current room: {currentRoom?.id}");
     }
 
+    /// <summary>
+    /// Land id -> room collection, transcribed from the <c>&lt;land&gt;</c> table in <c>GameData.as</c>.
+    ///
+    /// A collection is keyed by a land's <c>file</c> attribute — <c>&lt;land id='rbl' file='rooms_rbl'&gt;</c>
+    /// — because that is also the AS3 field name and the key <c>Rooms.as:2794-2822</c> registers the land
+    /// under, and the key <c>AS3LandDefaultsDatabase</c> merges its inherited options by. The id alone
+    /// cannot be turned into it: <c>random_mbase</c> is <c>rooms_mbase</c>, not <c>rooms_random_mbase</c>,
+    /// and <c>stable_pi_surf</c> is <c>rooms_pis</c>. Note also that the camp is <c>rbl</c> — there is no
+    /// land called "camp" in the oracle.
+    /// </summary>
+    private static readonly Dictionary<string, string> LandIdToCollection =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            { "test", "rooms" },
+            { "test2", "rooms2" },
+            { "begin", "rooms_begin" },
+            { "surf", "rooms_surf" },
+            { "rbl", "rooms_rbl" },
+            { "covert", "rooms_covert" },
+            { "src", "rooms_src" },
+            { "nio", "rooms_nio" },
+            { "raiders", "rooms_raiders" },
+            { "core", "rooms_core" },
+            { "mtn", "rooms_mtn" },
+            { "minst", "rooms_minst" },
+            { "garages", "rooms_garages" },
+            { "way", "rooms_way" },
+            { "workshop", "rooms_workshop" },
+            { "hql", "rooms_hql" },
+            { "post", "rooms_post" },
+            { "comm", "rooms_comm" },
+            { "art", "rooms_art" },
+            { "thunder", "rooms_thunder" },
+            { "grave", "rooms_grave" },
+            { "random_plant", "rooms_plant" },
+            { "random_sewer", "rooms_sewer" },
+            { "random_stable", "rooms_stable" },
+            { "random_mane", "rooms_mane" },
+            { "random_canter", "rooms_canter" },
+            { "random_mbase", "rooms_mbase" },
+            { "random_encl", "rooms_encl" },
+            { "bunker", "rooms_mbase" },
+            { "stable_pi", "rooms_pi" },
+            { "stable_pi_atk", "rooms_pi" },
+            { "stable_pi_surf", "rooms_pis" },
+            { "prob", "rooms_prob" }
+        };
+
     private static string ResolveCollectionName(string targetLand)
     {
-        if (string.IsNullOrWhiteSpace(targetLand)) return "Base";
-        string lower = targetLand.Trim().ToLowerInvariant();
-        return lower switch
+        if (string.IsNullOrWhiteSpace(targetLand))
         {
-            "surf" => "Surf",
-            "base" or "begin" => "Base",
-            "camp" => "Camp",
-            "canter" => "Canter",
-            "encl" => "Encl",
-            "mane" => "Mane",
-            "mbase" => "Mbase",
-            "pi" => "Pi",
-            "plant" => "Plant",
-            "prob" => "Prob",
-            "sewer" => "Sewer",
-            "stable" => "Stable",
-            _ => char.ToUpperInvariant(targetLand[0]) + targetLand.Substring(1)
-        };
+            return string.Empty;
+        }
+
+        string id = targetLand.Trim();
+        if (LandIdToCollection.TryGetValue(id, out string collection))
+        {
+            return collection;
+        }
+
+        // A caller may already hold the collection id — it is what RoomTemplate.sourceCollectionId stores,
+        // so a round-tripped value arrives in that form rather than as a land id.
+        if (id.StartsWith("rooms", StringComparison.OrdinalIgnoreCase))
+        {
+            return id;
+        }
+
+        // Do not guess. The previous fallback capitalised the id, which produced "Nio", "Covert", "Src" —
+        // collections that do not exist — so a land transition failed with "no templates found" and no
+        // hint that the name was invented.
+        Debug.LogWarning(
+            $"[MapBridge] Unknown land id '{targetLand}': no <land> entry in GameData.as declares it.");
+        return string.Empty;
     }
 
     private static Vector3Int ResolveEntrancePosition(List<RoomTemplate> templates, string collectionName)
     {
-        if (string.Equals(collectionName, "Surf", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(collectionName, "rooms_surf", StringComparison.OrdinalIgnoreCase))
         {
             // The outside bunker exit room in rooms_surf is room_0_1 at (0, 1, 0)
             return new Vector3Int(0, 1, 0);

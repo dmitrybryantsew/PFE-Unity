@@ -130,5 +130,61 @@ namespace PFE.Tests.Editor.Map.Streaming
 
             Assert.That(landDispatched, Is.EqualTo("surf"), "RoomVisualController must forward OnGotoLand from its AreaTriggerSystem");
         }
+
+        // ==========================================================
+        //  LAND ID -> ROOM COLLECTION
+        //
+        //  A gotoland action carries a land *id* ("surf", "random_mbase"), but rooms are stored under the
+        //  land's *file* ("rooms_surf", "rooms_mbase") — that is the key Rooms.as:2794-2822 registers each
+        //  land under and the key AS3LandDefaultsDatabase merges inherited options by. The id cannot be
+        //  turned into the file mechanically: random_mbase is rooms_mbase, and stable_pi_surf is rooms_pis.
+        //  The table is transcribed from the <land> entries in GameData.as, so a typo in it would be
+        //  silent — hence these tests.
+        // ==========================================================
+
+        private static string ResolveCollectionName(string landId)
+        {
+            var method = typeof(MapBridge).GetMethod(
+                "ResolveCollectionName",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+
+            Assert.That(method, Is.Not.Null, "MapBridge.ResolveCollectionName should exist as a private static method.");
+            return (string)method.Invoke(null, new object[] { landId });
+        }
+
+        [TestCase("rbl", "rooms_rbl", TestName = "ResolveCollectionName_Camp_IsTheRblLand")]
+        [TestCase("surf", "rooms_surf", TestName = "ResolveCollectionName_Surf")]
+        [TestCase("covert", "rooms_covert", TestName = "ResolveCollectionName_Covert")]
+        [TestCase("src", "rooms_src", TestName = "ResolveCollectionName_Src")]
+        [TestCase("random_mbase", "rooms_mbase", TestName = "ResolveCollectionName_RandomMbaseIsNotRoomsRandomMbase")]
+        [TestCase("bunker", "rooms_mbase", TestName = "ResolveCollectionName_BunkerAliasesMbase")]
+        [TestCase("stable_pi_surf", "rooms_pis", TestName = "ResolveCollectionName_StablePiSurfIsRoomsPis")]
+        [TestCase("stable_pi", "rooms_pi", TestName = "ResolveCollectionName_StablePi")]
+        [TestCase("thunder", "rooms_thunder", TestName = "ResolveCollectionName_Thunder")]
+        public void ResolveCollectionName_KnownLandIds_MapToTheirOracleCollectionFile(string landId, string expected)
+        {
+            Assert.That(ResolveCollectionName(landId), Is.EqualTo(expected),
+                $"<land id='{landId}'> in GameData.as points at the collection '{expected}'.");
+        }
+
+        [Test]
+        public void ResolveCollectionName_UnknownLandId_DoesNotInventACollection()
+        {
+            // The fallback used to capitalise the id, so an unrecognised land produced "Nio", "Covert" or
+            // "Src" — collections that never existed — and the transition failed with a bare "no templates
+            // found" that named the invented string. "camp" is the trap: the camp is land 'rbl'.
+            LogAssert.Expect(LogType.Warning, new System.Text.RegularExpressions.Regex("Unknown land id"));
+
+            Assert.That(ResolveCollectionName("camp"), Is.EqualTo(string.Empty),
+                "There is no land called 'camp' in the oracle; guessing a collection for it hides the mistake.");
+        }
+
+        [Test]
+        public void ResolveCollectionName_CollectionIdPassedThrough_IsAccepted()
+        {
+            // A value that has already been resolved arrives in collection form, because that is what
+            // RoomTemplate.sourceCollectionId stores.
+            Assert.That(ResolveCollectionName("rooms_nio"), Is.EqualTo("rooms_nio"));
+        }
     }
 }

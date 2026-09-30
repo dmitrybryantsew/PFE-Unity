@@ -1,0 +1,127 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
+  m_Name: room_7_0
+  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  id: room_7_0
+  sourceCollectionId: rooms_pis
+  type: pass
+  fixedPosition: {x: 7, y: 0, z: 0}
+  difficultyLevel: 0
+  maxInstances: 2
+  allowRandom: 1
+  specificMapOnly: 0
+  backgroundRoomId: 
+  backgroundDecorations:
+  - id: hkonstr
+    tileCoord: {x: 20, y: 17}
+  - id: hkonstr
+    tileCoord: {x: 18, y: 17}
+  - id: zavod2
+    tileCoord: {x: 13, y: 15}
+  - id: depot
+    tileCoord: {x: 10, y: 14}
+  - id: metal
+    tileCoord: {x: 1, y: 14}
+  - id: swindow
+    tileCoord: {x: 12, y: 14}
+  - id: znak
+    tileCoord: {x: 21, y: 15}
+  doorQuality: 020000000200000002000000020000000200000002000000000000000000000000000000000000000000000002000000020000000200000002000000020000000200000000000000020000000200000002000000020000000200000002000000
+  tileDataString: "_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._.C.C.C.C.C.C.C.C.C.C.C.C._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._.I._D._D._D._D._D._D._D._D.I._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._.I._D._D._D._D._D._D._D._D._A._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._A._D._D._D._D._D._D._D._D._A._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._A._D._D._D._D._D._D._D._D._A._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\nH.H.H.H.H.H.H.H.I.I.I.I.I.I.I.I.I.I._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._._._._._._._._._._._._._._._._._._._._._._\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.HL._L*._L*._L*._L*._L*._L*._L*._L*._L*._L*._L*._L*._L*._L*._L*._L*._L*._L*._L*._L*._L*._L*._L*._L*._L*._L*._L*\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.HL.HL.HL.HL.HL._L*._L*._L*._L*._L*._L*._L*._L*._L*._L*._L*._L*._L*._L*._L*._L*._L*._L*._L*._L*._L*._L*._L*\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.HL.HL.HL.HL.HL.HL.HL.HL.HL._L*._L*._L*._L*._L*._L*._L*._L*._L*._L*._L*._L*._L*._L*._L*._L*._L*._L*._L*\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.HL.HL.HL.HL.HL.HL.HL.HL.HL.HL.HL.HL._L*._L*._L*._L*._L*._L*._L*._L*._L*._L*._L*._L*._L*._L*._L*._L*\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.HL.HL.HL.HL.HL.HL.HL.HL.HL.HL.HL.HL.HL.HL.HL.HL.HL.HL._L*._L*._L*._L*._L*._L*._L*._L*._L*._L*\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.HL.HL.HL.HL.HL.HL.HL.HL.HL.HL.HL.HL.HL.HL.HL.HL.HL.HL.HL.HL.HL.HL.HL.HL.HL.HL.HL.HL"
+  objects:
+  - type: obj
+    id: dron
+    definitionId: dron
+    definition: {fileID: 11400000, guid: 3bae6e09bbe3c214b9e0967e21752f24, type: 2}
+    tileCoord: {x: 40, y: 7}
+    code: RkRv4SXMStTPe7sR
+    uid: 
+    attributes:
+    - key: turn
+      value: -1
+    - key: tr
+      value: 3
+    items: []
+    scripts: []
+    parameters: code="RkRv4SXMStTPe7sR" turn="-1" tr="3"
+  - type: box
+    id: box
+    definitionId: box
+    definition: {fileID: 11400000, guid: 140a965d2a888724f9ff7835ad1ae69c, type: 2}
+    tileCoord: {x: 10, y: 16}
+    code: s0Q3ERzHEdPrJJf0
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="s0Q3ERzHEdPrJJf0"
+  - type: obj
+    id: encl
+    definitionId: encl
+    definition: {fileID: 11400000, guid: bd63e94e2cdd9b64baa1344275d633d8, type: 2}
+    tileCoord: {x: 42, y: 9}
+    code: LhWIUrsMLMRly8tZ
+    uid: 
+    attributes:
+    - key: turn
+      value: -1
+    - key: ai
+      value: stay
+    - key: tr
+      value: 3
+    items: []
+    scripts: []
+    parameters: code="LhWIUrsMLMRly8tZ" turn="-1" ai="stay" tr="3"
+  - type: obj
+    id: encl
+    definitionId: encl
+    definition: {fileID: 11400000, guid: bd63e94e2cdd9b64baa1344275d633d8, type: 2}
+    tileCoord: {x: 35, y: 5}
+    code: VdUmh2fXwiS5sNAc
+    uid: 
+    attributes:
+    - key: turn
+      value: -1
+    - key: ai
+      value: stay
+    - key: tr
+      value: 4
+    items: []
+    scripts: []
+    parameters: code="VdUmh2fXwiS5sNAc" turn="-1" ai="stay" tr="4"
+  spawnPoints:
+  - tileCoord: {x: 2, y: 15}
+    type: 0
+    unitId: 
+    facingDirection: 1
+  environment:
+    musicTrack: music_encl_2
+    colorScheme: fire
+    backgroundColorScheme: 
+    backgroundWall: sky
+    backgroundForm: 0
+    transparentBackground: 0
+    hasSky: 0
+    borderType: 1
+    noBlackReveal: 0
+    visibilityMultiplier: 3
+    lightsOn: 0
+    returnsToDarkness: 0
+    waterLevel: 18
+    waterType: 0
+    waterOpacity: 0
+    waterDamage: 0
+    waterDamageType: 7
+    radiation: 0
+    radiationDamage: 0
+    darkness: 0

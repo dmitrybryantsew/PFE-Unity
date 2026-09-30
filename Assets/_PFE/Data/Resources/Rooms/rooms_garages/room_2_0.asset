@@ -1,0 +1,245 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
+  m_Name: room_2_0
+  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  id: room_2_0
+  sourceCollectionId: rooms_garages
+  type: pass
+  fixedPosition: {x: 1, y: 0, z: 0}
+  difficultyLevel: 0
+  maxInstances: 2
+  allowRandom: 1
+  specificMapOnly: 0
+  backgroundRoomId: 
+  backgroundDecorations:
+  - id: stree
+    tileCoord: {x: 39, y: 14}
+  - id: stree
+    tileCoord: {x: 25, y: 16}
+  - id: hole1
+    tileCoord: {x: 20, y: 2}
+  - id: hole3
+    tileCoord: {x: 3, y: 6}
+  - id: bwindow
+    tileCoord: {x: 15, y: 16}
+  - id: bwindow
+    tileCoord: {x: 21, y: 16}
+  - id: swindow
+    tileCoord: {x: 16, y: 10}
+  - id: stree
+    tileCoord: {x: 11, y: 17}
+  - id: tree
+    tileCoord: {x: 35, y: 8}
+  - id: tree
+    tileCoord: {x: 39, y: 9}
+  - id: stree
+    tileCoord: {x: 34, y: 13}
+  - id: hole4
+    tileCoord: {x: 0, y: 9}
+  - id: stree
+    tileCoord: {x: 28, y: 16}
+  - id: stree
+    tileCoord: {x: 30, y: 14}
+  - id: heap1
+    tileCoord: {x: 12, y: 18}
+  - id: heap3
+    tileCoord: {x: 15, y: 12}
+  - id: heap3
+    tileCoord: {x: 23, y: 19}
+  - id: heap3
+    tileCoord: {x: 23, y: 12}
+  - id: trava
+    tileCoord: {x: 33, y: 16}
+  - id: trava
+    tileCoord: {x: 37, y: 16}
+  - id: musor1
+    tileCoord: {x: 16, y: 19}
+  - id: musor1
+    tileCoord: {x: 17, y: 12}
+  - id: musor2
+    tileCoord: {x: 0, y: 19}
+  - id: potek
+    tileCoord: {x: 15, y: 14}
+  - id: potek
+    tileCoord: {x: 15, y: 13}
+  - id: musor1
+    tileCoord: {x: 5, y: 21}
+  doorQuality: 020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000
+  tileDataString: "_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.G\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.G\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.G.G\n_._._._._._._._._._._._._._.ED.ED.ED.ED.ED.ED.ED._A._A._A._A._A._._._._._._._._._._._._._._._._._._._._.G.G\n_._._._._._._._._._._._._._.ED._D._D._D._D._D._D._D._D._D._D._A._._._._._._._._._._._._._._._._._._._._.G.G\n_E._E._E._E._E._._._._._._._._._._A._D._D._D._D._D._D._D._D._D._D._A._._._._._._._._._._._._._._._._._._._._.G.G\n_E._E._E._E._E._._._._._._._._._._A._D._D._D._D._D._D._D._D._D._D._A._._._._._._._._._._._._._._._._._._._._.G.G\n_E._E._E._E._E._._._._._._._._._._A._D._D._D._D._D._D._D._D._D._D._A._._._._._._._._._._._._._._._._._._._._.G.G\n_E._E._E._E._E._._._._._._._._._\u041A.BD.BD.BD.BD.BD.BD._A\u0411\u041A._A\u041A._A\u041A.BD.BD.BD._._._._._._._._._._._._._._._._._._._._.G.G\n_E._E._E._E._E._._._._._._._._._.BD._D._D._D._D._D._D\u0411._D._D._D._D.BD._._._._._._._._._._._._._._._._._._._._.G.G\n_E._E._E._E._E._._._._._._._._._._A._D._D._D._D._D._D\u0411._D._D._D._D.BD._._._._._._._._._._._._._._._._._._._._.G.G\n_E._E._E\u041A._E\u041A._E._._._._._._._._._._A._D._D._D._D._D._D._D._D._D._D.BD._._._._._._._._._._._._._._._._._._._._.G.G\n_E._E._E._E._E._._._._._._._._._._A._D._D._D._D._D._D._D._D._D._D._A._._._._._._.H;.H.H.H.H.H.H.H.H.H.H.H.H.H.G.G\n_E._E._E._E._E._._._._._._._._._._A._D._D._D._D._D._D._D._D._D._D._A._._._._.H;.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.G.G\n_E._E._E._E._E._._._._._._._._._._A._D._D._D._D._D._D._D._D._D._D._A._._.H;.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.G.G\nB.B.B.B.B._A._A._A._A._A._A.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.G.G.G\nG.G.G.G.G._L._L._L._L.GL.GL.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.G.G.G\nG.G.G.G.G.GL.GL.GL.GL.GL.GL.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.G.G.G\nG.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.G.G.G\nG.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.G.G.G"
+  objects:
+  - type: trap
+    id: spikes
+    definitionId: spikes
+    definition: {fileID: 11400000, guid: 8f4db43e308fd6e4ca650a1dd272333c, type: 2}
+    tileCoord: {x: 25, y: 12}
+    code: Qx1h0p3XZnO3y23V
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="Qx1h0p3XZnO3y23V"
+  - type: obj
+    id: ranger
+    definitionId: ranger
+    definition: {fileID: 11400000, guid: 73156fd43c765fe41a8521cb472c31bf, type: 2}
+    tileCoord: {x: 25, y: 19}
+    code: HGfOtcqVR63C4iHO
+    uid: 
+    attributes:
+    - key: tr
+      value: 1
+    - key: turn
+      value: -1
+    - key: ai
+      value: quiet
+    - key: weap
+      value: minigun
+    - key: observ
+      value: 50
+    items: []
+    scripts: []
+    parameters: code="HGfOtcqVR63C4iHO" tr="1" turn="-1" ai="quiet" weap="minigun"
+      observ="50"
+  - type: area
+    id: area
+    definitionId: area
+    definition: {fileID: 11400000, guid: 62760a6826b295d4bb7380b3dc6e5dc0, type: 2}
+    tileCoord: {x: 0, y: 19}
+    code: slf3WcY3wVcVFLez
+    uid: 
+    attributes:
+    - key: h
+      value: 20
+    items: []
+    scripts:
+    - eventName: 
+      actions:
+      - act: music
+        targ: 
+        val: pre_1
+      - act: dialog
+        targ: 
+        val: meetDial1
+      - act: showstage
+        targ: 
+        val: storyMeet
+      - act: off
+        targ: this
+        val: 
+    parameters: code="slf3WcY3wVcVFLez" h="20"
+  - type: obj
+    id: ranger
+    definitionId: ranger
+    definition: {fileID: 11400000, guid: 73156fd43c765fe41a8521cb472c31bf, type: 2}
+    tileCoord: {x: 20, y: 19}
+    code: kshh7qQBCR642eqq
+    uid: 
+    attributes:
+    - key: tr
+      value: 1
+    - key: turn
+      value: -1
+    - key: ai
+      value: quiet
+    - key: weap
+      value: incin
+    - key: observ
+      value: 50
+    items: []
+    scripts: []
+    parameters: code="kshh7qQBCR642eqq" tr="1" turn="-1" ai="quiet" weap="incin"
+      observ="50"
+  - type: obj
+    id: protect
+    definitionId: protect
+    definition: {fileID: 11400000, guid: 2f0bd37ce2b5ba14ebb9a036e5ed9b51, type: 2}
+    tileCoord: {x: 36, y: 16}
+    code: zK2cTdi1kL0Vv2OM
+    uid: 
+    attributes:
+    - key: tr
+      value: 1
+    - key: turn
+      value: -1
+    - key: ai
+      value: quiet
+    items: []
+    scripts: []
+    parameters: code="zK2cTdi1kL0Vv2OM" tr="1" turn="-1" ai="quiet"
+  - type: box
+    id: brspr
+    definitionId: brspr
+    definition: {fileID: 11400000, guid: bef91a48421ac194ea56a1287d936a2d, type: 2}
+    tileCoord: {x: 18, y: 19}
+    code: zpSiQPNi4cpbf2Ec
+    uid: 
+    attributes:
+    - key: sign
+      value: 1
+    - key: inter
+      value: 12
+    - key: time
+      value: 60
+    - key: scr
+      value: brspr
+    items: []
+    scripts: []
+    parameters: code="zpSiQPNi4cpbf2Ec" sign="1" inter="12" time="60" scr="brspr"
+  - type: box
+    id: ammobox
+    definitionId: ammobox
+    definition: {fileID: 11400000, guid: 812fa104dc7e4a640b7449d632fc2a28, type: 2}
+    tileCoord: {x: 16, y: 7}
+    code: iWNts9o1fSCr3F6n
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="iWNts9o1fSCr3F6n"
+  - type: trap
+    id: spikes
+    definitionId: spikes
+    definition: {fileID: 11400000, guid: 8f4db43e308fd6e4ca650a1dd272333c, type: 2}
+    tileCoord: {x: 14, y: 12}
+    code: qEbKY9kgcPVLJH5w
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="qEbKY9kgcPVLJH5w"
+  spawnPoints:
+  - tileCoord: {x: 2, y: 15}
+    type: 0
+    unitId: 
+    facingDirection: 1
+  environment:
+    musicTrack: music_surf
+    colorScheme: blue
+    backgroundColorScheme: 
+    backgroundWall: sky
+    backgroundForm: 0
+    transparentBackground: 0
+    hasSky: 0
+    borderType: 1
+    noBlackReveal: 0
+    visibilityMultiplier: 10
+    lightsOn: -1
+    returnsToDarkness: 0
+    waterLevel: 100
+    waterType: 0
+    waterOpacity: 0
+    waterDamage: 0
+    waterDamageType: 7
+    radiation: 0
+    radiationDamage: 0
+    darkness: 0

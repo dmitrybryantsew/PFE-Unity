@@ -1,0 +1,298 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
+  m_Name: room_2_0
+  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  id: room_2_0
+  sourceCollectionId: rooms_comm
+  type: pass
+  fixedPosition: {x: 2, y: 0, z: 0}
+  difficultyLevel: 0
+  maxInstances: 2
+  allowRandom: 1
+  specificMapOnly: 0
+  backgroundRoomId: 
+  backgroundDecorations:
+  - id: komp
+    tileCoord: {x: 39, y: 21}
+  - id: komp
+    tileCoord: {x: 43, y: 21}
+  - id: komp
+    tileCoord: {x: 41, y: 21}
+  - id: pult2
+    tileCoord: {x: 27, y: 14}
+  - id: monitor2
+    tileCoord: {x: 22, y: 9}
+  - id: light7
+    tileCoord: {x: 21, y: 8}
+  - id: light7
+    tileCoord: {x: 26, y: 8}
+  - id: light7
+    tileCoord: {x: 26, y: 12}
+  - id: light7
+    tileCoord: {x: 21, y: 12}
+  - id: monitor
+    tileCoord: {x: 22, y: 8}
+  - id: monitor
+    tileCoord: {x: 24, y: 8}
+  - id: konstr
+    tileCoord: {x: 17, y: 10}
+  - id: konstr
+    tileCoord: {x: 17, y: 14}
+  - id: konstr
+    tileCoord: {x: 17, y: 18}
+  - id: konstr
+    tileCoord: {x: 17, y: 22}
+  - id: konstr
+    tileCoord: {x: 30, y: 10}
+  - id: konstr
+    tileCoord: {x: 30, y: 14}
+  - id: konstr
+    tileCoord: {x: 30, y: 18}
+  - id: konstr
+    tileCoord: {x: 30, y: 22}
+  - id: konstr
+    tileCoord: {x: 21, y: 17}
+  - id: konstr
+    tileCoord: {x: 21, y: 21}
+  - id: konstr
+    tileCoord: {x: 26, y: 17}
+  - id: konstr
+    tileCoord: {x: 26, y: 21}
+  - id: enclbanner
+    tileCoord: {x: 5, y: 1}
+  - id: enclbanner
+    tileCoord: {x: 14, y: 1}
+  - id: enclbanner
+    tileCoord: {x: 23, y: 1}
+  - id: enclbanner
+    tileCoord: {x: 32, y: 1}
+  - id: enclbanner
+    tileCoord: {x: 41, y: 1}
+  - id: enclbanner
+    tileCoord: {x: 28, y: 10}
+  - id: enclbanner
+    tileCoord: {x: 18, y: 10}
+  - id: electro
+    tileCoord: {x: 18, y: 17}
+  - id: electro
+    tileCoord: {x: 27, y: 17}
+  - id: electro
+    tileCoord: {x: 27, y: 20}
+  - id: electro
+    tileCoord: {x: 18, y: 20}
+  - id: server
+    tileCoord: {x: 23, y: 17}
+  - id: server
+    tileCoord: {x: 23, y: 20}
+  - id: komp
+    tileCoord: {x: 14, y: 21}
+  - id: komp
+    tileCoord: {x: 12, y: 21}
+  - id: komp
+    tileCoord: {x: 10, y: 21}
+  - id: komp
+    tileCoord: {x: 32, y: 21}
+  - id: komp
+    tileCoord: {x: 34, y: 21}
+  - id: komp
+    tileCoord: {x: 36, y: 21}
+  - id: komp
+    tileCoord: {x: 3, y: 21}
+  - id: komp
+    tileCoord: {x: 5, y: 21}
+  - id: komp
+    tileCoord: {x: 7, y: 21}
+  - id: enclave
+    tileCoord: {x: 21, y: 1}
+  - id: enclave
+    tileCoord: {x: 25, y: 1}
+  - id: enclave
+    tileCoord: {x: 30, y: 1}
+  - id: enclave
+    tileCoord: {x: 34, y: 1}
+  - id: enclave
+    tileCoord: {x: 16, y: 1}
+  - id: enclave
+    tileCoord: {x: 12, y: 1}
+  - id: pult
+    tileCoord: {x: 22, y: 15}
+  - id: pult
+    tileCoord: {x: 24, y: 15}
+  - id: light7
+    tileCoord: {x: 16, y: 21}
+  - id: light7
+    tileCoord: {x: 16, y: 22}
+  - id: light7
+    tileCoord: {x: 16, y: 23}
+  - id: light7
+    tileCoord: {x: 31, y: 21}
+  - id: light7
+    tileCoord: {x: 31, y: 22}
+  - id: light7
+    tileCoord: {x: 31, y: 23}
+  - id: light7
+    tileCoord: {x: 38, y: 21}
+  - id: light7
+    tileCoord: {x: 38, y: 22}
+  - id: light7
+    tileCoord: {x: 38, y: 23}
+  - id: light7
+    tileCoord: {x: 9, y: 21}
+  - id: light7
+    tileCoord: {x: 9, y: 22}
+  - id: light7
+    tileCoord: {x: 9, y: 23}
+  - id: light7
+    tileCoord: {x: 21, y: 15}
+  - id: light7
+    tileCoord: {x: 26, y: 15}
+  - id: light7
+    tileCoord: {x: 22, y: 22}
+  - id: light7
+    tileCoord: {x: 22, y: 23}
+  - id: light7
+    tileCoord: {x: 25, y: 22}
+  - id: light7
+    tileCoord: {x: 25, y: 23}
+  - id: vkonstr
+    tileCoord: {x: 4, y: 17}
+  - id: vkonstr
+    tileCoord: {x: 42, y: 17}
+  - id: light7
+    tileCoord: {x: 19, y: 2}
+  - id: light7
+    tileCoord: {x: 28, y: 2}
+  - id: light7
+    tileCoord: {x: 37, y: 2}
+  - id: light7
+    tileCoord: {x: 10, y: 2}
+  - id: light7
+    tileCoord: {x: 2, y: 2}
+  - id: light7
+    tileCoord: {x: 45, y: 2}
+  - id: light7
+    tileCoord: {x: 2, y: 4}
+  - id: light7
+    tileCoord: {x: 2, y: 6}
+  - id: light7
+    tileCoord: {x: 2, y: 8}
+  - id: light7
+    tileCoord: {x: 2, y: 10}
+  - id: light7
+    tileCoord: {x: 45, y: 4}
+  - id: light7
+    tileCoord: {x: 45, y: 6}
+  - id: light7
+    tileCoord: {x: 45, y: 8}
+  - id: light7
+    tileCoord: {x: 45, y: 10}
+  doorQuality: 020000000200000002000000020000000000000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000002000000020000000200000002000000020000000200000002000000
+  tileDataString: "SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF\nSF._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F.SF\nSF._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F.SF\nSF._F._F._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._F._F.SF\nSF._F._F._Y._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._Y._F._F.SF\nSF._F._F._Y._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._Y._F._F.SF\nSF._F._F._Y._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._Y._F._F.SF\nSF._F._F._Y._._._._._._._._._._._._._._._._.TF.TF.TF.TF.TF.TF.TF.TF._._._._._._._._._._._._._._._._._Y._F._F.SF\nSF._F._F._Y._._._._._._._._._._._._._Y._Y._Y._Y.TF._F._F._F._F._F._F.TF._Y._Y._Y._Y._._._._._._._._._._._._._Y._F._F.SF\nSF._F._F._Y._._._._._._._._._._._._._Y.TZ.TZ.TZ.TF._F._F._F._F._F._F.TF.TZ.TZ.TZ._Y._._._._._._._._._._._._._Y._F._F.SF\nSF._F._F._Y._._._._._._._._._._._._._Y._Z._Z._Z._F._F._F._F._F._F._F._F._Z._Z._Z._Y._._._._._._._._._._._._._Y._F._F.SF\nSF._F._F._Y._._._._._._._._._._._._._Y._Z._Z._Z._F._F._F._F._F._F._F._F._Z._Z._Z._Y._._._._._._._._._._._._._Y._F._F.SF\nSF._F._F._Y._._._._._._._._._._._._._Y._Z._Z._Z._F._F._F._F._F._F._F._F._Z._Z._Z._Y._._._._._._._._._._._._._Y.SF.SF.SF\n_Y._Y._Y._Y._._._._._._._._._._._._._Y._Z._Z._Z._F._F._F._F._F._F._F._F._Z._Z._Z._Y._._._._._._._._._._._._._Y._Y._Y._Y\n_Y._Y._Y._Y._._._._._._._._._._._._._Y._Z._Z._Z._F._F._F._F._F._F._F._F._Z._Z._Z._Y._._._._._._._._._._._._._Y._Y._Y._Y\n_Y._Y._Y._Y._._._._._._._._._._._._._Y._Z._Z._Z._F._F._F._F._F._F._F._F._Z._Z._Z._Y._._._._._._._._._._._._._Y._Y._Y._Y\nSF.SF.SF.S.S.S._._._._._._._._._._._Y.SZ.SZ.SZ.SF.SF.SF.SF.SF.SF.SF.SF.SZ.SZ.SZ._Y._._._._._._._._._._.S.S.SY.SF.SF.SF\nSF._F._F._Y._._._._._._._._._._._._._Y._F._F._F._F._F.TY._Y._Y.TY._F._F._F._F._F._Y._._._._._._._._._._._._._Y._F._F.SF\nSF._F._F._Y._._._._._._._._._._._._._Y._F._F._F._F._F.TY._Y._Y.TY._F._F._F._F._F._Y._._._._._._._._._._._._._Y._F._F.SF\nSF._F._F._Y._._._._._._._._._._._._._Y._F._F._F._F._F.TY._Y._Y.TY._F._F._F._F._F._Y._._._._._._._._._._._._._Y._F._F.SF\nSF._F._F._Y._Y\u0420._Y\u0420._Y\u0420._Y\u0420._Y\u0420._Y\u0420._Y\u0420._Y\u0420._Y\u0420._Y\u0420._Y\u0420._Y\u0420._Y._F._F._F._F._F.TY._Y._Y.TY._F._F._F._F._F._Y._Y\u0420._Y\u0420._Y\u0420._Y\u0420._Y\u0420._Y\u0420._Y\u0420._Y\u0420._Y\u0420._Y\u0420._Y\u0420._Y\u0420._Y._F._F.SF\nSF._F._F._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._F._F._F._F._F.TY._Y._Y.TY._F._F._F._F._F._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._F._F.SF\nSF._F._F._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._F._F._F._F._F._Y._Y._Y._Y._F._F._F._F._F._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._F._F.SF\nSF._F._F._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._F._F._F._F._F._Y._Y._Y._Y._F._F._F._F._F._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._F._F.SF\nSF.SF.SF.S.S.S.S.S.S.S.S.S.S.S.S.S.S.SF.SF.SF.SF.SF.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.SF.SF.SF"
+  objects:
+  - type: area
+    id: area
+    definitionId: area
+    definition: {fileID: 11400000, guid: 62760a6826b295d4bb7380b3dc6e5dc0, type: 2}
+    tileCoord: {x: 1, y: 15}
+    code: ny4gikm85h4RQj9u
+    uid: 
+    attributes:
+    - key: scr
+      value: commStory2
+    items: []
+    scripts: []
+    parameters: code="ny4gikm85h4RQj9u" scr="commStory2"
+  - type: door
+    id: encldoor
+    definitionId: encldoor
+    definition: {fileID: 11400000, guid: 14e149ba2cc283c41b2ce25cc0e48d1d, type: 2}
+    tileCoord: {x: 45, y: 15}
+    code: XVkFs7KL1jGsRp8W
+    uid: 
+    attributes:
+    - key: key
+      value: key_encl
+    - key: lock
+      value: 25
+    items: []
+    scripts: []
+    parameters: code="XVkFs7KL1jGsRp8W" key="key_encl" lock="25"
+  - type: obj
+    id: encl
+    definitionId: encl
+    definition: {fileID: 11400000, guid: bd63e94e2cdd9b64baa1344275d633d8, type: 2}
+    tileCoord: {x: 19, y: 15}
+    code: kARP7YVlHmRZebZM
+    uid: 
+    attributes:
+    - key: turn
+      value: -1
+    - key: ai
+      value: quiet
+    - key: stay
+      value: 1
+    - key: hero
+      value: 2
+    - key: name
+      value: colonel
+    - key: noagro
+      value: 1
+    - key: tr
+      value: 1
+    - key: scr
+      value: commStory3
+    - key: trig
+      value: colonel_show
+    items: []
+    scripts: []
+    parameters: code="kARP7YVlHmRZebZM" turn="-1" ai="quiet" stay="1" hero="2" name="colonel"
+      noagro="1" tr="1" scr="commStory3" trig="colonel_show"
+  - type: box
+    id: wmap
+    definitionId: wmap
+    definition: {fileID: 11400000, guid: 13df4c32fafad4344aef1db08c025612, type: 2}
+    tileCoord: {x: 22, y: 14}
+    code: AQX1yVcCXxVIYEhu
+    uid: 
+    attributes:
+    - key: inter
+      value: 0
+    items: []
+    scripts: []
+    parameters: code="AQX1yVcCXxVIYEhu" inter="0"
+  spawnPoints:
+  - tileCoord: {x: 2, y: 15}
+    type: 0
+    unitId: 
+    facingDirection: 1
+  environment:
+    musicTrack: music_encl_1
+    colorScheme: sky
+    backgroundColorScheme: 
+    backgroundWall: tSteklo
+    backgroundForm: 0
+    transparentBackground: 1
+    hasSky: 0
+    borderType: 1
+    noBlackReveal: 1
+    visibilityMultiplier: 1
+    lightsOn: 0
+    returnsToDarkness: 0
+    waterLevel: 100
+    waterType: 0
+    waterOpacity: 0
+    waterDamage: 0
+    waterDamageType: 7
+    radiation: 0
+    radiationDamage: 0
+    darkness: 0

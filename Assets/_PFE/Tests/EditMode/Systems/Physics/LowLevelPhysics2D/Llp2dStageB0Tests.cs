@@ -29,7 +29,14 @@ namespace PFE.Tests.EditMode.Systems.Physics.LowLevelPhysics2D
     public sealed class Llp2dRealRoomCostTests
     {
         private const string TileFormDatabasePath = "Assets/_PFE/Data/TileFormDatabase.asset";
-        private const string BaseRoomsResourcesPath = "Rooms/Base";
+
+        /// <summary>
+        /// The Base land's room folder. A collection is a land, not a file, so the folder is named after
+        /// the collection id — <c>rooms_begin</c> — and not after the old source-file scheme, which
+        /// called it <c>Base/</c>. <c>Resources.LoadAll</c> returns 0 for a folder that does not exist,
+        /// so the old value silently measured nothing and tripped the count assertion below.
+        /// </summary>
+        private const string BaseRoomsResourcesPath = "Rooms/rooms_begin";
 
         /// <summary>AS3 ships 557 rooms; Stage A extrapolated to this number.</summary>
         private const int ShippedRooms = 557;

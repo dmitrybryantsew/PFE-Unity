@@ -138,7 +138,7 @@ namespace PFE.Systems.Map.DataMigration
 
                 blocks.Add(new ExtractedXmlBlock
                 {
-                    CollectionId = match.Groups["name"].Value.Trim(),
+                    CollectionId = ResolveCollectionId(match.Groups["name"].Value, filePath),
                     Xml = xml
                 });
             }
@@ -196,6 +196,39 @@ namespace PFE.Systems.Map.DataMigration
                 Xml = content
             });
             return blocks;
+        }
+
+        /// <summary>
+        /// The generic AS3 field name used by every single-land file: <c>RoomsPlant.as</c> declares
+        /// <c>internal var rooms:XML</c>. It names no land, so nine files would share the id "rooms".
+        /// </summary>
+        private const string GenericCollectionName = "rooms";
+
+        /// <summary>
+        /// Resolves the collection id for one AS3 XML field.
+        ///
+        /// A collection is a <b>land</b>, not a file. <c>RoomsCamp.as</c> declares three
+        /// (<c>rooms_rbl</c>, <c>rooms_covert</c>, <c>rooms_src</c>) and <c>RoomsSerial2.as</c> declares
+        /// eight, because one AS3 class holds one XML field per land. The oracle keys all 29 of them by
+        /// that field name: <c>Rooms.as:2794-2822</c> registers <c>this.rooms["rooms_rbl"]</c>, and
+        /// <c>GameData.as</c> addresses the same land as <c>&lt;land id='rbl' file='rooms_rbl'&gt;</c>.
+        /// <c>AS3LandDefaultsDatabase</c> is keyed by that <c>file</c> value too, so getting this wrong
+        /// silently drops the land's inherited options as well as colliding the rooms.
+        ///
+        /// Single-land files use the generic name <c>rooms</c>, which carries no information, so they
+        /// fall back to the file-derived id (<c>RoomsPlant.as</c> -&gt; <c>rooms_plant</c>) — which is
+        /// what <c>GameData.as</c> calls them. Verified against the oracle: this rule reproduces the
+        /// 29-entry registry in <c>Rooms.as:2794-2822</c> exactly, with no missing and no extra id.
+        /// </summary>
+        private static string ResolveCollectionId(string declaredName, string filePath)
+        {
+            string name = declaredName?.Trim() ?? string.Empty;
+            if (name.Length == 0 || name.Equals(GenericCollectionName, StringComparison.OrdinalIgnoreCase))
+            {
+                return InferCollectionIdFromFilePath(filePath);
+            }
+
+            return name;
         }
 
         /// <summary>
@@ -417,7 +450,7 @@ namespace PFE.Systems.Map.DataMigration
             return int.TryParse(val, out int result) ? result : def;
         }
 
-        private string InferCollectionIdFromFilePath(string filePath)
+        private static string InferCollectionIdFromFilePath(string filePath)
         {
             string baseName = Path.GetFileNameWithoutExtension(filePath)?.Trim() ?? string.Empty;
             if (string.IsNullOrEmpty(baseName))

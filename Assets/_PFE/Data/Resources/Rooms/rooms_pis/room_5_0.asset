@@ -1,0 +1,226 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
+  m_Name: room_5_0
+  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  id: room_5_0
+  sourceCollectionId: rooms_pis
+  type: pass
+  fixedPosition: {x: 5, y: 0, z: 0}
+  difficultyLevel: 0
+  maxInstances: 2
+  allowRandom: 1
+  specificMapOnly: 0
+  backgroundRoomId: 
+  backgroundDecorations:
+  - id: heap3
+    tileCoord: {x: 29, y: 21}
+  - id: musor1
+    tileCoord: {x: 0, y: 21}
+  - id: opora
+    tileCoord: {x: 14, y: 0}
+  - id: musor2
+    tileCoord: {x: 25, y: 21}
+  - id: opora
+    tileCoord: {x: 26, y: 0}
+  - id: musor2
+    tileCoord: {x: 8, y: 21}
+  - id: musor2
+    tileCoord: {x: 17, y: 21}
+  - id: opora
+    tileCoord: {x: 2, y: 0}
+  - id: trava
+    tileCoord: {x: 39, y: 16}
+  - id: stree
+    tileCoord: {x: 32, y: 18}
+  - id: stenka1
+    tileCoord: {x: 0, y: 9}
+  - id: stenka2
+    tileCoord: {x: 22, y: 15}
+  - id: stenka2
+    tileCoord: {x: 15, y: 1}
+  - id: stenka3
+    tileCoord: {x: 4, y: 20}
+  - id: stenka3
+    tileCoord: {x: 4, y: 6}
+  doorQuality: 020000000200000002000000020000000200000000000000000000000000000000000000000000000000000000000000020000000200000002000000020000000200000002000000000000000000000000000000000000000200000002000000
+  tileDataString: 'C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._._._._._._._._._._._._._._._._._._._
+
+    C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._._._._._._._._._._._._._._._._._._._
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
+
+    C.C.C.C.C.D.D.D.D.D.D.D.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._._._._._._._._._._._._._._._._._._._
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
+
+    C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.D.D.D.D.D.C.C.C.C.C._._._._._._._._._._._._._._._._._._._
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.H;.H.H.H.H.H.H.H.H.H
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.H.H.H.H.H.H.H.H.H.H.H
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.H,.H.H.H.H.H.H.H.H.H.H.H
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.H.H.H.H.H.H.H.H.H.H.H.H
+
+    _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.H,.H.H.H.H.H.H.H.H.H.H.H.H
+
+    C.C.C.C.C.C.D.D.D.D.D.D.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.D.D.D.D.D.H.H.H.H.H.H.H.H.H.H.H.H.H.H
+
+    H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H
+
+    H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H'
+  objects:
+  - type: obj
+    id: hellhound
+    definitionId: hellhound
+    definition: {fileID: 11400000, guid: 6b4ce41dc97996545b96636e01f08163, type: 2}
+    tileCoord: {x: 20, y: 14}
+    code: aeEU7Fsjl8M8SaAs
+    uid: 
+    attributes:
+    - key: turn
+      value: -1
+    items: []
+    scripts: []
+    parameters: code="aeEU7Fsjl8M8SaAs" turn="-1"
+  - type: obj
+    id: dron
+    definitionId: dron
+    definition: {fileID: 11400000, guid: 3bae6e09bbe3c214b9e0967e21752f24, type: 2}
+    tileCoord: {x: 19, y: 17}
+    code: ZQp3UsEvh25sgdgw
+    uid: 
+    attributes:
+    - key: turn
+      value: -1
+    - key: tr
+      value: 3
+    items: []
+    scripts: []
+    parameters: code="ZQp3UsEvh25sgdgw" turn="-1" tr="3"
+  - type: obj
+    id: dron
+    definitionId: dron
+    definition: {fileID: 11400000, guid: 3bae6e09bbe3c214b9e0967e21752f24, type: 2}
+    tileCoord: {x: 23, y: 3}
+    code: lD40dVk3Ibat2YjH
+    uid: 
+    attributes:
+    - key: turn
+      value: -1
+    - key: tr
+      value: 3
+    items: []
+    scripts: []
+    parameters: code="lD40dVk3Ibat2YjH" turn="-1" tr="3"
+  - type: obj
+    id: dron
+    definitionId: dron
+    definition: {fileID: 11400000, guid: 3bae6e09bbe3c214b9e0967e21752f24, type: 2}
+    tileCoord: {x: 41, y: 11}
+    code: X96Wvu1RckZgMYBY
+    uid: 
+    attributes:
+    - key: turn
+      value: -1
+    - key: tr
+      value: 3
+    items: []
+    scripts: []
+    parameters: code="X96Wvu1RckZgMYBY" turn="-1" tr="3"
+  - type: box
+    id: bigbox
+    definitionId: bigbox
+    definition: {fileID: 11400000, guid: 3c4761fe5ddb00545a1db7150c27fad8, type: 2}
+    tileCoord: {x: 30, y: 21}
+    code: F6VGYUNCLJr8jraD
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="F6VGYUNCLJr8jraD"
+  - type: obj
+    id: hellhound
+    definitionId: hellhound
+    definition: {fileID: 11400000, guid: 6b4ce41dc97996545b96636e01f08163, type: 2}
+    tileCoord: {x: 41, y: 16}
+    code: fOhw0LhufRbooofw
+    uid: 
+    attributes:
+    - key: turn
+      value: -1
+    items: []
+    scripts: []
+    parameters: code="fOhw0LhufRbooofw" turn="-1"
+  - type: obj
+    id: hellhound
+    definitionId: hellhound
+    definition: {fileID: 11400000, guid: 6b4ce41dc97996545b96636e01f08163, type: 2}
+    tileCoord: {x: 10, y: 7}
+    code: aJXXF7joQoF1qthr
+    uid: 
+    attributes:
+    - key: turn
+      value: -1
+    items: []
+    scripts: []
+    parameters: code="aJXXF7joQoF1qthr" turn="-1"
+  spawnPoints:
+  - tileCoord: {x: 2, y: 15}
+    type: 0
+    unitId: 
+    facingDirection: 1
+  environment:
+    musicTrack: music_encl_2
+    colorScheme: fire
+    backgroundColorScheme: 
+    backgroundWall: sky
+    backgroundForm: 0
+    transparentBackground: 0
+    hasSky: 0
+    borderType: 1
+    noBlackReveal: 0
+    visibilityMultiplier: 3
+    lightsOn: 0
+    returnsToDarkness: 0
+    waterLevel: 100
+    waterType: 0
+    waterOpacity: 0
+    waterDamage: 0
+    waterDamageType: 7
+    radiation: 0
+    radiationDamage: 0
+    darkness: 0

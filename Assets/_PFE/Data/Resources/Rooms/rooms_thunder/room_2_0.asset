@@ -1,0 +1,285 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
+  m_Name: room_2_0
+  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  id: room_2_0
+  sourceCollectionId: rooms_thunder
+  type: pass
+  fixedPosition: {x: 2, y: 0, z: 0}
+  difficultyLevel: 0
+  maxInstances: 2
+  allowRandom: 1
+  specificMapOnly: 0
+  backgroundRoomId: 
+  backgroundDecorations:
+  - id: bigbeam
+    tileCoord: {x: 12, y: 17}
+  - id: enclwindow
+    tileCoord: {x: 41, y: 4}
+  - id: bigbeam
+    tileCoord: {x: 42, y: 17}
+  - id: enclwindow
+    tileCoord: {x: 18, y: 13}
+  - id: enclwindow
+    tileCoord: {x: 22, y: 13}
+  - id: enclwindow
+    tileCoord: {x: 9, y: 13}
+  - id: enclwindow
+    tileCoord: {x: 27, y: 13}
+  - id: enclwindow
+    tileCoord: {x: 31, y: 13}
+  - id: enclwindow
+    tileCoord: {x: 36, y: 13}
+  - id: enclwindow
+    tileCoord: {x: 40, y: 13}
+  - id: enclwindow
+    tileCoord: {x: 13, y: 13}
+  - id: enclwindow
+    tileCoord: {x: 13, y: 10}
+  - id: enclwindow
+    tileCoord: {x: 18, y: 10}
+  - id: enclwindow
+    tileCoord: {x: 22, y: 10}
+  - id: enclwindow
+    tileCoord: {x: 27, y: 10}
+  - id: enclwindow
+    tileCoord: {x: 31, y: 10}
+  - id: enclwindow
+    tileCoord: {x: 36, y: 10}
+  - id: enclwindow
+    tileCoord: {x: 9, y: 10}
+  - id: enil
+    tileCoord: {x: 32, y: 2}
+  - id: enil
+    tileCoord: {x: 29, y: 2}
+  - id: enil
+    tileCoord: {x: 26, y: 2}
+  - id: enil
+    tileCoord: {x: 23, y: 2}
+  - id: enil
+    tileCoord: {x: 20, y: 2}
+  - id: enil
+    tileCoord: {x: 17, y: 2}
+  - id: enil
+    tileCoord: {x: 14, y: 2}
+  - id: enil
+    tileCoord: {x: 11, y: 2}
+  - id: enil
+    tileCoord: {x: 8, y: 2}
+  - id: enil
+    tileCoord: {x: 5, y: 2}
+  - id: enil
+    tileCoord: {x: 2, y: 2}
+  - id: enclwindow
+    tileCoord: {x: 41, y: 2}
+  - id: enclwindow
+    tileCoord: {x: 37, y: 2}
+  - id: enclwindow
+    tileCoord: {x: 37, y: 4}
+  - id: bigbeam
+    tileCoord: {x: 22, y: 17}
+  - id: bigbeam
+    tileCoord: {x: 32, y: 17}
+  - id: enclwindow
+    tileCoord: {x: 40, y: 10}
+  - id: bigbeam
+    tileCoord: {x: 2, y: 17}
+  - id: generator
+    tileCoord: {x: 30, y: 20}
+  - id: generator
+    tileCoord: {x: 20, y: 20}
+  - id: wires1
+    tileCoord: {x: 25, y: 22}
+  - id: wires1
+    tileCoord: {x: 25, y: 20}
+  - id: wires1
+    tileCoord: {x: 25, y: 18}
+  - id: wires1
+    tileCoord: {x: 28, y: 22}
+  - id: wires1
+    tileCoord: {x: 28, y: 20}
+  - id: wires1
+    tileCoord: {x: 28, y: 18}
+  - id: bvent
+    tileCoord: {x: 40, y: 20}
+  - id: dresser
+    tileCoord: {x: 9, y: 21}
+  - id: dresser
+    tileCoord: {x: 11, y: 21}
+  - id: dresser
+    tileCoord: {x: 13, y: 21}
+  - id: dresser
+    tileCoord: {x: 3, y: 21}
+  - id: light7
+    tileCoord: {x: 31, y: 19}
+  - id: light7
+    tileCoord: {x: 32, y: 19}
+  - id: light7
+    tileCoord: {x: 21, y: 19}
+  - id: light7
+    tileCoord: {x: 22, y: 19}
+  - id: light7
+    tileCoord: {x: 45, y: 2}
+  - id: light7
+    tileCoord: {x: 45, y: 3}
+  - id: light7
+    tileCoord: {x: 45, y: 4}
+  - id: light7
+    tileCoord: {x: 45, y: 5}
+  - id: pult
+    tileCoord: {x: 37, y: 6}
+  - id: pult
+    tileCoord: {x: 39, y: 6}
+  - id: pult
+    tileCoord: {x: 41, y: 6}
+  - id: pult
+    tileCoord: {x: 43, y: 6}
+  - id: pult
+    tileCoord: {x: 45, y: 6}
+  - id: pult
+    tileCoord: {x: 45, y: 7}
+  - id: pult
+    tileCoord: {x: 43, y: 7}
+  - id: pult
+    tileCoord: {x: 41, y: 7}
+  - id: pult
+    tileCoord: {x: 39, y: 7}
+  - id: pult
+    tileCoord: {x: 37, y: 7}
+  - id: pult2
+    tileCoord: {x: 45, y: 6}
+  - id: enclbanner
+    tileCoord: {x: 28, y: 9}
+  - id: enclbanner
+    tileCoord: {x: 32, y: 9}
+  - id: enclbanner
+    tileCoord: {x: 37, y: 9}
+  - id: enclbanner
+    tileCoord: {x: 41, y: 9}
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000020000000200000002000000020000000200000002000000
+  tileDataString: "S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S\nS._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U.T._F._F._F._F._F._F._F._F._F._F._F.S\nS._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U.T._F._F._F._F._F._F._F._F._F._F._F.S\nS._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U.T._F._F._F._F._F._F._F._F._F._F._F.S\nS._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U.T._F._F._F._F._F._F._F._F._F._F._F.S\nS._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._G._F._F._F._F._F._F._F._F._F._F._F.S\nS._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._G._F._F._F._F._F._F._F._F._F._F._F.S\nS._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._G._F._F._F._F._F._F._F._F._F._F._F.S\nS._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415.S.S.S.S.S.S.S.S.S.T.T.T.T.T.T.T.T.T.T.T.T.S\nS._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.S\nS._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.S\nS._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.S\nS._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.S\n_G._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A\n_G._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A\n_G._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A\nS.S._Y\u0415._Y\u0415._Y\u0415._Y\u0415._Y\u0415._Y\u0415._Y\u0415._Y\u0415._Y\u0415._Y\u0415._Y\u0415._Y\u0415._Y\u0415._Y\u0415._Y\u0415.SY.SY.SY.SY.SY.SY.SY.SY.SY.TY.TY.TY.TY.TY.TY.TY.TY.TY.TY.TY.TY.TY.TY._Y\u0415._Y\u0415._Y\u0415._Y\u0415._Y\u0415._Y\u0415._Y\u0415.SY\nS.S._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y.SY\nS.S._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y.SY\nS.S._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y.SY\nS.S._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._O._O._O._O._O._O._Y._Y._Y._Y._O._O._O._O._O._O._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y.SY\nS.S._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._O._O._O._O._O._O._Y._Y._Y._Y._O._O._O._O._O._O._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y.SY\nS.S._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._O._O._O._O._O._O._Y._Y._Y._Y._O._O._O._O._O._O._Y._Y._Y._Y._Y._F._F._F._F._Y._Y._Y.SY\nS.S._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._O._O._O._O._O._O._Y._Y._Y._Y._O._O._O._O._O._O._Y._Y._Y._Y._Y._F._F._F._F._Y._Y._Y.SY\nS.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY._F._F._F._F.SY.SY.SY.SY"
+  objects:
+  - type: obj
+    id: encl
+    definitionId: encl
+    definition: {fileID: 11400000, guid: bd63e94e2cdd9b64baa1344275d633d8, type: 2}
+    tileCoord: {x: 35, y: 7}
+    code: vU85JBbOxCPWC9RV
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="vU85JBbOxCPWC9RV"
+  - type: obj
+    id: encl
+    definitionId: encl
+    definition: {fileID: 11400000, guid: bd63e94e2cdd9b64baa1344275d633d8, type: 2}
+    tileCoord: {x: 21, y: 15}
+    code: vyyJcwtzEaXv1nZd
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="vyyJcwtzEaXv1nZd"
+  - type: obj
+    id: encl
+    definitionId: encl
+    definition: {fileID: 11400000, guid: bd63e94e2cdd9b64baa1344275d633d8, type: 2}
+    tileCoord: {x: 35, y: 15}
+    code: Pno1dCg1QpYJieRg
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="Pno1dCg1QpYJieRg"
+  - type: obj
+    id: encl
+    definitionId: encl
+    definition: {fileID: 11400000, guid: bd63e94e2cdd9b64baa1344275d633d8, type: 2}
+    tileCoord: {x: 18, y: 23}
+    code: L2QncF8J1OKab5iZ
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="L2QncF8J1OKab5iZ"
+  - type: obj
+    id: encl
+    definitionId: encl
+    definition: {fileID: 11400000, guid: bd63e94e2cdd9b64baa1344275d633d8, type: 2}
+    tileCoord: {x: 29, y: 23}
+    code: kvgJu1JUCrg66pDu
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="kvgJu1JUCrg66pDu"
+  - type: obj
+    id: encl
+    definitionId: encl
+    definition: {fileID: 11400000, guid: bd63e94e2cdd9b64baa1344275d633d8, type: 2}
+    tileCoord: {x: 40, y: 15}
+    code: qKW0grtF5Cd6e19c
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="qKW0grtF5Cd6e19c"
+  - type: obj
+    id: encl
+    definitionId: encl
+    definition: {fileID: 11400000, guid: bd63e94e2cdd9b64baa1344275d633d8, type: 2}
+    tileCoord: {x: 10, y: 7}
+    code: aRtssZS0Y3c5Htaa
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="aRtssZS0Y3c5Htaa"
+  - type: obj
+    id: encl
+    definitionId: encl
+    definition: {fileID: 11400000, guid: bd63e94e2cdd9b64baa1344275d633d8, type: 2}
+    tileCoord: {x: 28, y: 7}
+    code: N0xRiffmhSxLWdzO
+    uid: 
+    attributes: []
+    items: []
+    scripts: []
+    parameters: code="N0xRiffmhSxLWdzO"
+  spawnPoints:
+  - tileCoord: {x: 2, y: 15}
+    type: 0
+    unitId: 
+    facingDirection: 1
+  environment:
+    musicTrack: music_encl_2
+    colorScheme: sky
+    backgroundColorScheme: 
+    backgroundWall: tEncl3
+    backgroundForm: 0
+    transparentBackground: 0
+    hasSky: 0
+    borderType: 1
+    noBlackReveal: 0
+    visibilityMultiplier: 3
+    lightsOn: 0
+    returnsToDarkness: 0
+    waterLevel: 100
+    waterType: 0
+    waterOpacity: 0
+    waterDamage: 0
+    waterDamageType: 7
+    radiation: 0
+    radiationDamage: 0
+    darkness: 0
