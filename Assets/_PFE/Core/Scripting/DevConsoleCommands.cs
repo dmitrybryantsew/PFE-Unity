@@ -6,6 +6,8 @@ using PFE.Data;
 using PFE.Data.Definitions;
 using PFE.Entities.Player;
 using PFE.Entities.Units;
+using PFE.Systems.Combat;
+using PFE.Systems.Inventory;
 using PFE.Systems.Map;
 using PFE.Systems.Map.Streaming;
 using PFE.Systems.Weapons;
@@ -247,7 +249,138 @@ namespace PFE.Core.Scripting
             return $"[player] Killed {killed} unit(s).";
         }
 
-        /// <summary>Report the player's position, health and equipped weapon.</summary>
+        // ── Armour ────────────────────────────────────────────────────────────
+        //
+        // These exist to make armour reachable *before* the inventory is. Nothing in production
+        // constructs a GameInventory, assigns its ArmorDefinitionResolver, or calls EquipArmour, so
+        // without a console entry point the entire armour feature — the 35 definitions, the combat
+        // projection, the HUD bar and the character sprite — is exercised only by tests.
+        //
+        // They deliberately drive the same path the interaction layer will: GameDatabase lookup ->
+        // GameArmorInstance -> UnitStats.EquipArmour, which is what publishes ArmourId and therefore
+        // what moves the sprite. So a console equip is a real end-to-end test of the chain, not a
+        // shortcut around it.
+
+        /// <summary>Equip armour by content id — <c>player:EquipArmour("metal")</c>.</summary>
+        public string EquipArmour(string id)
+        {
+            var player = Player();
+            if (player?.Stats == null) return "[player] No player in scene.";
+
+            if (string.IsNullOrWhiteSpace(id))
+                return "[player] Usage: player:EquipArmour(\"metal\") — see player:ArmourIds().";
+
+            ItemDefinition definition = _database != null ? _database.GetItem(id) : null;
+            if (definition == null)
+            {
+                return $"[player] No item definition '{id}'. Armour is created by " +
+                       "'PFE/Data/Import Armour from AllData.as'; until that menu item has been run, " +
+                       "Resources/Armor is empty and every armour id is unknown. Try player:ArmourIds().";
+            }
+
+            if (!definition.IsArmour)
+            {
+                return $"[player] '{id}' is not armour (no per-level table), so equipping it would give " +
+                       "a plate with no ratings. Use player:GiveWeapon for weapons.";
+            }
+
+            var item = new GameArmorInstance(definition);
+            player.Stats.EquipArmour(item);
+
+            return $"[player] Equipped '{id}' — integrity {item.CurrentHealth:0.#}/{item.MaxHealth:0.#}, " +
+                   $"tip={definition.armorTip}, level={item.Level}, mane hidden={item.HideMane}.";
+        }
+
+        /// <summary>Take the equipped armour off — <c>player:UnequipArmour()</c>.</summary>
+        public string UnequipArmour()
+        {
+            var player = Player();
+            if (player?.Stats == null) return "[player] No player in scene.";
+
+            string was = player.Stats.ArmourId.CurrentValue;
+            player.Stats.UnequipArmour();
+
+            return string.IsNullOrEmpty(was)
+                ? "[player] Nothing was equipped."
+                : $"[player] Unequipped '{was}'.";
+        }
+
+        /// <summary>List the armour ids the registry actually knows — <c>player:ArmourIds()</c>.</summary>
+        public string ArmourIds()
+        {
+            if (_database == null) return "[player] No GameDatabase available.";
+
+            var sb = new StringBuilder();
+            int count = 0;
+
+            foreach (string id in _database.GetAllItemIDs())
+            {
+                ItemDefinition definition = _database.GetItem(id);
+                if (definition == null || !definition.IsArmour) continue;
+
+                if (count > 0) sb.Append(", ");
+                sb.Append(id);
+                count++;
+            }
+
+            if (count == 0)
+            {
+                return "[player] The registry holds no armour. Run 'PFE/Data/Import Armour from AllData.as' " +
+                       "and re-enter play mode — the registry is populated once, at boot.";
+            }
+
+            return $"[player] {count} armour id(s): {sb}";
+        }
+
+        /// <summary>Report the equipped armour — <c>player:Armour()</c>.</summary>
+        public string Armour()
+        {
+            var player = Player();
+            if (player?.Stats == null) return "[player] No player in scene.";
+
+            if (!player.Stats.HasArmour.CurrentValue)
+                return "[player] No armour equipped.";
+
+            IArmourItem item = player.Stats.ArmourItem;
+            return $"[player] Armour '{player.Stats.ArmourId.CurrentValue}' — " +
+                   $"condition {player.Stats.ArmourIntegrity.CurrentValue * 100f:0.#}%, " +
+                   $"effective physical {player.Stats.armour.EffectivePhysicalRating:0.##}, " +
+                   $"effective energy {player.Stats.armour.EffectiveEnergyRating:0.##}" +
+                   (item is GameArmorInstance instance
+                       ? $", item hp {instance.CurrentHealth:0.#}/{instance.MaxHealth:0.#} (level {instance.Level})"
+                       : "");
+        }
+
+        /// <summary>
+        /// Wear the equipped armour by <paramref name="amount"/> — <c>player:WearArmour(150)</c>.
+        ///
+        /// <para>Exists because the break behaviour is the one part of the chain that is invisible
+        /// until it happens: a hit that empties the plate unequips it, which drops <c>ArmourId</c> and
+        /// takes the sprite off. There is no other way to see that without a fight.</para>
+        /// </summary>
+        public string WearArmour(float amount)
+        {
+            var player = Player();
+            if (player?.Stats == null) return "[player] No player in scene.";
+
+            if (!player.Stats.HasArmour.CurrentValue) return "[player] No armour equipped.";
+            if (amount <= 0f) return "[player] Usage: player:WearArmour(150) — amount must be positive.";
+
+            bool broke = player.Stats.ApplyDamage(new DamageOutcome(
+                hpDamage: 0f,
+                armourIntegrityDamage: amount));
+
+            if (broke)
+            {
+                return $"[player] Wore {amount:0.#} — the armour BROKE and was unequipped " +
+                       "(AS3 Armor.damage() -> changeArmor(\"off\")). Its sprite should now be gone.";
+            }
+
+            return $"[player] Wore {amount:0.#} — condition now " +
+                   $"{player.Stats.ArmourIntegrity.CurrentValue * 100f:0.#}%.";
+        }
+
+        /// <summary>Report the player's position, health, equipped weapon and armour.</summary>
         public string Status()
         {
             var player = Player();
@@ -261,6 +394,11 @@ namespace PFE.Core.Scripting
             sb.Append(state != null
                 ? $"weapon='{state.Def.weaponId}' ammo={state.CurrentAmmo}/{state.Def.magazineSize}"
                 : "weapon=none");
+
+            string armourId = player.Stats.ArmourId.CurrentValue;
+            sb.Append(string.IsNullOrEmpty(armourId)
+                ? " armour=none"
+                : $" armour='{armourId}' condition={player.Stats.ArmourIntegrity.CurrentValue * 100f:0.#}%");
 
             return sb.ToString();
         }

@@ -152,6 +152,34 @@ namespace PFE.Tests.Scripting
         }
 
         [Test]
+        public void PlayerArmourCommands_WithoutWiring_DegradeToMessagesNotExceptions()
+        {
+            // The controller's own doc comment promises this: a console opened while the container is
+            // only half-built answers "that command is unavailable" rather than throwing from the tool
+            // you opened to debug the problem. Armour is the case that matters most right now, because
+            // nothing in production wires any of it yet — so this is the state a tester will actually hit.
+            //
+            // A bare command object: every dependency is null, and there is no PlayerController in the
+            // scene, so the provider's FindFirstObjectByType fallback returns null too.
+            _console.SetCommandObjects(new DevConsolePlayerCommands(), null, null);
+
+            Assert.That(_console.ExecuteInput("return player:ArmourIds()"),
+                Does.Contain("No GameDatabase"), "The lookup must report the missing database, not throw.");
+
+            Assert.That(_console.ExecuteInput("return player:EquipArmour('metal')"),
+                Does.Contain("No player in scene"));
+
+            Assert.That(_console.ExecuteInput("return player:UnequipArmour()"),
+                Does.Contain("No player in scene"));
+
+            Assert.That(_console.ExecuteInput("return player:WearArmour(50)"),
+                Does.Contain("No player in scene"));
+
+            Assert.That(_console.ExecuteInput("return player:Armour()"),
+                Does.Contain("No player in scene"));
+        }
+
+        [Test]
         public void ExecuteInput_LuaCode_EvaluatesCorrectly()
         {
             string result = _console.ExecuteInput("return 33 * 3");
