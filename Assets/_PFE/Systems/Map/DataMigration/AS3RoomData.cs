@@ -27,6 +27,18 @@ namespace PFE.Systems.Map.DataMigration
         public int y;
 
         /// <summary>
+        /// Vertical level in the land grid, from the AS3 <c>&lt;room z="…"&gt;</c> attribute.
+        /// 0 is the ground level; 1 is the upper level of the same (x, y) column.
+        ///
+        /// This is a real grid axis, not a backdrop. AS3 places authored rooms with
+        /// <c>this.locs[rx][ry][rz] = newLoc(room, rx, ry, rz)</c> (Land.as:726-727), and
+        /// <c>rooms_rbl</c> is an authored land (<c>autolevel="1"</c>). The room's <i>backdrop</i>
+        /// is a different field — <see cref="AS3RoomData.options"/> key <c>back</c>, i.e. AS3's
+        /// <c>Room.back</c>. Collapsing z to 0 stacks <c>room_0_0_1</c> onto <c>room_0_0</c>.
+        /// </summary>
+        public int z;
+
+        /// <summary>
         /// Tile layers - each string is a row of 48 characters
         /// 27 rows total (ROOM_HEIGHT)
         /// Each character represents one tile

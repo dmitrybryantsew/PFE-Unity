@@ -229,5 +229,51 @@ namespace PFE.Tests.EditMode.Systems.Map.DataMigration
             Assert.AreEqual(2, back1.x);
             Assert.AreEqual(2, back1.y);
         }
+
+        [Test]
+        public void ParseRoomWithZ_ReadsTheLevelIntoZ()
+        {
+            // RoomsCamp.as:239 — `<room name="room_0_0_1" x="0" y="0" z="1">`, the upper level of
+            // the same (0,0) column as room_0_0. Land.as:726-727 is
+            // `this.locs[rx][ry][rz] = newLoc(room, rx, ry, rz)`.
+            string xml = @"<data><land serial='1'/>
+<room name='room_0_0_1' x='0' y='0' z='1'>
+    <a>C.C.C</a>
+    <a>C._.C</a>
+    <a>C.C.C</a>
+</room></data>";
+
+            // Act
+            AS3RoomCollection collection = parser.ParseXmlString(xml);
+
+            // Assert
+            AS3RoomData room = collection.rooms[0];
+            Assert.AreEqual(0, room.x);
+            Assert.AreEqual(0, room.y);
+            Assert.AreEqual(1, room.z,
+                "z is a separate grid axis. Dropping it stacks room_0_0_1 onto room_0_0, and " +
+                "whichever wins the load-order overwrite is the room the player spawns into.");
+        }
+
+        [Test]
+        public void ParseRoomWithoutZ_DefaultsToTheGroundLevel()
+        {
+            // Complement to the test above. If z were read from the wrong attribute, or defaulted
+            // to anything but 0, an absent z would not read as ground level — and the z test above
+            // would still pass, because it supplies z explicitly.
+            string xml = @"<data><land serial='1'/>
+<room name='room_1_0' x='1' y='0'>
+    <a>C.C.C</a>
+    <a>C._.C</a>
+    <a>C.C.C</a>
+</room></data>";
+
+            // Act
+            AS3RoomCollection collection = parser.ParseXmlString(xml);
+
+            // Assert
+            Assert.AreEqual(0, collection.rooms[0].z,
+                "A room with no z attribute sits on the ground level.");
+        }
     }
 }

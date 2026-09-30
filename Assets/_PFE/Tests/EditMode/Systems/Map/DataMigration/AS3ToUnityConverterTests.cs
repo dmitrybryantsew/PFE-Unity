@@ -70,6 +70,31 @@ namespace PFE.Tests.EditMode.Systems.Map.DataMigration
         }
 
         [Test]
+        public void ConvertRoom_CarriesTheLevelIntoFixedPositionZ()
+        {
+            AS3RoomData room = new AS3RoomData
+            {
+                name = "room_0_0_1",
+                x = 0,
+                y = 0,
+                z = 1
+            };
+
+            for (int i = 0; i < WorldConstants.ROOM_HEIGHT; i++)
+            {
+                room.tileLayers.Add(string.Join(".", System.Linq.Enumerable.Repeat("_", WorldConstants.ROOM_WIDTH)));
+            }
+
+            AS3ToUnityConverter converter = new AS3ToUnityConverter(null);
+
+            RoomTemplate template = converter.ConvertRoom(room);
+
+            Assert.AreEqual(new Vector3Int(0, 0, 1), template.fixedPosition,
+                "The converter used to hardcode z to 0, which put room_0_0_1 at the same land " +
+                "coordinate as room_0_0. Land.as:726-727 places authored rooms at locs[rx][ry][rz].");
+        }
+
+        [Test]
         public void ConvertRoom_ClassifiesKnownDoorIdsAsDoors()
         {
             AS3RoomData room = new AS3RoomData

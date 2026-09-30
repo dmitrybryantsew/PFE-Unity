@@ -59,6 +59,20 @@ namespace PFE.Systems.Map
                 return;
             }
 
+            // A bare `rooms[position] = room` resolves a coordinate clash by insertion order, and
+            // that order comes from Resources.LoadAll / list order — i.e. arbitrarily. That is how
+            // room_0_0_1 and room_0_0 both came to occupy (0,0,0) and the player spawned into the
+            // upper level. Keep the incumbent so the outcome is deterministic, and name the room
+            // that lost so a duplicate land coordinate is visible rather than silent.
+            if (rooms.TryGetValue(position, out RoomInstance incumbent) && incumbent != room)
+            {
+                Debug.LogWarning(
+                    $"[LandMap] Two rooms claim {position}: keeping '{incumbent.id}', dropping " +
+                    $"'{room.id}'. A duplicate land coordinate is a data bug — check the room's " +
+                    $"x/y/z in the source XML (z is a separate axis, not a backdrop).");
+                return;
+            }
+
             room.landPosition = position;
             rooms[position] = room;
         }

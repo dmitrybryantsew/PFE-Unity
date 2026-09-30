@@ -55,7 +55,11 @@ namespace PFE.Systems.Map.DataMigration
             template.sourceCollectionId = as3Room.sourceCollectionId;
             template.name = as3Room.name;
             template.type = GetRoomType(as3Room);
-            template.fixedPosition = new Vector3Int(as3Room.x, as3Room.y, 0);
+            // z is the room's level in the land grid, not its backdrop. AS3 places authored rooms
+            // with `this.locs[rx][ry][rz] = newLoc(room, rx, ry, rz)` (Land.as:726-727). Hardcoding
+            // z to 0 put room_0_0_1 (z=1) at the same coordinate as room_0_0 (z=0), and whichever
+            // won the arbitrary load-order overwrite was the room the player spawned into.
+            template.fixedPosition = new Vector3Int(as3Room.x, as3Room.y, as3Room.z);
             template.backgroundRoomId = ResolveBackgroundRoomId(as3Room);
             template.backgroundDecorations = ParseBackgroundDecorations(as3Room);
 

@@ -4,6 +4,7 @@ using UnityEngine.TestTools;
 using PFE.Systems.Map;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace PFE.Tests.Editor.Map
 {
@@ -55,6 +56,43 @@ namespace PFE.Tests.Editor.Map
 
             Assert.AreEqual(1, land.GetRoomCount());
             Assert.IsTrue(land.HasRoom(new Vector3Int(1, 1, 0)));
+        }
+
+        [Test]
+        public void AddRoom_DuplicatePosition_KeepsTheIncumbentAndNamesTheLoser()
+        {
+            // The shape of the camp bug: room_0_0 and room_0_0_1 both imported to (0,0,0) while z
+            // was collapsed to 0. The overwrite was silent, so which room the player spawned into
+            // depended on Resources.LoadAll order.
+            LandMap land = CreateTestLand();
+            RoomInstance incumbent = CreateTestRoom("room_0_0", new Vector3Int(0, 0, 0));
+            RoomInstance duplicate = CreateTestRoom("room_0_0_1", new Vector3Int(0, 0, 0));
+
+            land.AddRoom(incumbent, new Vector3Int(0, 0, 0));
+
+            LogAssert.Expect(LogType.Warning,
+                new Regex(@"Two rooms claim .*keeping 'room_0_0', dropping 'room_0_0_1'"));
+            land.AddRoom(duplicate, new Vector3Int(0, 0, 0));
+
+            Assert.AreEqual(1, land.GetRoomCount(), "A duplicate must not add a second entry.");
+            Assert.AreEqual("room_0_0", land.GetRoom(new Vector3Int(0, 0, 0)).id,
+                "The incumbent is kept, so the outcome no longer depends on insertion order.");
+        }
+
+        [Test]
+        public void AddRoom_SameColumnDifferentLevel_IsNotACollision()
+        {
+            // Complement to the guard above: without this, a guard that rejected every AddRoom
+            // would still pass the duplicate test. (0,0,0) and (0,0,1) are different rooms — this
+            // is the positive control for the whole z axis at the LandMap level.
+            LandMap land = CreateTestLand();
+
+            land.AddRoom(CreateTestRoom("room_0_0", new Vector3Int(0, 0, 0)), new Vector3Int(0, 0, 0));
+            land.AddRoom(CreateTestRoom("room_0_0_1", new Vector3Int(0, 0, 1)), new Vector3Int(0, 0, 1));
+
+            Assert.AreEqual(2, land.GetRoomCount(), "Two levels of one column are two rooms.");
+            Assert.AreEqual("room_0_0", land.GetRoom(new Vector3Int(0, 0, 0)).id);
+            Assert.AreEqual("room_0_0_1", land.GetRoom(new Vector3Int(0, 0, 1)).id);
         }
 
         [Test]

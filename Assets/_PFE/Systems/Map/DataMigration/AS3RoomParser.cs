@@ -252,6 +252,8 @@ namespace PFE.Systems.Map.DataMigration
             room.name = GetAttr(roomNode, "name", "");
             room.x = GetIntAttr(roomNode, "x", 0);
             room.y = GetIntAttr(roomNode, "y", 0);
+            // AS3 Room.as:42-44 reads @z into rz; Land.as:726-727 indexes locs[rx][ry][rz].
+            room.z = GetIntAttr(roomNode, "z", 0);
 
             // Parse tile rows — store raw dot-separated strings
             XmlNodeList aNodes = roomNode.SelectNodes("./a");
