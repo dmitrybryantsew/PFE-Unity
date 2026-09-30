@@ -174,5 +174,65 @@ namespace PFE.Tests.EditMode.Systems.Map
 
             Assert.AreEqual(MapObjectPhysicalCapability.DynamicThrowable, capability);
         }
+
+        /// <summary>
+        /// No shipped definition may carry <c>legacyTip: unit</c> while its <see cref="MapObjectFamily"/>
+        /// is something else.
+        ///
+        /// <para><b>Why this is a data test and not a code test.</b> The tests above prove the
+        /// classifier is right <i>in memory</i>, and they all pass while the game is still broken,
+        /// because the defect is that the assets were never regenerated after the classifier gained its
+        /// <c>tip='unit'</c> branch. That is the recurring shape in this project: correct code, stale
+        /// data, and nothing goes red. Measured on 2026-09-30, all <b>68</b> unit definitions were in
+        /// exactly that state — <c>family: 1</c> (GenericObject) with the generic <c>obj</c> bucket — so
+        /// <c>GetResolvedPlacementType()</c> returned <c>"obj"</c>, <c>RoomPopulator</c> took its
+        /// <c>default:</c> branch, and every authored enemy, NPC and turret in the game was instantiated
+        /// as a <i>static prop with no visual</i>. The camp's five training dummies were simply the
+        /// first ones anyone stood next to.</para>
+        ///
+        /// <para><b>This test is expected to fail until the definitions are re-imported.</b> Run
+        /// <c>PFE/Data/Import Map Object Definitions</c>; it load-or-creates and rewrites every existing
+        /// asset in place, so one run fixes all of them. A green build proves nothing here — that is the
+        /// whole reason the check exists.</para>
+        /// </summary>
+        [Test]
+        public void ShippedDefinitions_UnitTip_IsStoredAsFamilyUnit()
+        {
+            MapObjectDefinition[] definitions =
+                Resources.LoadAll<MapObjectDefinition>("MapObjects/Definitions");
+
+            Assert.Greater(definitions.Length, 0,
+                "no MapObjectDefinition assets loaded from Resources/MapObjects/Definitions — " +
+                "this test would pass vacuously, so it fails instead");
+
+            var stale = new System.Collections.Generic.List<string>();
+            int unitTipCount = 0;
+
+            foreach (MapObjectDefinition definition in definitions)
+            {
+                if (definition == null || definition.legacyTip != "unit")
+                {
+                    continue;
+                }
+
+                unitTipCount++;
+
+                if (definition.family != MapObjectFamily.Unit)
+                {
+                    stale.Add($"{definition.objectId} (family={definition.family})");
+                }
+            }
+
+            // Paired control: if the tip field itself stopped being written, the loop above would find
+            // nothing and the test would pass for the wrong reason.
+            Assert.Greater(unitTipCount, 0,
+                "no definition declares legacyTip='unit'; the tip attribute is no longer being " +
+                "imported, which would make the stale check below vacuous");
+
+            Assert.IsEmpty(stale,
+                $"{stale.Count} definition(s) declare legacyTip='unit' but are not stored as " +
+                $"MapObjectFamily.Unit, so they spawn as static props with no visual. " +
+                $"Run PFE/Data/Import Map Object Definitions. Stale: {string.Join(", ", stale)}");
+        }
     }
 }
