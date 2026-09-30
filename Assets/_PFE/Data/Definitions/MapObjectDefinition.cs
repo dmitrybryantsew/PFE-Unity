@@ -85,14 +85,26 @@ namespace PFE.Data.Definitions
         /// The placement bucket that decides how a spawn is instantiated at runtime
         /// (consumed by RoomPopulator.ProcessObjectSpawn).
         ///
-        /// The typed <see cref="family"/> is the authority; <see cref="defaultPlacementType"/> is a
-        /// string cache of it, written at import. That cache went stale for every unit: ResolveFamily
-        /// had no <c>tip='unit'</c> branch, so 68 of the 202 AllData <c>&lt;obj&gt;</c> rows — every
-        /// enemy, NPC, turret and trap entity — were stored as family GenericObject with the generic
-        /// bucket, and so spawned as static props. Treating the generic bucket as a cache miss lets
-        /// the family speak again, while any <i>specific</i> stored value (box/door/unit/…) still
-        /// wins outright — which is what keeps hand-authored buckets such as the DefaultAS3ObjectMapping
-        /// entry that rescues <c>tarakan</c> authoritative.
+        /// <para><b>Neither stored field is authoritative — both are caches.</b>
+        /// <see cref="defaultPlacementType"/> is a string cache and <see cref="family"/> a typed one;
+        /// the importer writes both from the same source. That source is the definition's <c>tip</c>,
+        /// which is what the oracle actually branches on: <c>Location.as:657</c> looks the row up out
+        /// of AllData (<c>xmll = AllData.d.obj.(@id == obj.@id)[0]</c>) and <c>Location.as:1012-1027</c>
+        /// tests <c>_loc1_.tip == "unit"</c> to choose <c>createUnit()</c> over <c>createObj()</c>.
+        /// AS3 has no family enum at all. <see cref="legacyTip"/> is that attribute copied verbatim,
+        /// so it survives a classifier change that both caches do not.</para>
+        ///
+        /// <para><b>Both caches went stale at once, and the failure was silent.</b> <c>ResolveFamily</c>
+        /// had no <c>tip='unit'</c> branch when the definitions were last generated, so 68 of the 202
+        /// AllData <c>&lt;obj&gt;</c> rows — every enemy, NPC, turret and trap entity — were stored as
+        /// family GenericObject with the generic <c>obj</c> bucket. The camp's five training dummies
+        /// then instantiated as static props with no visual, and nothing went red.</para>
+        ///
+        /// <para>Order: a <i>specific</i> stored bucket wins outright (this is what keeps hand-authored
+        /// buckets such as the DefaultAS3ObjectMapping entry that rescues <c>tarakan</c> authoritative),
+        /// then a specific family, and only then the tip. Deriving from the tip last — rather than
+        /// trusting either cache — is what makes the runtime independent of whether the definitions
+        /// have been regenerated.</para>
         /// </summary>
         public string GetResolvedPlacementType()
         {
@@ -102,7 +114,31 @@ namespace PFE.Data.Definitions
                 return defaultPlacementType;
             }
 
-            return GetPlacementTypeForFamily(family);
+            string fromFamily = GetPlacementTypeForFamily(family);
+            if (!string.Equals(fromFamily, GenericPlacementType, StringComparison.Ordinal))
+            {
+                return fromFamily;
+            }
+
+            return GetPlacementTypeForTip(legacyTip);
+        }
+
+        /// <summary>
+        /// The bucket the oracle would choose from a definition's <c>tip</c>.
+        ///
+        /// <para>Only <c>unit</c> is handled here, deliberately, because that is the one branch
+        /// <c>Location.setObjects()</c> takes at this site — everything else falls through to
+        /// <c>createObj()</c> there, and this port's extra buckets (door/box/checkpoint/area/bonus/trap)
+        /// are reached through <see cref="GetPlacementTypeForFamily"/>. The remaining tips that
+        /// <c>setObjects</c> never sees — <c>up</c> and <c>enspawn</c>, 6 rows — are dispatched while
+        /// the room's object table is built (<c>Location.as:675-687</c>), a different seam; adding them
+        /// here would silently re-route them through this method instead.</para>
+        /// </summary>
+        static string GetPlacementTypeForTip(string tip)
+        {
+            return string.Equals(tip?.Trim(), "unit", StringComparison.OrdinalIgnoreCase)
+                ? "unit"
+                : GenericPlacementType;
         }
 
         static string GetPlacementTypeForFamily(MapObjectFamily family)

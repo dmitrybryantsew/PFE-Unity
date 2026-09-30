@@ -213,8 +213,14 @@ namespace PFE.Tests.Editor.UnitAnimation
             // The variant's own row wins.
             Assert.AreEqual(18, result.Animations.preAttack.length, "zombie3's own pre row overrides");
             Assert.AreEqual(8, result.Animations.preAttack.row);
-            Assert.AreEqual(1, result.RowsOverridingTemplate,
-                "exactly one row (pre) replaced a family row — this is the delta count");
+
+            // Zero, not one: `pre` is ADDED, not overridden. The family node declares stay/trot/run/
+            // jump/die/death/fall/dig/walk and no `pre` at all — checked against AllData.as, where
+            // <unit id='zombie'> carries the same nine rows and zombie3 carries only <blit id='pre'>.
+            // The counter is a delta count, so it stays 0 here; the overlay itself is proven by the
+            // assertions above and below (pre appears, every family-only state survives).
+            Assert.AreEqual(0, result.RowsOverridingTemplate,
+                "zombie3's `pre` is a state the family never set, so nothing is overridden");
 
             // And it is a genuine overlay, not a replace: the family's untouched ids are still there.
             Assert.IsTrue(result.Animations.stay.replay);

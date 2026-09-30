@@ -210,6 +210,13 @@ namespace PFE.Tests.Editor.Systems.Interaction
             slot.Advance();
             Assert.AreEqual("the-door", slot.ActivePayload, "Still in flight.");
 
+            slot.Advance();
+            Assert.AreEqual("the-door", slot.ActivePayload,
+                "Still in flight on the second tick: a 2-frame hold completes on the THIRD advance.");
+
+            // AS3 counts down and *then* fires — the completing tick is the one where the counter
+            // already reads 0 — so a hold of N frames needs N+1 advances. TryBegin_AfterCompletion_ReArms
+            // pins the same rule from the other side (a 1-frame hold completes on the second advance).
             slot.Advance(); // completes
             Assert.IsNull(slot.ActivePayload, "Handed out, so no longer held.");
         }

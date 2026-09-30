@@ -214,7 +214,12 @@ namespace PFE.Tests.Editor.Map
 
             RoomPopulator.PopulateRoom(room, template, room.difficulty);
 
-            Assert.AreEqual(0, room.objects.Count, "A unit must not also be created as a static prop.");
+            // Scoped to this object id on purpose. `room.objects` is never empty after PopulateRoom:
+            // Phase 3 (PlaceXpBonuses) always seeds up to 5 bonus objects into a room whose tiles are
+            // air, so a bare `room.objects.Count == 0` fails for a reason that has nothing to do with
+            // units. The claim being made is that *the dummy* is not also a prop.
+            Assert.IsNull(room.objects.Find(obj => obj != null && obj.objectId == "training"),
+                "A unit must not also be created as a static prop.");
             UnitInstance spawned = room.units.Find(unit => unit != null && unit.unitId == "training");
             Assert.NotNull(spawned);
 
@@ -256,7 +261,8 @@ namespace PFE.Tests.Editor.Map
 
             // Without this complement, a rule that always trusted the definition would still pass the
             // stale-bucket test above, while silently turning every mapping-rescued enemy into a prop.
-            Assert.AreEqual(0, room.objects.Count);
+            // Scoped by object id: the 5 XP bonuses PlaceXpBonuses seeds are not this test's business.
+            Assert.IsNull(room.objects.Find(obj => obj != null && obj.objectId == "tarakan"));
             Assert.NotNull(room.units.Find(unit => unit != null && unit.unitId == "tarakan"));
 
             Object.DestroyImmediate(template);

@@ -305,8 +305,13 @@ namespace PFE.Tests.Editor.Map.Rendering
         {
             // The facing is resolved by RoomPopulator, not here (see RoomUnitSpawner's ctor comment).
             // This asserts the spawner consumes it, including the mirrored transform.
+            //
+            // The controllerId has to be on the record or there is no typed controller to ask: the
+            // spawner maps `cl` → type and falls back to the base UnitController for an empty id, which
+            // is deliberate (a randomly-placed enemy has no authored `cl`). RoomPopulator is what copies
+            // it across from the definition — see PopulateRoom_UnitPlacement_CarriesTheControllerIdFromTheDefinition.
             RoomInstance room = MakeRoom();
-            room.units.Add(MakeUnit("training", new Vector2(100f, 200f), facingDirection: -1));
+            room.units.Add(MakeUnit("training", new Vector2(100f, 200f), "UnitTrain", facingDirection: -1));
 
             var spawner = new RoomUnitSpawner(room, _parent, TrainingDummyProvider());
             spawner.RefreshAll();

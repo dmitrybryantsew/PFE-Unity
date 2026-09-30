@@ -59,9 +59,17 @@ namespace PFE.Data.Definitions
             public int RowsWithoutId;
 
             /// <summary>
-            /// How many of <see cref="RowsRead"/> replaced a state the family node had already set.
-            /// Non-zero only for the two-argument overload — this is the <c>zombie3</c> case, where the
-            /// variant's single <c>pre</c> row overwrites the family's <c>pre</c>.
+            /// How many of <see cref="RowsRead"/> landed on a state the family node had already set
+            /// <i>with frames</i> — i.e. how many rows are genuine deltas rather than added states.
+            /// Non-zero only for the two-argument overload.
+            ///
+            /// <para>Note that an added state does not count. <c>zombie3</c> is the usual example of the
+            /// overlay and it is <b>not</b> an override: the <c>zombie</c> family node declares
+            /// stay/trot/run/jump/die/death/fall/dig/walk, so zombie3's lone <c>pre</c> row is a state
+            /// the family never had and this reads 0 for it. A row counts only when the family set the
+            /// same id to something with frames — a family row declared with no <c>len</c> (such as
+            /// <c>&lt;blit id='death' y='5'/&gt;</c>) is set but frame-less, and is treated as not
+            /// overridden.</para>
             /// </summary>
             public int RowsOverridingTemplate;
 
