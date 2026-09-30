@@ -17,13 +17,29 @@ namespace PFE.Systems.Map.Rendering
     /// <summary>
     /// Presenter component for in-room interactive door props (door1, door1a, door1b, septum, etc.).
     /// Direct port of AS3 Box.as door logic (initDoor, setDoor, attDoor).
-    /// Handles player interaction, open/close frame switching with smooth frame animation,
-    /// solid tile physics stamping, and horizontal ejection when closing while occupied.
+    ///
+    /// <para>Owns the door's <i>state</i>: solid tile stamping, the open/closed flag, horizontal
+    /// ejection when closing while occupied, and the sprite frame for that state. It does <b>not</b>
+    /// own input — <see cref="Interact"/> is called by the player's interaction path, and no other
+    /// method here reads the keyboard. See the note above <see cref="Update"/> for why.</para>
+    ///
+    /// <para>Frame changes are <b>seeks, not animations</b>, because that is what AS3 does:
+    /// <c>gotoAndStop("open" | "close" | "die")</c> for the three door states, and
+    /// <c>gotoAndPlay("comein")</c> for the one Z-door clip (<c>Box.as:508-532</c>).</para>
     /// </summary>
     [RequireComponent(typeof(BoxCollider2D))]
-    public class DoorPropPresenter : MonoBehaviour, IInteractable
+    public class DoorPropPresenter : MonoBehaviour, IInteractable, IHoldInteractable
     {
-        public const float FrameDuration = 0.075f; // ~13.3 FPS, matching Flash AS3 30 FPS movieclip timing
+        /// <summary>
+        /// Seconds per frame of a played clip. The map-object sprites ship in
+        /// <c>texture1.swf</c>, whose header declares <b>24 fps</b> — measured, not assumed. The
+        /// old 0.075 was labelled "matching Flash AS3 30 FPS" and matched neither 30 fps (0.0333)
+        /// nor the actual asset rate.
+        /// </summary>
+        public const float FrameDuration = 1f / 24f;
+
+        /// <summary>Map-object source SWF frame rate, for callers that want it by name.</summary>
+        public const float SourceFrameRate = 24f;
 
         private static readonly Color DoorTriggerFillColor = new Color(1.0f, 0.85f, 0.15f, 0.35f);
         private static readonly Color DoorTriggerWireColor = new Color(1.0f, 0.9f, 0.3f, 0.9f);
@@ -101,7 +117,12 @@ namespace PFE.Systems.Map.Rendering
             }
         }
 
-        private bool _isPlayerNear;
+        /// <summary>
+        /// How close the player must be to work this door — AS3 <c>World.w.actionDist</c>, shared
+        /// with the player's own target search so the two cannot disagree.
+        /// </summary>
+        public const float ActionReach = WorldConstants.ACTION_REACH;
+
         private int _lastInteractFrame = -1;
 
         private ObjectActionDispatcher _objectActions;
@@ -133,9 +154,21 @@ namespace PFE.Systems.Map.Rendering
         private int _targetFrameIndex;
         private float _frameTimer;
 
+        /// <summary>Index of the running <c>comein</c> clip, or -1 when it is not playing.</summary>
+        private int _comeInFrameIndex = -1;
+
         public RoomInstance Room => _room;
         public ObjectInstance ObjectInstance => _objectInstance;
         public bool IsOpen => _objectInstance?.runtimeState?.isOpen ?? false;
+
+        /// <summary>
+        /// Whether this prop has been wrecked — AS3's <c>Box.setVisState("die")</c> state
+        /// (<c>Box.as:810</c>). Reads the same two flags <c>RoomObjectVisualManager.ResolveFrameIndex</c>
+        /// uses, so a door and a container agree on what "destroyed" means.
+        /// </summary>
+        public bool IsDestroyed =>
+            _objectInstance?.runtimeState != null &&
+            (_objectInstance.runtimeState.isDestroyed || _objectInstance.runtimeState.isExploded);
 
         /// <summary>
         /// Determines whether this door prop can be opened/closed by the player via interact key.
@@ -205,7 +238,43 @@ namespace PFE.Systems.Map.Rendering
             }
         }
 
+        /// <summary>
+        /// Whether this object is a <b>door box</b> — AS3's <c>door=</c> rule
+        /// (<c>Box.as:290-297</c>), resolved by <see cref="ObjectInstance.IsDoorBox"/>.
+        ///
+        /// <para><b>This is not the same question as <see cref="IsInteractableDoor"/>, and conflating
+        /// them is what walled off the Z doors.</b> <see cref="IsInteractableDoor"/> answers "may the
+        /// player work this?" (it is true for the <c>inter='8'</c> Z doors); this answers "does it have
+        /// a solid closed state that <c>initDoor</c>/<c>setDoor</c> manage?" — which for the Z doors is
+        /// <b>no</b>: they author no <c>door=</c>, so AS3 never stamps their tiles and never gives them
+        /// an open/close state. Only the tile stamping and the open/close toggle hang off this; the
+        /// trigger collider and the <c>allact</c> dispatch hang off the other.</para>
+        /// </summary>
+        public bool IsDoorBox => _objectInstance != null && _objectInstance.IsDoorBox();
+
         public string ActionText => IsInteractableDoor ? (IsOpen ? "Close" : "Open") : string.Empty;
+
+        /// <summary>
+        /// Frames the action key must be held before this door opens or closes — AS3
+        /// <c>Interact.t_action</c>, authored as <c>time</c> on the object.
+        ///
+        /// <para>Read from the imported object rather than hard-coded, so one presenter serves both
+        /// kinds of door. The seven Z doors author <c>time='10'</c> and are held for a third of a
+        /// second; the metal doors and terminals author 15/20/30; and plain <c>door1</c>/<c>door2</c>/
+        /// <c>hatch</c> author nothing at all, so this returns 0 and the caller keeps acting on the
+        /// press — which is why adding the hold changed nothing for them.</para>
+        /// </summary>
+        public int HoldFrames => _objectInstance != null ? _objectInstance.GetHoldFrames() : 0;
+
+        /// <summary>
+        /// This door's world position — what the hold's range guard measures against, and the
+        /// coordinates the effect runs with.
+        ///
+        /// <para>Same value the presenter already hands to <see cref="ObjectActionContext"/>, so a
+        /// held <c>comein</c> arrives at the same cell it would have reached before the hold
+        /// existed.</para>
+        /// </summary>
+        public Vector3 WorldPosition => transform.position;
         public int CurrentFrame => _currentFrameIndex;
         public int TargetFrame => _targetFrameIndex;
 
@@ -229,9 +298,17 @@ namespace PFE.Systems.Map.Rendering
                 ConfigureCollider();
             }
 
-            // In AS3 (Box.as:653), initDoor stamps solid collision if closed
-            ApplyTileCollision(IsOpen);
-            UpdateVisualFrame(instant: true);
+            // In AS3 (Box.as:653), initDoor stamps solid collision if closed — but initDoor is only
+            // reached when the definition authors `door=` (Box.as:290-297). A `comein` Z door does not,
+            // and it stands on open ground (RoomsCamp.as places indoor2 at 16,15 and 16,7; both are `_`
+            // in the imported tile map). Stamping Wall there would seal the doorway the player is
+            // supposed to walk into, so the stamping follows IsDoorBox, not IsInteractableDoor.
+            if (IsDoorBox)
+            {
+                ApplyTileCollision(IsOpen);
+            }
+
+            UpdateVisualFrame();
         }
 
         private void GetDoorBounds(out Vector2 size, out Vector2 offset)
@@ -280,7 +357,7 @@ namespace PFE.Systems.Map.Rendering
             }
 
             ApplyTileCollision(open);
-            UpdateVisualFrame(instant: false);
+            UpdateVisualFrame();
 
             if (_triggerSystem != null && _room != null)
             {
@@ -290,7 +367,10 @@ namespace PFE.Systems.Map.Rendering
 
         public void ToggleOpen()
         {
-            if (!IsInteractableDoor) return;
+            // AS3 only ever calls setDoor() on a box whose definition authors `door=` (Box.as:290-297).
+            // Without this guard, `Interact`'s fallback would "open" a Z door — playing an open/close
+            // frame animation and reporting success for an object that has no open state at all.
+            if (!IsDoorBox || !IsInteractableDoor) return;
             SetOpen(!IsOpen);
         }
 
@@ -364,35 +444,102 @@ namespace PFE.Systems.Map.Rendering
             }
         }
 
-        public void UpdateVisualFrame(bool instant = false)
+        /// <summary>
+        /// Puts the renderer on the frame for the door's current state.
+        ///
+        /// <para><b>AS3 seeks here; it does not animate.</b> <c>Box.setVisState</c> runs
+        /// <c>vis.gotoAndStop("open" | "close" | "die")</c> for every state, and
+        /// <c>gotoAndPlay</c> only for <c>comein</c> (<c>Box.as:508-532</c>). So opening or closing
+        /// a door is a single frame change.</para>
+        ///
+        /// <para><b>What was wrong.</b> The open target was resolved as index 2 of any sheet with
+        /// 3+ frames, and the renderer then walked 0 → 1 → 2 one frame at a time. Index 2 of a
+        /// 3-frame door sheet is the <c>die</c> frame, not <c>open</c> — so opening a door visibly
+        /// animated from closed, through open, to <i>destroyed</i>, and closing walked back the
+        /// same way. The labels were measured from the source SWF; see
+        /// <see cref="MapObjectVisualDefinition"/>'s label accessors for the evidence.</para>
+        /// </summary>
+        public void UpdateVisualFrame()
         {
             if (_visual == null || !_visual.HasFrames) return;
 
-            _targetFrameIndex = IsOpen ? GetOpenFrameIndex() : 0;
-            if (instant)
-            {
-                _currentFrameIndex = _targetFrameIndex;
-                _frameTimer = 0f;
-                UpdateRendererSprite();
-            }
+            _currentFrameIndex = ResolveStateFrameIndex();
+            _targetFrameIndex = _currentFrameIndex;
+            _frameTimer = 0f;
+            _comeInFrameIndex = -1;
+            UpdateRendererSprite();
         }
 
-        private int GetOpenFrameIndex()
+        /// <summary>
+        /// frames[] index for the door's current state, resolved from the sheet's Flash labels.
+        /// Falls back to the closed frame when the sheet does not implement the state — which is
+        /// what AS3's swallowed <c>gotoAndStop</c> exception amounts to (<c>Box.as:529-531</c>).
+        /// </summary>
+        private int ResolveStateFrameIndex()
         {
             if (_visual == null || !_visual.HasFrames) return 0;
-            return _visual.frames.Length >= 3 ? 2 : (_visual.frames.Length - 1);
+
+            if (IsDestroyed && _visual.GetFrame(_visual.DestroyedStateFrame) != null)
+            {
+                return _visual.DestroyedStateFrame;
+            }
+
+            if (IsOpen && _visual.GetFrame(_visual.OpenStateFrame) != null)
+            {
+                return _visual.OpenStateFrame;
+            }
+
+            return _visual.ClosedStateFrame;
         }
 
+        /// <summary>
+        /// Starts the <c>comein</c> clip — the one label AS3 <i>plays</i> rather than seeks to,
+        /// fired from <c>Interact.beginAct()</c> (<c>Interact.as:1670-1676</c>).
+        ///
+        /// <para><b>Known timing gap.</b> AS3 fires <c>beginAct()</c> when the hold is <i>armed</i>
+        /// (<c>UnitPlayer.as:1983</c>); this is called when the action has <i>completed</i>, because
+        /// the presenter is not told about the arm. The clip still plays from the right frame, just
+        /// after the hold instead of during it.</para>
+        /// </summary>
+        public void BeginComeIn()
+        {
+            if (_visual == null || !_visual.HasFrames) return;
+
+            int start = _visual.ComeInFrame;
+            if (start < 0) return;
+
+            _comeInFrameIndex = start;
+            _currentFrameIndex = start;
+            _targetFrameIndex = start;
+            _frameTimer = 0f;
+            UpdateRendererSprite();
+        }
+
+        /// <summary>True while the <c>comein</c> clip is running.</summary>
+        public bool IsPlayingComeIn => _comeInFrameIndex >= 0;
+
+        /// <summary>
+        /// Advances the <c>comein</c> clip. Open/close/die do not animate at all, so this is a
+        /// no-op unless <see cref="BeginComeIn"/> started the clip.
+        /// </summary>
         public void TickAnimation(float deltaTime)
         {
-            if (_currentFrameIndex == _targetFrameIndex) return;
+            if (!IsPlayingComeIn || _visual == null || !_visual.HasFrames) return;
+
+            int lastFrame = _visual.frames.Length - 1;
 
             _frameTimer += deltaTime;
-            while (_frameTimer >= FrameDuration && _currentFrameIndex != _targetFrameIndex)
+            while (_frameTimer >= FrameDuration && _comeInFrameIndex < lastFrame)
             {
                 _frameTimer -= FrameDuration;
-                _currentFrameIndex += (_targetFrameIndex > _currentFrameIndex) ? 1 : -1;
+                _comeInFrameIndex++;
+                _currentFrameIndex = _comeInFrameIndex;
                 UpdateRendererSprite();
+            }
+
+            if (_comeInFrameIndex >= lastFrame)
+            {
+                _comeInFrameIndex = -1; // clip finished
             }
         }
 
@@ -596,32 +743,28 @@ namespace PFE.Systems.Map.Rendering
             return tile != null && tile.physicsType == TilePhysicsType.Wall;
         }
 
-        private void OnTriggerEnter2D(Collider2D other)
-        {
-            if (other.CompareTag("Player") || other.GetComponent<PFE.Systems.Physics.IMovementMotor>() != null)
-            {
-                _isPlayerNear = true;
-            }
-        }
-
-        private void OnTriggerExit2D(Collider2D other)
-        {
-            if (other.CompareTag("Player") || other.GetComponent<PFE.Systems.Physics.IMovementMotor>() != null)
-            {
-                _isPlayerNear = false;
-            }
-        }
-
+        /// <summary>
+        /// Whether the player may work this door from where it stands.
+        ///
+        /// <para>AS3 gates the press on <c>loc.celDist &lt;= World.w.actionDist</c>
+        /// (<c>UnitPlayer.as:1931</c>) with <c>actionDist = 40000</c> (<c>World.as:264</c>), a
+        /// <i>squared</i> distance — so the reach is 200 source pixels. This project keeps source
+        /// pixels as world units and scales art at 100 px per unit, so that is 2.0 world units. The
+        /// previous 2.5 was 25% too generous and let the player work doors from outside the AS3
+        /// zone.</para>
+        ///
+        /// <para><c>user == null</c> answers false: AS3 always measures against the player, and the
+        /// old proximity-flag fallback here existed only to serve the input poll that this component
+        /// no longer owns.</para>
+        /// </summary>
         public bool CanInteract(GameObject user)
         {
             if (!IsInteractableDoor) return false;
 
-            if (user != null)
-            {
-                float dist = Vector2.Distance(transform.position, user.transform.position);
-                return dist <= 2.5f; // AS3 actionDist reach zone (200px = 2.0m)
-            }
-            return _isPlayerNear;
+            if (user == null) return false;
+
+            float dist = Vector2.Distance(transform.position, user.transform.position);
+            return dist <= ActionReach;
         }
 
         public void Interact(GameObject user)
@@ -631,8 +774,12 @@ namespace PFE.Systems.Map.Rendering
             if (Time.frameCount == _lastInteractFrame) return;
             _lastInteractFrame = Time.frameCount;
 
-            // AS3 runs an object's `allact` script from Interact.act() (Interact.as:889), reached after
-            // the hold timer completes. The timer is not ported yet, so the script runs on the press.
+            // AS3 runs an object's `allact` script from Interact.act() (Interact.as:889). This method
+            // is the "the action fired" entry point, not "the button went down": a door that authors
+            // a `time` is held first (see HoldFrames) and reaches here only when the hold completes,
+            // while a door that authors none reaches here on the press. That is the same split AS3
+            // makes, where the zero-time branch fires is_act directly (UnitPlayer.as:1985-1988) and
+            // every other branch arms t_action first.
             var context = new ObjectActionContext(_room, _objectInstance, user, transform.position);
             ObjectActionOutcome outcome = ObjectActions.Dispatch(in context);
 
@@ -642,100 +789,41 @@ namespace PFE.Systems.Map.Rendering
             // reach the fallback, which is what keeps the term* terminals behaving as they do today.
             if (outcome == ObjectActionOutcome.Handled || outcome == ObjectActionOutcome.Refused)
             {
+                // AS3's beginAct() plays the `comein` clip for a Z door (Interact.as:1670-1676) —
+                // the only state that animates. See BeginComeIn for the trigger-timing gap.
+                if (outcome == ObjectActionOutcome.Handled &&
+                    string.Equals(_objectInstance?.GetAllAct(), ComeInAction.Id, StringComparison.OrdinalIgnoreCase))
+                {
+                    BeginComeIn();
+                }
+
                 return;
             }
 
             ToggleOpen();
         }
 
-        public void OnInteractPressed()
-        {
-            if (!IsInteractableDoor) return;
-
-            var player = GameObject.FindWithTag("Player");
-            if (_isPlayerNear || CanInteract(player))
-            {
-                Interact(player);
-            }
-        }
-
-        /// <summary>
-        /// Check if mouse cursor is currently pointing over this door.
-        /// </summary>
-        public bool IsMouseOver()
-        {
-            if (!IsInteractableDoor) return false;
-
-            Camera cam = Camera.main;
-            if (cam == null) cam = FindFirstObjectByType<Camera>();
-            if (cam == null) return false;
-
-            Vector3 mouseWorld = cam.ScreenToWorldPoint(Input.mousePosition);
-            Vector2 mousePos = new Vector2(mouseWorld.x, mouseWorld.y);
-
-            // 1. Check trigger collider
-            if (_triggerCollider != null && _triggerCollider.OverlapPoint(mousePos))
-            {
-                return true;
-            }
-
-            // 2. Check sprite renderer bounds
-            if (_renderer != null && _renderer.bounds.Contains(new Vector3(mousePos.x, mousePos.y, transform.position.z)))
-            {
-                return true;
-            }
-
-            // 3. Fallback: check door rectangle with margin
-            float w = _visual != null ? Mathf.Max(0.5f, _visual.pixelSize.x * 0.01f) : 0.6f;
-            float h = _visual != null ? Mathf.Max(0.8f, _visual.pixelSize.y * 0.01f) : 0.8f;
-            Vector2 center = (Vector2)transform.position + new Vector2(0f, h * 0.5f);
-            Rect r = new Rect(center.x - w * 0.5f - 0.25f, center.y - h * 0.5f - 0.2f, w + 0.5f, h + 0.4f);
-            return r.Contains(mousePos);
-        }
-
-        private void OnMouseDown()
-        {
-            if (!IsInteractableDoor) return;
-
-            var player = GameObject.FindWithTag("Player");
-            if (player == null || Vector2.Distance(transform.position, player.transform.position) <= 2.5f)
-            {
-                Interact(player);
-            }
-        }
+        // Interaction entry points removed on purpose — this component must not read input.
+        //
+        // It used to own three more paths besides Interact(): an E/mouse poll in Update() whose
+        // second branch fired on `_isPlayerNear || dist <= 1.8f` "even without pointing cursor",
+        // an OnMouseDown() that toggled instantly, and an OnInteractPressed() with a third copy of
+        // the cursor raycast. Together they meant a door responded to E from anywhere in the room
+        // rather than from under the cursor, and a click skipped the hold that `time=10` doors
+        // require. AS3 has exactly one entry point — UnitPlayer.actAction(), which resolves the cell
+        // under the cursor and arms t_action (UnitPlayer.as:1922-2001) — so ownership lives there
+        // now: PlayerController.ResolveInteractTarget() picks the target and
+        // PlayerActionInteractor runs the hold. This class is a presenter plus an IInteractable.
+        //
+        // Unity's own OnMouseDown/OnMouseUp are deliberately not used either: they fire on the
+        // collider under the pointer with no reach check and no hold, which is the same defect.
 
         private void Update()
         {
             TickAnimation(Time.deltaTime);
 
-            bool mouseOver = IsMouseOver();
-
-            bool ePressed = Input.GetKeyDown(KeyCode.E) ||
-                (UnityEngine.InputSystem.Keyboard.current != null && UnityEngine.InputSystem.Keyboard.current.eKey.wasPressedThisFrame);
-
-            bool mouseClicked = Input.GetMouseButtonDown(0) || Input.GetMouseButtonDown(1) ||
-                (UnityEngine.InputSystem.Mouse.current != null &&
-                 (UnityEngine.InputSystem.Mouse.current.leftButton.wasPressedThisFrame || UnityEngine.InputSystem.Mouse.current.rightButton.wasPressedThisFrame));
-
-            var player = GameObject.FindWithTag("Player");
-            float dist = player != null ? Vector2.Distance(transform.position, player.transform.position) : 0f;
-            bool inReach = player == null || dist <= 2.5f;
-
-            // 1. Cursor is pointing at door and pressed E or clicked mouse
-            if (mouseOver && (ePressed || mouseClicked) && inReach)
-            {
-                Interact(player);
-                return;
-            }
-
-            // 2. Player is near door and pressed E (even without pointing cursor)
-            if ((_isPlayerNear || dist <= 1.8f) && ePressed)
-            {
-                Interact(player);
-                return;
-            }
-
-            // Hotkey F9: toggle door collider debug overlay
+            // F9 toggles the door-collider debug overlay. This is the only key this component
+            // reads, and it is editor/debug scaffolding rather than gameplay.
             bool f9Pressed = Input.GetKeyDown(KeyCode.F9) ||
                 (UnityEngine.InputSystem.Keyboard.current != null && UnityEngine.InputSystem.Keyboard.current.f9Key.wasPressedThisFrame);
             if (f9Pressed)

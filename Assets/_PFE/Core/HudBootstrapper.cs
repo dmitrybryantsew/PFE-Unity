@@ -37,6 +37,7 @@ namespace PFE.Core
         private AmmoCounterView _ammoCounter;
         private ReloadIndicatorView _reloadIndicator;
         private ArmourBarView _armourBar;
+        private ActionProgressBarView _holdBar;
 
         /// <summary>The controller the current bindings point at, so a swap can be detected.</summary>
         private object _boundController;
@@ -100,6 +101,7 @@ namespace PFE.Core
 
             _viewModel.Initialize(_loadout, _player.Stats);
             RebindViews();
+            BindHoldBar();
         }
 
         // ── Construction ──────────────────────────────────────────────────────
@@ -124,16 +126,20 @@ namespace PFE.Core
             _ammoCounter = BuildAmmoCounter(canvasGo.transform);
             _reloadIndicator = BuildReloadIndicator(canvasGo.transform);
             _armourBar = BuildArmourBar(canvasGo.transform);
+            _holdBar = BuildHoldBar(canvasGo.transform);
 
             // Hand over the reference but do NOT bind here. Each view binds itself in its own
             // Start(), which removes any dependence on whether this Start() or theirs runs first,
             // and avoids the double-subscription the views' Start() would otherwise create.
+            //
+            // The hold bar is the exception and is not in this list: it has no view model to bind to,
+            // because the interactor pushes into it directly. See BindHoldBar.
             _healthBar.SetViewModel(_viewModel);
             _ammoCounter.SetViewModel(_viewModel);
             _reloadIndicator.SetViewModel(_viewModel);
             _armourBar.SetViewModel(_viewModel);
 
-            Debug.Log("[HudBootstrapper] HUD built (health bar, armour bar, ammo counter, reload indicator).");
+            Debug.Log("[HudBootstrapper] HUD built (health bar, armour bar, ammo counter, reload indicator, hold bar).");
         }
 
         /// <summary>
@@ -332,6 +338,63 @@ namespace PFE.Core
             return view;
         }
 
+        /// <summary>
+        /// The hold bar: fills while the action key is held on a timed object.
+        ///
+        /// <para><b>Centred at the bottom rather than in the left-hand stat column.</b> The health,
+        /// armour and ammo readouts report the player's <i>persistent</i> state and belong together;
+        /// this bar exists only for the duration of a hold and belongs to a different source. Keeping
+        /// it out of that column is what stops it reading as a fourth stat.</para>
+        ///
+        /// <para><b>Structure follows <see cref="ArmourBarView"/>'s, for the same reason:</b> the
+        /// visuals hang off a child so the view can hide itself without deactivating the component that
+        /// would have to show it again. Deactivating <c>barRect</c> instead would stop
+        /// <c>LateUpdate</c> — which is where this view draws — and the bar would never come back.</para>
+        /// </summary>
+        private ActionProgressBarView BuildHoldBar(Transform parent)
+        {
+            var barRect = CreateRect("Hold Bar", parent,
+                anchor: new Vector2(0.5f, 0f), pivot: new Vector2(0.5f, 0f),
+                anchoredPosition: new Vector2(0f, 96f), size: new Vector2(240f, 14f));
+
+            // Slider first, with fillRect assigned before the view is added: ActionProgressBarView.Awake
+            // reads GetComponent<Slider>() and the fill's Image, so this order is load-bearing.
+            var slider = barRect.gameObject.AddComponent<Slider>();
+            slider.minValue = 0f;
+            slider.maxValue = 1f;
+            slider.value = 0f;
+            slider.transition = Selectable.Transition.None;
+            slider.interactable = false;
+
+            var visuals = CreateRect("Visuals", barRect,
+                anchor: new Vector2(0.5f, 0.5f), pivot: new Vector2(0.5f, 0.5f),
+                anchoredPosition: Vector2.zero, size: Vector2.zero);
+            Stretch(visuals);
+
+            var background = CreateImage("Background", visuals, new Color(0f, 0f, 0f, 0.65f));
+            Stretch(background.rectTransform);
+
+            var fillArea = CreateRect("Fill Area", visuals,
+                anchor: new Vector2(0.5f, 0.5f), pivot: new Vector2(0.5f, 0.5f),
+                anchoredPosition: Vector2.zero, size: Vector2.zero);
+            Stretch(fillArea, 1f);
+
+            var fill = CreateImage("Fill", fillArea, new Color(0.95f, 0.85f, 0.2f, 0.95f));
+            Stretch(fill.rectTransform);
+
+            slider.fillRect = fill.rectTransform;
+            slider.targetGraphic = fill;
+            slider.direction = Slider.Direction.LeftToRight;
+
+            var view = barRect.gameObject.AddComponent<ActionProgressBarView>();
+            view.SetContent(visuals.gameObject);
+
+            // Nothing is being held at boot.
+            visuals.gameObject.SetActive(false);
+
+            return view;
+        }
+
         private AmmoCounterView BuildAmmoCounter(Transform parent)
         {
             var rect = CreateRect("Ammo Counter", parent,
@@ -400,6 +463,36 @@ namespace PFE.Core
         {
             _player = ResolvePlayer();
             _loadout = ResolveLoadout();
+        }
+
+        /// <summary>
+        /// Points the hold bar at the interactor that reports hold progress.
+        ///
+        /// <para><b>Push, not poll.</b> Every other bar here reads a view-model property that the
+        /// bootstrapper keeps in sync. This one does not: the interactor drives the bar through
+        /// <see cref="PFE.Systems.Interaction.IActionProgressView"/>, so there is nothing to refresh
+        /// per frame and no property to keep in sync — only a reference to hand over once.</para>
+        ///
+        /// <para>Rides along with the existing rebind path, which runs on first successful resolve and
+        /// again if the equipped weapon is swapped. Re-assigning is guarded by a reference compare, and
+        /// the <c>GetComponent</c> is only paid on those rare rebinds rather than every frame, which is
+        /// what this Update's steady state is written to avoid.</para>
+        ///
+        /// <para>A player prefab without a <see cref="PlayerActionInteractor"/> simply gets no hold bar;
+        /// that is the same optionality the interactor itself has, and it is not an error.</para>
+        /// </summary>
+        private void BindHoldBar()
+        {
+            if (_holdBar == null || _player == null)
+            {
+                return;
+            }
+
+            var interactor = _player.GetComponent<PlayerActionInteractor>();
+            if (interactor != null && !ReferenceEquals(interactor.View, _holdBar))
+            {
+                interactor.View = _holdBar;
+            }
         }
 
         private PlayerController ResolvePlayer()

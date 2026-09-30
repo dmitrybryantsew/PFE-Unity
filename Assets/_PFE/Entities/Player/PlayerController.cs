@@ -6,6 +6,7 @@ using PFE.Core.Input;
 using PFE.Core.Messages;
 using PFE.Entities.Units;
 using PFE.Systems.Interaction;
+using PFE.Systems.Map;
 using PFE.Systems.Physics;
 using PFE.Systems.Weapons;
 namespace PFE.Entities.Player
@@ -34,6 +35,20 @@ namespace PFE.Entities.Player
         private float _doubleTapWindowSeconds = 0.25f;
         private TilePhysicsController _tilePhysics;
         private PlayerLocomotionController _locomotion;
+
+        /// <summary>
+        /// Runs the hold-to-act gesture for world objects. Optional — a player prefab without one keeps
+        /// the immediate-press behaviour for every target, since every use below is null-guarded.
+        /// </summary>
+        private PlayerActionInteractor _actionInteractor;
+
+        /// <summary>
+        /// Frame of the last accepted interact press. The press arrives twice — once on the
+        /// MessagePipe subscription and once from the direct poll in <see cref="Update"/> — and this is
+        /// what stops one key press acting twice, which for a door would open and close it in a single
+        /// frame.
+        /// </summary>
+        private int _lastInteractPressFrame = -1;
         // Dependencies (injected via VContainer)
         private InputReader _input;
         private PFE.Core.PfeDebugSettings _debugSettings;
@@ -106,6 +121,10 @@ namespace PFE.Entities.Player
                 {
                     HandleInteract();
                 }
+                else
+                {
+                    EndInteract();
+                }
             }).AddTo(_disposables);
         }
 
@@ -116,6 +135,7 @@ namespace PFE.Entities.Player
             _tilePhysics = GetComponent<TilePhysicsController>();
             _locomotion = GetComponent<PlayerLocomotionController>();
             _loadout = GetComponent<PlayerWeaponLoadout>();
+            _actionInteractor = GetComponent<PlayerActionInteractor>();
             base._unitStats = new UnitStats();
 
             if (_locomotion != null)
@@ -133,7 +153,11 @@ namespace PFE.Entities.Player
             HandleAiming();
             HandleMovementInput();
 
-            // Direct interact check (E key or Right-Click)
+            // Direct interact check (E key or Right-Click). Both edges are read, because acting is a
+            // hold: AS3 keeps keyAction as a held boolean (set at Ctr.as:699, cleared at :797) and
+            // UnitPlayer.as:2115-2135 acts on the false edge by abandoning the action. The MessagePipe
+            // subscription above carries the same two edges; both paths are guarded per frame below,
+            // so the redundancy cannot double-fire.
             bool ePressed = Input.GetKeyDown(KeyCode.E) ||
                 (UnityEngine.InputSystem.Keyboard.current != null && UnityEngine.InputSystem.Keyboard.current.eKey.wasPressedThisFrame);
             bool rightClick = Input.GetMouseButtonDown(1) ||
@@ -142,6 +166,16 @@ namespace PFE.Entities.Player
             if (ePressed || rightClick)
             {
                 HandleInteract();
+            }
+
+            bool eReleased = Input.GetKeyUp(KeyCode.E) ||
+                (UnityEngine.InputSystem.Keyboard.current != null && UnityEngine.InputSystem.Keyboard.current.eKey.wasReleasedThisFrame);
+            bool rightReleased = Input.GetMouseButtonUp(1) ||
+                (UnityEngine.InputSystem.Mouse.current != null && UnityEngine.InputSystem.Mouse.current.rightButton.wasReleasedThisFrame);
+
+            if (eReleased || rightReleased)
+            {
+                EndInteract();
             }
         }
 
@@ -270,8 +304,16 @@ namespace PFE.Entities.Player
         /// <summary>Start attacking when attack button is pressed.</summary>
         private void HandleAttackStart()
         {
-            // If mouse is aimed directly at an interactable within reach, interact instead of attacking
-            if (TryCursorInteract())
+            // If the mouse is aimed directly at an interactable within reach, interact instead of
+            // attacking. Cursor only — this must not fall back to the nearest target, or a click meant
+            // as a shot would be swallowed by whatever happens to be standing next to the player.
+            //
+            // Routed through the same hold/immediate decision as the interact key, so a Z door needs
+            // its hold here too rather than opening on the click. There is deliberately no matching
+            // release: a hold begun by a click simply runs to completion, or is abandoned by walking
+            // away (the range guard). Letting go of the attack button cancelling an E-initiated hold
+            // would be a surprising coupling.
+            if (BeginOrPerformInteract(FindCursorTarget()))
             {
                 return;
             }
@@ -345,22 +387,44 @@ namespace PFE.Entities.Player
             // TODO: Reload last save
         }
 
-        [Header("Interaction")]
-        [SerializeField]
-        [Tooltip("Maximum radius to scan for interactable objects (AS3 World.w.actionDist: 200px = 2.0m).")]
-        private float _interactionRadius = 2.0f;
+        // There is deliberately no serialized interaction radius any more. The reach is AS3's
+        // World.w.actionDist, read from WorldConstants.ACTION_REACH by both this class and every
+        // IInteractable, so a scene cannot widen it by accident and the two cannot drift apart.
 
         /// <summary>
-        /// Attempt to interact with whatever is under the mouse cursor within reach.
+        /// Resolves what the player is trying to act on, <b>without acting</b>: the interactable
+        /// under the cursor, if one is within reach.
+        ///
+        /// <para><b>There is no nearest-target fallback, and adding one back is a bug.</b> AS3
+        /// requires the cursor to be on the object — <c>UnitPlayer.actAction</c> tests
+        /// <c>loc.celObj &amp;&amp; loc.celObj.onCursor &amp;&amp; loc.celDist &lt;= World.w.actionDist</c>
+        /// (<c>UnitPlayer.as:1931</c>) — and when nothing is under the cursor it does nothing at all.
+        /// The old <c>?? FindNearestTarget()</c> here made <c>E</c> work from anywhere near a door
+        /// regardless of where the player was pointing, which is not a behaviour AS3 has anywhere in
+        /// the interaction path.</para>
+        ///
+        /// <para>Split out of the old <c>HandleInteract</c> because the press has to <i>decide</i>
+        /// before it acts: a target that authors a hold must not be interacted with on the press —
+        /// AS3 arms <c>t_action</c> and returns (<c>UnitPlayer.as:1944-1988</c>), and the effect lands
+        /// only from the timer's completion branch (<c>:1081-1086</c>).</para>
         /// </summary>
-        private bool TryCursorInteract()
+        private IInteractable ResolveInteractTarget()
+        {
+            return FindCursorTarget();
+        }
+
+        /// <summary>
+        /// The interactable under the mouse cursor, if one is within reach. AS3:
+        /// <c>loc.celObj &amp;&amp; loc.celObj.onCursor</c> (<c>UnitPlayer.as:1931</c>).
+        /// </summary>
+        private IInteractable FindCursorTarget()
         {
             if (_mainCamera == null)
             {
                 _mainCamera = Camera.main;
                 if (_mainCamera == null) _mainCamera = FindFirstObjectByType<Camera>();
             }
-            if (_mainCamera == null) return false;
+            if (_mainCamera == null) return null;
 
             Vector3 mouseScreen = Input.mousePosition;
             if (!_mainCamera.orthographic)
@@ -371,7 +435,7 @@ namespace PFE.Entities.Player
             mouseWorld.z = 0f;
             Vector2 playerPos = transform.position;
 
-            Collider2D[] cursorHits = Physics2D.OverlapCircleAll(mouseWorld, 0.45f);
+            Collider2D[] cursorHits = Physics2D.OverlapCircleAll(mouseWorld, CursorHitRadius);
             for (int i = 0; i < cursorHits.Length; i++)
             {
                 Collider2D hit = cursorHits[i];
@@ -382,58 +446,81 @@ namespace PFE.Entities.Player
                 {
                     Vector2 closestPt = hit.ClosestPoint(playerPos);
                     float distSq = (closestPt - playerPos).sqrMagnitude;
-                    if (distSq <= 6.25f) // 2.5m (AS3 actionDist = 200px = 2.0m)
+                    if (distSq <= WorldConstants.ACTION_REACH * WorldConstants.ACTION_REACH)
                     {
-                        cursorInteractable.Interact(gameObject);
-                        return true;
+                        return cursorInteractable;
                     }
                 }
             }
-            return false;
+            return null;
         }
 
         /// <summary>
-        /// Scan for interactable objects (doors, containers, switches) and trigger interaction.
-        /// Prioritizes interactable under cursor (AS3: loc.celObj && loc.celObj.onCursor),
-        /// falling back to the closest interactable in radius.
+        /// Radius of the cursor probe, in world units. AS3 asks whether the <i>cell</i> under the
+        /// cursor is the one holding the object (<c>loc.celObj.onCursor</c>), and a cell is
+        /// <c>World.tileX</c> = 40 source pixels = 0.4 world units. A 0.45 probe covers that cell
+        /// with a hair of slack for small props whose collider sits inside the tile.
+        /// </summary>
+        private const float CursorHitRadius = 0.45f;
+
+        /// <summary>
+        /// The action key went down.
         /// </summary>
         private void HandleInteract()
         {
-            Vector2 playerPos = transform.position;
+            // Guarded per frame. Both the MessagePipe subscription and the direct poll in Update
+            // deliver the same press, and an instant action must not run twice for one key press —
+            // which for a door means open-then-close in a single frame.
+            if (Time.frameCount == _lastInteractPressFrame) return;
+            _lastInteractPressFrame = Time.frameCount;
 
-            // 1. Prioritize interactable under mouse cursor if within reach
-            if (TryCursorInteract())
+            // A hold in flight owns the action: AS3 will not start a second while actionObj is set —
+            // actAction() only re-checks the incumbent (:1924-1930).
+            if (_actionInteractor != null && _actionInteractor.IsHolding) return;
+
+            BeginOrPerformInteract(ResolveInteractTarget());
+        }
+
+        /// <summary>
+        /// Acts on <paramref name="target"/>: starts a hold if it authors a duration, otherwise
+        /// interacts at once — AS3's zero-time branch (<c>UnitPlayer.as:1985-1988</c>).
+        ///
+        /// <para>Shared by the interact key and by <see cref="HandleAttackStart"/>'s
+        /// "clicking an interactable interacts instead of attacking" path, so both obey the same rule.
+        /// Splitting them is how a held Z door would open instantly on a left-click while needing a
+        /// third of a second on E.</para>
+        /// </summary>
+        /// <returns>True when the target was consumed, so the caller must not also act.</returns>
+        private bool BeginOrPerformInteract(IInteractable target)
+        {
+            if (target == null)
             {
-                return;
+                return false;
             }
 
-            // 2. Fall back to closest interactable in proximity
-            Collider2D[] hits = Physics2D.OverlapCircleAll(playerPos, _interactionRadius);
-            IInteractable bestTarget = null;
-            float bestDistSq = float.MaxValue;
-
-            for (int i = 0; i < hits.Length; i++)
+            if (target is IHoldInteractable hold && hold.HoldFrames > 0)
             {
-                Collider2D hit = hits[i];
-                if (hit == null || hit.gameObject == gameObject) continue;
-
-                IInteractable interactable = hit.GetComponent<IInteractable>() ?? hit.GetComponentInParent<IInteractable>();
-                if (interactable != null && interactable.CanInteract(gameObject))
+                if (_actionInteractor != null &&
+                    _actionInteractor.TryBeginHold(hold, gameObject, hold.WorldPosition))
                 {
-                    Vector2 closestPt = hit.ClosestPoint(playerPos);
-                    float distSq = (closestPt - playerPos).sqrMagnitude;
-                    if (distSq < bestDistSq)
-                    {
-                        bestDistSq = distSq;
-                        bestTarget = interactable;
-                    }
+                    return true;
                 }
             }
 
-            if (bestTarget != null)
-            {
-                bestTarget.Interact(gameObject);
-            }
+            target.Interact(gameObject);
+            return true;
+        }
+
+        /// <summary>
+        /// The action key came up: abandon any hold in flight. Nothing fires.
+        ///
+        /// <para>This is AS3's release path — a false <c>keyAction</c> nulls <c>actionObj</c> at
+        /// <c>UnitPlayer.as:2131-2135</c> — and it is why letting go of E half-way through a Z door
+        /// does nothing at all rather than finishing.</para>
+        /// </summary>
+        private void EndInteract()
+        {
+            _actionInteractor?.ReleaseHold();
         }
 
         // Public getters

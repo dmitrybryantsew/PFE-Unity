@@ -304,73 +304,169 @@ namespace PFE.Tests.Editor.Map.Streaming
             Object.DestroyImmediate(visualDef);
         }
 
-        [Test]
-        public void DoorPropPresenter_Animation_StepsFramesSequentially()
+        /// <summary>
+        /// Builds a door sheet with <paramref name="frameCount"/> distinct frames. A 3-frame sheet is
+        /// the close/open/die trio; any other count is a Z-door <c>comein</c> clip.
+        /// </summary>
+        private static MapObjectVisualDefinition CreateDoorSheet(Texture2D texture, int frameCount, out Sprite[] frames)
+        {
+            frames = new Sprite[frameCount];
+            for (int i = 0; i < frameCount; i++)
+            {
+                frames[i] = Sprite.Create(texture, new Rect(0, 0, 4, 4), new Vector2(0.5f, 0f));
+            }
+
+            var visual = ScriptableObject.CreateInstance<MapObjectVisualDefinition>();
+            visual.pixelSize = new Vector2Int(40, 80);
+            visual.frames = frames;
+            return visual;
+        }
+
+        private DoorPropPresenter CreateDoorPresenter(
+            MapObjectVisualDefinition visual,
+            out SpriteRenderer renderer,
+            bool isOpen = false,
+            bool isDestroyed = false)
         {
             var doorObj = new ObjectInstance
             {
                 objectId = "door1",
                 objectType = "door",
                 position = new Vector2(200f, 100f),
-                runtimeState = new MapObjectRuntimeStateData { isOpen = false }
+                runtimeState = new MapObjectRuntimeStateData
+                {
+                    isOpen = isOpen,
+                    isDestroyed = isDestroyed
+                }
             };
-
-            var dummyTex = new Texture2D(4, 4);
-            var s0 = Sprite.Create(dummyTex, new Rect(0, 0, 4, 4), new Vector2(0.5f, 0f));
-            var s1 = Sprite.Create(dummyTex, new Rect(0, 0, 4, 4), new Vector2(0.5f, 0f));
-            var s2 = Sprite.Create(dummyTex, new Rect(0, 0, 4, 4), new Vector2(0.5f, 0f));
-
-            var visualDef = ScriptableObject.CreateInstance<MapObjectVisualDefinition>();
-            visualDef.pixelSize = new Vector2Int(40, 80);
-            visualDef.frames = new[] { s0, s1, s2 };
 
             var go = new GameObject("AnimatedDoor");
             go.transform.SetParent(_holderGo.transform);
-            var renderer = go.AddComponent<SpriteRenderer>();
+            renderer = go.AddComponent<SpriteRenderer>();
             var presenter = go.AddComponent<DoorPropPresenter>();
+            presenter.Initialize(_room, doorObj, visual, renderer, null);
+            return presenter;
+        }
 
-            presenter.Initialize(_room, doorObj, visualDef, renderer, null);
+        [Test]
+        public void DoorPropPresenter_OpeningASheet_SeeksTheOpenLabelNotTheDestroyedFrame()
+        {
+            var texture = new Texture2D(4, 4);
+            MapObjectVisualDefinition visual = CreateDoorSheet(texture, 3, out Sprite[] frames);
+            DoorPropPresenter presenter = CreateDoorPresenter(visual, out SpriteRenderer renderer);
 
-            // Initially closed at frame 0
+            // Closed -> the "close" label, which is frame 1 of the Flash timeline.
             Assert.That(presenter.CurrentFrame, Is.EqualTo(0));
-            Assert.That(renderer.sprite, Is.EqualTo(s0));
+            Assert.That(renderer.sprite, Is.EqualTo(frames[0]));
 
-            // Start opening -> targets frame 2
+            // Open -> the "open" label (frames[] 1). It must NOT be frames[2]: that is the "die"
+            // label, and showing it is the bug this test pins.
             presenter.SetOpen(true);
-            Assert.That(presenter.TargetFrame, Is.EqualTo(2));
-            Assert.That(presenter.CurrentFrame, Is.EqualTo(0)); // Hasn't stepped yet
+            Assert.That(presenter.CurrentFrame, Is.EqualTo(1), "open must seek the 'open' label");
+            Assert.That(renderer.sprite, Is.EqualTo(frames[1]));
+            Assert.That(renderer.sprite, Is.Not.EqualTo(frames[2]), "frames[2] is 'die', not 'open'");
 
-            // Partial tick (< 0.075s) should stay at frame 0
-            presenter.TickAnimation(0.04f);
-            Assert.That(presenter.CurrentFrame, Is.EqualTo(0));
+            // AS3 seeks rather than animates (Box.setVisState uses gotoAndStop), so ticking must not
+            // walk any further — the old implementation stepped 0 -> 1 -> 2 over ~0.15s.
+            presenter.TickAnimation(DoorPropPresenter.FrameDuration * 5f);
+            Assert.That(presenter.CurrentFrame, Is.EqualTo(1), "open/close must not animate");
+            Assert.That(renderer.sprite, Is.EqualTo(frames[1]));
 
-            // Total elapsed reaches 0.08s (>= FrameDuration 0.075s) -> steps to frame 1
-            presenter.TickAnimation(0.04f);
-            Assert.That(presenter.CurrentFrame, Is.EqualTo(1));
-            Assert.That(renderer.sprite, Is.EqualTo(s1));
-
-            // Another frame duration -> steps to frame 2 (fully open)
-            presenter.TickAnimation(0.08f);
-            Assert.That(presenter.CurrentFrame, Is.EqualTo(2));
-            Assert.That(renderer.sprite, Is.EqualTo(s2));
-
-            // Start closing -> targets frame 0
+            // Close -> back to the "close" label, immediately.
             presenter.SetOpen(false);
-            Assert.That(presenter.TargetFrame, Is.EqualTo(0));
+            Assert.That(presenter.CurrentFrame, Is.EqualTo(0));
+            Assert.That(renderer.sprite, Is.EqualTo(frames[0]));
+
+            Object.DestroyImmediate(visual);
+            Object.DestroyImmediate(texture);
+        }
+
+        [Test]
+        public void DoorPropPresenter_DestroyedDoor_ShowsTheDieFrame()
+        {
+            var texture = new Texture2D(4, 4);
+            MapObjectVisualDefinition visual = CreateDoorSheet(texture, 3, out Sprite[] frames);
+            DoorPropPresenter presenter = CreateDoorPresenter(visual, out SpriteRenderer renderer, isDestroyed: true);
+
+            Assert.That(presenter.IsDestroyed, Is.True);
+            Assert.That(presenter.CurrentFrame, Is.EqualTo(2), "destroyed must seek the 'die' label");
+            Assert.That(renderer.sprite, Is.EqualTo(frames[2]));
+
+            Object.DestroyImmediate(visual);
+            Object.DestroyImmediate(texture);
+        }
+
+        [Test]
+        public void DoorPropPresenter_ComeInSheet_HasNoOpenStateSoStaysClosed()
+        {
+            // Z-door sheets (indoor1..4 = 11 frames, instdoor/inbasedoor/inencldoor = 20) author only
+            // a "comein" label. AS3 never opens them, and gotoAndStop("open") would throw and be
+            // swallowed — so isOpen must resolve to the closed frame, not to comein's index.
+            var texture = new Texture2D(4, 4);
+            MapObjectVisualDefinition visual = CreateDoorSheet(texture, 11, out Sprite[] frames);
+            Assert.That(visual.IsDoorStateSheet, Is.False);
+            Assert.That(visual.OpenStateFrame, Is.EqualTo(-1));
+            Assert.That(visual.DestroyedStateFrame, Is.EqualTo(-1));
+            Assert.That(visual.ComeInFrame, Is.EqualTo(1));
+
+            DoorPropPresenter presenter = CreateDoorPresenter(visual, out SpriteRenderer renderer, isOpen: true);
+
+            Assert.That(presenter.CurrentFrame, Is.EqualTo(0));
+            Assert.That(renderer.sprite, Is.EqualTo(frames[0]));
+
+            Object.DestroyImmediate(visual);
+            Object.DestroyImmediate(texture);
+        }
+
+        [Test]
+        public void DoorPropPresenter_BeginComeIn_PlaysTheClipFromTheComeInFrame()
+        {
+            var texture = new Texture2D(4, 4);
+            MapObjectVisualDefinition visual = CreateDoorSheet(texture, 11, out Sprite[] frames);
+            DoorPropPresenter presenter = CreateDoorPresenter(visual, out SpriteRenderer renderer);
+
+            Assert.That(presenter.IsPlayingComeIn, Is.False);
+
+            presenter.BeginComeIn();
+            Assert.That(presenter.IsPlayingComeIn, Is.True);
+            Assert.That(presenter.CurrentFrame, Is.EqualTo(1), "comein starts on its label frame");
+            Assert.That(renderer.sprite, Is.EqualTo(frames[1]));
+
+            presenter.TickAnimation(DoorPropPresenter.FrameDuration);
             Assert.That(presenter.CurrentFrame, Is.EqualTo(2));
 
-            // Step down to frame 1
-            presenter.TickAnimation(0.08f);
-            Assert.That(presenter.CurrentFrame, Is.EqualTo(1));
-            Assert.That(renderer.sprite, Is.EqualTo(s1));
+            // Run past the end: the clip stops on the last frame and clears its playing flag.
+            presenter.TickAnimation(DoorPropPresenter.FrameDuration * 20f);
+            Assert.That(presenter.CurrentFrame, Is.EqualTo(frames.Length - 1));
+            Assert.That(presenter.IsPlayingComeIn, Is.False);
 
-            // Step down to frame 0 (fully closed)
-            presenter.TickAnimation(0.08f);
-            Assert.That(presenter.CurrentFrame, Is.EqualTo(0));
-            Assert.That(renderer.sprite, Is.EqualTo(s0));
+            Object.DestroyImmediate(visual);
+            Object.DestroyImmediate(texture);
+        }
 
-            Object.DestroyImmediate(visualDef);
-            Object.DestroyImmediate(dummyTex);
+        [Test]
+        public void DoorPropPresenter_CanInteract_UsesTheAs3ReachOfTwoUnits()
+        {
+            var texture = new Texture2D(4, 4);
+            MapObjectVisualDefinition visual = CreateDoorSheet(texture, 3, out _);
+            DoorPropPresenter presenter = CreateDoorPresenter(visual, out _);
+
+            var playerGo = new GameObject("TestPlayer");
+            playerGo.transform.SetParent(_holderGo.transform);
+            playerGo.transform.position = new Vector3(2.0f, 0f, 0f); // exactly AS3's 200 px reach
+
+            Assert.That(DoorPropPresenter.ActionReach, Is.EqualTo(2.0f).Within(0.0001f));
+            Assert.That(presenter.CanInteract(playerGo), Is.True);
+
+            // 2.4 units is inside the old 2.5 threshold and outside AS3's reach.
+            playerGo.transform.position = new Vector3(2.4f, 0f, 0f);
+            Assert.That(presenter.CanInteract(playerGo), Is.False);
+
+            // AS3 always measures against the player, so a null user is not "in reach".
+            Assert.That(presenter.CanInteract(null), Is.False);
+
+            Object.DestroyImmediate(visual);
+            Object.DestroyImmediate(texture);
         }
 
         [Test]

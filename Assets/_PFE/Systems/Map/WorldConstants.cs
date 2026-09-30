@@ -24,6 +24,16 @@ namespace PFE.Systems.Map
         // Maximum step height - from AS3: World.maxdy
         public const float MAX_STEP_HEIGHT = 20f;
 
+        // Interaction reach - from AS3: World.actionDist (World.as:264)
+        //
+        // AS3 stores this as a SQUARED distance and compares it against (dx*dx + dy*dy)
+        // (UnitPlayer.as:1926, :1931), so 40000 means 200 source pixels. Source pixels are world
+        // units in this project and art is imported at 100 px per unit, so 200 px = 2.0 units.
+        // Both the player's target search and each interactable's own reach check read it from
+        // here, so the two can never drift apart again - they were 2.5 in both places, 25% over.
+        public const float ACTION_REACH_PIXELS = 200f;
+        public const float ACTION_REACH = ACTION_REACH_PIXELS * 0.01f;
+
         // Layer constants for rendering
         public const int LAYER_BACKGROUND = 0;
         public const int LAYER_MAIN = 1;

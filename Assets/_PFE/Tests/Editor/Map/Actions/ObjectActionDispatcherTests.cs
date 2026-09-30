@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEngine;
+using PFE.Data.Definitions;
 using PFE.Systems.Map;
 using PFE.Systems.Map.Actions;
 
@@ -118,6 +119,91 @@ namespace PFE.Tests.Editor.Map.Actions
             Assert.AreEqual(ObjectActionOutcome.Handled, dispatcher.Dispatch(Context("comein")));
             Assert.AreEqual(1, action.ExecuteCount);
             Assert.AreEqual(0, reported.Count);
+        }
+
+        [Test]
+        public void Dispatch_ResolvesAllActFromTheDefinitionWhenThePlacementHasNone()
+        {
+            // The shipped camp case, and the regression this pins. Every Z door in RoomsCamp.as places
+            // indoor2 with no allact — <obj id="indoor2" code="BJ1whp5k1LO1jk6w" x="16" y="15"
+            // locktip="0" lock="1" uid="doorRBL1"/> (:115) — and authors it on the definition instead
+            // (AllData.as:4917, allact='comein'). Reading the placement alone answered NotApplicable, so
+            // DoorPropPresenter fell through to opening the door and the backroom stayed unreachable.
+            //
+            // Note the Context() helper above cannot express this: it always injects allact as a
+            // placement attribute, which is exactly the assumption that hid the bug.
+            var reported = new List<string>();
+            var dispatcher = new ObjectActionDispatcher(reported.Add);
+            var action = new RecordingAction("comein");
+            dispatcher.Register(action);
+
+            var obj = new ObjectInstance
+            {
+                objectId = "indoor2",
+                definitionId = "indoor2",
+                attributes = new List<MapObjectAttributeData>
+                {
+                    new MapObjectAttributeData { key = "lock", value = "1" },
+                    new MapObjectAttributeData { key = "locktip", value = "0" }
+                },
+                definition = new MapObjectDefinition
+                {
+                    objectId = "indoor2",
+                    legacyAttributes = new List<MapObjectAttributeData>
+                    {
+                        new MapObjectAttributeData { key = "allact", value = "comein" }
+                    }
+                }
+            };
+
+            var room = new RoomInstance
+            {
+                id = "room_0_0",
+                width = WorldConstants.ROOM_WIDTH,
+                height = WorldConstants.ROOM_HEIGHT
+            };
+
+            var context = new ObjectActionContext(room, obj, null, new Vector3(3f, 4f, 0f));
+
+            Assert.AreEqual("comein", context.ActionId);
+            Assert.AreEqual(ObjectActionOutcome.Handled, dispatcher.Dispatch(in context));
+            Assert.AreEqual(1, action.ExecuteCount);
+            Assert.AreEqual(0, reported.Count);
+        }
+
+        [Test]
+        public void Dispatch_PlacementAllActStillOverridesTheDefinition()
+        {
+            // The complement, so the fix above cannot be "read the definition instead of the placement".
+            // AS3 assigns the definition first (Interact.as:287-289) and the placed node last
+            // (:383-385), so the placement wins when it is present — the doorboss case, where the room
+            // XML itself says allact="comein" (RoomsSerial.as:127).
+            var obj = new ObjectInstance
+            {
+                objectId = "doorboss",
+                definitionId = "doorboss",
+                attributes = new List<MapObjectAttributeData>
+                {
+                    new MapObjectAttributeData { key = "allact", value = "open" }
+                },
+                definition = new MapObjectDefinition
+                {
+                    objectId = "doorboss",
+                    legacyAttributes = new List<MapObjectAttributeData>
+                    {
+                        new MapObjectAttributeData { key = "allact", value = "comein" }
+                    }
+                }
+            };
+
+            var room = new RoomInstance
+            {
+                id = "room_0_0",
+                width = WorldConstants.ROOM_WIDTH,
+                height = WorldConstants.ROOM_HEIGHT
+            };
+
+            Assert.AreEqual("open", new ObjectActionContext(room, obj, null, Vector3.zero).ActionId);
         }
 
         [Test]

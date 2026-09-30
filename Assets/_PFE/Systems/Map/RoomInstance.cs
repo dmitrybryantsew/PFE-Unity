@@ -580,6 +580,155 @@ namespace PFE.Systems.Map
             return MapObjectDataUtility.GetAttribute(attributes, key, defaultValue);
         }
 
+        /// <summary>
+        /// How long the player must hold the action key on this object before it acts, in frames —
+        /// AS3 <c>Interact.t_action</c>.
+        ///
+        /// <para><b>Where the number comes from.</b> The authored <c>time</c> attribute. AS3 reads it
+        /// from the object <i>definition</i> row first (<c>Interact.as:308-311</c>,
+        /// <c>param2.@time</c>) and then lets the <i>placed</i> node override it (<c>:399-402</c>,
+        /// <c>this.xml.@time</c>), each guarded by <c>.length()</c> — so the placed value wins only
+        /// when it is actually present. Same shape as <c>cl</c>, and the same reason: a per-placement
+        /// override of a definition-level value.</para>
+        ///
+        /// <para><b>Absent means instant, and that is the overwhelmingly common case.</b> Only 22 of
+        /// the 19,461 <c>&lt;obj&gt;</c> definition rows in AllData author a <c>time</c> — the seven Z
+        /// doors (<c>indoor1..4</c>, <c>instdoor</c>, <c>inbasedoor</c>, <c>inencldoor</c>, all
+        /// <c>time='10'</c>), the metal doors and the terminals. Every plain <c>door1</c>,
+        /// <c>door2</c>, <c>hatch</c> and <c>instr</c> row omits it, so returning 0 here is what keeps
+        /// those acting on the press exactly as they do today. AS3's <c>t_action</c> also defaults to
+        /// 0 (<c>Interact.as:102</c>), and its zero branch fires <c>is_act</c> directly without ever
+        /// arming a timer (<c>UnitPlayer.as:1985-1988</c>).</para>
+        ///
+        /// <para><b>Note the two <c>comein</c> doors that are instant:</b> <c>door_st1</c> and
+        /// <c>door_st2</c> carry <c>allact='comein'</c> but no <c>time</c>. They are not an oversight
+        /// to correct — AS3 gives them no hold, and neither does this.</para>
+        /// </summary>
+        public int GetHoldFrames()
+        {
+            EnsureStructuredData();
+
+            // The placed node wins when it carries a usable number, and an explicit 0 counts as usable:
+            // AS3's guard is `.length()`, so a present `time='0'` assigns t_action = 0 and the action
+            // fires at once rather than inheriting the definition's hold. Treating 0 as "absent" here
+            // would hand a deliberately instant placement the definition's duration.
+            if (TryParseHoldFrames(MapObjectDataUtility.GetAttribute(attributes, "time", string.Empty), out int placedFrames))
+            {
+                return placedFrames;
+            }
+
+            if (definition != null &&
+                TryParseHoldFrames(definition.GetAttribute("time", string.Empty), out int definitionFrames))
+            {
+                return definitionFrames;
+            }
+
+            return 0;
+        }
+
+        /// <summary>
+        /// The object's <c>allact</c> script id, or empty when it has none.
+        ///
+        /// <para><b>Placement first, then definition</b> — the same order as <see cref="GetHoldFrames"/>
+        /// and the same order AS3 uses: <c>Interact.as:287-289</c> copies <c>param2.@allact</c> (the
+        /// definition row) and <c>:383-385</c> then lets the placed node override it with
+        /// <c>this.xml.@allact</c>.</para>
+        ///
+        /// <para><b>Why the definition half is load-bearing.</b> The seven Z doors author
+        /// <c>allact='comein'</c> on the <i>definition</i> (<c>AllData.as:4916-4922</c>) and say nothing
+        /// about it on the placement — <c>RoomsCamp.as:115</c> is
+        /// <c>&lt;obj id="indoor2" code="BJ1whp5k1LO1jk6w" x="16" y="15" locktip="0" lock="1"
+        /// uid="doorRBL1"/&gt;</c>. Reading only the placement therefore reported "no script" for every Z
+        /// door in the camp, so <c>ObjectActionDispatcher</c> returned <c>NotApplicable</c> and
+        /// <c>DoorPropPresenter.Interact</c> fell through to opening the door instead of moving the
+        /// player to the other layer.</para>
+        ///
+        /// <para>Only 4 of the 639 imported room assets carry an <c>allact</c> on a placement (the
+        /// <c>doorboss</c> nodes); the rest — the Z doors among them — rely on this fallback.</para>
+        /// </summary>
+        public string GetAllAct()
+        {
+            EnsureStructuredData();
+
+            string placed = MapObjectDataUtility.GetAttribute(attributes, "allact", string.Empty);
+            if (!string.IsNullOrWhiteSpace(placed))
+            {
+                return placed;
+            }
+
+            return definition != null ? definition.GetAttribute("allact", string.Empty) : string.Empty;
+        }
+
+        /// <summary>
+        /// Whether this object is a <b>door box</b> in AS3's sense — i.e. its <i>definition</i> row
+        /// authors <c>door=</c>.
+        ///
+        /// <para><b>The oracle is the attribute, not the id and not the family.</b>
+        /// <c>Box.as:290-297</c> reads <c>node.@door</c> — and <c>node</c> is the definition row,
+        /// <c>AllData.d.obj.(@id == id)[0]</c> (<c>:155</c>) — and only then calls <c>initDoor()</c>,
+        /// which is what stamps the box's tiles solid (<c>:653-673</c>) and what <c>setDoor()</c>
+        /// toggles (<c>:679</c>). Exactly 21 <c>&lt;obj&gt;</c> rows in AllData declare it:
+        /// <c>door1..4</c>, <c>hatch1/2</c>, <c>stdoor</c>, <c>basedoor</c>, <c>encldoor</c>,
+        /// <c>enclpole</c>, <c>alib1/2</c>, <c>septum</c>, <c>grate</c>, <c>hgrate</c>,
+        /// <c>platform1</c>, <c>window1/2</c> — and the same 21 definition assets carry
+        /// <c>legacyAttributes: door=…</c>.</para>
+        ///
+        /// <para><b>The Z doors are not door boxes.</b> <c>indoor1..4</c>, <c>instdoor</c>,
+        /// <c>inbasedoor</c>, <c>inencldoor</c> declare <c>allact='comein'</c>, <c>inter='8'</c> and
+        /// <c>open='…'</c> but <b>no</b> <c>door=</c> — so AS3 never runs <c>initDoor</c> on them, never
+        /// stamps their tiles, and never gives them an open/close state. They are interactive
+        /// <c>Box</c> props whose interaction happens to be a layer toggle. Their tiles are open
+        /// ground (<c>RoomsCamp.as</c> places <c>indoor2</c> at 16,15 and 16,7; both are <c>_</c> in the
+        /// imported tile map), so stamping them solid would wall off the doorway the player has to walk
+        /// into.</para>
+        ///
+        /// <para><b>A missing definition answers <c>true</c>, on purpose.</b> With no definition row
+        /// there is no <c>door=</c> to read, so the question is unanswerable; this returns the
+        /// <i>historical</i> answer rather than the strict one, because the only caller is a presenter
+        /// that routing sent here precisely because the object looked like a door. Answering
+        /// <c>false</c> would let a broken definition reference silently un-stamp a real door — the
+        /// same "keep the incumbent so the outcome is deterministic" choice <c>LandMap.AddRoom</c>
+        /// makes for a coordinate clash. A real imported object always has a definition, so this branch
+        /// is reachable only from a hand-built fixture or a missing GUID.</para>
+        /// </summary>
+        public bool IsDoorBox()
+        {
+            EnsureStructuredData();
+
+            if (definition == null)
+            {
+                return true;
+            }
+
+            return !string.IsNullOrWhiteSpace(definition.GetAttribute("door", string.Empty));
+        }
+
+        /// <summary>
+        /// Parses a <c>time</c> attribute. False means "no usable number here, try the next source" —
+        /// i.e. the attribute is absent, blank, or not a number.
+        ///
+        /// <para>A present but non-positive number is a <b>usable</b> answer, not a miss: it parses to 0,
+        /// which is the authored way of saying "no hold". A negative is clamped to 0 rather than
+        /// rejected, because it can only ever be a typo for 0 and 0 is the safe reading.</para>
+        /// </summary>
+        private static bool TryParseHoldFrames(string raw, out int frames)
+        {
+            frames = 0;
+
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                return false;
+            }
+
+            if (!int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsed))
+            {
+                return false;
+            }
+
+            frames = parsed > 0 ? parsed : 0;
+            return true;
+        }
+
         public string GetResolvedDefinitionId()
         {
             if (definition != null && !string.IsNullOrWhiteSpace(definition.objectId))

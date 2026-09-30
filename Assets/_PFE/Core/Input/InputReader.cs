@@ -179,10 +179,19 @@ namespace PFE.Core.Input
                 _attackPublisher.Publish(new AttackMessage { IsStarted = false });
             };
 
-            // Interact - pressed
+            // Interact - hold to act, release to abandon (AS3: keyAction, Keyboard.E)
+            //
+            // Both edges are published because the action is a *hold*: AS3 reads keyAction as a held
+            // boolean (set in Ctr.onKeyboardDownEvent:699, cleared in onKeyboardUpEvent:797), and
+            // UnitPlayer.as:2115-2135 uses the false edge to null actionObj — releasing the key
+            // abandons the action part-way. Publishing only the press made that unreachable.
             Interact.performed += _ =>
             {
                 _interactPublisher.Publish(new InteractMessage { IsPressed = true });
+            };
+            Interact.canceled += _ =>
+            {
+                _interactPublisher.Publish(new InteractMessage { IsPressed = false });
             };
 
             // Dash - pressed

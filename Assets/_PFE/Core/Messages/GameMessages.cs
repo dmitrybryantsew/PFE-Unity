@@ -21,7 +21,12 @@ namespace PFE.Core.Messages
     }
 
     /// <summary>
-    /// Published when interact button is pressed.
+    /// Published on <b>both</b> edges of the interact button (E): <c>true</c> when it goes down,
+    /// <c>false</c> when it comes back up.
+    ///
+    /// <para>The release edge is not optional. Interacting is a hold in AS3 — <c>keyAction</c> is a
+    /// held boolean and <c>UnitPlayer.as:2131-2135</c> abandons the action the moment it goes false.
+    /// A consumer that only reads the press cannot tell "still holding" from "let go early".</para>
     /// </summary>
     public struct InteractMessage
     {

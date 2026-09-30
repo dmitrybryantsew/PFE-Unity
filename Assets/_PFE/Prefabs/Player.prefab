@@ -258,6 +258,7 @@ GameObject:
   - component: {fileID: 4174538866660574423}
   - component: {fileID: 2652813275163745492}
   - component: {fileID: 1671985779421430584}
+  - component: {fileID: 6154263970955718482}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -369,9 +370,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Entities.Player.PlayerController
   _stats: {fileID: 11400000, guid: 82d572c8cd054f2419d164d37cded0c0, type: 2}
   _showDebugInfo: 1
-  _startingWeaponDef: {fileID: 0}
   _mouseAiming: 1
   _doubleTapWindowSeconds: 0.25
+  _interactionRadius: 2
 --- !u!114 &7812910789973770164
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -510,6 +511,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Entities.Player.PlayerCharacterVisual
   _definition: {fileID: 11400000, guid: 844bfb6fc57f38a4e8789475d884fa55, type: 2}
   _styleData: {fileID: 11400000, guid: 287c4cc318444004f895d43666727b58, type: 2}
+  _player: {fileID: 0}
 --- !u!114 &1624748335255232816
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -589,6 +591,19 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Systems.Weapons.ProjectileSpawner
   _thrownObjectPrefab: {fileID: 0}
   _minePrefab: {fileID: 0}
+--- !u!114 &6154263970955718482
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4313158047856038044}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bd9e11b7955646d7bcfc0d234729adb9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: PFE.Core::PFE.Entities.Player.PlayerActionInteractor
+  _holdRange: 2.5
 --- !u!1 &6026424782225018350
 GameObject:
   m_ObjectHideFlags: 0

@@ -46,8 +46,15 @@ namespace PFE.Systems.Map.Actions
         /// <summary>
         /// The object's <c>allact</c>, or empty when it has none. Empty means "this object has no
         /// script" — the caller's own behaviour applies.
+        ///
+        /// <para>Resolved by <see cref="ObjectInstance.GetAllAct"/>, which reads the placement first and
+        /// falls back to the definition — AS3's order (<c>Interact.as:287-289</c>, then
+        /// <c>:383-385</c>). It must not read the placement alone: the Z doors author
+        /// <c>allact='comein'</c> on the definition (<c>AllData.as:4916-4922</c>) and nothing on the
+        /// placement, so a placement-only read reports "no script" for the very doors this action
+        /// exists to serve.</para>
         /// </summary>
-        public string ActionId => Object != null ? Object.GetAttribute("allact", string.Empty) : string.Empty;
+        public string ActionId => Object != null ? Object.GetAllAct() : string.Empty;
 
         /// <summary>The object's id, for logging.</summary>
         public string ObjectId => Object != null ? Object.GetResolvedDefinitionId() : string.Empty;

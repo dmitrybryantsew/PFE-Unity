@@ -1,5 +1,6 @@
 using UnityEngine;
 using System;
+using System.Collections.Generic;
 using PFE.Systems.Map;
 using PFE.Systems.Map.Rendering;
 using PFE.Systems.Physics;
@@ -52,6 +53,12 @@ namespace PFE.Systems.Map.Streaming
 
         private bool isTransitioning = false;
         private float transitionStartTime;
+
+        /// <summary>
+        /// Cells whose opposite layer has already been reported as missing, so a player leaning on the
+        /// interact key gets one explanation rather than one per press.
+        /// </summary>
+        private readonly HashSet<Vector3Int> _reportedMissingLayers = new HashSet<Vector3Int>();
 
         #region Initialization
 
@@ -207,6 +214,15 @@ namespace PFE.Systems.Map.Streaming
         /// <summary>
         /// Whether the player can step to the opposite z layer of the cell they are in.
         /// See <see cref="IRoomLayerTransition"/>.
+        ///
+        /// <para><b>A missing opposite layer is reported, once per cell.</b> Refusing silently is the
+        /// worst available behaviour: <c>ComeInAction</c> turns this into <c>Refused</c>, the door
+        /// presenter returns without opening, and the player sees a Z door that does nothing at all —
+        /// indistinguishable from a door whose script was never ported. The one real cause seen so far
+        /// is stale data rather than stale code: <c>room_0_0_1</c> is authored <c>z="1"</c> in
+        /// <c>RoomsCamp.as:239</c>, but an asset imported before <c>AS3ToUnityConverter</c> stopped
+        /// hardcoding z still carries <c>fixedPosition z: 0</c>, so it collides with <c>room_0_0</c> and
+        /// <c>LandMap.AddRoom</c> drops it.</para>
         /// </summary>
         public bool CanToggleLayer
         {
@@ -217,8 +233,37 @@ namespace PFE.Systems.Map.Streaming
                     return false;
                 }
 
-                return landMap.GetLayerToggleTarget(landMap.currentRoom.landPosition) != null;
+                Vector3Int here = landMap.currentRoom.landPosition;
+                if (landMap.GetLayerToggleTarget(here) != null)
+                {
+                    return true;
+                }
+
+                ReportMissingOppositeLayer(here);
+                return false;
             }
+        }
+
+        /// <summary>
+        /// Name the cell and the coordinate that was looked for, once per cell.
+        ///
+        /// <para>The coordinate is the actionable part: <c>(x, y, 0)</c> with no <c>(x, y, 1)</c> means
+        /// the room exists in the source XML but did not survive the import. Without the pair printed,
+        /// "the door does nothing" is a symptom with no address.</para>
+        /// </summary>
+        private void ReportMissingOppositeLayer(Vector3Int here)
+        {
+            if (!_reportedMissingLayers.Add(here))
+            {
+                return;
+            }
+
+            Vector3Int wanted = new Vector3Int(here.x, here.y, 1 - here.z);
+            Debug.LogWarning(
+                $"[RoomTransitionManager] A `comein` (Z door) was refused at land {here}: no room " +
+                $"occupies {wanted}, so the toggle has nowhere to go and the door does nothing. " +
+                "If the source XML authors a room there with z=\"1\", its imported asset predates the " +
+                "z fix and still holds z: 0 — re-import the rooms (PFE/Map/Room Template Importer).");
         }
 
         /// <summary>

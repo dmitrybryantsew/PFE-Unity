@@ -213,10 +213,30 @@ namespace PFE.Systems.Map.Rendering
                 triggerPresenter.Initialize(_room, obj, TriggerSystem);
             }
 
-            bool isDoor = string.Equals(obj.objectType, "door", StringComparison.OrdinalIgnoreCase) ||
-                          (obj.definition != null && obj.definition.family == MapObjectFamily.Door) ||
-                          (visual != null && visual.objectId != null && visual.objectId.StartsWith("door", StringComparison.OrdinalIgnoreCase));
-            if (isDoor)
+            // DoorPropPresenter is the port of AS3's Box interaction surface — and, today, the only
+            // IInteractable in the project, so anything it does not claim cannot be interacted with at
+            // all. AS3 picks the class by `tip` (`Location.as:2008`: `tip == "box" || tip == "door"`
+            // -> `new Box(...)`), so a `tip='box'` object with a script is a first-class citizen there.
+            //
+            // This test used to admit only objectType "door", family Door, or a visual id starting with
+            // "door" — which excluded the seven Z doors on all three counts: they import as type "box",
+            // the classifier files them under family Transition (`MapObjectDefinition.TransitionIds`),
+            // and their visual is `visindoor2`, whose objectId is "indoor2". They therefore fell to
+            // ObjectColliderDebugPresenter, which implements nothing, and pressing E on the camp's main
+            // backroom door did nothing at all.
+            //
+            // Family Transition is exactly the set with no other route: eight definitions — `exit` plus
+            // `inbasedoor`, `indoor1..4`, `inencldoor`, `instdoor`, all `tip='box'` and all `inter>0`,
+            // seven of them the `allact='comein'` Z doors. The presenter then decides for itself whether
+            // to stamp tiles and whether to open and close (see DoorPropPresenter.IsDoorBox), so the
+            // Z doors get interaction without acquiring a solid closed state they never had in AS3.
+            bool usesDoorPresenter =
+                string.Equals(obj.objectType, "door", StringComparison.OrdinalIgnoreCase) ||
+                (obj.definition != null &&
+                 (obj.definition.family == MapObjectFamily.Door ||
+                  obj.definition.family == MapObjectFamily.Transition)) ||
+                (visual != null && visual.objectId != null && visual.objectId.StartsWith("door", StringComparison.OrdinalIgnoreCase));
+            if (usesDoorPresenter)
             {
                 DoorPropPresenter doorPresenter = presenter.gameObject.GetComponent<DoorPropPresenter>();
                 if (doorPresenter == null)
@@ -226,7 +246,7 @@ namespace PFE.Systems.Map.Rendering
                 doorPresenter.Initialize(_room, obj, visual, presenter.renderer, TriggerSystem);
             }
 
-            if (!isArea && !isDoor)
+            if (!isArea && !usesDoorPresenter)
             {
                 ObjectColliderDebugPresenter colPresenter = presenter.gameObject.GetComponent<ObjectColliderDebugPresenter>();
                 if (colPresenter == null)

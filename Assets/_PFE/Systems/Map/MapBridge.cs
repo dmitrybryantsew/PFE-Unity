@@ -487,6 +487,18 @@ public class MapBridge : MonoBehaviour
             }
         }
 
+        // Hand the player's hold-to-act timers to the simulation as well — but deliberately NOT behind
+        // SimTickMotor. That flag chooses which clock drives the *motor*; a hold duration is an AS3
+        // frame count, so it needs the sim tick to mean anything at all. Left on the fallback driver it
+        // would count at Unity's fixed rate (50 Hz) and every hold would finish 1.67x early, which for
+        // the Z doors' time='10' is 0.2 s instead of 0.33 s. Attaching here is what makes the hold
+        // independent of whether the motor has been switched over yet.
+        var actionInteractor = playerObj.GetComponent<PFE.Entities.Player.PlayerActionInteractor>();
+        if (actionInteractor != null)
+        {
+            actionInteractor.AttachSimulation(_simClock, _simLoop);
+        }
+
         SetupCameraFollow();
     }
     /// <summary>
