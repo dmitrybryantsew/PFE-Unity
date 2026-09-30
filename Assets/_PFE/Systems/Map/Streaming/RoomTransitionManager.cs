@@ -11,7 +11,7 @@ namespace PFE.Systems.Map.Streaming
     /// Handles coordinate conversion, player repositioning, and camera transitions.
     /// From AS3: Room transition system (fe/land/Land.as lines 1800-2100)
     /// </summary>
-    public class RoomTransitionManager : MonoBehaviour
+    public class RoomTransitionManager : MonoBehaviour, IRoomLayerTransition
     {
         private static RoomTransitionManager _instance;
         public static RoomTransitionManager Instance
@@ -200,6 +200,74 @@ namespace PFE.Systems.Map.Streaming
 
             Vector3 spawnPos = ComputeEdgeSpawnPosition(direction, current, targetRoom, player.transform.position);
 
+            StartCoroutine(PerformTransition(current, targetRoom, null, player, spawnPos));
+            return true;
+        }
+
+        /// <summary>
+        /// Whether the player can step to the opposite z layer of the cell they are in.
+        /// See <see cref="IRoomLayerTransition"/>.
+        /// </summary>
+        public bool CanToggleLayer
+        {
+            get
+            {
+                if (isTransitioning || landMap == null || landMap.currentRoom == null)
+                {
+                    return false;
+                }
+
+                return landMap.GetLayerToggleTarget(landMap.currentRoom.landPosition) != null;
+            }
+        }
+
+        /// <summary>
+        /// Step to the opposite z layer of the current cell, arriving at <paramref name="worldPosition"/>.
+        /// Port of AS3 <c>Land.gotoLoc(5, x, y)</c> — the branch an object reaches when its
+        /// <c>allact</c> is <c>comein</c> (<c>Interact.as:1619-1621</c>).
+        ///
+        /// <para>Unlike <see cref="TransitionThroughEdge"/> this does not move x or y, and unlike a door
+        /// it does not look up a target door: the arrival point is the trigger itself, which AS3 passes in
+        /// as <c>param2</c>/<c>param3</c> (<c>Land.as:1367-1371</c>). Both layers share one Unity world
+        /// origin, so the same coordinates are correct on either side — that is a property of the AS3
+        /// model, not a shortcut.</para>
+        ///
+        /// <para>Routed through <see cref="PerformTransition"/> so streaming, re-render, the movement
+        /// motor's authoritative position and the camera snap all stay on one code path; a bespoke swap
+        /// here is exactly how the "bookkeeping updated, nothing else did" bug happened before.</para>
+        ///
+        /// <para><b>Known gap:</b> AS3 also sets <c>loc_t = 150</c> (<c>Land.as:1377</c>), a five-second
+        /// lock on further transitions. This port has no equivalent — <c>isTransitioning</c> only covers
+        /// the coroutine. It matters more here than for an edge crossing, because the player arrives
+        /// standing on the trigger and can immediately toggle back. The lock belongs with the interaction
+        /// timer rather than being invented here.</para>
+        /// </summary>
+        public bool ToggleLayer(GameObject player, Vector3 worldPosition)
+        {
+            if (isTransitioning || player == null || landMap == null)
+            {
+                return false;
+            }
+
+            RoomInstance current = landMap.currentRoom;
+            if (current == null)
+            {
+                return false;
+            }
+
+            Vector3Int? target = landMap.GetLayerToggleTarget(current.landPosition);
+            if (target == null)
+            {
+                return false;
+            }
+
+            RoomInstance targetRoom = landMap.GetRoom(target.Value);
+            if (targetRoom == null)
+            {
+                return false;
+            }
+
+            Vector3 spawnPos = new Vector3(worldPosition.x, worldPosition.y, player.transform.position.z);
             StartCoroutine(PerformTransition(current, targetRoom, null, player, spawnPos));
             return true;
         }

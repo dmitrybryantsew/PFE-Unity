@@ -98,6 +98,29 @@ namespace PFE.Systems.Map
         }
 
         /// <summary>
+        /// The cell a layer toggle from <paramref name="from"/> would land in, or <c>null</c> when there
+        /// is nothing there.
+        ///
+        /// <para>Port of the <c>param1 == 5</c> branch of <c>Land.gotoLoc</c>
+        /// (<c>Land.as:1302</c>): x and y are unchanged and <c>locZ = 1 - locZ</c>
+        /// (<c>:1330-1332</c>), then the result is looked up in <c>locs[x][y][z]</c> (<c>:1351</c>).
+        /// A missing cell makes AS3 return <c>null</c> and leave the player where they are
+        /// (<c>:1335-1346</c>) — it does not fall back to anything.</para>
+        ///
+        /// <para><b>Why this is a separate operation rather than a fifth adjacency.</b>
+        /// <see cref="GetAdjacentPositions"/> exists to serve <c>gotoLoc(1..4)</c> and
+        /// <see cref="FindPath"/>'s BFS, and in AS3 those are strictly in-plane. Case 5 is the only
+        /// direction that touches z, and it is reached from an object's script rather than from a
+        /// boundary crossing — so folding it into the adjacency set would make the pathfinder believe
+        /// two layers of one cell are connected, which they are not.</para>
+        /// </summary>
+        public Vector3Int? GetLayerToggleTarget(Vector3Int from)
+        {
+            Vector3Int target = new Vector3Int(from.x, from.y, 1 - from.z);
+            return HasRoom(target) ? target : (Vector3Int?)null;
+        }
+
+        /// <summary>
         /// Switch to room at position.
         /// From AS3: Land.ativateLoc()
         /// </summary>

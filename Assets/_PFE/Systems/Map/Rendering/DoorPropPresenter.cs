@@ -8,6 +8,7 @@ using PFE.Data.Definitions;
 using PFE.Entities.Units;
 using PFE.Systems.Interaction;
 using PFE.Systems.Map;
+using PFE.Systems.Map.Actions;
 using PFE.Systems.Map.Scripting;
 using PFE.Systems.Physics;
 
@@ -102,6 +103,31 @@ namespace PFE.Systems.Map.Rendering
 
         private bool _isPlayerNear;
         private int _lastInteractFrame = -1;
+
+        private ObjectActionDispatcher _objectActions;
+
+        /// <summary>
+        /// The <c>allact</c> dispatcher — the port of AS3's <c>Interact.act()</c> switch.
+        ///
+        /// <para>Built lazily rather than in <c>Awake</c> so <c>RoomTransitionManager.Instance</c> is
+        /// resolved once the scene is up, and settable so a test can supply a double instead of a live
+        /// manager. Resolving that manager at call time is what the rest of the codebase does
+        /// (<c>DoorTrigger.cs:117</c>, <c>TilePhysicsController.cs:696</c>).</para>
+        /// </summary>
+        public ObjectActionDispatcher ObjectActions
+        {
+            get
+            {
+                if (_objectActions == null)
+                {
+                    _objectActions = ObjectActionDispatcher.CreateDefault(
+                        PFE.Systems.Map.Streaming.RoomTransitionManager.Instance);
+                }
+
+                return _objectActions;
+            }
+            set => _objectActions = value;
+        }
 
         private int _currentFrameIndex;
         private int _targetFrameIndex;
@@ -604,6 +630,20 @@ namespace PFE.Systems.Map.Rendering
 
             if (Time.frameCount == _lastInteractFrame) return;
             _lastInteractFrame = Time.frameCount;
+
+            // AS3 runs an object's `allact` script from Interact.act() (Interact.as:889), reached after
+            // the hold timer completes. The timer is not ported yet, so the script runs on the press.
+            var context = new ObjectActionContext(_room, _objectInstance, user, transform.position);
+            ObjectActionOutcome outcome = ObjectActions.Dispatch(in context);
+
+            // Handled AND Refused both stop here. AS3 refuses a `comein` by returning null from
+            // Land.gotoLoc and nothing happens; falling through to ToggleOpen() would instead open a
+            // Z door onto a layer that does not exist. Only "no script" and "script not ported yet"
+            // reach the fallback, which is what keeps the term* terminals behaving as they do today.
+            if (outcome == ObjectActionOutcome.Handled || outcome == ObjectActionOutcome.Refused)
+            {
+                return;
+            }
 
             ToggleOpen();
         }

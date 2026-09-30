@@ -96,6 +96,59 @@ namespace PFE.Tests.Editor.Map
         }
 
         [Test]
+        public void GetLayerToggleTarget_FlipsZAndNothingElse()
+        {
+            // AS3 Land.gotoLoc case 5 (Land.as:1330-1332): locZ = 1 - locZ, x and y untouched.
+            LandMap land = CreateTestLand();
+            land.AddRoom(CreateTestRoom("room_0_0", new Vector3Int(1, 2, 0)), new Vector3Int(1, 2, 0));
+            land.AddRoom(CreateTestRoom("room_0_0_1", new Vector3Int(1, 2, 1)), new Vector3Int(1, 2, 1));
+
+            Vector3Int? fromExterior = land.GetLayerToggleTarget(new Vector3Int(1, 2, 0));
+            Assert.IsNotNull(fromExterior);
+            Assert.AreEqual(1, fromExterior.Value.x, "A layer toggle must not move in x.");
+            Assert.AreEqual(2, fromExterior.Value.y, "A layer toggle must not move in y.");
+            Assert.AreEqual(1, fromExterior.Value.z);
+
+            Vector3Int? fromInterior = land.GetLayerToggleTarget(new Vector3Int(1, 2, 1));
+            Assert.IsNotNull(fromInterior, "The toggle is a flip, so it must work from either side.");
+            Assert.AreEqual(new Vector3Int(1, 2, 0), fromInterior.Value);
+        }
+
+        [Test]
+        public void GetLayerToggleTarget_IsNullWhenTheOppositeLayerHoldsNoRoom()
+        {
+            // AS3 returns null from gotoLoc when locs[x][y][z] is empty (Land.as:1335-1346) and the
+            // player stays put. Returning the cell anyway would teleport them into nothing.
+            LandMap land = CreateTestLand();
+            land.AddRoom(CreateTestRoom("room_0_0", new Vector3Int(1, 2, 0)), new Vector3Int(1, 2, 0));
+
+            Assert.IsNull(land.GetLayerToggleTarget(new Vector3Int(1, 2, 0)));
+
+            // Complement: the same cell with both layers present is not null, so the assertion above
+            // is about the missing layer rather than about the method always returning null.
+            land.AddRoom(CreateTestRoom("room_0_0_1", new Vector3Int(1, 2, 1)), new Vector3Int(1, 2, 1));
+            Assert.IsNotNull(land.GetLayerToggleTarget(new Vector3Int(1, 2, 0)));
+        }
+
+        [Test]
+        public void GetLayerToggleTarget_DoesNotMakeTwoLayersAdjacent()
+        {
+            // The toggle is reachable only through an object's script, never by walking. If a layer
+            // were an adjacency, FindPath would route the player through it and GetAdjacentPositions
+            // would report five neighbours.
+            LandMap land = CreateTestLand();
+            land.AddRoom(CreateTestRoom("room_0_0", new Vector3Int(1, 2, 0)), new Vector3Int(1, 2, 0));
+            land.AddRoom(CreateTestRoom("room_0_0_1", new Vector3Int(1, 2, 1)), new Vector3Int(1, 2, 1));
+
+            List<Vector3Int> adjacent = land.GetAdjacentPositions(new Vector3Int(1, 2, 0));
+
+            Assert.IsFalse(adjacent.Contains(new Vector3Int(1, 2, 1)),
+                "The opposite layer is not an adjacent cell — AS3 only reaches it from an object's allact.");
+            Assert.IsNull(land.FindPath(new Vector3Int(1, 2, 0), new Vector3Int(1, 2, 1)),
+                "BFS must not find a path between two layers of one cell.");
+        }
+
+        [Test]
         public void GetRoom_ReturnsCorrectRoom()
         {
             LandMap land = CreateTestLand();
