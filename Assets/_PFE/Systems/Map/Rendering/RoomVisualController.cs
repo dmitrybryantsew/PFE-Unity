@@ -83,6 +83,7 @@ namespace PFE.Systems.Map.Rendering
         private TileVisualManager backgroundTileVisualManager;
         private RoomBackdropRenderer roomBackdropRenderer;
         private RoomObjectVisualManager roomObjectVisualManager;
+        private RoomUnitSpawner roomUnitSpawner;
         private PFE.Systems.Map.Scripting.AreaTriggerSystem areaTriggerSystem;
         private Transform visibilityRevealTargetTransform;
 
@@ -405,6 +406,14 @@ namespace PFE.Systems.Map.Rendering
             roomObjectVisualManager.RefreshAll();
             Profiler.Mark("room.objects.refreshAll");
 
+            // Units share the physical-object parent: they are bodies in the world, not backdrop.
+            // This is the producer the unit layer was missing — until now room.units had readers
+            // (RoomStateSnapshot, this controller's own bounds checks) and no instantiation site, so
+            // every authored enemy existed as data and was never drawn.
+            roomUnitSpawner = new RoomUnitSpawner(room, backgroundPhysicalObjectParent);
+            roomUnitSpawner.RefreshAll();
+            Profiler.Mark("room.units.refreshAll");
+
             EnsureBoundaryDoorTriggers(room);
 
             // Set world position
@@ -539,6 +548,7 @@ namespace PFE.Systems.Map.Rendering
             tileVisualManager?.UpdateAllTiles();
             backgroundTileVisualManager?.UpdateAllTiles();
             roomObjectVisualManager?.RefreshAll();
+            roomUnitSpawner?.RefreshAll();
         }
 
         private void LateUpdate()
@@ -662,6 +672,8 @@ namespace PFE.Systems.Map.Rendering
             roomBackdropRenderer?.DestroyVisuals();
             roomObjectVisualManager?.DestroyAll();
             roomObjectVisualManager = null;
+            roomUnitSpawner?.DestroyAll();
+            roomUnitSpawner = null;
             visibilityRevealTargetTransform = null;
             ReleaseCompositor();
 
@@ -683,6 +695,7 @@ namespace PFE.Systems.Map.Rendering
             tileVisualManager?.RefreshSprites();
             backgroundTileVisualManager?.RefreshSprites();
             roomObjectVisualManager?.RefreshAll();
+            roomUnitSpawner?.RefreshAll();
             RefreshBackdropVisuals();
         }
 
@@ -727,6 +740,8 @@ namespace PFE.Systems.Map.Rendering
             roomBackdropRenderer?.DestroyVisuals();
             roomObjectVisualManager?.DestroyAll();
             roomObjectVisualManager = null;
+            roomUnitSpawner?.DestroyAll();
+            roomUnitSpawner = null;
             visibilityRevealTargetTransform = null;
 
             // The shared compositor outlives every room, so this is the one place its ~1100 baked
@@ -1162,6 +1177,8 @@ namespace PFE.Systems.Map.Rendering
             backgroundTileVisualManager = null;
             roomBackdropRenderer = null;
             roomObjectVisualManager = null;
+            roomUnitSpawner?.DestroyAll();
+            roomUnitSpawner = null;
             visibilityRevealTargetTransform = null;
             isInitialized = false;
             // Nothing is drawn any more, so the room must stop claiming to be visible. Without this

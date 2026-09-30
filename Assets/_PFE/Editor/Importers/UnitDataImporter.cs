@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEditor;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Text.RegularExpressions;
 using PFE.Data.Definitions;
@@ -264,7 +265,7 @@ namespace PFE.Editor.Importers
                     // Parse combat (<comb> tag)
                     ParseCombat(unit, unitContent);
 
-                    // Parse vulnerabilities (<vuln> tag)
+                    // Parse vulnerabilities (<vulner> tag)
                     ParseVulnerabilities(unit, unitContent);
 
                     // Parse vision (<vis> tag)
@@ -342,7 +343,7 @@ namespace PFE.Editor.Importers
             var massaMatch = Regex.Match(attrs, @"massa='(\d+)'");
             if (massaMatch.Success)
             {
-                float mass = float.Parse(massaMatch.Groups[1].Value);
+                float mass = ParseFloat(massaMatch.Groups[1].Value);
                 SetPrivateField(unit, "mass", mass);
             }
         }
@@ -358,7 +359,7 @@ namespace PFE.Editor.Importers
             var speedMatch = Regex.Match(attrs, @"speed='(-?\d+\.?\d*)'");
             if (speedMatch.Success)
             {
-                float speed = float.Parse(speedMatch.Groups[1].Value);
+                float speed = ParseFloat(speedMatch.Groups[1].Value);
                 SetPrivateField(unit, "moveSpeed", speed);
             }
 
@@ -366,7 +367,7 @@ namespace PFE.Editor.Importers
             var jumpMatch = Regex.Match(attrs, @"jump='(-?\d+\.?\d*)'");
             if (jumpMatch.Success)
             {
-                float jump = float.Parse(jumpMatch.Groups[1].Value);
+                float jump = ParseFloat(jumpMatch.Groups[1].Value);
                 SetPrivateField(unit, "jumpForce", jump);
             }
 
@@ -374,7 +375,7 @@ namespace PFE.Editor.Importers
             var accelMatch = Regex.Match(attrs, @"accel='(-?\d+\.?\d*)'");
             if (accelMatch.Success)
             {
-                float accel = float.Parse(accelMatch.Groups[1].Value);
+                float accel = ParseFloat(accelMatch.Groups[1].Value);
                 SetPrivateField(unit, "acceleration", accel);
             }
         }
@@ -439,7 +440,7 @@ namespace PFE.Editor.Importers
             var skillMatch = Regex.Match(attrs, @"skill='(-?\d+\.?\d*)'");
             if (skillMatch.Success)
             {
-                float skill = float.Parse(skillMatch.Groups[1].Value);
+                float skill = ParseFloat(skillMatch.Groups[1].Value);
                 SetPrivateField(unit, "skill", skill);
             }
 
@@ -447,7 +448,7 @@ namespace PFE.Editor.Importers
             var aqualMatch = Regex.Match(attrs, @"aqual='(-?\d+\.?\d*)'");
             if (aqualMatch.Success)
             {
-                float aqual = float.Parse(aqualMatch.Groups[1].Value);
+                float aqual = ParseFloat(aqualMatch.Groups[1].Value);
                 SetPrivateField(unit, "waterAbility", aqual);
             }
 
@@ -455,7 +456,7 @@ namespace PFE.Editor.Importers
             var dexterMatch = Regex.Match(attrs, @"dexter='(-?\d+\.?\d*)'");
             if (dexterMatch.Success)
             {
-                float dexter = float.Parse(dexterMatch.Groups[1].Value);
+                float dexter = ParseFloat(dexterMatch.Groups[1].Value);
                 SetPrivateField(unit, "dexterity", dexter);
             }
 
@@ -468,56 +469,42 @@ namespace PFE.Editor.Importers
             }
         }
 
+        /// <summary>
+        /// Read the unit's <c>&lt;vulner&gt;</c> element into the definition.
+        ///
+        /// <para><b>This was a silent no-op, and it is worth remembering why.</b> The regex here tested
+        /// <c>&lt;vuln\s+</c> while the data writes <c>&lt;vulner </c>, so it could never match; the
+        /// early <c>return</c> then made "this unit declares no vulnerabilities" and "we failed to read
+        /// them" look identical. All 94 elements in <c>AllData.as</c> were dropped and every unit asset
+        /// on disk still carries the all-neutral default. The mapping beside it was wrong too: it ended
+        /// in <c>default: return DamageType.PhysicalMelee</c>, so <c>bul</c> — the name AS3 reads and
+        /// the source uses 28 times — was written into <c>phis</c>.</para>
+        ///
+        /// <para>The parse now lives in <see cref="UnitVulnerabilityParser"/> so it can be unit-tested
+        /// at all: this class is in <c>PFE.Editor</c>, which <c>PFE.Tests</c> does not reference.</para>
+        /// </summary>
         private static void ParseVulnerabilities(UnitDefinition unit, string content)
         {
-            var vulnMatch = Regex.Match(content, @"<vuln\s+([^>]*)/>");
-            if (!vulnMatch.Success) return;
+            UnitVulnerabilityData parsed = UnitVulnerabilityParser.Parse(content, unit.name);
 
-            string attrs = vulnMatch.Groups[1].Value;
+            // Warnings rather than silence: an attribute the oracle ignores is a fact about the data,
+            // and the previous behaviour made it indistinguishable from a successful parse.
+            foreach (string warning in parsed.warnings)
+                Debug.LogWarning(warning);
 
-            // Create default vulnerabilities
-            var vuln = new VulnerabilityData(1f);
-
-            // Parse damage type multipliers (e.g., bullet='0.8', fire='1.5')
-            var vulnPattern = @"(\w+)='(-?\d+\.?\d*)'";
-            var vulnMatches = Regex.Matches(attrs, vulnPattern);
-
-            foreach (Match vulnValueMatch in vulnMatches)
-            {
-                string type = vulnValueMatch.Groups[1].Value;
-                float value = float.Parse(vulnValueMatch.Groups[2].Value);
-
-                // Map to DamageType enum
-                DamageType damageType = MapStringToDamageType(type);
-                vuln.SetVulnerability(damageType, value);
-            }
-
-            SetPrivateField(unit, "vulnerabilities", vuln);
+            SetPrivateField(unit, "vulnerabilities", parsed.vulnerabilities);
         }
 
-        private static DamageType MapStringToDamageType(string type)
-        {
-            switch (type.ToLower())
-            {
-                case "bullet": return DamageType.PhysicalBullet;
-                case "blade": return DamageType.Blade;
-                case "phis": return DamageType.PhysicalMelee;
-                case "fire": return DamageType.Fire;
-                case "expl": return DamageType.Explosive;
-                case "laser": return DamageType.Laser;
-                case "plasma": return DamageType.Plasma;
-                case "spark": return DamageType.Spark;
-                case "acid": return DamageType.Acid;
-                case "venom": return DamageType.Venom;
-                case "poison": return DamageType.Poison;
-                case "bleed": return DamageType.Bleed;
-                case "fang": return DamageType.Fang;
-                case "emp": return DamageType.EMP;
-                case "pink": return DamageType.Pink;
-                case "necro": return DamageType.Necrotic;
-                default: return DamageType.PhysicalMelee;
-            }
-        }
+        /// <summary>
+        /// Invariant-culture float parse.
+        ///
+        /// <para><c>float.Parse</c>'s default overload allows thousands separators, so on a
+        /// comma-decimal locale (<c>de-DE</c>, <c>ru-RU</c>) <c>dexter='0.9'</c> reads as <b>9</b>. The
+        /// source always uses <c>.</c>. <see cref="ArmourDataParser"/> carries the same fix and the full
+        /// note; the other importers still use the plain overload.</para>
+        /// </summary>
+        private static float ParseFloat(string raw)
+            => float.Parse(raw, NumberStyles.Float, CultureInfo.InvariantCulture);
 
         private static void ParseVision(UnitDefinition unit, string content)
         {
@@ -573,7 +560,7 @@ namespace PFE.Editor.Importers
                 var chMatch = Regex.Match(weaponAttrs, @"ch='(-?\d+\.?\d*)'");
                 if (chMatch.Success)
                 {
-                    chance = float.Parse(chMatch.Groups[1].Value);
+                    chance = ParseFloat(chMatch.Groups[1].Value);
                 }
 
                 // Parse dif (difficulty)

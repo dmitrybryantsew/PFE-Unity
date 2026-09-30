@@ -977,6 +977,15 @@ namespace PFE.Editor.Importers
                     return VisualImportDisposition.Import(VisualImportRoute.OrdinaryProp, "ordinary prop");
             }
 
+            // Mirrors the tip=='unit' case above. The tip path already short-circuits for units, so
+            // this is not a behaviour change today — it keeps the two classification paths agreeing
+            // now that MapObjectFamily.Unit exists, so a unit whose legacyTip is missing still gets
+            // "handled by unit/enemy pipeline" instead of the misleading "unsupported visual route".
+            if (definition.family == MapObjectFamily.Unit)
+            {
+                return VisualImportDisposition.Skip("handled by unit/enemy pipeline");
+            }
+
             if (definition.family == MapObjectFamily.AreaTrigger)
             {
                 return VisualImportDisposition.Import(VisualImportRoute.AreaOverlay, "area overlay");

@@ -455,6 +455,58 @@ namespace PFE.Systems.Map
         public float currentHealth = 100f;
         public float maxHealth = 100f;
 
+        /// <summary>
+        /// The AS3 controller class name that <c>Unit.as:708</c> switches on to pick a controller class
+        /// — e.g. <c>"UnitTrain"</c> for the training dummy.
+        ///
+        /// <para><b>Where it actually comes from.</b> <c>cl</c> lives on the <c>&lt;obj&gt;</c>
+        /// <i>definition</i> row — <c>AllData.as:5048</c>
+        /// <c>&lt;obj ed='13' ico='pon' tip='unit' id='training' cl='UnitTrain' …/&gt;</c>. <c>Unit.as:702</c>
+        /// rebinds its local <c>node</c> with <c>node = AllData.d.obj.(@id == id)[0]</c> and <c>:708</c>
+        /// reads <c>node.@cl</c> from that; <c>param3</c>, the <i>placed</i> node, is a different variable
+        /// and never carries <c>cl</c> (0 of the 564 room assets in <c>Resources/Rooms</c> do). A comment
+        /// here used to claim the opposite.</para>
+        ///
+        /// <para>Because the lookup is keyed on the unit id alone, one id always resolves to one
+        /// controller (67 <c>cl=</c> rows; <c>npc</c> and <c>vendor</c> share <c>UnitNPC</c>, no id has
+        /// two). This field is therefore a <b>cache of a definition-level value</b>, carried on the
+        /// placement so <c>RoomUnitSpawner</c> can build the right controller without re-resolving the
+        /// definition — not an independent per-placement property.</para>
+        ///
+        /// <para><b>Careful with the lookalike.</b> <c>UnitDefinition.controllerId</c> is populated by
+        /// <c>UnitDataImporter</c> from the <c>cont=</c> attribute on <c>&lt;unit&gt;</c> rows (40 of
+        /// them), while the controller selector is <c>cl=</c> on <c>&lt;obj&gt;</c> rows. They are
+        /// different attributes on different elements and they are not interchangeable.</para>
+        /// </summary>
+        public string controllerId = "";
+
+        /// <summary>
+        /// The placement attributes from the source <c>&lt;obj&gt;</c> row (<c>turn</c>, <c>fix</c>,
+        /// <c>tr</c>, <c>light</c>, …).
+        ///
+        /// <para>These used to be dropped at population: <c>RoomPopulator.CreateUnit</c> took only a
+        /// unit id. But a controller reads them in its constructor — <c>UnitTrain.as:16-38</c> takes
+        /// <c>turn</c> for facing, <c>tr</c> for the armoured variant and <c>fix</c> for immobility, and
+        /// <c>tr == 1</c> is what sets <c>skin = 20</c> (<c>:41-49</c>). Without them the armoured dummy
+        /// is indistinguishable from the plain one.</para>
+        /// </summary>
+        public List<MapObjectAttributeData> attributes = new List<MapObjectAttributeData>();
+
+        /// <summary>
+        /// The facing this placement resolved to: 1 = right, -1 = left.
+        ///
+        /// <para>Resolved once by <c>RoomPopulator</c> from the <c>turn</c> attribute
+        /// (<c>Unit.as:596-611</c>), because the "absent <c>turn</c>" case is a coin flip on the spawn
+        /// RNG and that stream belongs to the generation layer. Storing the answer keeps the presenter
+        /// pure and the value reproducible.</para>
+        /// </summary>
+        public int facingDirection = 1;
+
+        public string GetAttribute(string key, string defaultValue = "")
+        {
+            return MapObjectDataUtility.GetAttribute(attributes, key, defaultValue);
+        }
+
         public void Activate() { }
         public void Deactivate() { }
         public void Update() { }

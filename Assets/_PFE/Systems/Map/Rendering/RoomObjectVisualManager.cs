@@ -18,8 +18,6 @@ namespace PFE.Systems.Map.Rendering
         const string DefinitionResourcesRoot = "MapObjects/Definitions";
         const string VisualResourcesRoot = "MapObjects/Visuals";
 
-        static Material s_presenterMaterial;
-
         readonly RoomInstance _room;
         readonly Transform _staticParent;
         readonly Transform _physicalParent;
@@ -550,30 +548,13 @@ namespace PFE.Systems.Map.Rendering
                 : defaultValue;
         }
 
+        /// <summary>
+        /// Delegates to <see cref="SpritePresenterMaterial"/> so the prop presenters and the unit
+        /// spawner cannot drift onto different shaders.
+        /// </summary>
         static Material GetPresenterMaterial()
         {
-            if (s_presenterMaterial != null)
-            {
-                return s_presenterMaterial;
-            }
-
-            Shader shader = Shader.Find("Universal Render Pipeline/2D/Sprite-Unlit-Default");
-            if (shader == null)
-            {
-                shader = Shader.Find("Sprites/Default");
-            }
-
-            if (shader == null)
-            {
-                return null;
-            }
-
-            s_presenterMaterial = new Material(shader)
-            {
-                name = "RoomObjectPresenter_Unlit"
-            };
-            s_presenterMaterial.hideFlags = HideFlags.HideAndDontSave;
-            return s_presenterMaterial;
+            return SpritePresenterMaterial.Get();
         }
 
         static string SanitizeResourceId(string rawId)

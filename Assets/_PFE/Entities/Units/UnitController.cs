@@ -1,6 +1,8 @@
+using System.Globalization;
 using UnityEngine;
 using PFE.Data.Definitions;
 using PFE.Systems.Combat;
+using PFE.Systems.Map;
 using PFE.Systems.Physics;
 namespace PFE.Entities.Units
 {
@@ -73,14 +75,49 @@ namespace PFE.Entities.Units
             _cachedTilePhysics = GetComponent<TilePhysicsController>();
             _hasTilePhysics = _cachedTilePhysics != null;
 
-            if (_stats != null)
+            ApplyDefinitionToCollider();
+        }
+
+        /// <summary>
+        /// Size the collider from the unit definition's footprint. AS3 sizes a unit's box from its
+        /// <c>&lt;phis sX sY&gt;</c> pair, so <see cref="UnitDefinition.Width"/> /
+        /// <see cref="UnitDefinition.Height"/> are the port's equivalent.
+        /// </summary>
+        protected void ApplyDefinitionToCollider()
+        {
+            if (_stats == null || _collider == null)
             {
-                // Set collider size from unit definition
-                if (_collider is BoxCollider2D boxCollider)
-                {
-                    boxCollider.size = new Vector2(_stats.Width, _stats.Height);
-                }
+                return;
             }
+
+            if (_collider is BoxCollider2D boxCollider)
+            {
+                boxCollider.size = new Vector2(_stats.Width, _stats.Height);
+            }
+        }
+
+        /// <summary>
+        /// Inject this unit's definition and stats — the seam a runtime spawner needs.
+        ///
+        /// <para><b>Why a method and not a public field.</b> <see cref="_stats"/> and
+        /// <see cref="_unitStats"/> are <c>protected</c> serialized fields that <b>no code assigns
+        /// anywhere in the repo</b>, and no unit prefab exists to assign them (<c>Assets/_PFE/Prefabs</c>
+        /// has no subdirectories at all). Without this seam a spawned unit reads
+        /// <see cref="VulnerabilityData.Neutral"/> for its <c>&lt;vulner&gt;</c> table, has no health,
+        /// and logs <c>"TakeDamage called but no UnitStats assigned!"</c> on every hit — precisely the
+        /// "correct-but-empty until a spawner assigns a definition" state the
+        /// <see cref="Vulnerabilities"/> doc comment describes.</para>
+        ///
+        /// <para><b>Call it after the component exists.</b> <c>AddComponent</c> runs <see cref="Awake"/>
+        /// immediately, i.e. with <c>_stats == null</c>, so the collider sizing done there is repeated
+        /// here rather than assumed — otherwise every spawned unit would keep the collider's default
+        /// size and a 2×2 dummy would be as wide as a raider.</para>
+        /// </summary>
+        public virtual void Initialize(UnitDefinition stats, UnitStats unitStats)
+        {
+            _stats = stats;
+            _unitStats = unitStats;
+            ApplyDefinitionToCollider();
         }
 
         protected virtual void FixedUpdate()
@@ -159,18 +196,87 @@ namespace PFE.Entities.Units
             if (_velocity.x > 0.1f) _facingDirection = 1;
             else if (_velocity.x < -0.1f) _facingDirection = -1;
 
-            // Visual flip - scale sprite to face direction
-            // Note: In PFE, sprites always face right, so we flip on left
-            if (transform.localScale.x != _facingDirection)
-            {
-                transform.localScale = new Vector3(_facingDirection, 1, 1);
-            }
+            ApplyFacingToTransform();
 
             // Debug info
             if (_showDebugInfo)
             {
                 Debug.DrawRay(transform.position, _velocity, Color.green);
             }
+        }
+
+        /// <summary>
+        /// Mirror the sprite for <see cref="_facingDirection"/>.
+        /// Note: in PFE sprites always face right, so left is the flipped case.
+        /// </summary>
+        protected void ApplyFacingToTransform()
+        {
+            if (transform.localScale.x != _facingDirection)
+            {
+                transform.localScale = new Vector3(_facingDirection, 1, 1);
+            }
+        }
+
+        /// <summary>
+        /// Read this unit's authored placement — AS3's <c>Unit</c> constructor reading its <c>node</c>.
+        ///
+        /// <para><b>Facing is base behaviour, not a per-controller one.</b> <c>Unit.as:596-611</c>
+        /// resolves <c>@turn</c> in the <i>base</i> constructor: positive → right, negative → left, and
+        /// <b>absent → a coin flip</b> (<c>storona = this.isrnd() ? 1 : -1</c>). <c>UnitTrain.as:16-30</c>
+        /// repeats all three cases, which is exactly why an earlier plan put this in the dummy — the
+        /// subclass duplicates the base rather than owning the rule.</para>
+        ///
+        /// <para><b>The value is resolved once, at population time.</b> The coin flip needs the spawn
+        /// stream, which belongs to <c>RoomPopulator</c> — the layer that generated the room — not to the
+        /// presenter that draws it. So the facing arrives on <see cref="UnitInstance.facingDirection"/>
+        /// and this method only applies it. See <see cref="ResolveFacing"/> for the rule.</para>
+        /// </summary>
+        public virtual void ApplyPlacement(UnitInstance placement)
+        {
+            if (placement == null)
+            {
+                return;
+            }
+
+            _facingDirection = placement.facingDirection;
+            ApplyFacingToTransform();
+        }
+
+        /// <summary>
+        /// AS3's <c>@turn</c> resolution (<c>Unit.as:596-611</c>), as a pure function so the only
+        /// varying input is the coin flip the caller supplies.
+        ///
+        /// <para>A <b>present but non-positive</b> <c>turn</c> is not the same as an absent one: AS3
+        /// only tests <c>&gt; 0</c> and <c>&lt; 0</c>, so <c>turn="0"</c> leaves <c>storona</c> at
+        /// whatever it was (<c>Obj.as:24</c> initialises it to 1) and never reaches the coin flip — the
+        /// flip lives in the attribute's <c>else</c> branch. Collapsing those two cases would make a
+        /// <c>turn="0"</c> unit face a random direction.</para>
+        ///
+        /// <para><b>Parsed as a float, not an int, because AS3 compares against a coerced Number.</b>
+        /// <c>@turn &gt; 0</c> on <c>"1.5"</c> is true in AS3, so an integer parse would send a
+        /// fractional turn down the fall-through path instead of the positive one. Non-numeric values
+        /// coerce to <c>NaN</c>, whose comparisons are both false — the same fall-through as
+        /// <c>"0"</c>, which <c>float.TryParse</c> reproduces exactly.</para>
+        /// </summary>
+        public static int ResolveFacing(string turn, int currentFacing, PFE.Core.Rng.IRngService rng)
+        {
+            if (!string.IsNullOrEmpty(turn))
+            {
+                if (float.TryParse(turn, NumberStyles.Float, CultureInfo.InvariantCulture, out float value))
+                {
+                    if (value > 0f) return 1;
+                    if (value < 0f) return -1;
+                }
+
+                return currentFacing;
+            }
+
+            if (rng == null)
+            {
+                return currentFacing;
+            }
+
+            return rng.Chance(0.5f) ? 1 : -1;
         }
 
         /// <summary>
@@ -287,6 +393,72 @@ namespace PFE.Entities.Units
             else
             {
                 Debug.LogWarning($"[{GetType().Name}] TakeDamage called but no UnitStats assigned!");
+            }
+        }
+
+        /// <summary>
+        /// Apply an already-resolved outcome: armour integrity first, then health.
+        /// Base implementation delegates to <see cref="UnitStats"/>; subclasses can override.
+        /// </summary>
+        /// <returns><c>true</c> if this hit broke the armour.</returns>
+        public virtual bool ApplyDamage(in DamageOutcome outcome)
+        {
+            if (_unitStats == null)
+            {
+                Debug.LogWarning($"[{GetType().Name}] ApplyDamage called but no UnitStats assigned!");
+                return false;
+            }
+
+            bool broke = _unitStats.ApplyDamage(outcome);
+
+            // Handle death if applicable
+            if (!IsAlive)
+            {
+                OnDeath();
+            }
+
+            return broke;
+        }
+
+        /// <summary>
+        /// The unit's armour projection, read by the damage resolver.
+        /// <see cref="ArmourState.None"/> when unarmoured or when no stats are assigned.
+        /// </summary>
+        public virtual ArmourState Armour => _unitStats?.armour ?? ArmourState.None;
+
+        /// <summary>
+        /// The unit's vulnerability table, read by the damage resolver.
+        /// <see cref="VulnerabilityData.Neutral"/> when nothing is assigned.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>The baseline comes from the definition; the live table comes from
+        /// <see cref="UnitStats"/>.</b> That is AS3's own split, and an earlier revision of this comment
+        /// collapsed it by claiming the table "belongs where the importer put it" because nothing writes
+        /// it. <c>begvulner</c> is a unit's static <c>&lt;vulner&gt;</c> element
+        /// (<c>Unit.as:977-984</c>); <c>vulner</c> is <i>derived</i> from it — and for the player the
+        /// derivation is not the identity, because <c>Pers.armorParameters():2067</c> folds the equipped
+        /// armour's <c>resist</c> in. A unit with no <see cref="UnitStats"/> has no derivation to run, so
+        /// its baseline <i>is</i> its live table; that is why the fallback is the definition itself and
+        /// not an error.</para>
+        ///
+        /// <para><b>Neutral, not identity, when there is no definition</b> — and that is the value, not a
+        /// placeholder. AS3's baseline for a unit with no element is <c>1</c> everywhere except
+        /// <c>emp = 0</c> (<c>Unit.as:583-590</c>), and the player has no <c>&lt;unit&gt;</c> in
+        /// <c>AllData.as</c> at all, so neutral is exactly right for the player.</para>
+        ///
+        /// <para><b>What is live today.</b> <c>_stats</c> is a serialized field that <b>no code
+        /// assigns</b>, so unless a prefab carries a reference an NPC reads
+        /// <see cref="VulnerabilityData.Neutral"/> — correct-but-empty. The imported tables become live
+        /// the moment a spawner (or a prefab) assigns a definition, with no change needed here.</para>
+        /// </remarks>
+        public virtual VulnerabilityData Vulnerabilities
+        {
+            get
+            {
+                if (_unitStats != null)
+                    return _unitStats.Vulnerabilities;
+
+                return _stats != null ? _stats.vulnerabilities : VulnerabilityData.Neutral;
             }
         }
 

@@ -1,7 +1,10 @@
+using System;
 using UnityEngine;
 using System.Collections.Generic;
 using System.Globalization;
 using PFE.Core.Ids;
+using PFE.Data.Definitions;
+using PFE.Entities.Units;
 using EntityId = PFE.Core.Ids.EntityId;
 
 namespace PFE.Systems.Map
@@ -29,7 +32,16 @@ namespace PFE.Systems.Map
         /// Populate a room with all entities from its template data.
         /// Mirrors AS3 Location.setObjects().
         /// </summary>
-        public static void PopulateRoom(RoomInstance room, RoomTemplate template, RoomDifficulty difficulty, PFE.Core.Rng.IRngService rng = null)
+        /// <param name="unitDefinitions">
+        /// Where unit stat blocks come from. Defaults to the <c>Resources/Units</c> lookup; injectable so
+        /// tests do not depend on which unit assets happen to be on disk.
+        /// </param>
+        public static void PopulateRoom(
+            RoomInstance room,
+            RoomTemplate template,
+            RoomDifficulty difficulty,
+            PFE.Core.Rng.IRngService rng = null,
+            IUnitDefinitionProvider unitDefinitions = null)
         {
             if (room == null || template == null) return;
 
@@ -54,11 +66,11 @@ namespace PFE.Systems.Map
                 spawnCounters[spawnType] = count + 1;
                 var entityId = EntityId.CreateForRoomSpawn(room.id, spawnType, count);
 
-                ProcessObjectSpawn(room, objData, difficulty, entityId);
+                ProcessObjectSpawn(room, objData, difficulty, entityId, unitDefinitions, r);
             }
 
             // Phase 2: Place random enemies at spawn points
-            PlaceRandomEnemies(room, template, difficulty, r, spawnCounters);
+            PlaceRandomEnemies(room, template, difficulty, r, spawnCounters, unitDefinitions);
 
             // Phase 3: Place XP bonuses
             // AS3: createXpBonuses() places collectible XP orbs
@@ -69,7 +81,13 @@ namespace PFE.Systems.Map
         /// Process a single object spawn from template data.
         /// Mirrors AS3 Location.setObjects() inner loop + createObj() + createUnit().
         /// </summary>
-        private static void ProcessObjectSpawn(RoomInstance room, ObjectSpawnData spawnData, RoomDifficulty difficulty, EntityId entityId = default)
+        private static void ProcessObjectSpawn(
+            RoomInstance room,
+            ObjectSpawnData spawnData,
+            RoomDifficulty difficulty,
+            EntityId entityId = default,
+            IUnitDefinitionProvider unitDefinitions = null,
+            PFE.Core.Rng.IRngService rng = null)
         {
             if (spawnData == null) return;
 
@@ -91,10 +109,29 @@ namespace PFE.Systems.Map
             float pixelY = bottomAnchorPixels.y;
             //float liftedObjectPixelY = pixelY + WorldConstants.TILE_SIZE; //prob need to make adjustable in map editor or offset
 
-            switch (spawnData.type)
+            switch (ResolvePlacementType(spawnData))
             {
                 case "unit":
-                    CreateUnit(room, spawnData.id, pixelX, pixelY, difficulty, entityId);
+                    // The two sources here are NOT interchangeable, and AS3 reads them from different
+                    // places:
+                    //   * `turn` comes off the PLACED <obj> node — Unit.as:596-608 compares `param3.@turn`,
+                    //     where param3 is the node handed to Unit.create() by Location.createUnit().
+                    //   * `cl` comes off the DEFINITION row — Unit.as:702 reassigns its local `node` to
+                    //     `AllData.d.obj.(@id == id)[0]` and :708 reads `node.@cl` from that. The placed
+                    //     node never carries `cl` (0 of the 564 room assets in Resources/Rooms do).
+                    // Passing the definition's `cl` is therefore correct, not a shortcut.
+                    CreateUnit(
+                        room,
+                        unitId: spawnData.id,
+                        x: pixelX,
+                        y: pixelY,
+                        entityId: entityId,
+                        unitDefinitions: unitDefinitions,
+                        controllerId: spawnData.definition != null
+                            ? spawnData.definition.GetAttribute("cl", string.Empty)
+                            : string.Empty,
+                        attributes: spawnData.attributes,
+                        facingDirection: UnitController.ResolveFacing(spawnData.GetAttribute("turn", null), 1, rng));
                     break;
 
                 case "box":
@@ -126,11 +163,65 @@ namespace PFE.Systems.Map
         }
 
         /// <summary>
+        /// The placement bucket that decides how this spawn is instantiated.
+        ///
+        /// <see cref="ObjectSpawnData.type"/> is a string cached at import from the definition's
+        /// <c>defaultPlacementType</c>, and it can be stale — Camp/room_1_0 literally serializes
+        /// <c>type: obj</c> for its five training dummies, because the classifier had no
+        /// <c>tip='unit'</c> branch when the room was imported (see MapObjectFamily.Unit). Trusting
+        /// the cached string made every authored enemy and NPC spawn as a static prop.
+        ///
+        /// The definition is therefore consulted first, but only when it carries a <i>specific</i>
+        /// bucket: a generic "obj" from the definition must not downgrade a specific stored bucket,
+        /// which is what keeps <c>tarakan</c> a unit — its definition is still the stale generic
+        /// value while DefaultAS3ObjectMapping supplies "unit" for it. Spawns with no definition
+        /// (and the synthetic ones built in PlaceXpBonuses) keep using the stored string.
+        /// </summary>
+        private static string ResolvePlacementType(ObjectSpawnData spawnData)
+        {
+            string fromDefinition = spawnData?.definition?.GetResolvedPlacementType();
+
+            if (!string.IsNullOrWhiteSpace(fromDefinition) &&
+                !string.Equals(fromDefinition, MapObjectDefinition.GenericPlacementType, StringComparison.Ordinal))
+            {
+                return fromDefinition;
+            }
+
+            return string.IsNullOrWhiteSpace(spawnData?.type)
+                ? MapObjectDefinition.GenericPlacementType
+                : spawnData.type;
+        }
+
+        /// <summary>
         /// Create a unit (enemy, NPC, etc.) in the room.
         /// Simplified port of AS3 Location.createUnit().
         /// </summary>
-        private static void CreateUnit(RoomInstance room, string unitId, float x, float y, RoomDifficulty difficulty, EntityId entityId = default)
+        /// <param name="controllerId">
+        /// The AS3 controller class from the placed <c>&lt;obj cl="…"&gt;</c> attribute. Empty for units
+        /// with no authored placement (the random-enemy pass), which get the base controller.
+        /// </param>
+        /// <param name="attributes">
+        /// The placement's own attributes (<c>turn</c>/<c>fix</c>/<c>tr</c>…). The controller reads them
+        /// in its constructor, so they have to survive this call.
+        /// </param>
+        /// <param name="facingDirection">
+        /// 1 = right, -1 = left. Already resolved by the caller from the <c>turn</c> attribute
+        /// (<see cref="UnitController.ResolveFacing"/>); the default matches AS3's
+        /// <c>storona = 1</c> for units created with no authored placement.
+        /// </param>
+        private static void CreateUnit(
+            RoomInstance room,
+            string unitId,
+            float x,
+            float y,
+            EntityId entityId = default,
+            IUnitDefinitionProvider unitDefinitions = null,
+            string controllerId = null,
+            List<MapObjectAttributeData> attributes = null,
+            int facingDirection = 1)
         {
+            float health = ResolveUnitHealth(unitId, unitDefinitions);
+
             var unit = new UnitInstance
             {
                 entityId = entityId.IsValid ? entityId.ToString() : string.Empty,
@@ -138,11 +229,47 @@ namespace PFE.Systems.Map
                 unitType = unitId,
                 position = new Vector2(x, y),
                 isDead = false,
-                maxHealth = CalculateUnitHealth(unitId, Mathf.RoundToInt(difficulty.enemyLevel)),
-                currentHealth = CalculateUnitHealth(unitId, Mathf.RoundToInt(difficulty.enemyLevel))
+                maxHealth = health,
+                currentHealth = health,
+                controllerId = controllerId ?? string.Empty,
+                attributes = MapObjectDataUtility.CloneAttributes(attributes),
+                facingDirection = facingDirection >= 0 ? 1 : -1
             };
 
             room.units.Add(unit);
+        }
+
+        /// <summary>
+        /// A unit's maximum health, read from its <see cref="UnitDefinition"/>.
+        ///
+        /// <para><b>This replaces a guess table.</b> <c>CalculateUnitHealth</c> listed nine ids and fell
+        /// through to <c>_ => 50f</c>; <c>"training"</c> was not among them, so the dummy reported 50
+        /// where <c>Resources/Units/training.asset</c> says <b>500</b> — and a missing id was
+        /// indistinguishable from a unit that really has 50 hp. The definition is the source of truth;
+        /// when it cannot be resolved the id is named in the warning instead of being silently
+        /// approximated.</para>
+        ///
+        /// <para><b>No level scaling here, deliberately.</b> The guess table multiplied by
+        /// <c>1 + level * 0.15</c> as an approximation. AS3 scales a unit by level in
+        /// <c>setLevel()</c>, which is a per-controller override — <c>UnitTrain.as:78-80</c> makes it a
+        /// no-op precisely because a training dummy must not scale. That belongs to the controller, not
+        /// to the spawn record, so this returns the definition's base value and the controller decides.</para>
+        /// </summary>
+        private static float ResolveUnitHealth(string unitId, IUnitDefinitionProvider unitDefinitions)
+        {
+            IUnitDefinitionProvider provider = unitDefinitions ?? ResourcesUnitDefinitionProvider.Shared;
+
+            if (provider.TryGetUnit(unitId, out UnitDefinition definition) && definition != null)
+            {
+                return definition.health;
+            }
+
+            Debug.LogWarning(
+                $"[RoomPopulator] No UnitDefinition for '{unitId}' — using UnitDefinition.DefaultHealth " +
+                $"({UnitDefinition.DefaultHealth}). Run 'PFE/Data/Import Units' if this unit should carry " +
+                $"its own stats.");
+
+            return UnitDefinition.DefaultHealth;
         }
 
         /// <summary>
@@ -323,7 +450,13 @@ namespace PFE.Systems.Map
         /// Place random enemies from spawn point data.
         /// Mirrors AS3 Location.setRandomUnits().
         /// </summary>
-        private static void PlaceRandomEnemies(RoomInstance room, RoomTemplate template, RoomDifficulty difficulty, PFE.Core.Rng.IRngService rng, Dictionary<string, int> spawnCounters = null)
+        private static void PlaceRandomEnemies(
+            RoomInstance room,
+            RoomTemplate template,
+            RoomDifficulty difficulty,
+            PFE.Core.Rng.IRngService rng,
+            Dictionary<string, int> spawnCounters = null,
+            IUnitDefinitionProvider unitDefinitions = null)
         {
             // Use spawn points marked as enemy spawns
             var enemySpawns = new List<SpawnPoint>();
@@ -369,7 +502,24 @@ namespace PFE.Systems.Map
                     entityId = EntityId.CreateForRoomSpawn(room.id, unitId, count);
                 }
 
-                CreateUnit(room, unitId, px, py, difficulty, entityId);
+                // No authored `cl` and no per-placement flags on this path: the base controller.
+                //
+                // AS3 reaches this same conclusion differently. setRandomUnits() passes the spawn point's
+                // own <obj> node to createUnit() (Location.as:1081 `this.ups[...].xml`), so the Unit
+                // constructor's `if(param3)` is TRUE and, when that node carries no `turn`, it coin-flips
+                // (Unit.as:609-613). Passing `turn: null` here reproduces that.
+                //
+                // It must NOT read SpawnPoint.facingDirection: that field is a constant 1 in this port —
+                // no importer writes it and AS3ToUnityConverter.FindSpawnPoints only ever emits the
+                // player spawn — so using it would silently pin every random enemy to facing right.
+                CreateUnit(
+                    room,
+                    unitId: unitId,
+                    x: px,
+                    y: py,
+                    entityId: entityId,
+                    unitDefinitions: unitDefinitions,
+                    facingDirection: UnitController.ResolveFacing(null, 1, rng));
             }
         }
 
@@ -432,31 +582,6 @@ namespace PFE.Systems.Map
                     }
                 }
             }
-        }
-
-        /// <summary>
-        /// Calculate unit health based on type and level.
-        /// Placeholder - should eventually use your GameDatabase definitions.
-        /// </summary>
-        private static float CalculateUnitHealth(string unitId, int level)
-        {
-            // Base health values (rough estimates from AS3 data)
-            float baseHp = unitId switch
-            {
-                "raider" => 50f,
-                "zombie" => 80f,
-                "robot" => 120f,
-                "bloat" => 40f,
-                "turret" => 60f,
-                "slime" => 30f,
-                "ant" => 25f,
-                "rat" => 15f,
-                "mine" => 10f,
-                _ => 50f
-            };
-
-            // Scale with level (roughly matches AS3 scaling)
-            return baseHp * (1f + level * 0.15f);
         }
 
         private static Vector2Int ResolveLegacyPlacementTileCoord(RoomInstance room, Vector2Int legacyTileCoord)

@@ -5,6 +5,7 @@
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner",
         "PFE.Core",
+        "PFE.ModAPI",
 		"VContainer",
 		"MessagePipe",
 		"MessagePipe.VContainer",

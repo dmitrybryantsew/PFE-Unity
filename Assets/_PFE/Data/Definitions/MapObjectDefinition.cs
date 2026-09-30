@@ -75,13 +75,38 @@ namespace PFE.Data.Definitions
         [Tooltip("Full preserved legacy attributes from AllData.as.")]
         public List<MapObjectAttributeData> legacyAttributes = new List<MapObjectAttributeData>();
 
+        /// <summary>
+        /// The bucket the classifier falls back to when nothing more specific is known. A stored
+        /// value equal to this means "no information", not "the answer" — see GetResolvedPlacementType.
+        /// </summary>
+        public const string GenericPlacementType = "obj";
+
+        /// <summary>
+        /// The placement bucket that decides how a spawn is instantiated at runtime
+        /// (consumed by RoomPopulator.ProcessObjectSpawn).
+        ///
+        /// The typed <see cref="family"/> is the authority; <see cref="defaultPlacementType"/> is a
+        /// string cache of it, written at import. That cache went stale for every unit: ResolveFamily
+        /// had no <c>tip='unit'</c> branch, so 68 of the 202 AllData <c>&lt;obj&gt;</c> rows — every
+        /// enemy, NPC, turret and trap entity — were stored as family GenericObject with the generic
+        /// bucket, and so spawned as static props. Treating the generic bucket as a cache miss lets
+        /// the family speak again, while any <i>specific</i> stored value (box/door/unit/…) still
+        /// wins outright — which is what keeps hand-authored buckets such as the DefaultAS3ObjectMapping
+        /// entry that rescues <c>tarakan</c> authoritative.
+        /// </summary>
         public string GetResolvedPlacementType()
         {
-            if (!string.IsNullOrWhiteSpace(defaultPlacementType))
+            if (!string.IsNullOrWhiteSpace(defaultPlacementType) &&
+                !string.Equals(defaultPlacementType, GenericPlacementType, StringComparison.Ordinal))
             {
                 return defaultPlacementType;
             }
 
+            return GetPlacementTypeForFamily(family);
+        }
+
+        static string GetPlacementTypeForFamily(MapObjectFamily family)
+        {
             return family switch
             {
                 MapObjectFamily.Door => "door",
@@ -90,12 +115,13 @@ namespace PFE.Data.Definitions
                 MapObjectFamily.Bonus => "bonus",
                 MapObjectFamily.Trap => "trap",
                 MapObjectFamily.PlayerSpawn => "player",
+                MapObjectFamily.Unit => "unit",
                 MapObjectFamily.Container => "box",
                 MapObjectFamily.Device => "box",
                 MapObjectFamily.Furniture => "box",
                 MapObjectFamily.Platform => "box",
                 MapObjectFamily.Transition => "box",
-                _ => "obj"
+                _ => GenericPlacementType
             };
         }
 
@@ -206,6 +232,15 @@ namespace PFE.Data.Definitions
         SpawnMarker,
         Platform,
         Transition,
+
+        /// <summary>
+        /// An enemy, NPC or other entity that is instantiated as a unit rather than a prop.
+        ///
+        /// Appended last on purpose: <c>MapObjectDefinition.family</c> is serialized as an int in
+        /// every definition asset, so inserting a member would silently reinterpret every stored
+        /// value. Never reorder this enum.
+        /// </summary>
+        Unit,
     }
 
     public enum MapObjectPhysicalCapability
@@ -287,6 +322,18 @@ namespace PFE.Data.Definitions
             {
                 defaultPlacementType = "player";
                 return MapObjectFamily.PlayerSpawn;
+            }
+
+            // AllData.as declares every enemy, NPC, turret and trap entity with tip='unit' — 68 of
+            // the 202 <obj> rows, e.g. <obj ed='13' ico='pon' tip='unit' id='training'
+            // cl='UnitTrain' .../> (AllData.as:5048). Without this branch they all fell through to
+            // the final fallback and were stored as GenericObject with the generic "obj" bucket, so
+            // every authored enemy in a room spawned as a static prop. An explicit tip outranks the
+            // id-set heuristics below; no unit id collides with any of those sets.
+            if (normalizedTip == "unit")
+            {
+                defaultPlacementType = "unit";
+                return MapObjectFamily.Unit;
             }
 
             if (normalizedTip == "checkpoint" || id.StartsWith("checkpoint", StringComparison.OrdinalIgnoreCase))
@@ -387,7 +434,8 @@ namespace PFE.Data.Definitions
                 family == MapObjectFamily.SpawnMarker ||
                 family == MapObjectFamily.Bonus ||
                 family == MapObjectFamily.AreaTrigger ||
-                family == MapObjectFamily.Checkpoint)
+                family == MapObjectFamily.Checkpoint ||
+                family == MapObjectFamily.Unit)
             {
                 return MapObjectPhysicalCapability.None;
             }

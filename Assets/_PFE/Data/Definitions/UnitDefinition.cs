@@ -153,7 +153,17 @@ namespace PFE.Data.Definitions
         [Header("Combat")]
         [Tooltip("Maximum health points")]
         [Range(1, 5000)]
-        public int health = 50;
+        public int health = DefaultHealth;
+
+        /// <summary>
+        /// The health a unit carries when no definition supplies one.
+        ///
+        /// <para>Named rather than written as a literal in two places, because it now has a second
+        /// reader: <c>RoomPopulator</c> falls back to it when a unit id has no
+        /// <c>UnitDefinition</c>, and it must stay equal to the field initializer above or the
+        /// fallback silently disagrees with the data model.</para>
+        /// </summary>
+        public const int DefaultHealth = 50;
 
         [Tooltip("Armor (physical damage reduction)")]
         [Range(0, 100)]
@@ -257,7 +267,8 @@ namespace PFE.Data.Definitions
         #region Vulnerabilities
 
         [Header("Vulnerabilities")]
-        public VulnerabilityData vulnerabilities = new VulnerabilityData(1f);
+        [Tooltip("AS3 Unit.vulner. Neutral is all-1 *except emp*, which AS3 forces to 0 (Unit.as:590).")]
+        public VulnerabilityData vulnerabilities = VulnerabilityData.Neutral;
 
         #endregion
 
