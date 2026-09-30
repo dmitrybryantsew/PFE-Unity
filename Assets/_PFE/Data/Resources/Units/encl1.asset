@@ -74,14 +74,14 @@ MonoBehaviour:
     expl: 1
     laser: 1
     plasma: 1
-    spark: 1
+    spark: 0.75
     acid: 1
     cryo: 1
     venom: 1
     poison: 1
     bleed: 1
     fang: 1
-    emp: 1
+    emp: 0
     pink: 1
     necro: 1
   noiseLevel: 300

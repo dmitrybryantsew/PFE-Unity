@@ -78,7 +78,7 @@ namespace PFE.Entities.Weapons
         // ── Injected ─────────────────────────────────────────────────────────
 
 #pragma warning disable CS0649
-        [Inject] private IPublisher<DamageDealtMessage> _damageDealtPublisher;
+        [Inject] private PFE.Systems.Combat.DamageSystem _damageSystem;
 #pragma warning restore CS0649
 
         public Action<MineObject> OnReturnToPool { get; set; }
@@ -180,13 +180,18 @@ namespace PFE.Entities.Weapons
                         // — weap is null, so both gates short-circuit and the blast does FULL damage
                         // to the mine's own faction and to the player. Passing a multiplier here
                         // would be inventing a rule the oracle does not have.
-                        if (_hasDamageContext)
-                            DamageResolver.ResolveExplosion(
+                        if (_hasDamageContext && _damageSystem != null)
+                        {
+                            // Report, do not resolve — DamageSystem owns the formula and the tick that
+                            // runs it. The blast falloff and the faction multiplier are applied there.
+                            _damageSystem.Report(PendingDamage.Explosion(
                                 _damageContext, damageable,
-                                hit.transform.position, centre, _explRadius,
-                                _damageDealtPublisher);
+                                hit.transform.position, centre, _explRadius));
+                        }
                         else
+                        {
                             damageable.TakeDamage(10f);
+                        }
                     }
                 }
             }

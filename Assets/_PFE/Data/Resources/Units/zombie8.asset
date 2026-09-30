@@ -67,7 +67,7 @@ MonoBehaviour:
   heroType: 
   hasHeroBonus: 0
   vulnerabilities:
-    bullet: 1
+    bullet: 0.5
     blade: 1
     phis: 1
     fire: 1
@@ -75,14 +75,14 @@ MonoBehaviour:
     laser: 1
     plasma: 1
     spark: 1
-    acid: 1
+    acid: 0.25
     cryo: 1
-    venom: 1
-    poison: 1
-    bleed: 1
+    venom: 0
+    poison: 0
+    bleed: 0.5
     fang: 1
-    emp: 1
-    pink: 1
+    emp: 0
+    pink: 0
     necro: 1
   noiseLevel: 300
   visualDamageLevel: 1

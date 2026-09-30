@@ -159,6 +159,7 @@ namespace PFE.Entities.Weapons
 
 #pragma warning disable CS0649
         [Inject] private IPublisher<DamageDealtMessage> _damageDealtPublisher;
+        [Inject] private PFE.Systems.Combat.DamageSystem _damageSystem;
         [Inject] private PFE.Core.PfeDebugSettings      _debugSettings;
         [Inject] private ISoundService                  _soundService;
         [Inject] private ImpactSoundTable               _impactSoundTable;
@@ -616,7 +617,7 @@ namespace PFE.Entities.Weapons
 
         /// <summary>
         /// Attach a pre-computed DamageContext to this projectile.
-        /// When set, impact damage is resolved via DamageResolver instead of raw _damage float.
+        /// When set, impact damage is reported to DamageSystem instead of applied as raw _damage.
         /// Call after Initialize().
         /// </summary>
         public void SetDamageContext(DamageContext ctx)
@@ -1026,10 +1027,22 @@ namespace PFE.Entities.Weapons
         private void ApplyDirectDamage(IDamageable target, Vector3 targetPos,
                                         float overrideDamage = -1f)
         {
+            if (_hasDamageContext && overrideDamage < 0f && _damageSystem != null)
+            {
+                // Report, do not resolve. DamageSystem owns the formula, and owns the tick that runs
+                // it when PfeDebugSettings.SimTickDamage is on. A source that resolved its own hit
+                // would make the result depend on the order the physics engine reported contacts.
+                _damageSystem.Report(PendingDamage.Direct(_damageContext, target, targetPos));
+                return;
+            }
+
             if (_hasDamageContext && overrideDamage < 0f)
             {
-                DamageResolver.Resolve(_damageContext, target, targetPos, _damageDealtPublisher);
-                return;
+                // Injection failed. Loud on purpose: falling through silently would drop armour and
+                // crit from every hit and look like a balance change rather than a wiring fault.
+                Debug.LogWarning(
+                    "[Projectile] DamageSystem was never injected; applying raw damage with no " +
+                    "armour, crit or durability terms.");
             }
 
             float finalDamage = overrideDamage >= 0f ? overrideDamage : _damage;

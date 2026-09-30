@@ -17,7 +17,7 @@ namespace PFE.Systems.Weapons
     ///   ThrownObject → ThrownObjectPrefab (pooled ThrownObject MonoBehaviour)
     ///   Mine         → MinePrefab (pooled MineObject MonoBehaviour)
     ///                  Special case: FuseFrames==0 && IsMine==false → radio detonation signal
-    ///   Hitscan      → TODO Stage 3+ (raycast, direct DamageResolver call)
+    ///   Hitscan      → TODO Stage 3+ (raycast, report a hit to DamageSystem)
     ///   MeleeSweep   → ignored here (handled by MeleeHitVolume trigger)
     ///
     /// Called explicitly by PlayerWeaponLoadout.FixedUpdate — not via Unity messages.
@@ -101,7 +101,7 @@ namespace PFE.Systems.Weapons
                     break;
 
                 case ShotKind.Hitscan:
-                    // TODO Stage 3+: cast ray, call DamageResolver directly.
+                    // TODO Stage 3+: cast ray, report the hit to DamageSystem.
                     Debug.Log("[ProjectileSpawner] Hitscan not yet implemented.");
                     break;
 

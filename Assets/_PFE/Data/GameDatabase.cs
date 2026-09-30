@@ -182,6 +182,34 @@ namespace PFE.Data
             return _weapons.TryGetValue(id, out var def) ? def : null;
         }
 
+        /// <summary>
+        /// Look up an item definition by id — consumables and components from <c>Resources/Items</c>,
+        /// and armour from <c>Resources/Armor</c> (both register as <see cref="ContentType.Item"/>).
+        ///
+        /// <para>Accepts a bare id (<c>"kombu"</c>) or a namespaced one (<c>"pfe.base.kombu"</c>) —
+        /// <see cref="ContentRegistry.Get{T}"/> tries the exact key then the bare-id alias.</para>
+        ///
+        /// <para><b>No legacy-dictionary fallback, unlike <see cref="GetUnit"/>/<see cref="GetWeapon"/>.</b>
+        /// Those two predate the registry and kept their own dictionaries for tests that call
+        /// <c>Register</c> directly; items never had one, so there is nothing to fall back to.</para>
+        ///
+        /// <para>This is the analogue of AS3's <c>AllData.d.item</c> table. It is <b>not</b> an
+        /// armour-only lookup — AS3 keeps armour in a separate <c>d.armor</c> table and
+        /// <c>GameInventory.AddArmor</c> needs that narrower one, which is why it takes its own
+        /// resolver rather than calling this.</para>
+        /// </summary>
+        public ItemDefinition GetItem(string id)
+        {
+            if (string.IsNullOrEmpty(id)) return null;
+
+            return Registry.Get<ItemDefinition>(ContentType.Item, id);
+        }
+
+        public IEnumerable<string> GetAllItemIDs()
+        {
+            return Registry.GetAllBareIds(ContentType.Item);
+        }
+
         public RoomTemplate GetRoomTemplate(string id)
         {
             if (string.IsNullOrEmpty(id)) return null;

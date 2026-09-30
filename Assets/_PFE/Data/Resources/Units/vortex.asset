@@ -74,12 +74,12 @@ MonoBehaviour:
     expl: 1
     laser: 1
     plasma: 1
-    spark: 1
+    spark: 1.5
     acid: 1
     cryo: 1
-    venom: 1
-    poison: 1
-    bleed: 1
+    venom: 0
+    poison: 0
+    bleed: 0
     fang: 1
     emp: 1
     pink: 1

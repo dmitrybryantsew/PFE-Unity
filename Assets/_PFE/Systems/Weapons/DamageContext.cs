@@ -8,7 +8,7 @@ namespace PFE.Systems.Weapons
     ///
     /// Created by the weapon controller at fire time (ammo modifiers already baked in).
     /// Attached to ShotPlan, then carried by projectile / melee hit volume through to
-    /// DamageResolver, which is the only place final damage numbers are computed.
+    /// <c>DamageSystem</c>, which is the only place final damage numbers are computed.
     ///
     /// Mirrors the fields AS3 passes via setBullet() + Bullet properties:
     ///   baseDamage      → b.damage (after ammoDamage multiplier)

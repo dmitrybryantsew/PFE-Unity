@@ -37,7 +37,7 @@ namespace PFE.Systems.Weapons
 
         // ── Damage ────────────────────────────────────────────────────────────
 
-        /// <summary>Full damage payload — carry through to DamageResolver on impact.</summary>
+        /// <summary>Full damage payload — carry through to DamageSystem on impact.</summary>
         public readonly DamageContext Damage;
 
         // ── Spread / burst metadata ───────────────────────────────────────────

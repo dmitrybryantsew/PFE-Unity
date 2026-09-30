@@ -36,6 +36,7 @@ namespace PFE.Core
         private HealthBarView _healthBar;
         private AmmoCounterView _ammoCounter;
         private ReloadIndicatorView _reloadIndicator;
+        private ArmourBarView _armourBar;
 
         /// <summary>The controller the current bindings point at, so a swap can be detected.</summary>
         private object _boundController;
@@ -122,6 +123,7 @@ namespace PFE.Core
             _healthBar = BuildHealthBar(canvasGo.transform);
             _ammoCounter = BuildAmmoCounter(canvasGo.transform);
             _reloadIndicator = BuildReloadIndicator(canvasGo.transform);
+            _armourBar = BuildArmourBar(canvasGo.transform);
 
             // Hand over the reference but do NOT bind here. Each view binds itself in its own
             // Start(), which removes any dependence on whether this Start() or theirs runs first,
@@ -129,8 +131,9 @@ namespace PFE.Core
             _healthBar.SetViewModel(_viewModel);
             _ammoCounter.SetViewModel(_viewModel);
             _reloadIndicator.SetViewModel(_viewModel);
+            _armourBar.SetViewModel(_viewModel);
 
-            Debug.Log("[HudBootstrapper] HUD built (health bar, ammo counter, reload indicator).");
+            Debug.Log("[HudBootstrapper] HUD built (health bar, armour bar, ammo counter, reload indicator).");
         }
 
         /// <summary>
@@ -260,6 +263,75 @@ namespace PFE.Core
             return view;
         }
 
+        /// <summary>
+        /// The armour condition bar, sitting just above the health bar.
+        ///
+        /// <para><b>Structure mirrors the health bar with one deliberate difference:</b> the visuals
+        /// hang off a child <c>Visuals</c> object instead of the component's own GameObject, because
+        /// this view hides itself when nothing is equipped. Hiding via
+        /// <c>gameObject.SetActive(false)</c> would stop its <c>Start</c> from ever running — and
+        /// <c>Start</c> is where it binds — which is the same deadlock <c>ReloadIndicatorView</c>
+        /// documents from the opposite direction. Deactivating a child that carries no component
+        /// avoids the question entirely.</para>
+        /// </summary>
+        private ArmourBarView BuildArmourBar(Transform parent)
+        {
+            var barRect = CreateRect("Armour Bar", parent,
+                anchor: new Vector2(0f, 0f), pivot: new Vector2(0f, 0f),
+                anchoredPosition: new Vector2(32f, 96f), size: new Vector2(320f, 12f));
+
+            // Slider first, with fillRect assigned before the view is added: ArmourBarView.Awake
+            // reads GetComponent<Slider>() and the fill's Image, so this order is load-bearing.
+            var slider = barRect.gameObject.AddComponent<Slider>();
+            slider.minValue = 0f;
+            slider.maxValue = 1f;
+            slider.value = 0f;
+            slider.transition = Selectable.Transition.None;
+            slider.interactable = false;
+
+            var visuals = CreateRect("Visuals", barRect,
+                anchor: new Vector2(0.5f, 0.5f), pivot: new Vector2(0.5f, 0.5f),
+                anchoredPosition: Vector2.zero, size: Vector2.zero);
+            Stretch(visuals);
+
+            var background = CreateImage("Background", visuals, new Color(0f, 0f, 0f, 0.6f));
+            Stretch(background.rectTransform);
+
+            var fillArea = CreateRect("Fill Area", visuals,
+                anchor: new Vector2(0.5f, 0.5f), pivot: new Vector2(0.5f, 0.5f),
+                anchoredPosition: Vector2.zero, size: Vector2.zero);
+            Stretch(fillArea, 1f);
+
+            var fill = CreateImage("Fill", fillArea, new Color(0.35f, 0.65f, 0.95f, 0.95f));
+            Stretch(fill.rectTransform);
+
+            slider.fillRect = fill.rectTransform;
+            slider.targetGraphic = fill;
+            slider.direction = Slider.Direction.LeftToRight;
+
+            var view = barRect.gameObject.AddComponent<ArmourBarView>();
+            view.SetContent(visuals.gameObject);
+
+            // Armour readout, aligned with the health readout column.
+            var textRect = CreateRect("Armour Text", parent,
+                anchor: new Vector2(0f, 0f), pivot: new Vector2(0f, 0f),
+                anchoredPosition: new Vector2(360f, 92f), size: new Vector2(160f, 20f));
+            var text = textRect.gameObject.AddComponent<Text>();
+            text.font = ResolveFont();
+            text.fontSize = 14;
+            text.color = Color.white;
+            text.alignment = TextAnchor.MiddleLeft;
+            text.text = string.Empty;
+
+            view.SetArmourText(text);
+
+            // Start hidden: no shipped path has armour equipped at boot. Safe here precisely because
+            // `visuals` carries no component whose lifecycle matters.
+            visuals.gameObject.SetActive(false);
+
+            return view;
+        }
+
         private AmmoCounterView BuildAmmoCounter(Transform parent)
         {
             var rect = CreateRect("Ammo Counter", parent,
@@ -315,6 +387,7 @@ namespace PFE.Core
             _healthBar?.BindToViewModel(_viewModel);
             _ammoCounter?.BindToViewModel(_viewModel);
             _reloadIndicator?.BindToViewModel(_viewModel);
+            _armourBar?.BindToViewModel(_viewModel);
         }
 
         /// <summary>

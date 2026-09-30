@@ -46,6 +46,8 @@ namespace PFE.UI.HUD
         private ReadOnlyReactiveProperty<float> _currentMana;
         private ReadOnlyReactiveProperty<float> _maxMana;
         private ReadOnlyReactiveProperty<float> _manaPercent;
+        private ReadOnlyReactiveProperty<float> _armourPercent;
+        private ReadOnlyReactiveProperty<bool> _hasArmour;
 
         // Composite disposable for cleanup
         private CompositeDisposable _disposables;
@@ -109,6 +111,17 @@ namespace PFE.UI.HUD
         /// Mana percentage 0-1 (for binding).
         /// </summary>
         public ReadOnlyReactiveProperty<float> ManaPercent => _manaPercent;
+
+        /// <summary>
+        /// Equipped armour integrity 0-1 (for binding). 0 when nothing is equipped — check
+        /// <see cref="HasArmour"/> before drawing it.
+        /// </summary>
+        public ReadOnlyReactiveProperty<float> ArmourPercent => _armourPercent;
+
+        /// <summary>
+        /// Whether any armour is equipped (for binding). The armour bar's visibility gate.
+        /// </summary>
+        public ReadOnlyReactiveProperty<bool> HasArmour => _hasArmour;
 
         /// <summary>
         /// Initialize the ViewModel with its game data sources.
@@ -203,6 +216,8 @@ namespace PFE.UI.HUD
             _currentMana = null;
             _maxMana = null;
             _manaPercent = null;
+            _armourPercent = null;
+            _hasArmour = null;
 
             SetupBindings();
         }
@@ -274,6 +289,18 @@ namespace PFE.UI.HUD
             _disposables.Add(_currentMana);
             _disposables.Add(_maxMana);
             _disposables.Add(_manaPercent);
+
+            // Armour bindings.
+            //
+            // Taken straight off UnitStats' reactive mirrors rather than computed here, because unlike
+            // health there is no second source to combine: ArmourIntegrity is already 0..1 and already
+            // published on every equip / wear / repair. Reading `playerStats.armour.IntegrityPercent`
+            // instead would be a snapshot with no change signal, so the bar would never move.
+            _armourPercent = playerStats.ArmourIntegrity.ToReadOnlyReactiveProperty();
+            _hasArmour = playerStats.HasArmour.ToReadOnlyReactiveProperty();
+
+            _disposables.Add(_armourPercent);
+            _disposables.Add(_hasArmour);
 
             Debug.Log($"[HUDViewModel] Reactive bindings established (weapon={(ammo != null ? "yes" : "none")}).");
         }

@@ -19,7 +19,7 @@ namespace PFE.Entities.Weapons
     /// Outside the strike window SetActive(false) disables the collider entirely.
     ///
     /// On trigger enter: reads DamageContext from the controller's last ShotPlan
-    /// and calls DamageResolver.Resolve() — same path as projectile hits.
+    /// and reports the hit to DamageSystem — same path as projectile hits.
     ///
     /// Setup:
     ///   1. Add to a child GameObject of the player's weapon object.
@@ -44,7 +44,7 @@ namespace PFE.Entities.Weapons
         // ── Injected ─────────────────────────────────────────────────────────
 
 #pragma warning disable CS0649
-        [Inject] private IPublisher<DamageDealtMessage> _damageDealtPublisher;
+        [Inject] private PFE.Systems.Combat.DamageSystem _damageSystem;
 #pragma warning restore CS0649
 
         // ── Initialization ────────────────────────────────────────────────────
@@ -114,11 +114,18 @@ namespace PFE.Entities.Weapons
             var damageable = other.GetComponent<IDamageable>();
             if (damageable == null || !damageable.IsAlive) return;
 
-            if (_hasDamageContext)
-                DamageResolver.Resolve(_damageContext, damageable,
-                    other.transform.position, _damageDealtPublisher);
+            if (_hasDamageContext && _damageSystem != null)
+            {
+                // Report, do not resolve — DamageSystem owns the formula and the tick that runs it.
+                // Melee stays unfiltered by faction, as it is in AS3; that decision belongs to the
+                // caller, not here. See the remarks on OnTriggerEnter2D.
+                _damageSystem.Report(PendingDamage.Direct(
+                    _damageContext, damageable, other.transform.position));
+            }
             else
+            {
                 damageable.TakeDamage(1f);
+            }
         }
 
         // ── Debug ─────────────────────────────────────────────────────────────

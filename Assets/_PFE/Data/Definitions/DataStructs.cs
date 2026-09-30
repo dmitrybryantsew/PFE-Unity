@@ -7,8 +7,30 @@ namespace PFE.Data.Definitions
     /// </summary>
 
     /// <summary>
-    /// Vulnerability data for units.
-    /// 16 damage type multipliers from the original game.
+    /// A unit's per-damage-type incoming-damage <b>multiplier</b>, AS3 <c>Unit.vulner</c>.
+    ///
+    /// <para><b>Neutral is 1, not 0.</b> This is a multiplier table, so a unit with no
+    /// <c>&lt;vulner&gt;</c> element takes <c>×1</c> from everything. Its sibling
+    /// <see cref="ResistTable"/> — an armour's <i>resistance</i> — looks like the same shape and has
+    /// neutral <c>0</c>. The two must not be interchanged: handing an armour's resistances to a
+    /// vulnerability consumer would read every unset field as immunity.</para>
+    ///
+    /// <para><b>Seventeen fields, sixteen of which XML can reach.</b> AS3's array is
+    /// <c>Unit.kolVulners = 20</c> slots, but the <c>&lt;vulner&gt;</c> reader
+    /// (<c>Unit.as:1209-1272</c>) tests exactly sixteen attributes — <c>bul</c>, <c>blade</c>,
+    /// <c>phis</c>, <c>fire</c>, <c>expl</c>, <c>laser</c>, <c>plasma</c>, <c>venom</c>, <c>emp</c>,
+    /// <c>spark</c>, <c>acid</c>, <c>cryo</c>, <c>poison</c>, <c>bleed</c>, <c>fang</c>, <c>pink</c>.
+    /// Slots 15/17/18 (<c>bale</c>, <c>psy</c>, <c>astro</c>) are therefore <b>unreachable from
+    /// data</b> and are deliberately absent. <see cref="necro"/> is present because AS3 does use
+    /// <c>D_NECRO</c> — but from <i>code</i> (<c>Pers.as:1425</c> zeroes it for the undead), never from
+    /// <c>&lt;vulner&gt;</c>.</para>
+    ///
+    /// <para><b>Attributes the data writes and AS3 ignores.</b> <c>AllData.as</c> uses <c>bullet</c>
+    /// three times, <c>necro</c> once and <c>necr</c> once inside <c>&lt;vulner&gt;</c>; AS3 reads none
+    /// of them — it reads <c>bul</c>, and <c>@necro</c> only on an armour's <c>&lt;upd&gt;</c>
+    /// (<c>Armor.as:253</c>). They are rejected rather than honoured, which is the same rule
+    /// <see cref="ResistTable"/> applies to <c>dark='0.2'</c>, and the reason
+    /// <see cref="SetVulnerabilityByAs3Attribute"/> is the only way in from XML.</para>
     /// </summary>
     [System.Serializable]
     public struct VulnerabilityData
@@ -45,6 +67,44 @@ namespace PFE.Data.Definitions
         }
 
         /// <summary>
+        /// AS3's neutral unit: every multiplier <c>1</c> — <b>except <c>emp</c>, which is <c>0</c></b>.
+        ///
+        /// <para>The exception is AS3's, not a choice. <c>Unit.as:583-590</c> fills the whole array with
+        /// <c>1</c> and then unconditionally assigns <c>vulner[D_EMP] = 0</c>; the per-frame reset does
+        /// the same (<c>Pers.as:946-950</c>). So <b>every unit in the game is immune to EMP until
+        /// something grants it</b>, and <c>0</c> is the identity for "this hit does nothing" —
+        /// <c>Unit.damage():3527-3530</c> multiplies by it, and <c>udarBullet():4075</c> returns
+        /// <c>-1</c> ("passed through, not a hit") when it is <c>&lt;= 0</c>. An all-ones default would
+        /// silently hand every unit EMP damage the oracle denies it.</para>
+        ///
+        /// <para>A property rather than a <c>static readonly</c> field: <see cref="VulnerabilityData"/>
+        /// is a mutable struct, and a shared instance would be one stray write away from corrupting
+        /// every unit.</para>
+        /// </summary>
+        public static VulnerabilityData Neutral
+        {
+            get
+            {
+                var neutral = new VulnerabilityData(1f);
+                neutral.emp = 0f;
+                return neutral;
+            }
+        }
+
+        /// <summary>
+        /// The identity multiplier: every slot <c>1</c>, <b>including <c>emp</c></b> — so applying it
+        /// changes nothing.
+        ///
+        /// <para>Distinct from <see cref="Neutral"/> on purpose, and the distinction is load-bearing.
+        /// <see cref="Neutral"/> is AS3's <i>baseline for a unit</i>, and it carries <c>emp = 0</c>, so
+        /// it <b>is</b> a change. This is what the damage path multiplies by when the vulnerability
+        /// term is switched off — i.e. the pre-A7 behaviour, where the term did not exist at all.
+        /// Using <see cref="Neutral"/> for that would silently make every unit EMP-immune the moment
+        /// the term was disabled, which is exactly backwards.</para>
+        /// </summary>
+        public static VulnerabilityData Unmodified => new VulnerabilityData(1f);
+
+        /// <summary>
         /// Get vulnerability multiplier for damage type.
         /// </summary>
         public float GetVulnerability(DamageType damageType)
@@ -73,7 +133,14 @@ namespace PFE.Data.Definitions
         }
 
         /// <summary>
-        /// Set vulnerability multiplier for damage type.
+        /// Set the multiplier for a damage type.
+        ///
+        /// <para><b>Silently does nothing for the four types AS3's <c>&lt;vulner&gt;</c> reader cannot
+        /// reach</b> — <see cref="DamageType.Balefire"/>, <see cref="DamageType.Psionic"/>,
+        /// <see cref="DamageType.Astral"/>, plus the out-of-range
+        /// <see cref="DamageType.Internal"/>/<see cref="DamageType.FriendlyFire"/>. Prefer
+        /// <see cref="SetVulnerabilityByAs3Attribute"/> when the input is XML, so a miss is reported
+        /// rather than dropped.</para>
         /// </summary>
         public void SetVulnerability(DamageType damageType, float value)
         {
@@ -98,6 +165,112 @@ namespace PFE.Data.Definitions
                 case DamageType.Necrotic: necro = value; break;
             }
         }
+
+        /// <summary>
+        /// Set the multiplier by AS3's own <c>&lt;vulner&gt;</c> attribute name (<c>"bul"</c>,
+        /// <c>"phis"</c>, <c>"pink"</c>, …).
+        ///
+        /// <para>The importer uses this so the XML attribute names live in one place instead of in a
+        /// switch at the call site — the split <see cref="ResistTable.SetResistByAs3Attribute"/>
+        /// established. It also makes the mapping unit-testable: <c>PFE.Tests</c> references
+        /// <c>PFE.Core</c> but not <c>PFE.Editor</c>.</para>
+        ///
+        /// <para><b>Why this returns <c>bool</c> instead of being a <c>void</c> switch.</b> The previous
+        /// mapping lived in the importer and ended in <c>default: return DamageType.PhysicalMelee</c> —
+        /// so <c>bul</c>, the attribute AS3 actually reads and the one <c>AllData.as</c> uses 28 times,
+        /// fell through and was written into <c>phis</c> instead. A silent fallback turns a typo into
+        /// plausible-looking data.</para>
+        /// </summary>
+        /// <returns>
+        /// <c>false</c> for any attribute AS3's <c>&lt;vulner&gt;</c> reader does not test — including
+        /// <c>bullet</c>, <c>necro</c> and <c>necr</c>, which <c>AllData.as</c> writes but the oracle
+        /// ignores.
+        /// </returns>
+        public bool SetVulnerabilityByAs3Attribute(string attributeName, float value)
+        {
+            switch (attributeName)
+            {
+                case "bul":    bullet = value; return true;
+                case "blade":  blade  = value; return true;
+                case "phis":   phis   = value; return true;
+                case "fire":   fire   = value; return true;
+                case "expl":   expl   = value; return true;
+                case "laser":  laser  = value; return true;
+                case "plasma": plasma = value; return true;
+                case "venom":  venom  = value; return true;
+                case "emp":    emp    = value; return true;
+                case "spark":  spark  = value; return true;
+                case "acid":   acid   = value; return true;
+                case "cryo":   cryo   = value; return true;
+                case "poison": poison = value; return true;
+                case "bleed":  bleed  = value; return true;
+                case "fang":   fang   = value; return true;
+                case "pink":   pink   = value; return true;
+                default:       return false;
+            }
+        }
+
+        /// <summary>
+        /// Fold an armour's per-type <c>resist</c> into this multiplier table — AS3
+        /// <c>Pers.armorParameters()</c> (<c>:2064-2070</c>):
+        /// <c>gg.vulner[_loc2_] *= 1 - param1.resist[_loc2_]</c>.
+        ///
+        /// <para><b>Returns a new table rather than mutating this one.</b> AS3 mutates
+        /// <c>gg.vulner</c> in place, which is safe there only because every path into it is preceded by
+        /// <c>defaultParams()</c> re-zeroing the array (<c>:946-950</c>). Without that reset, calling
+        /// this twice multiplies the first plate's resistance in twice — and the bug is silent, because
+        /// the second plate's numbers still look plausible. Keeping the fold pure means the caller has
+        /// to supply the baseline, so "reset, then re-apply" is the only expressible shape and swapping
+        /// a plate <b>replaces</b> its contribution instead of compounding it.</para>
+        ///
+        /// <para><b>Three slots are deliberately untouched.</b> AS3's loop runs over all
+        /// <c>Unit.kolVulners = 20</c> slots, but its <c>resist</c> array only ever holds the thirteen
+        /// XML attributes plus <c>pink</c>. <c>poison</c>, <c>bleed</c> and <c>emp</c> have no resist
+        /// slot, so AS3 multiplies them by <c>1 - 0 = 1</c> — a no-op. They are left alone here for the
+        /// same reason <see cref="ResistTable.GetResist"/> returns <c>0</c> for them: the no-op is the
+        /// oracle's behaviour, not an omission. In particular <c>emp</c> keeps the <c>0</c> that
+        /// <see cref="Neutral"/> put there, so a unit stays EMP-immune through an armour change.</para>
+        ///
+        /// <para><b><c>pink</c> is the one that moves the wrong way.</b> Every <c>tip == 1</c> body
+        /// armour carries <c>resist[PINK] = -0.5</c> from its constructor (<c>Armor.as:180-183</c>), so
+        /// the fold gives <c>×1.5</c> — body armour makes its wearer take <i>more</i> pink damage. That
+        /// is the oracle, and it is why this multiplies by <c>1 - resist</c> and not by
+        /// <c>resist</c>.</para>
+        /// </summary>
+        /// <param name="resists">
+        /// The equipped armour's resistance table. <c>default</c> — an all-zero table — is a no-op.
+        /// </param>
+        public VulnerabilityData WithResist(in ResistTable resists)
+        {
+            VulnerabilityData folded = this;
+
+            folded.bullet *= 1f - resists.bullet;
+            folded.blade  *= 1f - resists.blade;
+            folded.phis   *= 1f - resists.physical;
+            folded.fire   *= 1f - resists.fire;
+            folded.expl   *= 1f - resists.explosive;
+            folded.laser  *= 1f - resists.laser;
+            folded.plasma *= 1f - resists.plasma;
+            folded.spark  *= 1f - resists.spark;
+            folded.acid   *= 1f - resists.acid;
+            folded.cryo   *= 1f - resists.cryo;
+            folded.venom  *= 1f - resists.venom;
+            folded.fang   *= 1f - resists.fang;
+            folded.necro  *= 1f - resists.necrotic;
+            folded.pink   *= 1f - resists.pink;
+
+            return folded;
+        }
+
+        /// <summary>
+        /// AS3's <c>&lt;vulner&gt;</c> attribute names, in the order <c>Unit.as:1209-1272</c> tests
+        /// them. Exposed so the importer and its tests agree on one list rather than two that can drift.
+        /// </summary>
+        public static readonly string[] As3AttributeNames =
+        {
+            "bul", "blade", "phis", "fire", "expl", "laser", "plasma", "venom",
+            "emp", "spark", "acid", "cryo", "poison", "bleed", "fang", "pink",
+        };
     }
 
     /// <summary>
@@ -438,15 +611,68 @@ namespace PFE.Data.Definitions
     }
 
     /// <summary>
-    /// Equipment data (wearable items).
+    /// One <b>upgrade level</b> of a wearable item's stats — AS3's <c>&lt;upd&gt;</c> element, read by
+    /// <c>Armor.getXmlParam()</c> (<c>Armor.as:196-280</c>).
+    ///
+    /// <para><b>Deliberately per-level only, and that is a fidelity decision.</b> AS3's <c>Armor</c>
+    /// splits its fields in two: the ones parsed from the <c>&lt;armor&gt;</c> element itself
+    /// (<c>hp</c>, <c>tip</c>, <c>clo</c>, <c>hide</c>, <c>und</c>, <c>norep</c>) hold for the whole
+    /// item, and the ones parsed from <c>&lt;upd&gt;</c> change when it is upgraded
+    /// (<c>Armor.as:186-193</c> re-reads them at <c>lvl</c>). Keeping the two apart here means an
+    /// armour cannot end up with level-dependent durability, which the oracle has no way to express —
+    /// and the importer cannot accidentally write it.</para>
+    ///
+    /// <para>The per-item half lives on <see cref="ItemDefinition"/>: <c>armorHP</c>, <c>armorTip</c>,
+    /// <c>armorHideMane</c>, <c>armorIndestructible</c>.</para>
     /// </summary>
     [System.Serializable]
     public struct EquipmentData
     {
-        public int armor;                    // Defense bonus
-        public int magicArmor;               // Magic defense
-        public int armorHP;                  // Armor durability
-        public float dexPenalty;             // Dexterity penalty
+        public int armor;                    // Defense bonus      AS3 @armor
+        public int magicArmor;               // Magic defense      AS3 @marmor
+
+        /// <summary>
+        /// Dexterity modifier — AS3 <c>Armor.dexter</c>, applied as
+        /// <c>gg.dexter += dexter; gg.dodgePlus += dexter</c> (<c>Pers.as:2013-2018</c>).
+        ///
+        /// <para><b>Signed, and negative is a bonus.</b> <c>metal</c> declares
+        /// <c>dexter='-0.3'</c> — heavy plate that makes you <i>harder</i> to dodge, not easier.
+        /// This field was previously named <c>dexPenalty</c>, which read the sign backwards for
+        /// exactly that item.</para>
+        ///
+        /// <para><b>No consumer yet.</b> AS3 aggregates it inside <c>Pers.armorParameters()</c>, which
+        /// the port has no equivalent of — so this is imported data waiting for that subsystem, not a
+        /// live modifier. It is populated because dropping it would lose the value silently.</para>
+        /// </summary>
+        public float dexterity;              // Signed dexterity modifier  AS3 @dexter
+
+        /// <summary>
+        /// Chance (0..1) that the flat rating applies to a hit — AS3 <c>Armor.armor_qual</c>, parsed
+        /// from an armour item's <c>&lt;upd qual='…'&gt;</c> (<c>Armor.as:205-207</c>). Consumed as
+        /// <c>isrnd(qual)</c> = <c>Math.random() &lt; qual</c> (<c>Unit.as:4855</c>).
+        ///
+        /// <para><b>The default is 0, and that is the oracle — not an oversight.</b> AS3's field default
+        /// is <c>0</c> (<c>Armor.as:30</c>) and <c>isrnd(0)</c> is never true, so an armour with no
+        /// <c>qual</c> attribute gives <b>no reduction at all</b>. It is a sharp default: a hand-authored
+        /// armour definition that forgets <c>qual</c> looks fine in the inspector and silently absorbs
+        /// nothing. It is kept because it is what AS3 does, every one of the 35 armour elements in
+        /// <c>AllData</c> carries <c>qual</c>, and <c>ArmourDataParser</c> always writes it —
+        /// and <c>ArmourEquipTests</c> pins the behaviour so it cannot change unnoticed.</para>
+        ///
+        /// <para>The item XML's real range is <b>0.5–1.0</b>. The 0.25–0.9 range belongs to the
+        /// <i>unit pool's</i> <c>@aqual</c> — a different attribute on a different element, which an
+        /// earlier revision of this comment conflated.</para>
+        /// </summary>
+        public float reliability;
+
+        /// <summary>
+        /// Per-type resistance. AS3 <c>Armor.resist</c>, from the <c>&lt;upd&gt;</c> element's
+        /// <c>bul</c>/<c>phis</c>/<c>blade</c>/<c>expl</c>/<c>fang</c>/<c>fire</c>/<c>cryo</c>/<c>laser</c>/
+        /// <c>plasma</c>/<c>spark</c>/<c>acid</c>/<c>necro</c>/<c>venom</c> attributes.
+        /// <b>Neutral is 0</b> — see <see cref="ResistTable"/> for why this is not a
+        /// <see cref="VulnerabilityData"/>.
+        /// </summary>
+        public ResistTable resists;
     }
 
     /// <summary>

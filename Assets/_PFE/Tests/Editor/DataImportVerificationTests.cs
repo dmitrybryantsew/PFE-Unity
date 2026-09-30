@@ -73,6 +73,50 @@ namespace PFE.Tests.Editor
         }
 
         [Test]
+        public void ArmorImport_VerifyCount()
+        {
+            ItemDefinition[] armour = Resources.LoadAll<ItemDefinition>("Armor");
+
+            if (armour.Length == 0)
+            {
+                Assert.Ignore(
+                    "Resources/Armor is empty — run 'PFE/Data/Import Armour from AllData.as' and re-run. " +
+                    "Ignored rather than failed because importing is a manual menu step, and a red suite " +
+                    "that only means 'you have not run the menu item' trains people to ignore red.");
+                return;
+            }
+
+            Assert.AreEqual(35, armour.Length, $"Expected 35 armour definitions, got {armour.Length}");
+        }
+
+        [Test]
+        public void ArmorImport_AllHaveValidIds()
+        {
+            foreach (var armour in Resources.LoadAll<ItemDefinition>("Armor"))
+                Assert.IsFalse(string.IsNullOrEmpty(armour.itemId), $"Armour has null/empty ID: {armour.name}");
+        }
+
+        [Test]
+        public void ArmorIds_DoNotCollideWithItemIds()
+        {
+            // Armour lives in its own Resources folder but registers under the SAME ContentType.Item as
+            // items, so the two sets share one registry namespace. A collision is not raised loudly —
+            // additive policy keeps the first and only warns — so it is checked here instead.
+            var itemIds = new System.Collections.Generic.HashSet<string>();
+            foreach (var item in Resources.LoadAll<ItemDefinition>("Items"))
+                if (!string.IsNullOrEmpty(item.itemId)) itemIds.Add(item.itemId);
+
+            foreach (var armour in Resources.LoadAll<ItemDefinition>("Armor"))
+            {
+                if (string.IsNullOrEmpty(armour.itemId)) continue;
+
+                Assert.IsFalse(itemIds.Contains(armour.itemId),
+                    $"'{armour.itemId}' is both an item and an armour; the registry would keep whichever " +
+                    "registered first and the other would be unreachable by id.");
+            }
+        }
+
+        [Test]
         public void Perks_ContainsEssentialPerks()
         {
             var levitation = Resources.Load<PerkDefinition>("Perks/levitation");

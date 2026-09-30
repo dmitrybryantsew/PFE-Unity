@@ -68,18 +68,18 @@ MonoBehaviour:
   hasHeroBonus: 0
   vulnerabilities:
     bullet: 1
-    blade: 1
+    blade: 0.5
     phis: 1
-    fire: 1
-    expl: 1
+    fire: 0.5
+    expl: 0.7
     laser: 1
     plasma: 1
-    spark: 1
+    spark: 1.25
     acid: 1
-    cryo: 1
-    venom: 1
-    poison: 1
-    bleed: 1
+    cryo: 0.5
+    venom: 0
+    poison: 0
+    bleed: 0
     fang: 1
     emp: 1
     pink: 1

@@ -123,6 +123,21 @@ namespace PFE.Systems.Inventory
         // ===== Configuration =====
 
         /// <summary>
+        /// Resolves an armour definition by id. The analogue of AS3's <c>AllData.d.armor</c> table,
+        /// which <c>Invent.addArmor()</c> indexes — an <b>armour-only</b> lookup, not a general item one.
+        ///
+        /// <para><b>Null by default, so behaviour is unchanged until someone sets it.</b> The owner
+        /// sets it at boot; <c>GameDatabase.GetItem</c> would work but is deliberately <i>not</i> the
+        /// default, because it searches every <see cref="ItemDefinition"/> and would happily build an
+        /// "armour" out of a potion. A narrower resolver keeps the caller honest about the table it
+        /// means — and lets tests supply a two-line fake.</para>
+        ///
+        /// <para>Nothing in production constructs a <c>GameInventory</c> yet, so this seam is what
+        /// makes <see cref="AddArmor"/> testable now and correct the moment the inventory is stood up.</para>
+        /// </summary>
+        public Func<string, ItemDefinition> ArmorDefinitionResolver { get; set; }
+
+        /// <summary>
         /// Weight limits for each category [maxm0, maxm1, maxm2, maxm3]
         /// maxm0: Unlimited (not used)
         /// maxm1: Usable items limit
@@ -413,8 +428,8 @@ namespace PFE.Systems.Inventory
                 return null;
             }
 
-            // TODO: Get armor definition from database
-            ItemDefinition armorDef = null; // TODO: Lookup from GameDatabase
+            // Resolve through the armour table. AS3: Invent.addArmor() indexes AllData.d.armor.
+            ItemDefinition armorDef = ArmorDefinitionResolver?.Invoke(armorId);
             if (armorDef == null)
             {
                 Debug.LogError($"[GameInventory] Armor definition not found: {armorId}");

@@ -367,6 +367,86 @@ namespace PFE.Tests.Editor
             Assert.IsNull(armor2);
         }
 
+        // ── The definition seam (ArmorDefinitionResolver) ────────────────────────────────────────
+        //
+        // The three tests above pin the *unwired* contract — "definition not found" and a null return
+        // — and they still pass, because the resolver defaults to null. These pin what happens once an
+        // owner supplies one. AS3's analogue is `AllData.d.armor`, an armour-only table that
+        // Invent.addArmor() indexes, which is why the seam is armour-specific rather than a general
+        // item lookup.
+
+        [Test]
+        public void AddArmor_WithAResolver_BuildsTheInstanceFromTheDefinition()
+        {
+            var inventory = new GameInventory
+            {
+                ArmorDefinitionResolver = id => id == _armorItem.itemId ? _armorItem : null,
+            };
+
+            var armor = inventory.AddArmor(_armorItem.itemId);
+
+            Assert.IsNotNull(armor, "A resolver that knows the id must produce an instance.");
+            Assert.AreSame(_armorItem, armor.Definition);
+            Assert.AreEqual(100f, armor.MaxHealth, 1e-4f,
+                "_armorItem declares no armorHP, so GameArmorInstance falls back to AS3's field default " +
+                "of 100 (Armor.as:74-76).");
+        }
+
+        [Test]
+        public void AddArmor_WithAResolverThatDoesNotKnowTheId_StillFails()
+        {
+            var inventory = new GameInventory { ArmorDefinitionResolver = _ => null };
+
+            LogAssert.Expect(LogType.Error, "[GameInventory] Armor definition not found: armor_leather");
+
+            Assert.IsNull(inventory.AddArmor(_armorItem.itemId));
+        }
+
+        [Test]
+        public void AddArmor_WithAResolver_StillRefusesADuplicate()
+        {
+            var inventory = new GameInventory
+            {
+                ArmorDefinitionResolver = id => id == _armorItem.itemId ? _armorItem : null,
+            };
+
+            Assert.IsNotNull(inventory.AddArmor(_armorItem.itemId));
+
+            LogAssert.Expect(LogType.Warning, "[GameInventory] Already have armor: armor_leather");
+
+            Assert.IsNull(inventory.AddArmor(_armorItem.itemId),
+                "The duplicate guard runs before the lookup, so it behaves the same either way.");
+        }
+
+        [Test]
+        public void AddArmor_WithNoResolver_KeepsThePlaceholderBehaviour()
+        {
+            // Positive control for the tests above: the seam has to be opt-in, or the three tests that
+            // pin "not implemented yet" would quietly start meaning something else.
+            var inventory = new GameInventory();
+
+            Assert.IsNull(inventory.ArmorDefinitionResolver, "Null by default — see the property's remarks.");
+
+            LogAssert.Expect(LogType.Error, "[GameInventory] Armor definition not found: armor_leather");
+
+            Assert.IsNull(inventory.AddArmor(_armorItem.itemId));
+        }
+
+        [Test]
+        public void AddArmor_RejectsAnEmptyIdBeforeAskingTheResolver()
+        {
+            bool lookedUp = false;
+            var inventory = new GameInventory
+            {
+                ArmorDefinitionResolver = _ => { lookedUp = true; return _armorItem; },
+            };
+
+            LogAssert.Expect(LogType.Warning, "[GameInventory] Invalid armor ID");
+
+            Assert.IsNull(inventory.AddArmor(""));
+            Assert.IsFalse(lookedUp, "The id guard runs first — the resolver must not be asked at all.");
+        }
+
         #endregion
 
         #region Favorite Slots Tests

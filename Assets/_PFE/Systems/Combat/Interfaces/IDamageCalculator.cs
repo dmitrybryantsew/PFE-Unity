@@ -1,3 +1,4 @@
+using PFE.Core.Rng;
 using PFE.Data.Definitions;
 using PFE.Entities.Units;
 
@@ -9,6 +10,29 @@ namespace PFE.Systems.Combat
     /// </summary>
     public interface IDamageCalculator
     {
+        /// <summary>
+        /// Resolve one hit against a target's armour and durability. Pure: no mutation, no static state,
+        /// RNG supplied by the caller. The owner applies the returned outcome to its own state.
+        /// </summary>
+        /// <remarks>
+        /// The wear passed in as <c>armourIntegrityDamage</c> comes from
+        /// <see cref="ArmourWear"/> — the two tables are split the way AS3 splits them, with the wear
+        /// in <c>Armor.damage()</c> and the reduction in <c>Unit.damage()</c>.
+        /// </remarks>
+        DamageOutcome ResolveDamage(
+            float incomingDamage,
+            float armourIntegrityDamage,
+            in ArmourState armour,
+            IRngService rng,
+            DamageType damageType = DamageType.PhysicalBullet,
+            bool ignoreArmour = false,
+            float piercing = 0f,
+            float armourMultiplier = 1f,
+            float critChance = 0f,
+            float critMultiplier = 1f,
+            float skinResistance = 0f,
+            float durabilityMultiplier = 1f);
+
         /// <summary>
         /// Complete damage calculation from weapon to target.
         /// </summary>

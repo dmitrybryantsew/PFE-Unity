@@ -28,7 +28,7 @@ namespace PFE.Data
         public void RegisterContent(IContentRegistry registry)
         {
             // Measured 2026-09-25: game.db.init was 3493 ms of boot — the single largest item,
-            // larger than all tile rendering. It is these eleven Resources.LoadAll calls. Split
+            // larger than all tile rendering. It is these Resources.LoadAll calls. Split
             // per type so we can see which one actually costs. Note the room templates get loaded
             // AGAIN by GameManager.LoadRoomTemplates (11.9 ms) — that second load is nearly free
             // because Unity already has the objects in memory, which is what makes the asymmetry.
@@ -37,6 +37,17 @@ namespace PFE.Data
             RegisterType<RoomTemplate>(registry, "game.db.load.rooms", "Rooms", "");
             RegisterType<CharacterAnimationDefinition>(registry, "game.db.load.characters", "Characters", "");
             RegisterType<ItemDefinition>(registry, "game.db.load.items", "Items", "");
+
+            // Armour lives in its own folder, and has to: AllData's 35 <armor> elements are a
+            // different element type from its 500 <item> ones, and DataImportVerificationTests pins
+            // "Items" at exactly 451 assets — importing armour there would break that count and mix
+            // real definitions in with the empty shells SimpleDataImporter creates.
+            //
+            // It registers as ContentType.Item all the same, because that is what ItemDefinition
+            // declares. So armour and item ids share one namespace; there are no collisions between
+            // the 35 and the 500, and AS3 keeps them in one item list too.
+            RegisterType<ItemDefinition>(registry, "game.db.load.armor", "Armor", "");
+
             RegisterType<AmmoDefinition>(registry, "game.db.load.ammo", "Ammo", "");
             RegisterType<MapObjectDefinition>(registry, "game.db.load.mapObjects", "MapObjects/Definitions", "");
             RegisterType<PerkDefinition>(registry, "game.db.load.perks", "Perks", "");

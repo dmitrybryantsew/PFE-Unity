@@ -148,6 +148,12 @@ public class GameLifetimeScope : LifetimeScope
         builder.Register<ICriticalHitSystem, CriticalHitSystem>(Lifetime.Singleton);
         builder.Register<IDurabilitySystem, DurabilitySystem>(Lifetime.Singleton);
 
+        // Single point of damage resolution. RegisterEntryPoint (not Register) so IStartable actually
+        // runs — DamageSystem.Start puts itself on SimLoop at SimTickOrder.Damage. AsSelf for the same
+        // reason as SimLoop above: RegisterEntryPoint replaces the service list with the entry-point
+        // interfaces, so without it the four sources could not [Inject] the concrete type.
+        builder.RegisterEntryPoint<DamageSystem>().AsSelf();
+
         // === LowLevelPhysics2D World (Stage B) ===
         builder.Register<IPhysicsWorldService, PhysicsWorldService>(Lifetime.Singleton).AsSelf();
 

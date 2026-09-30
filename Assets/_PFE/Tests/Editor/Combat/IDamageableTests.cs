@@ -86,6 +86,86 @@ namespace PFE.Tests.Editor.Combat
             Assert.IsNotNull(isAliveProperty, "IDamageable should have IsAlive property");
         }
 
+        // === The vulnerability table (IDamageable.Vulnerabilities) ===
+
+        [Test]
+        public void Vulnerabilities_WithNoDefinition_IsAs3sNeutral_NotTheIdentity()
+        {
+            // AS3 fills vulner with 1 and then unconditionally forces vulner[D_EMP] = 0
+            // (Unit.as:583-590), so a unit that declares no <vulner> element is EMP-immune — not
+            // "unmodified". Neutral and the identity differ in exactly one slot, which is why the
+            // fallback has to be a named constant rather than whatever a default happened to be.
+            VulnerabilityData table = _unitController.Vulnerabilities;
+
+            Assert.AreEqual(0f, table.GetVulnerability(DamageType.EMP), 1e-6f,
+                "Neutral carries emp = 0; substituting the identity would hand out EMP damage the " +
+                "oracle denies.");
+            Assert.AreEqual(1f, table.GetVulnerability(DamageType.Laser), 1e-6f,
+                "…and every other slot is still 1.");
+        }
+
+        [Test]
+        public void Vulnerabilities_WithBothStatsAndDefinition_PrefersTheLiveTable()
+        {
+            // A7b changed this precedence, and this test is the one that pinned the old one. Before A7b
+            // the property read the definition; now UnitStats is the live table and the definition is
+            // only the *baseline* it is derived from.
+            //
+            // The oracle's split is why: `Unit.begvulner` is the unit's static <vulner> element and
+            // `vulner` is derived from it (Unit.as:977-984, :3466-3495) — and for the player the
+            // derivation is not the identity, because Pers.armorParameters():2067 folds the equipped
+            // armour's resist in. So the derived value is the one combat must see, and reading the
+            // baseline directly would silently skip the fold. Note this fixture's SetUp always assigns
+            // a _unitStats, so the definition is genuinely *not* what a unit with both reads.
+            var definition = ScriptableObject.CreateInstance<UnitDefinition>();
+            definition.vulnerabilities = new VulnerabilityData(1f);
+            definition.vulnerabilities.laser = 0.5f;
+
+            var field = typeof(UnitController).GetField("_stats",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            field.SetValue(_unitController, definition);
+
+            Assert.AreEqual(1f, _unitController.Vulnerabilities.GetVulnerability(DamageType.Laser),
+                1e-6f,
+                "UnitStats wins when it exists, so the definition's laser = 0.5 must NOT appear here. " +
+                "The live table is the baseline folded with any armour resist.");
+
+            Object.DestroyImmediate(definition);
+        }
+
+        [Test]
+        public void Vulnerabilities_WithNoStats_FallsBackToTheDefinition()
+        {
+            // The complement to the test above, and the case that test used to cover. A unit with no
+            // UnitStats has no derivation to run, so its baseline IS its live table — which is why the
+            // fallback is the definition rather than an error, and why an NPC needs no UnitStats to
+            // carry a real <vulner> table into combat.
+            //
+            // LATENT GAP, named rather than hidden: a unit that has BOTH reads UnitStats, and nothing
+            // seeds UnitStats from the definition today, so such an NPC would read Neutral and silently
+            // lose its <vulner> element. SetVulnerabilityBaseline(definition.vulnerabilities) is the
+            // seam that closes it and the spawner is what must call it. Until then this test pins the
+            // no-stats path only.
+            var definition = ScriptableObject.CreateInstance<UnitDefinition>();
+            definition.vulnerabilities = new VulnerabilityData(1f);
+            definition.vulnerabilities.laser = 0.5f;
+
+            var statsField = typeof(UnitController).GetField("_unitStats",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            statsField.SetValue(_unitController, null);
+
+            var field = typeof(UnitController).GetField("_stats",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            field.SetValue(_unitController, definition);
+
+            Assert.AreEqual(0.5f, _unitController.Vulnerabilities.GetVulnerability(DamageType.Laser),
+                1e-6f,
+                "AllData.as:118 — raider3's <vulner laser='0.5'/> has to reach the resolver intact when " +
+                "there is no derived table to prefer.");
+
+            Object.DestroyImmediate(definition);
+        }
+
         // === Health Property Tests ===
 
         [Test]

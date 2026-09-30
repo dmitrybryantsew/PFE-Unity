@@ -81,7 +81,7 @@ MonoBehaviour:
     poison: 1
     bleed: 1
     fang: 1
-    emp: 1
+    emp: 0
     pink: 1
     necro: 1
   noiseLevel: 300

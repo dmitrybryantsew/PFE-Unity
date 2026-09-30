@@ -70,16 +70,16 @@ MonoBehaviour:
     bullet: 1
     blade: 1
     phis: 1
-    fire: 1
+    fire: 0.5
     expl: 1
     laser: 1
     plasma: 1
     spark: 1
     acid: 1
-    cryo: 1
-    venom: 1
-    poison: 1
-    bleed: 1
+    cryo: 0.5
+    venom: 0
+    poison: 0
+    bleed: 0
     fang: 1
     emp: 1
     pink: 1

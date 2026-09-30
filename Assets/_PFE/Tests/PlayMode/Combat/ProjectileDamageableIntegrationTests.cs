@@ -6,6 +6,7 @@ using PFE.Entities.Weapons;
 using PFE.Entities.Units;
 using PFE.Systems.Combat;
 using PFE.Core.Pooling;
+using PFE.Data.Definitions;
 using Cysharp.Threading.Tasks;
 using System.Collections;
 
@@ -293,6 +294,31 @@ namespace PFE.Tests.PlayMode.Combat
                 LastDamageAmount = damage;
                 _health = Mathf.Max(0, _health - damage);
             }
+
+            /// <summary>
+            /// The resolved-outcome path. Records what it was asked to apply so tests can assert the
+            /// resolver's decision reached the target unchanged.
+            /// </summary>
+            public bool ApplyDamage(in DamageOutcome outcome)
+            {
+                ApplyDamageCallCount++;
+                LastHpDamage = outcome.HpDamage;
+                LastArmourIntegrityDamage = outcome.ArmourIntegrityDamage;
+                _health = Mathf.Max(0, _health - outcome.HpDamage);
+                return outcome.ArmourBroke;
+            }
+
+            public int ApplyDamageCallCount { get; private set; }
+            public float LastHpDamage { get; private set; }
+            public float LastArmourIntegrityDamage { get; private set; }
+
+            public ArmourState Armour => ArmourState.None;
+
+            /// <summary>
+            /// AS3's baseline for a unit with no <c>&lt;vulner&gt;</c> element — not the identity, because
+            /// the two differ in the <c>emp</c> slot (<c>Unit.as:583-590</c>).
+            /// </summary>
+            public VulnerabilityData Vulnerabilities => VulnerabilityData.Neutral;
 
             public float CurrentHealth => _health;
             public float MaxHealth => 100f;

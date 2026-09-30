@@ -192,7 +192,7 @@ namespace PFE.Entities.Weapons
         // ── Injected ─────────────────────────────────────────────────────────
 
 #pragma warning disable CS0649
-        [Inject] private IPublisher<DamageDealtMessage> _damageDealtPublisher;
+        [Inject] private PFE.Systems.Combat.DamageSystem _damageSystem;
         [Inject] private PfeDebugSettings               _debugSettings;
 
         // Stage C. Fully qualified: this file is not in the PFE.Systems.Physics namespace, but being
@@ -599,14 +599,20 @@ namespace PFE.Entities.Weapons
                     var damageable = hit.GetComponent<IDamageable>();
                     if (damageable != null && damageable.IsAlive)
                     {
-                        if (_hasDamageContext)
-                            DamageResolver.ResolveExplosion(
+                        if (_hasDamageContext && _damageSystem != null)
+                        {
+                            // Report, do not resolve. The per-target faction multiplier is computed
+                            // here because it needs this collider; the falloff and the formula live in
+                            // DamageSystem.
+                            _damageSystem.Report(PendingDamage.Explosion(
                                 _damageContext, damageable,
                                 hit.transform.position, centre, _explRadius,
-                                _damageDealtPublisher,
-                                factionMultiplier: ExplosionMultiplierFor(hit));
+                                factionMultiplier: ExplosionMultiplierFor(hit)));
+                        }
                         else
+                        {
                             damageable.TakeDamage(10f);
+                        }
                     }
                 }
             }

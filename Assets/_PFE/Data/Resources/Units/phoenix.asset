@@ -70,10 +70,10 @@ MonoBehaviour:
     bullet: 1
     blade: 1
     phis: 1
-    fire: 1
-    expl: 1
-    laser: 1
-    plasma: 1
+    fire: 0.5
+    expl: 0.25
+    laser: 0.75
+    plasma: 0.5
     spark: 1
     acid: 1
     cryo: 1
@@ -81,7 +81,7 @@ MonoBehaviour:
     poison: 1
     bleed: 1
     fang: 1
-    emp: 1
+    emp: 0
     pink: 1
     necro: 1
   noiseLevel: 300
