@@ -419,12 +419,31 @@ namespace PFE.Editor.Importers
                 SetPrivateField(unit, "height", height);
             }
 
-            // Parse massa (mass)
-            var massaMatch = Regex.Match(attrs, @"massa='(\d+)'");
+            // Parse massa (mass) and massafix.
+            //
+            // AS3 reads BOTH off this same <phis> node — `Unit.as:1018` does `node = node0.phis[0]`,
+            // `:1047` reads `massaMove = node.@massa / 50`, `:1051` reads `massaFix = node.@massafix / 50`
+            // — and `:1058` then sets `massa = this.massaFix`. So massafix WINS when present; massa is the
+            // fallback. Only 6 units author massafix (all turrets), but 5 of them author both with very
+            // different values, so importing only `massa` throws them 4.5x-12.5x too far.
+            //
+            // Decimals are real data here too: `massa='2.5'` is in the oracle. An integer-only pattern
+            // does not merely truncate it — the trailing `'` never matches, so the whole attribute is
+            // dropped and the field keeps its default. That is the same silent failure the `knocked`
+            // pattern below was widened to avoid.
+            var massaMatch = Regex.Match(attrs, @"massa='(-?\d+\.?\d*)'");
             if (massaMatch.Success)
             {
                 float mass = ParseFloat(massaMatch.Groups[1].Value);
                 SetPrivateField(unit, "mass", mass);
+            }
+
+            // Left at its 0 sentinel when absent, which `UnitDefinition.Massa` reads as "use `mass`".
+            var massafixMatch = Regex.Match(attrs, @"massafix='(-?\d+\.?\d*)'");
+            if (massafixMatch.Success)
+            {
+                float massafix = ParseFloat(massafixMatch.Groups[1].Value);
+                SetPrivateField(unit, "massafix", massafix);
             }
         }
 
@@ -443,12 +462,44 @@ namespace PFE.Editor.Importers
                 SetPrivateField(unit, "moveSpeed", speed);
             }
 
+            // Knockback susceptibility. AS3 reads it from the SAME <move> node — `Unit.as:1063` takes
+            // `node = node0.move[0]` and `:1082-1085` reads `node.@knocked` — and only when the unit has
+            // a <move> element at all, which is why the early return above leaves the default of 1 in
+            // place for a unit without one.
+            //
+            // Decimals are real data here, not noise: the authored set is 0, 0.1, 0.3, 1, 1.2, 1.5.
+            // An integer-only pattern would silently import 0.3 as nothing and leave 1 behind.
+            var knockedMatch = Regex.Match(attrs, @"knocked='(-?\d+\.?\d*)'");
+            if (knockedMatch.Success)
+            {
+                float knocked = ParseFloat(knockedMatch.Groups[1].Value);
+                SetPrivateField(unit, "knocked", knocked);
+            }
+
             // Parse jump
             var jumpMatch = Regex.Match(attrs, @"jump='(-?\d+\.?\d*)'");
             if (jumpMatch.Success)
             {
                 float jump = ParseFloat(jumpMatch.Groups[1].Value);
                 SetPrivateField(unit, "jumpForce", jump);
+            }
+
+            // Fixed in place. AS3 reads it from the SAME <move> node as `knocked` — `Unit.as:1114`
+            // tests `node.@fixed.length()` and `:1116` assigns `this.fixed = node.@fixed > 0`.
+            //
+            // The comparison is `> 0`, not `== 1`, so any positive value pins the unit; the oracle
+            // only ever writes '1' (16 <move> nodes, 17 unit ids — `turret` is the shared template).
+            // A signed pattern costs nothing and matches the sibling reads above.
+            //
+            // `fixed` is a C# keyword, so the local cannot be named after it. The port's field is
+            // `isFixed`; SetUnitDefaults already writes `false`, which is AS3's own default
+            // (`Unit.as:204`) and the correct value for the 117 units that do not author the
+            // attribute — so a missing attribute must leave the default alone rather than write it.
+            var fixedMatch = Regex.Match(attrs, @"fixed='(-?\d+\.?\d*)'");
+            if (fixedMatch.Success)
+            {
+                float fixedValue = ParseFloat(fixedMatch.Groups[1].Value);
+                SetPrivateField(unit, "isFixed", fixedValue > 0f);
             }
 
             // Parse accel

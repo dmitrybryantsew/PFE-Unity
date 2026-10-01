@@ -79,9 +79,51 @@ namespace PFE.Data.Definitions
         [Range(0f, 2f)]
         public float sitHeight = 0.5f;
 
-        [Tooltip("Mass from 'massa' in AS3")]
+        [Tooltip("Mass from 'massa' in AS3 — the RAW attribute, used only when 'massafix' is absent. " +
+                 "See Massa for the value AS3 uses.")]
         [Range(1f, 500f)]
         public float mass = 50f;
+
+        /// <summary>
+        /// Mass from <c>massafix</c> in AS3 — the RAW attribute, and the one AS3 actually uses when a
+        /// unit authors it. <c>0</c> means "this unit does not author <c>massafix</c>".
+        ///
+        /// <para><b>Zero is the safe sentinel, deliberately.</b> Every <c>.asset</c> written before this
+        /// field existed deserialises it as <c>0</c>, which reads as "absent" and falls back to
+        /// <see cref="mass"/> — i.e. exactly the behaviour those assets had. The alternative sentinel
+        /// (<c>-1</c> for "absent") would have made every un-reimported asset look like it authored a
+        /// negative mass. Only 6 units in the whole oracle author <c>massafix</c> at all.</para>
+        /// </summary>
+        [Tooltip("Mass from 'massafix' in AS3 — the RAW attribute, and the one AS3 actually uses. " +
+                 "0 means the unit does not author it, so 'mass' applies. See Massa.")]
+        [Range(0f, 10000f)]
+        public float massafix = 0f;
+
+        /// <summary>
+        /// AS3's <c>Unit.massa</c> — the weight divisor in the knockback formula.
+        ///
+        /// <para><b>AS3 divides the attribute by 50 and the port does not, so these are not the same
+        /// number.</b> <c>Unit.as:1047</c> reads <c>massaMove = node.@massa / 50</c> and <c>:1051</c>
+        /// reads <c>massaFix = node.@massafix / 50</c>; the port's importer stores the attribute
+        /// verbatim. AS3's own field default is <c>1</c> (<c>Obj.as:28</c> — <c>massa</c> is declared on
+        /// <c>Obj</c>, not <c>Unit</c>), which is why <see cref="mass"/> defaults to 50 — the same
+        /// quantity, unconverted. Feeding the raw value straight into the knockback divisor would make
+        /// every unit 50x harder to throw, which is exactly the silent scale error this property exists
+        /// to prevent.</para>
+        ///
+        /// <para><b><c>massafix</c> wins over <c>massa</c>, and the port used to ignore it.</b>
+        /// <c>Unit.as:1049-1056</c> reads both off the same <c>&lt;phis&gt;</c> node
+        /// (<c>node = node0.phis[0]</c>, <c>:1018</c>) and sets <c>massaFix</c> from <c>@massafix</c> when
+        /// present, from <c>@massa</c> otherwise; <c>:1058</c> then does <c>massa = this.massaFix</c>.
+        /// Five units author both and would have been thrown 4.5x-12.5x too far — <c>turret0</c>
+        /// <c>massa='40' massafix='250'</c> is 5.0 against the port's 0.8, <c>turret2</c>'s
+        /// <c>40/500</c> is 12.5x. All six are turrets, i.e. exactly what the player shoots at.</para>
+        ///
+        /// <para>AS3 keeps two more: <c>massaFix</c> at rest and <c>massaMove</c> while moving
+        /// (<c>:1058</c> / <c>:3137</c>, the levitation branch). Only the resting one is modelled here;
+        /// the moving variant is not imported, so a levitating unit keeps its resting weight.</para>
+        /// </summary>
+        public float Massa => (massafix > 0f ? massafix : mass) / 50f;
 
         // Legacy properties for compatibility
         public float Width => width;
@@ -112,6 +154,10 @@ namespace PFE.Data.Definitions
         [Range(0f, 30f)]
         public float jumpForce = 15f;
 
+        [Tooltip("Knockback susceptibility (AS3 'knocked') — 0 = immovable, 1 = ordinary, >1 = light")]
+        [Range(0f, 3f)]
+        public float knocked = 1f;
+
         // Legacy properties for compatibility
         public float WalkSpeed => moveSpeed;
         public float RunSpeed => moveSpeed * runMultiplier;
@@ -135,7 +181,40 @@ namespace PFE.Data.Definitions
         [Tooltip("Can be knocked down")]
         public bool canBeKnockedDown = true;
 
-        [Tooltip("Is fixed in place (cannot move)")]
+        /// <summary>
+        /// AS3's <c>Unit.fixed</c>, authored as <c>fixed='1'</c> on the <c>&lt;move&gt;</c> node
+        /// (<c>Unit.as:1114-1116</c>, <c>this.fixed = node.@fixed &gt; 0</c>).
+        ///
+        /// <para><b>It gates the entire position integration, not just the walk input.</b>
+        /// <c>Unit.as:1809</c> wraps the call to <c>run()</c> — the function that does
+        /// <c>X += dx</c> — in <c>if(!this.fixed)</c>, while <c>forces()</c> and <c>control()</c> run
+        /// unconditionally above it. So a fixed unit still accumulates <c>dx</c>/<c>dy</c> and still
+        /// turns to face, but never moves: it is immune to knockback <i>displacement</i> (a bullet
+        /// still adds to <c>dx</c>, the value just never lands) and takes no collision response,
+        /// because <c>run()</c> also owns wall resolution. A second gate at <c>:4223</c> makes it an
+        /// immovable wall to physics boxes instead — the box rebounds at half speed.</para>
+        ///
+        /// <para><b>Also runtime-mutable, and this field only carries the authored half.</b> AS3
+        /// flips <c>fixed</c> from behaviour code in eleven unit subclasses — <c>UnitTurret.as:462</c>
+        /// and <c>UnitZombie.as:455</c> clear it, <c>UnitTransmitter</c>/<c>UnitTrain</c>/
+        /// <c>UnitTrigger</c>/<c>UnitThunderTurret</c>/<c>UnitMsp</c>/<c>UnitSlime</c> and others set
+        /// it, and <c>Unit.as:3130</c> clears it on a fixed unit that has been levitating for more
+        /// than 75 ticks (<c>otryv()</c>, <c>:2830</c>). None of those subclasses exist in the port
+        /// yet, so today the flag is whatever the data says. <see cref="PFE.Entities.Units.UnitController.IsFixed"/>
+        /// is <c>virtual</c> so that a ported subclass can override it rather than needing this field
+        /// to become mutable.</para>
+        ///
+        /// <para><b>16 units author it</b> — <c>captive</c>, <c>ponpon</c>, <c>ebloat</c>, <c>eant</c>,
+        /// <c>turret0</c>, <c>turret2</c>, <c>turret4</c>, <c>turret5</c>, <c>trigcans</c>,
+        /// <c>trigridge</c>, <c>trigplate</c>, <c>triglaser</c>, <c>damshot</c>, <c>damgren</c>,
+        /// <c>damexpl1</c>, <c>mwall</c> — and the oracle only ever writes <c>fixed='1'</c>, so this is
+        /// also the count of <c>&lt;move&gt;</c> nodes that carry it. <c>turret</c> is <b>not</b> one of
+        /// them, though it looks like it should be: <c>AllData.as:1758</c> is
+        /// <c>&lt;unit id='turret' cat='2'/&gt;</c>, a self-closing base with no children, so it authors
+        /// no <c>&lt;move&gt;</c> at all. The concrete turrets inherit from it via <c>cont='turret'</c>
+        /// and each declares its own <c>&lt;move fixed='1'/&gt;</c>.</para>
+        /// </summary>
+        [Tooltip("AS3's Unit.fixed — pinned in place. Gates the whole position integration (Unit.as:1809).")]
         public bool isFixed = false;
 
         [Tooltip("Wall damage per frame")]

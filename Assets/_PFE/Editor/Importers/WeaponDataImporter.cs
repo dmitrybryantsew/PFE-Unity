@@ -250,7 +250,7 @@ namespace PFE.Editor.Importers
             def.antiPrecision       = AttrF(charT1, "antiprec", 0f) * 40f;
             def.knockback           = AttrF(charT1, "knock",   0f);
             def.destroyTiles        = AttrF(charT1, "destroy", 0f);
-            def.piercing            = AttrF(charT1, "pier",    0f);
+            def.piercing            = AttrF(charT1, "pier",    0f);   // flat armour points, not a chance
             def.projectilesPerShot  = AttrI(charT1, "kol",     1);
             def.burstCount          = AttrI(charT1, "dkol",    0);
             def.explRadius          = AttrF(charT1, "expl",    0f);
@@ -327,9 +327,22 @@ namespace PFE.Editor.Importers
             def.ammoType = NodeText(body, "a");
 
             // ── <dop> — extra effect ─────────────────────────────────────────
+            //
+            // `probiv` is NOT a pierce probability, and it is not `pier`. AS3 reads it off the <dop>
+            // node (Weapon.as:703-705) into `Weapon.probiv`, adds the ammo's own probiv
+            // (Weapon.as:1786-1788) and clamps the sum to 1 on the bullet (Weapon.as:1681-1684). The
+            // bullet then uses it as a PENETRATION BUDGET: `Bullet.run` does not stop a round whose
+            // `probiv > 0 && damage > 0` (weapon/Bullet.as:533), and `Unit.damage()` spends that damage
+            // down — `param3.damage -= _loc8_ / param3.probiv` (Unit.as:3646-3648) and the three-branch
+            // decay at :3684-3696. `pier` is the separate flat armour-piercing figure
+            // (Weapon.as:1672: `pier = this.pier + this.pierAdd + this.ammoPier`).
+            //
+            // These were conflated here: the dop's probiv was folded into `def.piercing` with
+            // Mathf.Max, which made a penetration budget look like armour points AND — because the
+            // projectile consumed `piercing` as a 0..1 chance — made every weapon carrying `@pier`
+            // (5/30/50/70, i.e. 29 <char> entries) pierce 100% of the time once Clamp01 saw it.
             string dop = Node(body, "dop") ?? "";
-            float dopProbiv = AttrF(dop, "probiv", 0f);
-            if (dopProbiv > 0f) def.piercing = Mathf.Max(def.piercing, dopProbiv);
+            def.penetration = AttrF(dop, "probiv", 0f);
 
             // ── Derive archetype ─────────────────────────────────────────────
             def.projectileArchetype = DeriveArchetype(

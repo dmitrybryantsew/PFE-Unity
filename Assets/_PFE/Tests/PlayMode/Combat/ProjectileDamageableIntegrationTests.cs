@@ -328,6 +328,26 @@ namespace PFE.Tests.PlayMode.Combat
             /// "cannot evade", which is what a zero dexterity would mean.</summary>
             public EvasionState Evasion => EvasionState.Default;
 
+            /// <summary>AS3's field default — an ordinary movable body, not an immovable one.</summary>
+            public float Knocked => 1f;
+
+            /// <summary>AS3's field default for <c>massa</c> — already the post-<c>/50</c> value.</summary>
+            public float Mass => 1f;
+
+            /// <summary>The knockback gate is open, so a landed hit is expected to produce an impulse.</summary>
+            public bool IsInvulnerable => false;
+
+            /// <summary>The last impulse handed in, so a test can assert the resolver produced one.</summary>
+            public Vector2 ApplyKnockbackImpulse { get; private set; }
+
+            public int ApplyKnockbackCallCount { get; private set; }
+
+            public void ApplyKnockback(Vector2 impulse)
+            {
+                ApplyKnockbackCallCount++;
+                ApplyKnockbackImpulse = impulse;
+            }
+
             public float CurrentHealth => _health;
             public float MaxHealth => 100f;
             public bool IsAlive => _health > 0;

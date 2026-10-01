@@ -10,7 +10,9 @@ using PFE.Core.Rng;
 using PFE.Data.Definitions;
 using PFE.Entities.Units;
 using PFE.Systems.Combat;
+using PFE.Systems.Map.TileQuery;
 using PFE.Systems.Weapons;
+using PFE.Tests.Editor.Core;
 
 namespace PFE.Tests.Editor.Combat
 {
@@ -91,6 +93,33 @@ namespace PFE.Tests.Editor.Combat
             /// </summary>
             public EvasionState Evasion { get; set; } = EvasionState.Default;
 
+            /// <summary>
+            /// Settable so a test can make a target immovable (<c>0</c>) or light (<c>1.5</c>). Defaults
+            /// to AS3's field default of <c>1</c>.
+            /// </summary>
+            public float Knocked { get; set; } = 1f;
+
+            /// <summary>
+            /// Settable so a test can change how far a hit throws — already the post-<c>/50</c> value.
+            /// Defaults to AS3's field default of <c>1</c>.
+            /// </summary>
+            public float Mass { get; set; } = 1f;
+
+            /// <summary>
+            /// Settable so a test can close the knockback gate. AS3 returns <b>before</b> taking its
+            /// random draw, so this also decides whether the combat stream is consumed.
+            /// </summary>
+            public bool IsInvulnerable { get; set; } = false;
+
+            public int ApplyKnockbackCalls;
+            public Vector2 LastKnockbackImpulse;
+
+            public void ApplyKnockback(Vector2 impulse)
+            {
+                ApplyKnockbackCalls++;
+                LastKnockbackImpulse = impulse;
+            }
+
             public int ApplyDamageCalls;
             public DamageOutcome LastOutcome;
 
@@ -122,7 +151,9 @@ namespace PFE.Tests.Editor.Combat
             DamageType damageType = DamageType.PhysicalBullet,
             float missChance = 0f,
             float precision = 0f,
-            bool isMelee = false)
+            bool isMelee = false,
+            float knockback = 0f,
+            Vector2 knockbackDir = default)
             => new DamageContext(
                 owner: null,
                 weapon: null,
@@ -130,8 +161,8 @@ namespace PFE.Tests.Editor.Combat
                 explosionDamage: explosionDamage,
                 armorMultiplier: armorMultiplier,
                 piercing: piercing,
-                knockback: 0f,
-                knockbackDir: Vector2.zero,
+                knockback: knockback,
+                knockbackDir: knockbackDir,
                 critChance: critChance,
                 critMultiplier: critMultiplier,
                 damageType: damageType,
@@ -195,7 +226,7 @@ namespace PFE.Tests.Editor.Combat
             bool simTickEnabled, bool simTickDamage, bool applyVulnerabilities = false,
             bool testDamage = true)
         {
-            var settings = ScriptableObject.CreateInstance<PfeDebugSettings>();
+            var settings = OfflineScriptableObject.Create<PfeDebugSettings>();
 
             SetPrivateField(settings, "simTickEnabled", simTickEnabled);
             SetPrivateField(settings, "simTickDamage", simTickDamage);
@@ -253,6 +284,67 @@ namespace PFE.Tests.Editor.Combat
             bool applyVulnerabilities = false,
             bool testDamage = true)
             => Make(simTickEnabled: true, simTickDamage: false, rng, publisher, applyVulnerabilities, testDamage);
+
+        /// <summary>
+        /// Reports a batch of hits from <b>inside</b> a tick, at the projectile slot — which is where
+        /// every real report comes from (<c>SimTickOrder.Projectiles</c> is 40,
+        /// <c>SimTickOrder.Damage</c> is 60).
+        ///
+        /// <para>Why this exists rather than calling <c>Report</c> directly: the avoidance roll is taken
+        /// at report time and needs the tick index, which it reads from <c>SimLoop.TickIndex</c>.
+        /// <c>StepOnce</c> increments that index before dispatching, so a report made from inside a tick
+        /// sees the tick it belongs to. A test that called <c>Report</c> and then <c>SimTick(n)</c> by
+        /// hand would be attributing the report to whatever tick last ran — a shape the production loop
+        /// cannot produce, and one that would make the stream assertions below vacuous.</para>
+        /// </summary>
+        private sealed class HitReporter : ISimTickable
+        {
+            private readonly DamageSystem _system;
+            private readonly List<PendingDamage> _hits = new();
+
+            /// <summary>What <see cref="DamageSystem.Report"/> answered for each hit, in order.</summary>
+            public readonly List<DamageVerdict> Verdicts = new();
+
+            public HitReporter(DamageSystem system) => _system = system;
+
+            public int TickOrder => SimTickOrder.Projectiles;
+
+            public void Report(in PendingDamage hit) => _hits.Add(hit);
+
+            public void SimTick(int tickIndex)
+            {
+                for (int i = 0; i < _hits.Count; i++)
+                {
+                    Verdicts.Add(_system.Report(_hits[i]));
+                }
+
+                _hits.Clear();
+            }
+        }
+
+        /// <summary>
+        /// A tick-aligned system wired to a real, steppable <see cref="SimLoop"/>, plus a
+        /// <see cref="HitReporter"/> registered ahead of it so hits can be delivered from inside a tick.
+        /// </summary>
+        private static (DamageSystem System, SimLoop Loop, HitReporter Reporter) MakeOnLoop(
+            IRngService rng = null)
+        {
+            var settings = MakeSettings(simTickEnabled: true, simTickDamage: true);
+            var loop     = new SimLoop(new SimClock(), settings);
+
+            var system = new DamageSystem(
+                new DamageCalculator(new CombatCalculator()),
+                rng ?? new RecordingRng(),
+                null,
+                settings,
+                loop);
+            system.Start();
+
+            var reporter = new HitReporter(system);
+            loop.Register(reporter);
+
+            return (system, loop, reporter);
+        }
 
         // ── Ordering ─────────────────────────────────────────────────────────
 
@@ -434,21 +526,64 @@ namespace PFE.Tests.Editor.Combat
         public void TickMode_SaltsTheCombatStreamWithTheTickIndex_AndFetchesItOncePerTick()
         {
             // `PcgRngService.GetStream(stream, salt)` constructs a NEW generator per call, so fetching
-            // per hit would hand every hit in the tick an identical stream — and therefore identical
-            // crit rolls. One fetch per tick is the fix, and this is the guard on it.
+            // per roll would hand every roll in the tick an identical stream — and therefore identical
+            // crit rolls. One generator per tick is the fix, and this is the guard on it.
+            //
+            // The rolls are now split across two phases of the tick: the hit-avoidance roll runs at
+            // REPORT time (it has to — its answer tells the projectile whether to keep flying) and the
+            // spread/armour/crit/knockback rolls at the drain. Both phases must therefore come from the
+            // same generator, which is the property this asserts: one request, not two.
             var rng = new RecordingRng();
-            var system = MakeTickAligned(rng);
+            var (_, loop, reporter) = MakeOnLoop(rng);
             var a = new FakeTarget { Health = 100f };
             var b = new FakeTarget { Health = 100f };
 
-            system.Report(PendingDamage.Direct(Context(baseDamage: 10f), a, Vector3.zero));
-            system.Report(PendingDamage.Direct(Context(baseDamage: 10f), b, Vector3.zero));
-            system.SimTick(42);
+            reporter.Report(PendingDamage.Direct(Context(baseDamage: 10f), a, Vector3.zero));
+            reporter.Report(PendingDamage.Direct(Context(baseDamage: 10f), b, Vector3.zero));
+
+            loop.StepOnce();
 
             Assert.AreEqual(1, rng.StreamRequests.Count, "One stream per tick, shared by its hits.");
             Assert.AreEqual(RngStream.Combat, rng.StreamRequests[0].Stream);
-            Assert.AreEqual(42, rng.StreamRequests[0].Salt,
+            Assert.AreEqual(0, rng.StreamRequests[0].Salt,
                 "The salt is the tick index, which is what makes a tick's rolls reproducible.");
+
+            // A second tick gets its own generator, salted with its own index — otherwise the memo
+            // would be a single long-lived stream in disguise and "reproducible per tick" would be
+            // false.
+            reporter.Report(PendingDamage.Direct(Context(baseDamage: 10f), a, Vector3.zero));
+            loop.StepOnce();
+
+            Assert.AreEqual(2, rng.StreamRequests.Count);
+            Assert.AreEqual(1, rng.StreamRequests[1].Salt);
+        }
+
+        [Test]
+        public void TickMode_AnEvadedHitIsKnownAtReportTime_SoAProjectileCanFlyOn()
+        {
+            // The regression guard for the play-test report: "miss seems to not penetrate behind unit
+            // (unit still consumes it)". `Report` used to answer Queued for EVERY tick-mode hit, and a
+            // projectile branches on `verdict == Evaded` to decide whether to keep flying — so with
+            // SimTickDamage on, no round could ever pass through a unit it had missed. The verdict is
+            // the whole assertion here: the damage outcome is a tick later, but the round's fate is not.
+            var rng = new ScriptedRng(0.5f, 0.5f);
+            var (system, loop, reporter) = MakeOnLoop(rng);
+            var target = new FakeTarget { Health = 100f, Evasion = new EvasionState(100f, 0f, 0f) };
+
+            // accuracy = 320/320 = 1.0, divisor = 100.05 ⇒ a 0.5 roll misses.
+            reporter.Report(PendingDamage.Direct(
+                Context(baseDamage: 40f, precision: 320f), target, Vector3.zero,
+                travelDistancePixels: 320f));
+
+            loop.StepOnce();
+
+            Assert.AreEqual(1, reporter.Verdicts.Count);
+            Assert.AreEqual(DamageVerdict.Evaded, reporter.Verdicts[0],
+                "the projectile must be told the round was evaded — that bit is what lets it fly on");
+            Assert.AreEqual(1, system.MissedCount, "the hit must be counted as evaded");
+            Assert.AreEqual(0, system.ResolvedCount, "an evaded hit is never resolved");
+            Assert.AreEqual(0, target.ApplyDamageCalls, "a miss must not reach the target at all");
+            Assert.AreEqual(100f, target.Health, 1e-4f, "no damage");
         }
 
         [Test]
@@ -836,9 +971,16 @@ namespace PFE.Tests.Editor.Combat
             // did before the avoidance path existed, and must not have consumed a roll *for the
             // avoidance conjunction*.
             //
-            // `RollsConsumed` is 1, not 0, and that one draw is the damage spread — which runs after the
-            // conjunction and is a different term (Unit.as:4085, not :4072). The distinction is what the
-            // companion test below pins: an evading target costs an extra draw, an inert one does not.
+            // `RollsConsumed` is 2, and neither draw belongs to the avoidance conjunction: they are the
+            // damage spread (`Unit.as:4085`) and the knockback jitter (`otbros`'s
+            // `Math.random() * 0.4 + 0.8`, `:4251`, called from `:4091` after `this.damage()`). Both run
+            // after the conjunction. The distinction is what the companion test below pins: an evading
+            // target costs one MORE draw than an inert one.
+            //
+            // This was 1 before the knockback port landed, and the number moved because the oracle really
+            // does take that second draw on every landed hit — which is exactly why `KnockbackMath.Roll`
+            // is a separate method from `Scale`: the draw happens even when the weapon's `@knock` is 0 or
+            // the target's `knocked` is 0, and only the multiply by zero happens after.
             var rng    = new ScriptedRng();
             var system = MakeImmediate(rng);
             var target = new FakeTarget { Health = 100f, Evasion = new EvasionState(100f, 0f, 0f) };
@@ -847,8 +989,9 @@ namespace PFE.Tests.Editor.Combat
 
             Assert.AreEqual(75f, target.Health, 1e-4f);
             Assert.AreEqual(0, system.MissedCount);
-            Assert.AreEqual(1, rng.RollsConsumed,
-                "the avoidance conjunction short-circuits without rolling; the single draw is the spread");
+            Assert.AreEqual(2, rng.RollsConsumed,
+                "the avoidance conjunction short-circuits without rolling; the two draws are the spread " +
+                "and the knockback jitter");
         }
 
         [Test]
@@ -857,8 +1000,13 @@ namespace PFE.Tests.Editor.Combat
             // The complement of the test above, and the reason `RollsConsumed` there is asserted as a
             // number rather than as "no roll at all". Same shot, same everything, except the target can
             // evade: the conjunction now takes its own draw *before* the spread, so the count goes up by
-            // exactly one. Without this pair, "1 draw" would not distinguish "the conjunction is inert"
+            // exactly one. Without this pair, "2 draws" would not distinguish "the conjunction is inert"
             // from "the conjunction rolled and something else did not".
+            //
+            // Both counts include the knockback jitter (`Unit.as:4251`, one draw per landed hit), so the
+            // absolute numbers are 2 and 3 — but the DELTA is the assertion the name promises, and it is
+            // asserted directly below so a future term that adds a draw to both sides cannot quietly make
+            // the name false.
             var inertRng = new ScriptedRng();
             var inert    = MakeImmediate(inertRng);
             inert.Report(PendingDamage.Direct(
@@ -872,9 +1020,11 @@ namespace PFE.Tests.Editor.Combat
                 Vector3.zero,
                 travelDistancePixels: 320f));
 
-            Assert.AreEqual(1, inertRng.RollsConsumed);
-            Assert.AreEqual(2, evasiveRng.RollsConsumed,
-                "one draw for accuracy-vs-dexterity, then one for the spread");
+            Assert.AreEqual(2, inertRng.RollsConsumed, "spread + knockback jitter, no conjunction draw");
+            Assert.AreEqual(3, evasiveRng.RollsConsumed,
+                "one draw for accuracy-vs-dexterity, then the spread, then the knockback jitter");
+            Assert.AreEqual(evasiveRng.RollsConsumed - inertRng.RollsConsumed, 1,
+                "an evading target costs exactly one more draw than an inert one — the whole point");
             Assert.AreEqual(0, evasive.MissedCount,
                 "a 0.001 roll is below accuracy/divisor (1.0 / 100.05), so it lands");
         }
@@ -961,6 +1111,9 @@ namespace PFE.Tests.Editor.Combat
             // AS3's World.w.testDam discards the rolled value on the line AFTER the roll (:4085-4089),
             // so the draw still happens. This is the guard against "optimising" the draw away when the
             // toggle is on — which would be a replication bug on a shared stream, not a debug nicety.
+            //
+            // The count is 2: the spread, and the knockback jitter. `testDam` discards the spread's
+            // VALUE and nothing else — it does not reach `otbros`, which draws unconditionally at :4251.
             var offRng = new ScriptedRng(0f);
             var off    = MakeImmediate(offRng, testDamage: false);
             var offTarget = new FakeTarget { Health = 100f };
@@ -976,7 +1129,68 @@ namespace PFE.Tests.Editor.Combat
 
             Assert.AreEqual(offRng.RollsConsumed, onRng.RollsConsumed,
                 "the toggle must not change how many draws the hit takes");
-            Assert.AreEqual(1, onRng.RollsConsumed);
+            Assert.AreEqual(2, onRng.RollsConsumed,
+                "the spread and the knockback jitter — the toggle discards the spread's value, not its draw");
+        }
+
+        // ── Knockback units (Unit.otbros, Unit.as:4242-4258) ─────────────────
+
+        [Test]
+        public void KnockbackImpulse_IsConvertedFromPixelsPerFrameToUnitsPerSecond()
+        {
+            // The play-test report was "bullets can push back target through wall and push really hard
+            // (i use minigun)". Half of that was the missing horizontal collision; the other half is
+            // this conversion, and this test is the guard that was absent.
+            //
+            // `DamageContext.Knockback` is AS3's `otbros` — a per-FRAME pixel velocity, because
+            // `Unit.otbros()` adds it to `dx`, which `Unit.run()` adds to `X` once per frame. What
+            // `ApplyKnockback` hands the unit is `UnitController._velocity`, which is Unity units per
+            // SECOND (Move multiplies by Time.fixedDeltaTime). Omitting the factor made every shot
+            // 1/0.3 = 3.33× too strong — not a tuning miss but a unit mismatch.
+            //
+            // A scripted 0.0 makes the oracle's `random * 0.4 + 0.8` come out at exactly 0.8, and a
+            // `knocked` of 1 over `massa` of 1 leaves the ratio at 1, so the expected impulse is
+            // knock * 0.8 * 0.3 with no hidden arithmetic.
+            var rng = new ScriptedRng(0f);
+            var system = MakeImmediate(rng, testDamage: true);
+            var target = new FakeTarget { Health = 100f, Knocked = 1f, Mass = 1f };
+
+            system.Report(PendingDamage.Direct(
+                Context(baseDamage: 10f, knockback: 3f, knockbackDir: Vector2.right),
+                target, Vector3.zero));
+
+            Assert.AreEqual(1, target.ApplyKnockbackCalls);
+
+            float expected = 3f * 0.8f * TileQueryConstants.PerFrameVelocityToUnitsPerSecond;
+            Assert.AreEqual(expected, target.LastKnockbackImpulse.x, 1e-4f,
+                "3 px/frame at the minimum roll is 3 * 0.8 * 0.3 = 0.72 units/s, not 2.4");
+
+            Assert.AreEqual(0f, target.LastKnockbackImpulse.y, 1e-6f,
+                "the direction is stamped by the caller and carried through unchanged");
+        }
+
+        [Test]
+        public void KnockbackImpulse_UsesTheVelocityFactor_NotTheAccelerationOne()
+        {
+            // The two factors are 0.3 and 9 — a factor of 30 apart — and the port has shipped the wrong
+            // one for a velocity before (see TileQueryConstants' own remarks). Pinning the magnitude
+            // against both constants makes "which one" explicit rather than incidental.
+            var rng = new ScriptedRng(0f);
+            var system = MakeImmediate(rng, testDamage: true);
+            var target = new FakeTarget { Health = 100f, Knocked = 1f, Mass = 1f };
+
+            system.Report(PendingDamage.Direct(
+                Context(baseDamage: 10f, knockback: 1f, knockbackDir: Vector2.right),
+                target, Vector3.zero));
+
+            float velocityBased     = 1f * 0.8f * TileQueryConstants.PerFrameVelocityToUnitsPerSecond;
+            float accelerationBased = 1f * 0.8f * TileQueryConstants.PerFrameAccelerationToUnitsPerSecondSquared;
+
+            float applied = target.LastKnockbackImpulse.x;
+
+            Assert.AreEqual(velocityBased, applied, 1e-4f);
+            Assert.Greater(Mathf.Abs(applied - accelerationBased), 1f,
+                "a per-frame velocity needs x fps / px-scale (0.3); the x fps^2 factor (9) is 30x too strong");
         }
     }
 }

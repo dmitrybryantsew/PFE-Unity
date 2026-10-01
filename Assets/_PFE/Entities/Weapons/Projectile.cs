@@ -10,7 +10,6 @@ using MessagePipe;
 using System;
 using System.Collections.Generic;
 using System.Text;
-using PFE.Core.Rng;
 using PFE.Systems.Map;
 using PFE.Systems.Map.Rendering;
 using PFE.Systems.Map.TileQuery;
@@ -34,7 +33,8 @@ namespace PFE.Entities.Weapons
     ///   flame == 1        → strong upward arc, short lifetime (flamer)
     ///   flame == 2        → weak upward arc (flame2 type)
     ///   navod        > 0  → homing: steers toward nearest IDamageable each tick
-    ///   piercing     > 0  → on hit roll: if pass, bullet continues (probiv in AS3)
+    ///   penetration  > 0  → penetrator: does NOT stop on a unit, spends damage and carries on
+    ///                       (AS3 `probiv`, weapon/Bullet.as:533 + Unit.as:3684-3696)
     ///
     /// Handles three hit cases:
     ///   1. IDamageable  — enemies, player, destructible props.
@@ -72,15 +72,46 @@ namespace PFE.Entities.Weapons
         private bool          _hasDamageContext;
         private DamageContext _damageContext;
 
+        /// <summary>
+        /// The direction this shot was launched on, as a unit vector — AS3's <c>knockx</c>/<c>knocky</c>
+        /// (<c>Weapon.as:1507-1508</c>). Stamped once in <see cref="Initialize"/> and never updated, so a
+        /// round that curves, homes or falls still throws its target along the <i>launch</i> line rather
+        /// than the arrival line. <see cref="SetDamageContext"/> writes it onto the damage context,
+        /// because <c>DamageContext.FromWeapon</c> has the weapon but not the shot and therefore cannot
+        /// know it.
+        /// </summary>
+        private Vector2 _spawnDirection = Vector2.right;
+
         private float      _damage;
         private float      _destroyTiles;
         private float      _explRadius;
         private float      _explDamage;
         private DamageType _damageType;
         private float      _lifetimeTimer;
-        private float      _piercing;       // probiv: chance 0–1 to pass through on hit
-        private static IRngService s_projectileRng;
-        private static IRngService ProjectileRng => s_projectileRng ??= new PcgRngService().GetStream(RngStream.Combat);
+
+        /// <summary>
+        /// AS3 <c>Bullet.probiv</c> — the round's penetration budget, <b>not</b> a probability.
+        /// </summary>
+        /// <remarks>
+        /// <para>A round whose probiv is above zero does not stop on the unit it hits
+        /// (<c>weapon/Bullet.as:533</c> gates the whole stop path on
+        /// <c>!(probiv &gt; 0 &amp;&amp; damage &gt; 0)</c>) and <c>Unit.damage()</c> spends its damage
+        /// down as it goes. See <see cref="SpendPenetration"/>.</para>
+        ///
+        /// <para><b>This used to be fed the weapon's <c>@pier</c></b> — a flat armour figure in the
+        /// 5..70 range — and consumed as a 0..1 pass-through <i>chance</i>, which was an invented
+        /// mechanic on top of a wrong quantity: <c>Clamp01</c> turned every one of the 29 weapons
+        /// carrying <c>@pier</c> into a 100% penetrator. The two figures are separate fields now
+        /// (<c>WeaponDefinition.piercing</c> vs <c>.penetration</c>).</para>
+        /// </remarks>
+        private float      _penetration;
+
+        /// <summary>
+        /// What is left of this round's damage, spent down by each target it passes through — AS3
+        /// <c>Bullet.damage</c>, which <c>Unit.damage()</c> mutates in place (<c>Unit.as:3646-3648</c>,
+        /// <c>:3684-3696</c>). Equal to <see cref="_damage"/> until the round penetrates something.
+        /// </summary>
+        private float      _remainingDamage;
 
         // ── Manual velocity integration (mirrors AS3 dx/dy/ddx/ddy) ──────────
 
@@ -381,25 +412,45 @@ namespace PFE.Entities.Weapons
             bool  tileHit        = TryTileContact(fromPx, deltaPx, out Vector2 contactPx);
             float tileDistancePx = tileHit ? (contactPx - fromPx).magnitude : float.PositiveInfinity;
 
-            if (TryUnitContact(fromPx, deltaPx, out Collider2D unit, out Vector2 unitHitPx, out float unitDistancePx)
-                && unitDistancePx < tileDistancePx)
+            // Unit contacts are a LOOP, not a single test. AS3's sub-step loop carries on after a unit
+            // it did not stop on: `udarBullet` returning -1 falls through to the next unit in
+            // `loc.units` (`weapon/Bullet.as:535-553`), and the unit it just tested is already in
+            // `parr`, so the next sub-step cannot test it again. The port asks that question once per
+            // segment instead of once per sub-step, so the equivalent is to re-sweep the segment with
+            // the tested unit excluded — which ResolveUnitImpact has already arranged by recording it.
+            // Bounded, because every pass removes one candidate from GatherUnitBoxes.
+            bool  unitHit            = false;
+            float lastUnitDistancePx = 0f;
+
+            while (TryUnitContact(fromPx, deltaPx, out Collider2D unit,
+                                  out Vector2 unitHitPx, out float unitDistancePx)
+                   && unitDistancePx < tileDistancePx)
             {
-                _traveledDistancePixels += unitDistancePx;
+                unitHit = true;
+
+                // Accumulated up to each event, so the hit-avoidance distance term (AS3 Bullet.dist)
+                // reads the distance to the hit being resolved rather than the segment end.
+                _traveledDistancePixels += unitDistancePx - lastUnitDistancePx;
+                lastUnitDistancePx       = unitDistancePx;
+
                 _simPosition = unitHitPx * TileQueryConstants.PixelToUnit;
                 _viewDirty   = true;
 
-                ResolveUnitImpact(unit, unitHitPx);
-
                 // Stopped: impact frames playing, or already handed back to the pool.
-                if (_isImpacting || _pendingReturnToPool) return;
+                if (ResolveUnitImpact(unit, unitHitPx)) return;
 
-                // Survived — the round pierced through, or the faction gate declined it and AS3's
-                // bullet simply carries on (`Bullet.as:515` fails for a same-faction unit). A wall
-                // further along the segment is deliberately NOT resolved here: TryTileContact's
-                // enter-only latch is per-tick state, so re-running it inside one tick would be told
-                // "already in contact" and skip the wall entirely. The cost is bounded by one tick of
-                // travel, and the next tick's sweep starts from the far side.
-                _traveledDistancePixels += deltaPx.magnitude - unitDistancePx;
+                // Survived — the round pierced through, the faction gate declined it (AS3's
+                // `Bullet.as:515` fails for a same-faction unit), or the target evaded it and AS3's
+                // `-1` left the round in flight. A wall further along the segment is deliberately NOT
+                // resolved here: TryTileContact's enter-only latch is per-tick state, so re-running it
+                // inside one tick would be told "already in contact" and skip the wall entirely. The
+                // cost is bounded by one tick of travel, and the next tick's sweep starts from the far
+                // side.
+            }
+
+            if (unitHit)
+            {
+                _traveledDistancePixels += deltaPx.magnitude - lastUnitDistancePx;
             }
             else if (tileHit)
             {
@@ -573,11 +624,17 @@ namespace PFE.Entities.Weapons
         /// damage, armour, sound, AoE and the impact animation all behave as they do on the trigger
         /// path — the same single-sourcing <see cref="ResolveTileImpact"/> does for tiles.
         /// </summary>
-        private void ResolveUnitImpact(Collider2D unit, Vector2 hitPx)
+        /// <returns><c>true</c> when the round stopped on this unit; <c>false</c> when it flew on.</returns>
+        private bool ResolveUnitImpact(Collider2D unit, Vector2 hitPx)
         {
             // Recorded before the impact, matching AS3: `udar()` pushes the unit onto `parr` and only
             // then does the caller apply damage (`Bullet.as:519-521`), so a round that pierces is
             // already immune to re-hitting the unit it pierced.
+            //
+            // It is also what makes "fly on through an evaded unit" terminate: `udar()` runs *before*
+            // `udarBullet()` in the oracle, so an evaded unit is in `parr` too and is never tested
+            // again. GatherUnitBoxes skips this list, so each sweep of the remaining segment excludes
+            // one more candidate and the loop in SimTick cannot spin.
             if (!_struckUnits.Contains(unit)) _struckUnits.Add(unit);
 
             // _spawnPosition.z rather than transform.position.z: this runs inside a tick, and a tick
@@ -587,7 +644,7 @@ namespace PFE.Entities.Weapons
                 hitPx.y * TileQueryConstants.PixelToUnit,
                 _spawnPosition.z);
 
-            HandleImpact(unit, impactWorld);
+            return HandleImpact(unit, impactWorld);
         }
 
         /// <summary>
@@ -730,7 +787,8 @@ namespace PFE.Entities.Weapons
         ///                  conversion happens in `ProjectilePhysicsMath.BulletAcceleration`.
         ///   flame        → 0=none, 1=strong up arc, 2=weak up arc
         ///   navod        → homing strength per flash-frame
-        ///   piercing     → probiv chance 0–1
+        ///   penetration  → AS3 probiv: the penetration budget. > 0 makes this a penetrator, which does
+        ///                  not stop on a unit. NOT a probability, and not the weapon's `@pier`.
         /// </summary>
         public void Initialize(float damage, float speed, Vector2 direction,
                                float gravityScale = 0f,
@@ -741,14 +799,15 @@ namespace PFE.Entities.Weapons
                                float accel        = 0f,
                                int   flame        = 0,
                                float navod        = 0f,
-                               float piercing     = 0f)
+                               float penetration  = 0f)
         {
             _damage       = damage;
             _destroyTiles = destroyTiles;
             _explRadius   = explRadius;
             _explDamage   = explDamage;
             _damageType   = damageType;
-            _piercing     = Mathf.Clamp01(piercing);
+            _penetration  = Mathf.Clamp01(penetration);
+            _remainingDamage = damage;
             _navod        = navod;
             _isInitialized = true;
             _hasDetonated  = false;
@@ -775,6 +834,12 @@ namespace PFE.Entities.Weapons
 
             Vector2 dir = direction.normalized;
             _velocity = dir * speed;
+
+            // AS3 stamps the knock direction here and nowhere else: `Weapon.as:1507-1508` sets
+            // `b.knockx = b.dx / b.vel; b.knocky = b.dy / b.vel` at fire time, and no later code updates
+            // it — not `ApplyHoming`, not gravity. Held rather than re-derived at the hit, so the port
+            // reproduces that instead of throwing along the direction the round happened to arrive on.
+            _spawnDirection = dir;
 
             // ── Per-second acceleration ───────────────────────────────────────
             // AS3 `Weapon.as:1524` zeroes `b.ddx`/`b.ddy`, then 1536-1537 (thrust), 1545/1551
@@ -839,14 +904,27 @@ namespace PFE.Entities.Weapons
         /// </summary>
         public void SetDamageContext(DamageContext ctx)
         {
-            _damageContext    = ctx;
+            if (!_isInitialized)
+            {
+                // Loud, because the failure would be silent and directional: an unstamped context keeps
+                // DamageContext.FromWeapon's zero direction, so this shot would knock nothing back while
+                // every other weapon did.
+                Debug.LogWarning(
+                    "[Projectile] SetDamageContext called before Initialize; this shot's knockback " +
+                    "direction is unknown and will be left unstamped. Call Initialize first.");
+            }
+
+            // AS3's `knockx`/`knocky`, stamped onto the context. WithScaledDamage(1, 1, dir) leaves the
+            // damage and the knock magnitude untouched and replaces only the direction.
+            _damageContext    = ctx.WithScaledDamage(1f, 1f, _spawnDirection);
             _hasDamageContext = true;
 
             if (_debugSettings?.LogProjectileLifecycle == true)
             {
                 Debug.Log(
                     $"[Projectile] SetDamageContext instance='{name}' weapon='{ctx.Weapon?.weaponId ?? "null"}' " +
-                    $"baseDamage={ctx.BaseDamage} damageType={ctx.DamageType}.");
+                    $"baseDamage={ctx.BaseDamage} damageType={ctx.DamageType} " +
+                    $"knockback={_damageContext.Knockback} knockDir={_damageContext.KnockbackDir}.");
             }
         }
 
@@ -1031,6 +1109,10 @@ namespace PFE.Entities.Weapons
             // untouched when it does not.
             if (FlipActive) return;
 
+            // The return is deliberately discarded. On this path a stop is expressed by
+            // StartImpactAnimation zeroing the velocity and disabling the trigger, so `false` simply
+            // means no stop was requested and the Rigidbody carries the round on through the unit —
+            // which is exactly what AS3's `-1` does.
             HandleImpact(other, transform.position);
         }
 
@@ -1142,13 +1224,21 @@ namespace PFE.Entities.Weapons
             return FactionRule.ExplosionMultiplier(OwnerFaction, unit.Faction, unit.IsPlayer);
         }
 
-        private void HandleImpact(Collider2D other, Vector3 impactPos)
+        /// <summary>
+        /// The one impact path, shared by the trigger, the chain sweep and the unit probe.
+        /// </summary>
+        /// <returns>
+        /// <c>true</c> when the round <b>stopped</b> here. <c>false</c> when it carried on and the
+        /// caller should keep sweeping: the faction gate declined it, it pierced, or the target
+        /// <b>evaded</b> it. A tile always stops.
+        /// </returns>
+        private bool HandleImpact(Collider2D other, Vector3 impactPos)
         {
             // Faction gate, before any effect at all. AS3's bullet test (weapon/Bullet.as:515) simply
             // fails for a same-faction unit, so the bullet does not "hit with zero damage" — it does
             // not hit, plays no sound, triggers no explosion, and carries on through. Returning here
             // reproduces that pass-through rather than merely zeroing the damage.
-            if (!FactionAllowsHit(other)) return;
+            if (!FactionAllowsHit(other)) return false;
 
             if (_debugSettings?.LogProjectileLifecycle == true)
             {
@@ -1158,25 +1248,76 @@ namespace PFE.Entities.Weapons
                     $"velocity={_velocity} other={DescribeCollider(other)}.");
             }
 
-            // ── Impact sound (weapon hit + surface material) ──────────────────
-            ImpactSoundResolver.Resolve(other, _hasDamageContext, _damageContext,
-                impactPos, _soundService, _impactSoundTable);
-
             // ── 1. IDamageable ───────────────────────────────────────────────
             var damageable = other.GetComponent<IDamageable>();
+            bool evaded      = false;
+            bool soundPlayed = false;
+
             if (damageable != null && damageable.IsAlive)
             {
-                // Penetration (probiv): roll against piercing chance before applying damage.
-                // If bullet passes through, do not stop — continue moving.
-                if (_piercing > 0f && ProjectileRng.Chance(_piercing))
-                {
-                    // Graze: apply damage but don't stop.
-                    ApplyDirectDamage(damageable, other.transform.position);
-                    // No ReturnToPool — bullet continues.
-                    return;
-                }
+                DamageVerdict verdict = ApplyDirectDamage(damageable, other.transform.position);
+                evaded = verdict == DamageVerdict.Evaded;
 
-                ApplyDirectDamage(damageable, other.transform.position);
+                // AS3 calls `sound(_loc4_)` once, unconditionally, with whatever `udarBullet` returned
+                // (`weapon/Bullet.as:532`) — and a miss returns -1 (`Unit.as:4109`), which matches none
+                // of that method's material cases, so an evaded hit plays nothing. Playing one would
+                // announce a hit the game just decided did not happen.
+                PlayImpactSound(other, impactPos, surfaceSound: !evaded);
+                soundPlayed = true;
+
+                if (_penetration > 0f)
+                {
+                    // ── A penetrator does not stop here ─────────────────────────────────────────────
+                    // AS3 gates the entire stop path on `!(this.probiv > 0 && this.damage > 0)`
+                    // (`weapon/Bullet.as:533`), so a round carrying a penetration budget damages the
+                    // unit, spends budget on it, and carries on to whatever stands behind — and it is
+                    // the SPEND that eventually stops it, when the budget reaches zero.
+                    //
+                    // What used to be here was `ProjectileRng.Chance(_piercing)` — an invented
+                    // pass-through roll fed by the weapon's `@pier`, which is a flat armour figure in
+                    // the 5..70 range. `Clamp01` turned every one of the 29 weapons carrying `@pier`
+                    // into a 100% penetrator, and the minigun (which carries no `@pier`) into a round
+                    // that could never pass through anything.
+                    //
+                    // The AVOIDANCE roll still happens, and that is deliberate: `udarBullet` is called
+                    // at `weapon/Bullet.as:531`, BEFORE the gate at `:533`, so a penetrator is evadable
+                    // exactly like any other round. What the gate removes is only the STOP — and that
+                    // is why the verdict above is computed for both kinds of round and used here.
+                    //
+                    // The SPEND lives inside `Unit.damage()` (`Unit.as:3684-3696`), which `udarBullet`
+                    // reaches only on the landed path — a miss returns -1 at `:4109` without ever calling
+                    // `damage()`. So an evaded hit must cost the round NO budget; spending
+                    // unconditionally drains a penetrator on the units it missed, and it then stops
+                    // sooner than the oracle's would. The rule lives in `PenetrationMath.SpendOnHit` so
+                    // it can be guarded outside the editor.
+                    SpendPenetration(damageable.MaxHealth, landed: !evaded);
+
+                    // Budget left: fly on. AS3 reaches this by falling out of the `if` without ever
+                    // calling `popadalo` — so no explosion, no decal, no impact frames.
+                    if (PenetrationMath.KeepsFlying(_penetration, _remainingDamage)) return false;
+
+                    // Exhausted on this unit: the oracle's gate now fails, so the round takes the stop
+                    // path below — but only if it LANDED. `popadalo` is guarded by `if(_loc4_ >= 0)`
+                    // (`weapon/Bullet.as:535`), so an exhausted round that was evaded still flies on,
+                    // which the `if (evaded)` test below takes care of.
+                }
+            }
+
+            // The sound for a unit impact was played in the block above, once, with the material code
+            // `udarBullet` returned. This fallback therefore covers only an impact against something
+            // that is not a live `IDamageable` — a tile, or a corpse — where AS3 reaches `popadalo`
+            // through the tile/box arms instead.
+            if (!soundPlayed)
+                PlayImpactSound(other, impactPos, surfaceSound: !evaded);
+
+            if (evaded)
+            {
+                // AS3's `-1` skips `popadalo` (`weapon/Bullet.as:535-553`), and `popadalo` owns the
+                // explosion, the decal and `babah` — the stop flag the sub-step loop tests. So an
+                // evaded round reaches no part of the stop path: no explosion, no tile destruction, no
+                // impact frames. It simply flies on. The unit is already recorded (AS3's `parr`, here
+                // <c>_struckUnits</c>), so it cannot be struck twice on the way through.
+                return false;
             }
 
             // ── 2. IDestructibleTile ─────────────────────────────────────────
@@ -1189,7 +1330,50 @@ namespace PFE.Entities.Weapons
                 Detonate(impactPos);
 
             StartImpactAnimation();
+            return true;
         }
+
+        /// <summary>
+        /// Both impact-sound layers for one contact. <paramref name="surfaceSound"/> is false only for
+        /// an evaded hit, where AS3's material lookup finds nothing.
+        /// </summary>
+        private void PlayImpactSound(Collider2D other, Vector3 impactPos, bool surfaceSound)
+        {
+            ImpactSoundResolver.Resolve(other, _hasDamageContext, _damageContext,
+                impactPos, _soundService, _impactSoundTable, surfaceSound);
+        }
+
+        /// <summary>
+        /// The damage context carrying this round's <b>current</b> damage rather than its listed damage.
+        /// </summary>
+        /// <remarks>
+        /// AS3 spends <c>Bullet.damage</c> in place as a round penetrates (<c>Unit.as:3646-3648</c> and
+        /// <c>:3684-3696</c>), and that one field is both the stop condition and the damage of the next
+        /// hit — so a penetrator that has already gone through a target hits the next one for less. The
+        /// port's context is a readonly struct built once at fire time, so the spend is expressed as a
+        /// scale through <see cref="DamageContext.WithScaledDamage"/> instead of a mutation.
+        ///
+        /// <para>The unscaled path is the ordinary one and returns the same struct, so a
+        /// non-penetrating round is byte-for-byte unchanged.</para>
+        /// </remarks>
+        private DamageContext EffectiveDamageContext()
+        {
+            if (_damage <= 0f || _remainingDamage >= _damage)
+                return _damageContext;
+
+            return _damageContext.WithScaledDamage(_remainingDamage / _damage, 1f);
+        }
+
+        /// <summary>
+        /// Spends this round's penetration budget on a unit it has just hit — AS3
+        /// <c>Unit.damage():3684-3696</c>. The arithmetic, including the rule that an <i>evaded</i> hit
+        /// spends nothing, lives in <see cref="PenetrationMath.SpendOnHit"/> so it can be executed
+        /// outside the editor.
+        /// </summary>
+        /// <param name="landed"><c>false</c> when the target evaded this hit.</param>
+        private void SpendPenetration(float targetMaxHealth, bool landed)
+            => _remainingDamage = PenetrationMath.SpendOnHit(
+                _remainingDamage, _penetration, targetMaxHealth, landed);
 
         /// <summary>
         /// If the visual definition has impact frames, freeze the projectile and play them.
@@ -1255,8 +1439,18 @@ namespace PFE.Entities.Weapons
             }
         }
 
-        private void ApplyDirectDamage(IDamageable target, Vector3 targetPos,
-                                        float overrideDamage = -1f)
+        /// <summary>
+        /// Hands one hit to the damage pipeline and reports what became of it.
+        ///
+        /// <para><b>The return is the whole point.</b> AS3's bullet reads its fate off
+        /// <c>udarBullet</c>'s return (<c>weapon/Bullet.as:535</c>) and only stops when it is
+        /// <c>&gt;= 0</c>. The port resolves damage in <see cref="PFE.Systems.Combat.DamageSystem"/>
+        /// instead, so this is the one place that can carry that answer back to the projectile — and
+        /// it carries it rather than recomputing it, so the avoidance roll still happens exactly once.
+        /// See <see cref="PFE.Systems.Combat.DamageVerdict"/>.</para>
+        /// </summary>
+        private DamageVerdict ApplyDirectDamage(IDamageable target, Vector3 targetPos,
+                                                float overrideDamage = -1f)
         {
             if (_hasDamageContext && overrideDamage < 0f && _damageSystem != null)
             {
@@ -1267,9 +1461,11 @@ namespace PFE.Entities.Weapons
                 // The travel distance goes with it: it is the one input the hit-avoidance roll needs
                 // that is a property of this hit rather than of the shot (AS3 Bullet.dist). Melee and
                 // hitscan pass nothing, because their branch of the oracle has no distance term.
-                _damageSystem.Report(PendingDamage.Direct(
-                    _damageContext, target, targetPos, _traveledDistancePixels));
-                return;
+                //
+                // EffectiveDamageContext, not _damageContext: a penetrator that has already passed
+                // through one target hits the next one for less — AS3 spends `Bullet.damage` in place.
+                return _damageSystem.Report(PendingDamage.Direct(
+                    EffectiveDamageContext(), target, targetPos, _traveledDistancePixels));
             }
 
             if (_hasDamageContext && overrideDamage < 0f)
@@ -1281,7 +1477,7 @@ namespace PFE.Entities.Weapons
                     "armour, crit or durability terms.");
             }
 
-            float finalDamage = overrideDamage >= 0f ? overrideDamage : _damage;
+            float finalDamage = overrideDamage >= 0f ? overrideDamage : _remainingDamage;
             target.TakeDamage(finalDamage);
 
             _damageDealtPublisher?.Publish(new DamageDealtMessage
@@ -1291,6 +1487,11 @@ namespace PFE.Entities.Weapons
                 isCritical = false,
                 isMiss    = false
             });
+
+            // Either an explicit override (the AoE path, which AS3 resolves with a direct
+            // `unit.damage()` and never rolls avoidance at all — see PendingDamage.Explosion) or the
+            // degraded no-injection path. Both applied damage, so the round is spent.
+            return DamageVerdict.Landed;
         }
 
         // ── Pool support ─────────────────────────────────────────────────────
@@ -1329,7 +1530,7 @@ namespace PFE.Entities.Weapons
 
             if (_triggerCollider != null) _triggerCollider.enabled = true;
             _lifetimeTimer    = DefaultLifetime;
-            _damage = _destroyTiles = _explRadius = _explDamage = _piercing = 0f;
+            _damage = _destroyTiles = _explRadius = _explDamage = _penetration = _remainingDamage = 0f;
             _velocity = Vector2.zero;
             _ddx      = 0f;
             _ddy      = 0f;

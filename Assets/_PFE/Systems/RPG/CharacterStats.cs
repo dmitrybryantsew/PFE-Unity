@@ -517,7 +517,9 @@ namespace PFE.Systems.RPG
                     break;
 
                 case "teleDist":
-                    // Teleport distance bonus
+                    // Telekinesis *range*, not teleport range. Consumed at UnitPlayer.as:1761 and
+                    // :1790 as a SQUARED distance (the values are 360000 = 600px² and 640000 =
+                    // 800px², AllData.as:5342). The teleport capability is `portPoss` instead.
                     TrackFactor("teleDist", perkId, "perk", value, value);
                     break;
 

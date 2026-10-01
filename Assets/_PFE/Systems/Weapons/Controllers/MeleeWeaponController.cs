@@ -256,7 +256,14 @@ namespace PFE.Systems.Weapons.Controllers
             // Apply power / combo multiplier to base damage. Scaled through one method rather than a
             // positional re-construction: the 16-argument copy this replaced silently dropped
             // ownerFaction, and would drop every field added to DamageContext afterwards.
-            DamageContext finalDmg = baseDmg.WithScaledDamage(_powerMult, _powerMult);
+            //
+            // The knock direction is stamped here because this is the only place that knows it, and
+            // FromWeapon cannot: AS3's melee knock is the ATTACKER'S FACING with a small upward tilt,
+            // not the swing angle — `WClub.as:152-153` sets `b.knockx = storona; b.knocky = -0.2`.
+            // `storona` is already maintained here for the animation, and the `-0.2` is the oracle's
+            // literal, which is why a clubbed enemy hops rather than sliding flat.
+            DamageContext finalDmg = baseDmg.WithScaledDamage(
+                _powerMult, _powerMult, new Vector2(_storona, -0.2f));
 
             ShotCues cues = new ShotCues(
                 playShootSound:   !string.IsNullOrEmpty(_def.soundShoot),

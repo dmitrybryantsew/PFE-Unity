@@ -34,13 +34,26 @@ namespace PFE.Systems.Audio
         /// Play impact sounds for a projectile collision.
         /// Safe to call even when sound service or table are null — degrades silently.
         /// </summary>
+        /// <param name="surfaceSound">
+        /// Layer 2. <c>false</c> for an <b>evaded</b> hit, where AS3 passes the verdict <c>-1</c> to
+        /// <c>Bullet.sound()</c> and matches none of its material cases (<c>weapon/Bullet.as:606-663</c>)
+        /// — so only the weapon's own hit sound plays. Layer 1 is unaffected either way.
+        /// </param>
+        /// <remarks>
+        /// <b>A recorded approximation.</b> AS3 also stamps <c>Snd.t_hit</c> on a suppressed hit — the
+        /// assignment at <c>:661</c> sits outside the <c>param1</c> chain — whereas this throttle is
+        /// only stamped when a surface sound actually plays. So an evaded round consumes AS3's
+        /// anti-spam window and not this one. Pre-existing, narrow (it needs a real material hit inside
+        /// the same ~0.1-0.2 s), and left alone rather than half-fixed.
+        /// </remarks>
         public static void Resolve(
             UnityEngine.Collider2D hitCollider,
             bool                   hasDamageContext,
             DamageContext          ctx,
             Vector2                worldPos,
             ISoundService          snd,
-            ImpactSoundTable       table)
+            ImpactSoundTable       table,
+            bool                   surfaceSound = true)
         {
             if (snd == null) return;
 
@@ -53,6 +66,7 @@ namespace PFE.Systems.Audio
             }
 
             // ── Layer 2: surface material sound (spam-throttled) ──────────────
+            if (!surfaceSound) return;
             if (table == null) return;
             if (Time.time < _nextAllowedTime) return;
 

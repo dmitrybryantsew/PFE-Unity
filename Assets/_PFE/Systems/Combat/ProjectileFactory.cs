@@ -85,7 +85,10 @@ namespace PFE.Systems.Combat
                 accel:    weapon.bulletAccel,
                 flame:    weapon.bulletFlame,
                 navod:    weapon.bulletNavod,
-                piercing: weapon.piercing);
+                // AS3 probiv, NOT `pier`. `pier` is flat armour points and is consumed by the damage
+                // formula (DamageContext.Piercing); feeding it here made Clamp01 turn every weapon
+                // carrying @pier into a 100% penetrator.
+                penetration: weapon.penetration);
             proj.ApplyVisual(weapon.projectileVisual);
 
             if (_debugSettings?.LogProjectileSpawning == true)

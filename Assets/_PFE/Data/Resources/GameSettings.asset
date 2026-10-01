@@ -12,5 +12,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c05e4c4f1bb026543b01f23d70b7bfaf, type: 3}
   m_Name: GameSettings
   m_EditorClassIdentifier: PFE.Core::PFE.Core.GameSettings
-  sfxVolume: 0.397
-  musicVolume: 0.226
+  sfxVolume: 0.086
+  musicVolume: 0
+  simulationTicksPerSecond: 30

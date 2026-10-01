@@ -64,8 +64,10 @@ namespace PFE.Systems.Weapons
         public readonly float ArmorMultiplier;
 
         /// <summary>
-        /// Flat piercing bonus added to pierce roll.
-        /// Final pierce = pier + pierAdd + ammoPier. Compared vs target armour tier.
+        /// Flat armour-piercing <b>points</b>, subtracted from the target's armour reduction — AS3
+        /// <c>Bullet.pier = weapon.pier + weapon.pierAdd + ammo.pier</c> (<c>Weapon.as:1672</c>),
+        /// consumed at <c>Unit.as:3641</c> (<c>_loc8_ = _loc8_ - param3.pier</c>). Not a probability, and
+        /// not <see cref="PenetrationChance"/>.
         /// </summary>
         public readonly float Piercing;
 
@@ -87,7 +89,31 @@ namespace PFE.Systems.Weapons
         /// <summary>Tile / structure destruction power per hit (destroy in AS3). 0 = no tile damage.</summary>
         public readonly float DestroyTiles;
 
-        /// <summary>Probability of projectile passing through the target without stopping (probiv in AS3).</summary>
+        /// <summary>
+        /// AS3 <c>Bullet.probiv</c> — the round's <b>penetration budget</b>, not a probability and not
+        /// <see cref="Piercing"/>.
+        ///
+        /// <para>A round whose probiv is above zero <b>does not stop</b> on the unit it hits
+        /// (<c>weapon/Bullet.as:533</c>: the stop is gated on <c>!(probiv &gt; 0 &amp;&amp; damage &gt; 0)</c>),
+        /// and <c>Unit.damage()</c> spends the round's damage down by what it absorbed
+        /// (<c>Unit.as:3646-3648</c>) and by a three-branch decay against the target's max HP
+        /// (<c>:3684-3696</c>). When the damage reaches zero the round finally stops. It is built at fire
+        /// time as <c>weapon.probiv + ammo.probiv</c>, clamped to 1 (<c>Weapon.as:1681-1684</c>), where
+        /// the weapon's half comes from its <c>&lt;dop probiv&gt;</c> node (<c>:703-705</c>) and the
+        /// ammo's from <c>&lt;item probiv&gt;</c> (<c>:1786-1788</c>).</para>
+        ///
+        /// <para><b>This used to be fed <c>def.piercing</c></b>, which is a flat armour figure in the
+        /// 5..70 range — so every weapon carrying <c>@pier</c> looked like a 100% penetrator once the
+        /// value reached a <c>Clamp01</c>. The two are different quantities and now come from different
+        /// fields.</para>
+        ///
+        /// <para><b>It currently has no consumer.</b> The live penetration path is
+        /// <c>Projectile</c>'s own <c>_penetration</c>/<c>_remainingDamage</c> pair, because a budget
+        /// has to be spent against a target and carried across hits — neither of which a per-hit,
+        /// copied struct can do. This field is carried so the context still describes the shot
+        /// completely, and it is fed from the right source; do not read its presence as "penetration
+        /// lives here".</para>
+        /// </summary>
         public readonly float PenetrationChance;
 
         /// <summary>Optional status effect string ("stun", etc.) from dop node.</summary>
@@ -261,12 +287,20 @@ namespace PFE.Systems.Weapons
                 armorMultiplier:   1f,
                 piercing:          def.piercing,
                 knockback:         def.knockback,
-                knockbackDir:      Vector2.right,
+                // Deliberately ZERO, not Vector2.right. This factory has the weapon but not the shot, so
+                // it cannot know which way a hit will throw — and a placeholder direction would be
+                // activated the moment the resolver started applying knockback, shoving every target
+                // east no matter where the shot came from. Zero reads as "unstamped", which the resolver
+                // turns into no impulse at all: a silently missing knockback is a far better failure than
+                // a confidently wrong one. Whoever knows the direction stamps it through
+                // WithScaledDamage — the projectile from its launch vector (Weapon.as:1507-1508), the
+                // melee controllers from the attacker's facing (WClub.as:152-153).
+                knockbackDir:      Vector2.zero,
                 critChance:        def.critChance,
                 critMultiplier:    def.critMultiplier,
                 damageType:        def.damageType,
                 destroyTiles:      def.destroyTiles,
-                penetrationChance: def.piercing,
+                penetrationChance: def.penetration,
                 dopEffect:         null,
                 dopDamage:         0f,
                 dopChance:         1f,

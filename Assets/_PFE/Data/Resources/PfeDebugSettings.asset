@@ -37,18 +37,19 @@ MonoBehaviour:
   logRoomRenderingLifecycle: 0
   logTileVisualCreationSummary: 0
   logTileColliderCreation: 0
-  showAreaTriggerDebug: 1
-  showDoorColliderDebug: 1
-  showObjectColliderDebug: 1
+  enabledOverlays: 0
+  tileColliderFilter: 15
+  unitColliderFilter: 3
   simTickEnabled: 1
-  simTickOverlayEnabled: 1
   simTickDualRun: 1
   simTickMotor: 1
   simTickRoom: 1
-  simTickDamage: 0
+  simTickDamage: 1
   projectilesUseLowLevelPhysics: 1
   thrownObjectsUseTileSeam: 1
   simTickLogDivergence: 1
+  applyVulnerabilities: 1
+  testDamage: 1
   tileQueryUnified: 1
   rngSeedOverride: 0
   rngLogCallSites: 0

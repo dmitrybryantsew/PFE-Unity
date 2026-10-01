@@ -206,7 +206,7 @@ namespace PFE.Tests.Editor.UnitAnimation
         }
 
         [Test]
-        public void CellFor_HalfStep_HoldsEachCellForTwoTicks()
+        public void CellFor_HalfStep_RepeatsEveryCellExceptTheLast()
         {
             var state = new AnimationFrame
             {
@@ -221,8 +221,21 @@ namespace PFE.Tests.Editor.UnitAnimation
                 state.Step(ref cursor.Frame, ref cursor.Stopped);
             }
 
-            // 0, 0, 1, 1, 2, 2, 3, 3 — each cell shown twice, and 3 is the last usable cell.
-            Assert.That(visited, Is.EqualTo(new[] { 0, 0, 1, 1, 2, 2, 3, 3 }));
+            // 0, 0, 1, 1, 2, 2, 3, 0 — and the 0 is the point.
+            //
+            // A half-step does NOT hold every cell for two ticks: it holds every cell but the LAST.
+            // The oracle's bound is `f < firstf + maxf - 1` (`BlitAnim.as:3721`), which is a test
+            // against the last USABLE index, not against a count — so the cursor is allowed to *reach*
+            // 3.0 and is then wrapped on the very next step, having displayed cell 3 for one tick.
+            // The cycle is 7 ticks (0,0,1,1,2,2,3), not 8, and the eighth read is already the wrap.
+            //
+            // This assertion previously read `{ 0, 0, 1, 1, 2, 2, 3, 3 }` with the comment "each cell
+            // shown twice", which is a plausible reading of "half step" and is not what the oracle
+            // does. It was wrong, not the implementation — re-derived from `BlitAnim.as:3715-3733`,
+            // where `df=0.5, firstf=0, maxf=4, retf=0` walks f through 0, 0.5, 1, 1.5, 2, 2.5, 3.0 and
+            // then resets. `Gutsy1Stay_VisitsAllFortyCellsThenLoopsForever` below is the same rule at
+            // df=1, where no cell repeats and the difference is invisible.
+            Assert.That(visited, Is.EqualTo(new[] { 0, 0, 1, 1, 2, 2, 3, 0 }));
         }
 
         // ── Restart ──────────────────────────────────────────────────────────

@@ -307,11 +307,37 @@ namespace PFE.Entities.Units
         /// </summary>
         protected void Move()
         {
-            // Use MovePosition for kinematic bodies to ensure proper collision detection
-            // This is necessary because setting linearVelocity on Kinematic bodies
-            // doesn't always register collisions correctly with static geometry
-            _rb.MovePosition(transform.position + (Vector3)_velocity * Time.fixedDeltaTime);
+            // AS3 wraps the whole position integration in `if(!this.fixed)` (Unit.as:1809): the
+            // `forces()` and `control()` calls sit ABOVE that gate and still run, but `run()` — the
+            // function holding `X += dx` — is never called, so X/Y never change. MovePosition is this
+            // port's only write to position, so it is the single call the gate has to cover.
+            //
+            // Two consequences, both the oracle's behaviour rather than a shortcut:
+            //   - a fixed unit is immune to knockback DISPLACEMENT. `otbros` has no `fixed` gate
+            //     (only `invulner`), so a shot still adds to dx — the value simply never lands.
+            //   - it takes no collision response, because run() also owns wall resolution
+            //     (turnX / kray / wall damage) and skipping MovePosition skips the contacts.
+            // Its immunity to being MOVED is therefore not a new rule layered on top; it falls out of
+            // gating the same single write the oracle gates.
+            if (!IsFixed)
+            {
+                Vector2 deltaUnits = _velocity * Time.fixedDeltaTime;
 
+                // Horizontal motion is resolved against the room's tiles; vertical is not.
+                //
+                // MovePosition on a Kinematic body is not blocked by static geometry, so before this
+                // the only thing that ever stopped a unit was the ground probe below the feet. A unit
+                // walked and was knocked straight through walls. See UnitWallMotion.
+                deltaUnits.x = ResolveHorizontalMotion(deltaUnits.x);
+
+                _rb.MovePosition(transform.position + (Vector3)deltaUnits);
+            }
+
+            // Facing is deliberately OUTSIDE the gate. AS3 sets `storona` in control(), which runs
+            // before :1809, and setVisPos()/animate() still run for a fixed unit — so a pinned turret
+            // that turns to face what it is shooting at is the oracle's behaviour, not a leak. Gating
+            // this would be the tempting "obviously right" move and it would be wrong.
+            //
             // Update facing direction based on velocity
             if (_velocity.x > 0.1f) _facingDirection = 1;
             else if (_velocity.x < -0.1f) _facingDirection = -1;
@@ -323,6 +349,43 @@ namespace PFE.Entities.Units
             {
                 Debug.DrawRay(transform.position, _velocity, Color.green);
             }
+        }
+
+        /// <summary>
+        /// Sweeps this step's horizontal motion against the room's tiles and returns the distance the
+        /// unit may actually travel. See <see cref="UnitWallMotion"/> for why this exists.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Blocked means stopped, not bounced.</b> AS3 answers a wall with
+        /// <c>dx = Math.abs(dx) * this.elast</c> (<c>Unit.as:2144</c> / <c>:2221</c>), and
+        /// <c>elast</c> is <c>0</c> for every shipped unit — <c>Unit.as:242</c> initialises it to zero
+        /// and no <c>&lt;move&gt;</c> node in <c>AllData.as</c> authors one. So the response is a dead
+        /// stop, which is exactly "cancel the velocity". Only <c>dx</c> is touched: AS3's wall branch
+        /// never writes <c>dy</c>, so a unit sliding down a wall keeps falling.</para>
+        ///
+        /// <para>Three no-op paths, all of them "there is nothing to ask": no room (a unit spawned
+        /// outside one), no collider, and no horizontal motion at all — the last is worth the branch
+        /// because it is the common case for a unit that is standing still or only falling.</para>
+        /// </remarks>
+        protected float ResolveHorizontalMotion(float deltaXUnits)
+        {
+            if (_tileQuery == null || _collider == null || deltaXUnits == 0f)
+            {
+                return deltaXUnits;
+            }
+
+            TileBox boxPx = UnitWallMotion.ToMoveBoxPixels(
+                _collider.bounds, TileQueryConstants.PixelToUnit);
+
+            UnitWallResolution resolution = UnitWallMotion.Resolve(
+                _tileQuery, boxPx, deltaXUnits * TileQueryConstants.UnitToPixel);
+
+            if (resolution.Blocked)
+            {
+                _velocity.x = 0f;
+            }
+
+            return resolution.AppliedDeltaXPx * TileQueryConstants.PixelToUnit;
         }
 
         /// <summary>
@@ -638,6 +701,75 @@ namespace PFE.Entities.Units
         /// literal <c>0f</c>. Exposing it here is what lets <c>DamageSystem</c> read it instead.</para>
         /// </remarks>
         public virtual float SkinResistance => _unitStats?.skinResistance ?? 0f;
+
+        /// <summary>
+        /// AS3 <c>Unit.knocked</c> — this unit's susceptibility to being thrown. Authored on the
+        /// definition's <c>&lt;move&gt;</c> node; AS3's own default is <c>1</c>.
+        /// </summary>
+        /// <remarks>
+        /// <b>From the definition, not <see cref="UnitStats"/>,</b> unlike <see cref="Armour"/> and
+        /// <see cref="SkinResistance"/> — nothing scales it at runtime in AS3, so there is no live copy
+        /// to prefer. A unit with no definition answers <c>1</c> rather than <c>0</c>, because <c>0</c>
+        /// is not "no data" here: it is the authored "cannot be moved" flag that turrets, <c>fixed</c>
+        /// units and <c>UnitBossNecr</c>'s shadow all carry.
+        /// </remarks>
+        public virtual float Knocked => _stats != null ? _stats.knocked : 1f;
+
+        /// <summary>
+        /// AS3 <c>Unit.massa</c> — the weight divisor, already divided by 50 as AS3 does. See
+        /// <see cref="UnitDefinition.Massa"/> for why the raw attribute is not this number.
+        /// </summary>
+        /// <remarks>
+        /// Falls back to AS3's field default of <c>1</c> when no definition is assigned — the same value
+        /// <see cref="KnockbackMath"/> substitutes for a non-positive mass — so a unit the spawner has
+        /// not initialised yet is knocked back normally rather than not at all.
+        /// </remarks>
+        public virtual float Mass => _stats != null ? _stats.Massa : 1f;
+
+        /// <summary>
+        /// AS3 <c>Unit.invulner</c>, from the definition's authored flag.
+        /// </summary>
+        /// <remarks>
+        /// <b>The runtime toggles are not modelled.</b> AS3 raises this on <c>UnitBossNecr</c> for the
+        /// duration of its shadow phase and clears it after; the port has the authored
+        /// <c>isInvulnerable</c> and nothing that changes it, so such a unit is either always
+        /// invulnerable or never. Recorded rather than quietly approximated, because the knockback gate
+        /// reads it and because it is also one half of AS3's other bullet pass-through branch.
+        /// </remarks>
+        public virtual bool IsInvulnerable => _stats != null && _stats.isInvulnerable;
+
+        /// <summary>
+        /// AS3 <c>Unit.fixed</c> — this unit is pinned in place and its position integration is
+        /// skipped entirely (<c>Unit.as:1809</c>).
+        /// </summary>
+        /// <remarks>
+        /// <b>What a fixed unit still does.</b> Only the <c>run()</c> call is gated. <c>forces()</c>
+        /// and <c>control()</c> run above the gate, so velocity still accumulates and facing still
+        /// updates; <c>checkWater()</c>, <c>actions()</c>, <c>setVisPos()</c> and <c>animate()</c> run
+        /// below it. The visible result is a statue that can still aim, still take damage, and still
+        /// be shot at — it just never changes position. See <see cref="UnitDefinition.isFixed"/> for
+        /// the two knockback consequences and the box-wall gate at <c>:4223</c>.
+        ///
+        /// <para><b>From the definition, and deliberately <c>virtual</c>.</b> AS3's <c>fixed</c> is a
+        /// runtime-mutable field that eleven unit subclasses flip — <c>UnitTurret.as:462</c> and
+        /// <c>UnitZombie.as:455</c> clear it, <c>Unit.as:3130</c> clears it on a unit that has
+        /// levitated for 75 ticks. None of those subclasses is ported, so there is no runtime writer
+        /// to model today and adding a mutable backing field would be dead code. <c>virtual</c> is the
+        /// hook: a ported <c>UnitTurretController</c> overrides this with its own flag rather than
+        /// making the definition mutable. Same shape as <see cref="Knocked"/> and <see cref="Mass"/>,
+        /// which read the definition for the same reason.</para>
+        /// </remarks>
+        public virtual bool IsFixed => _stats != null && _stats.isFixed;
+
+        /// <summary>
+        /// Adds a knockback impulse to this unit's velocity — AS3's <c>dx += …; dy += …</c>.
+        /// </summary>
+        /// <remarks>
+        /// Delegates to <see cref="AddForce"/>, which is the port of AS3's <c>Unit.forces()</c> and has
+        /// carried a "explosions, knockback, etc." doc comment since long before anything called it —
+        /// the producer for this existed and had no consumer until now.
+        /// </remarks>
+        public virtual void ApplyKnockback(Vector2 impulse) => AddForce(impulse);
 
         /// <summary>
         /// Current health from stats.

@@ -40,6 +40,7 @@ namespace PFE.Entities.Units
         public const string ArmoredVisualClassName = "visualTrainArmor";
 
         bool _armored;
+        bool _fixedByPlacement;
 
         /// <summary>
         /// AS3 <c>UnitTrain.tr</c>, set from the placement's <c>tr</c> attribute (<c>:31-34</c>).
@@ -47,6 +48,25 @@ namespace PFE.Entities.Units
         /// carry <c>tr="1"</c> — the armoured pair.
         /// </summary>
         public bool IsArmored => _armored;
+
+        /// <summary>
+        /// AS3 <c>UnitTrain</c>'s <c>fixed</c>, raised from the placement's <c>fix</c> attribute
+        /// (<c>UnitTrain.as:34-37</c>) — layered on top of the definition's own
+        /// <see cref="UnitDefinition.isFixed"/>, which <c>&lt;unit id='training'&gt;</c> does not author.
+        /// </summary>
+        /// <remarks>
+        /// <b>Why the dummy needs its own flag rather than the definition field.</b> The dummy's
+        /// immobility is a property of <i>where it is placed</i>, not of the unit type: of the Camp's
+        /// five dummies, three are pinned (<c>fix="1"</c> — <c>RoomsCamp.as:413</c>, <c>:419</c>,
+        /// <c>:420</c>) and two are free, all five sharing one <c>&lt;unit id='training'&gt;</c> row.
+        /// A definition-level flag could only pin all five or none.
+        ///
+        /// <para><b>The presence test is the subclass's, not the base class's.</b> <c>:34</c> is
+        /// <c>if(param3.@fix.length())</c> — a non-empty test, so <c>fix="0"</c> <i>pins</i>. The base
+        /// class's <c>Unit.as:1116</c> is <c>node.@fixed &gt; 0</c>, a value test. Two attributes, two
+        /// different comparisons, and mirroring the base here would un-pin a <c>fix="0"</c> dummy.</para>
+        /// </remarks>
+        public override bool IsFixed => _fixedByPlacement || base.IsFixed;
 
         /// <summary>
         /// The AS3 visual class this dummy uses (<c>UnitTrain.as:41-49</c>), exposed so the unit-visual
@@ -65,10 +85,14 @@ namespace PFE.Entities.Units
         ///
         /// <para>Only the dummy-specific parts live here. <c>turn</c> → facing is handled by
         /// <see cref="UnitController.ApplyPlacement"/>, because it is base <c>Unit</c> behaviour that
-        /// <c>UnitTrain</c> merely repeats. <c>fix</c> is preserved on the placement record but not
-        /// consumed: AS3 gates movement on <c>fixed</c> (<c>Unit.as:1809</c>, <c>:4223</c>) and the port
-        /// has neither a motor nor knockback for a spawned unit yet, so porting it would invent a
-        /// consumer.</para>
+        /// <c>UnitTrain</c> merely repeats.</para>
+        ///
+        /// <para><b>This comment used to say <c>fix</c> was deliberately unconsumed</b>, on the grounds
+        /// that "the port has neither a motor nor knockback for a spawned unit yet, so porting it would
+        /// invent a consumer". Both halves of that had become false — <c>UnitController.Move()</c> has
+        /// been the unit motor for a long time, and knockback landed on 2026-10-01 — so the reason
+        /// expired while the sentence stayed. That is the failure mode this project keeps hitting: a
+        /// belief that went stale with nothing going red. It is consumed now.</para>
         /// </summary>
         public override void ApplyPlacement(UnitInstance placement)
         {
@@ -80,6 +104,12 @@ namespace PFE.Entities.Units
             }
 
             _armored = placement.GetAttribute("tr") == "1";
+
+            // UnitTrain.as:34-37 — `if(param3.@fix.length()) { fixed = true; }`. Tested for presence,
+            // not value, which is why this is a non-empty check rather than a comparison against "1";
+            // GetAttribute returns "" for an absent key, so that is the same test AS3's `.length()`
+            // makes. The attribute is authored on the placement row, never on the <unit> template.
+            _fixedByPlacement = !string.IsNullOrEmpty(placement.GetAttribute("fix"));
 
             if (_armored && _unitStats != null)
             {

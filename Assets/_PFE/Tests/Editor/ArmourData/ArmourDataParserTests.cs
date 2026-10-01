@@ -78,7 +78,7 @@ namespace PFE.Tests.Editor.ArmourData
 
         private ItemDefinition NewItemDefinition()
         {
-            var definition = ScriptableObject.CreateInstance<ItemDefinition>();
+            var definition = PFE.Tests.Editor.Core.OfflineScriptableObject.Create<ItemDefinition>();
             _created.Add(definition);
             return definition;
         }

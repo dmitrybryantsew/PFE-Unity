@@ -7,6 +7,7 @@ using PFE.Core.Messages;
 using PFE.Core.Rng;
 using PFE.Data.Definitions;
 using PFE.Entities.Units;
+using PFE.Systems.Map.TileQuery;
 using PFE.Systems.Weapons;
 
 namespace PFE.Systems.Combat
@@ -32,11 +33,16 @@ namespace PFE.Systems.Combat
     /// <see cref="DamageVariance"/>, AS3's <c>× (0.7 .. 1.3)</c> (<c>Unit.as:4085</c>). Blasts skip both,
     /// as they do in AS3.</para>
     ///
-    /// <para><b>Timing is a flag, the formula is not.</b> <c>PfeDebugSettings.SimTickDamage</c> chooses
-    /// <i>when</i> a reported hit resolves — on the tick, or immediately at report time. It does not
-    /// choose the formula; that is now armour-aware in both modes. With no unit carrying armour the two
-    /// modes produce the same numbers, because the armour terms are inert, so the flag is safe to
-    /// flip while play-testing.</para>
+    /// <para><b>Timing is a flag; the decision is not.</b> <c>PfeDebugSettings.SimTickDamage</c>
+    /// chooses <i>when</i> a reported hit is <i>applied</i> — at the drain, or immediately at report
+    /// time. It does not choose the formula, and it does not choose when the hit is <i>decided</i>:
+    /// the <see cref="HitAvoidance"/> roll is taken at report time in both modes, because its answer is
+    /// the bit a projectile needs to know whether to keep flying. Deferring only the application is
+    /// what makes tick mode safe for a projectile; deferring the decision is what made an evaded round
+    /// stop dead. The two modes are therefore <b>not</b> numerically identical — they draw from
+    /// different streams, so a tick-mode burst and an immediate-mode burst assign different numbers to
+    /// the same rolls. That is a property of batching, not a defect, and it is why the flag is a
+    /// determinism switch rather than a free toggle.</para>
     ///
     /// <para><b>One formula term is separately switchable, and that one does change the numbers.</b>
     /// <c>PfeDebugSettings.ApplyVulnerabilities</c> gates the target's vulnerability multiply (AS3
@@ -54,11 +60,13 @@ namespace PFE.Systems.Combat
     ///
     /// <para><b>RNG.</b> In tick mode the stream is salted with the tick index
     /// (<c>GetStream(RngStream.Combat, tickIndex)</c>), so a tick's rolls are a pure function of the
-    /// tick and its queue. It is fetched <b>once per tick</b> and shared by that tick's hits, because
+    /// tick and its inputs. It is created <b>once per tick</b> and shared by every roll in it, because
     /// <c>PcgRngService.GetStream(stream, salt)</c> constructs a fresh generator per call — fetching
-    /// per hit would hand every hit in the tick an identical stream, and therefore identical crit
-    /// rolls. In immediate mode there is no tick index to salt with, so the persistent <c>Combat</c>
-    /// child stream is used.</para>
+    /// per roll would hand every roll in the tick an identical stream, and therefore identical crit
+    /// rolls. Since the avoidance roll now runs at report time and the damage rolls at the drain, that
+    /// one generator is memoized across both halves of the tick rather than fetched at the drain. See
+    /// <see cref="TickRng"/>. In immediate mode there is no tick index to salt with, so the persistent
+    /// <c>Combat</c> child stream is used.</para>
     /// </summary>
     public sealed class DamageSystem : IStartable, ISimTickable
     {
@@ -77,6 +85,14 @@ namespace PFE.Systems.Combat
 
         private IRngService _immediateRng;
         private bool _registeredOnSimLoop;
+
+        /// <summary>
+        /// The combat stream for the tick currently being built, memoized so that the report-time
+        /// avoidance rolls and the drain-time damage rolls of one tick draw from a single sequence.
+        /// See <see cref="TickRng"/>.
+        /// </summary>
+        private IRngService _tickRng;
+        private int _tickRngIndex = int.MinValue;
 
         public DamageSystem(
             IDamageCalculator calculator,
@@ -147,22 +163,59 @@ namespace PFE.Systems.Combat
         }
 
         /// <summary>
-        /// Records a hit for resolution. In tick mode this only queues; in immediate mode it resolves
-        /// on the spot. Either way the caller does not learn the damage — a source reports, it does not
-        /// read back.
+        /// Records a hit and answers what became of it.
+        ///
+        /// <para><b>The avoidance decision is made here, in both modes; only the application is ever
+        /// deferred.</b> In immediate mode the two are the same instant, which is AS3's shape. In tick
+        /// mode the damage terms wait for the drain but the <see cref="HitAvoidance"/> roll does not —
+        /// because its answer is not only a damage input, it is the bit that tells a projectile whether
+        /// to keep flying (AS3 <c>weapon/Bullet.as:535</c>). A round that only learned it had missed a
+        /// tick after the contact would have travelled up to a full tick past the target by then, and
+        /// straight through whatever stood behind it.</para>
+        ///
+        /// <para><b>The caller does not learn the damage</b> — a source reports, it does not read back a
+        /// number. The verdict is not the damage. It is the single bit a projectile needs to decide
+        /// whether to stop, and it is produced <i>here</i> rather than by the caller precisely so that
+        /// the avoidance roll is not duplicated: AS3's bullet reads that bit straight off
+        /// <c>udarBullet</c>'s return (<c>weapon/Bullet.as:535</c>), and the port moved the roll into
+        /// this system, so this is where the bit has to come back out. See <see cref="DamageVerdict"/>.</para>
         /// </summary>
-        public void Report(in PendingDamage hit)
+        public DamageVerdict Report(in PendingDamage hit)
         {
-            if (hit.Target == null)
-                return;
+            IDamageable target = hit.Target;
 
-            if (IsTickAligned)
+            // A null target is a caller fault, not a skipped hit — see SkippedCount.
+            if (target == null)
+                return DamageVerdict.Ignored;
+
+            // Liveness is checked here as well as at the drain, and the two checks exist for different
+            // reasons. This one keeps a roll from being spent on a target that is already gone: the
+            // oracle tests `sost == 4 || disabled` before it calls `udarBullet` at all
+            // (`weapon/Bullet.as:504`), so a corpse consumes no random number. The drain-time check
+            // catches a target that an earlier hit in the same drain killed.
+            if (IsGone(target) || !target.IsAlive)
             {
-                _pending.Add(hit);
-                return;
+                SkippedCount++;
+                return DamageVerdict.Ignored;
             }
 
-            Resolve(hit, ImmediateRng());
+            bool tickAligned = IsTickAligned;
+
+            // The stream has to be picked BEFORE the roll, and the tick index is only knowable from the
+            // loop — a report arrives from inside the tick being dispatched, so `TickIndex` is already
+            // this tick's. In immediate mode there is no tick to salt with.
+            IRngService rng = tickAligned ? TickRng(_simLoop.TickIndex) : ImmediateRng();
+
+            if (!RollsHit(hit, rng))
+                return DamageVerdict.Evaded;
+
+            if (tickAligned)
+            {
+                _pending.Add(hit);
+                return DamageVerdict.Queued;
+            }
+
+            return Apply(hit, rng);
         }
 
         public void SimTick(int tickIndex)
@@ -174,14 +227,15 @@ namespace PFE.Systems.Combat
             (_draining, _pending) = (_pending, _draining);
             _pending.Clear();
 
-            // One stream per tick, shared by every hit in it. See the class remarks — salting per hit
-            // would hand each hit a fresh, identical generator.
-            IRngService rng = _rngService?.GetStream(RngStream.Combat, tickIndex);
+            // The same generator this tick's reports already drew their avoidance rolls from. Fetching
+            // a fresh one here would restart the sequence, handing the armour and crit rolls the same
+            // numbers the avoidance rolls just used. See TickRng.
+            IRngService rng = TickRng(tickIndex);
 
             int count = _draining.Count;
             for (int i = 0; i < count; i++)
             {
-                Resolve(_draining[i], rng);
+                Apply(_draining[i], rng);
             }
 
             _draining.Clear();
@@ -189,7 +243,60 @@ namespace PFE.Systems.Combat
 
         // ── Resolution ───────────────────────────────────────────────────────
 
-        private void Resolve(in PendingDamage hit, IRngService rng)
+        /// <summary>
+        /// The hit-avoidance decision, and the miss report that goes with a failed one. Returns
+        /// <c>true</c> when the hit lands.
+        /// </summary>
+        /// <remarks>
+        /// Two exclusions, both the oracle's:
+        /// <list type="bullet">
+        ///   <item><description>a blast never rolls. AS3's explosion path (<c>Bullet.explRun</c>) calls
+        ///     <c>unit.damage()</c> directly and never reaches <c>udarBullet</c>, so
+        ///     <c>miss</c>/<c>precision</c>/<c>dodge</c> do not apply to AoE at all.</description></item>
+        ///   <item><description>the roll uses the same per-tick stream as the armour and crit rolls, in
+        ///     the oracle's order. <see cref="HitAvoidance.RollsHit"/> reproduces AS3's short-circuits
+        ///     exactly, so a shot with <c>miss = 0</c> against a non-evading target consumes no roll
+        ///     here and the crit stream stays where AS3 would leave it.</description></item>
+        /// </list>
+        /// </remarks>
+        private bool RollsHit(in PendingDamage hit, IRngService rng)
+        {
+            if (hit.IsExplosion
+                || HitAvoidance.RollsHit(hit.Context, hit.Target.Evasion, hit.TravelDistancePixels, rng))
+            {
+                return true;
+            }
+
+            MissedCount++;
+
+            // Published as a miss rather than silence: AS3 shows a "miss" number
+            // (`Unit.as:4103-4117`, `txtMiss`), and this message is the only hook the presentation
+            // layer has for it.
+            _publisher?.Publish(new DamageDealtMessage
+            {
+                damage     = 0f,
+                position   = hit.ImpactPosition,
+                isCritical = false,
+                isMiss     = true,
+            });
+
+            // The floating-damage overlay's feed. Written unconditionally and gated at the view, so
+            // the overlay can be switched on mid-burst without having missed the hits that led up to
+            // it — a diagnostic that only records from the moment you enable it cannot show you the
+            // shot you enabled it to catch.
+            DamageEventFeed.Default.Report(
+                hit.ImpactPosition, amount: 0f, isCritical: false, isMiss: true);
+
+            // AS3 returns -1 here, and that -1 is what keeps the round alive: `Bullet.run` only
+            // calls `popadalo()` (the sole setter of the stop flag) when the return is >= 0.
+            return false;
+        }
+
+        /// <summary>
+        /// Applies a hit whose avoidance decision has already been made, and reports what became of it.
+        /// The verdict is the <b>only</b> thing a caller gets back — not the damage, which stays here.
+        /// </summary>
+        private DamageVerdict Apply(in PendingDamage hit, IRngService rng)
         {
             IDamageable target = hit.Target;
 
@@ -198,57 +305,20 @@ namespace PFE.Systems.Combat
             if (IsGone(target) || !target.IsAlive)
             {
                 SkippedCount++;
-                return;
+                return DamageVerdict.Ignored;
             }
 
             DamageContext ctx = hit.Context;
-
-            // ── Hit avoidance ────────────────────────────────────────────────────────────────────
-            // AS3 `Unit.udarBullet():4067-4131` gates the ENTIRE hit on a four-term conjunction, and a
-            // missed shot does nothing at all: no damage, no armour wear, no crit, no knockback, no
-            // floating damage number. So this runs before every damage term rather than as a zeroing
-            // term inside them — a miss that still wore the armour would be a different game.
-            //
-            // Two exclusions, both the oracle's:
-            //   * a blast never rolls. AS3's explosion path (`Bullet.explRun`) calls `unit.damage()`
-            //     directly and never reaches `udarBullet`, so `miss`/`precision`/`dodge` do not apply
-            //     to AoE at all.
-            //   * the roll uses the same per-tick stream as the armour and crit rolls, in the oracle's
-            //     order. `HitAvoidance.RollsHit` reproduces AS3's short-circuits exactly, so a shot
-            //     with `miss = 0` against a non-evading target consumes no roll here and the crit
-            //     stream stays where AS3 would leave it.
-            if (!hit.IsExplosion
-                && !HitAvoidance.RollsHit(ctx, target.Evasion, hit.TravelDistancePixels, rng))
-            {
-                MissedCount++;
-
-                // Published as a miss rather than silence: AS3 shows a "miss" number
-                // (`Unit.as:4103-4117`, `txtMiss`), and this message is the only hook the presentation
-                // layer has for it.
-                _publisher?.Publish(new DamageDealtMessage
-                {
-                    damage     = 0f,
-                    position   = hit.ImpactPosition,
-                    isCritical = false,
-                    isMiss     = true,
-                });
-
-                // The floating-damage overlay's feed. Written unconditionally and gated at the view, so
-                // the overlay can be switched on mid-burst without having missed the hits that led up to
-                // it — a diagnostic that only records from the moment you enable it cannot show you the
-                // shot you enabled it to catch.
-                DamageEventFeed.Default.Report(
-                    hit.ImpactPosition, amount: 0f, isCritical: false, isMiss: true);
-
-                return;
-            }
 
             float incoming = hit.IsExplosion
                 ? ExplosionDamageFor(ctx, hit)
                 : ctx.BaseDamage;
 
+            // AS3 `if(param1.damage > 0)` wraps the whole hit block and falls through to `return 0` when
+            // it does not hold — and 0 is >= 0, so the round still stops. A bullet that carries no
+            // damage is absorbed, not passed through.
             if (incoming <= 0f)
-                return;
+                return DamageVerdict.Landed;
 
             // ── Damage spread ───────────────────────────────────────────────────────────────────
             // AS3 `Unit.as:4085` — `_loc4_ = param1.damage * (Math.random() * 0.6 + 0.7)`, inside the
@@ -280,8 +350,18 @@ namespace PFE.Systems.Combat
             // AS3 `:3563-3566` — `if(param1 == 0) return 0`. A zeroed hit is not "0 damage applied":
             // it does nothing at all. No wear, no floating number, no event — so the resolver must not
             // fall through and hand `DamageOutcome.None` to a target that would still record a hit.
+            //
+            // It still STOPS the round, though: `Unit.damage()` returns 0 and `udarBullet` returns that
+            // 0, which is >= 0. Being immune to a damage type is not the same as being transparent to it.
             if (incoming <= 0f)
-                return;
+            {
+                // ...and it is still THROWN. `udarBullet` calls `otbros` after `damage()` whatever
+                // `damage()` returned (`Unit.as:4090-4091`), so a target immune to the type is pushed
+                // anyway. The draw order is unaffected: this path never reached the armour or crit rolls,
+                // so the knockback draw is the next one either way.
+                ApplyKnockback(hit, target, ctx, rng);
+                return DamageVerdict.Landed;
+            }
 
             ArmourState armour = target.Armour;
 
@@ -321,6 +401,70 @@ namespace PFE.Systems.Combat
             // See the miss path above for why this is unconditional rather than gated on the channel.
             DamageEventFeed.Default.Report(
                 hit.ImpactPosition, outcome.HpDamage, outcome.IsCritical, isMiss: false);
+
+            // Last, and the position is load-bearing: AS3 runs `otbros()` after `this.damage()`
+            // (`Unit.as:4090-4091`), so this draw has to follow the armour and crit draws. Taking it any
+            // earlier would hand every later hit in the tick a stream one draw out of step.
+            ApplyKnockback(hit, target, ctx, rng);
+
+            return DamageVerdict.Landed;
+        }
+
+        /// <summary>
+        /// Applies AS3's <c>Unit.otbros()</c> — the throw a landed hit gives its target.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Direct hits only.</b> AS3 reaches this from <c>udarBullet</c> alone
+        /// (<c>Unit.as:4091</c>). A blast damages through <c>Bullet.explRun</c>, which calls
+        /// <c>unit.damage()</c> directly and never touches <c>otbros</c> — so the explosion path takes no
+        /// knockback here. (AS3's blasts <i>do</i> push, but by a separate mechanism: <c>explBlast</c>
+        /// spawns a radial child bullet per unit, aimed away from the centre with
+        /// <c>knockx = dx / vel</c>. The port does not model that; it is a missing feature, and inventing
+        /// blast knockback here would be a different wrong answer.)</para>
+        ///
+        /// <para><b>The draw happens even for a zero-knock weapon.</b> AS3 draws before multiplying by
+        /// <c>otbros</c>, so short-circuiting on <c>Knockback == 0</c> — which most weapons carry — would
+        /// skip a draw the oracle takes and desynchronise every later roll in the tick. Only
+        /// <see cref="IDamageable.IsInvulnerable"/> skips the draw, because AS3 returns before it in that
+        /// one case.</para>
+        ///
+        /// <para><b>The impulse is converted here, and this is the only place that may do it.</b>
+        /// <see cref="DamageContext.Knockback"/> is AS3's <c>otbros</c> — a per-<i>frame</i> velocity in
+        /// pixels, because <c>Unit.otbros()</c> adds it straight to <c>dx</c>/<c>dy</c>
+        /// (<c>Unit.as:4254-4255</c>), which <c>Unit.run()</c> then adds to <c>X</c> once per frame. The
+        /// port's <see cref="IDamageable.ApplyKnockback"/> feeds <c>UnitController._velocity</c>, which is
+        /// Unity units per <b>second</b> — it is multiplied by <c>Time.fixedDeltaTime</c> in
+        /// <c>UnitController.Move</c>. Those are different quantities, and
+        /// <see cref="TileQueryConstants.PerFrameVelocityToUnitsPerSecond"/> is the conversion. Omitting
+        /// it made every shot throw 1/0.3 = <b>3.33×</b> too hard, which is exactly what the minigun
+        /// play-test reported; for a high-<c>knock</c> weapon it is the difference between a stagger and
+        /// a launch. <see cref="KnockbackMath"/> stays unit-free on purpose — it models the oracle's
+        /// <c>random * 0.4 + 0.8</c> and the <c>knocked / massa</c> ratio, and knows nothing about frames
+        /// or seconds.</para>
+        /// </remarks>
+        private static void ApplyKnockback(in PendingDamage hit, IDamageable target,
+                                           in DamageContext ctx, IRngService rng)
+        {
+            if (hit.IsExplosion) return;
+
+            // AS3 `Unit.otbros():4245-4248` returns BEFORE the draw, so this test has to come first.
+            if (target.IsInvulnerable) return;
+
+            float scale = KnockbackMath.Roll(rng, target.Knocked, target.Mass);
+
+            // px/frame → units/s, at the boundary where the oracle's units stop and Unity's begin.
+            float speedUnitsPerSecond = ctx.Knockback * scale
+                                      * TileQueryConstants.PerFrameVelocityToUnitsPerSecond;
+
+            Vector2 impulse = ctx.KnockbackDir * speedUnitsPerSecond;
+
+            // The draw above is unconditional — see the remarks. Only the WRITE is skippable, and it is
+            // skipped when it would be a no-op anyway: most weapons carry `@knock = 0`, and a context
+            // whose direction was never stamped (DamageContext.FromWeapon's zero) means "no knockback",
+            // deliberately, rather than an invented one.
+            if (impulse.sqrMagnitude <= 0f) return;
+
+            target.ApplyKnockback(impulse);
         }
 
         /// <summary>
@@ -385,6 +529,47 @@ namespace PFE.Systems.Combat
                 return null;
 
             return _immediateRng ??= _rngService.GetStream(RngStream.Combat);
+        }
+
+        /// <summary>
+        /// The combat stream for one tick: salted with the tick index, created on first use and reused
+        /// by every later roll in the same tick — the report-time avoidance rolls and the drain-time
+        /// damage rolls alike.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Why it is memoized rather than fetched per call.</b>
+        /// <c>PcgRngService.GetStream(stream, salt)</c> constructs a fresh generator on every call, so
+        /// two calls with the same salt return two generators that emit <i>the same sequence</i>. That
+        /// is harmless when there is one call per tick, which is what the drain used to do; it stops
+        /// being harmless now that a report and the drain that follows it must continue one sequence —
+        /// without the memo, the armour and crit rolls would be handed the very numbers the avoidance
+        /// rolls had just used.</para>
+        ///
+        /// <para><b>Why the salt is the tick index and not a monotonic counter.</b> A tick's rolls have
+        /// to be a pure function of the tick and its inputs. A counter would make them depend on how
+        /// many rolls came before, which is exactly what a peer replaying from a snapshot cannot
+        /// reproduce.</para>
+        ///
+        /// <para><b>The index comes from the loop.</b> <c>SimLoop.StepOnce</c> increments its index
+        /// before it dispatches, so a report arriving from inside a tick — which is where every
+        /// projectile reports from, at <c>SimTickOrder.Projectiles</c> — already sees that tick's index.
+        /// A report that arrives from outside the loop entirely (a legacy physics callback) is
+        /// attributed to the tick that last ran, which is deterministic but frame-paced; the probe path
+        /// that replaced those callbacks reports from inside the tick and does not have that
+        /// property.</para>
+        /// </remarks>
+        private IRngService TickRng(int tickIndex)
+        {
+            if (_rngService == null)
+                return null;
+
+            if (_tickRng == null || _tickRngIndex != tickIndex)
+            {
+                _tickRng = _rngService.GetStream(RngStream.Combat, tickIndex);
+                _tickRngIndex = tickIndex;
+            }
+
+            return _tickRng;
         }
     }
 }

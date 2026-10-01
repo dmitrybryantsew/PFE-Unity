@@ -25,17 +25,19 @@ MonoBehaviour:
   height: 0.75
   sitHeight: 0.5
   mass: 50
+  massafix: 0
   moveSpeed: 4
   runMultiplier: 2
   acceleration: 2
   braking: 0.5
   jumpForce: 15
+  knocked: 0
   levitationMaxHeight: 60
   levitationAcceleration: 1.6
   canSwim: 1
   canLevitate: 0
   canBeKnockedDown: 1
-  isFixed: 0
+  isFixed: 1
   wallDamage: 0
   stepThreshold: 0
   health: 100

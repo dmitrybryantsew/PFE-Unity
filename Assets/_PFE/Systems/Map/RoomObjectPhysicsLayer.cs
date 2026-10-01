@@ -54,10 +54,21 @@ namespace PFE.Systems.Map
             GroundStopPixelsPerFrame * PFE.Core.SimClock.CanonicalTicksPerSecond;
 
         /// <summary>
-        /// Telekinesis follow rate. <b>Not</b> an AS3 constant: AS3 models telekinesis as the
-        /// <c>levit</c> flag plus a 0.8 per-frame damping in <c>forces()</c> (<c>Box.as:907-910</c>),
-        /// not as position tracking, so there is no AS3 number to copy. Left as-is and flagged rather
-        /// than silently "corrected" to a value with no citation.
+        /// Telekinesis follow rate. <b>Invented</b> — there is no AS3 constant to copy, but the
+        /// earlier note that "AS3 does not position-track" was <i>wrong</i>: it had only read the
+        /// damping half. AS3 is <b>two</b> cooperating pieces:
+        /// <list type="number">
+        /// <item>the player's hold tick drives the held object's own <c>dx</c>/<c>dy</c> toward the
+        /// cursor per axis — a ±15 px deadzone, <c>+= teleAccel</c> until <c>teleSpeed</c> is reached
+        /// (<c>UnitPlayer.as:1247-1262</c>; <c>teleSpeed = 8</c>, <c>teleAccel = 1</c> at
+        /// <c>:57</c>/<c>:59</c>). That <i>is</i> position tracking, as acceleration to a cap;</item>
+        /// <item><c>Box.forces()</c> then damps it — <c>dx *= 0.8; dy *= 0.8</c> while <c>levit</c> is
+        /// set (<c>Box.as:906-910</c>), which is the only half this constant's old comment cited.</item>
+        /// </list>
+        /// So the port's <c>v = toTarget × k</c> is a different controller in <i>shape</i>, not just a
+        /// different number: AS3 has no proportional term at all, and it cannot overshoot because the
+        /// cap is applied per axis. Replacing this with the real model is open work — see
+        /// <c>TOPIC_telekinesis</c>.
         /// </summary>
         const float TelekinesisFollowSpeed = 14f;
 

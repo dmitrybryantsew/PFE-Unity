@@ -1,3 +1,4 @@
+using UnityEngine;
 using PFE.Data.Definitions;
 using PFE.Entities.Units;
 
@@ -118,6 +119,63 @@ namespace PFE.Systems.Combat
         /// than merely be unmodified by it.</para>
         /// </remarks>
         EvasionState Evasion { get; }
+
+        /// <summary>
+        /// How susceptible this target is to being thrown — AS3 <c>Unit.knocked</c>.
+        /// </summary>
+        /// <remarks>
+        /// <para>AS3 <c>Unit.as:234</c> (default <c>1</c>), authored per unit on the <c>&lt;move&gt;</c>
+        /// node and read at <c>:1082-1085</c>. It is the numerator of the factor
+        /// <see cref="KnockbackMath"/> applies, so <c>0</c> is the oracle's "cannot be moved" — turrets,
+        /// <c>fixed</c> units and <c>UnitBossNecr</c>'s shadow all carry it — while <c>1.5</c> is a light
+        /// body that flies further.</para>
+        ///
+        /// <para>Read by the resolver rather than computed by the target, for the same reason
+        /// <see cref="Armour"/> and <see cref="Evasion"/> are: the formula lives in one place. It is
+        /// also why this is not folded together with <see cref="Mass"/> into a single "resistance"
+        /// number — AS3 clamps the <i>product</i>, not either input, so the two have to stay
+        /// separate.</para>
+        /// </remarks>
+        float Knocked { get; }
+
+        /// <summary>
+        /// The target's weight — AS3 <c>Unit.massa</c>, already divided by 50 as AS3 does.
+        /// </summary>
+        /// <remarks>
+        /// AS3 <c>Unit.as:1058</c> assigns <c>massa = massaFix</c>, which <c>:1051</c> sets to
+        /// <c>@massafix / 50</c> (or <c>@massa / 50</c>, <c>:1047</c>) — so this is a small number
+        /// around 1, not the raw attribute. <see cref="PFE.Data.Definitions.UnitDefinition.Massa"/> owns
+        /// that conversion. A non-positive answer is treated as AS3's default of 1 by
+        /// <see cref="KnockbackMath"/>.
+        /// </remarks>
+        float Mass { get; }
+
+        /// <summary>
+        /// Whether this target is currently immune to being hit at all — AS3 <c>Unit.invulner</c>.
+        /// </summary>
+        /// <remarks>
+        /// <para>AS3 <c>Unit.as:144</c>. Read by <c>Unit.otbros():4245-4248</c>, which returns
+        /// <b>before</b> taking its random draw — so an invulnerable target consumes no roll from the
+        /// combat stream, and a caller that tested this <i>after</i> calling
+        /// <see cref="KnockbackMath.Roll"/> would have desynchronised every later roll in the tick.</para>
+        ///
+        /// <para><b>Only the authored flag is modelled.</b> AS3 also toggles <c>invulner</c> at runtime —
+        /// <c>UnitBossNecr</c> raises it during its shadow phase (<c>:609</c>/<c>:722</c>) — and the port
+        /// has no live equivalent yet, so a scripted phase change is not visible here.</para>
+        /// </remarks>
+        bool IsInvulnerable { get; }
+
+        /// <summary>
+        /// Add an impulse to this target's movement — AS3's <c>dx += …; dy += …</c> in
+        /// <c>Unit.otbros()</c>.
+        /// </summary>
+        /// <remarks>
+        /// A plain addition to velocity, not a physics force: AS3 adds to the unit's own <c>dx</c>/<c>dy</c>
+        /// accumulators and lets the unit integrate them. The resolver computes the vector — including
+        /// the <c>knocked / massa</c> scale and the <c>3</c> clamp — and the target only writes it down,
+        /// keeping this interface free of the formula exactly as the damage path is.
+        /// </remarks>
+        void ApplyKnockback(Vector2 impulse);
 
         /// <summary>
         /// Current health of this entity.

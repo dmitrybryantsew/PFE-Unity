@@ -245,8 +245,14 @@ namespace PFE.Data.Definitions
         public DecalType decalType;
         [Tooltip("Tile/structure destruction amount per hit (char.@destroy).")]
         public float destroyTiles;
-        [Tooltip("Armor penetration probability 0–1 (char.@pier / dop.@probiv).")]
+        [Tooltip("Flat armour-piercing POINTS (char.@pier), subtracted from the target's armour " +
+                 "reduction. Not a probability — see penetration.")]
         public float piercing;
+
+        [Tooltip("Penetration budget (dop.@probiv, plus the ammo's probiv when ammo is wired). " +
+                 "A round with this > 0 does NOT stop on the unit it hits: it spends damage and " +
+                 "carries on. 0 = an ordinary round, which stops.")]
+        public float penetration;
 
         [Header("Magic Weapon")]
         [Tooltip("Mana cost per shot (ammo.@mana). Only used by WMagic (tip==5) weapons.")]
