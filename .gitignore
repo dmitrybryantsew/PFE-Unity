@@ -144,6 +144,13 @@ InitTestScene*.unity*
 # Profiling output: Unity Profiler captures (.bc7/.data/.png) and PfeProfiler dumps
 /ProfilerCaptures/
 
+# Mutation-testing scratch backups (written by .workbuddy-ai/tools/agentverify/wall/mutate_*.py)
+*.mutbak
+*.mutbak.meta
+
+# Rotated agent logs (plain *.log is already ignored above)
+*.log.prev
+
 # Unity recovery/temp content
 /Assets/_Recovery/
 .claude/settings.local.json
