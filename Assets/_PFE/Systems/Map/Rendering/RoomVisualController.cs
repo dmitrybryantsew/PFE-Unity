@@ -88,6 +88,36 @@ namespace PFE.Systems.Map.Rendering
         private Transform visibilityRevealTargetTransform;
 
         /// <summary>
+        /// The port's damage authority, forwarded to every <see cref="RoomUnitSpawner"/> this
+        /// controller builds.
+        /// </summary>
+        /// <remarks>
+        /// <para>Held here rather than read from a container because this controller is a scene object
+        /// with no <c>[Inject]</c> of its own — <c>MapBridge</c> is the injected one, and it owns this
+        /// component as a serialized field. <c>MapBridge</c> hands it over; see
+        /// <see cref="SetDamageSystem"/>.</para>
+        ///
+        /// <para>Stored before the first room is built in the normal order (MapBridge's
+        /// <c>Construct</c> runs, then <c>Start</c> kicks off world generation), but a later handover
+        /// still reaches a spawner that already exists, so the two are not order-dependent.</para>
+        /// </remarks>
+        private PFE.Systems.Combat.DamageSystem damageSystem;
+
+        /// <summary>
+        /// The fixed-step simulation, forwarded to every <see cref="RoomUnitSpawner"/> this controller
+        /// builds so a motor-less unit steps on <c>SimLoop</c> rather than Unity's <c>FixedUpdate</c>.
+        /// </summary>
+        /// <remarks>
+        /// Held here for the same reason <see cref="damageSystem"/> is: this controller is a scene
+        /// object with no <c>[Inject]</c> of its own, and <c>MapBridge</c> — the injected one — owns it
+        /// as a serialized field, so the handover has to be walked down by hand. Stored before the
+        /// first room is built in the normal order, but <see cref="AttachSimulation"/> also reaches a
+        /// spawner that already exists, so the two are not order-dependent.
+        /// </remarks>
+        private PFE.Core.SimClock simClock;
+        private PFE.Core.SimLoop simLoop;
+
+        /// <summary>
         /// Whether fog of war / darkness overlay is disabled (revealed).
         /// </summary>
         public bool FogOfWarDisabled
@@ -132,6 +162,42 @@ namespace PFE.Systems.Map.Rendering
         /// Get the area trigger system for this room.
         /// </summary>
         public PFE.Systems.Map.Scripting.AreaTriggerSystem AreaTriggerSystem => areaTriggerSystem;
+
+        /// <summary>
+        /// Give this controller the port's damage authority, which it forwards to the room's unit
+        /// spawner so a prop impact on an enemy resolves through armour and vulnerabilities instead of
+        /// as raw HP. See <c>RoomUnitSpawner</c>'s field remarks for why the spawner cannot get it from
+        /// VContainer.
+        /// </summary>
+        /// <remarks>
+        /// <b>Safe in either order, and it never rebuilds the spawner.</b> A spawner is stateful — it
+        /// owns one GameObject per unit record — so replacing it would orphan every existing unit's
+        /// GameObject and spawn a second copy of it. The handover is therefore a setter on the spawner
+        /// that reaches the units already built as well as the ones still to come.
+        /// </remarks>
+        public void SetDamageSystem(PFE.Systems.Combat.DamageSystem system)
+        {
+            damageSystem = system;
+            roomUnitSpawner?.SetDamageSystem(system);
+        }
+
+        /// <summary>
+        /// Hand this controller the fixed-step simulation, so the units it spawns step on the sim clock
+        /// instead of Unity's <c>FixedUpdate</c>.
+        /// </summary>
+        /// <remarks>
+        /// <b>Safe in either order, and it never rebuilds the spawner.</b> Same shape as
+        /// <see cref="SetDamageSystem"/> and for the same reason: the spawner is stateful — it owns one
+        /// GameObject per unit record — so replacing it would orphan every existing unit and spawn a
+        /// duplicate. The stored clock is used by the next <c>Initialize</c>; the setter on the spawner
+        /// covers a room that was already built.
+        /// </remarks>
+        public void AttachSimulation(PFE.Core.SimClock clock, PFE.Core.SimLoop loop)
+        {
+            simClock = clock;
+            simLoop = loop;
+            roomUnitSpawner?.AttachSimulation(clock, loop);
+        }
 
         /// <summary>
         /// Fired when an area trigger executes a gotoland command to transition to another land.
@@ -410,7 +476,9 @@ namespace PFE.Systems.Map.Rendering
             // This is the producer the unit layer was missing — until now room.units had readers
             // (RoomStateSnapshot, this controller's own bounds checks) and no instantiation site, so
             // every authored enemy existed as data and was never drawn.
-            roomUnitSpawner = new RoomUnitSpawner(room, backgroundPhysicalObjectParent);
+            roomUnitSpawner = new RoomUnitSpawner(
+                room, backgroundPhysicalObjectParent, damageSystem: damageSystem,
+                simClock: simClock, simLoop: simLoop);
             roomUnitSpawner.RefreshAll();
             Profiler.Mark("room.units.refreshAll");
 

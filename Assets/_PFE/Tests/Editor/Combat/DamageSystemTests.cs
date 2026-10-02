@@ -1133,6 +1133,188 @@ namespace PFE.Tests.Editor.Combat
                 "the spread and the knockback jitter — the toggle discards the spread's value, not its draw");
         }
 
+        // ── The call path (PendingDamage.SkipsAvoidanceAndVariance) ──────────
+        //
+        // AS3 has two damage entry shapes and the difference is not cosmetic. `udarBullet`
+        // (Unit.as:4067) owns exactly three rolls — the avoidance conjunction (:4072), the damage
+        // spread (:4085), and the `otbros` throw (:4091) — and anything that reaches `damage()`
+        // without passing through it owns none of them. `PendingDamage.Contact` (AS3 `Unit.udarBox`,
+        // :4237) is that second shape, and the flag is the predicate that names it.
+        //
+        // Each of the three gates has a test below, and each is paired with the `Direct` control for
+        // the same hit, because "took no draw" only means something next to "and this is what the draw
+        // would have cost". The knockback gate is deliberately tested here rather than in the knockback
+        // section: it is the same fact as the other two, not a fourth rule.
+
+        [Test]
+        public void Contact_IsNotABlast_AndReadsBaseDamage()
+        {
+            // The shape of the factory, and the reason the flag had to be a flag rather than a reuse of
+            // IsExplosion. A contact hit that claimed to be a blast would also switch its damage source
+            // to ExplosionDamage and take distance falloff — so a crate impact would resolve as
+            // falloff-scaled zero instead of its vel2 number, which is a much quieter bug than it looks.
+            var system = MakeImmediate(testDamage: false);
+            var target = new FakeTarget { Health = 100f };
+
+            var hit = PendingDamage.Contact(
+                DamageContext.Contact(25f, DamageType.PhysicalMelee), target, Vector3.zero);
+
+            Assert.IsFalse(hit.IsExplosion,
+                "a prop impact is not a blast: it reads BaseDamage and takes no falloff");
+            Assert.IsTrue(hit.SkipsAvoidanceAndVariance,
+                "and it is the second entry shape, so it takes none of udarBullet's three rolls");
+            Assert.AreEqual(25f, hit.Context.BaseDamage, 1e-4f);
+            Assert.AreEqual(0f, hit.Context.ExplosionDamage, 1e-4f);
+            Assert.AreEqual(0f, hit.Context.Knockback, 1e-4f,
+                "udarBox never calls otbros, so a contact context carries no knock");
+
+            system.Report(hit);
+
+            Assert.AreEqual(75f, target.Health, 1e-4f, "25 lands whole — no spread, no falloff");
+            Assert.AreEqual(1, system.ResolvedCount);
+        }
+
+        [Test]
+        public void Contact_TakesNoDrawAtAll_NeitherSpreadNorKnockback()
+        {
+            // Two of the three gates in one assertion. `otbros` has exactly ONE call site in the whole
+            // oracle — Unit.as:4091, inside udarBullet, one line after `this.damage()` — so "no
+            // udarBullet" and "no throw" are the same fact rather than two rules that happen to agree.
+            // Gating the throw on IsExplosion, which is what the code did before a second
+            // non-udarBullet caller existed, gave the right answer for blasts and silently drew an extra
+            // roll for every crate impact. Nothing visible would have exposed it: the impulse it then
+            // produced was zero, so the damage was identical and only the shared stream had moved.
+            var contactRng = new ScriptedRng();
+            var contact    = MakeImmediate(contactRng, testDamage: false);
+            contact.Report(PendingDamage.Contact(
+                Context(baseDamage: 40f), new FakeTarget { Health = 100f }, Vector3.zero));
+
+            var directRng = new ScriptedRng();
+            var direct    = MakeImmediate(directRng, testDamage: false);
+            direct.Report(PendingDamage.Direct(
+                Context(baseDamage: 40f), new FakeTarget { Health = 100f }, Vector3.zero));
+
+            Assert.AreEqual(0, contactRng.RollsConsumed,
+                "a contact hit draws nothing at all: no spread and no knockback jitter");
+            Assert.AreEqual(2, directRng.RollsConsumed,
+                "a direct hit draws both — the control that makes the zero above mean something");
+        }
+
+        [Test]
+        public void Contact_DoesNotApplyTheSpread_ButDirectDoes()
+        {
+            // The spread's EFFECT, not merely its draw. A scripted 0.0 gives the oracle's range floor,
+            // 0.0 * 0.6 + 0.7 = 0.7, so a 40-damage crate impact that leaked into the spread would land
+            // 28 — a permanent ±30% swing on every crate, where the oracle is deterministic.
+            var contact       = MakeImmediate(new ScriptedRng(0f), testDamage: false);
+            var contactTarget = new FakeTarget { Health = 100f };
+            contact.Report(PendingDamage.Contact(Context(baseDamage: 40f), contactTarget, Vector3.zero));
+
+            var direct       = MakeImmediate(new ScriptedRng(0f), testDamage: false);
+            var directTarget = new FakeTarget { Health = 100f };
+            direct.Report(PendingDamage.Direct(Context(baseDamage: 40f), directTarget, Vector3.zero));
+
+            Assert.AreEqual(60f, contactTarget.Health, 1e-4f,
+                "40 exactly — udarBox hands its number straight to damage()");
+            Assert.AreEqual(72f, directTarget.Health, 1e-4f,
+                "40 * 0.7 — the shot path spreads, and this is the difference being asserted");
+        }
+
+        [Test]
+        public void Contact_TakesNoAvoidanceRoll_SoAnUnderSkilledSwingStillLands()
+        {
+            // The third gate, and the one the flag is named for. `miss` is the attacker's under-skill
+            // penalty, and 0.4 is the largest a real weapon can produce (HitAvoidance.SkillConfidence
+            // answers 0.6 for a gap of 2), so this is a reachable context rather than a synthetic one.
+            // A 0.3 roll fails `roll > 0.4`, so the identical context through Direct is evaded.
+            var contactRng    = new ScriptedRng(0.3f);
+            var contact       = MakeImmediate(contactRng, testDamage: false);
+            var contactTarget = new FakeTarget { Health = 100f };
+
+            contact.Report(PendingDamage.Contact(
+                Context(baseDamage: 40f, missChance: 0.4f), contactTarget, Vector3.zero));
+
+            Assert.AreEqual(0, contact.MissedCount, "the contact path never reaches the conjunction");
+            Assert.AreEqual(60f, contactTarget.Health, 1e-4f, "so the hit lands whole");
+            Assert.AreEqual(0, contactRng.RollsConsumed, "and takes no roll on the way");
+
+            var directRng    = new ScriptedRng(0.3f);
+            var direct       = MakeImmediate(directRng);
+            var directTarget = new FakeTarget { Health = 100f };
+
+            direct.Report(PendingDamage.Direct(
+                Context(baseDamage: 40f, missChance: 0.4f), directTarget, Vector3.zero));
+
+            Assert.AreEqual(1, direct.MissedCount, "the same context through Direct is evaded");
+            Assert.AreEqual(100f, directTarget.Health, 1e-4f, "and deals nothing");
+        }
+
+        [Test]
+        public void Contact_StillPaysTheArmourTerm_ItIsNotABypassOfTheWholePipeline()
+        {
+            // The counterweight to the three tests above, and the reason the flag is not called
+            // "SkipDamage". The flag removes the three things udarBullet owns; it does NOT skip
+            // `damage()`, whose body applies vulnerability, skin, armour and crit. `udarBox` calls
+            // `damage(...)` at :4237 exactly as a bullet does, so a crate impact is reduced by a plate —
+            // and a "contact hits ignore armour" reading would make crates the best weapon in the game.
+            var system = MakeImmediate(testDamage: false);
+            var target = new FakeTarget
+            {
+                Health = 100f,
+                Armour = ArmourState.FromItem(100f, 100f, physicalRating: 20f, energyRating: 0f, reliability: 1f),
+            };
+
+            system.Report(PendingDamage.Contact(
+                DamageContext.Contact(40f, DamageType.PhysicalMelee), target, Vector3.zero));
+
+            Assert.AreEqual(80f, target.Health, 1e-4f, "40 - 20: the plate still bites");
+            Assert.IsTrue(target.LastOutcome.ArmourReduced);
+        }
+
+        [Test]
+        public void Explosion_StillTakesNoDrawAtAll()
+        {
+            // The regression guard for retargeting the throw's gate from IsExplosion to the flag: a blast
+            // reaches `damage()` through Bullet.explRun, so it must keep skipping all three. A blast that
+            // suddenly took a knockback draw would shift every later roll in the same tick.
+            var rng    = new ScriptedRng(0f);
+            var system = MakeImmediate(rng, testDamage: false);
+            var target = new FakeTarget { Health = 100f };
+
+            system.Report(PendingDamage.Explosion(
+                Context(explosionDamage: 40f),
+                target,
+                targetPosition: Vector3.zero,
+                explosionCentre: Vector3.zero,
+                explosionRadius: 100f));
+
+            Assert.AreEqual(60f, target.Health, 1e-4f, "40 at the centre — no spread");
+            Assert.AreEqual(0, rng.RollsConsumed, "and no draw at all, the throw included");
+            Assert.AreEqual(0, target.ApplyKnockbackCalls);
+        }
+
+        [Test]
+        public void MeleeSwing_IsADirectHit_SoItStillThrows()
+        {
+            // The other half of that regression guard, and the one a careless fix for the contact case
+            // would break. AS3's melee weapons are bullet-based — WClub.as:353, WPunch.as:49 and
+            // WKick.as:48 all stamp `b.otbros` on a spawned bullet — so a melee swing does pass through
+            // udarBullet and does throw. "Contact hits do not throw" must not be implemented as "nothing
+            // without a projectile throws", which would silently disarm the entire melee branch.
+            var rng    = new ScriptedRng(0f);
+            var system = MakeImmediate(rng, testDamage: true);
+            var target = new FakeTarget { Health = 100f, Knocked = 1f, Mass = 1f };
+
+            system.Report(PendingDamage.Direct(
+                Context(baseDamage: 10f, knockback: 3f, knockbackDir: Vector2.right, isMelee: true),
+                target, Vector3.zero));
+
+            Assert.AreEqual(1, target.ApplyKnockbackCalls,
+                "a melee swing reaches otbros through udarBullet, so it still throws");
+            Assert.AreEqual(3f * 0.8f * TileQueryConstants.PerFrameVelocityToUnitsPerSecond,
+                target.LastKnockbackImpulse.x, 1e-4f);
+        }
+
         // ── Knockback units (Unit.otbros, Unit.as:4242-4258) ─────────────────
 
         [Test]

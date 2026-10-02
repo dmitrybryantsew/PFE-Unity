@@ -143,28 +143,63 @@ namespace PFE.Core.Profiling
             {
                 if (_enabled.HasValue) return _enabled.Value;
 
-                // Release builds never pay for this.
-                if (!Debug.isDebugBuild)
+                // NOTHING in this getter may reference an engine call. `get_Enabled` is reached from
+                // every instrumented call site, and a method whose body references an ECall fails to
+                // JIT outside a Unity host — the throw is attributed to this getter with no inner
+                // frame, and a try/catch HERE cannot help, because the catch never runs: the method
+                // never compiled. (Measured, not theorised: `MapObjectShelfRuleTests` went from 35/35
+                // to 8/27 offline the moment the prop queries were instrumented, and wrapping the
+                // original body in try/catch changed nothing.)
+                //
+                // So the engine half lives in its own method. This getter JITs fine anywhere; when the
+                // engine is absent the CALLEE fails to JIT, and that surfaces as an ordinary catchable
+                // exception at the call below.
+                try
                 {
+                    return ResolveEnabledFromEngine();
+                }
+                catch (System.Security.SecurityException)
+                {
+                    // No engine, so no profiling. Cached: an absent engine is a property of the
+                    // process, not a transient state.
                     _enabled = false;
                     return false;
                 }
-
-                // Before the first scene exists, Resources may not be queryable yet. Report ON so
-                // the early engine hooks still land on the timeline, but do NOT cache: caching an
-                // unresolved default would pin profiling on for the whole session and silently
-                // ignore the PfeDebugSettings switch. HookAfterSceneLoad makes it reliable.
-                if (!_settingsReliable) return true;
-
-                var settings = Resources.Load<PfeDebugSettings>("PfeDebugSettings");
-                // A missing asset leaves profiling ON so the tool works out of the box in a
-                // development build. The asset is the intended switch.
-                bool value = settings == null || settings.ProfilingEnabled;
-
-                _enabled = value;
-                return value;
             }
             set => _enabled = value;
+        }
+
+        /// <summary>
+        /// The engine half of <see cref="Enabled"/>: release-build check, then the settings asset.
+        ///
+        /// <para><b>Why it is a separate method.</b> Both calls here are ECalls. Outside a Unity host
+        /// they cannot be resolved, and the failure is a JIT failure of <i>this</i> method rather than
+        /// of its caller — which is exactly what makes it catchable one frame up. Folding this body
+        /// back into <see cref="Enabled"/> would put an ECall in the profiler's hottest getter and make
+        /// the instrumentation itself the thing that breaks an offline test run.</para>
+        /// </summary>
+        private static bool ResolveEnabledFromEngine()
+        {
+            // Release builds never pay for this.
+            if (!Debug.isDebugBuild)
+            {
+                _enabled = false;
+                return false;
+            }
+
+            // Before the first scene exists, Resources may not be queryable yet. Report ON so the
+            // early engine hooks still land on the timeline, but do NOT cache: caching an unresolved
+            // default would pin profiling on for the whole session and silently ignore the
+            // PfeDebugSettings switch. HookAfterSceneLoad makes it reliable.
+            if (!_settingsReliable) return true;
+
+            var settings = Resources.Load<PfeDebugSettings>("PfeDebugSettings");
+            // A missing asset leaves profiling ON so the tool works out of the box in a development
+            // build. The asset is the intended switch.
+            bool value = settings == null || settings.ProfilingEnabled;
+
+            _enabled = value;
+            return value;
         }
 
         /// <summary>Drops all recorded data. Does not change <see cref="Enabled"/>.</summary>
@@ -178,6 +213,80 @@ namespace PFE.Core.Profiling
                 Timeline.Clear();
             }
         }
+
+        /// <summary>
+        /// How many distinct region ids have been seen. The cheap "is anything actually
+        /// instrumented" readout — 0 after a <see cref="Reset"/> means no instrumented code has run
+        /// since, which is a different finding from "it ran and was fast".
+        /// </summary>
+        public static int RegionCount
+        {
+            get { lock (Sync) { return Order.Count; } }
+        }
+
+        /// <summary>
+        /// Optional supplier for the one-line "what was running when this was taken" header that
+        /// <see cref="BuildReport"/> writes under the title.
+        ///
+        /// <para><b>Why the report needs one.</b> A report of a slow room is uninterpretable without
+        /// the sizes its regions loop over. Every region in the prop layer is a loop over
+        /// <c>RoomObjectPhysicsLayer</c>'s tracked / shelf / impact lists, so "6 ms per tick" and
+        /// "0.04 ms per prop" are the same measurement implying opposite fixes — only the counts tell
+        /// them apart. The tickable count and the tick rate are the same kind of number for the sim.
+        /// Until this existed those figures were readable only through the <c>prof status</c> console
+        /// verb, which is why the first capture taken after the prop candidate cache landed could not
+        /// say how many props the camp holds: the numbers never reached the file.</para>
+        ///
+        /// <para><b>Registered once at wiring time, not per dump.</b> <paramref name="source"/> is
+        /// invoked from <see cref="BuildReport"/>, so it must be cheap and must not itself log, dump,
+        /// or block. It is called <i>outside</i> the report lock (a supplier that touches a region
+        /// would otherwise re-enter the same lock), and an exception it throws is folded into the
+        /// line rather than propagated: a broken readout must never cost you the profile it was
+        /// annotating. Pass null to unregister.</para>
+        /// </summary>
+        public static void SetContextSource(System.Func<string> source)
+        {
+            _contextSource = source;
+        }
+
+        static System.Func<string> _contextSource;
+
+        /// <summary>
+        /// Writes the context line when a source is registered. Called before the report lock is
+        /// taken, for the reason in <see cref="SetContextSource"/>.
+        /// </summary>
+        static void AppendContext(StringBuilder sb)
+        {
+            System.Func<string> source = _contextSource;
+            if (source == null) return;
+
+            string line;
+            try
+            {
+                line = source();
+            }
+            catch (System.Exception e)
+            {
+                // Named, not swallowed silently: a context line that says why it is missing is a
+                // finding; an absent line is indistinguishable from "nobody registered a source".
+                line = "(context source threw " + e.GetType().Name + ")";
+            }
+
+            if (!string.IsNullOrEmpty(line))
+            {
+                sb.Append("-- context: ").AppendLine(line);
+            }
+        }
+
+        /// <summary>
+        /// The .txt file the most recent <see cref="Dump"/> wrote, or null if none has run.
+        ///
+        /// <para>Exists so the console can name the file it just produced. "It dumped" with no path
+        /// leaves the reader hunting a directory whose contents are mostly older runs — and the
+        /// newest file being a previous attempt is exactly how a stale dump gets read as the current
+        /// one.</para>
+        /// </summary>
+        public static string LastDumpPath { get; private set; }
 
         /// <summary>Logs the report and writes text + JSON to ProfilingDumps/.</summary>
         public static void Dump(string tag = "dump")
@@ -194,6 +303,11 @@ namespace PFE.Core.Profiling
         {
             var sb = new StringBuilder();
             sb.AppendLine("===== PFE PROFILE =====");
+
+            // Before the lock, and before the timeline: the reader needs "what was running" to
+            // interpret any number below it, and it is the one line that cannot be reconstructed
+            // from the report itself.
+            AppendContext(sb);
 
             lock (Sync)
             {
@@ -514,8 +628,10 @@ namespace PFE.Core.Profiling
                 string stamp = System.DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss", Inv);
                 string baseName = "profiling_" + Sanitize(tag) + "_" + stamp;
 
-                File.WriteAllText(Path.Combine(dir, baseName + ".txt"), BuildReport());
+                string textPath = Path.Combine(dir, baseName + ".txt");
+                File.WriteAllText(textPath, BuildReport());
                 File.WriteAllText(Path.Combine(dir, baseName + ".json"), BuildJson());
+                LastDumpPath = textPath;
             }
             catch (System.Exception e)
             {

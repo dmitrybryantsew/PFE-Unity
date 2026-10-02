@@ -168,16 +168,27 @@ namespace PFE.Core
         /// </summary>
         public int StepOnce()
         {
-            EnsureOrder();
-
-            _tickIndex++;
-
-            for (int i = 0; i < _tickables.Count; i++)
+            // The single most important number for "the room is at 2 FPS": how many ticks a FRAME
+            // runs. `Advance` caps that at SimClock.MaxCatchupTicks (5), so a frame whose cost
+            // exceeds 5 * SimDt saturates the cap and then the frame time IS 5 x (cost of one tick).
+            // Read `calls(sim.tick) / calls(sim.frame)` to get ticks-per-frame, and
+            // `total(sim.tick) / calls(sim.frame)` to get the milliseconds each frame spends in the
+            // sim. If that second number is most of the frame, the fix is inside a tick, not in
+            // rendering — and `sim.tick.*` below says which part.
+            using (PFE.Core.Profiling.PfeProfiler.Region("sim.tick",
+                "sim: one fixed tick across every ISimTickable. calls / calls(sim.frame) == ticks per frame."))
             {
-                _tickables[i].SimTick(_tickIndex);
-            }
+                EnsureOrder();
 
-            return _tickIndex;
+                _tickIndex++;
+
+                for (int i = 0; i < _tickables.Count; i++)
+                {
+                    _tickables[i].SimTick(_tickIndex);
+                }
+
+                return _tickIndex;
+            }
         }
 
         public void Tick()
@@ -219,6 +230,12 @@ namespace PFE.Core
         /// <param name="deltaSeconds">Wall time elapsed since the previous call, in seconds.</param>
         public void Advance(float deltaSeconds)
         {
+            // Frame-level anchor for the whole sim. Every other `sim.*` region is a child of this
+            // one, so its SELF time is "the frame cost that is NOT in a tick" — which is the number
+            // that separates "the sim is eating the frame" from "something else is".
+            using (PFE.Core.Profiling.PfeProfiler.Region("sim.frame",
+                "sim: one frame's advance — parent of sim.tick. Its self time is frame cost outside the sim."))
+            {
             _ticksThisFrame = 0;
 
             // Dispatch is gated; accumulation is not, so the clock stays measurable before any
@@ -270,6 +287,7 @@ namespace PFE.Core
             }
 
             UpdateRateMeasurement(deltaSeconds);
+            }
         }
 
         private void UpdateRateMeasurement(float deltaSeconds)

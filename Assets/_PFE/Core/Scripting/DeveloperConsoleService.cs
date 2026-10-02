@@ -26,6 +26,7 @@ namespace PFE.Core.Scripting
         private DevConsoleSimCommands _simCommands;
         private DevConsoleSaveCommands _saveCommands;
         private DevConsoleColliderCommands _colliderCommands;
+        private DevConsoleProfilerCommands _profilerCommands;
         private bool _commandObjectsRegistered;
 
         private bool _isOpen;
@@ -81,12 +82,14 @@ namespace PFE.Core.Scripting
             DevConsolePlayerCommands playerCommands,
             DevConsoleSimCommands simCommands,
             DevConsoleSaveCommands saveCommands = null,
-            DevConsoleColliderCommands colliderCommands = null)
+            DevConsoleColliderCommands colliderCommands = null,
+            DevConsoleProfilerCommands profilerCommands = null)
         {
             if (playerCommands != null) _playerCommands = playerCommands;
             if (simCommands != null) _simCommands = simCommands;
             if (saveCommands != null) _saveCommands = saveCommands;
             if (colliderCommands != null) _colliderCommands = colliderCommands;
+            if (profilerCommands != null) _profilerCommands = profilerCommands;
 
             if (_luaEngine == null) return;
 
@@ -98,6 +101,7 @@ namespace PFE.Core.Scripting
                 _luaEngine.RegisterType<DevConsoleSimCommands>();
                 _luaEngine.RegisterType<DevConsoleSaveCommands>();
                 _luaEngine.RegisterType<DevConsoleColliderCommands>();
+                _luaEngine.RegisterType<DevConsoleProfilerCommands>();
                 _commandObjectsRegistered = true;
             }
 
@@ -105,6 +109,7 @@ namespace PFE.Core.Scripting
             if (_simCommands != null) _luaEngine.SetGlobal("sim", _simCommands);
             if (_saveCommands != null) _luaEngine.SetGlobal("save", _saveCommands);
             if (_colliderCommands != null) _luaEngine.SetGlobal("collider", _colliderCommands);
+            if (_profilerCommands != null) _luaEngine.SetGlobal("prof", _profilerCommands);
         }
 
         /// <summary>
@@ -154,13 +159,23 @@ namespace PFE.Core.Scripting
                               "  col gaps        - Every tile: collider top vs VISIBLE sprite top, by type\n" +
                               "  overlays: tiles units doors triggers transitions objects\n" +
                               "            tilequery room pool clock legend\n" +
+                              "  -- telekinesis / teleport (Q) --\n" +
+                              "  tele            - Report whether the [tele] trace is on\n" +
+                              "  tele on         - Trace the whole Q path to the Console (grab gate + teleport charge)\n" +
+                              "  tele off        - Stop tracing\n" +
+                              "  tele probe      - Dump what the grab path sees RIGHT NOW, in the order it tests it\n" +
                               "  -- save (console-only: the F-row is taken by plugins/overlays) --\n" +
                               "  save            - Quick-save the world to the 'quicksave' slot\n" +
                               "  load            - Quick-load the world from the 'quicksave' slot\n" +
                               "  saves           - Report the save file, size, write time and position\n" +
+                              "  -- profiling (region profiler; dumps land in ProfilerCaptures/) --\n" +
+                              "  prof            - Status: enabled, region count, ticksThisFrame/max\n" +
+                              "  prof reset      - Drop all regions. Run at the door of the room you are measuring\n" +
+                              "  prof dump [tag] - Write the region report to the console and to a file\n" +
+                              "  prof on / off   - Turn region collection on/off\n" +
                               "  -- lua --\n" +
                               "  <lua code>      - Run any Lua expression (e.g. 'return 2+2', 'player:Heal(50)')\n" +
-                              "                    Globals: pfe.* (map/fog/rng), player, sim, save";
+                              "                    Globals: pfe.* (map/fog/rng), player, sim, save, collider, prof";
                 AppendLog(help);
                 return help;
             }
@@ -432,8 +447,68 @@ namespace PFE.Core.Scripting
                     result = RunColliderShortcut(parts);
                     return true;
 
+                case "tele":
+                case "telekinesis":
+                    if (_playerCommands == null) return false;
+                    result = RunTelekinesisShortcut(parts);
+                    return true;
+
+                case "prof":
+                case "profile":
+                    if (_profilerCommands == null) return false;
+                    result = RunProfilerShortcut(parts);
+                    return true;
+
                 default:
                     return false;
+            }
+        }
+
+        /// <summary>
+        /// Dispatch the profiler shortcuts: <c>prof</c> (status), <c>prof dump [tag]</c>,
+        /// <c>prof reset</c>, <c>prof on</c>, <c>prof off</c>.
+        ///
+        /// <para>A bare <c>prof</c> is <b>status</b>, matching <c>col</c>: a verb that flips state on
+        /// a typo is one mistyped character from a measurement run that silently collected nothing.
+        /// The tag is the whole remainder of the line, so a tag with a space works without quoting
+        /// games.</para>
+        /// </summary>
+        private string RunProfilerShortcut(string[] parts)
+        {
+            if (parts.Length < 2) return _profilerCommands.Status();
+
+            string sub = parts[1].ToLowerInvariant();
+
+            switch (sub)
+            {
+                case "dump":
+                case "report":
+                case "save":
+                    return parts.Length > 2
+                        ? _profilerCommands.Dump(string.Join("_", parts, 2, parts.Length - 2))
+                        : _profilerCommands.Dump();
+
+                case "reset":
+                case "clear":
+                    return _profilerCommands.Reset();
+
+                case "on":
+                case "enable":
+                    return _profilerCommands.On();
+
+                case "off":
+                case "disable":
+                    return _profilerCommands.Off();
+
+                case "status":
+                case "info":
+                    return _profilerCommands.Status();
+
+                default:
+                    // A parse failure is an error, not a fallback: silently treating `prof dmp` as
+                    // status would report "enabled, 0 regions" and read as a healthy measurement run.
+                    return $"Unknown profiler subject '{parts[1]}'. Use: prof | prof dump [tag] | " +
+                           "prof reset | prof on | prof off";
             }
         }
 
@@ -512,6 +587,53 @@ namespace PFE.Core.Scripting
                     }
 
                     return $"Unknown overlay subject '{parts[1]}'.\n" + _colliderCommands.Help();
+            }
+        }
+
+        /// <summary>
+        /// Dispatch the <c>tele</c> shortcuts: the telekinesis / teleport Q path.
+        ///
+        /// <para><b>Why this verb exists.</b> "I press Q and nothing happens" has four unrelated causes
+        /// — the key never arrives, the controller has no room, the cursor is nowhere near a prop, or one
+        /// gate term refuses — and they are indistinguishable from the outside. <c>tele on</c> traces
+        /// each step; <c>tele probe</c> reports the current state without pressing anything. Together
+        /// they replace guessing with a named reason.</para>
+        ///
+        /// <para>Like <c>col</c>, a bare verb is <b>status</b>, never a toggle: a verb that flips on a
+        /// typo is one keystroke away from silently changing what you are looking at.</para>
+        /// </summary>
+        private string RunTelekinesisShortcut(string[] parts)
+        {
+            if (parts.Length < 2)
+            {
+                return _playerCommands.TeleStatus();
+            }
+
+            switch (parts[1].ToLowerInvariant())
+            {
+                case "on":
+                case "trace":
+                    return _playerCommands.TeleTrace(true);
+
+                case "off":
+                    return _playerCommands.TeleTrace(false);
+
+                case "probe":
+                case "where":
+                    return _playerCommands.TeleProbe();
+
+                case "status":
+                    return _playerCommands.TeleStatus();
+
+                case "help":
+                    return "tele              - report whether the [tele] trace is on\n" +
+                           "tele on           - trace the Q path to the Console (grab gate + teleport charge)\n" +
+                           "tele off          - stop tracing\n" +
+                           "tele probe        - dump what the grab path sees right now, in test order\n" +
+                           "Lua: player:TeleTrace(true) | player:TeleProbe()";
+
+                default:
+                    return $"Unknown tele sub-command '{parts[1]}'. Use: tele on | tele off | tele probe";
             }
         }
 

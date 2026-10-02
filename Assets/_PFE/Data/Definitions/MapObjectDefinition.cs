@@ -166,6 +166,21 @@ namespace PFE.Data.Definitions
             return MapObjectDataUtility.GetAttribute(legacyAttributes, key, defaultValue);
         }
 
+        /// <summary>
+        /// An integer attribute, with the same "absent or unparseable means the default" behaviour the
+        /// capability classifier uses — so a prop's <c>wall</c> value is read one way in both places.
+        /// </summary>
+        int ParseIntAttribute(string key, int defaultValue)
+        {
+            return int.TryParse(
+                GetAttribute(key),
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out int parsed)
+                ? parsed
+                : defaultValue;
+        }
+
         public MapObjectPhysicalCapability GetResolvedPhysicalCapability()
         {
             if (physicalCapability != MapObjectPhysicalCapability.Unknown)
@@ -198,6 +213,37 @@ namespace PFE.Data.Definitions
             return IsDynamicPhysicalProp();
         }
 
+        /// <summary>
+        /// AS3 <c>Obj.shelf</c> — can a unit stand on this prop, and can another prop stack on it.
+        ///
+        /// <para><b>Why this exists and why it is a method.</b> The port had no prop-level
+        /// <c>shelf</c> at all — only the <i>tile</i> flag of the same name (<c>TileData.shelf</c>, the
+        /// one-way catwalk), which is a completely different thing that happens to share a word. So
+        /// "can I stand on a crate" had no value to read. The rule itself lives in
+        /// <see cref="MapObjectShelfRule"/>, which is pure and therefore assertable without a room.</para>
+        ///
+        /// <para><b>Default <c>true</c>, not false.</b> See <see cref="MapObjectShelfRule"/> — the
+        /// oracle's field default is <c>true</c> and only a narrow or wall prop is cleared, so almost
+        /// every crate is standable. Reading this as an opt-in list inverts the answer for nearly every
+        /// prop in the game.</para>
+        /// </summary>
+        public bool IsShelf()
+        {
+            // Box.as:226 — `this.wall = node.@wall`. Parsed here the same way the capability
+            // classifier parses it (:514), including the `stena` alias, so the two cannot disagree
+            // about whether a prop is wall geometry.
+            int wall = ParseIntAttribute("wall", ParseIntAttribute("stena", 0));
+
+            float widthPixels = MapObjectShelfRule.ResolveWidthPixels(
+                GetAttribute("scx", string.Empty),
+                size);
+
+            return MapObjectShelfRule.IsShelf(
+                MapObjectDataUtility.HasAttribute(legacyAttributes, "shelf"),
+                wall > 0,
+                widthPixels);
+        }
+
         public float GetResolvedMass()
         {
             float resolvedMultiplier = Mathf.Max(0.01f, massMultiplier);
@@ -214,6 +260,57 @@ namespace PFE.Data.Definitions
 
             float derivedMass = Mathf.Max(1f, size * width * 50f);
             return derivedMass * resolvedMultiplier;
+        }
+
+        /// <summary>
+        /// AS3's <c>Obj.massa</c> — the weight AS3 actually compares against, and the number the
+        /// telekinesis gate reads (<c>UnitPlayer.as:1790</c>, <c>celObj.massa &lt;= pers.maxTeleMassa</c>).
+        ///
+        /// <para><b>This is NOT <see cref="GetResolvedMass"/>, and the two differ by 50x.</b>
+        /// <c>fe/loc/Box.as:280-283</c> reads:</para>
+        /// <code>
+        /// massa = scX * scY * scY / 250000 * this.massaMult;
+        /// if(node.@massa.length()) { massa = node.@massa / 50; }
+        /// </code>
+        /// <para>— so an authored <c>@massa</c> is <b>divided by 50</b> and <b>overwrites</b> the derived
+        /// value, which means <c>massaMult</c> is <i>discarded</i> rather than applied.
+        /// <see cref="GetResolvedMass"/> does neither. The oracle's own thresholds settle which scale is
+        /// the real one: <c>Box.as:1171-1179</c> branches on <c>massa &gt; 2</c>, <c>&gt; 0.4</c> and
+        /// <c>&gt; 0.2</c>, and <c>:1082</c> on <c>massa &gt; 1</c> — none of which can ever be reached
+        /// by a raw <c>@massa</c> in the 15..50000 range.</para>
+        ///
+        /// <para><b>Why a separate method and not a fix to <see cref="GetResolvedMass"/>.</b> That method
+        /// has exactly one gameplay reader,
+        /// <see cref="PFE.Systems.Map.RoomInstance.GetEstimatedImpactDamage"/>, which normalises by
+        /// <c>/100f</c> and clamps with <c>Mathf.Max(1f, …)</c> — both tuned to the un-divided scale.
+        /// Rescaling the source would silently cut prop impact damage by 50x and change which props the
+        /// clamp catches. Until that formula is re-derived from AS3's <c>udarBox</c> (<c>Box.as:739</c>
+        /// and <c>:934</c>), the two masses stay separate, and separately named.</para>
+        ///
+        /// <para><b>The derived branch is a stand-in, not a port.</b> AS3 derives from <c>scX</c>/<c>scY</c>
+        /// in sprite pixels, but of the 202 <c>&lt;obj&gt;</c> entries only <b>5</b> author <c>scx</c> and
+        /// 13 author <c>scy</c>, and neither is imported here — so this falls back to the port's own
+        /// <c>size</c>/<c>width</c> and then divides, purely so the result sits in AS3's range. Treat an
+        /// un-authored prop's mass as approximate.</para>
+        ///
+        /// <para><b>The gate this feeds is narrow at low skill.</b> <c>maxTeleMassa</c> is
+        /// <c>v0=0.6 … v5=25</c> (<c>AllData.as:5212</c>), so at telekinesis 0 the only liftable prop in
+        /// the game is <c>woodbox</c> (0.30); <c>box</c> (1.00) needs skill 1, and <c>reactor</c>
+        /// (1000) is never liftable. The same rows under <see cref="GetResolvedMass"/> read 15..50000
+        /// against a 25 cap, i.e. nothing would ever be liftable at any skill.</para>
+        /// </summary>
+        public float GetAs3Massa()
+        {
+            if (mass > 0f)
+            {
+                // Box.as:283 — the authored value replaces the derived one outright, so massaMult is
+                // deliberately not applied. Its default here is 1f, so applying it would be a no-op for
+                // most props and a silent 50x-scale error for the 21 that author it.
+                return mass / 50f;
+            }
+
+            float derivedMass = Mathf.Max(1f, size * width * 50f);
+            return derivedMass * Mathf.Max(0.01f, massMultiplier) / 50f;
         }
 
         public float GetResolvedBuoyancyFactor()

@@ -74,6 +74,22 @@ namespace PFE.Systems.Map
             }
         }
 
+        /// <summary>
+        /// The physics layer <b>if one already exists</b>, without creating one. Null for a room that
+        /// has never had an object added nor been rebuilt.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>For read-only consumers only.</b> <see cref="ObjectPhysicsLayer"/> is lazy and
+        /// allocates on first touch, so a diagnostic that read it would manufacture the very object it
+        /// was trying to report on — and an empty layer is indistinguishable from a room with no props,
+        /// which is the worst possible answer for a tool whose whole job is to report that count.</para>
+        ///
+        /// <para>Every room that has gone through <see cref="AddObject"/> or
+        /// <see cref="RebuildRuntimeLayers"/> already has one, so null here means "this room genuinely
+        /// has no physics layer", which is a fact worth reporting rather than papering over.</para>
+        /// </remarks>
+        public RoomObjectPhysicsLayer ExistingObjectPhysicsLayer => _objectPhysicsLayer;
+
         // ── Tile mutation notification ──────────────────────────────────────────────────────
 
         /// <summary>
@@ -327,28 +343,48 @@ namespace PFE.Systems.Map
         {
             if (!isActive) return;
 
-            ObjectPhysicsLayer.Update(this, deltaTime);
+            // `room.tick` is the per-frame room step (called from the sim tick when the sim drives,
+            // and from the legacy Update otherwise). `room.tick.units` / `room.tick.objects` are the
+            // two loops that scale with how many of each the room holds — which is the whole
+            // difference between the camp and a corridor.
+            using (PFE.Core.Profiling.PfeProfiler.Region("room.tick",
+                "physics: one room step. Children are the prop layer and the unit/object loops; self is the rest."))
+            {
+            using (PFE.Core.Profiling.PfeProfiler.Region("phys.objects.tick",
+                "physics: RoomObjectPhysicsLayer.Update — the prop physics tick (sync + every dynamic prop's step)."))
+            {
+                ObjectPhysicsLayer.Update(this, deltaTime);
+            }
 
             // Update units
-            for (int i = units.Count - 1; i >= 0; i--)
+            using (PFE.Core.Profiling.PfeProfiler.Region("room.tick.units",
+                "physics: per-frame unit loop. ObjectInstance.Update/UnitInstance.Update are empty, so this should be ~0."))
             {
-                if (units[i] != null && !units[i].IsDead)
+                for (int i = units.Count - 1; i >= 0; i--)
                 {
-                    units[i].Update();
-                }
-                else if (units[i] != null && units[i].IsDead)
-                {
-                    units.RemoveAt(i);
+                    if (units[i] != null && !units[i].IsDead)
+                    {
+                        units[i].Update();
+                    }
+                    else if (units[i] != null && units[i].IsDead)
+                    {
+                        units.RemoveAt(i);
+                    }
                 }
             }
 
             // Update objects
-            foreach (var obj in objects)
+            using (PFE.Core.Profiling.PfeProfiler.Region("room.tick.objects",
+                "physics: per-frame prop loop. ObjectInstance.Update is empty, so this should be ~0."))
             {
-                if (obj != null)
+                foreach (var obj in objects)
                 {
-                    obj.Update();
+                    if (obj != null)
+                    {
+                        obj.Update();
+                    }
                 }
+            }
             }
         }
 
@@ -535,6 +571,31 @@ namespace PFE.Systems.Map
         public bool isActive = true;
         public MapObjectRuntimeStateData runtimeState = new MapObjectRuntimeStateData();
 
+        /// <summary>
+        /// The <see cref="parameters"/> value the one-time legacy migration has already run on, or null
+        /// if it has not run. Not serialized — it is a per-run cache, so the room assets are unchanged.
+        ///
+        /// <para><b>Why the existing guard is not enough.</b> The migration is gated on "we have no
+        /// attributes yet" (<c>attributes.Count == 0</c>), but an authored prop ships
+        /// <c>attributes: []</c> together with <c>parameters: code="..."</c> — and
+        /// <see cref="MapObjectDataUtility.ParseLegacyParameters"/> routes <c>code</c>/<c>uid</c> to its
+        /// out-params and adds <b>nothing</b> to the returned list, so the list comes back empty,
+        /// "no attributes yet" stays true, and the regex re-runs on <i>every</i> call, forever. This is
+        /// not a rare shape: it is every box in the workshop rooms.</para>
+        ///
+        /// <para><b>Why that costs a frame.</b> <see cref="EnsureStructuredData"/> is called from every
+        /// predicate on the physics hot path (<see cref="IsDestroyed"/>, <see cref="IsShelf"/>,
+        /// <see cref="ShouldSimulateDynamicPhysics"/>, <see cref="ShouldTrackInPhysicsLayer"/>, and via
+        /// <see cref="GetApproximatePixelSize"/>), several times per prop per tick. Measured in the camp:
+        /// <c>phys.objects.step</c> self <b>814.2 ms over 191 ticks and 38 tracked props = 112 µs per prop
+        /// per tick</b>, for a loop whose own arithmetic is a handful of float ops.</para>
+        ///
+        /// <para>Keyed on the <i>value</i> rather than a plain "attempted" flag, so a caller that assigns
+        /// <see cref="parameters"/> after construction still gets its migration; an unchanged string
+        /// skips only a parse whose result we already hold.</para>
+        /// </summary>
+        private string _migratedFromParameters;
+
         public void EnsureStructuredData()
         {
             if (string.IsNullOrWhiteSpace(definitionId) && !string.IsNullOrWhiteSpace(objectId))
@@ -542,8 +603,15 @@ namespace PFE.Systems.Map
                 definitionId = objectId;
             }
 
-            if ((attributes == null || attributes.Count == 0) && !string.IsNullOrWhiteSpace(parameters))
+            // The third clause is load-bearing: a `parameters` string holding only `code="..."` parses to
+            // ZERO attributes, which leaves `attributes` empty — the very condition that lets this branch
+            // run. Without the memo the regex re-runs on every call, several times per prop per tick.
+            // See _migratedFromParameters.
+            if ((attributes == null || attributes.Count == 0) &&
+                !string.IsNullOrWhiteSpace(parameters) &&
+                !string.Equals(parameters, _migratedFromParameters, StringComparison.Ordinal))
             {
+                _migratedFromParameters = parameters;
                 attributes = MapObjectDataUtility.ParseLegacyParameters(parameters, out string parsedCode, out string parsedUid);
                 if (string.IsNullOrEmpty(code))
                 {
@@ -770,7 +838,22 @@ namespace PFE.Systems.Map
 
         public bool SupportsTelekinesis()
         {
-            return GetResolvedPhysicalCapability() == MapObjectPhysicalCapability.DynamicTelekinetic;
+            if (GetResolvedPhysicalCapability() == MapObjectPhysicalCapability.DynamicTelekinetic)
+            {
+                return true;
+            }
+
+            // The debug "grab anything" switch widens this to EVERY dynamic prop, and it is widened here,
+            // at the one predicate, deliberately. Four gates read this method — the candidate filter
+            // (RoomObjectPhysicsLayer:254), TrySetTelekineticHold (:326), StepDynamicObject (:452) and
+            // IsLiftable below — and widening only some of them produces the worst failure mode this
+            // project has: a grab that is accepted and then never stepped, i.e. a prop that is held and
+            // motionless with nothing in any log. One predicate, one answer.
+            //
+            // Only a DYNAMIC prop is eligible. A StaticWall carries no dynamic state, so admitting one
+            // would hand StepHeldObject an object with nothing to integrate.
+            return IsDynamicPhysicalProp() &&
+                   PFE.Core.DebugOverlays.Settings?.TelekinesisGrabAnything == true;
         }
 
         public bool CanBeThrown()
@@ -778,6 +861,88 @@ namespace PFE.Systems.Map
             MapObjectPhysicalCapability capability = GetResolvedPhysicalCapability();
             return capability == MapObjectPhysicalCapability.DynamicThrowable ||
                    capability == MapObjectPhysicalCapability.DynamicTelekinetic;
+        }
+
+        /// <summary>
+        /// AS3 <c>Obj.shelf</c> (<c>Box.as:22</c>) — can a unit stand on this prop, and can another prop
+        /// stack on it. The rule lives in <see cref="MapObjectShelfRule"/>; this is the instance-side
+        /// entry point, which reads the definition when there is one and the instance's own attributes
+        /// when there is not — the same two-step shape as
+        /// <see cref="GetApproximatePixelSize"/> and <see cref="GetAs3Massa"/>.
+        ///
+        /// <para><b>Note the word collision with tiles.</b> <c>TileData.shelf</c> is the one-way catwalk
+        /// tile and has nothing to do with this. A crate is not a tile, so no tile query can answer this
+        /// question — which is exactly why a unit standing on a crate needed a second, prop-aware ground
+        /// test rather than a wider tile query.</para>
+        /// </summary>
+        public bool IsShelf()
+        {
+            EnsureStructuredData();
+
+            if (definition != null)
+            {
+                return definition.IsShelf();
+            }
+
+            int wall = TryParseIntAttribute("wall", TryParseIntAttribute("stena", 0));
+
+            return MapObjectShelfRule.IsShelf(
+                MapObjectDataUtility.HasAttribute(attributes, "shelf"),
+                wall > 0,
+                MapObjectShelfRule.ResolveWidthPixels(
+                    GetAttribute("scx", string.Empty),
+                    TryParseIntAttribute("size", 1)));
+        }
+
+        /// <summary>
+        /// AS3 <c>Obj.levitPoss</c> — whether this <i>instance</i> is liftable right now. This is the
+        /// term the grab gate reads (<c>UnitPlayer.as:1790</c>), and it is <b>not</b>
+        /// <see cref="SupportsTelekinesis"/>: that answers a per-definition question from the authored
+        /// <c>wall</c>/<c>tip</c>/<c>massa</c> data, while this is a per-instance flag AS3 mutates at
+        /// runtime. Both have to hold — a prop can be the right kind and still be unliftable because
+        /// something cleared the flag this frame.
+        /// </summary>
+        public bool IsLiftable()
+        {
+            EnsureStructuredData();
+            return SupportsTelekinesis() && runtimeState.dynamicState.levitPoss;
+        }
+
+        /// <summary>
+        /// AS3 <c>Obj.stay</c> — at rest. Maintained by <c>RoomObjectPhysicsLayer</c> from contact and
+        /// speed (<c>Box.as</c> sets it on landing, clears it while moving; <c>UnitPlayer.as:1831</c>
+        /// clears it on grab).
+        ///
+        /// <para><b>Nothing in the grab path reads this, deliberately.</b> AS3's <c>actTele</c>
+        /// (<c>UnitPlayer.as:1769-1790</c>) does not test <c>stay</c>; only the HUD hint at
+        /// <c>GUI.as:1326</c> does. The port used to gate grabs on it, which refused props caught
+        /// mid-flight — a grab AS3 allows. See the field's own remarks for the full citation.</para>
+        ///
+        /// <para>Kept as the accessor for real oracle state so the HUD hint can read it; if you are
+        /// about to use it as a precondition, read the field's remarks first.</para>
+        /// </summary>
+        public bool IsAtRest()
+        {
+            EnsureStructuredData();
+            return runtimeState.dynamicState.stay;
+        }
+
+        /// <summary>
+        /// Is this prop already held by telekinesis right now.
+        ///
+        /// <para><b>Why this is a separate question from <see cref="IsAtRest"/>.</b> The grab
+        /// candidate search used to exclude held props by testing <c>stay</c>, because
+        /// <c>RoomObjectPhysicsLayer.StepHeldObject</c> clears <c>stay</c> while an object is held.
+        /// That conflated two different things, and <c>stay</c> is the wrong one to gate on: AS3's
+        /// <c>actTele</c> never tests it (see <c>MapObjectDynamicStateData.stay</c>). Now that the
+        /// candidate search matches the oracle and ignores <c>stay</c>, "already held" needs to be
+        /// asked directly — otherwise a held prop becomes a candidate again and can be re-grabbed
+        /// mid-flight.</para>
+        /// </summary>
+        public bool IsHeldByTelekinesis()
+        {
+            EnsureStructuredData();
+            return runtimeState.dynamicState.isHeldByTelekinesis;
         }
 
         public float GetResolvedMass()
@@ -799,6 +964,32 @@ namespace PFE.Systems.Map
             Vector2 sizePixels = GetApproximatePixelSize();
             float derivedMass = Mathf.Max(1f, (sizePixels.x / WorldConstants.TILE_SIZE) * (sizePixels.y / WorldConstants.TILE_SIZE) * 50f);
             return derivedMass * Mathf.Max(0.01f, massMultiplier);
+        }
+
+        /// <summary>
+        /// AS3's <c>Obj.massa</c>, in AS3's own scale — 50x smaller than
+        /// <see cref="GetResolvedMass"/>. See <see cref="MapObjectDefinition.GetAs3Massa"/> for why the
+        /// two are separate. The telekinesis gate reads this one.
+        /// </summary>
+        public float GetAs3Massa()
+        {
+            EnsureStructuredData();
+
+            if (definition != null)
+            {
+                return definition.GetAs3Massa();
+            }
+
+            float explicitMass = TryParseFloatAttribute("massa", 0f);
+            if (explicitMass > 0f)
+            {
+                // Box.as:283 — @massa / 50, and massaMult is overwritten rather than applied.
+                return explicitMass / 50f;
+            }
+
+            Vector2 sizePixels = GetApproximatePixelSize();
+            float derivedMass = Mathf.Max(1f, (sizePixels.x / WorldConstants.TILE_SIZE) * (sizePixels.y / WorldConstants.TILE_SIZE) * 50f);
+            return derivedMass * Mathf.Max(0.01f, TryParseFloatAttribute("massaMult", 1f)) / 50f;
         }
 
         public float GetResolvedBuoyancyFactor()
@@ -848,6 +1039,30 @@ namespace PFE.Systems.Map
             return new Rect(
                 targetPosition.x - sizePixels.x * 0.5f,
                 targetPosition.y,
+                sizePixels.x,
+                sizePixels.y);
+        }
+
+        /// <summary>
+        /// Bounds built from a size the caller has already resolved, at this object's <b>live</b>
+        /// position.
+        ///
+        /// <para><b>Why this overload exists.</b> <see cref="GetApproximatePixelSize"/> re-parses the
+        /// <c>scx</c>/<c>scy</c> attributes on every call — <c>GetAttribute</c> plus a culture-aware
+        /// <c>float.TryParse</c> — and the prop queries ask for bounds once per <i>candidate</i>. A
+        /// caller walking a candidate list can therefore resolve the size once per prop and build the
+        /// rect per candidate from here. The position is still read fresh, so the only thing reused is
+        /// the part that cannot move: a prop's size does not change as it falls.</para>
+        ///
+        /// <para>Kept separate from <see cref="GetApproximateBounds(Vector2)"/> rather than replacing it
+        /// with an optional parameter, so that every existing call site keeps resolving its own size and
+        /// no caller can silently pass a stale one.</para>
+        /// </summary>
+        public Rect GetApproximateBoundsWithSize(Vector2 sizePixels)
+        {
+            return new Rect(
+                position.x - sizePixels.x * 0.5f,
+                position.y,
                 sizePixels.x,
                 sizePixels.y);
         }

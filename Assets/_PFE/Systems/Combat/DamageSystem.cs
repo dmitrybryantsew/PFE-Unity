@@ -250,9 +250,12 @@ namespace PFE.Systems.Combat
         /// <remarks>
         /// Two exclusions, both the oracle's:
         /// <list type="bullet">
-        ///   <item><description>a blast never rolls. AS3's explosion path (<c>Bullet.explRun</c>) calls
-        ///     <c>unit.damage()</c> directly and never reaches <c>udarBullet</c>, so
-        ///     <c>miss</c>/<c>precision</c>/<c>dodge</c> do not apply to AoE at all.</description></item>
+        ///   <item><description>anything that reaches <c>Unit.damage()</c> without a bullet never rolls
+        ///     — a blast (<c>Bullet.explRun</c> calls <c>unit.damage()</c> directly) and a prop impact
+        ///     (<c>Unit.udarBox</c>, <c>Unit.as:4237</c>, likewise), so
+        ///     <c>miss</c>/<c>precision</c>/<c>dodge</c> do not apply to either. That is
+        ///     <see cref="PendingDamage.SkipsAvoidanceAndVariance"/>, which is a fact about the call
+        ///     path and not about blasts.</description></item>
         ///   <item><description>the roll uses the same per-tick stream as the armour and crit rolls, in
         ///     the oracle's order. <see cref="HitAvoidance.RollsHit"/> reproduces AS3's short-circuits
         ///     exactly, so a shot with <c>miss = 0</c> against a non-evading target consumes no roll
@@ -261,7 +264,7 @@ namespace PFE.Systems.Combat
         /// </remarks>
         private bool RollsHit(in PendingDamage hit, IRngService rng)
         {
-            if (hit.IsExplosion
+            if (hit.SkipsAvoidanceAndVariance
                 || HitAvoidance.RollsHit(hit.Context, hit.Target.Evasion, hit.TravelDistancePixels, rng))
             {
                 return true;
@@ -327,14 +330,17 @@ namespace PFE.Systems.Combat
             // spread lands on the pre-armour number, and crit amplifies the spread value — the
             // oracle's order.
             //
-            // Blasts are excluded: AS3's explosion path (`Bullet.explRun`) calls `unit.damage()`
-            // directly and never reaches `udarBullet`, so an explosion does its falloff damage exactly.
+            // Blasts and contact hits are excluded: both reach `unit.damage()` without passing through
+            // `udarBullet`, which is where `:4085`'s spread lives — so an explosion does its falloff
+            // damage exactly and a crate impact does its `vel2` damage exactly. See
+            // PendingDamage.SkipsAvoidanceAndVariance; this used to test IsExplosion, which read as a
+            // fact about blasts when the real rule is a fact about the call path.
             //
             // The draw happens even under the testDam debug toggle — `DamageVariance.Roll` takes the
             // roll first and only then decides whether to report it — because the combat stream is
             // shared with the armour-reliability and crit rolls below. Skipping the draw would shift
             // every later roll in the same tick, which is a replication bug, not a debug convenience.
-            if (!hit.IsExplosion)
+            if (!hit.SkipsAvoidanceAndVariance)
             {
                 incoming *= DamageVariance.Roll(rng, _debugSettings != null && _debugSettings.TestDamage);
             }
@@ -414,13 +420,26 @@ namespace PFE.Systems.Combat
         /// Applies AS3's <c>Unit.otbros()</c> — the throw a landed hit gives its target.
         /// </summary>
         /// <remarks>
-        /// <para><b>Direct hits only.</b> AS3 reaches this from <c>udarBullet</c> alone
-        /// (<c>Unit.as:4091</c>). A blast damages through <c>Bullet.explRun</c>, which calls
-        /// <c>unit.damage()</c> directly and never touches <c>otbros</c> — so the explosion path takes no
-        /// knockback here. (AS3's blasts <i>do</i> push, but by a separate mechanism: <c>explBlast</c>
-        /// spawns a radial child bullet per unit, aimed away from the centre with
-        /// <c>knockx = dx / vel</c>. The port does not model that; it is a missing feature, and inventing
-        /// blast knockback here would be a different wrong answer.)</para>
+        /// <para><b>Direct hits only, and the predicate is the call path.</b> <c>otbros</c> has exactly
+        /// <b>one</b> call site in the oracle — <c>Unit.as:4091</c>, inside <c>udarBullet</c>, one line
+        /// after <c>this.damage()</c> at <c>:4090</c>. So "this hit did not go through
+        /// <c>udarBullet</c>" is also the predicate for "this hit gets no throw", which is exactly
+        /// <see cref="PendingDamage.SkipsAvoidanceAndVariance"/>. That is why the guard below reads the
+        /// flag rather than <c>IsExplosion</c>: a blast damages through <c>Bullet.explRun</c>, which calls
+        /// <c>unit.damage()</c> directly, and a prop impact through <c>Unit.udarBox</c>
+        /// (<c>:4237</c>), which does the same — neither reaches <c>:4091</c>. (AS3's blasts <i>do</i>
+        /// push, but by a separate mechanism: <c>explBlast</c> spawns a radial child bullet per unit,
+        /// aimed away from the centre with <c>knockx = dx / vel</c>. The port does not model that; it is a
+        /// missing feature, and inventing blast knockback here would be a different wrong answer.)</para>
+        ///
+        /// <para><b>Why the <c>IsExplosion</c> form was wrong even though it looked right.</b> It produced
+        /// the correct answer for the one non-<c>udarBullet</c> caller that existed when it was written,
+        /// and it kept producing it for blasts after <see cref="PendingDamage.Contact"/> was added — but a
+        /// crate impact fell through to the draw below and consumed a knockback roll the oracle never
+        /// takes. The impulse it then produced was zero (<c>DamageContext.Contact</c> stamps no knock and
+        /// no direction), so nothing visible would have exposed it: a silent extra draw on the shared
+        /// combat stream is a replication divergence, not a gameplay bug, which is the kind that only
+        /// shows up as "the same seed gives different numbers on the second peer".</para>
         ///
         /// <para><b>The draw happens even for a zero-knock weapon.</b> AS3 draws before multiplying by
         /// <c>otbros</c>, so short-circuiting on <c>Knockback == 0</c> — which most weapons carry — would
@@ -445,7 +464,11 @@ namespace PFE.Systems.Combat
         private static void ApplyKnockback(in PendingDamage hit, IDamageable target,
                                            in DamageContext ctx, IRngService rng)
         {
-            if (hit.IsExplosion) return;
+            // The oracle's single `otbros` call site is inside `udarBullet` (`Unit.as:4091`), so the
+            // flag that means "reached `damage()` without `udarBullet`" is the one that means "no
+            // throw" — see the remarks. Returning on `IsExplosion` instead would let a crate impact
+            // (`udarBox`) take this draw.
+            if (hit.SkipsAvoidanceAndVariance) return;
 
             // AS3 `Unit.otbros():4245-4248` returns BEFORE the draw, so this test has to come first.
             if (target.IsInvulnerable) return;

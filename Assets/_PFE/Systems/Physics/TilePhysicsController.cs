@@ -48,7 +48,15 @@ namespace PFE.Systems.Physics
         /// </summary>
         public void SimTick(int tickIndex)
         {
-            StepMotor();
+            // One unit's motor, one sim tick. `calls / calls(sim.tick)` is the number of MOTOR-DRIVEN
+            // units in the world, and `total / calls` is what one unit costs per tick. Multiply by
+            // SimClock.MaxCatchupTicks (5) and you have the per-frame motor budget — which is the
+            // first number to compare against the 364 ms frame.
+            using (PFE.Core.Profiling.PfeProfiler.Region("motor.tick",
+                "physics: one unit's motor for one sim tick. calls/calls(sim.tick) == motor-driven unit count."))
+            {
+                StepMotor();
+            }
         }
 
         /// <summary>
@@ -176,6 +184,32 @@ namespace PFE.Systems.Physics
         private float dx;
         private float dy;
 
+        /// <summary>
+        /// This unit's velocity in AS3's own units — <b>pixels per 30 Hz frame</b>, i.e. exactly
+        /// <c>dx</c>/<c>dy</c>.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>The seam exists because the velocity does not live in the same place for both
+        /// kinds of unit.</b> A unit with a motor keeps its velocity here, in px/frame; a unit without
+        /// one keeps it in <c>UnitController._velocity</c>, in Unity units per second. Anything that
+        /// has to do AS3 arithmetic on a unit's velocity — the prop-impact exchange is the first —
+        /// would otherwise have to know which, and getting it wrong is a silent 0.3× or 3.33× rather
+        /// than a compile error. <c>UnitController.As3VelocityPixelsPerFrame</c> is the one place that
+        /// choice is made.</para>
+        ///
+        /// <para>Read and written rather than exposed as two methods so a caller that swaps the
+        /// velocity can read the old one and write the new one without a second accessor.</para>
+        /// </remarks>
+        public Vector2 VelocityPixelsPerFrame
+        {
+            get => new Vector2(dx, dy);
+            set
+            {
+                dx = value.x;
+                dy = value.y;
+            }
+        }
+
         // Collider feet position in world pixel space.
         private float posX;
         private float posY;
@@ -187,6 +221,49 @@ namespace PFE.Systems.Physics
         // Room's world pixel position (for converting between world and room-local coordinates)
         private float roomWorldPixelX;
         private float roomWorldPixelY;
+
+        // ── Prop support (AS3 Unit.checkShelf / stayOsn / osndx / osndy) ─────────────────────────
+        //
+        // The player's motor resolves its own step, so it asks the event form of the shelf question
+        // ("does this step cross a prop's top edge") rather than the state form UnitController uses.
+        // See RoomObjectPhysicsLayer.TryFindPropCrossedThisStep for why the two cannot be the same
+        // test.
+
+        /// <summary>
+        /// How far the support under the feet moved last tick, in room-local pixels — AS3
+        /// <c>osndx</c>/<c>osndy</c> (<c>Unit.as:248</c>, <c>:250</c>), read from the support's
+        /// <c>cdx</c>/<c>cdy</c> (<c>:2022-2023</c>). Zero when there is no support, or when it moved
+        /// further than <see cref="UnitCheckShelfMath.SupportFollowMaxDeltaPixels"/> in one tick.
+        ///
+        /// <para><b>Only the displacement is kept, not the prop.</b> AS3 also stores the support itself
+        /// (<c>stayOsn</c>) and clears it every step, but nothing in this port reads it: the carry comes
+        /// from this vector, and the landing push is applied at the moment of landing. A field written
+        /// and never read is a decoy, and this port already has four.</para>
+        /// </summary>
+        private Vector2 supportCarryPixels;
+
+        /// <summary>
+        /// The <see cref="UnitController"/> on the same object, resolved on first use. The motor is a
+        /// separate component and <c>Awake</c> ordering between the two is not guaranteed, so this is
+        /// lazy rather than cached in <c>Awake</c>. Used for the unit's AS3-scale mass in the landing
+        /// momentum split (<c>Unit.as:2736</c>), and by <c>ResolveCrouchedCollisionHeight</c>.
+        /// </summary>
+        private UnitController unitController;
+        private bool resolvedUnitController;
+
+        private UnitController Unit
+        {
+            get
+            {
+                if (!resolvedUnitController)
+                {
+                    unitController = GetComponent<UnitController>();
+                    resolvedUnitController = true;
+                }
+
+                return unitController;
+            }
+        }
 
         // Legacy input state
         private float inputX;
@@ -597,6 +674,18 @@ namespace PFE.Systems.Physics
         /// </summary>
         private void StepMotor()
         {
+            // The motor's whole step, both drivers. Its children are motor.moveCollision (the tile
+            // collision walk) and unit.propSweep (the prop-impact sweep at the bottom); the self time
+            // is the movement maths, water, boundary and ladder bookkeeping.
+            using (PFE.Core.Profiling.PfeProfiler.Region("motor.step",
+                "physics: TilePhysicsController's full step. Children: motor.moveCollision, unit.propSweep."))
+            {
+            // The unit's contact-invulnerability countdown advances on EVERY step, including one with
+            // no room — AS3's `actions()` (`Unit.as:1827`) is not conditional on anything, and a
+            // countdown that freezes when a guard trips is a bug that looks like an invulnerability
+            // that never expires. Placed before the room guard for exactly that reason.
+            Unit?.TickContactInvulnerability();
+
             if (currentRoom == null) return;
 
             hitCeiling = false;
@@ -677,6 +766,16 @@ namespace PFE.Systems.Physics
             {
                 dx *= 0.3f;
                 dy *= 0.3f;
+            }
+
+            // AS3 `Box.as:632` — attDrop runs at the end of the box's own update, after `run()` has
+            // resolved that frame's collisions, so the sweep reads a settled velocity. Last here for
+            // the same reason, and after the dash decay above so a dash ending on the same step cannot
+            // scale a knockback this sweep just applied.
+            //
+            // A motor-driven unit does not tick the countdown here — that is at the top of this method
+            // — so this is the only place in this class that touches the impact path.
+            Unit?.SweepPropImpacts();
             }
         }
 
@@ -817,12 +916,29 @@ namespace PFE.Systems.Physics
         /// </summary>
         private void MoveWithCollision()
         {
+            // The tile collision walk. Its substep count is derived from the step's distance, so a
+            // fast-moving unit pays this (and every prop query inside it) several times per step —
+            // `phys.prop.crossedQuery`'s call count is the visible consequence.
+            using (PFE.Core.Profiling.PfeProfiler.Region("motor.moveCollision",
+                "physics: the motor's tile-collision walk, substepped by distance. Parents phys.prop.crossedQuery."))
+            {
             if (currentRoom == null || currentRoom.tiles == null) return;
+
+            // Read the support's carry from the PREVIOUS step, then clear it: this step's substeps will
+            // record the support they end up on, for the next step to read. That one-step lag is the
+            // oracle's — AS3's forces() reads `stayOsn.cdx` into `osndx` and then nulls `stayOsn`
+            // (Unit.as:2013-2026), and checkShelf repopulates it during the run that follows.
+            Vector2 carry = supportCarryPixels;
+            supportCarryPixels = Vector2.zero;
 
             // dx/dy are canonical pixels per 30 Hz frame (AS3 maxdx=8, maxdy=20). Advance by the
             // number of canonical frames this step covers. Legacy is the 2x bug; sim is correct.
-            float moveX = dx * PositionFramesPerStep;
-            float moveY = dy * PositionFramesPerStep;
+            //
+            // The carry is added here rather than to dx/dy, because AS3 only ever uses it as a
+            // temporary in the position update (`X += (dx + osndx) / param1`, :2063) and never writes
+            // it back — folding it into dx would make it accumulate every step.
+            float moveX = (dx + carry.x) * PositionFramesPerStep;
+            float moveY = (dy + carry.y) * PositionFramesPerStep;
 
             if (isOnLadder)
             {
@@ -838,6 +954,7 @@ namespace PFE.Systems.Physics
             for (int i = 0; i < subSteps; i++)
             {
                 MoveSingleStep(stepMoveX, stepMoveY);
+            }
             }
         }
 
@@ -938,6 +1055,16 @@ namespace PFE.Systems.Physics
                     dy = 0;
                     isGrounded = true;
                 }
+                else if (TryLandOnShelfProp(posY, newY, out ObjectInstance prop, out float surfaceWorldPixelY))
+                {
+                    // A prop is a floor too — AS3 Unit.checkShelf (Unit.as:2713-2741). The tile check
+                    // above wins when it hits, which is the oracle's order: the tile loop runs first
+                    // (:2317-2330), checkShelf last (:2340).
+                    newY = surfaceWorldPixelY;
+                    dy = 0;
+                    isGrounded = true;
+                    RegisterSupportProp(prop);
+                }
             }
             else if (CheckCeilingCollisionAt(posX, newY, hw, hh))
             {
@@ -952,6 +1079,118 @@ namespace PFE.Systems.Physics
             {
                 isGrounded = true;
             }
+        }
+
+        /// <summary>
+        /// AS3 <c>Unit.checkShelf</c> (<c>Unit.as:2713-2741</c>) on the player's motor: the prop this
+        /// substep's motion landed on, and the world pixel height of its top edge.
+        ///
+        /// <para><b>Why the motor uses the event form and <c>UnitController</c> uses the state form.</b>
+        /// This method is called <i>inside</i> the substep, so it knows the step — the same position AS3
+        /// is in when it calls <c>checkShelf(dy / param1, osndy / param1)</c> from <c>run()</c>
+        /// (<c>:2340</c>). It therefore uses the oracle's own crossing test. <c>UnitController</c>
+        /// resolves groundedness before its step and cannot, so it uses a step-up band instead. With a
+        /// band here, a player whose feet are 8 px above a crate and who moves 1 px would be snapped
+        /// <i>up</i> onto it. See <c>RoomObjectPhysicsLayer.TryFindPropCrossedThisStep</c>.</para>
+        ///
+        /// <para><b>Room-local vs world pixels.</b> The layer works in <b>room-local</b> pixels
+        /// (<c>ObjectInstance.position</c> and <c>GetApproximateBounds()</c>), the motor works in
+        /// <b>world</b> pixels (<c>posX</c>/<c>posY</c>). <c>roomWorldPixelX/Y</c> is the origin, so it is
+        /// <b>subtracted</b> on the way in and added back on the way out — the exact conversion
+        /// <c>UnitCheckShelfMath.FeetWorldPixelY</c> exists to name. Getting the sign wrong here is
+        /// invisible in a room at land position (0,0) and displaces every crate in any other room.</para>
+        /// </summary>
+        /// <param name="feetBeforeWorldPixelY">The feet before this substep, world pixels.</param>
+        /// <param name="feetAfterWorldPixelY">The feet after this substep, world pixels.</param>
+        /// <param name="support">The prop landed on, or null.</param>
+        /// <param name="surfaceWorldPixelY">The support's top edge, world pixels.</param>
+        private bool TryLandOnShelfProp(
+            float feetBeforeWorldPixelY,
+            float feetAfterWorldPixelY,
+            out ObjectInstance support,
+            out float surfaceWorldPixelY)
+        {
+            support = null;
+            surfaceWorldPixelY = 0f;
+
+            if (currentRoom == null)
+            {
+                return false;
+            }
+
+            // Not null-checked: RoomInstance.ObjectPhysicsLayer lazily creates the layer, so it can
+            // never be null. A guard here would be dead code, and a dead guard is how this port ended up
+            // with a filter test that had been removed while the gate that read it had not.
+            RoomObjectPhysicsLayer layer = currentRoom.ObjectPhysicsLayer;
+
+            float halfWidth = collisionWidth * 0.5f;
+
+            Rect feetBeforeRoomLocal = new Rect(
+                posX - halfWidth - roomWorldPixelX,
+                feetBeforeWorldPixelY - roomWorldPixelY,
+                collisionWidth,
+                collisionHeight);
+
+            if (!layer.TryFindPropCrossedThisStep(
+                    feetBeforeRoomLocal,
+                    feetAfterWorldPixelY - roomWorldPixelY,
+                    out support,
+                    out float surfaceRoomLocalY))
+            {
+                support = null;
+                return false;
+            }
+
+            surfaceWorldPixelY = UnitCheckShelfMath.FeetWorldPixelY(surfaceRoomLocalY, roomWorldPixelY);
+            return true;
+        }
+
+        /// <summary>
+        /// Record the prop the player is now standing on: its last-tick displacement (to carry the
+        /// player with it) and, if it has not settled, a share of the player's landing speed.
+        ///
+        /// <para>AS3 <c>Unit.as:2014-2026</c> for the carry and <c>:2734-2737</c> for the push. Both are
+        /// keyed off the support's own state rather than a "just landed" flag: the carry is refused when
+        /// the support moved more than 10 px in one tick (<c>:2016</c>, so a shoved crate stops being a
+        /// floor), and the push happens only while the support is <c>!stay</c>, i.e. still settling — so
+        /// a player standing on a settled crate pushes nothing, and one standing on a crate still
+        /// falling into place keeps pressing it down until it settles. That gate does the work a latch
+        /// would, and it is the oracle's own.</para>
+        ///
+        /// <para><c>_loc4_.fixPlav = false</c> (<c>:2737</c>) has no port counterpart — <c>fixPlav</c> is
+        /// the buoyancy-equilibrium latch (<c>Box.as:28</c>, <c>:625-628</c>) and this port has no
+        /// buoyancy state machine to clear. Recorded rather than invented.</para>
+        /// </summary>
+        private void RegisterSupportProp(ObjectInstance prop)
+        {
+            supportCarryPixels = Vector2.zero;
+
+            MapObjectDynamicStateData state = prop.runtimeState?.dynamicState;
+            if (state == null)
+            {
+                return;
+            }
+
+            if (UnitCheckShelfMath.IsSupportStillCarrying(state.cdx, state.cdy))
+            {
+                supportCarryPixels = new Vector2(state.cdx, state.cdy);
+            }
+
+            if (state.stay)
+            {
+                return;
+            }
+
+            // `dy` is px per 30 Hz frame — AS3's own unit, so the conversion to the prop layer's
+            // px/second is a plain multiply. Negated because the port's dy is positive upward and the
+            // share is defined as a DOWNWARD speed.
+            float sharePixelsPerSecond = UnitCheckShelfMath.MomentumShareDownwardPixelsPerSecond(
+                -dy * SimClock.CanonicalTicksPerSecond,
+                Unit != null && Unit.Stats != null ? Unit.Stats.Massa : 0f,
+                prop.GetAs3Massa());
+
+            state.velocity = UnitCheckShelfMath.SupportVelocityAfterLanding(
+                state.velocity, sharePixelsPerSecond);
         }
 
         private void UpdateColliderProfile()

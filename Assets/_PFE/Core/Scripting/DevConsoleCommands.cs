@@ -67,6 +67,64 @@ namespace PFE.Core.Scripting
             return player != null ? player : FindPlayer();
         }
 
+        // ── Telekinesis / teleport Q path ─────────────────────────────────────
+        //
+        // These belong on the `player` object and not a separate one: the grab gate, the cursor, the
+        // stats and the teleport charge are all the player's own state. (The collider commands are
+        // separate because their subject is the world and the HUD, not the player.)
+
+        /// <summary>
+        /// Turn the <c>[tele]</c> trace on or off. The flag lives in <see cref="PfeDebugSettings"/>, so
+        /// this command and the Inspector drive one value.
+        /// </summary>
+        public string TeleTrace(bool enabled)
+        {
+            PfeDebugSettings settings = DebugOverlays.Settings;
+            if (settings == null)
+            {
+                return "[tele] No PfeDebugSettings asset found under Resources, so the trace cannot be switched on.";
+            }
+
+            settings.LogTelekinesisTrace = enabled;
+            return enabled
+                ? "[tele] Trace ON. Press Q and watch the Console -- every line starts with '[tele]'. " +
+                  "Or run 'tele probe' to see the current state without pressing anything."
+                : "[tele] Trace OFF.";
+        }
+
+        /// <summary>
+        /// Report what the grab path sees right now, in the order it tests it, without pressing
+        /// anything. This is the command to reach for when pressing Q does nothing: the last line names
+        /// the verdict, so the report identifies the broken link itself.
+        /// </summary>
+        public string TeleProbe()
+        {
+            var player = Player();
+            if (player == null)
+            {
+                return "[tele] No PlayerController in the scene.";
+            }
+
+            PlayerTelekinesisController telekinesis = player.Telekinesis;
+            if (telekinesis == null)
+            {
+                return "[tele] PlayerController has no PlayerTelekinesisController. It is created in " +
+                       "PlayerController.Awake via AddComponent, so this means Awake never ran.";
+            }
+
+            string report = telekinesis.Probe();
+            Debug.Log(report);
+            return report;
+        }
+
+        /// <summary>Whether the <c>[tele]</c> trace is currently on.</summary>
+        public string TeleStatus()
+        {
+            PfeDebugSettings settings = DebugOverlays.Settings;
+            bool on = settings != null && settings.LogTelekinesisTrace;
+            return $"[tele] trace is {(on ? "ON" : "OFF")}. `tele on` | `tele off` | `tele probe`";
+        }
+
         // ── Health ────────────────────────────────────────────────────────────
 
         /// <summary>Heal the player by <paramref name="amount"/> and float the number on screen.</summary>

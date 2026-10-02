@@ -85,6 +85,12 @@ namespace PFE.Entities.Player
         private bool _justTeleported;
         private Vector2 _cursorWorldPixels;
 
+        // Telekinesis/teleport trace bookkeeping. Both exist only to keep the trace from flooding the
+        // console: `TryConsumeTeleport` runs EVERY frame, so a per-frame line for the whole hold would
+        // bury the one event worth seeing (did the charge ever reach portTime?).
+        private bool _teleportChargeLoggedReady;
+        private bool _teleportUnavailableLogged;
+
         private PlayerMovementSnapshot _currentSnapshot;
 
         public PlayerMovementSnapshot CurrentSnapshot => _currentSnapshot;
@@ -611,8 +617,25 @@ namespace PFE.Entities.Player
         /// </summary>
         private void TryConsumeTeleport(MovementMotorState state)
         {
-            if (_abilities == null || !_abilities.CanTeleport) return;
+            if (_abilities == null || !_abilities.CanTeleport)
+            {
+                if (TelekinesisTrace.Enabled && !_teleportUnavailableLogged)
+                {
+                    _teleportUnavailableLogged = true;
+                    TelekinesisTrace.Log(
+                        $"[6] teleport DISABLED: _abilities={(_abilities == null ? "NULL" : "present")}, " +
+                        $"CanTeleport={(_abilities != null && _abilities.CanTeleport)}. Q can never teleport in this state.");
+                }
+                return;
+            }
             if (IsTeleporting) return;
+
+            // There is deliberately NO held-object gate here. AS3's teleport path is checkPort()
+            // (UnitPlayer.as:1690), which tests mana, loc.sky, tile visibility >= 0.8 and
+            // collisionUnit — nothing about teleObj — and actPort() does not drop the held prop
+            // either. An earlier version of this method refused to charge while IsHoldingObject,
+            // which meant that as soon as grabbing worked, holding Q silently stopped teleporting.
+            // That gate was invented, not ported.
 
             if (_teleportHeld)
             {
@@ -620,6 +643,11 @@ namespace PFE.Entities.Player
                 // Only charge if cooldown is done and preconditions met
                 if (_teleportCooldownTimer > 0f || IsDashing || state.IsOnLadder)
                 {
+                    if (_teleportChargeTimer > 0f)
+                    {
+                        TelekinesisTrace.Log(
+                            $"teleport charge RESET: cooldown={_teleportCooldownTimer:F2}s dashing={IsDashing} onLadder={state.IsOnLadder}");
+                    }
                     _teleportChargeTimer = 0f;
                     return;
                 }
@@ -627,22 +655,65 @@ namespace PFE.Entities.Player
                 // Mana pre-check (don't charge if we can't afford it)
                 if (!HasManaForTeleport())
                 {
+                    if (_teleportChargeTimer > 0f)
+                    {
+                        TelekinesisTrace.Log("teleport charge RESET: not enough mana");
+                    }
                     _teleportChargeTimer = 0f;
                     return;
                 }
 
                 _teleportChargeTimer += Time.fixedDeltaTime;
+
+                // Log the crossing only. Whether the charge REACHES portTime is the whole question;
+                // a line per frame for the duration of the hold would bury it.
+                if (!_teleportChargeLoggedReady &&
+                    _teleportChargeTimer >= _abilities.TeleportChargeTimeSeconds)
+                {
+                    _teleportChargeLoggedReady = true;
+                    TelekinesisTrace.Log(
+                        $"teleport charge REACHED portTime ({_teleportChargeTimer:F2}s >= " +
+                        $"{_abilities.TeleportChargeTimeSeconds:F2}s) -- releasing Q now will teleport");
+                }
                 return;
             }
 
-            // Key was released — check if charge is sufficient
+            // Key was released — check if charge is sufficient.
+            // NOTE this branch runs every frame while Q is up, so nothing below may log unless a charge
+            // was actually in progress.
             float chargedTime = _teleportChargeTimer;
             _teleportChargeTimer = 0f;
+            _teleportChargeLoggedReady = false;
+            bool hadCharge = chargedTime > 0f;
 
-            if (chargedTime < _abilities.TeleportChargeTimeSeconds) return;
-            if (_teleportCooldownTimer > 0f) return;
-            if (IsDashing || state.IsOnLadder) return;
-            if (!HasManaForTeleport()) return;
+            if (chargedTime < _abilities.TeleportChargeTimeSeconds)
+            {
+                if (hadCharge)
+                {
+                    TelekinesisTrace.Log(
+                        $"teleport REFUSED: charge too short ({chargedTime:F2}s < " +
+                        $"{_abilities.TeleportChargeTimeSeconds:F2}s) -- hold Q longer");
+                }
+                return;
+            }
+            if (_teleportCooldownTimer > 0f)
+            {
+                TelekinesisTrace.Log($"teleport REFUSED: cooldown {_teleportCooldownTimer:F2}s remaining");
+                return;
+            }
+            if (IsDashing || state.IsOnLadder)
+            {
+                TelekinesisTrace.Log($"teleport REFUSED: dashing={IsDashing} onLadder={state.IsOnLadder}");
+                return;
+            }
+            if (!HasManaForTeleport())
+            {
+                TelekinesisTrace.Log("teleport REFUSED: not enough mana");
+                return;
+            }
+
+            TelekinesisTrace.Log(
+                $"teleport RELEASED with a valid charge ({chargedTime:F2}s) -- cursor=({_cursorWorldPixels.x:F1},{_cursorWorldPixels.y:F1})px");
 
             // Snap cursor position to tile grid (AS3: Math.round(celX / tileX) * tileX)
             float tileSize = WorldConstants.TILE_SIZE;
@@ -667,11 +738,16 @@ namespace PFE.Entities.Player
             // Collision check at destination (AS3: loc.collisionUnit)
             if (!_motor.CanTeleportTo(targetX, targetY, hw, hh))
             {
+                TelekinesisTrace.Log(
+                    $"teleport REFUSED: destination ({targetX:F0},{targetY:F0}) is not clear " +
+                    $"(CanTeleportTo false; probe half-extents {hw:F1}x{hh:F1})");
                 return;
             }
 
             // Execute teleport
             _motor.TeleportTo(targetX, targetY);
+
+            TelekinesisTrace.Log($"teleport EXECUTED to ({targetX:F0},{targetY:F0})");
 
             // Drain mana
             if (!(_abilities is PlayerLocomotionAbilities pla && pla.InfiniteMana))

@@ -38,6 +38,6 @@ MonoBehaviour:
     altKeyboard: 
     gamepad: <Gamepad>/buttonEast
   teleport:
-    keyboard: <Keyboard>/g
+    keyboard: <Keyboard>/q
     altKeyboard: 
     gamepad: <Gamepad>/leftShoulder

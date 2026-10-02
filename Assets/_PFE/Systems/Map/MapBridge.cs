@@ -58,7 +58,7 @@ public class MapBridge : MonoBehaviour
     // parameter below must be registered, and `= null` defaults are deliberately omitted rather
     // than left in to imply an optionality the container does not honour.
     [Inject]
-    public void Construct(GameManager gameManager, RoomGenerator roomGenerator, TileTextureLookup tileTextureLookup, MaterialRenderDatabase materialRenderDatabase, TileMaskLookup tileMaskLookup, RoomBackgroundLookup roomBackgroundLookup, PFE.Core.PfeDebugSettings debugSettings, PFE.Core.SimClock simClock, PFE.Core.SimLoop simLoop, PFE.Systems.Physics.IPhysicsWorldService physicsWorldService)
+    public void Construct(GameManager gameManager, RoomGenerator roomGenerator, TileTextureLookup tileTextureLookup, MaterialRenderDatabase materialRenderDatabase, TileMaskLookup tileMaskLookup, RoomBackgroundLookup roomBackgroundLookup, PFE.Core.PfeDebugSettings debugSettings, PFE.Core.SimClock simClock, PFE.Core.SimLoop simLoop, PFE.Systems.Physics.IPhysicsWorldService physicsWorldService, PFE.Systems.Combat.DamageSystem damageSystem)
     {
         _gameManager = gameManager;
         _roomGenerator = roomGenerator;
@@ -70,6 +70,50 @@ public class MapBridge : MonoBehaviour
         _simClock = simClock;
         _simLoop = simLoop;
         _physicsWorldService = physicsWorldService;
+
+        // MapBridge is the injected one; RoomVisualController is a scene component with no [Inject] of
+        // its own, and RoomUnitSpawner is a plain class built with `new`. So the damage authority has
+        // to be carried down that chain by hand, or every spawned enemy resolves prop impacts as raw
+        // HP with no armour. Handed over here rather than in Start() because injection runs before
+        // Start, and the controller's setter is safe before a room exists.
+        if (_visualController != null)
+        {
+            _visualController.SetDamageSystem(damageSystem);
+        }
+
+        // P1: hand the fixed-step simulation down the SAME chain, so a motor-less NPC steps on
+        // SimLoop's capped clock instead of Unity's uncapped FixedUpdate.
+        //
+        // Why this is not merely a rate fix: Unity's FixedUpdate catches up, so a frame that costs
+        // more than one fixed step runs the step again inside that same frame. Measured in the camp,
+        // 24-26 unit steps landed inside one frame against 5 in a healthy one, which is how the
+        // units' own cost became the thing making the frame long — the 2 FPS report. SimLoop clamps
+        // its accumulator to SimDt * MaxCatchupTicks and drops the rest, so the same load cannot
+        // spiral. Gated on the flag here, read once at wiring time, exactly as SimTickMotor is read
+        // once below for the player's motor.
+        if (_debugSettings != null && _debugSettings.SimTickUnits && _visualController != null)
+        {
+            _visualController.AttachSimulation(_simClock, _simLoop);
+
+            if (_simClock != null)
+            {
+                // Deliberately not gated on LogMapBridgeLifecycle: this confirms an opt-in behaviour
+                // change, and silence would be ambiguous with "the flag did nothing".
+                Debug.Log(
+                    "[MapBridge] Units are sim-driven at " + _simClock.TicksPerSecond +
+                    " Hz (unit tick fix ON; motor-less NPCs step on SimLoop, capped at " +
+                    PFE.Core.SimClock.MaxCatchupTicks + " ticks/frame)");
+            }
+            else
+            {
+                // The flag is on and there is nothing to attach it to. Say so rather than leaving the
+                // units silently on the clock the fix exists to get them off — the spawner's own
+                // handover returns early on a null clock and would report nothing.
+                Debug.LogWarning(
+                    "[MapBridge] SimTickUnits is ON but no SimClock was injected, so motor-less units " +
+                    "stay on Unity's FixedUpdate. The unit tick fix is NOT active.");
+            }
+        }
 
         if (_useRoomOverride)
             gameManager.SetSkipWorldBuild(true);
@@ -496,6 +540,35 @@ public class MapBridge : MonoBehaviour
                         " Hz (tick fix ON; step scale " + _simClock.StepScale.ToString("0.###") + ")");
                 }
             }
+        }
+
+        // Hand the telekinesis controller the LandMap — not the room.
+        //
+        // The component is created by PlayerController.Awake via AddComponent, and VContainer's
+        // ExistingComponentProvider injects only the component it was handed (PlayerController), so
+        // PlayerTelekinesisController's own [Inject] Construct never runs. Without this call its
+        // _landMap stays null, CurrentRoom resolves to null, and TryGrab returns false at its first
+        // guard — the prop physics, the mass gate and the guards all work and none of them are ever
+        // reached. Nothing logs, because a null room is a legal state for a fixture.
+        //
+        // The LandMap rather than the room, because this method runs once per land load: a door
+        // inside the same land goes through RoomTransitionManager -> landMap.SetCurrentRoom and
+        // never comes back here, so a room captured now would be the room the player left.
+        var telekinesis = playerObj.GetComponent<PFE.Entities.Player.PlayerTelekinesisController>();
+        if (telekinesis != null)
+        {
+            telekinesis.SetLandMap(_gameManager.GetLandMap());
+            if (_debugSettings?.LogMapBridgeLifecycle == true)
+                Debug.Log("[MapBridge] Telekinesis connected to LandMap");
+        }
+        else
+        {
+            // PlayerController.Awake always creates this component, and this coroutine runs after
+            // Awake, so null here means the player object is not what we think it is. Warn rather
+            // than skip: a silent skip is exactly how the missing wiring above stayed invisible.
+            Debug.LogWarning(
+                "[MapBridge] No PlayerTelekinesisController on the player — telekinesis will not " +
+                "be able to resolve a room and nothing will be grabbable.");
         }
 
         // Hand the player's hold-to-act timers to the simulation as well — but deliberately NOT behind

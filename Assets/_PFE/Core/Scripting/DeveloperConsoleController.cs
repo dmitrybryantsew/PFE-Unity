@@ -31,6 +31,7 @@ namespace PFE.Core.Scripting
         private DevConsoleSimCommands _simCommands;
         private DevConsoleSaveCommands _saveCommands;
         private DevConsoleColliderCommands _colliderCommands;
+        private DevConsoleProfilerCommands _profilerCommands;
 
         private const KeyCode ToggleKey1 = KeyCode.BackQuote;
         private const KeyCode ToggleKey2 = KeyCode.F1;
@@ -79,6 +80,18 @@ namespace PFE.Core.Scripting
         private void Start()
         {
             SyncDependencies();
+        }
+
+        private void OnDestroy()
+        {
+            // The profiler is a static class, so the context source the profiler commands register
+            // outlives this object and would keep it -- and the LandMap it holds -- alive after the
+            // scene unloads. Guarded on Instance == this because Awake destroys a duplicate console,
+            // and that duplicate must not clear the live one's source.
+            if (Instance == this)
+            {
+                _profilerCommands?.Unwire();
+            }
         }
 
         private void Update()
@@ -133,12 +146,14 @@ namespace PFE.Core.Scripting
             _simCommands ??= new DevConsoleSimCommands();
             _saveCommands ??= new DevConsoleSaveCommands();
             _colliderCommands ??= new DevConsoleColliderCommands();
+            _profilerCommands ??= new DevConsoleProfilerCommands();
 
             if (_resolver != null)
             {
                 _resolver.TryResolve(out PFE.Data.GameDatabase database);
                 _resolver.TryResolve(out PFE.Systems.Weapons.PlayerWeaponLoadout loadout);
                 _resolver.TryResolve(out PFE.Core.SimClock simClock);
+                _resolver.TryResolve(out PFE.Core.SimLoop simLoop);
                 _resolver.TryResolve(out PFE.Core.GameManager gameManager);
                 _resolver.TryResolve(out MessagePipe.IPublisher<PFE.Core.Messages.HealMessage> healPublisher);
 
@@ -157,13 +172,18 @@ namespace PFE.Core.Scripting
                 // registration of their own - only the GameManager, which owns the IsInitialized
                 // gate that stops a save during the world build.
                 _saveCommands.Wire(gameManager, resolvedMap);
+
+                // The map as well as the loop: `prof status` reports the current room's prop counts
+                // beside the tick rate, because every prop-layer region's cost is a loop over one of
+                // those lists and a per-tick figure is uninterpretable without them.
+                _profilerCommands.Wire(simLoop, resolvedMap);
             }
 
             // The collider commands need no dependency injection: the overlay finds its own scene
             // objects, and its state lives in PfeDebugSettings. That is deliberate — this is the
             // tool you reach for when something else failed to wire up, so it must not depend on
             // anything having been wired up.
-            _service.SetCommandObjects(_playerCommands, _simCommands, _saveCommands, _colliderCommands);
+            _service.SetCommandObjects(_playerCommands, _simCommands, _saveCommands, _colliderCommands, _profilerCommands);
         }
 
         private LandMap ResolveLandMap()
@@ -259,6 +279,14 @@ namespace PFE.Core.Scripting
             {
                 SyncDependencies();
                 _service.ExecuteInput("col probe");
+            }
+            // One click for the "I press Q and nothing happens" report. Deliberately NOT a toggle:
+            // a button that flips a trace on/off is one mis-click away from an empty Console that
+            // looks exactly like the bug you opened it to find. Use `tele on` for the live trace.
+            if (GUILayout.Button("Tele probe", GUILayout.Width(80)))
+            {
+                SyncDependencies();
+                _service.ExecuteInput("tele probe");
             }
             if (GUILayout.Button("Overlays off", GUILayout.Width(85)))
             {

@@ -140,6 +140,26 @@ namespace PFE.Core
         [Tooltip("Logs each generated tile collider (TileCollider).")]
         private bool logTileColliderCreation = false;
 
+        // ── Telekinesis ──────────────────────────────────────────────────────
+
+        [Header("Telekinesis")]
+        [SerializeField]
+        [Tooltip("Traces the whole Q path as Debug.Log lines prefixed '[tele]': the message arriving at " +
+                 "PlayerController, every grab-gate term with its value, the line-of-sight ray, the teleport " +
+                 "charge and the release verdict. Console: `tele on` / `tele off` / `tele probe`. " +
+                 "Diagnostic toggle, NOT gated by runtimeLoggingEnabled -- the master log switch must never be " +
+                 "able to hide the trace you turned on to find a bug.")]
+        private bool logTelekinesisTrace = false;
+
+        [SerializeField]
+        [Tooltip("Lets telekinesis grab and hold ANY dynamic prop, ignoring its authored capability, its " +
+                 "massa and the distance. A testing affordance for the 'I want to pick that up' case: " +
+                 "DynamicThrowable props (mcrate4 and friends) are refused by the capability check, and " +
+                 "the heavier crates by the massa/teleDist terms, so without this only the light " +
+                 "DynamicTelekinetic crates can ever be lifted. NOT gated by runtimeLoggingEnabled -- it " +
+                 "changes gameplay, not logging. Turn it OFF for a real play session.")]
+        private bool telekinesisGrabAnything = false;
+
         // ── Debug Visual Overlays ────────────────────────────────────────────
         //
         // ONE mask, not a dozen booleans. The requirement is "each one can be set on, or all at once,
@@ -197,6 +217,13 @@ namespace PFE.Core
         [SerializeField]
         [Tooltip("Drives the room heartbeat (LandMap -> RoomInstance -> RoomObjectPhysicsLayer) from SimLoop at the configured tick rate instead of Unity's per-frame ITickable. OFF = per-frame driver with the historical hardcoded 1/60 step, so simulated time advances by (fps / 60) per real second: correct only at exactly 60 fps, 2.4x fast at 144 fps and 2x SLOW at 30 fps. ON = one step per sim tick at exactly SimClock.SimDt, i.e. AS3's 30 fps, independent of the display. The prop physics constants are identical in both modes; only the clock differs. Behaviour toggle, NOT gated by runtimeLoggingEnabled.")]
         private bool simTickRoom = false;
+
+        [SerializeField]
+        [Tooltip("Drives a motor-LESS unit (an NPC with no TilePhysicsController) from SimLoop at the configured tick rate instead of Unity's FixedUpdate. " +
+                 "OFF = the legacy path: the unit steps once per Unity FixedUpdate (50 Hz by default) against Time.fixedDeltaTime. Two things go wrong with it. The rate is 1.67x AS3's, so gravity accumulates 1.67x too fast; and Unity's FixedUpdate catches up without a cap, so a frame that costs more than one fixed step runs every unit again inside the same frame — measured in the camp at 24-26 unit steps per frame against 5 in a healthy one, which is what made the camp run at 2 FPS. " +
+                 "ON = one step per sim tick at exactly SimClock.SimDt, hard-capped at SimClock.MaxCatchupTicks per frame, which is AS3's 30 Hz and cannot spiral. " +
+                 "The physics constants are identical in both modes; only the clock differs. Behaviour toggle, NOT gated by runtimeLoggingEnabled.")]
+        private bool simTickUnits = false;
 
         [SerializeField]
         [Tooltip("Drives damage resolution from SimLoop at SimTickOrder.Damage instead of resolving each hit inline at the moment of contact. " +
@@ -281,6 +308,39 @@ namespace PFE.Core
         public bool LogRoomRenderingLifecycle                    => runtimeLoggingEnabled && logRoomRenderingLifecycle;
         public bool LogTileVisualCreationSummary                 => runtimeLoggingEnabled && logTileVisualCreationSummary;
         public bool LogTileColliderCreation                      => runtimeLoggingEnabled && logTileColliderCreation;
+
+        /// <summary>
+        /// Traces the telekinesis / teleport Q path (see <c>TelekinesisTrace</c>).
+        ///
+        /// <para><b>Deliberately NOT gated by <c>runtimeLoggingEnabled</c>.</b> This is the one diagnostic
+        /// you switch on *because* something is already broken, and a master switch that could silently
+        /// silence it would make the tool lie about the exact thing it was opened to find. Every other
+        /// log in this file is routine telemetry and does respect the master switch; this one is an
+        /// operator's instrument.</para>
+        ///
+        /// <para>Settable so the developer console (<c>tele on</c>) and the Inspector drive the same
+        /// value — one source of truth, three front ends.</para>
+        /// </summary>
+        public bool LogTelekinesisTrace
+        {
+            get => logTelekinesisTrace;
+            set => logTelekinesisTrace = value;
+        }
+
+        /// <summary>
+        /// Widens telekinesis to every dynamic prop — see the field.
+        ///
+        /// <para><b>One flag, three effects, because they are read in three places.</b>
+        /// <c>ObjectInstance.SupportsTelekinesis</c> consults this so the capability check, the candidate
+        /// filter, <c>TrySetTelekineticHold</c> and <c>StepDynamicObject</c> all widen together — if only
+        /// some of them did, a grab would be accepted and then never stepped, which is the exact
+        /// "grabbed but inert" failure this project has already spent a long time on. The grab gate in
+        /// <c>PlayerTelekinesisController</c> consults it separately for the massa and distance terms,
+        /// which live in the player and not in the prop.</para>
+        ///
+        /// <para>Read-only: it is a testing switch, not something the game should flip mid-run.</para>
+        /// </summary>
+        public bool TelekinesisGrabAnything => telekinesisGrabAnything;
 
         // ── Debug overlays: the mask, and the per-feature facades over it ────
         //
@@ -376,6 +436,13 @@ namespace PFE.Core
         public bool SimTickDualRun                               => simTickDualRun;
         public bool SimTickMotor                                 => simTickMotor;
         public bool SimTickRoom                                  => simTickRoom;
+
+        /// <summary>
+        /// Whether a motor-less unit's step is driven by <c>SimLoop</c> rather than Unity's
+        /// <c>FixedUpdate</c>. See <c>UnitController.AttachSimulation</c>; the flag is read once at
+        /// wiring time by <c>MapBridge</c>, which is where the spawner chain is handed the clock.
+        /// </summary>
+        public bool SimTickUnits                                 => simTickUnits;
 
         /// <summary>
         /// Whether damage resolves on the tick (<c>SimTickOrder.Damage</c>) rather than inline at

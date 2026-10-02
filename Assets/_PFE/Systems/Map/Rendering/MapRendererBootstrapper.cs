@@ -34,6 +34,13 @@ namespace PFE.Systems.Map.Rendering
         // because `PhysicsWorld` is also a type name in scope here.
         private PFE.Systems.Physics.IPhysicsWorldService worldService;
 
+        // Prop impact damage: MapBridge.Construct gained the damage authority so a crate landing on an
+        // enemy resolves through armour, and this bootstrapper is the only manual caller of that
+        // method — so this call site had to be updated in the same change, exactly as the two comments
+        // above say. `[Inject]` resolves it: DamageSystem is registered with
+        // RegisterEntryPoint<DamageSystem>().AsSelf().
+        private PFE.Systems.Combat.DamageSystem damageSystem;
+
         [Inject]
         public void Construct(
             GameManager gm,
@@ -45,7 +52,8 @@ namespace PFE.Systems.Map.Rendering
             PfeDebugSettings debug,
             SimClock clock,
             SimLoop loop,
-            PFE.Systems.Physics.IPhysicsWorldService physicsWorldService)
+            PFE.Systems.Physics.IPhysicsWorldService physicsWorldService,
+            PFE.Systems.Combat.DamageSystem damage)
         {
             gameManager = gm;
             roomGenerator = generator;
@@ -57,6 +65,7 @@ namespace PFE.Systems.Map.Rendering
             simClock = clock;
             simLoop = loop;
             worldService = physicsWorldService;
+            damageSystem = damage;
         }
         
         private void Start()
@@ -131,7 +140,8 @@ namespace PFE.Systems.Map.Rendering
                     debugSettings,
                     simClock,
                     simLoop,
-                    worldService);
+                    worldService,
+                    damageSystem);
                 Debug.Log("[MapRendererBootstrapper] Injected runtime dependencies into MapBridge");
             }
             else

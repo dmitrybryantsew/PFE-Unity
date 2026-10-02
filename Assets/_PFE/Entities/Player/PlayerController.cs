@@ -7,6 +7,7 @@ using PFE.Core.Messages;
 using PFE.Entities.Units;
 using PFE.Systems.Interaction;
 using PFE.Systems.Map;
+using PFE.Systems.Map.TileQuery;
 using PFE.Systems.Physics;
 using PFE.Systems.Weapons;
 namespace PFE.Entities.Player
@@ -66,6 +67,7 @@ namespace PFE.Entities.Player
         /// <c>PlayerWeaponLoadout</c>, but it kept a second, half-wired weapon system alive.</para>
         /// </summary>
         private PlayerWeaponLoadout _loadout;
+        private PlayerTelekinesisController _telekinesis;
 
         // MessagePipe subscriptions (disposable)
         private CompositeDisposable _disposables;
@@ -80,6 +82,8 @@ namespace PFE.Entities.Player
         private bool _wasRightHeld;
         private bool _wasDownHeld;
 
+        public PlayerTelekinesisController Telekinesis => _telekinesis;
+
         // VContainer Injection
         [Inject]
         public void Construct(
@@ -91,6 +95,33 @@ namespace PFE.Entities.Player
         {
             _input = input;
             _debugSettings = debugSettings;
+
+            // ── Construct really is called twice, and this guard is why that is harmless ─────────────
+            //
+            // The player GameObject is injected by two independent paths: `RegisterComponent` in
+            // GameLifetimeScope, and the scene scope's `autoInjectGameObjects`, which lists the very
+            // same player prefab instance (SampleScene, fileID 1971043193 — a stripped GameObject whose
+            // source is the Player prefab). VContainer runs the [Inject] method once per injection, so
+            // Construct runs twice and every Subscribe below used to be registered twice: one
+            // TeleportMessage arrived as two.
+            //
+            // Worse, `_disposables` was reassigned without disposing, so the first subscription set was
+            // orphaned and could never be disposed. That is exactly how it presented: one physical Q
+            // press delivered two press edges, the first grabbed a crate and the second dropped it again
+            // in the same frame, so a hold never survived a single frame. Every attack and interact
+            // message was silently doubled too.
+            //
+            // Disposing the previous set makes the duplicate harmless whatever its source; the warning
+            // keeps the underlying scene misconfiguration visible instead of hiding it behind the guard.
+            if (_disposables != null)
+            {
+                Debug.LogWarning(
+                    "[PlayerController] Construct() called more than once — this component is injected " +
+                    "twice (RegisterComponent AND autoInjectGameObjects both name the player GameObject). " +
+                    "Re-subscribing; the previous MessagePipe subscriptions are disposed.");
+                _disposables.Dispose();
+            }
+
             if (_debugSettings.LogDependencyInjectionConstruct)
                 Debug.Log("[PlayerController] Construct() called — dependencies injected.");
 
@@ -109,6 +140,31 @@ namespace PFE.Entities.Player
 
             teleportSubscriber.Subscribe(message =>
             {
+                // Q does two things at once in AS3 and they are NOT mutually exclusive. While the key
+                // is held, actTele() runs ONCE on the press edge (latched by `teleReady`) and the
+                // teleport charge `t_port` increments on EVERY frame; on release, actPort() fires if
+                // the charge reached portTime (UnitPlayer.as:2141-2176). So a successful grab does not
+                // cancel the charge — both run side by side, and AS3 will happily teleport while still
+                // holding the prop.
+                //
+                // The port used to suppress the charge whenever telekinesis consumed the press
+                // (`if (handledByTelekinesis) SetTeleportHeld(false)`), so the moment a grab started
+                // working, Q stopped being able to teleport at all. The return value still reports
+                // whether telekinesis handled the edge; it is just not a decision about the teleport.
+                TelekinesisTrace.Log(
+                    $"PlayerController got TeleportMessage IsStarted={message.IsStarted}  " +
+                    $"telekinesis={(_telekinesis != null ? "present" : "NULL")}  " +
+                    $"locomotion={(_locomotion != null ? "present" : "NULL")}");
+
+                // Delivery count, so "the input published two edges" and "the broker delivered two"
+                // are distinguishable from each other in the flight log.
+                TelekinesisRecorder.Write($"[DELIVER] TeleportMessage IsStarted={message.IsStarted}");
+
+                if (_telekinesis != null)
+                {
+                    _telekinesis.OnTeleportKeyPressed(message.IsStarted);
+                }
+
                 if (_locomotion != null)
                 {
                     _locomotion.SetTeleportHeld(message.IsStarted);
@@ -136,16 +192,23 @@ namespace PFE.Entities.Player
             _locomotion = GetComponent<PlayerLocomotionController>();
             _loadout = GetComponent<PlayerWeaponLoadout>();
             _actionInteractor = GetComponent<PlayerActionInteractor>();
+            _telekinesis = GetComponent<PlayerTelekinesisController>() ?? gameObject.AddComponent<PlayerTelekinesisController>();
             base._unitStats = new UnitStats();
 
             if (_locomotion != null)
                 _locomotion.SetUnitStats(base._unitStats);
         }
 
-        private void OnDestroy()
+        protected override void OnDestroy()
         {
             // Clean up MessagePipe subscriptions
             _disposables?.Dispose();
+
+            // The base drops this unit's SimLoop registration. This override used to be `private`,
+            // which HIDES a base `OnDestroy` rather than calling it — Unity's message dispatch finds
+            // the most-derived declaration and invokes only that. Harmless while the base had no
+            // OnDestroy; a leaked registration the moment it gained one.
+            base.OnDestroy();
         }
 
         private void Update()
@@ -200,14 +263,57 @@ namespace PFE.Entities.Player
                 bool dashPressed = runHeld && DetectHorizontalDoubleTap(input.x);
                 bool dropThroughPressed = DetectDownDoubleTap(input.y);
                 // Provide mouse cursor world position for teleport targeting (AS3: World.w.celX/celY)
-                Vector2 cursorWorldPixels = Vector2.zero;
+                //
+                // Two things matter here and both were wrong.
+                //
+                // (1) `_mainCamera` is cached from Camera.main at Awake, so a camera that is created
+                //     later leaves it null forever. Retry it here; `Camera.main` is cheap and cached by
+                //     Unity, unlike a scene scan.
+                // (2) ONLY hand the cursor over when we actually have one. `SetCursorWorldPixels` sets
+                //     `_cursorSetExternally = true`, which *disables* the telekinesis controller's own
+                //     fallback (`UpdateCursorPositionIfNeeded`, which additionally tries
+                //     `FindFirstObjectByType<Camera>()`). Forwarding a `Vector2.zero` placeholder
+                //     therefore pins the cursor to the room origin and makes every grab miss -- while
+                //     looking exactly like a physics or mass problem.
+                //
+                // Skipping the forward is free for locomotion: it has no set-externally flag and its
+                // field already defaults to `Vector2.zero`.
+                if (_mainCamera == null)
+                {
+                    _mainCamera = Camera.main;
+                }
+
                 if (_mainCamera != null)
                 {
-                    Vector3 mouseWorld = _mainCamera.ScreenToWorldPoint(Input.mousePosition);
+                    // (3) `Input.mousePosition.z` is always 0, and `ScreenToWorldPoint` reads that z as
+                    //     the DISTANCE IN FRONT OF THE CAMERA. On a perspective camera a z of 0 is the
+                    //     near plane, so the "world point" comes back sitting on the camera -- and the
+                    //     camera follows the player, so the cursor silently tracks the player instead of
+                    //     the mouse. Every grab then misses, because the cursor never leaves the player's
+                    //     feet, and it looks exactly like a range or mass problem. The gameplay camera
+                    //     here IS perspective (see ColliderDebugOverlay.GetViewRect, UnitHealthOverlay
+                    //     .SelectVisible, both of which had to stop branching on `orthographic`), so the
+                    //     fix is to pass the distance to the plane the rooms live on: z = 0.
+                    //
+                    //     For an orthographic camera this assignment is a no-op -- the projection ignores
+                    //     z for x/y -- so the same two lines are correct for both. This mirrors the
+                    //     already-correct site in HandleCursorInteraction below (line ~479) and in
+                    //     PlayerTelekinesisController.UpdateCursorPositionIfNeeded.
+                    Vector3 mouseScreen = Input.mousePosition;
+                    if (!_mainCamera.orthographic)
+                    {
+                        mouseScreen.z = -_mainCamera.transform.position.z;
+                    }
+
+                    Vector3 mouseWorld = _mainCamera.ScreenToWorldPoint(mouseScreen);
                     // Convert Unity world units to pixel space
-                    cursorWorldPixels = new Vector2(mouseWorld.x * 100f, mouseWorld.y * 100f);
+                    Vector2 cursorWorldPixels = new Vector2(
+                        mouseWorld.x * TileQueryConstants.UnitToPixel,
+                        mouseWorld.y * TileQueryConstants.UnitToPixel);
+                    _locomotion.SetCursorWorldPixels(cursorWorldPixels);
+                    _telekinesis?.SetCursorWorldPixels(cursorWorldPixels);
                 }
-                _locomotion.SetCursorWorldPixels(cursorWorldPixels);
+
                 _locomotion.SetIntent(input, jumpHeld, runHeld, jumpPressed, dashPressed, dropThroughPressed, _aimAngle);
                 _isGrounded = _locomotion.CurrentSnapshot.IsGrounded;
                 _isRunning = _locomotion.CurrentSnapshot.IsRunning;
@@ -291,6 +397,14 @@ namespace PFE.Entities.Player
             if (!_mouseAiming || _mainCamera == null) return;
 
             Vector3 mouseScreen = Input.mousePosition;
+            // Same near-plane trap as HandleMovementInput above: `Input.mousePosition.z` is 0, which on
+            // a perspective camera means "on the camera", not "on the z = 0 plane the rooms live on".
+            // Aim then collapses toward the player and the facing is wrong. Pass the plane distance.
+            if (!_mainCamera.orthographic)
+            {
+                mouseScreen.z = -_mainCamera.transform.position.z;
+            }
+
             Vector3 mouseWorld  = _mainCamera.ScreenToWorldPoint(mouseScreen);
             mouseWorld.z = 0f;
 
@@ -473,6 +587,15 @@ namespace PFE.Entities.Player
             // which for a door means open-then-close in a single frame.
             if (Time.frameCount == _lastInteractPressFrame) return;
             _lastInteractPressFrame = Time.frameCount;
+
+            // AS3 UnitPlayer.as:2125-2129: if holding an object, Action key throws it.
+            if (_telekinesis != null && _telekinesis.IsHoldingObject)
+            {
+                if (_telekinesis.TryThrow())
+                {
+                    return;
+                }
+            }
 
             // A hold in flight owns the action: AS3 will not start a second while actionObj is set —
             // actAction() only re-checks the incumbent (:1924-1930).

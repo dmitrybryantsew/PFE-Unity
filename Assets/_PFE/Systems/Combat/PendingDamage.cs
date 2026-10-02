@@ -58,6 +58,43 @@ namespace PFE.Systems.Combat
         /// </summary>
         public readonly float TravelDistancePixels;
 
+        /// <summary>
+        /// This hit reaches the target through AS3's <c>Unit.damage()</c> <b>directly</b>, not through
+        /// <c>udarBullet</c> — so the resolver must take <b>none</b> of the three things
+        /// <c>udarBullet</c> owns: the hit-avoidance roll (<c>:4072</c>), the damage-spread roll
+        /// (<c>:4085</c>), and the knockback throw <c>otbros</c> (<c>:4091</c>).
+        /// </summary>
+        /// <remarks>
+        /// <para><b>AS3 has two damage entry shapes and this is the second one.</b> <c>udarBullet</c>
+        /// (<c>Unit.as:4067</c>) is the shot path: it rolls <c>miss</c>/<c>precision</c>/<c>dodge</c>,
+        /// then spreads the damage by <c>Math.random() * 0.6 + 0.7</c> (<c>:4085</c>), then calls
+        /// <c>damage()</c>, then throws the target with <c>otbros()</c> (<c>:4091</c>). Everything that
+        /// reaches <c>damage()</c> <i>without</i> going through <c>udarBullet</c> therefore skips all
+        /// three: the explosion path (<c>Bullet.explRun</c>), a prop impact (<c>Unit.udarBox</c>,
+        /// <c>:4237</c>) and a floor trap (<c>Trap.as:188</c>).</para>
+        ///
+        /// <para><b>One predicate, three gates, and that is the point.</b> <c>otbros</c> is called from
+        /// exactly one place in the whole oracle — <c>:4091</c>, inside <c>udarBullet</c> — so "no
+        /// <c>udarBullet</c>" and "no throw" are the same fact, not two rules that happen to agree. This
+        /// flag is that fact; <c>DamageSystem</c> reads it at all three gates. Gating the knockback on
+        /// <c>IsExplosion</c> instead (which is what the code did before a second non-<c>udarBullet</c>
+        /// caller existed) is correct for blasts and silently wrong for a crate impact: the impact would
+        /// take a knockback draw the oracle never takes, and because its impulse is zero nothing visible
+        /// would reveal it.</para>
+        ///
+        /// <para><b>Why a flag rather than "explosions skip both".</b> That was the previous shape of
+        /// this code, and it read as a fact about explosions when the real rule is a fact about the
+        /// <i>call path</i>. A contact hit written against <see cref="IsExplosion"/> would have had to
+        /// claim to be a blast — which also switches the damage source to
+        /// <c>ExplosionDamage</c> and applies distance falloff — so the two had to be separated before
+        /// a second non-<c>udarBullet</c> caller could exist.</para>
+        ///
+        /// <para><b>The spread is a real number, not a formality.</b> It is <c>×0.7..1.3</c> on the
+        /// pre-armour damage, so leaving it on for a contact hit would make every crate impact a
+        /// random draw where the oracle is deterministic — visible on a health bar, and permanent.</para>
+        /// </remarks>
+        public readonly bool SkipsAvoidanceAndVariance;
+
         private PendingDamage(
             in DamageContext context,
             IDamageable target,
@@ -66,16 +103,18 @@ namespace PFE.Systems.Combat
             Vector3 explosionCentre,
             float explosionRadius,
             float factionMultiplier,
-            float travelDistancePixels)
+            float travelDistancePixels,
+            bool skipsAvoidanceAndVariance)
         {
-            Context              = context;
-            Target               = target;
-            ImpactPosition       = impactPosition;
-            IsExplosion          = isExplosion;
-            ExplosionCentre      = explosionCentre;
-            ExplosionRadius      = explosionRadius;
-            FactionMultiplier    = factionMultiplier;
-            TravelDistancePixels = travelDistancePixels;
+            Context                   = context;
+            Target                    = target;
+            ImpactPosition            = impactPosition;
+            IsExplosion               = isExplosion;
+            ExplosionCentre           = explosionCentre;
+            ExplosionRadius           = explosionRadius;
+            FactionMultiplier         = factionMultiplier;
+            TravelDistancePixels      = travelDistancePixels;
+            SkipsAvoidanceAndVariance = skipsAvoidanceAndVariance;
         }
 
         /// <summary>A single-target hit — a bullet, a melee sweep, anything that reads <c>BaseDamage</c>.</summary>
@@ -91,7 +130,28 @@ namespace PFE.Systems.Combat
                                  explosionCentre: impactPosition,
                                  explosionRadius: 0f,
                                  factionMultiplier: 1f,
-                                 travelDistancePixels: travelDistancePixels);
+                                 travelDistancePixels: travelDistancePixels,
+                                 skipsAvoidanceAndVariance: false);
+
+        /// <summary>
+        /// A prop impact or any other hit that reaches <c>Unit.damage()</c> without a bullet — AS3
+        /// <c>Unit.udarBox</c> (<c>Unit.as:4237</c>).
+        /// </summary>
+        /// <remarks>
+        /// <b>Not an explosion and not a shot.</b> It reads <c>BaseDamage</c> like
+        /// <see cref="Direct"/>, but takes neither the avoidance roll nor the damage-spread roll,
+        /// because <c>udarBox</c> calls <c>damage()</c> directly. See
+        /// <see cref="SkipsAvoidanceAndVariance"/> for the citations.
+        /// </remarks>
+        public static PendingDamage Contact(
+            in DamageContext context, IDamageable target, Vector3 impactPosition)
+            => new PendingDamage(context, target, impactPosition,
+                                 isExplosion: false,
+                                 explosionCentre: impactPosition,
+                                 explosionRadius: 0f,
+                                 factionMultiplier: 1f,
+                                 travelDistancePixels: 0f,
+                                 skipsAvoidanceAndVariance: true);
 
         /// <summary>
         /// An AoE blast against one target in range. The caller has already enumerated the overlap and
@@ -117,6 +177,7 @@ namespace PFE.Systems.Combat
                                  explosionCentre: explosionCentre,
                                  explosionRadius: explosionRadius,
                                  factionMultiplier: factionMultiplier,
-                                 travelDistancePixels: 0f);
+                                 travelDistancePixels: 0f,
+                                 skipsAvoidanceAndVariance: true);
     }
 }

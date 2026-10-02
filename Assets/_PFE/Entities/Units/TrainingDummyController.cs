@@ -123,10 +123,18 @@ namespace PFE.Entities.Units
 
         /// <summary>
         /// AS3 <c>control()</c> (<c>UnitTrain.as:54-57</c>) — <c>hp = maxhp</c>, every tick.
+        ///
+        /// <para><b>Overrides <see cref="UnitController.StepUnit"/>, not a driver.</b> AS3's
+        /// <c>control()</c> runs once per unit frame alongside <c>run()</c>, so it belongs to the
+        /// unit's <i>step</i> — whichever clock owns that step. This used to override
+        /// <c>FixedUpdate</c>, which was correct only while every motor-less unit was on Unity's
+        /// fixed clock; once <c>SimLoop</c> owns the step, a <c>FixedUpdate</c> override would restore
+        /// the dummy's health at 50 Hz while its movement ran at 30, splitting one oracle frame across
+        /// two clocks.</para>
         /// </summary>
-        protected override void FixedUpdate()
+        protected override void StepUnit()
         {
-            base.FixedUpdate();
+            base.StepUnit();
             RestoreHealth();
         }
 
@@ -144,7 +152,7 @@ namespace PFE.Entities.Units
 
         /// <summary>
         /// Restore health to full, without a redundant reactive write: <c>ReactiveProperty</c> would
-        /// publish on every <c>FixedUpdate</c> otherwise, which is a notification storm for a value that
+        /// publish on every step otherwise, which is a notification storm for a value that
         /// changes only when the dummy is hit. Behaviourally identical to AS3's unconditional assignment.
         /// </summary>
         void RestoreHealth()

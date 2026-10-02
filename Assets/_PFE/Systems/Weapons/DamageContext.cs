@@ -259,6 +259,49 @@ namespace PFE.Systems.Weapons
         }
 
         /// <summary>
+        /// <summary>
+        /// AS3's <c>Unit.damage(amount, type)</c> reached with <b>no bullet</b> — the shape a prop
+        /// impact uses (<c>Unit.udarBox</c>, <c>fe/unit/Unit.as:4237</c>) and a floor trap will
+        /// (<c>Trap.as:188</c>).
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Why this is a separate factory and not <c>FromWeapon(null, …)</c>.</b> AS3's
+        /// <c>damage()</c> takes the bullet as an optional third argument and every bullet-derived
+        /// term is inside <c>if(param3)</c> (<c>:3638-3642</c> for <c>armorMult</c>/<c>pier</c>,
+        /// <c>:3652-3658</c> for crit). A prop impact passes none, so the hit has <b>no</b> crit, no
+        /// piercing, no armour multiplier, no knockback and no penetration budget — not "zero-valued"
+        /// versions of them, but absent. Writing those as zeros here is how they are expressed.</para>
+        ///
+        /// <para><b>What still applies, and must.</b> Vulnerability, the target's <c>skin</c> and its
+        /// armour pool — all three are inside the part of <c>damage()</c> that runs regardless of
+        /// <c>param3</c> (<c>:3527-3530</c>, <c>:3611-3637</c>). That is exactly why a prop impact
+        /// cannot simply call <c>IDamageable.TakeDamage</c>, which is a raw HP subtraction.</para>
+        ///
+        /// <para><c>IsMelee</c> is <c>false</c>: <c>udarBox</c> is not <c>udarUnit</c>, and the flag is
+        /// read only by <see cref="HitAvoidance"/> — a path a contact hit does not take.</para>
+        /// </remarks>
+        public static DamageContext Contact(float damage, DamageType damageType)
+        {
+            return new DamageContext(
+                owner:             null,
+                weapon:            null,
+                baseDamage:        damage,
+                explosionDamage:   0f,
+                armorMultiplier:   1f,
+                piercing:          0f,
+                knockback:         0f,
+                knockbackDir:      Vector2.zero,
+                critChance:        0f,
+                critMultiplier:    1f,
+                damageType:        damageType,
+                destroyTiles:      0f,
+                penetrationChance: 0f,
+                dopEffect:         null,
+                dopDamage:         0f,
+                dopChance:         0f);
+        }
+
+        /// <summary>
         /// Convenience factory — builds a context from weapon definition and owner stats,
         /// applying base weapon values without ammo modifiers.
         /// Ammo modifiers are applied by the controller after ammo type is resolved.

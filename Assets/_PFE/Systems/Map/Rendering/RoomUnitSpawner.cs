@@ -55,6 +55,43 @@ namespace PFE.Systems.Map.Rendering
         /// </summary>
         ITileQueryService _tileQuery;
 
+        /// <summary>
+        /// The port's damage authority, handed to every unit this spawner builds.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Why the spawner has to pass it and <c>[Inject]</c> cannot.</b> Units here are built
+        /// with <c>AddComponent</c>, which VContainer never observes, so a <c>[Inject]</c> field on
+        /// <c>UnitController</c> stays null for every spawned unit — the player is the only unit that
+        /// gets it, because the player's GameObject is in the scene scope's
+        /// <c>autoInjectGameObjects</c>. Without this seam a crate would damage an armoured enemy
+        /// exactly as much as a bare one, and the only sign would be a warning in the log.</para>
+        ///
+        /// <para>Optional, and null is a legitimate state: the spawner is also constructed directly by
+        /// tests, and a unit with no damage system falls back to raw HP damage with a loud warning. The
+        /// alternative — making it required — would break every existing construction site to no
+        /// benefit, since the fallback is observable.</para>
+        /// </remarks>
+        PFE.Systems.Combat.DamageSystem _damageSystem;
+
+        /// <summary>
+        /// The fixed-step simulation, handed to every unit this spawner builds so a motor-less NPC
+        /// steps on <c>SimLoop</c> instead of Unity's <c>FixedUpdate</c>.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Same reason the damage system travels this way, and the same two entry points.</b>
+        /// A unit is built with <c>AddComponent</c>, which VContainer never observes, so a
+        /// <c>[Inject]</c> field on <c>UnitController</c> cannot reach it and the spawner is the only
+        /// handover. The clock has one further reason to be optional: it arrives from
+        /// <c>MapBridge</c> through <c>RoomVisualController</c>, and a spawner built directly by a test
+        /// has no container at all — in which case every unit keeps the legacy <c>FixedUpdate</c>
+        /// driver, which is exactly what the pre-migration tests exercise.</para>
+        ///
+        /// <para>Null is therefore a legitimate state, not a wiring failure. It is only a failure if
+        /// <c>PfeDebugSettings.simTickUnits</c> is on and <c>MapBridge</c> had a clock to hand over —
+        /// which is why the handover is gated at <c>MapBridge</c> rather than here.</para>
+        /// </remarks>
+        PFE.Core.SimClock _simClock;
+        PFE.Core.SimLoop _simLoop;
         /// <summary>Unit ids already warned about, so a room full of them warns once each.</summary>
         readonly HashSet<string> _warnedMissingSprite = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         readonly HashSet<string> _warnedUnknownController = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -69,14 +106,86 @@ namespace PFE.Systems.Map.Rendering
         public RoomUnitSpawner(
             RoomInstance room,
             Transform parent,
-            IUnitDefinitionProvider definitions = null)
+            IUnitDefinitionProvider definitions = null,
+            PFE.Systems.Combat.DamageSystem damageSystem = null,
+            PFE.Core.SimClock simClock = null,
+            PFE.Core.SimLoop simLoop = null)
         {
             _room = room;
             _parent = parent;
             _definitions = definitions ?? ResourcesUnitDefinitionProvider.Shared;
+            _damageSystem = damageSystem;
+            _simClock = simClock;
+            _simLoop = simLoop;
         }
 
         public int SpawnedCount => _spawned.Count;
+
+        /// <summary>
+        /// Hand the damage authority to this spawner, including any units it has already built.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Retroactive on purpose.</b> A room is usually built before the handover arrives, so
+        /// a setter that only affected future spawns would leave the first room's units unarmoured —
+        /// the exact "correct-but-empty until someone wires it" state this port keeps hitting. The
+        /// already-spawned GameObjects are reachable through <see cref="_spawned"/>, so they are
+        /// updated too.</para>
+        ///
+        /// <para>Replacing the spawner instead would orphan every existing unit's GameObject and spawn a
+        /// duplicate of each, which is why this is a setter and not a reconstruct.</para>
+        /// </remarks>
+        public void SetDamageSystem(PFE.Systems.Combat.DamageSystem damageSystem)
+        {
+            _damageSystem = damageSystem;
+
+            if (damageSystem == null)
+            {
+                return;
+            }
+
+            foreach (KeyValuePair<UnitInstance, GameObject> pair in _spawned)
+            {
+                if (pair.Value != null && pair.Value.TryGetComponent(out UnitController controller))
+                {
+                    controller.SetDamageSystem(damageSystem);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Hand the fixed-step simulation to this spawner, including any units it has already built.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Retroactive, for the same reason <see cref="SetDamageSystem"/> is.</b> The normal
+        /// order is a handover <i>before</i> the room exists (<c>MapBridge.Construct</c> runs, then
+        /// <c>Start</c> builds the world), so the constructor argument covers it and this setter never
+        /// fires. It exists for the other order — a later handover, or a second room built by a spawner
+        /// that was created before the clock arrived — because a setter that only affected future
+        /// spawns would leave the first room's units on Unity's 50 Hz clock while the rest ran at 30,
+        /// which is a difference nothing would report.</para>
+        ///
+        /// <para><b>Attaching twice is safe and is not a double-registration.</b>
+        /// <c>SimLoop.Register</c> de-duplicates, and a unit that is already sim-driven simply keeps
+        /// the same registration.</para>
+        /// </remarks>
+        public void AttachSimulation(PFE.Core.SimClock simClock, PFE.Core.SimLoop simLoop)
+        {
+            _simClock = simClock;
+            _simLoop = simLoop;
+
+            if (simClock == null || simLoop == null)
+            {
+                return;
+            }
+
+            foreach (KeyValuePair<UnitInstance, GameObject> pair in _spawned)
+            {
+                if (pair.Value != null && pair.Value.TryGetComponent(out UnitController controller))
+                {
+                    controller.AttachSimulation(simClock, simLoop);
+                }
+            }
+        }
 
         /// <summary>
         /// Spawn every unit the room has that is not already spawned, and destroy the ones it no longer
@@ -194,6 +303,40 @@ namespace PFE.Systems.Map.Rendering
             // answering it from Unity collision callbacks instead, whose answer is marginal because the
             // seat is 1 px and 1 px IS Box2D's contact tolerance. UnitGroundProbe documents it.
             controller.SetTileQuery(ResolveTileQuery());
+
+            // ...and the seam that lets it stand on a CRATE. Groundedness is a tile question for flat
+            // ground, but a crate is not a tile — it is an ObjectInstance in a list the tile query cannot
+            // see — so without this a unit standing on a crate is ungrounded, gravity applies, and
+            // MovePosition on a Kinematic body walks it straight down through the crate. That is AS3's
+            // Unit.checkShelf (Unit.as:2713-2741), and it is the same missing-seam shape as SetTileQuery
+            // above, one layer out. Null when there is no room, which is legal: a bare test spawn keeps
+            // the tile-only answer.
+            if (_room != null)
+            {
+                controller.SetObjectPhysicsLayer(_room.ObjectPhysicsLayer);
+            }
+
+            // ...and the seam that lets a CRATE hurt it. AS3 Unit.udarBox (Unit.as:4209-4240) applies
+            // its damage through `Unit.damage()`, which reads the target's vulnerability table, its
+            // `skin` and its armour pool — so the hit has to go through DamageSystem, not through
+            // IDamageable.TakeDamage, which is a raw HP subtraction. AddComponent never runs VContainer
+            // injection, so `[Inject]` on UnitController cannot reach a spawned unit and this handover
+            // is the only path. Null is legal (a test spawn, or a scene without the service) and the
+            // unit says so once, loudly, rather than silently going unarmoured.
+            if (_damageSystem != null)
+            {
+                controller.SetDamageSystem(_damageSystem);
+            }
+
+            // ...and the seam that moves its STEP off Unity's uncapped 50 Hz clock. See
+            // UnitController.AttachSimulation for why that matters: a frame that costs more than one
+            // fixed step runs every unit again inside it, so the units' own cost becomes the thing
+            // that makes the frame long. Null clock/loop is the legacy path, which is what a bare test
+            // spawn gets.
+            if (_simClock != null && _simLoop != null)
+            {
+                controller.AttachSimulation(_simClock, _simLoop);
+            }
 
             controller.ApplyPlacement(unit);
 

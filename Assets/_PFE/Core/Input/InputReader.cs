@@ -206,12 +206,20 @@ namespace PFE.Core.Input
             };
 
             // Teleport - hold to charge, release to execute (AS3: keyTele)
-            Teleport.started += _ =>
+            //
+            // Both edges are recorded to the telekinesis flight log, with the control that produced
+            // them. This is the layer that decides whether a single physical press is one event or two,
+            // and until it was recorded that question could only be guessed at from the far end.
+            Teleport.started += ctx =>
             {
+                PFE.Entities.Player.TelekinesisRecorder.Write(
+                    $"[INPUT] Teleport.started   control={ctx.control?.path}");
                 _teleportPublisher.Publish(new TeleportMessage { IsStarted = true });
             };
-            Teleport.canceled += _ =>
+            Teleport.canceled += ctx =>
             {
+                PFE.Entities.Player.TelekinesisRecorder.Write(
+                    $"[INPUT] Teleport.canceled  control={ctx.control?.path}");
                 _teleportPublisher.Publish(new TeleportMessage { IsStarted = false });
             };
         }

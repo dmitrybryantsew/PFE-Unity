@@ -66,6 +66,17 @@ namespace PFE.Systems.RPG
         [HideInInspector] public float meleeDamMult = 1.0f;
         [HideInInspector] public float gunsDamMult = 1.0f;
 
+        // Telekinesis stats (AS3: Pers.as & AllData.as)
+        [HideInInspector] public float maxTeleMassa = 0.6f;
+        [HideInInspector] public float teleDist = 360000f;
+        [HideInInspector] public float telePorog = 0.1f;
+        [HideInInspector] public float teleMult = 2.2f;
+        [HideInInspector] public float throwForce = 0.0f;
+        [HideInInspector] public float throwDmagic = 200f;
+        [HideInInspector] public float throwDmanaMult = 0.05f;
+        [HideInInspector] public float allDManaMult = 1.0f;
+        [HideInInspector] public int telemaster = 0;
+
         // Factor tracking for UI
         [System.Serializable]
         public class StatFactor
@@ -95,6 +106,15 @@ namespace PFE.Systems.RPG
         public float OrganMaxHp => organMaxHp;
         public float AllDamMult => allDamMult;
         public float AllVulnerMult => allVulnerMult;
+        public float MaxTeleMassa { get => maxTeleMassa; set => maxTeleMassa = value; }
+        public float TeleDist { get => teleDist; set => teleDist = value; }
+        public float TelePorog { get => telePorog; set => telePorog = value; }
+        public float TeleMult { get => teleMult; set => teleMult = value; }
+        public float ThrowForce { get => throwForce; set => throwForce = value; }
+        public float ThrowDmagic { get => throwDmagic; set => throwDmagic = value; }
+        public float ThrowDmanaMult { get => throwDmanaMult; set => throwDmanaMult = value; }
+        public float AllDManaMult { get => allDManaMult; set => allDManaMult = value; }
+        public int Telemaster { get => telemaster; set => telemaster = value; }
 
         /// <summary>
         /// Initialize character stats with a level curve.
@@ -408,6 +428,17 @@ namespace PFE.Systems.RPG
             meleeDamMult = 1.0f;
             gunsDamMult = 1.0f;
 
+            // Reset telekinesis stats to base defaults (AS3: Pers.as & AllData.as)
+            maxTeleMassa = 0.6f;
+            teleDist = 360000f;
+            telePorog = 0.1f;
+            teleMult = 2.2f;
+            throwForce = 0.0f;
+            throwDmagic = 200f;
+            throwDmanaMult = 0.05f;
+            allDManaMult = 1.0f;
+            telemaster = 0;
+
             statFactors.Clear();
 
             // Apply skill effects
@@ -512,31 +543,56 @@ namespace PFE.Systems.RPG
                     break;
 
                 case "telemaster":
-                    // Telekinesis master flag
-                    TrackFactor("telemaster", perkId, "perk", value, value);
+                    // Telekinesis master flag (AS3: Pers.as:233)
+                    telemaster = Mathf.RoundToInt(value);
+                    TrackFactor("telemaster", perkId, "perk", value, telemaster);
                     break;
 
                 case "teleDist":
                     // Telekinesis *range*, not teleport range. Consumed at UnitPlayer.as:1761 and
                     // :1790 as a SQUARED distance (the values are 360000 = 600px² and 640000 =
                     // 800px², AllData.as:5342). The teleport capability is `portPoss` instead.
-                    TrackFactor("teleDist", perkId, "perk", value, value);
+                    teleDist = value;
+                    TrackFactor("teleDist", perkId, "perk", value, teleDist);
                     break;
 
                 case "throwForce":
-                    // Throw force
-                    TrackFactor("throwForce", perkId, "perk", value, value);
+                    // Throw force (AS3: AllData.as:5348 & :6010, :6305)
+                    if (isMultiplier)
+                        throwForce *= value;
+                    else
+                        throwForce = value;
+                    TrackFactor("throwForce", perkId, "perk", value, throwForce);
                     break;
 
                 case "throwDmagic":
-                    // Throw magic cost
-                    TrackFactor("throwDmagic", perkId, "perk", value, value);
+                    // Throw magic cost (AS3: AllData.as:5349)
+                    throwDmagic = value;
+                    TrackFactor("throwDmagic", perkId, "perk", value, throwDmagic);
+                    break;
+
+                case "throwDmanaMult":
+                    if (isMultiplier)
+                        throwDmanaMult *= value;
+                    else
+                        throwDmanaMult = value;
+                    TrackFactor("throwDmanaMult", perkId, "perk", value, throwDmanaMult);
+                    break;
+
+                case "maxTeleMassa":
+                    // Max liftable mass modified by perks (AllData.as:5894, :6158, :6195)
+                    if (isMultiplier)
+                        maxTeleMassa *= value;
+                    else
+                        maxTeleMassa = value;
+                    TrackFactor("maxTeleMassa", perkId, "perk", value, maxTeleMassa);
                     break;
 
                 case "warlockDManaMult":
                     // Warlock mana cost multiplier (lower is better)
                     float manaMult = 1.0f - value; // value is reduction
-                    TrackFactor("warlockDManaMult", perkId, "perk", manaMult, manaMult);
+                    allDManaMult *= manaMult;
+                    TrackFactor("warlockDManaMult", perkId, "perk", manaMult, allDManaMult);
                     break;
 
                 case "portPoss":
@@ -747,18 +803,32 @@ namespace PFE.Systems.RPG
             switch (skillId)
             {
                 case "tele":
-                    // Telekinesis: mana regen and spell power
-                    // recManaMin: +0.75 mana regen per level
-                    // spellPower: +10% per level (tracked as allDamMult for magic)
-                    if (level > 0)
+                    // Telekinesis: mana regen, spell power, maxTeleMassa, telePorog, teleMult
+                    // AllData.as:5209-5215
                     {
-                        float manaRegenBonus = level * 0.75f;
-                        // recManaMin is not yet a field, would need to be added
-                        TrackFactor("recManaMin", skillId, "skill", manaRegenBonus, manaRegenBonus);
+                        float[] maxTeleMassaByLevel = { 0.6f, 1.6f, 3.0f, 6.0f, 12.0f, 25.0f };
+                        float[] telePorogByLevel = { 0.1f, 0.2f, 0.3f, 0.5f, 0.8f, 1.2f };
 
-                        float spellPowerBonus = level * 0.10f;
-                        allDamMult += spellPowerBonus;
-                        TrackFactor("allDamMult", skillId, "skill", spellPowerBonus, allDamMult);
+                        int clampedTier = Mathf.Clamp(tier, 0, 5);
+                        maxTeleMassa = maxTeleMassaByLevel[clampedTier];
+                        TrackFactor("maxTeleMassa", skillId, "skill", maxTeleMassa, maxTeleMassa);
+
+                        telePorog = telePorogByLevel[clampedTier];
+                        TrackFactor("telePorog", skillId, "skill", telePorog, telePorog);
+
+                        teleMult = 2.2f - 0.1f * level;
+                        TrackFactor("teleMult", skillId, "skill", teleMult, teleMult);
+
+                        if (level > 0)
+                        {
+                            float manaRegenBonus = level * 0.75f;
+                            // recManaMin is not yet a field, would need to be added
+                            TrackFactor("recManaMin", skillId, "skill", manaRegenBonus, manaRegenBonus);
+
+                            float spellPowerBonus = level * 0.10f;
+                            allDamMult += spellPowerBonus;
+                            TrackFactor("allDamMult", skillId, "skill", spellPowerBonus, allDamMult);
+                        }
                     }
                     break;
 
