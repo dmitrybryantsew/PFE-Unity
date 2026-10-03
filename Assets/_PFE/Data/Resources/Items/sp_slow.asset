@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: sp_slow
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.ItemDefinition
   itemId: sp_slow
-  type: 11
+  type: 12
   baseItemId: 
   modifierType: 0
   inventoryCategory: 0
@@ -23,7 +23,7 @@ MonoBehaviour:
   dropChance: 0.5
   requiredStoryStage: 0
   requiredLevel: 0
-  basePrice: 10
+  basePrice: 2000
   sellPrice: 5
   weight: 1
   stackSize: 1
@@ -65,8 +65,29 @@ MonoBehaviour:
   equipment:
     armor: 0
     magicArmor: 0
-    armorHP: 0
-    dexPenalty: 0
+    dexterity: 0
+    reliability: 0
+    resists:
+      bullet: 0
+      physical: 0
+      blade: 0
+      explosive: 0
+      fire: 0
+      cryo: 0
+      laser: 0
+      plasma: 0
+      spark: 0
+      fang: 0
+      acid: 0
+      necrotic: 0
+      venom: 0
+      pink: 0
+  armorHP: 0
+  armorTip: 0
+  armorHideMane: 0
+  armorIndestructible: 0
+  armorNoRepair: 0
+  armourLevels: []
   component:
     category: 0
     isJunk: 0
@@ -74,6 +95,19 @@ MonoBehaviour:
     isCraftable: 0
     requiredSkill: 
     requiredSkillLevel: 0
+  spellData:
+    hp: 60
+    mana: 30
+    magic: 500
+    culd: 10
+    dist: 0
+    line: 0
+    rad: 200
+    dam: 0
+    prod: 0
+    tele: 0
+    atk: 0
+    snd: slow
   skillModifiers: []
   effects: []
   components: []

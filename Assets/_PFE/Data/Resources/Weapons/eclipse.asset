@@ -16,7 +16,7 @@ MonoBehaviour:
   weaponType: 5
   punch: 0
   skillLevel: 6
-  weaponLevel: 18
+  weaponLevel: 0
   baseDamage: 0
   rapid: 40
   autoMode: 0
@@ -41,11 +41,12 @@ MonoBehaviour:
   rechargeFrames: 0
   recoilFrames: 0
   recoilLift: 0
-  magicPoolCost: 0
-  manaHealthCost: 0
+  magicPoolCost: 800
+  manaHealthCost: 120
   throwTip: 0
   fuseFrames: 75
   radio: 0
+  sens: 100
   meleeType: 0
   meleeDlina: 100
   meleeMinDlina: 100
@@ -58,6 +59,7 @@ MonoBehaviour:
   bulletFlame: 0
   bulletNavod: 0
   isPhysBullet: 0
+  bumc: 0
   vbul: eclipse
   projectileVisual: {fileID: 11400000, guid: e1e66326ca78ef041a088fe8dda4c7e8, type: 2}
   springMode: 0
@@ -68,8 +70,11 @@ MonoBehaviour:
   destroyTiles: 300
   piercing: 0
   penetration: 0
-  manaCost: 120
+  dopEffect: 
+  dopDamage: 0
+  dopChance: 1
   alicornOnly: 0
+  spell: 0
   weaponVisual: {fileID: 11400000, guid: e19c5103dcbb6fe4898bf11d1907533b, type: 2}
   visualOverrideId: 
   muzzleFlareId: 

@@ -14,11 +14,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: sp_blast
   weaponType: 5
-  skillLevel: 0
-  weaponLevel: 9
+  punch: 0
+  skillLevel: 7
+  weaponLevel: 0
   baseDamage: 10
   rapid: 10
+  autoMode: 0
   precision: 0
+  antiPrecision: 0
   deviation: 0
   armorPenetration: 0
   knockback: 0
@@ -33,8 +36,53 @@ MonoBehaviour:
   reloadTime: 0
   ammoType: 
   maxDurability: 100
+  prepFrames: 0
+  ammoPerShot: 1
+  rechargeFrames: 0
+  recoilFrames: 0
+  recoilLift: 0
+  magicPoolCost: 0
+  manaHealthCost: 0
+  throwTip: 0
+  fuseFrames: 75
+  radio: 0
+  sens: 100
   meleeType: 0
+  meleeDlina: 100
+  meleeMinDlina: 100
+  meleeCombo: 0
+  meleePowerAttack: 0
+  projectileArchetype: 8
+  damageType: 0
+  bulletGravity: 0
+  bulletAccel: 0
+  bulletFlame: 0
+  bulletNavod: 0
+  isPhysBullet: 0
+  bumc: 0
+  vbul: 
+  projectileVisual: {fileID: 0}
+  springMode: 1
+  bulletAnimated: 0
+  hasShell: 0
+  shineRadius: 500
+  decalType: 0
+  destroyTiles: 0
+  piercing: 0
+  penetration: 0
+  dopEffect: 
+  dopDamage: 0
+  dopChance: 1
+  alicornOnly: 0
+  spell: 1
+  weaponVisual: {fileID: 0}
+  visualOverrideId: 
+  muzzleFlareId: 
   weaponSprite: 
-  bulletSprite: 
   soundShoot: 
   soundReload: 
+  soundHit: 
+  soundPrep: 
+  soundPrepT1: 0
+  soundPrepT2: 0
+  noiseRadius: 600

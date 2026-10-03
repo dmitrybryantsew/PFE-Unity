@@ -30,7 +30,7 @@ MonoBehaviour:
   projectilesPerShot: 1
   projectileSpeed: 40
   burstCount: 0
-  explRadius: 800
+  explRadius: 270
   explosionDamage: 800
   magazineSize: 1
   reloadTime: 60
@@ -46,6 +46,7 @@ MonoBehaviour:
   throwTip: 0
   fuseFrames: 75
   radio: 0
+  sens: 100
   meleeType: 0
   meleeDlina: 100
   meleeMinDlina: 100
@@ -58,6 +59,7 @@ MonoBehaviour:
   bulletFlame: 0
   bulletNavod: 0
   isPhysBullet: 0
+  bumc: 0
   vbul: baleegg
   projectileVisual: {fileID: 11400000, guid: b4c20dc63e07b8b49911d1ec6ae6231b, type: 2}
   springMode: 0
@@ -68,8 +70,11 @@ MonoBehaviour:
   destroyTiles: 5000
   piercing: 0
   penetration: 0
-  manaCost: 0
+  dopEffect: 
+  dopDamage: 0
+  dopChance: 1
   alicornOnly: 0
+  spell: 0
   weaponVisual: {fileID: 11400000, guid: c7520777986897d46a20aedf6105b60c, type: 2}
   visualOverrideId: 
   muzzleFlareId: 

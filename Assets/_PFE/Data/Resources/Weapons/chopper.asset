@@ -46,6 +46,7 @@ MonoBehaviour:
   throwTip: 0
   fuseFrames: 75
   radio: 0
+  sens: 100
   meleeType: 0
   meleeDlina: 100
   meleeMinDlina: 100
@@ -58,6 +59,7 @@ MonoBehaviour:
   bulletFlame: 0
   bulletNavod: 0
   isPhysBullet: 0
+  bumc: 0
   vbul: 
   projectileVisual: {fileID: 0}
   springMode: 1
@@ -68,8 +70,11 @@ MonoBehaviour:
   destroyTiles: 10
   piercing: 0
   penetration: 0
-  manaCost: 0
+  dopEffect: cut
+  dopDamage: 1
+  dopChance: 0.5
   alicornOnly: 0
+  spell: 0
   weaponVisual: {fileID: 11400000, guid: ece5645acaa89c4458175ff7edeae51d, type: 2}
   visualOverrideId: 
   muzzleFlareId: 

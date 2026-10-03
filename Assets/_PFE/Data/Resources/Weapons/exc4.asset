@@ -30,7 +30,7 @@ MonoBehaviour:
   projectilesPerShot: 1
   projectileSpeed: 10
   burstCount: 0
-  explRadius: 700
+  explRadius: 120
   explosionDamage: 700
   magazineSize: 0
   reloadTime: 0
@@ -43,9 +43,10 @@ MonoBehaviour:
   recoilLift: 0
   magicPoolCost: 0
   manaHealthCost: 0
-  throwTip: 0
-  fuseFrames: 75
+  throwTip: 2
+  fuseFrames: 90
   radio: 0
+  sens: 100
   meleeType: 0
   meleeDlina: 100
   meleeMinDlina: 100
@@ -58,6 +59,7 @@ MonoBehaviour:
   bulletFlame: 0
   bulletNavod: 0
   isPhysBullet: 0
+  bumc: 0
   vbul: 
   projectileVisual: {fileID: 0}
   springMode: 1
@@ -68,8 +70,11 @@ MonoBehaviour:
   destroyTiles: 5000
   piercing: 0
   penetration: 0
-  manaCost: 0
+  dopEffect: 
+  dopDamage: 0
+  dopChance: 1
   alicornOnly: 0
+  spell: 0
   weaponVisual: {fileID: 0}
   visualOverrideId: 
   muzzleFlareId: 

@@ -41,11 +41,12 @@ MonoBehaviour:
   rechargeFrames: 0
   recoilFrames: 0
   recoilLift: 0
-  magicPoolCost: 0
-  manaHealthCost: 0
+  magicPoolCost: 150
+  manaHealthCost: 4
   throwTip: 0
   fuseFrames: 75
   radio: 0
+  sens: 100
   meleeType: 0
   meleeDlina: 100
   meleeMinDlina: 100
@@ -58,6 +59,7 @@ MonoBehaviour:
   bulletFlame: 0
   bulletNavod: 0
   isPhysBullet: 0
+  bumc: 0
   vbul: telebullet
   projectileVisual: {fileID: 11400000, guid: 0660aaad849cc824e9e5258d284b8804, type: 2}
   springMode: 1
@@ -68,8 +70,11 @@ MonoBehaviour:
   destroyTiles: 10
   piercing: 0
   penetration: 0
-  manaCost: 4
+  dopEffect: 
+  dopDamage: 0
+  dopChance: 1
   alicornOnly: 0
+  spell: 0
   weaponVisual: {fileID: 11400000, guid: 2e68a9c43115cc648bf8fd76517af7cf, type: 2}
   visualOverrideId: 
   muzzleFlareId: 

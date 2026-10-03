@@ -30,7 +30,7 @@ MonoBehaviour:
   projectilesPerShot: 1
   projectileSpeed: 35
   burstCount: 0
-  explRadius: 120
+  explRadius: 150
   explosionDamage: 120
   magazineSize: 6
   reloadTime: 60
@@ -46,6 +46,7 @@ MonoBehaviour:
   throwTip: 0
   fuseFrames: 75
   radio: 0
+  sens: 100
   meleeType: 0
   meleeDlina: 100
   meleeMinDlina: 100
@@ -58,6 +59,7 @@ MonoBehaviour:
   bulletFlame: 0
   bulletNavod: 0
   isPhysBullet: 0
+  bumc: 0
   vbul: gren40
   projectileVisual: {fileID: 11400000, guid: f8cff911f49a19341aad42522d8d159e, type: 2}
   springMode: 0
@@ -68,8 +70,11 @@ MonoBehaviour:
   destroyTiles: 600
   piercing: 0
   penetration: 0
-  manaCost: 0
+  dopEffect: 
+  dopDamage: 0
+  dopChance: 1
   alicornOnly: 0
+  spell: 0
   weaponVisual: {fileID: 11400000, guid: b26ca9aa8dbe5f04f938421c60dda54d, type: 2}
   visualOverrideId: 
   muzzleFlareId: 
