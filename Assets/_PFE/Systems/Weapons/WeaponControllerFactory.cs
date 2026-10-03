@@ -42,13 +42,16 @@ namespace PFE.Systems.Weapons
 
         private readonly PfeDebugSettings _debugSettings;
         private readonly IAmmoSource      _ammoSource;
+        private readonly IWeaponStatSource _statSource;
         private readonly PFE.Core.Rng.IRngService _rng;
 
-        public WeaponControllerFactory(PfeDebugSettings debugSettings = null, IAmmoSource ammoSource = null, PFE.Core.Rng.IRngService rng = null)
+        public WeaponControllerFactory(PfeDebugSettings debugSettings = null, IAmmoSource ammoSource = null,
+                                       PFE.Core.Rng.IRngService rng = null, IWeaponStatSource statSource = null)
         {
             _debugSettings = debugSettings;
             _ammoSource    = ammoSource;
             _rng           = rng;
+            _statSource    = statSource;
         }
 
         /// <summary>
@@ -82,7 +85,7 @@ namespace PFE.Systems.Weapons
             switch (def.weaponType)
             {
                 case WeaponType.Melee:          // tip 1 → WClub
-                    controller = new MeleeWeaponController(state);
+                    controller = new MeleeWeaponController(state, _statSource);
                     break;
 
                 case WeaponType.Thrown:         // tip 4 → WThrow
@@ -98,13 +101,13 @@ namespace PFE.Systems.Weapons
                         $"[WeaponControllerFactory] Weapon '{def.weaponId}' has tip=12 (AS3 WPaint), which has no " +
                         "Unity counterpart. Falling back to the ranged controller. " +
                         "See 13_WeaponTypeBehaviourAudit_2026-09-27.md §1.6.");
-                    controller = new RangedWeaponController(state, _debugSettings, _ammoSource, _rng);
+                    controller = new RangedWeaponController(state, _debugSettings, _ammoSource, _rng, _statSource);
                     break;
 
                 default:                        // tip 0 (Internal), 2 (Guns), 3 (BigGun), and anything >= 6
                     controller = def.IsUnarmed  // punch > 0 → WPunch; tip alone never selects it
-                        ? new UnarmedWeaponController(state)
-                        : new RangedWeaponController(state, _debugSettings, _ammoSource, _rng);
+                        ? new UnarmedWeaponController(state, _statSource)
+                        : new RangedWeaponController(state, _debugSettings, _ammoSource, _rng, _statSource);
                     break;
             }
 

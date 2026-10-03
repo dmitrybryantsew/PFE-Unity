@@ -276,18 +276,32 @@ namespace PFE.Systems.RPG
         /// Get master skill level for advanced unlock attempts (AS3 getLockMaster equivalent).
         /// Returns unlockMaster for physical locks, hackerMaster for terminals.
         /// </summary>
+        /// <remarks>
+        /// Port of <c>Pers.getLockMaster</c> (<c>Pers.as:2356</c>) <b>verbatim</b>:
+        /// <code>
+        /// if(id == 1)  return this.unlockMaster;
+        /// if(id == 2)  return this.hackerMaster;
+        /// return 100;
+        /// </code>
+        /// This is <b>not</b> the raw skill — <c>unlockMaster</c>/<c>hackerMaster</c> are separate
+        /// perk-granted fields (<c>AllData.as:6034-6046</c>, <c>ref='add'</c>) that start at 0 and
+        /// are compared against a container's <c>lockLevel</c> (<c>GUI.as:1379</c>,
+        /// <c>UnitPlayer.as:1975</c>). The earlier version returned
+        /// <c>GetSkillLevel("lockpick")</c>/<c>("science")</c>, which made every master-lock
+        /// check succeed as soon as the base skill was high and never consulted the perks.
+        /// </remarks>
         public int GetLockMaster(LockType lockType)
         {
             switch (lockType)
             {
                 case LockType.Physical:
-                    return playerStats.GetSkillLevel("lockpick");
+                    return playerStats.unlockMaster;
 
                 case LockType.Terminal:
-                    return playerStats.GetSkillLevel("science");
+                    return playerStats.hackerMaster;
 
                 default:
-                    return 100; // Default high value for other types
+                    return 100; // AS3: the 100 fallback for every other lock type
             }
         }
 

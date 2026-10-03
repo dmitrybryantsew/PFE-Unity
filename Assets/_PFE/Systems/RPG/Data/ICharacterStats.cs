@@ -8,6 +8,7 @@ namespace PFE.Systems.RPG.Data
     {
         int Level { get; }
         int GetSkillLevel(string skillId);
+        int GetSkillTier(string skillId);
         int GetPerkRank(string perkId);
     }
 }

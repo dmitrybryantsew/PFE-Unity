@@ -1,0 +1,90 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 15868adb6790c0a47a81bf51f77e6869, type: 3}
+  m_Name: medic
+  m_EditorClassIdentifier: PFE.Core::PFE.Systems.RPG.Data.SkillDefinition
+  skillId: medic
+  displayName: Medic
+  description: 
+  isPostGame: 0
+  maxLevel: 20
+  sortOrder: 8
+  levelEffects: []
+  modifiers:
+  - statId: medic
+    type: 2
+    target: 0
+    values: []
+    valueDelta: 1
+    isMultiplier: 0
+    tip: 
+    refType: 
+    dop: 0
+    v0: 0
+    hasV0: 1
+    vd: 1
+    hasVd: 1
+    v: []
+  - statId: maxhp
+    type: 0
+    target: 0
+    values:
+    - 0
+    - 20
+    - 50
+    - 90
+    - 140
+    - 200
+    valueDelta: 0
+    isMultiplier: 0
+    tip: unit
+    refType: add
+    dop: 0
+    v0: 0
+    hasV0: 0
+    vd: 0
+    hasVd: 0
+    v:
+    - 0
+    - 20
+    - 50
+    - 90
+    - 140
+    - 200
+  - statId: healMult
+    type: 2
+    target: 0
+    values: []
+    valueDelta: 0.03
+    isMultiplier: 0
+    tip: 
+    refType: 
+    dop: 1
+    v0: 0.4
+    hasV0: 1
+    vd: 0.03
+    hasVd: 1
+    v: []
+  - statId: alicornHeal
+    type: 2
+    target: 0
+    values: []
+    valueDelta: 0.1
+    isMultiplier: 0
+    tip: 
+    refType: 
+    dop: 0
+    v0: 0.5
+    hasV0: 1
+    vd: 0.1
+    hasVd: 1
+    v: []

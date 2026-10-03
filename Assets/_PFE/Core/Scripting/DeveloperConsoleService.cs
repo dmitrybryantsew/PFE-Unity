@@ -27,6 +27,7 @@ namespace PFE.Core.Scripting
         private DevConsoleSaveCommands _saveCommands;
         private DevConsoleColliderCommands _colliderCommands;
         private DevConsoleProfilerCommands _profilerCommands;
+        private DevConsoleRpgCommands _rpgCommands;
         private bool _commandObjectsRegistered;
 
         private bool _isOpen;
@@ -83,13 +84,15 @@ namespace PFE.Core.Scripting
             DevConsoleSimCommands simCommands,
             DevConsoleSaveCommands saveCommands = null,
             DevConsoleColliderCommands colliderCommands = null,
-            DevConsoleProfilerCommands profilerCommands = null)
+            DevConsoleProfilerCommands profilerCommands = null,
+            DevConsoleRpgCommands rpgCommands = null)
         {
             if (playerCommands != null) _playerCommands = playerCommands;
             if (simCommands != null) _simCommands = simCommands;
             if (saveCommands != null) _saveCommands = saveCommands;
             if (colliderCommands != null) _colliderCommands = colliderCommands;
             if (profilerCommands != null) _profilerCommands = profilerCommands;
+            if (rpgCommands != null) _rpgCommands = rpgCommands;
 
             if (_luaEngine == null) return;
 
@@ -102,6 +105,7 @@ namespace PFE.Core.Scripting
                 _luaEngine.RegisterType<DevConsoleSaveCommands>();
                 _luaEngine.RegisterType<DevConsoleColliderCommands>();
                 _luaEngine.RegisterType<DevConsoleProfilerCommands>();
+                _luaEngine.RegisterType<DevConsoleRpgCommands>();
                 _commandObjectsRegistered = true;
             }
 
@@ -110,6 +114,7 @@ namespace PFE.Core.Scripting
             if (_saveCommands != null) _luaEngine.SetGlobal("save", _saveCommands);
             if (_colliderCommands != null) _luaEngine.SetGlobal("collider", _colliderCommands);
             if (_profilerCommands != null) _luaEngine.SetGlobal("prof", _profilerCommands);
+            if (_rpgCommands != null) _luaEngine.SetGlobal("rpg", _rpgCommands);
         }
 
         /// <summary>
@@ -136,6 +141,7 @@ namespace PFE.Core.Scripting
                               "  clear / cls     - Clear console log\n" +
                               "  help / ?        - Show this help\n" +
                               "  -- player --\n" +
+                              "  editor          - Open LittlePip Character/Loadout Editor (F2)\n" +
                               "  heal <n>        - Heal the player by n\n" +
                               "  damage <n>      - Damage the player by n\n" +
                               "  god             - Set the player's HP to max\n" +
@@ -173,9 +179,17 @@ namespace PFE.Core.Scripting
                               "  prof reset      - Drop all regions. Run at the door of the room you are measuring\n" +
                               "  prof dump [tag] - Write the region report to the console and to a file\n" +
                               "  prof on / off   - Turn region collection on/off\n" +
+                              "  -- rpg (is the modifier engine actually running?) --\n" +
+                              "  rpg             - Engine health + a verdict naming the broken link if any\n" +
+                              "  rpg skills      - Skill table: points, tier, imported modifier count, applied?\n" +
+                              "  rpg derived     - The derived stats after the last recalculation\n" +
+                              "  rpg tracked     - Every stat id that recorded a factor, with its count\n" +
+                              "  rpg factors <s> - Which skill/perk produced a stat's value, in order\n" +
+                              "  rpg res         - Damage multipliers (AS3 gg.vulner)\n" +
+                              "  rpg set <s> <n> - Set a skill level, recalculate, print before/after\n" +
                               "  -- lua --\n" +
                               "  <lua code>      - Run any Lua expression (e.g. 'return 2+2', 'player:Heal(50)')\n" +
-                              "                    Globals: pfe.* (map/fog/rng), player, sim, save, collider, prof";
+                              "                    Globals: pfe.* (map/fog/rng), player, sim, save, collider, prof, rpg";
                 AppendLog(help);
                 return help;
             }
@@ -345,6 +359,13 @@ namespace PFE.Core.Scripting
 
             switch (verb)
             {
+                case "editor":
+                case "edit":
+                case "loadout":
+                    if (_playerCommands == null) return false;
+                    result = _playerCommands.Editor();
+                    return true;
+
                 case "heal":
                 case "hp":
                     if (_playerCommands == null) return false;
@@ -459,6 +480,11 @@ namespace PFE.Core.Scripting
                     result = RunProfilerShortcut(parts);
                     return true;
 
+                case "rpg":
+                    if (_rpgCommands == null) return false;
+                    result = RunRpgShortcut(parts);
+                    return true;
+
                 default:
                     return false;
             }
@@ -509,6 +535,66 @@ namespace PFE.Core.Scripting
                     // status would report "enabled, 0 regions" and read as a healthy measurement run.
                     return $"Unknown profiler subject '{parts[1]}'. Use: prof | prof dump [tag] | " +
                            "prof reset | prof on | prof off";
+            }
+        }
+
+        /// <summary>
+        /// Dispatch the <c>rpg</c> shortcuts: <c>rpg</c> (status), <c>rpg skills</c>,
+        /// <c>rpg derived</c>, <c>rpg tracked</c>, <c>rpg factors &lt;statId&gt;</c>, <c>rpg res</c>,
+        /// <c>rpg set &lt;skillId&gt; &lt;points&gt;</c>.
+        ///
+        /// <para><b>Why this verb exists.</b> The RPG modifier engine is observable only as a final stat
+        /// value, and a wrong value is indistinguishable from an engine that never ran — which is
+        /// exactly how nine correct fixes stayed inert without anyone noticing. <c>rpg status</c> prints
+        /// the modifier-row count that settles liveness; <c>rpg factors</c> names the source.</para>
+        ///
+        /// <para>A bare <c>rpg</c> is <b>status</b>, never a toggle, matching <c>col</c> and
+        /// <c>prof</c>.</para>
+        /// </summary>
+        private string RunRpgShortcut(string[] parts)
+        {
+            if (parts.Length < 2) return _rpgCommands.Status();
+
+            switch (parts[1].ToLowerInvariant())
+            {
+                case "status":
+                case "health":
+                    return _rpgCommands.Status();
+
+                case "skills":
+                case "skill":
+                    return _rpgCommands.Skills();
+
+                case "derived":
+                case "stats":
+                    return _rpgCommands.Derived();
+
+                case "tracked":
+                case "ids":
+                    return _rpgCommands.Tracked();
+
+                case "factors":
+                case "why":
+                    return _rpgCommands.Factors(parts.Length > 2 ? parts[2] : null);
+
+                case "res":
+                case "resist":
+                case "vulner":
+                    return _rpgCommands.Resist();
+
+                case "set":
+                    if (parts.Length < 4 || !int.TryParse(parts[3], out int level))
+                        return "Usage: rpg set <skillId> <points>    e.g. rpg set tele 5";
+                    return _rpgCommands.Set(parts[2], level);
+
+                case "help":
+                case "?":
+                    return _rpgCommands.Help();
+
+                default:
+                    // A parse failure is an error, not a fallback: silently treating `rpg skils` as
+                    // status would print a healthy report for a command that never ran.
+                    return $"Unknown rpg subject '{parts[1]}'.\n" + _rpgCommands.Help();
             }
         }
 

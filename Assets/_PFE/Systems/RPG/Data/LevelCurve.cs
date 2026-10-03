@@ -49,46 +49,35 @@ namespace PFE.Systems.RPG.Data
         public int[] PostSkillThresholds => postSkillThresholds;
 
         /// <summary>
-        /// Calculate total XP required to reach a specific level.
-        /// Based on AS3 formula with level-specific multipliers.
+        /// Total XP required to reach a level — AS3 <c>Pers.xpProgress</c>
+        /// (<c>Pers.as:1139-1147</c>):
         ///
-        /// From documentation:
-        /// - Levels 1-10: xp = xpDelta * N * (N+1) / 2
-        /// - Levels 11+: Each level's XP gets multiplied
-        /// - Where multiplier = (level - 10) / 30 + 1
+        /// <code>
+        /// mult = level &gt; 10 ? (level - 10) / 30 + 1 : 1
+        /// return round(xpDelta * level * (level + 1) / 2 * mult * mult / 1000) * 1000
+        /// </code>
+        ///
+        /// <para><b>One closed form, not a sum of marginal levels.</b> An earlier revision summed
+        /// <c>xpDelta * lvl</c> per level, applying the multiplier only to the marginal term. The two
+        /// agree exactly for level ≤ 10 (both reduce to <c>xpDelta * N(N+1) / 2</c>) and then drift:
+        /// level 11 is 352 000 in the oracle and was 333 000 here, and the gap compounds because
+        /// AS3 squares the multiplier over the whole sum.</para>
         /// </summary>
         public int GetXpForLevel(int level)
         {
             if (level < 1)
                 return 0;
 
-            long totalXp = 0;  // Use long to avoid overflow
+            double multiplier = 1.0;
+            if (level > 10)
+                multiplier = (level - 10) / 30.0 + 1.0;
 
-            // Sum up XP for each level individually
-            for (int lvl = 1; lvl <= level; lvl++)
-            {
-                // Use double for larger range and precision
-                double levelXp = xpDelta * lvl;  // XP per level (linear)
+            double raw = (double)xpDelta * level * (level + 1) / 2.0 * multiplier * multiplier;
+            double rounded = System.Math.Round(raw / 1000.0) * 1000.0;
 
-                // Apply multiplier for levels 11+
-                if (lvl > 10)
-                {
-                    double multiplier = ((lvl - 10) / 30.0) + 1.0;
-                    levelXp *= multiplier * multiplier;  // Square the multiplier
-                }
-
-                totalXp += (long)System.Math.Round(levelXp);
-
-                // Clamp as we go to prevent overflow
-                if (totalXp > int.MaxValue)
-                    totalXp = int.MaxValue;
-            }
-
-            // Round to nearest 1000
-            long roundedXp = (totalXp / 1000L) * 1000L;
-
-            // Clamp to int range
-            return (int)System.Math.Min(roundedXp, int.MaxValue);
+            if (rounded > int.MaxValue)
+                return int.MaxValue;
+            return (int)rounded;
         }
 
         /// <summary>

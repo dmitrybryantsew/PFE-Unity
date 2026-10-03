@@ -74,6 +74,10 @@ namespace PFE.Data.Definitions
         [Tooltip("Bonus armor piercing")]
         public int armorPiercingBonus = 0;
 
+        [Tooltip("Penetration budget (probiv in AS3). Spent as the round passes through a target — " +
+                 "NOT the same as armorPiercingBonus. Added to the weapon's own <dop probiv>.")]
+        public float penetrationBudget = 0f;
+
         [Range(0f, 2f)]
         [Tooltip("Damage multiplier (1.0 = normal)")]
         public float damageMultiplier = 1f;

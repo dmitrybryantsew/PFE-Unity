@@ -9,22 +9,21 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9890688ee0fa3d94aa489b3a78449b8b, type: 3}
+  m_Script: {fileID: 11500000, guid: 00000000000000000000000000000002, type: 3}
   m_Name: rocket
-  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.AmmoData
-  dataVersion: 1
-  gameVersion: 0.1.0
-  id: rocket
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.AmmoDefinition
+  ammoId: rocket
   baseId: 
   stackSize: 1
-  dropChance: 0.5
-  requiredStoryLevel: 5
+  dropChance: 0.41666666
+  requiredStoryStage: 5
   requiredLevel: 4
-  weight: 20
   basePrice: 75
   sellPrice: 15
+  weight: 20
   modifier: 0
   armorPiercingBonus: 0
+  penetrationBudget: 0
   damageMultiplier: 1
   armorMultiplier: 1
   knockbackMultiplier: 1
@@ -32,5 +31,5 @@ MonoBehaviour:
   extraDurabilityCost: 0
   fireDamage: 0
   damageTypeOverride: 0
-  icon: {fileID: 0}
   displayName: rocket
+  icon: {fileID: 0}

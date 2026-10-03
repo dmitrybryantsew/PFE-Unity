@@ -8,9 +8,13 @@ namespace PFE.Tests.Editor.RPG
     /// EditMode tests for LevelCurve.
     /// Tests XP progression, level-up rewards, and post-game skill thresholds.
     ///
-    /// Note: The current implementation uses a linear formula (xpDelta * level)
-    /// rather than the quadratic formula from the original AS3 documentation.
-    /// These tests verify the ACTUAL implementation behavior.
+    /// The implementation now mirrors AS3 <c>Pers.xpProgress</c> (<c>Pers.as:1144-1152</c>)
+    /// exactly — a single closed form, not a per-level sum:
+    /// <code>
+    /// mult = level &gt; 10 ? (level - 10) / 30 + 1 : 1
+    /// return round(xpDelta * level * (level + 1) / 2 * mult * mult / 1000) * 1000
+    /// </code>
+    /// These tests verify the ACTUAL implementation behavior against that oracle.
     /// </summary>
     public class LevelCurveTests
     {
@@ -79,22 +83,27 @@ namespace PFE.Tests.Editor.RPG
             // Act
             int xp = levelCurve.GetXpForLevel(11);
 
-            // Level 1-10: 275,000 XP
-            // Level 11: 5000 * 11 * (1 + 1/30)^2 = 55000 * 1.067^2 ≈ 62,600
-            // Rounded to nearest 1000: ~58,000
-            // Total: 275,000 + 58,000 = 333,000
-            Assert.AreEqual(333000, xp, "Level 11 should apply multiplier");
+            // AS3 closed form, not a sum of marginal levels:
+            //   mult = (11 - 10) / 30 + 1 = 1.0333...
+            //   raw  = 5000 * 11 * 12 / 2 * 1.0333^2 = 330000 * 1.06777... = 352366.66
+            //   round(352366.66 / 1000) * 1000 = 352000
+            // The previous expectation (333000) came from summing xpDelta*N per level and
+            // applying the multiplier only to the marginal term; AS3 squares it over the whole sum.
+            Assert.AreEqual(352000, xp, "Level 11 should apply the AS3 multiplier to the whole sum");
         }
 
         [Test]
-        [Description("Level 20 should require ~1.4M XP")]
+        [Description("Level 20 should require ~1.87M XP")]
         public void GetXpForLevel_Level20_ReturnsApprox1400000()
         {
             // Act
             int xp = levelCurve.GetXpForLevel(20);
 
-            // Based on linear implementation with multipliers for levels 11-20
-            Assert.AreEqual(1399000, xp, 10000, "Level 20 should require ~1.4M XP");
+            // AS3 closed form:
+            //   mult = (20 - 10) / 30 + 1 = 1.3333...
+            //   raw  = 5000 * 20 * 21 / 2 * 1.3333^2 = 1050000 * 1.77777... = 1866666.66
+            //   round(1866666.66 / 1000) * 1000 = 1867000
+            Assert.AreEqual(1867000, xp, "Level 20 should match AS3 xpProgress");
         }
 
         [Test]

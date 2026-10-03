@@ -90,10 +90,44 @@ namespace PFE.Systems.Weapons
             {
                 _ammoSource = value;
                 // Rebuild factory so future Equip() calls pick up the source.
-                _factory = new WeaponControllerFactory(_debugSettings, _ammoSource, _rng);
+                RebuildFactory();
             }
         }
         private IAmmoSource _ammoSource;
+
+        /// <summary>
+        /// The owner's RPG multipliers — the <c>Pers</c> fields AS3 copies onto the weapon in
+        /// <c>Weapon.setPers</c> (<c>Weapon.as:963-1050</c>): reload speed, recoil, jam chance and
+        /// the energy-ammo recycle chance.
+        ///
+        /// <para>Resolved automatically on <see cref="Equip"/> from the parent
+        /// <c>UnitController</c>'s <c>CharacterStats</c>, so the player gets them without any
+        /// Inspector wiring. Left null (no CharacterStats in the hierarchy) the weapon falls back to
+        /// the AS3 declaration defaults 1/1/1/0, which is exactly what AS3 does for a unit whose
+        /// <c>Pers</c> was never set up.</para>
+        /// </summary>
+        public IWeaponStatSource WeaponStatSource
+        {
+            get => _weaponStatSource;
+            set
+            {
+                _weaponStatSource = value;
+                RebuildFactory();
+            }
+        }
+        private IWeaponStatSource _weaponStatSource;
+
+        /// <summary>
+        /// Rebuild the controller factory so the next <see cref="Equip"/> sees the current
+        /// dependencies. Every construction site goes through here: the three call sites used to
+        /// each spell the argument list out, and the <c>Awake</c> copy had silently drifted — it
+        /// passed no RNG, so a weapon equipped before <c>Construct</c> ran drew from an unseeded
+        /// stream of its own.
+        /// </summary>
+        private void RebuildFactory()
+        {
+            _factory = new WeaponControllerFactory(_debugSettings, _ammoSource, _rng, _weaponStatSource);
+        }
 
         [Inject]
         public void Construct(IProjectileFactory projectileFactory, IObjectResolver resolver,
@@ -105,7 +139,9 @@ namespace PFE.Systems.Weapons
             _soundService      = soundService;
             _debugSettings     = debugSettings;
             _rng               = rng;
-            _factory         ??= new WeaponControllerFactory(_debugSettings, _ammoSource, _rng);
+            // Unconditional: injection always supplies at least as much as Awake had, and the old
+            // `??=` here meant an Awake-created factory was never upgraded with the real RNG.
+            RebuildFactory();
         }
 
         // ── Runtime ──────────────────────────────────────────────────────────
@@ -150,6 +186,20 @@ namespace PFE.Systems.Weapons
             var ownerUnit = GetComponentInParent<PFE.Entities.Units.UnitController>();
             if (ownerUnit != null) ownerFaction = ownerUnit.Faction;
 
+            // Resolve the owner's RPG stats before building the controller — AS3 reads them in
+            // Weapon.setPers, which runs at equip time. Done here rather than in Awake because the
+            // UnitController / CharacterStats may be added to the hierarchy after this component
+            // wakes, and because the reference only needs refreshing when it actually changes: the
+            // source is read live on every shot, so a perk taken mid-fight needs no re-equip.
+            var charStats = ownerUnit != null
+                ? ownerUnit.GetComponent<PFE.Systems.RPG.CharacterStats>()
+                : null;
+            if (!ReferenceEquals(charStats, _weaponStatSource))
+            {
+                _weaponStatSource = charStats;
+                RebuildFactory();
+            }
+
             _current = _factory.Create(def, ownerFaction);
 
             // Wire MeleeHitVolume to the controller when it's a melee weapon.
@@ -167,6 +217,12 @@ namespace PFE.Systems.Weapons
             // Notify sub-systems about the new weapon.
             _weaponPresenter?.SetState(_current.State, def);
             _projectileSpawner?.SetWeapon(def);
+
+            // Sync weapon skill tier to owner's UnitStats (charStats resolved above).
+            if (ownerUnit != null && ownerUnit.UnitStats != null && charStats != null)
+            {
+                ownerUnit.UnitStats.weaponSkillLevel = charStats.GetSkillTierForWeapon(def.skillLevel);
+            }
 
             Debug.Log($"[PlayerWeaponLoadout] Equipped '{def.weaponId}'.");
         }
@@ -206,7 +262,7 @@ namespace PFE.Systems.Weapons
 
         private void Awake()
         {
-            _factory ??= new WeaponControllerFactory(_debugSettings, _ammoSource);
+            _factory ??= new WeaponControllerFactory(_debugSettings, _ammoSource, _rng, _weaponStatSource);
 
             if (_mounts == null)
                 _mounts = GetComponent<WeaponMounts>() ?? GetComponentInChildren<WeaponMounts>();

@@ -93,13 +93,18 @@ namespace PFE.Core
 
             object controller = _loadout != null ? _loadout.Current : null;
 
-            // First successful resolve, or the equipped weapon changed underneath us.
-            if (_boundController == controller && ReferenceEquals(_viewModel.StatsSource, _player.Stats))
+            // First successful resolve, or the equipped weapon changed underneath us. The organ
+            // source is part of the comparison: CharacterStats is created in the same Awake as
+            // UnitStats today, but a respawn that replaced only one of them would otherwise leave the
+            // mana organ bound to a dead component while the budget kept updating.
+            if (_boundController == controller
+                && ReferenceEquals(_viewModel.StatsSource, _player.Stats)
+                && ReferenceEquals(_viewModel.CharacterStatsSource, _player.CharacterStats))
                 return;
 
             _boundController = controller;
 
-            _viewModel.Initialize(_loadout, _player.Stats);
+            _viewModel.Initialize(_loadout, _player.Stats, _player.CharacterStats);
             RebindViews();
             BindHoldBar();
         }

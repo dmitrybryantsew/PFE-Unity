@@ -92,19 +92,11 @@ namespace PFE.Systems.RPG
         /// </summary>
         public static string[] GetAllSkillIds(this CharacterStats stats)
         {
-            // Access the internal skillIds array via reflection
-            var field = stats.GetType().GetField("skillIds",
-                System.Reflection.BindingFlags.NonPublic |
-                System.Reflection.BindingFlags.Instance);
-
-            if (field != null)
+            if (stats != null)
             {
-                var value = field.GetValue(stats);
-                if (value is string[] arr)
-                    return arr;
+                return stats.GetAllSkillIds().ToArray();
             }
 
-            // Fallback to all known skills
             return new string[]
             {
                 "tele", "melee", "smallguns", "energy", "explosives", "magic",
@@ -119,22 +111,12 @@ namespace PFE.Systems.RPG
         /// </summary>
         public static string[] GetAllPerkIds(this CharacterStats stats)
         {
-            // Get database from CharacterStats
-            var field = stats.GetType().GetField("skillDatabase",
-                System.Reflection.BindingFlags.NonPublic |
-                System.Reflection.BindingFlags.Instance);
-
-            if (field != null)
+            if (stats != null)
             {
-                var db = field.GetValue(stats) as Data.SkillDefinitionDatabase;
-                if (db != null)
-                {
-                    var perks = db.GetAllPerks();
-                    return perks.Select(p => p.PerkId).ToArray();
-                }
+                return stats.GetAllPerkIds();
             }
 
-            return new string[0];
+            return Array.Empty<string>();
         }
 
         /// <summary>
@@ -151,12 +133,12 @@ namespace PFE.Systems.RPG
                 perkPointsExtra = data.perkPointsExtra,
                 // Health values are stored as absolute values in RPGSaveData
                 // but CharacterSaveData expects normalized 0-1 values
-                // The LoadSaveData method will multiply by organMaxHp/maxMana
-                headHp = data.organMaxHp > 0 ? data.headHp / data.organMaxHp : 0f,
-                torsHp = data.organMaxHp > 0 ? data.torsHp / data.organMaxHp : 0f,
-                legsHp = data.organMaxHp > 0 ? data.legsHp / data.organMaxHp : 0f,
-                bloodHp = data.organMaxHp > 0 ? data.bloodHp / data.organMaxHp : 0f,
-                manaHp = data.maxMana > 0 ? data.manaHp / data.maxMana : 0f
+                // The LoadSaveData method will multiply by inMaxHP/inMaxMana
+                headHp = data.organMaxHp > 0 ? Mathf.Clamp01(data.headHp / data.organMaxHp) : 1f,
+                torsHp = data.organMaxHp > 0 ? Mathf.Clamp01(data.torsHp / data.organMaxHp) : 1f,
+                legsHp = data.organMaxHp > 0 ? Mathf.Clamp01(data.legsHp / data.organMaxHp) : 1f,
+                bloodHp = data.organMaxHp > 0 ? Mathf.Clamp01(data.bloodHp / data.organMaxHp) : 1f,
+                manaHp = data.maxMana > 0 ? Mathf.Clamp01(data.manaHp / data.maxMana) : 1f
             };
 
             // Convert skill list to dictionary

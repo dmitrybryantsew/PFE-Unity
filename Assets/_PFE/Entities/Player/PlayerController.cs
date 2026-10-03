@@ -5,10 +5,12 @@ using MessagePipe;
 using PFE.Core.Input;
 using PFE.Core.Messages;
 using PFE.Entities.Units;
+using PFE.Systems.Combat;
 using PFE.Systems.Interaction;
 using PFE.Systems.Map;
 using PFE.Systems.Map.TileQuery;
 using PFE.Systems.Physics;
+using PFE.Systems.RPG;
 using PFE.Systems.Weapons;
 namespace PFE.Entities.Player
 {
@@ -69,6 +71,14 @@ namespace PFE.Entities.Player
         private PlayerWeaponLoadout _loadout;
         private PlayerTelekinesisController _telekinesis;
 
+        /// <summary>
+        /// Runs AS3's mana block (<c>UnitPlayer.as:1302-1361</c>) once per sim tick. Created here
+        /// because the player is motor-driven, so <see cref="PFE.Entities.Units.UnitController.SimTick"/>
+        /// returns early for it and there is no other per-tick hook. See
+        /// <see cref="PlayerManaTicker"/> for why it is a separate component.
+        /// </summary>
+        private PlayerManaTicker _manaTicker;
+
         // MessagePipe subscriptions (disposable)
         private CompositeDisposable _disposables;
 
@@ -83,6 +93,8 @@ namespace PFE.Entities.Player
         private bool _wasDownHeld;
 
         public PlayerTelekinesisController Telekinesis => _telekinesis;
+        private CharacterStats _characterStats;
+        public CharacterStats CharacterStats => _characterStats;
 
         // VContainer Injection
         [Inject]
@@ -194,13 +206,48 @@ namespace PFE.Entities.Player
             _actionInteractor = GetComponent<PlayerActionInteractor>();
             _telekinesis = GetComponent<PlayerTelekinesisController>() ?? gameObject.AddComponent<PlayerTelekinesisController>();
             base._unitStats = new UnitStats();
+            _characterStats = GetComponent<CharacterStats>() ?? gameObject.AddComponent<CharacterStats>();
+            _characterStats.BindUnitStats(base._unitStats);
+
+            // AS3's mana block. Registered on the sim clock by AttachSimulation below; until that
+            // runs it falls back to FixedUpdate and warns, so it is never silently absent.
+            _manaTicker = GetComponent<PlayerManaTicker>() ?? gameObject.AddComponent<PlayerManaTicker>();
+            _manaTicker.Construct(_characterStats, _locomotion, _telekinesis);
+
+            // AS3 Pers.die() fires from inside damage() / bloodDamage() / manaDamage() when an organ
+            // reaches zero (Pers.as:1693-1697, :1793-1797, :1739-1743). CharacterStats raises the
+            // event; what dying means is this class's business.
+            _characterStats.onDeath += OnCharacterDeath;
 
             if (_locomotion != null)
                 _locomotion.SetUnitStats(base._unitStats);
         }
 
+        /// <summary>
+        /// Adds the mana block to the sim clock alongside the base registration.
+        ///
+        /// <para>The base registers this UnitController at <c>SimTickOrder.UnitsAndAi</c>, but its
+        /// <c>SimTick</c> returns early for a motor-driven unit — which the player is — so that
+        /// registration does no work for the player. The mana ticker therefore needs its own
+        /// registration, and this is the only hook the engine calls to hand out the clock.</para>
+        /// </summary>
+        public override void AttachSimulation(PFE.Core.SimClock clock, PFE.Core.SimLoop loop)
+        {
+            base.AttachSimulation(clock, loop);
+
+            if (_manaTicker != null)
+            {
+                _manaTicker.Attach(clock, loop);
+            }
+        }
+
         protected override void OnDestroy()
         {
+            if (_characterStats != null)
+            {
+                _characterStats.onDeath -= OnCharacterDeath;
+            }
+
             // Clean up MessagePipe subscriptions
             _disposables?.Dispose();
 
@@ -472,8 +519,43 @@ namespace PFE.Entities.Player
             // Call base implementation (handles UnitStats damage and death check)
             base.TakeDamage(damage);
 
+            if (_characterStats != null)
+            {
+                _characterStats.ApplyOrganDamage(damage);
+            }
+
             // Player-specific damage feedback
             // TODO: Trigger damage feedback (screen shake, flash, etc.)
+        }
+
+        public override bool ApplyDamage(in DamageOutcome outcome)
+        {
+            bool broke = base.ApplyDamage(outcome);
+            if (_characterStats != null && outcome.HpDamage > 0f)
+            {
+                _characterStats.ApplyOrganDamage(outcome.HpDamage);
+            }
+            return broke;
+        }
+
+        // Organ trauma can fire more than once (each of head/torso/legs/blood is checked), and a
+        // dead player must not run the death path repeatedly.
+        private bool _characterDeathHandled;
+
+        /// <summary>
+        /// Organ-level death — AS3's <c>Pers.die()</c>. Distinct from the <c>UnitStats.CurrentHp</c>
+        /// path that already reaches <see cref="OnDeath"/>: in AS3 an organ hitting zero kills you
+        /// even while the outer HP bar still has points in it.
+        /// </summary>
+        private void OnCharacterDeath()
+        {
+            if (_characterDeathHandled) return;
+
+            // Funnel through RaiseDeath so this path consults the same multiplayer authority seam as
+            // the two UnitController death paths (UnitController.IsAuthoritativeForDeath). The latch
+            // is only set when the death was actually acted on, so a suppressed death does not latch
+            // and block a later authoritative one.
+            if (RaiseDeath()) _characterDeathHandled = true;
         }
 
         /// <summary>

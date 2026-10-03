@@ -42,11 +42,22 @@ namespace PFE.Systems.Weapons.Controllers
         // Previous aim point for rot2 calculation (needed for ready check).
         private Vector2 _lastAimTarget;
 
-        // Reload multiplier — will be driven by CharacterStats in future.
-        private float _reloadMult = 1f;
-
         // Ammo source (player inventory). Null = training/infinite mode.
         private readonly IAmmoSource _ammoSource;
+
+        /// <summary>
+        /// The owner's RPG multipliers. Null means "no owner stats" — see
+        /// <see cref="IWeaponStatSource"/> — in which case every accessor below falls back to the
+        /// AS3 <c>Pers</c> declaration default rather than to 0.
+        /// </summary>
+        private readonly IWeaponStatSource _statSource;
+
+        // AS3 copies these four onto the weapon in setPers (Weapon.as:973-977) and the weapon then
+        // reads its own copy. The port reads the live source instead, so a perk taken mid-fight
+        // applies to the next shot without re-equipping.
+        private float ReloadMult => _statSource != null ? _statSource.ReloadMult : 1f;
+        private float RecoilMult => _statSource != null ? _statSource.RecoilMult : 1f;
+        private float JammedMult => _statSource != null ? _statSource.JammedMult : 1f;
 
         // Total frames at reload start — used to compute ReloadProgressRP each tick.
         private int _reloadTotal;
@@ -58,12 +69,14 @@ namespace PFE.Systems.Weapons.Controllers
         // ── Constructor ───────────────────────────────────────────────────────
 
         public RangedWeaponController(WeaponRuntimeState state, PfeDebugSettings debugSettings = null,
-                                      IAmmoSource ammoSource = null, PFE.Core.Rng.IRngService rng = null)
+                                      IAmmoSource ammoSource = null, PFE.Core.Rng.IRngService rng = null,
+                                      IWeaponStatSource statSource = null)
         {
             State          = state;
             _def           = state.Def;
             _debugSettings = debugSettings;
             _ammoSource    = ammoSource;
+            _statSource    = statSource;
             _rng           = rng != null ? rng.GetStream(PFE.Core.Rng.RngStream.Combat) : new PFE.Core.Rng.PcgRngService().GetStream(PFE.Core.Rng.RngStream.Combat);
 
             // Weapons with rechargeFrames start with a full magazine.
@@ -295,7 +308,7 @@ namespace PFE.Systems.Weapons.Controllers
             }
 
             // Reload completes at 10 frames remaining (AS3: t_reload == round(10 * reloadMult)).
-            if (State.TReload == Mathf.RoundToInt(10 * _reloadMult))
+            if (State.TReload == Mathf.RoundToInt(10 * ReloadMult))
                 CompleteReload();
 
             // ── Reset input flag at end of frame ─────────────────────────────
@@ -316,29 +329,37 @@ namespace PFE.Systems.Weapons.Controllers
             }
 
             // ── Jam / misfire check ───────────────────────────────────────────
+            // AS3 (Weapon.as:1426-1446) guards this whole block with `this.owner && this.owner.player`,
+            // so enemy weapons never jam. The port applies it to every owner, which is a real
+            // divergence — but it is not one of the statId gaps this change is closing, and gating it
+            // here would need the test rig to grow a stat source, so it is recorded rather than fixed.
             float breaking = State.Breaking();
             if (breaking > 0f)
             {
                 float rnd = _rng.NextFloat();
                 int   holderSafe = Mathf.Max(20, _def.magazineSize);
+                // jammedMult scales BOTH probabilities (AS3 reads pers.jammedMult into _loc5_ once
+                // and multiplies each threshold by it). It is a drawback multiplier: a perk that
+                // grants it makes the weapon jam more, not less.
+                float jamMult = JammedMult;
 
                 // Jam: weapon gets stuck, must reload to clear.
-                if (rnd < breaking / holderSafe)
+                if (rnd < breaking / holderSafe * jamMult)
                 {
                     State.TRet = 2;
                     State.Jammed = true;
                     InitReload();
                     if (_debugSettings?.LogWeaponControllerDiagnostics == true)
-                        Debug.Log($"[RangedWeaponController] Shoot() jammed weapon='{_def.weaponId}' breaking={breaking:0.###} rnd={rnd:0.###}.");
+                        Debug.Log($"[RangedWeaponController] Shoot() jammed weapon='{_def.weaponId}' breaking={breaking:0.###} rnd={rnd:0.###} jammedMult={jamMult:0.###}.");
                     return;
                 }
 
                 // Misfire: click, no damage.
-                if (rnd < breaking / 5f)
+                if (rnd < breaking / 5f * jamMult)
                 {
                     State.TRet = 2;
                     if (_debugSettings?.LogWeaponControllerDiagnostics == true)
-                        Debug.Log($"[RangedWeaponController] Shoot() misfire weapon='{_def.weaponId}' breaking={breaking:0.###} rnd={rnd:0.###}.");
+                        Debug.Log($"[RangedWeaponController] Shoot() misfire weapon='{_def.weaponId}' breaking={breaking:0.###} rnd={rnd:0.###} jammedMult={jamMult:0.###}.");
                     return;
                 }
             }
@@ -407,19 +428,21 @@ namespace PFE.Systems.Weapons.Controllers
             }
 
             // ── Post-shot state updates ────────────────────────────────────────
-            // Consume ammo.
-            if (_def.magazineSize > 0)
-            {
+            // Consume ammo — unless the owner recycles the round (AS3 Weapon.as:1584-1595).
+            if (_def.magazineSize > 0 && !RoundIsRecycled())
                 State.CurrentAmmo = Mathf.Max(0, State.CurrentAmmo - _def.ammoPerShot);
-                State.IsReloadingRP.Value = false; // not reloading if just fired
-            }
+
+            State.IsReloadingRP.Value = false; // not reloading if just fired
 
             // Consume durability (AS3: hp -= 1 + ammoHP, skipped in training/alicorn mode).
             State.CurrentDurability = Mathf.Max(0, State.CurrentDurability - 1);
 
-            // Recoil.
-            State.TRet  = _def.recoilFrames;
-            State.RotUp += _def.recoilLift * _reloadMult; // reloadMult approximates recoilMult here
+            // Recoil (AS3 Weapon.as:1612-1617): the frame count is scaled, and a weapon that
+            // recoils for more than 3 frames never drops below 3.
+            State.TRet = Mathf.RoundToInt(_def.recoilFrames * RecoilMult);
+            if (_def.recoilFrames > 3 && State.TRet < 3)
+                State.TRet = 3;
+            State.RotUp += _def.recoilLift * RecoilMult;
 
             // Animation trigger.
             if (_def.weaponVisual != null && _def.weaponVisual.shootFrameStart >= 0 && State.TShoot <= 1)
@@ -466,6 +489,34 @@ namespace PFE.Systems.Weapons.Controllers
         }
 
         /// <summary>
+        /// Whether this shot leaves the magazine alone because the owner recycled the round.
+        /// Mirrors AS3 <c>Weapon.as:1586</c>:
+        /// <code>
+        /// if(!(this.owner.player &amp;&amp; pers.recyc > 0
+        ///      &amp;&amp; (this.ammo == "batt" || this.ammo == "energ" || this.ammo == "crystal")
+        ///      &amp;&amp; Math.random() &lt; pers.recyc))
+        ///    this.hold -= this.rashod;
+        /// </code>
+        ///
+        /// <para><b>The short-circuit order is load-bearing.</b> AS3 only rolls <c>Math.random()</c>
+        /// once the first three conditions hold, and the combat RNG is a shared stream — drawing a
+        /// number here for a weapon that could never recycle would shift every later roll. So the
+        /// guard clauses must stay ahead of <c>NextFloat()</c>.</para>
+        ///
+        /// <para>Recycling is limited to energy ammo on purpose: a recycling ballistic weapon would
+        /// refill its magazine from nothing.</para>
+        /// </summary>
+        private bool RoundIsRecycled()
+        {
+            if (_statSource == null) return false;
+            float chance = _statSource.Recyc;
+            if (chance <= 0f) return false;
+            if (_def.ammoType != "batt" && _def.ammoType != "energ" && _def.ammoType != "crystal")
+                return false;
+            return _rng.NextFloat() < chance;
+        }
+
+        /// <summary>
         /// Start reload sequence. Mirrors Weapon.initReload().
         /// </summary>
         private void InitReload()
@@ -482,7 +533,7 @@ namespace PFE.Systems.Weapons.Controllers
 
             if (_def.reloadTime > 0)
             {
-                _reloadTotal                 = Mathf.RoundToInt(_def.reloadTime * _reloadMult);
+                _reloadTotal                 = Mathf.RoundToInt(_def.reloadTime * ReloadMult);
                 State.TReload                = _reloadTotal;
                 State.IsReloadingRP.Value    = true;
                 State.ReloadProgressRP.Value = 0f;

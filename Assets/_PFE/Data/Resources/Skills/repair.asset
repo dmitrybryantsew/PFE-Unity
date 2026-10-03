@@ -1,0 +1,78 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 15868adb6790c0a47a81bf51f77e6869, type: 3}
+  m_Name: repair
+  m_EditorClassIdentifier: PFE.Core::PFE.Systems.RPG.Data.SkillDefinition
+  skillId: repair
+  displayName: Repair
+  description: 
+  isPostGame: 0
+  maxLevel: 20
+  sortOrder: 7
+  levelEffects: []
+  modifiers:
+  - statId: repair
+    type: 2
+    target: 0
+    values: []
+    valueDelta: 1
+    isMultiplier: 0
+    tip: 
+    refType: 
+    dop: 0
+    v0: 1
+    hasV0: 1
+    vd: 1
+    hasVd: 1
+    v: []
+  - statId: 3
+    type: 3
+    target: 0
+    values: []
+    valueDelta: 0.05
+    isMultiplier: 0
+    tip: weap
+    refType: 
+    dop: 1
+    v0: 1
+    hasV0: 1
+    vd: 0.05
+    hasVd: 1
+    v: []
+  - statId: repairMult
+    type: 2
+    target: 0
+    values: []
+    valueDelta: 0.04
+    isMultiplier: 0
+    tip: 
+    refType: 
+    dop: 1
+    v0: 0.2
+    hasV0: 1
+    vd: 0.04
+    hasVd: 1
+    v: []
+  - statId: alicornSkin
+    type: 2
+    target: 0
+    values: []
+    valueDelta: 2
+    isMultiplier: 0
+    tip: 
+    refType: 
+    dop: 0
+    v0: 10
+    hasV0: 1
+    vd: 2
+    hasVd: 1
+    v: []

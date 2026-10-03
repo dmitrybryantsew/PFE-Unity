@@ -144,6 +144,16 @@ namespace PFE.UI.Menus.RPG
 
         private void Start()
         {
+            if (characterStats == null)
+            {
+                var player = FindFirstObjectByType<PFE.Entities.Player.PlayerController>();
+                if (player != null && player.CharacterStats != null)
+                {
+                    Initialize(player.CharacterStats);
+                    return;
+                }
+            }
+
             if (characterStats != null)
             {
                 SetupBindings();
@@ -171,6 +181,8 @@ namespace PFE.UI.Menus.RPG
                 Debug.LogError("[CharacterStatsViewModel] Cannot setup bindings: characterStats is null!");
                 return;
             }
+
+            _disposables ??= new CompositeDisposable();
 
             // Subscribe to CharacterStats events
             characterStats.onLevelUp += HandleLevelUp;
@@ -232,18 +244,48 @@ namespace PFE.UI.Menus.RPG
                 .DistinctUntilChanged()
                 .ToReadOnlyReactiveProperty(characterStats.AllVulnerMult);
 
-            _currentHp = Observable.EveryUpdate()
-                .Select(_ => characterStats.headHp)
+            _critCh = Observable.EveryUpdate()
+                .Select(_ => characterStats.critCh)
                 .DistinctUntilChanged()
-                .ToReadOnlyReactiveProperty(characterStats.headHp);
+                .ToReadOnlyReactiveProperty(characterStats.critCh);
+
+            _critDamMult = Observable.EveryUpdate()
+                .Select(_ => characterStats.critDamMult)
+                .DistinctUntilChanged()
+                .ToReadOnlyReactiveProperty(characterStats.critDamMult);
+
+            _dexter = Observable.EveryUpdate()
+                .Select(_ => characterStats.dexter)
+                .DistinctUntilChanged()
+                .ToReadOnlyReactiveProperty(characterStats.dexter);
+
+            _skin = Observable.EveryUpdate()
+                .Select(_ => characterStats.skin)
+                .DistinctUntilChanged()
+                .ToReadOnlyReactiveProperty(characterStats.skin);
+
+            _meleeDamMult = Observable.EveryUpdate()
+                .Select(_ => characterStats.meleeDamMult)
+                .DistinctUntilChanged()
+                .ToReadOnlyReactiveProperty(characterStats.meleeDamMult);
+
+            _currentHp = Observable.EveryUpdate()
+                .Select(_ => characterStats.BoundUnitStats != null ? characterStats.BoundUnitStats.CurrentHp.Value : characterStats.headHp)
+                .DistinctUntilChanged()
+                .ToReadOnlyReactiveProperty(characterStats.BoundUnitStats != null ? characterStats.BoundUnitStats.CurrentHp.Value : characterStats.headHp);
 
             _currentMana = Observable.EveryUpdate()
                 .Select(_ => characterStats.manaHp)
                 .DistinctUntilChanged()
                 .ToReadOnlyReactiveProperty(characterStats.manaHp);
 
-            // Calculate XP progress
+            // Calculate XP progress and next level XP
             LevelCurve levelCurve = GetLevelCurve();
+            _xpForNextLevel = Observable.EveryUpdate()
+                .Select(_ => levelCurve != null ? levelCurve.GetXpForLevel(characterStats.Level) : 5000 * characterStats.Level * (characterStats.Level + 1) / 2)
+                .DistinctUntilChanged()
+                .ToReadOnlyReactiveProperty(levelCurve != null ? levelCurve.GetXpForLevel(characterStats.Level) : 5000 * characterStats.Level * (characterStats.Level + 1) / 2);
+
             _xpProgress = Observable.EveryUpdate()
                 .Select(_ =>
                 {
@@ -264,6 +306,29 @@ namespace PFE.UI.Menus.RPG
 
             // Initialize perk ranks
             InitializePerkRanks();
+
+            // Every property above is a live R3 subscription (Observable.EveryUpdate().…ToReadOnly-
+            // ReactiveProperty). They were held in fields but never registered anywhere, so
+            // OnDestroy disposed an empty composite and all of them leaked on scene teardown.
+            _disposables.Add(_level);
+            _disposables.Add(_xp);
+            _disposables.Add(_skillPoints);
+            _disposables.Add(_perkPoints);
+            _disposables.Add(_totalPerkPoints);
+            _disposables.Add(_maxHp);
+            _disposables.Add(_maxMana);
+            _disposables.Add(_organMaxHp);
+            _disposables.Add(_allDamMult);
+            _disposables.Add(_allVulnerMult);
+            _disposables.Add(_critCh);
+            _disposables.Add(_critDamMult);
+            _disposables.Add(_dexter);
+            _disposables.Add(_skin);
+            _disposables.Add(_meleeDamMult);
+            _disposables.Add(_currentHp);
+            _disposables.Add(_currentMana);
+            _disposables.Add(_xpForNextLevel);
+            _disposables.Add(_xpProgress);
 
             Debug.Log("[CharacterStatsViewModel] Reactive bindings established");
         }
@@ -477,19 +542,30 @@ namespace PFE.UI.Menus.RPG
 
         // ========== Helper Methods ==========
 
+        private SkillDefinitionDatabase _skillDatabase;
+
+        /// <summary>
+        /// The database the skill/perk lists are read from.
+        ///
+        /// <para>This used to <c>return null</c> unconditionally with a TODO. Every consumer treated
+        /// that as "no data": <c>InitializePerkRanks</c> left <c>_perkRanks</c> empty,
+        /// <c>CanUnlockPerk</c> always returned false, and <c>GetLevelCurve</c> (which delegates here)
+        /// made the XP text read <c>/ 0</c>. The database is the same Resources asset
+        /// <c>CharacterStats.EnsureResources</c> loads.</para>
+        /// </summary>
         private SkillDefinitionDatabase GetSkillDatabase()
         {
-            // Try to get from character stats first
-            if (characterStats != null)
-            {
-                // CharacterStats has a skillDatabase field but it's private
-                // We need to get the database another way
-                // For now, return null - this should be injected via DI in production
-            }
+            if (_skillDatabase != null) return _skillDatabase;
 
-            // Try to find in resources or via singleton (if available)
-            // This is a placeholder - proper implementation would use VContainer DI
-            return null;
+            _skillDatabase = Resources.Load<SkillDefinitionDatabase>("SkillDefinitionDatabase");
+            if (_skillDatabase == null)
+            {
+                Debug.LogWarning(
+                    "[CharacterStatsViewModel] SkillDefinitionDatabase not found in Resources — " +
+                    "the skill and perk lists will be empty. Run " +
+                    "'PFE/Data/Import Skills and Perks from AllData.as'.");
+            }
+            return _skillDatabase;
         }
 
         private LevelCurve GetLevelCurve()

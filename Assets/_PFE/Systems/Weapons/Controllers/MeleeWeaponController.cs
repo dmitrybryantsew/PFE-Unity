@@ -22,12 +22,14 @@ namespace PFE.Systems.Weapons.Controllers
     ///   2 = overhead (axe/saw) — ONE bindMove from mindlina to dlina at TAttack == 1
     ///
     /// Attack:
-    ///   weaponAttack() → t_attack = rapid_act (= rapid, no multiplier here)
+    ///   weaponAttack() → t_attack = rapid_act = resultRapid(rapid), i.e. rapid / meleeSpdMult
+    ///   (WClub.as:667,204,658) — NOT the raw rapid. Every t_attack comparison below uses
+    ///   _rapidAct for that reason.
     ///   mtip==0 emits its hit plan on weaponAttack; mtip==1 at t_attack == rapid/2 (thrust peak);
     ///   mtip==2 at t_attack == 1. AS3 drives all three from t_attack, not from attack start.
     ///
     /// Hit window:
-    ///   mtip 0: rapid*1/6 &lt; t_attack &lt; rapid*5/6  (AS3 uses rapid_act/2 .. 5/6 — audit §4)
+    ///   mtip 0: rapid*1/6 &lt; t_attack &lt; rapid*5/6, on the rapid_act time base (audit §4 closed)
     ///   mtip 1: rapid/2   &lt;= t_attack &lt; rapid*5/6
     ///   mtip 2: t_attack == 1, once
     ///   Each active frame emits a MeleeSweep ShotPlan and calls MeleeHitVolume.BindMove().
@@ -104,12 +106,57 @@ namespace PFE.Systems.Weapons.Controllers
 
         private readonly List<ShotPlan> _plans = new();
 
+        // ── Owner stats ───────────────────────────────────────────────────────
+
+        /// <summary>
+        /// The wielder's RPG multipliers, or null for a weapon with no owner (an enemy, or a test).
+        ///
+        /// <para>AS3 <i>copies</i> these onto the weapon instance in the melee <c>setPers</c>
+        /// (<c>WClub.as:204-205</c>: <c>rapidMult = 1 / meleeSpdMult</c> and
+        /// <c>damMult *= meleeDamMult</c>) and the weapon then reads its own copy. The port holds a
+        /// live reference instead, so a mid-fight perk change is picked up without rebuilding the
+        /// weapon — the same mechanism-only divergence as <see cref="IWeaponStatSource"/> describes,
+        /// and the same shape the ranged controller already uses.</para>
+        /// </summary>
+        private readonly IWeaponStatSource _statSource;
+
+        /// <summary>
+        /// <c>Pers.meleeSpdMult</c> as AS3 applies it — a swing-duration <b>divisor</b>, because
+        /// <c>rapidMult = 1 / meleeSpdMult</c> (<c>WClub.as:204</c>) and
+        /// <c>resultRapid = rapid / skillConf * rapidMult / rapidMultCont</c> (<c>:658</c>).
+        /// A missing owner falls back to 1, which leaves the swing duration untouched.
+        /// </summary>
+        private float MeleeSpdMult => _statSource != null ? _statSource.MeleeSpdMult : 1f;
+
+        /// <summary>
+        /// <c>Pers.meleeDamMult</c> — flat damage multiplier read by the melee
+        /// <c>resultDamage</c> (<c>WClub.as:649</c>).
+        /// </summary>
+        private float MeleeDamMult => _statSource != null ? _statSource.MeleeDamMult : 1f;
+
+        /// <summary>
+        /// The effective swing length in frames for the attack <b>currently in flight</b>: AS3's
+        /// <c>rapid_act</c> (<c>WClub.as:667</c>), i.e. <c>resultRapid(rapid)</c> with
+        /// <c>skillConf</c> and <c>rapidMultCont</c> both 1 in the port.
+        ///
+        /// <para><b>Snapshotted, not recomputed.</b> AS3 assigns <c>rapid_act</c> once, inside
+        /// <c>weaponAttack()</c> (<c>:667</c>), and every later comparison in the same swing reads
+        /// that stored value. Reading a live <see cref="MeleeSpdMult"/> property instead would let a
+        /// perk applied mid-swing move the hit window out from under the <c>t_attack</c> that was set
+        /// at the start of it — a divergence AS3 cannot have, because it has no live reference.</para>
+        ///
+        /// <para>Every <c>t_attack</c> comparison uses this, <i>not</i> <c>_def.rapid</c>: a speed
+        /// perk shortens the whole swing, hit window and combo window included.</para>
+        /// </summary>
+        private int _rapidAct = 1;
+
         // ── Constructor ───────────────────────────────────────────────────────
 
-        public MeleeWeaponController(WeaponRuntimeState state)
+        public MeleeWeaponController(WeaponRuntimeState state, IWeaponStatSource statSource = null)
         {
-            State    = state;
-            _def     = state.Def;
+            State       = state;
+            _def        = state.Def;
+            _statSource = statSource;
             _dlina   = _def.meleeDlina   > 0f ? _def.meleeDlina   / PpuScale : DefaultReach;
             _minDlina = _def.meleeMinDlina > 0f ? _def.meleeMinDlina / PpuScale : _dlina;
         }
@@ -208,10 +255,18 @@ namespace PFE.Systems.Weapons.Controllers
 
             _powerMult = 1f;
 
+            // rapid_act is computed HERE and stored (WClub.as:667) — before the combo and power
+            // tests that also read it, and before t_attack is set from it. Snapshotting once per
+            // attack is what keeps the whole swing on one time base.
+            _rapidAct = Mathf.Max(1, Mathf.RoundToInt(_def.rapid / MeleeSpdMult));
+
             // ── Combo (combinat) ──────────────────────────────────────────────
+            // AS3 measures both windows off rapid_act, not rapid (WClub.as:676, :340): a speed
+            // multiplier shortens the swing AND tightens the combo window with it.
+            int rapidAct = _rapidAct;
             if (_def.meleeCombo)
             {
-                _tCombo = Mathf.RoundToInt(_def.rapid) + 20;
+                _tCombo = rapidAct + 20;
                 _combo++;
                 if (_combo >= 4)
                 {
@@ -221,12 +276,14 @@ namespace PFE.Systems.Weapons.Controllers
             }
 
             // ── Power attack (powerfull) ─────────────────────────────────────
-            if (_def.meleePowerAttack && State.Pow > 2 && State.Pow < _def.rapid * 2.15f)
+            if (_def.meleePowerAttack && State.Pow > 2 && State.Pow < rapidAct * 2.15f)
             {
-                _powerMult = 1f + State.Pow / (_def.rapid * 2.15f);
+                _powerMult = 1f + State.Pow / (rapidAct * 2.15f);
             }
 
-            State.TAttack  = Mathf.RoundToInt(_def.rapid);
+            // t_attack = rapid_act (WClub.as:673). NOT _def.rapid: that was the pre-multiplier
+            // weapon stat, and every hit-window comparison in UpdateHitWindow reads t_attack.
+            State.TAttack  = rapidAct;
             State.IsAttack = true;
             _anim          = 0f;
 
@@ -257,13 +314,22 @@ namespace PFE.Systems.Weapons.Controllers
             // positional re-construction: the 16-argument copy this replaced silently dropped
             // ownerFaction, and would drop every field added to DamageContext afterwards.
             //
+            // meleeDamMult is folded in as a *third* damage factor, not folded into _powerMult:
+            // AS3's melee resultDamage is (damage + damAdd) * damMult * powerMult * skillPlusDam *
+            // (1 - breaking*0.6) (WClub.as:649), and damMult already carries meleeDamMult from
+            // setPers (WClub.as:205). Keeping them separate keeps a perk and a combo from
+            // multiplying each other by accident.
+            //
             // The knock direction is stamped here because this is the only place that knows it, and
             // FromWeapon cannot: AS3's melee knock is the ATTACKER'S FACING with a small upward tilt,
             // not the swing angle — `WClub.as:152-153` sets `b.knockx = storona; b.knocky = -0.2`.
             // `storona` is already maintained here for the animation, and the `-0.2` is the oracle's
             // literal, which is why a clubbed enemy hops rather than sliding flat.
+            //
+            // Only damage scales with meleeDamMult — AS3 leaves the knockback at otbros*otbrosMult
+            // (WClub.as:594), with no melee term on it.
             DamageContext finalDmg = baseDmg.WithScaledDamage(
-                _powerMult, _powerMult, new Vector2(_storona, -0.2f));
+                _powerMult * MeleeDamMult, _powerMult, new Vector2(_storona, -0.2f));
 
             ShotCues cues = new ShotCues(
                 playShootSound:   !string.IsNullOrEmpty(_def.soundShoot),
@@ -293,9 +359,10 @@ namespace PFE.Systems.Weapons.Controllers
 
         private void RunActions(Vector2 aimTarget)
         {
-            // Thrust (mtip==1): fire at midpoint of attack.
+            // Thrust (mtip==1): fire at midpoint of attack. AS3 compares against rapid_act/2
+            // (WClub.as:435), so the thrust peak tracks the multiplied swing, not the raw rapid.
             if (_def.meleeType == MeleeType.Thrust &&
-                State.TAttack == Mathf.RoundToInt(_def.rapid / 2f))
+                State.TAttack == _rapidAct / 2)
                 Shoot(aimTarget, new Vector2(State.X, State.Y));
 
             if (State.TAttack > 0) State.TAttack--;
@@ -337,9 +404,13 @@ namespace PFE.Systems.Weapons.Controllers
         /// had a permanently disabled hit volume and could never hit anything (spear / mspear /
         /// tlance, autoaxe / bsaw / ripper). Audit §3.
         ///
-        /// NOTE: AS3's thresholds use <c>rapid_act</c> (resultRapid() plus the water doubling), and
-        /// this controller has no rapid_act, so all three branches use <c>_def.rapid</c>. That
-        /// divergence is audit §4 and must be converted for all branches together, not one at a time.
+        /// NOTE: AS3's thresholds use <c>rapid_act</c> — <c>resultRapid()</c> plus the water
+        /// doubling (<c>WClub.as:667-671</c>) — and <see cref="_rapidAct"/> is the port's
+        /// <c>rapid_act</c> (minus the water doubling, which needs a tile query the controller does
+        /// not have). This was audit §4, open because the code built <c>rapid_act</c> nowhere and
+        /// every branch read <c>_def.rapid</c>; all three branches now read <see cref="_rapidAct"/>
+        /// together, which is what the audit asked for — converting one at a time would have left
+        /// the three windows in different time bases.
         /// </summary>
         private void UpdateHitWindow(Vector2 holdPoint, Vector2 aimTarget)
         {
@@ -368,7 +439,7 @@ namespace PFE.Systems.Weapons.Controllers
         /// <summary>mtip 0 — the swing-arc sweep (WClub.as:378-408).</summary>
         private void UpdateHorizontalWindow(Vector2 holdPoint)
         {
-            float rapid = _def.rapid;
+            float rapid = _rapidAct;
             bool inWindow = State.TAttack < rapid * 5f / 6f &&
                             State.TAttack > rapid * 1f / 6f;
 
@@ -388,7 +459,7 @@ namespace PFE.Systems.Weapons.Controllers
         /// <summary>mtip 1 — the lunge: one line pushed out by anim * atDlina (WClub.as:435-454).</summary>
         private void UpdateThrustWindow(Vector2 aimTarget)
         {
-            float rapid = _def.rapid;
+            float rapid = _rapidAct;
             if (State.TAttack < rapid / 2f || State.TAttack >= rapid * 5f / 6f)
             {
                 EndStrikeWindow();
@@ -471,7 +542,10 @@ namespace PFE.Systems.Weapons.Controllers
             }
 
             float t    = State.TAttack;
-            float rap  = Mathf.Max(1f, _def.rapid);
+            // AS3 normalises anim by rapid_act (WClub.as:362-372: every phase test is
+            // `t_attack >= rapid_act * k`), so the arc keeps its shape when a speed perk
+            // shortens the swing rather than playing a truncated version of it.
+            float rap  = _rapidAct;
             float norm = t / rap;   // 1→0 as attack progresses
 
             // AS3 three-phase:

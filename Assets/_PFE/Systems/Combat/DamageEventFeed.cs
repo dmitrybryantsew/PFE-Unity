@@ -25,13 +25,23 @@ namespace PFE.Systems.Combat
         /// <summary>Seconds since the hit. Grows; the entry is dropped past the feed's lifetime.</summary>
         public readonly float Age;
 
+        public readonly string CustomText;
+        public readonly Color? CustomColor;
+
         public DamageNumber(Vector3 position, float amount, bool isCritical, bool isMiss, float age)
+            : this(position, amount, isCritical, isMiss, age, null, null)
+        {
+        }
+
+        public DamageNumber(Vector3 position, float amount, bool isCritical, bool isMiss, float age, string customText, Color? customColor)
         {
             Position = position;
             Amount = amount;
             IsCritical = isCritical;
             IsMiss = isMiss;
             Age = age;
+            CustomText = customText;
+            CustomColor = customColor;
         }
     }
 
@@ -101,6 +111,19 @@ namespace PFE.Systems.Combat
         }
 
         /// <summary>
+        /// Record an arbitrary floating text notification (e.g. "+100xp", AS3 Pers.as:980 numbEmit).
+        /// </summary>
+        public void ReportText(Vector3 position, string text, Color color)
+        {
+            if (_live.Count >= _capacity)
+            {
+                _live.RemoveAt(0);
+            }
+
+            _live.Add(new DamageNumber(position, 0f, isCritical: false, isMiss: false, age: 0f, customText: text, customColor: color));
+        }
+
+        /// <summary>
         /// Age every entry by <paramref name="deltaTime"/>, drop the expired, and copy the survivors
         /// into <paramref name="into"/>. Returns how many survived.
         /// </summary>
@@ -126,7 +149,8 @@ namespace PFE.Systems.Combat
                 }
 
                 _live[i] = new DamageNumber(
-                    _live[i].Position, _live[i].Amount, _live[i].IsCritical, _live[i].IsMiss, age);
+                    _live[i].Position, _live[i].Amount, _live[i].IsCritical, _live[i].IsMiss, age,
+                    _live[i].CustomText, _live[i].CustomColor);
             }
 
             for (int i = 0; i < _live.Count; i++)
@@ -176,6 +200,7 @@ namespace PFE.Systems.Combat
         /// </summary>
         public static string TextFor(in DamageNumber number)
         {
+            if (!string.IsNullOrEmpty(number.CustomText)) return number.CustomText;
             if (number.IsMiss) return "MISS";
 
             // Rounded up, so a 0.4-damage graze does not render as "0" and read as a miss.

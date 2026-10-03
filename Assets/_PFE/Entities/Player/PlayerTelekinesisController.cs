@@ -17,9 +17,13 @@ namespace PFE.Entities.Player
     /// <list type="bullet">
     /// <item>Q press edge: grabs a liftable prop under the cursor, or drops the held prop. A prop in
     /// flight is grabbable — AS3's <c>actTele</c> does not test <c>stay</c>.</item>
-    /// <item>Holding: updates the held prop's target to the cursor and drains mana from <see cref="CharacterStats.manaHp"/>.</item>
-    /// <item>E / Action key: telekinetic throw imparting velocity and consuming mana.</item>
-    /// <item>Automatic drop: triggers if target is out of range (<c>teleDist * 1.2</c>), mana is exhausted, or prop becomes unliftable.</item>
+    /// <item>Holding: updates the held prop's target to the cursor. The hold's mana cost is <b>not</b>
+    /// charged here — <see cref="PlayerManaTicker"/> charges both pools once per tick from AS3's single
+    /// mana block (<c>UnitPlayer.as:1302-1361</c>). Charging it here as well would double-charge.</item>
+    /// <item>E / Action key: telekinetic throw imparting velocity, spending the magic-mana <b>budget</b>
+    /// and wounding the <c>manaHp</c> organ (<c>UnitPlayer.as:1852-1866</c>).</item>
+    /// <item>Automatic drop: triggers if target is out of range (<c>teleDist * 1.2</c>), the <b>budget</b>
+    /// is exhausted, or the prop becomes unliftable (<c>UnitPlayer.as:1274</c>).</item>
     /// </list>
     /// </para>
     ///
@@ -41,13 +45,27 @@ namespace PFE.Entities.Player
         private RoomInstance _currentRoom;
         private Camera _mainCamera;
 
-        // The debug "infinite mana" switch lives on PlayerLocomotionAbilities, and it guards only
-        // UnitStats.Mana -- the pool levitation and teleport use. Telekinesis reads a DIFFERENT pool,
-        // CharacterStats.manaHp, so the switch silently did not apply here: the hold still drained, and
-        // because nothing in the project regenerates manaHp, enough cumulative holding pushes it below
-        // MinManaToGrab and every later grab is refused -- permanently, and with no way back short of a
-        // restart. That is a baffling failure mode for a switch whose stated purpose is "test without
-        // mana drain", and it presents as "the grab stopped working".
+        // The debug "infinite mana" switch lives on PlayerLocomotionAbilities as a plain bool
+        // (`infiniteMana`, exposed as InfiniteMana). It is a flag, not an enforcement point, so every
+        // spender has to ask for it. PlayerLocomotionController does; this component did not, so the
+        // hold kept draining under a switch whose stated purpose is "test without mana drain", and
+        // enough cumulative holding pushed the pool below MinManaToGrab and every later grab was
+        // refused — permanently, with no way back short of a restart. That presents as "the grab
+        // stopped working".
+        //
+        // An earlier revision of this comment justified the omission by claiming telekinesis read a
+        // DIFFERENT pool from the one the switch guarded. That reason was wrong -- but the pool it
+        // NAMED was wrong too, and both errors pointed the same way, which is why the fix survived
+        // review. Telekinesis reads the magic-mana BUDGET (CharacterStats.MagicMana), which is AS3's
+        // Unit.mana -- the same pool levitation drains and the same one the switch guards.
+        //
+        // (An intermediate revision made CharacterStats.manaHp a live property over UnitStats.Mana.Value
+        // and read THAT. The property was removed in the 2026-10-02 pool split: manaHp is the wound
+        // ORGAN, a plain field now, not the budget. If you are reading this looking for the line number
+        // quoted above, it no longer exists -- check CharacterStats.MagicMana instead.)
+        //
+        // The reason this component must ask for the switch is that the switch is a flag, not that the
+        // pool differs.
         private PlayerLocomotionAbilities _abilities;
 
         // The line-of-sight query is normally DERIVED from CurrentRoom instead of held, because a
@@ -102,9 +120,12 @@ namespace PFE.Entities.Player
         //     means this component's Update never drove it, so the target stayed frozen at whatever
         //     TrySetTelekineticHold wrote -- the grab-time cursor. If that cursor happened to be inside
         //     the 15 px deadzone, the prop can never move and no amount of aiming will change it.
-        //   * if it did run, how much mana did it drain? `allDManaMult` defaults to 1.0, so a hold that
+        //   * if it did run, what did the hold COST? `allDManaMult` defaults to 1.0, so a hold that
         //     lasted more than a fraction of a second and shows `_holdManaDrained = 0` is itself proof
-        //     the drain never executed.
+        //     the cost was never computed. NOTE (2026-10-02): this number is now an OBSERVATION, not a
+        //     charge -- PlayerManaTicker.TickMana applies the real cost to both pools once per tick, and
+        //     charging it here as well double-charged. The counter still means "what holding costs", so
+        //     the reasoning above survives; what changed is who spends it.
         //
         // The first and last target together also show whether the target was tracking the cursor or
         // standing still, which distinguishes "Update is not running" from "Update is running and the
@@ -127,8 +148,10 @@ namespace PFE.Entities.Player
 
         /// <summary>
         /// True when the debug "infinite mana" switch is on, meaning telekinesis must neither spend nor
-        /// refuse on mana. See <c>_abilities</c> for why this component has to ask at all: the switch
-        /// guards <c>UnitStats.Mana</c>, and telekinesis uses <c>CharacterStats.manaHp</c>.
+        /// refuse on mana. See <c>_abilities</c> for why this component has to ask at all: the switch is
+        /// a flag on <c>PlayerLocomotionAbilities</c> that each spender must honour, not something that
+        /// suppresses the drain by itself. It does <i>not</i> guard a different pool — telekinesis and
+        /// levitation both read the magic-mana budget, <c>CharacterStats.MagicMana</c>.
         /// </summary>
         private bool InfiniteMana
         {
@@ -434,7 +457,13 @@ namespace PFE.Entities.Player
 
             float maxTeleMassa = stats.MaxTeleMassa;
             float teleDist = stats.TeleDist;
-            float mana = stats.manaHp;
+
+            // AS3's actTele refuses on `mana < 200` at :1754, and that `mana` is Unit.mana -- the
+            // regenerating BUDGET, not the manaHP wound organ. Reading the organ here made the gate
+            // depend on a pool that never regenerates, so once it was spent the grab was refused for
+            // good. The pool is the whole bug; the placement (inside the gate rather than before the
+            // candidate scan) is a harmless simplification.
+            float mana = stats.MagicMana;
 
             // The debug infinite-mana switch has to cover THIS pool too -- see the _abilities field.
             bool infiniteMana = InfiniteMana;
@@ -456,7 +485,7 @@ namespace PFE.Entities.Player
                 $"feet=({playerFeetPx.x:F1},{playerFeetPx.y:F1}) cursorSource=" +
                 $"{(_cursorSetExternally ? "external(PlayerController)" : "camera-fallback")} " +
                 $"maxTeleMassa={maxTeleMassa:F3} teleDist={teleDist:F0}({Mathf.Sqrt(teleDist):F1}px) " +
-                $"mana={mana:F1} infiniteMana={infiniteMana} grabAnything={grabAnything} telemaster={stats.Telemaster}");
+                $"budgetMana={mana:F1} infiniteMana={infiniteMana} grabAnything={grabAnything} telemaster={stats.Telemaster}");
 
             // Find candidate within 50 px radius of cursor (AS3: 50 * 50)
             const float MaxCursorDistancePixels = 50f;
@@ -489,7 +518,7 @@ namespace PFE.Entities.Player
                     $"(capability={candidate.GetResolvedPhysicalCapability()}, supportsTelekinesis={candidate.SupportsTelekinesis()}) | " +
                     $"distSq {distSq:F0} <= teleDist {teleDist:F0} ? {distSq <= teleDist} | " +
                     $"massa {massa:F3} <= maxTeleMassa {maxTeleMassa:F3} ? {massa <= maxTeleMassa} | " +
-                    $"mana {mana:F1} >= {TelekinesisMath.MinManaToGrab:F0} ? {mana >= TelekinesisMath.MinManaToGrab}");
+                    $"budgetMana {mana:F1} >= {TelekinesisMath.MinManaToGrab:F0} ? {mana >= TelekinesisMath.MinManaToGrab}");
                 return false;
             }
 
@@ -773,15 +802,16 @@ namespace PFE.Entities.Player
             sb.AppendLine($"    maxTeleMassa={stats.MaxTeleMassa:F3}  teleDist={stats.TeleDist:F0} ({Mathf.Sqrt(stats.TeleDist):F1}px)  " +
                           $"telePorog={stats.TelePorog:F2}  teleMult={stats.TeleMult:F2}  " +
                           $"throwForce={stats.ThrowForce:F2}  telemaster={stats.Telemaster}");
-            sb.AppendLine($"    mana={stats.manaHp:F1}   (a grab needs >= {TelekinesisMath.MinManaToGrab:F0})   " +
-                          $"infiniteMana={InfiniteMana}");
-            if (stats.manaHp < TelekinesisMath.MinManaToGrab && !InfiniteMana)
+            sb.AppendLine($"    budgetMana={stats.MagicMana:F1} / {stats.MaxMagicMana:F0}   (a grab needs >= {TelekinesisMath.MinManaToGrab:F0})   " +
+                          $"organManaHp={stats.manaHp:F1}  infiniteMana={InfiniteMana}");
+            if (stats.MagicMana < TelekinesisMath.MinManaToGrab && !InfiniteMana)
             {
-                sb.AppendLine("    !! MANA IS BELOW THE GRAB FLOOR and nothing regenerates this pool, so every grab");
-                sb.AppendLine("       is now refused permanently. This is the telekinesis pool (CharacterStats.manaHp),");
-                sb.AppendLine("       which is NOT the one the 'infiniteMana' switch guards (that is UnitStats.Mana, used");
-                sb.AppendLine("       by levitation and teleport). Turn on PlayerLocomotionAbilities.infiniteMana and");
-                sb.AppendLine("       telekinesis will stop draining this pool too.");
+                sb.AppendLine("    !! THE MAGIC BUDGET IS BELOW THE GRAB FLOOR. This pool DOES regenerate --");
+                sb.AppendLine("       PlayerManaTicker adds recMana * shtrManaRes per tick whenever nothing is held,");
+                sb.AppendLine("       so the grab recovers on its own. If it is still refused after several");
+                sb.AppendLine("       seconds, the ticker is not registered (check 'mana tick' in the console).");
+                sb.AppendLine("       This is CharacterStats.MagicMana == AS3 Unit.mana -- NOT manaHp, which is");
+                sb.AppendLine("       the wound organ printed above and is not what the grab gate reads.");
             }
 
             UpdateCursorPositionIfNeeded();
@@ -879,11 +909,11 @@ namespace PFE.Entities.Player
             bool liftable = candidate.IsLiftable();
             float massa = candidate.GetAs3Massa();
             bool gate = TelekinesisMath.CanGrab(true, liftable, distSq, stats.TeleDist,
-                                                massa, stats.MaxTeleMassa, stats.manaHp);
+                                                massa, stats.MaxTeleMassa, stats.MagicMana);
             sb.AppendLine($"    levitPoss = {liftable}   (capability={candidate.GetResolvedPhysicalCapability()}, supportsTelekinesis={candidate.SupportsTelekinesis()})");
             sb.AppendLine($"    distSq    = {distSq:F0}  <= teleDist {stats.TeleDist:F0} ?  {distSq <= stats.TeleDist}");
             sb.AppendLine($"    massa     = {massa:F3}  <= maxTeleMassa {stats.MaxTeleMassa:F3} ?  {massa <= stats.MaxTeleMassa}");
-            sb.AppendLine($"    mana      = {stats.manaHp:F1}  >= {TelekinesisMath.MinManaToGrab:F0} ?  {stats.manaHp >= TelekinesisMath.MinManaToGrab}");
+            sb.AppendLine($"    budgetMana = {stats.MagicMana:F1}  >= {TelekinesisMath.MinManaToGrab:F0} ?  {stats.MagicMana >= TelekinesisMath.MinManaToGrab}");
             if (!gate)
             {
                 sb.AppendLine("VERDICT: TryGrab would REFUSE at the gate -- the term marked 'False' above is the one.");
@@ -1150,7 +1180,10 @@ namespace PFE.Entities.Player
             }
 
             float cost = TelekinesisMath.ThrowCost(massa, throwForce, stats.ThrowDmagic, stats.AllDManaMult);
-            float currentMana = stats.manaHp;
+
+            // The BUDGET pool. AS3's throw spends `mana` (Unit.mana, 1000), not the mana organ —
+            // `UnitPlayer.as:1856` is `if(_loc2_ <= mana)` against that same field.
+            float currentMana = stats.MagicMana;
 
             Vector2 playerFeetPx = GetPlayerPositionPixels();
             Vector2 objCenterPx = _heldObject.GetApproximateBounds().center;
@@ -1177,17 +1210,27 @@ namespace PFE.Entities.Player
                 TelekinesisMath.PerFrameVelocityToPerSecond(impulseY));
 
             // Deduct mana -- unless the debug infinite-mana switch is on. See the _abilities field:
-            // the switch guards UnitStats.Mana, not this pool, so it has to be honoured explicitly.
+            // the switch is a flag each spender must honour, and this is telekinesis' spender.
+            //
+            // BOTH pools move, with different scalars. AS3 UnitPlayer.as:1856-1866 spends the
+            // BUDGET (`mana -= _loc2_`) and wounds the ORGAN (`pers.manaDamage(_loc2_ * throwDmanaMult)`)
+            // in the same branch; on the unaffordable path it spends whatever is left and wounds by
+            // that instead. The port previously moved one pool and skipped the wound entirely, which
+            // is what made the throw unable to ever hurt the caster's mana organ.
             if (!InfiniteMana)
             {
+                float budgetSpend = Mathf.Min(cost, currentMana);
+
                 if (cost <= currentMana)
                 {
-                    stats.manaHp -= cost;
+                    stats.MagicMana -= cost;
                 }
                 else
                 {
-                    stats.manaHp = 0f;
+                    stats.MagicMana = 0f;
                 }
+
+                stats.ApplyManaDamage(budgetSpend * stats.throwDmanaMult);
             }
 
             // Release hold as throw
@@ -1202,7 +1245,7 @@ namespace PFE.Entities.Player
             // report in docs/Research/TELEKINESIS_PROPS_AND_UNITS_GAPS_2026-10-02.md.
             TelekinesisRecorder.Write(
                 $"[THROW] {thrownId} -- releaseVelocity=({releaseVelocity.x:F1},{releaseVelocity.y:F1}) " +
-                $"throwForce={throwForce:F2} massa={massa:F3} cost={cost:F2} manaBefore={currentMana:F1} " +
+                $"throwForce={throwForce:F2} massa={massa:F3} cost={cost:F2} budgetBefore={currentMana:F1} " +
                 $"canBeThrown={treatAsThrow} infiniteMana={InfiniteMana}\n" +
                 $"        objCentre=({objCenterPx.x:F1},{objCenterPx.y:F1}) " +
                 $"playerCentre=({playerCenterPx.x:F1},{playerCenterPx.y:F1})");
@@ -1243,7 +1286,9 @@ namespace PFE.Entities.Player
         }
 
         /// <summary>
-        /// Updates the held object's tracking and mana drain over <paramref name="deltaTime"/>.
+        /// Updates the held object's tracking over <paramref name="deltaTime"/>, and observes what the
+        /// hold costs. It does <b>not</b> spend mana — <see cref="PlayerManaTicker"/> owns that, once per
+        /// tick, for both pools. See the drain block below for why charging here as well was a bug.
         /// </summary>
         public void UpdateHold(float deltaTime)
         {
@@ -1290,27 +1335,36 @@ namespace PFE.Entities.Player
             // then drop it the instant it travelled past the authored 600 px — a grab that works and a
             // hold that silently refuses, which is the failure shape this file has already fought twice.
             float teleDist = GrabAnything ? GrabAnythingDistanceSquared : stats.TeleDist;
-            float mana = stats.manaHp;
+
+            // AS3's drop gate is `loc.celDist > pers.teleDist * 1.2 || mana <= 0 || !teleObj.levitPoss`
+            // (UnitPlayer.as:1274). That `mana` is Unit.mana -- the regenerating BUDGET. It was read from
+            // the manaHp organ here, which is the pool that does NOT regenerate, so a spent organ ended
+            // the hold for reasons the player could not see or fix.
+            float mana = stats.MagicMana;
 
             // Check if object must be dropped
             if (TelekinesisMath.MustDrop(distSq, teleDist, mana, _heldObject.IsLiftable()))
             {
                 Drop($"MustDrop -- distSq={distSq:F0} teleDist={teleDist:F0} (drop past x1.2 = {teleDist * TelekinesisMath.DropDistanceMultiplier:F0}) " +
-                     $"mana={mana:F1} liftable={_heldObject.IsLiftable()}");
+                     $"budgetMana={mana:F1} liftable={_heldObject.IsLiftable()}");
                 return;
             }
 
-            // Drain mana over time -- unless the debug infinite-mana switch is on. That switch guards
-            // UnitStats.Mana, which is NOT the pool read here (see the _abilities field), so without
-            // this guard the telekinesis pool keeps draining under a switch that promises it will not.
+            // The hold's mana cost is NOT charged here. AS3 has no drain in its hold block at all -- the
+            // cost of holding lives in the single per-tick mana block (UnitPlayer.as:1302-1361) as
+            // `dmana -= teleSqrtMassa * pers.teleMult`, which PlayerManaTicker.TickMana now reproduces
+            // for BOTH pools. An earlier revision charged it here too, from this component's Update, on a
+            // frame clock with a `* As3FramesPerSecond` fudge -- so the cost was applied twice, once at
+            // tick rate and once at frame rate, and the two disagreed whenever the frame rate did.
+            //
+            // What is left to do here is only to observe the drain for the post-mortem counters. That
+            // observation reads the same quantity the ticker charges, so `_holdManaDrained` still means
+            // "what holding this prop costs", which is what a probe taken after the drop needs.
             bool infiniteMana = InfiniteMana;
-            float drainThisStep = 0f;
-            if (!infiniteMana)
-            {
-                float drainPerFrame = TelekinesisMath.HoldManaDrain(_heldObject.GetAs3Massa(), stats.TelePorog, stats.TeleMult) * stats.AllDManaMult;
-                drainThisStep = drainPerFrame * deltaTime * TelekinesisMath.As3FramesPerSecond;
-                stats.manaHp = Mathf.Max(0f, stats.manaHp - drainThisStep);
-            }
+            float drainThisStep = infiniteMana
+                ? 0f
+                : TelekinesisMath.HoldManaDrain(_heldObject.GetAs3Massa(), stats.TelePorog, stats.TeleMult)
+                  * stats.AllDManaMult * deltaTime * TelekinesisMath.As3FramesPerSecond;
 
             // Post-mortem counters -- see the field block. These are what make a probe taken AFTER the
             // drop able to say whether this method ran at all during the hold. `_holdUpdateTicks`
@@ -1347,7 +1401,7 @@ namespace PFE.Entities.Player
                         $"[HOLD]  write #{_holdTargetWrites}  target=({cursorPx.x:F1},{cursorPx.y:F1})  " +
                         $"pos=({_heldObject.position.x:F1},{_heldObject.position.y:F1})  " +
                         $"vel=({written.velocity.x:F1},{written.velocity.y:F1})  " +
-                        $"grounded={written.isGrounded}  infiniteMana={infiniteMana}  mana={stats.manaHp:F1}");
+                        $"grounded={written.isGrounded}  infiniteMana={infiniteMana}  budgetMana={stats.MagicMana:F1}");
                 }
             }
 
@@ -1368,7 +1422,7 @@ namespace PFE.Entities.Player
                     TelekinesisTrace.Log(
                         $"hold {_heldObject.objectId}: pos=({_heldObject.position.x:F1},{_heldObject.position.y:F1}) " +
                         $"target=({cursorPx.x:F1},{cursorPx.y:F1}) gap={gap:F1}px vel=({velocity.x:F1},{velocity.y:F1}) " +
-                        $"mana={stats.manaHp:F1} heldFlag={(state != null && state.isHeldByTelekinesis)} " +
+                        $"budgetMana={stats.MagicMana:F1} heldFlag={(state != null && state.isHeldByTelekinesis)} " +
                         $"grounded={(state != null && state.isGrounded)} stay={_heldObject.IsAtRest()}");
                 }
             }

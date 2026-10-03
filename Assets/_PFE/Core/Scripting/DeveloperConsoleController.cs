@@ -32,6 +32,7 @@ namespace PFE.Core.Scripting
         private DevConsoleSaveCommands _saveCommands;
         private DevConsoleColliderCommands _colliderCommands;
         private DevConsoleProfilerCommands _profilerCommands;
+        private DevConsoleRpgCommands _rpgCommands;
 
         private const KeyCode ToggleKey1 = KeyCode.BackQuote;
         private const KeyCode ToggleKey2 = KeyCode.F1;
@@ -147,6 +148,7 @@ namespace PFE.Core.Scripting
             _saveCommands ??= new DevConsoleSaveCommands();
             _colliderCommands ??= new DevConsoleColliderCommands();
             _profilerCommands ??= new DevConsoleProfilerCommands();
+            _rpgCommands ??= new DevConsoleRpgCommands();
 
             if (_resolver != null)
             {
@@ -183,7 +185,14 @@ namespace PFE.Core.Scripting
             // objects, and its state lives in PfeDebugSettings. That is deliberate — this is the
             // tool you reach for when something else failed to wire up, so it must not depend on
             // anything having been wired up.
-            _service.SetCommandObjects(_playerCommands, _simCommands, _saveCommands, _colliderCommands, _profilerCommands);
+            //
+            // The RPG commands are wired unconditionally for the same reason: they need only a scene
+            // lookup, and CharacterStats resolves its own database and level curve. `rpg status` is
+            // specifically the command you run when you suspect nothing wired up, so it must not be
+            // the thing that fails when nothing wired up.
+            _rpgCommands.Wire(() => FindFirstObjectByType<PFE.Entities.Player.PlayerController>());
+
+            _service.SetCommandObjects(_playerCommands, _simCommands, _saveCommands, _colliderCommands, _profilerCommands, _rpgCommands);
         }
 
         private LandMap ResolveLandMap()
@@ -252,6 +261,13 @@ namespace PFE.Core.Scripting
             {
                 SyncDependencies();
                 _service.ExecuteInput("saves");
+            }
+            if (GUILayout.Button("Player Editor (F2)", GUILayout.Width(130)))
+            {
+                if (PlayerDebugEditorOverlay.Instance != null)
+                {
+                    PlayerDebugEditorOverlay.Instance.IsOpen = !PlayerDebugEditorOverlay.Instance.IsOpen;
+                }
             }
             // One-click overlays. The console covers 45% of the screen, so the workflow is "click
             // here, close the console, screenshot" — and the F5/F6 hotkeys cover the case where the

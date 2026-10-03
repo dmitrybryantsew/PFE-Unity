@@ -30,6 +30,17 @@ namespace PFE.Systems.Weapons.Controllers
     /// WKick variant:
     ///   Same controller, fires at t_attack == rapid - 8 instead of rapid - 5.
     ///   isKick flag set from WeaponDefinition (no separate class needed).
+    ///
+    /// Owner multipliers (WKick.as:47-69):
+    ///   WIRED     punchDamMult → b.damage and b.otbros, both scaled by PunchDamMult.
+    ///   BLOCKED   punchDamMult → the stun proc (dopCh = punchDamMult - 1, dopDamage = 30/60).
+    ///             DamageContext.DopChance / DopDamage have no reader anywhere in the port, so
+    ///             writing them here would change nothing observable.
+    ///   BLOCKED   kickDestroy → b.destroy. DamageContext.DestroyTiles is read only by the
+    ///             projectile path (ProjectileFactory.cs:81); a MeleeSweep plan never becomes a
+    ///             projectile, so no melee or unarmed hit destroys tiles today.
+    ///   Those two are exposed on IWeaponStatSource so the fix is a one-liner once their consumers
+    ///   land, but they must not be counted as closed divergences. See TOPIC_weapons_dispatch.
     /// </summary>
     public sealed class UnarmedWeaponController : IWeaponController
     {
@@ -59,12 +70,34 @@ namespace PFE.Systems.Weapons.Controllers
 
         private readonly List<ShotPlan> _plans = new();
 
+        // ── Owner stats ───────────────────────────────────────────────────────
+
+        /// <summary>
+        /// The wielder's RPG multipliers, or null for a weapon with no owner (an enemy, or a test).
+        ///
+        /// <para>AS3 reads these straight off <c>World.w.pers</c> inside <c>WKick.actions()</c>
+        /// (<c>WKick.as:47-54,69</c>) rather than copying them in <c>setPers</c> — the punch/kick
+        /// family is the one weapon type that reaches into <c>Pers</c> at fire time. The port holds a
+        /// live reference for the same reason the ranged controller does.</para>
+        /// </summary>
+        private readonly IWeaponStatSource _statSource;
+
+        /// <summary><c>Pers.punchDamMult</c> (<c>WKick.as:47-48</c>), 1 when there is no owner.</summary>
+        private float PunchDamMult => _statSource != null ? _statSource.PunchDamMult : 1f;
+
+        // NOTE: `Pers.kickDestroy` (WKick.as:69, b.destroy) is deliberately NOT read here even
+        // though IWeaponStatSource exposes it. Its consumer is DamageContext.DestroyTiles, which only
+        // the projectile path reads (ProjectileFactory.cs:81) — a MeleeSweep plan never becomes a
+        // projectile, so any value written here would be inert. The seam carries it so the fix is a
+        // one-liner once melee tile destruction lands; wire it then, not now.
+
         // ── Constructor ───────────────────────────────────────────────────────
 
-        public UnarmedWeaponController(WeaponRuntimeState state)
+        public UnarmedWeaponController(WeaponRuntimeState state, IWeaponStatSource statSource = null)
         {
-            State = state;
-            _def  = state.Def;
+            State       = state;
+            _def        = state.Def;
+            _statSource = statSource;
         }
 
         // ── IWeaponController ─────────────────────────────────────────────────
@@ -203,9 +236,19 @@ namespace PFE.Systems.Weapons.Controllers
             // ── Build damage context ──────────────────────────────────────────
             DamageContext baseDmg = DamageContext.FromWeapon(_def, null, State.OwnerFaction);
 
+            // AS3 WKick.as:47-48 — punchDamMult scales BOTH the damage and the knockback:
+            //   b.damage = damage * punchDamMult;  b.otbros = otbros * punchDamMult;
+            // (Unlike melee, where the knock has no stat term at all — WClub.as:594.)
+            //
+            // AS3 also raises the stun proc when punchDamMult > 1 (WKick.as:52-54:
+            // dopCh = punchDamMult - 1, dopDamage = 30). That is NOT wired: DopChance and DopDamage
+            // have no consumer anywhere in the port, so writing them would be an inert fix. Recorded
+            // in the class remark; do not add it here until a stun resolver reads them.
+            float punchMult = PunchDamMult;
+
             // AS3: b.damage = damage*2; b.otbros *= 1.5 on a back-hit (zadok).
-            float damageScale    = zadok ? 2f   : 1f;
-            float knockbackScale = zadok ? 1.5f : 1f;
+            float damageScale    = (zadok ? 2f : 1f) * punchMult;
+            float knockbackScale = (zadok ? 1.5f : 1f) * punchMult;
 
             // Scaled through one method rather than a positional re-construction: the 16-argument
             // copy this replaced silently dropped ownerFaction, and would drop every field added to

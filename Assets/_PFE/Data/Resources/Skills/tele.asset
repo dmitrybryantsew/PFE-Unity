@@ -1,0 +1,288 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 15868adb6790c0a47a81bf51f77e6869, type: 3}
+  m_Name: tele
+  m_EditorClassIdentifier: PFE.Core::PFE.Systems.RPG.Data.SkillDefinition
+  skillId: tele
+  displayName: Tele
+  description: 
+  isPostGame: 0
+  maxLevel: 20
+  sortOrder: 1
+  levelEffects: []
+  modifiers:
+  - statId: teleMult
+    type: 2
+    target: 0
+    values: []
+    valueDelta: -0.1
+    isMultiplier: 0
+    tip: 
+    refType: 
+    dop: 1
+    v0: 2.2
+    hasV0: 1
+    vd: -0.1
+    hasVd: 1
+    v: []
+  - statId: throwDmana
+    type: 2
+    target: 0
+    values:
+    - 250
+    - 250
+    - 250
+    - 200
+    - 150
+    - 100
+    valueDelta: 0
+    isMultiplier: 0
+    tip: 
+    refType: 
+    dop: 0
+    v0: 250
+    hasV0: 1
+    vd: 0
+    hasVd: 0
+    v:
+    - 250
+    - 250
+    - 250
+    - 200
+    - 150
+    - 100
+  - statId: maxTeleMassa
+    type: 2
+    target: 0
+    values:
+    - 0.6
+    - 1.6
+    - 3
+    - 6
+    - 12
+    - 25
+    valueDelta: 0
+    isMultiplier: 0
+    tip: 
+    refType: 
+    dop: 0
+    v0: 0.6
+    hasV0: 1
+    vd: 0
+    hasVd: 0
+    v:
+    - 0.6
+    - 1.6
+    - 3
+    - 6
+    - 12
+    - 25
+  - statId: telePorog
+    type: 2
+    target: 0
+    values:
+    - 0.1
+    - 0.2
+    - 0.3
+    - 0.5
+    - 0.8
+    - 1.2
+    valueDelta: 0
+    isMultiplier: 0
+    tip: 
+    refType: 
+    dop: 0
+    v0: 0.1
+    hasV0: 1
+    vd: 0
+    hasVd: 0
+    v:
+    - 0.1
+    - 0.2
+    - 0.3
+    - 0.5
+    - 0.8
+    - 1.2
+  - statId: teleAccel
+    type: 2
+    target: 0
+    values:
+    - 1
+    - 1.1
+    - 1.2
+    - 1.35
+    - 1.6
+    - 2
+    valueDelta: 0
+    isMultiplier: 0
+    tip: 
+    refType: 
+    dop: 0
+    v0: 1
+    hasV0: 1
+    vd: 0
+    hasVd: 0
+    v:
+    - 1
+    - 1.1
+    - 1.2
+    - 1.35
+    - 1.6
+    - 2
+  - statId: teleSpeed
+    type: 2
+    target: 0
+    values: []
+    valueDelta: 1.5
+    isMultiplier: 0
+    tip: 
+    refType: 
+    dop: 0
+    v0: 8
+    hasV0: 1
+    vd: 1.5
+    hasVd: 1
+    v: []
+  - statId: unitLevitMult
+    type: 2
+    target: 0
+    values:
+    - 0.5
+    - 1
+    - 1.3
+    - 1.6
+    - 2
+    - 2.5
+    valueDelta: 0
+    isMultiplier: 0
+    tip: 
+    refType: 
+    dop: 0
+    v0: 0.5
+    hasV0: 1
+    vd: 0
+    hasVd: 0
+    v:
+    - 0.5
+    - 1
+    - 1.3
+    - 1.6
+    - 2
+    - 2.5
+  - statId: djumpdy
+    type: 2
+    target: 0
+    values: []
+    valueDelta: 1
+    isMultiplier: 0
+    tip: 
+    refType: 
+    dop: 0
+    v0: 6
+    hasV0: 1
+    vd: 1
+    hasVd: 1
+    v: []
+  - statId: telePower
+    type: 2
+    target: 0
+    values: []
+    valueDelta: 0.1
+    isMultiplier: 0
+    tip: 
+    refType: 
+    dop: 1
+    v0: 1
+    hasV0: 1
+    vd: 0.1
+    hasVd: 1
+    v: []
+  - statId: 7
+    type: 3
+    target: 0
+    values: []
+    valueDelta: 0.05
+    isMultiplier: 0
+    tip: weap
+    refType: 
+    dop: 1
+    v0: 1
+    hasV0: 1
+    vd: 0.05
+    hasVd: 1
+    v: []
+  - statId: teleEnemy
+    type: 2
+    target: 0
+    values:
+    - 90
+    - 60
+    - 40
+    - 30
+    - 20
+    - 10
+    valueDelta: 0
+    isMultiplier: 0
+    tip: 
+    refType: 
+    dop: 0
+    v0: 90
+    hasV0: 1
+    vd: 0
+    hasVd: 0
+    v:
+    - 90
+    - 60
+    - 40
+    - 30
+    - 20
+    - 10
+  - statId: alicornRunMana
+    type: 2
+    target: 0
+    values:
+    - 5
+    - 4
+    - 3.2
+    - 2.5
+    - 2
+    - 1.6
+    valueDelta: 0
+    isMultiplier: 0
+    tip: 
+    refType: 
+    dop: 0
+    v0: 5
+    hasV0: 1
+    vd: 0
+    hasVd: 0
+    v:
+    - 5
+    - 4
+    - 3.2
+    - 2.5
+    - 2
+    - 1.6
+  - statId: alicornFlyMult
+    type: 2
+    target: 0
+    values: []
+    valueDelta: 0.1
+    isMultiplier: 0
+    tip: 
+    refType: 
+    dop: 0
+    v0: 1
+    hasV0: 1
+    vd: 0.1
+    hasVd: 1
+    v: []

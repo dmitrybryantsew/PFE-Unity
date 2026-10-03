@@ -37,6 +37,17 @@ namespace PFE.Tests.Editor.RPG
                 return skills.TryGetValue(skillId, out int level) ? level : 0;
             }
 
+            public int GetSkillTier(string skillId)
+            {
+                int lvl = GetSkillLevel(skillId);
+                if (lvl >= 20) return 5;
+                if (lvl >= 14) return 4;
+                if (lvl >= 9) return 3;
+                if (lvl >= 5) return 2;
+                if (lvl >= 2) return 1;
+                return 0;
+            }
+
             public int GetPerkRank(string perkId)
             {
                 return perks.TryGetValue(perkId, out int rank) ? rank : 0;
@@ -89,7 +100,10 @@ namespace PFE.Tests.Editor.RPG
         [Description("PerkRequirement should check skill requirement")]
         public void PerkRequirement_SkillRequirement_Met()
         {
-            // Arrange
+            // `level` on a Skill requirement is a TIER, not a raw point count. AS3 compares
+            // `getSkLevel(skills[id])` -- a 0..5 tier -- against reqlevel (Pers.as:1452-1458), and
+            // every skill/guns `lvl` in AllData.as is 1..5 (max 5), while the `id='level'` rows run
+            // to 20. Raw 9 is tier 3 (thresholds 2/5/9/14/20, Pers.as:995-1020).
             var req = new PerkRequirement
             {
                 type = RequirementType.Skill,
@@ -99,20 +113,25 @@ namespace PFE.Tests.Editor.RPG
             };
 
             var stats = new MockCharacterStats();
-            stats.SetSkillLevel("melee", 3);
 
-            // Act
-            bool met = req.IsMet(stats, 1);
+            // Boundary, both sides. The old fixture asserted only the accept case, with raw points
+            // equal to the tier, which passed under the pre-oracle "compare raw levels" rule and hid
+            // the unit mismatch entirely.
+            stats.SetSkillLevel("melee", 9);   // tier 3
+            Assert.IsTrue(req.IsMet(stats, 1), "tier 3 should satisfy a tier-3 requirement");
 
-            // Assert
-            Assert.IsTrue(met, "Skill requirement should be met");
+            stats.SetSkillLevel("melee", 8);   // tier 2
+            Assert.IsFalse(req.IsMet(stats, 1), "tier 2 must NOT satisfy a tier-3 requirement");
+
+            stats.SetSkillLevel("melee", 20);  // tier 5
+            Assert.IsTrue(req.IsMet(stats, 1), "tier 5 should satisfy a tier-3 requirement");
         }
 
         [Test]
         [Description("PerkRequirement should accept guns requirement with smallguns")]
         public void PerkRequirement_GunsRequirement_SmallGuns()
         {
-            // Arrange
+            // `level = 2` is tier 2, i.e. raw 5..8.
             var req = new PerkRequirement
             {
                 type = RequirementType.Guns,
@@ -121,7 +140,7 @@ namespace PFE.Tests.Editor.RPG
             };
 
             var stats = new MockCharacterStats();
-            stats.SetSkillLevel("smallguns", 2);
+            stats.SetSkillLevel("smallguns", 5);   // tier 2
 
             // Act
             bool met = req.IsMet(stats, 1);
@@ -134,7 +153,8 @@ namespace PFE.Tests.Editor.RPG
         [Description("PerkRequirement should accept guns requirement with energy")]
         public void PerkRequirement_GunsRequirement_Energy()
         {
-            // Arrange
+            // Same tier-2 gate, reached through the OTHER arm of the OR: energy must qualify on its
+            // own, with smallguns left at 0.
             var req = new PerkRequirement
             {
                 type = RequirementType.Guns,
@@ -143,7 +163,7 @@ namespace PFE.Tests.Editor.RPG
             };
 
             var stats = new MockCharacterStats();
-            stats.SetSkillLevel("energy", 2);
+            stats.SetSkillLevel("energy", 5);   // tier 2
 
             // Act
             bool met = req.IsMet(stats, 1);
@@ -156,24 +176,28 @@ namespace PFE.Tests.Editor.RPG
         [Description("PerkRequirement should scale with perk rank")]
         public void PerkRequirement_LevelDelta_ScalesWithRank()
         {
-            // Arrange
+            // `level` is a tier, so the delta moves the gate through the tier ladder:
+            //   rank 1 -> 2 + 0*3 = tier 2   (raw 5..8)
+            //   rank 2 -> 2 + 1*3 = tier 5   (raw 20+)
             var req = new PerkRequirement
             {
                 type = RequirementType.Skill,
                 skillId = "tele",
                 level = 2,
-                levelDelta = 3 // +3 per rank
+                levelDelta = 3 // +3 tiers per rank
             };
 
             var stats = new MockCharacterStats();
-            stats.SetSkillLevel("tele", 5);
+            stats.SetSkillLevel("tele", 9);   // tier 3
 
-            // Act & Assert
-            bool rank1 = req.IsMet(stats, 1); // Needs 2 + 0*3 = 2
-            bool rank2 = req.IsMet(stats, 2); // Needs 2 + 1*3 = 5
+            // Rank 1 passes and rank 2 fails at the SAME stat value -- which is the only way to show
+            // the delta actually moved the gate. The old fixture asserted both true from raw 5, which
+            // cannot distinguish "the delta applied" from "it was ignored".
+            Assert.IsTrue(req.IsMet(stats, 1), "Rank 1 should require tier 2 -- tier 3 satisfies it");
+            Assert.IsFalse(req.IsMet(stats, 2), "Rank 2 should require tier 5 -- tier 3 must NOT satisfy it");
 
-            Assert.IsTrue(rank1, "Rank 1 should require Tele 2");
-            Assert.IsTrue(rank2, "Rank 2 should require Tele 5");
+            stats.SetSkillLevel("tele", 20);  // tier 5
+            Assert.IsTrue(req.IsMet(stats, 2), "Rank 2 should be satisfied at tier 5");
         }
     }
 }

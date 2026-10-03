@@ -185,6 +185,7 @@ namespace PFE.Systems.Combat
 
         private static Color ColorFor(in DamageNumber number)
         {
+            if (number.CustomColor.HasValue) return number.CustomColor.Value;
             if (number.IsMiss) return new Color(0.72f, 0.72f, 0.78f);   // grey: nothing happened
             if (number.IsCritical) return new Color(1f, 0.36f, 0.24f);  // red: crit
 

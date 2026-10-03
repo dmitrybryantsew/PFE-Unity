@@ -2,6 +2,7 @@ using UnityEngine;
 using R3;
 using PFE.Systems.Weapons;
 using PFE.Entities.Units;
+using PFE.Systems.RPG;
 
 namespace PFE.UI.HUD
 {
@@ -33,6 +34,15 @@ namespace PFE.UI.HUD
         [Tooltip("Player stats to display health for")]
         internal UnitStats playerStats;
 
+        /// <summary>
+        /// The organ-level stats, needed because AS3's HUD shows <b>two different mana values</b>
+        /// at once — see <see cref="ManaPercent"/> and <see cref="ManaOrganPercent"/>. Null is
+        /// tolerated: the organ properties then stay at zero and only the budget is available.
+        /// </summary>
+        [SerializeField]
+        [Tooltip("Organ-level stats. Supplies the mana ORGAN (manaHp), which is not on UnitStats.")]
+        internal CharacterStats characterStats;
+
         // Reactive properties for UI binding
         private ReadOnlyReactiveProperty<int> _currentAmmo;
         private ReadOnlyReactiveProperty<int> _maxAmmo;
@@ -46,6 +56,9 @@ namespace PFE.UI.HUD
         private ReadOnlyReactiveProperty<float> _currentMana;
         private ReadOnlyReactiveProperty<float> _maxMana;
         private ReadOnlyReactiveProperty<float> _manaPercent;
+        private ReadOnlyReactiveProperty<float> _currentManaOrgan;
+        private ReadOnlyReactiveProperty<float> _maxManaOrgan;
+        private ReadOnlyReactiveProperty<float> _manaOrganPercent;
         private ReadOnlyReactiveProperty<float> _armourPercent;
         private ReadOnlyReactiveProperty<bool> _hasArmour;
 
@@ -98,19 +111,45 @@ namespace PFE.UI.HUD
         public ReadOnlyReactiveProperty<bool> IsAlive => _isAlive;
 
         /// <summary>
-        /// Current mana value (for binding).
+        /// The <b>magic budget</b> — AS3 <c>Unit.mana</c>, ceiling 1000, regenerates every tick.
+        /// This is what AS3's HUD prints as a <i>number</i>: <c>GUI.setMana</c> writes
+        /// <c>round(gg.mana / 10) + "%"</c> (<c>GUI.as:993</c>).
+        ///
+        /// <para><b>Do not draw the mana BAR from this.</b> AS3 draws the bar from the organ — see
+        /// <see cref="ManaOrganPercent"/>. The two halves of that HUD disagree on purpose, and a
+        /// port that uses one pool for both looks correct until the budget regenerates while the
+        /// bar stays pinned.</para>
         /// </summary>
         public ReadOnlyReactiveProperty<float> CurrentMana => _currentMana;
 
         /// <summary>
-        /// Maximum mana value (for binding).
+        /// The budget's ceiling — AS3 <c>Unit.maxmana</c>, 1000. See <see cref="CurrentMana"/>.
         /// </summary>
         public ReadOnlyReactiveProperty<float> MaxMana => _maxMana;
 
         /// <summary>
-        /// Mana percentage 0-1 (for binding).
+        /// The budget as a 0..1 fraction — the value behind AS3's <c>NN%</c> mana readout
+        /// (<c>GUI.as:993</c>), where the percentage is <c>round(mana / 10)</c> only because the
+        /// ceiling is 1000.
         /// </summary>
         public ReadOnlyReactiveProperty<float> ManaPercent => _manaPercent;
+
+        /// <summary>
+        /// The <b>mana organ</b> — AS3 <c>Pers.manaHP</c>, ceiling 400, a wound track that does
+        /// <i>not</i> regenerate. Read from <see cref="characterStats"/>.
+        /// </summary>
+        public ReadOnlyReactiveProperty<float> CurrentManaOrgan => _currentManaOrgan;
+
+        /// <summary>The organ's ceiling — AS3 <c>Pers.inMaxMana</c>, 400.</summary>
+        public ReadOnlyReactiveProperty<float> MaxManaOrgan => _maxManaOrgan;
+
+        /// <summary>
+        /// The organ as a 0..1 fraction. <b>This is the mana bar's value.</b> AS3:
+        /// <c>vis.manaBar.mana.scaleX = gg.pers.manaHP / gg.pers.inMaxMana</c>
+        /// (<c>GUI.as:1000</c>), while the adjacent text shows the budget. Both are in
+        /// <c>setMana</c>, four lines apart.
+        /// </summary>
+        public ReadOnlyReactiveProperty<float> ManaOrganPercent => _manaOrganPercent;
 
         /// <summary>
         /// Equipped armour integrity 0-1 (for binding). 0 when nothing is equipped — check
@@ -129,10 +168,15 @@ namespace PFE.UI.HUD
         /// </summary>
         /// <param name="loadout">Player's weapon loadout</param>
         /// <param name="stats">Player's stats</param>
-        public void Initialize(PlayerWeaponLoadout loadout, UnitStats stats)
+        /// <param name="organs">
+        /// Organ-level stats, for the mana organ. Optional: pass null and the three
+        /// <c>...ManaOrgan</c> properties stay at zero while the budget properties still work.
+        /// </param>
+        public void Initialize(PlayerWeaponLoadout loadout, UnitStats stats, CharacterStats organs = null)
         {
             playerLoadout = loadout;
             playerStats = stats;
+            characterStats = organs;
 
             // Rebind, not SetupBindings: rebinding replaces the ReadOnlyReactiveProperty instances,
             // and the previous set must be disposed or every re-initialise leaks a live subscription
@@ -165,6 +209,13 @@ namespace PFE.UI.HUD
         /// tell "already bound to this player" from "the player was replaced" without guessing.
         /// </summary>
         public UnitStats StatsSource => playerStats;
+
+        /// <summary>
+        /// The organ stats this ViewModel is bound to, or null. Exposed for the same reason as
+        /// <see cref="StatsSource"/>: a bootstrapper needs to tell "already bound" from "the player
+        /// was replaced" without guessing. Null is legitimate — the budget still binds.
+        /// </summary>
+        public CharacterStats CharacterStatsSource => characterStats;
 
         private void Awake()
         {
@@ -216,6 +267,9 @@ namespace PFE.UI.HUD
             _currentMana = null;
             _maxMana = null;
             _manaPercent = null;
+            _currentManaOrgan = null;
+            _maxManaOrgan = null;
+            _manaOrganPercent = null;
             _armourPercent = null;
             _hasArmour = null;
 
@@ -290,6 +344,37 @@ namespace PFE.UI.HUD
             _disposables.Add(_maxMana);
             _disposables.Add(_manaPercent);
 
+            // Mana ORGAN bindings — the other half of AS3's split readout.
+            //
+            // Polled with EveryUpdate rather than read off a ReactiveProperty because
+            // CharacterStats.manaHp is a plain field: it is a wound track, written by
+            // ApplyManaDamage / HealOrgan rather than published as a reactive stream. This is the
+            // same shape CharacterStatsViewModel already uses for it, and DistinctUntilChanged keeps
+            // the poll from pushing identical frames into the view.
+            if (characterStats != null)
+            {
+                _currentManaOrgan = Observable.EveryUpdate()
+                    .Select(_ => characterStats.manaHp)
+                    .DistinctUntilChanged()
+                    .ToReadOnlyReactiveProperty(characterStats.manaHp);
+
+                _maxManaOrgan = Observable.EveryUpdate()
+                    .Select(_ => characterStats.MaxMana)
+                    .DistinctUntilChanged()
+                    .ToReadOnlyReactiveProperty(characterStats.MaxMana);
+
+                _manaOrganPercent = Observable.EveryUpdate()
+                    .Select(_ => characterStats.MaxMana > 0f
+                        ? Mathf.Clamp01(characterStats.manaHp / characterStats.MaxMana)
+                        : 0f)
+                    .DistinctUntilChanged()
+                    .ToReadOnlyReactiveProperty();
+
+                _disposables.Add(_currentManaOrgan);
+                _disposables.Add(_maxManaOrgan);
+                _disposables.Add(_manaOrganPercent);
+            }
+
             // Armour bindings.
             //
             // Taken straight off UnitStats' reactive mirrors rather than computed here, because unlike
@@ -361,17 +446,49 @@ namespace PFE.UI.HUD
         }
 
         /// <summary>
-        /// Get mana text formatted for display (e.g., "50 / 100").
+        /// The HUD's mana readout — AS3 <c>GUI.setMana</c> (<c>GUI.as:985-997</c>).
+        ///
+        /// <para><b>This is the BUDGET, and it is a percentage — not a "current / max" pair.</b>
+        /// AS3 writes <c>txtMagia + " " + round(mana / 10) + "%"</c>; dividing by 10 only yields a
+        /// percentage because the ceiling is 1000. Three branches, in order:</para>
+        /// <list type="number">
+        ///   <item><description><c>mana &lt; 10</c> → the "out of magic" label.</description></item>
+        ///   <item><description><c>mana &lt; 995</c> (or a spell is cooling down) → the percentage.</description></item>
+        ///   <item><description>otherwise → empty. A full pool shows nothing at all.</description></item>
+        /// </list>
+        ///
+        /// <para><b>Not ported, and deliberately not invented:</b> AS3's <c>txtMagia</c> /
+        /// <c>txtMagiaOver</c> come from <c>Res.guiText</c>, and this port has no GUI-string table,
+        /// so the keys are returned literally (see the two constants below) rather than translated.
+        /// Also absent: the spell-cooldown term in branch 2, and the two <c>appendText</c> suffixes
+        /// (the held prop's kg, and "heavy" when <c>dmana &lt; -5</c>). None of those affects which
+        /// pool is read, which is the point of this method.</para>
         /// </summary>
         /// <returns>Formatted mana string</returns>
         public string GetManaText()
         {
-            if (playerStats == null) return "-- / --";
+            if (playerStats == null) return string.Empty;
 
-            float current = playerStats.Mana.Value;
-            float max = playerStats.MaxMana.Value;
+            float mana = playerStats.Mana.Value;
 
-            return $"{Mathf.Round(current)} / {Mathf.Round(max)}";
+            if (mana < 10f)
+            {
+                return MagiaOverLabel;
+            }
+
+            if (mana < 995f)
+            {
+                return $"{MagiaLabel} {Mathf.Round(mana / 10f):0}%";
+            }
+
+            return string.Empty;
         }
+
+        // AS3 reads these through Res.guiText("magia") / Res.guiText("magiaover"). The port has no
+        // GUI-string table, so the keys stand in for the text. They are constants rather than inline
+        // literals so that a later localisation pass has exactly one place to change -- and so a
+        // reviewer sees a placeholder rather than a suspiciously English-looking label.
+        private const string MagiaLabel = "magia";
+        private const string MagiaOverLabel = "magiaover";
     }
 }

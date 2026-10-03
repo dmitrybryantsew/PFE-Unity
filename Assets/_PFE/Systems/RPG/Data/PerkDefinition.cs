@@ -38,6 +38,9 @@ namespace PFE.Systems.RPG.Data
         [Header("Prerequisites")]
         [SerializeField] public PerkRequirement[] requirements;
 
+        [Header("Stat Modifiers")]
+        [SerializeField] public StatModifier[] modifiers;
+
         [Header("Rank Effects")]
         [SerializeField] public PerkRankEffect[] rankEffects;
 
@@ -48,6 +51,7 @@ namespace PFE.Systems.RPG.Data
         public bool IsPlayerSelectable => isPlayerSelectable;
         public int MaxRank => maxRank;
         public PerkRequirement[] Requirements => requirements;
+        public StatModifier[] Modifiers => modifiers;
         public PerkRankEffect[] RankEffects => rankEffects;
 
         /// <summary>
@@ -59,6 +63,9 @@ namespace PFE.Systems.RPG.Data
             // Check if already maxed
             if (currentRank >= maxRank)
                 return false;
+
+            if (requirements == null || requirements.Length == 0)
+                return true;
 
             // Check all requirements for the next rank
             int nextRank = currentRank + 1;
@@ -101,11 +108,22 @@ namespace PFE.Systems.RPG.Data
         /// </summary>
         public bool IsMet(ICharacterStats stats, int perkRank)
         {
-            int requiredLevel = level;
-            if (levelDelta > 0 && perkRank > 1)
+            // AS3 Pers.perkPoss (Pers.as:1436-1444):
+            //   reqlevel = 1;  if (req.@lvl) reqlevel = int(req.@lvl);
+            //   if (numb > 0 && req.@dlvl) reqlevel += numb * req.@dlvl;
+            // `numb` is the rank already held, and this method is called with the NEXT rank, so the
+            // held rank is perkRank - 1.
+            //
+            // Two divergences are fixed here. The `dlvl` term used to apply only to
+            // RequirementType.Level, while AS3 adds it to every requirement type — so rank 2+ of a
+            // perk gated on a skill was too easy. And the skill/guns cases OR-ed in the raw point
+            // count alongside the tier; AS3 compares getSkLevel (the TIER) only, so a tier-3 gate
+            // was satisfied by 3 raw points, which is tier 1.
+            int heldRank = Mathf.Max(0, perkRank - 1);
+            int requiredLevel = level > 0 ? level : 1;
+            if (heldRank > 0 && levelDelta != 0)
             {
-                // Dynamic requirement: level + (perkRank - 1) * levelDelta
-                requiredLevel += (perkRank - 1) * levelDelta;
+                requiredLevel += heldRank * levelDelta;
             }
 
             switch (type)
@@ -116,12 +134,12 @@ namespace PFE.Systems.RPG.Data
                 case RequirementType.Skill:
                     if (string.IsNullOrEmpty(skillId))
                         return false;
-                    return stats.GetSkillLevel(skillId) >= requiredLevel;
+                    return stats.GetSkillTier(skillId) >= requiredLevel;
 
                 case RequirementType.Guns:
-                    // Small guns OR Energy weapons
-                    return stats.GetSkillLevel("smallguns") >= requiredLevel ||
-                           stats.GetSkillLevel("energy") >= requiredLevel;
+                    // Small guns OR Energy weapons (AS3 Pers.as:1452-1458).
+                    return stats.GetSkillTier("smallguns") >= requiredLevel
+                        || stats.GetSkillTier("energy") >= requiredLevel;
 
                 default:
                     Debug.LogWarning($"Unknown requirement type: {type}");

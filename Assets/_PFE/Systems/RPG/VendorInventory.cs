@@ -4,10 +4,13 @@ using PFE.Systems.RPG.Data;
 namespace PFE.Systems.RPG
 {
     /// <summary>
-    /// Vendor inventory system that scales with player's barter skill.
-    /// Based on AS3 Vendor.as logic:
-    /// - Doctor vendor: items = 5 + 3 * barterLvl + random
-    /// - Regular vendor: items = 10 + 6 * barterLvl + random
+    /// Vendor inventory system that scales with the player's barter stat.
+    /// Port of AS3 <c>Vendor.as</c>:
+    /// - Doctor vendor:  <c>5 + 3 * barterLvl</c>, then <c>* (0.5 + random()*0.7)</c>
+    /// - Regular vendor: <c>10 + 6 * barterLvl</c>, then <c>* (0.5 + random()*0.7)</c>
+    /// - Random vendor:  <c>30</c>, then <c>* (0.5 + random()*0.7)</c>
+    /// - Prices are multiplied by <c>Pers.barterMult</c> (<c>PipBuck.as:414</c>)
+    /// - Restock caps are multiplied by <c>Pers.limitBuys</c> (<c>Vendor.as:304</c>)
     /// </summary>
     public class VendorInventory : MonoBehaviour
     {
@@ -30,8 +33,6 @@ namespace PFE.Systems.RPG
         [Header("Vendor Settings")]
         [SerializeField] private bool isDoctor = false;
         [SerializeField] private bool isRandomVendor = false;
-        [SerializeField] private int baseInventorySize = 10;
-        [SerializeField] private float inventoryMultiplier = 6.0f;
 
         /// <summary>
         /// Set player stats (for testing and DI).
@@ -42,41 +43,33 @@ namespace PFE.Systems.RPG
         }
 
         /// <summary>
-        /// Set vendor type.
+        /// Set vendor type. The AS3 item counts are constants per type
+        /// (<c>Vendor.as:136-147</c>), so no tuning fields are exposed here.
         /// </summary>
         public void SetVendorType(bool doctor, bool randomVendor = false)
         {
             isDoctor = doctor;
             isRandomVendor = randomVendor;
-
-            // Set base values based on vendor type
-            if (randomVendor)
-            {
-                baseInventorySize = 30;
-                inventoryMultiplier = 0;
-            }
-            else if (doctor)
-            {
-                baseInventorySize = 5;
-                inventoryMultiplier = 3.0f;
-            }
-            else
-            {
-                baseInventorySize = 10;
-                inventoryMultiplier = 6.0f;
-            }
         }
 
         /// <summary>
         /// Get the inventory size based on player's barter skill.
-        /// Based on AS3 Vendor.as setRndBuys().
+        /// Based on AS3 Vendor.as setRndBuys() (Vendor.as:125-148).
+        ///
+        /// <para>
+        /// AS3 computes <c>count</c> from <b>pers.barterLvl</b> — the dedicated barter-level field,
+        /// not the raw <c>barter</c> skill — then applies
+        /// <c>Math.round(count * (0.5 + random() * 0.7))</c>, i.e. a <b>0.5–1.2</b> multiplier.
+        /// The earlier port added an extra integer bonus (<c>Rng.Range(0, 3|5)</c>) that has no
+        /// AS3 counterpart; it is removed here.
+        /// </para>
         /// </summary>
         public int GetInventorySize()
         {
             if (playerStats == null)
             {
-                Debug.LogWarning("[VendorInventory] No player stats assigned, using base inventory size");
-                return baseInventorySize;
+                Debug.LogWarning("[VendorInventory] No player stats assigned, using an empty inventory");
+                return 0;
             }
 
             int barterLevel = GetBarterLevel();
@@ -89,30 +82,38 @@ namespace PFE.Systems.RPG
             }
             else if (isDoctor)
             {
-                // Doctor: 5 + 3 * barterLvl
-                calculatedItems = baseInventorySize + Mathf.RoundToInt(inventoryMultiplier * barterLevel);
+                // AS3 Vendor.as:142 — doctor: 5 + 3 * barterLvl
+                calculatedItems = 5 + 3 * barterLevel;
             }
             else
             {
-                // Regular: 10 + 6 * barterLvl
-                calculatedItems = baseInventorySize + Mathf.RoundToInt(inventoryMultiplier * barterLevel);
+                // AS3 Vendor.as:146 — regular: 10 + 6 * barterLvl
+                calculatedItems = 10 + 6 * barterLevel;
             }
 
-            // Add randomness (0-2 for doctor, 0-4 for regular)
-            int randomBonus = Rng.Range(0, isDoctor ? 3 : 5);
-            calculatedItems += randomBonus;
-
-            // Apply randomness multiplier (0.5 - 1.2 of calculated)
-            float randomMultiplier = Rng.Range(0.5f, 1.2f);
+            // AS3 Vendor.as:148 — Math.round(count * (0.5 + random() * 0.7))
+            float randomMultiplier = 0.5f + Rng.NextFloat() * 0.7f;
             calculatedItems = Mathf.RoundToInt(calculatedItems * randomMultiplier);
 
             return Mathf.Max(0, calculatedItems);
         }
 
         /// <summary>
-        /// Get price multiplier based on player's barter skill.
-        /// Based on AS3: barterMult = 1 - (barterLevel * 0.03)
-        /// Higher barter skill = lower prices (better deals).
+        /// Get the price multiplier based on the player's barter state.
+        ///
+        /// <para>
+        /// AS3 does <b>not</b> derive a price curve from the barter skill. It sets
+        /// <c>Vendor.multPrice = pers.barterMult</c> (<c>PipBuck.as:414</c>) and multiplies prices
+        /// by it directly (<c>PipPageVend.as:594, 829-850</c>). In the port <c>barterMult</c> and
+        /// <c>capsMult</c> share one destination field (<c>CharacterStats.capsMult</c>), so that is
+        /// what is read here.
+        /// </para>
+        ///
+        /// <para>
+        /// The previous implementation invented <c>1 - barterLevel * 0.03</c> and clamped it at
+        /// 0.3. That formula exists nowhere in AS3 — it was a plausible-looking derivation that
+        /// silently ignored the real field. Removed.
+        /// </para>
         /// </summary>
         public float GetPriceMultiplier()
         {
@@ -122,20 +123,11 @@ namespace PFE.Systems.RPG
                 return 1.0f;
             }
 
-            int barterLevel = GetBarterLevel();
-
-            // barterMult = 1 - (barterLevel * 0.03)
-            // Level 1: 0.97 (3% discount)
-            // Level 5: 0.85 (15% discount)
-            // Level 10: 0.70 (30% discount)
-            float priceMultiplier = 1.0f - (barterLevel * 0.03f);
-
-            // Cap at minimum 0.3 (70% discount max)
-            return Mathf.Max(0.3f, priceMultiplier);
+            return playerStats.capsMult;
         }
 
         /// <summary>
-        /// Get the discount percentage (0-100) based on barter skill.
+        /// Get the discount percentage (0-100) based on barter.
         /// </summary>
         public int GetDiscountPercentage()
         {
@@ -154,7 +146,7 @@ namespace PFE.Systems.RPG
 
         /// <summary>
         /// Calculate sell price to vendor (player sells item).
-        /// Typically 50% of base price, modified by barter skill.
+        /// Typically 50% of base price, modified by barter.
         /// </summary>
         public int CalculateSellPrice(int basePrice)
         {
@@ -163,22 +155,27 @@ namespace PFE.Systems.RPG
         }
 
         /// <summary>
-        /// Get barter level (derived from barter skill).
-        /// Matches AS3 barterLvl variable.
+        /// Get barter level (the dedicated stat).
+        /// AS3 reads <c>pers.barterLvl</c> (Vendor.as:142/146), not <c>GetSkillLevel("barter")</c>.
         /// </summary>
         private int GetBarterLevel()
         {
-            return playerStats.GetSkillLevel("barter");
+            return playerStats.barterLvl;
         }
 
         /// <summary>
-        /// Get the inventory limit multiplier based on barter skill.
-        /// Based on AS3: limitBuys = 1 + 0.2 * barterLevel
+        /// Get the per-restock buy limit multiplier.
+        ///
+        /// <para>
+        /// AS3 reads <c>pers.limitBuys</c> directly (<c>Vendor.as:304</c>:
+        /// <c>lim = Math.ceil(buy.@n * pers.limitBuys)</c>). The field's own default is 1
+        /// (<c>Pers.as:317</c>) and it is raised by barter perks. The previous implementation
+        /// invented <c>1 + 0.2 * barterLevel</c>; removed.
+        /// </para>
         /// </summary>
         public float GetInventoryLimitMultiplier()
         {
-            int barterLevel = GetBarterLevel();
-            return 1.0f + (0.2f * barterLevel);
+            return playerStats.limitBuys;
         }
     }
 }

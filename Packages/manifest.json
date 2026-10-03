@@ -2,6 +2,7 @@
   "dependencies": {
     "com.cysharp.messagepipe": "1.8.1",
     "com.cysharp.messagepipe.vcontainer": "1.8.1",
+    "com.cysharp.r3": "1.3.0",
     "com.cysharp.unitask": "2.5.10",
     "com.github-glitchenzo.nugetforunity": "4.5.0",
     "com.unity.2d.animation": "13.0.4",

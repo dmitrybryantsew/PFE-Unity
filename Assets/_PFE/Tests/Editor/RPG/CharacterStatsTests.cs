@@ -321,6 +321,55 @@ namespace PFE.Tests.Editor.RPG
                 "Should track medic as source");
         }
 
+        [Test]
+        [Description("SetSkillLevel should clamp to max and update level")]
+        public void SetSkillLevel_ClampsToMax()
+        {
+            var stats = CreateTestCharacter();
+            stats.SetSkillLevel("smallguns", 25);
+            Assert.AreEqual(20, stats.GetSkillLevel("smallguns"), "Core skill should clamp to 20");
+
+            stats.SetSkillLevel("attack", 150);
+            Assert.AreEqual(100, stats.GetSkillLevel("attack"), "Special skill should clamp to 100");
+        }
+
+        [Test]
+        [Description("SetPerkRank should set rank directly and trigger recalculation")]
+        public void SetPerkRank_SetsRankDirectly()
+        {
+            var stats = CreateTestCharacter();
+            stats.SetPerkRank("oak", 3);
+            Assert.AreEqual(3, stats.GetPerkRank("oak"));
+
+            stats.RemovePerk("oak");
+            Assert.AreEqual(0, stats.GetPerkRank("oak"));
+        }
+
+        [Test]
+        [Description("ClearAllPerks should clear all active perk ranks")]
+        public void ClearAllPerks_ClearsAllRanks()
+        {
+            var stats = CreateTestCharacter();
+            stats.SetPerkRank("oak", 2);
+            stats.SetPerkRank("toughness", 1);
+
+            stats.ClearAllPerks();
+            Assert.AreEqual(0, stats.GetPerkRank("oak"));
+            Assert.AreEqual(0, stats.GetPerkRank("toughness"));
+        }
+
+        [Test]
+        [Description("SetLevel should update level and scale stats")]
+        public void SetLevel_UpdatesLevelAndScalesHp()
+        {
+            var stats = CreateTestCharacter();
+            float baseHp = stats.MaxHp;
+
+            stats.SetLevel(10);
+            Assert.AreEqual(10, stats.Level);
+            Assert.Greater(stats.MaxHp, baseHp, "Level 10 should have higher HP than Level 1");
+        }
+
         [TearDown]
         public void TearDown()
         {

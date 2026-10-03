@@ -1,0 +1,44 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 683204ab890d5e14ab8f206031215a47, type: 3}
+  m_Name: critdam
+  m_EditorClassIdentifier: PFE.Core::PFE.Systems.RPG.Data.PerkDefinition
+  perkId: critdam
+  displayName: Critdam
+  description: 
+  isPlayerSelectable: 1
+  maxRank: 1
+  requirements:
+  - type: 0
+    skillId: 
+    level: 20
+    levelDelta: 0
+  modifiers:
+  - statId: critDamMult
+    type: 0
+    target: 0
+    values:
+    - 0
+    - 0.4
+    valueDelta: 0
+    isMultiplier: 0
+    tip: 
+    refType: add
+    dop: 0
+    v0: 0
+    hasV0: 0
+    vd: 0
+    hasVd: 0
+    v:
+    - 0
+    - 0.4
+  rankEffects: []

@@ -67,11 +67,12 @@ namespace PFE.Tests.EditMode.Systems.Weapons
             public readonly WeaponRuntimeState State;
             public readonly RangedWeaponController Ctrl;
 
-            public Rig(WeaponDefinition def, IAmmoSource ammo = null, IRngService rng = null)
+            public Rig(WeaponDefinition def, IAmmoSource ammo = null, IRngService rng = null,
+                       IWeaponStatSource stats = null)
             {
                 Def  = def;
                 State = new WeaponRuntimeState(def);
-                Ctrl  = new RangedWeaponController(State, null, ammo, rng);
+                Ctrl  = new RangedWeaponController(State, null, ammo, rng, stats);
             }
 
             public void Dispose()
@@ -95,6 +96,36 @@ namespace PFE.Tests.EditMode.Systems.Weapons
             public bool  Chance(float probability) => _value < probability;
             public void  Shuffle<T>(IList<T> list) { }
             public IRngService GetStream(RngStream stream, int? salt = null) => this;
+        }
+
+        /// <summary>
+        /// Stands in for <c>CharacterStats</c>, which cannot be built here (it is a MonoBehaviour and
+        /// its <c>Awake</c> reaches for <c>Resources</c>). Every field is settable so a test can move
+        /// one multiplier at a time and leave the rest at the AS3 <c>Pers</c> declaration defaults.
+        /// </summary>
+        private sealed class FakeWeaponStats : IWeaponStatSource
+        {
+            public float ReloadMult = 1f;
+            public float RecoilMult = 1f;
+            public float JammedMult = 1f;
+            public float Recyc      = 0f;
+
+            // Melee / unarmed family — unused by the ranged fixtures, but the interface is shared.
+            public float MeleeDamMult = 1f;
+            public float MeleeSpdMult = 1f;
+            public float PunchDamMult = 1f;
+            public float KickDestroy  = 30f;
+            public float MeleeRun     = 10f;
+
+            float IWeaponStatSource.ReloadMult   => ReloadMult;
+            float IWeaponStatSource.RecoilMult   => RecoilMult;
+            float IWeaponStatSource.JammedMult   => JammedMult;
+            float IWeaponStatSource.Recyc        => Recyc;
+            float IWeaponStatSource.MeleeDamMult => MeleeDamMult;
+            float IWeaponStatSource.MeleeSpdMult => MeleeSpdMult;
+            float IWeaponStatSource.PunchDamMult => PunchDamMult;
+            float IWeaponStatSource.KickDestroy  => KickDestroy;
+            float IWeaponStatSource.MeleeRun     => MeleeRun;
         }
 
         private sealed class RecordingAmmoSource : IAmmoSource
@@ -451,6 +482,149 @@ namespace PFE.Tests.EditMode.Systems.Weapons
             Assert.IsFalse(rig.State.Jammed, "A misfire is not a jam — the weapon is not stuck.");
             Assert.AreEqual(30, rig.State.CurrentAmmo, "A misfire costs no round.");
             Assert.AreEqual(25, rig.State.CurrentDurability, "A misfire costs no durability.");
+        }
+
+        // ── Owner stat multipliers (IWeaponStatSource) ────────────────────────
+        // AS3 copies these Pers fields onto the weapon in Weapon.setPers (Weapon.as:973-977) and the
+        // weapon then reads its own copy. Each test below is paired with a control at the default,
+        // because a one-sided assertion cannot tell "the multiplier applied" from "the branch never
+        // ran at all" — the failure mode that produced several of the port's dead statIds.
+
+        [Test]
+        public void CharacterStats_ExposesTheWeaponStatSource_SoTheFactoryCanBeHandedOne()
+        {
+            // Structural guard, and the one that matters most: PlayerWeaponLoadout hands the player's
+            // CharacterStats straight to WeaponControllerFactory. Without this interface the four
+            // multipliers still compile — the backing fields are public — but nothing can ever read
+            // them, which is exactly how they were dead before.
+            Assert.IsTrue(typeof(IWeaponStatSource).IsAssignableFrom(typeof(PFE.Systems.RPG.CharacterStats)),
+                "CharacterStats must implement IWeaponStatSource or the weapon multipliers are inert.");
+        }
+
+        [Test]
+        public void Reload_WithADoubledReloadMult_TakesTwiceAsLong_AndFinishesAtTheScaledThreshold()
+        {
+            // AS3 sets t_reload = round(reload * reloadMult) at initReload (Weapon.as:1939) and
+            // completes the reload at t_reload == round(10 * reloadMult) (Weapon.as:1272). Both ends
+            // scale, so the whole window moves together rather than merely starting later — a
+            // port that only scaled the duration would finish at 10 and cut the reload short.
+            var stats = new FakeWeaponStats { ReloadMult = 2f };
+            using var rig = new Rig(MakeDef(magazineSize: 10, reloadTime: 90f), stats: stats);
+
+            Assert.AreEqual(1, PressOnce(rig));
+            rig.Ctrl.StartReload();
+
+            Assert.AreEqual(180, rig.State.TReload, "round(90 * 2) = 180 frames of reload.");
+
+            TickFrames(rig, 159);
+            Assert.AreEqual(21, rig.State.TReload, "One frame short of the scaled completion threshold.");
+            Assert.IsTrue(rig.State.IsReloadingRP.Value,
+                "Still reloading at t_reload 21 — the unscaled threshold of 10 is not where it ends.");
+
+            TickFrames(rig, 1);
+            Assert.AreEqual(0, rig.State.TReload, "round(10 * 2) = 20 is where the reload lands.");
+            Assert.IsFalse(rig.State.IsReloadingRP.Value);
+        }
+
+        [Test]
+        public void Shoot_WithARaisedJammedMult_TurnsAMisfireIntoAJam_AndTheDefaultDoesNot()
+        {
+            // breaking = 0.5 and holderSafe = max(20, 30) = 30, so the base jam threshold is
+            // 0.5/30 ≈ 0.0167 and a roll of 0.05 falls through to the misfire threshold of 0.1. At
+            // jammedMult 10 that same roll is 0.05 < 0.5/30*10 ≈ 0.167 and the weapon jams instead.
+            // The control run first proves the second run's jam is caused by jammedMult.
+            var defaultMult = new FakeWeaponStats { JammedMult = 1f };
+            using (var control = new Rig(MakeDef(magazineSize: 30, maxDurability: 100, reloadTime: 90f),
+                                         rng: new FixedRng(0.05f), stats: defaultMult))
+            {
+                control.State.CurrentDurability = 25;
+                HoldFor(control, 12);
+
+                Assert.IsFalse(control.State.Jammed, "At jammedMult 1 a 0.05 roll is only a misfire.");
+            }
+
+            var drawback = new FakeWeaponStats { JammedMult = 10f };
+            using (var rig = new Rig(MakeDef(magazineSize: 30, maxDurability: 100, reloadTime: 90f),
+                                     rng: new FixedRng(0.05f), stats: drawback))
+            {
+                rig.State.CurrentDurability = 25;
+                int plans = HoldFor(rig, 12);
+
+                Assert.AreEqual(0, plans, "A jammed weapon emits no shot plan.");
+                Assert.IsTrue(rig.State.Jammed,
+                    "jammedMult scales the jam threshold, so the same roll jams. It is a drawback " +
+                    "multiplier: higher means MORE jams (Pers.as:251).");
+            }
+        }
+
+        [Test]
+        public void Shoot_WithRecycAndEnergyAmmo_KeepsTheRound_ButBallisticAmmoDoesNot()
+        {
+            // AS3 Weapon.as:1586 skips the ammo deduction only when the owner has recyc > 0 AND the
+            // weapon feeds batt/energ/crystal. All three runs share the same recyc and the same RNG
+            // roll; the ammo type and the presence of a stat source are what change.
+            var stats = new FakeWeaponStats { Recyc = 0.5f };
+
+            using (var energy = new Rig(MakeDef(magazineSize: 30, ammoType: "energ"),
+                                        rng: new FixedRng(0f), stats: stats))
+            {
+                PressOnce(energy);
+                Assert.AreEqual(30, energy.State.CurrentAmmo,
+                    "recyc 0.5 with a 0.0 roll keeps the round on an energy weapon.");
+            }
+
+            using (var ballistic = new Rig(MakeDef(magazineSize: 30, ammoType: "556"),
+                                           rng: new FixedRng(0f), stats: stats))
+            {
+                PressOnce(ballistic);
+                Assert.AreEqual(29, ballistic.State.CurrentAmmo,
+                    "A ballistic weapon recycles nothing: the ammo-type guard must short-circuit " +
+                    "before the roll is even drawn.");
+            }
+
+            using (var noSource = new Rig(MakeDef(magazineSize: 30, ammoType: "energ"),
+                                          rng: new FixedRng(0f)))
+            {
+                PressOnce(noSource);
+                Assert.AreEqual(29, noSource.State.CurrentAmmo,
+                    "With no stat source, recyc is the AS3 declaration default of 0 and the round is spent.");
+            }
+        }
+
+        [Test]
+        public void Shoot_WithARecoilMult_ScalesTheRecoilWindow_ButOnlyFloorsAboveThree()
+        {
+            // Paired against the default so the difference is attributable to recoilMult alone.
+            Assert.AreEqual(9,  RecoilAfterOneFrame(10, 1f),
+                "round(10 * 1) = 10 frames of recoil, less the same-frame decrement.");
+            Assert.AreEqual(19, RecoilAfterOneFrame(10, 2f),
+                "round(10 * 2) = 20 frames of recoil, less the same-frame decrement.");
+
+            // AS3 floors the window at 3 frames, but only when the weapon's own recoil exceeds 3
+            // (Weapon.as:1613). Both runs round to below 3; only the first is promoted.
+            Assert.AreEqual(2, RecoilAfterOneFrame(10, 0.1f),
+                "recoil 10 > 3 rounds to 1, so the floor lifts it to 3 (2 after the decrement).");
+            Assert.AreEqual(0, RecoilAfterOneFrame(2, 0.1f),
+                "recoil 2 is not > 3, so the floor does not apply and round(0.2) = 0 stands.");
+        }
+
+        /// <summary>
+        /// The recoil window as observed one frame after the shot.
+        ///
+        /// <para>The off-by-one is the oracle's, not the test's: AS3 calls <c>shoot()</c> from inside
+        /// <c>actions()</c> and then runs <c>if(this.t_ret > 0) --this.t_ret</c> on the same pass
+        /// (<c>Weapon.as:1612</c> then the timer block at <c>:1250-1277</c>), so the value anyone can
+        /// observe is already one frame below the window that was computed.</para>
+        /// </summary>
+        private static int RecoilAfterOneFrame(int recoilFrames, float recoilMult)
+        {
+            var stats = new FakeWeaponStats { RecoilMult = recoilMult };
+            using var rig = new Rig(MakeDef(magazineSize: 30), stats: stats);
+            rig.Def.recoilFrames = recoilFrames;
+
+            rig.Ctrl.BeginAttack();
+            rig.Ctrl.Tick(Dt, Vector2.zero, Vector2.zero, Vector2.zero);
+            return rig.State.TRet;
         }
 
         // ── Reload ────────────────────────────────────────────────────────────

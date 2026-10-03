@@ -37,7 +37,7 @@ MonoBehaviour:
   logRoomRenderingLifecycle: 0
   logTileVisualCreationSummary: 0
   logTileColliderCreation: 0
-  telekinesisGrabAnything: 1
+  telekinesisGrabAnything: 0
   enabledOverlays: 0
   tileColliderFilter: 15
   unitColliderFilter: 3

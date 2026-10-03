@@ -98,6 +98,14 @@ namespace PFE.Entities.Player
         public bool IsDashing => _dashTimer > 0f;
         public bool IsCrouching => _isCrouching;
         public bool IsLevitating => _isLevitating;
+
+        /// <summary>
+        /// AS3's <c>levitup</c> — levitating and climbing. The mana block charges the higher
+        /// <c>levitDManaUp + levitDMana</c> only in this state (<c>UnitPlayer.as:1311-1314</c>),
+        /// and the full organ wound rather than a third of it (<c>:1323-1329</c>).
+        /// </summary>
+        public bool IsLevitatingUpward => _isLevitating && _levitationVerticalSpeed > 0f;
+
         public bool IsTeleporting => _teleportFreezeTimer > 0f;
         private bool CanSwim => _definition == null || _definition.canSwim;
 
@@ -285,8 +293,8 @@ namespace PFE.Entities.Player
                     return;
                 }
 
-                // Mana drain
-                if (!TryDrainLevitationMana(state, dt))
+                // Affordability only — the drain is applied once per tick by PlayerManaTicker.
+                if (!CanAffordLevitationTick(state))
                 {
                     EndLevitation();
                     return;
@@ -332,7 +340,22 @@ namespace PFE.Entities.Player
             return _unitStats.Mana.Value > 0f;
         }
 
-        private bool TryDrainLevitationMana(MovementMotorState state, float dt)
+        /// <summary>
+        /// Whether levitation may continue this frame — a CHECK, not a charge.
+        ///
+        /// <para>The drain itself is applied by <see cref="PlayerManaTicker"/> →
+        /// <see cref="PFE.Systems.RPG.CharacterStats.TickMana"/>, which is AS3's single per-frame
+        /// block (<c>UnitPlayer.as:1302-1332</c>) and charges BOTH pools: the budget via
+        /// <c>mana += dmana</c> and the organ via <c>manaDamage(...)</c>. This method used to
+        /// subtract the cost itself, which would now double-charge the budget and — worse — would
+        /// leave the organ wound out of the loop entirely.</para>
+        ///
+        /// <para>The cost is deliberately per-tick, with no <c>deltaTime</c>: AS3 charges once per
+        /// frame and the sim's canonical rate is 30 Hz, so a per-second conversion here was the
+        /// bug rather than the fix. The previous <c>cost *= dt</c> made levitation's cost depend on
+        /// Unity's fixed-step setting.</para>
+        /// </summary>
+        private bool CanAffordLevitationTick(MovementMotorState state)
         {
             if (_abilities is PlayerLocomotionAbilities pla && pla.InfiniteMana) return true;
             if (_unitStats == null) return false;
@@ -340,22 +363,13 @@ namespace PFE.Entities.Player
 
             float cost = _abilities.LevitationManaCostPerTick;
 
-            // Extra cost when ascending
+            // Extra cost when ascending (AS3's `levitup` branch, UnitPlayer.as:1311-1314).
             if (state.Velocity.y > 0.05f)
             {
                 cost += _abilities.LevitationManaCostUpward;
             }
 
-            // Scale by dt so cost is per-second regardless of fixed timestep
-            cost *= dt;
-
-            if (_unitStats.Mana.Value < cost)
-            {
-                return false;
-            }
-
-            _unitStats.Mana.Value -= cost;
-            return true;
+            return _unitStats.Mana.Value >= cost;
         }
 
         private float ResolveLevitationVerticalSpeed(MovementMotorState state, float dt)
@@ -749,7 +763,8 @@ namespace PFE.Entities.Player
 
             TelekinesisTrace.Log($"teleport EXECUTED to ({targetX:F0},{targetY:F0})");
 
-            // Drain mana
+            // Drain mana — the BUDGET pool (AS3 Unit.mana, 1000), not the mana organ.
+            // TeleportManaCost already folds in allDManaMult (AS3's `portMana * allDManaMult`).
             if (!(_abilities is PlayerLocomotionAbilities pla && pla.InfiniteMana))
             {
                 _unitStats.Mana.Value -= _abilities.TeleportManaCost;
@@ -766,11 +781,33 @@ namespace PFE.Entities.Player
             _justTeleported = true;
         }
 
+        /// <summary>
+        /// AS3's teleport affordability test — <c>UnitPlayer.as:1633</c>:
+        /// <c>mana &lt; pers.portMana * pers.allDManaMult &amp;&amp; mana &lt; maxmana * 0.99</c>.
+        ///
+        /// <para>Note the <c>&amp;&amp;</c>: the refusal needs BOTH conditions, so a pool at or above
+        /// 99% of its ceiling teleports regardless of cost. That looks like a bug and probably is
+        /// one, but it is the oracle. It is routed through
+        /// <see cref="PFE.Systems.RPG.CharacterStats.CanAffordMagicMana"/> so the rule lives in one
+        /// place — duplicating it here is how the two copies would drift.</para>
+        /// </summary>
         private bool HasManaForTeleport()
         {
             if (_abilities is PlayerLocomotionAbilities pla && pla.InfiniteMana) return true;
             if (_unitStats == null) return false;
-            return _unitStats.Mana.Value >= _abilities.TeleportManaCost;
+
+            float cost = _abilities.TeleportManaCost;
+
+            if (_abilities is PlayerLocomotionAbilities stats && stats.CharacterStats != null)
+            {
+                return stats.CharacterStats.CanAffordMagicMana(cost);
+            }
+
+            // No organs reachable. UnitStats carries the BUDGET, so the same rule still applies --
+            // including the 99% bypass, which a bare `>= cost` here would have dropped. Routed
+            // through the shared static rather than re-written, so the two cannot drift.
+            return PFE.Systems.RPG.CharacterStats.CanAffordMagic(
+                _unitStats.Mana.Value, _unitStats.MaxMana.Value, cost);
         }
 
         // ──────────────────────────────────────

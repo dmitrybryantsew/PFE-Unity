@@ -9,22 +9,21 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9890688ee0fa3d94aa489b3a78449b8b, type: 3}
+  m_Script: {fileID: 11500000, guid: 00000000000000000000000000000002, type: 3}
   m_Name: energ
-  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.AmmoData
-  dataVersion: 1
-  gameVersion: 0.1.0
-  id: energ
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.AmmoDefinition
+  ammoId: energ
   baseId: energ
   stackSize: 50
-  dropChance: 0.9
-  requiredStoryLevel: 3
+  dropChance: 0.74999994
+  requiredStoryStage: 3
   requiredLevel: 1
-  weight: 0.5
   basePrice: 1
   sellPrice: 0
+  weight: 0.5
   modifier: 0
   armorPiercingBonus: 0
+  penetrationBudget: 0
   damageMultiplier: 1
   armorMultiplier: 1
   knockbackMultiplier: 1
@@ -32,5 +31,5 @@ MonoBehaviour:
   extraDurabilityCost: 0
   fireDamage: 0
   damageTypeOverride: 0
-  icon: {fileID: 0}
   displayName: energ
+  icon: {fileID: 0}

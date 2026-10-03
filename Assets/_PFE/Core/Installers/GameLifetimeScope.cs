@@ -74,6 +74,13 @@ public class GameLifetimeScope : LifetimeScope
         builder.RegisterMessageBroker<LandTransitionMessage>(pipe);
         builder.RegisterMessageBroker<TutorialPromptMessage>(pipe);
         builder.RegisterMessageBroker<ObjectiveMarkerMessage>(pipe);
+        // RPG messages
+        builder.RegisterMessageBroker<LevelUpMessage>(pipe);
+        builder.RegisterMessageBroker<SkillLevelChangedMessage>(pipe);
+        builder.RegisterMessageBroker<StatsChangedMessage>(pipe);
+        builder.RegisterMessageBroker<XpGainedMessage>(pipe);
+        builder.RegisterMessageBroker<PerkAddedMessage>(pipe);
+        builder.RegisterMessageBroker<TraumaChangedMessage>(pipe);
 
         // === Audio System ===
         // SoundService is a MonoBehaviour — assign it in the scene and reference here.
@@ -141,6 +148,14 @@ public class GameLifetimeScope : LifetimeScope
         builder.RegisterBuildCallback(container => container.Resolve<DeveloperConsoleController>());
         builder.RegisterBuildCallback(container => container.Resolve<SaveHotkeys>());
         builder.RegisterBuildCallback(container => container.Resolve<HudBootstrapper>());
+
+        // Push the seeded combat RNG into CharacterStats. Its two damage rolls (ApplyOrganDamage's
+        // head/torso/legs split and ApplyBloodDamage's bleed roll) were drawing from
+        // UnityEngine.Random — unseeded and process-global, so the same hit resolved differently every
+        // run. Set here rather than resolved because CharacterStats is created with AddComponent by
+        // PlayerController and has no constructor to inject into; this is the one static in the RPG
+        // path, and it is what makes RngSeedOverride actually govern damage.
+        builder.RegisterBuildCallback(container => PFE.Systems.RPG.CharacterStats.CombatRng = container.Resolve<IRngService>());
 
         // === Combat Systems ===
         builder.Register<ICombatCalculator, CombatCalculator>(Lifetime.Singleton);

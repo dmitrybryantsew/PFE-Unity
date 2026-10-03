@@ -38,6 +38,7 @@ namespace PFE.Systems.Combat
 
         private readonly ISubscriber<DamageDealtMessage> _damageSubscriber;
         private readonly ISubscriber<HealMessage> _healSubscriber;
+        private readonly ISubscriber<XpGainedMessage> _xpSubscriber;
         private readonly CompositeDisposable _disposables = new();
 
         // Object pool for floating text instances
@@ -48,10 +49,12 @@ namespace PFE.Systems.Combat
         [Inject]
         public FloatingTextManager(
             ISubscriber<DamageDealtMessage> damageSubscriber,
-            ISubscriber<HealMessage> healSubscriber)
+            ISubscriber<HealMessage> healSubscriber,
+            ISubscriber<XpGainedMessage> xpSubscriber = null)
         {
             _damageSubscriber = damageSubscriber;
             _healSubscriber = healSubscriber;
+            _xpSubscriber = xpSubscriber;
         }
 
         void IStartable.Start()
@@ -61,6 +64,9 @@ namespace PFE.Systems.Combat
 
             // Subscribe to heal events
             _healSubscriber.Subscribe(OnHeal).AddTo(_disposables);
+
+            // Subscribe to XP events
+            _xpSubscriber?.Subscribe(OnXpGained).AddTo(_disposables);
 
             // Pre-warm object pool
             PreWarmPool();
@@ -103,6 +109,17 @@ namespace PFE.Systems.Combat
 
             string text = $"+{Mathf.CeilToInt(message.amount)}";
             SpawnFloatingText(text, message.position, Color.green, isCritical: false);
+        }
+
+        /// <summary>
+        /// Called when XP is gained. Spawns floating gold text (AS3 Pers.as:980).
+        /// </summary>
+        private void OnXpGained(XpGainedMessage message)
+        {
+            if (!IsRendererEnabled) return;
+
+            string text = $"+{message.Amount}xp";
+            SpawnFloatingText(text, message.Position, new Color(1f, 0.95f, 0.4f), isCritical: false);
         }
 
         /// <summary>

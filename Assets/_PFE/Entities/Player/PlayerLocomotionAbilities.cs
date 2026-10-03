@@ -1,5 +1,6 @@
 using PFE.Data.Definitions;
 using PFE.Entities.Units;
+using PFE.Systems.RPG;
 using UnityEngine;
 #if ODIN_INSPECTOR
 using Sirenix.OdinInspector;
@@ -140,11 +141,13 @@ namespace PFE.Entities.Player
         private float teleportCooldownSeconds = 5f;
 
         private UnitDefinition _definition;
+        private CharacterStats _characterStats;
 
         private void Awake()
         {
             var unitController = GetComponent<UnitController>();
             _definition = unitController != null ? unitController.Stats : null;
+            _characterStats = GetComponent<CharacterStats>() ?? GetComponentInParent<CharacterStats>();
 
             // Pull defaults from UnitDefinition if not overridden
             if (_definition != null)
@@ -159,28 +162,69 @@ namespace PFE.Entities.Player
             }
 
             // Sync maxJumpCount with canDoubleJump toggle
-            if (canDoubleJump && maxJumpCount < 2) maxJumpCount = 2;
+            if (CanDoubleJump && maxJumpCount < 2) maxJumpCount = 2;
         }
+
+        /// <summary>
+        /// The organ/budget stats for this player, resolved lazily and cached.
+        ///
+        /// <para><b>Public because <see cref="PlayerLocomotionController"/> needs it, not because
+        /// anything outside the player does.</b> The controller owns the teleport's affordability test
+        /// and routes it through <see cref="CharacterStats.CanAffordMagicMana"/> so the full-pool
+        /// bypass lives in exactly one place; that call needs this reference. It was <c>private</c>
+        /// until the mana split, when the call moved here — the move is what made the accessor's
+        /// visibility load-bearing, and the compiler is the only thing that noticed.</para>
+        ///
+        /// <para>Exposing it rather than having the controller resolve its own keeps one resolution
+        /// path: this accessor already falls back to <c>GetComponentInParent</c>, and a second copy of
+        /// that walk would be a second place to get it wrong.</para>
+        /// </summary>
+        public CharacterStats CharacterStats => _characterStats != null ? _characterStats : (_characterStats = GetComponent<CharacterStats>() ?? GetComponentInParent<CharacterStats>());
 
         // --- ILocomotionAbilities ---
 
         public bool InfiniteMana => infiniteMana;
 
-        public bool CanDoubleJump => canDoubleJump;
-        public bool CanLevitate => canLevitate;
+        public bool CanDoubleJump => canDoubleJump || (CharacterStats != null && CharacterStats.isDJ > 0);
+        public bool CanLevitate => canLevitate || (CharacterStats != null && CharacterStats.levitOn > 0);
         public bool CanAirDash => canAirDash;
         public bool CanWallJump => canWallJump;
-        public int MaxJumpCount => canDoubleJump ? Mathf.Max(maxJumpCount, 2) : 1;
+        public int MaxJumpCount => CanDoubleJump ? Mathf.Max(maxJumpCount, 2) : 1;
         public float JumpForceMultiplier => jumpForceMultiplier;
         public float AirJumpForceRatio => airJumpForceRatio;
-        public float MoveSpeedMultiplier => moveSpeedMultiplier;
+        public float MoveSpeedMultiplier => moveSpeedMultiplier * (CharacterStats != null ? CharacterStats.allSpeedMult : 1f);
         public float LevitationMaxHeight => levitationMaxHeight;
         public float LevitationAcceleration => levitationAcceleration;
-        public float LevitationManaCostPerTick => levitationManaCostPerTick;
-        public float LevitationManaCostUpward => levitationManaCostUpward;
-        public bool CanTeleport => canTeleport;
+        /// <summary>
+        /// The per-tick levitation upkeep, INCLUDING <c>allDManaMult</c>.
+        ///
+        /// <para>AS3 applies that multiplier to the whole upkeep term at <c>UnitPlayer.as:1320</c>
+        /// (<c>dmana *= pers.allDManaMult</c>) before either pool is charged, so a perk that scales
+        /// mana costs must scale levitation too. The port omitted it, which made every such perk
+        /// inert for levitation.</para>
+        /// </summary>
+        public float LevitationManaCostPerTick => AllDManaMult * (
+            (CharacterStats != null && CharacterStats.levitDMana > 0f)
+                ? CharacterStats.levitDMana
+                : levitationManaCostPerTick);
+
+        /// <summary>The ascending surcharge, also scaled by <c>allDManaMult</c> (<c>UnitPlayer.as:1313</c>).</summary>
+        public float LevitationManaCostUpward => AllDManaMult * (
+            (CharacterStats != null && CharacterStats.levitDManaUp > 0f)
+                ? CharacterStats.levitDManaUp
+                : levitationManaCostUpward);
+
+        private float AllDManaMult => CharacterStats != null ? CharacterStats.allDManaMult : 1f;
+        public bool CanTeleport => canTeleport || (CharacterStats != null && CharacterStats.portPoss > 0);
         public float TeleportChargeTimeSeconds => teleportChargeTimeSeconds;
-        public float TeleportManaCost => teleportManaCost;
+        /// <summary>
+        /// Teleport's cost — AS3 <c>Pers.portMana</c> (25) scaled by <c>allDManaMult</c>
+        /// (<c>UnitPlayer.as:1633</c>, <c>mana &lt; pers.portMana * pers.allDManaMult</c>).
+        /// Read from CharacterStats so a <c>&lt;sk&gt;</c> on <c>portMana</c> reaches it; the
+        /// serialized field is the fallback for a player with no CharacterStats.
+        /// </summary>
+        public float TeleportManaCost => AllDManaMult * (
+            CharacterStats != null ? CharacterStats.portMana : teleportManaCost);
         public float TeleportCooldownSeconds => teleportCooldownSeconds;
     }
 }

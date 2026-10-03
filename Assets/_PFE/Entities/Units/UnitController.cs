@@ -1024,6 +1024,7 @@ namespace PFE.Entities.Units
         public Vector2 Velocity => _velocity;
         public int FacingDirection => _facingDirection;
         public UnitDefinition Stats => _stats;
+        public UnitStats UnitStats => _unitStats;
 
         /// <summary>
         /// This unit's faction — the team id that decides who may damage whom
@@ -1066,7 +1067,7 @@ namespace PFE.Entities.Units
                 // Handle death if applicable
                 if (!IsAlive)
                 {
-                    OnDeath();
+                    RaiseDeath();
                 }
             }
             else
@@ -1093,7 +1094,7 @@ namespace PFE.Entities.Units
             // Handle death if applicable
             if (!IsAlive)
             {
-                OnDeath();
+                RaiseDeath();
             }
 
             return broke;
@@ -1558,12 +1559,61 @@ namespace PFE.Entities.Units
         public virtual bool IsAlive => _unitStats?.IsAlive ?? false;
 
         /// <summary>
+        /// Whether this instance is allowed to act on a death it has just observed.
+        ///
+        /// <para><b>This is the multiplayer authority seam, and it is unconditionally <c>true</c>
+        /// today</b> — the project has no networking layer (no netcode package, no
+        /// <c>NetworkBehaviour</c>). It exists so the decision has a name and exactly one home:
+        /// <see cref="RaiseDeath"/> is the only place a death is acted on, so a host-authoritative
+        /// pass has one member to override rather than three call sites to hunt down.</para>
+        ///
+        /// <para><b>Why it is not cosmetic.</b> <see cref="OnDeath"/> awards XP to the player
+        /// (<c>AS3 Unit.as:4397</c>), and subclasses drop loot and play death animations — all
+        /// shared-world facts. In a host-authoritative session a client that ran the same damage code
+        /// locally would award itself XP for a kill the host never agreed to.</para>
+        ///
+        /// <para><b>Scope, stated honestly.</b> This gates the <i>reaction</i>, not the whole rule. The
+        /// complete rule is that damage is applied on the host at all, which would be gated at
+        /// <see cref="TakeDamage"/>, <see cref="ApplyDamage"/> and
+        /// <c>CharacterStats.ApplyOrganDamage</c>. Those are deliberately left ungated: gating them now
+        /// changes single-player behaviour for no benefit, and where the split falls is still an open
+        /// design decision.</para>
+        /// </summary>
+        protected virtual bool IsAuthoritativeForDeath => true;
+
+        /// <summary>
+        /// The single funnel for "this unit has died". Every death path goes through here, so the
+        /// authority check cannot be forgotten at a new call site.
+        ///
+        /// <para>Deliberately <i>not</i> named <c>OnDeath</c>: <see cref="OnDeath"/> is the overridable
+        /// reaction, and a subclass that overrode it without calling <c>base</c> would bypass this
+        /// gate.</para>
+        /// </summary>
+        /// <returns><c>true</c> when the death was acted on.</returns>
+        protected bool RaiseDeath()
+        {
+            if (!IsAuthoritativeForDeath) return false;
+            OnDeath();
+            return true;
+        }
+
+        /// <summary>
         /// Called when this unit dies.
         /// Base implementation logs death. Subclasses can override for death effects.
         /// </summary>
         protected virtual void OnDeath()
         {
             Debug.Log($"[{GetType().Name}] has died!");
+
+            // Reward XP to player (AS3 Unit.as:4397 loc.takeXP(this.xp, X, Y, true))
+            if (_stats != null && _stats.xpReward > 0)
+            {
+                var player = FindFirstObjectByType<PFE.Entities.Player.PlayerController>();
+                if (player != null && player.CharacterStats != null)
+                {
+                    player.CharacterStats.AddXp(_stats.xpReward, transform.position.x, transform.position.y);
+                }
+            }
 
             // Base class doesn't destroy the GameObject.
             // Subclasses can override to play death animations, drop loot, etc.

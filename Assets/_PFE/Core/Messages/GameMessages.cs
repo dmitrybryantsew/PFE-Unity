@@ -135,6 +135,7 @@ namespace PFE.Core.Messages
     {
         public int NewLevel;
         public int SkillPointsGained;
+        public int PerkPointsGained;
     }
 
     /// <summary>
@@ -155,6 +156,34 @@ namespace PFE.Core.Messages
         public int MaxHp;
         public int CurrentMana;
         public int MaxMana;
+    }
+
+    /// <summary>
+    /// Published when XP is gained. Matches AS3 numbEmit("+Nxp").
+    /// </summary>
+    public struct XpGainedMessage
+    {
+        public int Amount;
+        public int TotalXp;
+        public Vector3 Position;
+    }
+
+    /// <summary>
+    /// Published when a perk rank is gained.
+    /// </summary>
+    public struct PerkAddedMessage
+    {
+        public string PerkId;
+        public int Rank;
+    }
+
+    /// <summary>
+    /// Published when limb trauma stage changes (1=head, 2=torso, 3=legs, 4=blood, 5=mana).
+    /// </summary>
+    public struct TraumaChangedMessage
+    {
+        public int BodyPart;
+        public int Stage;
     }
 
     #endregion

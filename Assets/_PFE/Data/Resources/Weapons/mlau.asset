@@ -21,6 +21,7 @@ MonoBehaviour:
   rapid: 30
   autoMode: 0
   precision: 360
+  antiPrecision: 0
   deviation: 3
   armorPenetration: 0
   knockback: 50
@@ -66,6 +67,7 @@ MonoBehaviour:
   decalType: 9
   destroyTiles: 600
   piercing: 20
+  penetration: 0
   manaCost: 0
   alicornOnly: 0
   weaponVisual: {fileID: 11400000, guid: 6b9fa41f30bcbbc4989ae91317fd2f11, type: 2}

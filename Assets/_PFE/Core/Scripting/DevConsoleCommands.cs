@@ -212,6 +212,17 @@ namespace PFE.Core.Scripting
             return $"[player] Ammo refilled to {state.CurrentAmmo}/{state.Def.magazineSize}.";
         }
 
+        /// <summary>Toggle or open the LittlePip character/loadout debug editor overlay.</summary>
+        public string Editor()
+        {
+            if (PlayerDebugEditorOverlay.Instance != null)
+            {
+                PlayerDebugEditorOverlay.Instance.IsOpen = !PlayerDebugEditorOverlay.Instance.IsOpen;
+                return $"[editor] Character loadout editor is now {(PlayerDebugEditorOverlay.Instance.IsOpen ? "OPEN" : "CLOSED")}. (Hotkey: F2)";
+            }
+            return "[editor] PlayerDebugEditorOverlay instance not found.";
+        }
+
         // ── Movement ──────────────────────────────────────────────────────────
 
         /// <summary>Teleport to an absolute world position.</summary>

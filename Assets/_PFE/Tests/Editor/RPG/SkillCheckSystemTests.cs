@@ -348,22 +348,35 @@ namespace PFE.Tests.Editor.RPG
         }
 
         [Test]
-        [Description("GetLockMaster should return master skill level")]
-        public void GetLockMaster_ReturnsMasterLevel()
+        [Description("GetLockMaster must read unlockMaster/hackerMaster, not the raw skills")]
+        public void GetLockMaster_ReadsTheDedicatedMasterFields()
         {
             // Arrange
             var stats = CreateTestCharacter();
-            stats.SetSkillLevel("lockpick", 8);
-            stats.SetSkillLevel("science", 6);
             var checkSystem = CreateTestCheckSystem(stats);
 
-            // Act & Assert
-            Assert.AreEqual(8, checkSystem.GetLockMaster(SkillCheckSystem.LockType.Physical),
-                "Physical lock master should match lockpick skill");
-            Assert.AreEqual(6, checkSystem.GetLockMaster(SkillCheckSystem.LockType.Terminal),
-                "Terminal master should match science skill");
+            // Act & Assert — AS3 Pers.getLockMaster (Pers.as:2356): 0 for both by default,
+            // regardless of how high the underlying skill is.
+            stats.unlockMaster = 0;
+            stats.hackerMaster = 0;
+            stats.SetSkillLevel("lockpick", 8);
+            stats.SetSkillLevel("science", 6);
+
+            Assert.AreEqual(0, checkSystem.GetLockMaster(SkillCheckSystem.LockType.Physical),
+                "Physical master must come from unlockMaster (0), not the lockpick skill (8)");
+            Assert.AreEqual(0, checkSystem.GetLockMaster(SkillCheckSystem.LockType.Terminal),
+                "Terminal master must come from hackerMaster (0), not the science skill (6)");
             Assert.AreEqual(100, checkSystem.GetLockMaster(SkillCheckSystem.LockType.Mine),
-                "Other lock types should return 100");
+                "Other lock types should return the AS3 100 fallback");
+
+            // A perk raises the master fields; the check must then pass.
+            stats.unlockMaster = 5;
+            stats.hackerMaster = 4;
+
+            Assert.AreEqual(5, checkSystem.GetLockMaster(SkillCheckSystem.LockType.Physical),
+                "Physical lock master should match unlockMaster");
+            Assert.AreEqual(4, checkSystem.GetLockMaster(SkillCheckSystem.LockType.Terminal),
+                "Terminal master should match hackerMaster");
         }
 
         [TearDown]
