@@ -109,12 +109,109 @@ namespace PFE.Editor.Importers.SWF
             var armorSets = BuildArmorSets(swfData, spriteImport, partIndexLookup, partsList, headVariants);
             definition.armorSets = armorSets.ToArray();
 
+            // Build overlay clips — the siblings of the body sprite (vis.shit and friends).
+            // These are NOT parts: they run on their own timeline and are drawn above the body.
+            var overlays = BuildOverlays(spriteImport);
+            definition.overlays = overlays.ToArray();
+            if (overlays.Count > 0)
+            {
+                Debug.Log($"[AnimDataGen] Overlay clips: " +
+                    $"[{string.Join(", ", overlays.Select(o => $"{o.overlayName}({o.frames.Length}f)"))}]");
+            }
+
             EditorUtility.SetDirty(definition);
             AssetDatabase.SaveAssets();
 
             result.Asset = definition;
             result.Warnings.AddRange(spriteImport.Warnings);
             return result;
+        }
+
+        /// <summary>
+        /// The overlay clips this character has, from the symbols the sprite importer brought in.
+        ///
+        /// <para><b>Why the frames all come through here.</b> A body part keeps only frame 1
+        /// (<c>baseSprite</c>, assigned in <see cref="BuildPartDefinitions"/>), which is right for a
+        /// part — the state clip decides what a part looks like on any given frame. An overlay has no
+        /// state clip behind it, so its whole timeline has to be carried, in order, and it is the
+        /// overlay's own playhead that walks it. Dropping to frame 1 here would produce a shield that
+        /// never materialises and a build with nothing to say about it.</para>
+        ///
+        /// <para><b>Absent symbols are skipped, not faked.</b> If the importer did not bring symbol
+        /// 3625 in — because the source root is stale, or the import step was unchecked — the overlay
+        /// is left out entirely, so <c>OverlayClip.ShouldDraw</c> sees zero frames and the assembler
+        /// draws nothing. The alternative, emitting a row with an empty <c>frames</c> array, looks the
+        /// same at runtime but claims in the asset that the shield exists.</para>
+        /// </summary>
+        static List<CharacterOverlayDefinition> BuildOverlays(CharacterSpriteImporter.ImportResult spriteImport)
+        {
+            var overlays = new List<CharacterOverlayDefinition>();
+
+            AddOverlay(overlays, spriteImport, ShieldSymbolId, ShieldOverlayName);
+
+            return overlays;
+        }
+
+        /// <summary>
+        /// <c>visShit</c>, the <c>sp_mshit</c> dome. From <c>visShit.as:5</c> —
+        /// <c>[Embed(source="/_assets/assets.swf", symbol="symbol3625")]</c> — and 20 frames, matching
+        /// <c>addFrameScript(0,frame1,19,frame20)</c> and the export's 20 PNGs.
+        ///
+        /// <para>The boss variants <c>visShit2</c> (1903) and <c>visShit3</c> (1900) are deliberately
+        /// not wired: they belong to <c>UnitAlicorn</c>/<c>UnitBossAlicorn</c>, which are units rather
+        /// than the player, and they differ in scale (1.5-1.7) and offset (<c>y = -50</c>). They are
+        /// also exported, so adding them is a row here plus a gate case, not an export.</para>
+        /// </summary>
+        const int ShieldSymbolId = 3625;
+        const string ShieldOverlayName = "shit";
+
+        static void AddOverlay(
+            List<CharacterOverlayDefinition> overlays,
+            CharacterSpriteImporter.ImportResult spriteImport,
+            int symbolId,
+            string overlayName)
+        {
+            if (!spriteImport.SpritesBySymbol.TryGetValue(symbolId, out var framesByFrameNum) ||
+                framesByFrameNum == null ||
+                framesByFrameNum.Count == 0)
+            {
+                Debug.LogWarning($"[AnimDataGen] Overlay '{overlayName}' (symbol {symbolId}) was not " +
+                    "imported, so it is omitted from the definition. Re-run the sprite import step.");
+                return;
+            }
+
+            // Frame numbers are 1-based in the export; order by them rather than by the dictionary's
+            // insertion order, so f002 cannot land before f001.
+            Sprite[] frames = framesByFrameNum
+                .OrderBy(kv => kv.Key)
+                .Select(kv => kv.Value)
+                .Where(s => s != null)
+                .ToArray();
+
+            if (frames.Length == 0)
+            {
+                Debug.LogWarning($"[AnimDataGen] Overlay '{overlayName}' (symbol {symbolId}) imported " +
+                    "no loadable sprites; omitted.");
+                return;
+            }
+
+            var overlay = new CharacterOverlayDefinition
+            {
+                overlayName = overlayName,
+                frames = frames,
+                // The clip's own registration point, same source as a part's pivot.
+                pivotNormalized = spriteImport.PivotsBySymbol.TryGetValue(symbolId, out var pivot)
+                    ? pivot
+                    : new Vector2(0.5f, 0.5f),
+                localPosition = Vector2.zero,
+                localScale = 1f,
+                sortingOrder = 1000,
+                // visShit's frame script stops on frames 1 and 20 (visShit.as:14-21), so the clip plays
+                // once and holds on the full dome while shithp lasts.
+                loopMode = AnimationLoopMode.ClampForever,
+            };
+
+            overlays.Add(overlay);
         }
 
         static List<CharacterPartDefinition> BuildPartDefinitions(

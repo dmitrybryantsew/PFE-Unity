@@ -1098,6 +1098,36 @@ namespace PFE.Entities.Units
         public UnitStats UnitStats => _unitStats;
 
         /// <summary>
+        /// This unit's <b>feet</b> in world units — AS3's <c>Y</c>, which is also this transform's own
+        /// position. Anything that needs "how tall is this unit and where does it stand" — the weapon
+        /// hold point, a mount, a muzzle height — starts here.
+        ///
+        /// <para><b>Why the transform and not the collider.</b> Three independent places agree that
+        /// the unit's origin is the bottom of its body box, so <c>transform.position.y</c> <i>is</i>
+        /// the feet and no collider arithmetic is needed:</para>
+        /// <list type="bullet">
+        /// <item><description><c>RoomSetup.FindPlayerSpawnPixels</c> returns the top of the ground tile
+        /// and comments it "Return pixel position at feet".</description></item>
+        /// <item><description><c>TilePhysicsController</c>'s gizmo calls its pixel position
+        /// <c>colliderFeet</c> and grows the box <b>upward</b> from it
+        /// (<c>TilePhysicsController.cs:1587-1590</c>).</description></item>
+        /// <item><description>AS3 <c>Unit.as:1875-1878</c> — <c>Y1 = Y - scY</c> is the box's top and
+        /// <c>Y2 = Y</c> its bottom — which <c>UnitSpriteAnchor</c> reproduces for spawned
+        /// units.</description></item>
+        /// </list>
+        ///
+        /// <para><b>Do not derive this from <c>collider.bounds.min.y</c>.</b> That is the feet only
+        /// when the collider's offset is <c>+height/2</c>, which is what
+        /// <c>RoomUnitSpawner.cs:330</c> gives every <i>spawned</i> unit — but the hand-authored
+        /// <c>Player.prefab</c> ships a <c>BoxCollider2D</c> with offset <c>(0, 0)</c>, so its bounds
+        /// hang half a body below the origin. Using the bounds would put a held weapon 0.35 units too
+        /// low for the player and correct for everything else, which is the worst kind of
+        /// inconsistency. <see cref="Move"/> uses the bounds deliberately, for the ground-prop probe
+        /// only; that is a different question from "where are this unit's feet".</para>
+        /// </summary>
+        public float FeetWorldY => transform.position.y;
+
+        /// <summary>
         /// This unit's faction — the team id that decides who may damage whom
         /// (<see cref="PFE.Systems.Weapons.FactionRule"/>).
         ///

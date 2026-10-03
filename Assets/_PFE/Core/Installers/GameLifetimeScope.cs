@@ -58,6 +58,18 @@ public class GameLifetimeScope : LifetimeScope
         builder.RegisterMessageBroker<InteractMessage>(pipe);
         builder.RegisterMessageBroker<DashMessage>(pipe);
         builder.RegisterMessageBroker<TeleportMessage>(pipe);
+        // R. Registered here because the publisher (InputReader) and the subscriber (PlayerController)
+        // both already existed once the action was added — an unregistered broker publishes into
+        // nothing, which is exactly how HealMessage was dead (see below).
+        builder.RegisterMessageBroker<ReloadMessage>(pipe);
+        // Spells. C (keyDef, supportive cast), T (keyMagic, magic weapon) and Z/X (keySpell1/2) — the
+        // four keys AS3 binds to magic (Ctr.as:24-25, :62-65). All three brokers are registered in the
+        // same pass that added the actions, because the HealMessage failure mode is invisible: an
+        // unregistered broker accepts the publish and delivers to nobody, with no error anywhere.
+        // SpellHotkeyMessage carries its own Slot, so one broker serves all four slots.
+        builder.RegisterMessageBroker<SpellCastMessage>(pipe);
+        builder.RegisterMessageBroker<MagicWeaponMessage>(pipe);
+        builder.RegisterMessageBroker<SpellHotkeyMessage>(pipe);
         // Combat messages
         builder.RegisterMessageBroker<DamageDealtMessage>(pipe);
         builder.RegisterMessageBroker<DamageTakenMessage>(pipe);
@@ -255,9 +267,32 @@ public class GameLifetimeScope : LifetimeScope
         builder.RegisterEntryPoint<AudioVolumeSync>();
 
         // === Data System ===
-        builder.Register<ContentRegistry>(Lifetime.Singleton);
+        //
+        // ONE registry, not two — and the container's copy is GameDatabase's own.
+        //
+        // This used to be `builder.Register<ContentRegistry>(Lifetime.Singleton)` next to
+        // `builder.Register<GameDatabase>(Lifetime.Singleton)`, which built TWO independent
+        // registries: GameDatabase's ctor does `Registry = new ContentRegistry()`, and the
+        // container's singleton was a second, empty table. GameManager calls
+        // `gameDatabase.Initialize()` (GameManager.cs:64), which populates **GameDatabase.Registry**
+        // — so the populated table was invisible to every consumer that takes `ContentRegistry` from
+        // the container, and the container's copy stayed empty for the whole session.
+        //
+        // The consumers are the two id→row resolvers, and both fail silently by design:
+        //   PlayerWeaponLoadout.Construct → ContentRegistryAmmoResolver → Resolve(ammoId) = null
+        //   MapBridge/PlayerController.Construct → ContentRegistryEffectDefinitionResolver = null
+        // A null ammo row is AS3's "неправильный патрон" branch — every ammo term stays at its
+        // identity — so the ammo ballistics fold (damage ×, pierce +, armour ×, knock ×, prec ×,
+        // probiv, tipdam, det) was inert on the live fire path while the F2 ammo dropdown, which
+        // loads AmmoDefinitions from Resources itself, showed the round's real numbers. Selecting
+        // armour-piercing p5_1 therefore changed nothing: `piercing` stayed 0 and a 20-armour target
+        // kept taking 0 from the 7-damage minigun. Registering the database first and handing out
+        // ITS registry makes `Registry.Initialize(sources)` (GameDatabase.cs:320) the single table
+        // every consumer sees, which is what the resolver comments already claimed was happening.
         builder.Register<ModLoader>(Lifetime.Singleton);
         builder.Register<GameDatabase>(Lifetime.Singleton);
+        builder.Register<ContentRegistry>(
+            container => container.Resolve<GameDatabase>().Registry, Lifetime.Singleton);
 
         // === Visual Systems ===
         builder.Register<FloatingTextManager>(Lifetime.Singleton);

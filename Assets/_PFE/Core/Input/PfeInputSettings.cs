@@ -16,6 +16,30 @@ namespace PFE.Core.Input
         public ButtonBinding dash     = new ButtonBinding("<Keyboard>/leftShift",  "",                      "<Gamepad>/buttonEast");
         public ButtonBinding teleport = new ButtonBinding("<Keyboard>/q",          "",                      "<Gamepad>/leftShoulder");
 
+        // R, because that is AS3's own default: <key id='keyReload' def={Keyboard.R}/> (inter/Ctr.as:24).
+        // Drives two things: the magazine reload, and — for a radio throwable — the detonator
+        // (UnitPlayer.as:2358). See ReloadMessage.
+        public ButtonBinding reload     = new ButtonBinding("<Keyboard>/r",          "",                      "<Gamepad>/buttonNorth");
+
+        // ---- Spells (AS3 Ctr.as:24-25, :62-65) ----
+
+        // C — AS3's own default for `keyDef`, the SUPPORTIVE-spell cast button. Casts the spell selected
+        // in the inventory; see SpellCastMessage for the held/prod semantics.
+        public ButtonBinding defend      = new ButtonBinding("<Keyboard>/c",          "",                      "<Gamepad>/rightTrigger");
+
+        // T — AS3's own default for `keyMagic`, the assault MAGIC-WEAPON button. Deliberately a
+        // different key from `defend`: the oracle keeps the nine supportive spells and the magic weapons
+        // on separate buttons (Ctr.as:24 vs :25), and the port must not merge them.
+        public ButtonBinding magicWeapon = new ButtonBinding("<Keyboard>/t",          "",                      "<Gamepad>/leftTrigger");
+
+        // Z and X are AS3's only BOUND spell hotkeys; slots 3 and 4 exist and are unbound
+        // (Ctr.as:62-66, World.kolQS = 4). Kept unbound here rather than dropped, so the slot count
+        // matches the oracle and a future default cannot silently invent a key.
+        public ButtonBinding spell1 = new ButtonBinding("<Keyboard>/z", "", "<Gamepad>/dpadLeft");
+        public ButtonBinding spell2 = new ButtonBinding("<Keyboard>/x", "", "<Gamepad>/dpadRight");
+        public ButtonBinding spell3 = new ButtonBinding("",             "", "");
+        public ButtonBinding spell4 = new ButtonBinding("",             "", "");
+
         [Header("Save / Load")]
         // F11, not the conventional F9. F9 is already taken by a DIFFERENT input system:
         // DoorPropPresenter toggles the door-collider debug overlay on a raw Input.GetKeyDown(KeyCode.F9)
@@ -37,6 +61,13 @@ namespace PFE.Core.Input
         public static ButtonBinding DefaultInteract => new ButtonBinding("<Keyboard>/e",          "",                     "<Gamepad>/buttonWest");
         public static ButtonBinding DefaultDash     => new ButtonBinding("<Keyboard>/leftShift",  "",                     "<Gamepad>/buttonEast");
         public static ButtonBinding DefaultTeleport => new ButtonBinding("<Keyboard>/q",          "",                     "<Gamepad>/leftShoulder");
+        public static ButtonBinding DefaultReload   => new ButtonBinding("<Keyboard>/r",          "",                     "<Gamepad>/buttonNorth");
+        public static ButtonBinding DefaultDefend   => new ButtonBinding("<Keyboard>/c",          "",                     "<Gamepad>/rightTrigger");
+        public static ButtonBinding DefaultMagicWeapon => new ButtonBinding("<Keyboard>/t",       "",                     "<Gamepad>/leftTrigger");
+        public static ButtonBinding DefaultSpell1   => new ButtonBinding("<Keyboard>/z",          "",                     "<Gamepad>/dpadLeft");
+        public static ButtonBinding DefaultSpell2   => new ButtonBinding("<Keyboard>/x",          "",                     "<Gamepad>/dpadRight");
+        public static ButtonBinding DefaultSpell3   => new ButtonBinding("",                      "",                     "");
+        public static ButtonBinding DefaultSpell4   => new ButtonBinding("",                      "",                     "");
         public static ButtonBinding DefaultQuickSave => new ButtonBinding("<Keyboard>/f5",        "",                     "<Gamepad>/select");
         public static ButtonBinding DefaultQuickLoad => new ButtonBinding("<Keyboard>/f11",       "",                     "<Gamepad>/start");
     }

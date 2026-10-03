@@ -11,7 +11,7 @@ namespace PFE.Tests.Editor.RPG
     /// Based on docs/task1_core_mechanics/08_rpg_system.md
     ///
     /// These tests ensure complete coverage of:
-    /// 1. All 18 skills (13 regular + 3 post-game + 2 special)
+    /// 1. All 16 skills (13 regular + 3 post-game)
     /// 2. All skill tier thresholds (2, 5, 9, 14, 20)
     /// 3. All post-game skill thresholds for knowl (5, 11, 18, 26, 35, 45, 56, 68, 82, 100)
     /// 4. XP curve calculations for all levels 1-20+
@@ -224,17 +224,17 @@ namespace PFE.Tests.Editor.RPG
 
         #endregion
 
-        #region All 18 Skills Tests
+        #region All 16 Skills Tests
 
         [Test]
-        [Description("Skills_All18Skills_Initialized")]
-        public void CharacterStats_Initialize_CreatesAll18Skills()
+        [Description("Skills_All16Skills_Initialized")]
+        public void CharacterStats_Initialize_CreatesAll16Skills()
         {
-            // All 18 skills should be initialized to 0
+            // All 16 skills should be initialized to 0. `life`/`spirit` are perks, not skills.
             string[] allSkills = {
                 "tele", "melee", "smallguns", "energy", "explosives", "magic",
                 "repair", "medic", "lockpick", "science", "sneak", "barter", "survival",
-                "attack", "defense", "knowl", "life", "spirit"
+                "attack", "defense", "knowl"
             };
 
             foreach (string skillId in allSkills)
@@ -299,7 +299,7 @@ namespace PFE.Tests.Editor.RPG
             string[] allSkills = {
                 "tele", "melee", "smallguns", "energy", "explosives", "magic",
                 "repair", "medic", "lockpick", "science", "sneak", "barter", "survival",
-                "attack", "defense", "knowl", "life", "spirit"
+                "attack", "defense", "knowl"
             };
 
             foreach (string skillId in allSkills)

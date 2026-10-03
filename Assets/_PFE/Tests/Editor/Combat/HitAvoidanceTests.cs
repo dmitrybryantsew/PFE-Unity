@@ -161,6 +161,145 @@ namespace PFE.Tests.Editor.Combat
             Assert.AreEqual(0.4f, HitAvoidance.MissChance(3, 1), 1e-6f);
         }
 
+        // ── CanFire (the refuse-to-fire half of checkAvail) ───────────────────
+
+        [Test]
+        public void CanFire_RefusesOnlyPastAGapOfTwo()
+        {
+            // Weapon.as:1377 — `else if(_loc1_ > 2) { infoText("weaponSkillLevel"); return false; }`.
+            // The boundary is where the behaviour changes, so assert either side of it rather than
+            // only the extreme: a gate that refuses at a gap of 2 would pass an "assert gap 3" test.
+            Assert.IsTrue(HitAvoidance.CanFire(5, 5),  "gap 0 — at the required tier");
+            Assert.IsTrue(HitAvoidance.CanFire(5, 7),  "gap -2 — over-skilled");
+            Assert.IsTrue(HitAvoidance.CanFire(5, 4),  "gap 1 — penalised (0.8), not refused");
+            Assert.IsTrue(HitAvoidance.CanFire(5, 3),  "gap 2 — penalised (0.6), not refused");
+            Assert.IsFalse(HitAvoidance.CanFire(5, 2), "gap 3 — refused");
+            Assert.IsFalse(HitAvoidance.CanFire(12, 0), "gap 12 — the top of the AllData lvl range");
+        }
+
+        [Test]
+        public void CanFire_UnknownOwnerSkill_IsNeverGated()
+        {
+            // The pair to SkillConfidence_UnknownOwnerSkill_IsNoPenalty, and the one that keeps the
+            // port playable: if "unknown" were read as a real tier of 1, every weapon above level 3
+            // would refuse to fire for an owner whose Pers was never wired up.
+            Assert.IsTrue(HitAvoidance.CanFire(4, HitAvoidance.UnknownOwnerSkillLevel));
+            Assert.IsTrue(HitAvoidance.CanFire(12, HitAvoidance.UnknownOwnerSkillLevel));
+        }
+
+        [Test]
+        public void CanFire_AgreesWithSkillConfidenceAboutWhereThePenaltyEnds()
+        {
+            // The two halves of checkAvail must partition the gap range: everything CanFire accepts
+            // gets a confidence, everything it rejects is a gap SkillConfidence reports as 1 (its
+            // "unreachable" case). If the constants ever diverge, the gap that is refused by one and
+            // priced by the other shows up here.
+            for (int gap = -2; gap <= 5; gap++)
+            {
+                int weaponLevel = 6, ownerSkill = 6 - gap;
+                if (HitAvoidance.CanFire(weaponLevel, ownerSkill))
+                {
+                    float conf = HitAvoidance.SkillConfidence(weaponLevel, ownerSkill);
+                    Assert.That(conf, Is.EqualTo(gap == 1 ? 0.8f : gap == 2 ? 0.6f : 1f).Within(1e-6f),
+                        $"gap {gap} is accepted, so it must be priced");
+                }
+                else
+                {
+                    Assert.AreEqual(1f, HitAvoidance.SkillConfidence(weaponLevel, ownerSkill), 1e-6f,
+                        $"gap {gap} is refused, so it is never priced");
+                }
+            }
+        }
+
+        // ── CanCastSpells (WMagic.attack, WMagic.as:33-39) ────────────────────
+
+        [Test]
+        public void CanCastSpells_OnlyTheExactValueZeroRefuses()
+        {
+            // `World.w.pers.spellsPoss == 0` is an EQUALITY test in the oracle, not a sign test, and
+            // the declaration default is 1 (`Pers.as:423`). So every value but 0 permits the cast —
+            // including a hypothetical negative, which a "corrected" `<= 0` would refuse. Kept literal
+            // on purpose; this is the assertion that would go red if someone tidied it.
+            Assert.IsTrue (HitAvoidance.CanCastSpells(1),  "the Pers.as declaration default");
+            Assert.IsTrue (HitAvoidance.CanCastSpells(2),  "a spell-unlock level above the baseline");
+            Assert.IsFalse(HitAvoidance.CanCastSpells(0),  "mana organ at trauma stage 4");
+            Assert.IsTrue (HitAvoidance.CanCastSpells(-1), "AS3 tests == 0, so a negative does not refuse");
+        }
+
+        [Test]
+        public void CanCastSpells_IsNotTheSkillGate()
+        {
+            // Differential control. These two gates sit three lines apart in WMagic.attack() and read
+            // different inputs — spellsPoss (the mana organ) and the weapon/skill gap. Neither may
+            // subsume the other, and a refactor that routed one through the other would show up here:
+            // the pair below is REFUSED by CanFire and PERMITTED by CanCastSpells.
+            const int weaponLevel = 12, ownerSkill = 0;   // gap 12 — far past the refuse threshold
+
+            Assert.IsFalse(HitAvoidance.CanFire(weaponLevel, ownerSkill),
+                "the skill gate refuses this gap");
+            Assert.IsTrue(HitAvoidance.CanCastSpells(1),
+                "…but spell permission knows nothing about the skill gap, so it still permits");
+        }
+
+        // ── SkillPlusDamage (Weapon.setPers, Weapon.as:984-992) ───────────────
+
+        [Test]
+        public void SkillPlusDamage_IsOneUntilTheOwnerBeatsTheRequirement()
+        {
+            // `if(_loc3_ < 0) skillPlusDam = 1 - _loc3_*0.1; else 1`. Being under-qualified is NOT a
+            // damage penalty here — that is SkillConfidence and CanFire. It is simply no bonus, which
+            // is the half most likely to be "fixed" into a penalty by mistake.
+            Assert.AreEqual(1f, HitAvoidance.SkillPlusDamage(5, 5), 1e-6f, "gap 0 — exactly qualified");
+            Assert.AreEqual(1f, HitAvoidance.SkillPlusDamage(5, 4), 1e-6f, "gap 1 — no bonus, no penalty");
+            Assert.AreEqual(1f, HitAvoidance.SkillPlusDamage(5, 3), 1e-6f, "gap 2 — still no penalty");
+            Assert.AreEqual(1f, HitAvoidance.SkillPlusDamage(5, 2), 1e-6f,
+                "gap 3 is REFUSED by CanFire, but if a caller asks anyway the answer is still no bonus.");
+        }
+
+        [Test]
+        public void SkillPlusDamage_AddsTenPercentPerTierOfOverskill()
+        {
+            // One tier above the requirement is a gap of -1 -> 1.1, two -> 1.2, and so on. The oracle
+            // has no cap on this; the tier table tops out at 5, so the largest real bonus is a tier-5
+            // shooter on a level-0 weapon: 1 + 5*0.1 = 1.5.
+            Assert.AreEqual(1.1f, HitAvoidance.SkillPlusDamage(4, 5), 1e-6f, "gap -1");
+            Assert.AreEqual(1.2f, HitAvoidance.SkillPlusDamage(3, 5), 1e-6f, "gap -2");
+            Assert.AreEqual(1.3f, HitAvoidance.SkillPlusDamage(2, 5), 1e-6f, "gap -3");
+            Assert.AreEqual(1.5f, HitAvoidance.SkillPlusDamage(0, 5), 1e-6f, "the largest reachable bonus");
+        }
+
+        [Test]
+        public void SkillPlusDamage_UnknownOwnerSkill_IsNoBonus()
+        {
+            // Explicit, not incidental: the arithmetic would also land on 1 for the current sentinel
+            // (-1 makes the gap positive), but that is a property of the value rather than a rule.
+            // This pins the intent so a future sentinel change cannot quietly grant free damage.
+            Assert.AreEqual(1f, HitAvoidance.SkillPlusDamage(4, HitAvoidance.UnknownOwnerSkillLevel), 1e-6f);
+            Assert.AreEqual(1f, HitAvoidance.SkillPlusDamage(0, HitAvoidance.UnknownOwnerSkillLevel), 1e-6f);
+        }
+
+        [Test]
+        public void SkillPlusDamage_AndCanFire_ReadTheSameGapWithOppositeSigns()
+        {
+            // The two halves of the gap rule, pinned together so neither can drift: below the
+            // requirement there is no bonus but there may still be a shot; far below it the shot is
+            // refused; above it the shot is free and the bonus grows.
+            for (int ownerTier = 0; ownerTier <= 7; ownerTier++)
+            {
+                const int weaponLevel = 4;
+                float bonus = HitAvoidance.SkillPlusDamage(weaponLevel, ownerTier);
+                bool canFire = HitAvoidance.CanFire(weaponLevel, ownerTier);
+
+                if (ownerTier > weaponLevel)
+                    Assert.Greater(bonus, 1f, $"tier {ownerTier} beats level {weaponLevel}: a bonus");
+                else
+                    Assert.AreEqual(1f, bonus, 1e-6f, $"tier {ownerTier} does not beat level {weaponLevel}");
+
+                if (!canFire)
+                    Assert.AreEqual(1f, bonus, 1e-6f, "a refused shot never carries a bonus");
+            }
+        }
+
         // ── The conjunction, term by term ────────────────────────────────────
 
         [Test]

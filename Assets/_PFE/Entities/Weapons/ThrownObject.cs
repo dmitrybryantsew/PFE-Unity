@@ -88,6 +88,7 @@ namespace PFE.Entities.Weapons
         private float   _brakePxPerFrame2 = ProjectilePhysicsMath.BrakePxPerFrame2;
 
         private bool    _bumc;               // detonate on contact
+        private bool    _sticky;             // AS3 `lip` — latch on first tile contact (throwTip == 2)
         private bool    _stay;               // resting on floor
 
         // ── Fuse ──────────────────────────────────────────────────────────────
@@ -245,11 +246,13 @@ namespace PFE.Entities.Weapons
             bool    bumc      = false,
             float   skok      = ProjectilePhysicsMath.ThrowBounceRetention,
             float   tormoz    = ProjectilePhysicsMath.ThrowFloorDamping,
-            float   brake     = ProjectilePhysicsMath.BrakePxPerFrame2)
+            float   brake     = ProjectilePhysicsMath.BrakePxPerFrame2,
+            bool    sticky    = false)
         {
             _velocity         = initialVelocity;
             _explRadius       = explRadius;
             _bumc             = bumc;
+            _sticky           = sticky;
             _skok             = skok;
             _tormoz           = tormoz;
             _brake            = ProjectilePhysicsMath.SlidingFriction(brake);
@@ -370,7 +373,7 @@ namespace PFE.Entities.Weapons
             // arithmetic, so a "delta time" would be a unit error, not a refinement. The rate comes
             // from SimLoop stepping this once per canonical frame.
             ThrownObjectPhysics.Step(
-                ref _simState, _probe, _skok, _tormoz, _brakePxPerFrame2, _bumc);
+                ref _simState, _probe, _skok, _tormoz, _brakePxPerFrame2, _bumc, _sticky);
 
             _viewDirty = true;
 
@@ -639,6 +642,7 @@ namespace PFE.Entities.Weapons
             _fuseTicks        = 0;
             _explRadius       = 0f;
             _bumc             = false;
+            _sticky           = false;
 
             // Stage C: a released instance must not stay registered. SimLoop.Register de-duplicates,
             // so leaving it registered would not double-register — it would keep the released

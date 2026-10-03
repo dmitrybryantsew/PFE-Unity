@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using PFE.Core;
 using PFE.Data.Definitions;
@@ -12,7 +13,7 @@ namespace PFE.Systems.Weapons
     ///   - Rotation faces the aim target via State.Rot (radians).
     ///   - Flip: localScale.x = -1 + rotation += 180° when aiming left (NOT scaleY — see AS3 parity note).
     ///   - RotUp: angular barrel lift applied on top of aim angle, decays each frame.
-    ///   - Recoil push-back: State.TRet offset along negative aim axis.
+    ///   - Recoil push-back: State.TRet px along world X, sign from the flip.
     ///   - Frame animation FSM at 30fps: Reloading > Shooting > Prep/Ready > Idle.
     ///   - Magic: position snaps to horn point (done by controller), rotation still applied normally.
     ///   - Thrown override: sprite hidden (alpha 0) while projectile is in flight (TAttack > 0).
@@ -23,6 +24,16 @@ namespace PFE.Systems.Weapons
     ///   AS3 Weapon.as sets scaleX = -1 + rotation += 180 when (X > owner.celX),
     ///   i.e. when the weapon's world X is right of the cursor X.
     ///   In Unity: when _aimTarget.x < State.X → facing left → flip.
+    ///   The unit root mirrors itself on facing and this weapon is its child, so the flip has to be
+    ///   converted to local space — see <see cref="WeaponVisMath"/>.
+    ///
+    /// <para><b>The scale/rotation go on the VIS, not on this transform.</b> AS3 mutates <c>vis</c>
+    /// — the display object whose registration point <i>is</i> the weapon's position — so the art
+    /// mirrors about that point and the grip stays put. Writing them on this transform instead
+    /// mirrors the vis child's own local offset too, which moved the sprite pivot by twice that
+    /// offset (2 × 0.17 u in the shipped prefab) on every turn-around. <see cref="WeaponVisMath"/>
+    /// owns the flip rule so this class and the ranged controller cannot disagree about which way
+    /// the barrel points.</para>
     ///
     /// Execution order: 50 — after PlayerWeaponLoadout (-100), before animator-driven code.
     /// </summary>
@@ -46,6 +57,12 @@ namespace PFE.Systems.Weapons
         private WeaponVisualDefinition _visual;
         private Vector2                _aimTarget;
 
+        /// <summary>
+        /// The node that carries the flip and the aim rotation — the port's <c>vis</c>.
+        /// It is the SpriteRenderer's own transform, not <c>transform</c>: see the class doc.
+        /// </summary>
+        private Transform _vis;
+
         // ── Animation ────────────────────────────────────────────────────────
 
         // Flash-frame accumulator for the animation tick, advanced at SimClock.FramesPerSecond so
@@ -54,10 +71,25 @@ namespace PFE.Systems.Weapons
 
         // ── Physics / recoil ─────────────────────────────────────────────────
 
-        // Unity units of push-back per TRet frame. Tuned to match AS3 feel.
-        private const float RecoilPosScale = 0.025f;
+        // AS3 Weapon.animate() (:1973): `vis.x = X - t_ret * vis.scaleX * 2` — 2 Flash pixels per
+        // TRet frame, and nothing on Y. Kept in pixels and divided by the visual's PPU so the
+        // constant means what the oracle says it means.
+        private const float RecoilPixelsPerFrame = 2f;
 
         // ── Public API ────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// World-space muzzle (barrel tip) of the weapon as it is <i>currently drawn</i>, or null
+        /// before the first <see cref="LateUpdate"/>.
+        ///
+        /// <para>This is the port's <c>Weapon.getBulXY()</c> (<c>Weapon.as:1395-1420</c>), which
+        /// takes the vis's <c>emit</c> child through <c>vis.localToGlobal()</c> — i.e. through the
+        /// flip and the aim rotation. The ranged controller fires from this point, so the round
+        /// leaves the barrel and follows the mirror instead of leaving the weapon's origin.
+        /// Null means "no vis drawn yet" and the controller falls back to the weapon position,
+        /// which is what AS3 does when <c>vis.emit</c> is absent.</para>
+        /// </summary>
+        public Vector2? MuzzleWorldPosition { get; private set; }
 
         /// <summary>
         /// Called by PlayerWeaponLoadout when a weapon is equipped.
@@ -69,6 +101,7 @@ namespace PFE.Systems.Weapons
             _def           = def;
             _visual        = def?.weaponVisual;
             _frameAccum    = 0f;
+            MuzzleWorldPosition = null;   // do not let a stale muzzle outlive the old weapon
 
             UpdateRendererEnabled();
             ApplySortingSettings();
@@ -81,6 +114,7 @@ namespace PFE.Systems.Weapons
             _state  = null;
             _def    = null;
             _visual = null;
+            MuzzleWorldPosition = null;
             if (_spriteRenderer != null)
                 _spriteRenderer.enabled = false;
         }
@@ -95,6 +129,8 @@ namespace PFE.Systems.Weapons
             if (_spriteRenderer == null)
                 _spriteRenderer = GetComponentInChildren<SpriteRenderer>();
 
+            _vis = _spriteRenderer != null ? _spriteRenderer.transform : null;
+
             ApplySortingSettings();
         }
 
@@ -102,8 +138,13 @@ namespace PFE.Systems.Weapons
         {
             if (_state == null || _def == null) return;
 
-            ApplyPosition();
-            ApplyRotation();
+            // One flip decision for the whole frame: position, rotation and muzzle all read it, so
+            // they cannot disagree about which way the weapon points.
+            bool facingLeft = WeaponVisMath.IsFacingLeft(_aimTarget.x, _state.X);
+
+            ApplyPosition(facingLeft);
+            ApplyRotation(facingLeft);
+            UpdateMuzzle();
 
             // Advance animation at 30fps.
             _frameAccum += Time.deltaTime * SimClock.FramesPerSecond;
@@ -115,21 +156,22 @@ namespace PFE.Systems.Weapons
 
         // ── Position ─────────────────────────────────────────────────────────
 
-        private void ApplyPosition()
+        private void ApplyPosition(bool facingLeft)
         {
             // Base position comes from the lerped State.X/Y (driven by controller).
             Vector3 pos = new Vector3(_state.X, _state.Y, transform.position.z);
 
-            // Recoil push-back: offset along the negative aim direction.
-            // AS3: weapon snaps back along its forward axis by t_ret pixels.
+            // Recoil push-back, exactly as AS3 writes it (Weapon.as:1973):
+            //   vis.x = X - t_ret * vis.scaleX * 2;   vis.y = Y;
+            // X only, 2 px per TRet frame, and the sign is the vis's own scaleX — so a weapon
+            // facing left is pushed the other way, which is what makes it look like the gun is
+            // being shoved back rather than sliding sideways. The old port code pushed along the
+            // 2-D aim vector and negated the sign for facing-left, which reversed it.
             if (_state.TRet > 0 && _state.TRet <= 10)
             {
-                float aimAngle = _state.Rot;
-                var aimDir = new Vector2(Mathf.Cos(aimAngle), Mathf.Sin(aimAngle));
-                // Recoil pushes barrel back opposite to fire direction.
-                // scaleX=-1 (facingLeft) reverses local X so negate for symmetry.
-                float scaleSign = _aimTarget.x >= _state.X ? 1f : -1f;
-                pos -= (Vector3)(aimDir * _state.TRet * RecoilPosScale * scaleSign);
+                float ppu = _visual != null && _visual.pixelsPerUnit > 0 ? _visual.pixelsPerUnit : 100f;
+                pos.x -= _state.TRet * WeaponVisMath.VisScaleX(facingLeft)
+                         * (RecoilPixelsPerFrame / ppu);
             }
 
             transform.position = pos;
@@ -137,32 +179,45 @@ namespace PFE.Systems.Weapons
 
         // ── Rotation / flip ───────────────────────────────────────────────────
 
-        private void ApplyRotation()
+        private void ApplyRotation(bool facingLeft)
         {
-            // Magic weapons rotate normally (atan2 to aim is still calculated by controller).
-            // The only magic-specific override is position (State.X/Y snaps to horn point
-            // in MagicWeaponController — presenter doesn't need a special case here).
+            if (_vis == null) return;
 
-            float aimAngleDeg = _state.Rot * Mathf.Rad2Deg;
+            // AS3 writes scaleX + rotation on the vis (Weapon.as:1996-2008). Doing it here rather
+            // than on `transform` keeps the vis's own local offset out of the mirror — otherwise
+            // the sprite pivot jumps by twice that offset every time the character turns.
+            //
+            // The parent's own mirror has to be divided out. The unit root flips with facing
+            // (UnitController.ApplyFacingToTransform sets `localScale.x = _facingDirection`) and this
+            // weapon is its child, so Unity already renders a horizontal mirror when the character
+            // turns left. Writing AS3's `scaleX = -1` on top of that gave +1 — the two cancelled —
+            // and the rotation term then left the gun pointing the way the character *was* facing.
+            // That is the reported "turned left and it fires from its back": the barrel was drawn on
+            // the far side of the grip, so the round left the gun's rear.
+            float parentSign = WeaponVisMath.ParentScaleSign(_vis.parent);
 
-            // AS3 flip: scaleX = -1 + rotation += 180 when weapon X > cursor X.
-            // Unity equivalent: when cursor is to the left of the weapon, flip.
-            bool facingLeft = _aimTarget.x < _state.X;
+            _vis.localScale    = new Vector3(WeaponVisMath.VisLocalScaleX(facingLeft, parentSign), 1f, 1f);
+            _vis.localRotation = Quaternion.Euler(0f, 0f,
+                WeaponVisMath.VisLocalRotationDeg(_state.Rot, _state.RotUp, facingLeft, parentSign));
+        }
 
-            // RotUp: barrel lift.
-            // AS3: facing right → rotation -= rotUp;  facing left → rotation += rotUp
-            aimAngleDeg += facingLeft ? _state.RotUp : -_state.RotUp;
+        // ── Muzzle ───────────────────────────────────────────────────────────
 
-            if (facingLeft)
+        /// <summary>
+        /// Publishes the barrel tip in world space, through the vis's own transform — the port of
+        /// AS3's <c>vis.localToGlobal(emit)</c>. Runs after the flip/rotation are applied, so the
+        /// point carries them.
+        /// </summary>
+        private void UpdateMuzzle()
+        {
+            if (_vis == null)
             {
-                transform.localScale = new Vector3(-1f, 1f, 1f);
-                transform.rotation   = Quaternion.Euler(0f, 0f, aimAngleDeg + 180f);
+                MuzzleWorldPosition = null;
+                return;
             }
-            else
-            {
-                transform.localScale = Vector3.one;
-                transform.rotation   = Quaternion.Euler(0f, 0f, aimAngleDeg);
-            }
+
+            Vector2 local = _visual != null ? _visual.muzzleLocalOffset : Vector2.zero;
+            MuzzleWorldPosition = _vis.TransformPoint(local);
         }
 
         // ── Animation FSM ─────────────────────────────────────────────────────
@@ -248,5 +303,125 @@ namespace PFE.Systems.Weapons
             _spriteRenderer.sortingLayerName = _sortingLayerName;
             _spriteRenderer.sortingOrder     = _sortingOrder;
         }
+    }
+
+    /// <summary>
+    /// The single place that decides which way the held weapon's vis points.
+    ///
+    /// <para><b>Why it exists.</b> The flip rule was written out twice — once in
+    /// <see cref="WeaponPresenter"/> to draw the gun, and (in a different shape) in the ranged
+    /// controller to aim the shot — and the two had already drifted: the presenter mirrored the
+    /// sprite while the controller fired from the weapon origin, so the round left the gun's rear
+    /// and the error flipped sign with the sprite. Anything that needs to know the weapon's facing
+    /// reads it from here.</para>
+    ///
+    /// <para>AS3 oracle: <c>Weapon.animate()</c> (<c>Weapon.as:1996-2008</c>) and
+    /// <c>Weapon.getBulXY()</c> (<c>:1395-1420</c>).</para>
+    ///
+    /// <para><b>The AS3 rule describes a WORLD transform, and the port has to convert it.</b> In the
+    /// oracle the vis hangs off a container that is never scaled, so <c>vis.scaleX</c> and
+    /// <c>vis.rotation</c> <i>are</i> its world transform. In the port the weapon is a child of the
+    /// unit root, which mirrors itself on every facing change, so the same numbers written as
+    /// <i>local</i> values are read back through that mirror. <see cref="ParentScaleSign"/> and the
+    /// two <c>VisLocal*</c> adapters below are the conversion; <see cref="VisScaleX"/> and
+    /// <see cref="VisRotationDeg"/> stay a line-by-line transcription of the oracle so it can still
+    /// be diffed against it.</para>
+    ///
+    /// <para><b>Assumption, stated so it can be checked.</b> The conversion folds a mirror
+    /// (<c>M = R(α)·S(±1, 1)</c>) and takes the parent's rotation <c>α</c> to be zero. That holds for
+    /// the shipped rig — the unit root only ever writes <c>localScale.x</c>, never a rotation, and
+    /// nothing above the weapon rotates. A rotating ancestor would need the <c>α</c> term added
+    /// here, not a fix at the call site.</para>
+    /// </summary>
+    public static class WeaponVisMath
+    {
+        /// <summary>
+        /// AS3 flips when the weapon's world X is right of the cursor X (<c>X &gt; owner.celX</c>),
+        /// i.e. when the aim target is to the left of the weapon.
+        /// </summary>
+        public static bool IsFacingLeft(float aimWorldX, float visWorldX) => aimWorldX < visWorldX;
+
+        /// <summary>AS3 <c>vis.scaleX</c>: <c>-1</c> facing left, <c>1</c> facing right.</summary>
+        public static float VisScaleX(bool facingLeft) => facingLeft ? -1f : 1f;
+
+        /// <summary>
+        /// AS3 <c>vis.rotation</c> in degrees: facing right → <c>rot·180/π − rotUp</c>;
+        /// facing left → <c>rot·180/π + 180 + rotUp</c>. The extra 180 compensates the mirror so the
+        /// barrel still points along the aim instead of backwards.
+        /// </summary>
+        public static float VisRotationDeg(float rotRad, float rotUpDeg, bool facingLeft)
+            => rotRad * Mathf.Rad2Deg + (facingLeft ? rotUpDeg + 180f : -rotUpDeg);
+
+        /// <summary>
+        /// Folds one link of a parent chain into the accumulated mirror sign: a negative local
+        /// horizontal scale flips it, anything else leaves it.
+        ///
+        /// <para>This is the whole of the mirror arithmetic, and the only thing
+        /// <see cref="ParentScaleSign"/> does per link — so it is what the tests pin. Deliberately free
+        /// of engine types: a <see cref="Transform"/> cannot be constructed outside the editor, and a
+        /// guard whose arrange step cannot run has no way to go red (the same trap
+        /// <c>ActiveEffectSetTests</c> documents for <c>ScriptableObject</c>).</para>
+        /// </summary>
+        public static float ChainStep(float sign, float localScaleX) => localScaleX < 0f ? -sign : sign;
+
+        /// <summary>
+        /// The mirror sign of a whole chain of local horizontal scales — <c>-1</c> when an odd number
+        /// of links mirror, <c>1</c> otherwise. Order does not matter; only the product's sign does.
+        ///
+        /// <para>Engine-free, so the offline harness executes the same fold
+        /// <see cref="ParentScaleSign"/> runs over a live transform chain.</para>
+        /// </summary>
+        public static float ChainScaleSign(IEnumerable<float> localScaleXs)
+        {
+            float sign = 1f;
+            foreach (float sx in localScaleXs)
+                sign = ChainStep(sign, sx);
+            return sign;
+        }
+
+        /// <summary>
+        /// The sign of the mirror accumulated over an ancestor's chain of local horizontal scales —
+        /// <c>-1</c> when it mirrors, <c>1</c> otherwise. A parentless transform counts as unmirrored.
+        ///
+        /// <para>Walks <see cref="Transform.parent"/> folding each link with <see cref="ChainStep"/>, so
+        /// a mirror applied <i>anywhere</i> up the chain is seen — the shipped rig carries it on the
+        /// unit root, one level above the weapon node.</para>
+        ///
+        /// <para><b>Why <c>localScale</c> and not <c>lossyScale</c>.</b> <c>lossyScale</c> also folds in
+        /// ancestor rotations and non-uniform scales, which this conversion already assumes away (see
+        /// the class note: the parent rotation α is taken as zero). Reading the local scales keeps the
+        /// walk to the single operation the class actually reasons about — an odd number of horizontal
+        /// mirrors — rather than borrowing a value that would move for reasons that mirror nothing.</para>
+        /// </summary>
+        public static float ParentScaleSign(Transform parent)
+        {
+            float sign = 1f;
+            for (Transform t = parent; t != null; t = t.parent)
+                sign = ChainStep(sign, t.localScale.x);
+            return sign;
+        }
+
+        /// <summary>
+        /// AS3 <c>vis.scaleX</c> converted to the vis's <b>local</b> scale given the parent's mirror:
+        /// <c>parentSign · VisScaleX(facingLeft)</c>.
+        ///
+        /// <para>The world scale is the product, so a mirrored parent already contributes the
+        /// <c>-1</c> the oracle asks for; writing another one on the child would cancel it. Facing
+        /// left under a mirrored parent therefore yields <c>+1</c> locally — the mirror the player
+        /// sees comes from the root, exactly as the character's own sprite is mirrored.</para>
+        /// </summary>
+        public static float VisLocalScaleX(bool facingLeft, float parentScaleSign)
+            => parentScaleSign * VisScaleX(facingLeft);
+
+        /// <summary>
+        /// AS3 <c>vis.rotation</c> converted to the vis's <b>local</b> rotation given the parent's
+        /// mirror: <c>parentSign · VisRotationDeg(…)</c>.
+        ///
+        /// <para>Mirroring reverses the direction a rotation is applied in — a parent with
+        /// <c>scaleX = -1</c> renders a child's local rotation of <c>φ</c> as <c>-φ</c> — so the
+        /// sign has to be flipped to land on the angle the oracle means.</para>
+        /// </summary>
+        public static float VisLocalRotationDeg(float rotRad, float rotUpDeg, bool facingLeft, float parentScaleSign)
+            => parentScaleSign * VisRotationDeg(rotRad, rotUpDeg, facingLeft);
     }
 }

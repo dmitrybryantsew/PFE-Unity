@@ -254,7 +254,7 @@ namespace PFE.Systems.Combat
         ///     — a blast (<c>Bullet.explRun</c> calls <c>unit.damage()</c> directly) and a prop impact
         ///     (<c>Unit.udarBox</c>, <c>Unit.as:4237</c>, likewise), so
         ///     <c>miss</c>/<c>precision</c>/<c>dodge</c> do not apply to either. That is
-        ///     <see cref="PendingDamage.SkipsAvoidanceAndVariance"/>, which is a fact about the call
+        ///     <see cref="PendingDamage.ReachedDamageWithoutUdarBullet"/>, which is a fact about the call
         ///     path and not about blasts.</description></item>
         ///   <item><description>the roll uses the same per-tick stream as the armour and crit rolls, in
         ///     the oracle's order. <see cref="HitAvoidance.RollsHit"/> reproduces AS3's short-circuits
@@ -264,7 +264,7 @@ namespace PFE.Systems.Combat
         /// </remarks>
         private bool RollsHit(in PendingDamage hit, IRngService rng)
         {
-            if (hit.SkipsAvoidanceAndVariance
+            if (hit.ReachedDamageWithoutUdarBullet
                 || HitAvoidance.RollsHit(hit.Context, hit.Target.Evasion, hit.TravelDistancePixels, rng))
             {
                 return true;
@@ -330,17 +330,23 @@ namespace PFE.Systems.Combat
             // spread lands on the pre-armour number, and crit amplifies the spread value — the
             // oracle's order.
             //
-            // Blasts and contact hits are excluded: both reach `unit.damage()` without passing through
-            // `udarBullet`, which is where `:4085`'s spread lives — so an explosion does its falloff
-            // damage exactly and a crate impact does its `vel2` damage exactly. See
-            // PendingDamage.SkipsAvoidanceAndVariance; this used to test IsExplosion, which read as a
-            // fact about blasts when the real rule is a fact about the call path.
+            // AS3 has the spread at TWO sites with this same shape: `udarBullet():4085` and
+            // `explGas():763`. A blast reaches `unit.damage()` without `udarBullet`, so it skips the
+            // first — and takes the second. An `explTip 1` blast takes a `udarBullet` spread anyway,
+            // through the child bullet `explBullet()` spawns. So the ONLY path in the oracle with no
+            // spread anywhere is a prop impact (`udarBox`), and that is what SkipsDamageVariance
+            // encodes.
+            //
+            // This used to read the call-path flag, on the reading that "no udarBullet" meant "no
+            // spread" — which made every blast do its falloff value exactly, when the oracle gives it
+            // the same ×0.7..1.3 a bullet gets. See PendingDamage.SkipsDamageVariance for the
+            // citations.
             //
             // The draw happens even under the testDam debug toggle — `DamageVariance.Roll` takes the
             // roll first and only then decides whether to report it — because the combat stream is
             // shared with the armour-reliability and crit rolls below. Skipping the draw would shift
             // every later roll in the same tick, which is a replication bug, not a debug convenience.
-            if (!hit.SkipsAvoidanceAndVariance)
+            if (!hit.SkipsDamageVariance)
             {
                 incoming *= DamageVariance.Roll(rng, _debugSettings != null && _debugSettings.TestDamage);
             }
@@ -453,8 +459,9 @@ namespace PFE.Systems.Combat
         /// <b>one</b> call site in the oracle — <c>Unit.as:4091</c>, inside <c>udarBullet</c>, one line
         /// after <c>this.damage()</c> at <c>:4090</c>. So "this hit did not go through
         /// <c>udarBullet</c>" is also the predicate for "this hit gets no throw", which is exactly
-        /// <see cref="PendingDamage.SkipsAvoidanceAndVariance"/>. That is why the guard below reads the
-        /// flag rather than <c>IsExplosion</c>: a blast damages through <c>Bullet.explRun</c>, which calls
+        /// <see cref="PendingDamage.ReachedDamageWithoutUdarBullet"/>. That is why the guard below reads
+        /// the flag rather than <c>IsExplosion</c>: a blast damages through <c>Bullet.explRun</c>, which
+        /// calls
         /// <c>unit.damage()</c> directly, and a prop impact through <c>Unit.udarBox</c>
         /// (<c>:4237</c>), which does the same — neither reaches <c>:4091</c>. (AS3's blasts <i>do</i>
         /// push, but by a separate mechanism: <c>explBlast</c> spawns a radial child bullet per unit,
@@ -497,7 +504,7 @@ namespace PFE.Systems.Combat
             // flag that means "reached `damage()` without `udarBullet`" is the one that means "no
             // throw" — see the remarks. Returning on `IsExplosion` instead would let a crate impact
             // (`udarBox`) take this draw.
-            if (hit.SkipsAvoidanceAndVariance) return;
+            if (hit.ReachedDamageWithoutUdarBullet) return;
 
             // AS3 `Unit.otbros():4245-4248` returns BEFORE the draw, so this test has to come first.
             if (target.IsInvulnerable) return;
@@ -590,17 +597,48 @@ namespace PFE.Systems.Combat
         private static float MaxHealthOf(IDamageable target) => target.MaxHealth;
 
         /// <summary>
-        /// Blast damage for one target: linear falloff from the centre to the radius edge, scaled by the
-        /// caller's per-target faction multiplier.
+        /// Blast damage for one target — the oracle's <b>plateau</b> falloff, scaled by the caller's
+        /// per-target faction multiplier.
+        ///
+        /// <para><b>Full strength through the inner half, then a linear ramp to zero at the rim.</b>
+        /// That shape is the oracle's, not a refinement. AS3 <c>Bullet.explGas():768-773</c>:</para>
+        /// <code>
+        /// if(_loc4_ &lt; this.explRadius)
+        /// {
+        ///    if(_loc4_ &gt; this.explRadius * 0.5)
+        ///       _loc5_ *= 2 - _loc4_ * 2 / this.explRadius;
+        ///    …
+        /// }
+        /// </code>
+        /// <para>and the identical pair sits inside <c>explBullet():844-861</c>, which is how the
+        /// <c>explTip 1</c> shape scales its child bullets. So the multiplier is <b>1 for
+        /// <c>d ≤ r/2</c></b>, then <c>2 − 2d/r</c> down to 0 at <c>d = r</c>; and the
+        /// <c>d &lt; r</c> gate means a target <i>at or beyond</i> the rim is not hit at all — not hit
+        /// for zero.</para>
+        ///
+        /// <para><b>The port used <c>Clamp01(1 − d/r)</c>, which halves the whole near field.</b> At
+        /// <c>d = r/2</c> the oracle does full damage and that curve did half. The two agree only at
+        /// <c>d = 0</c> and <c>d = r</c> — which is precisely why every existing fixture passed while
+        /// the middle of every blast was wrong, and why the fix needed a test at <c>d = r/2</c> rather
+        /// than more tests at the ends.</para>
         /// </summary>
         private static float ExplosionDamageFor(in DamageContext ctx, in PendingDamage hit)
         {
             if (ctx.ExplosionDamage <= 0f)
                 return 0f;
 
+            float radius = hit.ExplosionRadius;
+
+            // AS3's `if(_loc4_ < this.explRadius)` gate. A non-positive radius therefore matches
+            // nothing — the oracle's answer for a blast with no radius, rather than a full-strength
+            // point hit.
+            if (radius <= 0f) return 0f;
+
             float distance = Vector3.Distance(hit.ImpactPosition, hit.ExplosionCentre);
-            float falloff = hit.ExplosionRadius > 0f
-                ? Mathf.Clamp01(1f - distance / hit.ExplosionRadius)
+            if (distance >= radius) return 0f;
+
+            float falloff = distance > radius * 0.5f
+                ? 2f - distance * 2f / radius
                 : 1f;
 
             return ctx.ExplosionDamage * falloff * hit.FactionMultiplier;

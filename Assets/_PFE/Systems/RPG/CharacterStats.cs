@@ -24,7 +24,7 @@ namespace PFE.Systems.RPG
     /// - Direct reactive bridge to UnitStats
     /// - Universal AS3 <sk> modifier evaluation via StatModifierApplier
     /// </summary>
-    public class CharacterStats : MonoBehaviour, Data.ICharacterStats, IWeaponStatSource
+    public class CharacterStats : MonoBehaviour, Data.ICharacterStats, IWeaponStatSource, IManaSource
     {
         [Header("Base Stats")]
         [SerializeField] private int level = 1;
@@ -39,12 +39,19 @@ namespace PFE.Systems.RPG
         [Header("Definitions")]
         [SerializeField] private SkillDefinitionDatabase skillDatabase;
 
-        // All 18 skill IDs (16 authored in AllData.as + 2 special rewards)
+        // The oracle's exact skill set: 16 ids, seeded from AllData.d.skill (Pers.as:518-533).
+        //
+        // `life` and `spirit` are NOT skills. They are <perk> entries (AllData.as:5802, :5806)
+        // with their own PerkDefinition assets, and they run through the perk channel
+        // (SetPerkRank -> RecalculateStats -> GetPerk). Listing them here made GetAllSkillIds()
+        // hand 18 ids to every UI, seeded two phantom skillLevels entries, and let the F2 skill
+        // sliders advertise a cap the clamp could never reach (IsSkillPost is false for them, so
+        // SetSkillLevel clamped to 20 while the header said 100).
         private static readonly string[] AllSkillIds = new string[]
         {
             "tele", "melee", "smallguns", "energy", "explosives", "magic",
             "repair", "medic", "lockpick", "science", "sneak", "barter", "survival",
-            "attack", "defense", "knowl", "life", "spirit"
+            "attack", "defense", "knowl"
         };
 
         public static readonly int[] PostSkTab = new int[] { 5, 11, 18, 26, 35, 45, 56, 68, 82, 100 };
@@ -55,7 +62,10 @@ namespace PFE.Systems.RPG
         // Perk ranks: perkId -> rank
         private readonly Dictionary<string, int> perkRanks = new Dictionary<string, int>();
 
-        // Weapon skills multipliers: weaponCategory -> multiplier (default 1.0)
+        // Weapon skills multipliers: the numeric weapon-skill code (AS3 `<sk tip='weap' id='N'>`,
+        // 1..7 = melee/smallguns/repair/energy/explosives/magic/tele) -> multiplier (default 1.0).
+        // Keyed by the RAW ATTRIBUTE, exactly as AS3's `weaponSkills[_loc4_.@id]` is — so the key is
+        // "2", never "smallguns". See GetWeaponSkillMultiplier for why that distinction bit.
         private readonly Dictionary<string, float> weaponSkills = new Dictionary<string, float>();
 
         // Damage resistances / vulnerabilities: damageTypeId -> multiplier (default 1.0)
@@ -584,6 +594,46 @@ namespace PFE.Systems.RPG
         [HideInInspector] public int telemaster = 0;
         [HideInInspector] public float warlockDManaMult = 1.0f;
 
+        // ── Spell-system stats ───────────────────────────────────────────────────────────────────
+        //
+        // The four fields the supportive-spell path (Spell.as) reads off its owner and Pers. Each is a
+        // real statId in the content (magic.asset / tele.asset / science.asset / f_borsch.asset), so
+        // before these existed ApplyNamedStat fell through to the `default:` branch and warned
+        // "no destination in ApplyNamedStat" — a measured gap, not a hypothetical one.
+        //
+        // NOTE — deliberately NOT in ResetToDefaults. AS3's defaultParams() resets allDManaMult and
+        // warlockDManaMult (Pers.as:902-903) but does NOT touch any of these four; their base value is
+        // handled by the modifier engine's v0/vd mechanism (e.g. `<sk id='spellDown' v0='1' vd='-0.1'/>`,
+        // AllData.as:5247). Adding a reset here would diverge from the oracle. Cited so a later pass
+        // does not "tidy" them in.
+
+        /// <summary>
+        /// AS3 <c>Unit.spellPower</c> (<c>Unit.as:316</c>, default 1) — the magnitude multiplier every
+        /// spell effect uses (<c>Spell.as:248</c>, <c>this.power = this.owner.spellPower</c>). Raised
+        /// by the <c>magic</c> skill and the <c>borsch</c> food; <c>UnitAlicorn</c> hardcodes 2.
+        /// </summary>
+        [HideInInspector] public float spellPower = 1.0f;
+
+        /// <summary>
+        /// AS3 <c>Pers.spellDown</c> (<c>Pers.as:427</c>, default 1) — scales a spell's cooldown
+        /// (<c>Spell.as:284</c>, <c>t_culd = Math.round(culd * spellDown)</c>). Lowered by the
+        /// <c>magic</c> skill and the <c>potion_mage</c> effect.
+        /// </summary>
+        [HideInInspector] public float spellDown = 1.0f;
+
+        /// <summary>
+        /// AS3 <c>Pers.telePower</c> (<c>Pers.as:247</c>, default 1) — replaces
+        /// <see cref="spellPower"/> for a player casting a teleport spell (<c>Spell.as:249-251</c>).
+        /// </summary>
+        [HideInInspector] public float telePower = 1.0f;
+
+        /// <summary>
+        /// AS3 <c>Pers.alicornShitHP</c> (<c>Pers.as:467</c>, default 2000) — the shield HP
+        /// <c>sp_mshit</c> grants while in alicorn mode (<c>Spell.as:314</c>). See
+        /// <see cref="PFE.Entities.Units.UnitStats.ShitHp"/> for the shield itself.
+        /// </summary>
+        [HideInInspector] public float alicornShitHP = 2000.0f;
+
         // Factor tracking for UI
         [System.Serializable]
         public class StatFactor
@@ -652,6 +702,10 @@ namespace PFE.Systems.RPG
         public float ThrowDmanaMult { get => throwDmanaMult; set => throwDmanaMult = value; }
         public float AllDManaMult { get => allDManaMult; set => allDManaMult = value; }
         public int Telemaster { get => telemaster; set => telemaster = value; }
+        public float SpellPower { get => spellPower; set => spellPower = value; }
+        public float SpellDown { get => spellDown; set => spellDown = value; }
+        public float TelePower { get => telePower; set => telePower = value; }
+        public float AlicornShitHp { get => alicornShitHP; set => alicornShitHP = value; }
 
         // ── Debug-facing views ────────────────────────────────────────────────
         // The console's `rpg` verb has to answer "is the modifier engine actually running, and from
@@ -1149,14 +1203,34 @@ namespace PFE.Systems.RPG
             }
         }
 
-        public float GetWeaponSkillMultiplier(string weaponType)
+        /// <summary>
+        /// The weapon-skill damage multiplier for the weapon whose numeric skill code is
+        /// <paramref name="skillCode"/> — AS3 <c>Weapon.setPers</c>:966
+        /// <c>weaponSkill = param2.weaponSkills[this.skill]</c>.
+        ///
+        /// <para><b>Keyed by CODE, not by name.</b> AS3 writes the dictionary as
+        /// <c>weaponSkills[_loc4_.@id] = …</c> (<c>Pers.as:1513-1515</c>), i.e. the raw numeric
+        /// <c>id</c> attribute of the <c>&lt;sk tip='weap'&gt;</c> row. The importer copies that
+        /// attribute verbatim into <c>StatModifier.statId</c>
+        /// (<c>SkillAndPerkDataImporter.cs:297-298</c>), so the dictionary holds <c>"2"</c> —
+        /// <c>smallguns</c> ships as <c>statId: 2</c> in <c>Resources/Skills/smallguns.asset</c>.
+        /// An earlier reader took the skill's <i>name</i>, which always missed and silently
+        /// returned the 1.0 default — hence this parameter is an <c>int</c> code.</para>
+        ///
+        /// <para>Returns 1 when the code was never written (a weapon whose skill has no
+        /// <c>&lt;sk tip='weap'&gt;</c> row). AS3's <c>weaponSkills</c> is unset for those too, and
+        /// the identity is the only safe reading.</para>
+        /// </summary>
+        public float GetWeaponSkillMultiplier(int skillCode)
         {
-            return weaponSkills.TryGetValue(weaponType, out float mult) ? mult : 1.0f;
+            return weaponSkills.TryGetValue(
+                skillCode.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                out float mult) ? mult : 1.0f;
         }
 
-        public void SetWeaponSkillMultiplier(string weaponType, float val)
+        public void SetWeaponSkillMultiplier(int skillCode, float val)
         {
-            weaponSkills[weaponType] = val;
+            weaponSkills[skillCode.ToString(System.Globalization.CultureInfo.InvariantCulture)] = val;
         }
 
         public int GetWeaponSkillTier(string weaponType)
@@ -1580,6 +1654,46 @@ namespace PFE.Systems.RPG
         // composition publishes, so the weapon side and the debug view can never disagree.
         float IWeaponStatSource.PrecisionMultiplier => PrecisionMultiplier;
 
+        // The weapon-skill channel — AS3 `_loc1_` in Weapon.shoot (see IWeaponStatSource).
+        // Read live off the skill levels rather than off a cached copy, because AS3 recomputes
+        // `Pers.weaponSkills` in setParameters and `Weapon.setPers` re-copies it on every recalc:
+        // taking a perk or spending a point must move the next shot with no re-equip.
+        float IWeaponStatSource.WeaponSkillMultiplier(int skillCode) => GetWeaponSkillMultiplier(skillCode);
+        int   IWeaponStatSource.OwnerWeaponSkillLevel(int skillCode) => GetSkillTierForWeapon(skillCode);
+
+        // ── IManaSource ──────────────────────────────────────────────────────────────────────
+        // The live mana the magic weapon path spends. Explicit for the same reason as the block
+        // above: `MagicMana` and `manaHp` already exist as public members with exactly these
+        // meanings, and re-exposing them implicitly would add nothing but noise.
+        //
+        // Unlike the IWeaponStatSource multipliers — which AS3 copies onto the weapon instance once
+        // — these are read at fire time because the shot mutates them. See IManaSource for why that
+        // is a separate seam rather than four more properties on the multiplier interface.
+        float IManaSource.MagicMana    => MagicMana;
+        float IManaSource.MaxMagicMana => MaxMagicMana;
+        float IManaSource.ManaHp       => manaHp;
+
+        // AS3 World.w.pers.spellsPoss (Pers.as:423). Zeroed by the mana organ at trauma stage 4 —
+        // ApplyTraumaModifiers, :2387-2392 — and re-derived from the organ by every RecalculateStats,
+        // so it is read live rather than cached: a caster whose organ is wrecked mid-fight must be
+        // refused on the next attack with no re-equip. See IManaSource for the full chain.
+        int IManaSource.SpellsPossible => spellsPoss;
+
+        // AS3 WMagic.setPers (WMagic.as:92-98) scales BOTH halves of the cost by the same product.
+        // Read live rather than cached at equip time, matching the rest of this block: a warlock perk
+        // taken mid-fight must move the next shot's cost with no re-equip.
+        float IManaSource.ManaCostMultiplier => allDManaMult * warlockDManaMult;
+
+        void IManaSource.SpendMana(float poolCost, float organCost)
+        {
+            // WMagic.shoot() (WMagic.as:110-122):
+            //     owner.mana -= dmagic;  owner.dmana = 0;  if(owner.player) World.w.pers.manaDamage(dmana);
+            // The budget is clamped at 0 — AS3 relies on Unit.step's own clamp, and a negative
+            // budget would otherwise read as "not enough mana" for the pool-full bypass forever.
+            MagicMana = Mathf.Max(0f, MagicMana - poolCost);
+            ApplyManaDamage(organCost);   // already floors at 0 and fires the trauma/death events
+        }
+
         /// <summary>
         /// AS3 <c>UnitPlayer.control()</c>'s precision block, verbatim
         /// (<c>UnitPlayer.as:1181-1200</c>) — the <b>situational</b> half of <c>precMult</c>.
@@ -1916,6 +2030,22 @@ namespace PFE.Systems.RPG
                 case "warlockDManaMult":
                     warlockDManaMult = ApplyFloatOp(warlockDManaMult, refType, val);
                     TrackFactor("warlockDManaMult", sourceId ?? "stat", sourceType, val, warlockDManaMult);
+                    break;
+                case "spellPower":
+                    spellPower = ApplyFloatOp(spellPower, refType, val);
+                    TrackFactor("spellPower", sourceId ?? "stat", sourceType, val, spellPower);
+                    break;
+                case "spellDown":
+                    spellDown = ApplyFloatOp(spellDown, refType, val);
+                    TrackFactor("spellDown", sourceId ?? "stat", sourceType, val, spellDown);
+                    break;
+                case "telePower":
+                    telePower = ApplyFloatOp(telePower, refType, val);
+                    TrackFactor("telePower", sourceId ?? "stat", sourceType, val, telePower);
+                    break;
+                case "alicornShitHP":
+                    alicornShitHP = ApplyFloatOp(alicornShitHP, refType, val);
+                    TrackFactor("alicornShitHP", sourceId ?? "stat", sourceType, val, alicornShitHP);
                     break;
                 case "portPoss":
                     portPoss = Mathf.RoundToInt(ApplyFloatOp(portPoss, refType, val));

@@ -79,6 +79,18 @@ namespace PFE.Systems.Weapons
         /// <summary>AS3 <c>vse</c>: left the room, so the object is removed.</summary>
         public bool Removed;
 
+        /// <summary>
+        /// AS3 <c>prilip</c>: a sticky object (<c>lip</c>, i.e. <c>throwTip == 2</c>) has touched a
+        /// tile and is now frozen in place, waiting for its fuse.
+        ///
+        /// <para>The oracle sets it on the first tile contact and then guards the whole movement
+        /// block with <c>if(!babah &amp;&amp; !this.prilip)</c> (<c>PhisBullet.as:80</c>), so the object
+        /// stops <i>from the next frame</i> — the current frame's remaining sub-steps still run. That
+        /// ordering is reproduced: <see cref="ThrownObjectPhysics.Run"/> latches, and
+        /// <see cref="ThrownObjectPhysics.Step"/> skips the movement block only once latched.</para>
+        /// </summary>
+        public bool Latched;
+
         /// <summary>Sub-steps the last <see cref="ThrownObjectPhysics.Step"/> used. Diagnostics.</summary>
         public int SubStepCount;
 
@@ -110,10 +122,13 @@ namespace PFE.Systems.Weapons
     /// such flag on a room. (2) <c>levit</c> (<c>:50-54</c>) — halves both axes instead of applying
     /// gravity; <c>WThrow.as:177</c> never sets it on the bullet, so no thrown object has it today.
     /// (3) <c>inWater</c> (<c>:75-79</c>) — the same 0.8 damping while inside a water tile.
-    /// (4) <c>lip</c>/<c>prilip</c> (<c>:214-222</c>) — the sticky-bomb branch that latches onto an
-    /// explosive crate, which needs <c>loc.celObj</c> and a <c>Box</c>. (5) <c>sndHit</c> — impact
-    /// sounds; the port's thrown object has no impact sound at all, which is a pre-existing gap and
-    /// not this flip's to close. Each omission is named so it reads as a decision, not a miss.</para>
+    /// (4) <c>lip</c>/<c>prilip</c> (<c>:214-222</c>) — <b>the crate-latching half only</b>. The
+    /// freeze-on-contact half IS modelled (<c>Latched</c>, driven by <c>sticky</c>); what is missing
+    /// is the branch that binds the object to a cracked crate (<c>loc.celObj is Box &amp;&amp;
+    /// explcrack</c>) so the blast damages that crate, which needs <c>loc.celObj</c> and a
+    /// destructible-prop query the port does not have. (5) <c>sndHit</c> — impact sounds; the port's
+    /// thrown object has no impact sound at all, which is a pre-existing gap and not this flip's to
+    /// close. Each omission is named so it reads as a decision, not a miss.</para>
     /// </summary>
     public static class ThrownObjectPhysics
     {
@@ -185,9 +200,12 @@ namespace PFE.Systems.Weapons
         /// applied subtractively so it is an acceleration, not a velocity.</param>
         /// <param name="detonateOnContact">AS3 <c>bumc</c> — detonate on the first tile contact
         /// instead of bouncing (<c>PhisBullet.as:248/269/292/317</c>).</param>
+        /// <param name="sticky">AS3 <c>lip</c> — latch on the first tile contact instead of bouncing
+        /// (<c>PhisBullet.as:254/275/298/326</c>, set from <c>WThrow.as:193</c> for
+        /// <c>throwTip == 2</c>).</param>
         public static void Step(ref ThrownObjectState state, IThrownTileProbe probe,
                                 float bounceRetention, float floorDamping,
-                                float brakePxPerFrame2, bool detonateOnContact)
+                                float brakePxPerFrame2, bool detonateOnContact, bool sticky = false)
         {
             // AS3 PhisBullet.as:50-58. The `levit` branch halves both axes instead of applying
             // gravity; see the class note — no thrown object sets it, so only the else is ported.
@@ -208,14 +226,19 @@ namespace PFE.Systems.Weapons
                 state.VelocityPxPerFrame.x = dx;
             }
 
-            // AS3 PhisBullet.as:80-96. The `prilip` half of the guard belongs to the sticky branch
-            // that is not modelled; `babah` is the detonated flag.
+            // AS3 PhisBullet.as:80 — `if(!babah && !this.prilip)`. A latched sticky object is still
+            // gravity-integrated (that is the oracle: only the movement block is guarded) but it does
+            // not move, so it sits where it struck.
+            if (state.Latched) return;
+
+            // AS3 PhisBullet.as:80-96. `babah` is the detonated flag; the `prilip` half is now the
+            // Latched flag above.
             int subSteps = SubStepCount(state.VelocityPxPerFrame.x, state.VelocityPxPerFrame.y);
             state.SubStepCount = subSteps;
 
             for (int i = 0; i < subSteps; i++)
             {
-                Run(ref state, probe, bounceRetention, floorDamping, subSteps, detonateOnContact);
+                Run(ref state, probe, bounceRetention, floorDamping, subSteps, detonateOnContact, sticky);
 
                 // AS3's `while(_loc2_ < _loc1_ && !babah)` breaks on detonation only. Leaving the
                 // room does not break it — but every later `run()` re-tests X, sets `vse` again and
@@ -242,7 +265,7 @@ namespace PFE.Systems.Weapons
         /// </summary>
         public static void Run(ref ThrownObjectState state, IThrownTileProbe probe,
                                float bounceRetention, float floorDamping,
-                               int subSteps, bool detonateOnContact)
+                               int subSteps, bool detonateOnContact, bool sticky = false)
         {
             // AS3 PhisBullet.as:213 — `X += dx / param1`.
             state.PositionPx.x += state.VelocityPxPerFrame.x / subSteps;
@@ -271,6 +294,7 @@ namespace PFE.Systems.Weapons
                     // AS3 `X = _loc2_.phX2 + 1` — 1 px to the RIGHT of the cell, in Y-up terms.
                     state.PositionPx.x = cell.xMax + FaceOffsetPx;
                     state.VelocityPxPerFrame.x = Mathf.Abs(state.VelocityPxPerFrame.x * bounceRetention);
+                    if (sticky) state.Latched = true;   // AS3 PhisBullet.as:254 `if(lip) prilip = true`
                     state.ContactCount++;
                 }
             }
@@ -286,6 +310,7 @@ namespace PFE.Systems.Weapons
                     // AS3 `X = _loc2_.phX1 - 1` — 1 px to the LEFT of the cell.
                     state.PositionPx.x = cell.xMin - FaceOffsetPx;
                     state.VelocityPxPerFrame.x = -Mathf.Abs(state.VelocityPxPerFrame.x * bounceRetention);
+                    if (sticky) state.Latched = true;   // AS3 PhisBullet.as:275
                     state.ContactCount++;
                 }
             }
@@ -309,6 +334,7 @@ namespace PFE.Systems.Weapons
                     // 1 px below it: in Y-up, 1 px under `cell.yMin`.
                     state.PositionPx.y = cell.yMin - FaceOffsetPx;
                     state.VelocityPxPerFrame.y = -Mathf.Abs(state.VelocityPxPerFrame.y * bounceRetention);
+                    if (sticky) state.Latched = true;   // AS3 PhisBullet.as:298
                     state.ContactCount++;
                 }
             }
@@ -336,6 +362,7 @@ namespace PFE.Systems.Weapons
                     // AS3 `Y = _loc2_.phY1 - 1` — phY1 is the cell's TOP in Y-down, so 1 px above it:
                     // in Y-up, 1 px over `cell.yMax`.
                     state.PositionPx.y = cell.yMax + FaceOffsetPx;
+                    if (sticky) state.Latched = true;   // AS3 PhisBullet.as:326
 
                     // AS3 `if(dy > 2)`: a floor bounce needs more than 2 px/frame of fall speed.
                     // Read against the magnitude, so the Y-up sign does not enter the test.

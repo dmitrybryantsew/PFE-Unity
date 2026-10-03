@@ -105,11 +105,12 @@ namespace PFE.Systems.Combat
         /// the oracle uses for a player at or above the required skill, and the value that leaves the
         /// port's behaviour exactly as it is today.</para>
         ///
-        /// <para><b>The refuse-to-fire half is deliberately not here.</b> A gap above 2 makes
-        /// <c>checkAvail()</c> return <c>false</c>, which stops the shot at the weapon — so the oracle
-        /// never reaches hit resolution with such a gap, and there is no confidence value to report.
-        /// This function returns <c>1</c> for that case to stay total; the gate itself belongs to the
-        /// weapon controller, next to the ammo and jam gates it already has.</para>
+        /// <para><b>The refuse-to-fire half is not here — it is <see cref="CanFire"/>.</b> A gap above
+        /// 2 makes <c>checkAvail()</c> return <c>false</c>, which stops the shot at the weapon — so the
+        /// oracle never reaches hit resolution with such a gap, and there is no confidence value to
+        /// report. This function returns <c>1</c> for that case to stay total; the gate is a separate
+        /// question (<i>may this owner fire?</i>) and the weapon controller asks it next to the ammo
+        /// and jam gates it already has.</para>
         /// </summary>
         public static float SkillConfidence(int weaponLevel, int ownerSkillLevel)
         {
@@ -124,6 +125,108 @@ namespace PFE.Systems.Combat
                 2 => 0.6f,
                 _ => 1f,   // gap <= 0: skilled enough. gap > 2: the weapon refuses the shot upstream.
             };
+        }
+
+        /// <summary>
+        /// AS3 <c>Weapon.checkAvail()</c>'s other half (<c>Weapon.as:1377-1381</c>) — may this owner
+        /// fire this weapon <i>at all</i>? <c>false</c> when the weapon's required skill level sits
+        /// more than 2 tiers above the owner's, which makes <c>attack()</c> bail at <c>:1306-1310</c>
+        /// before it arms <c>t_attack</c>.
+        ///
+        /// <para><b>This gate is not universal, and the numbers are not universal either.</b> Only
+        /// callers of the <i>base</i> <c>attack()</c> reach it: the ranged types and <c>WClub</c>
+        /// (melee), plus <c>WMagic</c>, whose override calls <c>checkAvail()</c> explicitly
+        /// (<c>WMagic.as:45-50</c>). <c>WThrow</c> overrides <c>attack()</c> and never calls it — it
+        /// runs its own copy of the gap test with <b>0.75 / 0.5</b> instead of 0.8 / 0.6
+        /// (<c>WThrow.as:79-105</c>). <c>WKick</c>, <c>WPunch</c> and <c>WPaint</c> override
+        /// <c>attack()</c> and have no skill gate at all. Do not route those through here.</para>
+        ///
+        /// <para><c>UnknownOwnerSkillLevel</c> is <c>true</c>: with no <c>Pers</c> there is no tier to
+        /// measure a gap against, and AS3 reaches this function only under <c>if(owner.player)</c>.
+        /// Same reasoning as <see cref="SkillConfidence"/>.</para>
+        ///
+        /// <para><b>Not ported here:</b> the <c>perslvl</c> half of <c>checkAvail()</c>
+        /// (<c>:1382-1386</c>, the character-level gate). It needs the owner's character level, which
+        /// <see cref="PFE.Systems.Weapons.IWeaponStatSource"/> does not expose, and every one of the 23
+        /// <c>perslvl</c> rows in <c>AllData.as</c> is a <c>tip='5'</c> magic weapon or spell — so it
+        /// belongs to the magic path, not to the ranged one. Also not ported: the
+        /// <c>gui.infoText("weaponSkillLevel")</c> feedback, which needs the message layer.</para>
+        /// </summary>
+        public static bool CanFire(int weaponLevel, int ownerSkillLevel)
+        {
+            if (ownerSkillLevel == UnknownOwnerSkillLevel)
+                return true;
+
+            return weaponLevel - ownerSkillLevel <= 2;
+        }
+
+        /// <summary>
+        /// AS3 <c>WMagic.attack()</c>'s spell-permission gate (<c>WMagic.as:33-39</c>) — may this
+        /// owner cast <i>at all</i>? <c>false</c> when <c>World.w.pers.spellsPoss</c> is 0, the state
+        /// the mana organ produces at trauma stage 4 (<c>Pers.as:2007</c>).
+        ///
+        /// <para><b>The oracle, verbatim:</b></para>
+        /// <code>
+        /// if(owner.player &amp;&amp; World.w.pers.spellsPoss == 0)
+        /// {
+        ///    World.w.gui.infoText("noSpells");
+        ///    World.w.gui.bulb(X,Y);
+        ///    Snd.ps("nomagic");
+        ///    return false;
+        /// }
+        /// </code>
+        ///
+        /// <para><b>It is the first gate and a hard stop.</b> It runs <i>before</i>
+        /// <see cref="CanFire"/> and before either <c>t_rel</c> assignment (<c>:62</c>, <c>:80</c>),
+        /// so a caster with no spells is refused <b>without a lockout</b> — holding the trigger simply
+        /// does nothing, every frame. That asymmetry with the mana gates is the load-bearing part of
+        /// this function and is pinned by a test; a future "tidy-up" that routed it through the mana
+        /// lockout would be a behaviour change, not a refactor.</para>
+        ///
+        /// <para><b>Equality, not a sign test.</b> AS3 writes <c>== 0</c>, so a hypothetical negative
+        /// value would <i>not</i> refuse. Reproduced literally rather than corrected to
+        /// <c>&lt;= 0</c>.</para>
+        ///
+        /// <para><b>The <c>owner.player</c> half is the caller's.</b> This takes the value alone so it
+        /// stays total and pure; the magic controller skips the call entirely when it has no
+        /// <c>IManaSource</c>, which is its encoding of "not a player" — exactly as AS3 skips the gate
+        /// for a non-player owner.</para>
+        ///
+        /// <para><b>Not modelled:</b> the <c>infoText("noSpells")</c> / <c>gui.bulb(X,Y)</c> /
+        /// <c>Snd.ps("nomagic")</c> feedback, which needs a message layer this path does not have.
+        /// Recorded rather than silently absent.</para>
+        /// </summary>
+        public static bool CanCastSpells(int ownerSpellsPossible) => ownerSpellsPossible != 0;
+
+        /// <summary>
+        /// AS3 <c>Weapon.skillPlusDam</c>, set in <c>setPers</c> (<c>Weapon.as:984-992</c>) — the bonus
+        /// a shooter gets for being <b>over</b>-qualified for the weapon:
+        /// <code>
+        /// _loc3_ = this.lvl - param2.getWeapLevel(this.skill);
+        /// if(_loc3_ &lt; 0) this.skillPlusDam = 1 - _loc3_ * 0.1;
+        /// else            this.skillPlusDam = 1;
+        /// </code>
+        /// So a tier of 5 on a weapon that asks for level 2 is a gap of -3 and <c>1.3</c>; being
+        /// under-qualified is <b>not</b> a penalty here (that is <see cref="SkillConfidence"/> and
+        /// <see cref="CanFire"/>), it is simply no bonus.
+        ///
+        /// <para><b>It multiplies damage directly</b> — the <c>p2 * skillPlusDam</c> pair in the base
+        /// <c>resultDamage</c> (<c>Weapon.as:1629</c>), which is why it is a separate factor from the
+        /// skill multiplier rather than folded into it.</para>
+        ///
+        /// <para><c>UnknownOwnerSkillLevel</c> returns <c>1f</c> explicitly rather than by accident.
+        /// The arithmetic would also land on 1 for the current sentinel (<c>-1</c> makes the gap
+        /// positive), but that is a coincidence of the value, not a rule — and the day the sentinel
+        /// changes, a silent 10%-per-point damage bonus is not a failure mode worth leaving open.</para>
+        /// </summary>
+        public static float SkillPlusDamage(int weaponLevel, int ownerSkillLevel)
+        {
+            if (ownerSkillLevel == UnknownOwnerSkillLevel)
+                return 1f;
+
+            int gap = weaponLevel - ownerSkillLevel;   // AS3 `_loc3_`
+
+            return gap < 0 ? 1f - gap * 0.1f : 1f;
         }
 
         /// <summary>

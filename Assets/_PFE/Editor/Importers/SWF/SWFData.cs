@@ -139,6 +139,14 @@ namespace PFE.Editor.Importers.SWF
         {
             { 3640, "lwing" },
             { 3650, "rwing" },
+            // The spell shield, visShit (visShit.as:5 embeds symbol 3625). It is NOT a body part —
+            // vis.shit is a sibling of the body sprite, not inside it — but it is listed here because
+            // this table is what CharacterSpriteImporter uses to decide which symbols to export at
+            // all, and it is also GetPartName's source, so it is the one place that both imports the
+            // frames and names them. CategorizeSymbol routes it to Overlays/ rather than a body
+            // folder; CharacterAnimationDataGenerator turns it into a CharacterOverlayDefinition
+            // instead of a CharacterPartDefinition.
+            { 3625, "shit" },
             { 24, "sleg3a" },       // hind leg lower back variant A
             { 319, "sleg3" },       // hind leg lower back variant B
             { 55, "sleg1" },        // hind leg upper

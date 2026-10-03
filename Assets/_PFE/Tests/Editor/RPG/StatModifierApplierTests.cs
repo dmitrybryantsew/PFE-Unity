@@ -147,21 +147,44 @@ namespace PFE.Tests.Editor.RPG
         }
 
         [Test]
-        [Description("Evaluate weapon modifier sets weapon skill multiplier")]
-        public void Apply_WeaponModifier_SetsWeaponSkill()
+        [Description("A tip='weap' modifier keys weaponSkills by the AS3 numeric CODE and is read " +
+                     "back by that same code -- mirroring the shipped Resources/Skills/smallguns.asset")]
+        public void Apply_WeaponModifier_SetsWeaponSkill_ByCode()
         {
+            // The shipped asset is exactly:
+            //   statId: 2   tip: weap   dop: 1   v0: 1   vd: 0.05   v: []
+            // The importer copies the AS3 `id` attribute verbatim into `statId`
+            // (SkillAndPerkDataImporter.cs:297-298), so the key is "2", NOT "smallguns".
+            //
+            // The previous version of this test hand-built `statId = "smallguns"` and read it back
+            // by the same name -- so it passed while production silently wrote "2" and the reader
+            // looked up "smallguns". It tested the writer with an id the importer never produces.
             var mod = new StatModifier
             {
-                statId = "smallguns",
+                statId = "2",
                 tip = "weap",
-                refType = "set",
+                dop = true,
                 hasV0 = true,
-                v0 = 0f,
-                v = new float[] { 0f, 1.1f, 1.25f, 1.45f, 1.70f, 2.0f }
+                v0 = 1f,
+                hasVd = true,
+                vd = 0.05f,
+                v = new float[0]
             };
 
+            // dop='1' -> AS3 reads param3, the raw POINTS (Pers.as:1477-1484), not the tier.
             StatModifierApplier.Apply(_stats, mod, 3, 9, "smallguns");
-            Assert.AreEqual(1.45f, _stats.GetWeaponSkillMultiplier("smallguns"), 1e-4f);
+            Assert.AreEqual(1.45f, _stats.GetWeaponSkillMultiplier(2), 1e-4f,
+                "9 points -> 1 + 9*0.05");
+
+            // Positive control: the same code at the 20-point cap.
+            StatModifierApplier.Apply(_stats, mod, 5, 20, "smallguns");
+            Assert.AreEqual(2.0f, _stats.GetWeaponSkillMultiplier(2), 1e-4f,
+                "20 points -> 2.0 (double damage)");
+
+            // Absent control: a code nothing ever wrote must stay at the identity, so a reader
+            // that returned a constant would fail here.
+            Assert.AreEqual(1.0f, _stats.GetWeaponSkillMultiplier(5), 1e-4f,
+                "unwritten code -> 1.0");
         }
 
         [Test]

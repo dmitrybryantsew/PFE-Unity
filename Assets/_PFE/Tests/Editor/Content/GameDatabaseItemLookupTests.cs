@@ -1,10 +1,12 @@
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
 using PFE.Data;
 using PFE.Data.Definitions;
 using PFE.ModAPI;
+using PFE.Systems.Weapons;
 
 namespace PFE.Tests.Editor.Content
 {
@@ -140,6 +142,130 @@ namespace PFE.Tests.Editor.Content
 
             Assert.AreSame(first, _database.GetItem("clash"),
                 "Additive policy keeps the first; an armour that shadowed an item id would lose silently.");
+        }
+    }
+
+    /// <summary>
+    /// Pins the <b>wiring invariant</b> behind <see cref="ContentRegistryAmmoResolver"/>: the registry
+    /// the consumers are handed must be the one <see cref="GameDatabase"/> actually initialized.
+    ///
+    /// <para><b>Why this fixture exists.</b> <see cref="GameDatabase"/> builds its own
+    /// <c>ContentRegistry</c> in its constructor and <c>GameManager</c> populates that one through
+    /// <c>gameDatabase.Initialize()</c>. <c>GameLifetimeScope</c> separately registered a
+    /// <c>ContentRegistry</c> singleton for injection — a <i>second</i>, never-initialized table — and
+    /// that is what <c>PlayerWeaponLoadout</c> was handed. So the ammo resolver answered <c>null</c> for
+    /// every id for the whole session: the round's damage multiplier, armour piercing, armour
+    /// multiplier, knockback, precision, penetration budget and damage-type override were all silently
+    /// dropped, and selecting the armour-piercing <c>p5_1</c> in the F2 dropdown changed nothing — a
+    /// 20-armour training dummy kept taking 0 from the 7-damage minigun.</para>
+    ///
+    /// <para><b>What made it invisible.</b> A null ammo row is AS3's <i>"неправильный патрон"</i> branch
+    /// — every ammo term stays at its identity — so the failure is numerically identical to "this
+    /// round has no special properties". The F2 dropdown could not show it either, because it loads
+    /// <c>AmmoDefinition</c> assets from <c>Resources/Ammo</c> itself and printed the round's real
+    /// <c>pierce +40</c>. Three layers each looked correct; only the injection seam was wrong.</para>
+    ///
+    /// <para>The first two tests are the positive and the regression; the third is the absent control
+    /// that keeps the new error specific to "empty registry" rather than firing for any miss.</para>
+    /// </summary>
+    [TestFixture]
+    public class AmmoResolverRegistryWiringTests
+    {
+        private readonly List<Object> _created = new List<Object>();
+
+        [TearDown]
+        public void TearDown()
+        {
+            foreach (Object created in _created)
+                if (created != null) Object.DestroyImmediate(created);
+
+            _created.Clear();
+        }
+
+        private AmmoDefinition Round(string id, int armourPiercing)
+        {
+            var round = ScriptableObject.CreateInstance<AmmoDefinition>();
+            round.ammoId = id;
+            round.baseId = "p5";
+            round.armorPiercingBonus = armourPiercing;
+            _created.Add(round);
+            return round;
+        }
+
+        /// <summary>
+        /// Whether <see cref="LogAssert"/> can be used at all.
+        ///
+        /// <para>Offline — outside the Unity Test Runner — <c>LogAssert</c> has no log scope and throws
+        /// <c>InvalidOperationException: No log scope is available</c>. That is an <b>unreachable
+        /// arrange step, not a red test</b>, so the two log-asserting tests below return early rather
+        /// than reporting a failure the offline wall would have to be taught to classify. The
+        /// behavioural assertion still runs under the editor runner, which is where it matters.</para>
+        /// </summary>
+        private static bool LogAssertIsAvailable()
+        {
+            try
+            {
+                LogAssert.NoUnexpectedReceived();
+                return true;
+            }
+            catch (System.InvalidOperationException)
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// The correct wiring: the resolver is built from the database's own registry, which is the
+        /// table <c>Initialize()</c> fills. The round's ballistics must come through intact.
+        /// </summary>
+        [Test]
+        public void Resolver_BuiltFromTheDatabasesRegistry_FindsTheRoundAndItsBallistics()
+        {
+            var database = new GameDatabase();
+            AmmoDefinition ap = Round("p5_1", armourPiercing: 40);
+            database.Registry.Register(ModManifest.CreateBaseGame(), ap);
+
+            var resolver = new ContentRegistryAmmoResolver(database.Registry);
+            AmmoDefinition resolved = resolver.Resolve("p5_1");
+
+            Assert.AreSame(ap, resolved, "A bare id must resolve through the pfe.base alias.");
+            Assert.AreEqual(40, resolved.armorPiercingBonus,
+                "The piercing the shot folds into DamageContext.Piercing must survive the lookup.");
+        }
+
+        /// <summary>
+        /// The regression pin — this is the state production was in. A fresh registry is exactly what
+        /// <c>builder.Register&lt;ContentRegistry&gt;(Lifetime.Singleton)</c> handed out, and it
+        /// resolves nothing. It must also now say so, once, instead of failing silently.
+        /// </summary>
+        [Test]
+        public void Resolver_BuiltFromAnUninitializedRegistry_ResolvesNothingAndReportsTheWiringFault()
+        {
+            if (!LogAssertIsAvailable()) return;
+
+            var resolver = new ContentRegistryAmmoResolver(new ContentRegistry());
+
+            LogAssert.Expect(LogType.Error, new Regex("ContentRegistryAmmoResolver.*no Ammo rows"));
+
+            Assert.IsNull(resolver.Resolve("p5_1"),
+                "An uninitialized registry cannot know any round — this is the silent 0-damage state.");
+        }
+
+        /// <summary>
+        /// Absent control. The empty-registry error must be specific: a resolver with no registry at all
+        /// is the legitimate headless/test case and must stay quiet, or every fixture would log errors
+        /// and the real one would be lost in the noise.
+        /// </summary>
+        [Test]
+        public void Resolver_WithNoRegistry_ResolvesNothingAndStaysSilent()
+        {
+            if (!LogAssertIsAvailable()) return;
+
+            var resolver = new ContentRegistryAmmoResolver(null);
+
+            Assert.IsNull(resolver.Resolve("p5_1"));
+
+            LogAssert.NoUnexpectedReceived();
         }
     }
 }

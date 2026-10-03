@@ -18,13 +18,16 @@ namespace PFE.Tests.EditMode.Systems.Weapons
     /// swing speed played exactly like a bare one. Nothing asserted the multipliers, so the suite was
     /// silent — the same shape as the hit-volume bug next door.</para>
     ///
-    /// <para><b>The one-frame offset, again.</b> AS3 sets <c>t_attack = rapid_act</c> and fires from
-    /// inside the same pass that runs <c>--t_attack</c>, so the observable <c>t_attack</c> on the
-    /// frame a hit is emitted is one lower than the window the code computed. The tests below assert
-    /// the <i>duration</i> (how many frames until the next swing is allowed) rather than the exact
-    /// frame of the hit, which is well-defined and free of that offset.</para>
+    /// <para><b>The one-frame offset is gone; the duration assertions stay.</b> This fixture used to
+    /// have to work around AS3 setting <c>t_attack = rapid_act</c> and firing from inside the same
+    /// pass that runs <c>--t_attack</c>, so the observable <c>t_attack</c> on the frame a hit is
+    /// emitted read one lower than the window the code computed. The controller's decrement now
+    /// follows its strike window, as AS3's does (<c>WClub.as:495</c>), so that offset no longer
+    /// exists. These tests still assert the <i>duration</i> (how many frames until the next swing is
+    /// allowed) rather than the exact frame of a hit, because duration is what the multipliers are
+    /// about and it does not depend on the ordering at all.</para>
     ///
-    /// <para>AS3 authority: <c>fe/weapon/WClub.as:204-205,649,658,667</c> (melee) and
+    /// <para>AS3 authority: <c>fe/weapon/WClub.as:204-205,649,654-658,667</c> (melee) and
     /// <c>WKick.as:47-48</c> (unarmed).</para>
     /// </summary>
     [TestFixture]
@@ -60,6 +63,10 @@ namespace PFE.Tests.EditMode.Systems.Weapons
             public float MazilAdd    = 0f;
             public float ComposedPrecisionMultiplier = 1f;
 
+            // Weapon-skill channel — AS3 `_loc1_`. Identity defaults (see the ranged fixture).
+            public float WeaponSkillMult = 1f;
+            public int   OwnerSkillLevel = PFE.Systems.Combat.HitAvoidance.UnknownOwnerSkillLevel;
+
             float IWeaponStatSource.ReloadMult   => ReloadMult;
             float IWeaponStatSource.RecoilMult   => RecoilMult;
             float IWeaponStatSource.JammedMult   => JammedMult;
@@ -78,6 +85,8 @@ namespace PFE.Tests.EditMode.Systems.Weapons
             float IWeaponStatSource.StayBonus    => StayBonus;
             float IWeaponStatSource.MazilAdd     => MazilAdd;
             float IWeaponStatSource.PrecisionMultiplier => ComposedPrecisionMultiplier;
+            float IWeaponStatSource.WeaponSkillMultiplier(int skillCode) => WeaponSkillMult;
+            int   IWeaponStatSource.OwnerWeaponSkillLevel(int skillCode) => OwnerSkillLevel;
         }
 
         private sealed class NullHitVolume : IMeleeHitVolume
@@ -263,6 +272,28 @@ namespace PFE.Tests.EditMode.Systems.Weapons
             Assert.AreEqual(control[control.Count - 1].Damage.BaseDamage,
                             fast[fast.Count - 1].Damage.BaseDamage, 0.001f,
                 "meleeSpdMult must not touch melee damage.");
+        }
+
+        [Test]
+        public void MeleeSpeed_DoesNotShortenAnOverheadSwing()
+        {
+            // WClub.resultRapid carries an mtip==2 early-out: `if(mtip == 2) return param1 / skillConf;`
+            // (WClub.as:654-657) — no rapidMult term at all, and rapidMult is where meleeSpdMult enters
+            // the family (`rapidMult = 1 / meleeSpdMult`, :204). So an autoaxe / bsaw / ripper keeps
+            // its data length however fast the owner's melee speed is.
+            //
+            // The controller divided by meleeSpdMult for all three sub-types, so a speed perk halved
+            // an overhead swing — a difference in behaviour, not in rounding.
+            int control = FramesUntilRefire(MakeMelee(rapid: 20f, damage: 10f, type: MeleeType.Overhead),
+                                            null, cap: 120);
+            int fast    = FramesUntilRefire(MakeMelee(rapid: 20f, damage: 10f, type: MeleeType.Overhead),
+                                            new FakeStats { MeleeSpdMult = 2f }, cap: 120);
+
+            Assert.Greater(control, 0, "control: the overhead must refire within the cap.");
+            Assert.AreEqual(20, control, 2, "an overhead with no stats swings in rapid frames.");
+            Assert.AreEqual(20, fast, 2,
+                "meleeSpdMult must NOT shorten an mtip 2 swing (WClub.as:654-657). A 10 here means " +
+                "the divisor was applied to the one sub-type the oracle exempts.");
         }
 
         // ── punchDamMult ──────────────────────────────────────────────────────

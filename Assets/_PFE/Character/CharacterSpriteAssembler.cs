@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using PFE.Character.Animation;
 using PFE.Data.Definitions;
 using UnityEngine;
 
@@ -11,6 +12,13 @@ namespace PFE.Character
     /// of CharacterAnimationPreviewWindow. This correctly handles parts that appear multiple
     /// times in a single frame (e.g. the near and far leg pairs share the same part symbols
     /// but are placed at different positions in the SWF depth list).
+    ///
+    /// <para><b>Two kinds of thing are drawn, and they are not interchangeable.</b> Body <i>parts</i>
+    /// come from <c>CharacterAnimationDefinition.parts</c> and are placed by the current state clip —
+    /// that is what the pool above is for. Overlay <i>clips</i> come from
+    /// <c>CharacterAnimationDefinition.overlays</c> and run on their own timeline, above the body; the
+    /// shield (<c>vis.shit</c>) is one. See <see cref="CharacterOverlayDefinition"/> for why the oracle
+    /// separates them and what goes wrong if a part is used for an overlay.</para>
     /// </summary>
     public class CharacterSpriteAssembler : MonoBehaviour
     {
@@ -35,6 +43,21 @@ namespace PFE.Character
         // Pool: one slot per placement (not per unique part).
         // Sized to the maximum partPlacements count across all frames/states.
         readonly List<PartSlot> _slotPool = new();
+
+        // Overlay clips (vis.shit and the other siblings of the body sprite): one renderer each,
+        // drawn above the body. See CharacterOverlayDefinition for why these are not parts.
+        readonly List<OverlaySlot> _overlaySlots = new();
+
+        // The overlay clips share one cadence — the character's frame rate — so one accumulator
+        // serves them all rather than one per clip.
+        float _overlayTimer;
+
+        /// <summary>
+        /// Ceiling on overlay frames advanced in a single Update. The animation is view-only, so a
+        /// breakpoint or a long editor pause must not produce a backlog that then fast-forwards the
+        /// clip; dropping the surplus is the right trade.
+        /// </summary>
+        const int MaxOverlayStepsPerTick = 8;
 
         // Caches Sprite instances rebuilt with the correct pivotNormalized.
         // Key: (source sprite, pivot) — created once, destroyed on ClearSlots.
@@ -146,6 +169,7 @@ namespace PFE.Character
 
             _appearance ??= CharacterAppearance.CreateDefault();
             BuildSlots();
+            BuildOverlays();
             _assembled = true;
 
             if (string.IsNullOrEmpty(_currentState))
@@ -156,6 +180,9 @@ namespace PFE.Character
             {
                 ReapplyCurrentFrame();
             }
+
+            // Overlays are independent of the state clip, so nothing above has touched them yet.
+            SyncOverlays(0);
         }
 
         public void ApplyAppearance()
@@ -166,6 +193,11 @@ namespace PFE.Character
             }
 
             ReapplyCurrentFrame();
+
+            // The context is pushed through this path (VisualContext's setter calls here), so this is
+            // where a shield rise or fall is applied — immediately, rather than at the next frame
+            // boundary, so the graphic does not lag its own gate by up to a frame.
+            SyncOverlays(0);
         }
 
         public void SetState(string stateName, int frame)
@@ -253,6 +285,14 @@ namespace PFE.Character
                 if (slot.secondaryRenderer != null)
                     slot.secondaryRenderer.sortingLayerName = _sortingLayerName;
             }
+
+            // Overlays carry their own sortingOrder (they sit above the body), but they belong to the
+            // same layer as the character, so the layer name still comes from here.
+            foreach (OverlaySlot overlay in _overlaySlots)
+            {
+                if (overlay.renderer != null)
+                    overlay.renderer.sortingLayerName = _sortingLayerName;
+            }
         }
 
         void BuildSlots()
@@ -301,6 +341,8 @@ namespace PFE.Character
 
         void ClearSlots()
         {
+            ClearOverlays();
+
             foreach (PartSlot slot in _slotPool)
             {
                 if (slot.gameObject != null)
@@ -318,6 +360,155 @@ namespace PFE.Character
                 if (s != null) Destroy(s);
             }
             _pivotCache.Clear();
+        }
+
+        // ─── Overlay clips ───────────────────────────────────────────────────
+
+        /// <summary>
+        /// Advances the running overlay playheads. <b>The one tick in this class.</b>
+        ///
+        /// <para><b>Why the assembler ticks rather than <c>CharacterAnimationDriver</c>.</b>
+        /// The driver's frame timer belongs to the character's <i>state clip</i> — its job is picking
+        /// <c>walk</c> over <c>stay</c> and walking that clip's frames. An overlay is not in that
+        /// machine at all: it animates while the body holds still, and it must animate in the animation
+        /// preview too, where there is no driver. Owning the tick here keeps one cadence for overlays
+        /// wherever the assembler is used. It is view-only, so an Update is allowed — the sim may not,
+        /// a view may.</para>
+        /// </summary>
+        void Update()
+        {
+            if (_overlaySlots.Count == 0 || _definition == null) return;
+
+            float frameDuration = 1f / Mathf.Max(1f, _definition.frameRate);
+            _overlayTimer += Time.deltaTime;
+
+            int steps = 0;
+            while (_overlayTimer >= frameDuration && steps < MaxOverlayStepsPerTick)
+            {
+                _overlayTimer -= frameDuration;
+                steps++;
+            }
+
+            if (_overlayTimer > frameDuration) _overlayTimer = 0f;
+
+            SyncOverlays(steps);
+        }
+
+        void BuildOverlays()
+        {
+            if (_definition?.overlays == null) return;
+
+            foreach (CharacterOverlayDefinition def in _definition.overlays)
+            {
+                if (def == null || string.IsNullOrEmpty(def.overlayName)) continue;
+
+                var go = new GameObject($"overlay_{def.overlayName}");
+                go.transform.SetParent(transform, false);
+                go.SetActive(false);
+
+                var sr = go.AddComponent<SpriteRenderer>();
+                sr.sortingLayerName = _sortingLayerName;
+                sr.sortingOrder = def.sortingOrder;
+
+                _overlaySlots.Add(new OverlaySlot
+                {
+                    def = def,
+                    gameObject = go,
+                    transform = go.transform,
+                    renderer = sr,
+                    frame = OverlayClip.NoFrame,
+                    visible = false,
+                });
+            }
+        }
+
+        void ClearOverlays()
+        {
+            foreach (OverlaySlot slot in _overlaySlots)
+            {
+                if (slot.gameObject != null)
+                {
+                    slot.gameObject.SetActive(false);
+                    Destroy(slot.gameObject);
+                }
+            }
+
+            _overlaySlots.Clear();
+            _overlayTimer = 0f;
+        }
+
+        /// <summary>
+        /// Bring every overlay in line with the visual context, advancing the playheads that are
+        /// already running by <paramref name="steps"/> frames.
+        ///
+        /// <para>Called every Update with the frames due, and again with <c>0</c> whenever the context
+        /// is pushed, so an edge lands at once. The edge handling is deliberately <i>inside</i> this
+        /// method rather than in the caller: the rise restarts the playhead and the fall resets it, and
+        /// splitting that from the advance would let the two disagree.</para>
+        /// </summary>
+        void SyncOverlays(int steps)
+        {
+            foreach (OverlaySlot slot in _overlaySlots)
+            {
+                CharacterOverlayDefinition def = slot.def;
+                if (def == null) continue;
+
+                int frameCount = def.frames?.Length ?? 0;
+                bool gate = _visualContext.IsOverlayVisible(def.overlayName);
+
+                if (!OverlayClip.ShouldDraw(gate, frameCount))
+                {
+                    // The fall edge — AS3 vis.shit.visible = false; gotoAndStop(1). The playhead is
+                    // written on the way down as well as on the way up, so the next rise replays the
+                    // materialise animation instead of appearing already complete.
+                    slot.frame = OverlayClip.RestartFrame(frameCount);
+                    slot.visible = false;
+                    slot.renderer.enabled = false;
+                    continue;
+                }
+
+                if (!slot.visible)
+                {
+                    // The rise edge — AS3 vis.shit.visible = true; gotoAndPlay(1).
+                    slot.frame = OverlayClip.RestartFrame(frameCount);
+                    slot.visible = true;
+                }
+                else
+                {
+                    for (int i = 0; i < steps; i++)
+                    {
+                        slot.frame = OverlayClip.NextFrame(slot.frame, frameCount, def.loopMode);
+                    }
+                }
+
+                ApplyOverlayVisual(slot, frameCount);
+            }
+        }
+
+        void ApplyOverlayVisual(OverlaySlot slot, int frameCount)
+        {
+            int index = OverlayClip.ClampFrame(slot.frame, frameCount);
+            if (index == OverlayClip.NoFrame)
+            {
+                slot.renderer.enabled = false;
+                return;
+            }
+
+            Sprite source = slot.def.frames[index];
+            Sprite sprite = GetPivotedSprite(source, slot.def.pivotNormalized);
+
+            slot.renderer.sprite = sprite;
+            // An overlay is never tinted: tintCategory belongs to the body, and the shield is a
+            // magical dome rather than fur or hair. Drawing it in the character's coat colour would
+            // be the obvious wrong answer here.
+            slot.renderer.color = Color.white;
+            slot.renderer.enabled = sprite != null;
+
+            slot.transform.localPosition = new Vector3(slot.def.localPosition.x, slot.def.localPosition.y, 0f);
+            slot.transform.localRotation = Quaternion.identity;
+
+            float scale = slot.def.localScale <= 0f ? 1f : slot.def.localScale;
+            slot.transform.localScale = new Vector3(scale, scale, 1f);
         }
 
         // ─── Frame application ───────────────────────────────────────────────
@@ -690,6 +881,30 @@ namespace PFE.Character
             public CharacterPartDefinition partDef;
             public SpriteRenderer secondaryRenderer;
             public bool hasSecondaryLayer;
+        }
+
+        /// <summary>
+        /// One overlay clip's renderer and playhead. Unlike a <see cref="PartSlot"/> this is not pooled
+        /// and not per-placement: there is exactly one renderer per overlay definition, because an
+        /// overlay is a single clip on the container rather than a part that can appear twice in a
+        /// frame at two different depths.
+        /// </summary>
+        public class OverlaySlot
+        {
+            public CharacterOverlayDefinition def;
+            public GameObject gameObject;
+            public Transform transform;
+            public SpriteRenderer renderer;
+
+            /// <summary>Playhead, in frames. <see cref="OverlayClip.NoFrame"/> before the first sync.</summary>
+            public int frame = OverlayClip.NoFrame;
+
+            /// <summary>
+            /// Whether the previous sync drew this overlay. The rise and fall <i>edges</i> are what
+            /// restart the playhead, so the previous value has to be remembered — the gate alone cannot
+            /// tell a shield that is holding from a shield that has just gone up.
+            /// </summary>
+            public bool visible;
         }
     }
 }

@@ -4,6 +4,9 @@ using UnityEditor;
 using System.IO;
 using PFE.Data.Definitions;
 using PFE.Editor.Importers;
+// The AllData.as readers live in the runtime assembly on purpose — PFE.Tests cannot reference
+// PFE.Editor, so anything written here instead would be invisible to the offline wall.
+using PFE.Systems.Weapons;
 
 namespace PFE.Editor
 {
@@ -90,7 +93,7 @@ namespace PFE.Editor
                 "<item\\s+([^>]*?)tip\\s*=\\s*['\"]([^'\"]*)['\"]([^>]*?)>",
                 System.Text.RegularExpressions.RegexOptions.Singleline);
 
-            int imported = 0, ammoImported = 0;
+            int imported = 0, ammoImported = 0, repaired = 0;
             foreach (System.Text.RegularExpressions.Match match in matches)
             {
                 string tipCode = match.Groups[2].Value;
@@ -109,34 +112,86 @@ namespace PFE.Editor
                 {
                     var item = ScriptableObject.CreateInstance<ItemDefinition>();
                     item.itemId = id;
-                    ApplyTipDefaults(item, tipCode);
+                    ApplyTipDefaults(item, tipCode, tagContent);
                     AssetDatabase.CreateAsset(item, assetPath);
 
                     imported++;
                     if (isAmmo) ammoImported++;
                 }
-                else if (isAmmo && existing.itemId == id && existing.type != ItemType.Ammo)
+                else if (NeedsTipRepair(existing, tipCode))
                 {
-                    // Repair a row created before ammo was imported, without a second menu pass.
-                    ApplyTipDefaults(existing, tipCode);
+                    // Repair a row created before this tip was imported, without a second menu pass.
+                    //
+                    // **This is the path that actually fills the nine `sp_*` rows.** They already
+                    // exist as `Misc` stubs from an earlier run, so `existing` is never null for them
+                    // and the create branch above never runs. Without this branch the spell import
+                    // would report success and change nothing — the same "reported success, wrote
+                    // nothing" shape as the self-closing-`<weapon>` bug in `WeaponXmlBlocks`.
+                    ApplyTipDefaults(existing, tipCode, tagContent);
                     EditorUtility.SetDirty(existing);
+                    repaired++;
                 }
             }
-            Debug.Log($"Items: {imported} created ({ammoImported} of them ammunition)");
+            Debug.Log($"Items: {imported} created ({ammoImported} of them ammunition), {repaired} repaired");
         }
 
         /// <summary>
-        /// Stamp the id-derived type/category a freshly created row must carry, so a new import needs
-        /// neither <see cref="FixDataImport"/> nor a re-run to be usable. Only <c>tip='a'</c> is
-        /// special-cased; every other tip keeps the enum default, which is what
-        /// <c>FixDataImport.GetItemTypeFromSource</c> refines afterwards.
+        /// Whether an <b>existing</b> row is missing what its <c>tip</c> implies, so the import can
+        /// repair it in place. Deliberately narrow: each tip names the one thing that must be true, and
+        /// an unrecognised tip is never repaired — a blanket "always re-apply" would rewrite every one
+        /// of the 500 assets on every run.
         /// </summary>
-        private static void ApplyTipDefaults(ItemDefinition item, string tipCode)
+        private static bool NeedsTipRepair(ItemDefinition item, string tipCode)
         {
-            if (tipCode != "a") return;
+            switch (tipCode)
+            {
+                case "a":     return item.type != ItemType.Ammo;
+                case "spell": return item.type != ItemType.Spell || !item.spellData.IsPopulated;
+                default:      return false;
+            }
+        }
 
-            item.type = ItemType.Ammo;
-            item.inventoryCategory = InventoryCategory.Ammo;
+        /// <summary>
+        /// Stamp the id-derived data a row must carry, so a fresh import needs neither
+        /// <see cref="FixDataImport"/> nor a re-run to be usable.
+        ///
+        /// <para><b>Only the tips this importer understands are handled</b> — <c>a</c> and
+        /// <c>spell</c>. Every other tip keeps the enum default, which
+        /// <c>FixDataImport.GetItemTypeFromSource</c> refines afterwards. That split is deliberate:
+        /// this method runs inside the asset-creating pass and must stay cheap and side-effect-free
+        /// for the 491 rows it does not care about.</para>
+        ///
+        /// <para><b>Why <c>spell</c> is here at all.</b> AS3 casts a spell through
+        /// <c>Spell.as</c> from the inventory (<c>UnitPlayer.as:3627-3635</c>), and <c>Spell</c>'s
+        /// constructor reads twelve attributes off the <c>&lt;item&gt;</c> row (<c>Spell.as:83-131</c>).
+        /// None of them had a home in the port, so all nine rows imported as empty <c>Misc</c> stubs.
+        /// See <see cref="SpellItemXml"/> and <c>SpellData</c>.</para>
+        /// </summary>
+        private static void ApplyTipDefaults(ItemDefinition item, string tipCode, string tagContent)
+        {
+            if (tipCode == "a")
+            {
+                item.type = ItemType.Ammo;
+                item.inventoryCategory = InventoryCategory.Ammo;
+                return;
+            }
+
+            if (tipCode != "spell") return;
+
+            item.type = ItemType.Spell;
+
+            // AS3 `Item.as:371` — the base price is the raw `@price`; the three multipliers that turn
+            // it into an asking price (`sost * multHP * pmult`) are applied at sale time and are not
+            // part of the import.
+            //
+            // `sellPrice` is deliberately NOT written. AS3 reads a *separate* `@sell` attribute and
+            // derives a ratio from it (`Item.as:378-380`: `sell / price`), and no spell row carries
+            // `@sell` at all — so the port has nothing to read and inventing "half of price" would be a
+            // fabricated rule. The field keeps its default until the item-table workstream lands a real
+            // price model.
+            item.basePrice = WeaponXmlAttrs.AttrI(tagContent, "price", item.basePrice);
+
+            item.spellData = SpellItemXml.Read(tagContent);
         }
 
         private static void ImportPerks()

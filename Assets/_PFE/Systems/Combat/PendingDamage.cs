@@ -63,6 +63,14 @@ namespace PFE.Systems.Combat
         /// <c>udarBullet</c> — so the resolver must take <b>none</b> of the three things
         /// <c>udarBullet</c> owns: the hit-avoidance roll (<c>:4072</c>), the damage-spread roll
         /// (<c>:4085</c>), and the knockback throw <c>otbros</c> (<c>:4091</c>).
+        ///
+        /// <para><b>It is a fact about the call path, and it is NOT the same as "no spread".</b> AS3
+        /// has a second spread with the identical shape at <c>Bullet.explGas():763</c>, applied inline
+        /// before the blast calls <c>damage()</c>; and the <c>explTip 1</c> shape reaches the
+        /// <c>udarBullet</c> spread anyway, through the child bullet <c>explBullet</c> spawns. So a
+        /// blast skips <i>this</i> spread and still takes one. The variance question is asked
+        /// separately, through <see cref="SkipsDamageVariance"/> — reading this flag as "no spread" is
+        /// exactly the mistake this name used to invite.</para>
         /// </summary>
         /// <remarks>
         /// <para><b>AS3 has two damage entry shapes and this is the second one.</b> <c>udarBullet</c>
@@ -76,11 +84,11 @@ namespace PFE.Systems.Combat
         /// <para><b>One predicate, three gates, and that is the point.</b> <c>otbros</c> is called from
         /// exactly one place in the whole oracle — <c>:4091</c>, inside <c>udarBullet</c> — so "no
         /// <c>udarBullet</c>" and "no throw" are the same fact, not two rules that happen to agree. This
-        /// flag is that fact; <c>DamageSystem</c> reads it at all three gates. Gating the knockback on
-        /// <c>IsExplosion</c> instead (which is what the code did before a second non-<c>udarBullet</c>
-        /// caller existed) is correct for blasts and silently wrong for a crate impact: the impact would
-        /// take a knockback draw the oracle never takes, and because its impulse is zero nothing visible
-        /// would reveal it.</para>
+        /// flag is that fact; <c>DamageSystem</c> reads it at the avoidance and knockback gates. Gating
+        /// the knockback on <c>IsExplosion</c> instead (which is what the code did before a second
+        /// non-<c>udarBullet</c> caller existed) is correct for blasts and silently wrong for a crate
+        /// impact: the impact would take a knockback draw the oracle never takes, and because its impulse
+        /// is zero nothing visible would reveal it.</para>
         ///
         /// <para><b>Why a flag rather than "explosions skip both".</b> That was the previous shape of
         /// this code, and it read as a fact about explosions when the real rule is a fact about the
@@ -88,12 +96,31 @@ namespace PFE.Systems.Combat
         /// claim to be a blast — which also switches the damage source to
         /// <c>ExplosionDamage</c> and applies distance falloff — so the two had to be separated before
         /// a second non-<c>udarBullet</c> caller could exist.</para>
-        ///
-        /// <para><b>The spread is a real number, not a formality.</b> It is <c>×0.7..1.3</c> on the
-        /// pre-armour damage, so leaving it on for a contact hit would make every crate impact a
-        /// random draw where the oracle is deterministic — visible on a health bar, and permanent.</para>
         /// </remarks>
-        public readonly bool SkipsAvoidanceAndVariance;
+        public readonly bool ReachedDamageWithoutUdarBullet;
+
+        /// <summary>
+        /// Whether the damage spread (<c>Math.random() * 0.6 + 0.7</c>) is skipped for this hit.
+        ///
+        /// <para><b>Not the same question as
+        /// <see cref="ReachedDamageWithoutUdarBullet"/>, and the difference is one caller.</b> AS3 has
+        /// the spread at <b>two</b> sites with the same shape: <c>udarBullet():4085</c> and
+        /// <c>explGas():763</c>. So:</para>
+        /// <list type="bullet">
+        ///   <item><description><b>Direct</b> — takes the <c>udarBullet</c> spread. <c>false</c>.</description></item>
+        ///   <item><description><b>Contact</b> (a prop impact, <c>udarBox</c>) — reaches <c>damage()</c>
+        ///     directly and <c>udarBox</c> has no spread of its own. <c>true</c>. This is the only path
+        ///     in the oracle with no spread anywhere, which is why the flag exists at all.</description></item>
+        ///   <item><description><b>Explosion</b> — <c>explGas</c> applies its own inline spread
+        ///     (<c>:763</c>), and an <c>explTip 1</c> blast takes the <c>udarBullet</c> spread through
+        ///     the child bullet <c>explBullet()</c> spawns. <c>false</c>.</description></item>
+        /// </list>
+        ///
+        /// <para>The port models a blast as one reported hit rather than as a child bullet, so
+        /// "the spread applies" has to be stated here instead of falling out of the second bullet's
+        /// journey. Both of the oracle's routes lead to the same multiplier.</para>
+        /// </summary>
+        public readonly bool SkipsDamageVariance;
 
         private PendingDamage(
             in DamageContext context,
@@ -104,17 +131,19 @@ namespace PFE.Systems.Combat
             float explosionRadius,
             float factionMultiplier,
             float travelDistancePixels,
-            bool skipsAvoidanceAndVariance)
+            bool reachedDamageWithoutUdarBullet,
+            bool skipsDamageVariance)
         {
-            Context                   = context;
-            Target                    = target;
-            ImpactPosition            = impactPosition;
-            IsExplosion               = isExplosion;
-            ExplosionCentre           = explosionCentre;
-            ExplosionRadius           = explosionRadius;
-            FactionMultiplier         = factionMultiplier;
-            TravelDistancePixels      = travelDistancePixels;
-            SkipsAvoidanceAndVariance = skipsAvoidanceAndVariance;
+            Context                       = context;
+            Target                        = target;
+            ImpactPosition                = impactPosition;
+            IsExplosion                   = isExplosion;
+            ExplosionCentre               = explosionCentre;
+            ExplosionRadius               = explosionRadius;
+            FactionMultiplier             = factionMultiplier;
+            TravelDistancePixels          = travelDistancePixels;
+            ReachedDamageWithoutUdarBullet = reachedDamageWithoutUdarBullet;
+            SkipsDamageVariance           = skipsDamageVariance;
         }
 
         /// <summary>A single-target hit — a bullet, a melee sweep, anything that reads <c>BaseDamage</c>.</summary>
@@ -131,7 +160,8 @@ namespace PFE.Systems.Combat
                                  explosionRadius: 0f,
                                  factionMultiplier: 1f,
                                  travelDistancePixels: travelDistancePixels,
-                                 skipsAvoidanceAndVariance: false);
+                                 reachedDamageWithoutUdarBullet: false,
+                                 skipsDamageVariance: false);
 
         /// <summary>
         /// A prop impact or any other hit that reaches <c>Unit.damage()</c> without a bullet — AS3
@@ -140,8 +170,10 @@ namespace PFE.Systems.Combat
         /// <remarks>
         /// <b>Not an explosion and not a shot.</b> It reads <c>BaseDamage</c> like
         /// <see cref="Direct"/>, but takes neither the avoidance roll nor the damage-spread roll,
-        /// because <c>udarBox</c> calls <c>damage()</c> directly. See
-        /// <see cref="SkipsAvoidanceAndVariance"/> for the citations.
+        /// because <c>udarBox</c> calls <c>damage()</c> directly and has no spread of its own. See
+        /// <see cref="ReachedDamageWithoutUdarBullet"/> and <see cref="SkipsDamageVariance"/> for the
+        /// citations — this is the only path in the oracle that skips the spread, so the two flags
+        /// happen to agree here and diverge everywhere else.
         /// </remarks>
         public static PendingDamage Contact(
             in DamageContext context, IDamageable target, Vector3 impactPosition)
@@ -151,19 +183,28 @@ namespace PFE.Systems.Combat
                                  explosionRadius: 0f,
                                  factionMultiplier: 1f,
                                  travelDistancePixels: 0f,
-                                 skipsAvoidanceAndVariance: true);
+                                 reachedDamageWithoutUdarBullet: true,
+                                 skipsDamageVariance: true);
 
         /// <summary>
         /// An AoE blast against one target in range. The caller has already enumerated the overlap and
         /// computed the per-target <paramref name="factionMultiplier"/>; the system owns the falloff.
         /// </summary>
         /// <remarks>
-        /// <b>A blast is never subject to hit avoidance, and that is the oracle.</b> AS3's explosion
-        /// path (<c>Bullet.explRun</c>, <c>weapon/Bullet.as:763-789</c>) calls <c>unit.damage()</c>
-        /// directly; the <c>udarBullet</c> conjunction — and therefore every <c>miss</c>,
-        /// <c>precision</c> and <c>dodge</c> term — is skipped entirely. So
+        /// <para><b>A blast is never subject to hit avoidance, and that is the oracle.</b> AS3's
+        /// explosion path (<c>Bullet.explRun</c>, <c>weapon/Bullet.as:763-789</c>) calls
+        /// <c>unit.damage()</c> directly; the <c>udarBullet</c> conjunction — and therefore every
+        /// <c>miss</c>, <c>precision</c> and <c>dodge</c> term — is skipped entirely. So
         /// <see cref="TravelDistancePixels"/> is unused on this path and the resolver must not roll for
-        /// it.
+        /// it.</para>
+        ///
+        /// <para><b>But it DOES take the damage spread</b>, which is why
+        /// <see cref="SkipsDamageVariance"/> is <c>false</c> here and not a copy of
+        /// <see cref="ReachedDamageWithoutUdarBullet"/>. The oracle reaches the spread twice over:
+        /// inline at <c>explGas():763</c>, and — for the <c>explTip 1</c> shape — through the child
+        /// bullet's own <c>udarBullet</c> (<c>:4085</c>). Both routes produce the same
+        /// <c>×0.7..1.3</c> multiplier, so modelling the blast as one reported hit does not change the
+        /// answer.</para>
         /// </remarks>
         public static PendingDamage Explosion(
             in DamageContext context,
@@ -178,6 +219,7 @@ namespace PFE.Systems.Combat
                                  explosionRadius: explosionRadius,
                                  factionMultiplier: factionMultiplier,
                                  travelDistancePixels: 0f,
-                                 skipsAvoidanceAndVariance: true);
+                                 reachedDamageWithoutUdarBullet: true,
+                                 skipsDamageVariance: false);
     }
 }

@@ -397,10 +397,32 @@ namespace PFE.Systems.Weapons
         /// weapon this is at equip time.
         /// </param>
         /// <param name="ownerWeaponSkillLevel">
-        /// The firing unit's skill level in this weapon's category, or
-        /// <see cref="HitAvoidance.UnknownOwnerSkillLevel"/> when the caller does not know it — which
-        /// is every current caller, because weapon-skill progression is the RPG bridge. It feeds
-        /// <see cref="MissChance"/> and nothing else; see <see cref="HitAvoidance.SkillConfidence"/>.
+        /// The firing unit's <b>tier</b> in this weapon's category — AS3
+        /// <c>Pers.getWeapLevel(skill)</c> (<c>Pers.as:1073-1104</c>), read off the shooter through
+        /// <c>IWeaponStatSource.OwnerWeaponSkillLevel</c>. It feeds <b>two</b> terms, both from the
+        /// same <c>gap = weaponLevel - tier</c>: <see cref="MissChance"/> (the under-skilled penalty,
+        /// <see cref="HitAvoidance.SkillConfidence"/>) and the over-qualification damage bonus
+        /// <see cref="HitAvoidance.SkillPlusDamage"/>. Pass
+        /// <see cref="HitAvoidance.UnknownOwnerSkillLevel"/> when the shooter has no stats (an enemy
+        /// built without a <c>Pers</c>), which leaves the miss chance at 0 and the bonus at 1.
+        /// </param>
+        /// <param name="weaponSkillMultiplier">
+        /// AS3 <c>_loc1_</c> in <c>Weapon.shoot</c> (<c>Weapon.as:1451-1459</c>) — the weapon-skill
+        /// multiplier <c>Pers.weaponSkills[skill]</c>, taken off the shooter through
+        /// <c>IWeaponStatSource.WeaponSkillMultiplier</c>. The base <c>Weapon</c> uses it as a
+        /// <b>direct</b> factor on damage (<c>resultDamage(damage, _loc1_)</c>, <c>:1516</c>) and a
+        /// <b>halved</b> factor on precision (<c>resultPrec</c>'s <c>(1 + (_loc1_-1)*0.5)</c>,
+        /// <c>:1634</c>); both are folded here.
+        ///
+        /// <para><b>Per-point, not per-tier.</b> The <c>&lt;sk tip='weap'&gt;</c> rows carry
+        /// <c>dop='1'</c>, so the value is <c>1 + 0.05 * skillPoints</c> — 1.45 at 9, 2.0 at the 20
+        /// cap.</para>
+        ///
+        /// <para><b>Do not pass this from a type whose own <c>resultDamage</c> differs.</b> Only the
+        /// base <c>Weapon</c> uses <c>* _loc1_</c> for damage and the halved form for precision.
+        /// <c>WThrow</c> applies <c>(1 + (_loc1_-1)*0.5)</c> to damage as well, and
+        /// <c>WMagic.resultPrec</c> drops the precision term entirely (<c>WMagic.as:105-108</c>).
+        /// 1 is the identity, and is the correct default until a caller has checked its own type.</para>
         /// </param>
         /// <param name="critInvisChance">
         /// <c>owner.critInvis</c> — the stealth-crit probability, read off the owner at
@@ -423,6 +445,7 @@ namespace PFE.Systems.Weapons
         public static DamageContext FromWeapon(
             WeaponDefinition def, GameObject owner, FactionType ownerFaction = FactionType.Neutral,
             int ownerWeaponSkillLevel = HitAvoidance.UnknownOwnerSkillLevel,
+            float weaponSkillMultiplier = 1f,
             float critInvisChance = 0f,
             float desintegrChance = 0f,
             float precisionMultiplier = 1f,
@@ -507,7 +530,18 @@ namespace PFE.Systems.Weapons
             return new DamageContext(
                 owner:             owner,
                 weapon:            def,
-                baseDamage:        def.baseDamage * ammoDamage,
+                // AS3 Weapon.as:1516 `b.damage = resultDamage(this.damage, _loc1_) * this.ammoDamage`
+                // — the weapon-skill multiplier is the `p2` slot of resultDamage (:1629), i.e. a
+                // direct factor sitting alongside the ammo's. Folding it here means every consumer of
+                // BaseDamage sees the skilled shot without knowing a skill exists.
+                //
+                // `skillPlusDam` is resultDamage's OTHER skill factor (`:1629` is
+                // `(p1 + damAdd) * damMult * p2 * skillPlusDam * (1 - breaking*0.3)`). Same gap,
+                // opposite rule: p2 rewards points spent, skillPlusDam rewards a tier ABOVE the
+                // weapon's requirement. AS3 caches it on the weapon in setPers (:984-992); the port
+                // derives it live off the same two inputs it already has.
+                baseDamage:        def.baseDamage * ammoDamage * weaponSkillMultiplier
+                                   * HitAvoidance.SkillPlusDamage(def.weaponLevel, ownerWeaponSkillLevel),
                 explosionDamage:   def.explosionDamage,
                 armorMultiplier:   ammoArmor,
                 piercing:          def.piercing + ammoPierce,
@@ -545,7 +579,12 @@ namespace PFE.Systems.Weapons
                 // (Weapon.as:1634, :1531). The port carries it as a factor so the raw weapon value
                 // stays visible; whoever evaluates accuracy composes the two. The round's own `prec`
                 // rides here too, for the same reason.
-                precisionMultiplier: precisionMultiplier * ammoPrec,
+                //
+                // The weapon skill enters through the same call — `resultPrec(owner.precMult, _loc1_)`
+                // (:1531) — but HALVED: `(1 + (_loc1_-1) * 0.5)` (:1634). So a x2.0 skill multiplier
+                // (20 points) tightens the spread by x1.5, not x2.
+                precisionMultiplier: precisionMultiplier * ammoPrec
+                                     * (1f + (weaponSkillMultiplier - 1f) * 0.5f),
                 ammo:              ammo
             );
         }

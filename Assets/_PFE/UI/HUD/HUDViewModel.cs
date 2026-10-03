@@ -277,6 +277,32 @@ namespace PFE.UI.HUD
         }
 
         /// <summary>
+        /// Wrap <paramref name="source"/> in a <see cref="ReadOnlyReactiveProperty{T}"/> this ViewModel
+        /// genuinely <b>owns</b>, so <see cref="Rebind"/> can dispose it without touching the game's data.
+        ///
+        /// <para><b>The identity <c>Select</c> is load-bearing — do not "simplify" it away.</b> R3's
+        /// <c>ToReadOnlyReactiveProperty()</c> short-circuits when the source is already a
+        /// <c>ReadOnlyReactiveProperty&lt;T&gt;</c>: it returns <i>the source object itself</i>.
+        /// <c>ReactiveProperty&lt;T&gt;</c> derives from that type, so <b>every</b> property this class
+        /// binds — <c>UnitStats.CurrentHp</c>/<c>MaxHp</c>/<c>Mana</c>/<c>ArmourIntegrity</c>/<c>HasArmour</c>,
+        /// <c>WeaponRuntimeState.CurrentAmmoRP</c>/<c>IsReloadingRP</c>/<c>ReloadProgressRP</c> — takes
+        /// that path. Adding the result to <see cref="_disposables"/> therefore hands the <i>game's own</i>
+        /// live property to the ViewModel, and <see cref="Rebind"/> (which runs on every weapon swap)
+        /// disposes it. The player's vitals and the weapon's state then throw
+        /// <c>ObjectDisposedException</c> on their next write, and the HUD wedges permanently because the
+        /// rebind that threw is never retried. Measured on 2026-10-03 against R3 1.3.0:
+        /// <c>ReferenceEquals(rp, rp.ToReadOnlyReactiveProperty())</c> is <b>true</b>, while
+        /// <c>rp.Select(x =&gt; x).ToReadOnlyReactiveProperty()</c> leaves <c>rp</c> writable after the
+        /// wrapper is disposed and still tracks it.</para>
+        ///
+        /// <para>Only the pass-through bindings need this. A binding that goes through an operator first
+        /// (<c>Select</c>, <c>CombineLatest</c>, <c>DistinctUntilChanged</c>) already builds a fresh
+        /// <c>ConnectedReactiveProperty</c>, so it is safe as written.</para>
+        /// </summary>
+        private static ReadOnlyReactiveProperty<T> Owned<T>(Observable<T> source)
+            => source.Select(x => x).ToReadOnlyReactiveProperty();
+
+        /// <summary>
         /// Set up reactive property bindings from game data sources.
         /// This is where we transform raw game data into UI-friendly reactive properties.
         /// </summary>
@@ -298,16 +324,17 @@ namespace PFE.UI.HUD
             }
             else
             {
-                // Weapon bindings
-                _currentAmmo = ammo.ToReadOnlyReactiveProperty();
+                // Weapon bindings. The pass-throughs go through Owned() so Rebind() cannot dispose the
+                // weapon's own state — see Owned.
+                _currentAmmo = Owned(ammo);
                 _maxAmmo = ammo.Select(_ => MagazineSize).ToReadOnlyReactiveProperty();
                 _ammoPercent = ammo.Select(a =>
                 {
                     int size = MagazineSize;
                     return size > 0 ? (float)a / size : 0f;
                 }).ToReadOnlyReactiveProperty();
-                _reloadProgress = ReloadProgressSource.ToReadOnlyReactiveProperty();
-                _isReloading = ReloadingSource.ToReadOnlyReactiveProperty();
+                _reloadProgress = Owned(ReloadProgressSource);
+                _isReloading = Owned(ReloadingSource);
 
                 _disposables.Add(_currentAmmo);
                 _disposables.Add(_maxAmmo);
@@ -324,8 +351,8 @@ namespace PFE.UI.HUD
             _healthPercent = playerStats.CurrentHp
                 .CombineLatest(playerStats.MaxHp, (current, max) => max > 0 ? current / max : 0f)
                 .ToReadOnlyReactiveProperty();
-            _currentHealth = playerStats.CurrentHp.ToReadOnlyReactiveProperty();
-            _maxHealth = playerStats.MaxHp.ToReadOnlyReactiveProperty();
+            _currentHealth = Owned(playerStats.CurrentHp);
+            _maxHealth = Owned(playerStats.MaxHp);
             _isAlive = playerStats.CurrentHp.Select(hp => hp > 0).ToReadOnlyReactiveProperty();
 
             _disposables.Add(_healthPercent);
@@ -334,8 +361,8 @@ namespace PFE.UI.HUD
             _disposables.Add(_isAlive);
 
             // Mana bindings
-            _currentMana = playerStats.Mana.ToReadOnlyReactiveProperty();
-            _maxMana = playerStats.MaxMana.ToReadOnlyReactiveProperty();
+            _currentMana = Owned(playerStats.Mana);
+            _maxMana = Owned(playerStats.MaxMana);
             _manaPercent = playerStats.Mana.CombineLatest(playerStats.MaxMana, (current, max) =>
                 max > 0 ? current / max : 0f
             ).ToReadOnlyReactiveProperty();
@@ -381,8 +408,8 @@ namespace PFE.UI.HUD
             // health there is no second source to combine: ArmourIntegrity is already 0..1 and already
             // published on every equip / wear / repair. Reading `playerStats.armour.IntegrityPercent`
             // instead would be a snapshot with no change signal, so the bar would never move.
-            _armourPercent = playerStats.ArmourIntegrity.ToReadOnlyReactiveProperty();
-            _hasArmour = playerStats.HasArmour.ToReadOnlyReactiveProperty();
+            _armourPercent = Owned(playerStats.ArmourIntegrity);
+            _hasArmour = Owned(playerStats.HasArmour);
 
             _disposables.Add(_armourPercent);
             _disposables.Add(_hasArmour);

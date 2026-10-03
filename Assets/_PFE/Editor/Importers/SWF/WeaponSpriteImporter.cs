@@ -407,6 +407,16 @@ namespace PFE.Editor.Importers.SWF
                 // Extract frame labels from SWF, or fall back to inferred defaults
                 ApplyFrameLabels(def, symbolId, sprites.Length, swfData, result);
 
+                // Recover the muzzle from the idle frame's art. AS3's `vis.emit` marker is not in the
+                // extracted data and the source SWF is not in the repository, so the barrel tip has to
+                // be measured — see WeaponMuzzleOffsetBaker. Done here rather than as a follow-up pass
+                // so a freshly imported weapon never spends any time with a (0,0) muzzle, which is the
+                // state that made shots leave the grip.
+                if (WeaponMuzzleOffsetBaker.TryBake(def, out Vector2 muzzle, out string muzzleDetail))
+                    result.Info($"  muzzle ({muzzle.x:0.####}, {muzzle.y:0.####}) — {muzzleDetail}");
+                else
+                    result.Info($"  muzzle NOT measured — {muzzleDetail}");
+
                 if (isNew)
                 {
                     AssetDatabase.CreateAsset(def, assetPath);

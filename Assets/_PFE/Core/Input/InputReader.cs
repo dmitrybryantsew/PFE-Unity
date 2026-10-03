@@ -31,11 +31,36 @@ namespace PFE.Core.Input
         public InputAction Interact { get; private set; }
         public InputAction Dash { get; private set; }
         public InputAction Teleport { get; private set; }
+        public InputAction Reload { get; private set; }
 
         // Save/load. These are polled by SaveHotkeys rather than published as messages: saving is
         // not gameplay state, so it has no business on the sim's message bus.
         public InputAction QuickSave { get; private set; }
         public InputAction QuickLoad { get; private set; }
+
+        // ---- Spells (AS3 Ctr.as:24-25, :62-65) ----
+
+        /// <summary>
+        /// <c>C</c> — AS3 <c>keyDef</c>: the <b>supportive-spell</b> cast button
+        /// (<c>UnitPlayer.as:2226-2247</c>). Held, and the consumer writes the held state back when the
+        /// cast clears it — see <see cref="SpellCastMessage"/>.
+        /// </summary>
+        public InputAction Defend { get; private set; }
+
+        /// <summary>
+        /// <c>T</c> — AS3 <c>keyMagic</c>: the assault <b>magic-weapon</b> button
+        /// (<c>UnitPlayer.as:2207-2223</c>). A different button from <see cref="Defend"/> on purpose.
+        /// </summary>
+        public InputAction MagicWeapon { get; private set; }
+
+        /// <summary>
+        /// The four favourite-spell slots — AS3 <c>keySpell1..4</c>. Slots 1-2 default to <c>Z</c>/<c>X</c>;
+        /// slots 3-4 are <b>unbound</b>, exactly as in the oracle (<c>Ctr.as:64-65</c>).
+        /// </summary>
+        public InputAction[] SpellHotkeys { get; private set; }
+
+        /// <summary>Number of favourite-spell slots — AS3 <c>World.kolQS</c> (<c>World.as:62</c>).</summary>
+        public const int SpellHotkeySlots = 4;
 
         // Reactive Properties (for UI binding with R3)
         public readonly ReactiveProperty<Vector2> MoveInput = new(Vector2.zero);
@@ -43,12 +68,22 @@ namespace PFE.Core.Input
         public readonly ReactiveProperty<bool> IsAttacking = new(false);
         public readonly ReactiveProperty<bool> IsDashing = new(false);
 
+        /// <summary>
+        /// Whether the Def key is down. Exposed for the HUD's spell indicator the way
+        /// <see cref="IsAttacking"/> is for the weapon readout — the gameplay path is the message.
+        /// </summary>
+        public readonly ReactiveProperty<bool> IsDefending = new(false);
+
         // MessagePipe Publishers (for gameplay logic)
         private readonly IPublisher<JumpMessage> _jumpPublisher;
         private readonly IPublisher<AttackMessage> _attackPublisher;
         private readonly IPublisher<InteractMessage> _interactPublisher;
         private readonly IPublisher<DashMessage> _dashPublisher;
         private readonly IPublisher<TeleportMessage> _teleportPublisher;
+        private readonly IPublisher<ReloadMessage> _reloadPublisher;
+        private readonly IPublisher<SpellCastMessage> _spellCastPublisher;
+        private readonly IPublisher<MagicWeaponMessage> _magicWeaponPublisher;
+        private readonly IPublisher<SpellHotkeyMessage> _spellHotkeyPublisher;
         private readonly PfeDebugSettings _debugSettings;
 
         // Constructor with dependency injection for MessagePipe publishers
@@ -58,6 +93,10 @@ namespace PFE.Core.Input
             IPublisher<InteractMessage> interactPublisher,
             IPublisher<DashMessage> dashPublisher,
             IPublisher<TeleportMessage> teleportPublisher,
+            IPublisher<ReloadMessage> reloadPublisher,
+            IPublisher<SpellCastMessage> spellCastPublisher,
+            IPublisher<MagicWeaponMessage> magicWeaponPublisher,
+            IPublisher<SpellHotkeyMessage> spellHotkeyPublisher,
             PfeDebugSettings debugSettings,
             PfeInputSettings settings = null)
         {
@@ -66,6 +105,10 @@ namespace PFE.Core.Input
             _interactPublisher = interactPublisher;
             _dashPublisher = dashPublisher;
             _teleportPublisher = teleportPublisher;
+            _reloadPublisher = reloadPublisher;
+            _spellCastPublisher = spellCastPublisher;
+            _magicWeaponPublisher = magicWeaponPublisher;
+            _spellHotkeyPublisher = spellHotkeyPublisher;
             _debugSettings = debugSettings;
 
             _gameplayMap = new InputActionMap("Gameplay");
@@ -112,6 +155,46 @@ namespace PFE.Core.Input
 
             Teleport = BuildButtonAction("Teleport", s?.teleport,
                 "<Keyboard>/q", "", "<Gamepad>/leftShoulder");
+
+            // R — AS3's own keyReload default (inter/Ctr.as:24). See ReloadMessage for what it drives.
+            Reload = BuildButtonAction("Reload", s?.reload,
+                "<Keyboard>/r", "", "<Gamepad>/buttonNorth");
+
+            // ---- Spells ----
+            //
+            // The four keys AS3 binds to magic, and the defaults are the oracle's own (Ctr.as:24-25,
+            // :62-65). Two things are load-bearing here:
+            //
+            // 1. `Defend` (C) and `MagicWeapon` (T) are SEPARATE actions. AS3 keeps the supportive
+            //    spells and the magic weapons on different keys, and merging them would make the nine
+            //    spells and the assault weapons compete for one button.
+            // 2. Slots 3 and 4 are added but left UNBOUND, matching Ctr.as:64-65. Dropping them would
+            //    make the slot count disagree with World.kolQS (4) and with `invent.fav`'s indexing
+            //    (kolHK * 2 + slot), which is what the hotkey message carries.
+            Defend = BuildButtonAction("Defend", s?.defend,
+                "<Keyboard>/c", "", "<Gamepad>/rightTrigger");
+
+            MagicWeapon = BuildButtonAction("MagicWeapon", s?.magicWeapon,
+                "<Keyboard>/t", "", "<Gamepad>/leftTrigger");
+
+            SpellHotkeys = new InputAction[SpellHotkeySlots];
+            ButtonBinding[] spellBindings =
+            {
+                s?.spell1, s?.spell2, s?.spell3, s?.spell4,
+            };
+            string[] spellDefaults =
+            {
+                "<Keyboard>/z", "<Keyboard>/x", "", "",
+            };
+            string[] spellGamepad =
+            {
+                "<Gamepad>/dpadLeft", "<Gamepad>/dpadRight", "", "",
+            };
+            for (int i = 0; i < SpellHotkeySlots; i++)
+            {
+                SpellHotkeys[i] = BuildButtonAction(
+                    "Spell" + (i + 1), spellBindings[i], spellDefaults[i], "", spellGamepad[i]);
+            }
 
             QuickSave = BuildButtonAction("QuickSave", s?.quickSave,
                 "<Keyboard>/f5", "", "<Gamepad>/select");
@@ -222,6 +305,48 @@ namespace PFE.Core.Input
                     $"[INPUT] Teleport.canceled  control={ctx.control?.path}");
                 _teleportPublisher.Publish(new TeleportMessage { IsStarted = false });
             };
+
+            // Reload - press edge only. Both consumers are edge-triggered at the far end and the
+            // detonator consumes the key itself in AS3; see ReloadMessage for the citations.
+            Reload.started += _ =>
+            {
+                if (_debugSettings?.LogInputActionEvents == true)
+                    Debug.Log("[InputReader] Reload started — publishing ReloadMessage.");
+                _reloadPublisher.Publish(new ReloadMessage { IsStarted = true });
+            };
+
+            // ---- Spells ----
+            //
+            // All three publish BOTH edges, and that is not symmetry for its own sake: `keyDef` and
+            // `keySpell*` are held booleans in AS3, and the cast itself clears the key when it fails or
+            // when the spell has no `prod` (UnitPlayer.as:2237-2244, :2268-2276). The consumer writes
+            // the held state back, so a press-only message would leave the whole `prod` rule — the one
+            // thing that distinguishes sp_cryst from the other eight — unreachable.
+            Defend.started += _ =>
+            {
+                IsDefending.Value = true;
+                _spellCastPublisher.Publish(new SpellCastMessage { IsHeld = true });
+            };
+            Defend.canceled += _ =>
+            {
+                IsDefending.Value = false;
+                _spellCastPublisher.Publish(new SpellCastMessage { IsHeld = false });
+            };
+
+            MagicWeapon.started += _ =>
+                _magicWeaponPublisher.Publish(new MagicWeaponMessage { IsHeld = true });
+            MagicWeapon.canceled += _ =>
+                _magicWeaponPublisher.Publish(new MagicWeaponMessage { IsHeld = false });
+
+            for (int i = 0; i < SpellHotkeys.Length; i++)
+            {
+                // Fresh local per iteration, so the closure captures this slot and not the loop variable.
+                int slot = i + 1;
+                SpellHotkeys[i].started += _ =>
+                    _spellHotkeyPublisher.Publish(new SpellHotkeyMessage { Slot = slot, IsHeld = true });
+                SpellHotkeys[i].canceled += _ =>
+                    _spellHotkeyPublisher.Publish(new SpellHotkeyMessage { Slot = slot, IsHeld = false });
+            }
         }
 
         /// <summary>
@@ -237,6 +362,7 @@ namespace PFE.Core.Input
             IsJumping.Dispose();
             IsAttacking.Dispose();
             IsDashing.Dispose();
+            IsDefending.Dispose();
         }
 
         // Helper properties for polling if needed (though events are preferred)

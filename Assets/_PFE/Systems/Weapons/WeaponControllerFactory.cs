@@ -53,15 +53,23 @@ namespace PFE.Systems.Weapons
         /// </summary>
         private readonly IAmmoResolver _ammoResolver;
 
+        /// <summary>
+        /// Live mana for the magic path, or null for "no tracking". Separate from
+        /// <see cref="IWeaponStatSource"/> because mana is per-unit state the shot <i>mutates</i>,
+        /// not a multiplier copied onto the weapon at equip time — see <see cref="IManaSource"/>.
+        /// </summary>
+        private readonly IManaSource _manaSource;
+
         public WeaponControllerFactory(PfeDebugSettings debugSettings = null, IAmmoSource ammoSource = null,
                                        PFE.Core.Rng.IRngService rng = null, IWeaponStatSource statSource = null,
-                                       IAmmoResolver ammoResolver = null)
+                                       IAmmoResolver ammoResolver = null, IManaSource manaSource = null)
         {
             _debugSettings = debugSettings;
             _ammoSource    = ammoSource;
             _rng           = rng;
             _statSource    = statSource;
             _ammoResolver  = ammoResolver;
+            _manaSource    = manaSource;
         }
 
         /// <summary>
@@ -86,6 +94,27 @@ namespace PFE.Systems.Weapons
                 return null;
             }
 
+            // ── Supportive magic is not a held weapon ────────────────────────────────────────────
+            //
+            // AS3 dispatches on `tip` alone, and the nine spell items carry tip='5', so the raw
+            // dispatch would put them in WMagic. AS3 never gets that far: UnitPlayer.changeWeapon
+            // intercepts the selection first — `if(_loc3_.spell) { … invent.useItem(id); return; }`
+            // (UnitPlayer.as:3627-3635) — so a spell is CAST, never equipped or fired.
+            //
+            // There is no Unity caster yet, so there is no correct controller to build. Returning
+            // null is the honest answer, and the same one this method already gives for a null
+            // definition. What must NOT happen is building a MagicWeaponController here: it would
+            // fire a real (if harmless) projectile from an item that has no <char> body and no
+            // mana cost at all — wrong behaviour that a play-test could easily read as progress.
+            if (def.spell)
+            {
+                Debug.LogWarning(
+                    $"[WeaponControllerFactory] '{def.weaponId}' is a supportive spell (AS3 weapon@spell), " +
+                    "not a held weapon — no controller created. Spells are cast from the inventory. " +
+                    "See docs/OnWeaponsSystemImplementation/14_MagicSystemAudit_2026-10-03.md §3.");
+                return null;
+            }
+
             var state = new WeaponRuntimeState(def);
             state.OwnerFaction = ownerFaction;
 
@@ -99,11 +128,16 @@ namespace PFE.Systems.Weapons
                     break;
 
                 case WeaponType.Thrown:         // tip 4 → WThrow
-                    controller = new ThrownWeaponController(state);
+                    // Same three dependencies the ranged controller takes, and for the same reasons:
+                    // WThrow.shoot() calls setBullet() (so the round's terms must reach the shot) and
+                    // reads `owner.weaponSkill` / `owner.mazil` for its launch speed and spread.
+                    controller = new ThrownWeaponController(state, _statSource, _ammoResolver, _rng);
                     break;
 
                 case WeaponType.Magic:          // tip 5 → WMagic
-                    controller = new MagicWeaponController(state);
+                    // Takes the stat source too, for the `checkAvail` skill gate WMagic.attack() runs
+                    // (WMagic.as:46-52) — the same gate ranged and melee already apply.
+                    controller = new MagicWeaponController(state, _manaSource, _statSource);
                     break;
 
                 case (WeaponType)PaintTip:      // tip 12 → WPaint — no Unity class, and no data uses it

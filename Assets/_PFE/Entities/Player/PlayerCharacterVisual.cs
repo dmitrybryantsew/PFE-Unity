@@ -4,6 +4,7 @@ using PFE.Character.Animation;
 using PFE.Core;
 using PFE.Data.Definitions;
 using PFE.Entities.Units;
+using PFE.Systems.Magic;
 using R3;
 using UnityEngine;
 
@@ -51,6 +52,14 @@ namespace PFE.Entities.Player
 
         /// <summary>Stops <c>Start</c> rebinding a stats source that was already bound explicitly.</summary>
         bool _bound;
+
+        /// <summary>
+        /// The last shield visibility this view pushed, so <see cref="Update"/> can tell a rise from a
+        /// fall. Held here rather than read back off the context because the context is a struct copied
+        /// into the assembler — reading it back would report the assembler's state, not this view's last
+        /// decision.
+        /// </summary>
+        bool _shieldVisible;
 
         // ── Unity lifecycle ──────────────────────────────────────────────────
 
@@ -105,6 +114,35 @@ namespace PFE.Entities.Player
         }
 
         void OnDestroy() => _disposables?.Dispose();
+
+        /// <summary>
+        /// Drives the shield graphic off <c>shithp</c> — AS3 <c>UnitPlayer.as:4916-4924</c>.
+        ///
+        /// <para><b>Polled, not subscribed, and that is the oracle's shape rather than laziness.</b>
+        /// <c>shithp</c> is a plain field on <see cref="UnitStats"/>, not a <c>ReactiveProperty</c>:
+        /// three of its four producers are <i>not</i> the spell system (four bosses set it directly), so
+        /// there is no single write to hook. AS3 reads it every frame in the player's vis update, and so
+        /// does this — a view may poll; the sim may not.</para>
+        ///
+        /// <para>Only the two edges are pushed into the context. Pushing the level every frame would
+        /// rebuild the sprite composition 60 times a second for a value that changes on a cast and on a
+        /// break.</para>
+        /// </summary>
+        void Update()
+        {
+            if (_stats == null) return;
+
+            float shitHp = _stats.ShitHp;
+
+            if (SpellShield.ShouldShow(shitHp, _shieldVisible))
+            {
+                SetShieldVisible(true);
+            }
+            else if (SpellShield.ShouldHide(shitHp, _shieldVisible))
+            {
+                SetShieldVisible(false);
+            }
+        }
 
         // ── Public runtime API ───────────────────────────────────────────────
 
@@ -180,6 +218,25 @@ namespace PFE.Entities.Player
         public void SetHideMane(bool hide)
         {
             _context.hideMane = hide;
+            PushContext();
+        }
+
+        /// <summary>
+        /// Show or hide the spell shield — AS3's <c>vis.shit.visible</c> plus its
+        /// <c>gotoAndPlay(1)</c>/<c>gotoAndStop(1)</c>.
+        ///
+        /// <para>Called from <see cref="Update"/> on the two edges
+        /// <see cref="SpellShield.ShouldShow"/>/<see cref="SpellShield.ShouldHide"/> decide, so the
+        /// rule stays in the tested class and this method stays a setter. Pushing the context is the
+        /// whole of its job: <c>vis.shit</c> is an <b>overlay clip</b>, not a body part, and
+        /// <see cref="CharacterSpriteAssembler"/> owns that clip's playhead — it restarts on the rise
+        /// edge and resets on the fall edge, which is exactly <c>gotoAndPlay(1)</c>/<c>gotoAndStop(1)</c>.
+        /// So nothing here advances frames, and nothing here needs to.</para>
+        /// </summary>
+        public void SetShieldVisible(bool visible)
+        {
+            _shieldVisible = visible;
+            _context.showShield = visible;
             PushContext();
         }
 

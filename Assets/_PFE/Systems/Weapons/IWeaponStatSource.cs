@@ -225,5 +225,48 @@ namespace PFE.Systems.Weapons
         /// the weapon's own precision untouched.</para>
         /// </summary>
         float PrecisionMultiplier { get; }
+
+        // ── Weapon-skill channel (AS3 `_loc1_` in Weapon.shoot) ────────────────
+        //
+        // AS3 resolves the weapon-skill multiplier ONCE per shot and puts it in `_loc1_`:
+        //
+        //   Weapon.as:1451-1459
+        //     _loc1_ = 1;
+        //     if(this.owner) { _loc1_ = this.owner.weaponSkill;
+        //                      if(this.owner.player) _loc1_ = this.weaponSkill; }
+        //
+        // and then feeds it to four places:
+        //   :1460  the spread divisor  `deviation * … / (_loc1_ + 0.01)`
+        //   :1516  the damage          `resultDamage(damage, _loc1_) * ammoDamage`
+        //   :1523  the miss chance     `1 - skillConf` (skillConf set by checkAvail, :1366-1388)
+        //   :1531  the precision       `resultPrec(owner.precMult, _loc1_)`
+        //
+        // `_loc1_` itself comes from `Pers.weaponSkills[skill]` (Weapon.setPers:966), which
+        // `Pers.setSkillParam` fills from the `<sk tip='weap' id='N' …>` rows (:1513-1515). The two
+        // members below are the two halves a shot needs: the multiplier and the tier the gate and
+        // `skillPlusDam` are measured against.
+
+        /// <summary>
+        /// <c>Pers.weaponSkills[code]</c> — the damage/precision multiplier for the weapon whose
+        /// numeric skill code is <paramref name="skillCode"/> (AS3 <c>Weapon.setPers</c>:966).
+        ///
+        /// <para>Keyed by the CODE (1..7 = melee/smallguns/repair/energy/explosives/magic/tele), not
+        /// by the skill's name — the importer stores the raw <c>id</c> attribute. The value is
+        /// <c>1 + 0.05 * points</c> because the rows carry <c>dop='1'</c>, so it is per skill
+        /// <i>point</i>: 1.0 at 0, 1.45 at 9, 2.0 at the 20 cap. A source with no stats returns 1,
+        /// which leaves the weapon's own damage untouched — AS3's state for a unit with no Pers.</para>
+        /// </summary>
+        float WeaponSkillMultiplier(int skillCode);
+
+        /// <summary>
+        /// AS3 <c>Pers.getWeapLevel(skill)</c> (<c>Pers.as:1073-1104</c>) — the owner's <b>tier</b>
+        /// (0..5) in the skill that <paramref name="skillCode"/> names, or <c>100</c> for a code the
+        /// oracle does not recognise (its fail-open sentinel, so such a weapon is never gated).
+        ///
+        /// <para>This is <c>param2</c> to <c>setSkillParam</c>, and the left operand of the gate
+        /// <c>gap = weapon.lvl - getWeapLevel(skill)</c> (<c>Weapon.as:1368</c>). It is NOT the same
+        /// scale as <see cref="WeaponSkillMultiplier"/>, which reads raw points.</para>
+        /// </summary>
+        int OwnerWeaponSkillLevel(int skillCode);
     }
 }

@@ -4,6 +4,11 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text.RegularExpressions;
 using PFE.Data.Definitions;
+using PFE.Systems.Weapons;
+// Brings Attr / AttrF / AttrI / AttrBool into scope unqualified, so the ~40 call sites below read
+// exactly as they did when these were private helpers on this class. They are NOT private any more:
+// see the Helpers region for why.
+using static PFE.Systems.Weapons.WeaponXmlAttrs;
 
 namespace PFE.Editor.Importers
 {
@@ -28,6 +33,25 @@ namespace PFE.Editor.Importers
     ///     <dop  effect='blind' damage='2' ch='1' probiv='0.4'/>
     ///   </weapon>
     ///
+    /// Thrown-only attributes, on the weapon root and its tier-1 <char>:
+    ///
+    ///   <weapon id='hmine' tip='4' skill='5' throwtip='1'>
+    ///     <char rapid='30' maxhp='10' time='15' sens='100' damexpl='125' expl='180' radio='1'/>
+    ///     <phis speed='5' bumc='1'/>
+    ///
+    /// `throwtip` (root) picks mine-vs-grenade, `time` (char) is the fuse, `radio` (char) enables the
+    /// reload-key detonator, `sens` (char) is the placed mine's proximity box, and `bumc` (phis) is
+    /// contact detonation. All five were previously unimported — see
+    /// docs/AUDIT_throwable_and_explosive_2026-10-03.md §1.
+    ///
+    /// A weapon block may also be <b>self-closing</b>, with no body and no closing tag:
+    ///
+    ///   <weapon id='sp_slow' tip='5' skill='6' perslvl='3' spell='1'/>
+    ///
+    /// All nine supportive-magic weapons are written that way, and they are the last weapon entries
+    /// in the file. The block matcher is <see cref="PFE.Systems.Weapons.WeaponXmlBlocks"/>, which
+    /// handles both shapes; the earlier inline pattern did not, and skipped exactly those nine.
+    ///
     /// Multiple <char> nodes = weapon variants (tier 1, tier 2…). We import tier-1 only
     /// and store variant count for future use.
     /// </summary>
@@ -38,27 +62,20 @@ namespace PFE.Editor.Importers
             "Assets/_PFE/Data/Resources/Weapons";
 
         // ── Helpers ─────────────────────────────────────────────────────────────
-
-        private static string Attr(string src, string name, string fallback = "")
-        {
-            var m = Regex.Match(src, $@"{name}='([^']*)'");
-            return m.Success ? m.Groups[1].Value : fallback;
-        }
-
-        private static float AttrF(string src, string name, float fallback = 0f)
-        {
-            var s = Attr(src, name);
-            return string.IsNullOrEmpty(s) ? fallback : float.Parse(s);
-        }
-
-        private static int AttrI(string src, string name, int fallback = 0)
-        {
-            var s = Attr(src, name);
-            return string.IsNullOrEmpty(s) ? fallback : int.Parse(s);
-        }
-
-        private static bool AttrBool(string src, string name) =>
-            Regex.IsMatch(src, $@"{name}='1'");
+        //
+        // Attr / AttrF / AttrI / AttrBool now live in PFE.Systems.Weapons.WeaponXmlAttrs and are
+        // imported with `using static` above, so the call sites below are unchanged.
+        //
+        // They moved because they had a boundary bug that nothing in this assembly could catch:
+        // `Regex.Match(src, name + "='([^']*)'")` matches a name that is the SUFFIX of another, so
+        // `expl` read `damexpl`, `kol` read `dkol` and `lvl` read `perslvl` — 81 reads across 72 of
+        // the 213 weapons, all silently wrong (balemine's blast radius 750 instead of 300; dronlaser
+        // firing 15 rounds per shot; fireball's weaponLevel 12 instead of 0). PFE.Tests does not
+        // reference PFE.Editor, so no fixture in this project could have exercised them here. In the
+        // runtime assembly they are covered by WeaponXmlBlocksTests.
+        //
+        // Node / AllNodes / NodeText stay local: they are not duplicated anywhere and have no
+        // colliding-name failure mode.
 
         // Extract the raw content of the first XML node that matches tag,
         // searching inside parent. Returns null if not found.
@@ -149,18 +166,25 @@ namespace PFE.Editor.Importers
             string all = File.ReadAllText(AllDataPath);
             int imported = 0, updated = 0, skipped = 0;
 
-            // Match every <weapon …> … </weapon> block (or self-closing)
-            var weaponBlocks = Regex.Matches(all,
-                @"<weapon\s+id='([^']+)'([^>]*)>(.*?)</weapon>",
-                RegexOptions.Singleline);
+            // Every <weapon …> block, self-closing ones included. The matching lives in
+            // WeaponXmlBlocks rather than here so the offline wall can exercise it — this file is
+            // in PFE.Editor, which PFE.Tests does not reference, and a bug in exactly this pattern
+            // went unnoticed for days in that blind spot.
+            //
+            // What it was: the old pattern required a literal </weapon>, so it dropped the nine
+            // self-closing spell weapons (AllData.as:4017-4025). They are the LAST weapon entries
+            // in the file, so there is no later </weapon> to close against and the match never
+            // happens — 204 weapons imported instead of 213, with no error and no missing asset
+            // (the nine .asset files already existed, frozen at an earlier run).
+            var weaponBlocks = WeaponXmlBlocks.Parse(all);
 
             Debug.Log($"[WeaponDataImporter] Found {weaponBlocks.Count} weapon blocks.");
 
-            foreach (Match block in weaponBlocks)
+            foreach (var block in weaponBlocks)
             {
-                string id        = block.Groups[1].Value;
-                string rootAttrs = block.Groups[2].Value;
-                string body      = block.Groups[3].Value;
+                string id        = block.Id;
+                string rootAttrs = block.RootAttrs;
+                string body      = block.Body;
 
                 string assetPath = $"{OutputPath}/{id}.asset";
                 bool exists = File.Exists(assetPath);
@@ -227,6 +251,31 @@ namespace PFE.Editor.Importers
             def.weaponLevel = AttrI(rootAttrs, "lvl",   0);
             def.alicornOnly = AttrBool(rootAttrs, "alicorn");
 
+            // AS3 weapon@spell (Weapon.as:118) — the flag that separates the two unrelated things
+            // sharing tip==5. Assault magic (WMagic: fireball, eclipse, mray …) is held and fired;
+            // supportive magic is a Spell that is *cast from the inventory* and never equipped
+            // (UnitPlayer.as:3627-3635 — `if(_loc3_.spell) { … useItem(id); return; }`).
+            //
+            // Nine weapons carry it, sp_slow … sp_invulner (AllData.as:4017-4025), and every one is
+            // self-closing with no <char> body at all. Until the block matcher above was fixed they
+            // were not imported in any form, so this line had nothing to read.
+            //
+            // Presence-based, exactly like alicorn above: AS3 never writes spell='0'.
+            def.spell = AttrBool(rootAttrs, "spell");
+
+            // ── Thrown dispatch — WThrow.as:44-47 ────────────────────────────────
+            //
+            // `throwtip` is the *only* thing that separates a thrown grenade from a placed mine:
+            // WThrow.shoot() branches `if(throwTip == 1) → new Mine(...) else → new PhisBullet(...)`.
+            // AS3 reads it off the weapon ROOT and keeps its 0 default when the attribute is absent
+            // (`if(node.@throwtip > 0)`), so a plain AttrI with a 0 fallback is the same rule.
+            //
+            // Not importing it left the field at 0 for all 13 throwables, which made the mine branch
+            // of ThrownWeaponController unreachable — MineObject, Mine.prefab and the wired
+            // _minePrefab were dead code and the eight mine weapons arc-threw a grenade instead.
+            // See docs/AUDIT_throwable_and_explosive_2026-10-03.md §1a.
+            def.throwTip = AttrI(rootAttrs, "throwtip", 0);
+
             // Root-level tipdec (melee weapons carry tipdec on the weapon tag itself)
             int rootTipdec = AttrI(rootAttrs, "tipdec", -1);
 
@@ -257,6 +306,28 @@ namespace PFE.Editor.Importers
             def.explosionDamage     = AttrF(charT1, "damexpl", 0f);
             def.prepFrames          = AttrI(charT1, "prep",    0); // wind-up frames (minigun=32, flamer=10, etc.)
 
+            // ── Thrown fuse + radio — WThrow.as:52-59 ─────────────────────────────
+            //
+            // detTime: `if(node.char[0].@time > 0) this.detTime = ...` — a 0 or absent `time` keeps
+            // the class default 75. Reading it as an unconditional AttrI would let a literal
+            // `time='0'` produce a zero-frame fuse, so the `> 0` test is reproduced.
+            //
+            // This is the fuse for BOTH thrown sub-types off the same node: `WThrow.detTime` for the
+            // arc throw, and (multiplied by 0.3 in WThrow.as:155) the mine's countdown. Not importing
+            // it left every throwable on the 75 default — mercgr's 120 became 75, and the mines' 15
+            // became 75, i.e. a mine countdown ~5x too long.
+            int detTime = AttrI(charT1, "time", 0);
+            if (detTime > 0) def.fuseFrames = detTime;
+
+            // radio: AS3 tests attribute PRESENCE, not value (`Boolean(node.char.@radio.length())`),
+            // but every row that sets it uses '1', so the presence test and AttrBool agree on this
+            // data. radio is meaningful only for WThrow — it is the x37 mine's only way to fire.
+            def.radio = AttrBool(charT1, "radio");
+
+            // sens: the placed mine's proximity half-width (Mine.as:166-169). Declaration default
+            // 100; x37 sets 0, which is AS3's "never proximity-trigger" — see WeaponDefinition.sens.
+            def.sens = AttrF(charT1, "sens", 100f);
+
             // tipdam → DamageType
             int tipdam = AttrI(charT1, "tipdam", 0);
             def.damageType = (DamageType)tipdam;
@@ -284,6 +355,15 @@ namespace PFE.Editor.Importers
             def.bulletFlame     = AttrI(phis, "flame",     0);
             def.bulletNavod     = AttrF(phis, "navod",     0f);
 
+            // Contact detonation — `<phis bumc>`, read by WThrow.as:60-63 into `WThrow.bumc` and then
+            // stamped on the bullet (:184). Two weapons carry it: acidgr and molotov, both throwables.
+            //
+            // This is NOT `vis@phisbul`, which is the attribute the port used to read here. The two
+            // live on different nodes, mean different things (phisbul selects the ProjectileArchetype
+            // in DeriveArchetype below), and their weapon sets are disjoint — so reading one for the
+            // other meant neither acidgr nor molotov ever detonated on contact.
+            def.bumc = AttrBool(phis, "bumc");
+
             // ── <vis> ────────────────────────────────────────────────────────
             string vis = Node(body, "vis") ?? "";
 
@@ -291,6 +371,9 @@ namespace PFE.Editor.Importers
             def.springMode     = AttrI(vis, "spring",  1);
             def.bulletAnimated = AttrBool(vis, "bulanim");
             def.hasShell       = AttrBool(vis, "shell");
+            // vis@phisbul is an ARCHETYPE selector, not a detonation flag: DeriveArchetype below reads
+            // it to choose ProjectileArchetype.Explosive. It used to be consumed a second time by
+            // ProjectileSpawner as `bumc`, which was wrong — see def.bumc above.
             def.isPhysBullet   = AttrBool(vis, "phisbul");
             def.shineRadius    = AttrI(vis, "shine", 500);
 
@@ -321,7 +404,18 @@ namespace PFE.Editor.Importers
 
             def.magazineSize = AttrI(ammo, "holder",  0);
             def.reloadTime   = AttrF(ammo, "reload",  0f);
-            def.manaCost     = AttrF(ammo, "mana",    0f);
+
+            // Magic's TWO costs, and which attribute is which. AS3 `Weapon.getAmmoParam`
+            // (Weapon.as:885-891) maps them separately:
+            //     ammo@magic -> this.magic / this.dmagic   (the regenerating mana BUDGET, Unit.mana)
+            //     ammo@mana  -> this.mana  / this.dmana    (the mana ORGAN, Pers.manaHP)
+            // WMagic.shoot() then spends `dmagic` from the budget and wounds the organ by `dmana`
+            // (WMagic.as:110-122). This used to read only `mana` — into `manaCost`, which no
+            // consumer ever read — so every magic weapon in the game cost nothing: `magic` (500 on
+            // fireball, 800 on eclipse) was dropped outright and `magicPoolCost` / `manaHealthCost`
+            // stayed 0. See docs/OnWeaponsSystemImplementation/13_WeaponTypeBehaviourAudit_2026-09-27.md §6.
+            def.magicPoolCost  = AttrF(ammo, "magic", 0f);
+            def.manaHealthCost = AttrF(ammo, "mana",  0f);
 
             // <a> text node → ammo type ID
             def.ammoType = NodeText(body, "a");

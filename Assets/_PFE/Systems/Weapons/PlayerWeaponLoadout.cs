@@ -9,6 +9,7 @@ using PFE.Entities.Weapons;
 using PFE.Systems.Audio;
 using PFE.Systems.Combat;
 using PFE.Systems.Inventory;
+using PFE.Systems.Magic;
 using PFE.Systems.Weapons.Controllers;
 
 namespace PFE.Systems.Weapons
@@ -141,7 +142,11 @@ namespace PFE.Systems.Weapons
         /// </summary>
         private void RebuildFactory()
         {
-            _factory = new WeaponControllerFactory(_debugSettings, _ammoSource, _rng, _weaponStatSource, _ammoResolver);
+            // The stat source doubles as the mana source: CharacterStats implements both, and a test
+            // double that only supplies multipliers simply yields null mana ("no tracking"). This is
+            // why no separate field is needed — the two seams are the same object in production.
+            _factory = new WeaponControllerFactory(_debugSettings, _ammoSource, _rng, _weaponStatSource,
+                                                   _ammoResolver, _weaponStatSource as IManaSource);
         }
 
         [Inject]
@@ -172,6 +177,24 @@ namespace PFE.Systems.Weapons
         private bool _prepWasAttacking; // tracks previous-frame attack state for prep sound edges
         private readonly object _prepSoundKey = new object(); // stable key for ISoundService loop
 
+        /// <summary>
+        /// The unit that owns this loadout. Cached because the hold point is derived from its body
+        /// every frame (<see cref="WeaponHoldPointMath"/>) and the muzzle push needs it too, while
+        /// <c>GetComponentInParent</c> is a hierarchy walk that has no business in a fixed step.
+        /// </summary>
+        private PFE.Entities.Units.UnitController _ownerUnit;
+
+        /// <summary>
+        /// The player's spell caster, resolved lazily and cached.
+        ///
+        /// <para>Lazy rather than cached in <c>Awake</c> because <see cref="PFE.Entities.Player.PlayerController"/>
+        /// adds the caster during its own <c>Awake</c> and Unity does not order two components' <c>Awake</c>
+        /// calls — a cache taken too early would hold a null forever. <c>GetComponentInParent</c> is a
+        /// hierarchy walk, so it is done once, on the first spell selection, and only re-done while it is
+        /// still null.</para>
+        /// </summary>
+        private PlayerSpellCaster _spellCaster;
+
         // Pending shots from this FixedUpdate — forwarded to spawner/presenter.
         private readonly List<ShotPlan> _pendingPlans = new();
 
@@ -183,12 +206,62 @@ namespace PFE.Systems.Weapons
         /// <summary>Set the world-space aim target. Called by PlayerController each Update.</summary>
         public void SetAimTarget(Vector2 worldTarget) => _aimTarget = worldTarget;
 
+        /// <summary>
+        /// The current world-space aim target, in <b>Unity units</b>. Read by the spell caster, which
+        /// needs the same point the weapon is aiming at: AS3 casts at <c>World.w.celX</c>/<c>celY</c>
+        /// (<c>UnitPlayer.as:2234</c>), the cursor, and this is the port's equivalent.
+        /// </summary>
+        public Vector2 AimTarget => _aimTarget;
+
         /// <summary>Equip a weapon by definition, disposing the previous controller.</summary>
         public void Equip(WeaponDefinition def)
         {
             if (def == null)
             {
                 Debug.LogWarning("[PlayerWeaponLoadout] Equip called with null definition — skipping.");
+                return;
+            }
+
+            // ── A spell is not equipped; it is cast ──────────────────────────────────────────────
+            //
+            // This is the seam AS3 uses, and the reason the `spell` flag exists at all: the nine
+            // supportive-magic items are tip='5' like the assault magic, but they are items you use
+            // from the inventory. UnitPlayer.changeWeapon sees the flag and calls
+            // `invent.useItem(id)` instead of switching (UnitPlayer.as:3627-3635), so the weapon in
+            // hand is left untouched.
+            //
+            // Returning here — before the Dispose below — reproduces that: selecting a spell does
+            // not disarm you.
+            if (def.spell)
+            {
+                // The dispatch the earlier passes left as a refusal. `useItem`'s tip == "spell" branch
+                // (Invent.as:625-633) calls `gg.changeSpell(id)`, and changeSpell only *toggles the
+                // selection* — it never casts. The cast happens on the next tick, on the Def key or a
+                // favourite hotkey (UnitPlayer.as:2226-2284), which PlayerSpellCaster now drives.
+                //
+                // LearnSpell first, then Select: `Select` is a lookup, so an id the book has never seen
+                // would be treated as "unknown id" and clear the selection instead (the oracle relies on
+                // that for the deselect case, Invent.as:849-852). The item being used is what proves the
+                // spell is owned, which is exactly AS3's precondition — `invent.spells[id]` is populated
+                // by addSpell when the item is taken, before useItem can be reached.
+                var caster = ResolveSpellCaster();
+                if (caster == null)
+                {
+                    Debug.LogWarning(
+                        $"[PlayerWeaponLoadout] '{def.weaponId}' is a supportive spell (AS3 weapon@spell) " +
+                        "but no PlayerSpellCaster was found on the player — the spell cannot be selected. " +
+                        "Nothing is equipped, which is correct: a spell is never a weapon.");
+                    return;
+                }
+
+                caster.LearnSpell(def.weaponId);
+                Spell selected = caster.SelectSpell(def.weaponId);
+
+                Debug.Log(selected != null
+                    ? $"[PlayerWeaponLoadout] '{def.weaponId}' selected as the current spell " +
+                      "(AS3 changeSpell) — cast it with the Def key."
+                    : $"[PlayerWeaponLoadout] '{def.weaponId}' toggled OFF (AS3 changeSpell is a toggle) — " +
+                      "no spell is selected.");
                 return;
             }
 
@@ -202,8 +275,13 @@ namespace PFE.Systems.Weapons
             // because the loadout sits on the player or one of its children; a missing UnitController
             // leaves Neutral, which makes the weapon hit everyone (AS3's own default) rather than
             // silently picking a side.
+            // Awake caches the owner; re-resolve only if it was missing then, for a rig assembled
+            // after Awake. The common path therefore does no hierarchy walk.
+            if (_ownerUnit == null)
+                _ownerUnit = GetComponentInParent<PFE.Entities.Units.UnitController>();
+
             FactionType ownerFaction = FactionType.Neutral;
-            var ownerUnit = GetComponentInParent<PFE.Entities.Units.UnitController>();
+            var ownerUnit = _ownerUnit;
             if (ownerUnit != null) ownerFaction = ownerUnit.Faction;
 
             // Resolve the owner's RPG stats before building the controller — AS3 reads them in
@@ -221,6 +299,16 @@ namespace PFE.Systems.Weapons
             }
 
             _current = _factory.Create(def, ownerFaction);
+
+            if (_current == null)
+            {
+                // The factory returns null for a definition with no held controller. Today that is
+                // only a supportive spell, which this method refuses above — but the next lines
+                // dereference _current, so the possibility is guarded rather than assumed. A silent
+                // NRE here would surface as an unrelated crash in the presenter.
+                Debug.LogWarning($"[PlayerWeaponLoadout] No controller for '{def.weaponId}' — nothing equipped.");
+                return;
+            }
 
             // Wire MeleeHitVolume to the controller when it's a melee weapon.
             if (_current is MeleeWeaponController meleeCtrl)
@@ -245,6 +333,21 @@ namespace PFE.Systems.Weapons
             }
 
             Debug.Log($"[PlayerWeaponLoadout] Equipped '{def.weaponId}'.");
+        }
+
+        /// <summary>
+        /// The player's <see cref="PlayerSpellCaster"/>, or null when the rig has none.
+        ///
+        /// <para>Resolved through the parent because the loadout may sit on a child of the player, and
+        /// the caster is added to the player root. A null result is reported by the caller rather than
+        /// swallowed, because "the spell did not select" and "there is no caster" have different fixes
+        /// and look identical from the outside.</para>
+        /// </summary>
+        private PlayerSpellCaster ResolveSpellCaster()
+        {
+            if (_spellCaster == null)
+                _spellCaster = GetComponentInParent<PlayerSpellCaster>();
+            return _spellCaster;
         }
 
         // ── Input API (called by PlayerController) ────────────────────────────
@@ -288,6 +391,8 @@ namespace PFE.Systems.Weapons
             // inline copy can go stale in exactly the window a weapon is equipped from the Inspector.
             if (_factory == null)
                 RebuildFactory();
+
+            _ownerUnit = GetComponentInParent<PFE.Entities.Units.UnitController>();
 
             if (_mounts == null)
                 _mounts = GetComponent<WeaponMounts>() ?? GetComponentInChildren<WeaponMounts>();
@@ -342,8 +447,19 @@ namespace PFE.Systems.Weapons
         {
             if (_current == null) return;
 
-            Vector2 holdPoint = _mounts != null ? _mounts.WeaponHoldPoint : (Vector2)transform.position;
-            Vector2 hornPoint = _mounts != null ? _mounts.MagicHoldPoint  : (Vector2)transform.position;
+            Vector2 holdPoint = ResolveHoldPoint();
+            Vector2 hornPoint = ResolveHornPoint();
+
+            // Hand the ranged controller the barrel tip the presenter drew last frame, so the round
+            // leaves the muzzle instead of the weapon's origin. Must happen BEFORE Tick(), because
+            // Tick() is what runs Shoot() and consumes the value.
+            //
+            // The value is one LateUpdate old, which is the correct pairing rather than a lag: the
+            // presenter computes it from State.X/Y *after* the controller's own Tick wrote them, so
+            // the point matches the frame the gun is currently drawn at. AS3 reads vis.emit at
+            // fire time from the same display list it just animated.
+            if (_current is RangedWeaponController ranged)
+                ranged.MuzzleWorldPoint = _weaponPresenter != null ? _weaponPresenter.MuzzleWorldPosition : null;
 
             if (_debugSettings?.LogWeaponControllerDiagnostics == true)
             {
@@ -424,7 +540,124 @@ namespace PFE.Systems.Weapons
         }
 
         /// <summary>
-        /// Mirrors the sndPrep block in Weapon.actions() — runs every FixedUpdate after Tick().
+        /// Whether an authored mount may be trusted as a world-space point for this rig.
+        ///
+        /// <para><b>The arrangement this rejects, and why it is not hypothetical.</b> The presenter
+        /// writes the weapon's world position <i>from</i> the hold point. A hold point that is a
+        /// descendant of the weapon therefore moves when the weapon moves, and the weapon chases it:
+        /// measured from <c>Player.prefab</c>, the <c>muzzle</c> node sits 0.33 u out and 0.04 u up from
+        /// the weapon node, and <c>RangedWeaponController</c> closes 1/5 of the gap every flash frame
+        /// (<c>State.X += (holdPoint.x - State.X) / 5</c>) — so the gun walks away from the character at
+        /// roughly 2 u/s. All three mounts in that prefab are wired to that node, which is the reported
+        /// "levitation".</para>
+        ///
+        /// <para>A null <paramref name="mount"/> means "nothing authored" and is not usable either.
+        /// A null presenter means nothing is being positioned, so there is no loop to create.</para>
+        /// </summary>
+        private bool MountIsUsable(Transform mount)
+            => mount != null && (_weaponPresenter == null || !mount.IsChildOf(_weaponPresenter.transform));
+
+        /// <summary>
+        /// Where the held weapon sits this tick — the port of AS3 <c>UnitPlayer.setWeaponPos</c>.
+        ///
+        /// <para><b>Why the derived point wins.</b> AS3 has no hold-point marker: the point is computed
+        /// every frame from the owner's body box and the cursor, and it is the only value that cannot
+        /// depend on the thing it positions. The loadout used to read
+        /// <c>WeaponMounts.WeaponHoldPoint</c> unconditionally, and in the shipped rig that resolves to a
+        /// node inside the weapon itself — see <see cref="MountIsUsable"/> for the measured drift that
+        /// produced. A derived point makes that wiring inert, which is the correct outcome for a
+        /// mis-wired mount.</para>
+        ///
+        /// <para><b>An authored mount is still honoured where nothing can be derived.</b> With no
+        /// <c>UnitController</c> there is no body box, so a rig that supplies its own point (and that
+        /// point is not inside the weapon) keeps it.</para>
+        /// </summary>
+        private Vector2 ResolveHoldPoint()
+        {
+            if (_ownerUnit == null)
+            {
+                // No UnitController: an enemy rig or a bare test object. Nothing to derive a body box
+                // from, so fall back rather than inventing one.
+                Transform authored = _mounts != null ? _mounts.WeaponHoldPointTransform : null;
+                return MountIsUsable(authored)
+                    ? _mounts.WeaponHoldPoint
+                    : (Vector2)transform.position;
+            }
+
+            UnitDefinition stats = _ownerUnit.Stats;
+            WeaponDefinition def = _current.State.Def;
+
+            var inputs = new WeaponHoldPointMath.Inputs
+            {
+                OwnerX     = _ownerUnit.transform.position.x,
+                // The unit origin is the feet — see UnitController.FeetWorldY for the three places
+                // that agree on it. AS3's `Y` is the same point.
+                OwnerFeetY = _ownerUnit.FeetWorldY,
+                BodyWidth  = stats != null && stats.Width  > 0f ? stats.Width  : 0.5f,
+                BodyHeight = stats != null && stats.Height > 0f ? stats.Height : 0.7f,
+                FacingSign = _ownerUnit.FacingDirection,
+                AimX       = _aimTarget.x,
+                // WeaponType is imported straight from the AS3 tip attribute
+                // (`WeaponDataImporter.cs:213` — `(WeaponType)AttrI(rootAttrs, "tip", 0)`), so the
+                // enum's numeric value *is* the oracle's `tip`.
+                Tip        = (int)def.weaponType,
+                // AS3 `weaponKrep` is the owner's `krep` attribute, which the port stores as
+                // UnitDefinition.isStable (`UnitDataImporter.cs:553-558`, `krep == 1`). It is the
+                // branch selector: zero means "derive the hold point", non-zero means "use the base
+                // class's flat waist height".
+                WeaponKrep = stats != null && stats.isStable ? 1f : 0f,
+
+                // Not wired: the port tracks no per-unit stair state, no weapon-up state and no
+                // weapon-swap phase, so these stay at their "none of that is happening" values. Each
+                // only ever moves the weapon back toward the body, so leaving them false is the
+                // open-ground behaviour — the one the reported bug is about. Named here rather than
+                // silently defaulted so the next reader can see exactly what is and is not ported.
+                OnStairs       = false,
+                Stay           = false,
+                WeaponUp       = false,
+                SwappingWeapon = false,
+            };
+
+            // No tile predicate: the loadout has no room reference, and the two clamps that use it
+            // only pull the weapon back off a wall it would otherwise poke into. Passing null means
+            // they never fire, which is AS3's result in open ground.
+            return WeaponHoldPointMath.Resolve(inputs, isSolidAt: null);
+        }
+
+        /// <summary>
+        /// The magic / horn mount. AS3 derives it from the rig's muzzle bone and falls back to the
+        /// body (<c>UnitPlayer.as:3561-3584</c>); the port takes an authored Transform when there is
+        /// one and otherwise uses the oracle's own fallback heights.
+        ///
+        /// <para><b>Why the authored mount does not simply win.</b> The shipped rig points
+        /// <c>_magicHoldPoint</c> at the same <c>muzzle</c> node inside the weapon, so reading it
+        /// unguarded is the identical feedback loop the weapon hold point had — and worse for magic,
+        /// because the magic controller <i>snaps</i> the weapon to the horn point rather than lerping
+        /// toward it, so the loop has no damping at all. The mount is honoured only where the point
+        /// cannot be derived and the mount is not inside the weapon.</para>
+        /// </summary>
+        private Vector2 ResolveHornPoint()
+        {
+            if (_ownerUnit == null)
+            {
+                if (_mounts == null) return (Vector2)transform.position;
+
+                // Keep the documented fallback chain — horn, then hold point, then the rig origin —
+                // but skip any link that lives inside the weapon. A circular mount is worse than no
+                // mount: it drags the weapon instead of holding it.
+                if (MountIsUsable(_mounts.MagicHoldPointTransform))  return _mounts.MagicHoldPoint;
+                if (MountIsUsable(_mounts.WeaponHoldPointTransform)) return _mounts.WeaponHoldPoint;
+                return (Vector2)transform.position;
+            }
+
+            UnitDefinition stats = _ownerUnit.Stats;
+            return WeaponHoldPointMath.ResolveMagicFallback(
+                _ownerUnit.transform.position.x,
+                _ownerUnit.FeetWorldY,
+                stats != null && stats.Height > 0f ? stats.Height : 0.7f);
+        }
+
+        /// <summary>
         ///
         /// minigun_s (and similar) is a single audio file with three sections:
         ///   [0 .. t1]   spin-up     (plays proportional to current prep charge on trigger press)

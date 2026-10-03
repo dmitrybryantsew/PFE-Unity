@@ -282,6 +282,13 @@ namespace PFE.Editor.Importers.SWF
             if (symbolId is 3640 or 3650)
                 return $"Wings/{partName}";
 
+            // Overlay clips — the siblings of the body sprite (vis.shit). They get their own root
+            // rather than a body folder because they are not parts of the body composition, and
+            // without this branch they would land in the Head/Variants/ fallback below, which is
+            // where every unrecognised symbol goes.
+            if (symbolId is 3625)
+                return $"Overlays/{partName}";
+
             // Head internals
             if (symbolId is 199 or 220 or 233 or 235 or 237 or 239 or 240 or 273 or 274 or 31)
                 return $"Head/{partName}";

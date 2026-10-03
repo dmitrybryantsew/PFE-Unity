@@ -101,7 +101,7 @@ namespace PFE.Systems.RPG
             {
                 "tele", "melee", "smallguns", "energy", "explosives", "magic",
                 "repair", "medic", "lockpick", "science", "sneak", "barter", "survival",
-                "attack", "defense", "knowl", "life", "spirit"
+                "attack", "defense", "knowl"
             };
         }
 

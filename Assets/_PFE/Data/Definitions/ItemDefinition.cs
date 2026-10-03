@@ -236,6 +236,20 @@ namespace PFE.Data.Definitions
         [Tooltip("Potion/chem data")]
         public PotionData potion;
 
+        /// <summary>
+        /// Spell data — AS3's <c>&lt;item tip='spell' …&gt;</c> attributes, every one of them read by
+        /// <c>Spell.as:83-131</c>. Populated by <c>SimpleDataImporter</c> for the nine <c>sp_*</c> rows.
+        ///
+        /// <para><b>Read <see cref="SpellData.IsPopulated"/>, not <c>type == ItemType.Spell</c>.</b>
+        /// The type is stamped from <c>tip</c> by two separate passes (the importer and
+        /// <c>FixDataImport</c>), while this block is written only by an import that actually read the
+        /// attributes — so an asset can legitimately carry the type with an empty block, and a caller
+        /// that trusted the type alone would cast a spell with zero cost and zero effect. Same
+        /// discriminator discipline as <see cref="IsArmour"/>.</para>
+        /// </summary>
+        [Tooltip("Spell data (tip='spell' items only). Check IsPopulated before reading.")]
+        public SpellData spellData;
+
 #if ODIN_INSPECTOR
         [BoxGroup("Skills")]
 #else

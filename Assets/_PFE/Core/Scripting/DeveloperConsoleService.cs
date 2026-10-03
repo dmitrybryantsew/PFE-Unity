@@ -29,6 +29,7 @@ namespace PFE.Core.Scripting
         private DevConsoleProfilerCommands _profilerCommands;
         private DevConsoleRpgCommands _rpgCommands;
         private DevConsoleEffectCommands _effectCommands;
+        private DevConsoleSpellCommands _spellCommands;
         private bool _commandObjectsRegistered;
 
         private bool _isOpen;
@@ -87,7 +88,8 @@ namespace PFE.Core.Scripting
             DevConsoleColliderCommands colliderCommands = null,
             DevConsoleProfilerCommands profilerCommands = null,
             DevConsoleRpgCommands rpgCommands = null,
-            DevConsoleEffectCommands effectCommands = null)
+            DevConsoleEffectCommands effectCommands = null,
+            DevConsoleSpellCommands spellCommands = null)
         {
             if (playerCommands != null) _playerCommands = playerCommands;
             if (simCommands != null) _simCommands = simCommands;
@@ -96,6 +98,7 @@ namespace PFE.Core.Scripting
             if (profilerCommands != null) _profilerCommands = profilerCommands;
             if (rpgCommands != null) _rpgCommands = rpgCommands;
             if (effectCommands != null) _effectCommands = effectCommands;
+            if (spellCommands != null) _spellCommands = spellCommands;
 
             if (_luaEngine == null) return;
 
@@ -110,6 +113,7 @@ namespace PFE.Core.Scripting
                 _luaEngine.RegisterType<DevConsoleProfilerCommands>();
                 _luaEngine.RegisterType<DevConsoleRpgCommands>();
                 _luaEngine.RegisterType<DevConsoleEffectCommands>();
+                _luaEngine.RegisterType<DevConsoleSpellCommands>();
                 _commandObjectsRegistered = true;
             }
 
@@ -120,6 +124,7 @@ namespace PFE.Core.Scripting
             if (_profilerCommands != null) _luaEngine.SetGlobal("prof", _profilerCommands);
             if (_rpgCommands != null) _luaEngine.SetGlobal("rpg", _rpgCommands);
             if (_effectCommands != null) _luaEngine.SetGlobal("eff", _effectCommands);
+            if (_spellCommands != null) _luaEngine.SetGlobal("spell", _spellCommands);
         }
 
         /// <summary>
@@ -193,9 +198,15 @@ namespace PFE.Core.Scripting
                               "  rpg factors <s> - Which skill/perk produced a stat's value, in order\n" +
                               "  rpg res         - Damage multipliers (AS3 gg.vulner)\n" +
                               "  rpg set <s> <n> - Set a skill level, recalculate, print before/after\n" +
+                              "  -- spells (acquire and select without a weapon) --\n" +
+                              "  spell           - Engine health: caster, book, selection, catalogue size\n" +
+                              "  spell list      - The spells the player knows, in acquisition order\n" +
+                              "  spell add <id>  - Grant a spell (no weapon needed). e.g. spell add sp_mshit\n" +
+                              "  spell select <id> - Choose the spell the Def key (C) casts. A TOGGLE.\n" +
+                              "  spell defs [f]  - The catalogue the caster can accept\n" +
                               "  -- lua --\n" +
                               "  <lua code>      - Run any Lua expression (e.g. 'return 2+2', 'player:Heal(50)')\n" +
-                              "                    Globals: pfe.* (map/fog/rng), player, sim, save, collider, prof, rpg";
+                              "                    Globals: pfe.* (map/fog/rng), player, sim, save, collider, prof, rpg, eff, spell";
                 AppendLog(help);
                 return help;
             }
@@ -513,6 +524,12 @@ namespace PFE.Core.Scripting
                     result = RunEffectShortcut(parts);
                     return true;
 
+                case "spell":
+                case "spells":
+                    if (_spellCommands == null) return false;
+                    result = RunSpellShortcut(parts);
+                    return true;
+
                 default:
                     return false;
             }
@@ -685,6 +702,63 @@ namespace PFE.Core.Scripting
 
                 default:
                     return $"Unknown eff subject '{parts[1]}'.\n" + _effectCommands.Help();
+            }
+        }
+
+        /// <summary>
+        /// Dispatch the spell shortcuts: <c>spell</c> (status), <c>spell list</c>,
+        /// <c>spell add &lt;id&gt;</c>, <c>spell select &lt;id&gt;</c>, <c>spell defs [filter]</c>.
+        ///
+        /// <para>A bare <c>spell</c> is <b>status</b>, matching <c>col</c>, <c>prof</c>, <c>rpg</c> and
+        /// <c>eff</c>: a verb that flips state on a typo is one mistyped character from a spell granted
+        /// or selected by accident.</para>
+        ///
+        /// <para><b><c>add</c> and <c>select</c> are separate on purpose</b> and must not be merged into
+        /// one verb. In AS3 they are different calls at different times — <c>addSpell</c> happens when
+        /// the item is used, <c>changeSpell</c> when it is selected — and <c>changeSpell</c> is a
+        /// <i>toggle</i>. A merged <c>spell add</c> that also selected would deselect on the second run,
+        /// which reads as "the command stopped working".</para>
+        /// </summary>
+        private string RunSpellShortcut(string[] parts)
+        {
+            if (parts.Length < 2) return _spellCommands.Status();
+
+            string sub = parts[1].ToLowerInvariant();
+
+            switch (sub)
+            {
+                case "status":
+                case "health":
+                    return _spellCommands.Status();
+
+                case "list":
+                case "ls":
+                    return _spellCommands.List();
+
+                case "add":
+                case "grant":
+                case "learn":
+                    if (parts.Length < 3)
+                        return "Usage: spell add <spellId>    e.g. spell add sp_mshit   (see `spell defs`)";
+                    return _spellCommands.Add(parts[2]);
+
+                case "select":
+                case "use":
+                    if (parts.Length < 3)
+                        return "Usage: spell select <spellId>    (a toggle — the same id twice deselects)";
+                    return _spellCommands.Select(parts[2]);
+
+                case "defs":
+                case "def":
+                case "catalog":
+                    return _spellCommands.Defs(parts.Length > 2 ? parts[2] : null);
+
+                case "help":
+                case "?":
+                    return _spellCommands.Help();
+
+                default:
+                    return $"Unknown spell subject '{parts[1]}'.\n" + _spellCommands.Help();
             }
         }
 

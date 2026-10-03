@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using PFE.Core;
 using PFE.Data.Definitions;
+using PFE.Systems.Combat;
 using PFE.Systems.Inventory;
 
 namespace PFE.Systems.Weapons.Controllers
@@ -68,12 +69,54 @@ namespace PFE.Systems.Weapons.Controllers
         private float RecoilMult => _statSource != null ? _statSource.RecoilMult : 1f;
         private float JammedMult => _statSource != null ? _statSource.JammedMult : 1f;
 
+        /// <summary>
+        /// The owner's weapon-skill <b>tier</b> for this weapon's skill code — AS3
+        /// <c>pers.getWeapLevel(this.skill)</c> (<c>Pers.as:1073-1104</c>, a 0..5 tier, not a point
+        /// total). <see cref="HitAvoidance.UnknownOwnerSkillLevel"/> when there is no stat source.
+        ///
+        /// <para>Both consumers read it: <see cref="CheckAvail"/> measures the gap that can refuse the
+        /// shot, and <c>Shoot()</c> hands it to <see cref="DamageContext.FromWeapon"/> for the miss
+        /// term. Deriving it twice would be two copies of the same rule — the shape of bug this
+        /// change is closing.</para>
+        /// </summary>
+        private int OwnerWeaponSkillLevel => _statSource != null
+            ? _statSource.OwnerWeaponSkillLevel(_def.skillLevel)
+            : HitAvoidance.UnknownOwnerSkillLevel;
+
+        /// <summary>
+        /// The owner's weapon-skill <b>multiplier</b> for this weapon's skill code — AS3 <c>_loc1_</c>
+        /// in <c>Weapon.shoot</c> (<c>Weapon.as:1451-1459</c>), <c>Pers.weaponSkills[skill]</c>, read
+        /// through <c>IWeaponStatSource.WeaponSkillMultiplier</c>. <c>1</c> (the identity) when there is
+        /// no stat source.
+        ///
+        /// <para>AS3 reads it twice per shot: as <c>p2</c> of <c>resultDamage</c> (folded into damage by
+        /// <c>DamageContext.FromWeapon</c>) and as the spread divisor <c>(_loc1_ + 0.01)</c> in
+        /// <c>shoot</c>'s deviation term (<c>:1460</c>). One accessor, so the two cannot disagree about
+        /// which code they asked about.</para>
+        /// </summary>
+        private float WeaponSkillMultiplier => _statSource != null
+            ? _statSource.WeaponSkillMultiplier(_def.skillLevel)
+            : 1f;
+
         // Total frames at reload start — used to compute ReloadProgressRP each tick.
         private int _reloadTotal;
 
         // Shot plan accumulator — filled during flash frames, flushed by FlushShotPlans.
         private readonly List<ShotPlan> _plans = new();
         private readonly PFE.Core.Rng.IRngService _rng;
+
+        /// <summary>
+        /// World-space barrel tip, pushed in by <see cref="PlayerWeaponLoadout"/> from the
+        /// <see cref="WeaponPresenter"/> that actually draws the gun. Null = the vis has not been
+        /// drawn yet (or there is no presenter), and the shot falls back to the weapon's own
+        /// position — which is what AS3 does when <c>vis.emit</c> is missing.
+        ///
+        /// <para><b>Why the presenter owns this and not the controller.</b> The muzzle has to go
+        /// through the vis's flip and rotation, and only the presenter knows the vis transform it
+        /// just wrote. Re-deriving the same transform here would be a second copy of the flip rule
+        /// — the exact shape of bug this change is fixing.</para>
+        /// </summary>
+        public Vector2? MuzzleWorldPoint { get; set; }
 
         // ── Constructor ───────────────────────────────────────────────────────
 
@@ -212,6 +255,23 @@ namespace PFE.Systems.Weapons.Controllers
                 return;
             }
 
+            // ── Skill gate: AS3 checkAvail() (Weapon.as:1304-1310, :1366-1388) ─────────────
+            // Sits here, between the debounce and the ammo check, because that is where the oracle
+            // puts it (:1306 before :1311) — an under-skilled owner with an empty magazine gets the
+            // refusal, not a reload. Refusing here means t_attack is never armed, so Shoot() is never
+            // reached and the round is never built: exactly AS3's "attack() returns false".
+            //
+            // Gated on the stat source, which is the port's stand-in for AS3's `if(this.owner.player)`.
+            // PlayerWeaponLoadout is the only production path that supplies one (it reads the owner's
+            // CharacterStats), so an NPC weapon — and every training rig — skips the gate as AS3 does.
+            if (!CheckAvail())
+            {
+                if (_debugSettings?.LogWeaponControllerDiagnostics == true)
+                    Debug.Log($"[RangedWeaponController] RunAttack weapon='{_def.weaponId}' refused: " +
+                              $"requiredLevel={_def.weaponLevel} ownerSkillTier={OwnerWeaponSkillLevel}.");
+                return;
+            }
+
             // If magazine-fed and empty — trigger reload.
             if (_def.magazineSize > 0 && State.CurrentAmmo < _def.ammoPerShot)
             {
@@ -251,6 +311,34 @@ namespace PFE.Systems.Weapons.Controllers
                     InitReload();
             }
         }
+
+        /// <summary>
+        /// AS3 <c>Weapon.checkAvail()</c> (<c>Weapon.as:1366-1388</c>) — may this owner fire?
+        ///
+        /// <para>The oracle splits into three answers on <c>gap = this.lvl - pers.getWeapLevel(skill)</c>:
+        /// gap 1 → <c>skillConf 0.8</c>, gap 2 → <c>0.6</c>, gap &gt; 2 → <b>refuse</b>. The first two are
+        /// penalties, not refusals, and the port already applies them where the oracle does — as the
+        /// round's miss term, through <see cref="HitAvoidance.MissChance"/> inside
+        /// <see cref="DamageContext.FromWeapon"/>. Only the third is a gate, so only the third is here.
+        /// Reading both halves out of one place keeps the 0.8/0.6 constants single-sourced.</para>
+        ///
+        /// <para><b>Scope.</b> This is the <i>base</i> <c>attack()</c> path — the ranged types this
+        /// controller serves. <c>WMagic</c> also reaches <c>checkAvail()</c> and will need the same
+        /// call; <c>WThrow</c> has its own 0.75/0.5 copy; <c>WKick</c>/<c>WPunch</c>/<c>WPaint</c> have
+        /// no gate. See <see cref="HitAvoidance.CanFire"/>.</para>
+        ///
+        /// <para><b>Divergence, behaviour-equivalent (recorded, not ported).</b> The oracle's caller
+        /// acts on the <c>false</c>: <c>UnitPlayer.as:2342-2345</c> does
+        /// <c>if(!currentWeapon.attack()) this.ctr.keyAttack = false;</c> — a refused shot releases the
+        /// trigger latch. The port has no <c>keyAttack</c>; the trigger lives in the input layer and
+        /// this controller only sees <c>_attackHeld</c>. The outcome is the same because the gate is a
+        /// deterministic function of the weapon's requirement and the owner's tier, neither of which
+        /// changes while the trigger is held: every subsequent frame re-runs <c>RunAttack</c>, refuses
+        /// again, and returns before <c>State.IsAttack</c> and the prep charge — the two things
+        /// <c>weaponAttack()</c> would have touched. A held trigger on a refused weapon therefore
+        /// behaves identically whether or not the latch is cleared.</para>
+        /// </summary>
+        private bool CheckAvail() => HitAvoidance.CanFire(_def.weaponLevel, OwnerWeaponSkillLevel);
 
         /// <summary>
         /// Mirrors the timer-management + shoot-trigger block of Weapon.actions().
@@ -383,10 +471,18 @@ namespace PFE.Systems.Weapons.Controllers
             }
 
             // ── Get muzzle position ────────────────────────────────────────────
-            // Muzzle offset applied in world space from current weapon position.
-            // The WeaponPresenter has the actual Transform; we use State.X/Y as origin
-            // and WeaponVisualDefinition.muzzleLocalOffset will be applied by spawner.
-            Vector2 muzzleWorld = new Vector2(State.X, State.Y);
+            // AS3 Weapon.shoot() calls getBulXY() (:1461) before building the bullets, and that
+            // reads `vis.emit` through vis.localToGlobal — so the round leaves the barrel tip and
+            // follows the vis's flip and rotation. The presenter publishes exactly that point each
+            // frame; falling back to the weapon origin reproduces AS3's own `else { bulX = X; }`.
+            //
+            // This used to be the weapon origin unconditionally, with a comment claiming the
+            // spawner would apply WeaponVisualDefinition.muzzleLocalOffset. No spawner ever read
+            // that field — it was 0 in all 129 weapon visuals and had no reader anywhere — so every
+            // shot left the gun's registration point, i.e. its rear. Facing right the rear sits
+            // behind the character and the error is invisible; facing left it is on screen, which
+            // is the reported "turned left and it fires from the back".
+            Vector2 muzzleWorld = MuzzleWorldPoint ?? new Vector2(State.X, State.Y);
 
             // ── Resolve the round this shot fires ──────────────────────────────
             // AS3 resolves the ammo node inside setAmmo and copies nine attributes off it onto the
@@ -409,6 +505,27 @@ namespace PFE.Systems.Weapons.Controllers
             // random number — AS3's state for a unit with no Pers.
             DamageContext damCtx = DamageContext.FromWeapon(
                 _def, null, State.OwnerFaction,
+                // ── The weapon-skill channel (AS3 `_loc1_`, Weapon.as:1451-1459) ──────────────
+                //
+                // This is the base `Weapon.shoot()` path, so both halves apply here:
+                //   :1454  `_loc1_ = this.weaponSkill` for the player (owner.weaponSkill for an NPC)
+                //   :1516  `b.damage  = resultDamage(damage, _loc1_) * ammoDamage`
+                //   :1531  `b.precision = resultPrec(owner.precMult, _loc1_)`
+                //   :1523  `b.miss    = 1 - skillConf`  (skillConf set by checkAvail, :1366-1388)
+                //
+                // Read LIVE off the owner's skill levels rather than from a snapshot taken at equip
+                // time, so spending a point moves the very next shot — AS3 re-derives both in
+                // setParameters and re-copies them in Weapon.setPers on every recalc.
+                //
+                // A null `_statSource` is an enemy with no Pers: the unknown sentinel leaves the miss
+                // chance at 0 and the multiplier at 1, which is exactly AS3's state for a unit whose
+                // Pers was never set up (and the state these fixtures assert).
+                //
+                // `_def.skillLevel` is the numeric skill CODE (`<weapon skill='2'>`), not the required
+                // level — that is `_def.weaponLevel`, which FromWeapon already uses for the miss term.
+                // The same accessor backs CheckAvail(), so the gate and the penalty cannot drift apart.
+                ownerWeaponSkillLevel: OwnerWeaponSkillLevel,
+                weaponSkillMultiplier: WeaponSkillMultiplier,
                 critInvisChance: _statSource != null ? _statSource.CritInvis : 0f,
                 desintegrChance: _statSource != null ? _statSource.Desintegr : 0f,
                 // AS3 stamps the bullet with resultPrec(owner.precMult, …) at fire time
@@ -434,15 +551,17 @@ namespace PFE.Systems.Weapons.Controllers
                 shineRadius:      _def.shineRadius);
 
             // ── Pellet loop (kol in AS3) ───────────────────────────────────────
+            // The deviation is drawn ONCE for the whole shot, before the loop opens — AS3 computes
+            // `_loc2_` at :1460 and the loop only starts at :1463. Every pellet then shares the same
+            // random offset; only the symmetric spread term below differs per pellet.
+            float baseDevRad = CalculateDeviation();
+
             int pellets = Mathf.Max(1, _def.projectilesPerShot);
             for (int i = 0; i < pellets; i++)
             {
-                // Per-pellet deviation (AS3: (rnd-0.5)*deviation*...*PI/180 + pellet spread).
-                float baseDevRad = CalculateDeviation();
-                // Spread offset for multi-pellet: each pellet offset by (i - (kol-1)/2) * dev/2
-                float spreadOffset = pellets > 1
-                    ? (i - (pellets - 1) / 2f) * _def.deviation * Mathf.PI / 360f
-                    : 0f;
+                // AS3 :1496's symmetric fan — the RAW `deviation` (not the breaking-scaled one the
+                // shared term above uses). See WeaponSpreadMath.PelletSpread.
+                float spreadOffset = WeaponSpreadMath.PelletSpread(i, pellets, _def.deviation);
 
                 float pelletAngle = State.Rot
                     - State.RotUp * Mathf.Sign(State.X - _lastAimTarget.x) / 50f
@@ -524,15 +643,33 @@ namespace PFE.Systems.Weapons.Controllers
         }
 
         /// <summary>
-        /// Deviation angle in radians for one pellet.
-        /// AS3: (rnd-0.5) * deviation / skillConf / (skill+0.01) * PI/180 * devMult
-        /// Simplified: use definition deviation scaled by breaking.
+        /// The shot's muzzle-angle deviation, in radians — AS3 <c>_loc2_</c> in <c>Weapon.shoot</c>
+        /// (<c>Weapon.as:1460</c>). The formula itself is <see cref="WeaponSpreadMath.Deviation"/>; this
+        /// method is the composition — which live value feeds which argument.
+        ///
+        /// <para><b>Called once per shot, not once per pellet.</b> AS3 computes <c>_loc2_</c> at
+        /// <c>:1460</c>, before the <c>kol</c> loop opens at <c>:1463</c>, and the loop adds it to
+        /// every pellet's angle unchanged (<c>:1496</c>). Only the symmetric spread term differs per
+        /// pellet. This method used to be called inside the loop, which drew a fresh random per pellet
+        /// <i>and</i> consumed N numbers from the shared combat RNG stream where the oracle consumes
+        /// one — the stream position matters here for the same reason it does in
+        /// <see cref="RoundIsRecycled"/>.</para>
+        ///
+        /// <para><b>The three skill terms are all read live.</b> <c>_loc1_</c> comes off the same
+        /// accessor the damage path uses, <c>skillConf</c> off the same <c>checkAvail</c> rule the fire
+        /// gate uses, and <c>mazil</c> off the stat source. AS3 snapshots all three in <c>setPers</c>;
+        /// reading them live means a point spent mid-fight tightens the very next shot instead of
+        /// waiting for a re-equip.</para>
         /// </summary>
         private float CalculateDeviation()
         {
-            float breaking = State.Breaking();
-            float effective = _def.deviation * (1f + breaking * 2f);
-            return (_rng.NextFloat() - 0.5f) * effective * Mathf.Deg2Rad;
+            return WeaponSpreadMath.Deviation(
+                random01:              _rng.NextFloat(),
+                deviation:             _def.deviation,
+                breaking:              State.Breaking(),
+                skillConfidence:       HitAvoidance.SkillConfidence(_def.weaponLevel, OwnerWeaponSkillLevel),
+                weaponSkillMultiplier: WeaponSkillMultiplier,
+                mazil:                 _statSource != null ? _statSource.MazilAdd : 0f);
         }
 
         /// <summary>

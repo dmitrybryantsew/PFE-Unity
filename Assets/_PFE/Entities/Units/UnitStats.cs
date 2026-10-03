@@ -155,6 +155,31 @@ public readonly ReactiveProperty<float> MaxMana;
     /// <summary>Base natural resistance, always applied. AS3 <c>Unit.skin</c>.</summary>
     public float skinResistance = 0f;
 
+    // === Spell/boss shield (AS3 Unit.shithp / Unit.shitArmor) ===
+    //
+    // A damage-absorbing layer that sits in FRONT of the armour pool, distinct from it. Granted by the
+    // sp_mshit spell (Spell.as:314-318) and set directly by four bosses (UnitAlicorn, UnitBossAlicorn,
+    // UnitBossDron, UnitBossUltra). The armour workstream deliberately kept it out of the armour model
+    // (2026-09-29 notes: "shithp/shitArmor is NOT armour — it is ... a boss/summoned shield layer").
+    // The RULE lives in PFE.Systems.Magic.SpellShield; only the state lives here.
+
+    /// <summary>
+    /// The shield's own HP pool — AS3 <c>Unit.shithp</c> (<c>Unit.as:134</c>), default <b>0</b>
+    /// (no shield). Worn down by the incoming damage of each hit while it is up; a hit that empties it
+    /// drops the shield, and the ordinary armour path takes over on the next hit. Read by
+    /// <see cref="PFE.Systems.Magic.SpellShield"/>.
+    /// </summary>
+    public float ShitHp = 0f;
+
+    /// <summary>
+    /// The shield's flat rating — AS3 <c>Unit.shitArmor</c> (<c>Unit.as:160</c>), default <b>20</b>,
+    /// restored to 20 by <c>Pers.defaultParams()</c> (<c>Pers.as:882</c>). While <see cref="ShitHp"/>
+    /// is positive it both reduces the hit (<c>Unit.as:3636</c>) and is subtracted from the armour
+    /// pool's wear (<c>:3583</c>); a hit no larger than the rating is shrugged off entirely
+    /// (<c>:3578</c>). Some bosses set it to 0 while the shield is up (<c>UnitTurret.as:507</c>).
+    /// </summary>
+    public float ShitArmor = 20f;
+
     // === Evasion (AS3 Unit.dexter / dexterPlus / dodge) ===
     //
     // The ranged/melee avoidance terms. Held here rather than on the definition because two of the

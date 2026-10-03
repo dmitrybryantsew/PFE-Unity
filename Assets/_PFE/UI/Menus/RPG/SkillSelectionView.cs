@@ -46,12 +46,12 @@ namespace PFE.UI.Menus.RPG
         private CompositeDisposable _disposables;
         private Dictionary<string, SkillEntryUI> _skillEntries = new Dictionary<string, SkillEntryUI>();
 
-        // Skill ordering
+        // Skill ordering — the oracle's 16 (AllData.as). `life`/`spirit` are perks, not skills.
         private readonly string[] _skillOrder = new string[]
         {
             "tele", "melee", "smallguns", "energy", "explosives", "magic",
             "repair", "medic", "lockpick", "science", "sneak", "barter", "survival",
-            "attack", "defense", "knowl", "life", "spirit"
+            "attack", "defense", "knowl"
         };
 
         /// <summary>

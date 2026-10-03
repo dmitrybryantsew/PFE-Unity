@@ -369,6 +369,51 @@ namespace PFE.Tests.Editor.RPG
             Assert.AreEqual(0.05f, weaponSkillModifier.GetValueForLevel(0));
         }
 
+        [Test]
+        [Description("The shipped <sk tip='weap'> row evaluates per POINT (dop='1'), not per tier")]
+        public void StatModifier_WeaponSkillRow_IsPerPoint_NotPerTier()
+        {
+            // Exactly the row the importer produces for `smallguns`
+            // (Data/Resources/Skills/smallguns.asset): the AS3 `id` becomes `statId`, and `dop='1'`
+            // makes Pers.setSkillParam read param3 -- the raw POINTS -- instead of param2, the tier
+            // (Pers.as:1477-1484). The value is therefore `1 + 0.05 * points`.
+            //
+            // This pins the scale. An earlier note described it as "+5% per tier", which would have
+            // made the 20-point cap worth x1.25 instead of x2.0.
+            var row = new StatModifier
+            {
+                statId = "2",
+                tip = "weap",
+                dop = true,
+                hasV0 = true,
+                v0 = 1f,
+                hasVd = true,
+                vd = 0.05f,
+                v = new float[0]
+            };
+
+            // The tier argument is varied too, to show it is the one that is IGNORED when dop is set.
+            Assert.AreEqual(1.00f, row.Evaluate(0, 0),  1e-4f, "0 points");
+            Assert.AreEqual(1.45f, row.Evaluate(3, 9),  1e-4f, "9 points -> 1.45 (tier 3 ignored)");
+            Assert.AreEqual(1.70f, row.Evaluate(4, 14), 1e-4f, "14 points -> 1.70");
+            Assert.AreEqual(2.00f, row.Evaluate(5, 20), 1e-4f, "20 points -> 2.00 (double damage)");
+
+            // Control: the same shape WITHOUT `dop` reads the tier instead, so a regression that
+            // dropped the flag would fail this block even if the one above still passed.
+            var perTier = new StatModifier
+            {
+                statId = "2",
+                tip = "weap",
+                dop = false,
+                hasV0 = true,
+                v0 = 1f,
+                hasVd = true,
+                vd = 0.05f,
+                v = new float[0]
+            };
+            Assert.AreEqual(1.25f, perTier.Evaluate(5, 20), 1e-4f, "no dop -> tier 5 -> 1.25");
+        }
+
         #endregion
     }
 }

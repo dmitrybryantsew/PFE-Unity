@@ -32,6 +32,9 @@ namespace PFE.Data.Definitions
         [Header("Armor Overrides")]
         public ArmorVisualSet[] armorSets = Array.Empty<ArmorVisualSet>();
 
+        [Header("Overlay Clips")]
+        public CharacterOverlayDefinition[] overlays = Array.Empty<CharacterOverlayDefinition>();
+
         [Header("Style Options")]
         public int hairStyleCount = 5;
         public int eyeStyleCount = 6;
@@ -40,6 +43,7 @@ namespace PFE.Data.Definitions
         Dictionary<string, CharacterStateClip> _stateClipLookup;
         Dictionary<string, CharacterPartDefinition> _partLookup;
         Dictionary<string, ArmorVisualSet> _armorLookup;
+        Dictionary<string, CharacterOverlayDefinition> _overlayLookup;
 
         public CharacterStateClip GetStateClip(string stateName)
         {
@@ -77,12 +81,25 @@ namespace PFE.Data.Definitions
             return result;
         }
 
+        public CharacterOverlayDefinition GetOverlay(string overlayName)
+        {
+            if (_overlayLookup == null)
+            {
+                _overlayLookup = new Dictionary<string, CharacterOverlayDefinition>();
+                foreach (var overlay in overlays)
+                    _overlayLookup[overlay.overlayName] = overlay;
+            }
+            _overlayLookup.TryGetValue(overlayName, out var result);
+            return result;
+        }
+
         void OnEnable()
         {
             // Clear cached lookups when asset reloads
             _stateClipLookup = null;
             _partLookup = null;
             _armorLookup = null;
+            _overlayLookup = null;
         }
     }
 
@@ -112,6 +129,63 @@ namespace PFE.Data.Definitions
         /// Used to reconstruct correct positioning.
         /// </summary>
         public Vector2 pivotNormalized = new(0.5f, 0.5f);
+    }
+
+    /// <summary>
+    /// A clip that sits on the character's visual container and runs on its <b>own</b> timeline,
+    /// independent of the character's state clip.
+    ///
+    /// <para><b>Why this is not a <see cref="CharacterPartDefinition"/>.</b> In AS3 the character's
+    /// container (<c>visualPlayer</c>, symbol 3690) holds one body sprite plus a set of sibling clips
+    /// (<c>visualPlayer.as:7-27</c>):</para>
+    ///
+    /// <code>
+    /// public var cryst:MovieClip;   public var fetter:MovieClip;  public var inh:MovieClip;
+    /// public var osn:MovieClip;     public var rat:MovieClip;     public var shit:visShit;   public var svet:MovieClip;
+    /// </code>
+    ///
+    /// <para><c>osn</c> is the body — the thing the wing parts (<c>vis.osn.body.lwing</c>) live inside.
+    /// <c>shit</c> is a <i>sibling</i> of it, not a part of it, and it is the only one with a class of its
+    /// own (<c>visShit</c>). It animates while the body holds still: <c>UnitPlayer.as:4916-4919</c> runs
+    /// <c>gotoAndPlay(1)</c> when <c>shithp</c> goes positive and <c>gotoAndStop(1)</c> when it reaches
+    /// zero. A body part cannot express that — <see cref="CharacterPartDefinition"/> carries a single
+    /// <c>baseSprite</c> with no timeline of its own.</para>
+    /// </summary>
+    [Serializable]
+    public class CharacterOverlayDefinition
+    {
+        /// <summary>
+        /// Overlay id, matching the AS3 clip name — <c>"shit"</c> for <c>vis.shit</c>. This is the key
+        /// <c>CharacterVisualContext.IsOverlayVisible</c> gates on, so the two must agree.
+        /// </summary>
+        public string overlayName;
+
+        /// <summary>
+        /// The clip's frames in timeline order. All of them are kept: unlike a body part, whose
+        /// <c>baseSprite</c> is frame 1, an overlay plays through this list.
+        /// </summary>
+        public Sprite[] frames = Array.Empty<Sprite>();
+
+        /// <summary>Pivot of every frame, normalized 0-1, from the SWF registration point.</summary>
+        public Vector2 pivotNormalized = new(0.5f, 0.5f);
+
+        /// <summary>Offset from the character origin, in local units.</summary>
+        public Vector2 localPosition;
+
+        /// <summary>Uniform scale. The oracle scales the boss shield variants to 1.5-1.7.</summary>
+        public float localScale = 1f;
+
+        /// <summary>
+        /// Sorting order for the overlay renderer. Must exceed the body's, which is
+        /// <c>2 * maxPartPlacements + 1</c> — see <c>CharacterSpriteAssembler</c>.
+        /// </summary>
+        public int sortingOrder = 1000;
+
+        /// <summary>
+        /// What the playhead does at the last frame. The shield holds on its final frame
+        /// (<c>ClampForever</c>), because <c>visShit</c>'s frame script calls <c>stop()</c> on frame 20.
+        /// </summary>
+        public AnimationLoopMode loopMode = AnimationLoopMode.ClampForever;
     }
 
     /// <summary>

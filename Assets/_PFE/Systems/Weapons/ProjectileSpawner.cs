@@ -166,13 +166,19 @@ namespace PFE.Systems.Weapons
                 initialVelocity: plan.ThrowVelocity,
                 fuseFrames:      plan.FuseFrames,
                 explRadius:      _currentDef.explRadius / 100f,
-                bumc:            _currentDef.isPhysBullet,  // bumc reuses isPhysBullet flag for now
+                // `bumc`, i.e. <phis bumc> — NOT isPhysBullet. Those are different attributes on
+                // different nodes (vis@phisbul selects the archetype; phis@bumc decides contact
+                // detonation) and their weapon sets do not overlap, so reading the wrong one meant
+                // acidgr and molotov never detonated on contact.
+                bumc:            _currentDef.bumc,
                 // AS3's thrown-object constants come from WThrow, not from the bullet class's own
                 // defaults. Passed explicitly rather than left to Initialize's defaults so the
                 // source is visible at the call site.
                 skok:            ProjectilePhysicsMath.ThrowBounceRetention,
                 tormoz:          ProjectilePhysicsMath.ThrowFloorDamping,
-                brake:           ProjectilePhysicsMath.BrakePxPerFrame2);
+                brake:           ProjectilePhysicsMath.BrakePxPerFrame2,
+                // `lip` — throwTip == 2 latches on the first tile contact instead of bouncing.
+                sticky:          plan.Sticky);
 
             obj.SetDamageContext(plan.Damage);
         }
@@ -203,7 +209,9 @@ namespace PFE.Systems.Weapons
                 weaponId:     _currentDef.weaponId,
                 explRadius:   _currentDef.explRadius / 100f,
                 fuseFrames:   plan.FuseFrames,
-                armingFrames: 75);
+                armingFrames: 75,                 // AS3 WThrow.as:157 — hardcoded, not data
+                sensPx:       _currentDef.sens,   // AS3 Mine.sens; 0 = radio-only (x37)
+                maxHp:        _currentDef.maxDurability);
 
             mine.SetDamageContext(plan.Damage);
         }

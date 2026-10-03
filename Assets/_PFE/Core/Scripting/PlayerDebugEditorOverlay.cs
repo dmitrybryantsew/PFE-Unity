@@ -9,6 +9,7 @@ using PFE.Entities.Player;
 using PFE.Entities.Units;
 using PFE.Systems.Effects;
 using PFE.Systems.Inventory;
+using PFE.Systems.Magic;
 using PFE.Systems.RPG;
 using PFE.Systems.RPG.Data;
 using PFE.Systems.Weapons;
@@ -32,7 +33,7 @@ namespace PFE.Core.Scripting
         public bool IsOpen = false;
 
         private Rect _windowRect = new Rect(60, 40, 920, 660);
-        private int _activeTab = 0; // 0: Pip Stats, 1: Skills, 2: Perks, 3: Weapons, 4: Armor, 5: Vitals & Presets, 6: Effects
+        private int _activeTab = 0; // 0: Pip Stats, 1: Skills, 2: Perks, 3: Weapons, 4: Armor, 5: Vitals & Presets, 6: Effects, 7: Spells
 
         private static readonly string[] TabNames = new string[]
         {
@@ -42,7 +43,8 @@ namespace PFE.Core.Scripting
             "⚔️ Weapons",
             "🛡️ Armor",
             "❤️ Vitals & Presets",
-            "☣️ Effects"
+            "☣️ Effects",
+            "🔮 Spells"
         };
 
         // Scroll positions for each tab
@@ -53,6 +55,7 @@ namespace PFE.Core.Scripting
         private Vector2 _armorScroll;
         private Vector2 _presetsScroll;
         private Vector2 _effectsScroll;
+        private Vector2 _spellsScroll;
 
         // Pip stats inspector state
         private string _inspectedStatFactor = "allDamMult";
@@ -150,6 +153,45 @@ namespace PFE.Core.Scripting
         /// <c>val</c> (<c>Effect.as:87-90</c>).</summary>
         private float _effectValue;
 
+        /// <summary>
+        /// The one-click quick-apply rows, as one table.
+        ///
+        /// <para><b>Why a table and not seven literal call sites.</b> The rows were seven inline
+        /// <c>DrawQuickEffectRow(...)</c> calls, and one of them named <c>"stunned"</c> — an id that
+        /// exists in no <c>&lt;eff&gt;</c> row and in no asset. <c>AddEffect</c> refuses an id it cannot
+        /// resolve, so that button applied nothing and said nothing: the exact "plausible object with
+        /// no behaviour" this project keeps finding, and invisible from a green build because nothing
+        /// tested the button's id against the data. With the rows in one table the draw loop and the
+        /// load-time check read the same source, so they cannot disagree about what the tab offers.</para>
+        ///
+        /// <para><b>AS3 has no <c>stunned</c> effect.</b> <c>stun</c> is a plain <c>Unit.stun:int</c>
+        /// counter (<c>Unit.as:390</c>), ticked down at <c>:3190-3202</c> and set by the
+        /// <c>dopEffect == "stun"</c> branch (<c>:3814-3825</c>) — <c>OnHitEffectProducers</c> lists it
+        /// under "not effects — plain fields the port has no home for yet". The oracle's slow/curse
+        /// effect is <c>stupor</c> (<c>&lt;eff id='stupor' tip='4' t='9'&gt;</c>,
+        /// <c>AllData.as:6000</c>), so the row now points at that.</para>
+        /// </summary>
+        private static readonly (string Id, string Label, string Note)[] QuickEffectRows =
+        {
+            ("burning", "🔥 Burn (fire DoT)",
+                "Unit.damage's on-hit fire producer; secEffect does owner.damage(val, D_FIRE, null, true) + shok=33"),
+            ("chemburn", "🧪 Acid burn",
+                "On-hit acid producer; secEffect does owner.damage(val, D_ACID)"),
+            ("pinkcloud", "💗 Pink cloud",
+                "secEffect does owner.damage(val, D_PINK)"),
+            ("drunk", "🍺 Drunk (DoT above lvl 3)",
+                "The only effect carrying lvl1, so it is the only one that ESCALATES: above level 3 secEffect does D_POISON"),
+            ("hydra", "💧 Hydra (heal + organ heal)",
+                "secEffect heals the unit, then (player only) pers.heal(val, 4)/(val, 5) — the organ path"),
+            ("stupor", "😵 Stupor (slow curse)",
+                "AllData.as:6000, eff id='stupor' tip=4 t=9 — tormoz x0.25, runSpeedMult x0.5, jumpdy -3, stamRes x0. The necromancer boss's curse (UnitBossNecr.as:56). AS3's `stun` is a plain Unit.stun counter, not an effect, so it has no row."),
+            ("stealth_armor", "🫥 Stealth armour (perm)",
+                "forever + abil target of the 'astealth' armour row"),
+        };
+
+        /// <summary>One-shot guard for <see cref="VerifyQuickRowsResolve"/>.</summary>
+        private bool _quickRowsVerified;
+
         // GUI Styles
         private GUIStyle _windowStyle;
         private GUIStyle _headerStyle;
@@ -232,16 +274,23 @@ namespace PFE.Core.Scripting
 
             if (_allArmorItems == null || _allArmorItems.Length == 0)
             {
+                // Two sources, because armour lives in its OWN folder. The importer
+                // (`PFE/Data/Import Armour from AllData.as`) writes the real `<armor>` definitions —
+                // ratings, resists and the level table — to `Resources/Armor/`, NOT `Resources/Items/`.
+                // Scanning `Items/` alone is what made every plate resolve to null and fall into the
+                // empty runtime wrapper, so the stats panel never moved.
+                var importedArmor = Resources.LoadAll<ItemDefinition>("Armor");
                 var allItems = Resources.LoadAll<ItemDefinition>("Items");
-                if (allItems != null)
-                {
-                    _allArmorItems = allItems.Where(it =>
+
+                _allArmorItems = (importedArmor ?? Array.Empty<ItemDefinition>())
+                    .Concat((allItems ?? Array.Empty<ItemDefinition>()).Where(it =>
                         it != null &&
                         (it.inventoryCategory == InventoryCategory.Apparel ||
                          it.armorTip > 0 ||
                          it.armorHP > 0 ||
-                         VisualArmorIds.Contains(it.itemId, StringComparer.OrdinalIgnoreCase))).ToArray();
-                }
+                         VisualArmorIds.Contains(it.itemId, StringComparer.OrdinalIgnoreCase))))
+                    .Where(it => it != null)
+                    .ToArray();
             }
 
             // Every ammo row, indexed by id. The dropdown resolves a weapon's ammo type through this
@@ -283,6 +332,10 @@ namespace PFE.Core.Scripting
                         .ToArray();
                 }
             }
+
+            // The catalogue is what the quick rows are checked against, so the check belongs here —
+            // once, after the load, not on a button click.
+            VerifyQuickRowsResolve();
         }
 
         /// <summary>
@@ -518,6 +571,9 @@ namespace PFE.Core.Scripting
                 case 6:
                     DrawEffectsTab(player);
                     break;
+                case 7:
+                    DrawSpellsTab(player);
+                    break;
             }
 
             GUI.DragWindow(new Rect(0, 0, _windowRect.width, 24));
@@ -705,6 +761,23 @@ namespace PFE.Core.Scripting
             GUILayout.Space(10);
             DrawStatPair("Evasion (Dex/Dodge):", $"Div: {unitStats?.dexterity ?? 1f:0.00} | Dodge: {((unitStats?.dodge ?? 0f) * 100f):0.1f}%");
             GUILayout.EndHorizontal();
+
+            // The live projection itself — the numbers the damage resolver actually reads
+            // (AS3 `owner.armor` / `owner.marmor` / `owner.armor_qual`, written by `Armor.setArmor()`).
+            // This row is why the panel looked inert: before the armour importer ran, every plate
+            // resolved to a null definition, so these were 0/0/0 and nothing here moved.
+            if (unitStats != null && unitStats.armour.IsEquipped)
+            {
+                var a = unitStats.armour;
+                GUILayout.BeginHorizontal(_cardStyle);
+                GUILayout.Label(
+                    $"<b>Armor Ratings:</b> Phys <color=#55AAFF><b>{a.EffectivePhysicalRating:0.#}</b></color> | " +
+                    $"Magic <color=#55AAFF><b>{a.EffectiveEnergyRating:0.#}</b></color> | " +
+                    $"Reliability <b>{a.EffectiveReliability:0.00}</b> | " +
+                    $"Condition <b>x{a.ConditionFactor:0.00}</b>",
+                    GUILayout.ExpandWidth(true));
+                GUILayout.EndHorizontal();
+            }
 
             GUILayout.Space(6);
             GUILayout.Label("<b>17 Damage Resistances (UnitStats.Vulnerabilities)</b> — <color=#AAAAAA><size=11>x1.00 = Normal, &lt;x1.00 = Resistant, &gt;x1.00 = Vulnerable, x0.00 = Immune</size></color>");
@@ -960,9 +1033,9 @@ namespace PFE.Core.Scripting
 
             GUILayout.Space(10);
 
-            // Post-Game / Special Skills (Cap 100)
-            GUILayout.Label("<b>Post-Game & Special Skills (Cap 100)</b>", _subHeaderStyle);
-            string[] specialSkills = new string[] { "attack", "defense", "knowl", "life", "spirit" };
+            // Post-Game Skills (Cap 100)
+            GUILayout.Label("<b>Post-Game Skills (Cap 100)</b>", _subHeaderStyle);
+            string[] specialSkills = new string[] { "attack", "defense", "knowl" };
             foreach (string skId in specialSkills)
             {
                 DrawSkillRow(charStats, skId, 100);
@@ -1030,8 +1103,6 @@ namespace PFE.Core.Scripting
                 case "attack": return "Total Attack Power";
                 case "defense": return "Total Defense Resist";
                 case "knowl": return "Knowledge & Perks";
-                case "life": return "Vitality & HP";
-                case "spirit": return "Spirit & Mana";
                 default: return id;
             }
         }
@@ -1674,7 +1745,9 @@ namespace PFE.Core.Scripting
                         continue;
                     }
 
-                    DrawArmorRow(player, armorId, armorId == curArmorId);
+                    // Pass the resolved definition so the row shows the real tip/HP badge instead of
+                    // a bare "Body Set" — the id alone cannot tell a 20000-HP plate from an amulet.
+                    DrawArmorRow(player, armorId, armorId == curArmorId, ResolveArmorDefinition(armorId));
                 }
             }
             else
@@ -1742,18 +1815,42 @@ namespace PFE.Core.Scripting
             GUILayout.EndHorizontal();
         }
 
+        /// <summary>
+        /// Resolve an armour definition by id. <b>Armour first</b>: the importer writes the real
+        /// <c>&lt;armor&gt;</c> definitions (ratings, resists, level table) to <c>Resources/Armor/</c>,
+        /// and looking only in <c>Items/</c> returns null for most plates — <c>assault</c> has no item
+        /// row at all — so the caller would build an empty fallback with no resists. That is exactly why
+        /// the "Defense, Armor &amp; Vulnerability Multipliers" panel stayed Neutral after equipping.
+        /// <c>Items/</c> remains a secondary source so a hand-authored armour item still resolves.
+        /// </summary>
+        private static ItemDefinition ResolveArmorDefinition(string armorId)
+        {
+            if (string.IsNullOrEmpty(armorId)) return null;
+
+            var def = Resources.Load<ItemDefinition>($"Armor/{armorId}");
+            if (def == null)
+            {
+                def = Resources.Load<ItemDefinition>($"Items/{armorId}");
+            }
+            return def;
+        }
+
         private void EquipArmorById(PlayerController player, string armorId, ItemDefinition itemDef = null)
         {
             if (player?.Stats == null) return;
 
             if (itemDef == null)
             {
-                itemDef = Resources.Load<ItemDefinition>($"Items/{armorId}");
+                itemDef = ResolveArmorDefinition(armorId);
             }
 
             if (itemDef == null)
             {
-                // Create a runtime item wrapper for visual sets that don't have matching standalone ItemDefinition
+                // Last-resort wrapper for a visual set with no definition at all. It carries no ratings
+                // and no resists, so the stats panel will still read empty — that is a data gap, not a
+                // path to rely on. Every one of the 20 visual ids has an imported definition today.
+                Debug.LogWarning($"[PlayerDebugEditor] No armour definition for '{armorId}' in " +
+                                 "Resources/Armor or Resources/Items — equipping an empty shell.");
                 itemDef = ScriptableObject.CreateInstance<ItemDefinition>();
                 itemDef.itemId = armorId;
                 itemDef.armorHP = 150;
@@ -1906,7 +2003,7 @@ namespace PFE.Core.Scripting
             charStats.SetSkillLevel("survival", 20);
             charStats.SetSkillLevel("smallguns", 20);
             charStats.SetSkillLevel("repair", 20);
-            charStats.SetSkillLevel("life", 40);
+            charStats.SetPerkRank("life", 40);   // `life` is a perk (AllData.as:5802), not a skill
 
             EquipArmorById(player, "power");
 
@@ -1926,7 +2023,7 @@ namespace PFE.Core.Scripting
             charStats.SetSkillLevel("tele", 20);
             charStats.SetSkillLevel("magic", 20);
             charStats.SetSkillLevel("knowl", 40);
-            charStats.SetSkillLevel("spirit", 40);
+            charStats.SetPerkRank("spirit", 40);   // `spirit` is a perk (AllData.as:5806), not a skill
 
             EquipArmorById(player, "magus");
 
@@ -1972,6 +2069,143 @@ namespace PFE.Core.Scripting
 
             player.Stats.Heal(999);
             Debug.Log("[PlayerDebugEditor] Applied Clean Slate reset.");
+        }
+
+        // =========================================================================
+        // TAB 7: SPELLS (the caster's catalogue — grant and select without a weapon)
+        // =========================================================================
+
+        /// <summary>
+        /// The spell catalogue, one card per spell, with a Grant/Select button.
+        ///
+        /// <para><b>Why this tab exists when the Weapons tab can already select a spell.</b> Equipping
+        /// one of the nine weapons whose <c>weapon@spell='1'</c> does route through
+        /// <c>PlayerWeaponLoadout</c> and selects the matching spell — but it makes two questions into
+        /// one. This tab asks only "can the player cast?", which is the question you want answered when
+        /// the cast does nothing. The same split the <c>spell add</c> console verb makes.</para>
+        ///
+        /// <para><b>The description is derived, not authored.</b> The oracle carries no per-spell prose:
+        /// every row sets <c>mess='spell'</c> (<c>AllData.as:4008-4016</c>), which is a category tag
+        /// that nothing resolves to a string, and the imported item rows carry the importer's
+        /// placeholder name. So each line is built from the spell's own attributes by
+        /// <see cref="SpellFacts"/> — every word traces to a field, none of it is invented. See that
+        /// class for the per-field oracle citations.</para>
+        ///
+        /// <para><b>It drives the live caster.</b> Grant calls <c>PlayerSpellCaster.LearnSpell</c> and
+        /// Select calls <c>SelectSpell</c> — the same two methods the inventory's <c>useItem</c> dispatch
+        /// and the console verb call. So a spell granted here is castable in game immediately, which is
+        /// what makes this a test of the cast path rather than a list that formats strings.</para>
+        /// </summary>
+        private void DrawSpellsTab(PlayerController player)
+        {
+            PlayerSpellCaster caster = player.GetComponent<PlayerSpellCaster>();
+            if (caster == null)
+            {
+                GUILayout.Box(
+                    "PlayerSpellCaster missing on the Player.\n\n" +
+                    "PlayerController.Awake adds it (GetComponent ?? AddComponent). If it is absent, the " +
+                    "component was removed or Awake threw before that line — run `spell` in the console " +
+                    "for the same diagnosis.",
+                    _cardStyle, GUILayout.ExpandHeight(true));
+                return;
+            }
+
+            Spell selected = caster.Selected;
+
+            // ── Header: what C will cast, and how much there is to choose from ──────────────────────
+            GUILayout.BeginHorizontal(_cardActiveStyle);
+            GUILayout.Label($"<b>Selected (C casts):</b> {(selected != null ? selected.Id : "(none)")}",
+                GUILayout.Width(300));
+            GUILayout.Label($"Known: <b>{caster.SpellCount}</b>", GUILayout.Width(100));
+            GUILayout.Label($"Catalogue: <b>{SpellCatalog.All().Length}</b>", GUILayout.Width(150));
+            GUILayout.FlexibleSpace();
+            if (GUILayout.Button("Clear selection", GUILayout.Width(130), GUILayout.Height(22)))
+            {
+                // changeSpell is a toggle, so re-selecting the current spell is how the oracle clears
+                // the selection (Invent.as:849-852 calls changeSpell("") for the same reason).
+                if (selected != null) caster.SelectSpell(selected.Id);
+            }
+            GUILayout.EndHorizontal();
+
+            GUILayout.Label(
+                "<color=#AAAAAA>Press <b>C</b> in game to cast the selection (AS3 <b>keyDef</b>). " +
+                "A <b>prod</b> spell repeats while held; the rest fire once per press. " +
+                "<b>T</b> is the separate magic-weapon key and is not this path.</color>");
+
+            GUILayout.Space(6);
+
+            _spellsScroll = GUILayout.BeginScrollView(_spellsScroll);
+
+            ItemDefinition[] all = SpellCatalog.All();
+            if (all.Length == 0)
+            {
+                GUILayout.Label("No item row under Resources/Items has a populated spellData, so nothing " +
+                                "can be granted. Run `PFE/Data/Simple Import All Data`.");
+                GUILayout.EndScrollView();
+                return;
+            }
+
+            foreach (ItemDefinition item in all)
+            {
+                if (item == null) continue;
+
+                bool known = caster.Book != null && caster.Book.TryGet(item.itemId, out Spell _);
+                bool isSelected = known && selected != null &&
+                                  string.Equals(selected.Id, item.itemId, StringComparison.OrdinalIgnoreCase);
+
+                DrawSpellRow(caster, item, known, isSelected);
+            }
+
+            GUILayout.EndScrollView();
+        }
+
+        /// <summary>
+        /// One spell card: the id (or the importer's name when it has a real one) on the first line with
+        /// the action button, and the derived description beneath it.
+        /// </summary>
+        private void DrawSpellRow(PlayerSpellCaster caster, ItemDefinition item, bool known, bool isSelected)
+        {
+            GUIStyle card = isSelected ? _cardActiveStyle : _cardStyle;
+            GUILayout.BeginVertical(card);
+
+            // ── Line 1: name + state + button ──────────────────────────────────────────────────────
+            GUILayout.BeginHorizontal();
+
+            string name = SpellCatalog.DisplayName(item);
+            string label = name == item.itemId ? item.itemId : $"{item.itemId}  <color=#AAAAAA>({name})</color>";
+            string title = isSelected ? $"<color=#55FF55><b>▶ {label}</b></color>" : $"<b>{label}</b>";
+            GUILayout.Label(title, GUILayout.Width(280));
+
+            GUILayout.Label(SpellFacts.Flags(in item.spellData), _badgeStyle, GUILayout.Width(200));
+
+            GUILayout.FlexibleSpace();
+
+            if (isSelected)
+            {
+                GUI.color = Color.green;
+                GUILayout.Box("CASTING", GUILayout.Width(90), GUILayout.Height(22));
+                GUI.color = Color.white;
+            }
+            else if (known)
+            {
+                if (GUILayout.Button("Select", GUILayout.Width(90), GUILayout.Height(22)))
+                    caster.SelectSpell(item.itemId);
+            }
+            else
+            {
+                if (GUILayout.Button("Grant", GUILayout.Width(90), GUILayout.Height(22)))
+                    caster.LearnSpell(item.itemId);
+            }
+
+            GUILayout.EndHorizontal();
+
+            // ── Line 2: the derived description ────────────────────────────────────────────────────
+            string snd = SpellFacts.SoundId(in item.spellData);
+            GUILayout.Label(
+                $"   <color=#BBBBBB>{SpellFacts.Summarize(in item.spellData)}" +
+                $"{(snd != null ? $"   ·   cast sound: {snd}" : string.Empty)}</color>");
+
+            GUILayout.EndVertical();
         }
 
         // =========================================================================
@@ -2219,20 +2453,12 @@ namespace PFE.Core.Scripting
             GUILayout.Space(4);
 
             // Quick one-click rows for the effects the oracle's tests and on-hit producers name.
-            DrawQuickEffectRow(target, "burning", "🔥 Burn (fire DoT)",
-                "Unit.damage's on-hit fire producer; secEffect does owner.damage(val, D_FIRE, null, true) + shok=33");
-            DrawQuickEffectRow(target, "chemburn", "🧪 Acid burn",
-                "On-hit acid producer; secEffect does owner.damage(val, D_ACID)");
-            DrawQuickEffectRow(target, "pinkcloud", "💗 Pink cloud",
-                "secEffect does owner.damage(val, D_PINK)");
-            DrawQuickEffectRow(target, "drunk", "🍺 Drunk (DoT above lvl 3)",
-                "The only effect carrying lvl1, so it is the only one that ESCALATES: above level 3 secEffect does D_POISON");
-            DrawQuickEffectRow(target, "hydra", "💧 Hydra (heal + organ heal)",
-                "secEffect heals the unit, then (player only) pers.heal(val, 4)/(val, 5) — the organ path");
-            DrawQuickEffectRow(target, "stunned", "😵 Stunned (reaction flag)",
-                "SetReaction(R_REACTION_STUNNED) across all damage types — no damage payload");
-            DrawQuickEffectRow(target, "stealth_armor", "🫥 Stealth armour (perm)",
-                "forever + abil target of the 'astealth' armour row");
+            // Driven from QuickEffectRows so the draw loop and VerifyQuickRowsResolve cannot drift.
+            for (int r = 0; r < QuickEffectRows.Length; r++)
+            {
+                (string id, string label, string note) = QuickEffectRows[r];
+                DrawQuickEffectRow(target, id, label, note);
+            }
 
             GUILayout.Space(8);
             GUILayout.Label("<size=11><b>All definitions</b> (Resources/Effects — this is what the runtime resolver reads, " +
@@ -2289,10 +2515,17 @@ namespace PFE.Core.Scripting
         /// </summary>
         private void DrawQuickEffectRow(UnitController target, string id, string label, string oracleNote)
         {
+            // A row whose id has no definition would call AddEffect, be refused, and change nothing —
+            // indistinguishable from a working row on a unit nothing has hit. Say so on the row and
+            // disable the buttons, so a bad id is visible instead of silent. This is the guard the
+            // `stunned` row needed; see QuickEffectRows.
+            bool resolvable = HasDefinitionFor(id);
+
             GUILayout.BeginVertical(_cardStyle);
             GUILayout.BeginHorizontal();
             GUILayout.Label($"<b>{label}</b>", GUILayout.Width(280));
             GUILayout.Label($"<color=#AAAAAA><size=11>{oracleNote}</size></color>", GUILayout.ExpandWidth(true));
+            GUI.enabled = resolvable;
             if (GUILayout.Button("Apply", GUILayout.Width(70), GUILayout.Height(22)))
             {
                 int ticks = _effectDurationSeconds > 0f ? Mathf.RoundToInt(_effectDurationSeconds * 30f) : 0;
@@ -2302,9 +2535,79 @@ namespace PFE.Core.Scripting
             {
                 target.Effects.RemoveEffect(id);
             }
+            GUI.enabled = true;
             GUILayout.EndHorizontal();
+
+            if (!resolvable)
+            {
+                GUILayout.Label(
+                    $"<color=#FF6666><size=11><b>NO DEFINITION</b> for id '{id}' — nothing is under " +
+                    "Resources/Effects with that id, so AddEffect refuses it and this row can never do " +
+                    "anything. Either the id is wrong or the data has not been imported " +
+                    "(PFE/Data/Import Effects from AllData.as).</size></color>");
+            }
+
             GUILayout.EndVertical();
             GUILayout.Space(2);
+        }
+
+        /// <summary>
+        /// Whether the tab's own catalogue carries a definition for this id. Reads
+        /// <see cref="_allEffects"/>, which is the same <c>Resources/Effects</c> the boot registry
+        /// loads — so "not here" means the runtime resolver cannot see it either.
+        /// </summary>
+        private bool HasDefinitionFor(string id)
+        {
+            if (string.IsNullOrEmpty(id) || _allEffects == null)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < _allEffects.Length; i++)
+            {
+                EffectDefinition def = _allEffects[i];
+                if (def != null && string.Equals(def.effectId, id, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Name every quick-row id that has no definition, once, at catalogue load.
+        ///
+        /// <para><b>Why this exists.</b> The <c>stunned</c> row shipped pointing at an id that was in no
+        /// <c>&lt;eff&gt;</c> row, no asset and no oracle file, and nothing went red: the button simply
+        /// did nothing. A debug tool whose own buttons can be silently inert is worse than no tool, so
+        /// the mismatch is now announced where it is cheap to see — at load, by name — rather than
+        /// discovered by clicking.</para>
+        /// </summary>
+        private void VerifyQuickRowsResolve()
+        {
+            if (_quickRowsVerified)
+            {
+                return;
+            }
+            _quickRowsVerified = true;
+
+            if (_allEffects == null || _allEffects.Length == 0)
+            {
+                return;
+            }
+
+            for (int i = 0; i < QuickEffectRows.Length; i++)
+            {
+                string id = QuickEffectRows[i].Id;
+                if (!HasDefinitionFor(id))
+                {
+                    Debug.LogError(
+                        $"[PlayerDebugEditorOverlay] Effects tab quick row '{id}' has no definition under " +
+                        "Resources/Effects, so its Apply button can never do anything. Fix the id or run " +
+                        "PFE/Data/Import Effects from AllData.as.");
+                }
+            }
         }
 
         private static bool TargetHasEffect(UnitController target, string id)

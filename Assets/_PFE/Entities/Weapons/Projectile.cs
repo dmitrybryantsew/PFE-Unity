@@ -1409,6 +1409,28 @@ namespace PFE.Entities.Weapons
         /// <summary>
         /// AoE: damages all IDamageable and destroys all IDestructibleTile in radius.
         /// </summary>
+        /// <remarks>
+        /// <para><b>KNOWN DEFECT — this is the only explosion path in the port that is still wrong, and
+        /// it is wrong in three ways at once.</b> Recorded in
+        /// <c>docs/AUDIT_throwable_and_explosive_2026-10-03.md</c>; it is left alone here on purpose so
+        /// that a rollback diff can say which change moved the behaviour.</para>
+        /// <list type="number">
+        /// <item><description><b>No distance falloff.</b> <c>aoeHitDamage * factionMult</c> is flat to
+        ///     the rim. AS3 is <c>1</c> inside <c>r/2</c> then <c>2 − 2d/r</c>, and nothing at or
+        ///     beyond <c>r</c> (<c>Bullet.explGas():768-773</c>). The mine and the thrown grenade go
+        ///     through <c>DamageSystem.ExplosionDamageFor</c>, which is now correct — so the two
+        ///     explosion paths disagree.</description></item>
+        /// <item><description><b>No damage spread.</b> AS3 gives a blast <c>×0.7..1.3</c> at
+        ///     <c>:763</c>.</description></item>
+        /// <item><description><b>It bypasses the resolver entirely</b> — <see cref="ApplyDirectDamage"/>
+        ///     with an explicit override goes straight to <c>IDamageable.TakeDamage</c>, a raw HP
+        ///     subtraction. So a rocket blast applies no vulnerability, no skin, no armour and no crit,
+        ///     where AS3's <c>unit.damage()</c> applies all four. This is the largest of the three and
+        ///     the reason the fix is a workstream rather than a line: routing it through
+        ///     <c>PendingDamage.Explosion</c> changes how every explosive round in the game damages
+        ///     things, and needs its own play-test.</description></item>
+        /// </list>
+        /// </remarks>
         private void Detonate(Vector3 centre)
         {
             _hasDetonated = true;

@@ -217,7 +217,25 @@ namespace PFE.Data.Definitions
         Key,
         Quest,
         Valuable,
-        Misc
+        Misc,
+
+        /// <summary>
+        /// AS3 <c>tip='spell'</c> — the nine cast-from-inventory spells (<c>sp_slow</c>, <c>sp_mwall</c>,
+        /// <c>sp_blast</c>, <c>sp_cryst</c>, <c>sp_kdash</c>, <c>sp_mshit</c>, <c>sp_moon</c>,
+        /// <c>sp_gwall</c>, <c>sp_invulner</c>). Carries <see cref="SpellData"/>.
+        ///
+        /// <para><b>APPENDED — this member may never be inserted above.</b> <c>ItemType</c> is
+        /// serialised by <b>value</b> into every <c>ItemDefinition</c> asset (<c>type: 11</c> is
+        /// <c>Misc</c>), so inserting a member anywhere earlier renumbers every value above it and
+        /// silently reinterprets all 500 item assets — no error, no warning, and the assets look
+        /// fine in the inspector. New members go at the end, always.</para>
+        ///
+        /// <para>Before this member existed, <c>FixDataImport.GetItemTypeFromSource</c> sent
+        /// <c>tip='spell'</c> to its <c>default:</c> bucket alongside <c>note</c>, <c>weap</c>,
+        /// <c>stuff</c>, <c>trap</c> and twenty others — so all nine spells imported as
+        /// <c>Misc</c>.</para>
+        /// </summary>
+        Spell,
     }
 
     /// <summary>

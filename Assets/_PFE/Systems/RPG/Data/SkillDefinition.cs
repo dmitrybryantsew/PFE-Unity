@@ -7,10 +7,12 @@ namespace PFE.Systems.RPG.Data
     /// ScriptableObject definition for RPG skills.
     /// Based on docs/task1_core_mechanics/08_rpg_system.md
     ///
-    /// Supports 18 skills:
+    /// Supports the oracle's 16 skills:
     /// - 13 Regular Skills (cap at level 20)
     /// - 3 Post-Game Skills (cap at level 100): attack, defense, knowl
-    /// - 2 Special Skills (level 40+ rewards): life, spirit
+    ///
+    /// `life` and `spirit` are NOT skills -- they are perks (AllData.as:5802, :5806) and are
+    /// modelled by <see cref="PerkDefinition"/>.
     /// </summary>
     [CreateAssetMenu(fileName = "NewSkill", menuName = "RPG/Skill Definition")]
     public class SkillDefinition : ScriptableObject, IGameContent

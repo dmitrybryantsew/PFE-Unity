@@ -8,8 +8,10 @@ using PFE.Entities.Units;
 using PFE.Systems.Combat;
 using PFE.Systems.Effects;
 using PFE.Systems.Interaction;
+using PFE.Systems.Audio;
 using PFE.Systems.Map;
 using PFE.Systems.Map.TileQuery;
+using PFE.Systems.Magic;
 using PFE.Systems.Physics;
 using PFE.Systems.RPG;
 using PFE.Systems.Weapons;
@@ -80,6 +82,22 @@ namespace PFE.Entities.Player
         /// </summary>
         private PlayerManaTicker _manaTicker;
 
+        /// <summary>
+        /// The player's spell caster — the port of AS3 <c>UnitPlayer</c>'s spell half. Created here for
+        /// the same reason as <see cref="PlayerManaTicker"/>: the player is motor-driven, so
+        /// <c>UnitController.SimTick</c> returns early for it and a separate <c>ISimTickable</c> is the
+        /// only way to get a per-tick hook. See <see cref="PlayerSpellCaster"/>.
+        /// </summary>
+        private PlayerSpellCaster _spellCaster;
+
+        // The three spell input subscribers, held between Construct and Awake because Unity does not
+        // order the two. Same reason and same shape as _pendingEffectResolver above.
+        private ISubscriber<SpellCastMessage> _pendingSpellCastSubscriber;
+        private ISubscriber<SpellHotkeyMessage> _pendingSpellHotkeySubscriber;
+        private PFE.Systems.Map.LandMap _pendingLandMap;
+        private PFE.Systems.Audio.ISoundService _pendingSoundService;
+        private PFE.Data.ContentRegistry _pendingRegistry;
+
         // MessagePipe subscriptions (disposable)
         private CompositeDisposable _disposables;
 
@@ -104,11 +122,27 @@ namespace PFE.Entities.Player
             ISubscriber<AttackMessage> attackSubscriber,
             ISubscriber<TeleportMessage> teleportSubscriber,
             ISubscriber<InteractMessage> interactSubscriber,
+            ISubscriber<ReloadMessage> reloadSubscriber,
+            ISubscriber<SpellCastMessage> spellCastSubscriber,
+            ISubscriber<SpellHotkeyMessage> spellHotkeySubscriber,
             PFE.Core.PfeDebugSettings debugSettings,
+            // Required, not optional: VContainer has no optional parameters (it resolves every [Inject]
+            // argument or throws), so a default value here would document a fallback that never happens.
+            // ISoundService is already a required dependency of PlayerWeaponLoadout, so it is registered.
+            PFE.Systems.Map.LandMap landMap,
+            PFE.Systems.Audio.ISoundService soundService,
             PFE.Data.ContentRegistry registry = null)
         {
             _input = input;
             _debugSettings = debugSettings;
+            _pendingLandMap = landMap;
+            _pendingSoundService = soundService;
+            _pendingRegistry = registry;
+
+            // Held until Awake has built the caster's own collaborators. See WireSpellCasterIfReady.
+            _pendingSpellCastSubscriber = spellCastSubscriber;
+            _pendingSpellHotkeySubscriber = spellHotkeySubscriber;
+            WireSpellCasterIfReady();
 
             // The effect-definition resolver, built from the DI singleton the container already owns so
             // there is one resolution story rather than a second registration to keep in step. Handed
@@ -162,6 +196,21 @@ namespace PFE.Entities.Player
                     HandleAttackStart();
                 else
                     HandleAttackEnd();
+            }).AddTo(_disposables);
+
+            // R — the reload key. AS3's `keyReload` (inter/Ctr.as:24) drives two things from one
+            // press: the magazine reload, and — for a radio throwable — `currentWeapon.detonator()`
+            // (UnitPlayer.as:2358). Both live behind `IWeaponController.StartReload()`, which the
+            // controller decides between using its own definition (`WeaponDefinition.radio`), so
+            // there is nothing to branch on here.
+            //
+            // The press edge only. See ReloadMessage for why a release edge has no consumer.
+            reloadSubscriber.Subscribe(message =>
+            {
+                if (!message.IsStarted) return;
+                if (_debugSettings.LogWeaponLifecycle)
+                    Debug.Log("[PlayerController] ReloadMessage received — forwarding to the loadout.");
+                _loadout?.StartReload();
             }).AddTo(_disposables);
 
             teleportSubscriber.Subscribe(message =>
@@ -244,6 +293,38 @@ namespace PFE.Entities.Player
             }
         }
 
+        /// <summary>
+        /// Wires the spell caster once both halves exist — the component and its collaborators from
+        /// <c>Awake</c>, the injected world/sound/registry/subscribers from <c>Construct</c>. Called from
+        /// both, so it does not matter which runs first.
+        ///
+        /// <para>Without this the caster would be built with a null <c>LandMap</c> (no line-of-sight ray)
+        /// or, worse, with no input subscriptions at all — the latter presents as "C does nothing" and
+        /// the former as "spells cast through walls", neither of which points at the ordering.</para>
+        /// </summary>
+        private void WireSpellCasterIfReady()
+        {
+            if (_spellCaster == null || base._unitStats == null || _characterStats == null) return;
+            if (_pendingSpellCastSubscriber == null) return;
+
+            // The magic mount is optional: a rig without WeaponMounts falls back to the body position,
+            // which is what the weapon path does too. Not a reason to leave the caster unwired.
+            var mounts = GetComponent<WeaponMounts>() ?? GetComponentInChildren<WeaponMounts>();
+
+            _spellCaster.Construct(
+                _characterStats,
+                base._unitStats,
+                mounts,
+                _pendingLandMap,
+                _pendingSoundService,
+                _pendingRegistry,
+                // AS3 casts at the cursor (World.w.celX/celY). The loadout already receives the projected
+                // mouse world position every frame, so the spell aims where the weapon aims.
+                aimProvider: () => _loadout != null ? _loadout.AimTarget : Vector2.zero);
+
+            _spellCaster.BindInput(_pendingSpellCastSubscriber, _pendingSpellHotkeySubscriber);
+        }
+
         protected override void Awake()
         {
             base.Awake();
@@ -261,6 +342,13 @@ namespace PFE.Entities.Player
             // runs it falls back to FixedUpdate and warns, so it is never silently absent.
             _manaTicker = GetComponent<PlayerManaTicker>() ?? gameObject.AddComponent<PlayerManaTicker>();
             _manaTicker.Construct(_characterStats, _locomotion, _telekinesis);
+
+            // AS3's spell half. The component is created here so `GetComponentInParent<PlayerSpellCaster>`
+            // finds it the moment the inventory asks to select a spell, but its dependencies are wired by
+            // WireSpellCasterIfReady below — the container's half arrives in Construct and Unity does not
+            // order Construct against Awake.
+            _spellCaster = GetComponent<PlayerSpellCaster>() ?? gameObject.AddComponent<PlayerSpellCaster>();
+            WireSpellCasterIfReady();
 
             // AS3 Pers.die() fires from inside damage() / bloodDamage() / manaDamage() when an organ
             // reaches zero (Pers.as:1693-1697, :1793-1797, :1739-1743). CharacterStats raises the
@@ -298,6 +386,15 @@ namespace PFE.Entities.Player
             if (_manaTicker != null)
             {
                 _manaTicker.Attach(clock, loop);
+            }
+
+            // Registered after the mana ticker on purpose: both sit at SimTickOrder.PlayerMotor, and at
+            // equal order SimLoop runs them in registration order — so the mana block resolves before a
+            // cast can spend from the pool, which is the AS3 order (step()'s mana block precedes
+            // control()).
+            if (_spellCaster != null)
+            {
+                _spellCaster.Attach(clock, loop);
             }
         }
 

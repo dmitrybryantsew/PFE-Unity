@@ -1076,11 +1076,17 @@ namespace PFE.Tests.Editor.Combat
         }
 
         [Test]
-        public void DamageSpread_DoesNotApplyToABlast()
+        public void DamageSpread_AppliesToABlast()
         {
-            // AS3's explosion path (Bullet.explRun) calls unit.damage() directly and never enters
-            // udarBullet, so a blast does its falloff value exactly. Scripted 0.0 would give 0.7 if the
-            // spread leaked onto this path, so 40 rather than 28 is the assertion.
+            // INVERTED. This fixture used to assert the opposite, reasoning that "Bullet.explRun calls
+            // unit.damage() directly and never enters udarBullet, so a blast does its falloff value
+            // exactly". The premise is true; the conclusion does not follow. AS3 repeats the spread
+            // verbatim at `explGas():763` — `_loc5_ = this.damageExpl * (Math.random() * 0.6 + 0.7)`
+            // — before the blast calls `damage()`, and the `explTip 1` shape gets a udarBullet spread
+            // anyway through the child bullet `explBullet()` spawns. A blast skips udarBullet's COPY of
+            // the spread, not the spread.
+            //
+            // The same ScriptedRng(0f) that used to prove 40 now proves 28: 0.0 * 0.6 + 0.7 = 0.7.
             var system = MakeImmediate(new ScriptedRng(0f), testDamage: false);
             var target = new FakeTarget { Health = 100f };
 
@@ -1091,7 +1097,43 @@ namespace PFE.Tests.Editor.Combat
                 explosionCentre: Vector3.zero,
                 explosionRadius: 100f));
 
-            Assert.AreEqual(60f, target.Health, 1e-4f, "40 exactly — no spread on a blast");
+            Assert.AreEqual(72f, target.Health, 1e-4f, "40 * 0.7 — a blast takes the spread");
+        }
+
+        [Test]
+        public void Explosion_FalloffIsAPlateauNotALine()
+        {
+            // The defect no existing fixture could see. `Clamp01(1 - d/r)` and the oracle's
+            // `d <= r/2 ? 1 : 2 - 2d/r` agree at d = 0 and at d = r — which is where every explosion
+            // test sat — and disagree everywhere in between, by up to a factor of two. So the midpoint
+            // is the only place that pins the shape, and that is why the old curve could be wrong with
+            // a green suite.
+            //
+            // d = r/2 is the seam: the oracle is still at full strength there (`d > r*0.5` is false),
+            // and one step further out it has already started to ramp.
+            var system = MakeImmediate(testDamage: true);   // deterministic: the spread reports 1
+
+            // Exactly at the plateau edge — full strength. A linear curve would give 20, not 40.
+            var atHalf = new FakeTarget { Health = 100f };
+            system.Report(PendingDamage.Explosion(
+                Context(explosionDamage: 40f), atHalf,
+                targetPosition: new Vector3(5f, 0f, 0f),
+                explosionCentre: Vector3.zero,
+                explosionRadius: 10f));
+
+            // Three quarters of the way out — half strength. The control: both curves agree here, so a
+            // failure at atHalf but not here is unambiguously the plateau.
+            var atThreeQuarters = new FakeTarget { Health = 100f };
+            system.Report(PendingDamage.Explosion(
+                Context(explosionDamage: 40f), atThreeQuarters,
+                targetPosition: new Vector3(7.5f, 0f, 0f),
+                explosionCentre: Vector3.zero,
+                explosionRadius: 10f));
+
+            Assert.AreEqual(60f, atHalf.Health, 1e-4f,
+                "d = r/2 is INSIDE the plateau, so full 40. A linear curve gives 20.");
+            Assert.AreEqual(80f, atThreeQuarters.Health, 1e-4f,
+                "d = 3r/4 gives 2 - 1.5 = 0.5, so 20 — the control both curves satisfy.");
         }
 
         [Test]
@@ -1140,13 +1182,20 @@ namespace PFE.Tests.Editor.Combat
                 "the spread and the knockback jitter — the toggle discards the spread's value, not its draw");
         }
 
-        // ── The call path (PendingDamage.SkipsAvoidanceAndVariance) ──────────
+        // ── The call path (PendingDamage.ReachedDamageWithoutUdarBullet) ─────
         //
         // AS3 has two damage entry shapes and the difference is not cosmetic. `udarBullet`
         // (Unit.as:4067) owns exactly three rolls — the avoidance conjunction (:4072), the damage
         // spread (:4085), and the `otbros` throw (:4091) — and anything that reaches `damage()`
-        // without passing through it owns none of them. `PendingDamage.Contact` (AS3 `Unit.udarBox`,
-        // :4237) is that second shape, and the flag is the predicate that names it.
+        // without passing through it owns none of those three. `PendingDamage.Contact` (AS3
+        // `Unit.udarBox`, :4237) is that second shape, and the flag is the predicate that names it.
+        //
+        // Careful: "owns none of udarBullet's three rolls" is NOT the same as "takes no spread".
+        // AS3 repeats the spread verbatim at `explGas():763`, so a blast skips udarBullet's copy and
+        // takes the other one — and the `explTip 1` shape takes udarBullet's copy anyway, through the
+        // child bullet `explBullet()` spawns. That is why the variance gate asks a separate question
+        // (`PendingDamage.SkipsDamageVariance`) and why the only path with no spread anywhere is a
+        // prop impact. Tests for both facts are below.
         //
         // Each of the three gates has a test below, and each is paired with the `Direct` control for
         // the same hit, because "took no draw" only means something next to "and this is what the draw
@@ -1168,8 +1217,10 @@ namespace PFE.Tests.Editor.Combat
 
             Assert.IsFalse(hit.IsExplosion,
                 "a prop impact is not a blast: it reads BaseDamage and takes no falloff");
-            Assert.IsTrue(hit.SkipsAvoidanceAndVariance,
+            Assert.IsTrue(hit.ReachedDamageWithoutUdarBullet,
                 "and it is the second entry shape, so it takes none of udarBullet's three rolls");
+            Assert.IsTrue(hit.SkipsDamageVariance,
+                "udarBox has no spread of its own, so this is the one path that skips the spread too");
             Assert.AreEqual(25f, hit.Context.BaseDamage, 1e-4f);
             Assert.AreEqual(0f, hit.Context.ExplosionDamage, 1e-4f);
             Assert.AreEqual(0f, hit.Context.Knockback, 1e-4f,
@@ -1279,11 +1330,13 @@ namespace PFE.Tests.Editor.Combat
         }
 
         [Test]
-        public void Explosion_StillTakesNoDrawAtAll()
+        public void Explosion_TakesTheSpreadDrawButNoThrow()
         {
-            // The regression guard for retargeting the throw's gate from IsExplosion to the flag: a blast
-            // reaches `damage()` through Bullet.explRun, so it must keep skipping all three. A blast that
-            // suddenly took a knockback draw would shift every later roll in the same tick.
+            // The regression guard, retargeted. The flag that means "reached damage() without
+            // udarBullet" must keep suppressing the avoidance roll and the otbros throw for a blast —
+            // a blast that suddenly took a knockback draw would shift every later roll in the same
+            // tick. But it must NOT suppress the spread: the oracle applies that one to blasts too
+            // (explGas:763), so exactly ONE draw is consumed, not zero.
             var rng    = new ScriptedRng(0f);
             var system = MakeImmediate(rng, testDamage: false);
             var target = new FakeTarget { Health = 100f };
@@ -1295,9 +1348,9 @@ namespace PFE.Tests.Editor.Combat
                 explosionCentre: Vector3.zero,
                 explosionRadius: 100f));
 
-            Assert.AreEqual(60f, target.Health, 1e-4f, "40 at the centre — no spread");
-            Assert.AreEqual(0, rng.RollsConsumed, "and no draw at all, the throw included");
-            Assert.AreEqual(0, target.ApplyKnockbackCalls);
+            Assert.AreEqual(72f, target.Health, 1e-4f, "40 at the centre, times the 0.7 spread");
+            Assert.AreEqual(1, rng.RollsConsumed, "the spread, and only the spread");
+            Assert.AreEqual(0, target.ApplyKnockbackCalls, "a blast does not reach otbros");
         }
 
         [Test]

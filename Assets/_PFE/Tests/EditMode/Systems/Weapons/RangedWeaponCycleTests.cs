@@ -88,8 +88,16 @@ namespace PFE.Tests.EditMode.Systems.Weapons
             private readonly float _value;
             public FixedRng(float value) => _value = value;
 
+            /// <summary>
+            /// How many times <see cref="NextFloat"/> was called. The combat RNG is a <b>shared
+            /// stream</b>, so the number of draws a shot consumes is itself observable behaviour — and
+            /// for a constant-valued fake it is the <i>only</i> way to tell "drew once and shared it"
+            /// from "drew per pellet", since both produce identical angles.
+            /// </summary>
+            public int DrawCount;
+
             public uint  NextUInt() => 0u;
-            public float NextFloat() => _value;
+            public float NextFloat() { DrawCount++; return _value; }
             public int   NextInt(int maxExclusive) => 0;
             public int   Range(int minInclusive, int maxExclusive) => minInclusive;
             public float Range(float min, float max) => min;
@@ -133,6 +141,20 @@ namespace PFE.Tests.EditMode.Systems.Weapons
             public float MazilAdd    = 0f;
             public float ComposedPrecisionMultiplier = 1f;
 
+            // Weapon-skill channel — AS3 `_loc1_` (Weapon.as:1451-1459). Defaults are the
+            // "no owner stats" identity: multiplier 1 (no damage/precision change) and the unknown
+            // sentinel, which makes SkillConfidence return 1 so the miss chance stays 0.
+            public float WeaponSkillMult = 1f;
+            public int   OwnerSkillLevel = PFE.Systems.Combat.HitAvoidance.UnknownOwnerSkillLevel;
+
+            /// <summary>
+            /// Optional per-skill-code tier override, consulted before <see cref="OwnerSkillLevel"/>.
+            /// Lets a fixture make the owner good at one skill and untrained in another, so a test can
+            /// prove WHICH code the production code asked about — the difference between asking
+            /// <c>getWeapLevel(this.skill)</c> and asking about the owner's own or the weapon's level.
+            /// </summary>
+            public Dictionary<int, int> TierByCode;
+
             float IWeaponStatSource.ReloadMult   => ReloadMult;
             float IWeaponStatSource.RecoilMult   => RecoilMult;
             float IWeaponStatSource.JammedMult   => JammedMult;
@@ -151,6 +173,11 @@ namespace PFE.Tests.EditMode.Systems.Weapons
             float IWeaponStatSource.StayBonus    => StayBonus;
             float IWeaponStatSource.MazilAdd     => MazilAdd;
             float IWeaponStatSource.PrecisionMultiplier => ComposedPrecisionMultiplier;
+            float IWeaponStatSource.WeaponSkillMultiplier(int skillCode) => WeaponSkillMult;
+            int   IWeaponStatSource.OwnerWeaponSkillLevel(int skillCode)
+                => TierByCode != null && TierByCode.TryGetValue(skillCode, out int tier)
+                    ? tier
+                    : OwnerSkillLevel;
         }
 
         private sealed class RecordingAmmoSource : IAmmoSource
@@ -183,7 +210,8 @@ namespace PFE.Tests.EditMode.Systems.Weapons
         private static WeaponDefinition MakeDef(
             string weaponId = "test_rifle", int magazineSize = 30, int maxDurability = 100,
             float rapid = 10f, int projectilesPerShot = 1, int burstCount = 0, float reloadTime = 0f,
-            float deviation = 0f, string ammoType = null, int rechargeFrames = 0)
+            float deviation = 0f, string ammoType = null, int rechargeFrames = 0,
+            int weaponLevel = 0, int skillLevel = 0)
         {
             var def = ScriptableObject.CreateInstance<WeaponDefinition>();
             def.weaponId           = weaponId;
@@ -198,6 +226,12 @@ namespace PFE.Tests.EditMode.Systems.Weapons
             def.deviation          = deviation;
             def.ammoType           = ammoType;
             def.rechargeFrames     = rechargeFrames;
+            // AS3 <weapon lvl='…' skill='…'> — the required SKILL LEVEL and the numeric skill CODE
+            // (WeaponDataImporter maps "lvl" -> weaponLevel and "skill" -> skillLevel). Both default
+            // to 0, which is the "no requirement" state every other fixture in this file relies on:
+            // weaponLevel 0 against any tier is a gap of at most 0, so the skill gate never refuses.
+            def.weaponLevel        = weaponLevel;
+            def.skillLevel         = skillLevel;
             return def;
         }
 
@@ -650,6 +684,187 @@ namespace PFE.Tests.EditMode.Systems.Weapons
             rig.Ctrl.BeginAttack();
             rig.Ctrl.Tick(Dt, Vector2.zero, Vector2.zero, Vector2.zero);
             return rig.State.TRet;
+        }
+
+        // ── The skill gate: Weapon.checkAvail (Weapon.as:1366-1388) ───────────
+        // `_loc1_ = this.lvl - pers.getWeapLevel(skill)`: gaps 1 and 2 are PENALTIES, priced as the
+        // round's miss chance, and a gap above 2 REFUSES the shot at the weapon. Only the refusal is
+        // driven through the controller here; the penalties are asserted in HitAvoidanceTests.
+        //
+        // Every refusal is paired with a firing control one tier away, because a gate that is simply
+        // always closed satisfies a lone "refuses" assertion perfectly.
+
+        [Test]
+        public void Fire_AtTheTierTheWeaponDemands_Fires_AndConsumesARound()
+        {
+            var stats = new FakeWeaponStats { OwnerSkillLevel = 5 };
+            using var rig = new Rig(MakeDef(magazineSize: 30, weaponLevel: 5), stats: stats);
+
+            int plans = HoldFor(rig, 1);
+
+            Assert.AreEqual(1, plans, "gap 0 is the control: the weapon must fire.");
+            Assert.AreEqual(29, rig.State.CurrentAmmo, "A shot that fired costs a round.");
+        }
+
+        [Test]
+        public void Fire_WhenOverSkilled_Fires()
+        {
+            var stats = new FakeWeaponStats { OwnerSkillLevel = 5 };   // tier max, weaponLevel 2
+            using var rig = new Rig(MakeDef(magazineSize: 30, weaponLevel: 2), stats: stats);
+
+            Assert.AreEqual(1, HoldFor(rig, 1), "A negative gap is not a refusal.");
+        }
+
+        [Test]
+        public void Fire_WhenUnderSkilledByOneOrTwoTiers_StillFires()
+        {
+            // The two penalised gaps. Turning either into a refusal would make most of the game's
+            // weapons unusable for a mid-game player, which is not what the oracle does.
+            foreach (int ownerTier in new[] { 4, 3 })
+            {
+                var stats = new FakeWeaponStats { OwnerSkillLevel = ownerTier };
+                using var rig = new Rig(MakeDef(magazineSize: 30, weaponLevel: 5), stats: stats);
+
+                Assert.AreEqual(1, HoldFor(rig, 1),
+                    $"gap {5 - ownerTier} is a penalty (skillConf {(5 - ownerTier == 1 ? "0.8" : "0.6")}), not a refusal.");
+            }
+        }
+
+        [Test]
+        public void Fire_WhenUnderSkilledByThreeTiers_RefusesToFire_AndBurnsNothing()
+        {
+            // Weapon.as:1377-1381. weaponLevel 5 against tier 2 is the first refused gap.
+            var stats = new FakeWeaponStats { OwnerSkillLevel = 2 };
+            using var rig = new Rig(MakeDef(magazineSize: 30, maxDurability: 100, weaponLevel: 5), stats: stats);
+
+            int plans = HoldFor(rig, 90);
+
+            Assert.AreEqual(0, plans, "A gap of 3 must stop the shot at the weapon.");
+            Assert.AreEqual(30, rig.State.CurrentAmmo, "A refused shot must not burn a round.");
+            Assert.AreEqual(100, rig.State.CurrentDurability, "A refused shot must not wear the weapon.");
+            Assert.AreEqual(0, rig.State.TAttack, "t_attack is never armed, so Shoot() is never reached.");
+        }
+
+        [Test]
+        public void Fire_WhenUnderSkilledAndOutOfAmmo_RefusesWithoutStartingAReload()
+        {
+            // The gate sits BEFORE the ammo check, as the oracle has it (:1306 then :1311). Both
+            // branches stop the shot, so the only observable difference is the reload: the ammo
+            // branch calls initReload(), and the refusal must not.
+            var stats = new FakeWeaponStats { OwnerSkillLevel = 2 };
+            using var rig = new Rig(MakeDef(magazineSize: 30, reloadTime: 90f, weaponLevel: 5), stats: stats);
+            rig.State.CurrentAmmo = 0;
+
+            HoldFor(rig, 12);
+
+            Assert.AreEqual(0, rig.State.TReload, "The refusal comes first, so no reload is started.");
+            Assert.IsFalse(rig.State.IsReloadingRP.Value);
+        }
+
+        [Test]
+        public void Fire_WithNoStatSource_IsNeverGated_EvenOnTheHighestLevelWeapon()
+        {
+            // The absent control, and the reason this change cannot disturb the rest of the file: with
+            // no stat source there is no tier to measure a gap against, which is AS3's "not a player".
+            using var rig = new Rig(MakeDef(magazineSize: 30, weaponLevel: 12));
+
+            Assert.AreEqual(1, HoldFor(rig, 1),
+                "With no owner stats the gate is not reached, so even a level-12 weapon fires.");
+        }
+
+        [Test]
+        public void Fire_WhenUnderSkilled_AsksAboutTheWeaponsSkillCode_NotTheOwners()
+        {
+            // The gate must ask `getWeapLevel(this.skill)` — the WEAPON's numeric skill code — not the
+            // required level and not the owner's own skill. A fake that answers per code proves the
+            // argument is threaded through: skill code 2 answers tier 2 (gap 3, refused) while code 4
+            // falls to the default tier 5 (gap 0, fires), with everything else identical.
+            var stats = new FakeWeaponStats { OwnerSkillLevel = 5, TierByCode = new Dictionary<int, int> { [2] = 2 } };
+
+            using (var smallguns = new Rig(MakeDef(magazineSize: 30, weaponLevel: 5, skillLevel: 2), stats: stats))
+            {
+                Assert.AreEqual(0, HoldFor(smallguns, 1),
+                    "skill code 2 -> tier 2 -> gap 3 -> refused.");
+            }
+
+            using (var energy = new Rig(MakeDef(magazineSize: 30, weaponLevel: 5, skillLevel: 4), stats: stats))
+            {
+                Assert.AreEqual(1, HoldFor(energy, 1),
+                    "skill code 4 -> default tier 5 -> gap 0 -> fires.");
+            }
+        }
+
+        // ── skillPlusDam (over-qualification) and the once-per-shot deviation ──
+
+        [Test]
+        public void Fire_WhenOverQualified_ScalesDamageBySkillPlusDamage()
+        {
+            // AS3 setPers (Weapon.as:984-992): a tier ABOVE the weapon's requirement is
+            // `skillPlusDam = 1 + 0.1` per tier of overskill, and resultDamage multiplies it straight
+            // in (:1629). weaponLevel 2 with tier 5 is a gap of -3, so 1.3.
+            var stats = new FakeWeaponStats { OwnerSkillLevel = 5 };
+            using var rig = new Rig(MakeDef(magazineSize: 30, weaponLevel: 2), stats: stats);
+
+            rig.Ctrl.BeginAttack();
+            rig.Ctrl.Tick(Dt, Vector2.zero, Vector2.zero, Vector2.zero);
+            var plans = rig.Ctrl.FlushShotPlans();
+            rig.Ctrl.EndAttack();
+
+            Assert.AreEqual(1, plans.Count);
+            Assert.AreEqual(20f * 1.3f, plans[0].Damage.BaseDamage, 1e-4f,
+                "baseDamage 20 * skillPlusDam 1.3 — the overskill bonus is a direct damage factor, " +
+                "separate from the weapon-skill multiplier.");
+        }
+
+        [Test]
+        public void Fire_WhenExactlyQualified_AndWhenUnderQualified_GetsNoBonus()
+        {
+            // The control for the test above: only OVERSKILL pays. Being at or below the requirement is
+            // no bonus at all — not a penalty. Under-qualification is priced by the miss chance
+            // instead, and by the fire gate past a gap of 2.
+            foreach (int tier in new[] { 2, 1 })
+            {
+                var stats = new FakeWeaponStats { OwnerSkillLevel = tier };
+                using var rig = new Rig(MakeDef(magazineSize: 30, weaponLevel: 2), stats: stats);
+
+                rig.Ctrl.BeginAttack();
+                rig.Ctrl.Tick(Dt, Vector2.zero, Vector2.zero, Vector2.zero);
+                var plans = rig.Ctrl.FlushShotPlans();
+                rig.Ctrl.EndAttack();
+
+                Assert.AreEqual(1, plans.Count, $"tier {tier} still fires (gap {2 - tier} is at most 2).");
+                Assert.AreEqual(20f, plans[0].Damage.BaseDamage, 1e-4f,
+                    $"tier {tier} does not beat level 2, so skillPlusDam is 1.");
+            }
+        }
+
+        [Test]
+        public void Shot_DrawsTheDeviationOncePerShot_NotOncePerPellet()
+        {
+            // AS3 computes `_loc2_` at Weapon.as:1460, BEFORE the kol loop opens at :1463, so every
+            // pellet shares one random offset and the shared combat stream advances by exactly one.
+            //
+            // The draw COUNT is the assertion, not the angle: with a constant-valued fake, "one shared
+            // draw" and "one draw per pellet" produce byte-identical pellet angles. Only the stream
+            // position tells them apart — and the stream position is real behaviour, because every
+            // later roll in the game reads from where this shot left off.
+            //
+            // A full-durability weapon never consults the RNG for jamming (breaking == 0) and a null
+            // stat source makes recyc 0 without drawing, so the deviation is the shot's only draw.
+            var rng = new FixedRng(0.5f);
+            using var rig = new Rig(MakeDef(magazineSize: 30, maxDurability: 100, projectilesPerShot: 5),
+                                    rng: rng);
+
+            rig.Ctrl.BeginAttack();
+            rig.Ctrl.Tick(Dt, Vector2.zero, Vector2.zero, Vector2.zero);
+            var plans = rig.Ctrl.FlushShotPlans();
+            rig.Ctrl.EndAttack();
+
+            Assert.AreEqual(5, plans.Count, "precondition: five pellets in a single shot.");
+            Assert.AreEqual(1, rng.DrawCount,
+                "One shot is ONE deviation draw whatever the pellet count. More than one means the " +
+                "deviation is being computed inside the pellet loop, which both re-randomises each " +
+                "pellet and shifts the shared stream the oracle leaves untouched.");
         }
 
         // ── Reload ────────────────────────────────────────────────────────────

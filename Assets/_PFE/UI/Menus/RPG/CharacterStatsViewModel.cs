@@ -339,12 +339,12 @@ namespace PFE.UI.Menus.RPG
 
             _skillLevels.Clear();
 
-            // All 18 skill IDs
+            // The oracle's 16 skills (AllData.as). `life`/`spirit` are perks, not skills.
             string[] skillIds = new string[]
             {
                 "tele", "melee", "smallguns", "energy", "explosives", "magic",
                 "repair", "medic", "lockpick", "science", "sneak", "barter", "survival",
-                "attack", "defense", "knowl", "life", "spirit"
+                "attack", "defense", "knowl"
             };
 
             foreach (string skillId in skillIds)

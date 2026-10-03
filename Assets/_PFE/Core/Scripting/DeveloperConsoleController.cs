@@ -34,6 +34,7 @@ namespace PFE.Core.Scripting
         private DevConsoleProfilerCommands _profilerCommands;
         private DevConsoleRpgCommands _rpgCommands;
         private DevConsoleEffectCommands _effectCommands;
+        private DevConsoleSpellCommands _spellCommands;
 
         private const KeyCode ToggleKey1 = KeyCode.BackQuote;
         private const KeyCode ToggleKey2 = KeyCode.F1;
@@ -151,6 +152,7 @@ namespace PFE.Core.Scripting
             _profilerCommands ??= new DevConsoleProfilerCommands();
             _rpgCommands ??= new DevConsoleRpgCommands();
             _effectCommands ??= new DevConsoleEffectCommands();
+            _spellCommands ??= new DevConsoleSpellCommands();
 
             if (_resolver != null)
             {
@@ -199,7 +201,12 @@ namespace PFE.Core.Scripting
             // must work precisely when the effect wiring is what failed.
             _effectCommands.Wire(() => FindFirstObjectByType<PFE.Entities.Player.PlayerController>());
 
-            _service.SetCommandObjects(_playerCommands, _simCommands, _saveCommands, _colliderCommands, _profilerCommands, _rpgCommands, _effectCommands);
+            // The spell commands are wired unconditionally for the same reason as `rpg` and `eff`: they
+            // need only a scene lookup for the player (the caster is a component on it), so `spell
+            // status` must work precisely when the spell wiring is what failed.
+            _spellCommands.Wire(() => FindFirstObjectByType<PFE.Entities.Player.PlayerController>());
+
+            _service.SetCommandObjects(_playerCommands, _simCommands, _saveCommands, _colliderCommands, _profilerCommands, _rpgCommands, _effectCommands, _spellCommands);
         }
 
         private LandMap ResolveLandMap()

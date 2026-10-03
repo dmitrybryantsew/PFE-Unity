@@ -131,6 +131,11 @@ namespace PFE.Editor.Importers
                 case "valuables": return PFE.Data.Definitions.ItemType.Valuable;
                 case "art":
                 case "sphera": return PFE.Data.Definitions.ItemType.Sphera;
+
+                // `tip='spell'` used to fall through to the `default:` Misc bucket below, alongside
+                // `note`, `weap`, `stuff`, `trap` and twenty others — so all nine cast-from-inventory
+                // spells imported as Misc. See `SpellData` / `SpellItemXml`.
+                case "spell": return PFE.Data.Definitions.ItemType.Spell;
                 case "m":
                 case "compa":
                 case "compm":
@@ -139,7 +144,6 @@ namespace PFE.Editor.Importers
                 case "compw": return PFE.Data.Definitions.ItemType.Component;
                 case "food":
                 case "paint":
-                case "spell":
                 case "note":
                 case "weap":
                 case "stuff":

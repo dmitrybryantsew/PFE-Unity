@@ -150,9 +150,16 @@ namespace PFE.Data.Definitions
         [Header("Burst Fire")]
         public int burstCount = 0;           // dkol in AS3
 
-        [Header("Explosion")]
-        public float explRadius = 0f;        // Explosion radius
-        public float explosionDamage = 0f;   // damageExpl in AS3
+    [Header("Explosion")]
+    public float explRadius = 0f;        // Explosion radius
+    public float explosionDamage = 0f;   // damageExpl in AS3
+    // NOT IMPORTED YET: char.@expltip / char.@explkol (Weapon.as:846/850). AS3 has THREE explosion
+    // shapes — explTip 1 = explBlast (radial child bullets, WITH knockback), 2 = explGas (direct
+    // damage, no knockback), 3 = both, sequenced explKol=12 times. Every throwable sets one of them.
+    // They are deliberately absent rather than imported-but-unread: the port has no knockback on the
+    // explosion path at all, so a field here could not change any behaviour yet. Add the field in the
+    // same change that adds its consumer. See
+    // docs/AUDIT_throwable_and_explosive_2026-10-03.md §4.
 
         [Header("Ammunition")]
         public int magazineSize = 0;         // holder in AS3
@@ -180,18 +187,37 @@ namespace PFE.Data.Definitions
         public float recoilLift;
 
         [Header("Magic — dual cost")]
-        [Tooltip("Deducted from owner mana pool per shot (dmagic / magic in AS3). WMagic weapons only.")]
+        [Tooltip("Mana BUDGET spent per shot — AS3 `ammo@magic` -> `Weapon.dmagic` -> `owner.mana -= dmagic`. " +
+                 "WMagic (tip==5) only. fireball=500, eclipse=800, mray=25.")]
         public float magicPoolCost;
-        [Tooltip("Deducted from pers.manaHP (health-mana pool) per shot (dmana / mana in AS3). WMagic weapons only.")]
+        [Tooltip("Mana ORGAN wounded per shot — AS3 `ammo@mana` -> `Weapon.dmana` -> `pers.manaDamage(dmana)`. " +
+                 "WMagic (tip==5) only. Not the same pool as magicPoolCost; the organ does not regenerate.")]
         public float manaHealthCost;
 
-        [Header("Thrown Settings")]
-        [Tooltip("Throw sub-type (throwtip in AS3). 0=arc grenade, 1=mine placement, 2=sticky throw.")]
-        public int throwTip;
-        [Tooltip("Fuse countdown in frames before detonation (detTime in AS3). Default 75 (~2.5s at 30fps).")]
-        public int fuseFrames = 75;
-        [Tooltip("Radio detonation flag (char.@radio in AS3). Second press detonates placed mines.")]
-        public bool radio;
+    [Header("Thrown Settings")]
+    [Tooltip("Throw sub-type (throwtip in AS3). 0=arc grenade, 1=mine placement, 2=sticky throw.")]
+    public int throwTip;
+    [Tooltip("Fuse countdown in frames before detonation (detTime in AS3). Default 75 (~2.5s at 30fps).")]
+    public int fuseFrames = 75;
+    [Tooltip("Radio detonation flag (char.@radio in AS3). Second press detonates placed mines.")]
+    public bool radio;
+
+    /// <summary>
+    /// Placed-mine proximity box half-width, in AS3 pixels — <c>Mine.sens</c>, read from the weapon's
+    /// own <c>&lt;char sens&gt;</c> (<c>Mine.as:166-169</c>, declaration default 100).
+    ///
+    /// <para>The trigger box is <b>not</b> a circle and <b>not</b> symmetric: AS3 tests
+    /// <c>|dx| &lt; sens</c> horizontally but <c>dy ∈ (-sens, +0.4·sens)</c> vertically
+    /// (<c>Mine.as:317</c>), and AS3's Y runs downward, so a mine senses <c>sens</c> px <i>above</i>
+    /// itself and <c>0.4·sens</c> px below. See <c>MineObject.CheckProximity</c>.</para>
+    ///
+    /// <para><b>Zero means "never triggers on proximity"</b> — <c>Mine.control()</c> guards the whole
+    /// scan with <c>this.sens &gt; 0</c> (<c>Mine.as:309</c>). <c>x37</c> is exactly that mine: it is
+    /// armed, visible and inert until its radio detonator fires.</para>
+    /// </summary>
+    [Tooltip("Placed-mine proximity half-width in AS3 pixels (char.@sens). 0 = never proximity-triggers " +
+             "(x37: radio-only). Mines only.")]
+    public float sens = 100f;
 
         [Header("Melee Settings")]
         public MeleeType meleeType;          // mtip in AS3
@@ -225,6 +251,26 @@ namespace PFE.Data.Definitions
         public float bulletNavod;
         [Tooltip("Uses physics bullet (vis.@phisbul). If true: Dynamic Rigidbody2D, real gravity, bounces/sticks.")]
         public bool isPhysBullet;
+
+        /// <summary>
+        /// Detonate on the first tile contact instead of bouncing — AS3 <c>PhisBullet.bumc</c>,
+        /// set from <c>&lt;phis bumc&gt;</c> (<c>WThrow.as:60-63</c> → <c>:184</c>).
+        ///
+        /// <para><b>Not the same field as <see cref="isPhysBullet"/>, and reading one for the other was
+        /// a real bug.</b> <c>phisbul</c> is a <c>&lt;vis&gt;</c> attribute that selects the
+        /// <c>ProjectileArchetype</c> (see <c>DeriveArchetype</c>); <c>bumc</c> is a
+        /// <c>&lt;phis&gt;</c> attribute that decides contact detonation. The port read
+        /// <c>vis@phisbul</c> and used it as <c>bumc</c>, and the two sets are <b>disjoint</b>: the ten
+        /// weapons carrying <c>phisbul</c> are all ranged projectiles, while the only two carrying
+        /// <c>bumc</c> are the throwables <c>acidgr</c> and <c>molotov</c> — so neither ever detonated
+        /// on contact.</para>
+        ///
+        /// <para>Consumed by <c>ThrownObjectPhysics.Step</c>'s <c>detonateOnContact</c> parameter and
+        /// by <c>ThrownObject</c>'s trigger path.</para>
+        /// </summary>
+        [Tooltip("Detonate on first tile contact instead of bouncing (phis.@bumc). Throwables only — " +
+                 "acidgr and molotov. NOT the same as isPhysBullet.")]
+        public bool bumc;
 
         [Header("Projectile — Visual")]
         [Tooltip("Bullet visual class name from AllData.as (vis.@vbul). Empty = default ballistic round.")]
@@ -269,10 +315,40 @@ namespace PFE.Data.Definitions
         public float dopChance = 1f;
 
         [Header("Magic Weapon")]
-        [Tooltip("Mana cost per shot (ammo.@mana). Only used by WMagic (tip==5) weapons.")]
-        public float manaCost;
         [Tooltip("Requires Alicorn Amulet equipped to use (weapon.@alicorn).")]
         public bool alicornOnly;
+
+        /// <summary>
+        /// AS3 <c>weapon@spell</c> — true for the nine <b>supportive</b> magic items
+        /// (<c>sp_slow</c>, <c>sp_mwall</c>, <c>sp_blast</c>, <c>sp_cryst</c>, <c>sp_kdash</c>,
+        /// <c>sp_mshit</c>, <c>sp_moon</c>, <c>sp_gwall</c>, <c>sp_invulner</c>).
+        ///
+        /// <para><b>This is the flag that separates two unrelated things that both carry
+        /// <c>tip == 5</c>.</b> <c>weaponType == WeaponType.Magic</c> covers both, so on its own it
+        /// cannot tell them apart:</para>
+        ///
+        /// <list type="bullet">
+        /// <item><description><b>Assault magic</b> (<c>spell == false</c>) — <c>WMagic</c> projectiles:
+        /// fireball, eclipse, mray, dray, ice, lightning, dragon, udar, blades… These are held and
+        /// fired, and pay mana per shot (<see cref="magicPoolCost"/> /
+        /// <see cref="manaHealthCost"/>).</description></item>
+        /// <item><description><b>Supportive magic</b> (<c>spell == true</c>) — a <c>Spell</c>, not a
+        /// weapon at all. It has no <c>&lt;char&gt;</c> body, is never equipped, and is <i>cast from
+        /// the inventory</i>: <c>UnitPlayer.as:3627-3635</c> intercepts the selection and calls
+        /// <c>invent.useItem(id)</c> instead of switching to it.</description></item>
+        /// </list>
+        ///
+        /// <para><b>Why it matters before the caster exists.</b> <see cref="WeaponControllerFactory"/>
+        /// dispatches on <c>tip</c> alone, so without this flag the nine spell items route to
+        /// <c>MagicWeaponController</c> and fire a real (if harmless) projectile — the wrong
+        /// behaviour, and one a play-test could read as progress. Both the factory and
+        /// <c>PlayerWeaponLoadout.Equip</c> now refuse them loudly.</para>
+        ///
+        /// <para>See docs/OnWeaponsSystemImplementation/14_MagicSystemAudit_2026-10-03.md §1 and §3.</para>
+        /// </summary>
+        [Tooltip("AS3 weapon@spell — a supportive spell, cast from the inventory, NOT a fired weapon. " +
+                 "The nine sp_* items. Never equipped.")]
+        public bool spell;
 
         [Header("Visuals (held sprite)")]
         [Tooltip("Imported weapon visual definition. Wired by WeaponGraphicsImportWindow.")]

@@ -102,11 +102,18 @@ namespace PFE.Core
                 && ReferenceEquals(_viewModel.CharacterStatsSource, _player.CharacterStats))
                 return;
 
-            _boundController = controller;
-
             _viewModel.Initialize(_loadout, _player.Stats, _player.CharacterStats);
             RebindViews();
             BindHoldBar();
+
+            // Record the swap only AFTER it succeeded. Writing _boundController before the bind made a
+            // throwing Initialize permanent: the next Update saw _boundController == controller,
+            // returned early, and never retried — so one exception left the HUD frozen on the previous
+            // weapon's numbers with no path back. That is exactly how the R3 ObjectDisposedException of
+            // 2026-10-03 hid itself (the ammo readout stayed at the old weapon's value while the new one
+            // was equipped). The cost of recording it afterwards is that a genuinely repeatable failure
+            // re-logs each frame — which is the honest signal, not noise.
+            _boundController = controller;
         }
 
         // ── Construction ──────────────────────────────────────────────────────

@@ -110,6 +110,18 @@ namespace PFE.Systems.Weapons
         /// <summary>True when this is a mine placement rather than an arc throw.</summary>
         public readonly bool IsMine;
 
+        /// <summary>
+        /// AS3 <c>PhisBullet.lip</c> — the object latches on its first tile contact instead of
+        /// bouncing. Set from <c>WThrow.as:193</c> (<c>lip = throwTip == 2</c>), so it is true for the
+        /// five <c>throwtip='2'</c> weapons (<c>mercgr</c>, <c>drongr</c>, <c>dbomb</c>, <c>bomb</c>,
+        /// <c>exc4</c>).
+        ///
+        /// <para>Only meaningful when <see cref="Kind"/> is <see cref="ShotKind.ThrownObject"/>. The
+        /// oracle's crate-latching half (<c>prilip</c> onto a <c>Box</c> with <c>explcrack</c>,
+        /// <c>PhisBullet.as:214-222</c>) is not modelled — see <c>ThrownObjectPhysics</c>.</para>
+        /// </summary>
+        public readonly bool Sticky;
+
         // ── Constructor ───────────────────────────────────────────────────────
 
         public ShotPlan(
@@ -125,7 +137,8 @@ namespace PFE.Systems.Weapons
             Vector2 meleeCurrTip  = default,
             Vector2 throwVelocity = default,
             int fuseFrames        = 75,
-            bool isMine           = false)
+            bool isMine           = false,
+            bool sticky           = false)
         {
             Origin         = origin;
             WorldPosition  = worldPosition;
@@ -140,6 +153,7 @@ namespace PFE.Systems.Weapons
             ThrowVelocity  = throwVelocity;
             FuseFrames     = fuseFrames;
             IsMine         = isMine;
+            Sticky         = sticky;
         }
     }
 
