@@ -83,14 +83,16 @@ namespace PFE.Tests.Editor.RPG
         [Description("XP_Levels11Through20_CalculationsWithMultiplier")]
         public void GetXpForLevel_Levels11To20_ApplyMultiplierCorrectly()
         {
-            // For levels 11+, the XP formula includes a multiplier applied to each level
-            // Formula: Sum of (xpDelta * lvl * multiplier^2) for all levels up to N
-
-            // Test calculated values (linear per level with multipliers)
-            Assert.AreEqual(333000, testLevelCurve.GetXpForLevel(11), 2000, "Level 11 XP should be ~332k");
-            Assert.AreEqual(401000, testLevelCurve.GetXpForLevel(12), 2000, "Level 12 XP should be ~401k");
-            Assert.AreEqual(672000, testLevelCurve.GetXpForLevel(15), 10000, "Level 15 XP should be ~672k");
-            Assert.AreEqual(1402000, testLevelCurve.GetXpForLevel(20), 5000, "Level 20 XP should be ~1.4M");
+            // AS3 Pers.xpProgress (Pers.as:1139-1147) is ONE closed form, not a sum of marginal levels:
+            //     mult = level > 10 ? (level - 10) / 30 + 1 : 1
+            //     xp   = round(xpDelta * level * (level + 1) / 2 * mult * mult / 1000) * 1000
+            // The old expectations (333k/401k/672k/1.4M) came from summing the marginal term and
+            // applying the multiplier only to it -- correct for level <= 10, wrong above. The oracle
+            // squares the multiplier over the whole sum, so the gap compounds.
+            Assert.AreEqual(352000, testLevelCurve.GetXpForLevel(11), 2000, "Level 11 XP should be ~352k");
+            Assert.AreEqual(444000, testLevelCurve.GetXpForLevel(12), 2000, "Level 12 XP should be ~444k");
+            Assert.AreEqual(817000, testLevelCurve.GetXpForLevel(15), 5000, "Level 15 XP should be ~817k");
+            Assert.AreEqual(1867000, testLevelCurve.GetXpForLevel(20), 5000, "Level 20 XP should be ~1.87M");
         }
 
         [Test]
@@ -562,9 +564,13 @@ namespace PFE.Tests.Editor.RPG
         [Description("Perk_MultiRank_AllRanks")]
         public void AddPerk_MultiRank_CanReachAllRanks()
         {
-            // Selflevit has 2 ranks
+            // Selflevit has 2 ranks, gated `<req id='tele' lvl='2' dlvl='3'/>` (AllData.as:5332).
+            // `lvl` is compared against getSkLevel -- the TIER, not the raw point count
+            // (Pers.as:1458 `getSkLevel(...) < reqlevel`). Tier 2 needs raw 5 (>=5 -> 2), so the old
+            // raw 2 was tier 1 and the first rank was correctly refused once the perk database became
+            // loadable. Rank 2 adds dlvl*heldRank = 3 -> tier 5, i.e. raw 20.
             characterStats.GrantPerkPoints(2);
-            characterStats.SetSkillLevel("tele", 2);
+            characterStats.SetSkillLevel("tele", 20);
 
             Assert.IsTrue(characterStats.AddPerk("selflevit"), "First rank should succeed");
             Assert.AreEqual(1, characterStats.GetPerkRank("selflevit"), "Should be rank 1");
@@ -582,19 +588,24 @@ namespace PFE.Tests.Editor.RPG
         public void AddPerk_LevelDelta_RequirementsUpdatePerRank()
         {
             // Test perk with level delta (additional requirements per rank)
-            // Note: Current implementation doesn't fully support dlvl, but tests verify behavior
+            // selflevit: `<req id='tele' lvl='2' dlvl='3'/>` -- `lvl` is a TIER (Pers.as:1458
+            // compares getSkLevel), so tier 2 = raw 5. Rank 2 would need tier 5 = raw 20.
             characterStats.GrantPerkPoints(2);
-            characterStats.SetSkillLevel("tele", 2);
+            characterStats.SetSkillLevel("tele", 5);
 
             // First rank
             bool result1 = characterStats.AddPerk("selflevit");
-            Assert.IsTrue(result1, "First rank should succeed with Tele 2");
+            Assert.IsTrue(result1, "First rank should succeed with Tele tier 2 (raw 5)");
         }
 
         [Test]
         [Description("Perk_NoPerkPoints_Fails")]
         public void AddPerk_NoPerkPoints_ReturnsFalse()
         {
+            // Deliberately left at raw 1 (melee tier 0), i.e. the oak requirement is NOT met. The
+            // rejection must come from perkPoints == 0 alone (CharacterStats.AddPerk, the
+            // `if (perkPoints <= 0) return false;` guard) — do not raise this to 2, or the test
+            // stops isolating the point it exists to pin.
             characterStats.SetSkillLevel("melee", 1);
 
             bool result = characterStats.AddPerk("oak");
@@ -652,46 +663,55 @@ namespace PFE.Tests.Editor.RPG
         [Description("StatModifier_Attack_PostGameScaling")]
         public void AttackSkill_PostGame_CorrectScaling()
         {
-            // +5% per level (0-100)
-            // At level 100: +500% = 6.0x damage
-
+            // AS3 `<sk id='allDamMult' ref='add' v0='0' vd='0.05'/>` (AllData.as:5299) has no `dop`,
+            // so the modifier is evaluated against the TIER. `attack` is a post skill, and its tier
+            // table is postSkTab = [5,11,18,26,35,45,56,68,82,100] (Pers.as:511), so:
+            //   raw 5..10 -> tier 1 -> +5%;  raw 100 -> tier 10 -> +50%.
+            // This is NOT "+5% per raw point": raw 10 is tier 1, not 10 tiers.
             characterStats.SetSkillLevel("attack", 0);
             characterStats.RecalculateStats();
             Assert.AreEqual(1.0f, characterStats.AllDamMult, 0.01f, "Attack 0 should be 1.0x");
 
-            characterStats.SetSkillLevel("attack", 10);
+            characterStats.SetSkillLevel("attack", 5);   // post tier 1
             characterStats.RecalculateStats();
-            Assert.AreEqual(1.5f, characterStats.AllDamMult, 0.01f, "Attack 10 should be 1.5x");
+            Assert.AreEqual(1.05f, characterStats.AllDamMult, 0.01f, "Attack tier 1 should be 1.05x");
 
-            characterStats.SetSkillLevel("attack", 50);
+            characterStats.SetSkillLevel("attack", 35);  // post tier 5
             characterStats.RecalculateStats();
-            Assert.AreEqual(3.5f, characterStats.AllDamMult, 0.01f, "Attack 50 should be 3.5x");
+            Assert.AreEqual(1.25f, characterStats.AllDamMult, 0.01f, "Attack tier 5 should be 1.25x");
 
-            characterStats.SetSkillLevel("attack", 100);
+            characterStats.SetSkillLevel("attack", 100); // post tier 10 (the cap)
             characterStats.RecalculateStats();
-            Assert.AreEqual(6.0f, characterStats.AllDamMult, 0.01f, "Attack 100 should be 6.0x");
+            Assert.AreEqual(1.5f, characterStats.AllDamMult, 0.01f, "Attack tier 10 should be 1.5x");
         }
 
         [Test]
         [Description("StatModifier_Defense_Stacking")]
         public void DefenseSkill_StacksCorrectly()
         {
-            // -3% per level (stacking multiplicatively)
-            // Level 10: 0.97^10 ≈ 0.737
-
-            for (int level = 0; level <= 10; level++)
+            // AS3 `<sk id='allVulnerMult' ref='mult' vd='-0.03'/>` (AllData.as:5303) has no `dop`,
+            // so it uses the TIER, and it is ONE linear term — not a per-point compounding curve.
+            // SkillDefinition.Evaluate documents this at length: AS3 computes base + level * vd for
+            // every ref type, and only the application differs (`*=` vs `+=`). defense is a post
+            // skill, so its tier table is postSkTab = [5,11,18,26,35,45,56,68,82,100] (Pers.as:511).
+            var cases = new (int raw, int tier, float expected)[]
             {
-                characterStats.SetSkillLevel("defense", level);
+                (0,   0, 1.00f),
+                (5,   1, 0.97f),
+                (11,  2, 0.94f),
+                (18,  3, 0.91f),
+                (35,  5, 0.85f),
+                (100, 10, 0.70f),
+            };
+
+            foreach (var c in cases)
+            {
+                characterStats.SetSkillLevel("defense", c.raw);
                 characterStats.RecalculateStats();
 
-                float expected = 1.0f;
-                for (int i = 0; i < level; i++)
-                {
-                    expected *= 0.97f;
-                }
-
-                Assert.AreEqual(expected, characterStats.AllVulnerMult, 0.01f,
-                    $"Defense {level} should be {expected:F3}");
+                Assert.AreEqual(c.expected, characterStats.AllVulnerMult, 0.01f,
+                    $"Defense raw {c.raw} (tier {c.tier}) should be {c.expected:F2} — one linear " +
+                    "term of -0.03 per TIER, not 0.97^raw");
             }
         }
 
@@ -699,32 +719,45 @@ namespace PFE.Tests.Editor.RPG
         [Description("StatModifier_Survival_Skin")]
         public void SurvivalSkill_IncreasesSkinCorrectly()
         {
-            // skin: +1 per level
-
-            for (int level = 0; level <= 20; level++)
+            // AS3 `<sk id='skin' v0='0' vd='1'/>` (AllData.as:5294) has no `dop`, so it uses the
+            // TIER (getSkLevel, Pers.as:995-1018): raw 1 -> 0, 2..4 -> 1, 5..8 -> 2, 9..13 -> 3,
+            // 14..19 -> 4, 20 -> 5.
+            var cases = new (int raw, int tier, float expected)[]
             {
-                characterStats.SetSkillLevel("survival", level);
+                (0,  0, 0f), (1,  0, 0f), (2,  1, 1f), (4,  1, 1f),
+                (5,  2, 2f), (8,  2, 2f), (9,  3, 3f), (13, 3, 3f),
+                (14, 4, 4f), (20, 5, 5f),
+            };
+
+            foreach (var c in cases)
+            {
+                characterStats.SetSkillLevel("survival", c.raw);
                 characterStats.RecalculateStats();
 
-                Assert.AreEqual(level, characterStats.skin, 0.01f,
-                    $"Survival {level} should give {level} skin");
+                Assert.AreEqual(c.expected, characterStats.skin, 0.01f,
+                    $"Survival raw {c.raw} (tier {c.tier}) should give {c.expected} skin");
             }
         }
 
         [Test]
-        [Description("StatModifier_Sneak_Dexter")]
-        public void SneakSkill_IncreasesDexterCorrectly()
+        [Description("StatModifier_Sneak — AS3's sneak skill grants no dexter")]
+        public void SneakSkill_GrantsNoDexter()
         {
-            // dexter: +0.15 per level
-
+            // AS3's <skill id='sneak'> (AllData.as:5277) carries sneak / noiseRun / critInvis /
+            // signal / sneakLurk — and NO `dexter`. The six `<sk id='dexter'>` entries in AllData.as
+            // belong to mod_holo (:4159), the `dexter` perk (:5701), potion_dexter (:5840), the
+            // `drunk` effect (:5988), f_salad (:6259) and f_soup (:6283).
+            //
+            // An earlier revision of the port invented "+0.15 dexter per sneak point", which is
+            // the `dexter` PERK's slope, not the skill's. This test now pins the oracle: the skill
+            // alone must leave dexter untouched.
             for (int level = 0; level <= 20; level += 5)
             {
                 characterStats.SetSkillLevel("sneak", level);
                 characterStats.RecalculateStats();
 
-                float expected = level * 0.15f;
-                Assert.AreEqual(expected, characterStats.dexter, 0.001f,
-                    $"Sneak {level} should give {expected} dexter");
+                Assert.AreEqual(0f, characterStats.dexter, 0.001f,
+                    $"Sneak raw {level} must not change dexter — AS3's sneak skill has no dexter modifier");
             }
         }
 
@@ -732,24 +765,23 @@ namespace PFE.Tests.Editor.RPG
         [Description("StatModifier_CombinedSkills")]
         public void MultipleSkills_CombineCorrectly()
         {
-            // Test multiple skills affecting same stat
-            characterStats.SetSkillLevel("medic", 5);  // +50 HP
-            characterStats.SetSkillLevel("survival", 10); // +10 skin
-            characterStats.SetSkillLevel("sneak", 5);   // +0.75 dexter
+            // Test multiple skills affecting the same stat. medic's maxhp uses a TIER-indexed
+            // table: `<sk tip='unit' id='maxhp' ref='add' v1='20' v2='50' v3='90' v4='140'
+            // v5='200'/>` (AllData.as:5261), so raw 5 (tier 2) is +50. survival's skin is tier 2
+            // at raw 10, so +2.
+            characterStats.SetSkillLevel("medic", 5);    // tier 2 -> +50 HP
+            characterStats.SetSkillLevel("survival", 10); // tier 2 -> +2 skin
             characterStats.RecalculateStats();
 
-            Assert.AreEqual(150, characterStats.MaxHp, "Should have 150 HP from medic");
-            Assert.AreEqual(10, characterStats.skin, "Should have 10 skin from survival");
-            Assert.AreEqual(0.75f, characterStats.dexter, 0.01f, "Should have 0.75 dexter from sneak");
+            Assert.AreEqual(150, characterStats.MaxHp, "Should have 150 HP from medic tier 2");
+            Assert.AreEqual(2, characterStats.skin, "Should have 2 skin from survival tier 2");
 
-            // Verify factor tracking for all stats
+            // Verify factor tracking for the skills that actually have modifiers.
             var maxHpFactors = characterStats.GetFactorsForStat("maxhp");
             var skinFactors = characterStats.GetFactorsForStat("skin");
-            var dexterFactors = characterStats.GetFactorsForStat("dexter");
 
             Assert.IsTrue(maxHpFactors.Exists(f => f.sourceId == "medic"), "Should track medic factor");
             Assert.IsTrue(skinFactors.Exists(f => f.sourceId == "survival"), "Should track survival factor");
-            Assert.IsTrue(dexterFactors.Exists(f => f.sourceId == "sneak"), "Should track sneak factor");
         }
 
         #endregion
@@ -771,9 +803,10 @@ namespace PFE.Tests.Editor.RPG
             characterStats.AddSkillPoint("knowl", 15);
 
             characterStats.GrantPerkPoints(5);
-            characterStats.SetSkillLevel("melee", 1);
+            characterStats.SetSkillLevel("melee", 2);
             characterStats.AddPerk("oak");
-            characterStats.SetSkillLevel("tele", 2);
+            // selflevit needs tele TIER 2 (Pers.as:1458 compares getSkLevel against lvl='2'), i.e. raw 5.
+            characterStats.SetSkillLevel("tele", 5);
             characterStats.AddPerk("selflevit");
 
             // Set health
@@ -878,7 +911,7 @@ namespace PFE.Tests.Editor.RPG
             characterStats.SetSkillLevel("medic", 5);   // +50 HP
             characterStats.SetSkillLevel("survival", 10); // +10 skin
             characterStats.GrantPerkPoints(1);
-            characterStats.SetSkillLevel("melee", 1);
+            characterStats.SetSkillLevel("melee", 2);
             characterStats.AddPerk("oak"); // +0.25 blade resistance (requires skillDatabase for factor tracking)
             characterStats.RecalculateStats();
 
@@ -906,7 +939,22 @@ namespace PFE.Tests.Editor.RPG
             var factors = characterStats.GetFactorsForStat("maxhp");
 
             Assert.IsNotNull(factors, "Should return list, not null");
-            Assert.AreEqual(0, factors.Count, "Should be empty for fresh character");
+
+            // NOT zero, and that is faithful. Initialize() -> SeedSkillIds() fills the skill table
+            // with every authored skill at 0, and RecalculateStats evaluates each one's level-0
+            // modifier -- AS3's Pers constructor does the same (Pers.as:2167-2180 iterates the whole
+            // `skills` map), which is exactly why the engine cannot go inert. `medic` is the only
+            // skill with a `maxhp` modifier, so a fresh character records exactly one `maxHp` factor,
+            // contributing +0 at level 0.
+            //
+            // The meaningful assertion is that nothing has CHANGED the stat yet, not that no row
+            // exists: a level-0 row with result == base is "engine ran, found nothing to add".
+            Assert.AreEqual(1, factors.Count,
+                "A fresh character records one level-0 maxHp factor from the medic skill");
+            Assert.AreEqual(characterStats.MaxHp, factors[0].result, 1e-3f,
+                "The level-0 factor must leave MaxHp at its base value");
+            Assert.AreEqual(0f, factors[0].value, 1e-3f,
+                "A level-0 medic modifier contributes 0");
         }
 
         [Test]
@@ -976,9 +1024,19 @@ namespace PFE.Tests.Editor.RPG
             // Verify knowl perk points
             Assert.IsTrue(characterStats.PerkPointsExtra >= 3, "Knowl 25 should grant at least 3 extra perks");
 
-            // Verify stat effects
-            Assert.IsTrue(characterStats.AllDamMult > 2.0f, "Attack 50 should give >2x damage");
-            Assert.IsTrue(characterStats.AllVulnerMult < 0.5f, "Defense 30 should reduce damage by >50%");
+            // Verify stat effects.
+            //
+            // These are POST skills, so the <req>-style TIER table applies, not the raw point count:
+            // PostSkTab = {5,11,18,26,35,45,56,68,82,100} and getSkLevel maps raw -> tier
+            // (Pers.as:995-1018). attack 50 -> tier 6 -> `<sk id='allDamMult' ref='add' v0='0' vd='0.05'/>`
+            // (AllData.as:5299) gives 1 + 6*0.05 = 1.30, NOT the 1 + 50*0.05 = 3.5 the old
+            // ">2x" assertion assumed (that reading is the fallback engine's, which is only reached
+            // when the skill database is unavailable). defense 30 -> tier 4 ->
+            // `<sk id='allVulnerMult' ref='mult' vd='-0.03'/>` (:5303) gives 1 - 4*0.03 = 0.88.
+            Assert.AreEqual(1.30f, characterStats.AllDamMult, 1e-3f,
+                "Attack tier 6 must give 1 + 6*0.05 = 1.30x damage");
+            Assert.AreEqual(0.88f, characterStats.AllVulnerMult, 1e-3f,
+                "Defense tier 4 must give 1 - 4*0.03 = 0.88 vulnerability");
         }
 
         [Test]
@@ -1001,7 +1059,7 @@ namespace PFE.Tests.Editor.RPG
             characterStats.GrantSkillPoints(5);
             characterStats.AddSkillPoint("melee", 2);
             characterStats.GrantPerkPoints(1);
-            characterStats.SetSkillLevel("melee", 1);
+            characterStats.SetSkillLevel("melee", 2);
             characterStats.AddPerk("oak");
 
             Assert.IsTrue(levelUpCount > 0, "LevelUp event should fire");

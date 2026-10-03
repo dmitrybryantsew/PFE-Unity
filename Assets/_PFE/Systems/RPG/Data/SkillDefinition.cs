@@ -210,8 +210,22 @@ namespace PFE.Systems.RPG.Data
         private float As3Base()
         {
             if (hasV0) return v0;
-            if (refType == "add" || tip == "res" || type == ModifierType.Add) return 0f;
-            if (refType == "mult" || type == ModifierType.Multiply) return 1f;
+
+            // Match the oracle's OWN fields FIRST. Pers.as:1483-1491 tests only XML attributes --
+            // `v0`, then `ref == "add" || tip == "res"`, then `ref == "mult"`. AS3 has no `type`
+            // attribute at all; `ModifierType` is a Unity-side convenience the importer DERIVES from
+            // `refType` (SkillAndPerkDataImporter.cs:335-342).
+            //
+            // So `type` must never be consulted before `refType`: `ModifierType.Add` is enum 0, the
+            // default for any StatModifier built without setting it, so testing it first made a
+            // refType="mult" modifier with an unset `type` return 0 instead of 1. That inverted the
+            // identity for every multiplier (StatModifierApplierTests.Evaluate_MultWithVd_IsLinear).
+            // `type` is kept only as a fallback for assets that predate `refType`.
+            if (refType == "add" || tip == "res") return 0f;
+            if (refType == "mult") return 1f;
+
+            if (type == ModifierType.Add) return 0f;
+            if (type == ModifierType.Multiply) return 1f;
             return 0f;
         }
 

@@ -381,6 +381,201 @@ namespace PFE.Tests.Editor.Combat
             Assert.AreEqual(60f, outcome.HpDamage, 1e-4f, "(50 - 20) * 2");
         }
 
+        // === Stealth crit — Unit.as:3659-3666 ===
+        //
+        // `if(!this.doop && this.celUnit != param3.owner && param3.critInvis > 0)
+        //     if(Math.random() < param3.critInvis) { param1 *= 2; }`
+        //
+        // A SECOND, independent roll that runs after the ordinary crit and stacks with it. The
+        // `celUnit != owner` term is not modelled by the port (no per-unit look-at state), so these
+        // tests pin the two terms it does model: the doop gate and the doubling.
+
+        [Test]
+        public void StealthCrit_DoublesAfterTheOrdinaryCrit_AndStacks()
+        {
+            // Both rolls pass: (50 - 20) * 2 (crit) * 2 (stealth) = 120. The stealth crit is NOT a
+            // replacement for the crit — AS3 multiplies `param1` again without un-flagging `_loc5_`.
+            var outcome = _calculator.ResolveDamage(
+                incomingDamage: 50f,
+                armourIntegrityDamage: 1f,
+                armour: Armour(physical: 20f),
+                rng: AlwaysRolls(),
+                critChance: 0.5f,
+                critMultiplier: 2f,
+                critInvisChance: 0.5f);
+
+            Assert.IsTrue(outcome.IsCritical);
+            Assert.AreEqual(120f, outcome.HpDamage, 1e-4f, "(50 - 20) * 2 * 2");
+        }
+
+        [Test]
+        public void StealthCrit_Alone_StillDoubles()
+        {
+            // No armour, so the reliability roll does not happen and the scripted queue holds exactly
+            // the crit rolls. The ordinary crit fails, the stealth crit passes: 50 * 2 = 100, and the
+            // hit is NOT reported as a critical — AS3's stealth branch never touches the crit flag.
+            var rng = new ScriptedRng(false, true);
+
+            var outcome = _calculator.ResolveDamage(
+                incomingDamage: 50f,
+                armourIntegrityDamage: 0f,
+                armour: ArmourState.None,
+                rng: rng,
+                critChance: 0.5f,
+                critMultiplier: 2f,
+                critInvisChance: 0.5f);
+
+            Assert.IsFalse(outcome.IsCritical,
+                "AS3's stealth branch does not set the crit flag.");
+            Assert.AreEqual(100f, outcome.HpDamage, 1e-4f, "50 * 2");
+            Assert.AreEqual(2, rng.ChanceCallCount, "Both crit rolls must be taken.");
+        }
+
+        [Test]
+        public void StealthCrit_IsSuppressedOnANonLivingTarget()
+        {
+            // AS3 `!this.doop` — a non-living target never takes the stealth crit. The roll is not
+            // merely forced to fail: it must not be taken at all, or the shared combat stream would
+            // advance one draw further than the oracle's.
+            var rng = new ScriptedRng(false, true);
+
+            var outcome = _calculator.ResolveDamage(
+                incomingDamage: 50f,
+                armourIntegrityDamage: 0f,
+                armour: ArmourState.None,
+                rng: rng,
+                critChance: 0.5f,
+                critMultiplier: 2f,
+                critInvisChance: 0.5f,
+                targetIsNonLiving: true);
+
+            Assert.AreEqual(50f, outcome.HpDamage, 1e-4f, "Unmodified — neither crit passed.");
+            Assert.AreEqual(1, rng.ChanceCallCount,
+                "Only the ordinary crit roll is taken — the doop gate short-circuits the stealth roll.");
+        }
+
+        [Test]
+        public void StealthCrit_WithZeroChance_ConsumesNoRoll()
+        {
+            // A weapon with no stealth chance (the common case — most loadouts carry no sneak skill)
+            // must not draw a number. Drawing one would shift every later roll in the tick.
+            //
+            // No armour, so the reliability roll is absent too and the count is unambiguous.
+            var rng = new ScriptedRng(true, true, true, true);
+
+            _calculator.ResolveDamage(
+                incomingDamage: 50f,
+                armourIntegrityDamage: 0f,
+                armour: ArmourState.None,
+                rng: rng,
+                critInvisChance: 0f);
+
+            Assert.AreEqual(0, rng.ChanceCallCount,
+                "No crit terms are positive, so no roll is taken for them.");
+        }
+
+        // === Disintegration — Unit.as:3671-3677 ===
+        //
+        // `if(param3 && param3.desintegr && (param2 == D_LASER || param2 == D_PLASMA))
+        //     if(this.hp <= param1 * 10 && this.isrnd(param3.desintegr)) { param1 *= 12; }`
+        //
+        // An overkill proc, not a damage buff: it can only fire when the target is already within ten
+        // times the damage, which is what "finisher" means.
+
+        [Test]
+        public void Disintegr_MultipliesByTwelve_OnALaserHitWithinTheHpGate()
+        {
+            // Target on 200 HP, hit lands for 30: 200 <= 30 * 10 exactly, so the gate is open.
+            var outcome = _calculator.ResolveDamage(
+                incomingDamage: 30f,
+                armourIntegrityDamage: 0f,
+                armour: ArmourState.None,
+                rng: AlwaysRolls(),
+                damageType: DamageType.Laser,
+                desintegrChance: 0.5f,
+                targetCurrentHp: 200f);
+
+            Assert.AreEqual(360f, outcome.HpDamage, 1e-4f, "30 * 12");
+        }
+
+        [Test]
+        public void Disintegr_IsSkippedAboveTheHpGate()
+        {
+            // The gate is `hp <= damage * 10`, so with 30 damage the open range is hp <= 300.
+            // 301 sits just outside it.
+            var rng = AlwaysRolls();
+
+            var outcome = _calculator.ResolveDamage(
+                incomingDamage: 30f,
+                armourIntegrityDamage: 0f,
+                armour: ArmourState.None,
+                rng: rng,
+                damageType: DamageType.Laser,
+                desintegrChance: 0.5f,
+                targetCurrentHp: 301f);
+
+            Assert.AreEqual(30f, outcome.HpDamage, 1e-4f, "Gate closed — no multiplier.");
+            Assert.AreEqual(0, rng.ChanceCallCount,
+                "The HP gate is tested BEFORE the roll, so a target above it consumes no random number.");
+        }
+
+        [Test]
+        public void Disintegr_BoundaryAtExactlyTenTimes_IsOpen()
+        {
+            // AS3 uses `<=`, so hp == damage * 10 is inside the gate.
+            var outcome = _calculator.ResolveDamage(
+                incomingDamage: 30f,
+                armourIntegrityDamage: 0f,
+                armour: ArmourState.None,
+                rng: AlwaysRolls(),
+                damageType: DamageType.Plasma,
+                desintegrChance: 0.5f,
+                targetCurrentHp: 300f);
+
+            Assert.AreEqual(360f, outcome.HpDamage, 1e-4f, "Boundary is inclusive: 300 <= 300.");
+        }
+
+        [Test]
+        public void Disintegr_IsSkippedForNonEnergyDamageTypes()
+        {
+            // AS3 gates on `param2 == D_LASER || param2 == D_PLASMA`. A bullet against a target deep
+            // inside the HP gate must NOT disintegrate, and must not consume the roll either.
+            var rng = AlwaysRolls();
+
+            var outcome = _calculator.ResolveDamage(
+                incomingDamage: 30f,
+                armourIntegrityDamage: 0f,
+                armour: ArmourState.None,
+                rng: rng,
+                damageType: DamageType.PhysicalBullet,
+                desintegrChance: 0.9f,
+                targetCurrentHp: 10f);
+
+            Assert.AreEqual(30f, outcome.HpDamage, 1e-4f,
+                "A physical hit never disintegrates, however close the target is to death.");
+            Assert.AreEqual(0, rng.ChanceCallCount);
+        }
+
+        [Test]
+        public void Disintegr_WithUnknownTargetHp_IsSkipped()
+        {
+            // A caller that cannot supply the target's HP leaves it at the -1 sentinel, and the gate
+            // must answer "closed" rather than accidentally passing for any damage value.
+            var rng = AlwaysRolls();
+
+            var outcome = _calculator.ResolveDamage(
+                incomingDamage: 30f,
+                armourIntegrityDamage: 0f,
+                armour: ArmourState.None,
+                rng: rng,
+                damageType: DamageType.Laser,
+                desintegrChance: 0.9f,
+                targetCurrentHp: -1f);
+
+            Assert.AreEqual(30f, outcome.HpDamage, 1e-4f);
+            Assert.AreEqual(0, rng.ChanceCallCount);
+        }
+
         [Test]
         public void DurabilityMultiplier_AppliesLast()
         {

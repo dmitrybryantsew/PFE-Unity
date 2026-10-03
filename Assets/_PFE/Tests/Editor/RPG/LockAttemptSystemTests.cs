@@ -58,12 +58,27 @@ namespace PFE.Tests.Editor.RPG
             return new LockAttemptSystem(stats, new ScriptedRng(rngValue));
         }
 
-        private LockAttemptSystem.LockState CreateLock(int tip = 1, int level = 1, float hp = 10f)
+        /// <summary>
+        /// A damage pool deep enough that one attempt never opens the lock, so a test can assert on
+        /// the *damage dealt*. AS3's pool is <c>Interact.lockHP</c> (<c>Interact.as:52</c>), which is
+        /// independent of the container's difficulty (<c>Interact.lock</c>, <c>:44</c>).
+        /// </summary>
+        private const float DeepPoolHp = 100f;
+
+        /// <summary>
+        /// Builds a lock. <paramref name="difficulty"/> is AS3 <c>Interact.lock</c>
+        /// (<c>:44</c>) — the 0..99 value the entry guard reads — and <paramref name="hp"/> is AS3
+        /// <c>Interact.lockHP</c> (<c>:52</c>), the damage pool. These are separate oracle fields;
+        /// an earlier revision of the fixture passed 100 for both and the guard (correctly, but for
+        /// the wrong reason) rejected every one of them as an unbreakable lock.
+        /// </summary>
+        private LockAttemptSystem.LockState CreateLock(int tip = 1, int level = 1, int difficulty = 10, float hp = 10f)
         {
             return new LockAttemptSystem.LockState
             {
                 LockTip = tip,
                 LockLevel = level,
+                Lock = difficulty,
                 LockHp = hp,
                 LockAtt = -100f,
             };
@@ -80,7 +95,7 @@ namespace PFE.Tests.Editor.RPG
             var stats = CreateTestCharacter();
             stats.pinBreak = 1f;          // the declared default (Pers.as:289)
             stats.lockPick = 5;           // same level as the lock, so the roll is a guaranteed hit
-            var state = CreateLock(tip: 1, level: 5, hp: 100f);
+            var state = CreateLock(tip: 1, level: 5, hp: DeepPoolHp);
 
             var outcome = CreateSystem(stats).Attempt(state, hasPin: true);
 
@@ -95,7 +110,7 @@ namespace PFE.Tests.Editor.RPG
             var stats = CreateTestCharacter();
             stats.pinBreak = 0.2f;        // the lockpick skill lowers it (AllData.as:5588)
             stats.lockPick = 5;
-            var state = CreateLock(tip: 1, level: 5, hp: 100f);
+            var state = CreateLock(tip: 1, level: 5, hp: DeepPoolHp);
 
             // RNG returns 0.5, which is NOT < 0.2, so the pin survives.
             var outcome = CreateSystem(stats, rngValue: 0.5f).Attempt(state, hasPin: true);
@@ -112,17 +127,16 @@ namespace PFE.Tests.Editor.RPG
             stats.pinBreak = 1f;
             stats.lockPick = 5;           // at-level: _loc3_ base is 0, spread 2
 
-            var withPin = CreateLock(tip: 1, level: 5, hp: 100f);
-            var noPin = CreateLock(tip: 1, level: 5, hp: 100f);
+            var withPin = CreateLock(tip: 1, level: 5, hp: DeepPoolHp);
+            var noPin = CreateLock(tip: 1, level: 5, hp: DeepPoolHp);
 
             var system = CreateSystem(stats, rngValue: 0f);
 
             system.Attempt(withPin, hasPin: true);
             system.Attempt(noPin, hasPin: false);
 
-            float pinDamage = 100f - withPin.LockHp;
-            float noPinDamage = 100f - noPin.LockHp;
-
+            float pinDamage = DeepPoolHp - withPin.LockHp;
+            float noPinDamage = DeepPoolHp - noPin.LockHp;
             Assert.AreEqual(pinDamage + 2f, noPinDamage, 0.0001f,
                 "Carrying no pin must add exactly +2 to the damage (Interact.as:1081)");
         }
@@ -139,8 +153,8 @@ namespace PFE.Tests.Editor.RPG
             stats.pinBreak = 0.2f;        // avoid a pin-break short-circuit on the outcome
             stats.lockPick = 5;
 
-            var normal = CreateLock(tip: 1, level: 5, hp: 100f);
-            var boosted = CreateLock(tip: 1, level: 5, hp: 100f);
+            var normal = CreateLock(tip: 1, level: 5, hp: DeepPoolHp);
+            var boosted = CreateLock(tip: 1, level: 5, hp: DeepPoolHp);
 
             var system = CreateSystem(stats, rngValue: 0.5f);
 
@@ -169,7 +183,7 @@ namespace PFE.Tests.Editor.RPG
             var stats = CreateTestCharacter();
             stats.hackAtt = 3;            // the declared default (Pers.as:299)
             stats.hacker = 5;
-            var state = CreateLock(tip: 2, level: 5, hp: 100f);
+            var state = CreateLock(tip: 2, level: 5, hp: DeepPoolHp);
 
             var system = CreateSystem(stats, rngValue: 0f);
             system.Attempt(state);
@@ -186,7 +200,7 @@ namespace PFE.Tests.Editor.RPG
             var stats = CreateTestCharacter();
             stats.hackAtt = 3;
             stats.hacker = 5;
-            var state = CreateLock(tip: 2, level: 5, hp: 100f);
+            var state = CreateLock(tip: 2, level: 5, hp: DeepPoolHp);
 
             var system = CreateSystem(stats, rngValue: 0f);
 
@@ -204,7 +218,7 @@ namespace PFE.Tests.Editor.RPG
             var stats = CreateTestCharacter();
             stats.hackAtt = 6;            // the hacker skill can raise it (AllData.as:5608)
             stats.hacker = 5;
-            var state = CreateLock(tip: 2, level: 5, hp: 100f);
+            var state = CreateLock(tip: 2, level: 5, hp: DeepPoolHp);
 
             var system = CreateSystem(stats, rngValue: 0f);
 
@@ -263,7 +277,7 @@ namespace PFE.Tests.Editor.RPG
             stats.lockPick = 0;           // far below the lock, so the roll would normally miss
             stats.pinBreak = 0.2f;
 
-            var state = CreateLock(tip: 1, level: 4, hp: 100f);
+            var state = CreateLock(tip: 1, level: 4, hp: DeepPoolHp);
             state.Master = 1;             // 1 < 4, so the attempt must always fire
 
             // RNG 0.99 would fail a normal roll, but the master gate forces chance to 1.

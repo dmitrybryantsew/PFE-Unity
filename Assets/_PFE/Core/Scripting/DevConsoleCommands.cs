@@ -212,6 +212,71 @@ namespace PFE.Core.Scripting
             return $"[player] Ammo refilled to {state.CurrentAmmo}/{state.Def.magazineSize}.";
         }
 
+        /// <summary>
+        /// Put <paramref name="amount"/> rounds of an ammo type into the player's inventory —
+        /// <c>player:GiveAmmo("p32_1", 60)</c>; with no id, the equipped weapon's own type.
+        ///
+        /// <para><b>Why this is not just <c>RefillAmmo</c>.</b> <c>RefillAmmo</c> writes the magazine
+        /// directly, which only ever proves the magazine field works. Feeding the <i>inventory</i> is what
+        /// exercises the real chain — <c>GetAmmoCount</c> → <c>ConsumeAmmo</c> → the reload — and it is
+        /// the only way to see the difference an ammo <i>type</i> makes without a fight.</para>
+        ///
+        /// <para><b>The inventory does not exist until this runs.</b> Nothing in production constructs a
+        /// <c>GameInventory</c> or assigns <see cref="PlayerWeaponLoadout.AmmoSource"/> — only tests do —
+        /// so every reload currently fills the magazine for free. This command creates and wires one, the
+        /// same way the F2 overlay does, which flips reloads from infinite to consuming. That side effect
+        /// is intended and is reported in the reply.</para>
+        ///
+        /// <para><b>The id must have an <c>ItemDefinition</c> row, not just an <c>AmmoDefinition</c>.</b>
+        /// <c>GameInventory.AddItem</c> keys on the item row, and measured 2026-10-03 only <b>28 of the 75</b>
+        /// ammo ids have one (the item importer keeps the <c>compw</c>/<c>stuff</c> component rows and drops
+        /// the 47 <c>tip='a'</c> ones). The failure is named with the count, so "unknown id" and "known but
+        /// unstockable" cannot be confused.</para>
+        /// </summary>
+        public string GiveAmmo(string ammoId, int amount)
+        {
+            var state = _loadout?.Current?.State;
+
+            if (string.IsNullOrWhiteSpace(ammoId))
+            {
+                if (state == null)
+                    return "[player] No weapon equipped, so no ammo type to imply. Usage: giveammo <id> <n>";
+                ammoId = state.ResolvedAmmoType;
+            }
+
+            if (string.IsNullOrWhiteSpace(ammoId))
+                return "[player] That weapon takes no ammo. Usage: giveammo <id> <n>";
+
+            if (amount <= 0) return "[player] Usage: giveammo <ammoId> <amount>   (amount must be positive)";
+
+            // The overlay owns the lazy creation + wiring, so both front ends share one implementation
+            // and one inventory. Without it we would have two bags, one per front end, neither held.
+            var overlay = PlayerDebugEditorOverlay.Instance;
+
+            if (overlay != null)
+            {
+                if (!overlay.AmmoRowExists(ammoId))
+                {
+                    return $"[player] Ammo '{ammoId}' has no ItemDefinition row under Resources/Items, so " +
+                           "the inventory cannot hold it (AddItem keys on the item row). Only 28 of the 75 " +
+                           "ammo ids have one — the importer keeps the component rows and drops the " +
+                           "proper-ammunition rows.";
+                }
+
+                if (!overlay.GiveAmmoToInventory(ammoId, amount))
+                    return $"[player] Could not add ammo '{ammoId}' — see the Console for the reason.";
+
+                string held = state != null && state.ResolvedAmmoType == ammoId
+                    ? $" Reload to draw from it: {state.CurrentAmmo}/{state.Def.magazineSize} loaded."
+                    : string.Empty;
+
+                return $"[player] Gave {amount} × '{ammoId}' to the inventory.{held}";
+            }
+
+            return "[player] The debug overlay is not running, and it owns the debug inventory. " +
+                   "Run 'editor' (or press F2) to create it, then retry.";
+        }
+
         /// <summary>Toggle or open the LittlePip character/loadout debug editor overlay.</summary>
         public string Editor()
         {

@@ -1,6 +1,7 @@
 using PFE.Data.Definitions;
 using PFE.Entities.Units;
 using PFE.Systems.Map;
+using PFE.Systems.Map.TileQuery;
 using PFE.Systems.Physics;
 using UnityEngine;
 
@@ -53,6 +54,11 @@ namespace PFE.Entities.Player
         private UnitDefinition _definition;
         private ILocomotionAbilities _abilities;
         private UnitStats _unitStats;
+
+        // The RPG model, so the locomotion tick can publish the precision state AS3 recomputes in
+        // UnitPlayer.control(). Null when the player has no CharacterStats — the publish is skipped
+        // rather than defaulted, so a model that is not there cannot silently report a multiplier.
+        private PFE.Systems.RPG.CharacterStats _characterStats;
 
         private Vector2 _moveInput;
         private bool _jumpHeld;
@@ -133,6 +139,65 @@ namespace PFE.Entities.Player
         public void SetUnitStats(UnitStats stats)
         {
             _unitStats = stats;
+        }
+
+        /// <summary>
+        /// Provide the RPG model so the player's <c>precMult</c> can be rebuilt each tick.
+        /// Called by <c>PlayerController</c> alongside <see cref="SetUnitStats"/>.
+        ///
+        /// <para><b>Why the movement layer owns this.</b> AS3 computes the four situational precision
+        /// terms inside <c>UnitPlayer.control()</c> (<c>UnitPlayer.as:1181-1200</c>) — the movement
+        /// tick — and the weapon only ever reads the result. Keeping the publish here means the weapon
+        /// controllers need no reference to locomotion, and the multiplier a shot carries is the one
+        /// the player's actual state produced, not one re-derived (and possibly re-derived
+        /// differently) at fire time.</para>
+        /// </summary>
+        public void SetCharacterStats(PFE.Systems.RPG.CharacterStats stats)
+        {
+            _characterStats = stats;
+        }
+
+        /// <summary>
+        /// Publish the oracle's precision inputs for this tick.
+        ///
+        /// <para><b>Unit conversion is the trap.</b> AS3's <c>dx</c>/<c>dy</c> are in <b>pixels per
+        /// AS3 frame</b>, and the thresholds (<c>&gt; 10</c>, <c>&lt; 1</c>) mean what they say only
+        /// in that unit. <c>MovementMotorState.Velocity</c> is in Unity world units per second, where
+        /// one world unit is one tile and one tile is <c>TileQueryConstants.UnitToPixel</c> = 100 px.
+        /// The project's own documented idiom for a per-frame velocity is
+        /// <c>px/frame × fps / 100 = units/s</c> (see <c>TileQueryConstants</c>), so the inverse is
+        /// <c>units/s × 100 / fps = px/frame</c>. Passing raw world velocity would make every walk
+        /// exceed the running threshold by ~3000× and permanently disable the stand-still bonus.</para>
+        ///
+        /// <para><b>The frame rate is the canonical 30, not the live tick rate.</b> AS3's <c>dx</c>
+        /// is defined per AS3 frame, so the conversion must use the same unit definition the physics
+        /// constants do — <c>SimClock.FramesPerSecond</c>. Using the live
+        /// <c>TicksPerSecond</c> would change the meaning of the oracle's literal thresholds on a
+        /// 60/90/120 Hz build, which is exactly what "nothing may derive from a different value"
+        /// forbids.</para>
+        ///
+        /// <para><b>Weapon-facing is left false here.</b> AS3's term is
+        /// <c>currentWeapon.storona != storona</c> — a comparison of the equipped weapon's facing
+        /// against the body's. The weapon's facing is derived from the cursor
+        /// (<c>Weapon.as:1062-1066</c>), which the locomotion layer does not own, so publishing
+        /// <c>false</c> is the honest "not known here" value and keeps the term out of the multiplier
+        /// rather than guessing it. The back-penalty therefore reads as not-applied until a caller
+        /// that knows both facings supplies it — recorded as an open divergence, not silently
+        /// approximated.</para>
+        /// </summary>
+        private void PublishPrecisionState(MovementMotorState state)
+        {
+            if (_characterStats == null)
+                return;
+
+            const float fps = PFE.Core.SimClock.FramesPerSecond;   // canonical 30, not the live rate
+            float unitsToPixelsPerFrame = TileQueryConstants.UnitToPixel / fps;
+
+            _characterStats.CurrentPrecisionState = new PFE.Systems.RPG.CharacterStats.PrecisionState(
+                isGrounded:          state.IsGrounded,
+                dx:                  state.Velocity.x * unitsToPixelsPerFrame,
+                dy:                  state.Velocity.y * unitsToPixelsPerFrame,
+                weaponFacingDiffers: false);
         }
 
         /// <summary>
@@ -257,6 +322,10 @@ namespace PFE.Entities.Player
             _wasGroundedLastFrame = latestState.IsGrounded;
             _dashPressedBuffered = false;
             _dropThroughPressedBuffered = false;
+
+            // Last, so it sees the final state for this tick — the same ordering as AS3, where the
+            // precision block runs at the end of control() after movement has resolved.
+            PublishPrecisionState(latestState);
         }
 
         private void UpdateTimers(MovementMotorState state, float dt)

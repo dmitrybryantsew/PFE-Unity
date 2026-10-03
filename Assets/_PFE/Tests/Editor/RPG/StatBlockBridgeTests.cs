@@ -42,20 +42,36 @@ namespace PFE.Tests.Editor.RPG
         }
 
         [Test]
-        [Description("UnitStats and CharacterStats should share the exact same mana pool")]
-        public void ManaPool_IsSynchronizedBothWays()
+        [Description("The mana ORGAN and the mana BUDGET are two pools, not one")]
+        public void ManaPool_OrganAndBudget_AreSeparatePools()
         {
-            // Initial sync
-            Assert.AreEqual(400f, _charStats.manaHp, 1e-4f);
-            Assert.AreEqual(400f, _unitStats.Mana.Value, 1e-4f);
+            // This test used to be `ManaPool_IsSynchronizedBothWays` and asserted that
+            // `charStats.manaHp` and `unitStats.Mana` were literally the same number. That was the
+            // merged-pool design, and it was unfaithful: AS3 keeps them apart.
+            //
+            //   Unit.as:138,140  mana / maxmana = 1000   <- the regenerating BUDGET
+            //   Pers.as:141,540  manaHP = inMaxMana      <- the WOUND organ (400 here, 1000 default)
+            //
+            // So the correct contract is that they are DISTINCT: charStats.manaHp follows the organ
+            // and unitStats.Mana follows the budget. They coincide only when inMaxMana happens to
+            // equal inMaxMagic, which is coincidence, not identity.
+            Assert.AreEqual(400f, _charStats.manaHp, 1e-4f,
+                "manaHp is the mana ORGAN, seeded from inMaxMana (Pers.as:540)");
+            Assert.AreEqual(1000f, _unitStats.Mana.Value, 1e-4f,
+                "UnitStats.Mana is the BUDGET, seeded from its own ceiling (Unit.as:138)");
 
-            // Modifying charStats.manaHp syncs to unitStats.Mana
+            // The organ is damaged independently and must not drag the budget with it.
             _charStats.manaHp -= 50f;
-            Assert.AreEqual(350f, _unitStats.Mana.Value, 1e-4f);
+            Assert.AreEqual(350f, _charStats.manaHp, 1e-4f, "Organ takes the wound");
+            Assert.AreEqual(1000f, _unitStats.Mana.Value, 1e-4f,
+                "Damaging the organ must NOT spend the budget");
 
-            // Modifying unitStats.Mana reflects in charStats.manaHp
+            // ...and vice versa: spending the budget does not wound the organ.
             _unitStats.Mana.Value = 200f;
-            Assert.AreEqual(200f, _charStats.manaHp, 1e-4f);
+            Assert.AreEqual(200f, _charStats.MagicMana, 1e-4f,
+                "MagicMana reads the budget when a UnitStats is bound");
+            Assert.AreEqual(350f, _charStats.manaHp, 1e-4f,
+                "Spending the budget must NOT wound the organ");
         }
 
         [Test]

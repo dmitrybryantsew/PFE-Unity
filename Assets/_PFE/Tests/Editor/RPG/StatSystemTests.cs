@@ -178,15 +178,14 @@ namespace PFE.Tests.Editor.RPG
         [Description("XP_Required_Level11Plus_UsesMultiplier")]
         public void GetXpForLevel_Level11Plus_AppliesMultiplier()
         {
-            // For levels 11+, the cumulative sum includes multiplied XP
-            // Formula: Sum of (xpDelta * lvl * multiplier^2) for all levels
+            // AS3 Pers.xpProgress (Pers.as:1139-1147): one closed form with the multiplier squared over
+            // the WHOLE sum, not applied to a marginal term. So level 11 is 352k (not ~332k) and
+            // level 20 is 1.867M (not ~1.4M). See LevelCurve.GetXpForLevel for the derivation.
             int xp11 = testLevelCurve.GetXpForLevel(11);
-            // Level 11 should be significantly higher than level 10 due to multipliers
-            Assert.IsTrue(xp11 > 300000 && xp11 < 400000, $"Level 11 XP should be ~332k, got {xp11}");
+            Assert.IsTrue(xp11 > 340000 && xp11 < 365000, $"Level 11 XP should be ~352k, got {xp11}");
 
             int xp20 = testLevelCurve.GetXpForLevel(20);
-            // Level 20 continues the curve
-            Assert.IsTrue(xp20 > 1300000 && xp20 < 1500000, $"Level 20 XP should be ~1.4M, got {xp20}");
+            Assert.IsTrue(xp20 > 1800000 && xp20 < 1950000, $"Level 20 XP should be ~1.87M, got {xp20}");
         }
 
         [Test]
@@ -373,35 +372,35 @@ namespace PFE.Tests.Editor.RPG
         [Description("StatModifier_DamageMultiplier")]
         public void AttackSkill_IncreasesDamageMultiplier()
         {
-            // From docs: attack skill allDamMult: +5% per level
-            // Base = 1.0
+            // AS3 `<sk id='allDamMult' ref='add' v0='0' vd='0.05'/>` (AllData.as:5299) has no `dop`,
+            // so it is evaluated against the TIER, and `attack` is a post skill whose tier table is
+            // postSkTab = [5,11,18,26,35,45,56,68,82,100] (Pers.as:511). raw 10 is tier 1, not 10
+            // tiers — the cap (tier 10) is raw 100.
             Assert.AreEqual(1.0f, characterStats.AllDamMult, 0.001f, "Base damage mult should be 1.0");
 
             characterStats.SetSkillLevel("attack", 10);
             characterStats.RecalculateStats();
 
-            // 10 levels * 5% = 1.5
-            Assert.AreEqual(1.5f, characterStats.AllDamMult, 0.001f, "Attack 10 should give +50% damage");
+            // tier 1 * 5% = 1.05
+            Assert.AreEqual(1.05f, characterStats.AllDamMult, 0.001f, "Attack tier 1 should give +5% damage");
         }
 
         [Test]
         [Description("StatModifier_DefenseMultiplier")]
         public void DefenseSkill_DecreasesVulnerabilityMultiplier()
         {
-            // From docs: defense skill allVulnerMult: -3% per level (stacking)
-            // Base = 1.0
+            // AS3 `<sk id='allVulnerMult' ref='mult' vd='-0.03'/>` (AllData.as:5303) has no `dop`,
+            // so it uses the TIER, and it is ONE linear term, not a per-point compounding curve
+            // (SkillDefinition.Evaluate documents this: AS3 is base + level * vd for every ref type,
+            // and only the application differs). defense is a post skill, so tier 5 is raw 35.
             Assert.AreEqual(1.0f, characterStats.AllVulnerMult, 0.001f, "Base vulner mult should be 1.0");
 
-            characterStats.SetSkillLevel("defense", 10);
+            characterStats.SetSkillLevel("defense", 35); // post tier 5
             characterStats.RecalculateStats();
 
-            // 10 levels * 3% reduction = 0.97^10 ≈ 0.737
-            float expected = 1.0f;
-            for (int i = 0; i < 10; i++)
-            {
-                expected *= 0.97f;
-            }
-            Assert.AreEqual(expected, characterStats.AllVulnerMult, 0.01f, "Defense 10 should reduce damage by ~26%");
+            // tier 5 * -3% = 0.85 — one linear term, NOT 0.97^35
+            Assert.AreEqual(0.85f, characterStats.AllVulnerMult, 0.01f,
+                "Defense tier 5 should reduce damage by 15% (one linear -0.03 per tier)");
         }
 
         #endregion
@@ -412,9 +411,10 @@ namespace PFE.Tests.Editor.RPG
         [Description("Perk_CanUnlock_WhenRequirementsMet")]
         public void AddPerk_Succeeds_WhenRequirementsMet()
         {
-            // Arrange - Oak perk requires Melee 1
+            // Arrange - Oak perk requires melee TIER 1 (AllData.as:5376), i.e. raw 2
+            // (AS3 getSkLevel, Pers.as:995-1018: raw 1 -> tier 0, raw 2 -> tier 1).
             characterStats.GrantPerkPoints(1);
-            characterStats.SetSkillLevel("melee", 1);
+            characterStats.SetSkillLevel("melee", 2);
 
             // Act
             bool result = characterStats.AddPerk("oak");
@@ -444,9 +444,11 @@ namespace PFE.Tests.Editor.RPG
         [Description("Perk_MultiRank")]
         public void AddPerk_CanRankUp_WhenMultipleLevelsAllowed()
         {
-            // Arrange - SelfLevit perk has 2 ranks
+            // Arrange - SelfLevit perk has 2 ranks, gated `<req id='tele' lvl='2' dlvl='3'/>`
+            // (AllData.as:5332). `lvl` is a TIER -- Pers.as:1458 compares getSkLevel -- so tier 2
+            // needs raw 5, and rank 2 needs tier 2 + dlvl 3 = tier 5 (raw 20).
             characterStats.GrantPerkPoints(2);
-            characterStats.SetSkillLevel("tele", 2);
+            characterStats.SetSkillLevel("tele", 20);
 
             // Act - Add first rank
             bool result1 = characterStats.AddPerk("selflevit");
@@ -469,7 +471,7 @@ namespace PFE.Tests.Editor.RPG
         {
             // Arrange - Oak perk has 1 rank
             characterStats.GrantPerkPoints(2);
-            characterStats.SetSkillLevel("melee", 1);
+            characterStats.SetSkillLevel("melee", 2);
             characterStats.AddPerk("oak");
 
             // Act - Try to add second rank
@@ -507,7 +509,7 @@ namespace PFE.Tests.Editor.RPG
         {
             // Arrange
             characterStats.GrantPerkPoints(1);
-            characterStats.SetSkillLevel("melee", 1);
+            characterStats.SetSkillLevel("melee", 2);
             characterStats.AddPerk("oak");
             characterStats.RecalculateStats();
 
@@ -570,7 +572,7 @@ namespace PFE.Tests.Editor.RPG
             Assert.AreEqual(0, characterStats.SkillPoints, "Should have 0 skill points remaining");
 
             // Allocate perk point
-            characterStats.SetSkillLevel("melee", 1); // Oak requires Melee 1
+            characterStats.SetSkillLevel("melee", 2); // Oak requires melee tier 1 (raw 2)
             characterStats.AddPerk("oak");
             Assert.AreEqual(1, characterStats.GetPerkRank("oak"), "Should have oak perk");
             Assert.AreEqual(0, characterStats.PerkPoints, "Should have 0 perk points remaining");
@@ -584,7 +586,7 @@ namespace PFE.Tests.Editor.RPG
             characterStats.AddXp(testLevelCurve.GetXpForLevel(1));
             characterStats.AddSkillPoint("melee", 5);
             characterStats.GrantPerkPoints(1);
-            characterStats.SetSkillLevel("melee", 1);
+            characterStats.SetSkillLevel("melee", 2);
             characterStats.AddPerk("oak");
 
             // Act

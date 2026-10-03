@@ -58,6 +58,16 @@ namespace PFE.Tests.Editor.Player
             levelCurve.skillPointsPerLevel = 5;
             stats.Initialize(levelCurve);
             stats.manaHp = initialMana;
+            // Seed BOTH pools to the same value.
+            //
+            // Telekinesis reads the magic-mana BUDGET (CharacterStats.MagicMana == AS3 Unit.mana),
+            // which is what every gate in this fixture's sut compares against: the `mana < 200` grab
+            // gate (UnitPlayer.as:1754), the `mana <= 0` drop gate (:1274) and the throw spend
+            // (:1856 `if(_loc2_ <= mana)`). manaHp is the WOUND organ -- a different, non-regenerating
+            // pool that happens to share the name. Seeding only manaHp left the budget at its own
+            // default, so a fixture that set mana to 199 still had budget 1000 and the gate never
+            // tripped. Both are seeded so the wound-track tests in this fixture are unaffected.
+            stats.MagicMana = initialMana;
             return stats;
         }
 
@@ -471,7 +481,9 @@ namespace PFE.Tests.Editor.Player
             Assert.Greater(prop.runtimeState.dynamicState.velocity.y, 0f, "Should have upward vertical throw impulse.");
 
             // Mana cost: massa = 25 / 50 = 0.5f. cost = 0.5 * 200 * 1.0 = 100 mana.
-            Assert.AreEqual(400f, player.Stats.manaHp, Tolerance, "Mana must be deducted by throw cost.");
+            // Asserted on the BUDGET pool (MagicMana == AS3 `mana`), which is the field the throw
+            // spends (`UnitPlayer.as:1859 mana -= _loc2_`) and the one TestStats now seeds.
+            Assert.AreEqual(400f, player.Stats.MagicMana, Tolerance, "Mana must be deducted by throw cost.");
         }
 
         // ── Hold Loop & Auto-Drop: UnitPlayer.as:1274, 1307 ────────────────────────────────────
@@ -492,12 +504,54 @@ namespace PFE.Tests.Editor.Player
             player.SetCursorWorldPixels(newCursor);
 
             // Update hold over 1 second (30 AS3 frames)
-            // massa = 0.5 > telePorog = 0.1, so mana drain fires.
             player.UpdateHold(1.0f);
 
             Assert.AreEqual(newCursor, prop.runtimeState.dynamicState.telekineticTarget,
                 "Telekinetic target on held object must update to cursor world pixels.");
-            Assert.Less(player.Stats.manaHp, 500f, "Holding a prop above telePorog must drain mana over time.");
+
+            // NOTE: UpdateHold deliberately does NOT drain mana, and asserting that it does would
+            // re-state the double-charge bug. AS3 has no drain in its hold block; the cost lives in
+            // the single per-tick mana block (UnitPlayer.as:1302-1361) as
+            // `dmana -= teleSqrtMassa * pers.teleMult`, which PlayerManaTicker.TickMana reproduces.
+            // The hold COST is therefore pinned in HoldManaDrain_*DrainsTheBudget below, against
+            // that tick, not against this frame-clock call.
+            Assert.AreEqual(500f, player.Stats.MagicMana, Tolerance,
+                "UpdateHold must not charge mana -- the drain belongs to the sim tick, not this call.");
+        }
+
+        [Test]
+        public void HoldManaDrain_OneSimTick_DrainsTheBudgetBySqrtMassTimesTeleMult()
+        {
+            // The hold COST, pinned against the tick that actually charges it -- the replacement for
+            // the old "UpdateHold drains" assertion, which could only pass if the drain were charged
+            // twice (once per frame here, once per tick in PlayerManaTicker).
+            //
+            // UnitPlayer.as:1307 `dmana -= this.teleSqrtMassa * this.pers.teleMult`, then (:1331)
+            // `dmana *= allDManaMult`. TelekinesisMath.TickManaState does that part; here we drive
+            // CharacterStats.TickMana directly, as the ticker does, so no clock is needed.
+            var player = CreatePlayer(playerPositionPixels: new Vector2(0f, 100f), mana: 500f);
+            var room = CreateRoomWithProp(out ObjectInstance prop, propPosition: new Vector2(100f, 100f));
+            player.SetRoom(room);
+            player.SetCursorWorldPixels(new Vector2(100f, 115f));
+            player.TryGrab();
+            Assert.IsTrue(player.IsHoldingObject);
+
+            float massa = prop.GetAs3Massa();
+            Assert.Greater(massa, player.Stats.TelePorog,
+                "Fixture precondition: the prop must be heavy enough to cost mana to hold.");
+
+            float before = player.Stats.MagicMana;
+
+            var tick = new CharacterStats.ManaTickState
+            {
+                TelekinesisActive = true,
+                TelekinesisSqrtMass = Mathf.Sqrt(massa),
+            };
+            player.Stats.TickMana(tick);
+
+            float expectedDrain = Mathf.Sqrt(massa) * player.Stats.TeleMult * player.Stats.AllDManaMult;
+            Assert.AreEqual(before - expectedDrain, player.Stats.MagicMana, Tolerance,
+                "One tick holding a prop must drain sqrt(massa) * teleMult * allDManaMult from the budget.");
         }
 
         [Test]
@@ -532,8 +586,9 @@ namespace PFE.Tests.Editor.Player
             player.TryGrab();
             Assert.IsTrue(player.IsHoldingObject);
 
-            // Exhaust mana
-            player.Stats.manaHp = 0f;
+            // Exhaust the BUDGET pool -- the drop gate is `mana <= 0` against Unit.mana
+            // (UnitPlayer.as:1274), which is MagicMana here, NOT the manaHp wound organ.
+            player.Stats.MagicMana = 0f;
 
             player.UpdateHold(0.1f);
 

@@ -31,7 +31,11 @@ namespace PFE.Systems.Combat
             float critChance = 0f,
             float critMultiplier = 1f,
             float skinResistance = 0f,
-            float durabilityMultiplier = 1f);
+            float durabilityMultiplier = 1f,
+            float critInvisChance = 0f,
+            float desintegrChance = 0f,
+            float targetCurrentHp = -1f,
+            bool targetIsNonLiving = false);
 
         /// <summary>
         /// Complete damage calculation from weapon to target.

@@ -22,12 +22,19 @@ namespace PFE.Systems.RPG
         /// <summary>
         /// Applies the modifier to the CharacterStats instance following AS3 setSkillParam rules.
         /// </summary>
-        public static void Apply(CharacterStats stats, StatModifier mod, int tierOrRank, int rawPoints, string sourceId = null)
+        /// <param name="sourceType">
+        /// The <see cref="CharacterStats.StatFactor.sourceType"/> to record: "skill", "perk", ...
+        /// Distinct from <c>sourceId</c> (which instance) and from the modifier's own <c>refType</c>
+        /// (how: add vs mult). Defaults to "skill" because this applier's callers are the skill and
+        /// perk loops.
+        /// </param>
+        public static void Apply(CharacterStats stats, StatModifier mod, int tierOrRank, int rawPoints,
+                                 string sourceId = null, string sourceType = "skill")
         {
             if (stats == null || mod == null) return;
 
             float val = mod.Evaluate(tierOrRank, rawPoints);
-            stats.ApplyNamedStat(mod.statId, mod.tip, mod.refType, val, sourceId);
+            stats.ApplyNamedStat(mod.statId, mod.tip, mod.refType, val, sourceId, sourceType);
         }
     }
 }

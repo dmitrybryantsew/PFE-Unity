@@ -111,6 +111,13 @@ namespace PFE.Tests.Editor.Combat
             /// </summary>
             public bool IsInvulnerable { get; set; } = false;
 
+            /// <summary>
+            /// Settable so a test can make the target one of AS3's non-living <c>doop</c> units, which
+            /// suppresses the stealth crit. Defaults to <c>false</c> — AS3's own field default, and the
+            /// living case that the overwhelming majority of units answer.
+            /// </summary>
+            public bool IsNonLiving { get; set; } = false;
+
             public int ApplyKnockbackCalls;
             public Vector2 LastKnockbackImpulse;
 

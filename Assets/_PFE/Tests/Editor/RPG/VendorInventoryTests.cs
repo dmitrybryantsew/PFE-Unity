@@ -114,9 +114,12 @@ namespace PFE.Tests.Editor.RPG
             var vendor = CreateTestVendor(stats);
             vendor.SetVendorType(doctor: false, randomVendor: false);
 
-            // Raising the skill must NOT change the size once barterLvl is pinned.
-            stats.barterLvl = 0;
+            // The barter skill *owns* barterLvl: AllData.as:5287 gives it
+            // `<sk id='barterLvl' v0='0' vd='1'/>`, so SetSkillLevel re-derives the field. Raise the
+            // skill FIRST, then pin the field — pinning first (as this test used to) just lets the
+            // skill overwrite the pin, which is why it measured a ~tier-sized level instead of 0.
             stats.SetSkillLevel("barter", 25);
+            stats.barterLvl = 0;
 
             // Act
             int size = vendor.GetInventorySize();
@@ -138,13 +141,16 @@ namespace PFE.Tests.Editor.RPG
             Assert.AreEqual(1.0f, vendor.GetPriceMultiplier(), 0.001f, "Default capsMult is 1.0");
 
             // Someone (a perk) discounts prices by setting the field; the vendor must obey it.
+            // The barter skill also writes this destination (AllData.as:5289
+            // `<sk id='barterMult' dop='1' v0='1' vd='-0.03'/>`), so raise the skill first and set
+            // the field after it.
+            stats.SetSkillLevel("barter", 50);
+            stats.barterLvl = 50;
             stats.capsMult = 0.6f;
             Assert.AreEqual(0.6f, vendor.GetPriceMultiplier(), 0.001f,
                 "GetPriceMultiplier must read capsMult (the barterMult destination) directly");
 
             // And it must be genuinely independent of the barter skill / barterLvl.
-            stats.SetSkillLevel("barter", 50);
-            stats.barterLvl = 50;
             Assert.AreEqual(0.6f, vendor.GetPriceMultiplier(), 0.001f,
                 "The price multiplier must not be re-derived from skill or barterLvl");
         }
@@ -225,10 +231,13 @@ namespace PFE.Tests.Editor.RPG
             Assert.AreEqual(1.0f, vendor.GetInventoryLimitMultiplier(), 0.001f,
                 "limitBuys must default to 1 (Pers.as:317)");
 
-            // A perk raises it; the vendor must obey the field, not the barter skill.
-            stats.limitBuys = 2.0f;
+            // A perk raises it; the vendor must obey the field, not the barter skill. The barter
+            // skill also writes this field (AllData.as:5288 `<sk id='limitBuys' v0='1' vd='0.2'/>`,
+            // a Set), so raise the skill first and set the field after it — otherwise the skill
+            // simply re-derives 1 + tier*0.2 and the assertion measures the skill, not the field.
             stats.SetSkillLevel("barter", 10);
             stats.barterLvl = 10;
+            stats.limitBuys = 2.0f;
             Assert.AreEqual(2.0f, vendor.GetInventoryLimitMultiplier(), 0.001f,
                 "GetInventoryLimitMultiplier must read limitBuys directly");
         }

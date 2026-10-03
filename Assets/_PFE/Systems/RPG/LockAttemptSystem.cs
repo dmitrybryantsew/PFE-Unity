@@ -49,13 +49,38 @@ namespace PFE.Systems.RPG
 
         /// <summary>
         /// Mutable per-container lock state. Mirrors the AS3 <c>Interact</c> instance fields
-        /// <c>lockHP</c>, <c>lockLevel</c>, <c>master</c>, <c>lockTip</c> and the local
-        /// <c>lockAtt</c> (<c>Interact.as:48-52</c>), which starts at <b>-100</b> and is seeded
+        /// <c>lock</c>, <c>lockHP</c>, <c>lockLevel</c>, <c>master</c>, <c>lockTip</c> and the local
+        /// <c>lockAtt</c> (<c>Interact.as:44-52</c>), which starts at <b>-100</b> and is seeded
         /// from <c>Pers.hackAtt</c> on the first terminal attempt (<c>Interact.as:1112-1114</c>).
+        ///
+        /// <para>
+        /// <b><c>Lock</c> and <c>LockHp</c> are two different oracle fields and must not be
+        /// conflated.</b> AS3 declares <c>public var lock:int = 0</c> (<c>:44</c>) — the container's
+        /// <i>difficulty</i>, a 0..99 value read by the entry guard at <c>:1004</c>
+        /// (<c>else if(this.lock &lt; 100)</c>) and <c>:1009</c> (<c>if(this.lock &gt; 0)</c>) and by
+        /// the <c>lock - unlock</c> delta at <c>:1015</c>. It is <b>never</b> decremented by an
+        /// attempt. Separately, <c>public var lockHP:Number = 10</c> (<c>:52</c>) is the damage
+        /// pool, decremented at <c>:1084</c>, <c>:1145</c>, <c>:1165</c>, tested <c>&lt;= 0</c> for
+        /// <c>Opened</c> (<c>:1085</c>) and <c>&gt; 100</c> for the "unLockFailA" message
+        /// (<c>:1100</c>). An earlier revision of this port had only <c>LockHp</c>, which made the
+        /// guard reject any pool of 100+ as if it were an unbreakable difficulty — see
+        /// <c>LockAttemptSystemTests</c>.
+        /// </para>
         /// </summary>
         public class LockState
         {
-            /// <summary>AS3 <c>Interact.lock</c> — the container's current lock HP.</summary>
+            /// <summary>
+            /// AS3 <c>Interact.lock</c> (<c>:44</c>) — the container's difficulty, an int in
+            /// <c>0..99</c>. <c>0</c> means "already open" and <c>&gt;= 100</c> means "unbreakable";
+            /// both are skipped by the entry guard (<c>:1004-1009</c>). Never decremented.
+            /// </summary>
+            public int Lock = 10;
+
+            /// <summary>
+            /// AS3 <c>Interact.lockHP</c> (<c>:52</c>) — the damage pool that attempts reduce.
+            /// Starts at 10, defaults from <c>@lockhp</c> when the container XML carries one
+            /// (<c>:247</c>, <c>:360</c>).
+            /// </summary>
             public float LockHp = 10f;
 
             /// <summary>AS3 <c>Interact.lockLevel</c> — the level the container demands.</summary>
@@ -107,8 +132,11 @@ namespace PFE.Systems.RPG
                 return AttemptOutcome.Missed;
             }
 
-            // AS3: `if (lock <= 0 || lock >= 100) return;` — an already-open or unbreakable lock.
-            if (state.LockHp <= 0f || state.LockHp >= 100f)
+            // AS3 Interact.as:1004-1009 — `else if(this.lock < 100) { if(this.lock > 0) ... }`.
+            // This gate reads the container's *difficulty* (Interact.lock, :44), NOT the damage
+            // pool (Interact.lockHP, :52). Conflating the two made a 100-point pool look like an
+            // unbreakable lock; see the LockState remarks.
+            if (state.Lock <= 0 || state.Lock >= 100)
             {
                 return AttemptOutcome.Missed;
             }

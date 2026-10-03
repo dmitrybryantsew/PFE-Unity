@@ -187,7 +187,9 @@ namespace PFE.Tests.Editor.RPG
             // Arrange
             var stats = CreateTestCharacter();
             stats.GrantPerkPoints(1);
-            stats.SetSkillLevel("melee", 1); // Meet oak perk requirement
+            // Oak requires <req id='melee' lvl='1'/> (AllData.as:5376) — a TIER of 1, and AS3
+            // getSkLevel(Pers.as:995-1018) maps raw 1 -> tier 0 and raw 2 -> tier 1. So raw 2.
+            stats.SetSkillLevel("melee", 2); // Meet oak perk requirement
 
             // Act
             bool success = stats.AddPerk("oak");
@@ -250,11 +252,14 @@ namespace PFE.Tests.Editor.RPG
             var stats = CreateTestCharacter();
             float baseDamage = stats.AllDamMult;
 
-            // Act
-            stats.SetSkillLevel("attack", 10); // +5% per level = +50%
+            // Act — AS3 `<sk id='allDamMult' ref='add' v0='0' vd='0.05'/>` (AllData.as:5299) has no
+            // `dop`, so the modifier is evaluated against the post-skill TIER, and `attack` is a
+            // post skill whose tier table is postSkTab = [5,11,18,26,35,45,56,68,82,100]
+            // (Pers.as:511). Tier 10 (the max) is 100 raw points, giving 0 + 10 * 0.05 = 0.5.
+            stats.SetSkillLevel("attack", 100); // +5% per tier = +50% at the cap
 
             // Assert
-            Assert.AreEqual(baseDamage + 0.5f, stats.AllDamMult, 0.001f, "Attack 10 should add 50% damage");
+            Assert.AreEqual(baseDamage + 0.5f, stats.AllDamMult, 0.001f, "Attack at tier 10 should add 50% damage");
         }
 
         [Test]
@@ -264,11 +269,12 @@ namespace PFE.Tests.Editor.RPG
             // Arrange
             var stats = CreateTestCharacter();
 
-            // Act
-            stats.SetSkillLevel("survival", 5); // +1 per level
+            // Act — AS3 `<sk id='skin' v0='0' vd='1'/>` (AllData.as:5294) has no `dop`, so it uses
+            // the TIER (getSkLevel, Pers.as:995-1018): raw 5 -> tier 2 -> skin 2.
+            stats.SetSkillLevel("survival", 5); // tier 2
 
-            // Assert
-            Assert.AreEqual(5f, stats.skin, 0.001f, "Survival 5 should give 5 skin");
+            // Assert — raw 5 is tier 2, so 0 + 2 * 1 = 2.
+            Assert.AreEqual(2f, stats.skin, 0.001f, "Survival tier 2 should give 2 skin");
         }
 
         [Test]

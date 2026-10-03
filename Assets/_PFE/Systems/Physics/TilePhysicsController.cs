@@ -686,6 +686,14 @@ namespace PFE.Systems.Physics
             // that never expires. Placed before the room guard for exactly that reason.
             Unit?.TickContactInvulnerability();
 
+            // The unit's status effects advance here too. The motor owns this unit's whole step (see
+            // the `_hasTilePhysics` predicate UnitController uses), so UnitController.StepUnit never
+            // runs for a motor-driven unit and its effect tick would otherwise be skipped entirely —
+            // a burn on a motor-driven unit would freeze at full duration. AS3 has the effect loop in
+            // `Unit.step`, which runs once per unit frame whatever drives that frame, so this mirrors
+            // the contact-invulnerability call above it: the motor runs the unit's per-frame actions.
+            Unit?.TickEffects();
+
             if (currentRoom == null) return;
 
             hitCeiling = false;

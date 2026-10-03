@@ -286,6 +286,30 @@ namespace PFE.Systems.Combat
         /// <param name="armourMultiplier">Scales the reduction (AS3 <c>armorMult</c>). 1 = unmodified.</param>
         /// <param name="critChance">Probability of a critical hit.</param>
         /// <param name="critMultiplier">Damage multiplier on a critical hit.</param>
+        /// <param name="critInvisChance">
+        /// The <b>stealth-crit</b> probability — AS3 <c>Bullet.critInvis</c> (<c>Unit.as:3659-3666</c>).
+        /// A second, independent roll that runs after <paramref name="critChance"/> and, on a pass,
+        /// doubles the damage again (so it stacks with an ordinary crit). Skipped entirely when
+        /// <paramref name="targetIsNonLiving"/> is true, reproducing the oracle's <c>!this.doop</c>
+        /// guard. 0 = the roll does not happen and consumes no random number.
+        /// </param>
+        /// <param name="desintegrChance">
+        /// The <b>disintegration</b> probability — AS3 <c>Bullet.desintegr</c> (<c>Unit.as:3671-3677</c>).
+        /// An overkill proc: only for laser/plasma hits, only against a target whose
+        /// <paramref name="targetCurrentHp"/> is at most ten times the damage about to be dealt, and
+        /// then it multiplies the damage by 12. 0 = the proc is off and consumes no random number.
+        /// </param>
+        /// <param name="targetCurrentHp">
+        /// The target's health <b>before</b> this hit — AS3 <c>this.hp</c> as read inside
+        /// <c>damage()</c>. Needed only for the disintegr HP gate. A negative value means "unknown",
+        /// in which case the gate cannot be satisfied and the proc is skipped; callers on the hit path
+        /// always have it (<c>IDamageable.CurrentHealth</c>).
+        /// </param>
+        /// <param name="targetIsNonLiving">
+        /// Whether the target is one of AS3's <c>doop</c> units (<c>Unit.as:322</c>). Suppresses the
+        /// stealth crit. Defaults to <c>false</c> — the living case, which is the overwhelming majority
+        /// of AllData units.
+        /// </param>
         /// <param name="skinResistance">
         /// Natural resistance (AS3 <c>skin</c>). Applied <b>only</b> for the twelve types that reach
         /// a reduction branch — not universally, despite how it reads in the field name.
@@ -303,7 +327,11 @@ namespace PFE.Systems.Combat
             float critChance = 0f,
             float critMultiplier = 1f,
             float skinResistance = 0f,
-            float durabilityMultiplier = 1f)
+            float durabilityMultiplier = 1f,
+            float critInvisChance = 0f,
+            float desintegrChance = 0f,
+            float targetCurrentHp = -1f,
+            bool targetIsNonLiving = false)
         {
             if (incomingDamage <= 0f)
                 return DamageOutcome.None;
@@ -360,11 +388,63 @@ namespace PFE.Systems.Combat
             float damage = incomingDamage - Mathf.Max(0f, reduction);
 
             // ── 4. Crit ──────────────────────────────────────────────────────────────────────────
+            // AS3 `Unit.damage():3652-3666` — two independent rolls, and the second one STACKS.
             bool isCrit = false;
             if (damage > 0f && critChance > 0f && rng != null && rng.Chance(critChance))
             {
                 damage *= critMultiplier;
                 isCrit = true;
+            }
+
+            // ── 4b. Stealth crit ─────────────────────────────────────────────────────────────────
+            // AS3 `:3659-3666` — `if(!this.doop && this.celUnit != param3.owner && param3.critInvis > 0)`.
+            //
+            // Two of the three conditions are reachable here and one is NOT, and that has to be said
+            // out loud rather than papered over:
+            //
+            //   !this.doop          → targetIsNonLiving, supplied by the caller from UnitStats.
+            //   critInvis > 0       → critInvisChance, stamped on the shot at fire time.
+            //   celUnit != owner    → NOT MODELLED. The port tracks no per-unit "current look-at", so
+            //                         it cannot ask whether the target is aiming at the shooter. The
+            //                         term permits the crit, so leaving it out means the port grants a
+            //                         stealth crit in the one case the oracle would deny it: a target
+            //                         that is already looking straight at the shooter. Recorded as a
+            //                         divergence rather than guessed at.
+            //
+            // The doubling is deliberate and is not a mistake: a stealth crit on top of an ordinary
+            // crit multiplies by critMultiplier * 2, which is what `param1 *= 2` after the first block
+            // produces in the oracle. isCrit is NOT cleared, so the ordinary-crit flag survives.
+            //
+            // The roll is short-circuited on `damage > 0f` and on a positive chance, exactly as the
+            // armour and ordinary-crit rolls are, so a weapon with no stealth chance consumes no
+            // number from the shared combat stream and every later roll in the tick stays in step.
+            if (damage > 0f && !targetIsNonLiving && critInvisChance > 0f && rng != null
+                && rng.Chance(critInvisChance))
+            {
+                damage *= 2f;
+            }
+
+            // ── 4c. Disintegration ───────────────────────────────────────────────────────────────
+            // AS3 `:3671-3677` — `if(param3 && param3.desintegr && (param2 == D_LASER || param2 == D_PLASMA))`
+            // then `if(this.hp <= param1 * 10 && this.isrnd(param3.desintegr)) param1 *= 12`.
+            //
+            // The HP gate is the whole point of the mechanic: it is a finisher, so it can only fire on
+            // a target that is already about to die. The comparison is against the damage as it stands
+            // here — post-armour, post-crit — because that is the value `param1` holds at :3671 in the
+            // oracle. The gate is tested BEFORE the roll, so a target above the threshold consumes no
+            // random number.
+            //
+            // Type gate: laser and plasma only. `DamageType`'s values are AS3's D_* indices, so this
+            // is the oracle's own comparison.
+            if (damage > 0f
+                && desintegrChance > 0f
+                && (damageType == DamageType.Laser || damageType == DamageType.Plasma)
+                && targetCurrentHp >= 0f
+                && targetCurrentHp <= damage * 10f
+                && rng != null
+                && rng.Chance(desintegrChance))
+            {
+                damage *= 12f;
             }
 
             // ── 5. Weapon durability ─────────────────────────────────────────────────────────────

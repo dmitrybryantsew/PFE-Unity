@@ -178,6 +178,30 @@ namespace PFE.Systems.Combat
         void ApplyKnockback(Vector2 impulse);
 
         /// <summary>
+        /// Whether this target is one of AS3's <c>doop</c> units — the non-living classes that set
+        /// <c>doop = true</c> in their constructors (<c>Unit.as:436</c>). Suppresses the stealth
+        /// crit (<c>Unit.damage():3659</c>).
+        /// </summary>
+        /// <remarks>
+        /// <para>AS3 declares <c>doop</c> on the <b>target</b> and reads it inside <c>damage()</c>, so
+        /// it belongs on this interface by the same rule as <see cref="Armour"/>,
+        /// <see cref="SkinResistance"/> and <see cref="IsInvulnerable"/>: the formula reads it, so it
+        /// must be readable, and it never crosses a network boundary — the resolver reads it locally
+        /// and sends only the resulting <see cref="DamageOutcome"/>.</para>
+        ///
+        /// <para><b><c>false</c> is the right fallback.</b> AS3's field default is <c>false</c>
+        /// (<c>Unit.as:436</c>), and the flag is set only by a hand-picked set of non-living classes —
+        /// so a unit that declares nothing is living, and living units take stealth crits. Answering
+        /// <c>true</c> here would silently disable the mechanic for every unit in the game.</para>
+        ///
+        /// <para><b>Not yet fed from data.</b> AS3 sets <c>doop</c> per <i>class</i>, from the unit
+        /// node's <c>@cl</c>, which the port's importer does not read — so the production
+        /// implementation currently answers <c>false</c> for every unit. That is a recorded divergence
+        /// covering 14 AllData rows; see <c>UnitStats.isNonLiving</c> for the list and the plan.</para>
+        /// </remarks>
+        bool IsNonLiving { get; }
+
+        /// <summary>
         /// Current health of this entity.
         /// Used for UI, death checks, and damage calculations.
         /// </summary>

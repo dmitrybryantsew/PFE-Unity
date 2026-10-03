@@ -15,15 +15,27 @@ namespace PFE.Tests.Editor
         [Test]
         public void AmmoImport_VerifyCount()
         {
-            AmmoData[] ammo = Resources.LoadAll<AmmoData>("Ammo");
-            Assert.AreEqual(47, ammo.Length, $"Expected 47 ammo items, got {ammo.Length}");
+            // The live type is AmmoDefinition, not the superseded AmmoData (which nothing in
+            // production references). `AmmoDefinitionImporter` (Assets/_PFE/Editor/Importers/
+            // AmmoDataImporter.cs) writes to Assets/_PFE/Data/Resources/Ammo, selecting
+            // tip='a' | 'compw' | 'stuff' and skipping chance<=0.
+            //
+            // Verified against AllData.as: 500 <item> rows -> 49 tip='a' + 24 'compw' + 9 'stuff'
+            // = 82 candidates, minus 7 with chance<=0 (recharg, not, kogt, hcrystal, fan, lamp,
+            // kofe) = 75. `tip='a'` alone is 49, which is the row count the ITEM import creates in
+            // Items/ — a different number because it is a different question.
+            AmmoDefinition[] ammo = Resources.LoadAll<AmmoDefinition>("Ammo");
+            Assert.AreEqual(75, ammo.Length, $"Expected 75 ammo definitions, got {ammo.Length}");
         }
 
         [Test]
         public void ItemsImport_VerifyCount()
         {
+            // AS3 AllData.as carries exactly 500 <item> rows. `SimpleDataImporter.ImportItems` used
+            // to skip `tip == "a"` (49 rounds), which is where the old 451 came from — but that skip
+            // was the ammo bug (nothing could draw a round), and it is gone. All 500 now land.
             ItemDefinition[] items = Resources.LoadAll<ItemDefinition>("Items");
-            Assert.AreEqual(451, items.Length, $"Expected 451 items, got {items.Length}");
+            Assert.AreEqual(500, items.Length, $"Expected 500 items, got {items.Length}");
         }
 
         [Test]
@@ -36,23 +48,26 @@ namespace PFE.Tests.Editor
         [Test]
         public void TotalAssets_VerifyCount()
         {
-            int total = Resources.LoadAll<AmmoData>("Ammo").Length +
+            // Note the type mix: Ammo/ holds AmmoDefinition, Perks/ and Items/ hold the
+            // PFE.Data.Definitions types. The sum is 500 + 84 + 75 = 659. The old 582 was
+            // 451 + 84 + 47 — i.e. it inherited both stale counts.
+            int total = Resources.LoadAll<AmmoDefinition>("Ammo").Length +
                        Resources.LoadAll<ItemDefinition>("Items").Length +
                        Resources.LoadAll<PerkDefinition>("Perks").Length;
-            Assert.AreEqual(582, total, $"Expected total 582 assets, got {total}");
+            Assert.AreEqual(659, total, $"Expected total 659 assets, got {total}");
         }
 
         [Test]
         public void Ammo_ContainsEssentialItems()
         {
-            var p10 = Resources.Load<AmmoData>("Ammo/p10");
+            var p10 = Resources.Load<AmmoDefinition>("Ammo/p10");
             Assert.IsNotNull(p10, "p10 ammo should exist");
-            Assert.AreEqual("p10", p10.Id, "p10 should have correct ID");
+            Assert.AreEqual("p10", p10.ID, "p10 should have correct ID");
 
-            var batt = Resources.Load<AmmoData>("Ammo/batt");
+            var batt = Resources.Load<AmmoDefinition>("Ammo/batt");
             Assert.IsNotNull(batt, "batt ammo should exist");
 
-            var fuel = Resources.Load<AmmoData>("Ammo/fuel");
+            var fuel = Resources.Load<AmmoDefinition>("Ammo/fuel");
             Assert.IsNotNull(fuel, "fuel ammo should exist");
         }
 
@@ -138,11 +153,11 @@ namespace PFE.Tests.Editor
         [Test]
         public void Ammo_AllHaveValidIds()
         {
-            var ammo = Resources.LoadAll<AmmoData>("Ammo");
+            var ammo = Resources.LoadAll<AmmoDefinition>("Ammo");
             foreach (var a in ammo)
             {
-                Assert.IsFalse(string.IsNullOrEmpty(a.Id), $"Ammo has null/empty ID: {a.name}");
-                Assert.IsTrue(a.Id.Length > 0, $"Ammo has empty ID: {a.name}");
+                Assert.IsFalse(string.IsNullOrEmpty(a.ID), $"Ammo has null/empty ID: {a.name}");
+                Assert.IsTrue(a.ID.Length > 0, $"Ammo has empty ID: {a.name}");
             }
         }
 
@@ -169,7 +184,7 @@ namespace PFE.Tests.Editor
         [Test]
         public void DataImport_NoDuplicateIds()
         {
-            var ammo = Resources.LoadAll<AmmoData>("Ammo");
+            var ammo = Resources.LoadAll<AmmoDefinition>("Ammo");
             var items = Resources.LoadAll<ItemDefinition>("Items");
             var perks = Resources.LoadAll<PerkDefinition>("Perks");
 
@@ -179,8 +194,8 @@ namespace PFE.Tests.Editor
 
             foreach (var a in ammo)
             {
-                Assert.IsFalse(ammoIds.Contains(a.Id), $"Duplicate ammo ID: {a.Id}");
-                ammoIds.Add(a.Id);
+                Assert.IsFalse(ammoIds.Contains(a.ID), $"Duplicate ammo ID: {a.ID}");
+                ammoIds.Add(a.ID);
             }
 
             foreach (var item in items)

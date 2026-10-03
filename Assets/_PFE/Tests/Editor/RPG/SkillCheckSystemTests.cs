@@ -213,9 +213,13 @@ namespace PFE.Tests.Editor.RPG
         {
             // Arrange
             var stats = CreateTestCharacter();
-            stats.SetSkillLevel("lockpick", 5);
+            // `freel` requires `<req id='lockpick' lvl='4'/>` (AllData.as:5593) — a TIER of 4, and
+            // AS3 getSkLevel (Pers.as:995-1018) only reaches tier 4 at raw 14. raw 5 is tier 2, so
+            // the perk simply refuses to unlock and the auto-success never happens.
+            stats.SetSkillLevel("lockpick", 14);
             stats.GrantPerkPoints(1);
-            stats.AddPerk("freel"); // Auto-pick locks at or below skill level
+            var granted = stats.AddPerk("freel"); // Auto-pick locks at or below skill level
+            Assert.IsTrue(granted, "freel must unlock at lockpick tier 4 (raw 14)");
 
             var checkSystem = CreateTestCheckSystem(stats);
 
@@ -357,10 +361,15 @@ namespace PFE.Tests.Editor.RPG
 
             // Act & Assert — AS3 Pers.getLockMaster (Pers.as:2356): 0 for both by default,
             // regardless of how high the underlying skill is.
-            stats.unlockMaster = 0;
-            stats.hackerMaster = 0;
+            //
+            // The skills OWN these fields: `<sk id='unlockMaster' v0='0' vd='1'/>` sits inside the
+            // lockpick skill (AllData.as:5269) and `<sk id='hackerMaster' v0='0' vd='1'/>` inside
+            // science (:5274), so raising either skill re-derives its master. Raise the skills
+            // FIRST, then pin the fields — the old order let the skill overwrite the pin.
             stats.SetSkillLevel("lockpick", 8);
             stats.SetSkillLevel("science", 6);
+            stats.unlockMaster = 0;
+            stats.hackerMaster = 0;
 
             Assert.AreEqual(0, checkSystem.GetLockMaster(SkillCheckSystem.LockType.Physical),
                 "Physical master must come from unlockMaster (0), not the lockpick skill (8)");

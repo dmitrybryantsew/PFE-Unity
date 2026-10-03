@@ -176,14 +176,21 @@ namespace PFE.Systems.Combat
                 // `precision <= 0 && tipBullet == 0`. Kept separate from term 4 rather than folded into
                 // `Accuracy()`, because Accuracy() returns 1 for precision 0 and `rnd < 1/divisor` is
                 // NOT 1 — folding them would make every weapon with no precision stat miss.
-                if (context.Precision <= 0f)
+                //
+                // The owner multiplier is composed BEFORE this test, exactly as AS3 composes it before
+                // stamping the bullet (Weapon.as:1634 then :1531): `b.precision` is already
+                // `precision * owner.precMult * …`, so term 3 sees the product, not the raw data value.
+                // A weapon with prec=0 stays 0 under any multiplier, so the unscoped early-out is
+                // unaffected either way.
+                float composedPrecision = context.Precision * context.PrecisionMultiplier;
+                if (composedPrecision <= 0f)
                     return true;
 
                 // ── Term 4: accuracy vs dexterity ────────────────────────────────────────────────
                 // The `+ 0.05` is the oracle's guard against a zero divisor; a dexter of 0 has already
                 // returned above, but dexterPlus is not constrained and the constant is part of the
                 // formula, so it is reproduced rather than reasoned away.
-                float accuracy = Accuracy(context.Precision, context.AntiPrecision, travelDistancePixels);
+                float accuracy = Accuracy(composedPrecision, context.AntiPrecision, travelDistancePixels);
                 float divisor  = evasion.Dexterity + evasion.DexterityPlus + 0.05f;
 
                 return rng.NextFloat() < accuracy / divisor;
