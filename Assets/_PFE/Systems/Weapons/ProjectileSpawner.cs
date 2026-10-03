@@ -133,7 +133,12 @@ namespace PFE.Systems.Weapons
                     $"speedPxPerFrame={_currentDef.projectileSpeed:0.###}.");
             }
 
-            Projectile proj = _factory.Create(_currentDef, spawnPos, dir);
+            // Pass the shot's own penetration budget (weapon probiv + ammo probiv, clamped) rather
+            // than letting the factory read the definition's: a debug-swapped or ammo-fed round has to
+            // penetrate at the value the shot actually carries, and the definition is shared by every
+            // wielder of that weapon. See DamageContext.PenetrationChance.
+            Projectile proj = _factory.Create(_currentDef, spawnPos, dir,
+                penetrationOverride: plan.Damage.PenetrationChance);
             if (proj == null)
             {
                 if (_debugSettings?.LogProjectileSpawning == true)

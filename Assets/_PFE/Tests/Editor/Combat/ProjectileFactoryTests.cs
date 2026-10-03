@@ -328,7 +328,8 @@ namespace PFE.Tests.Editor.Combat
 
             // Primary overload — not exercised by these tests; returns null safely.
             public Projectile Create(PFE.Data.Definitions.WeaponDefinition weapon,
-                                     Vector3 position, Vector2 direction) => null;
+                                     Vector3 position, Vector2 direction,
+                                     float? penetrationOverride = null) => null;
 
             public Projectile Create(Projectile prefab, Vector3 position, Quaternion rotation,
                                      float damage, float speed, Vector2 direction,

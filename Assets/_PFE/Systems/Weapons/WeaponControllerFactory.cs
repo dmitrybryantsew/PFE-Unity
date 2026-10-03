@@ -45,13 +45,23 @@ namespace PFE.Systems.Weapons
         private readonly IWeaponStatSource _statSource;
         private readonly PFE.Core.Rng.IRngService _rng;
 
+        /// <summary>
+        /// Turns a weapon's live ammo id into its ballistics row, so the round's damage/pierce/armour/
+        /// knock/fire/det/type terms reach the shot. Null keeps every ammo term at its identity — the
+        /// same state a headless test or a training loadout has, and AS3's "неправильный патрон"
+        /// branch. See <see cref="IAmmoResolver"/>.
+        /// </summary>
+        private readonly IAmmoResolver _ammoResolver;
+
         public WeaponControllerFactory(PfeDebugSettings debugSettings = null, IAmmoSource ammoSource = null,
-                                       PFE.Core.Rng.IRngService rng = null, IWeaponStatSource statSource = null)
+                                       PFE.Core.Rng.IRngService rng = null, IWeaponStatSource statSource = null,
+                                       IAmmoResolver ammoResolver = null)
         {
             _debugSettings = debugSettings;
             _ammoSource    = ammoSource;
             _rng           = rng;
             _statSource    = statSource;
+            _ammoResolver  = ammoResolver;
         }
 
         /// <summary>
@@ -101,13 +111,13 @@ namespace PFE.Systems.Weapons
                         $"[WeaponControllerFactory] Weapon '{def.weaponId}' has tip=12 (AS3 WPaint), which has no " +
                         "Unity counterpart. Falling back to the ranged controller. " +
                         "See 13_WeaponTypeBehaviourAudit_2026-09-27.md §1.6.");
-                    controller = new RangedWeaponController(state, _debugSettings, _ammoSource, _rng, _statSource);
+                    controller = new RangedWeaponController(state, _debugSettings, _ammoSource, _rng, _statSource, _ammoResolver);
                     break;
 
                 default:                        // tip 0 (Internal), 2 (Guns), 3 (BigGun), and anything >= 6
                     controller = def.IsUnarmed  // punch > 0 → WPunch; tip alone never selects it
                         ? new UnarmedWeaponController(state, _statSource)
-                        : new RangedWeaponController(state, _debugSettings, _ammoSource, _rng, _statSource);
+                        : new RangedWeaponController(state, _debugSettings, _ammoSource, _rng, _statSource, _ammoResolver);
                     break;
             }
 

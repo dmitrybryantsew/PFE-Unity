@@ -46,6 +46,19 @@ namespace PFE.Tests.EditMode.Systems.Weapons
             public float PunchDamMult = 1f;
             public float KickDestroy  = 30f;
             public float MeleeRun     = 10f;
+            // Attacker-side hit procs — AS3 declaration defaults (0 = proc off).
+            public float CritInvis    = 0f;
+            public float Desintegr    = 0f;
+
+            // Precision channel — AS3 Pers declaration defaults (composed multiplier stays 1). The
+            // melee fixtures never read these, but the interface is shared with the ranged side.
+            public float AllPrecMult = 1f;
+            public float RunPenalty  = 0.5f;
+            public float JumpPenalty = 0.3f;
+            public float BackPenalty = 0.4f;
+            public float StayBonus   = 0.3f;
+            public float MazilAdd    = 0f;
+            public float ComposedPrecisionMultiplier = 1f;
 
             float IWeaponStatSource.ReloadMult   => ReloadMult;
             float IWeaponStatSource.RecoilMult   => RecoilMult;
@@ -56,6 +69,15 @@ namespace PFE.Tests.EditMode.Systems.Weapons
             float IWeaponStatSource.PunchDamMult => PunchDamMult;
             float IWeaponStatSource.KickDestroy  => KickDestroy;
             float IWeaponStatSource.MeleeRun     => MeleeRun;
+            float IWeaponStatSource.CritInvis    => CritInvis;
+            float IWeaponStatSource.Desintegr    => Desintegr;
+            float IWeaponStatSource.AllPrecMult  => AllPrecMult;
+            float IWeaponStatSource.RunPenalty   => RunPenalty;
+            float IWeaponStatSource.JumpPenalty  => JumpPenalty;
+            float IWeaponStatSource.BackPenalty  => BackPenalty;
+            float IWeaponStatSource.StayBonus    => StayBonus;
+            float IWeaponStatSource.MazilAdd     => MazilAdd;
+            float IWeaponStatSource.PrecisionMultiplier => ComposedPrecisionMultiplier;
         }
 
         private sealed class NullHitVolume : IMeleeHitVolume
@@ -117,13 +139,14 @@ namespace PFE.Tests.EditMode.Systems.Weapons
         }
 
         private static List<ShotPlan> RunPunch(WeaponDefinition def, IWeaponStatSource stats,
-                                               Vector2 aim, int frames)
+                                               Vector2 aim, int frames,
+                                               Vector2 holdPoint = default)
         {
             var ctrl = new UnarmedWeaponController(new WeaponRuntimeState(def), stats);
             var plans = new List<ShotPlan>();
 
             ctrl.BeginAttack();
-            var hold = Vector2.zero;
+            var hold = holdPoint;
             for (int i = 0; i < frames; i++)
             {
                 ctrl.Tick(Dt, hold, hold, aim);
@@ -285,16 +308,27 @@ namespace PFE.Tests.EditMode.Systems.Weapons
         [Test]
         public void Punch_BackHit_ComposesItsDoublingWithTheOwnerMultiplier()
         {
-            // Facing right (aim to +x sets storona), then punch to the left: WKick.as:64-65 doubles
-            // damage and ×1.5 the knockback on a back-hit. punchDamMult must multiply on top of that,
-            // not replace it — AS3 applies the two in separate statements on the same bullet.
+            // AS3 WKick.as:64-65 puts `b.damage *= 2` INSIDE `if(this.kick)`, and a kick sets
+            // `storona = -owner.storona` (:59) -- you strike BEHIND you. So the doubling is a property
+            // of the ATTACK (a kick), not of the aim vector.
+            //
+            // The port has no kick input, so it approximates: `_storona` is derived from
+            // `aimTarget.x >= holdPoint.x` (UnarmedWeaponController.cs:143) instead of the owner's
+            // facing, and a "back hit" is inferred when the punch points opposite to that derived
+            // facing. This fixture therefore has to produce the state that inference looks for:
+            // hold to the RIGHT of the aim, so `_storona = -1`, while the punch lands to the LEFT --
+            // which puts `punchAngle` outside (-PI/2, PI/2) and trips the zadok branch.
+            //
+            // The old fixture aimed at (-5, 0) from a hold point of (0, 0). That sets _storona = -1
+            // on the SAME frame, so the two conditions cancel and no double was applied -- the test
+            // measured 2x, not the 4x it asserted.
             var def = MakeUnarmed(rapid: 10f, damage: 10f, knockback: 4f);
             var plans = RunPunch(def, new FakeStats { PunchDamMult = 2f },
-                                 new Vector2(-5f, 0f), frames: 10);
+                                 holdPoint: new Vector2(50f, 0f), aim: new Vector2(-5f, 0f), frames: 10);
 
             Assert.IsNotEmpty(plans, "the back-punch must emit a plan.");
             Assert.AreEqual(40f, plans[plans.Count - 1].Damage.BaseDamage, 0.001f,
-                "back-hit ×2 composed with punchDamMult ×2 = ×4 (WKick.as:47,64).");
+                "back-hit x2 composed with punchDamMult x2 = x4 (WKick.as:47,64).");
         }
 
         // ── The seam itself ───────────────────────────────────────────────────

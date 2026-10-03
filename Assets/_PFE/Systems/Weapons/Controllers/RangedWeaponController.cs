@@ -52,6 +52,15 @@ namespace PFE.Systems.Weapons.Controllers
         /// </summary>
         private readonly IWeaponStatSource _statSource;
 
+        /// <summary>
+        /// Turns the weapon's live ammo <b>id</b> into its ballistics row — the port's stand-in for
+        /// AS3's <c>World.w.invent.items[this.ammo].xml</c> lookup inside <c>Weapon.setAmmo</c>
+        /// (<c>Weapon.as:1746-1809</c>). Null (tests, headless loadouts) means every shot resolves no
+        /// round, which is AS3's "неправильный патрон" branch: every ammo multiplier stays at its
+        /// identity and the round contributes nothing. See <see cref="IAmmoResolver"/>.
+        /// </summary>
+        private readonly IAmmoResolver _ammoResolver;
+
         // AS3 copies these four onto the weapon in setPers (Weapon.as:973-977) and the weapon then
         // reads its own copy. The port reads the live source instead, so a perk taken mid-fight
         // applies to the next shot without re-equipping.
@@ -70,13 +79,14 @@ namespace PFE.Systems.Weapons.Controllers
 
         public RangedWeaponController(WeaponRuntimeState state, PfeDebugSettings debugSettings = null,
                                       IAmmoSource ammoSource = null, PFE.Core.Rng.IRngService rng = null,
-                                      IWeaponStatSource statSource = null)
+                                      IWeaponStatSource statSource = null, IAmmoResolver ammoResolver = null)
         {
             State          = state;
             _def           = state.Def;
             _debugSettings = debugSettings;
             _ammoSource    = ammoSource;
             _statSource    = statSource;
+            _ammoResolver  = ammoResolver;
             _rng           = rng != null ? rng.GetStream(PFE.Core.Rng.RngStream.Combat) : new PFE.Core.Rng.PcgRngService().GetStream(PFE.Core.Rng.RngStream.Combat);
 
             // Weapons with rechargeFrames start with a full magazine.
@@ -378,8 +388,39 @@ namespace PFE.Systems.Weapons.Controllers
             // and WeaponVisualDefinition.muzzleLocalOffset will be applied by spawner.
             Vector2 muzzleWorld = new Vector2(State.X, State.Y);
 
+            // ── Resolve the round this shot fires ──────────────────────────────
+            // AS3 resolves the ammo node inside setAmmo and copies nine attributes off it onto the
+            // weapon, where the shot then reads them. The port resolves through IAmmoResolver at fire
+            // time instead of caching on the definition, for the same reason the ammo-type override
+            // lives on the state: a cached copy on the shared ScriptableObject would leak a debug swap
+            // to every wielder and past play-mode exit. One lookup per shot is a dictionary hit, not
+            // an allocation — the registry path builds no strings.
+            //
+            // ResolvedAmmoType (not _def.ammoType) so the debug ammo swap actually changes what is
+            // fired: reading the definition's own field here would leave a swapped weapon shooting its
+            // original ballistics — the half-applied-swap shape the state's own comment warns about.
+            AmmoDefinition ammo = _ammoResolver?.Resolve(State.ResolvedAmmoType);
+
             // ── Shared damage context (same for all pellets in this shot) ─────
-            DamageContext damCtx = DamageContext.FromWeapon(_def, null, State.OwnerFaction);
+            // The two attacker-side hit procs ride on the shot exactly as AS3 stamps them on the
+            // bullet at fire time: critInvis straight off the owner (Weapon.as:1697), desintegr
+            // through the weapon's cached Pers copy (:1525-1527). `_statSource` is the port's Pers
+            // bridge; a null source answers 0 for both, which disables the procs and consumes no
+            // random number — AS3's state for a unit with no Pers.
+            DamageContext damCtx = DamageContext.FromWeapon(
+                _def, null, State.OwnerFaction,
+                critInvisChance: _statSource != null ? _statSource.CritInvis : 0f,
+                desintegrChance: _statSource != null ? _statSource.Desintegr : 0f,
+                // AS3 stamps the bullet with resultPrec(owner.precMult, …) at fire time
+                // (Weapon.as:1531, :1634), so the round's precision already carries the owner's
+                // situational multiplier. 1 leaves the weapon's own value untouched — the state for a
+                // shooter with no Pers, or an enemy.
+                precisionMultiplier: _statSource != null ? _statSource.PrecisionMultiplier : 1f,
+                // The round itself. FromWeapon folds its six fire-time terms (damage, pier, armor,
+                // knock, prec, probiv) and its damage-type override into the context; the row also
+                // rides along on DamageContext.Ammo so a later consumer (the burning effect, when a
+                // status system exists) can still reach it without re-resolving the id.
+                ammo: ammo);
 
             // ── Cues (same for all pellets) ───────────────────────────────────
             bool playSound = State.KolShoot % Mathf.Max(1, _def.magazineSize > 0 ? 1 : 1) == 0;
@@ -435,7 +476,13 @@ namespace PFE.Systems.Weapons.Controllers
             State.IsReloadingRP.Value = false; // not reloading if just fired
 
             // Consume durability (AS3: hp -= 1 + ammoHP, skipped in training/alicorn mode).
-            State.CurrentDurability = Mathf.Max(0, State.CurrentDurability - 1);
+            // `ammoHP` is the `det` attribute — the round's extra wear, imported into
+            // AmmoDefinition.extraDurabilityCost (Weapon.as:1598 `this.hp -= 1 + this.ammoHP`). It is
+            // a bool in the port because no row carries a value other than 1, so a round either costs
+            // one extra point or none. An unresolved round (null) adds nothing, matching AS3's
+            // ammoHP = 0 default on the "неправильный патрон" branch.
+            int durabilityCost = 1 + (ammo != null && ammo.extraDurabilityCost ? 1 : 0);
+            State.CurrentDurability = Mathf.Max(0, State.CurrentDurability - durabilityCost);
 
             // Recoil (AS3 Weapon.as:1612-1617): the frame count is scaled, and a weapon that
             // recoils for more than 3 frames never drops below 3.
@@ -511,7 +558,11 @@ namespace PFE.Systems.Weapons.Controllers
             if (_statSource == null) return false;
             float chance = _statSource.Recyc;
             if (chance <= 0f) return false;
-            if (_def.ammoType != "batt" && _def.ammoType != "energ" && _def.ammoType != "crystal")
+            // ResolvedAmmoType, not _def.ammoType: the debug ammo swap sets a per-instance override, and a
+            // read that skipped it would let a weapon recycle on its original energy type after being
+            // switched to ballistic.
+            string ammoType = State.ResolvedAmmoType;
+            if (ammoType != "batt" && ammoType != "energ" && ammoType != "crystal")
                 return false;
             return _rng.NextFloat() < chance;
         }
@@ -523,7 +574,7 @@ namespace PFE.Systems.Weapons.Controllers
         {
             if (State.TReload > 0) return; // already reloading
             if (_def.magazineSize <= 0)    return; // no magazine (melee, unarmed, "not" ammo)
-            if (_def.ammoType == "not")    return; // infinite-ammo weapon — never reloads
+            if (State.ResolvedAmmoType == "not") return; // infinite-ammo weapon — never reloads
 
             // NOTE: State.Jammed is deliberately NOT cleared here. AS3 clears it in
             // reloadWeapon() (Weapon.as:1710) — the function that FILLS the magazine, which this
@@ -562,7 +613,12 @@ namespace PFE.Systems.Weapons.Controllers
 
             int toLoad;
 
-            if (_def.ammoType == "recharg" || _ammoSource == null)
+            // Read once, use for the branch, the inventory calls and the log. A second read of the
+            // definition's own type here would make a debug ammo swap half-applied — the reload would
+            // fill from the wrong inventory bucket while the guard above used the override.
+            string ammoType = State.ResolvedAmmoType;
+
+            if (ammoType == "recharg" || _ammoSource == null)
             {
                 // Training mode or self-recharging weapon — fill unconditionally.
                 toLoad = _def.magazineSize - State.CurrentAmmo;
@@ -570,14 +626,14 @@ namespace PFE.Systems.Weapons.Controllers
             else
             {
                 int needed    = _def.magazineSize - State.CurrentAmmo;
-                int available = _ammoSource.GetAmmoCount(_def.ammoType);
+                int available = _ammoSource.GetAmmoCount(ammoType);
                 toLoad        = Mathf.Min(needed, available);
                 if (toLoad > 0)
-                    _ammoSource.ConsumeAmmo(_def.ammoType, toLoad);
+                    _ammoSource.ConsumeAmmo(ammoType, toLoad);
 
                 if (_debugSettings?.LogWeaponControllerDiagnostics == true)
                     Debug.Log($"[RangedWeaponController] CompleteReload weapon='{_def.weaponId}' " +
-                              $"ammoType='{_def.ammoType}' needed={needed} available={available} loaded={toLoad}.");
+                              $"ammoType='{ammoType}' needed={needed} available={available} loaded={toLoad}.");
             }
 
             State.CurrentAmmo           += toLoad;

@@ -337,6 +337,10 @@ namespace PFE.Tests.PlayMode.Combat
             /// <summary>The knockback gate is open, so a landed hit is expected to produce an impulse.</summary>
             public bool IsInvulnerable => false;
 
+            /// <summary>AS3's <c>doop</c> field default (<c>Unit.as:436</c>) — a living target, so the
+            /// stealth crit is not suppressed. Answering <c>true</c> here would silently disable it.</summary>
+            public bool IsNonLiving => false;
+
             /// <summary>The last impulse handed in, so a test can assert the resolver produced one.</summary>
             public Vector2 ApplyKnockbackImpulse { get; private set; }
 

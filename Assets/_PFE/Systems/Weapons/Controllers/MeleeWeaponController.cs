@@ -309,7 +309,10 @@ namespace PFE.Systems.Weapons.Controllers
         {
             Vector2 tipPos = CalculateTipPosition(holdPoint, aimTarget);
 
-            DamageContext baseDmg  = DamageContext.FromWeapon(_def, null, State.OwnerFaction);
+            DamageContext baseDmg  = DamageContext.FromWeapon(
+                _def, null, State.OwnerFaction,
+                critInvisChance: _statSource != null ? _statSource.CritInvis : 0f,
+                desintegrChance: _statSource != null ? _statSource.Desintegr : 0f);
             // Apply power / combo multiplier to base damage. Scaled through one method rather than a
             // positional re-construction: the 16-argument copy this replaced silently dropped
             // ownerFaction, and would drop every field added to DamageContext afterwards.

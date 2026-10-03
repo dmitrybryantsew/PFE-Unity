@@ -97,5 +97,133 @@ namespace PFE.Systems.Weapons
         /// <c>v0='10' vd='3'</c>).</para>
         /// </summary>
         float MeleeRun { get; }
+
+        // ── Attacker-side hit procs ───────────────────────────────────────────
+        //
+        // These two are NOT weapon parameters and are NOT copied in setParams like the multipliers
+        // above. AS3 stamps them onto the *bullet* at fire time, reading the owner directly for one
+        // and the weapon's cached copy for the other:
+        //
+        //   critInvis  Weapon.as:1697  `param1.critInvis = this.owner.critInvis;`
+        //   desintegr  Weapon.as:1525-1527  `if(this.desintegr) this.b.desintegr = this.desintegr;`
+        //              where Weapon.as:967-970  `if(param2.desintegr > 0) this.desintegr = param2.desintegr;`
+        //
+        // They sit here anyway because this interface is already "the values AS3 reads off Pers for a
+        // shot", and because the alternative — a second source object on every controller — would be
+        // one seam too many. The context carries them the rest of the way.
+
+        /// <summary>
+        /// <c>Unit.critInvis</c> (<c>Unit.as:322</c>, 0) — the stealth-crit probability, granted by
+        /// the sneak skill. Read straight off the owner at <c>Weapon.as:1697</c>.
+        ///
+        /// <para><b>0, not a fallback, is the meaning of a null source.</b> A unit with no
+        /// <c>Pers</c> has no stealth-crit chance, and 0 disables the second crit roll entirely —
+        /// consuming no random number, which is what keeps the combat stream in step.</para>
+        /// </summary>
+        float CritInvis { get; }
+
+        /// <summary>
+        /// <c>Pers.desintegr</c> (<c>Pers.as:199</c>, 0) — the disintegration (overkill) probability,
+        /// granted by the level-15 <c>desintegr</c> perk. Copied to the weapon at
+        /// <c>Weapon.as:967-970</c> and then to the bullet at <c>:1525-1527</c>.
+        ///
+        /// <para><b>0 disables the proc.</b> AS3's copy is itself gated on
+        /// <c>param2.desintegr &gt; 0</c>, so a null source (0 here) reproduces the oracle's "no perk,
+        /// no disintegr" state exactly.</para>
+        /// </summary>
+        float Desintegr { get; }
+
+        // ── The precision channel ─────────────────────────────────────────────
+        //
+        // AS3 builds the shot's precision in TWO places, and both must move together:
+        //
+        //  1. `Weapon.setParams` copies the owner's standing multiplier onto the weapon:
+        //         Weapon.as:976   this.precMult = param2.allPrecMult;
+        //         Weapon.as:1006  this.precMult *= param2[perk + "Prec"];   // per-perk, e.g. pistolPrec
+        //  2. `UnitPlayer.control()` rebuilds the *situational* multiplier every tick from the
+        //     player's locomotion state (UnitPlayer.as:1181-1200) and copies it to `owner.precMult`:
+        //
+        //         precMult = pers.allPrecMult;
+        //         if(sats.que.length == 0 && !lurked) {
+        //            if(pers.runPenalty > 0 && (|dx|>10 || |dy|>10)) precMult *= 1 - pers.runPenalty;
+        //            if(!stay)                                      precMult *= 1 - pers.jumpPenalty;
+        //            if(stay && |dx| < 1)                           precMult *= 1 + pers.stayBonus;
+        //            if(currentWeapon && currentWeapon.storona != storona)
+        //                                                           precMult *= 1 - pers.backPenalty;
+        //         }
+        //
+        //  and the bullet is stamped with the *composition*:
+        //         Weapon.as:1634  resultPrec(p1,p2) = precision * precMult * (1 + (p2-1)*0.5)
+        //                                            * p1 * owner.precMultCont;
+        //         Weapon.as:1531  this.b.precision = this.resultPrec(this.owner.precMult, _loc1_);
+        //
+        //  So `b.precision` is the ROUND's precision in pixels (data value * 40), already carrying
+        //  the owner's multipliers — which is why the port can fold them into DamageContext.Precision
+        //  and let the existing HitAvoidance reader take the value unchanged.
+        //
+        //  `precMultCont` (Unit.as:328, reset by Pers.defaultParams:886) is a *status* multiplier —
+        //  blindness 0.4, contusion 0.8, drunk 0.9/0.8/0.5/0.2, weak 0.5 (AllData.as:5928..6007).
+        //  It is folded into the same PrecisionMultiplier term; note it is read off `owner`
+        //  (UnitPlayer) and NOT off Pers, whereas `allPrecMult` is read off Pers. Both are 1 at rest.
+
+        /// <summary>
+        /// <c>Pers.allPrecMult</c> (<c>Pers.as:369</c>, 1) — the owner's standing precision
+        /// multiplier before any locomotion state. Read twice in AS3: onto the weapon in
+        /// <c>setParams</c> (<c>Weapon.as:976</c>) and as the seed of the per-tick
+        /// <c>precMult</c> (<c>UnitPlayer.as:1181</c>). Written by three perks
+        /// (<c>AllData.as:5316</c> ×2, <c>:5862</c>) and two flat adds (<c>:4215</c>, <c>:6217</c>).
+        /// </summary>
+        float AllPrecMult { get; }
+
+        /// <summary>
+        /// <c>Pers.runPenalty</c> (<c>Pers.as:189</c>, <b>0.5</b>) — the accuracy penalty applied
+        /// while running (<c>UnitPlayer.as:1185-1187</c>), as <c>precMult *= 1 - runPenalty</c>.
+        /// Only applies when positive <b>and</b> the player is moving &gt; 10 px/tick on either axis.
+        ///
+        /// <para>The default is the <i>declaration</i> value, not a <c>defaultParams()</c> one; the
+        /// <c>rungun</c> perk lowers it to 0.25.</para>
+        /// </summary>
+        float RunPenalty { get; }
+
+        /// <summary>
+        /// <c>Pers.jumpPenalty</c> (<c>Pers.as:191</c>, <b>0.3</b>) — the airborne accuracy penalty
+        /// (<c>UnitPlayer.as:1189-1191</c>, gated on <c>!stay</c>). The <c>rungun</c> perk lowers it
+        /// to 0.15.
+        /// </summary>
+        float JumpPenalty { get; }
+
+        /// <summary>
+        /// <c>Pers.backPenalty</c> (<c>Pers.as:193</c>, <b>0.4</b>) — the penalty for firing behind
+        /// you, applied when the weapon's facing differs from the body's
+        /// (<c>UnitPlayer.as:1197-1199</c>). The <c>composure</c> perk lowers it to 0.2.
+        /// </summary>
+        float BackPenalty { get; }
+
+        /// <summary>
+        /// <c>Pers.stayBonus</c> (<c>Pers.as:195</c>, <b>0.3</b>) — the accuracy <i>bonus</i> for
+        /// standing still (<c>UnitPlayer.as:1193-1195</c>, <c>stay &amp;&amp; |dx| &lt; 1</c>), applied
+        /// as <c>precMult *= 1 + stayBonus</c>. The <c>composure</c> perk <i>raises</i> it to 0.45.
+        /// </summary>
+        float StayBonus { get; }
+
+        /// <summary>
+        /// <c>Pers.mazilAdd</c> (<c>Pers.as:371</c>, 0) — the "miss radius" addend, in the spread
+        /// model's own units (<c>Weapon.as:1460</c>, <c>WThrow.as:139</c>). <b>Not</b> part of
+        /// <c>precMult</c>: AS3 adds it to the muzzle-angle divisor, a different mechanism. Carried
+        /// so the value is live; the launch path does not roll an angle yet.
+        /// </summary>
+        float MazilAdd { get; }
+
+        /// <summary>
+        /// The <b>composed</b> situational precision multiplier — AS3's <c>owner.precMult</c> at the
+        /// moment of the shot, i.e. <see cref="AllPrecMult"/> put through the four locomotion terms
+        /// of <c>UnitPlayer.as:1181-1200</c>.
+        ///
+        /// <para>This is the value the shot carries into <c>DamageContext.PrecisionMultiplier</c>, and
+        /// the five raw fields above exist so a test or a debug view can see <i>which</i> term
+        /// applied. A source that computes nothing (a test double, an enemy) returns 1, which leaves
+        /// the weapon's own precision untouched.</para>
+        /// </summary>
+        float PrecisionMultiplier { get; }
     }
 }

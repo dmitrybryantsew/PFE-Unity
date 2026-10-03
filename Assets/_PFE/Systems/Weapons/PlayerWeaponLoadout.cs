@@ -96,6 +96,21 @@ namespace PFE.Systems.Weapons
         private IAmmoSource _ammoSource;
 
         /// <summary>
+        /// Resolves a fired round's <b>id</b> to its ballistics row, so the round's damage/pierce/
+        /// armour/knock/fire/det/type terms reach the shot.
+        ///
+        /// <para><b>Why it is built here and not injected as an interface.</b> The only production
+        /// implementation is <see cref="ContentRegistryAmmoResolver"/>, which wraps the DI-singleton
+        /// <see cref="ContentRegistry"/>. Registering the resolver itself would mean a second
+        /// registration that has to be kept in step with the registry's; constructing it from the
+        /// registry the container already owns keeps one source of truth. Null — before
+        /// <see cref="Construct"/> runs, or in a plain-<c>Awake</c> test rig — means every shot
+        /// resolves no round, which is AS3's failure branch and leaves the weapon's own numbers
+        /// untouched.</para>
+        /// </summary>
+        private IAmmoResolver _ammoResolver;
+
+        /// <summary>
         /// The owner's RPG multipliers — the <c>Pers</c> fields AS3 copies onto the weapon in
         /// <c>Weapon.setPers</c> (<c>Weapon.as:963-1050</c>): reload speed, recoil, jam chance and
         /// the energy-ammo recycle chance.
@@ -126,19 +141,24 @@ namespace PFE.Systems.Weapons
         /// </summary>
         private void RebuildFactory()
         {
-            _factory = new WeaponControllerFactory(_debugSettings, _ammoSource, _rng, _weaponStatSource);
+            _factory = new WeaponControllerFactory(_debugSettings, _ammoSource, _rng, _weaponStatSource, _ammoResolver);
         }
 
         [Inject]
         public void Construct(IProjectileFactory projectileFactory, IObjectResolver resolver,
                               PfeDebugSettings debugSettings, ISoundService soundService,
-                              PFE.Core.Rng.IRngService rng = null)
+                              PFE.Core.Rng.IRngService rng = null, PFE.Data.ContentRegistry registry = null)
         {
             _projectileFactory = projectileFactory;
             _resolver          = resolver;
             _soundService      = soundService;
             _debugSettings     = debugSettings;
             _rng               = rng;
+            // Turn the ammo id a weapon names into its ballistics row. Built from the registry the
+            // container owns rather than a separate registration, so there is exactly one place the
+            // lookup is configured. A null registry (a test rig) leaves the resolver null, and every
+            // shot then fires with the weapon's own numbers — AS3's "неправильный патрон" branch.
+            _ammoResolver = registry != null ? new ContentRegistryAmmoResolver(registry) : null;
             // Unconditional: injection always supplies at least as much as Awake had, and the old
             // `??=` here meant an Awake-created factory was never upgraded with the real RNG.
             RebuildFactory();
@@ -262,7 +282,12 @@ namespace PFE.Systems.Weapons
 
         private void Awake()
         {
-            _factory ??= new WeaponControllerFactory(_debugSettings, _ammoSource, _rng, _weaponStatSource);
+            // Route the Awake fallback through RebuildFactory like every other site. The old inline
+            // `??=` spelling had already drifted once (it dropped the RNG) and would have dropped the
+            // ammo resolver too — a factory built here is only ever replaced by Construct, so an
+            // inline copy can go stale in exactly the window a weapon is equipped from the Inspector.
+            if (_factory == null)
+                RebuildFactory();
 
             if (_mounts == null)
                 _mounts = GetComponent<WeaponMounts>() ?? GetComponentInChildren<WeaponMounts>();

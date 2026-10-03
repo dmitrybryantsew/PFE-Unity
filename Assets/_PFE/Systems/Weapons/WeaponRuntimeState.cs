@@ -28,6 +28,51 @@ namespace PFE.Systems.Weapons
         // ── Definition reference ───────────────────────────────────────────────
         public readonly WeaponDefinition Def;
 
+        // ── Ammo type ─────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Per-instance ammo-type override, or null to use <see cref="WeaponDefinition.ammoType"/>.
+        ///
+        /// <para><b>Why this lives here and not on the definition.</b> <see cref="WeaponDefinition"/> is a
+        /// shared <c>ScriptableObject</c>: every wielder of that weapon points at the one asset, and in the
+        /// editor a write survives play-mode exit. Mutating it to "swap the ammo" would therefore change
+        /// the weapon for every unit carrying it and persist past the session — the debug tool would be
+        /// editing the game's data, not a running instance. This field is the per-instance seam.</para>
+        ///
+        /// <para><b>Read through <see cref="ResolvedAmmoType"/>, never directly.</b> Four sites in
+        /// <c>RangedWeaponController</c> decide reload/recycle behaviour from the ammo type; if any of them
+        /// kept reading <c>Def.ammoType</c> the dropdown would appear to work while half the behaviour
+        /// ignored it — the "inert fix" shape this project keeps hitting.</para>
+        /// </summary>
+        public string AmmoTypeOverride;
+
+        /// <summary>
+        /// The ammo type actually in effect: the override when one is set, else the definition's own.
+        /// Single source of truth for every reader.
+        /// </summary>
+        public string ResolvedAmmoType =>
+            string.IsNullOrEmpty(AmmoTypeOverride) ? Def?.ammoType : AmmoTypeOverride;
+
+        /// <summary>
+        /// True when the type in effect differs from the definition's original — i.e. a debug swap is
+        /// active. Used by the overlay to label the state honestly rather than showing a selection that
+        /// looks like the weapon's own ammo.
+        /// </summary>
+        public bool HasAmmoTypeOverride =>
+            !string.IsNullOrEmpty(AmmoTypeOverride) &&
+            !string.Equals(AmmoTypeOverride, Def?.ammoType, System.StringComparison.Ordinal);
+
+        /// <summary>
+        /// Set or clear the override. Passing the definition's own type clears it, so "back to regular"
+        /// leaves no override behind and <see cref="HasAmmoTypeOverride"/> stays truthful.
+        /// </summary>
+        public void SetAmmoTypeOverride(string ammoType)
+        {
+            AmmoTypeOverride = string.Equals(ammoType, Def?.ammoType, System.StringComparison.Ordinal)
+                ? null
+                : ammoType;
+        }
+
         // ── Frame-counter timers (30 fps cadence, matching AS3) ────────────────
         public int   TAttack;    // countdown frames until next allowed fire
         public int   TReload;    // reload countdown

@@ -38,7 +38,8 @@ namespace PFE.Systems.Combat
         /// Primary path: spawn and fully initialize from a WeaponDefinition.
         /// Resolves prefab by archetype, converts AS3 speeds, passes all hit data.
         /// </summary>
-        public Projectile Create(WeaponDefinition weapon, Vector3 position, Vector2 direction)
+        public Projectile Create(WeaponDefinition weapon, Vector3 position, Vector2 direction,
+                                 float? penetrationOverride = null)
         {
             if (weapon == null)
             {
@@ -88,7 +89,12 @@ namespace PFE.Systems.Combat
                 // AS3 probiv, NOT `pier`. `pier` is flat armour points and is consumed by the damage
                 // formula (DamageContext.Piercing); feeding it here made Clamp01 turn every weapon
                 // carrying @pier into a 100% penetrator.
-                penetration: weapon.penetration);
+                //
+                // `penetrationOverride` is the shot's already-summed, already-clamped budget
+                // (weapon.probiv + ammo.probiv, Weapon.as:1681-1684) — passed by the spawner from the
+                // DamageContext so a round that carries its own probiv (AP/sabot) actually penetrates.
+                // Falling back to the definition keeps editor and test callers working unchanged.
+                penetration: penetrationOverride ?? weapon.penetration);
             proj.ApplyVisual(weapon.projectileVisual);
 
             if (_debugSettings?.LogProjectileSpawning == true)

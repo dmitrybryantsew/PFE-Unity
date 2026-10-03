@@ -117,6 +117,22 @@ namespace PFE.Tests.EditMode.Systems.Weapons
             public float KickDestroy  = 30f;
             public float MeleeRun     = 10f;
 
+            // Attacker-side hit procs. AS3's declaration defaults (no perk, no sneak skill) — 0
+            // disables both procs, which is what these ranged fixtures assert by default.
+            public float CritInvis    = 0f;
+            public float Desintegr    = 0f;
+
+            // Precision channel — AS3 Pers declaration defaults, so the composed multiplier is 1 and
+            // these fixtures' precision assertions are unaffected. Kept as fields so a test can dial
+            // one locomotion term without disturbing the rest.
+            public float AllPrecMult = 1f;
+            public float RunPenalty  = 0.5f;
+            public float JumpPenalty = 0.3f;
+            public float BackPenalty = 0.4f;
+            public float StayBonus   = 0.3f;
+            public float MazilAdd    = 0f;
+            public float ComposedPrecisionMultiplier = 1f;
+
             float IWeaponStatSource.ReloadMult   => ReloadMult;
             float IWeaponStatSource.RecoilMult   => RecoilMult;
             float IWeaponStatSource.JammedMult   => JammedMult;
@@ -126,6 +142,15 @@ namespace PFE.Tests.EditMode.Systems.Weapons
             float IWeaponStatSource.PunchDamMult => PunchDamMult;
             float IWeaponStatSource.KickDestroy  => KickDestroy;
             float IWeaponStatSource.MeleeRun     => MeleeRun;
+            float IWeaponStatSource.CritInvis    => CritInvis;
+            float IWeaponStatSource.Desintegr    => Desintegr;
+            float IWeaponStatSource.AllPrecMult  => AllPrecMult;
+            float IWeaponStatSource.RunPenalty   => RunPenalty;
+            float IWeaponStatSource.JumpPenalty  => JumpPenalty;
+            float IWeaponStatSource.BackPenalty  => BackPenalty;
+            float IWeaponStatSource.StayBonus    => StayBonus;
+            float IWeaponStatSource.MazilAdd     => MazilAdd;
+            float IWeaponStatSource.PrecisionMultiplier => ComposedPrecisionMultiplier;
         }
 
         private sealed class RecordingAmmoSource : IAmmoSource

@@ -16,7 +16,15 @@ namespace PFE.Systems.Combat
         /// Spawn a projectile for the given weapon at a world position.
         /// Archetype, speed, gravity, and damage all come from the definition.
         /// </summary>
-        Projectile Create(WeaponDefinition weapon, Vector3 position, Vector2 direction);
+        /// <param name="penetrationOverride">
+        /// The shot's penetration budget (AS3 <c>probiv</c>), already summed with the round's own and
+        /// clamped — <see cref="PFE.Systems.Weapons.DamageContext.PenetrationChance"/>. When supplied
+        /// it is used instead of the definition's own <c>penetration</c>, so a round that carries a
+        /// budget (AP, sabot) penetrates at the value the shot actually has. <c>null</c> falls back to
+        /// the definition, which keeps every editor/test caller unchanged.
+        /// </param>
+        Projectile Create(WeaponDefinition weapon, Vector3 position, Vector2 direction,
+                          float? penetrationOverride = null);
 
         /// <summary>
         /// Low-level overload: explicit prefab, for cases where the registry cannot be used

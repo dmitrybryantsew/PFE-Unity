@@ -234,7 +234,13 @@ namespace PFE.Systems.Weapons.Controllers
                 zadok = true;
 
             // ── Build damage context ──────────────────────────────────────────
-            DamageContext baseDmg = DamageContext.FromWeapon(_def, null, State.OwnerFaction);
+            // AS3 stamps the two hit procs on the bullet at fire time; WKick/WPunch go through
+            // Weapon.shoot like any other weapon, so an unarmed strike carries the owner's
+            // critInvis/desintegr exactly as a rifle does (Weapon.as:1697/:1525-1527).
+            DamageContext baseDmg = DamageContext.FromWeapon(
+                _def, null, State.OwnerFaction,
+                critInvisChance: _statSource != null ? _statSource.CritInvis : 0f,
+                desintegrChance: _statSource != null ? _statSource.Desintegr : 0f);
 
             // AS3 WKick.as:47-48 — punchDamMult scales BOTH the damage and the knockback:
             //   b.damage = damage * punchDamMult;  b.otbros = otbros * punchDamMult;

@@ -17,10 +17,14 @@ namespace PFE.Systems.Weapons
     ///   piercing        → b.pier + pierAdd + ammoPier
     ///   armorMultiplier → b.armorMult (ammoArmor)
     ///   knockback       → b.otbros * otbrosMult * ammoOtbros
+    ///   damageType      → b.tipDamage (ammoMod override)
+    ///   destroyTiles    → b.destroy (zeroed by an EMP round)
     ///   critChance      → b.critCh
     ///   critMultiplier  → b.critDamMult
-    ///   destroyTiles    → b.destroy
     ///   dopEffect       → b (stun etc via dop node)
+    ///
+    /// The round itself rides on <see cref="Ammo"/> so the two terms that are not per-shot fields
+    /// (its penetration budget and its burning effect) stay reachable without nine more members.
     /// </summary>
     public readonly struct DamageContext
     {
@@ -83,6 +87,32 @@ namespace PFE.Systems.Weapons
         /// <summary>Critical damage multiplier additive bonus (critDamMult + critDamPlus in AS3).</summary>
         public readonly float CritMultiplier;
 
+        /// <summary>
+        /// The <b>stealth-crit</b> probability attached to this shot — AS3 <c>Bullet.critInvis</c>,
+        /// stamped from <c>owner.critInvis</c> at fire time (<c>Weapon.as:1697</c>).
+        ///
+        /// <para>Consumed as an <i>independent second</i> crit roll in
+        /// <c>Unit.damage():3659-3666</c>: when the target is not the shooter's current look-at
+        /// (<c>this.celUnit != param3.owner</c>) and the target is not a non-living <c>doop</c> unit, a
+        /// pass multiplies the damage by <b>2</b> again — so it stacks with an ordinary crit. It is
+        /// <b>not</b> a crit chance bonus: it does not feed <see cref="CritChance"/> and only applies
+        /// from behind/while unseen.</para>
+        /// </summary>
+        public readonly float CritInvis;
+
+        /// <summary>
+        /// The <b>disintegration</b> probability attached to this shot — AS3 <c>Bullet.desintegr</c>,
+        /// copied from <c>Pers.desintegr</c> through the weapon (<c>Weapon.as:967-970</c> then
+        /// <c>:1525-1527</c>).
+        ///
+        /// <para>An overkill proc, not a damage multiplier: at <c>Unit.damage():3671-3677</c> it fires
+        /// only for a <b>laser or plasma</b> hit (<see cref="DamageType"/> is
+        /// <see cref="DamageType.Laser"/>/<see cref="DamageType.Plasma"/>) against a target whose
+        /// current HP is at most <b>ten times</b> the damage about to be dealt, and then multiplies the
+        /// damage by <b>12</b>.</para>
+        /// </summary>
+        public readonly float Desintegr;
+
         /// <summary>Damage type index matching AS3 Unit.D_* constants.</summary>
         public readonly DamageType DamageType;
 
@@ -102,17 +132,17 @@ namespace PFE.Systems.Weapons
         /// the weapon's half comes from its <c>&lt;dop probiv&gt;</c> node (<c>:703-705</c>) and the
         /// ammo's from <c>&lt;item probiv&gt;</c> (<c>:1786-1788</c>).</para>
         ///
-        /// <para><b>This used to be fed <c>def.piercing</c></b>, which is a flat armour figure in the
+        /// <para><b>It used to be fed <c>def.piercing</c></b>, which is a flat armour figure in the
         /// 5..70 range — so every weapon carrying <c>@pier</c> looked like a 100% penetrator once the
         /// value reached a <c>Clamp01</c>. The two are different quantities and now come from different
-        /// fields.</para>
+        /// fields: this one from <c>def.penetration + ammo.penetrationBudget</c>, clamped to 1, folded
+        /// at fire time exactly as AS3 folds it.</para>
         ///
-        /// <para><b>It currently has no consumer.</b> The live penetration path is
-        /// <c>Projectile</c>'s own <c>_penetration</c>/<c>_remainingDamage</c> pair, because a budget
-        /// has to be spent against a target and carried across hits — neither of which a per-hit,
-        /// copied struct can do. This field is carried so the context still describes the shot
-        /// completely, and it is fed from the right source; do not read its presence as "penetration
-        /// lives here".</para>
+        /// <para><b>Consumer:</b> <c>ProjectileSpawner</c> reads this back off the shot and hands it to
+        /// the projectile's <c>Initialize(penetration: …)</c>, which is the budget <c>Projectile</c>
+        /// spends against a target and carries across hits. It cannot be applied per-hit here for
+        /// exactly that reason — a budget has to survive a hit, and a copied struct does not — so it is
+        /// carried on the context only to reach the projectile.</para>
         /// </summary>
         public readonly float PenetrationChance;
 
@@ -160,6 +190,27 @@ namespace PFE.Systems.Weapons
         public readonly float AntiPrecision;
 
         /// <summary>
+        /// The owner's precision multiplier — AS3 <c>owner.precMult</c> as consumed by
+        /// <c>Weapon.resultPrec</c> (<c>Weapon.as:1634</c>), i.e. the product of
+        /// <c>Pers.allPrecMult</c> and the four situational locomotion terms
+        /// (<c>UnitPlayer.as:1181-1200</c>).
+        ///
+        /// <para><b>Why this is a separate field and not pre-multiplied into
+        /// <see cref="Precision"/>.</b> They have different origins and different lifetimes:
+        /// <see cref="Precision"/> is a per-<i>weapon</i> data value in pixels (imported
+        /// <c>@prec * 40</c>), while this is a per-<i>shot</i> property of the attacker that changes
+        /// with their locomotion state, several times a second. Keeping them apart lets a test vary
+        /// one without disturbing the other, and keeps the debug readout able to show the data value
+        /// the weapon actually has.</para>
+        ///
+        /// <para><b>1 is the identity.</b> A null or absent source, an enemy, or a melee swing all
+        /// leave this at 1, so the composed precision equals the weapon's own — which is exactly the
+        /// oracle's state when <c>precMult</c> has never been touched (<c>Unit.as:326</c> declares
+        /// <c>precMult = 1</c>).</para>
+        /// </summary>
+        public readonly float PrecisionMultiplier;
+
+        /// <summary>
         /// True when this shot is a melee swing — AS3 <c>Bullet.tipBullet == 1</c>, which only
         /// <c>WClub.shoot()</c> sets (<c>WClub.as:150</c>). It switches the evasion test from
         /// <i>accuracy vs dexterity</i> to the <i>dodge</i> probability, and makes the travel distance
@@ -171,6 +222,27 @@ namespace PFE.Systems.Weapons
         /// resolves through the ranged branch and always hits, which is the oracle's behaviour.
         /// </remarks>
         public readonly bool IsMelee;
+
+        /// <summary>
+        /// The round this shot is firing, or <c>null</c> when the ammo id could not be resolved — AS3
+        /// <c>Weapon.setAmmo</c>'s <c>param2</c> XML node (<c>Weapon.as:1746-1809</c>).
+        ///
+        /// <para><b>One field, not nine, on purpose.</b> AS3 copies the ammo row's nine attributes onto
+        /// the weapon as <c>ammoPier</c>/<c>ammoArmor</c>/<c>ammoDamage</c>/<c>ammoProbiv</c>/
+        /// <c>ammoOtbros</c>/<c>ammoPrec</c>/<c>ammoHP</c>/<c>ammoFire</c>/<c>ammoMod</c> and reads them
+        /// through the shot. Flattening those onto this struct would have added nine positional
+        /// parameters to the constructor and nine lines to <see cref="WithScaledDamage"/> — and every
+        /// omission there is a silent drop, which is the exact failure that method's comment records
+        /// (<c>ownerFaction</c> was lost that way in two controllers). Carrying the row itself means
+        /// the next ammo property AS3 grows is one consumer change and no ctor change.</para>
+        ///
+        /// <para><b>Null means "use the defaults", not "zero damage".</b> AS3 assigns
+        /// <c>ammoPier = 0, ammoArmor = 1, ammoDamage = 1, ammoProbiv = 0, ammoOtbros = 1,
+        /// ammoPrec = 1, ammoHP = 0, ammoFire = 0, ammoMod = -1</c> <i>before</i> it reads the node, and
+        /// returns early when the node is null — so an unresolved round leaves every multiplier at its
+        /// identity and simply contributes nothing. Consumers must reproduce that.</para>
+        /// </summary>
+        public readonly AmmoDefinition Ammo;
 
         public DamageContext(
             GameObject owner,
@@ -193,7 +265,11 @@ namespace PFE.Systems.Weapons
             float missChance = 0f,
             float precision = 0f,
             float antiPrecision = 0f,
-            bool isMelee = false)
+            bool isMelee = false,
+            float critInvis = 0f,
+            float desintegr = 0f,
+            float precisionMultiplier = 1f,
+            AmmoDefinition ammo = null)
         {
             Owner             = owner;
             OwnerFaction      = ownerFaction;
@@ -216,6 +292,10 @@ namespace PFE.Systems.Weapons
             Precision         = precision;
             AntiPrecision     = antiPrecision;
             IsMelee           = isMelee;
+            CritInvis         = critInvis;
+            Desintegr         = desintegr;
+            PrecisionMultiplier = precisionMultiplier;
+            Ammo              = ammo;
         }
 
         /// <summary>
@@ -255,7 +335,11 @@ namespace PFE.Systems.Weapons
                 missChance:        MissChance,
                 precision:         Precision,
                 antiPrecision:     AntiPrecision,
-                isMelee:           IsMelee);
+                isMelee:           IsMelee,
+                critInvis:         CritInvis,
+                desintegr:         Desintegr,
+                precisionMultiplier: PrecisionMultiplier,
+                ammo:              Ammo);
         }
 
         /// <summary>
@@ -318,18 +402,116 @@ namespace PFE.Systems.Weapons
         /// is every current caller, because weapon-skill progression is the RPG bridge. It feeds
         /// <see cref="MissChance"/> and nothing else; see <see cref="HitAvoidance.SkillConfidence"/>.
         /// </param>
+        /// <param name="critInvisChance">
+        /// <c>owner.critInvis</c> — the stealth-crit probability, read off the owner at
+        /// <c>Weapon.as:1697</c>. 0 when the owner has no stats or no sneak skill, which is AS3's
+        /// declaration default and disables the second crit roll entirely.
+        /// </param>
+        /// <param name="desintegrChance">
+        /// <c>Pers.desintegr</c> — the disintegration (overkill) probability, copied through the weapon
+        /// at <c>Weapon.as:967-970</c>/<c>:1525-1527</c>. 0 when the perk is not held; AS3's own copy is
+        /// gated on the source being positive, so 0 is the faithful "no perk" state.
+        /// </param>
+        /// <param name="ammo">
+        /// The round this shot fires, resolved from the weapon's live ammo id — AS3
+        /// <c>Weapon.setAmmo</c>'s <c>param2</c> node. <c>null</c> leaves every ammo term at its
+        /// identity, which is AS3's behaviour for an unresolved round. Its five <i>fire-time</i>
+        /// attributes (<c>damage</c>/<c>pier</c>/<c>armor</c>/<c>knock</c>/<c>prec</c>) are folded
+        /// into the corresponding context fields here; the remaining four ride on
+        /// <see cref="DamageContext.Ammo"/> and are applied by the damage path.
+        /// </param>
         public static DamageContext FromWeapon(
             WeaponDefinition def, GameObject owner, FactionType ownerFaction = FactionType.Neutral,
-            int ownerWeaponSkillLevel = HitAvoidance.UnknownOwnerSkillLevel)
+            int ownerWeaponSkillLevel = HitAvoidance.UnknownOwnerSkillLevel,
+            float critInvisChance = 0f,
+            float desintegrChance = 0f,
+            float precisionMultiplier = 1f,
+            AmmoDefinition ammo = null)
         {
+            // ── Ammo fire-time fold (AS3 Weapon.setAmmo, Weapon.as:1746-1809) ───────────────────
+            //
+            // AS3 copies the round's attributes onto the weapon and the weapon reads them through the
+            // shot. Five of them compose with a field this context already carries, so they are folded
+            // here — at the one place the shot is built — rather than re-applied by each consumer:
+            //
+            //   pier  (ammoPier)   is armour-piercing POINTS, and AS3 adds it to the weapon's own:
+            //                      `probiv = this.probiv + ammoProbiv` is probiv's analogue, but pier
+            //                      reaches the armour term as `pier + ammoPier` (Unit.damage:3644).
+            //                      Folded into Piercing as a sum, matching that.
+            //   armor (ammoArmor)  is a MULTIPLIER on armour effectiveness (Unit.damage:3636-3640),
+            //                      so it composes multiplicatively with the weapon's own value.
+            //   knock (ammoOtbros) is a knockback MULTIPLIER (Unit.damage:4092 area), same shape.
+            //   prec  (ammoPrec)   multiplies the bullet's accuracy, so it composes with the owner's
+            //                      precision multiplier rather than replacing it.
+            //   damage (ammoDamage) is a DIRECT multiplier on the shot's damage — AS3
+            //                      `b.damage = resultDamage(damage, skill) * this.ammoDamage`
+            //                      (Weapon.as:1516; the melee twin is WClub.as:593). It applies to the
+            //                      shot's base damage before any vulnerability, armour, spread or crit
+            //                      term, which is exactly what BaseDamage is on this context. Folded
+            //                      here, in the same place the other three are, so every consumer sees
+            //                      the round's damage without having to know a round exists.
+            //
+            // Defaults match AS3 exactly: pier 0 (additive identity), armor 1, knock 1, prec 1,
+            // damage 1.
+            float ammoPierce  = ammo != null ? ammo.armorPiercingBonus  : 0;
+            float ammoArmor   = ammo != null ? ammo.armorMultiplier     : 1f;
+            float ammoKnock   = ammo != null ? ammo.knockbackMultiplier : 1f;
+            float ammoPrec    = ammo != null ? ammo.precisionMultiplier : 1f;
+            float ammoDamage  = ammo != null ? ammo.damageMultiplier    : 1f;
+
+            // ── Ammo damage-type override (AS3 Weapon.as:1686-1691) ─────────────────────────────
+            //
+            // `ammoMod` is setAmmo's tenth value — the row's `tipdam` attribute, imported into
+            // AmmoDefinition.damageTypeOverride. -1 means "no override" (AS3's declaration default and
+            // its sentinel for "attribute absent"); the port models the field as a non-nullable
+            // DamageType defaulting to PhysicalBullet, so it cannot represent the sentinel itself.
+            // AmmoDefinition.damageTypeOverride is therefore consumed only when it differs from the
+            // weapon's own type — see below.
+            //
+            //   tipDamage = ammoMod      → the shot's damage TYPE is replaced outright.
+            //   ammoMod == 8 (D_EMP)     → destroy and otbros are BOTH zeroed: an EMP round knocks
+            //                              nothing and breaks no tiles.
+            //
+            // Order is load-bearing and is the oracle's: the ==8 zeroing runs AFTER otbros was set
+            // from ammoOtbros (Weapon.as:1671), so it overwrites it rather than being overwritten.
+            DamageType  shotType    = def.damageType;
+            float       shotKnock   = def.knockback * ammoKnock;
+            float       shotDestroy = def.destroyTiles;
+
+            if (ammo != null && ammo.damageTypeOverride != def.damageType)
+            {
+                shotType = ammo.damageTypeOverride;
+                if (ammo.damageTypeOverride == DamageType.EMP)
+                {
+                    shotDestroy = 0f;
+                    shotKnock   = 0f;
+                }
+            }
+
+            // ── Penetration budget (AS3 Weapon.as:1681-1684) ─────────────────────────────────────
+            //
+            // `probiv` is the round's penetration BUDGET (not the weapon's `@pier`, which is flat
+            // armour points folded into Piercing above). AS3 builds it as a sum at fire time —
+            // `param1.probiv = this.probiv + this.ammoProbiv; if(param1.probiv > 1) param1.probiv = 1;`
+            // — where the weapon's half comes from its `<dop probiv>` node and the ammo's from
+            // `<item probiv>`. So it belongs on the shot, folded here exactly like the other terms,
+            // and clamped to 1 the way AS3 clamps it.
+            //
+            // The port already has the field for it — PenetrationChance, named for what a budget buys
+            // — which previously carried only `def.penetration` and had no consumer. Folding the
+            // round's own probiv in here is what makes the value the projectile actually spends match
+            // the oracle; ProjectileSpawner reads it back off this context rather than off the
+            // definition, so a debug-swapped round changes the budget too.
+            float shotProbiv = Mathf.Clamp01(def.penetration + (ammo != null ? ammo.penetrationBudget : 0f));
+
             return new DamageContext(
                 owner:             owner,
                 weapon:            def,
-                baseDamage:        def.baseDamage,
+                baseDamage:        def.baseDamage * ammoDamage,
                 explosionDamage:   def.explosionDamage,
-                armorMultiplier:   1f,
-                piercing:          def.piercing,
-                knockback:         def.knockback,
+                armorMultiplier:   ammoArmor,
+                piercing:          def.piercing + ammoPierce,
+                knockback:         shotKnock,
                 // Deliberately ZERO, not Vector2.right. This factory has the weapon but not the shot, so
                 // it cannot know which way a hit will throw — and a placeholder direction would be
                 // activated the moment the resolver started applying knockback, shoving every target
@@ -341,9 +523,9 @@ namespace PFE.Systems.Weapons
                 knockbackDir:      Vector2.zero,
                 critChance:        def.critChance,
                 critMultiplier:    def.critMultiplier,
-                damageType:        def.damageType,
-                destroyTiles:      def.destroyTiles,
-                penetrationChance: def.penetration,
+                damageType:        shotType,
+                destroyTiles:      shotDestroy,
+                penetrationChance: shotProbiv,
                 dopEffect:         null,
                 dopDamage:         0f,
                 dopChance:         1f,
@@ -354,7 +536,17 @@ namespace PFE.Systems.Weapons
                 // AS3 sets `b.tipBullet = 1` only in WClub.shoot() (WClub.as:150), and
                 // Weapon.create() routes tip==1 to WClub — so the weapon type *is* the tipBullet
                 // signal. Deriving it here means a new melee weapon cannot forget to set it.
-                isMelee:           def.weaponType == WeaponType.Melee
+                isMelee:           def.weaponType == WeaponType.Melee,
+                // The two attacker-side proc channels, carried on the shot exactly as AS3 carries them
+                // on the bullet.
+                critInvis:         critInvisChance,
+                desintegr:         desintegrChance,
+                // AS3's resultPrec folds owner.precMult into the bullet's precision at fire time
+                // (Weapon.as:1634, :1531). The port carries it as a factor so the raw weapon value
+                // stays visible; whoever evaluates accuracy composes the two. The round's own `prec`
+                // rides here too, for the same reason.
+                precisionMultiplier: precisionMultiplier * ammoPrec,
+                ammo:              ammo
             );
         }
     }
