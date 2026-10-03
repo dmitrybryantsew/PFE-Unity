@@ -92,6 +92,28 @@ namespace PFE.Systems.Map.Rendering
         /// </remarks>
         PFE.Core.SimClock _simClock;
         PFE.Core.SimLoop _simLoop;
+
+        /// <summary>
+        /// The resolver that turns an effect id into its template — handed to every unit this spawner
+        /// builds, so AS3's <c>Unit.effects</c> (<c>Unit.as:494</c>) is not an empty array on a live
+        /// NPC.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Same seam as <see cref="_damageSystem"/>, and the same reason it must travel by
+        /// hand.</b> A unit is built with <c>AddComponent</c>, which VContainer never observes, so
+        /// <c>[Inject]</c> cannot reach it. The spawner is the only handover — and it needs a content
+        /// registry to build the resolver, which arrives down the <c>MapBridge → RoomVisualController
+        /// → spawner</c> chain.</para>
+        ///
+        /// <para><b>Null is a real state, and it is deliberately quiet.</b> A unit with no resolver
+        /// keeps the resolver-less set: <c>AddEffect</c> refuses every id rather than materialising a
+        /// phantom effect with no behaviour — the "plausible object that does nothing" this project
+        /// keeps finding. That is the correct answer for a bare test spawn (which never has a registry),
+        /// so this is <i>not</i> one of the noisy seams; a resolver that is present but resolves
+        /// nothing is the observable failure, and the debug overlay reports it per unit.</para>
+        /// </remarks>
+        PFE.Systems.Effects.IEffectDefinitionResolver _effectResolver;
+
         /// <summary>Unit ids already warned about, so a room full of them warns once each.</summary>
         readonly HashSet<string> _warnedMissingSprite = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         readonly HashSet<string> _warnedUnknownController = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -109,7 +131,8 @@ namespace PFE.Systems.Map.Rendering
             IUnitDefinitionProvider definitions = null,
             PFE.Systems.Combat.DamageSystem damageSystem = null,
             PFE.Core.SimClock simClock = null,
-            PFE.Core.SimLoop simLoop = null)
+            PFE.Core.SimLoop simLoop = null,
+            PFE.Systems.Effects.IEffectDefinitionResolver effectResolver = null)
         {
             _room = room;
             _parent = parent;
@@ -117,6 +140,7 @@ namespace PFE.Systems.Map.Rendering
             _damageSystem = damageSystem;
             _simClock = simClock;
             _simLoop = simLoop;
+            _effectResolver = effectResolver;
         }
 
         public int SpawnedCount => _spawned.Count;
@@ -183,6 +207,41 @@ namespace PFE.Systems.Map.Rendering
                 if (pair.Value != null && pair.Value.TryGetComponent(out UnitController controller))
                 {
                     controller.AttachSimulation(simClock, simLoop);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Hand the effect-definition resolver to this spawner, including any units it has already
+        /// built.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Retroactive on purpose, for the same reason <see cref="SetDamageSystem"/> is.</b>
+        /// The normal order is a handover before the room exists — <c>MapBridge.Construct</c> injects
+        /// the registry and passes it down, then <c>Start</c> builds the world — so the constructor
+        /// argument covers it. It exists for the other order, because a setter that only affected
+        /// future spawns would leave the first room's units unable to resolve any effect id, and that
+        /// state is silent from the outside: an enemy with a permanent burning effect simply never
+        /// burns.</para>
+        ///
+        /// <para><b>Attaching twice is safe.</b> <c>EnsureEffects</c> rebuilds the unit's set, so the
+        /// caller must hand the resolver over before any effect was added — which is what a spawner
+        /// does, at <c>Initialize</c> time.</para>
+        /// </remarks>
+        public void SetEffectResolver(PFE.Systems.Effects.IEffectDefinitionResolver resolver)
+        {
+            _effectResolver = resolver;
+
+            if (resolver == null)
+            {
+                return;
+            }
+
+            foreach (KeyValuePair<UnitInstance, GameObject> pair in _spawned)
+            {
+                if (pair.Value != null && pair.Value.TryGetComponent(out UnitController controller))
+                {
+                    controller.SetEffectResolver(resolver);
                 }
             }
         }
@@ -326,6 +385,17 @@ namespace PFE.Systems.Map.Rendering
             if (_damageSystem != null)
             {
                 controller.SetDamageSystem(_damageSystem);
+            }
+
+            // ...and the seam that lets it be BURNED. Every live unit owns an effect set (AS3
+            // Unit.as:494 declares `effects` on the base Unit, so it is the player's and every NPC's),
+            // and this hands it a resolver so an id on an incoming hit can become a real effect. Same
+            // handover shape as SetDamageSystem and for the same reason: AddComponent never goes
+            // through VContainer. Null is legal (a bare test spawn) and leaves the resolver-less set,
+            // which refuses every id rather than materialising a phantom effect.
+            if (_effectResolver != null)
+            {
+                controller.SetEffectResolver(_effectResolver);
             }
 
             // ...and the seam that moves its STEP off Unity's uncapped 50 Hz clock. See

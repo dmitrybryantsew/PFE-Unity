@@ -4,6 +4,7 @@ using UnityEngine;
 using VContainer;
 using PFE.Data.Definitions;
 using PFE.Systems.Combat;
+using PFE.Systems.Effects;
 using PFE.Systems.Map;
 using PFE.Systems.Map.TileQuery;
 using PFE.Systems.Physics;
@@ -27,7 +28,7 @@ namespace PFE.Entities.Units
     /// - grav for gravity
     /// </summary>
     [RequireComponent(typeof(Rigidbody2D))]
-    public class UnitController : MonoBehaviour, IDamageable, PFE.Core.ISimTickable
+    public class UnitController : MonoBehaviour, IDamageable, PFE.Core.ISimTickable, IEffectReceiver
     {
         [Header("Configuration")]
         [SerializeField]
@@ -481,6 +482,12 @@ namespace PFE.Entities.Units
         {
             TickContactInvulnerability();
 
+            // AS3 runs the effect half of `Unit.step` inside the unit's own step (`Unit.as:3144-3158`)
+            // and it is a subset of `step()`, not a separate driver — so it belongs on the shared step
+            // body rather than on either driver, for exactly the reason described above: a driver-level
+            // hook would put a burn on whichever clock that unit happens to use.
+            TickEffects();
+
             ResolveGroundState();
             ApplyGravity();
             ApplyFriction();
@@ -490,6 +497,70 @@ namespace PFE.Entities.Units
             // own update, after `run()` has resolved that frame's collisions. Sweeping before the move
             // would read a velocity the step has not yet acted on.
             SweepPropImpacts();
+        }
+
+        /// <summary>
+        /// Advance this unit's status effects by one step — the effect half of AS3 <c>Unit.step</c>.
+        ///
+        /// <para><b>Public and idempotent-guarded by the caller, not by this method.</b> The motor-driven
+        /// path (<c>TilePhysicsController.StepMotor</c>) calls this because it owns that unit's whole
+        /// step; the motor-less paths reach it through <see cref="StepUnit"/>. Both pass the sim
+        /// clock's <see cref="PFE.Core.SimClock.StepScale"/>, so the burn counts down in canonical 30 Hz
+        /// frames whichever driver is running — see <c>ActiveEffectSet.Tick</c>.</para>
+        ///
+        /// <para>A unit with no <see cref="UnitStats"/> has no effects, which is the oracle's state for
+        /// a target that is not a <c>Unit</c> at all.</para>
+        /// </summary>
+        public void TickEffects()
+        {
+            float scale = _simClock != null ? _simClock.StepScale : 1f;
+            _unitStats?.TickEffects(scale);
+        }
+
+        // === IEffectReceiver — AS3's `this.addEffect(...)` reach =============================
+        //
+        // AS3's on-hit block lives inside `Unit.damage()` (`Unit.as:3763-3834`) and adds to
+        // `this.effects`. The port's resolver runs the producers (`OnHitEffectProducers`) against the
+        // target rather than the target's own damage body, so the target must expose its set. A
+        // Damageable that is not a Unit — a crate — simply does not implement this interface, which is
+        // how "no receiver means no effects" is expressed in the type system.
+
+        /// <summary>
+        /// This unit's live effects. Backed by <see cref="UnitStats"/>, which is where AS3's
+        /// <c>Unit.effects</c> array lives in the port — see <c>UnitStats.Effects</c>.
+        /// </summary>
+        public ActiveEffectSet Effects => _unitStats?.Effects;
+
+        /// <summary>
+        /// Whether this unit may receive an effect of the given damage type — AS3's
+        /// <c>this.vulner[D_X] &gt; 0.1</c> guard on every <c>dopEffect</c> branch
+        /// (<c>Unit.as:3774-3808</c>).
+        ///
+        /// <para>Read from <see cref="Vulnerabilities"/>, which is the live table the damage path also
+        /// uses — so a resistance an effect writes and the susceptibility test cannot disagree. The
+        /// threshold is <c>0.1</c>, not <c>0</c>: a tiny-but-nonzero vulnerability is also refused,
+        /// which is the oracle.</para>
+        /// </summary>
+        public bool IsSusceptibleTo(DamageType type)
+            => Vulnerabilities.GetVulnerability(type) > 0.1f;
+
+        /// <summary>
+        /// Give this unit's effect set a resolver — the seam <c>RoomUnitSpawner</c> needs, because
+        /// <c>AddComponent</c> never goes through VContainer and so cannot receive the content
+        /// registry by injection. Idempotent.
+        /// </summary>
+        /// <remarks>
+        /// Without this call the unit's set is resolver-less: every <c>addEffect</c> is refused and the
+        /// unit reads as "no effects", which is indistinguishable from a working set on a unit nothing
+        /// has hit. This is why the method exists on the controller rather than only on
+        /// <c>UnitStats</c> — the spawner holds the controller.
+        /// </remarks>
+        public virtual void SetEffectResolver(IEffectDefinitionResolver resolver)
+        {
+            // A unit's params are written by the unit's own fields, so NPC mode. The player overrides
+            // this to install CharacterStats as the sink and switch to player mode — see
+            // PlayerController.
+            _unitStats?.EnsureEffects(resolver, PersMode.Npc);
         }
 
         /// <summary>
@@ -1197,6 +1268,28 @@ namespace PFE.Entities.Units
         /// reads it and because it is also one half of AS3's other bullet pass-through branch.
         /// </remarks>
         public virtual bool IsInvulnerable => _stats != null && _stats.isInvulnerable;
+
+        /// <summary>
+        /// Whether this unit is one of AS3's <c>doop</c> units — AS3 <c>Unit.doop</c>
+        /// (<c>Unit.as:436</c>). Read by the hit resolver to suppress the stealth crit
+        /// (<c>Unit.damage():3659</c>, <c>!this.doop</c>).
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Exposed through <see cref="UnitStats.isNonLiving"/>, and that is the port's one
+        /// honest seam for a value it cannot yet import.</b> AS3 sets <c>doop</c> per <i>class</i> in
+        /// each unit subclass's constructor, selected from the unit node's <c>@cl</c> attribute
+        /// (<c>Unit.as:710-800</c>) — a class name the port's <c>UnitDataImporter</c> does not read.
+        /// So <see cref="UnitStats.isNonLiving"/> is the projection that carries the value up to the
+        /// resolver once a definition can supply it, and <see cref="UnitStats"/> answers
+        /// <c>false</c> (living) for every unit today.</para>
+        ///
+        /// <para><b>Falling back to <c>false</c> is the safe direction.</b> Supplying the
+        /// definition's own value first would be wrong only if a definition could carry a
+        /// <c>doop</c> flag that the resolver should ignore — and it cannot, because the flag is a
+        /// property of the unit's identity, exactly like <see cref="Faction"/> and
+        /// <see cref="Knocked"/>.</para>
+        /// </remarks>
+        public virtual bool IsNonLiving => _unitStats != null && _unitStats.isNonLiving;
 
         /// <summary>
         /// AS3 <c>Unit.fixed</c> — this unit is pinned in place and its position integration is

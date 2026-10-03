@@ -3,9 +3,11 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using PFE.Core;
+using PFE.Data;
 using PFE.Data.Definitions;
 using PFE.Entities.Player;
 using PFE.Entities.Units;
+using PFE.Systems.Effects;
 using PFE.Systems.Inventory;
 using PFE.Systems.RPG;
 using PFE.Systems.RPG.Data;
@@ -30,7 +32,7 @@ namespace PFE.Core.Scripting
         public bool IsOpen = false;
 
         private Rect _windowRect = new Rect(60, 40, 920, 660);
-        private int _activeTab = 0; // 0: Pip Stats, 1: Skills, 2: Perks, 3: Weapons, 4: Armor, 5: Vitals & Presets
+        private int _activeTab = 0; // 0: Pip Stats, 1: Skills, 2: Perks, 3: Weapons, 4: Armor, 5: Vitals & Presets, 6: Effects
 
         private static readonly string[] TabNames = new string[]
         {
@@ -39,7 +41,8 @@ namespace PFE.Core.Scripting
             "🌟 Perks",
             "⚔️ Weapons",
             "🛡️ Armor",
-            "❤️ Vitals & Presets"
+            "❤️ Vitals & Presets",
+            "☣️ Effects"
         };
 
         // Scroll positions for each tab
@@ -49,6 +52,7 @@ namespace PFE.Core.Scripting
         private Vector2 _weaponsScroll;
         private Vector2 _armorScroll;
         private Vector2 _presetsScroll;
+        private Vector2 _effectsScroll;
 
         // Pip stats inspector state
         private string _inspectedStatFactor = "allDamMult";
@@ -76,6 +80,37 @@ namespace PFE.Core.Scripting
         private WeaponDefinition[] _allWeapons;
         private ItemDefinition[] _allArmorItems;
 
+        // ── Ammo type dropdown ────────────────────────────────────────────────
+        //
+        // Every AmmoDefinition under Resources/Ammo, indexed by ammoId. Loaded once in LoadCatalogs;
+        // the dropdown only ever lists the equipped weapon's own family (1-4 entries), so this is a
+        // lookup table rather than something scanned per frame.
+        private Dictionary<string, AmmoDefinition> _ammoById;
+        private string[] _allAmmoIds;
+
+        /// <summary>
+        /// Ammo ids → their <see cref="ItemDefinition"/> row. A separate table from
+        /// <see cref="_ammoById"/> because the two types are unrelated (see
+        /// <see cref="ResolveAmmoItem"/>). Built lazily on the first "Give".
+        /// </summary>
+        private Dictionary<string, ItemDefinition> _ammoItemsById;
+
+        // Which family the currently-shown dropdown belongs to, and the ids in it. Cached because
+        // IMGUI draws every frame and rebuilding the list (with its sort) per frame is pure waste.
+        // Invalidated whenever the equipped weapon's resolved ammo type changes.
+        private string _ammoDropdownFamily;
+        private string _ammoDropdownForAmmoType;
+        private string[] _ammoDropdownLabels;
+        private string[] _ammoDropdownIds;
+        private int _ammoDropdownIndex;
+
+        /// <summary>
+        /// Live inventory created by this overlay, if any. The player has no inventory wired at runtime
+        /// (<c>PlayerWeaponLoadout.AmmoSource</c> is only ever assigned in tests), so "Give ammo" has
+        /// nothing to add to until one is made — see <see cref="EnsureInventory"/>.
+        /// </summary>
+        private GameInventory _debugInventory;
+
         // Known 20 visual sets with sprites in PlayerAnimationDefinition
         private static readonly string[] VisualArmorIds = new string[]
         {
@@ -83,6 +118,37 @@ namespace PFE.Core.Scripting
             "magus", "antirad", "antihim", "intel", "astealth", "moon", "sapper",
             "power", "polic", "spec", "encl", "ali"
         };
+
+        // ── Effects tab (7) ───────────────────────────────────────────────────
+        //
+        // The tab drives the SAME runtime path a real hit does (`ActiveEffectSet.AddEffect` /
+        // `RemoveEffect`), not a parallel debug model. That is the point: what it proves is that the
+        // effect system on a live unit reacts, not that a debug button labels a row. A "target
+        // selector" can point at the player or at another unit in the scene, because AS3 puts
+        // `effects` on the base `Unit` (`Unit.as:494`) and both the player and every NPC own one.
+
+        /// <summary>0 = the player, otherwise 1-based index into <see cref="_effectTargets"/>.</summary>
+        private int _effectTargetIndex;
+
+        /// <summary>Every live <c>UnitController</c> in the scene — rebuilt once per drawn frame.</summary>
+        private UnitController[] _effectTargets;
+
+        /// <summary>Every effect definition under <c>Resources/Effects</c>, sorted, for the picker.</summary>
+        private EffectDefinition[] _allEffects;
+
+        /// <summary>Free-text filter over <see cref="_allEffects"/> — 79 rows is too many to scroll.</summary>
+        private string _effectSearch = string.Empty;
+
+        /// <summary>Every <c>tip</c> the currently-spawned units' live effects carry, for the picker.</summary>
+        private Vector2 _effectListScroll;
+
+        /// <summary>Duration override in seconds for the next applied effect — <c>0</c> means the
+        /// definition's own <c>@t</c>. The runtime multiplies by 30 (<c>Effect.as:82</c>).</summary>
+        private float _effectDurationSeconds;
+
+        /// <summary>Value override for the next applied effect — <c>0</c> means the definition's own
+        /// <c>val</c> (<c>Effect.as:87-90</c>).</summary>
+        private float _effectValue;
 
         // GUI Styles
         private GUIStyle _windowStyle;
@@ -177,6 +243,88 @@ namespace PFE.Core.Scripting
                          VisualArmorIds.Contains(it.itemId, StringComparer.OrdinalIgnoreCase))).ToArray();
                 }
             }
+
+            // Every ammo row, indexed by id. The dropdown resolves a weapon's ammo type through this
+            // dictionary rather than the content registry: the overlay is a debug tool that must work
+            // even when the registry failed to initialise, and LoadCatalogs already uses Resources
+            // directly for the same reason (see the class comment).
+            if (_ammoById == null)
+            {
+                var allAmmo = Resources.LoadAll<AmmoDefinition>("Ammo");
+                _ammoById = new Dictionary<string, AmmoDefinition>(StringComparer.Ordinal);
+                foreach (var a in allAmmo)
+                {
+                    if (a == null) continue;
+
+                    // Keyed by ammoId, falling back to the asset name. The data always sets ammoId, but an
+                    // unset field would otherwise make the row unreachable and read as "no ammo types".
+                    string key = !string.IsNullOrEmpty(a.ammoId) ? a.ammoId : a.name;
+                    if (!string.IsNullOrEmpty(key) && !_ammoById.ContainsKey(key))
+                        _ammoById.Add(key, a);
+                }
+
+                _allAmmoIds = _ammoById.Keys.ToArray();
+                Array.Sort(_allAmmoIds, StringComparer.Ordinal);
+            }
+
+            // Every effect definition, for the Effects tab's picker. Loaded straight from Resources
+            // rather than through the content registry for the same reason the ammo table is: the
+            // overlay is a debug tool that must work even when the registry failed to initialise, and
+            // the registry is what the runtime resolver wraps — so a row present here and absent there
+            // is itself the diagnostic ("the asset exists but the resolver cannot see it").
+            if (_allEffects == null || _allEffects.Length == 0)
+            {
+                _allEffects = Resources.LoadAll<EffectDefinition>("Effects");
+                if (_allEffects != null)
+                {
+                    _allEffects = _allEffects
+                        .Where(e => e != null && !string.IsNullOrEmpty(e.effectId))
+                        .OrderBy(e => e.effectId, StringComparer.OrdinalIgnoreCase)
+                        .ToArray();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Resolve an ammo id to its definition, for <see cref="AmmoFamilyResolver"/>. Returns null for
+        /// an unknown id so the resolver can fall back to the naming convention instead of guessing.
+        /// </summary>
+        private AmmoDefinition ResolveAmmo(string ammoId)
+        {
+            if (_ammoById == null || string.IsNullOrEmpty(ammoId)) return null;
+            return _ammoById.TryGetValue(ammoId, out var def) ? def : null;
+        }
+
+        /// <summary>
+        /// Resolve an ammo id to the <see cref="ItemDefinition"/> row that carries it in the inventory.
+        ///
+        /// <para><b>Why this is a second lookup and not a cast.</b> <see cref="AmmoDefinition"/> and
+        /// <see cref="ItemDefinition"/> are unrelated types — both derive from <c>ScriptableObject</c>
+        /// directly — so an ammo row is <i>not</i> an item row. The importer writes a separate
+        /// <c>ItemDefinition</c> per ammo id under <c>Resources/Items</c> (verified: <c>Items/acid.asset</c>
+        /// exists with <c>m_EditorClassIdentifier: …ItemDefinition</c>), and that is the row
+        /// <c>GameInventory.AddItem</c> keys on.</para>
+        ///
+        /// <para>Loaded lazily on first use rather than in <see cref="LoadCatalogs"/>, because the overlay's
+        /// catalogs are weapon/armour shaped and this one is only needed once "Give" is actually pressed —
+        /// 451 item rows is real work to do on every overlay Awake.</para>
+        /// </summary>
+        private ItemDefinition ResolveAmmoItem(string ammoId)
+        {
+            if (string.IsNullOrEmpty(ammoId)) return null;
+
+            if (_ammoItemsById == null)
+            {
+                _ammoItemsById = new Dictionary<string, ItemDefinition>(StringComparer.Ordinal);
+                foreach (var it in Resources.LoadAll<ItemDefinition>("Items"))
+                {
+                    if (it == null || string.IsNullOrEmpty(it.itemId)) continue;
+                    if (!_ammoItemsById.ContainsKey(it.itemId))
+                        _ammoItemsById.Add(it.itemId, it);
+                }
+            }
+
+            return _ammoItemsById.TryGetValue(ammoId, out var found) ? found : null;
         }
 
         private void InitStyles()
@@ -366,6 +514,9 @@ namespace PFE.Core.Scripting
                     break;
                 case 5:
                     DrawVitalsPresetsTab(player);
+                    break;
+                case 6:
+                    DrawEffectsTab(player);
                     break;
             }
 
@@ -1085,6 +1236,9 @@ namespace PFE.Core.Scripting
             }
             GUILayout.EndHorizontal();
 
+            // ── Ammo type row ─────────────────────────────────────────────────
+            DrawAmmoTypeRow(curController, curDef);
+
             GUILayout.Space(6);
 
             // Filter & Search Toolbar
@@ -1148,6 +1302,266 @@ namespace PFE.Core.Scripting
 
             GUILayout.EndScrollView();
         }
+
+        /// <summary>
+        /// The ammo-type dropdown for the equipped weapon.
+        ///
+        /// <para><b>What "swap ammo" means here.</b> Ammo ids form families — <c>p32</c> is the regular
+        /// round and <c>p32_1</c>/<c>p32_2</c> are its variants — grouped by
+        /// <see cref="AmmoFamilyResolver"/>. The dropdown lists only the equipped weapon's own family
+        /// (usually 1-4 entries, not all 75 rows), preselects the weapon's current type, and on change
+        /// writes a per-instance override onto the weapon state.</para>
+        ///
+        /// <para><b>Why an override rather than editing the definition.</b> <see cref="WeaponDefinition"/>
+        /// is one shared asset per weapon: writing to it would change that weapon for every wielder and,
+        /// in the editor, survive leaving play mode. The override lives on
+        /// <c>WeaponRuntimeState.AmmoTypeOverride</c> and is read through
+        /// <c>ResolvedAmmoType</c> by every reload/recycle decision.</para>
+        ///
+        /// <para><b>No dropdown for weapons that take no ammo.</b> 134 of the 213 weapon assets have a
+        /// blank <c>ammoType</c> (melee, magic, unarmed). Those get a greyed label instead — an empty
+        /// dropdown would read as a bug, and they never reload anyway (<c>magazineSize</c> 0).</para>
+        /// </summary>
+        private void DrawAmmoTypeRow(IWeaponController curController, WeaponDefinition curDef)
+        {
+            if (curController?.State == null || curDef == null)
+                return;
+
+            GUILayout.BeginHorizontal(_cardStyle);
+
+            GUILayout.Label("<b>Ammo Type</b>", GUILayout.Width(90));
+
+            // The weapon's ORIGINAL type decides whether it takes ammo at all. Reading the resolved type
+            // here would let a swap on a melee weapon invent an ammo type for something that has none.
+            if (string.IsNullOrEmpty(curDef.ammoType))
+            {
+                Color prev = GUI.color;
+                GUI.color = new Color(0.6f, 0.6f, 0.6f, 1f);
+                GUILayout.Label("— (this weapon takes no ammo)", GUILayout.Width(240));
+                GUI.color = prev;
+                GUILayout.FlexibleSpace();
+                GUILayout.EndHorizontal();
+                return;
+            }
+
+            WeaponRuntimeState state = curController.State;
+            string resolved = state.ResolvedAmmoType;
+
+            // Rebuild only when the weapon's resolved type changed — an IMGUI frame must not re-sort a
+            // list or re-format labels (those allocate, and this is the debug overlay's hot path).
+            if (_ammoDropdownIds == null
+                || !string.Equals(_ammoDropdownForAmmoType, resolved, StringComparison.Ordinal))
+            {
+                var ids = AmmoFamilyResolver.GetSelectableTypes(
+                    resolved, ResolveAmmo, () => (IEnumerable<string>)_allAmmoIds);
+
+                _ammoDropdownIds = ids.ToArray();
+                _ammoDropdownLabels = new string[_ammoDropdownIds.Length];
+                for (int i = 0; i < _ammoDropdownIds.Length; i++)
+                    _ammoDropdownLabels[i] = AmmoFamilyResolver.Describe(_ammoDropdownIds[i], ResolveAmmo);
+
+                _ammoDropdownForAmmoType = resolved;
+                _ammoDropdownFamily = AmmoFamilyResolver.FamilyOf(resolved, ResolveAmmo);
+
+                _ammoDropdownIndex = Array.IndexOf(_ammoDropdownIds, resolved);
+                if (_ammoDropdownIndex < 0) _ammoDropdownIndex = 0;
+            }
+
+            int picked = GUILayout.SelectionGrid(
+                _ammoDropdownIndex, _ammoDropdownLabels, 1, _badgeStyle, GUILayout.Width(360));
+
+            if (picked != _ammoDropdownIndex && picked >= 0 && picked < _ammoDropdownIds.Length)
+            {
+                _ammoDropdownIndex = picked;
+
+                // SetAmmoTypeOverride nulls the field when the pick equals the definition's own type, so
+                // choosing "regular" genuinely clears the override instead of storing a copy of it.
+                state.SetAmmoTypeOverride(_ammoDropdownIds[picked]);
+
+                // The magazine may hold rounds of the previous type. Refilling here would hand the player
+                // rounds they did not load; leaving it is what the AS3 model does too (the mag keeps what
+                // is in it until a reload). So: nothing to do beyond making the state truthful.
+                _ammoDropdownForAmmoType = null; // force the label refresh on the next frame
+            }
+
+            GUILayout.Space(8);
+
+            string badge = state.HasAmmoTypeOverride
+                ? $"<color=#FFD24A>override → {resolved}</color>"
+                : $"<color=#7FE07F>regular ({resolved})</color>";
+            GUILayout.Label(badge, GUILayout.Width(190));
+
+            GUILayout.FlexibleSpace();
+
+            // Give ammo into the live inventory (created on first use — see EnsureInventory).
+            if (GUILayout.Button("Give 30", GUILayout.Width(70)))
+                GiveAmmo(state.ResolvedAmmoType, 30);
+            if (GUILayout.Button("Give 300", GUILayout.Width(80)))
+                GiveAmmo(state.ResolvedAmmoType, 300);
+
+            GUILayout.EndHorizontal();
+
+            // Second line: the inventory readout and the "back to regular" affordance. Kept separate so the
+            // first row stays readable at the window's default width.
+            GUILayout.BeginHorizontal(_cardStyle);
+            GUILayout.Label("<color=#AAAAAA>Inventory:</color>", GUILayout.Width(90));
+
+            if (_debugInventory == null)
+            {
+                GUILayout.Label("<color=#AAAAAA>no inventory wired — press \"Give 30\" to create one</color>");
+            }
+            else
+            {
+                int held = _debugInventory.GetAmmoCount(state.ResolvedAmmoType);
+                GUILayout.Label($"holds <b>{held}</b> × {state.ResolvedAmmoType}", GUILayout.Width(220));
+            }
+
+            GUILayout.FlexibleSpace();
+
+            // Say up front whether this ammo type can be stocked at all. 47 of the 75 ammo ids have no
+            // ItemDefinition row (the item importer keeps only the component rows), so AddItem has nothing
+            // to key on for them — without this the "Give" button would look broken rather than blocked.
+            if (ResolveAmmoItem(state.ResolvedAmmoType) == null)
+            {
+                GUILayout.Label("<color=#FF9A6A>no item row — cannot be stocked</color>", GUILayout.Width(230));
+            }
+
+            if (state.HasAmmoTypeOverride && GUILayout.Button("Reset to regular", GUILayout.Width(130)))
+            {
+                state.SetAmmoTypeOverride(null);
+                _ammoDropdownForAmmoType = null;
+            }
+
+            GUILayout.EndHorizontal();
+        }
+
+        /// <summary>
+        /// Add <paramref name="amount"/> rounds of <paramref name="ammoId"/> to the debug inventory,
+        /// creating and wiring that inventory on first use.
+        ///
+        /// <para><b>Why the inventory has to be created here.</b> Nothing in the running game constructs a
+        /// <c>GameInventory</c> or assigns <c>PlayerWeaponLoadout.AmmoSource</c> — only tests do — so every
+        /// reload currently takes the <c>_ammoSource == null</c> branch in
+        /// <c>RangedWeaponController.CompleteReload</c> and fills the magazine unconditionally
+        /// (infinite-ammo / training behaviour). Without a source, "give ammo" would have nowhere to put
+        /// it and no visible effect at all.</para>
+        ///
+        /// <para><b>The side effect is real and intended:</b> once this runs, reloads draw from the
+        /// inventory and stop being infinite — a weapon with an empty inventory reloads to 0. That is the
+        /// honest behaviour, and it is why the button says "create one" rather than pretending ammo is
+        /// already being tracked.</para>
+        ///
+        /// <para><b>Ammo is stored under the AmmoDefinition id.</b> <c>GameInventory</c> keys items by id
+        /// and its <c>GetAmmoCount</c>/<c>ConsumeAmmo</c> look up exactly the id the weapon resolves, so
+        /// the two ends agree by construction — this is the same key
+        /// <c>RangedWeaponController.CompleteReload</c> passes.</para>
+        /// </summary>
+        private void GiveAmmo(string ammoId, int amount)
+        {
+            if (string.IsNullOrEmpty(ammoId)) return;
+
+            if (!GiveAmmoToInventory(ammoId, amount))
+                Debug.LogWarning($"[PlayerDebugEditorOverlay] Could not give '{ammoId}' — see the warning above.");
+        }
+
+        /// <summary>
+        /// The public seam behind <see cref="GiveAmmo"/>, so the console verb reaches the same inventory
+        /// as the button instead of growing a second one. Returns false (having logged the reason) when
+        /// there is nothing to give.
+        /// </summary>
+        public bool GiveAmmoToInventory(string ammoId, int amount)
+        {
+            if (string.IsNullOrEmpty(ammoId) || amount <= 0) return false;
+
+            EnsureInventory();
+
+            if (_debugInventory == null)
+            {
+                Debug.LogWarning("[PlayerDebugEditorOverlay] Could not create an inventory to give ammo to.");
+                return false;
+            }
+
+            ItemDefinition item = ResolveAmmoItem(ammoId);
+            if (item == null)
+            {
+                Debug.LogWarning(
+                    $"[PlayerDebugEditorOverlay] No ItemDefinition row for ammo '{ammoId}', so there is " +
+                    "nothing to add to the inventory. (AddItem keys on the item row under Resources/Items, " +
+                    "not the AmmoDefinition.)");
+                return false;
+            }
+
+            // Quantity is applied by AddItem's own stacking rules; when a stack already exists it merges.
+            bool added = _debugInventory.AddItem(item, amount);
+
+            Debug.Log($"[PlayerDebugEditorOverlay] Gave {amount} × '{ammoId}' " +
+                      $"(now holding {_debugInventory.GetAmmoCount(ammoId)}).");
+
+            return added;
+        }
+
+        /// <summary>
+        /// Create the debug inventory and point the loadout at it, if that has not happened yet.
+        ///
+        /// <para><b>Assigning <c>loadout.AmmoSource</c> is the whole point</b> — its setter rebuilds the
+        /// controller factory so subsequently-equipped weapons pick the source up. A weapon equipped
+        /// <i>before</i> this call keeps the factory it was built with, so the change takes effect from the
+        /// next equip (or the next overlay action). The overlay does not force a re-equip, because silently
+        /// swapping the player's weapon to make a debug button take effect is worse than saying so.</para>
+        ///
+        /// <para><b>Only 28 of the 75 ammo ids actually have such a row.</b> Measured 2026-10-03: the
+        /// intersection of the 75 <c>AmmoDefinition</c> ids with the 451 <c>ItemDefinition</c> ids is
+        /// <b>28</b>, and those 28 are exactly the <c>compw</c>/<c>stuff</c> component rows the item
+        /// importer keeps. Every <c>tip='a'</c> proper ammunition id (<c>batt</c>, <c>p10</c>, <c>p32</c>,
+        /// <c>p556</c>, … — 47 of them) has no item row at all. So "Give" works for component-fed weapons
+        /// and reports a named warning for the rest; see the follow-up task covering the importer.</para>
+        /// </summary>
+        private void EnsureInventory()
+        {
+            if (_debugInventory != null) return;
+
+            var player = FindFirstObjectByType<PlayerController>();
+            var loadout = player != null ? player.GetComponent<PlayerWeaponLoadout>() : null;
+
+            // ADOPT BEFORE CREATING. The first version of this method constructed the inventory first
+            // and only then asked the loadout whether one already existed — so the `is GameInventory
+            // existing` arm could never be reached (the new object had already been constructed, and
+            // `loadout.AmmoSource == null` was tested against a null source that had been null all
+            // along). The adopt arm is the one that must run when a source exists; the create arm is
+            // the fallback. Ordering them the other way silently shadowed the live source.
+            if (loadout?.AmmoSource is GameInventory existing)
+            {
+                // Something already supplied a source (a test harness, or the future inventory
+                // system). Adopt it rather than shadowing it, or "Give" would add to a bag nothing
+                // reads — the button would look like it worked while the weapon stayed empty.
+                _debugInventory = existing;
+                return;
+            }
+
+            _debugInventory = new GameInventory();
+
+            if (loadout == null)
+            {
+                // No player/loadout in the scene (bare test scene). The inventory still exists, so
+                // "Give" is honest about what it added, but nothing consumes it — say so rather than
+                // letting the player wonder why reloading still fills for free.
+                Debug.LogWarning("[PlayerDebugEditorOverlay] Created a debug inventory, but there is no " +
+                                 "PlayerWeaponLoadout in the scene to wire it to, so reloads will keep " +
+                                 "filling for free.");
+                return;
+            }
+
+            loadout.AmmoSource = _debugInventory;
+            Debug.Log("[PlayerDebugEditorOverlay] Created a debug inventory and wired it to the " +
+                      "player's loadout. Reloads will now consume ammo instead of filling for free.");
+        }
+
+        /// <summary>
+        /// Whether <paramref name="ammoId"/> has an <see cref="ItemDefinition"/> row, i.e. whether the
+        /// debug inventory can stock it at all. Exposed for the console verb so both front ends give the
+        /// same answer — measured 2026-10-03, the answer is "no" for 47 of the 75 ids.
+        /// </summary>
+        public bool AmmoRowExists(string ammoId) => ResolveAmmoItem(ammoId) != null;
 
         private bool MatchesWeaponCategory(WeaponDefinition w, int catIndex)
         {
@@ -1558,6 +1972,390 @@ namespace PFE.Core.Scripting
 
             player.Stats.Heal(999);
             Debug.Log("[PlayerDebugEditor] Applied Clean Slate reset.");
+        }
+
+        // =========================================================================
+        // TAB 6: EFFECTS (status effects on the player OR any unit in the scene)
+        // =========================================================================
+
+        /// <summary>
+        /// Apply / remove / inspect live status effects on a chosen target — the player, or another
+        /// <c>UnitController</c> in the scene.
+        ///
+        /// <para><b>Why a separate tab, and why on a selectable target.</b> AS3 declares
+        /// <c>effects</c> on the base <c>Unit</c> (<c>Unit.as:494</c>), so the player and every NPC own
+        /// one; and an effect reaches a victim through <c>Unit.damage()</c>'s on-hit block
+        /// (<c>:3763-3834</c>), which is why "burn the enemy" and "heal/cure myself" are the same
+        /// mechanism pointed at two different units. A tab that could only address the player would
+        /// exercise half of it.</para>
+        ///
+        /// <para><b>It drives the real runtime, not a debug model.</b> Every button calls
+        /// <see cref="ActiveEffectSet.AddEffect"/>/<c>RemoveEffect</c> on the live set, so what it
+        /// proves is that the effect system reacts on a running unit — count-down, param replay,
+        /// payload — rather than that a debug row formats a string. The readbacks below are the live
+        /// values the pass just wrote (<c>maxhp</c>, <c>skin</c>, <c>dexter</c>, the resistance table),
+        /// which is how "the stat changed" is observed instead of assumed.</para>
+        /// </summary>
+        private void DrawEffectsTab(PlayerController player)
+        {
+            _effectsScroll = GUILayout.BeginScrollView(_effectsScroll);
+
+            UnitController target = ResolveEffectTarget(player, out string targetLabel);
+
+            // ── Target selector ──────────────────────────────────────────────
+            GUILayout.Label("<b>Target</b>", _subHeaderStyle);
+            GUILayout.BeginVertical(_cardStyle);
+            GUILayout.BeginHorizontal();
+            GUILayout.Label($"Applying to: <b>{targetLabel}</b>", GUILayout.Width(300));
+
+            // Count other units so an empty scene reads as "no other units" rather than a broken
+            // selector. RefreshAll below runs once per frame and is cheap (FindObjectsByType).
+            _effectTargets = FindObjectsByType<UnitController>(FindObjectsSortMode.None);
+            int otherCount = 0;
+            if (_effectTargets != null)
+            {
+                foreach (UnitController u in _effectTargets)
+                {
+                    if (u != null && u != player) otherCount++;
+                }
+            }
+
+            if (GUILayout.Button($"◀ Player", GUILayout.Width(90)))
+            {
+                _effectTargetIndex = 0;
+            }
+            if (GUILayout.Button($"Next unit ({otherCount}) ▶", GUILayout.Width(140)))
+            {
+                _effectTargetIndex = (_effectTargetIndex + 1) % Mathf.Max(1, otherCount + 1);
+            }
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+
+            if (target != null)
+            {
+                UnitStats ts = target.UnitStats;
+                bool hasResolver = ts != null && ts.HasEffectResolver;
+                ActiveEffectSet set = target.Effects;
+                GUILayout.Label(
+                    $"Effect set: <b>{set?.Count ?? 0}</b> live  |  resolver: " +
+                    (hasResolver
+                        ? "<color=#55FF55>wired</color>"
+                        : "<color=#FFAA33><b>MISSING</b> — ids cannot resolve, `AddEffect` will refuse every one</color>"),
+                    GUILayout.ExpandWidth(true));
+                if (!hasResolver)
+                {
+                    GUILayout.Label(
+                        "<color=#AAAAAA><size=11>A spawned unit gets its resolver from the room spawner " +
+                        "(MapBridge → RoomVisualController → RoomUnitSpawner), so this usually means no " +
+                        "room was spawned through that chain — a bare AddComponent test unit, or a scene " +
+                        "built before the handover ran.</size></color>");
+                }
+            }
+            else
+            {
+                GUILayout.Label("<color=#FF6666>No UnitController resolved for this target.</color>");
+            }
+            GUILayout.EndVertical();
+
+            GUILayout.Space(8);
+
+            if (target == null || target.Effects == null)
+            {
+                GUILayout.EndScrollView();
+                return;
+            }
+
+            // ── Armour row (does armour grant an effect?) ────────────────────
+            //
+            // The oracle answers "yes, exactly one, and only for one of the 35 armour rows":
+            // UnitPlayer.as:3884 `armorEffect = addEffect(this.currentArmor.abil)`, and Armor.as:56's
+            // `abil` is filled only for `astealth` → `stealth_armor`. It is a mana-spending TOGGLE, and
+            // `currentArmor` is player-only. The port has no `abil` on ItemDefinition (the ability
+            // subsystem is not ported — see ArmourDataParser's ignored-attribute table), so the row
+            // reports the armour's *combat* projection honestly and names the unported link rather than
+            // faking a button that would apply nothing.
+            GUILayout.Label("<b>Armour effect</b>", _subHeaderStyle);
+            GUILayout.BeginVertical(_cardStyle);
+            var armUnitStats = target.UnitStats;
+            ArmourState armour = armUnitStats?.armour ?? ArmourState.None;
+            if (armour.IsEquipped)
+            {
+                GUILayout.Label(
+                    $"Armour: <b>{armUnitStats.ArmourId.Value}</b>  |  integrity {armour.integrity:0}/{armour.maxIntegrity:0} " +
+                    $"({armour.IntegrityPercent * 100f:0}%)  |  model {armour.model}");
+                GUILayout.Label(
+                    $"Ratings: phys <b>{armour.EffectivePhysicalRating:0.#}</b> ({armour.physicalRating:0.#} × cond {armour.ConditionFactor:0.##})  |  " +
+                    $"energy <b>{armour.EffectiveEnergyRating:0.#}</b>  |  reliability <b>{armour.EffectiveReliability:0.##}</b>");
+            }
+            else
+            {
+                GUILayout.Label("<color=#AAAAAA>No armour equipped (armour is player-only in AS3 — an NPC has a pool, not a plate).</color>");
+            }
+
+            GUILayout.BeginHorizontal();
+            GUI.enabled = TargetHasEffect(target, "stealth_armor");
+            if (GUILayout.Button("Apply armour ability (stealth_armor)", GUILayout.Width(250), GUILayout.Height(22)))
+            {
+                target.Effects.AddEffect("stealth_armor");
+            }
+            GUI.enabled = true;
+            if (GUILayout.Button("Remove it", GUILayout.Width(110), GUILayout.Height(22)))
+            {
+                target.Effects.RemoveEffect("stealth_armor");
+            }
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+            GUILayout.Label(
+                "<color=#AAAAAA><size=11>AS3 UnitPlayer.as:3884 applies <b>one</b> armour effect, from the " +
+                "armour's <i>abil</i> attribute (only <i>astealth</i> → <i>stealth_armor</i> of 35 rows). " +
+                "The port has no <i>abil</i> on the item yet, so this button stands in for that link; the " +
+                "equip-time wiring is still owed.</size></color>");
+            GUILayout.EndVertical();
+
+            GUILayout.Space(8);
+
+            // ── Live effect list ─────────────────────────────────────────────
+            GUILayout.Label($"<b>Live effects on {targetLabel}</b>", _subHeaderStyle);
+            GUILayout.BeginVertical(_cardStyle);
+            ActiveEffectSet liveSet = target.Effects;
+            if (liveSet.Count == 0)
+            {
+                GUILayout.Label("<color=#AAAAAA>None. Apply one below.</color>");
+            }
+            else
+            {
+                for (int i = 0; i < liveSet.Effects.Count; i++)
+                {
+                    ActiveEffect eff = liveSet.Effects[i];
+                    if (eff == null) continue;
+
+                    GUILayout.BeginHorizontal();
+                    string state = eff.IsBeingUnset ? "<color=#FF6666>unsetting</color>" : "<color=#55FF55>live</color>";
+                    string dur = eff.Forever ? "forever" : $"{eff.TicksRemaining / 30f:0.0}s ({eff.TicksRemaining} ticks)";
+                    GUILayout.Label(
+                        $"<b>{eff.Id}</b>  [{eff.Tip}]  {state}  t={dur}  lvl={eff.Level}  val={eff.Value:0.##}" +
+                        (eff.HasTransitioned ? $"  <color=#FFAA33>(was {eff.OriginalId})</color>" : ""),
+                        GUILayout.ExpandWidth(true));
+                    if (GUILayout.Button("✕", GUILayout.Width(28), GUILayout.Height(20)))
+                    {
+                        liveSet.RemoveEffect(eff.Id);
+                    }
+                    GUILayout.EndHorizontal();
+                }
+            }
+            if (GUILayout.Button("Clear all effects", GUILayout.Width(150), GUILayout.Height(22)))
+            {
+                liveSet.Clear();
+            }
+            GUILayout.EndVertical();
+
+            GUILayout.Space(8);
+
+            // ── Live stat readback (how you SEE a param effect land) ─────────
+            GUILayout.Label("<b>Live stat readback (effects write through these)</b>", _subHeaderStyle);
+            GUILayout.BeginVertical(_cardStyle);
+            UnitStats stats = target.UnitStats;
+            if (stats != null)
+            {
+                GUILayout.BeginHorizontal();
+                DrawStatPair("Max HP", $"{stats.MaxHp.Value:0.##}");
+                DrawStatPair("Skin resistance", $"{stats.skinResistance:0.###}");
+                DrawStatPair("Dexterity", $"{stats.dexterity:0.##}");
+                GUILayout.EndHorizontal();
+                GUILayout.BeginHorizontal();
+                DrawStatPair("Armour effectiveness", $"{stats.armorEffectiveness:0.##}");
+                DrawStatPair("Is non-living", stats.isNonLiving ? "yes" : "no");
+                DrawStatPair("Alive", stats.IsAlive ? "yes" : "no");
+                GUILayout.EndHorizontal();
+
+                int unmapped = 0;
+                if (liveSet.UnmappedParamNames != null)
+                {
+                    foreach (var kv in liveSet.UnmappedParamNames) unmapped += kv.Value;
+                }
+                GUILayout.Label(
+                    $"<size=11>Unmapped &lt;sk&gt; writes this session: <b>{unmapped}</b>" +
+                    (unmapped > 0 ? " — see the console (`eff dump`) for the names" : "") +
+                    "</size>");
+
+                // The reset half of the pass, reported as a property for the same reason the resolver
+                // is: its absence is invisible in every value (an un-reset replay just compounds, which
+                // reads as "a strong buff"), so a readback is the only way to see it. NPC mode
+                // legitimately has none — AS3's Unit.setEffParams resets only the vulnerability channel
+                // and the three Cont counters, which are the only things an NPC-reachable effect writes.
+                bool isPlayerTarget = target is PlayerController;
+                bool hasReset = stats.HasEffectResetSink;
+                GUILayout.Label(
+                    "<size=11>Reset sink (player derived block): " +
+                    (hasReset
+                        ? "<color=#55FF55>installed</color> — a replay rebuilds from baseline first"
+                        : (isPlayerTarget
+                            ? "<color=#FFAA33><b>absent</b> — a replay will compound; the player bootstrap did not wire it</color>"
+                            : "<color=#AAAAAA>none — expected for an NPC: AS3's setEffParams resets only vulnerability</color>")) +
+                    "</size>");
+            }
+            GUILayout.EndVertical();
+
+            GUILayout.Space(8);
+
+            // ── Apply an effect ──────────────────────────────────────────────
+            GUILayout.Label("<b>Apply an effect</b>", _subHeaderStyle);
+
+            GUILayout.BeginVertical(_cardStyle);
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Filter:", GUILayout.Width(50));
+            _effectSearch = GUILayout.TextField(_effectSearch ?? string.Empty, GUILayout.Width(220));
+            if (GUILayout.Button("Clear", GUILayout.Width(60)))
+            {
+                _effectSearch = string.Empty;
+            }
+            GUILayout.Label($"Duration (s, 0 = definition):", GUILayout.Width(200));
+            _effectDurationSeconds = ParseFloatOrZero(GUILayout.TextField(_effectDurationSeconds <= 0f ? "0" : _effectDurationSeconds.ToString("0.#"), GUILayout.Width(60)));
+            GUILayout.Label("Value (0 = definition):", GUILayout.Width(150));
+            _effectValue = ParseFloatOrZero(GUILayout.TextField(_effectValue <= 0f ? "0" : _effectValue.ToString("0.##"), GUILayout.Width(60)));
+            GUILayout.EndHorizontal();
+            GUILayout.EndVertical();
+
+            GUILayout.Space(4);
+
+            // Quick one-click rows for the effects the oracle's tests and on-hit producers name.
+            DrawQuickEffectRow(target, "burning", "🔥 Burn (fire DoT)",
+                "Unit.damage's on-hit fire producer; secEffect does owner.damage(val, D_FIRE, null, true) + shok=33");
+            DrawQuickEffectRow(target, "chemburn", "🧪 Acid burn",
+                "On-hit acid producer; secEffect does owner.damage(val, D_ACID)");
+            DrawQuickEffectRow(target, "pinkcloud", "💗 Pink cloud",
+                "secEffect does owner.damage(val, D_PINK)");
+            DrawQuickEffectRow(target, "drunk", "🍺 Drunk (DoT above lvl 3)",
+                "The only effect carrying lvl1, so it is the only one that ESCALATES: above level 3 secEffect does D_POISON");
+            DrawQuickEffectRow(target, "hydra", "💧 Hydra (heal + organ heal)",
+                "secEffect heals the unit, then (player only) pers.heal(val, 4)/(val, 5) — the organ path");
+            DrawQuickEffectRow(target, "stunned", "😵 Stunned (reaction flag)",
+                "SetReaction(R_REACTION_STUNNED) across all damage types — no damage payload");
+            DrawQuickEffectRow(target, "stealth_armor", "🫥 Stealth armour (perm)",
+                "forever + abil target of the 'astealth' armour row");
+
+            GUILayout.Space(8);
+            GUILayout.Label("<size=11><b>All definitions</b> (Resources/Effects — this is what the runtime resolver reads, " +
+                            "so a row missing here that exists on disk is a registry gap):</size>");
+            _effectListScroll = GUILayout.BeginScrollView(_effectListScroll, GUILayout.Height(220));
+
+            if (_allEffects == null || _allEffects.Length == 0)
+            {
+                LoadCatalogs();
+            }
+
+            int shown = 0;
+            if (_allEffects != null)
+            {
+                string filter = (_effectSearch ?? string.Empty).Trim();
+                foreach (EffectDefinition def in _allEffects)
+                {
+                    if (def == null) continue;
+                    if (filter.Length > 0 && def.effectId.IndexOf(filter, StringComparison.OrdinalIgnoreCase) < 0)
+                    {
+                        continue;
+                    }
+                    shown++;
+
+                    GUILayout.BeginHorizontal();
+                    string tipColor = def.type == EffectType.Purgeable ? "#55CCFF"
+                        : def.type == EffectType.Food ? "#FFFF55"
+                        : def.type == EffectType.Neutral ? "#AAAAAA" : "#FFAA33";
+                    GUILayout.Label(
+                        $"<b>{def.effectId}</b>  <color={tipColor}>[{def.type}]</color>  " +
+                        $"t={(def.forever ? "∞" : (def.durationTicks / 30f).ToString("0.#") + "s")}  " +
+                        $"val={def.value:0.##}  sk={(def.effects?.Length ?? 0)}",
+                        GUILayout.ExpandWidth(true));
+                    if (GUILayout.Button("Apply", GUILayout.Width(60), GUILayout.Height(20)))
+                    {
+                        int ticks = _effectDurationSeconds > 0f ? Mathf.RoundToInt(_effectDurationSeconds * 30f) : 0;
+                        target.Effects.AddEffect(def.effectId, _effectValue, ticks);
+                    }
+                    GUILayout.EndHorizontal();
+                }
+            }
+            if (shown == 0)
+            {
+                GUILayout.Label("<color=#AAAAAA>No definitions match the filter.</color>");
+            }
+            GUILayout.EndScrollView();
+
+            GUILayout.EndScrollView();
+        }
+
+        /// <summary>
+        /// One labelled quick-apply row. The tooltip names the oracle line the effect exercises, so a
+        /// tester knows what a click is meant to prove rather than just what it does.
+        /// </summary>
+        private void DrawQuickEffectRow(UnitController target, string id, string label, string oracleNote)
+        {
+            GUILayout.BeginVertical(_cardStyle);
+            GUILayout.BeginHorizontal();
+            GUILayout.Label($"<b>{label}</b>", GUILayout.Width(280));
+            GUILayout.Label($"<color=#AAAAAA><size=11>{oracleNote}</size></color>", GUILayout.ExpandWidth(true));
+            if (GUILayout.Button("Apply", GUILayout.Width(70), GUILayout.Height(22)))
+            {
+                int ticks = _effectDurationSeconds > 0f ? Mathf.RoundToInt(_effectDurationSeconds * 30f) : 0;
+                target.Effects.AddEffect(id, _effectValue, ticks);
+            }
+            if (GUILayout.Button("Remove", GUILayout.Width(70), GUILayout.Height(22)))
+            {
+                target.Effects.RemoveEffect(id);
+            }
+            GUILayout.EndHorizontal();
+            GUILayout.EndVertical();
+            GUILayout.Space(2);
+        }
+
+        private static bool TargetHasEffect(UnitController target, string id)
+            => target != null && target.Effects != null && target.Effects.Has(id);
+
+        /// <summary>
+        /// Resolve the selected target. Index <c>0</c> is always the player; <c>1..n</c> walk the other
+        /// units in the scene in discovery order. Falls back to the player when the index no longer
+        /// points at a live unit (it died, or the room was torn down), so the tab never goes blank on a
+        /// stale selection.
+        /// </summary>
+        private UnitController ResolveEffectTarget(PlayerController player, out string label)
+        {
+            if (_effectTargetIndex <= 0)
+            {
+                label = "the player (LittlePip)";
+                return player;
+            }
+
+            int seen = 0;
+            if (_effectTargets != null)
+            {
+                foreach (UnitController u in _effectTargets)
+                {
+                    if (u == null || u == player) continue;
+                    seen++;
+                    if (seen == _effectTargetIndex)
+                    {
+                        label = $"{u.name} ({u.GetType().Name})";
+                        return u;
+                    }
+                }
+            }
+
+            // Stale index — the unit it named is gone.
+            _effectTargetIndex = 0;
+            label = "the player (LittlePip)";
+            return player;
+        }
+
+        /// <summary>
+        /// Parse a text field to a float, treating anything unparseable as <c>0</c> — which for both
+        /// overrides means "use the definition's own value" (the oracle's
+        /// <c>if(this.val == 0) this.val = node.@val</c>, <c>Effect.as:87-90</c>). A debug field must not
+        /// be able to wedge the runtime with a parse exception.
+        /// </summary>
+        private static float ParseFloatOrZero(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return 0f;
+            return float.TryParse(text, System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out float v) ? v : 0f;
         }
 
         // =========================================================================

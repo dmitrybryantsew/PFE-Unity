@@ -6,6 +6,7 @@ using PFE.Core.Input;
 using PFE.Core.Messages;
 using PFE.Entities.Units;
 using PFE.Systems.Combat;
+using PFE.Systems.Effects;
 using PFE.Systems.Interaction;
 using PFE.Systems.Map;
 using PFE.Systems.Map.TileQuery;
@@ -103,10 +104,23 @@ namespace PFE.Entities.Player
             ISubscriber<AttackMessage> attackSubscriber,
             ISubscriber<TeleportMessage> teleportSubscriber,
             ISubscriber<InteractMessage> interactSubscriber,
-            PFE.Core.PfeDebugSettings debugSettings)
+            PFE.Core.PfeDebugSettings debugSettings,
+            PFE.Data.ContentRegistry registry = null)
         {
             _input = input;
             _debugSettings = debugSettings;
+
+            // The effect-definition resolver, built from the DI singleton the container already owns so
+            // there is one resolution story rather than a second registration to keep in step. Handed
+            // to the player's effect set here — but only if Awake has already built `_unitStats`, since
+            // Unity does not order a scene component's Awake against the scope's injection. When it has
+            // not, `_pendingEffectResolver` is applied at the end of Awake instead; see ApplyEffect
+            // Resolver. A null registry (a plain-Awake test rig) leaves the set resolver-less, which
+            // refuses every id rather than materialising a phantom effect.
+            _pendingEffectResolver = registry != null
+                ? new ContentRegistryEffectDefinitionResolver(registry)
+                : null;
+            ApplyEffectResolverIfReady();
 
             // ── Construct really is called twice, and this guard is why that is harmless ─────────────
             //
@@ -196,6 +210,40 @@ namespace PFE.Entities.Player
             }).AddTo(_disposables);
         }
 
+        /// <summary>
+        /// The player's effect set uses the <b>player</b> param-replay path — AS3
+        /// <c>Pers.setParameters</c> rather than <c>Unit.setEffParams</c>.
+        ///
+        /// <para>The two differ in two ways that both matter: the index is <c>eff.lvl</c> (not a
+        /// hardcoded 1) and effects that are being removed are <b>skipped</b> (<c>Pers.as:2202</c>),
+        /// where the NPC path replays them with index 0. So the mode has to be set from the player side
+        /// or every player effect would resolve its per-level value from the wrong vector entry.</para>
+        /// </summary>
+        public override void SetEffectResolver(IEffectDefinitionResolver resolver)
+        {
+            base._unitStats?.EnsureEffects(resolver, PFE.Data.Definitions.PersMode.Player);
+        }
+
+        /// <summary>
+        /// The resolver the container hands over in <see cref="Construct"/>, held until the unit's
+        /// effect set exists.
+        ///
+        /// <para><b>Why it cannot just be applied in <c>Construct</c>.</b> The player object is
+        /// injected by VContainer — which runs during the scope's build — but <c>_unitStats</c> is
+        /// created in <c>Awake</c>, and Unity does not order the two. Applying in whichever of
+        /// <c>Construct</c>/<c>Awake</c> runs second removes the dependency on that order rather than
+        /// asserting one.</para>
+        /// </summary>
+        private IEffectDefinitionResolver _pendingEffectResolver;
+
+        private void ApplyEffectResolverIfReady()
+        {
+            if (_pendingEffectResolver != null && base._unitStats != null)
+            {
+                SetEffectResolver(_pendingEffectResolver);
+            }
+        }
+
         protected override void Awake()
         {
             base.Awake();
@@ -220,7 +268,19 @@ namespace PFE.Entities.Player
             _characterStats.onDeath += OnCharacterDeath;
 
             if (_locomotion != null)
+            {
                 _locomotion.SetUnitStats(base._unitStats);
+                // AS3's UnitPlayer.control() rebuilds `precMult` from the player's locomotion state
+                // every tick (UnitPlayer.as:1181-1200), and the weapon reads the composed value when
+                // it fires. The locomotion controller owns that state, so it publishes it here rather
+                // than the weapon layer reaching back into movement.
+                _locomotion.SetCharacterStats(_characterStats);
+            }
+
+            // If Construct already ran (injection before Awake), this applies the resolver the
+            // container handed over; if Construct has not run yet it is a no-op and Construct's own
+            // call applies it. Either order ends with the player's effect set wired.
+            ApplyEffectResolverIfReady();
         }
 
         /// <summary>

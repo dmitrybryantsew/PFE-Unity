@@ -390,10 +390,39 @@ namespace PFE.Systems.Combat
                 // a term no caller could ever supply, so the armoured training dummy resolved
                 // identically to the plain one. A target with no stats answers 0, which is AS3's
                 // default and leaves every unarmoured unit's numbers unchanged.
-                skinResistance: target.SkinResistance);
+                skinResistance: target.SkinResistance,
+                // ── The two attacker-side crit channels, and the target-side gate ────────────────
+                // AS3 `Unit.damage():3659-3666` (stealth crit) and `:3671-3677` (disintegration).
+                // Both values ride on the shot — the context carried them from fire time — while the
+                // two target reads are live: `this.doop` and `this.hp`.
+                //
+                // `target.CurrentHealth` is the health BEFORE this hit, which is what the oracle's
+                // `this.hp` holds at :3671: the damage() body has not yet subtracted `param1` (that
+                // happens at :3705). Passing the post-hit value would make the disintegr gate test the
+                // wrong number.
+                critInvisChance: ctx.CritInvis,
+                desintegrChance: ctx.Desintegr,
+                targetCurrentHp: target.CurrentHealth,
+                targetIsNonLiving: target.IsNonLiving);
 
             target.ApplyDamage(outcome);
             ResolvedCount++;
+
+            // ── On-hit status effects — AS3 `Unit.damage():3763-3834` ────────────────────────────
+            //
+            // The oracle runs this block inside damage(), AFTER the hp subtraction (`:3705`) and BEFORE
+            // the `otbros` throw (`:4090-4091`). So it belongs here — after ApplyDamage, before
+            // ApplyKnockback — and the three producers run in source order.
+            //
+            // Two of the three need a roll, and the oracle's order is fixed: the contusion draw comes
+            // first (`:3763`), then the dopEffect draw (`:3771`), then the unconditional ammoFire
+            // (`:3830`). Taking them out of order would shift every later draw in the tick, which is a
+            // replication divergence rather than a gameplay bug — see the RNG notes on this class.
+            //
+            // Short-circuiting matters as much as order: `dopCh >= 1` (62 of the 80 data rows) spends
+            // NO draw, and a contusion roll happens only for an explosive hit on a living, non-robot
+            // target. Both are expressed by only drawing when the guard passes.
+            ApplyOnHitEffects(hit, target, rng);
 
             _publisher?.Publish(new DamageDealtMessage
             {
@@ -489,6 +518,76 @@ namespace PFE.Systems.Combat
 
             target.ApplyKnockback(impulse);
         }
+
+        /// <summary>
+        /// Runs AS3's on-hit status-effect producers against a landed hit, taking the two rolls the
+        /// oracle takes and in the oracle's order.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>The rolls belong here and not in <see cref="OnHitEffectProducers"/>.</b> AS3's
+        /// producers are a sequence of <c>Math.random()</c> calls interleaved with the applications,
+        /// on the same stream as the armour, crit and knockback rolls. A producer that rolled its own
+        /// would take its draw at a different point in the sequence — which is exactly the reason
+        /// <c>PendingDamage</c> threads the avoidance roll through instead of rolling internally.</para>
+        ///
+        /// <para><b>The draws are taken only when the guard passes.</b> <c>dopCh &gt;= 1</c> is the
+        /// oracle's <c>(param3.weap.dopCh &gt; 0 &amp;&amp; (dopCh &gt;= 1 || Math.random() &lt; dopCh))</c>,
+        /// so the usual case (ch='1') spends nothing, and the contusion roll is gated on an explosive
+        /// hit on a living non-robot target. Rolling unconditionally would desynchronise the stream
+        /// for every later hit in the tick while looking completely correct.</para>
+        /// </remarks>
+        private void ApplyOnHitEffects(in PendingDamage hit, IDamageable target, IRngService rng)
+        {
+            if (target is not IEffectReceiver receiver)
+            {
+                return;
+            }
+
+            DamageContext ctx = hit.Context;
+
+            // The contusion draw — AS3 `:3763`. Gated on an explosive hit, the target being alive and
+            // susceptible, and a draw against `param1 / maxhp`. A blast does reach this: `Bullet.explRun`
+            // calls `unit.damage()` directly and so does take it, which is why the gate is on the
+            // damage type rather than on the call path.
+            bool contusionRolled = false;
+            if (ctx.DamageType == DamageType.Explosive
+                && !ContusionImmune(target)
+                && target.IsAlive
+                && MaxHealthOf(target) > 0f)
+            {
+                float chance = hit.IsExplosion
+                    ? ExplosionDamageFor(ctx, hit) / MaxHealthOf(target)
+                    : ctx.BaseDamage / MaxHealthOf(target);
+                contusionRolled = rng.NextFloat() < chance;
+            }
+
+            // The dopEffect draw — AS3 `:3771`. `dopCh >= 1` is CERTAIN and spends no draw.
+            bool dopChancePassed = ctx.DopChance >= 1f
+                ? false   // ignored by the producer, which short-circuits the certain case
+                : rng.NextFloat() < ctx.DopChance;
+
+            OnHitEffectProducers.Apply(
+                receiver,
+                weaponDopEffect: ctx.DopEffect,
+                weaponDopDamage: ctx.DopDamage,
+                weaponDopChance: ctx.DopChance,
+                dopChancePassed: dopChancePassed,
+                ammoFireDamage: ctx.Ammo?.fireDamage ?? 0f,
+                damageType: ctx.DamageType,
+                isExplosiveHit: ctx.DamageType == DamageType.Explosive,
+                wouldDie: contusionRolled,
+                targetIsImmuneToContusion: ContusionImmune(target));
+        }
+
+        /// <summary>
+        /// AS3's <c>!this.opt.robot &amp;&amp; !this.mech &amp;&amp; !this.doop</c> — a robot, mech or
+        /// non-living target cannot be concussed. The port has only the <c>doop</c> flag on
+        /// <see cref="IDamageable"/>; robot and mech are the same class-driven data gap as
+        /// <c>isNonLiving</c>, so a machine currently reads as concussible. Recorded, not invented.
+        /// </summary>
+        private static bool ContusionImmune(IDamageable target) => target.IsNonLiving;
+
+        private static float MaxHealthOf(IDamageable target) => target.MaxHealth;
 
         /// <summary>
         /// Blast damage for one target: linear falloff from the centre to the radius edge, scaled by the

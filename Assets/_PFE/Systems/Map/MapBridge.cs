@@ -58,7 +58,7 @@ public class MapBridge : MonoBehaviour
     // parameter below must be registered, and `= null` defaults are deliberately omitted rather
     // than left in to imply an optionality the container does not honour.
     [Inject]
-    public void Construct(GameManager gameManager, RoomGenerator roomGenerator, TileTextureLookup tileTextureLookup, MaterialRenderDatabase materialRenderDatabase, TileMaskLookup tileMaskLookup, RoomBackgroundLookup roomBackgroundLookup, PFE.Core.PfeDebugSettings debugSettings, PFE.Core.SimClock simClock, PFE.Core.SimLoop simLoop, PFE.Systems.Physics.IPhysicsWorldService physicsWorldService, PFE.Systems.Combat.DamageSystem damageSystem)
+    public void Construct(GameManager gameManager, RoomGenerator roomGenerator, TileTextureLookup tileTextureLookup, MaterialRenderDatabase materialRenderDatabase, TileMaskLookup tileMaskLookup, RoomBackgroundLookup roomBackgroundLookup, PFE.Core.PfeDebugSettings debugSettings, PFE.Core.SimClock simClock, PFE.Core.SimLoop simLoop, PFE.Systems.Physics.IPhysicsWorldService physicsWorldService, PFE.Systems.Combat.DamageSystem damageSystem, PFE.Data.ContentRegistry registry = null)
     {
         _gameManager = gameManager;
         _roomGenerator = roomGenerator;
@@ -79,6 +79,18 @@ public class MapBridge : MonoBehaviour
         if (_visualController != null)
         {
             _visualController.SetDamageSystem(damageSystem);
+        }
+
+        // ...and hand the SAME chain the effect-definition resolver, so a spawned NPC's `effects` array
+        // can resolve an id into a real effect rather than refusing every one. Built from the registry
+        // the container already owns (rather than a second registration of the resolver itself), which
+        // keeps one source of truth — the same shape PlayerWeaponLoadout uses for its ammo resolver. A
+        // null registry (an older scene, or a test rig) leaves the resolver null and every unit's
+        // effect set stays resolver-less, which refuses ids rather than materialising phantom effects.
+        if (_visualController != null && registry != null)
+        {
+            _visualController.SetEffectResolver(
+                new PFE.Systems.Effects.ContentRegistryEffectDefinitionResolver(registry));
         }
 
         // P1: hand the fixed-step simulation down the SAME chain, so a motor-less NPC steps on

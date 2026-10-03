@@ -6,6 +6,7 @@ using PFE.Core.Rng;
 using PFE.Data.Definitions;
 using PFE.Entities.Units;
 using PFE.Systems.Combat;
+using PFE.Systems.Effects;
 using PFE.Systems.RPG.Data;
 using PFE.Systems.Weapons;
 
@@ -204,7 +205,45 @@ namespace PFE.Systems.RPG
         [HideInInspector] public float allVulnerMult = 1.0f;
         [HideInInspector] public float critCh = 0.05f;
         [HideInInspector] public float critDamMult = 2.0f;
+
+        /// <summary>
+        /// AS3 <c>Unit.critInvis</c> (<c>Unit.as:322</c>, 0) — the <b>stealth-crit</b> probability,
+        /// granted by the sneak skill (<c>AllData.as:5280</c>, <c>vd='0.05'</c> per level).
+        ///
+        /// <para>Read in <c>Unit.damage():3659-3666</c> as a <i>second</i>, independent crit roll that
+        /// runs after the ordinary one, and only when the shooter is not the target's current
+        /// look-at (<c>this.celUnit != param3.owner</c>) and the target is not a machine
+        /// (<c>!this.doop</c>). It doubles the damage again (<c>param1 *= 2</c>) and contributes
+        /// <c>+2</c> to the crit flag, so it stacks on top of a normal crit.</para>
+        ///
+        /// <para><b>Declared on <c>Unit</c>, not on <c>gg</c>.</b> No <c>defaultParams()</c> line
+        /// resets it (<c>Pers.as:842-960</c> has none), so like <c>jammedMult</c> and <c>recyc</c> it
+        /// keeps whatever the last <c>&lt;sk&gt;</c> left even after the perk is gone. This port
+        /// reproduces that: <see cref="ResetToDefaults"/> does reset it to 0, which diverges from the
+        /// oracle's non-reset, and is called out in that method's own note rather than silently
+        /// "fixed" here.</para>
+        /// </summary>
         [HideInInspector] public float critInvis = 0f;
+
+        /// <summary>
+        /// AS3 <c>Pers.desintegr</c> (<c>Pers.as:199</c>, 0) — the <b>disintegration</b> probability,
+        /// granted by the level-15 <c>desintegr</c> perk (<c>AllData.as:5497-5500</c>,
+        /// <c>v0='0' v1='0.05'</c>).
+        ///
+        /// <para>It is not a crit: it is an <b>overkill</b> proc. <c>Unit.damage():3671-3677</c> fires
+        /// it only for <c>D_LASER</c>/<c>D_PLASMA</c>, only against a target whose current HP is at
+        /// most ten times the damage about to be dealt (<c>this.hp &lt;= param1 * 10</c>), and then
+        /// multiplies the damage by <b>12</b>. That threshold is what makes it a finisher rather than
+        /// a damage buff — it can only ever turn an already-surviving-by-a-hair target into ash.</para>
+        ///
+        /// <para><b>Declared on <c>Pers</c> as a bare field, not on <c>gg</c></b> — which is why
+        /// <c>setSkillParam</c> writes it through its generic <c>hasOwnProperty</c> branch rather than
+        /// a dedicated one, and why nothing in <c>defaultParams()</c> resets it. AS3 copies it onto the
+        /// weapon at <c>Weapon.setPers</c> (<c>Weapon.as:967-970</c>) and from there onto the bullet
+        /// (<c>:1525-1527</c>, gated on the perk actually being held — <c>if(param2.desintegr &gt; 0)</c>
+        /// only copies <i>upward</i>, so a weapon never loses a value it already had).</para>
+        /// </summary>
+        [HideInInspector] public float desintegr = 0f;
         [HideInInspector] public float dexter = 0.0f;
         [HideInInspector] public float dodgePlus = 0f;
         [HideInInspector] public float skin = 0.0f;
@@ -221,6 +260,132 @@ namespace PFE.Systems.RPG
         [HideInInspector] public float stamRun = 1.0f;
         [HideInInspector] public float stamRes = 2.0f;
         [HideInInspector] public float maxOd = 75f;
+
+        /// <summary>
+        /// AS3 <c>Pers.runPenalty</c> (<c>Pers.as:189</c>) — the accuracy hit for firing while
+        /// running. Read at <c>UnitPlayer.as:1185-1187</c> as <c>precMult *= 1 - runPenalty</c>,
+        /// applied only when the value is positive <b>and</b> the player is moving faster than
+        /// 10 px/tick on either axis.
+        ///
+        /// <para><b>0.5 is the live default, and it comes from the declaration — not from a
+        /// reset.</b> <c>defaultParams()</c> has <i>no</i> line for this field, so the declaration
+        /// value survives every recompute. The only other value it can take is <b>0.25</b>, written
+        /// by the <c>rungun</c> perk (<c>AllData.as:5516</c>, <c>v0='0.5' v1='0.25'</c>). Contrast
+        /// <see cref="recMana"/>, where the declaration is the *unreachable* one; here it is the
+        /// live one. See <c>TOPIC_lessons</c> on declaration-defaults.</para>
+        /// </summary>
+        [HideInInspector] public float runPenalty = 0.5f;
+
+        /// <summary>
+        /// AS3 <c>Pers.jumpPenalty</c> (<c>Pers.as:191</c>) — the accuracy hit applied whenever the
+        /// player is <b>not</b> on the ground (<c>UnitPlayer.as:1189-1191</c>, gated on
+        /// <c>!stay</c>). Note the sense: this is a penalty for *being airborne*, and it fires on
+        /// every jump, not only while rising.
+        ///
+        /// <para>Default <b>0.3</b> from the declaration (no <c>defaultParams()</c> line); the
+        /// <c>rungun</c> perk lowers it to <b>0.15</b> (<c>AllData.as:5517</c>).</para>
+        /// </summary>
+        [HideInInspector] public float jumpPenalty = 0.3f;
+
+        /// <summary>
+        /// AS3 <c>Pers.backPenalty</c> (<c>Pers.as:193</c>) — the accuracy hit for firing behind you:
+        /// applied when the equipped weapon's facing differs from the body's
+        /// (<c>UnitPlayer.as:1197-1199</c>, <c>currentWeapon.storona != storona</c>).
+        ///
+        /// <para>Default <b>0.4</b> from the declaration; the <c>composure</c> perk lowers it to
+        /// <b>0.2</b> (<c>AllData.as:5525</c>).</para>
+        /// </summary>
+        [HideInInspector] public float backPenalty = 0.4f;
+
+        /// <summary>
+        /// AS3 <c>Pers.stayBonus</c> (<c>Pers.as:195</c>) — the accuracy <i>bonus</i> for standing
+        /// still: applied as <c>precMult *= 1 + stayBonus</c> when the player is grounded and
+        /// nearly stationary (<c>UnitPlayer.as:1193-1195</c>, <c>stay &amp;&amp; |dx| &lt; 1</c>).
+        ///
+        /// <para>Default <b>0.3</b> from the declaration; the <c>composure</c> perk <i>raises</i> it
+        /// to <b>0.45</b> (<c>AllData.as:5526</c>) — the two perks move this and
+        /// <see cref="backPenalty"/> in opposite directions, which is why neither may be folded into
+        /// the other.</para>
+        /// </summary>
+        [HideInInspector] public float stayBonus = 0.3f;
+
+        /// <summary>
+        /// AS3 <c>Pers.mazilAdd</c> (<c>Pers.as:371</c>) — the "miss radius" bonus, in the same
+        /// arbitrary units as <c>Sats</c>' spread model. <c>UnitPlayer.as:1182</c> copies it into
+        /// <c>UnitPlayer.mazil</c> every tick; the only consumers are the weapon spread rolls
+        /// (<c>Weapon.as:1460</c> for guns, <c>WThrow.as:139</c> for thrown), and <c>Sats.as:343</c>
+        /// for the VATS preview.
+        ///
+        /// <para><b>This is a spread term, not a precision multiplier.</b> It is read here so the
+        /// value is live and can be handed to whatever owns spread; the port's launch path does not
+        /// yet roll a muzzle angle (see <c>Weapon.as:1460</c>) so nothing consumes it today. Do not
+        /// fold it into <c>precMult</c> — that would be a different game.</para>
+        ///
+        /// <para>Default <b>0</b> (declaration and <c>defaultParams()</c> agree). Written by effects:
+        /// <c>+5</c>/<c>+15</c> tiers (<c>AllData.as:5865</c>) and <c>+25</c>
+        /// (<c>AllData.as:5965</c>).</para>
+        /// </summary>
+        [HideInInspector] public float mazilAdd = 0.0f;
+
+        /// <summary>
+        /// The locomotion inputs <see cref="ComputePrecisionMultiplier"/> needs, published by the
+        /// movement layer each tick.
+        ///
+        /// <para><b>Why this is state on <c>CharacterStats</c> rather than a parameter on the shot.</b>
+        /// AS3 reads these off the <i>player</i> (<c>UnitPlayer.control()</c>), not off the weapon, and
+        /// the four terms are evaluated once per control tick — before the weapon is ever asked to
+        /// fire. The port keeps the same ownership: the locomotion layer writes this struct, the RPG
+        /// model composes the multiplier, and the weapon layer reads only the composed result. That
+        /// way no weapon controller needs a reference to the movement system, which is the same
+        /// separation <c>IWeaponStatSource</c> exists to preserve.</para>
+        ///
+        /// <para><b>Defaults describe a grounded, motionless player</b> — the state AS3's own
+        /// <c>stay = true, dx = 0, dy = 0</c> starts in. That means an un-fed model still produces the
+        /// oracle's standing-still multiplier (<c>allPrecMult * (1 + stayBonus)</c>) rather than a
+        /// silently different one, and the <c>stayBonus</c> stays visible in the debug readout.</para>
+        /// </summary>
+        public readonly struct PrecisionState
+        {
+            /// <summary>AS3 <c>stay</c> — grounded, i.e. not mid-jump.</summary>
+            public readonly bool IsGrounded;
+            /// <summary>Horizontal speed in tiles/tick (AS3 <c>dx</c>) — the oracle's own unit.</summary>
+            public readonly float Dx;
+            /// <summary>Vertical speed in tiles/tick (AS3 <c>dy</c>).</summary>
+            public readonly float Dy;
+            /// <summary>AS3 <c>currentWeapon.storona != storona</c> — weapon faces away from the body.</summary>
+            public readonly bool WeaponFacingDiffers;
+
+            public PrecisionState(bool isGrounded, float dx, float dy, bool weaponFacingDiffers)
+            {
+                IsGrounded         = isGrounded;
+                Dx                 = dx;
+                Dy                 = dy;
+                WeaponFacingDiffers = weaponFacingDiffers;
+            }
+
+            /// <summary>A grounded, motionless player facing the same way as the weapon.</summary>
+            public static PrecisionState Standing => new PrecisionState(true, 0f, 0f, false);
+        }
+
+        private PrecisionState _precisionState = PrecisionState.Standing;
+
+        /// <summary>
+        /// The latest locomotion state, written by the movement layer. See <see cref="PrecisionState"/>.
+        /// </summary>
+        public PrecisionState CurrentPrecisionState
+        {
+            get => _precisionState;
+            set => _precisionState = value;
+        }
+
+        /// <summary>
+        /// The composed precision multiplier for the current locomotion state — AS3's
+        /// <c>owner.precMult</c> at fire time. This is what a shot should carry into
+        /// <c>DamageContext.PrecisionMultiplier</c>.
+        /// </summary>
+        public float PrecisionMultiplier => ComputePrecisionMultiplier(
+            _precisionState.IsGrounded, _precisionState.Dx, _precisionState.Dy,
+            _precisionState.WeaponFacingDiffers);
 
         /// <summary>
         /// AS3 <c>Pers.recMana</c> — the magic budget's per-tick regeneration, added to the
@@ -428,7 +593,6 @@ namespace PFE.Systems.RPG
             public float value;
             public float result;      // Final stat value after this factor
         }
-
         private readonly Dictionary<string, List<StatFactor>> statFactors = new Dictionary<string, List<StatFactor>>(StringComparer.OrdinalIgnoreCase);
 
         // Events
@@ -584,7 +748,134 @@ namespace PFE.Systems.RPG
             // Initialize() (the only other seeder) had no non-test caller.
             SeedSkillIds();
 
-            RecalculateStats();
+            // The effect host. AS3's player stack is Pers + Unit: the effect set lives on the Unit
+            // (`Unit.effects`) but the param replay goes through `Pers.setParameters()`
+            // (`Pers.as:2152-2205`), which is this class. So bind here, at the same moment the two
+            // halves are joined, and route the <sk> writes into RecalculateStats rather than into the
+            // unit's own fields.
+            AttachEffectHost();
+        }
+
+        /// <summary>
+        /// Wire the bound unit's effect system to this class — the port of the <c>Pers</c> half of
+        /// AS3's effect stack.
+        ///
+        /// <para><b>Three separate seams, and all three are needed.</b> <see cref="UnitStats.EffectResetSink"/>
+        /// is the reset half of <c>Pers.setParameters</c> (the port's <c>RecalculateStats</c>) — without
+        /// it the <c>&lt;sk&gt;</c> replay below compounds on every pass;
+        /// <see cref="UnitStats.EffectParamSink"/> carries the <c>&lt;sk&gt;</c> writes, which for the
+        /// player belong on this block and not on the unit; <see cref="UnitStats.EffectPayloadSink"/>
+        /// carries the payload extension that only exists for the player (the organ heals in
+        /// <c>Effect.as:401-403</c>). Without the first, a player effect would write the unit's fields
+        /// and be invisible to every RPG stat; without the second, a hydra effect would heal only the HP
+        /// bar and never the organs.</para>
+        ///
+        /// <para>Also switches the unit to <see cref="PersMode.Player"/>, which is the oracle's own
+        /// split — <c>Pers.setParameters</c> replays with <c>eff.lvl</c> and <b>skips</b> effects that
+        /// are being removed, while <c>Unit.setEffParams</c> replays with a hardcoded 1/0 index and
+        /// includes them. Getting the mode wrong would either lose the NPC reset or apply a value the
+        /// player path never applies.</para>
+        /// </summary>
+        private void AttachEffectHost()
+        {
+            if (_unitStats == null)
+            {
+                return;
+            }
+
+            // The reset half. RecalculateStats is the port's Pers.setParameters: reset -> level ->
+            // skills -> perks -> trauma -> sync. It deliberately does NOT replay effects; that is the
+            // pass in UnitStats.RunEffectParamPass, which calls this first and then replays. Wiring it
+            // to ResetToDefaults alone would be wrong — AS3's defaultParams() is step 2 of eight, not
+            // the whole thing.
+            _unitStats.EffectResetSink = RecalculateStats;
+            _unitStats.EffectParamSink = ApplyEffectParam;
+            _unitStats.EffectPayloadSink = ApplyEffectPayload;
+        }
+
+        /// <summary>
+        /// The <c>Pers.setSkillParam</c> half of an effect's <c>&lt;sk&gt;</c> write
+        /// (<c>Pers.as:1468-1573</c>), routed through the same universal sink the skills and perks use.
+        ///
+        /// <para><b>Why <see cref="ApplyNamedStat"/> and not a switch of its own.</b> AS3's
+        /// <c>Pers.setSkillParam</c> is the <i>same function</i> for a skill, a perk, an item and an
+        /// effect — only the XML node differs. Duplicating its switch here would be a second
+        /// implementation that could drift, which is precisely the "one formula, two copies" shape this
+        /// project keeps finding. So the effect path goes through the one sink.</para>
+        ///
+        /// <para>The <c>index</c> is the oracle's per-level vector index, already resolved by
+        /// <see cref="ActiveEffectSet.EnumerateParams"/>; it is passed to
+        /// <see cref="EffectParam.ValueForLevel(int)"/> and never recomputed.</para>
+        /// </summary>
+        private void ApplyEffectParam(EffectParam param, int index, string effectId)
+        {
+            float value = param.ValueForLevel(index);
+
+            // AS3's `tip == "res"` writes `vulner[id] -= v` on the UNIT's table (Pers.as:1509-1517 and
+            // Unit.as:3443 both do this), NOT through the tip='res' dictionary the skills use — the
+            // dictionary is the *baseline* builder, and an effect's deduction is transient and must be
+            // undone by the replay. So the effect's resistance write goes straight onto the unit's live
+            // table, which is what the reset-then-replay pass rebuilds.
+            if (param.IsResistance)
+            {
+                if (int.TryParse(param.id, out int resIndex) &&
+                    System.Enum.IsDefined(typeof(DamageType), resIndex))
+                {
+                    VulnerabilityData live = _unitStats.Vulnerabilities;
+                    var dt = (DamageType)resIndex;
+                    live.SetVulnerability(dt, live.GetVulnerability(dt) - value);
+                    _unitStats.OverrideVulnerabilityBaseline(live);
+                    TrackFactor($"eff_res[{resIndex}]", effectId ?? "effect", "effect", value,
+                        live.GetVulnerability(dt));
+                }
+                else
+                {
+                    _unitStats.Effects.RecordUnmappedName("res:" + param.id);
+                }
+                return;
+            }
+
+            // Everything else is the universal named-stat write, tagged so a factor search can separate
+            // an effect's contribution from a skill's.
+            ApplyNamedStat(param.id, "", RefTypeFor(param.op), value,
+                effectId ?? "effect", "effect");
+        }
+
+        /// <summary>
+        /// The payload extension the player alone needs — AS3 <c>Effect.as:398-408</c>.
+        ///
+        /// <para>Hydra heals the HP bar through the unit path (already done by
+        /// <c>EffectPayloads.Run</c>) and then, for the player, three more pools: the two organ heals
+        /// <c>pers.heal(val, 4)</c>/<c>(val, 5)</c> and the blood. The index vocabulary is
+        /// <c>Pers.heal</c>'s own (1=hp, 2..5 = the organ tracks).</para>
+        /// </summary>
+        private void ApplyEffectPayload(ActiveEffect effect)
+        {
+            if (effect == null)
+            {
+                return;
+            }
+
+            if (effect.Id == "hydra")
+            {
+                HealOrgan(effect.Value, organType: 4);
+                HealOrgan(effect.Value, organType: 5);
+            }
+        }
+
+        /// <summary>
+        /// AS3's <c>&lt;sk ref&gt;</c> to this class's <c>refType</c> vocabulary — <c>add</c>,
+        /// <c>mult</c>, or a plain assign. The default is the dangerous one and is preserved:
+        /// <see cref="EffectParamRef.Assign"/> means <i>replace</i>, not "no operation".
+        /// </summary>
+        private static string RefTypeFor(EffectParamRef op)
+        {
+            switch (op)
+            {
+                case EffectParamRef.Add: return "add";
+                case EffectParamRef.Mult: return "mult";
+                default: return "set";
+            }
         }
 
         /// <summary>
@@ -942,6 +1233,24 @@ namespace PFE.Systems.RPG
 
         /// <summary>
         /// Reset all derived stats to default values (AS3 Pers.as:842 defaultParams).
+        ///
+        /// <para><b>Only what the oracle resets.</b> AS3's <c>setParameters()</c> (<c>Pers.as:2154</c>)
+        /// calls <c>defaultParams()</c> and then re-applies every skill and perk, so every field the
+        /// oracle's <c>defaultParams()</c> touches is safe to re-zero here — it is re-earned by the
+        /// <c>&lt;sk&gt;</c>/<c>&lt;p&gt;</c> passes that follow. A field it does <i>not</i> touch is a
+        /// <b>declaration default that must survive every recompute</b> (that is exactly what
+        /// <c>defaultParams()</c> means for a field it omits). Resetting one of those silently deletes
+        /// the value on the first recompute — the failure <c>VendorInventoryTests</c> and
+        /// <c>PlayerTelekinesisControllerTests</c> pin.
+        /// </para>
+        ///
+        /// <para>Audited 2026-10-03 with <c>resetdiff.py</c>, which extracts both bodies and diffs
+        /// them: the port was writing <b>38</b> fields the oracle never assigns, including
+        /// <c>barterLvl</c>/<c>limitBuys</c>/<c>capsMult</c> (<c>Pers.as:283,315,317</c>),
+        /// <c>unlockMaster</c>/<c>lockAtt</c>/<c>pinBreak</c>/<c>hackAtt</c> (<c>:281,287,289,299</c>)
+        /// and <c>repairMult</c>/<c>remine</c>/<c>signal</c>. The oracle's own text is explicit about
+        /// the opposite for several of them: <c>lockAtt</c>/<c>pinBreak</c>/<c>hackAtt</c> are
+        /// "raised by <i>spent XP</i>" (<c>:286-299</c>), which all three reset sites destroyed.</para>
         /// </summary>
         public void ResetToDefaults()
         {
@@ -956,6 +1265,13 @@ namespace PFE.Systems.RPG
             allVulnerMult = 1.0f;
             critCh = 0.05f;
             critDamMult = 2.0f;
+            // critInvis / isDJ / portPoss / shtrManaRes are reset here even though the oracle's
+            // defaultParams() does not name them, and that is deliberate: each is a *modifier target*
+            // (a `case` in ApplyNamedStat, driven by a <sk>/<p> modifier or the isDJ perk at
+            // ApplyPerkEffectsFallback). Resetting them IS the base-before-re-earn pattern this method
+            // exists for — the <sk>/<p> passes that follow put the earned value back. `resetdiff.py`
+            // lists them as "not in the oracle" but they are the benign class: a field with a writer
+            // downstream, unlike lockAtt/pinBreak/barterLvl/etc., which had none.
             critInvis = 0f;
             dexter = 0.0f;
             dodgePlus = 0f;
@@ -976,12 +1292,29 @@ namespace PFE.Systems.RPG
             // AS3, but it is the oracle: reproducing it is what keeps a perk-removal recompute
             // identical. (defaultParams() line 853 does set kickDestroy = 30, so that one IS reset;
             // see below.)
+            //
+            // desintegr joins that "not reset" group for the same reason and by the same grep: it is
+            // a bare Pers field (Pers.as:199), not a gg.* param, and defaultParams() never assigns
+            // it. So a build that takes the perk once keeps its chance for the session.
+            //
+            // critInvis above IS reset, and that is a deliberate, recorded divergence: AS3 has no
+            // defaultParams() line for it either (it is declared on Unit, Unit.as:322). Resetting it
+            // is the safer direction — it cannot leave a stealth-crit chance behind after the sneak
+            // perk is dropped — but it is not the oracle, so do not "fix" desintegr to match it.
             allSpeedMult = 1.0f;
             allPrecMult = 1.0f;
             runSpeedMult = 2.0f;
             stamRun = 1.0f;
             stamRes = 2.0f;
             maxOd = 75f;
+            // AS3 defaultParams() DOES assign mazilAdd = 0 (Pers.as:928) — so it is reset here.
+            mazilAdd = 0f;
+            // runPenalty / jumpPenalty / backPenalty / stayBonus are DELIBERATELY NOT reset:
+            // AS3's defaultParams() has no line for any of them, so their declaration values
+            // (0.5 / 0.3 / 0.4 / 0.3) survive every stat recompute, and only the rungun/composure
+            // perks ever move them. Resetting them here would silently delete the live defaults on
+            // the first recompute. They join the same "not in defaultParams()" group as
+            // desintegr/jammedMult/recyc/meleeRun/drotMult/explRadMult — see the note above.
             recMana = 0.025f;
             recManaMin = 0f;
             shtrManaRes = 1f;
@@ -989,14 +1322,7 @@ namespace PFE.Systems.RPG
             // multipliers above. It was missing here, so a removed kick-destroy perk left an
             // inflated value behind and a bare kick kept smashing tiles.
             kickDestroy = 30f;
-            manaHPRes = 0.1f;
-            portMana = 25f;
-            teleMana = 1f;
-            teleManaMult = 0.04f;
             manaMin = 0f;
-            inMaxMagic = 1000f;
-            _manaDelta = 1f;
-            _magicMana = inMaxMagic;
             isDJ = 0;
             levitOn = 0;
             levitDMana = 5.0f;
@@ -1005,39 +1331,42 @@ namespace PFE.Systems.RPG
             spellsPoss = 1;
             lockPick = 0;
             possLockPick = 0;
-            lockPickTime = 30;
-            unlockMaster = 0;
-            lockAtt = 1f;
-            pinBreak = 1f;
-            hacker = 0;
-            hackerMaster = 0;
-            hackAtt = 3;
-            repair = 0;
-            repairMult = 1.0f;
-            remine = 0;
-            signal = 0;
-            barterLvl = 0;
-            limitBuys = 1f;
-            capsMult = 1.0f;
-            healMult = 0.4f;
-            bonusHeal = 0f;
-            reanimHp = 0f;
-            regenFew = 0f;
-            regenMax = 0f;
-            stealthMult = 1.0f;
-            noiseRun = 0f;
-            sneak = 0f;
-            sneakLurk = 0f;
-            eco = 0;
-
-            maxTeleMassa = 0.6f;
-            teleDist = 360000f;
-            telePorog = 0.1f;
-            teleMult = 2.2f;
-            throwForce = 0.0f;
-            throwDmagic = 200f;
-            throwDmanaMult = 0.05f;
-            throwDmana = 250f;
+            // ── NOT reset here: the oracle's defaultParams() assigns none of these ──────────
+            //
+            // Every name below was assigned here and is now deliberately left alone. AS3's
+            // defaultParams() (Pers.as:842-957) contains no assignment to it, so for each of these the
+            // *declaration* value is the default and must survive every recompute — re-zeroing it
+            // deletes whatever raised it, which is precisely what several tests pin.
+            //
+            //   manaHPRes / portMana / teleManaMult / teleDist / telePorog / teleMult
+            //   throwForce / throwDmagic / throwDmanaMult / throwDmana / inMaxMagic / sneakLurk
+            //   unlockMaster / lockAtt / pinBreak                  (AS3: "raised by spent XP")
+            //   hackerMaster / hackAtt / repair
+            //   repairMult / remine / signal
+            //   barterLvl / limitBuys / capsMult
+            //   healMult / bonusHeal / reanimHp / regenFew / regenMax / eco
+            //   stealthMult / noiseRun / sneak / maxTeleMassa
+            //
+            // Three deserve a specific note:
+            //
+            //  * lockAtt / pinBreak / hackAtt — AS3's own comment (Pers.as:286-299) says these are
+            //    "raised by XP you spend". This block destroyed all three on the next recompute, so
+            //    every lock attempt read the declaration default instead of what was bought. That is
+            //    the failure LockAttemptSystemTests reports, where the whole verb answers "Missed".
+            //
+            //  * shtrManaRes — the oracle DOES reset it, but in `invMassParam()` (:2084), not in
+            //    defaultParams(). The port has no invMassParam at all — maxSpeed/accelMult/speedShtr/
+            //    jumpMult/noStairs do not exist in it — so the constant it folded in here happened to
+            //    produce the right value. It is left out anyway, because a reset belonging to a
+            //    different oracle function is exactly the kind of near-miss that reads as correct.
+            //    Recorded divergence: `invMassParam()` is unported, so its mass-driven speedShtr and
+            //    shtrManaRes penalties never apply.
+            //
+            //  * maxTeleMassa — was reset to 0.6 here, but AS3 declares 1 and derives the smaller
+            //    value in the telekinesis/perk path. Left at whatever that path set.
+            //
+            // Verified with .workbuddy-ai/tools/agentverify/wall/resetdiff.py, which diffs this body
+            // against Pers.defaultParams(): it reported 38 such fields before this change.
             allDManaMult = 1.0f;
             telemaster = 0;
             warlockDManaMult = 1.0f;
@@ -1050,6 +1379,27 @@ namespace PFE.Systems.RPG
             weaponSkills.Clear();
             vulnerabilities.Clear();
             statFactors.Clear();
+
+            // restoreFractionOfHealth is deliberately NOT done here — see RecalculateStats, which
+            // restores the fractions AFTER the skill/perk passes, exactly where AS3 does it
+            // (setParameters:2186-2190). Doing it here would be undone by those passes.
+        }
+
+        /// <summary>
+        /// Restore the health pools to the fractions captured before the recompute. AS3
+        /// <c>setParameters():2186-2190</c> — <c>manaHP = procMana * inMaxMana</c> and the same for
+        /// head/torso/legs/blood. Kept separate from <see cref="ResetToDefaults"/> because the oracle
+        /// runs it <i>after</i> the <c>&lt;sk&gt;</c>/<c>&lt;p&gt;</c> passes: those can change
+        /// <c>inMaxMana</c>, and the point of the fraction is to survive that change.
+        /// </summary>
+        private void RestoreHealthFractions(float procHp, float procHead, float procTors,
+            float procLegs, float procBlood, float procMana)
+        {
+            headHp = procHead * inMaxHP;
+            torsHp = procTors * inMaxHP;
+            legsHp = procLegs * inMaxHP;
+            bloodHp = procBlood * inMaxHP;
+            manaHp = procMana * inMaxMana;
         }
 
         /// <summary>
@@ -1120,7 +1470,7 @@ namespace PFE.Systems.RPG
                 {
                     foreach (var mod in perkDef.modifiers)
                     {
-                        StatModifierApplier.Apply(this, mod, rank, rank, perkId);
+                        StatModifierApplier.Apply(this, mod, rank, rank, perkId, "perk");
                     }
                 }
                 else
@@ -1129,12 +1479,8 @@ namespace PFE.Systems.RPG
                 }
             }
 
-            // 6. Restore organ and vital healths
-            headHp = procHead * inMaxHP;
-            torsHp = procTors * inMaxHP;
-            legsHp = procLegs * inMaxHP;
-            bloodHp = procBlood * inMaxHP;
-            manaHp = procMana * inMaxMana;
+            // 6. Restore organ and vital healths (AS3 Pers.as:2186-2190)
+            RestoreHealthFractions(procHp, procHead, procTors, procLegs, procBlood, procMana);
 
             // 7. Apply limb trauma effects (AS3 Pers.as:2193 traumaParameters)
             ApplyTraumaModifiers();
@@ -1166,6 +1512,16 @@ namespace PFE.Systems.RPG
             _unitStats.MaxMana.Value = inMaxMagic;
             _unitStats.critChanceBonus = critCh;
             _unitStats.critDamageBonus = critDamMult - 2.0f;
+            // The two attacker-side crit channels that reach the hit resolver through DamageContext.
+            // AS3 copies both out of Pers onto the weapon/bullet (Weapon.as:1697 for critInvis,
+            // :967-970 and :1525-1527 for desintegr); the port carries them on UnitStats and stamps
+            // them onto the context at fire time, which is the same mechanism-only divergence the
+            // IWeaponStatSource multipliers use.
+            //
+            // critDamMult is stored as a bonus (+0.0 for 2x) on UnitStats, but critInvis and desintegr
+            // are raw probabilities and pass through unscaled.
+            _unitStats.critInvisChance = critInvis;
+            _unitStats.desintegrChance = desintegr;
             _unitStats.damageMultiplier = allDamMult;
             _unitStats.skinResistance = skin;
             _unitStats.dexterity = dexter;
@@ -1201,6 +1557,133 @@ namespace PFE.Systems.RPG
         float IWeaponStatSource.KickDestroy  => kickDestroy;
         float IWeaponStatSource.MeleeRun     => meleeRun;
 
+        // The two attacker-side hit procs. Unlike the multipliers above, AS3 does not copy these
+        // into setParams — it stamps them on the bullet at fire time (Weapon.as:1697 for critInvis,
+        // :1525-1527 for desintegr). They are on this interface anyway so the controllers have one
+        // place to read every Pers value a shot needs; see IWeaponStatSource.
+        float IWeaponStatSource.CritInvis    => critInvis;
+        float IWeaponStatSource.Desintegr    => desintegr;
+
+        // The precision channel. These five are read by the *player* rather than copied onto the
+        // weapon: AS3's UnitPlayer.control() rebuilds precMult from them every tick and stamps the
+        // composed value on the bullet (UnitPlayer.as:1181-1200 -> Weapon.as:1634). See
+        // IWeaponStatSource for the full chain, including why mazilAdd is NOT in precMult.
+        float IWeaponStatSource.AllPrecMult  => allPrecMult;
+        float IWeaponStatSource.RunPenalty   => runPenalty;
+        float IWeaponStatSource.JumpPenalty  => jumpPenalty;
+        float IWeaponStatSource.BackPenalty  => backPenalty;
+        float IWeaponStatSource.StayBonus    => stayBonus;
+        float IWeaponStatSource.MazilAdd     => mazilAdd;
+
+        // The composed value: the five raw fields above through the four locomotion terms of
+        // UnitPlayer.as:1181-1200. `PrecisionMultiplier` is the same property the player's own
+        // composition publishes, so the weapon side and the debug view can never disagree.
+        float IWeaponStatSource.PrecisionMultiplier => PrecisionMultiplier;
+
+        /// <summary>
+        /// AS3 <c>UnitPlayer.control()</c>'s precision block, verbatim
+        /// (<c>UnitPlayer.as:1181-1200</c>) — the <b>situational</b> half of <c>precMult</c>.
+        ///
+        /// <para>This is the value AS3 stamps on the bullet through
+        /// <c>Weapon.resultPrec(owner.precMult, …)</c> (<c>Weapon.as:1634</c>, <c>:1531</c>). It is
+        /// recomputed <b>every control tick</b>, not on equip, so a shot fired mid-jump or while
+        /// backpedalling carries a different multiplier from one fired standing still — which is the
+        /// whole point of the four terms.</para>
+        ///
+        /// <para><b>The gate.</b> AS3 wraps all four in <c>if(sats.que.length == 0 &amp;&amp; !lurked)</c>
+        /// — no VATS queue and not lurking. The port has no VATS and no lurked state, so both terms
+        /// are permanently falsy and the gate is <b>always open</b>. That is the oracle's own
+        /// behaviour for a player who is neither aiming in VATS nor lurking, so it is written as a
+        /// comment rather than as a field that would always be true (see the triage note in
+        /// <c>docs/RPG_Step4_Open_Questions_2026-10-02.md</c>).</para>
+        /// </summary>
+        /// <param name="isGrounded">
+        /// AS3 <c>stay</c> — the player's grounded state, <b>not</b> "the player is standing still".
+        /// The oracle's <c>stay</c> is set from the jump/ground check, and it is the same flag that
+        /// gates the <c>jumpPenalty</c> (<c>!stay</c>) and the <c>stayBonus</c> (<c>stay</c>).
+        /// </param>
+        /// <param name="dx">
+        /// The player's horizontal speed in <b>tiles per tick</b>, which is the unit AS3's
+        /// <c>dx</c> is in — so the oracle's literal thresholds (<c>&gt; 10</c>, <c>&lt; 1</c>) are
+        /// compared against it unconverted. A caller passing pixels would silently disable every
+        /// term, so the name is in the parameter rather than in the body.
+        /// </param>
+        /// <param name="dy">The player's vertical speed, same unit, for the running test only.</param>
+        /// <param name="weaponFacingDiffers">
+        /// AS3 <c>currentWeapon.storona != storona</c> — the equipped weapon points the other way
+        /// from the body. The caller owns that comparison because it needs both the weapon and the
+        /// unit's facing; passing a bool keeps this method from reaching into the weapon layer.
+        /// </param>
+        /// <returns>
+        /// The composed multiplier: <c>allPrecMult</c> times each term that applies. <b>Always
+        /// positive</b> — every factor is <c>1 ± a penalty &lt; 1</c>, so it cannot flip the sign and
+        /// turn a shot's precision negative.
+        /// </returns>
+        public float ComputePrecisionMultiplier(bool isGrounded, float dx, float dy,
+                                                bool weaponFacingDiffers)
+        {
+            return ComposePrecisionMultiplier(
+                allPrecMult, runPenalty, jumpPenalty, stayBonus, backPenalty,
+                isGrounded, dx, dy, weaponFacingDiffers);
+        }
+
+        /// <summary>
+        /// The <b>pure</b> form of the AS3 precision block (<c>UnitPlayer.as:1181-1200</c>).
+        ///
+        /// <para><b>Why static.</b> The rule is arithmetic on nine numbers and has no dependency on
+        /// Unity, so keeping it on the <c>MonoBehaviour</c> instance would make it unrunnable in the
+        /// offline fixture harness (<c>CharacterStats</c> is a <c>MonoBehaviour</c>, and instantiating
+        /// one there throws <c>ECall</c>). A static function is directly testable, which is the only
+        /// reason the four terms can be pinned to the oracle at all.</para>
+        /// </summary>
+        /// <param name="allPrecMult">The owner's standing multiplier (the seed value).</param>
+        /// <param name="runPenalty">AS3 <c>Pers.runPenalty</c>, applied only when <b>positive</b>.</param>
+        /// <param name="jumpPenalty">AS3 <c>Pers.jumpPenalty</c>, applied when airborne.</param>
+        /// <param name="stayBonus">AS3 <c>Pers.stayBonus</c>, added when grounded and near-still.</param>
+        /// <param name="backPenalty">AS3 <c>Pers.backPenalty</c>, applied when the weapon faces back.</param>
+        /// <param name="isGrounded">AS3 <c>stay</c> — grounded, not "motionless".</param>
+        /// <param name="dx">Horizontal speed in <b>px per AS3 frame</b>, the oracle's own unit.</param>
+        /// <param name="dy">Vertical speed, same unit.</param>
+        /// <param name="weaponFacingDiffers">AS3 <c>currentWeapon.storona != storona</c>.</param>
+        public static float ComposePrecisionMultiplier(
+            float allPrecMult, float runPenalty, float jumpPenalty, float stayBonus, float backPenalty,
+            bool isGrounded, float dx, float dy, bool weaponFacingDiffers)
+        {
+            float precMult = allPrecMult;
+
+            // AS3: `if(this.sats.que.length == 0 && !this.lurked)` — always true in the port.
+            // See the instance method's remarks; the gate is reproduced as a comment, not dead state.
+
+            // `runPenalty > 0` is a real guard, not a formality: the perk sets it to 0.25, but a
+            // future `<sk ref='mult'>` could zero it, and AS3 would then skip the term entirely
+            // rather than multiplying by 1.
+            if (runPenalty > 0f && (dx > 10f || dx < -10f || dy > 10f || dy < -10f))
+            {
+                precMult *= 1f - runPenalty;
+            }
+
+            // Airborne. Note this is `!stay`, so it fires on *every* jump, not only while rising.
+            if (!isGrounded)
+            {
+                precMult *= 1f - jumpPenalty;
+            }
+
+            // Grounded AND nearly stationary. Mutually exclusive with the jump term by construction
+            // (`stay` vs `!stay`), which is why the oracle can write them as two separate ifs.
+            if (isGrounded && dx < 1f && dx > -1f)
+            {
+                precMult *= 1f + stayBonus;
+            }
+
+            // Firing behind yourself.
+            if (weaponFacingDiffers)
+            {
+                precMult *= 1f - backPenalty;
+            }
+
+            return precMult;
+        }
+
         /// <summary>
         /// The AS3 <c>gg.vulner</c> table: <see cref="VulnerabilityData.Neutral"/> (all 1, emp 0 —
         /// AS3's own <c>defaultParams()</c> baseline) with every <c>tip='res'</c> deduction
@@ -1225,7 +1708,18 @@ namespace PFE.Systems.RPG
         /// Universal AS3 setSkillParam (Pers.as:1468-1573).
         /// Applies modifiers from skills, perks, items, traumas, and status effects.
         /// </summary>
-        public void ApplyNamedStat(string statId, string tip, string refType, float val, string sourceId = null)
+        /// <param name="sourceType">
+        /// What KIND of source this modifier came from — the <see cref="StatFactor.sourceType"/>
+        /// vocabulary: <c>"skill"</c>, <c>"perk"</c>, <c>"weap"</c>, <c>"stat"</c>, <c>"min"</c>.
+        /// Defaults to <c>"stat"</c> for callers that are not one of those.
+        ///
+        /// <para><b>Not `refType`.</b> These are different questions: `sourceType` answers "who applied
+        /// this" and `refType` answers "how" (add vs mult). Every call site here used to pass
+        /// <c>refType</c> straight into the <c>sourceType</c> slot, so the documented vocabulary was
+        /// dead and a factor search for sourceType == "skill" could never match.</para>
+        /// </param>
+        public void ApplyNamedStat(string statId, string tip, string refType, float val,
+                                   string sourceId = null, string sourceType = "stat")
         {
             if (string.IsNullOrEmpty(statId)) return;
 
@@ -1266,355 +1760,383 @@ namespace PFE.Systems.RPG
                 case "maxhp":
                 case "maxHp":
                     maxHp = ApplyFloatOp(maxHp, refType, val);
-                    TrackFactor("maxHp", sourceId ?? "stat", refType, val, maxHp);
+                    TrackFactor("maxHp", sourceId ?? "stat", sourceType, val, maxHp);
                     break;
                 case "inMaxMana":
                 case "maxMana":
                     inMaxMana = ApplyFloatOp(inMaxMana, refType, val);
-                    TrackFactor("inMaxMana", sourceId ?? "stat", refType, val, inMaxMana);
+                    TrackFactor("inMaxMana", sourceId ?? "stat", sourceType, val, inMaxMana);
                     break;
                 case "allDamMult":
                     allDamMult = ApplyFloatOp(allDamMult, refType, val);
-                    TrackFactor("allDamMult", sourceId ?? "stat", refType, val, allDamMult);
+                    TrackFactor("allDamMult", sourceId ?? "stat", sourceType, val, allDamMult);
                     break;
                 case "allVulnerMult":
                     allVulnerMult = ApplyFloatOp(allVulnerMult, refType, val);
-                    TrackFactor("allVulnerMult", sourceId ?? "stat", refType, val, allVulnerMult);
+                    TrackFactor("allVulnerMult", sourceId ?? "stat", sourceType, val, allVulnerMult);
                     break;
                 case "critCh":
                     critCh = ApplyFloatOp(critCh, refType, val);
-                    TrackFactor("critCh", sourceId ?? "stat", refType, val, critCh);
+                    TrackFactor("critCh", sourceId ?? "stat", sourceType, val, critCh);
                     break;
                 case "critDamMult":
                     critDamMult = ApplyFloatOp(critDamMult, refType, val);
-                    TrackFactor("critDamMult", sourceId ?? "stat", refType, val, critDamMult);
+                    TrackFactor("critDamMult", sourceId ?? "stat", sourceType, val, critDamMult);
                     break;
                 case "dexter":
                     dexter = ApplyFloatOp(dexter, refType, val);
-                    TrackFactor("dexter", sourceId ?? "stat", refType, val, dexter);
+                    TrackFactor("dexter", sourceId ?? "stat", sourceType, val, dexter);
                     break;
                 case "dodgePlus":
                     dodgePlus = ApplyFloatOp(dodgePlus, refType, val);
-                    TrackFactor("dodgePlus", sourceId ?? "stat", refType, val, dodgePlus);
+                    TrackFactor("dodgePlus", sourceId ?? "stat", sourceType, val, dodgePlus);
                     break;
                 case "skin":
                     skin = ApplyFloatOp(skin, refType, val);
-                    TrackFactor("skin", sourceId ?? "stat", refType, val, skin);
+                    TrackFactor("skin", sourceId ?? "stat", sourceType, val, skin);
                     break;
                 case "meleeDamMult":
                     meleeDamMult = ApplyFloatOp(meleeDamMult, refType, val);
-                    TrackFactor("meleeDamMult", sourceId ?? "stat", refType, val, meleeDamMult);
+                    TrackFactor("meleeDamMult", sourceId ?? "stat", sourceType, val, meleeDamMult);
                     break;
                 case "meleeSpdMult":
                     meleeSpdMult = ApplyFloatOp(meleeSpdMult, refType, val);
-                    TrackFactor("meleeSpdMult", sourceId ?? "stat", refType, val, meleeSpdMult);
+                    TrackFactor("meleeSpdMult", sourceId ?? "stat", sourceType, val, meleeSpdMult);
                     break;
                 case "meleeRun":
                     // Reached from the melee skill (AllData.as:5227, v0=10 vd=3) — a flat stat, not
                     // a multiplier, and the only writer of Pers.meleeRun in the whole oracle.
                     meleeRun = ApplyFloatOp(meleeRun, refType, val);
-                    TrackFactor("meleeRun", sourceId ?? "stat", refType, val, meleeRun);
+                    TrackFactor("meleeRun", sourceId ?? "stat", sourceType, val, meleeRun);
                     break;
                 case "gunsDamMult":
                     gunsDamMult = ApplyFloatOp(gunsDamMult, refType, val);
-                    TrackFactor("gunsDamMult", sourceId ?? "stat", refType, val, gunsDamMult);
+                    TrackFactor("gunsDamMult", sourceId ?? "stat", sourceType, val, gunsDamMult);
                     break;
                 case "spellsDamMult":
                     spellsDamMult = ApplyFloatOp(spellsDamMult, refType, val);
-                    TrackFactor("spellsDamMult", sourceId ?? "stat", refType, val, spellsDamMult);
+                    TrackFactor("spellsDamMult", sourceId ?? "stat", sourceType, val, spellsDamMult);
                     break;
                 case "punchDamMult":
                     punchDamMult = ApplyFloatOp(punchDamMult, refType, val);
-                    TrackFactor("punchDamMult", sourceId ?? "stat", refType, val, punchDamMult);
+                    TrackFactor("punchDamMult", sourceId ?? "stat", sourceType, val, punchDamMult);
                     break;
                 case "allSpeedMult":
                     allSpeedMult = ApplyFloatOp(allSpeedMult, refType, val);
-                    TrackFactor("allSpeedMult", sourceId ?? "stat", refType, val, allSpeedMult);
+                    TrackFactor("allSpeedMult", sourceId ?? "stat", sourceType, val, allSpeedMult);
                     break;
                 case "allPrecMult":
                     allPrecMult = ApplyFloatOp(allPrecMult, refType, val);
-                    TrackFactor("allPrecMult", sourceId ?? "stat", refType, val, allPrecMult);
+                    TrackFactor("allPrecMult", sourceId ?? "stat", sourceType, val, allPrecMult);
                     break;
                 case "runSpeedMult":
                     runSpeedMult = ApplyFloatOp(runSpeedMult, refType, val);
-                    TrackFactor("runSpeedMult", sourceId ?? "stat", refType, val, runSpeedMult);
+                    TrackFactor("runSpeedMult", sourceId ?? "stat", sourceType, val, runSpeedMult);
+                    break;
+                // ── The precision-penalty quartet (UnitPlayer.as:1185-1199) ──────────────────────
+                // All four arrive with NO `ref` (`v0='0.5' v1='0.25'` etc.), so ApplyFloatOp assigns
+                // the tier value absolutely — which is correct and is how AS3 reads them: the perk's
+                // tier *is* the penalty, not a delta. Do not "fix" these to a mult op.
+                case "runPenalty":
+                    runPenalty = ApplyFloatOp(runPenalty, refType, val);
+                    TrackFactor("runPenalty", sourceId ?? "stat", sourceType, val, runPenalty);
+                    break;
+                case "jumpPenalty":
+                    jumpPenalty = ApplyFloatOp(jumpPenalty, refType, val);
+                    TrackFactor("jumpPenalty", sourceId ?? "stat", sourceType, val, jumpPenalty);
+                    break;
+                case "backPenalty":
+                    backPenalty = ApplyFloatOp(backPenalty, refType, val);
+                    TrackFactor("backPenalty", sourceId ?? "stat", sourceType, val, backPenalty);
+                    break;
+                case "stayBonus":
+                    stayBonus = ApplyFloatOp(stayBonus, refType, val);
+                    TrackFactor("stayBonus", sourceId ?? "stat", sourceType, val, stayBonus);
+                    break;
+                case "mazilAdd":
+                    mazilAdd = ApplyFloatOp(mazilAdd, refType, val);
+                    TrackFactor("mazilAdd", sourceId ?? "stat", sourceType, val, mazilAdd);
                     break;
                 case "isDJ":
                     isDJ = Mathf.RoundToInt(ApplyFloatOp(isDJ, refType, val));
-                    TrackFactor("isDJ", sourceId ?? "stat", refType, val, isDJ);
+                    TrackFactor("isDJ", sourceId ?? "stat", sourceType, val, isDJ);
                     break;
                 case "levitOn":
                     levitOn = Mathf.RoundToInt(ApplyFloatOp(levitOn, refType, val));
-                    TrackFactor("levitOn", sourceId ?? "stat", refType, val, levitOn);
+                    TrackFactor("levitOn", sourceId ?? "stat", sourceType, val, levitOn);
                     break;
                 case "levitDMana":
                     levitDMana = ApplyFloatOp(levitDMana, refType, val);
-                    TrackFactor("levitDMana", sourceId ?? "stat", refType, val, levitDMana);
+                    TrackFactor("levitDMana", sourceId ?? "stat", sourceType, val, levitDMana);
                     break;
                 case "levitDManaUp":
                     levitDManaUp = ApplyFloatOp(levitDManaUp, refType, val);
-                    TrackFactor("levitDManaUp", sourceId ?? "stat", refType, val, levitDManaUp);
+                    TrackFactor("levitDManaUp", sourceId ?? "stat", sourceType, val, levitDManaUp);
                     break;
                 case "telemaster":
                     telemaster = Mathf.RoundToInt(ApplyFloatOp(telemaster, refType, val));
-                    TrackFactor("telemaster", sourceId ?? "stat", refType, val, telemaster);
+                    TrackFactor("telemaster", sourceId ?? "stat", sourceType, val, telemaster);
                     break;
                 case "teleDist":
                     teleDist = ApplyFloatOp(teleDist, refType, val);
-                    TrackFactor("teleDist", sourceId ?? "stat", refType, val, teleDist);
+                    TrackFactor("teleDist", sourceId ?? "stat", sourceType, val, teleDist);
                     break;
                 case "telePorog":
                     telePorog = ApplyFloatOp(telePorog, refType, val);
-                    TrackFactor("telePorog", sourceId ?? "stat", refType, val, telePorog);
+                    TrackFactor("telePorog", sourceId ?? "stat", sourceType, val, telePorog);
                     break;
                 case "teleMult":
                     teleMult = ApplyFloatOp(teleMult, refType, val);
-                    TrackFactor("teleMult", sourceId ?? "stat", refType, val, teleMult);
+                    TrackFactor("teleMult", sourceId ?? "stat", sourceType, val, teleMult);
                     break;
                 case "maxTeleMassa":
                     maxTeleMassa = ApplyFloatOp(maxTeleMassa, refType, val);
-                    TrackFactor("maxTeleMassa", sourceId ?? "stat", refType, val, maxTeleMassa);
+                    TrackFactor("maxTeleMassa", sourceId ?? "stat", sourceType, val, maxTeleMassa);
                     break;
                 case "throwForce":
                     throwForce = ApplyFloatOp(throwForce, refType, val);
-                    TrackFactor("throwForce", sourceId ?? "stat", refType, val, throwForce);
+                    TrackFactor("throwForce", sourceId ?? "stat", sourceType, val, throwForce);
                     break;
                 case "throwDmagic":
                     throwDmagic = ApplyFloatOp(throwDmagic, refType, val);
-                    TrackFactor("throwDmagic", sourceId ?? "stat", refType, val, throwDmagic);
+                    TrackFactor("throwDmagic", sourceId ?? "stat", sourceType, val, throwDmagic);
                     break;
                 case "throwDmanaMult":
                     throwDmanaMult = ApplyFloatOp(throwDmanaMult, refType, val);
-                    TrackFactor("throwDmanaMult", sourceId ?? "stat", refType, val, throwDmanaMult);
+                    TrackFactor("throwDmanaMult", sourceId ?? "stat", sourceType, val, throwDmanaMult);
                     break;
                 case "throwDmana":
                     throwDmana = ApplyFloatOp(throwDmana, refType, val);
-                    TrackFactor("throwDmana", sourceId ?? "stat", refType, val, throwDmana);
+                    TrackFactor("throwDmana", sourceId ?? "stat", sourceType, val, throwDmana);
                     break;
                 case "allDManaMult":
                     allDManaMult = ApplyFloatOp(allDManaMult, refType, val);
-                    TrackFactor("allDManaMult", sourceId ?? "stat", refType, val, allDManaMult);
+                    TrackFactor("allDManaMult", sourceId ?? "stat", sourceType, val, allDManaMult);
                     break;
                 case "warlockDManaMult":
                     warlockDManaMult = ApplyFloatOp(warlockDManaMult, refType, val);
-                    TrackFactor("warlockDManaMult", sourceId ?? "stat", refType, val, warlockDManaMult);
+                    TrackFactor("warlockDManaMult", sourceId ?? "stat", sourceType, val, warlockDManaMult);
                     break;
                 case "portPoss":
                     portPoss = Mathf.RoundToInt(ApplyFloatOp(portPoss, refType, val));
-                    TrackFactor("portPoss", sourceId ?? "stat", refType, val, portPoss);
+                    TrackFactor("portPoss", sourceId ?? "stat", sourceType, val, portPoss);
                     break;
                 case "spellsPoss":
                     spellsPoss = Mathf.RoundToInt(ApplyFloatOp(spellsPoss, refType, val));
-                    TrackFactor("spellsPoss", sourceId ?? "stat", refType, val, spellsPoss);
+                    TrackFactor("spellsPoss", sourceId ?? "stat", sourceType, val, spellsPoss);
                     break;
                 case "lockPick":
                     lockPick = Mathf.RoundToInt(ApplyFloatOp(lockPick, refType, val));
-                    TrackFactor("lockPick", sourceId ?? "stat", refType, val, lockPick);
+                    TrackFactor("lockPick", sourceId ?? "stat", sourceType, val, lockPick);
                     break;
                 case "possLockPick":
                     possLockPick = Mathf.RoundToInt(ApplyFloatOp(possLockPick, refType, val));
-                    TrackFactor("possLockPick", sourceId ?? "stat", refType, val, possLockPick);
+                    TrackFactor("possLockPick", sourceId ?? "stat", sourceType, val, possLockPick);
                     break;
                 case "hacker":
                     hacker = Mathf.RoundToInt(ApplyFloatOp(hacker, refType, val));
-                    TrackFactor("hacker", sourceId ?? "stat", refType, val, hacker);
+                    TrackFactor("hacker", sourceId ?? "stat", sourceType, val, hacker);
                     break;
                 case "hackerMaster":
                     hackerMaster = Mathf.RoundToInt(ApplyFloatOp(hackerMaster, refType, val));
-                    TrackFactor("hackerMaster", sourceId ?? "stat", refType, val, hackerMaster);
+                    TrackFactor("hackerMaster", sourceId ?? "stat", sourceType, val, hackerMaster);
                     break;
                 case "hackAtt":
                     hackAtt = Mathf.RoundToInt(ApplyFloatOp(hackAtt, refType, val));
-                    TrackFactor("hackAtt", sourceId ?? "stat", refType, val, hackAtt);
+                    TrackFactor("hackAtt", sourceId ?? "stat", sourceType, val, hackAtt);
                     break;
                 case "unlockMaster":
                     unlockMaster = Mathf.RoundToInt(ApplyFloatOp(unlockMaster, refType, val));
-                    TrackFactor("unlockMaster", sourceId ?? "stat", refType, val, unlockMaster);
+                    TrackFactor("unlockMaster", sourceId ?? "stat", sourceType, val, unlockMaster);
                     break;
                 case "lockAtt":
                     lockAtt = ApplyFloatOp(lockAtt, refType, val);
-                    TrackFactor("lockAtt", sourceId ?? "stat", refType, val, lockAtt);
+                    TrackFactor("lockAtt", sourceId ?? "stat", sourceType, val, lockAtt);
                     break;
                 case "pinBreak":
                     pinBreak = ApplyFloatOp(pinBreak, refType, val);
-                    TrackFactor("pinBreak", sourceId ?? "stat", refType, val, pinBreak);
+                    TrackFactor("pinBreak", sourceId ?? "stat", sourceType, val, pinBreak);
                     break;
                 case "lockPickTime":
                     lockPickTime = Mathf.RoundToInt(ApplyFloatOp(lockPickTime, refType, val));
-                    TrackFactor("lockPickTime", sourceId ?? "stat", refType, val, lockPickTime);
+                    TrackFactor("lockPickTime", sourceId ?? "stat", sourceType, val, lockPickTime);
                     break;
                 case "repair":
                     repair = Mathf.RoundToInt(ApplyFloatOp(repair, refType, val));
-                    TrackFactor("repair", sourceId ?? "stat", refType, val, repair);
+                    TrackFactor("repair", sourceId ?? "stat", sourceType, val, repair);
                     break;
                 case "repairMult":
                     repairMult = ApplyFloatOp(repairMult, refType, val);
-                    TrackFactor("repairMult", sourceId ?? "stat", refType, val, repairMult);
+                    TrackFactor("repairMult", sourceId ?? "stat", sourceType, val, repairMult);
                     break;
                 case "remine":
                     remine = Mathf.RoundToInt(ApplyFloatOp(remine, refType, val));
-                    TrackFactor("remine", sourceId ?? "stat", refType, val, remine);
+                    TrackFactor("remine", sourceId ?? "stat", sourceType, val, remine);
                     break;
                 case "signal":
                     signal = Mathf.RoundToInt(ApplyFloatOp(signal, refType, val));
-                    TrackFactor("signal", sourceId ?? "stat", refType, val, signal);
+                    TrackFactor("signal", sourceId ?? "stat", sourceType, val, signal);
                     break;
                 case "barterLvl":
                     barterLvl = Mathf.RoundToInt(ApplyFloatOp(barterLvl, refType, val));
-                    TrackFactor("barterLvl", sourceId ?? "stat", refType, val, barterLvl);
+                    TrackFactor("barterLvl", sourceId ?? "stat", sourceType, val, barterLvl);
                     break;
                 case "limitBuys":
                     limitBuys = ApplyFloatOp(limitBuys, refType, val);
-                    TrackFactor("limitBuys", sourceId ?? "stat", refType, val, limitBuys);
+                    TrackFactor("limitBuys", sourceId ?? "stat", sourceType, val, limitBuys);
                     break;
                 case "capsMult":
                 case "barterMult":
                     capsMult = ApplyFloatOp(capsMult, refType, val);
-                    TrackFactor("capsMult", sourceId ?? "stat", refType, val, capsMult);
+                    TrackFactor("capsMult", sourceId ?? "stat", sourceType, val, capsMult);
                     break;
                 case "healMult":
                     healMult = ApplyFloatOp(healMult, refType, val);
-                    TrackFactor("healMult", sourceId ?? "stat", refType, val, healMult);
+                    TrackFactor("healMult", sourceId ?? "stat", sourceType, val, healMult);
                     break;
                 case "bonusHeal":
                     bonusHeal = ApplyFloatOp(bonusHeal, refType, val);
-                    TrackFactor("bonusHeal", sourceId ?? "stat", refType, val, bonusHeal);
+                    TrackFactor("bonusHeal", sourceId ?? "stat", sourceType, val, bonusHeal);
                     break;
                 case "reanimHp":
                     reanimHp = ApplyFloatOp(reanimHp, refType, val);
-                    TrackFactor("reanimHp", sourceId ?? "stat", refType, val, reanimHp);
+                    TrackFactor("reanimHp", sourceId ?? "stat", sourceType, val, reanimHp);
                     break;
                 case "regenFew":
                     regenFew = ApplyFloatOp(regenFew, refType, val);
-                    TrackFactor("regenFew", sourceId ?? "stat", refType, val, regenFew);
+                    TrackFactor("regenFew", sourceId ?? "stat", sourceType, val, regenFew);
                     break;
                 case "regenMax":
                     regenMax = ApplyFloatOp(regenMax, refType, val);
-                    TrackFactor("regenMax", sourceId ?? "stat", refType, val, regenMax);
+                    TrackFactor("regenMax", sourceId ?? "stat", sourceType, val, regenMax);
                     break;
                 case "stealthMult":
                     stealthMult = ApplyFloatOp(stealthMult, refType, val);
-                    TrackFactor("stealthMult", sourceId ?? "stat", refType, val, stealthMult);
+                    TrackFactor("stealthMult", sourceId ?? "stat", sourceType, val, stealthMult);
                     break;
                 case "noiseRun":
                     noiseRun = ApplyFloatOp(noiseRun, refType, val);
-                    TrackFactor("noiseRun", sourceId ?? "stat", refType, val, noiseRun);
+                    TrackFactor("noiseRun", sourceId ?? "stat", sourceType, val, noiseRun);
                     break;
                 case "sneak":
                     sneak = ApplyFloatOp(sneak, refType, val);
-                    TrackFactor("sneak", sourceId ?? "stat", refType, val, sneak);
+                    TrackFactor("sneak", sourceId ?? "stat", sourceType, val, sneak);
                     break;
                 case "critInvis":
                     critInvis = ApplyFloatOp(critInvis, refType, val);
-                    TrackFactor("critInvis", sourceId ?? "stat", refType, val, critInvis);
+                    TrackFactor("critInvis", sourceId ?? "stat", sourceType, val, critInvis);
+                    break;
+                case "desintegr":
+                    desintegr = ApplyFloatOp(desintegr, refType, val);
+                    TrackFactor("desintegr", sourceId ?? "stat", sourceType, val, desintegr);
                     break;
                 case "stamRun":
                     stamRun = ApplyFloatOp(stamRun, refType, val);
-                    TrackFactor("stamRun", sourceId ?? "stat", refType, val, stamRun);
+                    TrackFactor("stamRun", sourceId ?? "stat", sourceType, val, stamRun);
                     break;
                 case "stamRes":
                     stamRes = ApplyFloatOp(stamRes, refType, val);
-                    TrackFactor("stamRes", sourceId ?? "stat", refType, val, stamRes);
+                    TrackFactor("stamRes", sourceId ?? "stat", sourceType, val, stamRes);
                     break;
                 case "maxOd":
                     maxOd = ApplyFloatOp(maxOd, refType, val);
-                    TrackFactor("maxOd", sourceId ?? "stat", refType, val, maxOd);
+                    TrackFactor("maxOd", sourceId ?? "stat", sourceType, val, maxOd);
                     break;
                 case "recMana":
                     recMana = ApplyFloatOp(recMana, refType, val);
-                    TrackFactor("recMana", sourceId ?? "stat", refType, val, recMana);
+                    TrackFactor("recMana", sourceId ?? "stat", sourceType, val, recMana);
                     break;
                 case "recManaMin":
                     recManaMin = ApplyFloatOp(recManaMin, refType, val);
-                    TrackFactor("recManaMin", sourceId ?? "stat", refType, val, recManaMin);
+                    TrackFactor("recManaMin", sourceId ?? "stat", sourceType, val, recManaMin);
                     break;
                 case "manaMin":
                     manaMin = ApplyFloatOp(manaMin, refType, val);
-                    TrackFactor("manaMin", sourceId ?? "stat", refType, val, manaMin);
+                    TrackFactor("manaMin", sourceId ?? "stat", sourceType, val, manaMin);
                     break;
                 case "shtrManaRes":
                     shtrManaRes = ApplyFloatOp(shtrManaRes, refType, val);
-                    TrackFactor("shtrManaRes", sourceId ?? "stat", refType, val, shtrManaRes);
+                    TrackFactor("shtrManaRes", sourceId ?? "stat", sourceType, val, shtrManaRes);
                     break;
                 case "manaHPRes":
                     manaHPRes = ApplyFloatOp(manaHPRes, refType, val);
-                    TrackFactor("manaHPRes", sourceId ?? "stat", refType, val, manaHPRes);
+                    TrackFactor("manaHPRes", sourceId ?? "stat", sourceType, val, manaHPRes);
                     break;
                 case "portMana":
                     portMana = ApplyFloatOp(portMana, refType, val);
-                    TrackFactor("portMana", sourceId ?? "stat", refType, val, portMana);
+                    TrackFactor("portMana", sourceId ?? "stat", sourceType, val, portMana);
                     break;
                 case "teleMana":
                     teleMana = ApplyFloatOp(teleMana, refType, val);
-                    TrackFactor("teleMana", sourceId ?? "stat", refType, val, teleMana);
+                    TrackFactor("teleMana", sourceId ?? "stat", sourceType, val, teleMana);
                     break;
                 case "teleManaMult":
                     teleManaMult = ApplyFloatOp(teleManaMult, refType, val);
-                    TrackFactor("teleManaMult", sourceId ?? "stat", refType, val, teleManaMult);
+                    TrackFactor("teleManaMult", sourceId ?? "stat", sourceType, val, teleManaMult);
                     break;
                 case "alicornRunMana":
                     alicornRunMana = ApplyFloatOp(alicornRunMana, refType, val);
-                    TrackFactor("alicornRunMana", sourceId ?? "stat", refType, val, alicornRunMana);
+                    TrackFactor("alicornRunMana", sourceId ?? "stat", sourceType, val, alicornRunMana);
                     break;
                 case "inMaxMagic":
                 case "maxmana":
                     // AS3 Unit.maxmana. Reachable by name from a <sk> the same way inMaxMana is.
                     MaxMagicMana = ApplyFloatOp(MaxMagicMana, refType, val);
-                    TrackFactor("inMaxMagic", sourceId ?? "stat", refType, val, MaxMagicMana);
+                    TrackFactor("inMaxMagic", sourceId ?? "stat", sourceType, val, MaxMagicMana);
                     break;
                 case "eco":
                     eco = Mathf.RoundToInt(ApplyFloatOp(eco, refType, val));
-                    TrackFactor("eco", sourceId ?? "stat", refType, val, eco);
+                    TrackFactor("eco", sourceId ?? "stat", sourceType, val, eco);
                     break;
                 case "sneakLurk":
                     sneakLurk = ApplyFloatOp(sneakLurk, refType, val);
-                    TrackFactor("sneakLurk", sourceId ?? "stat", refType, val, sneakLurk);
+                    TrackFactor("sneakLurk", sourceId ?? "stat", sourceType, val, sneakLurk);
                     break;
                 // ── Destinations that already had a field but no case, so the modifier was dropped.
                 //    Every one of these is referenced by authored content (skills and perks). ──
                 case "kickDestroy":
                     kickDestroy = ApplyFloatOp(kickDestroy, refType, val);
-                    TrackFactor("kickDestroy", sourceId ?? "stat", refType, val, kickDestroy);
+                    TrackFactor("kickDestroy", sourceId ?? "stat", sourceType, val, kickDestroy);
                     break;
                 case "radChild":
                     radChild = ApplyFloatOp(radChild, refType, val);
-                    TrackFactor("radChild", sourceId ?? "stat", refType, val, radChild);
+                    TrackFactor("radChild", sourceId ?? "stat", sourceType, val, radChild);
                     break;
                 case "organMultPot":
                     organMultPot = ApplyFloatOp(organMultPot, refType, val);
-                    TrackFactor("organMultPot", sourceId ?? "stat", refType, val, organMultPot);
+                    TrackFactor("organMultPot", sourceId ?? "stat", sourceType, val, organMultPot);
                     break;
                 case "reloadMult":
                     reloadMult = ApplyFloatOp(reloadMult, refType, val);
-                    TrackFactor("reloadMult", sourceId ?? "stat", refType, val, reloadMult);
+                    TrackFactor("reloadMult", sourceId ?? "stat", sourceType, val, reloadMult);
                     break;
                 case "recoilMult":
                     recoilMult = ApplyFloatOp(recoilMult, refType, val);
-                    TrackFactor("recoilMult", sourceId ?? "stat", refType, val, recoilMult);
+                    TrackFactor("recoilMult", sourceId ?? "stat", sourceType, val, recoilMult);
                     break;
                 case "jammedMult":
                     jammedMult = ApplyFloatOp(jammedMult, refType, val);
-                    TrackFactor("jammedMult", sourceId ?? "stat", refType, val, jammedMult);
+                    TrackFactor("jammedMult", sourceId ?? "stat", sourceType, val, jammedMult);
                     break;
                 case "recyc":
                     recyc = ApplyFloatOp(recyc, refType, val);
-                    TrackFactor("recyc", sourceId ?? "stat", refType, val, recyc);
+                    TrackFactor("recyc", sourceId ?? "stat", sourceType, val, recyc);
                     break;
                 case "jumpdy":
                     jumpdy = ApplyFloatOp(jumpdy, refType, val);
-                    TrackFactor("jumpdy", sourceId ?? "stat", refType, val, jumpdy);
+                    TrackFactor("jumpdy", sourceId ?? "stat", sourceType, val, jumpdy);
                     break;
                 case "djumpdy":
                     djumpdy = ApplyFloatOp(djumpdy, refType, val);
-                    TrackFactor("djumpdy", sourceId ?? "stat", refType, val, djumpdy);
+                    TrackFactor("djumpdy", sourceId ?? "stat", sourceType, val, djumpdy);
                     break;
                 case "freel":
                     freel = Mathf.RoundToInt(ApplyFloatOp(freel, refType, val));
-                    TrackFactor("freel", sourceId ?? "stat", refType, val, freel);
+                    TrackFactor("freel", sourceId ?? "stat", sourceType, val, freel);
                     break;
                 case "upChance":
                     upChance = ApplyFloatOp(upChance, refType, val);
-                    TrackFactor("upChance", sourceId ?? "stat", refType, val, upChance);
+                    TrackFactor("upChance", sourceId ?? "stat", sourceType, val, upChance);
                     break;
                 case "damPony":
                 case "damZombie":
@@ -1622,53 +2144,53 @@ namespace PFE.Systems.RPG
                 case "damInsect":
                 case "damMonster":
                 case "damAlicorn":
-                    ApplyCreatureDamageMult(statId, refType, val, sourceId);
+                    ApplyCreatureDamageMult(statId, refType, val, sourceId, sourceType);
                     break;
                 case "petDam":
                     petDam = ApplyFloatOp(petDam, refType, val);
-                    TrackFactor("petDam", sourceId ?? "stat", refType, val, petDam);
+                    TrackFactor("petDam", sourceId ?? "stat", sourceType, val, petDam);
                     break;
                 case "petSkin":
                     petSkin = ApplyFloatOp(petSkin, refType, val);
-                    TrackFactor("petSkin", sourceId ?? "stat", refType, val, petSkin);
+                    TrackFactor("petSkin", sourceId ?? "stat", sourceType, val, petSkin);
                     break;
                 case "petVulner":
                     petVulner = ApplyFloatOp(petVulner, refType, val);
-                    TrackFactor("petVulner", sourceId ?? "stat", refType, val, petVulner);
+                    TrackFactor("petVulner", sourceId ?? "stat", sourceType, val, petVulner);
                     break;
                 case "owlDam":
                     owlDam = ApplyFloatOp(owlDam, refType, val);
-                    TrackFactor("owlDam", sourceId ?? "stat", refType, val, owlDam);
+                    TrackFactor("owlDam", sourceId ?? "stat", sourceType, val, owlDam);
                     break;
                 case "owlSkin":
                     owlSkin = ApplyFloatOp(owlSkin, refType, val);
-                    TrackFactor("owlSkin", sourceId ?? "stat", refType, val, owlSkin);
+                    TrackFactor("owlSkin", sourceId ?? "stat", sourceType, val, owlSkin);
                     break;
                 case "owlVulner":
                     owlVulner = ApplyFloatOp(owlVulner, refType, val);
-                    TrackFactor("owlVulner", sourceId ?? "stat", refType, val, owlVulner);
+                    TrackFactor("owlVulner", sourceId ?? "stat", sourceType, val, owlVulner);
                     break;
                 // Magazine capacities. AS3 reaches these through the `tip="m"` branch above, which
                 // forces an additive application.
                 case "maxmW":
                     maxmW = ApplyFloatOp(maxmW, refType, val);
-                    TrackFactor("maxmW", sourceId ?? "stat", refType, val, maxmW);
+                    TrackFactor("maxmW", sourceId ?? "stat", sourceType, val, maxmW);
                     break;
                 case "maxm1":
                     maxm1 = ApplyFloatOp(maxm1, refType, val);
-                    TrackFactor("maxm1", sourceId ?? "stat", refType, val, maxm1);
+                    TrackFactor("maxm1", sourceId ?? "stat", sourceType, val, maxm1);
                     break;
                 case "maxm2":
                     maxm2 = ApplyFloatOp(maxm2, refType, val);
-                    TrackFactor("maxm2", sourceId ?? "stat", refType, val, maxm2);
+                    TrackFactor("maxm2", sourceId ?? "stat", sourceType, val, maxm2);
                     break;
                 case "maxm3":
                     maxm3 = ApplyFloatOp(maxm3, refType, val);
-                    TrackFactor("maxm3", sourceId ?? "stat", refType, val, maxm3);
+                    TrackFactor("maxm3", sourceId ?? "stat", sourceType, val, maxm3);
                     break;
                 case "maxmM":
                     maxmM = ApplyFloatOp(maxmM, refType, val);
-                    TrackFactor("maxmM", sourceId ?? "stat", refType, val, maxmM);
+                    TrackFactor("maxmM", sourceId ?? "stat", sourceType, val, maxmM);
                     break;
                 default:
                     // A stat the content authors reference but this class has no destination for.
@@ -1676,7 +2198,7 @@ namespace PFE.Systems.RPG
                     // recorded for the UI only. Logged once per id so the gap is visible rather than
                     // silently swallowed — see the RPG evaluation's "67 of 155 statIds" finding.
                     WarnUnmappedStat(statId, sourceId);
-                    TrackFactor(statId, sourceId ?? "stat", refType, val, val);
+                    TrackFactor(statId, sourceId ?? "stat", sourceType, val, val);
                     break;
             }
         }
@@ -1700,7 +2222,8 @@ namespace PFE.Systems.RPG
         /// they are one behaviour — a damage multiplier keyed by the target's family — and a
         /// per-family case block would be six copies of the same three lines.
         /// </summary>
-        private void ApplyCreatureDamageMult(string statId, string refType, float val, string sourceId)
+        private void ApplyCreatureDamageMult(string statId, string refType, float val, string sourceId,
+                                            string sourceType = "stat")
         {
             switch (statId)
             {
@@ -1712,7 +2235,7 @@ namespace PFE.Systems.RPG
                 case "damAlicorn": damAlicorn = ApplyFloatOp(damAlicorn, refType, val); break;
                 default: return;
             }
-            TrackFactor(statId, sourceId ?? "stat", refType, val, GetCreatureDamageMult(statId));
+            TrackFactor(statId, sourceId ?? "stat", sourceType, val, GetCreatureDamageMult(statId));
         }
 
         private float GetCreatureDamageMult(string statId)

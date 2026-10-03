@@ -33,6 +33,7 @@ namespace PFE.Core.Scripting
         private DevConsoleColliderCommands _colliderCommands;
         private DevConsoleProfilerCommands _profilerCommands;
         private DevConsoleRpgCommands _rpgCommands;
+        private DevConsoleEffectCommands _effectCommands;
 
         private const KeyCode ToggleKey1 = KeyCode.BackQuote;
         private const KeyCode ToggleKey2 = KeyCode.F1;
@@ -149,6 +150,7 @@ namespace PFE.Core.Scripting
             _colliderCommands ??= new DevConsoleColliderCommands();
             _profilerCommands ??= new DevConsoleProfilerCommands();
             _rpgCommands ??= new DevConsoleRpgCommands();
+            _effectCommands ??= new DevConsoleEffectCommands();
 
             if (_resolver != null)
             {
@@ -192,7 +194,12 @@ namespace PFE.Core.Scripting
             // the thing that fails when nothing wired up.
             _rpgCommands.Wire(() => FindFirstObjectByType<PFE.Entities.Player.PlayerController>());
 
-            _service.SetCommandObjects(_playerCommands, _simCommands, _saveCommands, _colliderCommands, _profilerCommands, _rpgCommands);
+            // The effect commands are wired unconditionally for the same reason: they need only a scene
+            // lookup (the player, or any UnitController) and read the live effect set from it, so they
+            // must work precisely when the effect wiring is what failed.
+            _effectCommands.Wire(() => FindFirstObjectByType<PFE.Entities.Player.PlayerController>());
+
+            _service.SetCommandObjects(_playerCommands, _simCommands, _saveCommands, _colliderCommands, _profilerCommands, _rpgCommands, _effectCommands);
         }
 
         private LandMap ResolveLandMap()

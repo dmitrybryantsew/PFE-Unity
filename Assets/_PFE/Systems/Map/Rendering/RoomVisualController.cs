@@ -118,6 +118,19 @@ namespace PFE.Systems.Map.Rendering
         private PFE.Core.SimLoop simLoop;
 
         /// <summary>
+        /// The effect-definition resolver, forwarded to every <see cref="RoomUnitSpawner"/> this
+        /// controller builds so a spawned unit's status effects can resolve their ids.
+        /// </summary>
+        /// <remarks>
+        /// Held here for the same reason <see cref="damageSystem"/> is: this controller is a scene
+        /// object with no <c>[Inject]</c> of its own, and <c>MapBridge</c> — the injected one — owns it
+        /// as a serialized field, so the handover is walked down by hand. Stored before the first room
+        /// is built in the normal order, but <see cref="SetEffectResolver"/> also reaches a spawner that
+        /// already exists, so the two are not order-dependent.
+        /// </remarks>
+        private PFE.Systems.Effects.IEffectDefinitionResolver effectResolver;
+
+        /// <summary>
         /// Whether fog of war / darkness overlay is disabled (revealed).
         /// </summary>
         public bool FogOfWarDisabled
@@ -197,6 +210,23 @@ namespace PFE.Systems.Map.Rendering
             simClock = clock;
             simLoop = loop;
             roomUnitSpawner?.AttachSimulation(clock, loop);
+        }
+
+        /// <summary>
+        /// Give this controller the resolver that turns an effect id into its template, which it
+        /// forwards to the room's unit spawner so a spawned NPC can carry status effects.
+        /// </summary>
+        /// <remarks>
+        /// <b>Safe in either order, and it never rebuilds the spawner.</b> Same shape as
+        /// <see cref="SetDamageSystem"/> and for the same reason: the spawner is stateful — it owns one
+        /// GameObject per unit record — so replacing it would orphan every existing unit and spawn a
+        /// duplicate. The stored resolver is used by the next <c>Initialize</c>; the setter on the
+        /// spawner covers a room that was already built.
+        /// </remarks>
+        public void SetEffectResolver(PFE.Systems.Effects.IEffectDefinitionResolver resolver)
+        {
+            effectResolver = resolver;
+            roomUnitSpawner?.SetEffectResolver(resolver);
         }
 
         /// <summary>
@@ -478,7 +508,7 @@ namespace PFE.Systems.Map.Rendering
             // every authored enemy existed as data and was never drawn.
             roomUnitSpawner = new RoomUnitSpawner(
                 room, backgroundPhysicalObjectParent, damageSystem: damageSystem,
-                simClock: simClock, simLoop: simLoop);
+                simClock: simClock, simLoop: simLoop, effectResolver: effectResolver);
             roomUnitSpawner.RefreshAll();
             Profiler.Mark("room.units.refreshAll");
 

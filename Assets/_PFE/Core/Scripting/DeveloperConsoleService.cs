@@ -28,6 +28,7 @@ namespace PFE.Core.Scripting
         private DevConsoleColliderCommands _colliderCommands;
         private DevConsoleProfilerCommands _profilerCommands;
         private DevConsoleRpgCommands _rpgCommands;
+        private DevConsoleEffectCommands _effectCommands;
         private bool _commandObjectsRegistered;
 
         private bool _isOpen;
@@ -85,7 +86,8 @@ namespace PFE.Core.Scripting
             DevConsoleSaveCommands saveCommands = null,
             DevConsoleColliderCommands colliderCommands = null,
             DevConsoleProfilerCommands profilerCommands = null,
-            DevConsoleRpgCommands rpgCommands = null)
+            DevConsoleRpgCommands rpgCommands = null,
+            DevConsoleEffectCommands effectCommands = null)
         {
             if (playerCommands != null) _playerCommands = playerCommands;
             if (simCommands != null) _simCommands = simCommands;
@@ -93,6 +95,7 @@ namespace PFE.Core.Scripting
             if (colliderCommands != null) _colliderCommands = colliderCommands;
             if (profilerCommands != null) _profilerCommands = profilerCommands;
             if (rpgCommands != null) _rpgCommands = rpgCommands;
+            if (effectCommands != null) _effectCommands = effectCommands;
 
             if (_luaEngine == null) return;
 
@@ -106,6 +109,7 @@ namespace PFE.Core.Scripting
                 _luaEngine.RegisterType<DevConsoleColliderCommands>();
                 _luaEngine.RegisterType<DevConsoleProfilerCommands>();
                 _luaEngine.RegisterType<DevConsoleRpgCommands>();
+                _luaEngine.RegisterType<DevConsoleEffectCommands>();
                 _commandObjectsRegistered = true;
             }
 
@@ -115,6 +119,7 @@ namespace PFE.Core.Scripting
             if (_colliderCommands != null) _luaEngine.SetGlobal("collider", _colliderCommands);
             if (_profilerCommands != null) _luaEngine.SetGlobal("prof", _profilerCommands);
             if (_rpgCommands != null) _luaEngine.SetGlobal("rpg", _rpgCommands);
+            if (_effectCommands != null) _luaEngine.SetGlobal("eff", _effectCommands);
         }
 
         /// <summary>
@@ -149,6 +154,7 @@ namespace PFE.Core.Scripting
                               "  killall         - Kill every non-player unit in the scene\n" +
                               "  weapon <id>     - Equip a weapon by content id (e.g. weapon 10mm)\n" +
                               "  ammo            - Refill the equipped weapon's magazine\n" +
+                              "  giveammo [id] [n] - Stock n rounds of an ammo type in the inventory\n" +
                               "  tp <x> <y>      - Teleport to a world position\n" +
                               "  room <x> <y>    - Teleport to the room at a land coordinate\n" +
                               "  status          - Report position, health and equipped weapon\n" +
@@ -411,6 +417,22 @@ namespace PFE.Core.Scripting
                     result = _playerCommands.RefillAmmo();
                     return true;
 
+                // Deliberately NOT an alias of "ammo": that verb writes the magazine directly, while
+                // this one feeds the inventory so the reload path is what gets exercised. Both ids and
+                // the count are optional, so a bare 'giveammo' stocks the equipped weapon's own type —
+                // the common case, and the one that makes the two verbs easy to tell apart in a log.
+                case "giveammo":
+                case "ammo+":
+                    if (_playerCommands == null) return false;
+                    {
+                        string giveAmmoId = parts.Length > 1 ? parts[1] : null;
+                        int giveAmmoCount = 30;
+                        if (parts.Length > 2 && !int.TryParse(parts[2], out giveAmmoCount))
+                            { result = "Usage: giveammo [ammoId] [amount]   (defaults: equipped type, 30)"; return true; }
+                        result = _playerCommands.GiveAmmo(giveAmmoId, giveAmmoCount);
+                        return true;
+                    }
+
                 case "tp":
                 case "teleport":
                     if (_playerCommands == null) return false;
@@ -483,6 +505,12 @@ namespace PFE.Core.Scripting
                 case "rpg":
                     if (_rpgCommands == null) return false;
                     result = RunRpgShortcut(parts);
+                    return true;
+
+                case "eff":
+                case "effect":
+                    if (_effectCommands == null) return false;
+                    result = RunEffectShortcut(parts);
                     return true;
 
                 default:
@@ -596,6 +624,77 @@ namespace PFE.Core.Scripting
                     // status would print a healthy report for a command that never ran.
                     return $"Unknown rpg subject '{parts[1]}'.\n" + _rpgCommands.Help();
             }
+        }
+
+        /// <summary>
+        /// Dispatch the effect shortcuts: <c>eff</c> (status), <c>eff list</c>, <c>eff unit [n]</c>,
+        /// <c>eff add &lt;id&gt; [s] [val]</c>, <c>eff remove &lt;id&gt;</c>, <c>eff clear</c>,
+        /// <c>eff defs [filter]</c>, <c>eff dump</c>.
+        ///
+        /// <para>A bare <c>eff</c> is <b>status</b>, matching <c>col</c>, <c>prof</c> and <c>rpg</c>: a verb
+        /// that flips state on a typo is one mistyped character from an effect applied to the wrong
+        /// target.</para>
+        /// </summary>
+        private string RunEffectShortcut(string[] parts)
+        {
+            if (parts.Length < 2) return _effectCommands.Status();
+
+            string sub = parts[1].ToLowerInvariant();
+
+            switch (sub)
+            {
+                case "status":
+                case "health":
+                    return _effectCommands.Status();
+
+                case "list":
+                case "ls":
+                    return _effectCommands.List();
+
+                case "unit":
+                case "target":
+                    return _effectCommands.Unit(parts.Length > 2 ? parts[2] : null);
+
+                case "add":
+                case "apply":
+                    if (parts.Length < 3)
+                        return "Usage: eff add <effectId> [seconds] [value]    e.g. eff add burning 10";
+                    return _effectCommands.Add(parts[2], ParseFloat(parts, 3), ParseFloat(parts, 4));
+
+                case "remove":
+                case "rem":
+                case "del":
+                    return _effectCommands.Remove(parts.Length > 2 ? parts[2] : null);
+
+                case "clear":
+                case "wipe":
+                    return _effectCommands.Clear();
+
+                case "defs":
+                case "def":
+                case "catalog":
+                    return _effectCommands.Defs(parts.Length > 2 ? parts[2] : null);
+
+                case "dump":
+                case "sk":
+                    return _effectCommands.Dump();
+
+                case "help":
+                case "?":
+                    return _effectCommands.Help();
+
+                default:
+                    return $"Unknown eff subject '{parts[1]}'.\n" + _effectCommands.Help();
+            }
+        }
+
+        /// <summary>Parse <c>parts[index]</c> as a float, treating a missing or unparseable token as 0 —
+        /// which for both <c>eff add</c> overrides means "use the definition's own value".</summary>
+        private static float ParseFloat(string[] parts, int index)
+        {
+            if (parts == null || index < 0 || index >= parts.Length) return 0f;
+            return float.TryParse(parts[index], System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out float v) ? v : 0f;
         }
 
         /// <summary>
