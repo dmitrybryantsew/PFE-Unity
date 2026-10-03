@@ -254,6 +254,20 @@ namespace PFE.Data.Definitions
                  "carries on. 0 = an ordinary round, which stops.")]
         public float penetration;
 
+        [Header("On-hit effect (dop node)")]
+        [Tooltip("AS3 <dop effect> — the on-hit status this weapon applies (Weapon.as:691-694). " +
+                 "Empty means no effect. Mapped to an effect id by the damage path, not directly.")]
+        public string dopEffect;
+
+        [Tooltip("AS3 <dop damage> — the payload amount for the on-hit effect (Weapon.as:695-698). " +
+                 "Field default 0, so an absent attribute applies an effect with value 0.")]
+        public float dopDamage;
+
+        [Tooltip("AS3 <dop ch> — application chance (Weapon.as:699-702). DEFAULT 1 = always; an " +
+                 "absent attribute is not 0. Values >= 1 are treated as CERTAIN, not rolled " +
+                 "(Unit.as:3771: `dopCh >= 1 || Math.random() < dopCh`).")]
+        public float dopChance = 1f;
+
         [Header("Magic Weapon")]
         [Tooltip("Mana cost per shot (ammo.@mana). Only used by WMagic (tip==5) weapons.")]
         public float manaCost;

@@ -14,47 +14,89 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.EffectDefinition
   effectId: potion_shadow
   type: 2
-  durationTicks: 60
-  isChem: 0
-  isBadComedown: 0
+  durationTicks: 1800
+  forever: 0
   value: 0
   effects:
-  - skillId: atkPoss
-    value: 0
-    isMultiplier: 0
-    isWeaponSkill: 0
-  - skillId: visiMult
-    value: 0
-    isMultiplier: 0
-    isWeaponSkill: 0
-  - skillId: noiseRun
-    value: 0
-    isMultiplier: 0
-    isWeaponSkill: 0
-  - skillId: stealthMult
-    value: 0.01
-    isMultiplier: 0
-    isWeaponSkill: 0
-  - skillId: allDamMult
-    value: 0
-    isMultiplier: 0
-    isWeaponSkill: 0
-  - skillId: allVulnerMult
-    value: 0.1
-    isMultiplier: 0
-    isWeaponSkill: 0
-  - skillId: maxTeleMassa
-    value: 0.01
-    isMultiplier: 0
-    isWeaponSkill: 0
-  - skillId: activateTrap
-    value: 0
-    isMultiplier: 0
-    isWeaponSkill: 0
-  - skillId: potShad
-    value: 1
-    isMultiplier: 0
-    isWeaponSkill: 0
+  - id: atkPoss
+    IsResistance: 0
+    op: 0
+    perLevel:
+    - 0
+    - 0
+    delta: 0
+    hasDelta: 0
+  - id: visiMult
+    IsResistance: 0
+    op: 2
+    perLevel:
+    - 0
+    - 0
+    delta: 0
+    hasDelta: 0
+  - id: noiseRun
+    IsResistance: 0
+    op: 2
+    perLevel:
+    - 0
+    - 0
+    delta: 0
+    hasDelta: 0
+  - id: stealthMult
+    IsResistance: 0
+    op: 0
+    perLevel:
+    - 0
+    - 0.01
+    delta: 0
+    hasDelta: 0
+  - id: allDamMult
+    IsResistance: 0
+    op: 2
+    perLevel:
+    - 0
+    - 0
+    delta: 0
+    hasDelta: 0
+  - id: allVulnerMult
+    IsResistance: 0
+    op: 2
+    perLevel:
+    - 0
+    - 0.1
+    delta: 0
+    hasDelta: 0
+  - id: maxTeleMassa
+    IsResistance: 0
+    op: 2
+    perLevel:
+    - 0
+    - 0.01
+    delta: 0
+    hasDelta: 0
+  - id: activateTrap
+    IsResistance: 0
+    op: 2
+    perLevel:
+    - 0
+    - 0
+    delta: 0
+    hasDelta: 0
+  - id: potShad
+    IsResistance: 0
+    op: 0
+    perLevel:
+    - 0
+    - 1
+    delta: 0
+    hasDelta: 0
+  lvl1: 0
+  lvl2: 0
+  lvl3: 0
+  add: 0
   afterEffectId: 
-  displayName: POTION SHADOW
-  displayValue: Harmful
+  afterIsBad: 0
+  him: 1
+  deletesOnStart:
+  - stealth
+  displayName: potion_shadow

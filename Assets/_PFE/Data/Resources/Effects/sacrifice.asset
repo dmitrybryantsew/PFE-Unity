@@ -14,11 +14,16 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.EffectDefinition
   effectId: sacrifice
   type: 4
-  durationTicks: 10
-  isChem: 0
-  isBadComedown: 0
+  durationTicks: 300
+  forever: 0
   value: 0
   effects: []
+  lvl1: 0
+  lvl2: 0
+  lvl3: 0
+  add: 0
   afterEffectId: 
-  displayName: SACRIFICE
-  displayValue: Special
+  afterIsBad: 0
+  him: 0
+  deletesOnStart: []
+  displayName: sacrifice

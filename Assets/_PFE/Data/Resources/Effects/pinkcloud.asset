@@ -14,11 +14,16 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.EffectDefinition
   effectId: pinkcloud
   type: 4
-  durationTicks: 15
-  isChem: 0
-  isBadComedown: 0
+  durationTicks: 450
+  forever: 0
   value: 20
   effects: []
+  lvl1: 0
+  lvl2: 0
+  lvl3: 0
+  add: 0
   afterEffectId: 
-  displayName: PINKCLOUD
-  displayValue: Special
+  afterIsBad: 0
+  him: 0
+  deletesOnStart: []
+  displayName: pinkcloud

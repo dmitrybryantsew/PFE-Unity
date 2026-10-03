@@ -173,6 +173,15 @@ namespace PFE.Editor.Importers
                     ParseAndSetFloat(fullItemTag, "knock", value => ammo.knockbackMultiplier = value);// ammoOtbros
                     ParseAndSetInt(fullItemTag, "fire", value => ammo.fireDamage = value);           // ammoFire
 
+                    // prec — the round's accuracy MULTIPLIER (Weapon.as:1675
+                    // `param1.precision = this.precision * this.ammoPrec`). This slot was the one the
+                    // nine-attribute comment above omitted: the field existed but nothing ever wrote it,
+                    // so it stayed at its 1f default. No tip='a' row currently carries `prec` (verified
+                    // against AllData.as — 0 of 49), so this changes no shipped value; it is added so a
+                    // mod that does carry one is not silently ignored. That is the same inert-field
+                    // shape this importer's comment block exists to prevent.
+                    ParseAndSetFloat(fullItemTag, "prec", value => ammo.precisionMultiplier = value);  // ammoPrec
+
                     // probiv — the penetration BUDGET (Weapon.as:1681 `probiv = this.probiv + ammoProbiv`).
                     // Distinct from `pier` above: pier is flat armour points, probiv is the damage
                     // budget the bullet spends walking through a target. Seven rows carry it.

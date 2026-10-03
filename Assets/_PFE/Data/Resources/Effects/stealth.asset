@@ -14,19 +14,33 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.EffectDefinition
   effectId: stealth
   type: 2
-  durationTicks: 60
-  isChem: 0
-  isBadComedown: 0
-  value: 0
+  durationTicks: 1800
+  forever: 0
+  value: 0.2
   effects:
-  - skillId: showObsInd
-    value: 1
-    isMultiplier: 0
-    isWeaponSkill: 0
-  - skillId: stealthMult
-    value: 0.2
-    isMultiplier: 0
-    isWeaponSkill: 0
+  - id: showObsInd
+    IsResistance: 0
+    op: 0
+    perLevel:
+    - 0
+    - 1
+    delta: 0
+    hasDelta: 0
+  - id: stealthMult
+    IsResistance: 0
+    op: 0
+    perLevel:
+    - 0
+    - 0.2
+    delta: 0
+    hasDelta: 0
+  lvl1: 0
+  lvl2: 0
+  lvl3: 0
+  add: 0
   afterEffectId: 
-  displayName: STEALTH
-  displayValue: Harmful
+  afterIsBad: 0
+  him: 0
+  deletesOnStart:
+  - potion_shadow
+  displayName: stealth

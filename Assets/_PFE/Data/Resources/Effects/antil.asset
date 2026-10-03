@@ -14,15 +14,24 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.EffectDefinition
   effectId: antil
   type: 4
-  durationTicks: 20
-  isChem: 0
-  isBadComedown: 0
+  durationTicks: 600
+  forever: 0
   value: 0
   effects:
-  - skillId: healMult
-    value: 0
-    isMultiplier: 0
-    isWeaponSkill: 0
+  - id: healMult
+    IsResistance: 0
+    op: 2
+    perLevel:
+    - 0
+    - 0
+    delta: 0
+    hasDelta: 0
+  lvl1: 0
+  lvl2: 0
+  lvl3: 0
+  add: 0
   afterEffectId: 
-  displayName: ANTIL
-  displayValue: Special
+  afterIsBad: 0
+  him: 0
+  deletesOnStart: []
+  displayName: antil

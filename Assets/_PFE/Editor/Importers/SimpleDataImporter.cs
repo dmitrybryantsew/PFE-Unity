@@ -56,6 +56,30 @@ namespace PFE.Editor
             Debug.Log($"Ammo: {imported} created");
         }
 
+        /// <summary>
+        /// Create one <see cref="ItemDefinition"/> per <c>&lt;item&gt;</c> element, <b>including</b> the
+        /// 49 ammunition rows.
+        ///
+        /// <para><b>Why ammo is no longer skipped.</b> This used to be
+        /// <c>if (tipCode == "a") continue; // Skip ammo</c>, on the reasoning that an ammo row is
+        /// already covered by the <c>AmmoDefinition</c> that <see cref="ImportAmmo"/> creates. That is
+        /// only half true, and the missing half is load-bearing: an <see cref="AmmoDefinition"/> is a
+        /// <i>ballistics</i> row (damage multiplier, piercing, wear), while <c>GameInventory</c> stores
+        /// <b>counts</b> against <see cref="ItemDefinition"/> ids — <c>AddItem</c> keys on
+        /// <c>itemDefinition.itemId</c> (:205) and <c>GetAmmoCount</c>/<c>ConsumeAmmo</c> look that same
+        /// dictionary up by the weapon's resolved ammo id (:644-659). With no item row the weapon can
+        /// never draw a round, so <c>p5</c>/<c>p5_1</c> — the minigun's regular and armour-piercing
+        /// rounds — could be selected in the debug dropdown but never loaded.
+        /// The 28 ammo ids that <i>did</i> have a row were exactly the <c>compw</c>/<c>stuff</c>
+        /// component rows that happen to share a name with a round; every real <c>tip='a'</c> round was
+        /// absent.</para>
+        ///
+        /// <para><b>Type and category are set here, not left to <see cref="FixDataImport"/>.</b> That
+        /// pass already maps <c>tip='a'</c> to <see cref="ItemType.Ammo"/> and is idempotent, so it can
+        /// still be run to repair assets created before this change — but a fresh import should not
+        /// depend on a second menu item to be correct. <see cref="InventoryCategory.Ammo"/> is set
+        /// alongside it so the inventory UI sorts the round into its own tab rather than Misc.</para>
+        /// </summary>
         private static void ImportItems()
         {
             string outputPath = "Assets/_PFE/Data/Resources/Items";
@@ -66,27 +90,53 @@ namespace PFE.Editor
                 "<item\\s+([^>]*?)tip\\s*=\\s*['\"]([^'\"]*)['\"]([^>]*?)>",
                 System.Text.RegularExpressions.RegexOptions.Singleline);
 
-            int imported = 0;
+            int imported = 0, ammoImported = 0;
             foreach (System.Text.RegularExpressions.Match match in matches)
             {
                 string tipCode = match.Groups[2].Value;
-                if (tipCode == "a") continue; // Skip ammo
 
                 string tagContent = match.Groups[1].Value + match.Groups[3].Value;
                 string id = ExtractAttribute(tagContent, "id");
 
-                if (!string.IsNullOrEmpty(id))
+                if (string.IsNullOrEmpty(id)) continue;
+
+                bool isAmmo = tipCode == "a";
+
+                string assetPath = $"{outputPath}/{id}.asset";
+                ItemDefinition existing = AssetDatabase.LoadAssetAtPath<ItemDefinition>(assetPath);
+
+                if (existing == null)
                 {
-                    string assetPath = $"{outputPath}/{id}.asset";
-                    if (AssetDatabase.LoadAssetAtPath<ItemDefinition>(assetPath) == null)
-                    {
-                        var item = ScriptableObject.CreateInstance<ItemDefinition>();
-                        AssetDatabase.CreateAsset(item, assetPath);
-                        imported++;
-                    }
+                    var item = ScriptableObject.CreateInstance<ItemDefinition>();
+                    item.itemId = id;
+                    ApplyTipDefaults(item, tipCode);
+                    AssetDatabase.CreateAsset(item, assetPath);
+
+                    imported++;
+                    if (isAmmo) ammoImported++;
+                }
+                else if (isAmmo && existing.itemId == id && existing.type != ItemType.Ammo)
+                {
+                    // Repair a row created before ammo was imported, without a second menu pass.
+                    ApplyTipDefaults(existing, tipCode);
+                    EditorUtility.SetDirty(existing);
                 }
             }
-            Debug.Log($"Items: {imported} created");
+            Debug.Log($"Items: {imported} created ({ammoImported} of them ammunition)");
+        }
+
+        /// <summary>
+        /// Stamp the id-derived type/category a freshly created row must carry, so a new import needs
+        /// neither <see cref="FixDataImport"/> nor a re-run to be usable. Only <c>tip='a'</c> is
+        /// special-cased; every other tip keeps the enum default, which is what
+        /// <c>FixDataImport.GetItemTypeFromSource</c> refines afterwards.
+        /// </summary>
+        private static void ApplyTipDefaults(ItemDefinition item, string tipCode)
+        {
+            if (tipCode != "a") return;
+
+            item.type = ItemType.Ammo;
+            item.inventoryCategory = InventoryCategory.Ammo;
         }
 
         private static void ImportPerks()

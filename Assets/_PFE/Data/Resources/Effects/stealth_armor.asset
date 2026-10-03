@@ -14,15 +14,25 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.EffectDefinition
   effectId: stealth_armor
   type: 2
-  durationTicks: 0
-  isChem: 0
-  isBadComedown: 0
+  durationTicks: 30
+  forever: 1
   value: 0
   effects:
-  - skillId: stealthMult
-    value: 0.2
-    isMultiplier: 0
-    isWeaponSkill: 0
+  - id: stealthMult
+    IsResistance: 0
+    op: 0
+    perLevel:
+    - 0
+    - 0.2
+    delta: 0
+    hasDelta: 0
+  lvl1: 0
+  lvl2: 0
+  lvl3: 0
+  add: 0
   afterEffectId: 
-  displayName: STEALTH ARMOR
-  displayValue: Harmful
+  afterIsBad: 0
+  him: 0
+  deletesOnStart:
+  - potion_shadow
+  displayName: stealth_armor

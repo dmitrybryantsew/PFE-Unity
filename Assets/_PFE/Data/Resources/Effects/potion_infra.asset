@@ -14,19 +14,32 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.EffectDefinition
   effectId: potion_infra
   type: 2
-  durationTicks: 30
-  isChem: 0
-  isBadComedown: 0
+  durationTicks: 900
+  forever: 0
   value: 0
   effects:
-  - skillId: infravis
-    value: 1
-    isMultiplier: 0
-    isWeaponSkill: 0
-  - skillId: visiTrap
-    value: 10
-    isMultiplier: 0
-    isWeaponSkill: 0
+  - id: infravis
+    IsResistance: 0
+    op: 0
+    perLevel:
+    - 0
+    - 1
+    delta: 0
+    hasDelta: 0
+  - id: visiTrap
+    IsResistance: 0
+    op: 2
+    perLevel:
+    - 0
+    - 10
+    delta: 0
+    hasDelta: 0
+  lvl1: 0
+  lvl2: 0
+  lvl3: 0
+  add: 0
   afterEffectId: 
-  displayName: POTION INFRA
-  displayValue: Harmful
+  afterIsBad: 0
+  him: 1
+  deletesOnStart: []
+  displayName: potion_infra

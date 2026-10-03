@@ -14,11 +14,16 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.EffectDefinition
   effectId: hydra
   type: 2
-  durationTicks: 30
-  isChem: 0
-  isBadComedown: 0
+  durationTicks: 900
+  forever: 0
   value: 10
   effects: []
-  afterEffectId: 
-  displayName: HYDRA
-  displayValue: Harmful
+  lvl1: 0
+  lvl2: 0
+  lvl3: 0
+  add: 0
+  afterEffectId: post_hydra
+  afterIsBad: 1
+  him: 1
+  deletesOnStart: []
+  displayName: hydra

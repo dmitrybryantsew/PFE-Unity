@@ -14,19 +14,40 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.EffectDefinition
   effectId: f_patty
   type: 3
-  durationTicks: 900
-  isChem: 0
-  isBadComedown: 0
+  durationTicks: 27000
+  forever: 0
   value: 0
   effects:
-  - skillId: maxhp
-    value: 1.15
-    isMultiplier: 0
-    isWeaponSkill: 0
-  - skillId: teleEnemy
-    value: 0.1
-    isMultiplier: 0
-    isWeaponSkill: 0
+  - id: maxhp
+    IsResistance: 0
+    op: 2
+    perLevel:
+    - 0
+    - 1.15
+    delta: 0
+    hasDelta: 0
+  - id: 9
+    IsResistance: 1
+    op: 0
+    perLevel:
+    - 0
+    - 0.3
+    delta: 0
+    hasDelta: 0
+  - id: teleEnemy
+    IsResistance: 0
+    op: 2
+    perLevel:
+    - 0
+    - 0.1
+    delta: 0
+    hasDelta: 0
+  lvl1: 0
+  lvl2: 0
+  lvl3: 0
+  add: 0
   afterEffectId: 
-  displayName: F PATTY
-  displayValue: 
+  afterIsBad: 0
+  him: 0
+  deletesOnStart: []
+  displayName: f_patty

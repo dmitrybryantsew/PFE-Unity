@@ -14,15 +14,33 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.EffectDefinition
   effectId: burning
   type: 2
-  durationTicks: 7
-  isChem: 0
-  isBadComedown: 0
+  durationTicks: 210
+  forever: 0
   value: 2
   effects:
-  - skillId: runForever
-    value: 1
-    isMultiplier: 0
-    isWeaponSkill: 0
+  - id: runForever
+    IsResistance: 0
+    op: 1
+    perLevel:
+    - 0
+    - 1
+    delta: 0
+    hasDelta: 0
+  - id: 11
+    IsResistance: 1
+    op: 0
+    perLevel:
+    - 0
+    - 0.5
+    delta: 0
+    hasDelta: 0
+  lvl1: 0
+  lvl2: 0
+  lvl3: 0
+  add: 0
   afterEffectId: 
-  displayName: BURNING
-  displayValue: Harmful
+  afterIsBad: 0
+  him: 0
+  deletesOnStart:
+  - freezing
+  displayName: burning

@@ -14,19 +14,30 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.EffectDefinition
   effectId: f_omelet
   type: 3
-  durationTicks: 900
-  isChem: 0
-  isBadComedown: 0
+  durationTicks: 27000
+  forever: 0
   value: 0
   effects:
-  - skillId: warlockDManaMult
-    value: 0.9
-    isMultiplier: 0
-    isWeaponSkill: 0
-  - skillId: spellsDamMult
-    value: 0
-    isMultiplier: 0
-    isWeaponSkill: 0
+  - id: warlockDManaMult
+    IsResistance: 0
+    op: 2
+    perLevel:
+    - 0
+    - 0.9
+    delta: 0
+    hasDelta: 0
+  - id: spellsDamMult
+    IsResistance: 0
+    op: 1
+    perLevel: []
+    delta: 0.1
+    hasDelta: 1
+  lvl1: 0
+  lvl2: 0
+  lvl3: 0
+  add: 0
   afterEffectId: 
-  displayName: F OMELET
-  displayValue: 
+  afterIsBad: 0
+  him: 0
+  deletesOnStart: []
+  displayName: f_omelet

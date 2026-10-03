@@ -14,35 +14,71 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.EffectDefinition
   effectId: mint
   type: 2
-  durationTicks: 100
-  isChem: 0
-  isBadComedown: 0
+  durationTicks: 3000
+  forever: 0
   value: 0
   effects:
-  - skillId: lockPick
-    value: 3
-    isMultiplier: 0
-    isWeaponSkill: 0
-  - skillId: hacker
-    value: 3
-    isMultiplier: 0
-    isWeaponSkill: 0
-  - skillId: remine
-    value: 1
-    isMultiplier: 0
-    isWeaponSkill: 0
-  - skillId: repair
-    value: 1
-    isMultiplier: 0
-    isWeaponSkill: 0
-  - skillId: unlockMaster
-    value: 1
-    isMultiplier: 0
-    isWeaponSkill: 0
-  - skillId: hackerMaster
-    value: 1
-    isMultiplier: 0
-    isWeaponSkill: 0
-  afterEffectId: 
-  displayName: MINT
-  displayValue: Harmful
+  - id: lockPick
+    IsResistance: 0
+    op: 1
+    perLevel:
+    - 0
+    - 2
+    - 3
+    delta: 0
+    hasDelta: 0
+  - id: hacker
+    IsResistance: 0
+    op: 1
+    perLevel:
+    - 0
+    - 2
+    - 3
+    delta: 0
+    hasDelta: 0
+  - id: remine
+    IsResistance: 0
+    op: 1
+    perLevel:
+    - 0
+    - 1
+    - 1
+    delta: 0
+    hasDelta: 0
+  - id: repair
+    IsResistance: 0
+    op: 1
+    perLevel:
+    - 0
+    - 1
+    - 1
+    delta: 0
+    hasDelta: 0
+  - id: unlockMaster
+    IsResistance: 0
+    op: 1
+    perLevel:
+    - 0
+    - 1
+    - 1
+    delta: 0
+    hasDelta: 0
+  - id: hackerMaster
+    IsResistance: 0
+    op: 1
+    perLevel:
+    - 0
+    - 1
+    - 1
+    delta: 0
+    hasDelta: 0
+  lvl1: 0
+  lvl2: 0
+  lvl3: 0
+  add: 0
+  afterEffectId: post_mint
+  afterIsBad: 1
+  him: 1
+  deletesOnStart:
+  - pmint
+  displayName: mint

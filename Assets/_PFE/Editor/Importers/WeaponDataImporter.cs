@@ -344,6 +344,16 @@ namespace PFE.Editor.Importers
             string dop = Node(body, "dop") ?? "";
             def.penetration = AttrF(dop, "probiv", 0f);
 
+            // The on-hit status the <dop> node also carries. All three are PRESENCE-tested in the
+            // oracle (Weapon.as:691-702), which is why `ch` defaults to 1 here: an absent attribute
+            // means "always", not "never", and a port that read a missing attr as 0 would silently
+            // disable every weapon's status effect. `damage` defaults to 0 because that IS the
+            // oracle's field default (Weapon.as:240) — an effect with no payload is a real thing
+            // (blindness, freezing), so 0 is correct rather than suspicious.
+            def.dopEffect  = Attr(dop, "effect");
+            def.dopDamage  = AttrF(dop, "damage", 0f);
+            def.dopChance  = AttrF(dop, "ch", 1f);
+
             // ── Derive archetype ─────────────────────────────────────────────
             def.projectileArchetype = DeriveArchetype(
                 (int)def.weaponType,

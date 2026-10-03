@@ -14,11 +14,40 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.EffectDefinition
   effectId: namok
   type: 2
-  durationTicks: 60
-  isChem: 0
-  isBadComedown: 0
+  durationTicks: 1800
+  forever: 0
   value: 2
-  effects: []
+  effects:
+  - id: 3
+    IsResistance: 1
+    op: 0
+    perLevel:
+    - 0
+    - 0.25
+    delta: 0
+    hasDelta: 0
+  - id: 11
+    IsResistance: 1
+    op: 0
+    perLevel:
+    - 0
+    - -0.25
+    delta: 0
+    hasDelta: 0
+  - id: 9
+    IsResistance: 1
+    op: 0
+    perLevel:
+    - 0
+    - -0.5
+    delta: 0
+    hasDelta: 0
+  lvl1: 0
+  lvl2: 0
+  lvl3: 0
+  add: 0
   afterEffectId: 
-  displayName: NAMOK
-  displayValue: Harmful
+  afterIsBad: 0
+  him: 0
+  deletesOnStart: []
+  displayName: namok

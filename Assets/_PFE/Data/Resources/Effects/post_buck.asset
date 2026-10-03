@@ -14,19 +14,36 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.EffectDefinition
   effectId: post_buck
   type: 2
-  durationTicks: 120
-  isChem: 0
-  isBadComedown: 0
+  durationTicks: 3600
+  forever: 0
   value: 0
   effects:
-  - skillId: stamRun
-    value: 2.5
-    isMultiplier: 0
-    isWeaponSkill: 0
-  - skillId: maxhp
-    value: 0.7
-    isMultiplier: 0
-    isWeaponSkill: 0
+  - id: stamRun
+    IsResistance: 0
+    op: 2
+    perLevel:
+    - 0
+    - 1.5
+    - 2
+    - 2.5
+    delta: 0
+    hasDelta: 0
+  - id: maxhp
+    IsResistance: 0
+    op: 2
+    perLevel:
+    - 0
+    - 0.9
+    - 0.8
+    - 0.7
+    delta: 0
+    hasDelta: 0
+  lvl1: 0
+  lvl2: 0
+  lvl3: 0
+  add: 0
   afterEffectId: 
-  displayName: POST BUCK
-  displayValue: Harmful
+  afterIsBad: 0
+  him: 2
+  deletesOnStart: []
+  displayName: post_buck

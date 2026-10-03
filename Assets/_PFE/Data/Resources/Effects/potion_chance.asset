@@ -14,15 +14,24 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.EffectDefinition
   effectId: potion_chance
   type: 2
-  durationTicks: 120
-  isChem: 0
-  isBadComedown: 0
+  durationTicks: 3600
+  forever: 0
   value: 0
   effects:
-  - skillId: lastCh
-    value: 300
-    isMultiplier: 0
-    isWeaponSkill: 0
+  - id: lastCh
+    IsResistance: 0
+    op: 0
+    perLevel:
+    - 0
+    - 300
+    delta: 0
+    hasDelta: 0
+  lvl1: 0
+  lvl2: 0
+  lvl3: 0
+  add: 0
   afterEffectId: 
-  displayName: POTION CHANCE
-  displayValue: Harmful
+  afterIsBad: 0
+  him: 1
+  deletesOnStart: []
+  displayName: potion_chance

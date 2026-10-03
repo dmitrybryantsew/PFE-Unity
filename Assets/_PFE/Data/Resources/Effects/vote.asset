@@ -14,19 +14,32 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.EffectDefinition
   effectId: vote
   type: 4
-  durationTicks: 8
-  isChem: 0
-  isBadComedown: 0
+  durationTicks: 240
+  forever: 0
   value: 0
   effects:
-  - skillId: attackForever
-    value: 1
-    isMultiplier: 0
-    isWeaponSkill: 0
-  - skillId: autoAttack
-    value: 1
-    isMultiplier: 0
-    isWeaponSkill: 0
+  - id: attackForever
+    IsResistance: 0
+    op: 1
+    perLevel:
+    - 0
+    - 1
+    delta: 0
+    hasDelta: 0
+  - id: autoAttack
+    IsResistance: 0
+    op: 0
+    perLevel:
+    - 0
+    - 1
+    delta: 0
+    hasDelta: 0
+  lvl1: 0
+  lvl2: 0
+  lvl3: 0
+  add: 0
   afterEffectId: 
-  displayName: VOTE
-  displayValue: Special
+  afterIsBad: 0
+  him: 0
+  deletesOnStart: []
+  displayName: vote

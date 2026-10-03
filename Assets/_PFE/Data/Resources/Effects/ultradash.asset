@@ -14,27 +14,53 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.EffectDefinition
   effectId: ultradash
   type: 2
-  durationTicks: 180
-  isChem: 0
-  isBadComedown: 0
+  durationTicks: 5400
+  forever: 0
   value: 0
   effects:
-  - skillId: runSpeedMult
-    value: 1.6
-    isMultiplier: 0
-    isWeaponSkill: 0
-  - skillId: allSpeedMult
-    value: 1.2
-    isMultiplier: 0
-    isWeaponSkill: 0
-  - skillId: jumpdy
-    value: 4
-    isMultiplier: 0
-    isWeaponSkill: 0
-  - skillId: maxOd
-    value: 90
-    isMultiplier: 0
-    isWeaponSkill: 0
-  afterEffectId: 
-  displayName: ULTRADASH
-  displayValue: Harmful
+  - id: runSpeedMult
+    IsResistance: 0
+    op: 2
+    perLevel:
+    - 0
+    - 1.5
+    - 1.6
+    delta: 0
+    hasDelta: 0
+  - id: allSpeedMult
+    IsResistance: 0
+    op: 2
+    perLevel:
+    - 0
+    - 1.1
+    - 1.2
+    delta: 0
+    hasDelta: 0
+  - id: jumpdy
+    IsResistance: 0
+    op: 1
+    perLevel:
+    - 0
+    - 4
+    - 4
+    delta: 0
+    hasDelta: 0
+  - id: maxOd
+    IsResistance: 0
+    op: 1
+    perLevel:
+    - 0
+    - 70
+    - 90
+    delta: 0
+    hasDelta: 0
+  lvl1: 0
+  lvl2: 0
+  lvl3: 0
+  add: 0
+  afterEffectId: post_dash
+  afterIsBad: 1
+  him: 1
+  deletesOnStart:
+  - dash
+  displayName: ultradash

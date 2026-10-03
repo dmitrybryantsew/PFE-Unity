@@ -14,19 +14,32 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.EffectDefinition
   effectId: f_chpasta
   type: 3
-  durationTicks: 900
-  isChem: 0
-  isBadComedown: 0
+  durationTicks: 27000
+  forever: 0
   value: 0
   effects:
-  - skillId: maxhp
-    value: 1.12
-    isMultiplier: 0
-    isWeaponSkill: 0
-  - skillId: allVulnerMult
-    value: 0.92
-    isMultiplier: 0
-    isWeaponSkill: 0
+  - id: maxhp
+    IsResistance: 0
+    op: 2
+    perLevel:
+    - 0
+    - 1.12
+    delta: 0
+    hasDelta: 0
+  - id: allVulnerMult
+    IsResistance: 0
+    op: 2
+    perLevel:
+    - 0
+    - 0.92
+    delta: 0
+    hasDelta: 0
+  lvl1: 0
+  lvl2: 0
+  lvl3: 0
+  add: 0
   afterEffectId: 
-  displayName: F CHPASTA
-  displayValue: 
+  afterIsBad: 0
+  him: 0
+  deletesOnStart: []
+  displayName: f_chpasta

@@ -277,18 +277,64 @@ namespace PFE.Data.Definitions
     }
 
     /// <summary>
-    /// Effect type from AS3.
-    /// tip='1' = Good
-    /// tip='2' = Bad
-    /// tip='3' = Special
-    /// tip='4' = Neutral
+    /// Effect category — AS3 <c>Effect.tip</c>, read from <c>&lt;eff tip&gt;</c>.
+    ///
+    /// <para><b>The names are the meaning AS3 actually gives each value; the previous set
+    /// (<c>Good</c>/<c>Bad</c>/<c>Special</c>/<c>Neutral</c>) was an invention with no reader, and its
+    /// comments contradicted its numbers.</b> Every value below is backed by a call site or by the
+    /// data census (79 definitions in <c>AllData.as</c>):</para>
+    /// <list type="bullet">
+    /// <item><see cref="Neutral"/> (<c>0</c>) — 1 row, <c>curse</c>. A trigger effect: it writes a
+    /// game flag rather than a stat, so it has no display category.</item>
+    /// <item><see cref="Timed"/> (<c>2</c>) — 40 rows (<c>burning</c>, <c>freezing</c>,
+    /// <c>chemburn</c>, <c>drunk</c>, …). The ordinary timed effect.</item>
+    /// <item><see cref="Food"/> (<c>3</c>) — 27 rows, all <c>f_*</c>. <b>One at a time</b>: this is the
+    /// only <c>tip</c> with a merge special-case (<c>Unit.as:3366-3371</c>, a wholesale replace), and
+    /// the only one whose removal message is worded differently (<c>Effect.as:304</c>
+    /// <c>"endFoodEffect"</c>).</item>
+    /// <item><see cref="Purgeable"/> (<c>4</c>) — 11 rows (<c>alicorn</c>, <c>disorient</c>,
+    /// <c>horror</c>, <c>stupor</c>, <c>weak</c>, …). A purifying potion removes every effect of this
+    /// type (<c>Invent.as:447-457</c>, <c>if(eff.tip == 4) eff.unsetEff(false,true,false)</c> — note
+    /// the arguments: <b>no aftereffect, no announce, no param pass</b>, followed by one
+    /// <c>setParameters()</c> for the batch).</item>
+    /// <item><c>1</c> — <b>declared nowhere in the data</b>. Kept out of the enum rather than named and
+    /// never used, so a hand-authored <c>tip='1'</c> cannot silently map to a plausible-sounding
+    /// category this project invented.</item>
+    /// </list>
     /// </summary>
     public enum EffectType
     {
-        Good = 1,
-        Bad = 2,
-        Special = 4,
-        Neutral = 0
+        /// <summary>AS3 <c>tip=0</c> — a trigger/flag effect (only <c>curse</c>).</summary>
+        Neutral = 0,
+
+        /// <summary>AS3 <c>tip=2</c> — the ordinary timed effect (40 rows).</summary>
+        Timed = 2,
+
+        /// <summary>AS3 <c>tip=3</c> — the food channel; only one may be active (27 rows).</summary>
+        Food = 3,
+
+        /// <summary>AS3 <c>tip=4</c> — removed in bulk by a purifying potion (11 rows).</summary>
+        Purgeable = 4
+    }
+
+    /// <summary>
+    /// Whether a unit is driven by the player's <c>Pers</c>/<c>CharacterStats</c> stack or by the
+    /// NPC's <c>Unit</c>/<c>UnitStats</c> stack.
+    ///
+    /// <para><b>Not a cosmetic distinction — the two stacks disagree about how effects are applied.</b>
+    /// The oracle replays an effect's <c>&lt;sk&gt;</c> writes with a different level index and a
+    /// different treatment of removed effects depending on which class owns the effect set
+    /// (<c>Unit.as:3495</c> vs <c>Pers.as:2202</c>), so a param pass must know which it is
+    /// running. See the design doc §3 for the measured difference; putting it in the type system is
+    /// how that difference stops being a comment nobody reads.</para>
+    /// </summary>
+    public enum PersMode
+    {
+        /// <summary><c>Unit.setEffParams</c> — index <c>1</c> active / <c>0</c> being unset.</summary>
+        Npc = 0,
+
+        /// <summary><c>Pers.setParameters</c> — index <c>eff.lvl</c>; removed effects skipped.</summary>
+        Player = 1,
     }
 
     /// <summary>

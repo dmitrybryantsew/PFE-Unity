@@ -14,23 +14,45 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.EffectDefinition
   effectId: stampede
   type: 2
-  durationTicks: 180
-  isChem: 0
-  isBadComedown: 0
+  durationTicks: 5400
+  forever: 0
   value: 0
   effects:
-  - skillId: allDamMult
-    value: 1.4
-    isMultiplier: 0
-    isWeaponSkill: 0
-  - skillId: allVulnerMult
-    value: 0.7
-    isMultiplier: 0
-    isWeaponSkill: 0
-  - skillId: runForever
-    value: -1
-    isMultiplier: 0
-    isWeaponSkill: 0
-  afterEffectId: 
-  displayName: STAMPEDE
-  displayValue: Harmful
+  - id: allDamMult
+    IsResistance: 0
+    op: 2
+    perLevel:
+    - 0
+    - 1.3
+    - 1.4
+    delta: 0
+    hasDelta: 0
+  - id: allVulnerMult
+    IsResistance: 0
+    op: 2
+    perLevel:
+    - 0
+    - 0.75
+    - 0.7
+    delta: 0
+    hasDelta: 0
+  - id: runForever
+    IsResistance: 0
+    op: 1
+    perLevel:
+    - 0
+    - -1
+    - -1
+    delta: 0
+    hasDelta: 0
+  lvl1: 0
+  lvl2: 0
+  lvl3: 0
+  add: 0
+  afterEffectId: post_stampede
+  afterIsBad: 1
+  him: 1
+  deletesOnStart:
+  - rage
+  - medx
+  displayName: stampede

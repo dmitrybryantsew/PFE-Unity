@@ -14,31 +14,61 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.EffectDefinition
   effectId: buck
   type: 2
-  durationTicks: 180
-  isChem: 0
-  isBadComedown: 0
+  durationTicks: 5400
+  forever: 0
   value: 0
   effects:
-  - skillId: stamRun
-    value: 0.35
-    isMultiplier: 0
-    isWeaponSkill: 0
-  - skillId: maxhp
-    value: 1.35
-    isMultiplier: 0
-    isWeaponSkill: 0
-  - skillId: skin
-    value: 4
-    isMultiplier: 0
-    isWeaponSkill: 0
-  - skillId: punchDamMult
-    value: 0.7
-    isMultiplier: 0
-    isWeaponSkill: 0
-  - skillId: kickDestroy
-    value: 80
-    isMultiplier: 0
-    isWeaponSkill: 0
-  afterEffectId: 
-  displayName: BUCK
-  displayValue: Harmful
+  - id: stamRun
+    IsResistance: 0
+    op: 2
+    perLevel:
+    - 0
+    - 0.5
+    - 0.35
+    delta: 0
+    hasDelta: 0
+  - id: maxhp
+    IsResistance: 0
+    op: 2
+    perLevel:
+    - 0
+    - 1.25
+    - 1.35
+    delta: 0
+    hasDelta: 0
+  - id: skin
+    IsResistance: 0
+    op: 1
+    perLevel:
+    - 0
+    - 3
+    - 4
+    delta: 0
+    hasDelta: 0
+  - id: punchDamMult
+    IsResistance: 0
+    op: 1
+    perLevel:
+    - 0
+    - 0.5
+    - 0.7
+    delta: 0
+    hasDelta: 0
+  - id: kickDestroy
+    IsResistance: 0
+    op: 1
+    perLevel:
+    - 0
+    - 50
+    - 80
+    delta: 0
+    hasDelta: 0
+  lvl1: 0
+  lvl2: 0
+  lvl3: 0
+  add: 0
+  afterEffectId: post_buck
+  afterIsBad: 1
+  him: 1
+  deletesOnStart: []
+  displayName: buck

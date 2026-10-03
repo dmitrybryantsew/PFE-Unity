@@ -14,63 +14,120 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.EffectDefinition
   effectId: alicorn
   type: 4
-  durationTicks: 20
-  isChem: 0
-  isBadComedown: 0
+  durationTicks: 600
+  forever: 0
   value: 0
   effects:
-  - skillId: ableFly
-    value: 1
-    isMultiplier: 0
-    isWeaponSkill: 0
-  - skillId: maxhp
-    value: 5
-    isMultiplier: 0
-    isWeaponSkill: 0
-  - skillId: healMult
-    value: 2.5
-    isMultiplier: 0
-    isWeaponSkill: 0
-  - skillId: allSpeedMult
-    value: 1.8
-    isMultiplier: 0
-    isWeaponSkill: 0
-  - skillId: knocked
-    value: 0.1
-    isMultiplier: 0
-    isWeaponSkill: 0
-  - skillId: allDamMult
-    value: 5
-    isMultiplier: 0
-    isWeaponSkill: 0
-  - skillId: allPrecMult
-    value: 2
-    isMultiplier: 0
-    isWeaponSkill: 0
-  - skillId: meleeR
-    value: 1.5
-    isMultiplier: 0
-    isWeaponSkill: 0
-  - skillId: runForever
-    value: -1
-    isMultiplier: 0
-    isWeaponSkill: 0
-  - skillId: shitArmor
-    value: 30
-    isMultiplier: 0
-    isWeaponSkill: 0
-  - skillId: recManaMin
-    value: 2
-    isMultiplier: 0
-    isWeaponSkill: 0
-  - skillId: allDManaMult
-    value: 0.75
-    isMultiplier: 0
-    isWeaponSkill: 0
-  - skillId: pipEmpVulner
-    value: 0
-    isMultiplier: 0
-    isWeaponSkill: 0
+  - id: ableFly
+    IsResistance: 0
+    op: 0
+    perLevel:
+    - 0
+    - 1
+    delta: 0
+    hasDelta: 0
+  - id: maxhp
+    IsResistance: 0
+    op: 2
+    perLevel:
+    - 0
+    - 5
+    delta: 0
+    hasDelta: 0
+  - id: healMult
+    IsResistance: 0
+    op: 2
+    perLevel:
+    - 0
+    - 2.5
+    delta: 0
+    hasDelta: 0
+  - id: allSpeedMult
+    IsResistance: 0
+    op: 2
+    perLevel:
+    - 0
+    - 1.8
+    delta: 0
+    hasDelta: 0
+  - id: knocked
+    IsResistance: 0
+    op: 2
+    perLevel:
+    - 0
+    - 0.1
+    delta: 0
+    hasDelta: 0
+  - id: allDamMult
+    IsResistance: 0
+    op: 2
+    perLevel:
+    - 0
+    - 5
+    delta: 0
+    hasDelta: 0
+  - id: allPrecMult
+    IsResistance: 0
+    op: 2
+    perLevel:
+    - 0
+    - 2
+    delta: 0
+    hasDelta: 0
+  - id: meleeR
+    IsResistance: 0
+    op: 2
+    perLevel:
+    - 0
+    - 1.5
+    delta: 0
+    hasDelta: 0
+  - id: runForever
+    IsResistance: 0
+    op: 1
+    perLevel:
+    - 0
+    - -1
+    delta: 0
+    hasDelta: 0
+  - id: shitArmor
+    IsResistance: 0
+    op: 1
+    perLevel:
+    - 0
+    - 30
+    delta: 0
+    hasDelta: 0
+  - id: recManaMin
+    IsResistance: 0
+    op: 1
+    perLevel:
+    - 0
+    - 2
+    delta: 0
+    hasDelta: 0
+  - id: allDManaMult
+    IsResistance: 0
+    op: 2
+    perLevel:
+    - 0
+    - 0.75
+    delta: 0
+    hasDelta: 0
+  - id: pipEmpVulner
+    IsResistance: 0
+    op: 0
+    perLevel:
+    - 0
+    - 0
+    delta: 0
+    hasDelta: 0
+  lvl1: 0
+  lvl2: 0
+  lvl3: 0
+  add: 0
   afterEffectId: 
-  displayName: ALICORN
-  displayValue: Special
+  afterIsBad: 0
+  him: 0
+  deletesOnStart: []
+  displayName: alicorn

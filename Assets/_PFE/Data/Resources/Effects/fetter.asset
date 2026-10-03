@@ -14,15 +14,24 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.EffectDefinition
   effectId: fetter
   type: 4
-  durationTicks: 7
-  isChem: 0
-  isBadComedown: 0
+  durationTicks: 210
+  forever: 0
   value: 0
   effects:
-  - skillId: isFetter
-    value: 130
-    isMultiplier: 0
-    isWeaponSkill: 0
+  - id: isFetter
+    IsResistance: 0
+    op: 0
+    perLevel:
+    - 0
+    - 130
+    delta: 0
+    hasDelta: 0
+  lvl1: 0
+  lvl2: 0
+  lvl3: 0
+  add: 0
   afterEffectId: 
-  displayName: FETTER
-  displayValue: Special
+  afterIsBad: 0
+  him: 0
+  deletesOnStart: []
+  displayName: fetter

@@ -14,11 +14,24 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.EffectDefinition
   effectId: antidote
   type: 2
-  durationTicks: 30
-  isChem: 0
-  isBadComedown: 0
+  durationTicks: 900
+  forever: 0
   value: 0
-  effects: []
+  effects:
+  - id: 12
+    IsResistance: 1
+    op: 0
+    perLevel:
+    - 0
+    - 0.5
+    delta: 0
+    hasDelta: 0
+  lvl1: 0
+  lvl2: 0
+  lvl3: 0
+  add: 0
   afterEffectId: 
-  displayName: ANTIDOTE
-  displayValue: Harmful
+  afterIsBad: 0
+  him: 0
+  deletesOnStart: []
+  displayName: antidote

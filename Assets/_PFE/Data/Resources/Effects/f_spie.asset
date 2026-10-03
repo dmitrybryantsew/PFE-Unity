@@ -14,23 +14,40 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.EffectDefinition
   effectId: f_spie
   type: 3
-  durationTicks: 900
-  isChem: 0
-  isBadComedown: 0
+  durationTicks: 27000
+  forever: 0
   value: 0
   effects:
-  - skillId: allPrecMult
-    value: 0.15
-    isMultiplier: 0
-    isWeaponSkill: 0
-  - skillId: meleeSpdMult
-    value: 0.15
-    isMultiplier: 0
-    isWeaponSkill: 0
-  - skillId: critCh
-    value: 0.05
-    isMultiplier: 0
-    isWeaponSkill: 0
+  - id: allPrecMult
+    IsResistance: 0
+    op: 1
+    perLevel:
+    - 0
+    - 0.15
+    delta: 0
+    hasDelta: 0
+  - id: meleeSpdMult
+    IsResistance: 0
+    op: 1
+    perLevel:
+    - 0
+    - 0.15
+    delta: 0
+    hasDelta: 0
+  - id: critCh
+    IsResistance: 0
+    op: 1
+    perLevel:
+    - 0
+    - 0.05
+    delta: 0
+    hasDelta: 0
+  lvl1: 0
+  lvl2: 0
+  lvl3: 0
+  add: 0
   afterEffectId: 
-  displayName: F SPIE
-  displayValue: 
+  afterIsBad: 0
+  him: 0
+  deletesOnStart: []
+  displayName: f_spie

@@ -14,19 +14,28 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.EffectDefinition
   effectId: post_mint
   type: 2
-  durationTicks: 100
-  isChem: 0
-  isBadComedown: 0
+  durationTicks: 3000
+  forever: 0
   value: 0
   effects:
-  - skillId: lockPick
-    value: 0
-    isMultiplier: 0
-    isWeaponSkill: 0
-  - skillId: hacker
-    value: 0
-    isMultiplier: 0
-    isWeaponSkill: 0
+  - id: lockPick
+    IsResistance: 0
+    op: 1
+    perLevel: []
+    delta: -1
+    hasDelta: 1
+  - id: hacker
+    IsResistance: 0
+    op: 1
+    perLevel: []
+    delta: -1
+    hasDelta: 1
+  lvl1: 0
+  lvl2: 0
+  lvl3: 0
+  add: 0
   afterEffectId: 
-  displayName: POST MINT
-  displayValue: Harmful
+  afterIsBad: 0
+  him: 2
+  deletesOnStart: []
+  displayName: post_mint

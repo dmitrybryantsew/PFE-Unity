@@ -790,6 +790,105 @@ namespace PFE.Data.Definitions
     }
 
     /// <summary>
+    /// How a <see cref="EffectParam"/> writes its value onto the target.
+    ///
+    /// <para><b>This is AS3's <c>&lt;sk ref&gt;</c> attribute, and the default is the dangerous one.</b>
+    /// <c>Unit.setSkillParam</c> (<c>Unit.as:3447-3462</c>) branches on <c>ref</c>: <c>"add"</c> →
+    /// <c>this[id] += v</c>, <c>"mult"</c> → <c>this[id] *= v</c>, and <b>anything else — including a
+    /// missing <c>ref</c> — assigns</b> (<c>this[id] = v</c>). So an absent <c>ref</c> is not "no
+    /// operation", it is a <b>replace</b>. Getting that default wrong would turn a +25% buff into a
+    /// set-to-0.25× and is exactly the kind of silent inversion this project keeps logging.</para>
+    /// </summary>
+    public enum EffectParamRef
+    {
+        /// <summary><c>this[id] = v</c> — AS3's fall-through when <c>ref</c> is neither add nor mult.</summary>
+        Assign = 0,
+        /// <summary><c>this[id] += v</c></summary>
+        Add = 1,
+        /// <summary><c>this[id] *= v</c></summary>
+        Mult = 2,
+    }
+
+    /// <summary>
+    /// One <c>&lt;sk&gt;</c> child of an <c>&lt;eff&gt;</c> node — a single stat-write an effect
+    /// performs. The effect-level port of AS3's <c>Unit.setSkillParam</c> input.
+    ///
+    /// <para><b>Why this is not <see cref="SkillModifier"/>.</b> That struct is shared with perks and
+    /// carries one <c>value</c> and a guessed <c>isMultiplier</c>. An effect param needs three things
+    /// it cannot express: the <c>tip</c> discrimination (only <c>tip='res'</c> is a real special case
+    /// in the oracle), the <c>ref</c> semantics above, and a <b>per-level value vector</b> — because
+    /// <c>setSkillParam</c> selects <c>v0</c>/<c>v1</c>/<c>v2</c>… by the effect's current
+    /// <c>lvl</c> (which rises with duration), and computes <c>v0 + lvl * vd</c> when a <c>vd</c>
+    /// delta is present. Widening the shared struct would have forced those onto every perk.</para>
+    /// </summary>
+    [System.Serializable]
+    public struct EffectParam
+    {
+        /// <summary>
+        /// AS3 <c>&lt;sk id&gt;</c>. Its meaning depends on <see cref="IsResistance"/>:
+        /// a <see cref="DamageType"/> index (<c>"11"</c> = Cryo) when resistance, otherwise the name
+        /// of a field on the target (<c>"maxhp"</c>, <c>"tormoz"</c>, …).
+        /// </summary>
+        public string id;
+
+        /// <summary>
+        /// True for AS3 <c>tip='res'</c> — the <b>only</b> <c>tip</c> value
+        /// <c>Unit.setSkillParam</c> treats specially (<c>Unit.as:3443</c>). A resistance write is
+        /// <c>vulner[id] -= v</c> — <b>note the minus</b>: a positive value makes the target take
+        /// <i>more</i> of that damage type, matching the vulnerability table's "1 = neutral, &gt;1 =
+        /// weak" convention. <c>tip='weap'</c>/<c>'unit'</c> are <b>not</b> special cases: AS3 funnels
+        /// them into the field-write branch, where they name fields that do not exist — so they are
+        /// no-ops in the oracle too.
+        /// </summary>
+        public bool IsResistance;
+
+        /// <summary>How the value is applied — AS3 <c>ref</c>.</summary>
+        public EffectParamRef op;
+
+        /// <summary>
+        /// The per-level values, AS3 <c>v0</c>…<c>v5</c>. Index 0 is <c>v0</c>. The effect's current
+        /// <c>lvl</c> (1..4) selects the entry; when the entry or the whole vector is absent the
+        /// oracle falls back down a chain (<c>v&lt;lvl&gt;</c> → <c>v0</c>), reproduced by
+        /// <see cref="ValueForLevel"/>.
+        /// </summary>
+        public float[] perLevel;
+
+        /// <summary>
+        /// AS3 <c>vd</c> — a per-level delta. When set (non-zero, or the attribute was present), the
+        /// value is <c>v0 + lvl * vd</c> and the <see cref="perLevel"/> vector is bypassed entirely
+        /// (<c>Unit.as:3429-3431</c>).
+        /// </summary>
+        public float delta;
+
+        /// <summary>True when AS3 <c>vd</c> was present on the node (delta form wins over perLevel).</summary>
+        public bool hasDelta;
+
+        /// <summary>
+        /// The value this param writes for a given index, reproducing AS3's fallback chain
+        /// (<c>Unit.as:3429-3441</c>): <c>vd</c> present → <c>v0 + index*vd</c>; else
+        /// <c>v&lt;index&gt;</c> if present; else <c>v0</c>; else 0.
+        ///
+        /// <para><b><paramref name="index"/> is not always the effect's level.</b> The NPC replay
+        /// passes a hardcoded <c>1</c> while active and <c>0</c> while being removed; only the player
+        /// replay passes <c>eff.lvl</c> (<c>Unit.as:3495</c> vs <c>Pers.as:2202</c>). The caller
+        /// supplies the index precisely because the two paths disagree — see the design doc §3.</para>
+        /// </summary>
+        public float ValueForLevel(int index)
+        {
+            if (perLevel == null || perLevel.Length == 0)
+                return hasDelta ? delta * index : 0f;
+
+            float v0 = perLevel[0];
+            if (hasDelta)
+                return v0 + index * delta;
+
+            if (index > 0 && index < perLevel.Length)
+                return perLevel[index];
+            return v0;
+        }
+    }
+
+    /// <summary>
     /// Effect reference for items and perks.
     /// </summary>
     [System.Serializable]

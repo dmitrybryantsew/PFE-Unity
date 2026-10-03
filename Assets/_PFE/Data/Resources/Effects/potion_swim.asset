@@ -14,23 +14,40 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.EffectDefinition
   effectId: potion_swim
   type: 2
-  durationTicks: 300
-  isChem: 0
-  isBadComedown: 0
+  durationTicks: 9000
+  forever: 0
   value: 0
   effects:
-  - skillId: h2oPlav
-    value: 0
-    isMultiplier: 0
-    isWeaponSkill: 0
-  - skillId: speedPlavMult
-    value: 2
-    isMultiplier: 0
-    isWeaponSkill: 0
-  - skillId: ddyPlav
-    value: 0
-    isMultiplier: 0
-    isWeaponSkill: 0
+  - id: h2oPlav
+    IsResistance: 0
+    op: 2
+    perLevel:
+    - 0
+    - 0
+    delta: 0
+    hasDelta: 0
+  - id: speedPlavMult
+    IsResistance: 0
+    op: 2
+    perLevel:
+    - 0
+    - 2
+    delta: 0
+    hasDelta: 0
+  - id: ddyPlav
+    IsResistance: 0
+    op: 2
+    perLevel:
+    - 0
+    - 0
+    delta: 0
+    hasDelta: 0
+  lvl1: 0
+  lvl2: 0
+  lvl3: 0
+  add: 0
   afterEffectId: 
-  displayName: POTION SWIM
-  displayValue: Harmful
+  afterIsBad: 0
+  him: 1
+  deletesOnStart: []
+  displayName: potion_swim

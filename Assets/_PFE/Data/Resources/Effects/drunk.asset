@@ -14,39 +14,93 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.EffectDefinition
   effectId: drunk
   type: 2
-  durationTicks: 120
-  isChem: 0
-  isBadComedown: 0
+  durationTicks: 3600
+  forever: 0
   value: 3
   effects:
-  - skillId: tormoz
-    value: 0.2
-    isMultiplier: 0
-    isWeaponSkill: 0
-  - skillId: precMultCont
-    value: 0.2
-    isMultiplier: 0
-    isWeaponSkill: 0
-  - skillId: allDManaMult
-    value: 3
-    isMultiplier: 0
-    isWeaponSkill: 0
-  - skillId: meleeDamMult
-    value: 0.5
-    isMultiplier: 0
-    isWeaponSkill: 0
-  - skillId: allVulnerMult
-    value: 0.85
-    isMultiplier: 0
-    isWeaponSkill: 0
-  - skillId: dexter
-    value: 0.2
-    isMultiplier: 0
-    isWeaponSkill: 0
-  - skillId: mordaN
-    value: 3
-    isMultiplier: 0
-    isWeaponSkill: 0
+  - id: tormoz
+    IsResistance: 0
+    op: 2
+    perLevel:
+    - 0
+    - 0.9
+    - 0.8
+    - 0.6
+    - 0.2
+    delta: 0
+    hasDelta: 0
+  - id: precMultCont
+    IsResistance: 0
+    op: 2
+    perLevel:
+    - 0
+    - 0.9
+    - 0.8
+    - 0.5
+    - 0.2
+    delta: 0
+    hasDelta: 0
+  - id: allDManaMult
+    IsResistance: 0
+    op: 2
+    perLevel:
+    - 0
+    - 1.2
+    - 1.5
+    - 2
+    - 3
+    delta: 0
+    hasDelta: 0
+  - id: meleeDamMult
+    IsResistance: 0
+    op: 2
+    perLevel:
+    - 0
+    - 1.1
+    - 1.2
+    - 1.5
+    - 0.5
+    delta: 0
+    hasDelta: 0
+  - id: allVulnerMult
+    IsResistance: 0
+    op: 2
+    perLevel:
+    - 0
+    - 0.95
+    - 0.9
+    - 0.85
+    - 0.85
+    delta: 0
+    hasDelta: 0
+  - id: dexter
+    IsResistance: 0
+    op: 2
+    perLevel:
+    - 0
+    - 0.9
+    - 0.8
+    - 0.6
+    - 0.2
+    delta: 0
+    hasDelta: 0
+  - id: mordaN
+    IsResistance: 0
+    op: 0
+    perLevel:
+    - 1
+    - 1
+    - 2
+    - 2
+    - 3
+    delta: 0
+    hasDelta: 0
+  lvl1: 150
+  lvl2: 350
+  lvl3: 750
+  add: 1
   afterEffectId: 
-  displayName: DRUNK
-  displayValue: Harmful
+  afterIsBad: 0
+  him: 1
+  deletesOnStart: []
+  displayName: drunk

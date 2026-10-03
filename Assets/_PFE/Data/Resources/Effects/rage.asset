@@ -14,15 +14,26 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.EffectDefinition
   effectId: rage
   type: 2
-  durationTicks: 180
-  isChem: 0
-  isBadComedown: 0
+  durationTicks: 5400
+  forever: 0
   value: 0
   effects:
-  - skillId: allDamMult
-    value: 1.35
-    isMultiplier: 0
-    isWeaponSkill: 0
-  afterEffectId: 
-  displayName: RAGE
-  displayValue: Harmful
+  - id: allDamMult
+    IsResistance: 0
+    op: 2
+    perLevel:
+    - 0
+    - 1.25
+    - 1.35
+    delta: 0
+    hasDelta: 0
+  lvl1: 0
+  lvl2: 0
+  lvl3: 0
+  add: 0
+  afterEffectId: post_rage
+  afterIsBad: 1
+  him: 1
+  deletesOnStart:
+  - stampede
+  displayName: rage

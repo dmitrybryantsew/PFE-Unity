@@ -14,27 +14,48 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.EffectDefinition
   effectId: contusion
   type: 2
-  durationTicks: 60
-  isChem: 0
-  isBadComedown: 0
+  durationTicks: 1800
+  forever: 0
   value: 0
   effects:
-  - skillId: tormoz
-    value: 0.75
-    isMultiplier: 0
-    isWeaponSkill: 0
-  - skillId: precMultCont
-    value: 0.8
-    isMultiplier: 0
-    isWeaponSkill: 0
-  - skillId: rapidMultCont
-    value: 0.8
-    isMultiplier: 0
-    isWeaponSkill: 0
-  - skillId: allDManaMult
-    value: 1.5
-    isMultiplier: 0
-    isWeaponSkill: 0
+  - id: tormoz
+    IsResistance: 0
+    op: 2
+    perLevel:
+    - 0
+    - 0.75
+    delta: 0
+    hasDelta: 0
+  - id: precMultCont
+    IsResistance: 0
+    op: 2
+    perLevel:
+    - 0
+    - 0.8
+    delta: 0
+    hasDelta: 0
+  - id: rapidMultCont
+    IsResistance: 0
+    op: 2
+    perLevel:
+    - 0
+    - 0.8
+    delta: 0
+    hasDelta: 0
+  - id: allDManaMult
+    IsResistance: 0
+    op: 2
+    perLevel:
+    - 0
+    - 1.5
+    delta: 0
+    hasDelta: 0
+  lvl1: 0
+  lvl2: 0
+  lvl3: 0
+  add: 0
   afterEffectId: 
-  displayName: CONTUSION
-  displayValue: Harmful
+  afterIsBad: 0
+  him: 0
+  deletesOnStart: []
+  displayName: contusion

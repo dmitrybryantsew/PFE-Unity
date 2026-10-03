@@ -14,15 +14,24 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.EffectDefinition
   effectId: f_od
   type: 3
-  durationTicks: 450
-  isChem: 0
-  isBadComedown: 0
+  durationTicks: 13500
+  forever: 0
   value: 0
   effects:
-  - skillId: maxOd
-    value: 20
-    isMultiplier: 0
-    isWeaponSkill: 0
+  - id: maxOd
+    IsResistance: 0
+    op: 1
+    perLevel:
+    - 0
+    - 20
+    delta: 0
+    hasDelta: 0
+  lvl1: 0
+  lvl2: 0
+  lvl3: 0
+  add: 0
   afterEffectId: 
-  displayName: F OD
-  displayValue: 
+  afterIsBad: 0
+  him: 0
+  deletesOnStart: []
+  displayName: f_od

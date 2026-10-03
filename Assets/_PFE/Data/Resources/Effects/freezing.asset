@@ -14,15 +14,57 @@ MonoBehaviour:
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.EffectDefinition
   effectId: freezing
   type: 2
-  durationTicks: 15
-  isChem: 0
-  isBadComedown: 0
+  durationTicks: 450
+  forever: 0
   value: 2
   effects:
-  - skillId: tormoz
-    value: 0.75
-    isMultiplier: 0
-    isWeaponSkill: 0
+  - id: 0
+    IsResistance: 1
+    op: 0
+    perLevel:
+    - 0
+    - -0.3
+    delta: 0
+    hasDelta: 0
+  - id: 2
+    IsResistance: 1
+    op: 0
+    perLevel:
+    - 0
+    - -0.3
+    delta: 0
+    hasDelta: 0
+  - id: 4
+    IsResistance: 1
+    op: 0
+    perLevel:
+    - 0
+    - -0.3
+    delta: 0
+    hasDelta: 0
+  - id: 3
+    IsResistance: 1
+    op: 0
+    perLevel:
+    - 0
+    - 0.25
+    delta: 0
+    hasDelta: 0
+  - id: tormoz
+    IsResistance: 0
+    op: 2
+    perLevel:
+    - 0
+    - 0.75
+    delta: 0
+    hasDelta: 0
+  lvl1: 0
+  lvl2: 0
+  lvl3: 0
+  add: 0
   afterEffectId: 
-  displayName: FREEZING
-  displayValue: Harmful
+  afterIsBad: 0
+  him: 0
+  deletesOnStart:
+  - burning
+  displayName: freezing
