@@ -71,7 +71,30 @@ namespace PFE.Core.Scripting
         private bool _ignorePerkPrereqs = true;
 
         private string _weaponSearch = string.Empty;
-        private int _weaponCategoryFilter = 0; // 0: All, 1: Handgun, 2: SMG/Rifle, 3: Shotgun, 4: Heavy, 5: Melee, 6: Magic/Energy, 7: Thrown
+
+        /// <summary>
+        /// Index into <see cref="WeaponCategoryLabels"/>. The weapons tab groups by **skill**, exactly as
+        /// AS3's Pip-Boy does (<c>PipPageInv.as:33</c>) — not by weapon type. See
+        /// <see cref="MatchesWeaponCategory"/> for the mapping and why the order looks odd.
+        /// </summary>
+        private int _weaponCategoryFilter = 0; // 0 = All, then AS3's six skill categories (w1,w2,w4,w5,w6,w3)
+
+        // ── Weapon categories — AS3's split, not an invented one ──────────────
+        //
+        // AS3's Pip-Boy weapons tab groups weapons by **skill**, not by weapon type: PipPageInv.as:33
+        // sets its six category buttons to ["","w1","w2","w4","w5","w6","w3"] — literally "w" +
+        // weapon.skill — and PipPageInv.as:100 folds tele (skill 7) into the magic button (w6).
+        // Skill id → name is Pers.getWeapLevel (Pers.as:1073-1103):
+        //   1 melee, 2 smallguns, 3 repair, 4 energy, 5 explosives, 6 magic, 7 tele.
+        //
+        // The ORDER is AS3's (w1,w2,w4,w5,w6,w3), so "Repair" sits last even though its skill id (3) is
+        // the third. WeaponDefinition.skillLevel already carries this id (WeaponDataImporter.cs:250) —
+        // the old code ignored it and guessed from the weapon id instead, which mis-split the list.
+        private static readonly string[] WeaponCategoryLabels =
+            { "All", "Melee", "Small Guns", "Energy", "Explosives", "Magic", "Repair" };
+
+        /// <summary>Button index → AS3 skill id. Index 0 is "All" (skill 0 matches every weapon).</summary>
+        private static readonly int[] WeaponCategorySkill = { 0, 1, 2, 4, 5, 6, 3 };
 
         private string _armorSearch = string.Empty;
         private int _armorFilterMode = 0; // 0: Visual Sets (20), 1: All Apparel
@@ -1312,18 +1335,39 @@ namespace PFE.Core.Scripting
 
             GUILayout.Space(6);
 
-            // Filter & Search Toolbar
+            // ── Filter row 1: search + match count ────────────────────────────
             GUILayout.BeginHorizontal(_cardStyle);
             GUILayout.Label("Search:", GUILayout.Width(50));
-            _weaponSearch = GUILayout.TextField(_weaponSearch, GUILayout.Width(160));
+            _weaponSearch = GUILayout.TextField(_weaponSearch, GUILayout.Width(200));
             if (!string.IsNullOrEmpty(_weaponSearch) && GUILayout.Button("✕", GUILayout.Width(24)))
             {
                 _weaponSearch = string.Empty;
             }
 
-            GUILayout.Space(10);
-            string[] cats = { "All", "Pistols", "Rifles/SMG", "Shotgun", "Heavy", "Melee", "Energy/Magic", "Thrown" };
-            _weaponCategoryFilter = GUILayout.Toolbar(_weaponCategoryFilter, cats, GUILayout.Height(22));
+            GUILayout.FlexibleSpace();
+
+            // "N / M" so a filter is visibly doing something. The old single-row layout pushed the 8th
+            // category button past the 920px window edge, so the last category was silently unreachable.
+            if (_allWeapons != null && _allWeapons.Length > 0)
+            {
+                int shown = 0;
+                foreach (var w in _allWeapons)
+                {
+                    if (MatchesWeaponCategory(w, _weaponCategoryFilter) && MatchesWeaponSearch(w, _weaponSearch))
+                    {
+                        shown++;
+                    }
+                }
+                GUILayout.Label($"<color=#AAAAAA>{shown} / {_allWeapons.Length}</color>", GUILayout.Width(80));
+            }
+            GUILayout.EndHorizontal();
+
+            // ── Filter row 2: AS3's six skill categories (+ All) ──────────────
+            // On its own row, so the seven buttons never compete with the search field for width and
+            // none can be clipped off the window. Order is AS3's (w1,w2,w4,w5,w6,w3).
+            GUILayout.BeginHorizontal(_cardStyle);
+            _weaponCategoryFilter = GUILayout.Toolbar(
+                _weaponCategoryFilter, WeaponCategoryLabels, GUILayout.Height(22));
             GUILayout.EndHorizontal();
 
             GUILayout.Space(6);
@@ -1344,18 +1388,10 @@ namespace PFE.Core.Scripting
 
                     string wid = weapon.weaponId ?? weapon.name;
 
-                    // Category filter
+                    // Category filter (AS3 skill grouping) + free-text search. Both go through the same
+                    // helpers the "N / M" count above uses, so the number and the list cannot disagree.
                     if (!MatchesWeaponCategory(weapon, _weaponCategoryFilter)) continue;
-
-                    // Text search
-                    if (!string.IsNullOrEmpty(_weaponSearch))
-                    {
-                        if (wid.IndexOf(_weaponSearch, StringComparison.OrdinalIgnoreCase) < 0 &&
-                            weapon.weaponType.ToString().IndexOf(_weaponSearch, StringComparison.OrdinalIgnoreCase) < 0)
-                        {
-                            continue;
-                        }
-                    }
+                    if (!MatchesWeaponSearch(weapon, _weaponSearch)) continue;
 
                     count++;
                     DrawWeaponRow(loadout, weapon, wid == curId);
@@ -1634,20 +1670,71 @@ namespace PFE.Core.Scripting
         /// </summary>
         public bool AmmoRowExists(string ammoId) => ResolveAmmoItem(ammoId) != null;
 
+        /// <summary>
+        /// Whether <paramref name="w"/> belongs to category <paramref name="catIndex"/>.
+        ///
+        /// <para><b>The category is the AS3 <c>skill</c> id, not the weapon type.</b> AS3's Pip-Boy
+        /// weapons tab sets its six buttons to <c>["","w1","w2","w4","w5","w6","w3"]</c>
+        /// (<c>PipPageInv.as:33</c>) — literally <c>"w" + weapon.skill</c> — and
+        /// <c>PipPageInv.as:100</c> folds tele (<c>skill</c> 7) into the magic button. Skill id → name is
+        /// <c>Pers.getWeapLevel</c> (<c>Pers.as:1073-1103</c>).</para>
+        ///
+        /// <para><b>Why not the old heuristic.</b> The previous version guessed from
+        /// <c>weaponId.Contains(...)</c> ("10" for pistols, …). That put <c>smg10</c> in Pistols, missed
+        /// the real pistols <c>p9mm</c>/<c>r375</c>/<c>revo</c>, and swept 48 weapons into "Heavy".
+        /// <see cref="WeaponDefinition.skillLevel"/> already holds the AS3 <c>skill</c> id
+        /// (<c>WeaponDataImporter.cs:250</c>), so the split is exact.</para>
+        ///
+        /// <para>Weapons with no <c>skill</c> (the 62 enemy/internal assets) match only "All" — in AS3
+        /// their <c>"w" + undefined</c> equals no category button either.</para>
+        /// </summary>
         private bool MatchesWeaponCategory(WeaponDefinition w, int catIndex)
         {
-            switch (catIndex)
+            if (catIndex <= 0) return true;                        // 0 = All
+            if (w == null) return false;
+            if (catIndex >= WeaponCategorySkill.Length) return true;
+
+            return As3SkillOf(w) == WeaponCategorySkill[catIndex];
+        }
+
+        /// <summary>
+        /// AS3's <c>weapon.skill</c> id, with tele folded into magic — <c>PipPageInv.as:100</c> maps
+        /// <c>w7</c> to <c>w6</c>, so telekinetic weapons show under Magic rather than nowhere.
+        /// </summary>
+        private static int As3SkillOf(WeaponDefinition w)
+        {
+            int skill = w != null ? w.skillLevel : 0;
+            return skill == 7 ? 6 : skill;
+        }
+
+        /// <summary>
+        /// The AS3 category label for a weapon (tele folded into Magic); empty for the skill-0
+        /// enemy/internal weapons, which have no player-facing category.
+        /// </summary>
+        private static string CategoryLabelFor(WeaponDefinition w)
+        {
+            int skill = As3SkillOf(w);
+            for (int i = 1; i < WeaponCategorySkill.Length; i++)
             {
-                case 0: return true;
-                case 1: return w.weaponType == WeaponType.Guns && (w.weaponId.Contains("pistol") || w.weaponId.Contains("10") || w.weaponId.Contains("revolver") || w.weaponId.Contains("32") || w.weaponId.Contains("magnum"));
-                case 2: return w.weaponType == WeaponType.Guns && (w.weaponId.Contains("rifle") || w.weaponId.Contains("smg") || w.weaponId.Contains("carbine") || w.weaponId.Contains("assault") || w.weaponId.Contains("sniper"));
-                case 3: return w.weaponType == WeaponType.Guns && (w.weaponId.Contains("shot") || w.weaponId.Contains("drob"));
-                case 4: return w.weaponType == WeaponType.BigGun || w.weaponId.Contains("mini") || w.weaponId.Contains("flamer") || w.weaponId.Contains("rocket");
-                case 5: return w.weaponType == WeaponType.Melee;
-                case 6: return w.weaponType == WeaponType.Magic || w.damageType == DamageType.Laser || w.damageType == DamageType.Plasma;
-                case 7: return w.weaponType == WeaponType.Thrown;
-                default: return true;
+                if (WeaponCategorySkill[i] == skill) return WeaponCategoryLabels[i];
             }
+            return string.Empty;
+        }
+
+        /// <summary>
+        /// Whether <paramref name="w"/> matches the free-text search. Shared by the row loop and the
+        /// "N / M" count so the two cannot disagree; it also matches the AS3 category label, so typing
+        /// "explosives" finds the grenades and mines.
+        /// </summary>
+        private bool MatchesWeaponSearch(WeaponDefinition w, string query)
+        {
+            if (w == null) return false;
+            if (string.IsNullOrEmpty(query)) return true;
+
+            string wid = w.weaponId ?? w.name;
+            return wid.IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0
+                || w.weaponType.ToString().IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0
+                || CategoryLabelFor(w).IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         private void DrawWeaponRow(PlayerWeaponLoadout loadout, WeaponDefinition weapon, bool isEquipped)
@@ -1658,6 +1745,11 @@ namespace PFE.Core.Scripting
             string title = isEquipped ? $"<color=#55FF55><b>▶ {weapon.weaponId}</b></color>" : $"<b>{weapon.weaponId}</b>";
             GUILayout.Label(title, GUILayout.Width(170));
             GUILayout.Label(weapon.weaponType.ToString(), _badgeStyle, GUILayout.Width(75));
+            // AS3 skill category (the axis the filter buttons use) — "—" for the skill-0 enemy/internal
+            // weapons, which belong to no player category. Shown next to the class so the two are not
+            // confused: weaponType is AS3 `tip` (class), this is AS3 `skill` (Pip-Boy category).
+            string cat = CategoryLabelFor(weapon);
+            GUILayout.Label(string.IsNullOrEmpty(cat) ? "—" : cat, _badgeStyle, GUILayout.Width(85));
             GUILayout.Label($"Dmg: <b>{weapon.baseDamage}</b>", GUILayout.Width(70));
             GUILayout.Label($"Mag: <b>{weapon.magazineSize}</b>", GUILayout.Width(65));
             GUILayout.Label($"DType: <b>{weapon.damageType}</b>", GUILayout.Width(110));

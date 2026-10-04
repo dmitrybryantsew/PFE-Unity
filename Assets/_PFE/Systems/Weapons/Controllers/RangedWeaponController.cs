@@ -539,6 +539,16 @@ namespace PFE.Systems.Weapons.Controllers
                 // status system exists) can still reach it without re-resolving the id.
                 ammo: ammo);
 
+            // ── Wear penalty on damage (AS3 Weapon.resultDamage, :1629) ────────
+            // `(1 - breaking*0.3)` is the last factor of the base resultDamage and had no consumer
+            // anywhere: `breaking` was spent on the jam chance above and the spread divisor below,
+            // but never on damage, so a weapon one hit from destruction hit exactly as hard as a new
+            // one. `breaking` is already in scope (computed at the top of this method) and AS3 folds
+            // it into `b.damage = resultDamage(damage, _loc1_) * ammoDamage` — i.e. on the whole
+            // damage product, which is what BaseDamage already is. Damage only: the knockback is
+            // `otbros * otbrosMult` with no breaking term (:1671), so the knock scale stays 1.
+            damCtx = damCtx.WithScaledDamage(WeaponWearMath.BaseDamageMultiplier(breaking), 1f);
+
             // ── Cues (same for all pellets) ───────────────────────────────────
             bool playSound = State.KolShoot % Mathf.Max(1, _def.magazineSize > 0 ? 1 : 1) == 0;
             // sndShoot_n is not currently a field on WeaponDefinition — default to 1.

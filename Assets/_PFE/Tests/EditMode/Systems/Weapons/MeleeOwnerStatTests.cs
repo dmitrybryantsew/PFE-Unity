@@ -98,7 +98,8 @@ namespace PFE.Tests.EditMode.Systems.Weapons
         // ── Helpers ───────────────────────────────────────────────────────────
 
         private static WeaponDefinition MakeMelee(float rapid, float damage,
-                                                  MeleeType type = MeleeType.Horizontal)
+                                                  MeleeType type = MeleeType.Horizontal,
+                                                  int weaponLevel = 0, float knockback = 0f)
         {
             var def = ScriptableObject.CreateInstance<WeaponDefinition>();
             def.weaponId      = $"test_melee_{type}";
@@ -108,6 +109,8 @@ namespace PFE.Tests.EditMode.Systems.Weapons
             def.baseDamage    = damage;
             def.meleeDlina    = 100f;
             def.meleeMinDlina = 100f;
+            def.weaponLevel   = weaponLevel;
+            def.knockback     = knockback;
             return def;
         }
 
@@ -128,9 +131,14 @@ namespace PFE.Tests.EditMode.Systems.Weapons
         /// the last plan, which is the one that carries the final multipliers.
         /// </summary>
         private static List<ShotPlan> RunMeleeSwing(WeaponDefinition def, IWeaponStatSource stats,
-                                                    Vector2 aim, int frames)
+                                                    Vector2 aim, int frames, int durability = -1)
         {
-            var ctrl = new MeleeWeaponController(new WeaponRuntimeState(def), stats);
+            var state = new WeaponRuntimeState(def);
+            // -1 means "leave the constructor's default" (CurrentDurability = maxDurability, i.e.
+            // unworn). A non-negative value forces the wear the test wants to observe.
+            if (durability >= 0) state.CurrentDurability = durability;
+
+            var ctrl = new MeleeWeaponController(state, stats);
             ctrl.HitVolume = new NullHitVolume();
             var plans = new List<ShotPlan>();
 
@@ -294,6 +302,105 @@ namespace PFE.Tests.EditMode.Systems.Weapons
             Assert.AreEqual(20, fast, 2,
                 "meleeSpdMult must NOT shorten an mtip 2 swing (WClub.as:654-657). A 10 here means " +
                 "the divisor was applied to the one sub-type the oracle exempts.");
+        }
+
+        // ── The weapon-skill channel + wear (Phase 1c melee resultDamage) ──────
+        //
+        // These are Unity-only, like the rest of this fixture: they build a WeaponDefinition
+        // ScriptableObject, so the offline wall can compile but not execute them. The formula they
+        // compose is pinned offline by WeaponWearMathTests; these pin the *wiring* — that the
+        // controller actually feeds the owner's skill and the weapon's wear into the shot.
+
+        [Test]
+        public void MeleeDamage_WithADoubledWeaponSkillMultiplier_DoublesTheHit()
+        {
+            // AS3's melee resultDamage takes `_loc1_` as its `p2` slot (WClub.as:649), and `_loc1_`
+            // is `weaponSkill` for the player (Weapon.as:1454). The port passed 1 forever, so a melee
+            // build's skill points bought nothing.
+            var control = RunMeleeSwing(MakeMelee(rapid: 20f, damage: 10f), null,
+                                        new Vector2(5f, 0f), frames: 20);
+            var skilled = RunMeleeSwing(MakeMelee(rapid: 20f, damage: 10f),
+                                        new FakeStats { WeaponSkillMult = 2f },
+                                        new Vector2(5f, 0f), frames: 20);
+
+            Assert.IsNotEmpty(control, "control: a swing with no owner stats must still emit a plan.");
+            Assert.IsNotEmpty(skilled,  "the skilled swing must emit a plan too.");
+
+            Assert.AreEqual(10f, control[control.Count - 1].Damage.BaseDamage, 0.001f,
+                "no stat source leaves the multiplier at 1.");
+            Assert.AreEqual(20f, skilled[skilled.Count - 1].Damage.BaseDamage, 0.001f,
+                "the weapon-skill multiplier is the p2 factor of the melee resultDamage (WClub.as:649).");
+        }
+
+        [Test]
+        public void MeleeDamage_WithAnOverqualifiedOwner_GetsTheSkillPlusDamageBonus()
+        {
+            // skillPlusDam = 1 + |gap|*0.1 for gap < 0 (Weapon.as:984-992), folded through the same
+            // FromWeapon path the ranged weapon uses. weaponLevel 2 vs tier 5 = gap -3 -> x1.3.
+            var onTier = RunMeleeSwing(MakeMelee(rapid: 20f, damage: 10f, weaponLevel: 2),
+                                       new FakeStats { OwnerSkillLevel = 2 },
+                                       new Vector2(5f, 0f), frames: 20);
+            var over   = RunMeleeSwing(MakeMelee(rapid: 20f, damage: 10f, weaponLevel: 2),
+                                       new FakeStats { OwnerSkillLevel = 5 },
+                                       new Vector2(5f, 0f), frames: 20);
+
+            Assert.IsNotEmpty(onTier, "control: a tier-matched owner must still swing.");
+            Assert.AreEqual(10f, onTier[onTier.Count - 1].Damage.BaseDamage, 0.001f,
+                "a gap of 0 earns no bonus.");
+            Assert.AreEqual(13f, over[over.Count - 1].Damage.BaseDamage, 0.001f,
+                "a 3-tier surplus is skillPlusDam 1.3 (Weapon.as:987).");
+        }
+
+        [Test]
+        public void MeleeRefusesToSwing_WhenTheOwnerIsMoreThanTwoTiersUnder()
+        {
+            // WClub has no attack() override, so a swing runs the base checkAvail() (Weapon.as:1304):
+            // a gap above 2 refuses the shot before t_attack is armed. weaponLevel 4 vs tier 0 = 4.
+            var refused = RunMeleeSwing(MakeMelee(rapid: 20f, damage: 10f, weaponLevel: 4),
+                                        new FakeStats { OwnerSkillLevel = 0 },
+                                        new Vector2(5f, 0f), frames: 40);
+            var allowed = RunMeleeSwing(MakeMelee(rapid: 20f, damage: 10f, weaponLevel: 4),
+                                        new FakeStats { OwnerSkillLevel = 2 },
+                                        new Vector2(5f, 0f), frames: 40);
+
+            Assert.IsEmpty(refused,
+                "a gap of 4 (>2) must refuse the swing — no plan and no t_attack (Weapon.as:1377-1381).");
+            Assert.IsNotEmpty(allowed,
+                "control: a gap of 2 is still allowed, so the gate is not simply always shut.");
+        }
+
+        [Test]
+        public void MeleeDamage_IsReducedByWeaponWear()
+        {
+            // WClub.resultDamage's last factor is (1 - breaking*0.6) (WClub.as:649), and AS3 recomputes
+            // breaking at the top of WClub.shoot() (:581-588). At 25% durability breaking = 0.5, so the
+            // hit carries 70% of the fresh-weapon value. The port applied the wear penalty nowhere.
+            var fresh = RunMeleeSwing(MakeMelee(rapid: 20f, damage: 10f), null,
+                                      new Vector2(5f, 0f), frames: 20);
+            var worn  = RunMeleeSwing(MakeMelee(rapid: 20f, damage: 10f), null,
+                                      new Vector2(5f, 0f), frames: 20, durability: 25);
+
+            Assert.IsNotEmpty(fresh, "control: the fresh swing must emit a plan.");
+            Assert.AreEqual(10f, fresh[fresh.Count - 1].Damage.BaseDamage, 0.001f,
+                "a full-durability weapon is unworn (breaking 0).");
+            Assert.AreEqual(7f, worn[worn.Count - 1].Damage.BaseDamage, 0.001f,
+                "breaking 0.5 -> (1 - 0.5*0.6) = 0.7 of the damage (WClub.as:649).");
+        }
+
+        [Test]
+        public void MeleeWear_DoesNotScaleTheKnockback()
+        {
+            // The wear penalty is on damage only; AS3 leaves the knock at otbros*otbrosMult (:594).
+            var fresh = RunMeleeSwing(MakeMelee(rapid: 20f, damage: 10f, knockback: 4f), null,
+                                      new Vector2(5f, 0f), frames: 20);
+            var worn  = RunMeleeSwing(MakeMelee(rapid: 20f, damage: 10f, knockback: 4f), null,
+                                      new Vector2(5f, 0f), frames: 20, durability: 0);
+
+            Assert.AreEqual(4f, fresh[fresh.Count - 1].Damage.Knockback, 0.001f,
+                "control: the fresh knockback is the definition's.");
+            Assert.AreEqual(fresh[fresh.Count - 1].Damage.Knockback,
+                            worn[worn.Count - 1].Damage.Knockback, 0.001f,
+                "wear must not move the knockback (WClub.as:594).");
         }
 
         // ── punchDamMult ──────────────────────────────────────────────────────

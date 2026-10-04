@@ -1,6 +1,5 @@
 using R3;
 using PFE.Data.Definitions;
-using UnityEngine;
 
 namespace PFE.Systems.Weapons
 {
@@ -155,14 +154,13 @@ namespace PFE.Systems.Weapons
         }
 
         /// <summary>
-        /// Durability as 0–1 fraction past the halfway point.
-        /// Matches AS3: breaking = (maxhp - hp) / maxhp * 2 - 1 when hp < maxhp/2.
+        /// Durability as a 0–1 fraction past the halfway point — AS3 <c>Weapon.breaking</c>. Thin
+        /// delegation to <see cref="WeaponWearMath.Breaking"/>, which is where the formula lives so it
+        /// can be executed offline; this method exists because the state is the natural place for a
+        /// caller to ask the question. The three consumers are the ranged spread, the jam chance and
+        /// (through the two damage multipliers) the damage itself.
         /// </summary>
-        public float Breaking()
-        {
-            if (CurrentDurability >= Def.maxDurability / 2) return 0f;
-            return Mathf.Clamp01((Def.maxDurability - CurrentDurability) / (float)Def.maxDurability * 2f - 1f);
-        }
+        public float Breaking() => WeaponWearMath.Breaking(Def.maxDurability, CurrentDurability);
 
         /// <summary>True when magazine has fewer rounds than one shot costs.</summary>
         public bool NeedsReload => Def.magazineSize > 0 && CurrentAmmo < Def.ammoPerShot;

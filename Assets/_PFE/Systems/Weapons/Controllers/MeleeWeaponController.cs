@@ -3,6 +3,7 @@ using UnityEngine;
 using PFE.Core;
 using PFE.Data.Definitions;
 using PFE.Entities.Weapons;
+using PFE.Systems.Combat;
 
 namespace PFE.Systems.Weapons.Controllers
 {
@@ -17,9 +18,11 @@ namespace PFE.Systems.Weapons.Controllers
     /// <para><b>What is still an approximation</b> — each named at its site and tracked in
     /// <c>TOPIC_weapons_dispatch</c>: the spring position, the power-charge model (unreachable
     /// anyway: <c>meleePowerAttack</c> is 0 on every asset), the combo default
-    /// (<c>!auto &amp;&amp; !powerfull → combinat</c>, <c>:177-180</c>), durability wear (per swing
-    /// here vs <c>crash()</c>-on-hit there), the <c>rashod</c> ammo spend, and
-    /// <c>skillPlusDam</c> + <c>(1 - breaking*0.6)</c> from <c>resultDamage</c>.</para>
+    /// (<c>!auto &amp;&amp; !powerfull → combinat</c>, <c>:177-180</c>), the durability <i>wear
+    /// rate</i> (a flat 1 per swing here vs <c>crash()</c>-on-hit there), and the <c>rashod</c> ammo
+    /// spend. The melee <c>resultDamage</c> <i>shape</i> is now complete: <c>param2</c> (the
+    /// weapon-skill multiplier), <c>skillPlusDam</c> and <c>(1 - breaking*0.6)</c> all fold into the
+    /// hit (WClub.as:649).</para>
     ///
     /// Key behaviors from AS3:
     ///
@@ -157,6 +160,32 @@ namespace PFE.Systems.Weapons.Controllers
         /// <c>resultDamage</c> (<c>WClub.as:649</c>).
         /// </summary>
         private float MeleeDamMult => _statSource != null ? _statSource.MeleeDamMult : 1f;
+
+        /// <summary>
+        /// The owner's weapon-skill <b>tier</b> for this weapon's skill code — AS3
+        /// <c>(owner as UnitPlayer).pers.getWeapLevel(this.skill)</c> (<c>Weapon.as:1368</c>), a 0..5
+        /// tier, not a point total. <see cref="HitAvoidance.UnknownOwnerSkillLevel"/> when there is no
+        /// stat source (an enemy, or a test), which fails every skill test open.
+        ///
+        /// <para><b>One accessor, three consumers.</b> The refuse-to-fire gate
+        /// (<see cref="CheckAvail"/>), the under-skill miss chance and the over-qualification damage
+        /// bonus all measure the same <c>gap = weaponLevel - tier</c>; deriving it more than once is
+        /// how the port's two copies of a rule usually drift apart.</para>
+        /// </summary>
+        private int OwnerWeaponSkillLevel => _statSource != null
+            ? _statSource.OwnerWeaponSkillLevel(_def.skillLevel)
+            : HitAvoidance.UnknownOwnerSkillLevel;
+
+        /// <summary>
+        /// The owner's weapon-skill <b>multiplier</b> for this weapon's skill code — AS3 <c>_loc1_</c>
+        /// in <c>Weapon.shoot</c> (<c>Weapon.as:1451-1459</c>), the <c>p2</c> slot of the melee
+        /// <c>resultDamage</c> (<c>WClub.as:649</c>). 1 (the identity) when there is no stat source,
+        /// which leaves the weapon's own damage untouched — AS3's state for a unit with no
+        /// <c>Pers</c>.
+        /// </summary>
+        private float WeaponSkillMultiplier => _statSource != null
+            ? _statSource.WeaponSkillMultiplier(_def.skillLevel)
+            : 1f;
 
         /// <summary>
         /// <c>WClub.resultRapid</c>'s <c>mtip == 2</c> early-out (<c>WClub.as:654-657</c>): the
@@ -299,6 +328,20 @@ namespace PFE.Systems.Weapons.Controllers
         // ── Attack initiation ─────────────────────────────────────────────────
 
         /// <summary>
+        /// AS3 <c>Weapon.checkAvail()</c>'s refuse-to-fire half (<c>Weapon.as:1377-1381</c>) — may this
+        /// owner swing this weapon <i>at all</i>? <c>false</c> when the weapon's required skill sits
+        /// more than two tiers above the owner's, which stops the attack before <c>t_attack</c> is
+        /// armed (<c>:1304-1310</c>).
+        ///
+        /// <para><b>Melee reaches the base gate, not a second one.</b> <c>WClub</c> has no
+        /// <c>attack()</c> override, so a swing runs the same <c>checkAvail()</c> a ranged shot does —
+        /// the same 0.8 / 0.6 confidence and the same <c>&gt; 2</c> refusal. Only <c>WThrow</c>
+        /// (0.75 / 0.5, its own copy) and <c>WKick</c>/<c>WPunch</c>/<c>WPaint</c> (no gate) differ, so
+        /// this reuses <see cref="HitAvoidance.CanFire"/> rather than re-deriving the rule.</para>
+        /// </summary>
+        private bool CheckAvail() => HitAvoidance.CanFire(_def.weaponLevel, OwnerWeaponSkillLevel);
+
+        /// <summary>
         /// Mirrors WClub.weaponAttack() (<c>WClub.as:661-692</c>).
         /// Sets t_attack, applies combo/power multipliers, and arms the damage — for <b>every</b>
         /// sub-type, because AS3 calls <c>shoot()</c> here once per attack (<c>:674</c>) whatever
@@ -307,6 +350,10 @@ namespace PFE.Systems.Weapons.Controllers
         private void WeaponAttack()
         {
             if (State.IsBroken) return;
+
+            // AS3 runs checkAvail() in attack() before weaponAttack() (:1304 then :1341), so an
+            // under-skilled owner never arms the swing. Unknown owner (no stat source) always passes.
+            if (!CheckAvail()) return;
 
             _powerMult = 1f;
 
@@ -395,17 +442,34 @@ namespace PFE.Systems.Weapons.Controllers
 
             DamageContext baseDmg  = DamageContext.FromWeapon(
                 _def, null, State.OwnerFaction,
+                // ── The weapon-skill channel (AS3 `_loc1_`, Weapon.as:1451-1459) ──────────────
+                //
+                // WClub has no attack() override, so a swing inherits the base attack()/checkAvail()
+                // path and folds the same two skill inputs a ranged shot does: the owner's tier (the
+                // over-qualification bonus `skillPlusDam`, and the under-skill miss chance, both
+                // measured against `_def.weaponLevel`) and the per-point multiplier — the `p2` slot of
+                // the melee resultDamage (WClub.as:649). Read LIVE off the owner, so a point spent
+                // mid-fight moves the very next swing. A null `_statSource` is an enemy with no Pers:
+                // the unknown tier leaves the miss chance at 0 and both skill factors at 1, which is
+                // exactly AS3's state for a unit whose Pers was never set up.
+                ownerWeaponSkillLevel: OwnerWeaponSkillLevel,
+                weaponSkillMultiplier: WeaponSkillMultiplier,
                 critInvisChance: _statSource != null ? _statSource.CritInvis : 0f,
                 desintegrChance: _statSource != null ? _statSource.Desintegr : 0f);
             // Apply power / combo multiplier to base damage. Scaled through one method rather than a
             // positional re-construction: the 16-argument copy this replaced silently dropped
             // ownerFaction, and would drop every field added to DamageContext afterwards.
             //
-            // meleeDamMult is folded in as a *third* damage factor, not folded into _powerMult:
-            // AS3's melee resultDamage is (damage + damAdd) * damMult * powerMult * skillPlusDam *
-            // (1 - breaking*0.6) (WClub.as:649), and damMult already carries meleeDamMult from
-            // setPers (WClub.as:205). Keeping them separate keeps a perk and a combo from
-            // multiplying each other by accident.
+            // Two further damage-only factors join here, and neither is folded into _powerMult:
+            //
+            //   meleeDamMult — AS3's `damMult` already carries it (setPers, WClub.as:205), so it is a
+            //                  perk factor. Kept separate from the combo so a perk and a combo cannot
+            //                  multiply each other by accident.
+            //   wearMult     — `(1 - breaking*0.6)`, the last factor of the melee resultDamage
+            //                  (WClub.as:649). It is a property of the WEAPON's condition, not of the
+            //                  attack, so it must not ride on _powerMult either. AS3 recomputes
+            //                  `breaking` at the top of WClub.shoot() (:581-588); State.Breaking()
+            //                  is the same value on the port's state.
             //
             // The knock direction is stamped here because this is the only place that knows it, and
             // FromWeapon cannot: AS3's melee knock is the ATTACKER'S FACING with a small upward tilt,
@@ -413,10 +477,13 @@ namespace PFE.Systems.Weapons.Controllers
             // `storona` is already maintained here for the animation, and the `-0.2` is the oracle's
             // literal, which is why a clubbed enemy hops rather than sliding flat.
             //
-            // Only damage scales with meleeDamMult — AS3 leaves the knockback at otbros*otbrosMult
-            // (WClub.as:594), with no melee term on it.
+            // Only damage scales with meleeDamMult and the wear penalty — AS3 leaves the knockback at
+            // otbros*otbrosMult (WClub.as:594), with no melee or breaking term on it. The power/combo
+            // multiplier is the one factor that scales BOTH (WClub.as:683 sets b.damage and b.otbros).
+            float wearMult = WeaponWearMath.MeleeDamageMultiplier(State.Breaking());
+
             DamageContext finalDmg = baseDmg.WithScaledDamage(
-                _powerMult * MeleeDamMult, _powerMult, new Vector2(_storona, -0.2f));
+                _powerMult * MeleeDamMult * wearMult, _powerMult, new Vector2(_storona, -0.2f));
 
             ShotCues cues = new ShotCues(
                 playShootSound:   !string.IsNullOrEmpty(_def.soundShoot),
