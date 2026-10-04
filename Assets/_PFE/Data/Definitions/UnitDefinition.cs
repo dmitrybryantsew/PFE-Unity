@@ -299,8 +299,10 @@ namespace PFE.Data.Definitions
         #region Parameters (param tag)
 
         [Header("Parameters")]
-        [Tooltip("Blood type: 0=None, 1=Red, 2=Green, 3=Pink")]
-        public BloodType bloodType = BloodType.Red;
+        [Tooltip("Blood type: 0=None, 1=Red, 2=Green, 3=Pink (param.@blood). NONE is AS3's field " +
+                 "default (Unit.as:416) and is also the bleed-immunity flag (:1417-1420) — the 100 of " +
+                 "134 <param> nodes that do not author `blood` are bleed-immune, not red.")]
+        public BloodType bloodType = BloodType.None;
 
         [Tooltip("Leaves corpse on death")]
         public bool leavesCorpse = true;

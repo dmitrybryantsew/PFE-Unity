@@ -290,6 +290,9 @@ namespace PFE.Editor.Importers
                     // Parse physics (<phis> tag)
                     ParsePhysics(unit, unitContent);
 
+                    // Parse parameters (<param> tag) — AS3 `node = node0.param[0]` (`Unit.as:1338`)
+                    ParseParams(unit, unitContent);
+
                     // Parse movement (<move> tag)
                     ParseMovement(unit, unitContent);
 
@@ -444,6 +447,49 @@ namespace PFE.Editor.Importers
             {
                 float massafix = ParseFloat(massafixMatch.Groups[1].Value);
                 SetPrivateField(unit, "massafix", massafix);
+            }
+        }
+
+        /// <summary>
+        /// Parses the <c>&lt;param&gt;</c> node — AS3 <c>Unit.as:1338-1415</c>, where
+        /// <c>node = node0.param[0]</c>.
+        ///
+        /// <para><b>Only <c>blood</c> is read here, and that is a recorded gap rather than a design.</b>
+        /// The node carries about nineteen attributes and <c>UnitDefinition</c> has thirteen fields for
+        /// them — <c>invulner</c>, <c>overlook</c>, <c>acttrap</c>, <c>npc</c>, <c>trup</c>,
+        /// <c>blood</c>, <c>retdam</c>, <c>hero</c>, <c>pony</c>, <c>zombie</c>, <c>robot</c>,
+        /// <c>insect</c>, <c>monster</c>, <c>alicorn</c>, <c>mech</c>, <c>hbonus</c>, <c>izvrat</c> —
+        /// and <b>not one of them was parsed before this method existed</b>; every one sat at the value
+        /// <see cref="SetUnitDefaults"/> wrote. Of the thirteen fields only <c>isInvulnerable</c> and
+        /// <c>isAlicorn</c> have a runtime consumer, so most are low-value — but both of those are
+        /// still wrong today, and <c>isAlicorn</c> is not even written by the defaults. Closing the
+        /// whole node is its own workstream (see the notes); <c>blood</c> is the attribute this
+        /// workstream needs.</para>
+        ///
+        /// <para><b>Absent means 0, not "red".</b> AS3 declares <c>public var blood:int = 0</c>
+        /// (<c>Unit.as:416</c>) and assigns only when the attribute is present (<c>:1363-1366</c>), so
+        /// <c>blood</c> is <c>0</c> for the <b>100 of 134</b> <c>&lt;param&gt;</c> nodes that do not
+        /// author it. And <c>blood == 0</c> is not cosmetic: <c>:1417-1420</c> makes the unit
+        /// <b>immune to bleed</b>. The port used to hardcode <c>Red</c> for every unit.</para>
+        ///
+        /// <para><b>Known divergence, pre-existing:</b> this slices the unit's <i>own</i> text, so a
+        /// <c>&lt;param&gt;</c> node declared only on a <c>parent=</c> ancestor is not seen. AS3
+        /// inherits. The same divergence is already recorded for <c>&lt;vulner&gt;</c> on
+        /// <c>IDamageable.Vulnerabilities</c>.</para>
+        /// </summary>
+        private static void ParseParams(UnitDefinition unit, string content)
+        {
+            var paramMatch = Regex.Match(content, @"<param\s+([^>]*)/>");
+            if (!paramMatch.Success) return;
+
+            string attrs = paramMatch.Groups[1].Value;
+
+            // Assigned only when present, exactly as AS3 does — so an absent attribute leaves the
+            // field at its own default (None), which is AS3's field default too.
+            var bloodMatch = Regex.Match(attrs, @"blood='(\d+)'");
+            if (bloodMatch.Success)
+            {
+                unit.bloodType = (BloodType)int.Parse(bloodMatch.Groups[1].Value);
             }
         }
 
@@ -613,10 +659,22 @@ namespace PFE.Editor.Importers
         ///
         /// <para>The parse now lives in <see cref="UnitVulnerabilityParser"/> so it can be unit-tested
         /// at all: this class is in <c>PFE.Editor</c>, which <c>PFE.Tests</c> does not reference.</para>
+        ///
+        /// <para><b>It also applies AS3's blood rule</b> — <c>if (blood == 0) vulner[D_BLEED] = 0</c>
+        /// (<c>Unit.as:1417-1420</c>) — by passing <c>unit.bloodType</c> through. That is the second half
+        /// of the <c>blood</c> attribute: <see cref="ParseParams"/> reads the value, and this decides
+        /// what it <i>means</i>. <c>ParseParams</c> must therefore run first; the comment below is the
+        /// only thing enforcing it, because the ordering cannot be asserted from <c>PFE.Tests</c>.</para>
         /// </summary>
         private static void ParseVulnerabilities(UnitDefinition unit, string content)
         {
-            UnitVulnerabilityData parsed = UnitVulnerabilityParser.Parse(content, unit.name);
+            // `unit.bloodType` is read here, so this MUST run after ParseParams (:294) — the two are nine
+            // lines apart in the same straight-line method, which is what makes the dependency easy to
+            // break by reordering. The consequence of getting it wrong is silent and one-sided: a unit
+            // that authors `blood='1'` would still hold the field default (None = 0) at this point, so
+            // the parser would zero its bleed multiplier and it would become bleed-immune for no reason.
+            UnitVulnerabilityData parsed =
+                UnitVulnerabilityParser.Parse(content, unit.name, unit.bloodType);
 
             // Warnings rather than silence: an attribute the oracle ignores is a fact about the data,
             // and the previous behaviour made it indistinguishable from a successful parse.
@@ -768,7 +826,10 @@ namespace PFE.Editor.Importers
             SetPrivateField(unit, "canLevitate", false);
             SetPrivateField(unit, "canBeKnockedDown", true);
             SetPrivateField(unit, "isFixed", false);
-            SetPrivateField(unit, "bloodType", BloodType.Red);
+            // AS3 `public var blood:int = 0` (`Unit.as:416`) — NONE, not red. `blood == 0` is also the
+            // bleed-immunity flag (`:1417-1420`), so a "sensible default" of Red is a combat change as
+            // well as a colour one. ParseParams overrides this when the data authors `blood=`.
+            SetPrivateField(unit, "bloodType", BloodType.None);
             SetPrivateField(unit, "leavesCorpse", true);
             SetPrivateField(unit, "isInvulnerable", false);
             SetPrivateField(unit, "canActivateTraps", true);
