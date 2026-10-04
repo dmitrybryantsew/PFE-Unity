@@ -61,6 +61,7 @@ MonoBehaviour:
   isPhysBullet: 0
   bumc: 0
   vbul: sel
+  visExpl: 
   projectileVisual: {fileID: 11400000, guid: 3a36d5a38c48e8b4797c1eb6c80d050d, type: 2}
   springMode: 1
   bulletAnimated: 0

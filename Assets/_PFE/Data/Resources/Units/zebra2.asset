@@ -54,7 +54,7 @@ MonoBehaviour:
   hearingRange: 5
   damageType: 2
   isStable: 1
-  bloodType: 1
+  bloodType: 0
   leavesCorpse: 1
   isInvulnerable: 0
   canActivateTraps: 1
