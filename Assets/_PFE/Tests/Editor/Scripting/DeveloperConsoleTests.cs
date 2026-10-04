@@ -123,6 +123,32 @@ namespace PFE.Tests.Scripting
         }
 
         [Test]
+        public void ExecuteInput_UiVerb_IsDispatchedToUiCommandsNotLua()
+        {
+            // Same shape as the save-verb test below: the assertion is about the ROUTE, not the value.
+            // `ui` with no argument is status — never a toggle — and its reply is a [ui] line whether or
+            // not the settings asset is present, so this cannot fail for an environmental reason.
+            //
+            // The null settings source is the command object's test seam: going through the real
+            // DebugOverlays.Settings would be a Resources.Load (an ECall the offline runner cannot
+            // execute), and it would read the project's actual settings asset. Injecting null exercises
+            // the same dispatch and the same "no settings" reply, without either.
+            _console.SetCommandObjects(null, null, uiCommands: new DevConsoleUiCommands(() => null));
+
+            string status = _console.ExecuteInput("ui");
+            Assert.That(status, Does.StartWith("[ui]"));
+
+            // A bare `ui buttons` is status too.
+            string buttons = _console.ExecuteInput("ui buttons");
+            Assert.That(buttons, Does.StartWith("[ui]"));
+
+            // A bad state is named, not silently treated as status — otherwise `ui buttons of` would
+            // report "on" and read as a command that did nothing.
+            string bad = _console.ExecuteInput("ui buttons maybe");
+            Assert.That(bad, Does.Contain("Unknown ui state"));
+        }
+
+        [Test]
         public void ExecuteInput_SaveVerb_IsDispatchedToSaveCommandsNotLua()
         {
             // A bare (unwired) command object: every dependency is null, so Save() returns its

@@ -30,6 +30,7 @@ namespace PFE.Core.Scripting
         private DevConsoleRpgCommands _rpgCommands;
         private DevConsoleEffectCommands _effectCommands;
         private DevConsoleSpellCommands _spellCommands;
+        private DevConsoleUiCommands _uiCommands;
         private bool _commandObjectsRegistered;
 
         private bool _isOpen;
@@ -89,7 +90,8 @@ namespace PFE.Core.Scripting
             DevConsoleProfilerCommands profilerCommands = null,
             DevConsoleRpgCommands rpgCommands = null,
             DevConsoleEffectCommands effectCommands = null,
-            DevConsoleSpellCommands spellCommands = null)
+            DevConsoleSpellCommands spellCommands = null,
+            DevConsoleUiCommands uiCommands = null)
         {
             if (playerCommands != null) _playerCommands = playerCommands;
             if (simCommands != null) _simCommands = simCommands;
@@ -99,6 +101,7 @@ namespace PFE.Core.Scripting
             if (rpgCommands != null) _rpgCommands = rpgCommands;
             if (effectCommands != null) _effectCommands = effectCommands;
             if (spellCommands != null) _spellCommands = spellCommands;
+            if (uiCommands != null) _uiCommands = uiCommands;
 
             if (_luaEngine == null) return;
 
@@ -114,6 +117,7 @@ namespace PFE.Core.Scripting
                 _luaEngine.RegisterType<DevConsoleRpgCommands>();
                 _luaEngine.RegisterType<DevConsoleEffectCommands>();
                 _luaEngine.RegisterType<DevConsoleSpellCommands>();
+                _luaEngine.RegisterType<DevConsoleUiCommands>();
                 _commandObjectsRegistered = true;
             }
 
@@ -125,6 +129,7 @@ namespace PFE.Core.Scripting
             if (_rpgCommands != null) _luaEngine.SetGlobal("rpg", _rpgCommands);
             if (_effectCommands != null) _luaEngine.SetGlobal("eff", _effectCommands);
             if (_spellCommands != null) _luaEngine.SetGlobal("spell", _spellCommands);
+            if (_uiCommands != null) _luaEngine.SetGlobal("ui", _uiCommands);
         }
 
         /// <summary>
@@ -204,9 +209,12 @@ namespace PFE.Core.Scripting
                               "  spell add <id>  - Grant a spell (no weapon needed). e.g. spell add sp_mshit\n" +
                               "  spell select <id> - Choose the spell the Def key (C) casts. A TOGGLE.\n" +
                               "  spell defs [f]  - The catalogue the caster can accept\n" +
+                              "  -- console ui (the console's own chrome) --\n" +
+                              "  ui              - Report whether the quick-action button grid is shown\n" +
+                              "  ui buttons on|off - Show / hide the button grid (title bar has a toggle too)\n" +
                               "  -- lua --\n" +
                               "  <lua code>      - Run any Lua expression (e.g. 'return 2+2', 'player:Heal(50)')\n" +
-                              "                    Globals: pfe.* (map/fog/rng), player, sim, save, collider, prof, rpg, eff, spell";
+                              "                    Globals: pfe.* (map/fog/rng), player, sim, save, collider, prof, rpg, eff, spell, ui";
                 AppendLog(help);
                 return help;
             }
@@ -530,6 +538,14 @@ namespace PFE.Core.Scripting
                     result = RunSpellShortcut(parts);
                     return true;
 
+                // The console's OWN chrome — the quick-action button grid. Deliberately not a `col`
+                // channel: the grid is not a world visualisation, and `col on all` must not be able to
+                // show or hide the console's buttons. See DevConsoleUiCommands.
+                case "ui":
+                    if (_uiCommands == null) return false;
+                    result = RunUiShortcut(parts);
+                    return true;
+
                 default:
                     return false;
             }
@@ -759,6 +775,52 @@ namespace PFE.Core.Scripting
 
                 default:
                     return $"Unknown spell subject '{parts[1]}'.\n" + _spellCommands.Help();
+            }
+        }
+
+        /// <summary>
+        /// Dispatch the <c>ui</c> shortcuts: the console's own chrome. <c>ui</c> and <c>ui buttons</c>
+        /// are <b>status</b>; <c>ui buttons on|off</c> sets the flag.
+        ///
+        /// <para>A bare verb is status, matching <c>col</c>, <c>prof</c>, <c>rpg</c>, <c>eff</c> and
+        /// <c>spell</c>: a verb that flips on a typo is one mistyped character away from the button grid
+        /// vanishing (or reappearing) with no visible cause.</para>
+        /// </summary>
+        private string RunUiShortcut(string[] parts)
+        {
+            if (parts.Length < 2) return _uiCommands.Status();
+
+            switch (parts[1].ToLowerInvariant())
+            {
+                case "buttons":
+                case "button":
+                    if (parts.Length < 3) return _uiCommands.Status();
+
+                    switch (parts[2].ToLowerInvariant())
+                    {
+                        case "on":
+                        case "show":
+                            return _uiCommands.SetButtons(true);
+
+                        case "off":
+                        case "hide":
+                            return _uiCommands.SetButtons(false);
+
+                        default:
+                            // An unknown state is an error, not a fallback: silently treating `ui buttons
+                            // of` as status would report "on" and read as a command that did nothing.
+                            return $"Unknown ui state '{parts[2]}'. Use: ui buttons on | ui buttons off";
+                    }
+
+                case "status":
+                    return _uiCommands.Status();
+
+                case "help":
+                case "?":
+                    return _uiCommands.Help();
+
+                default:
+                    return $"Unknown ui subject '{parts[1]}'.\n" + _uiCommands.Help();
             }
         }
 

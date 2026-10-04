@@ -501,5 +501,37 @@ namespace PFE.Core
             get => showEntityIdOverlay;
             set => showEntityIdOverlay = value;
         }
+
+        // ── Developer Console ────────────────────────────────────────────────
+        //
+        // The console's own chrome, not a world overlay, so this is a plain bool and NOT a bit of
+        // `enabledOverlays` — `col on all` must not be able to show or hide the console's buttons.
+        //
+        // NOT gated by runtimeLoggingEnabled: that master switch silences LOGS, and a switch that could
+        // hide a piece of UI you turned on to look at would be worse than no switch. (Same reasoning as
+        // the debug overlays above.)
+
+        [Header("Developer Console (~ / F1)")]
+        [SerializeField]
+        [Tooltip("Shows the quick-action button grid across the top of the developer console. " +
+                 "Off = the console is a plain REPL with no buttons (the input field and the log remain). " +
+                 "Console: `ui buttons on|off`. The console's title bar has a toggle either way, so the " +
+                 "grid can always be brought back without the Inspector.")]
+        private bool showConsoleQuickButtons = true;
+
+        /// <summary>
+        /// Whether the developer console draws its quick-action button grid. One value behind three front
+        /// ends — the Inspector, the console's title-bar toggle, and <c>ui buttons on|off</c> — read live
+        /// by <c>DeveloperConsoleController.OnGUI</c> so a write lands on the next frame with no
+        /// notification plumbing and no chance of a stale copy.
+        ///
+        /// <para>Settable, and read by the console rather than cached there, for the same reason the
+        /// overlay mask is: three copies of one toggle is three things that can disagree.</para>
+        /// </summary>
+        public bool ShowConsoleQuickButtons
+        {
+            get => showConsoleQuickButtons;
+            set => showConsoleQuickButtons = value;
+        }
     }
 }

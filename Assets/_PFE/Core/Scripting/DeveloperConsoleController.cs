@@ -35,6 +35,17 @@ namespace PFE.Core.Scripting
         private DevConsoleRpgCommands _rpgCommands;
         private DevConsoleEffectCommands _effectCommands;
         private DevConsoleSpellCommands _spellCommands;
+        private DevConsoleUiCommands _uiCommands;
+
+        // The quick-action grid's buttons and their actions. Built once (OnGUI runs several times per
+        // frame) and rebuilt never — the lambdas read the live `_service` field, so a respawned service
+        // is picked up without reallocating this array.
+        private (string Label, Action Invoke)[] _quickButtons;
+
+        // Vertical space the grid occupies, recomputed each OnGUI so the log below it gets exactly what
+        // is left. Zero when the grid is hidden.
+        private const float InputRowHeight = 26f;
+        private const float RowGap = 4f;
 
         private const KeyCode ToggleKey1 = KeyCode.BackQuote;
         private const KeyCode ToggleKey2 = KeyCode.F1;
@@ -153,6 +164,7 @@ namespace PFE.Core.Scripting
             _rpgCommands ??= new DevConsoleRpgCommands();
             _effectCommands ??= new DevConsoleEffectCommands();
             _spellCommands ??= new DevConsoleSpellCommands();
+            _uiCommands ??= new DevConsoleUiCommands();
 
             if (_resolver != null)
             {
@@ -206,7 +218,7 @@ namespace PFE.Core.Scripting
             // status` must work precisely when the spell wiring is what failed.
             _spellCommands.Wire(() => FindFirstObjectByType<PFE.Entities.Player.PlayerController>());
 
-            _service.SetCommandObjects(_playerCommands, _simCommands, _saveCommands, _colliderCommands, _profilerCommands, _rpgCommands, _effectCommands, _spellCommands);
+            _service.SetCommandObjects(_playerCommands, _simCommands, _saveCommands, _colliderCommands, _profilerCommands, _rpgCommands, _effectCommands, _spellCommands, _uiCommands);
         }
 
         private LandMap ResolveLandMap()
@@ -242,100 +254,31 @@ namespace PFE.Core.Scripting
 
             float height = Screen.height * 0.45f;
             float width = Screen.width;
+            float areaWidth = width - 20f;
+            float areaHeight = height - 30f;
 
             GUI.Box(new Rect(0, 0, width, height), string.Empty);
             GUI.Box(new Rect(0, 0, width, height), "=== PFE Developer Console (Lua REPL & Cheats) [Press ~ or F1 to Close] ===");
 
-            GUILayout.BeginArea(new Rect(10, 25, width - 20, height - 30));
+            // The grid's toggle lives on the title bar, NOT in the grid: a control that hides the grid
+            // must not live inside the thing it hides, or hiding it removes the way back.
+            DrawQuickButtonsToggle(width);
 
-            GUILayout.BeginHorizontal();
-            if (GUILayout.Button("Reveal Map (map)", GUILayout.Width(130)))
-            {
-                SyncDependencies();
-                _service.ExecuteInput("map");
-            }
-            if (GUILayout.Button("Toggle Fog (fog)", GUILayout.Width(130)))
-            {
-                SyncDependencies();
-                _service.ExecuteInput("fog");
-            }
-            // One-click save/load: the F-row is claimed by plugins and debug overlays, so the
-            // round-trip is exercised from here instead.
-            if (GUILayout.Button("Save (save)", GUILayout.Width(95)))
-            {
-                SyncDependencies();
-                _service.ExecuteInput("save");
-            }
-            if (GUILayout.Button("Load (load)", GUILayout.Width(95)))
-            {
-                SyncDependencies();
-                _service.ExecuteInput("load");
-            }
-            if (GUILayout.Button("Saves", GUILayout.Width(60)))
-            {
-                SyncDependencies();
-                _service.ExecuteInput("saves");
-            }
-            if (GUILayout.Button("Player Editor (F2)", GUILayout.Width(130)))
-            {
-                if (PlayerDebugEditorOverlay.Instance != null)
-                {
-                    PlayerDebugEditorOverlay.Instance.IsOpen = !PlayerDebugEditorOverlay.Instance.IsOpen;
-                }
-            }
-            // One-click overlays. The console covers 45% of the screen, so the workflow is "click
-            // here, close the console, screenshot" — and the F5/F6 hotkeys cover the case where the
-            // console should not be open at all.
+            GUILayout.BeginArea(new Rect(10, 25, areaWidth, areaHeight));
+
+            // The quick-action buttons are a grid whose cells divide the console's own width. The old
+            // row was one horizontal strip of fixed-width buttons, and a horizontal strip does not
+            // wrap: once there were more buttons than fitted, the last few ran off the right edge and
+            // could not be clicked. A grid cannot overflow, at any window size.
             //
-            // Deliberately two groups rather than one "all": the six collider visualisations and the
-            // four text readouts answer different questions, and turning on ten things when you want
-            // one is how an overlay stops being readable.
-            // `legend` is included on purpose. This button's whole workflow is "click, close the
-            // console, screenshot", and the legend is what turns that screenshot back into something
-            // readable — coloured boxes with no key are only interpretable by whoever wrote the
-            // colours. It stays an independent channel, so `col off legend` still strips the text
-            // plate off the geometry when the geometry is the whole point.
-            if (GUILayout.Button("Colliders on", GUILayout.Width(95)))
+            // Drawn with explicit rects because GUILayout has no wrapping flow, then reserved with one
+            // Space so the log below starts exactly where the grid ends.
+            float buttonsHeight = 0f;
+            if (QuickButtonsShown)
             {
-                SyncDependencies();
-                _service.ExecuteInput("col on tiles,units,doors,triggers,transitions,objects,legend");
+                buttonsHeight = DrawQuickButtonGrid(QuickButtons, areaWidth);
+                GUILayout.Space(buttonsHeight);
             }
-            if (GUILayout.Button("Text on", GUILayout.Width(65)))
-            {
-                SyncDependencies();
-                _service.ExecuteInput("col on tilequery,room,pool,clock");
-            }
-            if (GUILayout.Button("Probe", GUILayout.Width(55)))
-            {
-                SyncDependencies();
-                _service.ExecuteInput("col probe");
-            }
-            // One click for the "I press Q and nothing happens" report. Deliberately NOT a toggle:
-            // a button that flips a trace on/off is one mis-click away from an empty Console that
-            // looks exactly like the bug you opened it to find. Use `tele on` for the live trace.
-            if (GUILayout.Button("Tele probe", GUILayout.Width(80)))
-            {
-                SyncDependencies();
-                _service.ExecuteInput("tele probe");
-            }
-            if (GUILayout.Button("Overlays off", GUILayout.Width(85)))
-            {
-                SyncDependencies();
-                _service.ExecuteInput("col off");
-            }
-            if (GUILayout.Button("Help", GUILayout.Width(60)))
-            {
-                _service.ExecuteInput("help");
-            }
-            if (GUILayout.Button("Clear", GUILayout.Width(60)))
-            {
-                _service.ClearHistory();
-            }
-            if (GUILayout.Button("Close [X]", GUILayout.Width(75)))
-            {
-                _service.IsOpen = false;
-            }
-            GUILayout.EndHorizontal();
 
             var history = _service.History;
 
@@ -348,13 +291,15 @@ namespace PFE.Core.Scripting
                 _scrollPos.y = float.MaxValue;
             }
 
-            _scrollPos = GUILayout.BeginScrollView(_scrollPos, GUILayout.Height(height - 95));
+            float logHeight = Mathf.Max(40f, areaHeight - buttonsHeight - InputRowHeight - RowGap);
+            _scrollPos = GUILayout.BeginScrollView(_scrollPos, GUILayout.Height(logHeight));
             for (int i = 0; i < history.Count; i++)
             {
                 GUILayout.Label(history[i]);
             }
             GUILayout.EndScrollView();
 
+            GUILayout.Space(RowGap);
             GUILayout.BeginHorizontal();
             GUILayout.Label(">", GUILayout.Width(15));
             GUI.SetNextControlName("ConsoleInputField");
@@ -385,6 +330,145 @@ namespace PFE.Core.Scripting
             GUILayout.EndArea();
 
             GUI.FocusControl("ConsoleInputField");
+        }
+
+        // ── Quick-action grid ────────────────────────────────────────────────
+
+        /// <summary>
+        /// Whether the grid is drawn. Read live from the settings asset on every OnGUI, so a console
+        /// write or an Inspector edit lands on the next frame — the same "one value, three front ends"
+        /// contract the debug overlays use.
+        ///
+        /// <para>Defaults to <b>shown</b> when there is no settings asset, which is the opposite of the
+        /// overlay default and deliberate: an overlay that defaults to "draw" is permanent clutter in
+        /// the game, while this is the console's own control surface — hiding it would remove the primary
+        /// way to drive a tool that is only visible while it is open.</para>
+        /// </summary>
+        private static bool QuickButtonsShown
+        {
+            get
+            {
+                PfeDebugSettings settings = DebugOverlays.Settings;
+                return settings == null || settings.ShowConsoleQuickButtons;
+            }
+        }
+
+        /// <summary>
+        /// The grid's buttons, in order. Built once — OnGUI runs several times per frame and this array
+        /// would otherwise be reallocated on every pass. The lambdas read the live <c>_service</c> field,
+        /// so a respawned service is picked up without rebuilding the array.
+        ///
+        /// <para><b>Why the two overlay groups are separate and not one "all".</b> The six collider
+        /// visualisations and the four text readouts answer different questions, and turning on ten
+        /// things when you want one is how an overlay stops being readable. <c>legend</c> is included in
+        /// "Colliders on" on purpose: that button's whole workflow is "click, close the console,
+        /// screenshot", and a key-less picture of coloured boxes is only readable by whoever chose the
+        /// colours. It stays an independent channel, so <c>col off legend</c> still strips the text plate
+        /// off the geometry when the geometry is the whole point.</para>
+        ///
+        /// <para><b>Why "Tele probe" is not a toggle.</b> It is one click for the "I press Q and nothing
+        /// happens" report, and a button that flips a trace on and off is one mis-click away from an
+        /// empty Console that looks exactly like the bug you opened it to find. Use <c>tele on</c> for
+        /// the live trace.</para>
+        /// </summary>
+        private (string Label, Action Invoke)[] QuickButtons
+        {
+            get
+            {
+                return _quickButtons ??= new (string Label, Action Invoke)[]
+                {
+                    ("Reveal Map (map)", () => RunCommand("map")),
+                    ("Toggle Fog (fog)", () => RunCommand("fog")),
+                    // One-click save/load: the F-row is claimed by plugins and debug overlays, so the
+                    // round-trip is exercised from here instead.
+                    ("Save (save)", () => RunCommand("save")),
+                    ("Load (load)", () => RunCommand("load")),
+                    ("Saves", () => RunCommand("saves")),
+                    ("Player Editor (F2)", TogglePlayerEditor),
+                    ("Colliders on", () => RunCommand("col on tiles,units,doors,triggers,transitions,objects,legend")),
+                    ("Text on", () => RunCommand("col on tilequery,room,pool,clock")),
+                    ("Probe", () => RunCommand("col probe")),
+                    ("Tele probe", () => RunCommand("tele probe")),
+                    ("Overlays off", () => RunCommand("col off")),
+                    ("Help", () => RunCommand("help")),
+                    ("Clear", ClearConsole),
+                    ("Close [X]", CloseConsole),
+                };
+            }
+        }
+
+        /// <summary>
+        /// Draw the grid and return the vertical space it used, so the caller can reserve exactly that
+        /// much for it. Cells are placed with explicit rects — GUILayout cannot wrap — and the arithmetic
+        /// lives in <see cref="ConsoleButtonGrid"/> so the "does it fit?" contract is covered by an
+        /// offline test rather than by a screenshot.
+        /// </summary>
+        private float DrawQuickButtonGrid((string Label, Action Invoke)[] buttons, float areaWidth)
+        {
+            ConsoleButtonGridLayout grid = ConsoleButtonGrid.Compute(buttons.Length, areaWidth);
+
+            for (int i = 0; i < buttons.Length; i++)
+            {
+                int row = i / grid.Columns;
+                int column = i % grid.Columns;
+
+                var rect = new Rect(
+                    grid.ColumnX(column),
+                    grid.RowY(row),
+                    Mathf.Max(1f, grid.CellDrawWidth),
+                    grid.CellHeight);
+
+                if (GUI.Button(rect, buttons[i].Label))
+                {
+                    buttons[i].Invoke?.Invoke();
+                }
+            }
+
+            return grid.TotalHeight;
+        }
+
+        /// <summary>
+        /// The title-bar toggle for the grid. It writes the same <see cref="PfeDebugSettings"/> field the
+        /// Inspector and <c>ui buttons on|off</c> write, so the three cannot disagree. Absent when the
+        /// project has no settings asset — in that case the grid is always shown and there is nothing to
+        /// persist a choice to.
+        /// </summary>
+        private static void DrawQuickButtonsToggle(float width)
+        {
+            PfeDebugSettings settings = DebugOverlays.Settings;
+            if (settings == null) return;
+
+            bool shown = settings.ShowConsoleQuickButtons;
+            string label = shown ? "Buttons: on  (hide)" : "Buttons: off  (show)";
+
+            if (GUI.Button(new Rect(width - 180f, 3f, 170f, 20f), label))
+            {
+                settings.ShowConsoleQuickButtons = !shown;
+            }
+        }
+
+        private void RunCommand(string command)
+        {
+            SyncDependencies();
+            _service.ExecuteInput(command);
+        }
+
+        private void TogglePlayerEditor()
+        {
+            if (PlayerDebugEditorOverlay.Instance != null)
+            {
+                PlayerDebugEditorOverlay.Instance.IsOpen = !PlayerDebugEditorOverlay.Instance.IsOpen;
+            }
+        }
+
+        private void ClearConsole()
+        {
+            _service.ClearHistory();
+        }
+
+        private void CloseConsole()
+        {
+            _service.IsOpen = false;
         }
 
         public string ExecuteInput(string input)
