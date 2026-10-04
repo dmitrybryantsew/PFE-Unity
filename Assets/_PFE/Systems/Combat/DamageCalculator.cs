@@ -395,6 +395,7 @@ namespace PFE.Systems.Combat
                 damage *= critMultiplier;
                 isCrit = true;
             }
+            bool stealthCrit = false;
 
             // ── 4b. Stealth crit ─────────────────────────────────────────────────────────────────
             // AS3 `:3659-3666` — `if(!this.doop && this.celUnit != param3.owner && param3.critInvis > 0)`.
@@ -413,7 +414,9 @@ namespace PFE.Systems.Combat
             //
             // The doubling is deliberate and is not a mistake: a stealth crit on top of an ordinary
             // crit multiplies by critMultiplier * 2, which is what `param1 *= 2` after the first block
-            // produces in the oracle. isCrit is NOT cleared, so the ordinary-crit flag survives.
+            // produces in the oracle. isCrit is NOT cleared, so the ordinary-crit flag survives — and
+            // the second bit is recorded separately as stealthCrit, because the oracle reads the two
+            // apart (`_loc5_ >= 2` at :3916 is not `_loc5_ > 0` at :3882).
             //
             // The roll is short-circuited on `damage > 0f` and on a positive chance, exactly as the
             // armour and ordinary-crit rolls are, so a weapon with no stealth chance consumes no
@@ -422,6 +425,7 @@ namespace PFE.Systems.Combat
                 && rng.Chance(critInvisChance))
             {
                 damage *= 2f;
+                stealthCrit = true;
             }
 
             // ── 4c. Disintegration ───────────────────────────────────────────────────────────────
@@ -455,7 +459,11 @@ namespace PFE.Systems.Combat
                 armourIntegrityDamage: hasArmour ? Mathf.Min(integrityDamage, armour.integrity) : 0f,
                 armourBroke: broke,
                 armourReduced: armourReduced,
-                isCritical: isCrit);
+                isCritical: isCrit,
+                // AS3's `_loc5_ += 2`. Reported as its own bit rather than folded into `isCrit` so the
+                // three oracle reads (`_loc5_ > 0`, `_loc5_ >= 2`, `_loc5_ == 1 || _loc5_ == 3`) all
+                // remain expressible — see DamageOutcome.IsStealthCritical.
+                isStealthCritical: stealthCrit);
         }
 
         #endregion

@@ -131,6 +131,35 @@ namespace PFE.Systems.Map.Rendering
         private PFE.Systems.Effects.IEffectDefinitionResolver effectResolver;
 
         /// <summary>
+        /// The live particle population and its art catalogue, handed down the same chain as
+        /// <see cref="effectResolver"/> (this controller is a scene object with no <c>[Inject]</c> of its
+        /// own, so <c>MapBridge</c> walks them down by hand).
+        /// </summary>
+        private PFE.Systems.Particles.ParticleWorld particleWorld;
+        private PFE.Systems.Particles.Rendering.ParticleSpriteCatalog particleCatalog;
+
+        /// <summary>
+        /// The two room-scoped particle adapters. Both are handed the current room's tile query in
+        /// <see cref="Initialize"/> and cleared in <see cref="ClearVisuals"/>.
+        ///
+        /// <para><b>Why this controller owns the push.</b> Both adapters need the room's
+        /// <c>ITileQueryService</c> — the water adapter for the <c>water=</c> lifetime rule, the emitter
+        /// for the world→AS3 coordinate conversion — and this is the room-scoped object that holds
+        /// <c>roomInstance</c> and already owns the particle view. Nothing else in the chain knows which
+        /// room is current, and a stale query would convert every particle against the previous room's
+        /// origin: correct in the room everyone tests in, wrong one land step away.</para>
+        /// </summary>
+        private PFE.Systems.Particles.Adapters.TileQueryParticleWater particleTileWater;
+        private PFE.Systems.Particles.Adapters.RoomParticleEmitter particleEmitter;
+
+        /// <summary>
+        /// The room's particle view. Created lazily by <see cref="EnsureParticleRenderer"/>, because this
+        /// controller's <c>transform</c> is the room root and it exists from scene load — the renderer can
+        /// be attached long before any room is built.
+        /// </summary>
+        private PFE.Systems.Particles.Rendering.ParticleRenderer particleRenderer;
+
+        /// <summary>
         /// Whether fog of war / darkness overlay is disabled (revealed).
         /// </summary>
         public bool FogOfWarDisabled
@@ -227,6 +256,92 @@ namespace PFE.Systems.Map.Rendering
         {
             effectResolver = resolver;
             roomUnitSpawner?.SetEffectResolver(resolver);
+        }
+
+        /// <summary>
+        /// Hands the room the particle population and its art catalogue, and creates the view.
+        ///
+        /// <para><b>Why the room owns the particles.</b> AS3 adds each <c>Part</c> to the
+        /// <b><c>Location</c></b> (<c>Emitter.as:362</c>), so particles are room-scoped: they are drawn
+        /// above the room's foreground tiles and below its water and lighting overlays, and they die with
+        /// the room. Parenting them to a unit instead gives the player muzzle smoke that follows them
+        /// around the map.</para>
+        ///
+        /// <para><b>Both arguments are stored, not just used.</b> <see cref="EnsureParticleRenderer"/>
+        /// re-creates the view if a visual clear removed it, so it needs the collaborators to survive
+        /// here rather than being captured once.</para>
+        /// </summary>
+        public void SetParticleWorld(
+            PFE.Systems.Particles.ParticleWorld world,
+            PFE.Systems.Particles.Rendering.ParticleSpriteCatalog catalog)
+        {
+            particleWorld = world;
+            particleCatalog = catalog;
+            EnsureParticleRenderer();
+        }
+
+        /// <summary>
+        /// Hands down the two room-scoped particle adapters and pushes the current room's tile query
+        /// into them — see <see cref="particleTileWater"/> for why this controller owns that push.
+        /// </summary>
+        public void SetParticleAdapters(
+            PFE.Systems.Particles.Adapters.TileQueryParticleWater tileWater,
+            PFE.Systems.Particles.Adapters.RoomParticleEmitter emitter)
+        {
+            particleTileWater = tileWater;
+            particleEmitter = emitter;
+
+            // Pushed here as well as in Initialize: MapBridge hands the adapters down after the first
+            // room may already have been built, and an adapter that missed its only push would answer
+            // dry and refuse to emit for the whole session.
+            PushParticleTileQuery();
+        }
+
+        /// <summary>
+        /// Builds the current room's tile query and pushes it into both particle adapters, or clears
+        /// them when there is no room. Null is the honest answer for a teardown: the adapters then
+        /// answer dry and refuse to emit rather than converting against a room that is gone.
+        /// </summary>
+        private void PushParticleTileQuery()
+        {
+            PFE.Systems.Map.TileQuery.ITileQueryService query = roomInstance != null
+                ? new PFE.Systems.Map.TileQuery.UnifiedTileQueryService(roomInstance)
+                : null;
+
+            particleTileWater?.SetTileQuery(query);
+            particleEmitter?.SetTileQuery(query);
+        }
+
+        /// <summary>
+        /// Creates the particle view under the room root if it is missing.
+        ///
+        /// <para>Called from <see cref="SetParticleWorld"/> and again every frame from
+        /// <see cref="UpdateVisuals"/>. The per-frame call is deliberate: <see cref="ClearVisuals"/> may
+        /// tear the child down on a room rebuild, and a renderer that is never re-created presents as
+        /// "particles worked, then stopped after the first room transition" — the kind of failure that
+        /// costs an afternoon. The guard is a single null test.</para>
+        /// </summary>
+        private void EnsureParticleRenderer()
+        {
+            if (particleWorld == null || particleCatalog == null) return;
+            if (particleRenderer != null) return;
+
+            var rendererObject = new GameObject("__ParticleRenderer");
+            rendererObject.transform.SetParent(transform, false);
+
+            particleRenderer = rendererObject.AddComponent<PFE.Systems.Particles.Rendering.ParticleRenderer>();
+            particleRenderer.Initialize(particleWorld, particleCatalog);
+
+            // The room root IS this controller's transform, and it is the space `ParticleState.X/Y`
+            // (room-local pixels) are expressed in. Attaching anywhere else displaces every particle by a
+            // room width in any room that is not at the origin.
+            //
+            // The height goes with it because `ParticleState.Y` is AS3's downward axis and the port's is
+            // upward: the renderer mirrors about the room height, so it must be the ROOM's height and not
+            // the 25-tile default. `roomInstance` is the same object the tile grid and doors are built
+            // from, so all three agree.
+            int roomHeightTiles = roomInstance != null ? roomInstance.height : WorldConstants.ROOM_HEIGHT;
+            particleRenderer.AttachTo(transform, roomHeightTiles);
         }
 
         /// <summary>
@@ -354,6 +469,11 @@ namespace PFE.Systems.Map.Rendering
             tileAssetDatabase = ResolveTileAssetDatabase(assetDatabase);
             Profiler.Mark("room.resolveTileDb");
             visibilityRevealTargetTransform = null;
+
+            // Point the particle adapters at THIS room. Done here rather than at the particle-view
+            // creation below because the adapters are pushed, not injected, and this is the first
+            // moment the room is known. Null room pushes null, which is the honest teardown answer.
+            PushParticleTileQuery();
 
             // The scripting/trigger layer is not a rendering concern, so create and wire it BEFORE
             // the render-asset guards below. Otherwise a missing tile database leaves
@@ -643,6 +763,9 @@ namespace PFE.Systems.Map.Rendering
             if (!isInitialized)
                 return;
 
+            // Self-healing: ClearVisuals may have taken the particle view down on a room rebuild.
+            EnsureParticleRenderer();
+
             tileVisualManager?.UpdateAllTiles();
             backgroundTileVisualManager?.UpdateAllTiles();
             roomObjectVisualManager?.RefreshAll();
@@ -833,6 +956,13 @@ namespace PFE.Systems.Map.Rendering
 
         private void OnDestroy()
         {
+            // Detach before the room hierarchy goes, so the pooled sprites are handed back rather than
+            // destroyed with it — the pool is owned by the renderer, and a detached renderer can be
+            // re-attached to the next room instead of rebuilding its pool from scratch.
+            particleRenderer?.Detach();
+            if (particleRenderer != null) Destroy(particleRenderer.gameObject);
+            particleRenderer = null;
+
             tileVisualManager?.DestroyAllTiles();
             backgroundTileVisualManager?.DestroyAllTiles();
             roomBackdropRenderer?.DestroyVisuals();
@@ -1279,6 +1409,12 @@ namespace PFE.Systems.Map.Rendering
             roomUnitSpawner = null;
             visibilityRevealTargetTransform = null;
             isInitialized = false;
+
+            // The room's tile query goes with it. An adapter still holding the old room would convert
+            // every later particle against a stale origin — and a stale origin is ZERO in the first
+            // room, so the mistake is invisible in exactly the room most likely to be tested.
+            particleTileWater?.SetTileQuery(null);
+            particleEmitter?.SetTileQuery(null);
             // Nothing is drawn any more, so the room must stop claiming to be visible. Without this
             // IsVisible stayed true after a clear even though every visual had been destroyed.
             isVisible = false;

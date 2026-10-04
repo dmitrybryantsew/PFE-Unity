@@ -275,6 +275,10 @@ namespace PFE.Data.Definitions
         [Header("Projectile — Visual")]
         [Tooltip("Bullet visual class name from AllData.as (vis.@vbul). Empty = default ballistic round.")]
         public string vbul;
+        [Tooltip("Per-weapon explosion-visual override (vis.@visexpl, Weapon.as:623-625). Empty = use the " +
+                 "damage-type table. 'sparkle' is a MAGIC value (the standard blast plus sparkleexpl); any " +
+                 "other value is emitted as a particle id.")]
+        public string visExpl;
         [Tooltip("Imported projectile art definition matched from vbul or default ballistic rules.")]
         public ProjectileVisualDefinition projectileVisual;
         [Tooltip("Spring/visual stretch mode (vis.@spring). 1=velocity scale, 2=laser stretch, 3=multi-frame spread.")]

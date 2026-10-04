@@ -8,6 +8,8 @@ using PFE.Core.Rng;
 using PFE.Data.Definitions;
 using PFE.Entities.Units;
 using PFE.Systems.Map.TileQuery;
+using PFE.Systems.Particles;
+using PFE.Systems.Particles.Adapters;
 using PFE.Systems.Weapons;
 
 namespace PFE.Systems.Combat
@@ -76,6 +78,26 @@ namespace PFE.Systems.Combat
         private readonly PfeDebugSettings _debugSettings;
         private readonly SimLoop _simLoop;
 
+        /// <summary>
+        /// The Unity-side "emit a particle here" seam, for the blood spray. Optional: a host without the
+        /// particle registrations still resolves damage and simply draws no blood, which is the honest
+        /// failure — the alternative would be a null check at every emit or a hard dependency from the
+        /// damage pipeline to the view.
+        /// </summary>
+        private readonly RoomParticleEmitter _particleEmitter;
+
+        /// <summary>
+        /// Scratch list for <see cref="EmitBloodSpray"/> — filled by <see cref="BloodSprayRules.Plan"/>
+        /// and drained immediately, so it is reused rather than reallocated on every hit.
+        /// </summary>
+        private readonly List<ParticleEmit> _bloodEmits = new(4);
+
+        /// <summary>
+        /// The <b>presentation</b> stream, resolved once. Not the combat stream, and that is a decision
+        /// rather than a detail — see <see cref="EmitBloodSpray"/>.
+        /// </summary>
+        private IRngService _presentationRng;
+
         /// <summary>Hits awaiting the next <see cref="SimTick"/>.</summary>
         private List<PendingDamage> _pending = new();
 
@@ -99,13 +121,20 @@ namespace PFE.Systems.Combat
             IRngService rngService,
             IPublisher<DamageDealtMessage> publisher,
             PfeDebugSettings debugSettings,
-            SimLoop simLoop)
+            SimLoop simLoop,
+            // Optional for direct construction (the fixtures build one with five arguments), but NOT
+            // optional for the container: VContainer's ResolveOrParameter never consults
+            // ParameterInfo.HasDefaultValue, so this is resolved like any other dependency and the
+            // default only spares a hand-built instance. RoomParticleEmitter is registered, so a scene
+            // gets the real one.
+            RoomParticleEmitter particleEmitter = null)
         {
             _calculator = calculator;
             _rngService = rngService;
             _publisher = publisher;
             _debugSettings = debugSettings;
             _simLoop = simLoop;
+            _particleEmitter = particleEmitter;
         }
 
         /// <summary>
@@ -430,6 +459,17 @@ namespace PFE.Systems.Combat
             // target. Both are expressed by only drawing when the guard passes.
             ApplyOnHitEffects(hit, target, rng);
 
+            // ── The blood spray — AS3 `Unit.damage():3844-3901` ────────────────────────────────────
+            //
+            // Position in the sequence is the oracle's: the blood block sits AFTER the on-hit status
+            // effects (`:3763-3834`) and BEFORE the impact-feedback block (`:3906`), and `otbros` is
+            // called from `udarBullet` only after `damage()` has returned — so it is after this too.
+            //
+            // It draws from the PRESENTATION stream, so it consumes no combat draw and cannot shift the
+            // knockback roll below. That is a deliberate divergence from the oracle's single global
+            // `Math.random()` and it is argued on EmitBloodSpray.
+            EmitBloodSpray(hit, target, outcome);
+
             _publisher?.Publish(new DamageDealtMessage
             {
                 damage = outcome.HpDamage,
@@ -449,6 +489,111 @@ namespace PFE.Systems.Combat
             ApplyKnockback(hit, target, ctx, rng);
 
             return DamageVerdict.Landed;
+        }
+
+        /// <summary>
+        /// The blood a landed hit throws — the port of AS3 <c>Unit.damage()</c>'s blood block
+        /// (<c>fe/unit/Unit.as:3844-3901</c>). This is the <i>thin</i> half: it converts two Unity
+        /// world positions into AS3 room-local pixels, mirrors the direction, and forwards what
+        /// <see cref="BloodSprayRules"/> decides. The gate, both anchors and the gib arithmetic live
+        /// there, Unity-free, so they are pinned by fixtures rather than being reachable only through a
+        /// <c>MonoBehaviour</c>.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Why the damage system and not the projectile.</b> AS3's blood block is inside
+        /// <c>Unit.damage()</c> — the <i>target's</i> method, not the bullet's — so it runs for every
+        /// damage source, melee and blasts included. <see cref="Apply"/> is the port's one place with
+        /// the same position in the sequence.</para>
+        ///
+        /// <para><b>The presentation stream, deliberately.</b> The oracle draws from a single global
+        /// <c>Math.random()</c>, so its blood draws do shift the knockback roll that <c>otbros</c> takes
+        /// immediately afterwards. The port cannot reproduce that without giving up per-stream
+        /// determinism, and should not want to: every draw here selects a particle, a count or a jitter
+        /// and none of them feeds back into damage, so drawing from the combat stream would let a
+        /// <i>visual</i> move a gameplay number.</para>
+        ///
+        /// <para><b>Two anchors, so two conversions.</b> A bullet throws the spray from its own contact
+        /// point (<c>param3.X/Y</c>); anything else drops it from the target's mid-height
+        /// (<c>X</c>, <c>Y - scY/2</c>) where <c>X</c>/<c>Y</c> is the target's own origin. The rules
+        /// express every emission as an offset from that origin, which is why the anchor is the unit and
+        /// not the sprite's centre — see <see cref="IBloodSpraySource.WorldPosition"/>.</para>
+        ///
+        /// <para><b>Refusing is the point.</b> With no room pushed there is no origin and no room
+        /// height, so there is no correct position. The adapter answers false, this returns, and the
+        /// refusal is counted on the adapter rather than placing particles somewhere plausible and
+        /// wrong.</para>
+        /// </remarks>
+        private void EmitBloodSpray(in PendingDamage hit, IDamageable target, in DamageOutcome outcome)
+        {
+            if (_particleEmitter == null) return;
+
+            // A damageable that is not a unit — a crate, a mine — does not implement this, and the
+            // oracle agrees: its blood block is a Unit behaviour, so those targets draw no blood.
+            if (!(target is IBloodSpraySource bloodSource)) return;
+
+            if (!_particleEmitter.TryToAs3Local(bloodSource.WorldPosition, out Vector2 unitLocal))
+                return;
+
+            // The bullet branch anchors on the round's contact point. Same room, so if the target
+            // converted the bullet will too; if it somehow does not, the emit still happens from the
+            // target — a spray at the right place in the wrong room is a smaller error than no spray.
+            float impactX = unitLocal.x;
+            float impactY = unitLocal.y;
+            if (hit.HasBullet &&
+                _particleEmitter.TryToAs3Local(hit.BulletPosition, out Vector2 bulletLocal))
+            {
+                impactX = bulletLocal.x;
+                impactY = bulletLocal.y;
+            }
+
+            // AS3's `param3.dx / param3.vel`. The port's direction is Unity space (Y up) and the
+            // oracle's is not (Y down), so the Y component is mirrored here. This is the one conversion
+            // the rules cannot do themselves — they never see a Unity vector. X needs no mirror, and
+            // `mirr` reads the sign of X, so it needs none either.
+            Vector2 direction = hit.Context.KnockbackDir;
+
+            var ctx = new BloodSprayContext(
+                blood:        bloodSource.BloodType,
+                damageType:   hit.Context.DamageType,
+                // AS3's `param1` as it stands at :3844 — after vulnerability, armour and crit, which is
+                // the number the target's hp was actually reduced by. The port's post-armour figure,
+                // not the pre-armour `incoming` local.
+                damage:       outcome.HpDamage,
+                mass:         target.Mass,
+                anyCritical:  outcome.AnyCritical,
+                hasBullet:    hit.HasBullet,
+                impactX:      impactX,
+                impactY:      impactY,
+                directionX:   direction.x,
+                directionY:  -direction.y,
+                unitX:        unitLocal.x,
+                unitY:        unitLocal.y,
+                spriteWidth:  bloodSource.SpriteSizePixels.x,
+                spriteHeight: bloodSource.SpriteSizePixels.y);
+
+            if (!BloodSprayRules.Plan(ctx, PresentationRng(), _bloodEmits)) return;
+
+            // EmitAt, not Emit: the rules already produced AS3 room-local pixels, so going back out to
+            // Unity space and in again is how the Y mirror gets applied a second time.
+            foreach (ParticleEmit emit in _bloodEmits)
+            {
+                _particleEmitter.EmitAt(
+                    emit.Id,
+                    new Vector2(unitLocal.x + emit.OffsetX, unitLocal.y + emit.OffsetY),
+                    emit.Spec);
+            }
+        }
+
+        /// <summary>
+        /// The unseeded presentation stream, resolved once. <c>GetStream</c> builds a fresh generator per
+        /// call, so fetching per hit would hand every hit an identical sequence — the same trap the
+        /// combat stream's memoization exists to avoid.
+        /// </summary>
+        private IRngService PresentationRng()
+        {
+            if (_presentationRng == null && _rngService != null)
+                _presentationRng = _rngService.GetStream(RngStream.Presentation);
+            return _presentationRng;
         }
 
         /// <summary>

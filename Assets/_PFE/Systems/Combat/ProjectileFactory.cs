@@ -94,7 +94,11 @@ namespace PFE.Systems.Combat
                 // (weapon.probiv + ammo.probiv, Weapon.as:1681-1684) — passed by the spawner from the
                 // DamageContext so a round that carries its own probiv (AP/sabot) actually penetrates.
                 // Falling back to the definition keeps editor and test callers working unchanged.
-                penetration: penetrationOverride ?? weapon.penetration);
+                penetration: penetrationOverride ?? weapon.penetration,
+                // vis.@visexpl — the per-weapon explosion-visual override `Bullet.explVis()` reads first
+                // (Weapon.as:623-625). A string, so it rides along rather than becoming another
+                // positional primitive the factory would have to unpack.
+                visExpl:   weapon.visExpl);
             proj.ApplyVisual(weapon.projectileVisual);
 
             if (_debugSettings?.LogProjectileSpawning == true)

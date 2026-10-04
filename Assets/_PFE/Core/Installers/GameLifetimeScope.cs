@@ -11,6 +11,9 @@ using PFE.Data.Definitions;
 using PFE.Systems.Map;
 using PFE.Systems.Map.Rendering;
 using PFE.Systems.Physics;
+using PFE.Systems.Particles;
+using PFE.Systems.Particles.Adapters;
+using PFE.Systems.Particles.Rendering;
 using PFE.Data;
 using PFE.Entities.Player;
 using PFE.Systems.Weapons;
@@ -177,8 +180,9 @@ public class GameLifetimeScope : LifetimeScope
 
         // Single point of damage resolution. RegisterEntryPoint (not Register) so IStartable actually
         // runs — DamageSystem.Start puts itself on SimLoop at SimTickOrder.Damage. AsSelf for the same
-        // reason as SimLoop above: RegisterEntryPoint replaces the service list with the entry-point
-        // interfaces, so without it the four sources could not [Inject] the concrete type.
+        // reason as SimLoop above: RegisterEntryPoint supplies IStartable/ITickable as the service
+        // types, so the impl-type binding is never added (see the note above SimLoop), and without it
+        // the four sources could not [Inject] the concrete type.
         builder.RegisterEntryPoint<DamageSystem>().AsSelf();
 
         // === LowLevelPhysics2D World (Stage B) ===
@@ -254,14 +258,99 @@ public class GameLifetimeScope : LifetimeScope
         // Registered but with no ISimTickable consumers attached yet, so this driver only advances
         // its own counters. Consumers move across in Stage C.
         //
-        // AsSelf() is REQUIRED, not cosmetic: RegisterEntryPoint<T>() is
-        // `Register<T>(lifetime).AsImplementedInterfaces()` — and As* *replaces* the service types
-        // rather than adding to them, so without AsSelf the only resolvable services are IStartable
-        // and ITickable. MapBridge injects the concrete SimLoop and would fail with
-        // "No such registration of type: PFE.Core.SimLoop". Same reason GameManager needs AsSelf
-        // below. Singleton also matters here: the instance handed to MapBridge must be the very same
-        // one being ticked, or the motor would register on a SimLoop that never runs.
+        // AsSelf() is LOAD-BEARING, not readability. An earlier version of this comment claimed the
+        // opposite, on the reasoning that the `As*` family *appends* rather than replaces — which is
+        // true and is only half the mechanism. The half it missed:
+        //
+        //   RegistrationBuilder.AddInterfaceType (:138-147) appends, so the `As<>` calls stack.
+        //   BUT Registry.Build (Registry.cs:27-44) registers the implementation type only in its
+        //   *else* branch — i.e. only while `InterfaceTypes` is still null. As soon as any `As<>`
+        //   has run, it instead inserts a deliberately **null** entry under the implementation-type
+        //   key ("Mark the ImplementationType with a guard because we need to check if it exists
+        //   later"), and Registry.TryGet (:112-115) returns false for a null registration.
+        //
+        // So: `Register<T>()` with no `As<>` is resolvable as T; `Register<T>().As<I>()` is NOT.
+        // That is what makes `.AsSelf()` required above, and it is also why every RegisterEntryPoint
+        // in this file carries one — RegisterEntryPoint supplies IStartable/ITickable as service
+        // types, so the self binding is already gone by the time it returns. MapBridge's
+        // [Inject] Construct takes several of these types CONCRETELY, so a missing AsSelf is not a
+        // subtle degradation: Awake throws and the scene never bootstraps. Found 2026-10-04, when
+        // MapBridge failed to resolve ParticleWorld.
+        //
+        // Singleton still matters, and for a real reason: the instance handed to MapBridge must be the
+        // very same one being ticked, or the motor would register on a SimLoop that never runs.
         builder.RegisterEntryPoint<SimLoop>().AsSelf();
+
+        // === Particle / effect visuals (the 118 <part> rows) ===
+        //
+        // Both data assets are null-tolerant on purpose: a fresh clone that has not run the two
+        // importers yet must still boot and simply draw nothing, rather than fail to start. Each miss
+        // is named in the log together with the menu item that fixes it, because "particles do not
+        // appear" is otherwise indistinguishable from "the data was never imported".
+        ParticleDefinitionAsset particleDefinitions =
+            Resources.Load<ParticleDefinitionAsset>("ParticleDefinitions");
+        if (particleDefinitions == null)
+        {
+            Debug.LogWarning(
+                "[GameLifetimeScope] ParticleDefinitions.asset not found in Resources — run " +
+                "PFE/Data/Import Particles from AllData.as. No particle will resolve; every emit " +
+                "will be reported as an unknown id.");
+        }
+
+        builder.RegisterInstance<ParticleDefinitionTable>(
+            particleDefinitions != null ? particleDefinitions.Table : ParticleDefinitionTable.Empty);
+
+        ParticleSpriteCatalogAsset particleSprites =
+            Resources.Load<ParticleSpriteCatalogAsset>("ParticleSprites");
+        if (particleSprites == null)
+        {
+            Debug.LogWarning(
+                "[GameLifetimeScope] ParticleSprites.asset not found in Resources — run " +
+                "PFE/Art/Import Particle Sprites. Particles will spawn with zero frames and " +
+                "therefore draw nothing.");
+        }
+
+        // ONE catalogue, registered under two service types. `ParticleWorld` only needs the
+        // `IParticleSpriteFrames` seam (an int-returning frame count, so the world stays Unity-free),
+        // while `ParticleRenderer` needs `FrameAt` to get an actual Sprite. Registering the same instance
+        // twice is what keeps those from becoming two independent dictionaries that can disagree.
+        ParticleSpriteCatalog particleCatalog = new ParticleSpriteCatalog(particleSprites);
+        builder.RegisterInstance(particleCatalog);
+        builder.RegisterInstance<IParticleSpriteFrames>(particleCatalog);
+
+        // Room-scoped by nature, and registered as the concrete type as well so the room can push the
+        // current ITileQueryService into *this* instance (the adapter's own docs explain why it is
+        // pushed rather than injected). Until a room pushes one the answer is dry, which is honest:
+        // only 6 of the 118 rows read water at all.
+        // AsSelf() is REQUIRED, not decoration: MapBridge's [Inject] Construct takes this type
+        // CONCRETELY (it pushes the current room's tile query into *this* instance), and any `As<>`
+        // call drops the implicit self-registration — see the note above SimLoop for the mechanism.
+        builder.Register<TileQueryParticleWater>(Lifetime.Singleton)
+            .AsSelf()
+            .As<IParticleTileWater>();
+
+        // The world takes only seams, so it stays constructible from a bare `new` in the offline
+        // fixtures. As<IAutoRegisteredSimTickable> is what puts it on SimLoop — SimTickRegistrar reads
+        // that marker, so nothing has to remember to register it.
+        // AsSelf() is REQUIRED: MapBridge hands the CONCRETE ParticleWorld to RoomVisualController
+        // (SetParticleWorld), because the view needs more than the IParticleWorld seam. Without it,
+        // Resolve(typeof(ParticleWorld)) throws at Awake and the whole scene fails to bootstrap.
+        builder.Register<ParticleWorld>(Lifetime.Singleton)
+            .AsSelf()
+            .As<IParticleWorld>()
+            .As<IAutoRegisteredSimTickable>();
+
+        // The Unity-side emit seam: gameplay hands it a Unity world position and it does the
+        // room-origin subtraction and the AS3 Y mirror once, for every call site. Registered as the
+        // concrete type — there is one implementation, and the part worth pinning (the conversion) is
+        // pinned by WorldCoordinates' fixtures rather than by a mock. Like the water adapter it takes
+        // the current room's tile query by push, from the same place, so a room change cannot leave it
+        // converting against the previous room's origin.
+        builder.Register<RoomParticleEmitter>(Lifetime.Singleton);
+
+        // The single place every always-on tickable is attached to SimLoop. This replaces the
+        // per-system `IStartable` driver that ParticleWorld used to need.
+        builder.RegisterEntryPoint<SimTickRegistrar>();
 
         // Syncs GameSettings audio sliders → ISoundService / IMusicService each tick
         builder.RegisterEntryPoint<AudioVolumeSync>();

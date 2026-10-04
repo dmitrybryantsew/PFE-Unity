@@ -133,7 +133,9 @@ namespace PFE.Systems.Map
 
         private static int As3RowToUnityY(RoomInstance room, int as3Row)
         {
-            return room.height - 1 - as3Row;
+            // Delegates to the shared mirror so the AS3→port row flip has exactly one definition.
+            // See WorldCoordinates' "AS3 ↔ port Y axis" remarks.
+            return WorldCoordinates.As3RowToUnityRow(as3Row, room.height);
         }
 
         /// <summary>

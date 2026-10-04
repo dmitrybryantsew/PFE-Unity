@@ -258,5 +258,87 @@ namespace PFE.Tests.Editor.Map
             Assert.AreEqual(originalUnity.x, convertedUnity.x, 0.01f);
             Assert.AreEqual(originalUnity.y, convertedUnity.y, 0.01f);
         }
+
+        // ── AS3 ↔ port Y axis ────────────────────────────────────────────────────────────────
+        //
+        // AS3 indexes tile rows from the ceiling and runs Y downward; the port indexes from the
+        // floor and runs Y upward. Everything below pins that mirror, because a consumer that
+        // forgets it does not fail loudly — it reads the vertically opposite tile, and for a
+        // ceiling row that is a whole room height away.
+
+        [Test]
+        public void As3RowToUnityRow_MirrorsAboutRoomHeight()
+        {
+            const int Height = 25;
+
+            // AS3 row 0 is the ceiling; the port's top row is height-1.
+            Assert.AreEqual(24, WorldCoordinates.As3RowToUnityRow(0, Height));
+            // AS3's last row is the floor; the port's floor is row 0.
+            Assert.AreEqual(0, WorldCoordinates.As3RowToUnityRow(24, Height));
+
+            // The mirror is its own inverse, so the two helpers must round-trip at every row.
+            for (int as3Row = 0; as3Row < Height; as3Row++)
+            {
+                int unityRow = WorldCoordinates.As3RowToUnityRow(as3Row, Height);
+                Assert.AreEqual(as3Row, WorldCoordinates.UnityRowToAs3Row(unityRow, Height),
+                    $"round trip failed at AS3 row {as3Row}");
+            }
+        }
+
+        [Test]
+        public void As3YToUnityRow_ReadsTheMirroredRow_NotTheAs3Row()
+        {
+            const int Height = 25;
+
+            // A particle at the AS3 ceiling belongs to the port's TOP row, not row 0.
+            Assert.AreEqual(24, WorldCoordinates.As3YToUnityRow(0f, Height));
+            // AS3's bottom pixel row belongs to the port's floor row.
+            Assert.AreEqual(0, WorldCoordinates.As3YToUnityRow(999f, Height));
+
+            // Control — this is the defect the mirror fixes, stated as an assertion so it cannot
+            // silently come back. Reading the AS3 row directly (the un-mirrored form that shipped)
+            // names port row 0 for an AS3 ceiling pixel: the vertically opposite end of the room.
+            int as3RowOfCeilingPixel = Mathf.FloorToInt(0f / WorldConstants.TILE_SIZE);
+            Assert.AreEqual(0, as3RowOfCeilingPixel);
+            Assert.AreNotEqual(as3RowOfCeilingPixel, WorldCoordinates.As3YToUnityRow(0f, Height));
+        }
+
+        [Test]
+        public void As3YToUnityRow_AgreesWithTheMirroredPixelRow()
+        {
+            const int Height = 25;
+
+            // The row helper must be exactly "mirror the pixel, then name the port row that owns
+            // it", with the port's convention that a point on a boundary belongs to the row below
+            // (`ceil(y/40) - 1` — the form ThrownObject.CellAt derives independently). Any
+            // disagreement here is an off-by-one on a tile edge.
+            for (int as3Y = 0; as3Y <= Height * (int)WorldConstants.TILE_SIZE; as3Y++)
+            {
+                float portY = WorldCoordinates.As3YToUnityLocalY(as3Y, Height);
+                int rowFromPixel = Mathf.CeilToInt(portY / WorldConstants.TILE_SIZE) - 1;
+                int rowFromHelper = WorldCoordinates.As3YToUnityRow(as3Y, Height);
+
+                Assert.AreEqual(rowFromPixel, rowFromHelper,
+                    $"row mismatch at as3Y={as3Y} (portY={portY})");
+            }
+        }
+
+        [Test]
+        public void As3YToUnityLocalY_MirrorsThePixelAxis()
+        {
+            const int Height = 25;
+            const float RoomPixelHeight = Height * WorldConstants.TILE_SIZE;
+
+            // AS3 pixel 0 (the ceiling) is the top of the port's room-local space.
+            Assert.AreEqual(RoomPixelHeight, WorldCoordinates.As3YToUnityLocalY(0f, Height), 0.001f);
+            // AS3's last pixel is the port's floor.
+            Assert.AreEqual(0f, WorldCoordinates.As3YToUnityLocalY(RoomPixelHeight, Height), 0.001f);
+            // Midway stays midway — the mirror is about the room's mid-height.
+            Assert.AreEqual(RoomPixelHeight * 0.5f,
+                WorldCoordinates.As3YToUnityLocalY(RoomPixelHeight * 0.5f, Height), 0.001f);
+            // A point 100 px below the AS3 ceiling is 100 px above the port floor.
+            Assert.AreEqual(RoomPixelHeight - 100f,
+                WorldCoordinates.As3YToUnityLocalY(100f, Height), 0.001f);
+        }
     }
 }

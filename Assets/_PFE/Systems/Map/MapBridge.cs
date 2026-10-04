@@ -52,13 +52,16 @@ public class MapBridge : MonoBehaviour
 
     // Inject GameManager via VContainer
     //
-    // Note: C# default values would NOT make a parameter optional here. VContainer's
+    // Note: C# default values do NOT make a parameter optional here. VContainer's
     // ResolveOrParameter never consults ParameterInfo.HasDefaultValue — it checks only explicitly
     // supplied inject parameters, then calls Resolve(type) and throws if that fails. So every
-    // parameter below must be registered, and `= null` defaults are deliberately omitted rather
-    // than left in to imply an optionality the container does not honour.
+    // parameter below must be registered, and the `= null` on the last few is DECORATIVE, not an
+    // escape hatch: the container still throws when a type is missing. They are safe only because
+    // GameLifetimeScope registers each of them unconditionally. This comment previously claimed the
+    // defaults were "deliberately omitted" while the line beneath it carried three — the code is the
+    // truth, and it is why a scene cannot opt out of a registration by relying on the default.
     [Inject]
-    public void Construct(GameManager gameManager, RoomGenerator roomGenerator, TileTextureLookup tileTextureLookup, MaterialRenderDatabase materialRenderDatabase, TileMaskLookup tileMaskLookup, RoomBackgroundLookup roomBackgroundLookup, PFE.Core.PfeDebugSettings debugSettings, PFE.Core.SimClock simClock, PFE.Core.SimLoop simLoop, PFE.Systems.Physics.IPhysicsWorldService physicsWorldService, PFE.Systems.Combat.DamageSystem damageSystem, PFE.Data.ContentRegistry registry = null)
+    public void Construct(GameManager gameManager, RoomGenerator roomGenerator, TileTextureLookup tileTextureLookup, MaterialRenderDatabase materialRenderDatabase, TileMaskLookup tileMaskLookup, RoomBackgroundLookup roomBackgroundLookup, PFE.Core.PfeDebugSettings debugSettings, PFE.Core.SimClock simClock, PFE.Core.SimLoop simLoop, PFE.Systems.Physics.IPhysicsWorldService physicsWorldService, PFE.Systems.Combat.DamageSystem damageSystem, PFE.Data.ContentRegistry registry = null, PFE.Systems.Particles.ParticleWorld particleWorld = null, PFE.Systems.Particles.Rendering.ParticleSpriteCatalog particleCatalog = null, PFE.Systems.Particles.Adapters.TileQueryParticleWater particleTileWater = null, PFE.Systems.Particles.Adapters.RoomParticleEmitter particleEmitter = null)
     {
         _gameManager = gameManager;
         _roomGenerator = roomGenerator;
@@ -91,6 +94,33 @@ public class MapBridge : MonoBehaviour
         {
             _visualController.SetEffectResolver(
                 new PFE.Systems.Effects.ContentRegistryEffectDefinitionResolver(registry));
+        }
+
+        // ...and the particle population, down the SAME chain, because AS3 scopes particles to the room
+        // (`Emitter.as:362` adds each Part to the Location). This is what gives the room its own particle
+        // view: parented to the room root, so a part is drawn in room-local pixels and is occluded by the
+        // room's own overlays. Handing it to a unit instead would make muzzle smoke follow the player.
+        //
+        // Both are optional so a scene without the particle registrations still boots: the controller
+        // simply never creates the view, and the world (if present) still ticks its budget and
+        // unknown-id report. Silence here is not a silent failure — ParticleWorld.UnknownIds and
+        // ParticleSpriteCatalog.MissingIds are the readbacks.
+        if (_visualController != null && particleWorld != null && particleCatalog != null)
+        {
+            _visualController.SetParticleWorld(particleWorld, particleCatalog);
+        }
+
+        // ...and the two room-scoped adapters, so the controller can point them at whichever room is
+        // current. They are handed over as a pair because they share one dependency — the room's tile
+        // query — and are pushed it from one place, which is what keeps the water answer and the
+        // particle coordinate conversion from disagreeing about which room they are in.
+        //
+        // Optional in the same way the world is: a scene without the registrations boots, the emitters
+        // refuse (RoomParticleEmitter.RefusedWithoutRoom counts it) and the water answer stays dry,
+        // rather than anything converting against a room that does not exist.
+        if (_visualController != null && particleTileWater != null && particleEmitter != null)
+        {
+            _visualController.SetParticleAdapters(particleTileWater, particleEmitter);
         }
 
         // P1: hand the fixed-step simulation down the SAME chain, so a motor-less NPC steps on

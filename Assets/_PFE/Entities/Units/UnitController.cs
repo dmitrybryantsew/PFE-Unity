@@ -28,7 +28,7 @@ namespace PFE.Entities.Units
     /// - grav for gravity
     /// </summary>
     [RequireComponent(typeof(Rigidbody2D))]
-    public class UnitController : MonoBehaviour, IDamageable, PFE.Core.ISimTickable, IEffectReceiver
+    public class UnitController : MonoBehaviour, IDamageable, PFE.Core.ISimTickable, IEffectReceiver, IBloodSpraySource
     {
         [Header("Configuration")]
         [SerializeField]
@@ -1286,6 +1286,58 @@ namespace PFE.Entities.Units
         /// not initialised yet is knocked back normally rather than not at all.
         /// </remarks>
         public virtual float Mass => _stats != null ? _stats.Massa : 1f;
+
+        // === IBloodSpraySource — AS3 `Unit.blood` and `scX`/`scY` ==============================
+        //
+        // A second optional interface, for the same reason `IEffectReceiver` is one: AS3's blood block
+        // lives inside `Unit.damage()` (`Unit.as:3844-3899`), so it is a Unit behaviour. A damageable
+        // that is not a unit — a crate, a mine — does not implement this, and the damage path then
+        // emits no blood for it, which is what the type system is being asked to say.
+
+        /// <summary>
+        /// AS3 <c>Unit.blood</c> — <c>0</c> = none, <c>1</c> = red, <c>2</c> = green, <c>3</c> = pink.
+        /// </summary>
+        /// <remarks>
+        /// <b>From the definition, not <see cref="UnitStats"/>,</b> because AS3 never mutates it after
+        /// construction. The fallback is <see cref="BloodType.None"/>, AS3's own field default
+        /// (<c>Unit.as:416</c>) — not red. A unit whose spawner has not assigned a definition yet must
+        /// not spray red blood, and <c>None</c> is also the flag that means "immune to bleed"
+        /// (<c>:1417-1420</c>).
+        /// </remarks>
+        public virtual BloodType BloodType => _stats != null ? _stats.bloodType : BloodType.None;
+
+        /// <summary>
+        /// AS3 <c>scX</c>/<c>scY</c> in pixels — the authored <c>&lt;phis sX sY&gt;</c> pair.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="UnitDefinition.Width"/>/<see cref="UnitDefinition.Height"/> hold the same numbers
+        /// divided by 100 (the importer's pixel → Unity-unit conversion), so this multiplies back. It is
+        /// deliberately pixels and not Unity units: the caller is placing particles in AS3 room-local
+        /// pixels, and a silent ×100 in the middle of that is exactly the coordinate mistake lesson #51
+        /// records.
+        /// </remarks>
+        public virtual Vector2 SpriteSizePixels => _stats != null
+            ? new Vector2(_stats.Width * 100f, _stats.Height * 100f)
+            : Vector2.zero;
+
+        /// <summary>
+        /// This unit's origin in Unity world space — AS3's <c>X</c>/<c>Y</c>, which is the <b>bottom</b>
+        /// of the body box and its horizontal centre (<c>Unit.as:1875-1878</c>:
+        /// <c>Y1 = Y - scY</c>, <c>Y2 = Y</c>, <c>X1 = X - scX / 2</c>, <c>X2 = X + scX / 2</c>).
+        /// </summary>
+        /// <remarks>
+        /// <para>See <see cref="IBloodSpraySource.WorldPosition"/> for why it is the origin rather than
+        /// the sprite's centre — the blood block expresses every emission as an offset from
+        /// <c>X</c>/<c>Y</c>, so handing in the centre would double-apply the half-height.</para>
+        ///
+        /// <para><b>A Unity read inside a tick, recorded rather than hidden.</b> The damage drain runs on
+        /// <c>SimLoop</c>, and the sim's contract is that a tick reads no <c>Transform</c>. This one
+        /// does, for the same reason <c>Projectile.ApplyHoming</c> does: the value is consumed by a
+        /// presentation emit and never feeds back into a simulation decision, and units have no
+        /// sim-owned position to read instead. The failure mode is a unit whose blood lags its body by
+        /// one frame — a visual artefact, not a divergence that can compound.</para>
+        /// </remarks>
+        public virtual Vector3 WorldPosition => transform.position;
 
         /// <summary>
         /// AS3 <c>Unit.invulner</c>, from the definition's authored flag.

@@ -83,6 +83,110 @@ namespace PFE.Systems.Map
             return new Rect(pos.x, pos.y, WorldConstants.TILE_SIZE, WorldConstants.TILE_SIZE);
         }
 
+        // ── AS3 ↔ port Y axis ────────────────────────────────────────────────────────────────
+        //
+        // AS3 rooms index tile ROWS from the TOP (row 0 is the ceiling) and run Y downward.
+        // The port's tile grid — what `RoomInstance.GetTileAtCoord` and
+        // `ITileQueryService.Classify` index — runs the other way: port row 0 is the FLOOR.
+        // So the two are related by a mirror about the room's full height, and NOT by a plain
+        // floor. The mirror is load-bearing at cell boundaries, which is why it is one shared
+        // function rather than a `- 1` each caller re-derives:
+        //
+        //   * `Doorcarver.As3RowToUnityY` (the door carver) has always used this form.
+        //   * `RoomBackdropRenderer` reaches the same value the long way round, as
+        //     `borderOffset + contentHeight - as3Row - decorationHeight`, which reduces to
+        //     `height - 1 - as3Row` once the border is added back on both sides.
+        //   * `ThrownObject.CellAt` derives it from the other direction and lands on
+        //     `ceil(portY / 40) - 1` for a Y-up port pixel.
+        //
+        // A plain `floor` agrees with this everywhere EXCEPT on an exact tile boundary
+        // (`portY = k * 40`), where it names the row above — see `ThrownObject.CellAt`'s remarks
+        // for why that single-cell error is a real defect and not an epsilon.
+
+        /// <summary>
+        /// AS3 tile row → port tile row. See the section remarks above for why this is not a
+        /// plain floor and why it is shared.
+        /// </summary>
+        /// <param name="as3Row">AS3 row index, 0 = ceiling.</param>
+        /// <param name="roomHeightTiles">The room's height in tiles (<c>RoomInstance.height</c>).</param>
+        public static int As3RowToUnityRow(int as3Row, int roomHeightTiles)
+        {
+            return roomHeightTiles - 1 - as3Row;
+        }
+
+        /// <summary>Port tile row → AS3 tile row. The exact inverse of <see cref="As3RowToUnityRow"/>.</summary>
+        public static int UnityRowToAs3Row(int unityRow, int roomHeightTiles)
+        {
+            return roomHeightTiles - 1 - unityRow;
+        }
+
+        /// <summary>
+        /// AS3 room-local pixel Y (downward) → port tile row. The AS3 side of this pair is the
+        /// space <c>Emitter.emit</c> is called in and therefore the space
+        /// <c>ParticleState.Y</c> lives in.
+        /// </summary>
+        public static int As3YToUnityRow(float as3Y, int roomHeightTiles)
+        {
+            return As3RowToUnityRow(Mathf.FloorToInt(as3Y / WorldConstants.TILE_SIZE), roomHeightTiles);
+        }
+
+        /// <summary>
+        /// AS3 room-local pixel Y (downward, 0 = ceiling) → port room-local pixel Y (upward,
+        /// 0 = floor). This is the position half of the same mirror, for consumers that place
+        /// something in room-local space rather than naming a tile.
+        /// </summary>
+        /// <remarks>
+        /// The mirror is its own inverse — <c>H - (H - y) = y</c> — so the same call converts in
+        /// either direction. That is a property worth relying on deliberately rather than a
+        /// coincidence: it is why <see cref="UnityWorldToAs3RoomLocal"/> can be written with this
+        /// call on the way out.
+        /// </remarks>
+        public static float As3YToUnityLocalY(float as3Y, int roomHeightTiles)
+        {
+            return roomHeightTiles * WorldConstants.TILE_SIZE - as3Y;
+        }
+
+        /// <summary>
+        /// Unity world position → <b>AS3 room-local pixels</b>, the space <c>Emitter.emit</c> and
+        /// <c>ParticleState.X/Y</c> are in.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>This is the one conversion every particle emitter call site needs</b>, and the
+        /// reason it lives here rather than at each caller: the particle pipeline has roughly ninety
+        /// call sites across twenty files, and a per-caller conversion would be the same three lines
+        /// copy-pasted ninety times — with the Y mirror wrong in whichever copy was written last.
+        /// See <see cref="ParticleState"/>-side notes in <c>ParticleSpec.cs</c> for why the pipeline is
+        /// in AS3 space at all.</para>
+        /// <para>Two steps, and both are load-bearing: subtract the room origin (a Unity world position
+        /// is a <i>world</i> pixel, and the room's origin is not the world origin in any room but the
+        /// first), then mirror Y.</para>
+        /// </remarks>
+        /// <param name="unityPos">The Unity world position (e.g. a projectile's impact point).</param>
+        /// <param name="originPixel">
+        /// The room's origin in world pixels — <c>ITileQueryService.OriginPixel</c>. Zero for a room at
+        /// land (0,0), which is exactly why a consumer that forgets it looks perfect in the room
+        /// everyone tests in.
+        /// </param>
+        /// <param name="roomHeightTiles">The room's height in tiles (<c>RoomInstance.height</c>).</param>
+        public static Vector2 UnityWorldToAs3RoomLocal(Vector3 unityPos, Vector2 originPixel, int roomHeightTiles)
+        {
+            Vector2 portLocal = UnityToPixel(unityPos) - originPixel;
+
+            // The mirror is its own inverse, so the same call does the flip either way.
+            return new Vector2(portLocal.x, As3YToUnityLocalY(portLocal.y, roomHeightTiles));
+        }
+
+        /// <summary>
+        /// The exact inverse of <see cref="UnityWorldToAs3RoomLocal"/> — AS3 room-local pixels back to
+        /// a Unity world position. Needed by anything that has an AS3-space point (a stored impact, a
+        /// round trip through a fixture) and must place a Unity object at it.
+        /// </summary>
+        public static Vector3 As3RoomLocalToUnityWorld(Vector2 as3Local, Vector2 originPixel, int roomHeightTiles)
+        {
+            Vector2 portLocal = new Vector2(as3Local.x, As3YToUnityLocalY(as3Local.y, roomHeightTiles));
+            return PixelToUnity(portLocal + originPixel);
+        }
+
         /// <summary>
         /// Convert Unity world position to pixel position.
         /// Assuming 100 pixels = 1 Unity unit (1 meter).

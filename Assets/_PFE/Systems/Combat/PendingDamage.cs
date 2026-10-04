@@ -122,6 +122,41 @@ namespace PFE.Systems.Combat
         /// </summary>
         public readonly bool SkipsDamageVariance;
 
+        /// <summary>
+        /// Whether this hit arrived on a <b>bullet</b> — AS3's <c>param3</c> being non-null in
+        /// <c>Unit.damage()</c>.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Not the same question as <see cref="ReachedDamageWithoutUdarBullet"/>, and the
+        /// difference is melee.</b> That flag is "did this come through <c>udarBullet</c>", and the port
+        /// maps melee onto <see cref="Direct"/>, which sets it <c>false</c> — so reading it as "has a
+        /// bullet" would say <i>yes</i> for a sword. AS3 disagrees: <c>Unit.udarUnit()</c> calls
+        /// <c>damage((...), param1.currentWeapon.tipDamage)</c> at <c>:4162</c> with <b>two</b>
+        /// arguments, so <c>param3</c> is null and a melee hit takes the no-bullet branch. The two facts
+        /// genuinely differ, which is why this is its own field rather than a negation of that one.</para>
+        ///
+        /// <para>What reads it: the blood spray, whose two anchors are selected by exactly this test —
+        /// a bullet throws the spray from its own contact point with the round's velocity, everything
+        /// else drops it from the target's mid-height with none (<c>Unit.as:3863-3874</c>).</para>
+        /// </remarks>
+        public readonly bool HasBullet;
+
+        /// <summary>
+        /// The delivering bullet's position at the moment of contact, in Unity world space — AS3's
+        /// <c>param3.X</c>/<c>param3.Y</c>.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Read only when <see cref="HasBullet"/>, and it is not
+        /// <see cref="ImpactPosition"/>.</b> That field is documented as the floating-number position
+        /// and is fed the <i>target's</i> transform by both of its callers; this one is the projectile's
+        /// own contact point, which is what AS3's <c>param3.X/Y</c> holds. For a unit they differ by the
+        /// target's half-height — blood from the boots instead of the wound — so a consumer that reads
+        /// this without checking <see cref="HasBullet"/> gets a plausible wrong anchor. When there is no
+        /// bullet it falls back to the impact position rather than to the origin, because the origin is a
+        /// real place in room-local pixels and would fail more quietly, not less.</para>
+        /// </remarks>
+        public readonly Vector3 BulletPosition;
+
         private PendingDamage(
             in DamageContext context,
             IDamageable target,
@@ -132,7 +167,8 @@ namespace PFE.Systems.Combat
             float factionMultiplier,
             float travelDistancePixels,
             bool reachedDamageWithoutUdarBullet,
-            bool skipsDamageVariance)
+            bool skipsDamageVariance,
+            Vector3? bulletPosition)
         {
             Context                       = context;
             Target                        = target;
@@ -144,6 +180,8 @@ namespace PFE.Systems.Combat
             TravelDistancePixels          = travelDistancePixels;
             ReachedDamageWithoutUdarBullet = reachedDamageWithoutUdarBullet;
             SkipsDamageVariance           = skipsDamageVariance;
+            HasBullet                     = bulletPosition.HasValue;
+            BulletPosition                = bulletPosition ?? impactPosition;
         }
 
         /// <summary>A single-target hit — a bullet, a melee sweep, anything that reads <c>BaseDamage</c>.</summary>
@@ -151,9 +189,15 @@ namespace PFE.Systems.Combat
         /// Distance flown, in pixels — AS3 <c>Bullet.dist</c>. Defaults to <c>0</c>, which is right for
         /// a melee sweep and for a hitscan; a projectile should pass its own.
         /// </param>
+        /// <param name="bulletPosition">
+        /// The delivering bullet's contact point, when there is one — AS3's <c>param3</c>. Null (the
+        /// default) means "no bullet", which is the truth for a melee sweep and for a hitscan. One
+        /// parameter rather than a flag plus a vector, because the existence of the bullet and its
+        /// position are the same fact and cannot disagree if they travel together.
+        /// </param>
         public static PendingDamage Direct(
             in DamageContext context, IDamageable target, Vector3 impactPosition,
-            float travelDistancePixels = 0f)
+            float travelDistancePixels = 0f, Vector3? bulletPosition = null)
             => new PendingDamage(context, target, impactPosition,
                                  isExplosion: false,
                                  explosionCentre: impactPosition,
@@ -161,7 +205,8 @@ namespace PFE.Systems.Combat
                                  factionMultiplier: 1f,
                                  travelDistancePixels: travelDistancePixels,
                                  reachedDamageWithoutUdarBullet: false,
-                                 skipsDamageVariance: false);
+                                 skipsDamageVariance: false,
+                                 bulletPosition: bulletPosition);
 
         /// <summary>
         /// A prop impact or any other hit that reaches <c>Unit.damage()</c> without a bullet — AS3
@@ -184,7 +229,8 @@ namespace PFE.Systems.Combat
                                  factionMultiplier: 1f,
                                  travelDistancePixels: 0f,
                                  reachedDamageWithoutUdarBullet: true,
-                                 skipsDamageVariance: true);
+                                 skipsDamageVariance: true,
+                                 bulletPosition: null);
 
         /// <summary>
         /// An AoE blast against one target in range. The caller has already enumerated the overlap and
@@ -220,6 +266,10 @@ namespace PFE.Systems.Combat
                                  factionMultiplier: factionMultiplier,
                                  travelDistancePixels: 0f,
                                  reachedDamageWithoutUdarBullet: true,
-                                 skipsDamageVariance: false);
+                                 skipsDamageVariance: false,
+                                 // A blast reaches damage() through explRun with no bullet object, and
+                                 // AS3's blood block reads that same absence — a grenade spatters, its
+                                 // shrapnel sprays.
+                                 bulletPosition: null);
     }
 }

@@ -46,6 +46,37 @@ namespace PFE.Core
     }
 
     /// <summary>
+    /// An <see cref="ISimTickable"/> that is <b>always on</b>: a container-registered service that wants
+    /// to be on <see cref="SimLoop"/> for the whole session, with no lifecycle of its own.
+    ///
+    /// <para><b>Why this marker exists rather than plain <see cref="ISimTickable"/> discovery.</b>
+    /// <c>SimTickRegistrar</c> registers every tickable it can see, so "who is on the loop" has to be a
+    /// deliberate declaration. Of the twelve <see cref="ISimTickable"/> implementers in the project,
+    /// <b>nine register themselves dynamically</b> — per-instance, and unregistering again:</para>
+    /// <list type="bullet">
+    /// <item><description><c>Projectile</c>, <c>ThrownObject</c>, <c>UnitController</c> — one per spawned
+    /// object, unregistered on despawn.</description></item>
+    /// <item><description><c>TilePhysicsController</c> — attached by the room, re-registered
+    /// <c>OnEnable</c> across pooling and room streaming.</description></item>
+    /// <item><description><c>PlayerManaTicker</c>, <c>PlayerActionInteractor</c>,
+    /// <c>PlayerSpellCaster</c> — registered on attach, unregistered in <c>OnDestroy</c> (a dead
+    /// <c>MonoBehaviour</c> left on the loop ticks forever, which presents as "the sim gets slower the
+    /// longer the session runs").</description></item>
+    /// </list>
+    /// <para>And <c>GameLoopManager</c> registers <b>only when <c>SimTickRoom</c> is on</b> — with the flag
+    /// off it deliberately stays on the per-frame <c>ITickable</c> path. Auto-registering it would silently
+    /// flip a documented opt-in behaviour switch for every session.</para>
+    ///
+    /// <para>So discovery by <see cref="ISimTickable"/> alone is wrong: it would catch
+    /// <c>GameLoopManager</c> and turn a debug flag into a lie. The marker makes the always-on set
+    /// explicit, which is the whole point — it replaces "remember to write a driver" with a declaration
+    /// the compiler enforces.</para>
+    /// </summary>
+    public interface IAutoRegisteredSimTickable : ISimTickable
+    {
+    }
+
+    /// <summary>
     /// Canonical <see cref="ISimTickable.TickOrder"/> values. Spacing of 10 leaves room to insert a
     /// system without renumbering the rest. Ordering rationale is the dependency chain: inputs feed
     /// movement, movement feeds collision, collision feeds triggers and destruction.
@@ -54,6 +85,24 @@ namespace PFE.Core
     {
         /// <summary>Snapshot input into a struct. Must precede everything that consumes it.</summary>
         public const int Input = 0;
+
+        /// <summary>
+        /// Advance the particle population (age, move, expire, release budget slots) <b>before</b> any
+        /// system that emits.
+        ///
+        /// <para><b>Not an optimisation — it is the oracle's frame model.</b> In AS3 a <c>Part</c> is a
+        /// MovieClip and its <c>ENTER_FRAME</c> listener fires on the <b>next</b> frame, so a particle
+        /// cast during a tick is not stepped until the following one. Emitters live all over the tick
+        /// (projectiles at <see cref="Projectiles"/>, impact blood in <see cref="Damage"/>, effects in
+        /// <see cref="UnitsAndAi"/>), so the population has to be rolled and stepped ahead of all of
+        /// them. A port that stepped after the emitters would advance every fresh particle one tick
+        /// early, and the only symptom would be a burst that looks very slightly too fast.</para>
+        ///
+        /// <para>Sits after <see cref="Input"/> (nothing here reads input) and before
+        /// <see cref="RoomState"/>, so a room change that clears the population does so after the step
+        /// that belonged to the old room.</para>
+        /// </summary>
+        public const int PreTick = 5;
 
         /// <summary>Room / streaming state — entities need a valid room before they can move.</summary>
         public const int RoomState = 10;

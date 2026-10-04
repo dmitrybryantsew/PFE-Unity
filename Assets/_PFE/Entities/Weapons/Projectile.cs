@@ -87,6 +87,16 @@ namespace PFE.Entities.Weapons
         private float      _explRadius;
         private float      _explDamage;
         private DamageType _damageType;
+
+        /// <summary>
+        /// The weapon's <c>vis.@visexpl</c> override, or null/empty for none — AS3
+        /// <c>Bullet.explVis()</c>'s first branch (<c>weapon/Bullet.as:878-909</c>), which is the ONLY
+        /// arm gated on it. Non-empty means the whole damage-type table below it is skipped, so this is
+        /// the highest-precedence decision in the explosion's visuals. Held as a string rather than an
+        /// enum because one of its five shipped values (<c>sparkle</c>) is a magic instruction and the
+        /// other four are particle ids the data names directly.
+        /// </summary>
+        private string _visExpl;
         private float      _lifetimeTimer;
 
         /// <summary>
@@ -151,6 +161,14 @@ namespace PFE.Entities.Weapons
         // the list has to exist. Cleared per shot in ResetProjectile — a pooled instance would
         // otherwise carry the previous shot's victims into the next one.
         private readonly List<Collider2D> _struckUnits   = new List<Collider2D>(4);
+
+        /// <summary>
+        /// Scratch list for <see cref="EmitExplosionVisuals"/> — filled by
+        /// <see cref="PFE.Systems.Particles.ExplosionVisualRules.Plan"/> and drained immediately, so it
+        /// is reused rather than reallocated on a per-impact event.
+        /// </summary>
+        private readonly List<PFE.Systems.Particles.ParticleEmit> _explosionEmits =
+            new List<PFE.Systems.Particles.ParticleEmit>(4);
 
         // Parallel lists, index-for-index: UnitSweepMath takes only the boxes, and the caller needs the
         // collider back to hand to HandleImpact. Reused rather than rebuilt so a held trigger does not
@@ -231,6 +249,21 @@ namespace PFE.Entities.Weapons
         [Inject] private PFE.Core.PfeDebugSettings      _debugSettings;
         [Inject] private ISoundService                  _soundService;
         [Inject] private ImpactSoundTable               _impactSoundTable;
+
+        // The particle side of an explosion. `RoomParticleEmitter` owns the Unity-world → AS3
+        // room-local conversion — every emit site in the game needs the same one, so it is written
+        // once there rather than here; `IParticleTileWater` answers the `inWater` question the D_EXPL
+        // branch decides on. Both are null-tolerant: a scene without the particle registrations still
+        // fires bullets, and the emit is skipped rather than placed at a wrong position.
+        [Inject] private PFE.Systems.Particles.Adapters.RoomParticleEmitter _particles;
+        [Inject] private PFE.Systems.Particles.IParticleTileWater            _particleTileWater;
+
+        // The unseeded presentation stream. The only jitter the explosion visuals need is the acid
+        // blast's `kol` — AS3's `Math.floor(Math.random() * 5 + 30)`. Null-tolerant on purpose: a
+        // fixture that builds a projectile with `new` never injects one, and the acid arm then falls
+        // back to the oracle's minimum of 30 rather than throwing.
+        [Inject] private PFE.Core.Rng.IRngService _rng;
+        private PFE.Core.Rng.IRngService _presentationRng;
 
         // Stage C. Fully qualified: this file is not in the PFE.Systems.Physics namespace, but being
         // explicit here keeps the "which IPhysicsWorldService" question answerable at a glance.
@@ -789,6 +822,8 @@ namespace PFE.Entities.Weapons
         ///   navod        → homing strength per flash-frame
         ///   penetration  → AS3 probiv: the penetration budget. > 0 makes this a penetrator, which does
         ///                  not stop on a unit. NOT a probability, and not the weapon's `@pier`.
+        ///   visExpl      → AS3 `weap.visexpl`: the per-weapon explosion-visual override, passed through
+        ///                  untouched. Empty/null is the common case and selects the damage-type table.
         /// </summary>
         public void Initialize(float damage, float speed, Vector2 direction,
                                float gravityScale = 0f,
@@ -799,13 +834,15 @@ namespace PFE.Entities.Weapons
                                float accel        = 0f,
                                int   flame        = 0,
                                float navod        = 0f,
-                               float penetration  = 0f)
+                               float penetration  = 0f,
+                               string visExpl     = null)
         {
             _damage       = damage;
             _destroyTiles = destroyTiles;
             _explRadius   = explRadius;
             _explDamage   = explDamage;
             _damageType   = damageType;
+            _visExpl      = visExpl;
             _penetration  = Mathf.Clamp01(penetration);
             _remainingDamage = damage;
             _navod        = navod;
@@ -1255,7 +1292,15 @@ namespace PFE.Entities.Weapons
 
             if (damageable != null && damageable.IsAlive)
             {
-                DamageVerdict verdict = ApplyDirectDamage(damageable, other.transform.position);
+                // `impactPos`, not `other.transform.position`, is the bullet's own contact point — and
+                // the two are deliberately different arguments. The second is the TARGET's position and
+                // becomes the floating number's anchor; the first is AS3's `param3.X/Y`, which is what
+                // the blood spray throws from. Passing the target's position as the bullet position
+                // would spray from the unit's boots instead of the wound. Both callers of this branch
+                // hand a genuine bullet position: ResolveUnitImpact passes the sub-step contact, and
+                // OnTriggerEnter2D passes the projectile's own transform.
+                DamageVerdict verdict = ApplyDirectDamage(
+                    damageable, other.transform.position, bulletPosition: impactPos);
                 evaded = verdict == DamageVerdict.Evaded;
 
                 // AS3 calls `sound(_loc4_)` once, unconditionally, with whatever `udarBullet` returned
@@ -1327,8 +1372,32 @@ namespace PFE.Entities.Weapons
 
             // ── 3. AoE explosion ─────────────────────────────────────────────
             if (_explRadius > 0f && !_hasDetonated)
+            {
                 Detonate(impactPos);
 
+                // The blast's visuals, as a SIBLING of Detonate rather than a line inside it. AS3 runs
+                // them last within the same routine (`explRun` → `explVis`, Bullet.as:705-720), which is
+                // exactly this position; keeping them out of Detonate means that method's documented
+                // "left alone on purpose" damage defect keeps a clean rollback diff, because the visuals
+                // do not touch the damage path and should not appear to.
+                EmitExplosionVisuals(impactPos);
+            }
+
+            // ── 4. Stop the round ────────────────────────────────────────────
+            // OUTSIDE the explosion block and UNCONDITIONAL. `return true` only tells the caller to
+            // stop sweeping for the rest of THIS tick; it does not stop the round. This call is what
+            // does: it zeroes the velocity, disables the trigger, and either plays the impact frames or
+            // hands the instance back to the pool.
+            //
+            // It was briefly folded into the `if` above while the explosion visuals were added, which
+            // removed it from the path of every NON-explosive round — and from every tile hit, because
+            // ResolveTileImpact routes a resolved collider through here too. The symptoms are exactly
+            // what that predicts and all three were reported: a bullet passed through units while still
+            // dealing damage (the damage is dealt above, the stop is not), then through the whole line
+            // of them, then through the wall — TryTileContact's enter-only latch reads the next tick's
+            // contact as "already in contact", so the round is never stopped and sails into the void.
+            // It also delivers its knockback to every unit in the line instead of only the first, which
+            // is why the pushback read as far stronger. Do not fold this into a branch.
             StartImpactAnimation();
             return true;
         }
@@ -1462,6 +1531,76 @@ namespace PFE.Entities.Weapons
         }
 
         /// <summary>
+        /// The visuals an explosion throws — the port of AS3 <c>Bullet.explVis()</c>
+        /// (<c>weapon/Bullet.as:876-1005</c>). This is the <i>thin</i> half: it converts the impact
+        /// point, asks the tile query whether the blast landed in water, and forwards what
+        /// <see cref="PFE.Systems.Particles.ExplosionVisualRules"/> decides. The decision table itself
+        /// lives there, Unity-free, so all nine damage-type arms and the per-weapon override are pinned
+        /// by fixtures rather than being reachable only through a private member of a MonoBehaviour.
+        ///
+        /// <para><b>Reached only when the round has a blast radius.</b> That is the call site's gate, and
+        /// it is the oracle's: <c>explRun</c> is reached from <c>popadalo</c>, which AS3 gates on
+        /// <c>if (this.explRadius)</c> (<c>Bullet.as:331</c>), and from the lifetime-expiry path, which
+        /// gates the same way (<c>:252</c>). So a plain kinetic round never gets here — and when one did,
+        /// the type table would give it nothing anyway.</para>
+        ///
+        /// <para><b><c>inWater</c> is derived here, not stored.</b> AS3's <c>Bullet.inWater</c> is a flag
+        /// the bullet refreshes every tick from <c>loc.getAbsTile(X,Y).water &gt; 0</c>
+        /// (<c>Bullet.as:433-474</c>) and reads at the moment of the blast. A ported projectile has no
+        /// such flag, so the same tile query is asked once, at the impact point — the value the oracle
+        /// would have been holding. It is asked in AS3 room-local pixels, the space
+        /// <see cref="PFE.Systems.Particles.IParticleTileWater.WaterAt"/> documents, so the conversion
+        /// comes from the emitter adapter rather than being repeated here.</para>
+        ///
+        /// <para><b>Position converted once.</b> <c>EmitAt</c> takes AS3 room-local pixels, which is
+        /// exactly what <see cref="PFE.Systems.Particles.Adapters.RoomParticleEmitter.TryToAs3Local"/>
+        /// already produced, so no further conversion happens here — only the per-emit offsets the
+        /// table carries. Converting per emit is how the mirror gets applied twice.</para>
+        /// </summary>
+        private void EmitExplosionVisuals(Vector3 centre)
+        {
+            if (_particles == null) return;
+
+            // No room pushed ⇒ no origin and no height ⇒ no correct position. Refusing is the whole
+            // point of the adapter's contract: emitting anyway would place the blast somewhere
+            // plausible and wrong, which is the failure this seam exists to remove.
+            if (!_particles.TryToAs3Local(centre, out Vector2 as3Local)) return;
+
+            int water = _particleTileWater != null
+                ? _particleTileWater.WaterAt(as3Local.x, as3Local.y)
+                : 0;
+
+            if (!PFE.Systems.Particles.ExplosionVisualRules.Plan(
+                    _visExpl, _damageType, water > 0, PresentationRng(), _explosionEmits,
+                    out string soundId))
+            {
+                return;
+            }
+
+            foreach (PFE.Systems.Particles.ParticleEmit emit in _explosionEmits)
+            {
+                _particles.EmitAt(emit.Id,
+                    new Vector2(as3Local.x + emit.OffsetX, as3Local.y + emit.OffsetY),
+                    emit.Spec);
+            }
+
+            if (soundId != null) _soundService?.Play(soundId, centre);
+        }
+
+        /// <summary>
+        /// The unseeded presentation stream, resolved once — the only jitter these visuals need is the
+        /// acid arm's <c>kol</c>. Null when nothing injected an <see cref="PFE.Core.Rng.IRngService"/>
+        /// (an offline fixture built with <c>new</c>), which the rules treat as "use the oracle's
+        /// minimum" rather than an error.
+        /// </summary>
+        private PFE.Core.Rng.IRngService PresentationRng()
+        {
+            if (_presentationRng == null && _rng != null)
+                _presentationRng = _rng.GetStream(PFE.Core.Rng.RngStream.Presentation);
+            return _presentationRng;
+        }
+
+        /// <summary>
         /// Hands one hit to the damage pipeline and reports what became of it.
         ///
         /// <para><b>The return is the whole point.</b> AS3's bullet reads its fate off
@@ -1471,8 +1610,16 @@ namespace PFE.Entities.Weapons
         /// it carries it rather than recomputing it, so the avoidance roll still happens exactly once.
         /// See <see cref="PFE.Systems.Combat.DamageVerdict"/>.</para>
         /// </summary>
+        /// <param name="bulletPosition">
+        /// This round's own contact point, when the hit came off a bullet — AS3's <c>param3.X/Y</c>,
+        /// which the blood spray anchors on. It is deliberately separate from
+        /// <paramref name="targetPos"/>: that one is the <i>target's</i> position and feeds the
+        /// floating number, and for a unit the two differ by the target's half-height. Null means "no
+        /// bullet object", which is the truth for the AoE override below.
+        /// </param>
         private DamageVerdict ApplyDirectDamage(IDamageable target, Vector3 targetPos,
-                                                float overrideDamage = -1f)
+                                                float overrideDamage = -1f,
+                                                Vector3? bulletPosition = null)
         {
             if (_hasDamageContext && overrideDamage < 0f && _damageSystem != null)
             {
@@ -1487,7 +1634,8 @@ namespace PFE.Entities.Weapons
                 // EffectiveDamageContext, not _damageContext: a penetrator that has already passed
                 // through one target hits the next one for less — AS3 spends `Bullet.damage` in place.
                 return _damageSystem.Report(PendingDamage.Direct(
-                    EffectiveDamageContext(), target, targetPos, _traveledDistancePixels));
+                    EffectiveDamageContext(), target, targetPos, _traveledDistancePixels,
+                    bulletPosition));
             }
 
             if (_hasDamageContext && overrideDamage < 0f)
@@ -1558,6 +1706,9 @@ namespace PFE.Entities.Weapons
             _ddy      = 0f;
             _navod    = 0f;
             _damageType    = DamageType.PhysicalBullet;
+            // A recycled bullet must not inherit the previous shot's weapon override, or a sparkle
+            // rocket would make the next plain grenade emit sparkle visuals.
+            _visExpl       = null;
             _currentVisual = null;
             _visualFrameTimer = 0f;
             _visualFrameIndex = 0;

@@ -368,6 +368,10 @@ namespace PFE.Editor.Importers
             string vis = Node(body, "vis") ?? "";
 
             def.vbul           = Attr(vis, "vbul", "");
+            // visexpl lives on the same <vis> node as vbul (Weapon.as:623-625 reads
+            // `param1.@visexpl` off the weapon node), NOT on <char>. Five rows set it:
+            // ttexpl, ttplaexpl, react, sparkle, eclipse.
+            def.visExpl        = Attr(vis, "visexpl", "");
             def.springMode     = AttrI(vis, "spring",  1);
             def.bulletAnimated = AttrBool(vis, "bulanim");
             def.hasShell       = AttrBool(vis, "shell");
