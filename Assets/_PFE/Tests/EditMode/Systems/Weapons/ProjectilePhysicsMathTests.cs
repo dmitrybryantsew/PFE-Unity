@@ -249,5 +249,208 @@ namespace PFE.Tests.EditMode.Systems.Weapons
             Assert.AreEqual(2f, ProjectilePhysicsMath.BrakePxPerFrame2, Tolerance,
                 "Trasser.as:45 and WThrow.as:20 both declare brake = 2.");
         }
+
+        // ── The bullet view's stretch (Bullet.as:213-226) ─────────────────────
+        //
+        // The block the port never implemented at all: `springMode` was imported, stored on the
+        // WeaponDefinition and read by nothing, so a `spring='2'` laser drew an ordinary round. The
+        // three branches are pinned individually because two of them are easy to confuse — the beam
+        // measures DISTANCE FROM THE ORIGIN and the smear measures VELOCITY.
+
+        [Test]
+        public void ViewStretch_IsTheOraclesOwnDivisor_NotAUnitConversion()
+        {
+            // Both AS3 branches end in `/100`, and that 100 is the length the art is authored at. It is
+            // NOT PixelToUnit's inverse, even though that is also 100 — the two agree numerically and
+            // must not be conflated, because one would survive a PPU change and the other would not.
+            Assert.AreEqual(100f, ProjectilePhysicsMath.ViewStretchReferencePx, Tolerance,
+                "Bullet.as:215 `... / 100` and Bullet.as:221 `vis.scaleX = this.vel / 100`.");
+        }
+
+        [Test]
+        public void ViewStretch_WithABeamChild_ScalesByDistanceFromTheOrigin()
+        {
+            // `if(vis.laser && this.spring >= 2) vis.laser.scaleX = dist / 100`. 250px of travel is a
+            // 2.5x beam; at the muzzle it is zero-length, which is what makes it grow out of the gun.
+            Assert.AreEqual(2.5f,
+                ProjectilePhysicsMath.BulletViewScaleX(hasBeamChild: true, spring: 2,
+                                                       velocityPxPerFrame: 999f,
+                                                       distanceFromOriginPx: 250f), Tolerance,
+                "the beam spans the distance travelled — Bullet.as:215");
+
+            Assert.AreEqual(0f,
+                ProjectilePhysicsMath.BulletViewScaleX(true, 2, 999f, 0f), Tolerance,
+                "…and is zero-length at the instant of firing, not velocity-sized");
+        }
+
+        [Test]
+        public void ViewStretch_WithNoBeamChild_FallsThroughToTheOtherBranches()
+        {
+            // The gate is the CHILD's existence as well as `spring`, and this is the case the port is
+            // in today: every prefab lacks the child, so a spring='2' weapon must NOT be stretched by
+            // distance. Getting this wrong would stretch ordinary rounds as if they were beams.
+            Assert.AreEqual(1f,
+                ProjectilePhysicsMath.BulletViewScaleX(hasBeamChild: false, spring: 2,
+                                                       velocityPxPerFrame: 50f,
+                                                       distanceFromOriginPx: 250f), Tolerance,
+                "no `laser` child means no beam, whatever spring says — Bullet.as:213");
+        }
+
+        [Test]
+        public void ViewStretch_FastSpringOneRound_IsSmearedByVelocity_NotByDistance()
+        {
+            // `else if(this.spring == 1 && this.vel > 100) vis.scaleX = this.vel / 100`. The threshold
+            // is on the AS3-space speed in px/frame, so 100 is inclusive-exclusive at the boundary:
+            // vel == 100 must NOT smear (the oracle's `>` is strict), and the distance must be ignored.
+            Assert.AreEqual(2f,
+                ProjectilePhysicsMath.BulletViewScaleX(false, 1, 200f, 0f), Tolerance,
+                "a fast spring-1 round smears by velocity — Bullet.as:221");
+
+            Assert.AreEqual(1f,
+                ProjectilePhysicsMath.BulletViewScaleX(false, 1, 100f, 0f), Tolerance,
+                "vel == 100 is NOT > 100, so it stays unstretched");
+
+            Assert.AreEqual(2f,
+                ProjectilePhysicsMath.BulletViewScaleX(false, 1, 200f, 9999f), Tolerance,
+                "…and the smear does not depend on how far the round has flown");
+        }
+
+        // ── Which transform the stretch writes (Bullet.as:213-227) ───────────────
+
+        /// <summary>
+        /// The beam arm targets the CHILD; the smear and the reset target the WHOLE VIEW. These are
+        /// different transforms, so a rule that returned only a value could not express the block.
+        /// </summary>
+        [Test]
+        public void ViewStretchTarget_BeamGoesToTheChild_TheOtherArmsToTheView()
+        {
+            Assert.AreEqual(ProjectilePhysicsMath.ViewScaleTarget.BeamChild,
+                ProjectilePhysicsMath.BulletViewScaleTarget(hasBeamChild: true, spring: 2,
+                                                            velocityPxPerFrame: 0f, hasDetonated: false),
+                "a beam stretches `vis.laser` — Bullet.as:215");
+
+            Assert.AreEqual(ProjectilePhysicsMath.ViewScaleTarget.View,
+                ProjectilePhysicsMath.BulletViewScaleTarget(hasBeamChild: false, spring: 1,
+                                                            velocityPxPerFrame: 200f, hasDetonated: false),
+                "a smear stretches the whole view — Bullet.as:221");
+
+            Assert.AreEqual(ProjectilePhysicsMath.ViewScaleTarget.View,
+                ProjectilePhysicsMath.BulletViewScaleTarget(hasBeamChild: false, spring: 0,
+                                                            velocityPxPerFrame: 0f, hasDetonated: false),
+                "and everything else resets the view to natural size — Bullet.as:226");
+        }
+
+        /// <summary>
+        /// <b>The one arm that writes nothing.</b> AS3's smear branch is
+        /// <c>else if(spring == 1 &amp;&amp; vel &gt; 100) { if(!babah) vis.scaleX = vel/100; }</c> — so a round
+        /// that has already detonated falls through the inner <c>if</c> and out of the chain entirely,
+        /// leaving the last smear standing. Resetting it to 1 instead would be a visible pop.
+        ///
+        /// <para>The paired assertion is the control: the <i>same</i> inputs with <c>babah</c> false
+        /// must target the view, or "None" would be indistinguishable from "this arm never runs".</para>
+        /// </summary>
+        [Test]
+        public void ViewStretchTarget_DetonatedRoundInTheSmearArm_WritesNothing_NotAReset()
+        {
+            Assert.AreEqual(ProjectilePhysicsMath.ViewScaleTarget.None,
+                ProjectilePhysicsMath.BulletViewScaleTarget(hasBeamChild: false, spring: 1,
+                                                            velocityPxPerFrame: 200f, hasDetonated: true),
+                "babah inside the smear arm leaves the previous smear alone — Bullet.as:219");
+
+            // Control: identical but alive ⇒ the view, so `None` is not just "unreachable".
+            Assert.AreEqual(ProjectilePhysicsMath.ViewScaleTarget.View,
+                ProjectilePhysicsMath.BulletViewScaleTarget(false, 1, 200f, hasDetonated: false),
+                "…and the very same inputs with a live round DO write the view");
+        }
+
+        /// <summary>
+        /// The beam arm wins on ORDER, and it is gated on the child as well as on <c>spring</c> — so a
+        /// <c>spring &gt;= 2</c> weapon with no <c>laser</c> child must fall through to the view reset
+        /// rather than being stretched by distance.
+        /// </summary>
+        [Test]
+        public void ViewStretchTarget_SpringTwoWithNoBeamChild_FallsThroughToTheViewReset()
+        {
+            Assert.AreEqual(ProjectilePhysicsMath.ViewScaleTarget.View,
+                ProjectilePhysicsMath.BulletViewScaleTarget(hasBeamChild: false, spring: 2,
+                                                            velocityPxPerFrame: 999f, hasDetonated: false),
+                "no `laser` child means no beam, whatever spring says — Bullet.as:213");
+
+            // The velocity does not smuggle it into the smear arm either: that arm requires spring == 1.
+            Assert.AreEqual(1f,
+                ProjectilePhysicsMath.BulletViewScaleX(hasBeamChild: false, spring: 2,
+                                                       velocityPxPerFrame: 999f, distanceFromOriginPx: 0f),
+                Tolerance, "spring 2 with no child is a plain reset, not a velocity smear");
+        }
+
+        /// <summary>
+        /// The beam arm outranks the smear arm: with a child and <c>spring &gt;= 2</c>, a speed above the
+        /// smear threshold must still stretch the child by distance.
+        /// </summary>
+        [Test]
+        public void ViewStretchTarget_BeamOutranksTheSmear()
+        {
+            Assert.AreEqual(ProjectilePhysicsMath.ViewScaleTarget.BeamChild,
+                ProjectilePhysicsMath.BulletViewScaleTarget(hasBeamChild: true, spring: 2,
+                                                            velocityPxPerFrame: 999f, hasDetonated: true),
+                "the first matching branch wins, and `babah` only guards the smear — Bullet.as:213");
+        }
+
+        // ── The thrown object's spin ─────────────────────────────────────────────
+
+        /// <summary>
+        /// AS3 <c>WThrow.as:192</c> — <c>dr = this.throwTip == 2 ? 0 : b.dx</c>. A sticky throwable
+        /// (<c>throwTip == 2</c>: the dynamite/bomb family) is given no spin at all, and nothing later
+        /// can start one, so the two other inputs must not be able to override it.
+        /// </summary>
+        [Test]
+        public void Spin_StickyThrowable_NeverSpins_WhateverItsVelocity()
+        {
+            Assert.AreEqual(0f,
+                ProjectilePhysicsMath.ThrownSpinDeltaDegrees(true, false, 18f, 18f), Tolerance,
+                "a throwTip==2 object is spawned with dr = 0 — WThrow.as:192");
+
+            Assert.AreEqual(0f,
+                ProjectilePhysicsMath.ThrownSpinDeltaDegrees(true, true, 18f, 9f), Tolerance,
+                "…and settling must not start a spin it was never given");
+        }
+
+        /// <summary>
+        /// AS3 <c>PhisBullet.as:73</c> — <c>if(stay) { …this.dr = dx }</c>, i.e. while resting the spin
+        /// follows the brake-decayed horizontal speed, which is what lets a grenade stop rolling.
+        /// </summary>
+        [Test]
+        public void Spin_WhileResting_FollowsTheDecayingHorizontalSpeed()
+        {
+            // In flight: the spawn value. Resting: the live value, which the resting brake is shrinking.
+            Assert.AreEqual(18f,
+                ProjectilePhysicsMath.ThrownSpinDeltaDegrees(false, false, 18f, 7f), Tolerance,
+                "in flight dr is the SPAWN dx, not the live one — WThrow.as:192");
+
+            Assert.AreEqual(7f,
+                ProjectilePhysicsMath.ThrownSpinDeltaDegrees(false, true, 18f, 7f), Tolerance,
+                "once resting dr follows the live dx — PhisBullet.as:73");
+        }
+
+        /// <summary>
+        /// The regression this function exists to prevent: a bounce flips the sign of <c>dx</c>, and
+        /// AS3 does <b>not</b> refresh <c>dr</c> when it does. Recomputing the spin from the live
+        /// velocity every frame would reverse the spin at every wall — a visible difference.
+        /// </summary>
+        [Test]
+        public void Spin_AfterABounce_KeepsTheSpawnSign_NotTheLiveOne()
+        {
+            // Spawned travelling right (+18). It hits a wall and rebounds, so the live dx is now -18.
+            // The oracle keeps spinning the way it started.
+            Assert.AreEqual(18f,
+                ProjectilePhysicsMath.ThrownSpinDeltaDegrees(false, false, 18f, -18f), Tolerance,
+                "dr is NOT refreshed on a bounce — the sign stays as spawned");
+
+            // The control: the same live value, once resting, IS used — so the test above is not
+            // passing merely because the function ignores its last argument.
+            Assert.AreEqual(-18f,
+                ProjectilePhysicsMath.ThrownSpinDeltaDegrees(false, true, 18f, -18f), Tolerance,
+                "…but the resting branch does read it, so the argument is not ignored");
+        }
     }
 }

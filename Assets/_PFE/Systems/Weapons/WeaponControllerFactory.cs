@@ -128,10 +128,11 @@ namespace PFE.Systems.Weapons
                     break;
 
                 case WeaponType.Thrown:         // tip 4 → WThrow
-                    // Same three dependencies the ranged controller takes, and for the same reasons:
-                    // WThrow.shoot() calls setBullet() (so the round's terms must reach the shot) and
-                    // reads `owner.weaponSkill` / `owner.mazil` for its launch speed and spread.
-                    controller = new ThrownWeaponController(state, _statSource, _ammoResolver, _rng);
+                    // The ranged controller's three dependencies, plus the ammo source: WThrow.shoot()
+                    // calls setBullet() (so the round's terms must reach the shot), reads
+                    // `owner.weaponSkill` / `owner.mazil` for its launch speed and spread, and
+                    // getAmmo() consumes a real inventory ITEM for the player (WThrow.as:270-273).
+                    controller = new ThrownWeaponController(state, _statSource, _ammoResolver, _rng, _ammoSource);
                     break;
 
                 case WeaponType.Magic:          // tip 5 → WMagic

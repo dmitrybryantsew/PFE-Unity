@@ -570,7 +570,7 @@ namespace PFE.Tests.EditMode.Systems.Weapons
             def.weaponId      = "test_thrown_anim";
             def.weaponType    = WeaponType.Thrown;
             def.rapid         = 10f;
-            def.magazineSize  = 0;      // -> the controller's DefaultKolAmmo, so the throw can happen
+            def.magazineSize  = 0;      // no IAmmoSource is wired -> ThrownAmmoRule training mode, so the throw happens
             def.maxDurability = 100;
             def.fuseFrames    = 75;
 

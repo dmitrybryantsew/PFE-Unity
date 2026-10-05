@@ -162,5 +162,162 @@ namespace PFE.Systems.Weapons
 
             return new Vector2(ddx, ddy);
         }
+
+        // ── The bullet view's stretch (the laser beam) ────────────────────────────────────────
+
+        /// <summary>
+        /// The reference length AS3 divides the stretch by — <c>Bullet.as:215</c> and <c>:221</c> both
+        /// end in <c>/ 100</c>. It is the length the bullet/beam art is authored at, so the resulting
+        /// scale factor makes the child span the quantity being measured. Not a unit conversion: the
+        /// <c>100</c> is art, and it is the same <c>100</c> in both branches.
+        /// </summary>
+        public const float ViewStretchReferencePx = 100f;
+
+        /// <summary>
+        /// How far a bullet's view is stretched along its own X axis — AS3 <c>Bullet.as:213-226</c>, the
+        /// block that runs every frame from <c>run()</c>.
+        ///
+        /// <para><b>Why this is worth a named function.</b> The branch order is the whole behaviour, and
+        /// two of the three cases look alike. AS3 writes:</para>
+        /// <code>
+        /// if(vis.laser &amp;&amp; this.spring &gt;= 2)  vis.laser.scaleX = dist / 100;   // the beam
+        /// else if(this.spring == 1 &amp;&amp; this.vel &gt; 100)  vis.scaleX = vel / 100;  // the smear
+        /// else                                       vis.scaleX = 1;
+        /// </code>
+        /// <para>The beam branch is keyed on a <b>child's existence</b> (<c>vis.laser</c>) as well as on
+        /// <c>spring</c>, so a prefab without that child silently falls through to the smear or to 1 —
+        /// which is why <paramref name="hasBeamChild"/> is a parameter rather than an assumption.</para>
+        ///
+        /// <para><b>The beam branch measures the ORIGIN, the smear branch the VELOCITY.</b> They are not
+        /// interchangeable: the beam is drawn from the muzzle to where the round is now, so it grows as
+        /// the round flies and is zero-length at the instant of firing; the smear is a fixed
+        /// motion-blur length that does not depend on how far the round has travelled. Passing the
+        /// wrong one of the two produces a plausible-looking beam of the wrong length.</para>
+        /// </summary>
+        /// <param name="hasBeamChild">
+        /// Whether the bullet view actually has the <c>laser</c> child (<c>vis.laser</c> in AS3). A
+        /// prefab without it cannot show a beam however <paramref name="spring"/> is set.
+        /// </param>
+        /// <param name="spring">AS3 <c>vis.@spring</c> — imported into <c>WeaponDefinition.springMode</c>.</param>
+        /// <param name="velocityPxPerFrame">The round's speed in AS3 units (px per 30 Hz frame).</param>
+        /// <param name="distanceFromOriginPx">How far the round has travelled from where it was fired.</param>
+        public static float BulletViewScaleX(bool hasBeamChild, int spring,
+                                             float velocityPxPerFrame, float distanceFromOriginPx)
+        {
+            // `if(vis.laser && this.spring >= 2)` — the laser beam, stretched from the origin.
+            if (hasBeamChild && spring >= 2)
+            {
+                return distanceFromOriginPx / ViewStretchReferencePx;
+            }
+
+            // `else if(this.spring == 1 && this.vel > 100)` — a fast round smeared along its travel.
+            // Note the threshold is on the AS3-space speed, so it must be compared in px/frame.
+            if (spring == 1 && velocityPxPerFrame > 100f)
+            {
+                return velocityPxPerFrame / ViewStretchReferencePx;
+            }
+
+            // `else` — drawn at its natural size.
+            return 1f;
+        }
+
+        /// <summary>
+        /// <b>Which</b> transform AS3's view-stretch writes — and whether it writes at all.
+        ///
+        /// <para><see cref="BulletViewScaleX"/> answers "what value"; this answers "to what, and
+        /// whether". They are separate because AS3's three branches do not all write the same object,
+        /// and one of them writes nothing: folding that into the value would make "leave the last smear
+        /// alone" indistinguishable from "reset to natural size", which are different pictures.</para>
+        /// </summary>
+        public enum ViewScaleTarget
+        {
+            /// <summary>Write no scale this frame.</summary>
+            None,
+
+            /// <summary>The <c>laser</c> child — the stretched beam (<c>vis.laser.scaleX</c>).</summary>
+            BeamChild,
+
+            /// <summary>The whole view — the velocity smear and the natural-size reset (<c>vis.scaleX</c>).</summary>
+            View,
+        }
+
+        /// <summary>
+        /// Transcribes the branch ORDER of <c>Bullet.as:213-227</c>, which is what decides the target:
+        /// <code>
+        /// if (vis.laser &amp;&amp; spring >= 2)      vis.laser.scaleX = dist / 100;
+        /// else if (spring == 1 &amp;&amp; vel > 100)   { if (!babah) vis.scaleX = vel / 100; }
+        /// else                                vis.scaleX = 1;
+        /// </code>
+        ///
+        /// <para><b>The one case that writes nothing.</b> A round that has already detonated
+        /// (<c>babah</c>) inside the smear arm falls through the inner <c>if</c> and then out of the
+        /// whole chain — AS3 leaves the previous smear standing rather than snapping the view back to
+        /// its natural size. That is <see cref="ViewScaleTarget.None"/>, and it is deliberately
+        /// <i>not</i> the <c>else</c> arm's explicit reset. The two would be the same picture only if
+        /// the smear had never applied.</para>
+        /// </summary>
+        public static ViewScaleTarget BulletViewScaleTarget(bool hasBeamChild, int spring,
+                                                           float velocityPxPerFrame, bool hasDetonated)
+        {
+            // `if(vis.laser && this.spring >= 2)` — the beam, stretched from the origin.
+            if (hasBeamChild && spring >= 2) return ViewScaleTarget.BeamChild;
+
+            // `else if(this.spring == 1 && this.vel > 100)` — the smear, and the only silent arm.
+            if (spring == 1 && velocityPxPerFrame > 100f)
+                return hasDetonated ? ViewScaleTarget.None : ViewScaleTarget.View;
+
+            // `else` — the view is explicitly reset to its natural size.
+            return ViewScaleTarget.View;
+        }
+
+        // ── The thrown object's spin ──────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// How far a thrown object's view rotates this frame, in <b>degrees</b> — AS3
+        /// <c>PhisBullet.step()</c>'s <c>vis.rotation += this.dr</c> (<c>PhisBullet.as:100</c>).
+        ///
+        /// <para><b>Why a named function for one addition.</b> Because <c>dr</c> is written in three
+        /// different places in the oracle and the three do <i>not</i> agree, so "rotate by the current
+        /// horizontal speed" is wrong twice out of three:</para>
+        ///
+        /// <list type="number">
+        /// <item><c>WThrow.as:192</c> — at spawn, <c>dr = this.throwTip == 2 ? 0 : b.dx</c>. So a
+        /// <b>sticky</b> throwable (<c>throwTip == 2</c>: the dynamite and bomb family, which latch to
+        /// the first surface they touch) <b>never spins at all</b>, while every other throwable is
+        /// given the <i>initial</i> horizontal velocity.</item>
+        /// <item><c>PhisBullet.as:73</c> — while resting (<c>stay</c>), <c>dr = dx</c>, i.e. the
+        /// <i>current</i>, brake-decayed horizontal velocity. That is what makes a grenade slow its
+        /// roll and stop rather than spin forever on the floor.</item>
+        /// <item>Nowhere else. In particular AS3 does <b>not</b> refresh <c>dr</c> when a bounce flips
+        /// the sign of <c>dx</c>, so a grenade that rebounds off a wall keeps spinning the way it
+        /// started. Recomputing from the live velocity every frame would reverse the spin at every
+        /// bounce — a visible difference, and the reason branch 2 is spelled out rather than folded
+        /// into a single "use the current speed".</item>
+        /// </list>
+        ///
+        /// <para><b>Units are AS3's.</b> <c>vis.rotation</c> is in degrees and <c>dr</c> is a
+        /// px/frame velocity used directly as a degree count — there is no conversion, and in
+        /// particular <i>not</i> the px/frame → units/s factor. The value is only ever accumulated
+        /// into a rotation, so it never needs to be a physical speed.</para>
+        /// </summary>
+        /// <param name="sticky">AS3 <c>throwTip == 2</c> (the port's <c>ShotPlan.Sticky</c>).</param>
+        /// <param name="resting">AS3 <c>stay</c> — the object has settled on a floor.</param>
+        /// <param name="dxAtSpawnPxPerFrame">AS3 <c>b.dx</c> as it was at spawn — captured, not read live.</param>
+        /// <param name="dxNowPxPerFrame">AS3 <c>dx</c> right now, after gravity, bounces and the resting brake.</param>
+        public static float ThrownSpinDeltaDegrees(bool sticky, bool resting,
+                                                   float dxAtSpawnPxPerFrame, float dxNowPxPerFrame)
+        {
+            // WThrow.as:192 — `dr = this.throwTip == 2 ? 0 : b.dx`. A sticky object is never given a
+            // spin, and nothing later can start one: branch 2 only runs once `stay` is true, and a
+            // latched sticky object never moves far enough to settle.
+            if (sticky) return 0f;
+
+            // PhisBullet.as:73 — `this.dr = dx` while resting.
+            if (resting) return dxNowPxPerFrame;
+
+            // WThrow.as:192's other arm — the spawn value, held unchanged for the whole flight.
+            return dxAtSpawnPxPerFrame;
+        }
+
     }
 }

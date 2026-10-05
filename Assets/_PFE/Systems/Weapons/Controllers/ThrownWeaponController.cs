@@ -66,10 +66,22 @@ namespace PFE.Systems.Weapons.Controllers
         private bool    _attackHeld;
         private Vector2 _lastAimTarget;
 
-        // Simplified ammo counter (AS3 kolAmmo, default 4) — the NPC half of WThrow.getAmmo()
-        // (WThrow.as:274-279). AS3 gives the PLAYER the inventory half instead
-        // (`getInvAmmo(ammo,1,1,true)`), which the port does not model yet; using this counter for
-        // both is the recorded divergence, not a new one.
+        /// <summary>
+        /// The player's inventory, for the half of <c>WThrow.getAmmo()</c> that AS3 gives to
+        /// <c>owner.player</c> (<c>WThrow.as:270-273</c>: <c>getInvAmmo(ammo, 1, 1, true) &gt; 0</c>,
+        /// which consumes one <b>item</b>). Null means no inventory is wired — the port's training
+        /// mode, the same contract <see cref="IAmmoSource"/> and <c>RangedWeaponController</c> use.
+        /// <b>This, not <c>_kolAmmo</c>, is what a live session must use:</b> nothing refills the
+        /// counter, so running it for the player caps the session at four throws.
+        /// </summary>
+        private readonly IAmmoSource _ammoSource;
+
+        /// <summary>
+        /// The NPC half of <c>WThrow.getAmmo()</c> (<c>WThrow.as:274-279</c>) — <c>kolAmmo</c>,
+        /// default 4, decremented per throw and never refilled (<c>reloadWeapon()</c> is an empty
+        /// override, <c>:264</c>). Reached only through
+        /// <see cref="ThrownAmmoRule.DecideForCounterOwner"/>, which the port has no owner for yet.
+        /// </summary>
         private int _kolAmmo;
         private const int DefaultKolAmmo = 4;
 
@@ -98,12 +110,14 @@ namespace PFE.Systems.Weapons.Controllers
 
         public ThrownWeaponController(WeaponRuntimeState state, IWeaponStatSource statSource = null,
                                       IAmmoResolver ammoResolver = null,
-                                      PFE.Core.Rng.IRngService rng = null)
+                                      PFE.Core.Rng.IRngService rng = null,
+                                      IAmmoSource ammoSource = null)
         {
             State         = state;
             _def          = state.Def;
             _statSource   = statSource;
             _ammoResolver = ammoResolver;
+            _ammoSource   = ammoSource;
             _rng          = rng != null
                 ? rng.GetStream(PFE.Core.Rng.RngStream.Combat)
                 : new PFE.Core.Rng.PcgRngService().GetStream(PFE.Core.Rng.RngStream.Combat);
@@ -430,15 +444,47 @@ namespace PFE.Systems.Weapons.Controllers
         // ── Ammo ──────────────────────────────────────────────────────────────
 
         /// <summary>
-        /// AS3 <c>WThrow.getAmmo()</c> (<c>WThrow.as:268-280</c>). The player half reads the
-        /// inventory; the NPC half is this counter, decremented on each call. The port uses the NPC
-        /// half for everyone — recorded, not new.
+        /// The inventory item a throw consumes — AS3 <c>WThrow.as:42</c>, <c>ammo = id;</c>. See
+        /// <see cref="ThrownAmmoRule.AmmoIdFor"/> for why an empty <c>ammoType</c> must not be used
+        /// as-is.
+        /// </summary>
+        private string AmmoId => ThrownAmmoRule.AmmoIdFor(State.ResolvedAmmoType, _def.weaponId);
+
+        /// <summary>
+        /// AS3 <c>WThrow.getAmmo()</c> (<c>WThrow.as:268-280</c>). The decision itself is
+        /// <see cref="ThrownAmmoRule.Decide"/>, which is Unity-free so the offline wall can pin it;
+        /// this method only performs the side effect.
+        ///
+        /// <para><b>The defect this closes.</b> The port ran the NPC counter for the player. Nothing
+        /// refills <c>kolAmmo</c> and <c>WThrow.reloadWeapon()</c> is empty, so a player threw exactly
+        /// four grenades (AS3's <c>kolAmmo = 4</c>) and then could not throw again for the rest of the
+        /// session — reported as "quickly press fire, it throws like 5 and then I can't throw
+        /// grenades again". A wired inventory consumes a real item; no inventory is the port's
+        /// training mode, as it is for every other weapon.</para>
         /// </summary>
         private bool ConsumeAmmo()
         {
-            if (_kolAmmo <= 0) return false;
-            _kolAmmo--;
-            return true;
+            ThrownAmmoRule.Outcome outcome = ThrownAmmoRule.Decide(
+                hasAmmoSource:   _ammoSource != null,
+                inventoryRounds: _ammoSource != null ? _ammoSource.GetAmmoCount(AmmoId) : 0,
+                kolAmmo:         _kolAmmo);
+
+            switch (outcome)
+            {
+                case ThrownAmmoRule.Outcome.ConsumeInventory:
+                    _ammoSource.ConsumeAmmo(AmmoId, 1);
+                    return true;
+
+                case ThrownAmmoRule.Outcome.ConsumeCounter:
+                    _kolAmmo--;
+                    return true;
+
+                case ThrownAmmoRule.Outcome.TrainingInfinite:
+                    return true;
+
+                default:
+                    return false;
+            }
         }
     }
 }

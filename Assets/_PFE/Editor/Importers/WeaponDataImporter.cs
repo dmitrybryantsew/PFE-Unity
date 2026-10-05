@@ -304,6 +304,19 @@ namespace PFE.Editor.Importers
             def.burstCount          = AttrI(charT1, "dkol",    0);
             def.explRadius          = AttrF(charT1, "expl",    0f);
             def.explosionDamage     = AttrF(charT1, "damexpl", 0f);
+            // ── The explosion SHAPE and the pulse count — Weapon.as:844-852 ──────────────────────────
+            //
+            // Both reads are guarded in AS3 on `@attr.length()` (presence), so an absent attribute
+            // keeps the class default — explTip 1, explKol 0. Reproduced by passing the same defaults
+            // here: reading them unconditionally would be identical on this data (no row writes an
+            // empty value) but would not survive a mod that did.
+            //
+            // explTip selects which of Bullet's two blast shapes runs (explRun's multiplexer,
+            // Bullet.as:711-717); explKol is the number of PULSES — the sustained damage area that
+            // fgren/molotov/gasgr/acidgr and four monster weapons have and a plain grenade does not.
+            // Neither was imported before, so every blast was a single pulse of the default shape.
+            def.explTip             = AttrI(charT1, "expltip", 1);
+            def.explKol             = AttrI(charT1, "explkol", 0);
             def.prepFrames          = AttrI(charT1, "prep",    0); // wind-up frames (minigun=32, flamer=10, etc.)
 
             // ── Thrown fuse + radio — WThrow.as:52-59 ─────────────────────────────
@@ -400,6 +413,17 @@ namespace PFE.Editor.Importers
             def.soundPrepT1 = AttrI(snd, "t1",    0);
             def.soundPrepT2 = AttrI(snd, "t2",    0);
             def.noiseRadius = AttrF(snd, "noise", 600f);
+
+            // The two that were missing. AS3 splits the <snd> block across THREE parsers, so reading
+            // only the first one drops a throwable's landing sound and a mine's beeps silently:
+            //   Weapon.getSndParam  (Weapon.as:641-680)  shoot shoot_n reload hit prep t1 t2 noise
+            //   WThrow              (WThrow.as:64-66)    fall   — `node.snd[0].@fall`
+            //   Mine                (Mine.as:112-119)    dem sens
+            // `shoot_n` and `dem` are the other two names in that set and are still not imported, for
+            // the measured reasons recorded on WeaponDefinition (zero occurrences in the data / no
+            // reachable consumer). That is the complete set of eleven; the port now reads nine.
+            def.soundFall = Attr(snd, "fall", "");
+            def.soundSens = Attr(snd, "sens", "");
 
             // ── <ammo> ───────────────────────────────────────────────────────
             // Multiple <ammo> nodes possible (variant 2 overrides). Use first.

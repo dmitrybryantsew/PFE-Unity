@@ -23,11 +23,14 @@ namespace PFE.Systems.Particles
     /// any other type (<c>D_BUL</c>, <c>D_PHIS</c>, <c>D_BLADE</c>, <c>D_LASER</c> …) emits nothing at
     /// all. Falling through to the explosive visuals would make every bullet in the game spark.</para>
     ///
-    /// <para><b>Every <c>expl_t</c> guard is absent on purpose.</b> <c>expl_t</c> counts down a cluster
-    /// munition's sub-explosions (<c>Bullet.as:240-250</c>, set at <c>:690</c>), and the oracle gates
-    /// the venom/pink sounds, the whole acid arm and the fire arm on <c>expl_t == 0</c> — "the final
-    /// blast". The port models no cluster, so <c>expl_t</c> is always 0 and every one of those guards is
-    /// already satisfied; reproducing the test would be reproducing a constant.</para>
+    /// <para><b>Which arms are gated on the FIRST pulse.</b> AS3 guards the venom and pink
+    /// <i>sounds</i>, the whole acid arm and the whole fire arm on <c>expl_t == 0</c>
+    /// (<c>Bullet.as:932-1000</c>) — and <c>expl_t</c> is 0 only before the multi-pulse countdown is
+    /// assigned, i.e. on the <i>initial</i> pulse. That is <paramref name="isInitialPulse"/>. A
+    /// single-pulse blast always passes <c>true</c>, which is why this parameter changed nothing for
+    /// the 36 explosive weapons without a train; a sustained blast passes <c>true</c> for pulse 0 and
+    /// <c>false</c> afterwards, so <c>gasgr</c> puffs its cloud on all twelve of its pulses but beeps
+    /// once. The schedule itself is <see cref="PFE.Systems.Weapons.ExplosionPulseRules"/>.</para>
     ///
     /// <para><b>Deliberately absent: <c>loc.budilo()</c></b>, the combat-AI noise alert
     /// (<c>Location.as:2861-2886</c> → <c>unit.alarma</c> → <c>setCel</c>). The port tracks no per-unit
@@ -69,6 +72,11 @@ namespace PFE.Systems.Particles
         /// <param name="visExpl">The weapon's override, or null/empty for none.</param>
         /// <param name="damageType">The round's damage type; only consulted when the override is empty.</param>
         /// <param name="inWater">Whether the impact point was in water.</param>
+        /// <param name="isInitialPulse">
+        /// True on the first pulse of the blast — AS3's <c>expl_t == 0</c>. Always true for a
+        /// single-pulse explosion; false for every pulse after the first when <c>explKol &gt; 1</c>.
+        /// Gates the venom/pink sounds and the acid and fire arms; see the class remarks.
+        /// </param>
         /// <param name="rng">
         /// The presentation stream for the acid arm's <c>kol</c> jitter. <b>Drawn only on the acid arm</b>,
         /// so a non-acid explosion does not consume a draw the oracle would not have made. Null is legal
@@ -77,8 +85,8 @@ namespace PFE.Systems.Particles
         /// <param name="emits">Receives the emits. Never null.</param>
         /// <param name="soundId">The sound id, or null.</param>
         /// <returns>True when at least one particle is emitted.</returns>
-        public static bool Plan(string visExpl, DamageType damageType, bool inWater, IRngService rng,
-                                List<ParticleEmit> emits, out string soundId)
+        public static bool Plan(string visExpl, DamageType damageType, bool inWater, bool isInitialPulse,
+                                IRngService rng, List<ParticleEmit> emits, out string soundId)
         {
             if (emits == null) throw new ArgumentNullException(nameof(emits));
 
@@ -129,23 +137,30 @@ namespace PFE.Systems.Particles
                     break;
 
                 case DamageType.Venom:
-                    // No inWater test in the oracle's gas arms — gas is emitted either way.
+                    // No inWater test in the oracle's gas arms — gas is emitted either way. The
+                    // SOUND is gated on expl_t == 0 (Bullet.as:932-937), so a sustained cloud puffs
+                    // silently after its first pulse.
                     emits.Add(new ParticleEmit("gas"));
-                    soundId = "gas_e";
+                    if (isInitialPulse) soundId = "gas_e";
                     break;
 
                 case DamageType.Pink:
                     emits.Add(new ParticleEmit("pinkgas"));
-                    soundId = "gas_e";
+                    if (isInitialPulse) soundId = "gas_e";
                     break;
 
                 case DamageType.Acid:
-                    emits.Add(new ParticleEmit("acidexpl"));
-                    emits.Add(new ParticleEmit("acidkap", new ParticleSpec
+                    // The whole acid arm is inside `if(this.expl_t == 0)` (Bullet.as:946-955) — the
+                    // burst, the jitter draw and the sound all belong to the first pulse only.
+                    if (isInitialPulse)
                     {
-                        Kol = rng != null ? rng.Range(AcidKolMin, AcidKolMaxExclusive) : AcidKolMin,
-                    }));
-                    soundId = "acid_e";
+                        emits.Add(new ParticleEmit("acidexpl"));
+                        emits.Add(new ParticleEmit("acidkap", new ParticleSpec
+                        {
+                            Kol = rng != null ? rng.Range(AcidKolMin, AcidKolMaxExclusive) : AcidKolMin,
+                        }));
+                        soundId = "acid_e";
+                    }
                     break;
 
                 case DamageType.Balefire:
@@ -167,8 +182,9 @@ namespace PFE.Systems.Particles
 
                 case DamageType.Fire:
                     // AS3 guards the fire arm on `inWater <= 0` as well as `expl_t == 0`: a fire blast
-                    // that lands underwater does nothing at all, not even a hiss.
-                    if (!inWater)
+                    // that lands underwater does nothing at all, not even a hiss — and a sustained fire
+                    // bomb draws its burst, and drops its burning pool, on the first pulse only.
+                    if (isInitialPulse && !inWater)
                     {
                         emits.Add(new ParticleEmit("fireexpl"));
                         emits.Add(new ParticleEmit("flare"));

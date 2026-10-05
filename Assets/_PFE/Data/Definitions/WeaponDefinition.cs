@@ -153,13 +153,62 @@ namespace PFE.Data.Definitions
     [Header("Explosion")]
     public float explRadius = 0f;        // Explosion radius
     public float explosionDamage = 0f;   // damageExpl in AS3
-    // NOT IMPORTED YET: char.@expltip / char.@explkol (Weapon.as:846/850). AS3 has THREE explosion
-    // shapes — explTip 1 = explBlast (radial child bullets, WITH knockback), 2 = explGas (direct
-    // damage, no knockback), 3 = both, sequenced explKol=12 times. Every throwable sets one of them.
-    // They are deliberately absent rather than imported-but-unread: the port has no knockback on the
-    // explosion path at all, so a field here could not change any behaviour yet. Add the field in the
-    // same change that adds its consumer. See
-    // docs/AUDIT_throwable_and_explosive_2026-10-03.md §4.
+
+    /// <summary>
+    /// Which explosion shape this weapon's blast uses — AS3 <c>char.@expltip</c>
+    /// (<c>Weapon.as:846</c>), copied to the bullet at <c>:1676</c>. 1 = <c>explBlast</c>, 2 =
+    /// <c>explGas</c>, 3 = both, sequenced.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Read by <c>Bullet.explRun()</c>'s multiplexer</b> (<c>weapon/Bullet.as:711-717</c>):
+    /// <c>explTip == 1 || (explTip == 3 &amp;&amp; expl_t == 0)</c> → <c>explBlast()</c>;
+    /// <c>explTip == 2 || (explTip == 3 &amp;&amp; expl_t &gt; 0)</c> → <c>explGas()</c>. So 3 means "one
+    /// blast, then a sustained gas cloud".</para>
+    /// <para><b>1 is AS3's declaration default and also the value the attribute is absent with</b> —
+    /// <c>Weapon.as:844</c> guards the read on <c>@expltip.length()</c>, so an absent attribute leaves
+    /// <c>explTip = 1</c>. Only <c>gasgr</c>, <c>acidgr</c>, <c>zombivenom</c>, <c>zombiacid</c>,
+    /// <c>zombipink</c> and <c>robogas</c> carry the attribute at all.</para>
+    /// </remarks>
+    public int explTip = 1;              // expltip in AS3
+
+    /// <summary>
+    /// How many explosion <b>pulses</b> the blast fires — AS3 <c>char.@explkol</c>
+    /// (<c>Weapon.as:850</c>). 0 and 1 both mean a single pulse; anything higher is a sustained
+    /// damage area.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>This is the "damage area".</b> <c>Bullet.explosion()</c> (<c>:683-691</c>) runs one
+    /// pulse immediately and then sets <c>expl_t = (explKol - 1) * explPeriod</c>
+    /// (<c>explPeriod = 10</c> frames, a class constant — <c>:121</c>); <c>run()</c> fires another
+    /// pulse every time the countdown passes <c>expl_t % 10 == 1</c> (<c>:240-250</c>). So a weapon with
+    /// <c>explkol='10'</c> detonates <b>ten</b> times over <c>9 * 10 = 90</c> frames — which is exactly
+    /// what <c>fgren</c>, <c>molotov</c>, <c>gasgr</c> and <c>acidgr</c> do, and why they are a damage
+    /// <i>area</i> rather than a single burst.</para>
+    /// <para><b>Eight weapons carry a value above 1:</b> <c>fgren</c> 10, <c>molotov</c> 10,
+    /// <c>gasgr</c> 12, <c>acidgr</c> 12, <c>zombivenom</c> 12, <c>zombiacid</c> 12, <c>zombipink</c>
+    /// 12, <c>robogas</c> 12. <c>impgr</c> and <c>impmine</c> carry <c>1</c>, which is one pulse.</para>
+    /// </remarks>
+    public int explKol = 0;              // explkol in AS3
+    // Still NOT IMPORTED, and why — the rest of the <char> explosion block:
+    //   char.@explperiod — does not exist in the data; explPeriod is the class constant 10
+    //                      (Bullet.as:121). Nothing to import.
+    //   char.@massafix   — read by Unit.setLevel for the HP formula, not by the explosion path.
+    //   char.@combo / @pow / @critdam — melee-combo and crit channels with no port consumer yet.
+    //   char.@rashod / @recharg (on <ammo>) — ammo consumption; the port fires one round per shot.
+    //   <sats> @cons / @no / @noperc / @que — AS3's skill-investment gate; the port has no skill tree.
+    //   <com>  @chance / @price / @rep / @stage / @uniq / @worth — trader/quality metadata.
+    //   <dop>  @shoot / @vision — the on-hit "make the target shoot/see" effects, unimplemented.
+    //   <phis> @drot / @drot2 / @distexpl / @grav2 / @long / @m / @minlong / @volna / @recoil /
+    //          @massa — AS3's rotation/gravity/range variants; the port's ballistic model reads
+    //          speed/grav/accel/flame/navod only.
+    //   <vis>  @flare / @grav / @icomult / @lasm / @loot / @vweap — presentation metadata the port
+    //          derives elsewhere (icomult is folded into the sprite, flare is a muzzle effect).
+    //   <snd>  @dem / @t11 / @t21 — see the note on soundFall/soundSens below.
+    //   root   @crack / @mess / @nostand / @perk / @perslvl / @sX / @sY — perk and sprite offsets;
+    //          @sX/@sY are read by the mine placement path only (see MineObject).
+    // Everything in that list was checked against the oracle, not against the port: each one is either
+    // absent from the data, or read by an AS3 subsystem the port does not have. The list is here so the
+    // next audit does not have to re-derive it — see docs/AUDIT_throwable_and_explosive_2026-10-03.md.
 
         [Header("Ammunition")]
         public int magazineSize = 0;         // holder in AS3
@@ -391,6 +440,35 @@ namespace PFE.Data.Definitions
         public int soundPrepT2;
         [Tooltip("How far the shot sound travels in the world — used for AI noise awareness (snd.@noise).")]
         public float noiseRadius = 600f;
+
+        [Tooltip("Sound ID played when a THROWN object strikes a tile (snd.@fall). AS3 assigns it to the " +
+                 "PhisBullet's sndHit (WThrow.as:196) and plays it on every tile bounce with volume " +
+                 "|d|/10 (PhisBullet.as:244-337). Empty = the object lands silently. Note this is a " +
+                 "thrown-weapon field: a gun's equivalent is soundHit.")]
+        public string soundFall;
+
+        [Tooltip("Sound ID played while a placed MINE counts down (snd.@sens) — the beep. AS3 " +
+                 "Mine.control() plays it every 5 ticks while aiState == 2 (Mine.as:340-343). " +
+                 "Mines only; empty for every other weapon.")]
+        public string soundSens;
+
+        // ── Deliberately absent from the <snd> block, and why ─────────────────────────────────────
+        //
+        // AS3 reads ELEVEN <snd> names, split across three parsers that never see each other's fields:
+        //   Weapon.getSndParam (Weapon.as:641-680)  shoot shoot_n reload hit prep t1 t2 noise
+        //   WThrow             (WThrow.as:64-66)    fall
+        //   Mine               (Mine.as:112-119)    dem sens
+        // Reading only the first parser is how a throwable's landing sound and a mine's beeps were
+        // dropped without anything going red. The other two are absent for a *measured* reason:
+        //
+        //   shoot_n  — read at Weapon.as:1619 (`kol_shoot % sndShoot_n == 0`) and defaulted to 1 at
+        //              :306. It occurs **zero** times in AllData.as, so no weapon can exercise it and
+        //              the port's existing "play on every shot" is already correct for 100% of the
+        //              data. A field here would be imported-but-unread.
+        //   dem      — Mine.remine() (Mine.as:268-271) is reached from the re-mine skill check
+        //              (`inter.successRemine`, :209). The port has the skill (`LockType.Mine` in
+        //              SkillCheckSystem) but **no caller** — the mine-defuse interaction is unwired —
+        //              so a field here could not change any behaviour yet. Add it with its caller.
 
         // Legacy properties for compatibility
         public string SoundShoot => soundShoot;

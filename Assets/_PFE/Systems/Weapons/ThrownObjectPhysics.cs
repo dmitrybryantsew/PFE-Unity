@@ -96,6 +96,33 @@ namespace PFE.Systems.Weapons
 
         /// <summary>Tile contacts resolved since the last reset. Diagnostics.</summary>
         public int ContactCount;
+
+        /// <summary>
+        /// Non-zero when the most recent tile contact is one AS3 <i>sounds</i>: the value is the
+        /// speed of the axis that struck, in px/frame, which is what the oracle passes as the volume
+        /// — <c>Snd.ps(sndHit, X, Y, 0, |d| / 10)</c> (<c>PhisBullet.as:246/267/290/321/336</c>).
+        /// Cleared at the top of every <see cref="ThrownObjectPhysics.Step"/>.
+        ///
+        /// <para><b>Not every contact sounds, which is why this is a request and not a counter.</b>
+        /// A floor contact plays the sound only on a <c>bumc</c> detonation (<c>:319</c>) or on a
+        /// bounce (<c>:334</c>, guarded by <c>dy &gt; 2</c>); a <b>settle</b> — the branch that sets
+        /// <c>dy = 0; stay = true</c> — is <b>silent</b>. So a caller keying off
+        /// <see cref="ContactCount"/> would play a landing sound for a grenade that has come to rest.
+        /// Zero is a safe "nothing to play" because every sounding site is only reachable with a
+        /// non-zero axis velocity (the branch conditions are <c>dx &lt; 0</c> / <c>dx &gt; 0</c> /
+        /// <c>dy &lt; 0</c> / <c>dy &gt; 0</c>).</para>
+        ///
+        /// <para><b>The value is the PRE-bounce speed.</b> All five sites read the velocity before
+        /// the branch rewrites it (<c>dx = |dx * skok|</c>), and AS3 also reads it before
+        /// <c>popadalo()</c> zeroes both axes — so this is captured before
+        /// <see cref="ThrownObjectPhysics.Detonate"/> runs, not after.</para>
+        ///
+        /// <para><b>At most one sound per frame.</b> A step may run several sub-steps, each of which
+        /// can sound; the last sounding one wins. AS3 would play once per sub-step, but sub-steps are
+        /// capped at 9 px (<c>World.as:48</c>) so this is at most a frame of doubled volume on a
+        /// corner strike, and playing a single sound per frame is the honest simplification.</para>
+        /// </summary>
+        public float ContactSoundSpeedPxPerFrame;
     }
 
     /// <summary>
@@ -126,9 +153,10 @@ namespace PFE.Systems.Weapons
     /// freeze-on-contact half IS modelled (<c>Latched</c>, driven by <c>sticky</c>); what is missing
     /// is the branch that binds the object to a cracked crate (<c>loc.celObj is Box &amp;&amp;
     /// explcrack</c>) so the blast damages that crate, which needs <c>loc.celObj</c> and a
-    /// destructible-prop query the port does not have. (5) <c>sndHit</c> — impact sounds; the port's
-    /// thrown object has no impact sound at all, which is a pre-existing gap and not this flip's to
-    /// close. Each omission is named so it reads as a decision, not a miss.</para>
+    /// destructible-prop query the port does not have. (5) <c>sndHit</c> — <b>closed 10-04</b>: the
+    /// step now records the contact as <see cref="ThrownObjectState.ContactSoundSpeedPxPerFrame"/> and
+    /// the caller plays it, because a sound is an emit and a tick may not emit. Each omission is named
+    /// so it reads as a decision, not a miss.</para>
     /// </summary>
     public static class ThrownObjectPhysics
     {
@@ -207,6 +235,10 @@ namespace PFE.Systems.Weapons
                                 float bounceRetention, float floorDamping,
                                 float brakePxPerFrame2, bool detonateOnContact, bool sticky = false)
         {
+            // One frame, at most one landing sound — see ContactSoundSpeedPxPerFrame. Cleared before
+            // the sub-step loop so a request from the previous frame cannot be replayed.
+            state.ContactSoundSpeedPxPerFrame = 0f;
+
             // AS3 PhisBullet.as:50-58. The `levit` branch halves both axes instead of applying
             // gravity; see the class note — no thrown object sets it, so only the else is ported.
             // AS3 `dy += ddy` is downward; this state is Y-up, so it subtracts.
@@ -288,6 +320,11 @@ namespace PFE.Systems.Weapons
             {
                 if (probe.IsSolidAt(state.PositionPx))
                 {
+                    // AS3 PhisBullet.as:244-247 — the sound comes FIRST in the branch, before
+                    // `if(bumc) popadalo()` (:248) zeroes the velocity and before the bounce
+                    // rewrites dx at :253. A wall contact always sounds.
+                    state.ContactSoundSpeedPxPerFrame = Mathf.Abs(state.VelocityPxPerFrame.x);
+
                     Rect cell = probe.CellBoundsAt(state.PositionPx);
                     if (detonateOnContact) Detonate(ref state);
 
@@ -304,6 +341,9 @@ namespace PFE.Systems.Weapons
             {
                 if (probe.IsSolidAt(state.PositionPx))
                 {
+                    // AS3 PhisBullet.as:265-268 — same shape as the leftward branch.
+                    state.ContactSoundSpeedPxPerFrame = Mathf.Abs(state.VelocityPxPerFrame.x);
+
                     Rect cell = probe.CellBoundsAt(state.PositionPx);
                     if (detonateOnContact) Detonate(ref state);
 
@@ -327,6 +367,9 @@ namespace PFE.Systems.Weapons
 
                 if (probe.IsSolidAt(state.PositionPx))
                 {
+                    // AS3 PhisBullet.as:288-291 — a ceiling contact always sounds, like the X branches.
+                    state.ContactSoundSpeedPxPerFrame = Mathf.Abs(state.VelocityPxPerFrame.y);
+
                     Rect cell = probe.CellBoundsAt(state.PositionPx);
                     if (detonateOnContact) Detonate(ref state);
 
@@ -357,6 +400,16 @@ namespace PFE.Systems.Weapons
                 if (probe.IsSolidAt(state.PositionPx))
                 {
                     Rect cell = probe.CellBoundsAt(state.PositionPx);
+
+                    // AS3 PhisBullet.as:317-343. A floor contact sounds on a `bumc` detonation
+                    // (:319-322) or on a bounce (:334-337) — and NOT on a settle, which is the bare
+                    // `else` at :339-343 that writes `dy = 0; stay = true` with no sound. So this is
+                    // the one site where the request is conditional; the other four are unconditional.
+                    // Read before Detonate, which zeroes both axes.
+                    if (detonateOnContact ||
+                        -state.VelocityPxPerFrame.y > SettleThresholdPxPerFrame)
+                        state.ContactSoundSpeedPxPerFrame = Mathf.Abs(state.VelocityPxPerFrame.y);
+
                     if (detonateOnContact) Detonate(ref state);
 
                     // AS3 `Y = _loc2_.phY1 - 1` — phY1 is the cell's TOP in Y-down, so 1 px above it:

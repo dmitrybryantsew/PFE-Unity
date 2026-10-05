@@ -25,8 +25,9 @@ namespace PFE.Tests.EditMode.Systems.Particles
         private readonly List<ParticleEmit> _emits = new List<ParticleEmit>();
         private string _sound;
 
-        private bool Plan(string visExpl, DamageType type, bool inWater = false, IRngService rng = null)
-            => ExplosionVisualRules.Plan(visExpl, type, inWater, rng, _emits, out _sound);
+        private bool Plan(string visExpl, DamageType type, bool inWater = false, IRngService rng = null,
+                          bool isInitialPulse = true)
+            => ExplosionVisualRules.Plan(visExpl, type, inWater, isInitialPulse, rng, _emits, out _sound);
 
         private List<string> Ids()
         {
@@ -275,6 +276,93 @@ namespace PFE.Tests.EditMode.Systems.Particles
             Assert.IsFalse(Plan(null, DamageType.Blade));
             Assert.IsFalse(Plan(null, DamageType.Laser));
             Assert.IsFalse(Plan(null, DamageType.PhysicalMelee));
+        }
+
+        // ── The expl_t == 0 gate (a sustained blast's later pulses) ──────────────────────────
+        //
+        // AS3 gates the venom/pink SOUNDS, the whole acid arm and the whole fire arm on `expl_t == 0`,
+        // which is true only on the initial pulse of a multi-pulse blast. `isInitialPulse: false` is
+        // every later pulse of fgren/moltov (fire), gasgr (venom) and acidgr (acid). Each of the four
+        // tests below pairs the silent case with the emitting case on the SAME arm, because "nothing
+        // was emitted" is unfalsifiable on its own.
+
+        [Test]
+        public void Fire_OnALaterPulse_IsSilent()
+        {
+            Assert.IsFalse(Plan(null, DamageType.Fire, isInitialPulse: false));
+            Assert.IsEmpty(_emits);
+            Assert.IsNull(_sound);
+
+            // Positive control — same arm, initial pulse.
+            Assert.IsTrue(Plan(null, DamageType.Fire, isInitialPulse: true));
+            CollectionAssert.AreEqual(new[] { "fireexpl", "flare", "iskr" }, Ids());
+        }
+
+        [Test]
+        public void Acid_OnALaterPulse_IsSilent_AndRollsNothing()
+        {
+            var rng = new CountingRng();
+
+            Assert.IsFalse(Plan(null, DamageType.Acid, isInitialPulse: false, rng: rng));
+            Assert.IsEmpty(_emits);
+            Assert.IsNull(_sound);
+            Assert.AreEqual(0, rng.Draws,
+                "a later pulse must not consume the acid arm's kol draw — the oracle's whole arm is " +
+                "inside `if(expl_t == 0)`");
+
+            // Positive control — the initial pulse emits AND draws.
+            Assert.IsTrue(Plan(null, DamageType.Acid, isInitialPulse: true, rng: rng));
+            CollectionAssert.AreEqual(new[] { "acidexpl", "acidkap" }, Ids());
+            Assert.AreEqual(1, rng.Draws);
+        }
+
+        [Test]
+        public void Venom_OnALaterPulse_StillPuffsGas_ButWithoutTheSound()
+        {
+            // gasgr's twelve pulses each emit the cloud; only the first beeps. So this is the one gated
+            // arm whose PARTICLES survive — an implementation that skipped the whole arm would pass
+            // `_sound == null` and still be wrong.
+            Assert.IsTrue(Plan(null, DamageType.Venom, isInitialPulse: false));
+            CollectionAssert.AreEqual(new[] { "gas" }, Ids());
+            Assert.IsNull(_sound);
+
+            Assert.IsTrue(Plan(null, DamageType.Venom, isInitialPulse: true));
+            CollectionAssert.AreEqual(new[] { "gas" }, Ids());
+            Assert.AreEqual("gas_e", _sound);
+        }
+
+        [Test]
+        public void Pink_OnALaterPulse_StillPuffsGas_ButWithoutTheSound()
+        {
+            Assert.IsTrue(Plan(null, DamageType.Pink, isInitialPulse: false));
+            CollectionAssert.AreEqual(new[] { "pinkgas" }, Ids());
+            Assert.IsNull(_sound);
+
+            Assert.IsTrue(Plan(null, DamageType.Pink, isInitialPulse: true));
+            CollectionAssert.AreEqual(new[] { "pinkgas" }, Ids());
+            Assert.AreEqual("gas_e", _sound);
+        }
+
+        [Test]
+        public void UngatedArms_IgnoreThePulseIndex()
+        {
+            // The explosion, plasma, cryo, EMP and balefire arms carry no expl_t guard at all, so their
+            // output must be identical on every pulse. This is the control for the four tests above: if
+            // the flag were applied to the whole table instead of to four arms, these would differ.
+            foreach (DamageType type in new[]
+                     {
+                         DamageType.Explosive, DamageType.Plasma, DamageType.Cryo,
+                         DamageType.EMP, DamageType.Balefire,
+                     })
+            {
+                Assert.IsTrue(Plan(null, type, isInitialPulse: true));
+                var first = Ids();
+                string firstSound = _sound;
+
+                Assert.IsTrue(Plan(null, type, isInitialPulse: false));
+                CollectionAssert.AreEqual(first, Ids(), $"{type}: particles must not change");
+                Assert.AreEqual(firstSound, _sound, $"{type}: sound must not change");
+            }
         }
     }
 }

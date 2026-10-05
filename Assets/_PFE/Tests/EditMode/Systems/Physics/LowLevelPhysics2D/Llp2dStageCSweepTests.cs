@@ -113,10 +113,11 @@ namespace PFE.Tests.EditMode.Systems.Physics.LowLevelPhysics2D
         private const float RightWallInnerFacePx = 600f;
 
         /// <summary>
-        /// The shipped <c>projectile.prefab</c> collider: <c>m_Size {x: 0.93, y: 0.06}</c>,
-        /// <c>m_Direction: 1</c> (horizontal axis). So the real hitbox is a <b>93 px needle</b>, not a
-        /// dot, and its leading tip sits ~46 px ahead of the transform centre. Read off the prefab,
-        /// not assumed.
+        /// The projectile hitbox: <c>m_Size {x: 0.93, y: 0.06}</c>, <c>m_Direction: 1</c> (horizontal
+        /// axis). So the real hitbox is a <b>93 px needle</b>, not a dot, and its leading tip sits ~46 px
+        /// ahead of the transform centre. Read off the old <c>projectile.prefab</c> before it was deleted,
+        /// not assumed; the numbers now live in <c>ProjectileTemplateSpec.ColliderSize</c>, which the
+        /// code-built template and <c>ProjectileTemplateSpecTests</c> both pin.
         /// </summary>
         private static readonly Vector2 NeedleSizePx = new Vector2(93f, 6f);
 

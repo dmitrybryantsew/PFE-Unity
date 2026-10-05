@@ -5,7 +5,9 @@ using VContainer;
 using PFE.Core;
 using PFE.Data.Definitions;
 using PFE.Entities.Units;
+using PFE.Systems.Audio;
 using PFE.Systems.Combat;
+using PFE.Systems.Map.Rendering;
 using PFE.Systems.Weapons;
 
 namespace PFE.Entities.Weapons
@@ -134,6 +136,34 @@ namespace PFE.Entities.Weapons
         private float  _maxHp;
         private float  _hp;
 
+        /// <summary>
+        /// The placing weapon's <c>&lt;snd sens&gt;</c> — the arming beep, AS3 <c>Mine.sndSens</c>
+        /// (<c>Mine.as:118</c>, played at <c>:340-343</c>). Empty for every non-mine weapon, and the
+        /// beep is skipped rather than substituted, exactly as the oracle's own <c>!= ""</c> guard does.
+        /// </summary>
+        private string _soundSens;
+
+        // ── The beep cadence ──────────────────────────────────────────────────
+
+        /// <summary>AS3 <c>Mine.as:340</c> — <c>explTime % 5 == 3</c>, the beep's period in ticks.</summary>
+        public const int BeepPeriodTicks = 5;
+
+        /// <summary>AS3 <c>Mine.as:340</c> — the phase within <see cref="BeepPeriodTicks"/>.</summary>
+        public const int BeepPhaseTick = 3;
+
+        /// <summary>
+        /// AS3 <c>Mine.as:340</c> — <c>if(this.sndSens != "" &amp;&amp; this.explTime % 5 == 3)</c>:
+        /// whether the beep sounds on a tick with <paramref name="remainingTicks"/> left on the fuse.
+        ///
+        /// <para><b>Public and static so the cadence is pinned by fixtures.</b> Reached only through a
+        /// running mine otherwise, and "how often does it beep" is precisely the kind of question a
+        /// play-test answers wrongly — a beep every 5 ticks and a beep every 4 both sound like beeping.
+        /// C# <c>%</c> keeps the sign of the dividend exactly as AS3's does, and the caller clamps the
+        /// countdown at zero, so the negative case cannot arise.</para>
+        /// </summary>
+        public static bool ShouldBeep(int remainingTicks)
+            => remainingTicks % BeepPeriodTicks == BeepPhaseTick;
+
         // ── Timers (seconds) ──────────────────────────────────────────────────
 
         /// <summary>AS3 <c>reloadTime</c> — the arming delay. <c>WThrow.as:157</c> hardcodes 75.</summary>
@@ -144,6 +174,19 @@ namespace PFE.Entities.Weapons
         /// Only ticked in the <c>aiState == 2</c> branch, exactly as the oracle does.
         /// </summary>
         private float _explTimer;
+
+        /// <summary>
+        /// The same countdown as <see cref="_explTimer"/>, but as an <b>integer tick count</b>.
+        ///
+        /// <para><b>Two representations of one value, and the integer is the oracle's.</b> AS3's
+        /// <c>explTime</c> is an <c>int</c> (<c>Mine.as:20</c>) that <c>WThrow.as:155</c> scales by
+        /// <c>0.3</c> — <b>truncating</b>, so <c>time='15'</c> becomes 4, not 4.5. The beep test is
+        /// <c>explTime % 5 == 3</c> (<c>:340</c>), a modulo that only means anything on the integer.
+        /// A float seconds timer can be asked for the same thing only by rounding, and the rounding
+        /// error would move the beep by a tick — so the integer is carried separately and this is the
+        /// one field the cadence reads.</para>
+        /// </summary>
+        private int _explTicks;
 
         /// <summary>Seconds until the next proximity scan — the seconds form of <c>aiN % 4</c>.</summary>
         private float _senseTimer;
@@ -158,6 +201,47 @@ namespace PFE.Entities.Weapons
 
         private bool          _hasDamageContext;
         private DamageContext _damageContext;
+
+        // ── Visual ────────────────────────────────────────────────────────────
+        //
+        // AS3's mine is a Unit and always has a view: `Mine.as:98` builds it as
+        // `Res.getVis("vis" + id, vismine)` — the same `vis<weaponId>` symbol the throwing weapon
+        // itself uses — and then drives it through THREE states, in `control()`'s own order:
+        //
+        //   arming      `Mine.as:298-303`  `reloadTime > 0`, and `gotoAndStop(2)` is fired on the
+        //                                  frame `reloadTime` reaches 1 — i.e. frame 1 (index 0)
+        //                                  until the last arming frame, then frame 2 (index 1).
+        //   armed       `Mine.as:301`      static frame 2 (index 1) while the proximity scan runs.
+        //   counting    `Mine.as:282`      `activate()` calls `vis.play()`, so the timeline loops —
+        //                                  the blink that tells you it is about to go off.
+        //
+        // Placement makes it visible immediately (`WThrow.as:158-159` `gotoAndStop(1); setVis(true)`),
+        // so `setVis(false)`'s alpha-0.1 hidden state is never the state you see a placed mine in.
+        //
+        // `Assets/_PFE/Prefabs/Mine.prefab` has no renderer on itself or any child, so none of this
+        // was drawn: the mine armed, scanned, blinked and exploded entirely invisibly.
+
+        [Header("Visual")]
+        [Tooltip("Sprite renderer for the mine. Leave empty to have one created on a child at runtime " +
+                 "(the prefab ships without one).")]
+        [SerializeField] private SpriteRenderer _visualRenderer;
+
+        [Tooltip("Sorting layer for the created child renderer. Matches the projectile template " +
+                 "(ProjectileTemplateSpec.SortingLayerName), which is on " +
+                 "Foreground; the project's 'Default' layer sits BELOW the map tiles, so leaving this " +
+                 "empty draws the mine behind the floor.")]
+        [SerializeField] private string _visualSortingLayer = MapSortingLayers.Foreground;
+
+        private Transform _visualTransform;
+        private WeaponVisualDefinition _currentVisual;
+        private float _visualFrameTimer;
+        private int   _visualFrameIndex;
+
+        /// <summary>Flash frame 2 — the armed state (`Mine.as:301`).</summary>
+        private const int ArmedFrameIndex = 1;
+
+        /// <summary>Name of the child that carries the sprite, created on demand.</summary>
+        public const string VisualChildName = "visual";
 
         /// <summary>
         /// Faction of the unit that placed this mine — AS3 <c>_loc5_.fraction = owner.fraction</c>
@@ -177,10 +261,39 @@ namespace PFE.Entities.Weapons
 
         private bool _detonated;
 
+        // ── Explosion presentation (the blast a mine draws when it goes off) ──────────────────
+        //
+        // AS3's mine explodes through `Unit.explosion()` (`Unit.as:3328`), which does NOT draw the
+        // blast itself — it constructs a `Bullet` at the mine's position, sets `weapId = this.id` so the
+        // bullet resolves the placing weapon's `visexpl`, and calls the bullet's `explosion()` →
+        // `explRun()` → `explVis()` (`Bullet.as:665,705,878`). So a mine's blast goes through exactly the
+        // same `explVis()` the port already mirrors for projectiles and thrown objects — which is why
+        // these two inputs are the placing weapon's, not the mine's own.
+
+        /// <summary>The placing weapon's <c>vis.@visexpl</c> — what <c>explVis()</c> reads first.</summary>
+        private string     _visExpl;
+
+        /// <summary>Selects the fallback arm of the explosion table when <see cref="_visExpl"/> is empty.</summary>
+        private DamageType _damageType;
+
+        /// <summary>Scratch list for the planned emits — reused so a burst allocates nothing.</summary>
+        private readonly List<PFE.Systems.Particles.ParticleEmit> _explosionEmits =
+            new List<PFE.Systems.Particles.ParticleEmit>();
+
+        /// <summary>The unseeded presentation stream, resolved once (see <see cref="PresentationRng"/>).</summary>
+        private PFE.Core.Rng.IRngService _presentationRng;
+
         // ── Injected ─────────────────────────────────────────────────────────
 
 #pragma warning disable CS0649
         [Inject] private DamageSystem _damageSystem;
+
+        // The blast's presentation — the same trio Projectile injects. All optional: a fixture built
+        // with `new` has none, and the emit simply does nothing.
+        [Inject] private ISoundService                                       _soundService;
+        [Inject] private PFE.Systems.Particles.Adapters.RoomParticleEmitter _particles;
+        [Inject] private PFE.Systems.Particles.IParticleTileWater            _particleTileWater;
+        [Inject] private PFE.Core.Rng.IRngService                            _rng;
 #pragma warning restore CS0649
 
         public Action<MineObject> OnReturnToPool { get; set; }
@@ -225,13 +338,28 @@ namespace PFE.Entities.Weapons
             int    fuseFrames,
             int    armingFrames,
             float  sensPx,
-            int    maxHp)
+            int    maxHp,
+            // The placing weapon's blast presentation, carried exactly as Projectile carries its own.
+            // Optional so existing editor/test callers keep working; the spawner always passes both.
+            DamageType damageType = DamageType.PhysicalBullet,
+            string visExpl   = null,
+            // The placing weapon's `<snd sens>` — the arming beep. Optional like the two above.
+            string soundSens = null)
         {
             _weaponId   = weaponId;
             _explRadius = explRadius;
+            _damageType = damageType;
+            _visExpl    = visExpl;
+            _soundSens  = soundSens;
 
             int fuse = fuseFrames > 0 ? fuseFrames : DefaultFuseFrames;
             _explTimer = fuse * FuseScale / SimClock.FramesPerSecond;
+
+            // AS3 `WThrow.as:155 explTime *= 0.3` applied to an `int` (Mine.as:20) TRUNCATES, so
+            // `time='15'` gives 4 frames, not 4.5 — and 4 is what the beep's modulo counts down. The
+            // seconds timer above is the same duration and is what fires the mine; this is the one the
+            // cadence reads. See `_explTicks`.
+            _explTicks = Mathf.FloorToInt(fuse * FuseScale);
 
             _armingTimer = armingFrames / SimClock.FramesPerSecond;
 
@@ -298,9 +426,17 @@ namespace PFE.Entities.Weapons
             }
             else if (_aiState == 2)
             {
+                // AS3 Mine.control():340-345. The beep test runs BEFORE the decrement — the oracle
+                // tests, then `--explTime` — so the tick that beeps is the one whose remaining count
+                // is exactly 3, not 4. Order matters: swapping them shifts the beep a tick and, on a
+                // 4-tick fuse, moves it to the very last frame before the blast.
+                if (ShouldBeep(_explTicks))
+                    PlayArmingBeep();
+
                 // AS3 decrements here and tests afterwards, outside the branch — so the countdown is
                 // what kills it, but the test itself runs every frame.
                 _explTimer -= dt;
+                if (_explTicks > 0) _explTicks--;
             }
 
             if (_explTimer <= 0f)
@@ -333,6 +469,145 @@ namespace PFE.Entities.Weapons
         {
             if (_detonated || _aiState == 2) return;
             _aiState = 2;
+        }
+
+        // ── Visual ────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Applies the placing weapon's own art — <c>WeaponDefinition.weaponVisual</c>, i.e.
+        /// <c>vis&lt;weaponId&gt;</c>, which is literally what <c>Mine.as:98</c> resolves
+        /// (<c>Res.getVis("vis" + id, vismine)</c>).
+        /// </summary>
+        public void ApplyVisual(WeaponVisualDefinition visual)
+        {
+            EnsureVisualRenderer();
+
+            _currentVisual    = visual;
+            _visualFrameTimer = 0f;
+            _visualFrameIndex = 0;
+
+            if (_visualRenderer == null) return;
+
+            if (visual == null || visual.frames == null || visual.frames.Length == 0)
+            {
+                // No art imported for this mine yet — draw nothing rather than a white box.
+                _visualRenderer.enabled = false;
+                return;
+            }
+
+            _visualRenderer.enabled = true;
+            _visualRenderer.sprite  = visual.frames[0];
+        }
+
+        /// <summary>
+        /// Finds the sprite renderer, creating the child if the prefab has none — see
+        /// <see cref="ThrownObject.EnsureVisualRenderer"/> for why a child is created rather than a
+        /// renderer added to this object: this transform carries the trigger collider that
+        /// <see cref="Scan"/> and <see cref="Detonate"/> read, and a child is also where AS3 keeps it.
+        /// </summary>
+        private void EnsureVisualRenderer()
+        {
+            if (_visualRenderer != null)
+            {
+                if (_visualTransform == null) _visualTransform = _visualRenderer.transform;
+                return;
+            }
+
+            _visualRenderer = GetComponentInChildren<SpriteRenderer>();
+            if (_visualRenderer != null)
+            {
+                _visualTransform = _visualRenderer.transform;
+                return;
+            }
+
+            var visualObject = new GameObject(VisualChildName);
+            _visualTransform = visualObject.transform;
+            _visualTransform.SetParent(transform, false);
+
+            _visualRenderer         = visualObject.AddComponent<SpriteRenderer>();
+            _visualRenderer.enabled = false;
+
+            // The project's "Default" sorting layer sits BELOW the map tiles, so a renderer left on it
+            // draws behind the floor. Fall back to the projectile's own layer when the serialized field
+            // is empty — which is what a prefab authored before this field existed deserialises to.
+            _visualRenderer.sortingLayerName = string.IsNullOrEmpty(_visualSortingLayer)
+                ? MapSortingLayers.Foreground
+                : _visualSortingLayer;
+        }
+
+        private void Update()
+        {
+            UpdateMineVisual();
+        }
+
+        /// <summary>
+        /// The mine's three view states, tested in <c>control()</c>'s order.
+        ///
+        /// <para><b>The arming test is first and returns</b>, because <c>Mine.as:296-304</c> does: a
+        /// mine that has been radio-activated while still arming keeps the un-armed frame until the
+        /// arming finishes, since the branch that flips it to frame 2 has not run. Testing
+        /// <c>aiState</c> first would blink a mine that cannot yet fire — the same inversion the
+        /// class note warns about for the two state fields.</para>
+        /// </summary>
+        private void UpdateMineVisual()
+        {
+            if (_currentVisual == null || _visualRenderer == null) return;
+
+            var frames = _currentVisual.frames;
+            if (frames == null || frames.Length == 0) return;
+
+            if (_armingTimer > 0f)
+            {
+                ShowStaticFrame(0, frames);
+                return;
+            }
+
+            if (_aiState == 1)
+            {
+                ShowStaticFrame(ArmedFrameIndex, frames);
+                return;
+            }
+
+            // Activated — `Mine.as:282 vis.play()`, the countdown blink.
+            AnimateFromFrame(ArmedFrameIndex, frames);
+        }
+
+        private void ShowStaticFrame(int index, Sprite[] frames)
+        {
+            int i = Mathf.Clamp(index, 0, frames.Length - 1);
+
+            _visualFrameTimer = 0f;
+            _visualFrameIndex = i;
+            _visualRenderer.sprite = frames[i];
+        }
+
+        /// <summary>
+        /// Loops the timeline from <paramref name="startIndex"/>, the way Flash's <c>play()</c> does.
+        /// A single-frame symbol has nothing to loop, so it stays on that frame.
+        /// </summary>
+        private void AnimateFromFrame(int startIndex, Sprite[] frames)
+        {
+            int start = Mathf.Clamp(startIndex, 0, frames.Length - 1);
+            int span  = frames.Length - start;
+
+            // Entering the animated state (or a symbol with one frame in range): park on the start
+            // frame rather than advancing, so the first frame of the blink is shown for a full period.
+            if (span <= 1 || _visualFrameIndex < start)
+            {
+                ShowStaticFrame(start, frames);
+                return;
+            }
+
+            _visualFrameTimer += Time.deltaTime;
+
+            float frameDuration = 1f / SimClock.FramesPerSecond;
+            if (_visualFrameTimer < frameDuration) return;
+
+            int advance = Mathf.Min(Mathf.FloorToInt(_visualFrameTimer / frameDuration), span);
+            _visualFrameTimer -= advance * frameDuration;
+            _visualFrameIndex  = start + ((_visualFrameIndex - start + advance) % span);
+
+            _visualRenderer.sprite = frames[_visualFrameIndex];
         }
 
         // ── Proximity ─────────────────────────────────────────────────────────
@@ -455,9 +730,96 @@ namespace PFE.Entities.Weapons
                         damageable.TakeDamage(10f);
                     }
                 }
+
+                // The blast's visuals and sound, as a SIBLING of the damage loop — AS3 runs them last
+                // within the same routine, from the Bullet `Unit.explosion()` constructs. Kept out of
+                // the loop so one blast emits once, not once per victim.
+                EmitExplosionVisuals(centre);
             }
 
             ReturnToPool();
+        }
+
+        /// <summary>
+        /// The arming beep — AS3 <c>Mine.control()</c>'s
+        /// <c>if(this.sndSens != "" &amp;&amp; this.explTime % 5 == 3) Snd.ps(this.sndSens, X, Y)</c>
+        /// (<c>Mine.as:340-343</c>).
+        ///
+        /// <para><b>The <c>!= ""</c> guard is the oracle's and is load-bearing.</b> <c>snd sens</c>
+        /// lives only on the eight mine rows, so every non-mine weapon arrives here with an empty id —
+        /// and a substitute beep would make a mine out of a grenade. Silent is correct.</para>
+        /// </summary>
+        private void PlayArmingBeep()
+        {
+            if (string.IsNullOrEmpty(_soundSens)) return;
+
+            _soundService?.Play(_soundSens, transform.position);
+        }
+
+        /// <summary>
+        /// Emits the blast's particles and plays its sound — the port's mirror of AS3
+        /// <c>Bullet.explVis()</c> (<c>weapon/Bullet.as:878-1000</c>), reached by a mine because
+        /// <c>Unit.explosion()</c> (<c>Unit.as:3328</c>) routes its blast through a throwaway
+        /// <c>Bullet</c> rather than drawing it itself.
+        ///
+        /// <para><b>The inputs are the placing weapon's, not the mine's.</b> <c>Unit.explosion()</c> sets
+        /// <c>_loc8_.weapId = this.id</c>, so the bullet resolves the same weapon the mine came from and
+        /// reads <i>its</i> <c>visexpl</c>. The port passes that weapon's <c>visExpl</c> and
+        /// <c>damageType</c> in through <see cref="Initialize"/>.</para>
+        ///
+        /// <para><b>Same seam as <see cref="Projectile"/> and <see cref="ThrownObject"/>.</b> The table is
+        /// Unity-free (<see cref="PFE.Systems.Particles.ExplosionVisualRules.Plan"/>); this method only
+        /// converts the position and forwards the emits. <c>inWater</c> is derived at the impact point
+        /// rather than stored. The table has no default arm, so a mine whose weapon has neither a
+        /// <c>visexpl</c> nor a table arm emits nothing — AS3's own behaviour, not a fallback.</para>
+        /// </summary>
+        private void EmitExplosionVisuals(Vector3 centre)
+        {
+            if (_particles == null) return;
+
+            // No room pushed ⇒ no origin and no height ⇒ no correct position. Refusing is the point of
+            // the adapter's contract: emitting anyway would place the blast somewhere plausible and wrong.
+            if (!_particles.TryToAs3Local(centre, out Vector2 as3Local)) return;
+
+            int water = _particleTileWater != null
+                ? _particleTileWater.WaterAt(as3Local.x, as3Local.y)
+                : 0;
+
+            if (!PFE.Systems.Particles.ExplosionVisualRules.Plan(
+                    _visExpl, _damageType, water > 0,
+                    // Always the initial pulse: a mine is never a sustained blast. `Mine.as:258` calls
+                    // `explosion(damage1, tipDamage, explRadius, 0, …)` — the fourth argument is
+                    // `explKol`, hardcoded 0 — so a mine always runs exactly one pulse. The data agrees:
+                    // of the two mines that carry an `explkol` at all, `impmine` has 1 and `hmine` has
+                    // none. If a mine ever gains a train this has to become a real pulse index.
+                    isInitialPulse: true,
+                    PresentationRng(), _explosionEmits,
+                    out string soundId))
+            {
+                return;
+            }
+
+            foreach (PFE.Systems.Particles.ParticleEmit emit in _explosionEmits)
+            {
+                _particles.EmitAt(emit.Id,
+                    new Vector2(as3Local.x + emit.OffsetX, as3Local.y + emit.OffsetY),
+                    emit.Spec);
+            }
+
+            if (soundId != null) _soundService?.Play(soundId, centre);
+        }
+
+        /// <summary>
+        /// The unseeded presentation stream, resolved once — the only jitter these visuals need is the
+        /// acid arm's <c>kol</c>. Null when nothing injected an <see cref="PFE.Core.Rng.IRngService"/>
+        /// (an offline fixture built with <c>new</c>), which the rules treat as "use the oracle's
+        /// minimum" rather than an error.
+        /// </summary>
+        private PFE.Core.Rng.IRngService PresentationRng()
+        {
+            if (_presentationRng == null && _rng != null)
+                _presentationRng = _rng.GetStream(PFE.Core.Rng.RngStream.Presentation);
+            return _presentationRng;
         }
 
         // ── Pool support ─────────────────────────────────────────────────────
@@ -476,6 +838,7 @@ namespace PFE.Entities.Weapons
             _aiState          = 1;
             _armingTimer      = 0f;
             _explTimer        = 0f;
+            _explTicks        = 0;
             _senseTimer       = 0f;
             _explRadius       = 0f;
             _sens             = 0f;
@@ -483,6 +846,20 @@ namespace PFE.Entities.Weapons
             _maxHp            = 0f;
             _weaponId         = null;
             _ownerFaction     = FactionType.Neutral;
+
+            // A recycled mine must not inherit the previous placement's blast, or a sparkle mine would
+            // make the next plain one emit sparkle visuals. Same rule as Projectile.ResetForPool.
+            _visExpl          = null;
+            _damageType       = DamageType.PhysicalBullet;
+
+            // Same reason for the beep: a recycled mine that kept the last weapon's `<snd sens>` would
+            // chirp in the wrong voice, and one that kept a stale countdown would chirp immediately.
+            _soundSens        = null;
+
+            // View state. `_currentVisual` is kept — the next placement re-applies its own — but the
+            // animation cursor must not carry over, or a reused instance would start mid-blink.
+            _visualFrameTimer = 0f;
+            _visualFrameIndex = 0;
         }
 
         // ── IDamageable ───────────────────────────────────────────────────────

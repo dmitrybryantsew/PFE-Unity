@@ -16,7 +16,9 @@ namespace PFE.Systems.Weapons
     ///   - Recoil push-back: State.TRet px along world X, sign from the flip.
     ///   - Frame animation FSM at 30fps: Reloading > Shooting > Prep/Ready > Idle.
     ///   - Magic: position snaps to horn point (done by controller), rotation still applied normally.
-    ///   - Thrown override: sprite hidden (alpha 0) while projectile is in flight (TAttack > 0).
+    ///   - Thrown override: sprite hidden (alpha 0) while a throw is in progress (TAttack > 0) — and
+    ///     explicitly restored for every other weapon. That restore is the reason the alpha write is
+    ///     not nested inside the thrown-only branch; see <see cref="WeaponVisMath.HidesHeldSprite"/>.
     ///   - Unarmed: renderer disabled entirely.
     ///
     /// AS3 flip parity note:
@@ -105,6 +107,15 @@ namespace PFE.Systems.Weapons
 
             UpdateRendererEnabled();
             ApplySortingSettings();
+
+            // Undo the previous weapon's state immediately rather than waiting for the next tick. A
+            // thrown weapon leaves the renderer fully transparent while its throw is in progress, and
+            // the weapon being equipped now is never mid-throw — so a fresh equip must start opaque.
+            // Without this the first frame after a switch is invisible even once TickAnimation is
+            // correct, which is exactly the flicker a player reads as "the gun disappeared".
+            if (_spriteRenderer != null)
+                _spriteRenderer.color = Color.white;
+
             ShowIdle();
         }
 
@@ -116,7 +127,12 @@ namespace PFE.Systems.Weapons
             _visual = null;
             MuzzleWorldPosition = null;
             if (_spriteRenderer != null)
+            {
+                // Restore the alpha as well as disabling: a thrown weapon may have left it at 0, and a
+                // re-enable later (a new equip) must not inherit that.
+                _spriteRenderer.color   = Color.white;
                 _spriteRenderer.enabled = false;
+            }
         }
 
         /// <summary>World-space aim target. Called by PlayerWeaponLoadout each Update.</summary>
@@ -231,15 +247,20 @@ namespace PFE.Systems.Weapons
         {
             if (_visual == null || _spriteRenderer == null) return;
 
-            // Thrown: sprite hides while the object is in flight.
-            if (_def.weaponType == WeaponType.Thrown)
-            {
-                bool inFlight = _state.TAttack > 0;
-                _spriteRenderer.color = inFlight
-                    ? new Color(1f, 1f, 1f, 0f)
-                    : Color.white;
-                if (inFlight) return;
-            }
+            // ── Visibility, recomputed every tick for EVERY weapon type ──────────────────────────
+            //
+            // This is the only write to the renderer's alpha in the class, so it is also the only
+            // place that can restore it — and it must therefore run whether or not the current weapon
+            // is thrown. When this lived inside the `WeaponType.Thrown` branch, throwing a grenade set
+            // the alpha to 0, and switching to any other weapon then took the non-thrown path, never
+            // touched the colour, and left the new weapon drawn fully transparent — permanently, since
+            // only another thrown weapon would ever clear it. Reported as: "I select acidgr then
+            // minigun (or any other weapon) — its graphics disappear."
+            bool hideForThrow = WeaponVisMath.HidesHeldSprite(_def.weaponType, _state.TAttack);
+            _spriteRenderer.color = hideForThrow
+                ? new Color(1f, 1f, 1f, 0f)
+                : Color.white;
+            if (hideForThrow) return;
 
             // Reloading.
             if (_state.TReload > 0 && _visual.reloadFrameStart >= 0 && _visual.reloadFrameCount > 0)
@@ -340,6 +361,27 @@ namespace PFE.Systems.Weapons
         /// i.e. when the aim target is to the left of the weapon.
         /// </summary>
         public static bool IsFacingLeft(float aimWorldX, float visWorldX) => aimWorldX < visWorldX;
+
+        /// <summary>
+        /// Whether the held weapon's sprite must be drawn fully transparent this tick — AS3 hides the
+        /// held <c>vis</c> while a thrown object is in flight (<c>WThrow</c>).
+        ///
+        /// <para><b>Both inputs are load-bearing, and the second is the one that gets dropped.</b>
+        /// <c>tAttack &gt; 0</c> alone is <i>not</i> the rule: every weapon counts it down after a shot,
+        /// so hiding on it alone would blink every gun out for a few frames per shot. The hide is gated
+        /// on the weapon being <see cref="WeaponType.Thrown"/> as well.</para>
+        ///
+        /// <para><b>Why this is a named function and not an <c>if</c> at the call site.</b> The call
+        /// site writes the renderer's alpha, and it is the <i>only</i> write to it in the class — so it
+        /// is also the only place that can undo it. When that write lived inside the thrown-only branch,
+        /// a throw left the alpha at 0 and the branch then never ran again for the next weapon: the new
+        /// weapon was drawn fully transparent, permanently. Engine-free so the rule can be pinned
+        /// offline — a <c>MonoBehaviour</c> cannot be.</para>
+        /// </summary>
+        /// <param name="weaponType">The <b>currently equipped</b> weapon's type.</param>
+        /// <param name="tAttack">That weapon's attack countdown, in frames.</param>
+        public static bool HidesHeldSprite(WeaponType weaponType, int tAttack)
+            => weaponType == WeaponType.Thrown && tAttack > 0;
 
         /// <summary>AS3 <c>vis.scaleX</c>: <c>-1</c> facing left, <c>1</c> facing right.</summary>
         public static float VisScaleX(bool facingLeft) => facingLeft ? -1f : 1f;

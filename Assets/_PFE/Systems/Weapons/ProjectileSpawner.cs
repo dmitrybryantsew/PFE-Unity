@@ -147,6 +147,11 @@ namespace PFE.Systems.Weapons
             }
 
             proj.SetDamageContext(plan.Damage);
+
+            // `vis.@spring`, for the stretched-beam view — read off the definition here for the same
+            // reason the rest of the shot is (see ShotPlan's "Where projectile physics went"): the
+            // spawner owns the definition, and a per-shot copy would be a second place to get it wrong.
+            proj.SetSpringMode(_currentDef.springMode);
         }
 
         private void SpawnThrownObject(ShotPlan plan)
@@ -178,9 +183,33 @@ namespace PFE.Systems.Weapons
                 tormoz:          ProjectilePhysicsMath.ThrowFloorDamping,
                 brake:           ProjectilePhysicsMath.BrakePxPerFrame2,
                 // `lip` — throwTip == 2 latches on the first tile contact instead of bouncing.
-                sticky:          plan.Sticky);
+                sticky:          plan.Sticky,
+                // The blast's presentation — the same two inputs ProjectileFactory passes. `visexpl` is
+                // the per-weapon override `Bullet.explVis()` reads first (Weapon.as:623-625); the damage
+                // type selects the fallback arm of the table. Omitting them made every throwable detonate
+                // silently: the damage landed, the visual and the sound did not.
+                damageType:      _currentDef.damageType,
+                visExpl:         _currentDef.visExpl,
+                // AS3 `WThrow.as:196 (b as PhisBullet).sndHit = this.sndFall` — the weapon's
+                // `<snd fall>`, played on every tile contact. Omitting it made every grenade land
+                // silently; the mines carry the same attribute (`fall='fall_metal_small'`).
+                soundFall:       _currentDef.soundFall,
+                // The blast's SHAPE and PULSE COUNT — `char.@expltip` / `char.@explkol`, copied to the
+                // bullet by `Weapon.setBullet` (`Weapon.as:1676/:1678`). `explKol` above 1 is the
+                // sustained damage area: fgren/molotov (10), gasgr/acidgr (12). Omitting both left every
+                // blast a single pulse of the default shape, which is the owner-reported "no damage
+                // area".
+                explTip:         _currentDef.explTip,
+                explKol:         _currentDef.explKol);
 
             obj.SetDamageContext(plan.Damage);
+
+            // The weapon's OWN art, not `projectileVisual`. AS3's WThrow overwrites the bullet class
+            // with the weapon class (`WThrow.as:38 vBullet = vWeapon`), so a thrown grenade is drawn
+            // with `vis<weaponId>` — the same symbol the weapon has in hand. Every throwable's
+            // <vis> block is `tipdec`/`icomult` only, with no `vbul`, so `projectileVisual` is the
+            // wrong family for all of them.
+            obj.ApplyVisual(_currentDef.weaponVisual);
         }
 
         private void SpawnMineOrDetonate(ShotPlan plan)
@@ -211,9 +240,22 @@ namespace PFE.Systems.Weapons
                 fuseFrames:   plan.FuseFrames,
                 armingFrames: 75,                 // AS3 WThrow.as:157 — hardcoded, not data
                 sensPx:       _currentDef.sens,   // AS3 Mine.sens; 0 = radio-only (x37)
-                maxHp:        _currentDef.maxDurability);
+                maxHp:        _currentDef.maxDurability,
+                // The blast's presentation. AS3 `Unit.explosion()` sets `weapId = this.id` on a throwaway
+                // Bullet, so the mine's blast reads the PLACING weapon's `visexpl` and damage type — the
+                // same pair the projectile and thrown-object paths carry.
+                damageType:   _currentDef.damageType,
+                visExpl:      _currentDef.visExpl,
+                // AS3 `Mine.as:118 this.sndSens = node.snd.@sens` — the arming beep, played every
+                // 5 ticks while counting down (`:340-343`). Only the eight mine rows carry it.
+                soundSens:    _currentDef.soundSens);
 
             mine.SetDamageContext(plan.Damage);
+
+            // `Mine.as:98` resolves the view as `Res.getVis("vis" + id, vismine)` — the placing
+            // weapon's own symbol again, so the mine is drawn with the same art family as the
+            // throwable that placed it.
+            mine.ApplyVisual(_currentDef.weaponVisual);
         }
     }
 }
