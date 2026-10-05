@@ -29,7 +29,7 @@ MonoBehaviour:
   stackSize: 1
   usageType: 0
   sortOrder: 0
-  icon: {fileID: 0}
+  icon: {fileID: -985113564820616005, guid: ec1e7401d3347904d98536dbc6aca128, type: 3}
   pickupSound: {fileID: 0}
   fallbackColor: {r: 1, g: 1, b: 1, a: 1}
   medicalData:

@@ -29,7 +29,7 @@ MonoBehaviour:
   stackSize: 1
   usageType: 0
   sortOrder: 0
-  icon: {fileID: 0}
+  icon: {fileID: -8587190921155699570, guid: 7c953a5792a0e4445ba252208ac5436d, type: 3}
   pickupSound: {fileID: 0}
   fallbackColor: {r: 1, g: 1, b: 1, a: 1}
   medicalData:
@@ -65,8 +65,29 @@ MonoBehaviour:
   equipment:
     armor: 0
     magicArmor: 0
-    armorHP: 0
-    dexPenalty: 0
+    dexterity: 0
+    reliability: 0
+    resists:
+      bullet: 0
+      physical: 0
+      blade: 0
+      explosive: 0
+      fire: 0
+      cryo: 0
+      laser: 0
+      plasma: 0
+      spark: 0
+      fang: 0
+      acid: 0
+      necrotic: 0
+      venom: 0
+      pink: 0
+  armorHP: 0
+  armorTip: 0
+  armorHideMane: 0
+  armorIndestructible: 0
+  armorNoRepair: 0
+  armourLevels: []
   component:
     category: 0
     isJunk: 0
@@ -74,6 +95,19 @@ MonoBehaviour:
     isCraftable: 0
     requiredSkill: 
     requiredSkillLevel: 0
+  spellData:
+    hp: 0
+    mana: 0
+    magic: 0
+    culd: 0
+    dist: 0
+    line: 0
+    rad: 0
+    dam: 0
+    prod: 0
+    tele: 0
+    atk: 0
+    snd: 
   skillModifiers: []
   effects: []
   components: []
