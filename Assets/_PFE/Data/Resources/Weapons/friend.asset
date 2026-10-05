@@ -32,6 +32,8 @@ MonoBehaviour:
   burstCount: 5
   explRadius: 0
   explosionDamage: 0
+  explTip: 1
+  explKol: 0
   magazineSize: 100
   reloadTime: 60
   ammoType: crystal
@@ -78,7 +80,7 @@ MonoBehaviour:
   spell: 0
   weaponVisual: {fileID: 11400000, guid: 58a2958304b524b4eac34b4713ce89c5, type: 2}
   visualOverrideId: 
-  muzzleFlareId: 
+  muzzleFlareId: sparkl
   weaponSprite: 
   soundShoot: laser2_s
   soundReload: laser_r
@@ -87,3 +89,5 @@ MonoBehaviour:
   soundPrepT1: 0
   soundPrepT2: 0
   noiseRadius: 500
+  soundFall: 
+  soundSens: 

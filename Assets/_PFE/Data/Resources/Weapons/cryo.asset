@@ -32,6 +32,8 @@ MonoBehaviour:
   burstCount: 0
   explRadius: 0
   explosionDamage: 0
+  explTip: 1
+  explKol: 0
   magazineSize: 12
   reloadTime: 45
   ammoType: pcryo
@@ -76,7 +78,7 @@ MonoBehaviour:
   dopChance: 0.2
   alicornOnly: 0
   spell: 0
-  weaponVisual: {fileID: 0}
+  weaponVisual: {fileID: 11400000, guid: 2f6239134b5bee545828b4a0473a3259, type: 2}
   visualOverrideId: 
   muzzleFlareId: 
   weaponSprite: 
@@ -87,3 +89,5 @@ MonoBehaviour:
   soundPrepT1: 0
   soundPrepT2: 0
   noiseRadius: 400
+  soundFall: 
+  soundSens: 

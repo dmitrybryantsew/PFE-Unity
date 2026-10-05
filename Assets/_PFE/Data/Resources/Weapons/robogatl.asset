@@ -32,6 +32,8 @@ MonoBehaviour:
   burstCount: 0
   explRadius: 0
   explosionDamage: 0
+  explTip: 1
+  explKol: 0
   magazineSize: 0
   reloadTime: 0
   ammoType: 
@@ -76,8 +78,8 @@ MonoBehaviour:
   dopChance: 0.05
   alicornOnly: 0
   spell: 0
-  weaponVisual: {fileID: 0}
-  visualOverrideId: 
+  weaponVisual: {fileID: 11400000, guid: e93eee7a73513f840ae042f9fb22b6c9, type: 2}
+  visualOverrideId: visrobogatl
   muzzleFlareId: 
   weaponSprite: 
   soundShoot: laser_s
@@ -87,3 +89,5 @@ MonoBehaviour:
   soundPrepT1: 0
   soundPrepT2: 0
   noiseRadius: 500
+  soundFall: 
+  soundSens: 

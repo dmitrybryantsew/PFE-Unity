@@ -32,6 +32,8 @@ MonoBehaviour:
   burstCount: 0
   explRadius: 0
   explosionDamage: 0
+  explTip: 1
+  explKol: 0
   magazineSize: 600
   reloadTime: 30
   ammoType: energ
@@ -87,3 +89,5 @@ MonoBehaviour:
   soundPrepT1: 800
   soundPrepT2: 3000
   noiseRadius: 800
+  soundFall: fall_hammer
+  soundSens: 

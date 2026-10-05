@@ -32,6 +32,8 @@ MonoBehaviour:
   burstCount: 0
   explRadius: 0
   explosionDamage: 0
+  explTip: 1
+  explKol: 0
   magazineSize: 0
   reloadTime: 0
   ammoType: 
@@ -78,7 +80,7 @@ MonoBehaviour:
   spell: 0
   weaponVisual: {fileID: 11400000, guid: e26ede18d43a6fa4296583d2844b37f9, type: 2}
   visualOverrideId: 
-  muzzleFlareId: 
+  muzzleFlareId: flame
   weaponSprite: 
   soundShoot: 
   soundReload: 
@@ -87,3 +89,5 @@ MonoBehaviour:
   soundPrepT1: 990
   soundPrepT2: 2270
   noiseRadius: 300
+  soundFall: 
+  soundSens: 

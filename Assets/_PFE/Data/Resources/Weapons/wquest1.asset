@@ -32,6 +32,8 @@ MonoBehaviour:
   burstCount: 0
   explRadius: 0
   explosionDamage: 0
+  explTip: 1
+  explKol: 0
   magazineSize: 12
   reloadTime: 30
   ammoType: p308
@@ -76,8 +78,8 @@ MonoBehaviour:
   dopChance: 1
   alicornOnly: 0
   spell: 0
-  weaponVisual: {fileID: 0}
-  visualOverrideId: 
+  weaponVisual: {fileID: 11400000, guid: 9f3c8270f87860846b2ffd606bec0c47, type: 2}
+  visualOverrideId: visp308c
   muzzleFlareId: 
   weaponSprite: 
   soundShoot: p127_s
@@ -87,3 +89,5 @@ MonoBehaviour:
   soundPrepT1: 0
   soundPrepT2: 0
   noiseRadius: 1200
+  soundFall: 
+  soundSens: 

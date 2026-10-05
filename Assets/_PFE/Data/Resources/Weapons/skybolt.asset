@@ -32,6 +32,8 @@ MonoBehaviour:
   burstCount: 0
   explRadius: 0
   explosionDamage: 0
+  explTip: 1
+  explKol: 0
   magazineSize: 0
   reloadTime: 0
   ammoType: 
@@ -78,7 +80,7 @@ MonoBehaviour:
   spell: 0
   weaponVisual: {fileID: 11400000, guid: 2f2d3affa224ff34abcc37bf6c3b3ba1, type: 2}
   visualOverrideId: 
-  muzzleFlareId: 
+  muzzleFlareId: plasma2
   weaponSprite: 
   soundShoot: plap_s
   soundReload: 
@@ -87,3 +89,5 @@ MonoBehaviour:
   soundPrepT1: 0
   soundPrepT2: 0
   noiseRadius: 500
+  soundFall: 
+  soundSens: 

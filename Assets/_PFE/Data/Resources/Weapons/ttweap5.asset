@@ -32,6 +32,8 @@ MonoBehaviour:
   burstCount: 0
   explRadius: 300
   explosionDamage: 1100
+  explTip: 1
+  explKol: 0
   magazineSize: 1
   reloadTime: 150
   ammoType: 
@@ -76,8 +78,8 @@ MonoBehaviour:
   dopChance: 1
   alicornOnly: 0
   spell: 0
-  weaponVisual: {fileID: 0}
-  visualOverrideId: 
+  weaponVisual: {fileID: 11400000, guid: cd2e360163f6cde45942b1f1300e7077, type: 2}
+  visualOverrideId: visttweap5
   muzzleFlareId: 
   weaponSprite: 
   soundShoot: fireball
@@ -87,3 +89,5 @@ MonoBehaviour:
   soundPrepT1: 0
   soundPrepT2: 0
   noiseRadius: 600
+  soundFall: 
+  soundSens: 

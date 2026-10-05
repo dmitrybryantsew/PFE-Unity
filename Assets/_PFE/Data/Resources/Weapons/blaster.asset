@@ -32,6 +32,8 @@ MonoBehaviour:
   burstCount: 0
   explRadius: 0
   explosionDamage: 0
+  explTip: 1
+  explKol: 0
   magazineSize: 12
   reloadTime: 45
   ammoType: bcell
@@ -78,7 +80,7 @@ MonoBehaviour:
   spell: 0
   weaponVisual: {fileID: 11400000, guid: 6616cf926d0e09343b24423c9d695404, type: 2}
   visualOverrideId: 
-  muzzleFlareId: 
+  muzzleFlareId: plasma2
   weaponSprite: 
   soundShoot: blaster_s
   soundReload: p10mm_r
@@ -87,3 +89,5 @@ MonoBehaviour:
   soundPrepT1: 0
   soundPrepT2: 0
   noiseRadius: 500
+  soundFall: 
+  soundSens: 

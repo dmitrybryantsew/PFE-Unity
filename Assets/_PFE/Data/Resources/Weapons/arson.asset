@@ -32,6 +32,8 @@ MonoBehaviour:
   burstCount: 0
   explRadius: 0
   explosionDamage: 0
+  explTip: 1
+  explKol: 0
   magazineSize: 100
   reloadTime: 40
   ammoType: aero
@@ -87,3 +89,5 @@ MonoBehaviour:
   soundPrepT1: 990
   soundPrepT2: 2270
   noiseRadius: 200
+  soundFall: 
+  soundSens: 

@@ -32,6 +32,8 @@ MonoBehaviour:
   burstCount: 15
   explRadius: 0
   explosionDamage: 0
+  explTip: 1
+  explKol: 0
   magazineSize: 15
   reloadTime: 55
   ammoType: 
@@ -76,9 +78,9 @@ MonoBehaviour:
   dopChance: 1
   alicornOnly: 0
   spell: 0
-  weaponVisual: {fileID: 0}
-  visualOverrideId: 
-  muzzleFlareId: 
+  weaponVisual: {fileID: 11400000, guid: 8ef489a9cdc32d44781ab79441f191aa, type: 2}
+  visualOverrideId: visdronlaser
+  muzzleFlareId: plasma
   weaponSprite: 
   soundShoot: 
   soundReload: 
@@ -87,3 +89,5 @@ MonoBehaviour:
   soundPrepT1: 0
   soundPrepT2: 0
   noiseRadius: 400
+  soundFall: 
+  soundSens: 

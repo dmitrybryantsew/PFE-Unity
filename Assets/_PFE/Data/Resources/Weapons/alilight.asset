@@ -32,6 +32,8 @@ MonoBehaviour:
   burstCount: 0
   explRadius: 0
   explosionDamage: 0
+  explTip: 1
+  explKol: 0
   magazineSize: 0
   reloadTime: 0
   ammoType: 
@@ -77,8 +79,8 @@ MonoBehaviour:
   alicornOnly: 0
   spell: 0
   weaponVisual: {fileID: 11400000, guid: 9d49bd92c5020fc4b9c032b84389cf02, type: 2}
-  visualOverrideId: 
-  muzzleFlareId: 
+  visualOverrideId: visalilight
+  muzzleFlareId: spark
   weaponSprite: 
   soundShoot: lightning
   soundReload: 
@@ -87,3 +89,5 @@ MonoBehaviour:
   soundPrepT1: 0
   soundPrepT2: 0
   noiseRadius: 800
+  soundFall: 
+  soundSens: 

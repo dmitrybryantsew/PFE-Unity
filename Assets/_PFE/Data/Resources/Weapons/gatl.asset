@@ -32,6 +32,8 @@ MonoBehaviour:
   burstCount: 0
   explRadius: 0
   explosionDamage: 0
+  explTip: 1
+  explKol: 0
   magazineSize: 300
   reloadTime: 60
   ammoType: crystal
@@ -87,3 +89,5 @@ MonoBehaviour:
   soundPrepT1: 100
   soundPrepT2: 1500
   noiseRadius: 500
+  soundFall: 
+  soundSens: 

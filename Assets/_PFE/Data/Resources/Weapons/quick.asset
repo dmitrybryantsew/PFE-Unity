@@ -32,6 +32,8 @@ MonoBehaviour:
   burstCount: 0
   explRadius: 0
   explosionDamage: 0
+  explTip: 1
+  explKol: 0
   magazineSize: 160
   reloadTime: 45
   ammoType: energ
@@ -78,7 +80,7 @@ MonoBehaviour:
   spell: 0
   weaponVisual: {fileID: 11400000, guid: ab9b703154118ea42a7edad539d67762, type: 2}
   visualOverrideId: 
-  muzzleFlareId: 
+  muzzleFlareId: laser
   weaponSprite: 
   soundShoot: quick_s
   soundReload: laser_r
@@ -87,3 +89,5 @@ MonoBehaviour:
   soundPrepT1: 0
   soundPrepT2: 0
   noiseRadius: 500
+  soundFall: 
+  soundSens: 
