@@ -5,6 +5,8 @@ using PFE.Core;
 using PFE.Systems.Combat;
 using PFE.Data.Definitions;
 using PFE.Entities.Weapons;
+using PFE.Systems.Map;
+using PFE.Systems.Map.TileQuery;
 
 namespace PFE.Systems.Weapons
 {
@@ -43,7 +45,29 @@ namespace PFE.Systems.Weapons
         private WeaponDefinition   _currentDef;
         private PfeDebugSettings   _debugSettings;
 
+        /// <summary>
+        /// The land, for the mine placement retry — <c>WThrow.as:163-172</c> needs the room's tile
+        /// grid, which is reached through the live <c>currentRoom</c> rather than captured once (a
+        /// door moves the player between rooms without re-running the wiring).
+        ///
+        /// <para>Resolved from the container in <see cref="Initialize"/>. Null is legal — a test or a
+        /// scene with no map — and then a placed mine simply keeps the "no room" reduced answer: no
+        /// retry, no pin, and <see cref="MineObject"/> never falls.</para>
+        /// </summary>
+        private LandMap _landMap;
+
+        /// <summary>Cache for <see cref="ResolveTileQuery"/>, keyed on the room it was built for.</summary>
+        private ITileQueryService _tileQuery;
+
         // ── Public API ────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// AS3's <c>owner</c> — the unit that fired, whose position the mine placement retry falls
+        /// back to (<c>setPos(owner.X, owner.Y)</c>, <c>WThrow.as:165</c>). Set by
+        /// <see cref="PlayerWeaponLoadout"/>; null for a spawner with no owner, which skips the retry
+        /// and leaves the mine to be pinned instead.
+        /// </summary>
+        public Transform Owner { get; set; }
 
         /// <summary>Initialize with DI dependencies. Called by PlayerWeaponLoadout.Start().</summary>
         public void Initialize(IProjectileFactory factory, IObjectResolver resolver = null, PfeDebugSettings debugSettings = null)
@@ -51,6 +75,15 @@ namespace PFE.Systems.Weapons
             _factory  = factory;
             _resolver = resolver;
             _debugSettings = debugSettings;
+
+            // Only for the mine placement retry. A resolver that cannot supply the land (a bare test
+            // container) must not take the spawner down with it — the mine path degrades to "no room",
+            // which is a documented state rather than a crash.
+            if (_resolver != null && _landMap == null)
+            {
+                try { _landMap = _resolver.Resolve<LandMap>(); }
+                catch { _landMap = null; }
+            }
         }
 
         /// <summary>Called by PlayerWeaponLoadout after Equip().</summary>
@@ -256,6 +289,66 @@ namespace PFE.Systems.Weapons
             // weapon's own symbol again, so the mine is drawn with the same art family as the
             // throwable that placed it.
             mine.ApplyVisual(_currentDef.weaponVisual);
+
+            // The mine is a Unit in AS3, so it needs the room's tile grid: to fall (`isLaz`,
+            // Unit.as:1962) and to answer the placement retry's `collisionAll()` (Unit.as:2541).
+            mine.SetTileQuery(ResolveTileQuery());
+
+            ResolveMinePlacement(mine);
+        }
+
+        /// <summary>
+        /// AS3 <c>WThrow.as:163-172</c> — the placement retry and the pin, in the oracle's order:
+        ///
+        /// <code>
+        /// if(_loc5_.collisionAll()) { _loc5_.setPos(owner.X, owner.Y); }   // retry at the owner's feet
+        /// if(_loc5_.collisionAll()) { _loc5_.fixed = true; }               // still stuck ⇒ freeze it
+        /// </code>
+        ///
+        /// <para><b>Both tests re-run against the CURRENT position</b>, which is why this cannot be
+        /// collapsed into one branch: the second <c>collisionAll()</c> asks about the position the
+        /// first one just moved the mine to.</para>
+        ///
+        /// <para>The retry is skipped when there is no owner — AS3 would dereference null there, so
+        /// the port chooses the recoverable half: leave the mine where it is and let the pin catch
+        /// it, rather than dropping a mine that can never be placed.</para>
+        /// </summary>
+        private void ResolveMinePlacement(MineObject mine)
+        {
+            bool collidesAtHand = mine.CollidesWithTiles();
+            if (!collidesAtHand) return;                       // legal at the weapon's position
+
+            bool canRetry = Owner != null;
+            if (canRetry)
+            {
+                mine.PlaceAt(Owner.position);                  // AS3 `setPos(owner.X, owner.Y)`
+            }
+
+            bool collidesAfterRetry = canRetry && mine.CollidesWithTiles();
+
+            // The decision itself is a pure rule (`MineBodyMath`) so the two-question ordering is
+            // asserted offline rather than only here.
+            if (MineBodyMath.ResolvePlacement(collidesAtHand, canRetry, collidesAfterRetry)
+                == MinePlacement.Pin)
+            {
+                mine.PinInPlace();
+            }
+        }
+
+        /// <summary>
+        /// The room's tile query, rebuilt when the room changes. Mirrors
+        /// <c>RoomUnitSpawner.ResolveTileQuery</c> — same service, same construction, same reason
+        /// (the seam is created on demand rather than registered, because it is room-scoped).
+        /// </summary>
+        private ITileQueryService ResolveTileQuery()
+        {
+            RoomInstance room = _landMap != null ? _landMap.currentRoom : null;
+            if (room == null) return null;
+
+            if (_tileQuery != null && ReferenceEquals(_tileQuery.Room, room)) return _tileQuery;
+
+            _tileQuery = new UnifiedTileQueryService(room);
+            return _tileQuery;
         }
     }
 }

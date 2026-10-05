@@ -418,6 +418,13 @@ namespace PFE.Systems.Weapons
             if (_projectileSpawner != null && _projectileFactory != null)
             {
                 _projectileSpawner.Initialize(_projectileFactory, _resolver, _debugSettings);
+
+                // AS3's `owner`, which the mine placement retry falls back to when the hand position
+                // is inside a wall (`WThrow.as:165 setPos(owner.X, owner.Y)`). The unit's transform
+                // IS its feet — a unit's collider bottom is its origin — which is exactly the point
+                // the oracle picks, so no offset is applied. `_ownerUnit` is resolved in Awake.
+                _projectileSpawner.Owner = _ownerUnit != null ? _ownerUnit.transform : transform;
+
                 if (_debugSettings?.LogProjectileSpawning == true)
                     Debug.Log("[PlayerWeaponLoadout] ProjectileSpawner initialized with IProjectileFactory.");
             }

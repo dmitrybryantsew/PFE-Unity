@@ -8,6 +8,8 @@ using PFE.Entities.Units;
 using PFE.Systems.Audio;
 using PFE.Systems.Combat;
 using PFE.Systems.Map.Rendering;
+using PFE.Systems.Map.TileQuery;
+using PFE.Systems.Physics;
 using PFE.Systems.Weapons;
 
 namespace PFE.Entities.Weapons
@@ -261,6 +263,51 @@ namespace PFE.Entities.Weapons
 
         private bool _detonated;
 
+        // ── Body (AS3: a mine IS a Unit, so `Unit.step()` integrates it) ──────────────────────
+        //
+        // The mine used to be modelled as a fixed emplacement: a Kinematic body with gravityScale 0
+        // and no position integration at all. That is not what the oracle does. `WThrow.as:142-174`
+        // does `new Mine(id)` and `loc.units.push(_loc5_)`, so the mine joins the ordinary unit loop;
+        // `Mine.as:178` sets `isFly = false` and `grav` keeps its `Unit.as:256` default of 1, so the
+        // non-fly branch of `Unit.as` runs and `:1962-1964` applies `dy += World.ddy * grav`. The
+        // mine therefore FALLS from the hand to the floor — it only stops being a physics object
+        // when the placement retry finds it spawned inside geometry and sets `fixed = true`
+        // (`WThrow.as:171`), which is the rare case, not the normal one.
+        //
+        // The step below mirrors `UnitController` rather than inventing a second model: ground probe
+        // from the tile query, `UnitFallPhysics.FallSpeed`, `GroundBrake`, then one position write.
+        // The one thing it does NOT share is `UnitController`'s prop/shelf support — a mine resting
+        // on a crate is a recorded gap, not an oversight (see the class note).
+
+        /// <summary>AS3 <c>Unit.dx/dy</c>, in Unity units per second.</summary>
+        private Vector2 _velocity;
+
+        /// <summary>
+        /// AS3 <c>Unit.fixed</c> — set only by the placement retry (<c>WThrow.as:171</c>) when the
+        /// mine spawns inside a tile. Gates the position write exactly as the oracle's
+        /// <c>if(!this.fixed) run()</c> does (<c>Unit.as:1809</c>): gravity still accumulates, the
+        /// move is simply never applied.
+        /// </summary>
+        private bool _pinned;
+
+        /// <summary>AS3 <c>isLaz</c>, cached from the last <see cref="StepBody"/> — see <see cref="IsGrounded"/>.</summary>
+        private bool _grounded;
+
+        /// <summary>This object's own collider — the box the ground probe and the placement retry read.</summary>
+        private Collider2D _bodyCollider;
+
+        /// <summary>Kinematic mover. See <see cref="Awake"/> for why it is not Box2D-gravity driven.</summary>
+        private Rigidbody2D _body;
+
+        /// <summary>
+        /// The room's tile query — AS3's <c>loc.space</c> lookups, i.e. <c>Unit.collisionAll()</c>
+        /// (<c>Unit.as:2541</c>) and <c>isLaz</c> (<c>Unit.as:1962</c>). Handed over by
+        /// <see cref="ProjectileSpawner"/> because a prefab instance never goes through the
+        /// container. Null is legal and means "no room": the mine then simply does not fall, which
+        /// is the same reduced answer <c>UnitController</c> gives a unit with no room.
+        /// </summary>
+        private ITileQueryService _tileQuery;
+
         // ── Explosion presentation (the blast a mine draws when it goes off) ──────────────────
         //
         // AS3's mine explodes through `Unit.explosion()` (`Unit.as:3328`), which does NOT draw the
@@ -303,19 +350,42 @@ namespace PFE.Entities.Weapons
         private void OnEnable()  => _allMines.Add(this);
         private void OnDisable() => _allMines.Remove(this);
 
-        private void Awake()
-        {
-            // The prefab ships with `m_IsTrigger: 0` and no Rigidbody2D, which makes the mine a solid
-            // obstacle that cannot be detected as an overlap volume at all. Both are forced here
-            // rather than in the asset so a re-import cannot silently undo the fix.
-            var collider = GetComponent<Collider2D>();
-            if (collider != null) collider.isTrigger = true;
+        private void Awake() => EnsureBody();
 
-            if (GetComponent<Rigidbody2D>() == null)
+        /// <summary>
+        /// <see cref="Awake"/>'s body wiring — idempotent, and deliberately callable after Awake.
+        ///
+        /// <para><b>Why this is not just Awake's body.</b> Unity does not run <c>Awake</c> for a plain
+        /// <c>AddComponent</c> outside play mode, so an EditMode fixture that builds a mine would step
+        /// a body with no collider and no mover. That is the "the arrange could not run" failure — a
+        /// test that goes green because nothing happened. Resolving lazily costs one null check per
+        /// step and makes the component constructible in any order.</para>
+        /// </summary>
+        private void EnsureBody()
+        {
+            if (_bodyCollider == null)
             {
-                var rb = gameObject.AddComponent<Rigidbody2D>();
-                rb.bodyType    = RigidbodyType2D.Kinematic;
-                rb.gravityScale = 0f;
+                // The prefab ships with `m_IsTrigger: 0`, which makes the mine a solid obstacle that
+                // cannot be detected as an overlap volume at all. Forced here rather than in the asset
+                // so a re-import cannot silently undo the fix.
+                _bodyCollider = GetComponent<Collider2D>();
+                if (_bodyCollider != null) _bodyCollider.isTrigger = true;
+            }
+
+            if (_body == null)
+            {
+                _body = GetComponent<Rigidbody2D>();
+                if (_body == null) _body = gameObject.AddComponent<Rigidbody2D>();
+
+                // Kinematic and gravity-free BY CONSTRUCTION, and that is the oracle's model rather
+                // than a shortcut: AS3 integrates `dy += World.ddy` itself and this port does the same
+                // through UnitFallPhysics / MineBodyMath, writing the result itself — the same
+                // integration UnitController runs for every other unit. Leaving Box2D's gravity on
+                // would add a second acceleration that disagrees with the oracle's, and a dynamic body
+                // would take collision responses the oracle never takes. The body is kept only so the
+                // trigger collider raises overlap events.
+                _body.bodyType     = RigidbodyType2D.Kinematic;
+                _body.gravityScale = 0f;
             }
         }
 
@@ -399,10 +469,30 @@ namespace PFE.Entities.Weapons
             Step(dt);
         }
 
-        private void Step(float dt)
+        /// <summary>
+        /// One step of the mine — <c>Mine.control()</c> then the Unit body. <see cref="FixedUpdate"/>
+        /// is the production caller; public so a fixture can advance a mine by an exact delta without
+        /// a running player loop, which an EditMode test does not have.
+        /// </summary>
+        public void Step(float dt)
         {
             if (_detonated) return;
 
+            // AS3 `Unit.step()` (`Unit.as:1761`) is `forces()` → `control()` → `if(!this.fixed) run()`.
+            // `control()` is the state machine below; `run()` is the body. They are SIBLING calls, so
+            // `control()`'s arming branch returns early while the body still integrates that frame —
+            // an arming mine falls. Folding the physics into the state machine (the obvious shape)
+            // would freeze every mine in mid-air until it armed, which is the bug this split exists
+            // to prevent.
+            StepControl(dt);
+            StepBody(dt);
+        }
+
+        /// <summary>
+        /// AS3 <c>Mine.control()</c> (<c>Mine.as:290-358</c>), in the oracle's order.
+        /// </summary>
+        private void StepControl(float dt)
+        {
             // AS3 `if(this.reloadTime > 0) { --reloadTime; …; return; }`
             if (_armingTimer > 0f)
             {
@@ -442,6 +532,156 @@ namespace PFE.Entities.Weapons
             if (_explTimer <= 0f)
                 _pendingDetonate = true;
         }
+
+        // ── Body (AS3 `Unit.forces()` + `Unit.run()`) ─────────────────────────
+
+        /// <summary>
+        /// One step of the mine's own physics — AS3 <c>Unit.forces()</c> + <c>Unit.run()</c> for the
+        /// non-flying branch, in <see cref="UnitController"/>'s order so the port keeps one unit model
+        /// instead of growing a second one.
+        ///
+        /// <para><b>Gravity accumulates even while pinned.</b> The oracle gates only <c>run()</c>
+        /// (<c>Unit.as:1809</c>), and <c>forces()</c> sits above that gate — so a fixed mine keeps
+        /// building <c>dy</c> and simply never applies it. Same here: <see cref="_pinned"/> guards the
+        /// position write alone.</para>
+        ///
+        /// <para><b>Not modelled, and recorded rather than invented:</b> <c>Unit.checkShelf</c>
+        /// (<c>Unit.as:2713-2741</c>), so a mine that lands on a crate falls through it rather than
+        /// resting on it. <see cref="UnitController"/> has that path; the mine does not yet, and the
+        /// gap is named in the class note.</para>
+        /// </summary>
+        private void StepBody(float dt)
+        {
+            if (_bodyCollider == null || _body == null) EnsureBody();
+
+            MineBodyStep step = MineBodyMath.Step(_tileQuery, _velocity, OriginPixels(), _pinned, dt);
+
+            _velocity = step.Velocity;
+            _grounded = step.Grounded;
+
+            if (!step.Moved) return;
+
+            // Written straight to the transform rather than through `Rigidbody2D.MovePosition`, and
+            // this is the one place the mine's body differs from `UnitController.Move()`.
+            //
+            // The mine is its OWN integrator: it resolves its position from the tile grid and then
+            // reads that position back on the next step through `OriginPixels()`. `MovePosition`
+            // defers the write to the physics step, so the read-back is only correct if Unity happens
+            // to run FixedUpdate callbacks before the simulation — the exact ordering fragility
+            // `UnitController` documents when it snapshots the feet BEFORE its own `MovePosition`.
+            // Writing the value we just resolved removes the dependency instead of relying on it.
+            //
+            // Nothing in Box2D is waiting on this move: the body is Kinematic with `gravityScale = 0`
+            // and the mine takes no contact response (no wall damage, no knockback). The Rigidbody2D
+            // is kept so the trigger collider generates overlap events against whatever hits it.
+            // `TilePhysicsController` — the port's other self-integrating body — writes its transform
+            // the same way.
+            transform.position = new Vector3(
+                step.OriginPixels.x * TileQueryConstants.PixelToUnit,
+                step.OriginPixels.y * TileQueryConstants.PixelToUnit,
+                transform.position.z);
+        }
+
+        /// <summary>
+        /// AS3 <c>isLaz</c> — "am I standing on something", as of the last <see cref="StepBody"/>.
+        ///
+        /// <para><b>Cached from the step rather than re-asked.</b> The question is about the position
+        /// the step started from, so a fresh query after the move would sample a different point and
+        /// could legitimately disagree with the step that just ran. One step, one probe — see
+        /// <see cref="MineBodyStep.Grounded"/>.</para>
+        ///
+        /// <para>Named to match <c>UnitController.IsGrounded</c>, which is the same flag on the same
+        /// unit model. False before the first step and false with no room, which is also what
+        /// <see cref="MineBodyMath.Step"/> reports for a null query.</para>
+        /// </summary>
+        public bool IsGrounded => _grounded;
+
+        /// <summary>
+        /// This mine's origin in <b>world pixels</b> — AS3's <c>X</c>/<c>Y</c>. The transform's
+        /// position <i>is</i> that point: <c>Unit.setVisPos</c> does <c>vis.x = X; vis.y = Y</c>, and
+        /// the visual child sits at local (0,0), so the sprite's pivot lands on the origin exactly as
+        /// the oracle places it.
+        /// </summary>
+        private Vector2 OriginPixels()
+        {
+            Vector2 worldUnits = transform.position;
+            return worldUnits * TileQueryConstants.UnitToPixel;
+        }
+
+        /// <summary>
+        /// This mine's collision box in <b>world pixels</b> — AS3's <c>X1..X2 / Y1..Y2</c>, which
+        /// <c>Unit.setPos</c> derives from <c>scX</c>/<c>scY</c> (<c>Unit.as:1875-1878</c>).
+        ///
+        /// <para><b>Derived from the AS3 constants, not from the collider.</b> The prefab's collider is
+        /// authored to the same 30×20 box, but the collision question must not depend on an asset
+        /// somebody can re-import wrong — that is the same reasoning <see cref="Awake"/> uses when it
+        /// forces the trigger flag in code. The collider's job is the <i>hit</i> volume (a bullet finds
+        /// the mine through it); this function's job is the oracle's physics box.</para>
+        /// </summary>
+        private Rect BodyRectWorldPixels()
+        {
+            return MineBodyMath.BoxRectPixels(OriginPixels());
+        }
+
+        // ── Placement (AS3 `WThrow.shoot()`'s throwTip == 1 tail) ─────────────
+
+        /// <summary>
+        /// Hand this mine the room's tile query. Called by <see cref="ProjectileSpawner"/> at spawn —
+        /// the same handover, for the same reason, as <c>UnitController.SetTileQuery</c>.
+        ///
+        /// <para>Idempotent. A mine with no query keeps <c>null</c> and therefore never falls, which
+        /// is the correct reduced answer for a mine with no room (a fixture, or a scene with no map)
+        /// rather than a silent half-physics.</para>
+        /// </summary>
+        public void SetTileQuery(ITileQueryService tileQuery)
+        {
+            _tileQuery = tileQuery;
+        }
+
+        /// <summary>
+        /// AS3 <c>Unit.collisionAll()</c> (<c>Unit.as:2541</c>) — does this mine's box overlap a solid
+        /// tile? The placement retry's only question.
+        /// </summary>
+        /// <remarks>
+        /// <para><c>collisionTile</c> returns 0 for an air tile and for a stair tile when the unit is
+        /// <c>transT</c>. <c>Mine.as</c> sets <c>transT = true</c> (<c>:189</c>), so the transparent
+        /// flag is passed through rather than defaulted — a mine placed inside a staircase is not
+        /// "inside geometry" to the oracle.</para>
+        ///
+        /// <para>No tile query means no room, and the honest answer to "is this inside geometry" with
+        /// no geometry to ask is <c>false</c>: the mine is left where it is rather than pinned in a
+        /// room that does not exist.</para>
+        /// </remarks>
+        public bool CollidesWithTiles()
+        {
+            if (_tileQuery == null) return false;
+
+            var options = new TileQueryOptions(isTransparent: true);
+            return _tileQuery.CheckCollision(BodyRectWorldPixels(), options);
+        }
+
+        /// <summary>
+        /// AS3 <c>Unit.setPos()</c> (<c>Unit.as:1872-1880</c>) — teleport the mine, box and all. Used
+        /// only by the placement retry.
+        /// </summary>
+        public void PlaceAt(Vector2 worldPosition)
+        {
+            transform.position = new Vector3(worldPosition.x, worldPosition.y, 0f);
+            _velocity = Vector2.zero;
+        }
+
+        /// <summary>
+        /// AS3 <c>_loc5_.fixed = true</c> (<c>WThrow.as:171</c>) — the mine could not be placed
+        /// anywhere legal, so it becomes a static obstacle that never falls.
+        /// </summary>
+        public void PinInPlace()
+        {
+            _pinned = true;
+            _velocity = Vector2.zero;
+        }
+
+        /// <summary>AS3 <c>Unit.fixed</c>. True only for a mine that spawned inside geometry.</summary>
+        public bool IsPinned => _pinned;
 
         /// <summary>
         /// The view/late pass. Also where a damage-reported detonation is honoured, because a tick may
@@ -860,12 +1100,22 @@ namespace PFE.Entities.Weapons
             // animation cursor must not carry over, or a reused instance would start mid-blink.
             _visualFrameTimer = 0f;
             _visualFrameIndex = 0;
+
+            // Body state. A recycled mine must not inherit the last placement's fall: a mine that was
+            // mid-drop would resume it, and one that had been pinned would stay pinned in the new
+            // room. `_tileQuery` is cleared too — it is room-scoped, and the spawner hands over a
+            // fresh one on every placement, so a stale room must never survive the pool.
+            _velocity  = Vector2.zero;
+            _pinned    = false;
+            _grounded  = false;
+            _tileQuery = null;
         }
 
         // ── IDamageable ───────────────────────────────────────────────────────
         // The oracle's mine is a Unit with hp = maxhp = <char maxhp> (10 on all eight rows), so it can
         // be shot and destroyed before it fires. Everything else here is the AS3 declaration default
-        // for a mine: no armour, no skin, no evasion, fixed in place.
+        // for a mine: no armour, no skin, no evasion. It is NOT fixed in place by default — see the
+        // body fields; `fixed` is set only by the placement retry.
 
         /// <summary>
         /// AS3 <c>Mine.as:190-191</c> — <c>vulner[D_EMP] = 1; vulner[D_VENOM] = 0</c>. Note this is

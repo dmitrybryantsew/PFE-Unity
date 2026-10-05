@@ -64,8 +64,13 @@ namespace PFE.Tests.EditMode.Systems.Weapons
         public void Decide_NoInventory_IsTrainingMode()
         {
             // The port's contract for a null IAmmoSource, as IAmmoSource and RangedWeaponController
-            // both document it. In a live session nothing assigns PlayerWeaponLoadout.AmmoSource
-            // (only the debug overlay does), so this is the branch the player actually takes.
+            // both document it: null is the training / no-inventory case, so the throw is free.
+            //
+            // NOTE (2026-10-05): a live session is no longer in this state. PlayerController now builds
+            // a PlayerInventory, which assigns PlayerWeaponLoadout.AmmoSource, so the player takes the
+            // INVENTORY branch — and an empty inventory refuses the throw rather than throwing free.
+            // This case remains the correct contract for a null source; it is simply no longer the
+            // branch a live player hits. The fixture below pins the contract, not the live path.
             Assert.AreEqual(ThrownAmmoRule.Outcome.TrainingInfinite,
                 ThrownAmmoRule.Decide(hasAmmoSource: false, inventoryRounds: 0, kolAmmo: 4));
         }

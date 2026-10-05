@@ -67,9 +67,22 @@ namespace PFE.Systems.Weapons
         /// per-owner flag on the controller, but <see cref="PFE.Systems.Inventory.IAmmoSource"/> and
         /// <c>RangedWeaponController</c> already give that interface one documented meaning:
         /// <i>null means training / infinite ammo</i>. Assigning it is what makes a weapon
-        /// inventory-limited, and today only the debug overlay ever does
-        /// (<c>PlayerDebugEditorOverlay</c>), so a live session is in training mode for every weapon —
-        /// which is precisely the branch the player half of <c>getAmmo()</c> should take.</para>
+        /// inventory-limited.</para>
+        ///
+        /// <para><b>Since 2026-10-05 that is the live case, not a debug-only one.</b>
+        /// <c>PlayerController</c> builds a <c>PlayerInventory</c>, which assigns
+        /// <c>PlayerWeaponLoadout.AmmoSource</c> — so a live session now takes the <b>inventory</b>
+        /// branch for every weapon. Before that wiring only <c>PlayerDebugEditorOverlay</c> ever assigned
+        /// it, so every weapon ran in training mode and this paragraph used to say a live session was
+        /// "in training mode for every weapon". It is not any more.</para>
+        ///
+        /// <para><b>The consequence for a thrown weapon is a refusal, not a free throw.</b> An empty
+        /// inventory yields <see cref="Outcome.RefuseInventoryEmpty"/>, and
+        /// <c>ThrownWeaponController.ConsumeAmmo</c> maps that to <c>false</c> — so the throw simply does
+        /// not happen. That is the AS3 player branch and is intended, but it is a <b>behaviour flip</b>
+        /// worth watching in play-testing: with an empty starting inventory nothing can be thrown until
+        /// the ammo id is stocked, and only 28 of the 75 ammo ids have the <c>ItemDefinition</c> row that
+        /// stocking requires (see <c>PlayerDebugEditorOverlay</c>).</para>
         /// </summary>
         public static bool UsesInventory(bool hasAmmoSource) => hasAmmoSource;
 
