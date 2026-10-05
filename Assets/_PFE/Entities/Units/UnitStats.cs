@@ -582,6 +582,45 @@ public readonly ReactiveProperty<float> MaxMana;
     public Action<ActiveEffect> EffectPayloadSink { get; set; }
 
     /// <summary>
+    /// Apply an effect's payload <b>damage</b> through the damage pipeline — AS3
+    /// <c>owner.damage(val, type, null, true)</c> (<c>Effect.as:417</c>, <c>:423</c>, <c>:434</c>,
+    /// <c>:438</c>).
+    ///
+    /// <para><b>Why the payload cannot just call <see cref="Damage"/></b>. <see cref="Damage"/> is a
+    /// raw HP subtraction — it is the <i>receiving</i> end of the pipeline, invoked by
+    /// <c>UnitController.TakeDamage</c> <b>after</b> <c>DamageSystem</c> has computed the final number.
+    /// Using it as the pipeline's <i>entry</i> silently drops four things the oracle applies: the
+    /// vulnerability table, <c>skin</c>/armour, the floating damage number (fed by
+    /// <c>DamageEventFeed.Report</c>), and <c>RaiseDeath</c> — so a burn could reach 0 HP and leave the
+    /// unit alive. That is the shape the owner reported as "they burn but no burn damage shown".</para>
+    ///
+    /// <para><b>Null is the honest state for a unit with no damage authority</b> — a bare
+    /// <c>UnitStats</c> in an offline fixture. <see cref="PFE.Systems.Effects.EffectPayloads"/> then
+    /// falls back to the raw subtraction and <b>records the id</b>, so the gap shows in the effect
+    /// set's unmapped readback rather than looking like a working payload.</para>
+    ///
+    /// <para>Installed by <c>UnitController</c>, which owns the <c>DamageSystem</c> reference this class
+    /// deliberately does not have.</para>
+    /// </summary>
+    public Action<float, DamageType> EffectDamageSink { get; set; }
+
+    /// <summary>
+    /// Where this unit's effect <b>visuals</b> go — the flame, the poison drip, the soaked droplet.
+    /// Installed by whoever owns the unit's presentation (its <c>UnitController</c>), the same way
+    /// <see cref="EffectPayloadSink"/> is, because this class has no sprite, no transform and no room.
+    ///
+    /// <para><b>Null is the normal state for an off-screen or headless unit.</b> Every visual hook
+    /// below is a no-op when this is unset, so a unit in a test — or one whose spawner never wired a
+    /// sink — runs its effects exactly as before and simply shows nothing. A missing sink must not
+    /// throw, because the effect system's job is the simulation and the visuals are an optional
+    /// extension of it.</para>
+    ///
+    /// <para>See <see cref="IEffectVisualSink"/> for the two cadences and
+    /// <c>PFE.Systems.Particles.EffectVisualRules</c> for the ids, gates and offsets.</para>
+    /// </summary>
+    public IEffectVisualSink EffectVisualSink { get; set; }
+
+    /// <summary>
     /// Advance every live effect by one simulation tick — the effect half of AS3 <c>Unit.step</c>.
     ///
     /// <para><paramref name="stepScale"/> is <see cref="PFE.Core.SimClock.StepScale"/>, so a burn
@@ -636,6 +675,23 @@ public readonly ReactiveProperty<float> MaxMana;
     void IEffectHost.OnEffectPayload(ActiveEffect effect, ActiveEffectSet set)
     {
         EffectPayloads.Run(effect, this);
+    }
+
+    /// <summary>
+    /// The effect's once-per-tick visual — AS3 <c>Effect.stepEffect()</c>
+    /// (<c>Effect.as:474-488</c>). Forwards to <see cref="EffectVisualSink"/>, which owns the
+    /// presentation state this class does not have.
+    /// </summary>
+    /// <remarks>
+    /// <b>Unconditional, and that is not laziness.</b> The oracle calls <c>stepEffect()</c> for every
+    /// effect on every frame and lets the method's own id test decide; gating here on "is this a
+    /// <c>burning</c> effect" would put a copy of the rules' id list in the host, which is the thing the
+    /// rules class exists to prevent. The cost of the unconditional form is one virtual call per effect
+    /// per tick for a unit that has a sink, and nothing at all for one that does not.
+    /// </remarks>
+    void IEffectHost.OnEffectStepVisual(ActiveEffect effect, ActiveEffectSet set)
+    {
+        EffectVisualSink?.OnEffectStepVisual(effect);
     }
 
     /// <summary>

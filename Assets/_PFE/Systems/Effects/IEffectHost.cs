@@ -22,6 +22,8 @@ namespace PFE.Systems.Effects
     /// (<c>:337-403</c>) — the paired visual teardown.</description></item>
     /// <item><term><see cref="OnEffectPayload"/></term><description><c>Effect.secEffect()</c>
     /// (<c>:405-472</c>) — the once-per-second damage/heal/emitter payload.</description></item>
+    /// <item><term><see cref="OnEffectStepVisual"/></term><description><c>Effect.stepEffect()</c>
+    /// (<c>:474-488</c>) — the once-per-tick visual, which is the <c>burning</c> flame.</description></item>
     /// <item><term><see cref="OnEffectParamsChanged"/></term><description>the param pass the oracle
     /// triggers from <c>setEff</c>, <c>unsetEff</c> and <c>checkT</c>. The set asks; the host owns the
     /// recompute because the target object (player vs NPC) differs.</description></item>
@@ -49,6 +51,24 @@ namespace PFE.Systems.Effects
         /// payload table in the oracle to port, so inventing one would be a divergence.</para>
         /// </summary>
         void OnEffectPayload(ActiveEffect effect, ActiveEffectSet set);
+
+        /// <summary>
+        /// The effect's once-per-tick visuals — AS3 <c>Effect.stepEffect()</c>
+        /// (<c>Effect.as:474-488</c>), which <c>step()</c> calls on <b>every</b> frame
+        /// (<c>:496</c>), unlike <c>secEffect</c>.
+        ///
+        /// <para><b>Why this is a separate callback rather than part of
+        /// <see cref="OnEffectPayload"/>.</b> The two oracle methods have different cadences, and
+        /// <c>burning</c> appears in both for different reasons: its <i>flame</i> is emitted every
+        /// frame from <c>stepEffect</c> (<c>:480</c>), while its <i>damage</i> is applied once a second
+        /// from <c>secEffect</c> (<c>:417</c>). Folding the flame into the payload would draw it once
+        /// per 30 frames — a flame that stutters, which reads as an art problem rather than a
+        /// scheduling one.</para>
+        ///
+        /// <para>A host with nothing to show implements this as an empty method; see
+        /// <see cref="IEffectVisualSink"/> for where the emit itself lives.</para>
+        /// </summary>
+        void OnEffectStepVisual(ActiveEffect effect, ActiveEffectSet set);
 
         /// <summary>
         /// Recompute derived stats because an effect's writes changed — the port of the

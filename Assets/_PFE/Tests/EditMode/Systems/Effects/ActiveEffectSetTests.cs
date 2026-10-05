@@ -125,13 +125,32 @@ namespace PFE.Tests.EditMode.Systems.Effects
             public readonly List<string> Started = new();
             public readonly List<string> Ended = new();
             public readonly List<string> Payloads = new();
+            public readonly List<string> StepVisuals = new();
+
+            /// <summary>
+            /// Payload and step-visual callbacks interleaved in one list, so their <i>order</i> is
+            /// assertable. The per-callback lists above cannot express it: a payload that ran after the
+            /// step visual would leave both of them in the same state.
+            /// </summary>
+            public readonly List<string> PayloadAndVisualOrder = new();
+
             public int ParamsChangedCount;
 
             public void OnEffectStarted(ActiveEffect effect, ActiveEffectSet set) => Started.Add(effect.Id);
 
             public void OnEffectEnded(ActiveEffect effect, ActiveEffectSet set) => Ended.Add(effect.Id);
 
-            public void OnEffectPayload(ActiveEffect effect, ActiveEffectSet set) => Payloads.Add(effect.Id);
+            public void OnEffectPayload(ActiveEffect effect, ActiveEffectSet set)
+            {
+                Payloads.Add(effect.Id);
+                PayloadAndVisualOrder.Add("payload:" + effect.Id);
+            }
+
+            public void OnEffectStepVisual(ActiveEffect effect, ActiveEffectSet set)
+            {
+                StepVisuals.Add(effect.Id);
+                PayloadAndVisualOrder.Add("visual:" + effect.Id);
+            }
 
             public void OnEffectParamsChanged(ActiveEffectSet set) => ParamsChangedCount++;
         }
@@ -367,6 +386,62 @@ namespace PFE.Tests.EditMode.Systems.Effects
 
             Assert.That(host.Payloads, Is.EqualTo(new[] { "burning" }),
                 "a 30-tick effect fires its payload exactly once, at t=30 — Effect.as:490-509");
+        }
+
+        [Test]
+        public void Tick_FiresTheStepVisualEveryTick_NotOncePerSecond()
+        {
+            // AS3 `step()` (:490-497) calls `stepEffect()` on EVERY frame and `secEffect()` only on the
+            // `t % 30` boundary. The flame is on the step path (:480), so a 30-tick burn asks for 30
+            // flames and exactly one payload. Merging the two cadences would draw the flame once a
+            // second — a stutter that reads as an art problem rather than a scheduling one.
+            var (set, host, defs) = NewSet();
+            defs.Add(Def("burning", durationTicks: 30));
+
+            set.AddEffect("burning");
+            for (int i = 0; i < 30; i++)
+            {
+                set.Tick();
+            }
+
+            Assert.That(host.StepVisuals.Count, Is.EqualTo(30),
+                "stepEffect runs every tick — Effect.as:496");
+            Assert.That(host.Payloads, Is.EqualTo(new[] { "burning" }),
+                "while the payload still fires exactly once — Effect.as:492");
+        }
+
+        [Test]
+        public void Tick_AsksForTheStepVisualForEveryEffect_EvenOneThatDrawsNothing()
+        {
+            // The callback is unconditional by design: the id test lives in EffectVisualRules, so this
+            // layer must not learn which ids emit. A set that only asked for `burning` would put a copy
+            // of the rules' id list in the scheduler — the exact duplication the rules class exists to
+            // remove.
+            var (set, host, defs) = NewSet();
+            defs.Add(Def("blindness", durationTicks: 3));
+
+            set.AddEffect("blindness");
+            set.Tick();
+
+            Assert.That(host.StepVisuals, Is.EqualTo(new[] { "blindness" }),
+                "`blindness` draws nothing on the step path, but the scheduler still asks");
+        }
+
+        [Test]
+        public void Tick_RunsTheStepVisualAfterThePayload_MatchingTheOracleOrder()
+        {
+            // `step()` checks `t % 30` and runs `secEffect()` FIRST, then `stepEffect()` (:492-496).
+            // The order is observable for `burning`: the payload applies fire damage, and the flame's
+            // own gate reads the owner's state, so drawing before the damage would show a frame of fire
+            // on a unit the burn is about to kill.
+            var (set, host, defs) = NewSet();
+            defs.Add(Def("burning", durationTicks: 30));
+
+            set.AddEffect("burning");
+            set.Tick(); // the t=30 frame, which is both a payload tick and a step tick
+
+            Assert.That(host.PayloadAndVisualOrder, Is.EqualTo(new[] { "payload:burning", "visual:burning" }),
+                "secEffect before stepEffect — Effect.as:492-496");
         }
 
         [Test]

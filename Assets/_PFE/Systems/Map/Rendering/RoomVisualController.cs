@@ -295,6 +295,12 @@ namespace PFE.Systems.Map.Rendering
             // room may already have been built, and an adapter that missed its only push would answer
             // dry and refuse to emit for the whole session.
             PushParticleTileQuery();
+
+            // Same reason, one layer down: the first room's units were built before this arrived, so
+            // the spawner has to reach back and hand them the emitter. Without this the opening room's
+            // effects would never draw while every later room's would — a difference that looks like a
+            // room-specific bug rather than a missed handover.
+            roomUnitSpawner?.SetParticleEmitter(emitter);
         }
 
         /// <summary>
@@ -628,7 +634,8 @@ namespace PFE.Systems.Map.Rendering
             // every authored enemy existed as data and was never drawn.
             roomUnitSpawner = new RoomUnitSpawner(
                 room, backgroundPhysicalObjectParent, damageSystem: damageSystem,
-                simClock: simClock, simLoop: simLoop, effectResolver: effectResolver);
+                simClock: simClock, simLoop: simLoop, effectResolver: effectResolver,
+                particleEmitter: particleEmitter);
             roomUnitSpawner.RefreshAll();
             Profiler.Mark("room.units.refreshAll");
 

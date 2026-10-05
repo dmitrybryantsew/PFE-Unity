@@ -8,6 +8,8 @@ using PFE.Systems.Effects;
 using PFE.Systems.Map;
 using PFE.Systems.Map.TileQuery;
 using PFE.Systems.Physics;
+using PFE.Systems.Particles;
+using PFE.Systems.Particles.Adapters;
 using PFE.Systems.Weapons;
 namespace PFE.Entities.Units
 {
@@ -28,7 +30,7 @@ namespace PFE.Entities.Units
     /// - grav for gravity
     /// </summary>
     [RequireComponent(typeof(Rigidbody2D))]
-    public class UnitController : MonoBehaviour, IDamageable, PFE.Core.ISimTickable, IEffectReceiver, IBloodSpraySource
+    public class UnitController : MonoBehaviour, IDamageable, PFE.Core.ISimTickable, IEffectReceiver, IBloodSpraySource, IEffectVisualSink
     {
         [Header("Configuration")]
         [SerializeField]
@@ -265,6 +267,9 @@ namespace PFE.Entities.Units
             _unitStats = unitStats;
             ApplyDefinitionToCollider();
             SeedEvasionFromDefinition();
+
+            // The stats object now exists, so the effect payloads have somewhere to route their damage.
+            AttachEffectDamageSink();
         }
 
         /// <summary>
@@ -350,6 +355,77 @@ namespace PFE.Entities.Units
         public virtual void SetDamageSystem(DamageSystem damageSystem)
         {
             _damageSystem = damageSystem;
+            AttachEffectDamageSink();
+        }
+
+        /// <summary>
+        /// Point this unit's effect payload damage at <see cref="ReportEffectDamage"/>, so a burn, an
+        /// acid tick or a poison tick goes through the damage pipeline rather than the raw HP
+        /// subtraction.
+        ///
+        /// <para><b>Safe to call more than once, and called from every place the unit's stats
+        /// appear.</b> The two assignment sites are unrelated — <see cref="Initialize"/> for a spawned
+        /// unit, and the player's own <c>Awake</c>, which builds its <c>UnitStats</c> itself — so the
+        /// install cannot hang off one of them. <see cref="SetDamageSystem"/> calls it too, because the
+        /// damage authority and the stats arrive in either order.</para>
+        /// </summary>
+        protected void AttachEffectDamageSink()
+        {
+            if (_unitStats == null)
+            {
+                return;
+            }
+
+            _unitStats.EffectDamageSink = ReportEffectDamage;
+        }
+
+        /// <summary>
+        /// Apply an effect's payload damage through the port's damage authority — AS3
+        /// <c>owner.damage(val, type, null, true)</c> (<c>Effect.as:417/423/434/438</c>).
+        ///
+        /// <para><b>Why the payload cannot call <see cref="UnitStats.Damage"/> directly.</b> That method
+        /// is the pipeline's <i>receiving</i> end — <see cref="TakeDamage"/> calls it after
+        /// <c>DamageSystem</c> has computed the number — so using it as the entry point drops the
+        /// vulnerability table, armour and <c>skin</c>, the floating damage number, and the death check.
+        /// The owner saw the missing number as "they burn but no burn damage shown"; the death half is
+        /// worse, because a burn could reach 0 HP and leave the unit standing.</para>
+        ///
+        /// <para><b>Why <see cref="PendingDamage.Contact"/> and not <c>Direct</c>.</b> The oracle's
+        /// fourth argument (<c>true</c>) skips the hit-avoidance roll, and its third (<c>null</c>) means
+        /// no bullet — no crit, no piercing, no armour multiplier, no knockback, no penetration. That is
+        /// exactly <c>Contact</c>, the same shape <see cref="ReportPropImpact"/> uses for
+        /// <c>udarBox</c>, and for the same two reasons.</para>
+        /// </summary>
+        protected virtual void ReportEffectDamage(float damage, DamageType type)
+        {
+            if (damage <= 0f)
+            {
+                return;
+            }
+
+            if (_damageSystem != null)
+            {
+                _damageSystem.Report(PendingDamage.Contact(
+                    DamageContext.Contact(damage, type),
+                    this,
+                    transform.position));
+                return;
+            }
+
+            // Unarmoured fallback. Loud rather than silent, for the same reason ReportPropImpact's is:
+            // a raw subtraction that looks like a working payload is how a missing injection survives
+            // to release.
+            if (!_warnedMissingDamageSystem)
+            {
+                _warnedMissingDamageSystem = true;
+                Debug.LogWarning(
+                    $"[{GetType().Name}] effect payload damage has no DamageSystem, so it is being " +
+                    "applied as raw HP damage — no armour, no vulnerabilities, no damage number. The " +
+                    "spawner must call SetDamageSystem, or the unit's GameObject must be in the scene " +
+                    "scope's autoInjectGameObjects.", this);
+            }
+
+            _unitStats?.Damage(damage);
         }
 
         /// <summary>
@@ -561,6 +637,32 @@ namespace PFE.Entities.Units
             // this to install CharacterStats as the sink and switch to player mode — see
             // PlayerController.
             _unitStats?.EnsureEffects(resolver, PersMode.Npc);
+        }
+
+        /// <summary>
+        /// Hand this unit the room's particle emitter and install it as its effect-visual sink — the
+        /// seam <c>RoomUnitSpawner</c> needs, because <c>AddComponent</c> never goes through
+        /// VContainer and so cannot receive the emitter by injection. Idempotent.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Same handover shape as <see cref="SetEffectResolver"/>, and it is the only path.</b>
+        /// Without it the unit's effects still tick and still deal their damage — only the visuals are
+        /// absent, which is why the failure is silent rather than loud. Installing the sink here rather
+        /// than on <c>UnitStats</c> is deliberate: the stats object has no sprite, no transform and no
+        /// room, so it cannot anchor a flame, and this controller is where all three live.</para>
+        ///
+        /// <para><b>Null is legal and means "show nothing".</b> A bare test spawn, or a scene with no
+        /// particle world, leaves the sink unset and every effect-visual hook becomes a no-op. It is not
+        /// an error: most units in a headless run are not on screen.</para>
+        /// </remarks>
+        public virtual void SetParticleEmitter(RoomParticleEmitter emitter)
+        {
+            _particleEmitter = emitter;
+
+            if (_unitStats != null)
+            {
+                _unitStats.EffectVisualSink = emitter != null ? this : null;
+            }
         }
 
         /// <summary>
@@ -1338,6 +1440,149 @@ namespace PFE.Entities.Units
         /// one frame — a visual artefact, not a divergence that can compound.</para>
         /// </remarks>
         public virtual Vector3 WorldPosition => transform.position;
+
+        // === IEffectVisualSink — AS3 `Effect.stepEffect` / `Effect.secEffect` ====================
+        //
+        // A third optional interface, for the same reason `IBloodSpraySource` is one: AS3's effect
+        // visuals are emitted from inside `Effect`, but a flame needs a sprite, a transform and a room,
+        // and none of those exist on `UnitStats`. So the stats object forwards its effect ticks here and
+        // this class supplies the presentation reads and does the emitting.
+
+        /// <summary>
+        /// The room's emitter, handed over by <see cref="SetParticleEmitter"/>. Null means "show
+        /// nothing" and is legal — see that method.
+        /// </summary>
+        private RoomParticleEmitter _particleEmitter;
+
+        /// <summary>
+        /// Reused between emits so a burning unit does not allocate a list on every tick. Safe because
+        /// the rules clear it on entry and the emit loop is synchronous.
+        /// </summary>
+        private readonly List<ParticleEmit> _effectVisualEmits = new List<ParticleEmit>();
+
+        /// <summary>
+        /// AS3 <c>sost &lt; 4</c> — the unit is still in the world and still drawn.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>The port has no <c>sost</c>, so this is an approximation and it is one state
+        /// short.</b> AS3's <c>sost</c> is <c>1</c> alive, <c>3</c> dying, <c>4</c> removed, and a
+        /// <i>dying</i> unit still burns — <c>sost == 3</c> is inside the <c>&lt; 4</c> test. This port
+        /// has no dying state on the controller, so the closest available predicate is
+        /// <see cref="IsAlive"/>, which turns false the moment hp reaches 0. The observable difference
+        /// is a burning unit whose flame stops at death rather than at removal: a shorter flame, not a
+        /// wrong one. Recorded rather than hidden — the alternative was inventing a dying flag nothing
+        /// else in the port uses.</para>
+        /// </remarks>
+        public virtual bool IsInWorld => IsAlive;
+
+        /// <summary>
+        /// AS3 <c>Unit.isPlav</c> — the unit's <b>upper body</b> is submerged (<c>Unit.as:2627-2655</c>,
+        /// the 75%-height sample). Read only by the <c>namok</c> droplet, which is suppressed when it is
+        /// true.
+        /// </summary>
+        /// <remarks>
+        /// <b>Always false on this base class, and that is a recorded gap rather than a default.</b> The
+        /// port computes submersion in exactly one place — <c>TilePhysicsController.CheckWater</c>, which
+        /// is the <i>player's</i> physics controller — so no NPC has the state. A subclass that does
+        /// have it (the player) overrides this. The consequence today is that a soaked NPC standing in
+        /// deep water still drips; that is a visual-only divergence, and it is preferred to reading a
+        /// per-tick water sample that nothing else computes.
+        /// </remarks>
+        public virtual bool IsFullySubmerged => false;
+
+        /// <summary>
+        /// AS3 <c>storona</c> — the unit's facing as a sign, <c>+1</c> or <c>-1</c>
+        /// (<c>Unit.as:596-611</c>). Read only by the <c>drunk</c> drip, to hang the droplet off the
+        /// side the unit faces.
+        /// </summary>
+        public virtual float Facing => _facingDirection;
+
+        /// <summary>
+        /// The <c>fetter</c> ring's own AS3 room-local position, for an owner that has one.
+        /// </summary>
+        /// <returns>
+        /// <b>False on this base class</b>, because <c>fetX</c>/<c>fetY</c> are declared on
+        /// <c>UnitPlayer</c> (<c>UnitPlayer.as:117-119</c>) and this controller is not the player. The
+        /// player subclass overrides it. <see cref="EffectVisualRules"/> gates the whole <c>fetter</c>
+        /// arm on <c>IsPlayer</c> for the same reason, so this returning false is consistent rather than
+        /// the thing that stops the emit.
+        /// </returns>
+        public virtual bool TryGetFetterAnchor(out Vector2 as3Local)
+        {
+            as3Local = Vector2.zero;
+            return false;
+        }
+
+        void IEffectVisualSink.OnEffectStepVisual(ActiveEffect effect)
+            => EmitEffectVisuals(effect, payload: false);
+
+        void IEffectVisualSink.OnEffectPayloadVisual(ActiveEffect effect)
+            => EmitEffectVisuals(effect, payload: true);
+
+        /// <summary>
+        /// Anchor an effect's visuals on this unit and emit them — the thin half of AS3
+        /// <c>Effect.stepEffect()</c>/<c>secEffect()</c>, exactly as <c>DamageSystem.EmitBloodSpray</c>
+        /// is the thin half of the blood block.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>All the decisions live in <see cref="EffectVisualRules"/></b> — the ids, the gates,
+        /// the offsets and the scatter. This method only reads the owner's presentation state, converts
+        /// the anchor, and forwards. That split is what lets the rules be pinned by an offline fixture;
+        /// a rule written here would be reachable only through a live scene.</para>
+        ///
+        /// <para><b>No RNG is passed, deliberately.</b> The only arm that draws is <c>blindness</c>,
+        /// which is player-only and therefore unreachable while the player stack is unported. Passing
+        /// null makes the rules fall back to the interval's lower bound rather than inventing a stream —
+        /// and the moment a player override supplies one, this is the single line to change.</para>
+        /// </remarks>
+        private void EmitEffectVisuals(ActiveEffect effect, bool payload)
+        {
+            if (_particleEmitter == null || effect == null)
+            {
+                return;
+            }
+
+            // No room pushed means no origin and no height, so there is no correct position. The
+            // adapter counts the refusal; see RoomParticleEmitter.RefusedWithoutRoom.
+            if (!_particleEmitter.TryToAs3Local(WorldPosition, out Vector2 anchor))
+            {
+                return;
+            }
+
+            TryGetFetterAnchor(out Vector2 fetter);
+
+            var ctx = new EffectVisualContext(
+                effectId:     effect.Id,
+                level:        effect.Level,
+                isPlayer:     IsPlayer,
+                isInWorld:    IsInWorld,
+                isFloating:   IsFullySubmerged,
+                x:            anchor.x,
+                y:            anchor.y,
+                spriteHeight: SpriteSizePixels.y,
+                facing:       Facing,
+                fetterX:      fetter.x,
+                fetterY:      fetter.y);
+
+            bool any = payload
+                ? EffectVisualRules.PlanPayloadVisual(ctx, null, _effectVisualEmits)
+                : EffectVisualRules.PlanStepVisual(ctx, _effectVisualEmits);
+
+            if (!any)
+            {
+                return;
+            }
+
+            // EmitAt, not Emit: the rules already produced AS3 room-local pixels, so going back out to
+            // Unity space and in again is how the Y mirror gets applied a second time.
+            foreach (ParticleEmit emit in _effectVisualEmits)
+            {
+                _particleEmitter.EmitAt(
+                    emit.Id,
+                    new Vector2(anchor.x + emit.OffsetX, anchor.y + emit.OffsetY),
+                    emit.Spec);
+            }
+        }
 
         /// <summary>
         /// AS3 <c>Unit.invulner</c>, from the definition's authored flag.

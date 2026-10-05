@@ -131,6 +131,13 @@ namespace PFE.Entities.Player
             // ISoundService is already a required dependency of PlayerWeaponLoadout, so it is registered.
             PFE.Systems.Map.LandMap landMap,
             PFE.Systems.Audio.ISoundService soundService,
+            // The room's particle emitter. The player needs it for the same reason a spawned NPC
+            // does — its effect visuals (the burning flame, the poison drip) are emitted through it —
+            // but it CANNOT come down the spawner chain that reaches every other unit, because the
+            // player is a scene object rather than something RoomUnitSpawner builds. Without this
+            // parameter the player's EffectVisualSink stays null and a burning player shows nothing
+            // while a burning enemy shows a flame: the asymmetry is the tell.
+            PFE.Systems.Particles.Adapters.RoomParticleEmitter particleEmitter,
             PFE.Data.ContentRegistry registry = null)
         {
             _input = input;
@@ -155,6 +162,10 @@ namespace PFE.Entities.Player
                 ? new ContentRegistryEffectDefinitionResolver(registry)
                 : null;
             ApplyEffectResolverIfReady();
+
+            // Same ordering problem, same answer. See ApplyParticleEmitterIfReady.
+            _pendingParticleEmitter = particleEmitter;
+            ApplyParticleEmitterIfReady();
 
             // ── Construct really is called twice, and this guard is why that is harmless ─────────────
             //
@@ -294,6 +305,33 @@ namespace PFE.Entities.Player
         }
 
         /// <summary>
+        /// The room's particle emitter, held until <c>Awake</c> has built the unit's effect set.
+        ///
+        /// <para><b>Why the player needs this at all.</b> Every other unit gets its emitter from
+        /// <c>RoomUnitSpawner</c>, which builds them and hands it over as it goes. The player is a
+        /// <i>scene object</i> — nothing spawns it — so it is in none of that chain and its
+        /// <c>EffectVisualSink</c> stayed null. The symptom is precisely asymmetric: a burning enemy
+        /// draws a flame, a burning player draws nothing, which reads as "the player is special"
+        /// rather than "the player missed a handover".</para>
+        ///
+        /// <para><b>Why it cannot just be applied in <c>Construct</c>.</b> Identical to
+        /// <see cref="ApplyEffectResolverIfReady"/>: the emitter arrives by VContainer injection, which
+        /// runs during the scope's build, while <c>_unitStats</c> is created in <c>Awake</c> — and
+        /// <c>UnitController.SetParticleEmitter</c> only installs the sink when <c>_unitStats</c>
+        /// already exists. Applying in whichever of <c>Construct</c>/<c>Awake</c> runs second removes
+        /// the dependency on that order instead of asserting one.</para>
+        /// </summary>
+        private PFE.Systems.Particles.Adapters.RoomParticleEmitter _pendingParticleEmitter;
+
+        private void ApplyParticleEmitterIfReady()
+        {
+            if (_pendingParticleEmitter != null && base._unitStats != null)
+            {
+                SetParticleEmitter(_pendingParticleEmitter);
+            }
+        }
+
+        /// <summary>
         /// Wires the spell caster once both halves exist — the component and its collaborators from
         /// <c>Awake</c>, the injected world/sound/registry/subscribers from <c>Construct</c>. Called from
         /// both, so it does not matter which runs first.
@@ -338,6 +376,12 @@ namespace PFE.Entities.Player
             _characterStats = GetComponent<CharacterStats>() ?? gameObject.AddComponent<CharacterStats>();
             _characterStats.BindUnitStats(base._unitStats);
 
+            // The player builds its own stats rather than receiving them from RoomUnitSpawner, so it
+            // does not pass through UnitController.Initialize — and without this the player's effect
+            // payload damage (a burn tick, an acid tick) would fall back to the raw HP subtraction:
+            // no vulnerability, no armour, no damage number, and no death check.
+            AttachEffectDamageSink();
+
             // AS3's mana block. Registered on the sim clock by AttachSimulation below; until that
             // runs it falls back to FixedUpdate and warns, so it is never silently absent.
             _manaTicker = GetComponent<PlayerManaTicker>() ?? gameObject.AddComponent<PlayerManaTicker>();
@@ -369,6 +413,11 @@ namespace PFE.Entities.Player
             // container handed over; if Construct has not run yet it is a no-op and Construct's own
             // call applies it. Either order ends with the player's effect set wired.
             ApplyEffectResolverIfReady();
+
+            // …and the same for the effect VISUALS. Without this second call a burning player emits
+            // no flame even though every enemy does, because the emitter only reaches this class by
+            // injection and the sink only installs once _unitStats exists.
+            ApplyParticleEmitterIfReady();
         }
 
         /// <summary>

@@ -560,9 +560,18 @@ namespace PFE.Systems.Weapons
                 damageType:        shotType,
                 destroyTiles:      shotDestroy,
                 penetrationChance: shotProbiv,
-                dopEffect:         null,
-                dopDamage:         0f,
-                dopChance:         1f,
+                // AS3 `Weapon.as:693-697` — `this.dopEffect = param1.@effect; this.dopDamage =
+                // param1.@damage;` read off the weapon's own `<dop>` node (the flamer's is
+                // `<dop effect='igni' damage='4' ch='0.2'/>`). These three rode as `null/0/1` for as
+                // long as the field existed, which made every weapon-borne status effect dead:
+                // `OnHitEffectProducers.ApplyWeaponDop` early-returns on an empty effect id, so
+                // `igni`/`ice`/`blind`/`acid`/`pink` never fired and nothing looked wrong — a weapon
+                // that simply never sets anything on fire is indistinguishable from one that does not
+                // have the feature. The ammo's separate `fire` channel (`ammoFireDamage`) is a
+                // different attribute and was already wired; this is the weapon's own `<dop>`.
+                dopEffect:         def.dopEffect,
+                dopDamage:         def.dopDamage,
+                dopChance:         def.dopChance,
                 ownerFaction:      ownerFaction,
                 missChance:        HitAvoidance.MissChance(def.weaponLevel, ownerWeaponSkillLevel),
                 precision:         def.precision,

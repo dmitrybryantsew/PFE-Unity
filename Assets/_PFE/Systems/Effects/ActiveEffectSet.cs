@@ -391,12 +391,31 @@ namespace PFE.Systems.Effects
 
                 if (effect.IsPayloadTick)
                 {
+                    // AS3 `secEffect()` opens with `checkT()` (`:408`), BEFORE any payload branch — and
+                    // `checkT` is what turns the effect's CURRENT duration into its level (`:229-240`).
+                    // The order is load-bearing rather than cosmetic: `drunk`'s payload is gated on
+                    // `lvl > 3` (`:436`), so a level recomputed after the payload would leave that gate
+                    // permanently false.
+                    //
+                    // It is called here, and not on add, because `t` only falls as the effect runs: the
+                    // level is a function of the duration that is LEFT, so it must be recomputed on
+                    // every payload tick rather than once at the start. Calling it only from the merge
+                    // path — which is what this port did — left every freshly-added effect at level 1
+                    // forever, making `drunk`'s escalation unreachable and its poison payload dead.
+                    CheckLevel(effect);
+
                     _host.OnEffectPayload(effect, this);
                     if (effect.HasParams)
                     {
                         _host.OnEffectParamsChanged(this);
                     }
                 }
+
+                // AS3 `step()` (:490-497) runs `stepEffect()` on EVERY frame, after the `t % 30`
+                // payload check and before the decrement. The order matters: `burning`'s flame reads
+                // `sost` at the same moment the payload's damage lands, so drawing it before the
+                // payload would show a frame of fire on a unit the burn is about to kill.
+                _host.OnEffectStepVisual(effect, this);
 
                 effect.TicksRemaining--;
 

@@ -114,6 +114,19 @@ namespace PFE.Systems.Map.Rendering
         /// </remarks>
         PFE.Systems.Effects.IEffectDefinitionResolver _effectResolver;
 
+        /// <summary>
+        /// The room's particle emitter, handed to every unit so its status effects can draw.
+        /// </summary>
+        /// <remarks>
+        /// <b>The same handover shape as <see cref="_damageSystem"/>, and the same reason.</b> A unit is
+        /// built with <c>AddComponent</c>, which VContainer never observes, so the emitter cannot reach
+        /// it by <c>[Inject]</c> and the spawner is the only path. Null is legal — a bare test spawn, or
+        /// a scene with no particle world — and leaves the unit's sink unset, which means its effects
+        /// tick and deal damage but draw nothing. That is quiet by design: a headless unit is a normal
+        /// state, not a fault.
+        /// </remarks>
+        PFE.Systems.Particles.Adapters.RoomParticleEmitter _particleEmitter;
+
         /// <summary>Unit ids already warned about, so a room full of them warns once each.</summary>
         readonly HashSet<string> _warnedMissingSprite = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         readonly HashSet<string> _warnedUnknownController = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -132,7 +145,8 @@ namespace PFE.Systems.Map.Rendering
             PFE.Systems.Combat.DamageSystem damageSystem = null,
             PFE.Core.SimClock simClock = null,
             PFE.Core.SimLoop simLoop = null,
-            PFE.Systems.Effects.IEffectDefinitionResolver effectResolver = null)
+            PFE.Systems.Effects.IEffectDefinitionResolver effectResolver = null,
+            PFE.Systems.Particles.Adapters.RoomParticleEmitter particleEmitter = null)
         {
             _room = room;
             _parent = parent;
@@ -141,6 +155,7 @@ namespace PFE.Systems.Map.Rendering
             _simClock = simClock;
             _simLoop = simLoop;
             _effectResolver = effectResolver;
+            _particleEmitter = particleEmitter;
         }
 
         public int SpawnedCount => _spawned.Count;
@@ -172,6 +187,35 @@ namespace PFE.Systems.Map.Rendering
                 if (pair.Value != null && pair.Value.TryGetComponent(out UnitController controller))
                 {
                     controller.SetDamageSystem(damageSystem);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Hand the particle emitter to this spawner, including any units it has already built.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Retroactive, and here that is the <i>common</i> path rather than the exception.</b>
+        /// <c>RoomVisualController.SetParticleAdapters</c> records that MapBridge hands the particle
+        /// adapters down <i>after</i> the first room may already have been built — so unlike the damage
+        /// system, the constructor argument will usually be null and this setter is what actually wires
+        /// the first room's units. A spawner that only affected future spawns would leave every unit in
+        /// the opening room unable to draw its effects, which reads as "effects are broken" rather than
+        /// "the first room missed a handover".</para>
+        ///
+        /// <para><b>Null propagates rather than being ignored.</b> Unlike
+        /// <see cref="SetDamageSystem"/>, passing null here is meaningful: it unsets the sink on every
+        /// unit, which is the honest state for a teardown where the emitter is gone.</para>
+        /// </remarks>
+        public void SetParticleEmitter(PFE.Systems.Particles.Adapters.RoomParticleEmitter emitter)
+        {
+            _particleEmitter = emitter;
+
+            foreach (KeyValuePair<UnitInstance, GameObject> pair in _spawned)
+            {
+                if (pair.Value != null && pair.Value.TryGetComponent(out UnitController controller))
+                {
+                    controller.SetParticleEmitter(emitter);
                 }
             }
         }
@@ -396,6 +440,15 @@ namespace PFE.Systems.Map.Rendering
             if (_effectResolver != null)
             {
                 controller.SetEffectResolver(_effectResolver);
+            }
+
+            // ...and the seam that lets its status effects be SEEN. The unit's effects tick and deal
+            // their damage without this — only the flame, the drip and the ring are missing, so the
+            // failure is silent. Same handover shape as SetEffectResolver and for the same reason:
+            // AddComponent never goes through VContainer.
+            if (_particleEmitter != null)
+            {
+                controller.SetParticleEmitter(_particleEmitter);
             }
 
             // ...and the seam that moves its STEP off Unity's uncapped 50 Hz clock. See

@@ -61,6 +61,8 @@ namespace PFE.Tests.EditMode.Systems.Effects
             bool forever = false,
             int durationTicks = 30,
             int lvl1 = 0,
+            int lvl2 = 0,
+            int lvl3 = 0,
             EffectParam[] effects = null)
             => new TestEffectTemplate
             {
@@ -69,6 +71,8 @@ namespace PFE.Tests.EditMode.Systems.Effects
                 forever = forever,
                 durationTicks = durationTicks,
                 lvl1 = lvl1,
+                lvl2 = lvl2,
+                lvl3 = lvl3,
                 effects = effects,
             };
 
@@ -391,18 +395,116 @@ namespace PFE.Tests.EditMode.Systems.Effects
                 "an unmodelled payload must be visible in the unmapped readback");
         }
 
+        /// <summary>
+        /// Records what the effect runtime asks the presentation layer to draw, so "the emit reached a
+        /// sink" is assertable without a scene, a sprite or a room.
+        /// </summary>
+        private sealed class RecordingVisualSink : IEffectVisualSink
+        {
+            public readonly List<string> StepVisuals = new();
+            public readonly List<string> PayloadVisuals = new();
+
+            public void OnEffectStepVisual(ActiveEffect effect) => StepVisuals.Add(effect.Id);
+            public void OnEffectPayloadVisual(ActiveEffect effect) => PayloadVisuals.Add(effect.Id);
+        }
+
+        [Test]
+        public void Payload_EmitterOnly_WithASink_IsEmittedInsteadOfRecordedUnmapped()
+        {
+            // The other half of the test above. An emitter-only id is unmapped ONLY when the unit has no
+            // presentation layer; with a sink installed the id is handled and must drop out of the
+            // readback. Otherwise a fully wired unit would report a gap it no longer has — the readback
+            // would stop meaning anything.
+            var (stats, defs) = NewWired();
+            defs.Add(Def("blindness", durationTicks: 30));
+            var sink = new RecordingVisualSink();
+            stats.EffectVisualSink = sink;
+
+            stats.Effects.AddEffect("blindness");
+            stats.TickEffects(1f);
+
+            Assert.That(sink.PayloadVisuals, Is.EqualTo(new[] { "blindness" }),
+                "the payload tick must reach the visual sink");
+            Assert.That(stats.Effects.UnmappedParamNames.ContainsKey("payload:blindness"), Is.False,
+                "a handled id must not also be reported as unmapped");
+        }
+
+        [Test]
+        public void Payload_WithNoSink_StillRunsTheDamage_OnlyTheVisualIsMissing()
+        {
+            // A unit with no presentation layer must lose the DRAW, not the effect. Pinned because the
+            // tempting shape — returning early when the sink is null — would silently stop a burning
+            // unit taking fire damage, which is a gameplay change disguised as a visual one.
+            var (stats, defs) = NewWired();
+            defs.Add(Def("burning", value: 7f, durationTicks: 30));
+
+            stats.Effects.AddEffect("burning");
+            float before = stats.CurrentHp.Value;
+            stats.TickEffects(1f);
+
+            Assert.That(stats.CurrentHp.Value, Is.EqualTo(before - 7f).Within(0.001f),
+                "the burn still deals its damage with no sink installed");
+        }
+
+        [Test]
+        public void StepVisual_ReachesTheSinkOnEveryTick()
+        {
+            // The per-tick cadence, asserted through the real UnitStats rather than a fake host: the
+            // flame must be asked for on every tick, not only on the payload boundary.
+            var (stats, defs) = NewWired();
+            defs.Add(Def("burning", durationTicks: 30));
+            var sink = new RecordingVisualSink();
+            stats.EffectVisualSink = sink;
+
+            stats.Effects.AddEffect("burning");
+            for (int i = 0; i < 30; i++)
+            {
+                stats.TickEffects(1f);
+            }
+
+            Assert.That(sink.StepVisuals.Count, Is.EqualTo(30),
+                "stepEffect runs every tick — Effect.as:496");
+            Assert.That(sink.PayloadVisuals, Is.EqualTo(new[] { "burning" }),
+                "while the payload visual fires exactly once — Effect.as:492");
+        }
+
+        [Test]
+        public void StepVisual_WithNoSink_IsSilentlySkipped_NotThrown()
+        {
+            // The sink is optional. A headless unit — every unit in this fixture before this point —
+            // must tick its effects without a null-reference.
+            var (stats, defs) = NewWired();
+            defs.Add(Def("burning", durationTicks: 5));
+
+            stats.Effects.AddEffect("burning");
+            Assert.DoesNotThrow(() => stats.TickEffects(1f));
+            Assert.That(stats.EffectVisualSink, Is.Null);
+        }
+
         [Test]
         public void Payload_DrunkBelowLevel4_DoesNotDamage()
         {
             // Effect.as:438-442 — the poison payload keys on level > 3, and only `drunk` escalates. So a
-            // fresh drunk (level 1) must deal nothing. This is a negative control for the payload tests.
+            // fresh drunk must deal nothing. This is a negative control for the payload tests.
+            //
+            // ⚠ The thresholds here are the REAL ones (AllData.as:5982: t='120' lvl1='150' lvl2='350'
+            // lvl3='750'), and they are what makes this test mean anything. `t='120'` is 120 SECONDS
+            // once Effect.as:82 multiplies by 30, and checkT compares `t/30` against the thresholds — so
+            // one application sits at `120/30 = 120 > 150`? No: level 1.
+            //
+            // An earlier version of this test used `lvl1: 2` with a 300-tick duration, i.e. seconds=10,
+            // which is ABOVE lvl1 and above the lvl2/lvl3 defaults of 0 — so its effect was at level 4
+            // while its comment claimed level 1. It passed only because CheckLevel was never called on a
+            // freshly-added effect, i.e. it was pinning the very defect that left `drunk` dead.
             var (stats, defs) = NewWired();
-            defs.Add(Def("drunk", value: 7f, durationTicks: 300, lvl1: 2));
+            defs.Add(Def("drunk", value: 7f, durationTicks: 3600, lvl1: 150, lvl2: 350, lvl3: 750));
 
             stats.Effects.AddEffect("drunk");
             float before = stats.CurrentHp.Value;
             stats.TickEffects(1f);
 
+            Assert.That(stats.Effects.Effects[0].Level, Is.EqualTo(1),
+                "one application of drunk is level 1 — 120s is well under lvl1 150s");
             Assert.That(stats.CurrentHp.Value, Is.EqualTo(before).Within(0.001f),
                 "a level-1 drunk deals no poison damage");
         }
@@ -427,6 +529,111 @@ namespace PFE.Tests.EditMode.Systems.Effects
             Assert.That(sinked, Contains.Item("maxhp@1"), "the player param pass uses eff.lvl as the index");
             Assert.That(stats.MaxHp.Value, Is.EqualTo(unitMaxHpBefore).Within(0.001f),
                 "with a sink installed the unit's own field must NOT also be written");
+        }
+
+        // ── 4. Payload damage goes through the pipeline, not the raw subtraction ──
+        //
+        // AS3's payload calls `owner.damage(val, type, null, true)` — the full Unit.damage() pipeline.
+        // The port called `UnitStats.Damage`, which is that pipeline's RECEIVING end, so a burn dropped
+        // the vulnerability table, armour/skin, the floating damage number and the death check. The
+        // owner reported it as "they burn but no burn damage shown".
+
+        /// <summary>Records the damage an effect payload routes to the unit's damage authority.</summary>
+        private sealed class RecordingDamageSink
+        {
+            public readonly List<(float Amount, DamageType Type)> Hits = new();
+
+            public void Apply(float amount, DamageType type) => Hits.Add((amount, type));
+        }
+
+        [Test]
+        public void PayloadDamage_GoesThroughTheDamageSink_NotTheRawHpSubtraction()
+        {
+            // The guard. With a damage authority installed the payload must hand the hit to it and must
+            // NOT also subtract HP itself — a double-application would deal the burn twice.
+            var (stats, defs) = NewWired();
+            defs.Add(Def("burning", value: 7f, durationTicks: 30));
+            var sink = new RecordingDamageSink();
+            stats.EffectDamageSink = sink.Apply;
+
+            stats.Effects.AddEffect("burning");
+            float before = stats.CurrentHp.Value;
+            stats.TickEffects(1f);
+
+            Assert.That(sink.Hits, Is.EqualTo(new[] { (7f, DamageType.Fire) }),
+                "the burn must route (val, D_FIRE) to the damage authority — Effect.as:417");
+            Assert.That(stats.CurrentHp.Value, Is.EqualTo(before).Within(0.001f),
+                "and must NOT also subtract HP directly — that would apply the burn twice");
+        }
+
+        [Test]
+        public void PayloadDamage_WithNoSink_FallsBackToRawHp_AndRecordsTheGap()
+        {
+            // A bare UnitStats has no damage authority, so the pre-fix behaviour is all it can do — but
+            // the gap must be VISIBLE in the readback rather than looking like a working payload.
+            var (stats, defs) = NewWired();
+            defs.Add(Def("burning", value: 7f, durationTicks: 30));
+
+            stats.Effects.AddEffect("burning");
+            float before = stats.CurrentHp.Value;
+            stats.TickEffects(1f);
+
+            Assert.That(stats.CurrentHp.Value, Is.EqualTo(before - 7f).Within(0.001f),
+                "the fallback is still the raw subtraction");
+            Assert.That(stats.Effects.UnmappedParamNames.ContainsKey("payload-damage-raw:burning"), Is.True,
+                "…and an unrouted payload must be reported, not silently downgraded");
+        }
+
+        [Test]
+        public void PayloadDamage_CarriesEachEffectsOwnDamageType_NotAConstant()
+        {
+            // The type is per-effect and load-bearing: it selects the vulnerability column, so a
+            // hardcoded D_FIRE would make acid burn a fire-resistant target for the wrong amount.
+            var cases = new (string Id, DamageType Type)[]
+            {
+                ("burning",  DamageType.Fire),    // Effect.as:417  D_FIRE
+                ("chemburn", DamageType.Acid),    // Effect.as:434  D_ACID
+                ("pinkcloud", DamageType.Pink),   // Effect.as:423  D_PINK
+            };
+
+            foreach ((string id, DamageType expected) in cases)
+            {
+                var (stats, defs) = NewWired();
+                defs.Add(Def(id, value: 3f, durationTicks: 30));
+                var sink = new RecordingDamageSink();
+                stats.EffectDamageSink = sink.Apply;
+
+                stats.Effects.AddEffect(id);
+                stats.TickEffects(1f);
+
+                Assert.That(sink.Hits, Is.EqualTo(new[] { (3f, expected) }),
+                    $"{id} must carry {expected}, not a constant");
+            }
+        }
+
+        [Test]
+        public void PayloadDamage_DrunkAboveLevelThree_IsPoison()
+        {
+            // `drunk` is the one payload behind a level gate (Effect.as:436, `lvl > 3`), and the level
+            // comes from `checkT`, which compares the REMAINING duration in seconds against the
+            // definition's lvl1/2/3. The real thresholds are 150/350/750 SECONDS (AllData.as:5982), so
+            // reaching level 4 needs more than 750s of accumulated drunk — 22500+ canonical ticks.
+            //
+            // This is the reachability proof for the gate: it is what a port that never recomputes the
+            // level cannot satisfy, because the effect sits at level 1 forever.
+            var (stats, defs) = NewWired();
+            defs.Add(Def("drunk", value: 5f, durationTicks: 24000,
+                         lvl1: 150, lvl2: 350, lvl3: 750));
+            var sink = new RecordingDamageSink();
+            stats.EffectDamageSink = sink.Apply;
+
+            stats.Effects.AddEffect("drunk");
+            stats.TickEffects(1f);
+
+            Assert.That(stats.Effects.Effects[0].Level, Is.EqualTo(4),
+                "800s of remaining drunk is past lvl3 750s");
+            Assert.That(sink.Hits, Is.EqualTo(new[] { (5f, DamageType.Poison) }),
+                "past level 3 the drunk payload deals D_POISON — Effect.as:438");
         }
     }
 }
