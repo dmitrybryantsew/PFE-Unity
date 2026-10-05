@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: vistelebul
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponVisualDefinition
   symbolName: vistelebul
-  weaponId: telebul
+  weaponId: udar
   sourceSymbolId: 1338
   frames:
   - {fileID: -985113564820616005, guid: 061ecee471e96c44c9950f811aa8159b, type: 3}

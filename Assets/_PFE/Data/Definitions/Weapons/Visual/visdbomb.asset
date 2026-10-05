@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e94da64c3527f604c86bdaf09d32867f, type: 3}
+  m_Name: visdbomb
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponVisualDefinition
+  symbolName: visdbomb
+  weaponId: dbomb
+  sourceSymbolId: 3998
+  frames:
+  - {fileID: -985113564820616005, guid: 3b08b50e1b51abf49a73eef77018d562, type: 3}
+  - {fileID: 202404987911244711, guid: b19b5cb0c660fde4d9a7a3d853e013f0, type: 3}
+  - {fileID: -8764597738744933808, guid: 355994afef7172b49a6f1b7ed863670b, type: 3}
+  - {fileID: 2805633920695696223, guid: 5c33dfc3682fb8a4d958399bd87bda47, type: 3}
+  - {fileID: -7723724024098242069, guid: a885a3aa0d6b9204fa3fc60e77b74e29, type: 3}
+  pixelsPerUnit: 100
+  idleFrame: 0
+  shootFrameStart: 1
+  shootFrameCount: 4
+  reloadFrameStart: -1
+  reloadFrameCount: 0
+  prepFrameStart: -1
+  prepFrameCount: 0
+  readyFrame: -1
+  muzzleLocalOffset: {x: 0.2, y: 0}
+  muzzleFlareId: 
+  hasShellEject: 0
+  shineRadius: 0

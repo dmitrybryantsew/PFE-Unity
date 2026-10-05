@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e94da64c3527f604c86bdaf09d32867f, type: 3}
+  m_Name: visttweap6
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponVisualDefinition
+  symbolName: visttweap6
+  weaponId: ttweap6
+  sourceSymbolId: 1842
+  frames:
+  - {fileID: -985113564820616005, guid: 752bf6ad29f36db4394cb49e745ae586, type: 3}
+  - {fileID: 202404987911244711, guid: 333aec6cb10364a478ed3c72fb7773c3, type: 3}
+  - {fileID: -8764597738744933808, guid: d4d348f78af4ec14da0c810c844519cc, type: 3}
+  - {fileID: 2805633920695696223, guid: 5954ee86ae9852a44b427089cc6ce4c6, type: 3}
+  pixelsPerUnit: 100
+  idleFrame: 0
+  shootFrameStart: 1
+  shootFrameCount: 3
+  reloadFrameStart: -1
+  reloadFrameCount: 0
+  prepFrameStart: -1
+  prepFrameCount: 0
+  readyFrame: -1
+  muzzleLocalOffset: {x: 0.875, y: 0}
+  muzzleFlareId: 
+  hasShellEject: 0
+  shineRadius: 0

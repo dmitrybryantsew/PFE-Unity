@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e94da64c3527f604c86bdaf09d32867f, type: 3}
+  m_Name: visrobogatp2
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponVisualDefinition
+  symbolName: visrobogatp2
+  weaponId: robogatp2
+  sourceSymbolId: 1767
+  frames:
+  - {fileID: -985113564820616005, guid: cb7788617ffbbcc4bbd9eaa4e7d33ac2, type: 3}
+  - {fileID: 202404987911244711, guid: 09eceb02c5d90f347b859d27ea343f7a, type: 3}
+  - {fileID: -8764597738744933808, guid: bded983ec01464545ade986e20ecee05, type: 3}
+  pixelsPerUnit: 100
+  idleFrame: 0
+  shootFrameStart: 1
+  shootFrameCount: 2
+  reloadFrameStart: -1
+  reloadFrameCount: 0
+  prepFrameStart: -1
+  prepFrameCount: 0
+  readyFrame: -1
+  muzzleLocalOffset: {x: 0.435, y: -0.105}
+  muzzleFlareId: 
+  hasShellEject: 0
+  shineRadius: 0

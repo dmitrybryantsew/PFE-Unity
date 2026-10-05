@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e94da64c3527f604c86bdaf09d32867f, type: 3}
+  m_Name: visbalemine
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponVisualDefinition
+  symbolName: visbalemine
+  weaponId: balemine
+  sourceSymbolId: 4014
+  frames:
+  - {fileID: -985113564820616005, guid: 2bd3f48b564fc36459476e4ed7f3bd4a, type: 3}
+  - {fileID: 202404987911244711, guid: 0cb7b9e652287d54a9f1d5ab293ee3a9, type: 3}
+  - {fileID: -8764597738744933808, guid: d6a62816c3b32794f89840075ed591f2, type: 3}
+  - {fileID: 2805633920695696223, guid: e0ef6d49369de0547be3bf3ea7f868e1, type: 3}
+  - {fileID: -7723724024098242069, guid: 034cd7707401322438120134069a115f, type: 3}
+  pixelsPerUnit: 100
+  idleFrame: 0
+  shootFrameStart: 1
+  shootFrameCount: 4
+  reloadFrameStart: -1
+  reloadFrameCount: 0
+  prepFrameStart: -1
+  prepFrameCount: 0
+  readyFrame: -1
+  muzzleLocalOffset: {x: 0.155, y: -0.035}
+  muzzleFlareId: 
+  hasShellEject: 0
+  shineRadius: 0

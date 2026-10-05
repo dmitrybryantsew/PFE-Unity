@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: visp308c
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponVisualDefinition
   symbolName: visp308c
-  weaponId: p308c
+  weaponId: wquest1
   sourceSymbolId: 1508
   frames:
   - {fileID: -985113564820616005, guid: 37c540d369b9f2048906f05f420c5c3c, type: 3}
@@ -65,7 +65,7 @@ MonoBehaviour:
   prepFrameStart: -1
   prepFrameCount: 0
   readyFrame: -1
-  muzzleLocalOffset: {x: 0, y: 0}
+  muzzleLocalOffset: {x: 0.17, y: 0.06}
   muzzleFlareId: 
   hasShellEject: 0
   shineRadius: 0

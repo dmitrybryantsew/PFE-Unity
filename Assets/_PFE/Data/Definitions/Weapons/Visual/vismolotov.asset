@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e94da64c3527f604c86bdaf09d32867f, type: 3}
+  m_Name: vismolotov
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponVisualDefinition
+  symbolName: vismolotov
+  weaponId: molotov
+  sourceSymbolId: 3968
+  frames:
+  - {fileID: -985113564820616005, guid: 7242e24e56f96074b8ec4b818da5af68, type: 3}
+  - {fileID: 202404987911244711, guid: 2bf891d662c65f349b9ccec10ee53eeb, type: 3}
+  - {fileID: -8764597738744933808, guid: 78342788918666043828bcde58b0a18e, type: 3}
+  - {fileID: 2805633920695696223, guid: 4a0e89cd15d3d164ead02a5167d25c91, type: 3}
+  - {fileID: -7723724024098242069, guid: 11a1f464e1faa2645b65860bc54777b4, type: 3}
+  pixelsPerUnit: 100
+  idleFrame: 0
+  shootFrameStart: 1
+  shootFrameCount: 4
+  reloadFrameStart: -1
+  reloadFrameCount: 0
+  prepFrameStart: -1
+  prepFrameCount: 0
+  readyFrame: -1
+  muzzleLocalOffset: {x: 0.035, y: 0.07}
+  muzzleFlareId: 
+  hasShellEject: 0
+  shineRadius: 0

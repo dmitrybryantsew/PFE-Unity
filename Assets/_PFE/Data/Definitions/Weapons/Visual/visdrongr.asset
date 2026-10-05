@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e94da64c3527f604c86bdaf09d32867f, type: 3}
+  m_Name: visdrongr
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponVisualDefinition
+  symbolName: visdrongr
+  weaponId: drongr
+  sourceSymbolId: 3992
+  frames:
+  - {fileID: -985113564820616005, guid: c6e00536d74c0b144acc27bb95135f50, type: 3}
+  - {fileID: 202404987911244711, guid: 475e237bf51787b4885f52bd0268d5b4, type: 3}
+  - {fileID: -8764597738744933808, guid: 94afa08fb27660946843868247939371, type: 3}
+  - {fileID: 2805633920695696223, guid: 5d6ed7040c25f314b9cfe54c4e7fc8d9, type: 3}
+  - {fileID: -7723724024098242069, guid: 90c81a05b44236b4d9d31b60ed81d01b, type: 3}
+  pixelsPerUnit: 100
+  idleFrame: 0
+  shootFrameStart: 1
+  shootFrameCount: 4
+  reloadFrameStart: -1
+  reloadFrameCount: 0
+  prepFrameStart: -1
+  prepFrameCount: 0
+  readyFrame: -1
+  muzzleLocalOffset: {x: 0.095, y: 0.005}
+  muzzleFlareId: 
+  hasShellEject: 0
+  shineRadius: 0

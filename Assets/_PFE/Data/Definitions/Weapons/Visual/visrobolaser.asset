@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e94da64c3527f604c86bdaf09d32867f, type: 3}
+  m_Name: visrobolaser
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponVisualDefinition
+  symbolName: visrobolaser
+  weaponId: robolaser2
+  sourceSymbolId: 1988
+  frames:
+  - {fileID: -985113564820616005, guid: 6b527568fa7ae7f47b55c5777c030482, type: 3}
+  - {fileID: 202404987911244711, guid: 0055e5d761b08374e8909431cfaf634c, type: 3}
+  - {fileID: -8764597738744933808, guid: 181c2f29466b9f248b3662a6460b4afd, type: 3}
+  pixelsPerUnit: 100
+  idleFrame: 0
+  shootFrameStart: 1
+  shootFrameCount: 2
+  reloadFrameStart: -1
+  reloadFrameCount: 0
+  prepFrameStart: -1
+  prepFrameCount: 0
+  readyFrame: -1
+  muzzleLocalOffset: {x: 0.15, y: 0}
+  muzzleFlareId: 
+  hasShellEject: 0
+  shineRadius: 0

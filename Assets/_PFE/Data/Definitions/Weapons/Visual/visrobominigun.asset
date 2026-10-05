@@ -1,0 +1,41 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e94da64c3527f604c86bdaf09d32867f, type: 3}
+  m_Name: visrobominigun
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponVisualDefinition
+  symbolName: visrobominigun
+  weaponId: robominigun
+  sourceSymbolId: 1920
+  frames:
+  - {fileID: -985113564820616005, guid: e47b7f6071ffdcf4abb9b20ebb9eb54b, type: 3}
+  - {fileID: 202404987911244711, guid: 36ea5889f0398544f97d5109e3a49b31, type: 3}
+  - {fileID: -8764597738744933808, guid: f87287d876e598b4e9206e623e7f3bc8, type: 3}
+  - {fileID: 2805633920695696223, guid: 8e7eda0c322d421409523162091cf945, type: 3}
+  - {fileID: -7723724024098242069, guid: 82d222636227615418acc398796d36ea, type: 3}
+  - {fileID: 1296198028869233028, guid: 07cf40e9884ff014590b9758ae541df4, type: 3}
+  - {fileID: 4243038468684218715, guid: 628aa95a6f6bd2f4b823f1ef1bb64519, type: 3}
+  - {fileID: 5760737632179803129, guid: 0370f0b978947ab43aca4f3c3fbc2b6b, type: 3}
+  - {fileID: 178528315620593539, guid: 594977c06aad11448ab599eff423724c, type: 3}
+  - {fileID: 3626981666587773793, guid: fb050a8b5a4bd384b8db451fc3b20b8b, type: 3}
+  pixelsPerUnit: 100
+  idleFrame: 0
+  shootFrameStart: 3
+  shootFrameCount: 7
+  reloadFrameStart: -1
+  reloadFrameCount: 0
+  prepFrameStart: 1
+  prepFrameCount: 2
+  readyFrame: -1
+  muzzleLocalOffset: {x: 0.335, y: -0.08}
+  muzzleFlareId: 
+  hasShellEject: 0
+  shineRadius: 0

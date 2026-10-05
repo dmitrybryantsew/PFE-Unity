@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: visbloodlight
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponVisualDefinition
   symbolName: visbloodlight
-  weaponId: 
+  weaponId: dronplasma
   sourceSymbolId: 1362
   frames:
   - {fileID: -985113564820616005, guid: 555b006f2184c624f84f5fa3a886b157, type: 3}

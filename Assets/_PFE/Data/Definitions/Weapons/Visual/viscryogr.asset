@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e94da64c3527f604c86bdaf09d32867f, type: 3}
+  m_Name: viscryogr
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponVisualDefinition
+  symbolName: viscryogr
+  weaponId: cryogr
+  sourceSymbolId: 4003
+  frames:
+  - {fileID: -985113564820616005, guid: 2403e0f0c1d06da428a40e500cab2e22, type: 3}
+  - {fileID: 202404987911244711, guid: be5dc9f3f21a472499ab17cbb43ae8d5, type: 3}
+  - {fileID: -8764597738744933808, guid: ecab905dab032544c8f44a6a0e49295d, type: 3}
+  - {fileID: 2805633920695696223, guid: 924acc6689116504fb5260618c2caa45, type: 3}
+  - {fileID: -7723724024098242069, guid: 506b1d85d27a28e4b9dc4113e7ee425c, type: 3}
+  pixelsPerUnit: 100
+  idleFrame: 0
+  shootFrameStart: 1
+  shootFrameCount: 4
+  reloadFrameStart: -1
+  reloadFrameCount: 0
+  prepFrameStart: -1
+  prepFrameCount: 0
+  readyFrame: -1
+  muzzleLocalOffset: {x: 0.065, y: 0}
+  muzzleFlareId: 
+  hasShellEject: 0
+  shineRadius: 0

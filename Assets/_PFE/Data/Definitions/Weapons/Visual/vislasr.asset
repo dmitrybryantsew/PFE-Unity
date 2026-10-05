@@ -85,7 +85,7 @@ MonoBehaviour:
   prepFrameStart: -1
   prepFrameCount: 0
   readyFrame: -1
-  muzzleLocalOffset: {x: 0, y: 0}
+  muzzleLocalOffset: {x: 0.375, y: 0.065}
   muzzleFlareId: 
   hasShellEject: 0
   shineRadius: 0

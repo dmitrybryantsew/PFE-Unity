@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e94da64c3527f604c86bdaf09d32867f, type: 3}
+  m_Name: viscryomine
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponVisualDefinition
+  symbolName: viscryomine
+  weaponId: cryomine
+  sourceSymbolId: 4001
+  frames:
+  - {fileID: -985113564820616005, guid: fa227080f9de7c845b392dab50ea0d31, type: 3}
+  - {fileID: 202404987911244711, guid: 46400e0971a4c594e99c7a18ffde1359, type: 3}
+  - {fileID: -8764597738744933808, guid: 695a2cb145672c842b4f3531cd89c03e, type: 3}
+  - {fileID: 2805633920695696223, guid: f5bde95a85398b0408bc24920bb9b485, type: 3}
+  - {fileID: -7723724024098242069, guid: 7d5e93e6585bc444e85374b6a96c097f, type: 3}
+  pixelsPerUnit: 100
+  idleFrame: 0
+  shootFrameStart: 1
+  shootFrameCount: 4
+  reloadFrameStart: -1
+  reloadFrameCount: 0
+  prepFrameStart: -1
+  prepFrameCount: 0
+  readyFrame: -1
+  muzzleLocalOffset: {x: 0.155, y: -0.015}
+  muzzleFlareId: 
+  hasShellEject: 0
+  shineRadius: 0

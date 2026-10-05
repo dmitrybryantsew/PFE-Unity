@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e94da64c3527f604c86bdaf09d32867f, type: 3}
+  m_Name: visplagr
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponVisualDefinition
+  symbolName: visplagr
+  weaponId: plagr
+  sourceSymbolId: 3961
+  frames:
+  - {fileID: -985113564820616005, guid: 1c6f9ca4d9ce14843a408acf8c1121a3, type: 3}
+  - {fileID: 202404987911244711, guid: 04232d7eb86587648a000a0e43604b0e, type: 3}
+  - {fileID: -8764597738744933808, guid: 3c006c51103d2fa4692bcde8ebb2de60, type: 3}
+  - {fileID: 2805633920695696223, guid: b908fe1d10f46464abda89658ca023e4, type: 3}
+  - {fileID: -7723724024098242069, guid: 406a38ede27675b4690873aa59f70260, type: 3}
+  pixelsPerUnit: 100
+  idleFrame: 0
+  shootFrameStart: 1
+  shootFrameCount: 4
+  reloadFrameStart: -1
+  reloadFrameCount: 0
+  prepFrameStart: -1
+  prepFrameCount: 0
+  readyFrame: -1
+  muzzleLocalOffset: {x: 0.055, y: 0}
+  muzzleFlareId: 
+  hasShellEject: 0
+  shineRadius: 0

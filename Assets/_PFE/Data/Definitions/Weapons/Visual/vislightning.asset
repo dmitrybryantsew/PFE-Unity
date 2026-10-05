@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: vislightning
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponVisualDefinition
   symbolName: vislightning
-  weaponId: lightning
+  weaponId: dronpspark
   sourceSymbolId: 1358
   frames:
   - {fileID: -985113564820616005, guid: 50814fd4e5fed7a45bdc800571912195, type: 3}

@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e94da64c3527f604c86bdaf09d32867f, type: 3}
+  m_Name: visspgren
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponVisualDefinition
+  symbolName: visspgren
+  weaponId: spgren
+  sourceSymbolId: 3955
+  frames:
+  - {fileID: -985113564820616005, guid: d930aac499e18a84a9d4d779b6a1a521, type: 3}
+  - {fileID: 202404987911244711, guid: 44f7ba5fe9ce34647a7a4bbb8b153db1, type: 3}
+  - {fileID: -8764597738744933808, guid: ecd945b4749f5a44db84c5fe0421b990, type: 3}
+  - {fileID: 2805633920695696223, guid: 4a012ec2d5d9734499c1b9645c1b30f4, type: 3}
+  - {fileID: -7723724024098242069, guid: 2acd2e7e97ebfec48ba2f2e308799dfc, type: 3}
+  pixelsPerUnit: 100
+  idleFrame: 0
+  shootFrameStart: 1
+  shootFrameCount: 4
+  reloadFrameStart: -1
+  reloadFrameCount: 0
+  prepFrameStart: -1
+  prepFrameCount: 0
+  readyFrame: -1
+  muzzleLocalOffset: {x: 0.065, y: 0}
+  muzzleFlareId: 
+  hasShellEject: 0
+  shineRadius: 0

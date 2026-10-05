@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: vismray
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponVisualDefinition
   symbolName: vismray
-  weaponId: mray
+  weaponId: alipsy
   sourceSymbolId: 1343
   frames:
   - {fileID: -985113564820616005, guid: aca54f6135521cf448f9dfc38ae4deb8, type: 3}
