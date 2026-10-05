@@ -4,12 +4,15 @@ using System.Linq;
 using UnityEngine;
 using PFE.Core;
 using PFE.Data;
+using PFE.Character;
 using PFE.Data.Definitions;
 using PFE.Entities.Player;
+using PFE.Entities.Player.Rig;
 using PFE.Entities.Units;
 using PFE.Systems.Effects;
 using PFE.Systems.Inventory;
 using PFE.Systems.Magic;
+using PFE.Systems.Physics;
 using PFE.Systems.RPG;
 using PFE.Systems.RPG.Data;
 using PFE.Systems.Weapons;
@@ -33,7 +36,7 @@ namespace PFE.Core.Scripting
         public bool IsOpen = false;
 
         private Rect _windowRect = new Rect(60, 40, 920, 660);
-        private int _activeTab = 0; // 0: Pip Stats, 1: Skills, 2: Perks, 3: Weapons, 4: Armor, 5: Vitals & Presets, 6: Effects, 7: Spells
+        private int _activeTab = 0; // 0: Pip Stats, 1: Skills, 2: Perks, 3: Weapons, 4: Armor, 5: Vitals & Presets, 6: Effects, 7: Spells, 8: Inventory, 9: Rig
 
         private static readonly string[] TabNames = new string[]
         {
@@ -44,7 +47,9 @@ namespace PFE.Core.Scripting
             "🛡️ Armor",
             "❤️ Vitals & Presets",
             "☣️ Effects",
-            "🔮 Spells"
+            "🔮 Spells",
+            "🎒 Inventory",
+            "🧪 Rig"
         };
 
         // Scroll positions for each tab
@@ -131,11 +136,181 @@ namespace PFE.Core.Scripting
         private int _ammoDropdownIndex;
 
         /// <summary>
-        /// Live inventory created by this overlay, if any. The player has no inventory wired at runtime
-        /// (<c>PlayerWeaponLoadout.AmmoSource</c> is only ever assigned in tests), so "Give ammo" has
-        /// nothing to add to until one is made — see <see cref="EnsureInventory"/>.
+        /// The inventory this overlay reads and stocks. Since 2026-10-05 the player owns a
+        /// <see cref="PlayerInventory"/> at runtime, so this is normally that live bag (adopted — see
+        /// <see cref="EnsureInventory"/>); it is only a bag created here when the scene has no player
+        /// inventory at all.
         /// </summary>
         private GameInventory _debugInventory;
+
+        /// <summary>
+        /// The live <see cref="PlayerInventory"/>, when the game has one. Held separately from
+        /// <see cref="_debugInventory"/> because mutations must go through its command sink rather than
+        /// straight into the bag — the same seam a real pickup uses.
+        /// </summary>
+        private PlayerInventory _liveInventory;
+
+        /// <summary>
+        /// The live player, when the scene has one. Refreshed by <see cref="DrawInventoryTab"/> on every
+        /// repaint (the player is already in hand there). Needed because the placement modes below place
+        /// relative to the player's <see cref="PFE.Entities.Units.UnitController.FacingDirection"/>,
+        /// which <see cref="PlayerInventory"/> does not expose — "in front" is meaningless without it.
+        /// <para>A destroyed player reads as <c>null</c> here (Unity's fake-null), so a respawned player
+        /// falls back to the raw offset rather than silently using a dead transform.</para>
+        /// </summary>
+        private PlayerController _livePlayer;
+
+        // ── Inventory tab (8) state ───────────────────────────────────────────
+        //
+        // The sub-tabs mirror AS3 PipPageInv's five pages, plus two the oracle has no counterpart for:
+        // Spawn (create an item out of nothing and drop it in the world) and Drop (move something the
+        // player already holds into the world). See InventoryPageRules for the page partition and where
+        // it deliberately departs from AS3.
+
+        /// <summary>
+        /// Sub-tab index of the Drop view. Named rather than written as a literal: these two views sit
+        /// after the five <see cref="InventoryPage"/> indices, so inserting a sub-tab renumbers them and
+        /// a bare `_invPage == 5` would silently start drawing the wrong view.
+        /// </summary>
+        private const int InventorySpawnSubTab = 5;
+
+        /// <inheritdoc cref="InventorySpawnSubTab"/>
+        private const int InventoryDropSubTab = 6;
+
+        /// <summary>0..4 = an <see cref="InventoryPage"/>; 5 = Spawn; 6 = Drop.</summary>
+        private int _invPage;
+
+        /// <summary>Scroll position for the item list.</summary>
+        private Vector2 _invScroll;
+
+        /// <summary>The "add an item by id" field, and the quantity beside it.</summary>
+        private string _invAddId = string.Empty;
+        private string _invAddQty = "1";
+
+        // ── Spawn view state ──────────────────────────────────────────────────
+
+        /// <summary>
+        /// Which page the Spawn picker is filtered to. Defaults to Aid because it is the page with the
+        /// most rows (and the one a tester most often wants). Only the item-backed pages are offered.
+        /// </summary>
+        private InventoryPage _spawnPage = InventoryPage.Aid;
+
+        /// <summary>Free text for the Spawn picker; matches an id or a display name.</summary>
+        private string _spawnSearch = string.Empty;
+
+        /// <summary>The id selected in the Spawn picker, and how many to spawn.</summary>
+        private string _spawnSelectedId = string.Empty;
+        private string _spawnQty = "1";
+
+        /// <summary>
+        /// Whether "Spawn in world" marks the pickup auto-collectable (<c>WorldItemPickup.AutoCollect</c>).
+        ///
+        /// <para><b>Defaults ON, which is NOT the oracle's default</b> — deliberately. Two of the oracle's
+        /// three construction sites pass <c>false</c> (<c>Invent.drop()</c>, room placement) and only
+        /// <c>LootGen</c> passes <c>true</c>, but the port has no <c>LootGen</c> yet, so with the
+        /// conservative default there would be no way to spawn a pickup that the walk-over collector
+        /// accepts — the feature would be untestable through the only tool that makes loot. The toggle is
+        /// the debug affordance that stands in for the missing call site, and it is labelled so the
+        /// distinction stays visible.</para>
+        /// </summary>
+        private bool _spawnAutoCollect = true;
+
+        private Vector2 _spawnScroll;
+
+        // The filter result is cached because the overlay repaints every frame and a naive call would
+        // re-scan and re-resolve all ~500 ids per repaint. Invalidated whenever an input changes, and by
+        // the Refresh button (a mod may register content after boot).
+        private List<string> _pickerCache;
+        private InventoryPage _pickerCachePage;
+        private string _pickerCacheSearch;
+        private bool _pickerCacheValid;
+
+        // ── Drop view state ───────────────────────────────────────────────────
+
+        /// <summary>The id selected in the Drop view's "from your inventory" picker, and its amount.</summary>
+        private string _dropSelectedId = string.Empty;
+        private string _dropSelectQty = "1";
+
+        /// <summary>The drop view's by-id fallback, and the X/Y offset from the player.</summary>
+        private string _dropId = string.Empty;
+        private string _dropQty = "1";
+        private string _dropOffsetX = "0";
+        private string _dropOffsetY = "-0.5";
+
+        /// <summary>Scroll positions: the held-item picker, and the on-the-ground pickup list.</summary>
+        private Vector2 _dropHeldScroll;
+        private Vector2 _pickupScroll;
+
+        // ── Placement (shared by the Spawn and Drop views) ────────────────────
+        //
+        // "Where does it land" is one question, so it is one control rendered in both views rather than
+        // two that can disagree. The three facing-relative anchors are resolved at SPAWN TIME from the
+        // player's live facing, deliberately not baked into a text field: a stored sign would go stale
+        // the moment the player turned around, which is exactly when a tester is checking both sides.
+
+        /// <summary>
+        /// Where a spawn/drop lands. <see cref="Custom"/> falls back to the editable X/Y offset fields
+        /// (the pre-existing behaviour); the other three are derived from the player's facing.
+        /// </summary>
+        private enum PlacementAnchor
+        {
+            /// <summary>At the player's own feet — the oracle's <c>owner.X, owner.Y</c>.</summary>
+            AtFeet,
+
+            /// <summary>One <c>distance</c> along the player's facing.</summary>
+            InFront,
+
+            /// <summary>One <c>distance</c> against the player's facing.</summary>
+            Behind,
+
+            /// <summary>Raw X/Y offset from the player — arbitrary placement, the escape hatch.</summary>
+            Custom
+        }
+
+        /// <summary>
+        /// Defaults to <see cref="PlacementAnchor.InFront"/> because the whole point of the control is
+        /// testing collection: standing on the item you just made (<c>AtFeet</c>) is a poor way to find
+        /// out whether the cursor probe reaches it.
+        /// </summary>
+        private PlacementAnchor _placementAnchor = PlacementAnchor.InFront;
+
+        /// <summary>
+        /// Distance in world units for the facing-relative anchors. Default 1.5: inside
+        /// <c>WorldConstants.ACTION_REACH</c> (2.0), so the item is collectable without walking, but far
+        /// enough that it is not under the player's own collider.
+        /// </summary>
+        private string _placementDistance = "1.5";
+
+        /// <summary>The last thing the tab did, so a rejection is visible where the action was taken.</summary>
+        private string _invStatus = string.Empty;
+        private bool _invStatusIsError;
+
+        // ── Deferred mutations ────────────────────────────────────────────────
+        //
+        // IMGUI hands a button's click back IN THE MIDDLE of the loop that drew its row, so a button that
+        // mutates a collection it is being drawn from breaks the enumeration it is inside. Two live
+        // examples, both real crashes/bugs rather than theory:
+        //
+        //   * the Aid/Misc/Ammo pages draw `foreach (var kvp in inventory.Items)` and the row's "−1"/"+1"/
+        //     "Drop 1" buttons mutate that same dictionary → `InvalidOperationException: Collection was
+        //     modified` on the next MoveNext;
+        //   * the Drop view's held list does the same with "Drop 1", and its on-the-ground list walks
+        //     `WorldItemPickup.All` BY INDEX while "Take"/"Destroy" remove from that list → the loop
+        //     silently skips the next row.
+        //
+        // The rule this enforces: **a mutating button drawn inside a loop must defer, and the mutation
+        // runs after the pass that found it.** Buttons outside every loop (the add row, Spawn's actions,
+        // the by-id drop, Clear all) stay immediate — they are provably safe, and keeping them immediate
+        // keeps their validation and status message inline where the user typed.
+        //
+        // At most one click is delivered per pass, so a single slot cannot lose an action.
+
+        private enum PendingInventoryAction { None, AddItem, RemoveItem, DropItem, TakePickup, DestroyPickup }
+
+        private PendingInventoryAction _pendingInventoryAction;
+        private string _pendingItemId = string.Empty;
+        private int _pendingQuantity;
+        private WorldItemPickup _pendingPickup;
 
         // Known 20 visual sets with sprites in PlayerAnimationDefinition
         private static readonly string[] VisualArmorIds = new string[]
@@ -564,7 +739,10 @@ namespace PFE.Core.Scripting
             GUILayout.Space(8);
 
             // ── Active Tab View ──────────────────────────────────────────────────
-            if (player == null)
+            // The Rig tab is deliberately exempt from this guard: its whole purpose is to BUILD a
+            // player, so gating it on an existing player would make it unreachable in exactly the
+            // empty scene it exists for.
+            if (player == null && _activeTab != 9)
             {
                 GUILayout.Box("PlayerController not found in scene. Please enter a gameplay room/scene.", _cardStyle, GUILayout.ExpandHeight(true));
                 GUI.DragWindow(new Rect(0, 0, _windowRect.width, 30));
@@ -597,9 +775,178 @@ namespace PFE.Core.Scripting
                 case 7:
                     DrawSpellsTab(player);
                     break;
+                case 8:
+                    DrawInventoryTab(player);
+                    break;
+                case 9:
+                    DrawRigTab(player);
+                    break;
             }
 
             GUI.DragWindow(new Rect(0, 0, _windowRect.width, 24));
+        }
+
+        // =========================================================================
+        // TAB 9: CODE-BUILT PLAYER RIG
+        // =========================================================================
+        //
+        // Builds the player from C# instead of Player.prefab — as a REAL object in the scene, beside
+        // the prefab player — and pulls its state back here. The tab is a reader, not an owner.
+        //
+        // The context is sourced entirely from the live player, which is what makes this a fair
+        // probe: the rig gets the same tile query and the same avatar data the prefab player has, so
+        // a divergence the diff reports is a divergence in the BUILD, not in the inputs.
+
+        private GameObject _rigRoot;
+        private Vector2 _rigScroll;
+        private List<RigDivergence> _rigDivergences;
+        private int _rigTunableCount;
+        private string _rigStatus = "No rig. Press Build.";
+
+        private void DrawRigTab(PlayerController player)
+        {
+            _rigScroll = GUILayout.BeginScrollView(_rigScroll);
+
+            GUILayout.Label("<b>Code-built player rig</b> — constructed from C#, tuned by value from the prefab player.", GUILayout.ExpandWidth(true));
+            GUILayout.Space(4);
+
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("Build rig", GUILayout.Height(24), GUILayout.Width(110))) BuildRig(player);
+            if (GUILayout.Button("Diff vs prefab", GUILayout.Height(24), GUILayout.Width(130))) DiffRig(player);
+            if (GUILayout.Button("Destroy rig", GUILayout.Height(24), GUILayout.Width(110))) DestroyRig();
+            GUILayout.EndHorizontal();
+
+            GUILayout.Space(6);
+            GUILayout.Label(_rigStatus, GUILayout.ExpandWidth(true));
+
+            // ── Live state, pulled from the rig itself ──────────────────────────
+            if (_rigRoot != null)
+            {
+                var rig = _rigRoot.GetComponent<PlayerController>();
+                var rigTile = _rigRoot.GetComponent<TilePhysicsController>();
+                var rigAssembler = _rigRoot.GetComponent<CharacterSpriteAssembler>();
+
+                float rigHp = rig != null && rig.UnitStats != null ? rig.UnitStats.CurrentHp.Value : 0f;
+                float rigVelX = rigTile != null ? rigTile.VelocityX : 0f;
+                string state = rigAssembler != null ? rigAssembler.CurrentState : "?";
+                int frame = rigAssembler != null ? rigAssembler.CurrentFrame : -1;
+                bool grounded = rigTile != null && rigTile.IsGrounded;
+
+                GUILayout.Space(6);
+                GUILayout.Label($"<b>Live rig</b>  pos=({_rigRoot.transform.position.x:0.#}, {_rigRoot.transform.position.y:0.#})  hp={rigHp:0.#}");
+                GUILayout.Label($"state={state}  frame={frame}  grounded={grounded}  velX={rigVelX:0.##}");
+
+                // The one seam whose absence is not survivable: groundedness is a tile question, so
+                // without the query the rig has no floor and walks off into space.
+                GUILayout.Label(rigTile != null && rigTile.TileQuery != null
+                    ? "<color=#55FF55>tile query wired — the rig can stand on the map</color>"
+                    : "<color=#FF6666>NO tile query — the rig will fall through the world</color>");
+            }
+
+            // ── The measured answer to "did the code build lose parity?" ─────────
+            if (_rigDivergences != null)
+            {
+                GUILayout.Space(8);
+                GUILayout.Label($"<b>Parity diff vs the prefab player</b> — {_rigDivergences.Count} divergence(s) over {_rigTunableCount} tunables", GUILayout.ExpandWidth(true));
+
+                if (_rigDivergences.Count == 0)
+                {
+                    GUILayout.Label("<color=#55FF55>None. The code-built rig matches the prefab on every tunable read.</color>", GUILayout.ExpandWidth(true));
+                }
+                else
+                {
+                    foreach (RigDivergence d in _rigDivergences)
+                    {
+                        GUILayout.Label("<color=#FFAA33>" + d + "</color>", GUILayout.ExpandWidth(true));
+                    }
+                }
+            }
+
+            GUILayout.EndScrollView();
+        }
+
+        private void BuildRig(PlayerController player)
+        {
+            DestroyRig();
+
+            if (player == null)
+            {
+                _rigStatus = "Need a prefab player in the scene to source the rig's context from.";
+                return;
+            }
+
+            var liveTile = player.GetComponent<TilePhysicsController>();
+            var liveAssembler = player.GetComponent<CharacterSpriteAssembler>();
+
+            // `PlayerController.Stats` SHADOWS `UnitController.Stats` with a DIFFERENT type —
+            // UnitStats on the derived, UnitDefinition on the base (which is why the header above
+            // can read `player.Stats.CurrentHp`). Going through the base type is what asks the
+            // question actually wanted here.
+            var unitController = (UnitController)player;
+            UnitDefinition definition = unitController.Stats;
+
+            var ctx = new PlayerRigContext
+            {
+                // Placed beside the player, so the two can be compared by eye as well as by diff.
+                SpawnPosition = player.transform.position + new Vector3(4f, 0f, 0f),
+                UnitDefinition = definition,
+                // A FRESH stats block, never the live player's: sharing the instance would make
+                // damage to one player damage the other, which reads as a physics bug.
+                UnitStats = definition != null ? new UnitStats(definition.health, 100f) : null,
+                TileQuery = liveTile != null ? liveTile.TileQuery : null,
+                AnimationDefinition = liveAssembler != null ? liveAssembler.Definition : null,
+                StyleData = liveAssembler != null ? liveAssembler.StyleData : null,
+                Appearance = liveAssembler != null ? liveAssembler.Appearance : null,
+                // Without this the rig draws behind the level graphics — invisible, and silent.
+                SortingLayerName = liveAssembler != null ? liveAssembler.SortingLayerName : null,
+                // DamageSystem, the effect resolver, particles, the sim clock and the loadout's
+                // services are NOT reachable from a scene component — on the prefab player they
+                // arrive by [Inject]. Null is a documented legal state for every one of them, so the
+                // rig stands, draws and is grounded; it simply cannot be hurt or shoot yet. That gap
+                // is the finding, not a crash.
+            };
+
+            // Clone the prefab player's authored tunables BY VALUE, so the diff starts at zero and
+            // anything it does report is a construction bug rather than a default mismatch.
+            PlayerRigSnapshot tuning = PlayerRigTuning.Read(player.gameObject);
+
+            _rigRoot = PlayerRigBuilder.Build(ctx, tuning);
+            _rigStatus = "Built at " + _rigRoot.transform.position + " — compare it with the prefab player.";
+        }
+
+        private void DiffRig(PlayerController player)
+        {
+            if (_rigRoot == null || player == null)
+            {
+                _rigDivergences = null;
+                _rigStatus = "Build a rig, and have a prefab player in the scene, before diffing.";
+                return;
+            }
+
+            PlayerRigSnapshot prefabSide = PlayerRigTuning.Read(player.gameObject);
+            PlayerRigSnapshot rigSide = PlayerRigTuning.Read(_rigRoot);
+
+            _rigDivergences = PlayerRigSnapshot.Diff(prefabSide, rigSide);
+            _rigTunableCount = rigSide.Count;
+            _rigStatus = "Diffed " + rigSide.Count + " tunables.";
+        }
+
+        private void DestroyRig()
+        {
+            if (_rigRoot != null)
+            {
+                Destroy(_rigRoot);
+                _rigRoot = null;
+            }
+            _rigDivergences = null;
+        }
+
+        private void OnDestroy()
+        {
+            // The overlay instantiates a real GameObject, so it has to clean it up: before this the
+            // class had no OnDestroy at all, and a rig left behind would accumulate every play
+            // session.
+            if (_rigRoot != null) Destroy(_rigRoot);
         }
 
         // =========================================================================
@@ -1500,7 +1847,7 @@ namespace PFE.Core.Scripting
 
             GUILayout.FlexibleSpace();
 
-            // Give ammo into the live inventory (created on first use — see EnsureInventory).
+            // Give ammo into the live inventory (the player's own PlayerInventory — see EnsureInventory).
             if (GUILayout.Button("Give 30", GUILayout.Width(70)))
                 GiveAmmo(state.ResolvedAmmoType, 30);
             if (GUILayout.Button("Give 300", GUILayout.Width(80)))
@@ -1515,7 +1862,7 @@ namespace PFE.Core.Scripting
 
             if (_debugInventory == null)
             {
-                GUILayout.Label("<color=#AAAAAA>no inventory wired — press \"Give 30\" to create one</color>");
+                GUILayout.Label("<color=#AAAAAA>no inventory resolved yet — press \"Give 30\"</color>");
             }
             else
             {
@@ -1543,20 +1890,32 @@ namespace PFE.Core.Scripting
         }
 
         /// <summary>
-        /// Add <paramref name="amount"/> rounds of <paramref name="ammoId"/> to the debug inventory,
-        /// creating and wiring that inventory on first use.
+        /// Add <paramref name="amount"/> rounds of <paramref name="ammoId"/> to the player's inventory,
+        /// adopting the live one when the game has one and creating a stand-in when it does not.
         ///
-        /// <para><b>Why the inventory has to be created here.</b> Nothing in the running game constructs a
-        /// <c>GameInventory</c> or assigns <c>PlayerWeaponLoadout.AmmoSource</c> — only tests do — so every
-        /// reload currently takes the <c>_ammoSource == null</c> branch in
-        /// <c>RangedWeaponController.CompleteReload</c> and fills the magazine unconditionally
-        /// (infinite-ammo / training behaviour). Without a source, "give ammo" would have nowhere to put
-        /// it and no visible effect at all.</para>
+        /// <para><b>Since 2026-10-05 the running game does own an inventory</b> —
+        /// <c>PlayerController</c> creates a <see cref="PlayerInventory"/>, which builds the
+        /// <see cref="GameInventory"/> and points <c>PlayerWeaponLoadout.AmmoSource</c> at itself (see
+        /// <see cref="PlayerInventory"/> and <see cref="EnsureInventory"/>). So in a normal play session
+        /// this method stocks the same bag a real pickup feeds, and reloads draw from it instead of
+        /// filling for free. The earlier "nothing constructs one — only tests do" note described the
+        /// state before that wiring and is kept only as history.</para>
         ///
-        /// <para><b>The side effect is real and intended:</b> once this runs, reloads draw from the
-        /// inventory and stop being infinite — a weapon with an empty inventory reloads to 0. That is the
-        /// honest behaviour, and it is why the button says "create one" rather than pretending ammo is
-        /// already being tracked.</para>
+        /// <para><b>The mutation goes through the command seam when a live inventory exists</b>, i.e.
+        /// <see cref="PlayerInventory.Submit"/> with an <see cref="InventoryCommand.AddItem"/> — the
+        /// identical path a real pickup will take, so pressing "Give" exercises the seam rather than
+        /// poking the bag behind it. The direct <c>AddItem</c> below is reached only for a bag this
+        /// overlay created itself (no player in the scene) or a live inventory that never got a sink
+        /// (no content registry injected), both of which are the pre-wiring situation.</para>
+        ///
+        /// <para><b>A rejection from the seam is reported, not papered over.</b> When the seam rejects,
+        /// this returns false and logs the sink's reason; it deliberately does <i>not</i> retry the
+        /// direct <c>AddItem</c> as a fallback. Falling back would make the button look like it worked
+        /// while the authority refused — the exact "success that is not evidence" shape this project
+        /// keeps paying for — and under host-authoritative co-op a client whose request the host rejects
+        /// must not quietly apply it locally. The one realistic way to see this rejection in a play
+        /// session is pressing "Give" before <c>GameDatabase.Initialize()</c> has populated the content
+        /// registry; the warning names that id so the cause is readable rather than mysterious.</para>
         ///
         /// <para><b>Ammo is stored under the AmmoDefinition id.</b> <c>GameInventory</c> keys items by id
         /// and its <c>GetAmmoCount</c>/<c>ConsumeAmmo</c> look up exactly the id the weapon resolves, so
@@ -1598,23 +1957,52 @@ namespace PFE.Core.Scripting
                 return false;
             }
 
-            // Quantity is applied by AddItem's own stacking rules; when a stack already exists it merges.
+            // Preferred path: the live player inventory's command seam. Same route a real pickup takes,
+            // so this button proves the seam works rather than proving a debug button can poke a bag.
+            // The sink re-resolves the id from the content registry; `ammoId` is the row's own itemId
+            // (that is how ResolveAmmoItem keyed it), so both ends name the same row.
+            if (_liveInventory != null && _liveInventory.Commands != null)
+            {
+                InventoryCommandResult result = _liveInventory.Submit(InventoryCommand.AddItem(ammoId, amount));
+                if (!result.Applied)
+                {
+                    Debug.LogWarning($"[PlayerDebugEditorOverlay] The inventory command seam rejected " +
+                                     $"'{ammoId}' ×{amount}: {result.Reason}");
+                    return false;
+                }
+
+                Debug.Log($"[PlayerDebugEditorOverlay] Gave {amount} × '{ammoId}' through the inventory " +
+                          $"command seam (now holding {_debugInventory.GetAmmoCount(ammoId)}).");
+                return true;
+            }
+
+            // Fallback: a bag this overlay created itself (no player in the scene), or a live inventory
+            // that never received a sink because no content registry was injected. Both are the
+            // pre-wiring situation, and the direct call is the only option left.
             bool added = _debugInventory.AddItem(item, amount);
 
-            Debug.Log($"[PlayerDebugEditorOverlay] Gave {amount} × '{ammoId}' " +
+            Debug.Log($"[PlayerDebugEditorOverlay] Gave {amount} × '{ammoId}' directly " +
                       $"(now holding {_debugInventory.GetAmmoCount(ammoId)}).");
 
             return added;
         }
 
         /// <summary>
-        /// Create the debug inventory and point the loadout at it, if that has not happened yet.
+        /// Resolve the inventory this overlay reads and stocks, adopting the live one when the game has
+        /// it and creating a stand-in only when it does not.
         ///
-        /// <para><b>Assigning <c>loadout.AmmoSource</c> is the whole point</b> — its setter rebuilds the
-        /// controller factory so subsequently-equipped weapons pick the source up. A weapon equipped
-        /// <i>before</i> this call keeps the factory it was built with, so the change takes effect from the
-        /// next equip (or the next overlay action). The overlay does not force a re-equip, because silently
-        /// swapping the player's weapon to make a debug button take effect is worse than saying so.</para>
+        /// <para><b>Order: adopt the player's <see cref="PlayerInventory"/>, then any other supplied
+        /// source, then create.</b> Since 2026-10-05 <c>PlayerController</c> creates a
+        /// <see cref="PlayerInventory"/> for the player, so the first arm is the normal path and the
+        /// create arm is the bare-scene fallback. See the inline note for why the first arm must come
+        /// before the <c>is GameInventory</c> one.</para>
+        ///
+        /// <para><b>In the create fallback, assigning <c>loadout.AmmoSource</c> is the whole point</b> —
+        /// its setter rebuilds the controller factory so subsequently-equipped weapons pick the source
+        /// up. A weapon equipped <i>before</i> that call keeps the factory it was built with, so the
+        /// change takes effect from the next equip (or the next overlay action). The overlay does not
+        /// force a re-equip, because silently swapping the player's weapon to make a debug button take
+        /// effect is worse than saying so.</para>
         ///
         /// <para><b>Only 28 of the 75 ammo ids actually have such a row.</b> Measured 2026-10-03: the
         /// intersection of the 75 <c>AmmoDefinition</c> ids with the 451 <c>ItemDefinition</c> ids is
@@ -1636,10 +2024,29 @@ namespace PFE.Core.Scripting
             // `loadout.AmmoSource == null` was tested against a null source that had been null all
             // along). The adopt arm is the one that must run when a source exists; the create arm is
             // the fallback. Ordering them the other way silently shadowed the live source.
+            //
+            // FIRST ARM IS THE PLAYER'S OWN PlayerInventory. Since 2026-10-05 that component is the
+            // real runtime owner of the bag (PlayerController creates it; see PlayerInventory). It must
+            // be tried before the `is GameInventory` arm below, because `loadout.AmmoSource` is now the
+            // PlayerInventory wrapper rather than a bare GameInventory — that cast misses it, so without
+            // this arm the method would build a SECOND, competing bag, wire the loadout to that, and
+            // leave the overlay reading an empty inventory while the player's own stayed untouched.
+            // That is the same silent shadowing the ordering note above warns about, one level up.
+            if (player != null)
+            {
+                var live = player.GetComponent<PlayerInventory>();
+                if (live != null && live.Inventory != null)
+                {
+                    _liveInventory = live;
+                    _debugInventory = live.Inventory;
+                    return;
+                }
+            }
+
             if (loadout?.AmmoSource is GameInventory existing)
             {
-                // Something already supplied a source (a test harness, or the future inventory
-                // system). Adopt it rather than shadowing it, or "Give" would add to a bag nothing
+                // A source supplied without a PlayerInventory — a test harness, or the pre-wiring
+                // situation. Adopt it rather than shadowing it, or "Give" would add to a bag nothing
                 // reads — the button would look like it worked while the weapon stayed empty.
                 _debugInventory = existing;
                 return;
@@ -2847,5 +3254,908 @@ namespace PFE.Core.Scripting
             }
             GUILayout.EndHorizontal();
         }
+
+        // =========================================================================
+        // TAB 8: INVENTORY — AS3 PipPageInv's pages, plus a Drop view
+        // =========================================================================
+        //
+        // Why the sub-tabs are AS3's five pages and not the port's ItemType enum: the pages are what the
+        // original's player sees, and InventoryPageRules maps every ItemType onto exactly ONE page, so the
+        // list can never print the same row twice. Where that partition departs from AS3 — the import
+        // collapsed `e` and `equip` into Equipment, so the oracle's AID/AMMO split is not recoverable —
+        // every row prints its own ItemType, so the grouping hides nothing.
+        //
+        // Every mutation goes through PlayerInventory.Submit. The tab has no direct write to the bag,
+        // which is exactly what makes it a test of the seam rather than a bypass of it.
+
+        private static readonly string[] InventorySubTabNames =
+            { "⚔ Weapons", "🛡 Armor", "💊 Aid", "📦 Misc", "• Ammo", "✨ Spawn", "⬇ Drop" };
+
+        private void DrawInventoryTab(PlayerController player)
+        {
+            EnsureInventory();
+
+            // Kept fresh rather than only cached where the bag is adopted: the placement anchors read
+            // FacingDirection from it, and a stale or respawned player would place "in front" against a
+            // dead transform (which Unity reports as null, so the fallback would silently take over).
+            if (player != null) _livePlayer = player;
+
+            PlayerInventory inventory = _liveInventory;
+            if (inventory == null || inventory.Inventory == null)
+            {
+                GUILayout.Box(
+                    "No PlayerInventory. PlayerController creates one at boot, so if the scene has a player " +
+                    "and this is still empty then Construct never ran — which means no content registry was " +
+                    "injected, and every command would be rejected anyway.",
+                    _cardStyle, GUILayout.ExpandWidth(true));
+                return;
+            }
+
+            GUILayout.BeginHorizontal();
+            for (int i = 0; i < InventorySubTabNames.Length; i++)
+            {
+                GUIStyle style = (i == _invPage) ? _tabActiveStyle : _tabInactiveStyle;
+                if (GUILayout.Button(InventorySubTabNames[i], style, GUILayout.Height(24)))
+                    _invPage = i;
+            }
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+
+            GUILayout.Space(6);
+
+            if (_invPage == InventorySpawnSubTab)
+            {
+                DrawInventorySpawnView(inventory);
+                FlushPendingInventoryAction(player, inventory);
+                return;
+            }
+
+            if (_invPage == InventoryDropSubTab)
+            {
+                DrawInventoryDropView(inventory);
+                FlushPendingInventoryAction(player, inventory);
+                return;
+            }
+
+            DrawInventoryAddRow(inventory);
+            DrawInventoryStatus();
+
+            var page = (InventoryPage)_invPage;
+            _invScroll = GUILayout.BeginScrollView(_invScroll, GUILayout.ExpandHeight(true));
+
+            if (page == InventoryPage.Weapons) DrawInventoryWeaponRows(inventory);
+            else if (page == InventoryPage.Armor) DrawInventoryArmorRows(inventory);
+            else DrawInventoryItemRows(inventory, page);
+
+            GUILayout.EndScrollView();
+
+            // Outside EndScrollView on purpose — see the method's remarks.
+            FlushPendingInventoryAction(player, inventory);
+        }
+
+        /// <summary>
+        /// The "add by id" row. AS3's counterpart is the debug <c>Invent.addAll*()</c> family; a typed id
+        /// is used instead because 500 items is too many to enumerate in a dropdown and the ids are the
+        /// same keys the oracle indexes by.
+        /// </summary>
+        private void DrawInventoryAddRow(PlayerInventory inventory)
+        {
+            GUILayout.BeginHorizontal(_cardStyle);
+            GUILayout.Label("<color=#AAAAAA>Add item by id:</color>", GUILayout.Width(110));
+
+            _invAddId = GUILayout.TextField(_invAddId ?? string.Empty, GUILayout.Width(180));
+            GUILayout.Label("<color=#AAAAAA>×</color>", GUILayout.Width(14));
+            _invAddQty = GUILayout.TextField(_invAddQty ?? "1", GUILayout.Width(50));
+
+            if (GUILayout.Button("Add", GUILayout.Width(60)))
+            {
+                if (!TryParsePositive(_invAddQty, out int qty))
+                {
+                    SetInventoryStatus($"quantity '{_invAddQty}' is not a positive number", true);
+                }
+                else if (string.IsNullOrEmpty(_invAddId))
+                {
+                    SetInventoryStatus("type an item id first", true);
+                }
+                else if (inventory.ResolveItem(_invAddId) == null)
+                {
+                    // Named rather than passed through: the seam would reject it too, but with the same
+                    // wording for every unknown id and no hint that the id is simply misspelled.
+                    SetInventoryStatus($"no item row for '{_invAddId}' — the id must match a Resources/Items asset", true);
+                }
+                else
+                {
+                    InventoryCommandResult result = inventory.Submit(InventoryCommand.AddItem(_invAddId, qty));
+                    SetInventoryStatus(result.Applied
+                        ? $"added {qty} × '{_invAddId}'"
+                        : $"rejected: {result.Reason}", !result.Applied);
+                }
+            }
+
+            GUILayout.FlexibleSpace();
+
+            // The per-category mass AS3 keeps (mass[invCat] against maxm1/2/3). Printed here because it is
+            // the one number the category work is for, and it is invisible anywhere else.
+            var inv = inventory.Inventory;
+            GUILayout.Label(
+                $"<color=#AAAAAA>mass</color> usable <b>{inv.GetCategoryMass(InventoryCategoryRules.Usable):0.#}</b>  " +
+                $"ammo <b>{inv.GetCategoryMass(InventoryCategoryRules.Ammo):0.#}</b>  " +
+                $"stuff <b>{inv.GetCategoryMass(InventoryCategoryRules.Stuff):0.#}</b>  " +
+                $"<color=#AAAAAA>total</color> <b>{inv.GetTotalMass():0.#}</b>",
+                GUILayout.Width(360));
+
+            GUILayout.EndHorizontal();
+        }
+
+        private void DrawInventoryStatus()
+        {
+            if (string.IsNullOrEmpty(_invStatus)) return;
+            string colour = _invStatusIsError ? "#FF9A6A" : "#7FE07F";
+            GUILayout.Label($"<color={colour}>{_invStatus}</color>");
+        }
+
+        private void SetInventoryStatus(string message, bool isError)
+        {
+            _invStatus = message;
+            _invStatusIsError = isError;
+        }
+
+        /// <summary>
+        /// The item-backed pages. Filtered by <see cref="InventoryPageRules.Contains"/>, which is a
+        /// partition, so a row appears on exactly one page.
+        /// </summary>
+        private void DrawInventoryItemRows(PlayerInventory inventory, InventoryPage page)
+        {
+            IReadOnlyDictionary<string, GameItemInstance> items = inventory.Items;
+            if (items == null || items.Count == 0)
+            {
+                GUILayout.Label("<color=#AAAAAA>empty — the inventory holds no items</color>");
+                return;
+            }
+
+            int shown = 0;
+            foreach (var kvp in items)
+            {
+                GameItemInstance inst = kvp.Value;
+                if (inst?.Definition == null) continue;
+                if (!InventoryPageRules.Contains(page, inst.Definition.type)) continue;
+
+                DrawInventoryItemRow(kvp.Key, inst);
+                shown++;
+            }
+
+            if (shown == 0)
+            {
+                GUILayout.Label($"<color=#AAAAAA>nothing on this page (the inventory has {items.Count} " +
+                                "item(s), all on other pages)</color>");
+            }
+        }
+
+        /// <summary>
+        /// One row of an item-backed page. Takes no inventory: every button on it only <i>queues</i> a
+        /// mutation, which <c>FlushPendingInventoryAction</c> runs after this row's loop has finished.
+        /// </summary>
+        private void DrawInventoryItemRow(string itemId, GameItemInstance inst)
+        {
+            ItemDefinition def = inst.Definition;
+            int cat = InventoryCategoryRules.ForItem(def);
+
+            GUILayout.BeginHorizontal(_cardStyle);
+
+            GUILayout.Label($"<b>{def.displayName}</b>", GUILayout.Width(180));
+            GUILayout.Label($"<color=#AAAAAA>{itemId}</color>", GUILayout.Width(110));
+            GUILayout.Label($"<color=#9AD0FF>{def.type}</color>", GUILayout.Width(80));
+            GUILayout.Label($"<b>{inst.Quantity}</b>", GUILayout.Width(50));
+            GUILayout.Label($"<color=#AAAAAA>{inst.TotalWeight:0.##}u</color>", GUILayout.Width(60));
+            GUILayout.Label($"<color=#FFD24A>cat{cat}</color>", GUILayout.Width(50));
+
+            // Queued, never submitted inline: this row is drawn inside a foreach over inventory.Items, and
+            // all three of these mutate that dictionary. See the _pendingInventoryAction field block.
+            if (GUILayout.Button("−1", GUILayout.Width(34)))
+                QueueInventoryAction(PendingInventoryAction.RemoveItem, itemId, 1);
+
+            if (GUILayout.Button("+1", GUILayout.Width(34)))
+                QueueInventoryAction(PendingInventoryAction.AddItem, itemId, 1);
+
+            if (GUILayout.Button("Drop 1", GUILayout.Width(62)))
+                QueueInventoryAction(PendingInventoryAction.DropItem, itemId, 1);
+
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+        }
+
+        private void DrawInventoryWeaponRows(PlayerInventory inventory)
+        {
+            IReadOnlyDictionary<string, GameWeaponInstance> weapons = inventory.Inventory.Weapons;
+            if (weapons == null || weapons.Count == 0)
+            {
+                GUILayout.Label("<color=#AAAAAA>no weapons held. The Weapons tab equips them; " +
+                                "GameInventory.AddWeapon is still a stub (no definition resolver).</color>");
+                return;
+            }
+
+            foreach (var kvp in weapons)
+            {
+                GameWeaponInstance w = kvp.Value;
+                if (w == null) continue;
+
+                GUILayout.BeginHorizontal(_cardStyle);
+                GUILayout.Label($"<b>{(w.Definition != null ? w.Definition.displayName : kvp.Key)}</b>", GUILayout.Width(200));
+                GUILayout.Label($"<color=#AAAAAA>{kvp.Key}</color>", GUILayout.Width(110));
+                GUILayout.Label($"<color=#9AD0FF>{w.Respect}</color>", GUILayout.Width(90));
+                GUILayout.Label($"{w.HealthPercent:0}% hp", GUILayout.Width(70));
+                GUILayout.Label($"{w.Mass:0.##}u", GUILayout.Width(60));
+                GUILayout.FlexibleSpace();
+                GUILayout.EndHorizontal();
+            }
+        }
+
+        private void DrawInventoryArmorRows(PlayerInventory inventory)
+        {
+            IReadOnlyDictionary<string, GameArmorInstance> armors = inventory.Inventory.Armors;
+            if (armors == null || armors.Count == 0)
+            {
+                GUILayout.Label("<color=#AAAAAA>no armour held — use the Armor tab's \"add\" row</color>");
+                return;
+            }
+
+            foreach (var kvp in armors)
+            {
+                GameArmorInstance a = kvp.Value;
+                if (a == null) continue;
+
+                GUILayout.BeginHorizontal(_cardStyle);
+                GUILayout.Label($"<b>{(a.Definition != null ? a.Definition.displayName : kvp.Key)}</b>", GUILayout.Width(200));
+                GUILayout.Label($"<color=#AAAAAA>{kvp.Key}</color>", GUILayout.Width(110));
+                GUILayout.Label($"lvl {a.Level}", GUILayout.Width(60));
+                GUILayout.Label($"{a.HealthPercent:0}% hp", GUILayout.Width(70));
+                GUILayout.FlexibleSpace();
+                GUILayout.EndHorizontal();
+            }
+        }
+
+        // =========================================================================
+        // Spawn view — create an item out of nothing and put it in the world
+        // =========================================================================
+
+        /// <summary>
+        /// The Spawn view: pick a category, pick an item from everything the registry knows, set an
+        /// amount, and either drop it into the world or put it straight into the bag.
+        ///
+        /// <para><b>Why this is not just "Drop with a different id".</b> <c>Drop</c> moves something the
+        /// player already holds, so its candidates come from the inventory and cannot fail to resolve.
+        /// <c>Spawn</c> creates content from the registry, so it has to answer "what exists?" — a
+        /// different query — and its candidates <i>can</i> legitimately fail to resolve. Two views keeps
+        /// each one's failure modes visible instead of blending them.</para>
+        ///
+        /// <para><b>Weapons and armour are not offered as categories.</b> Weapons are a separate content
+        /// type with a separate dictionary (<c>GameInventory.AddWeapon</c> is still a stub), so a weapon
+        /// id resolves to no <see cref="ItemDefinition"/> and could not be taken into the item dict.
+        /// Armour rows <i>are</i> item rows, so they do appear — under Misc, which is where
+        /// <see cref="InventoryPageRules.PageOf"/> puts <see cref="ItemType.Equipment"/>.</para>
+        ///
+        /// <para><b>"Spawn in world" honours the shared placement row</b> (<see cref="DrawPlacementRow"/>),
+        /// so an item can be put at a chosen distance in front of or behind the player — which is what
+        /// makes collection testable without walking onto it. "Add to bag" ignores placement entirely:
+        /// it never touches the world.</para>
+        /// </summary>
+        private void DrawInventorySpawnView(PlayerInventory inventory)
+        {
+            // ── category ──────────────────────────────────────────────────────
+            GUILayout.BeginHorizontal(_cardStyle);
+            GUILayout.Label("<color=#AAAAAA>Category:</color>", GUILayout.Width(72));
+
+            for (int p = 0; p < InventoryPageRules.PageCount; p++)
+            {
+                var candidate = (InventoryPage)p;
+
+                // Only the item-backed pages: offering Weapons/Armor here would produce a picker that
+                // always reads "nothing to spawn", which looks like a broken filter.
+                if (!InventoryPageRules.IsItemBacked(candidate)) continue;
+
+                GUIStyle style = candidate == _spawnPage ? _tabActiveStyle : _tabInactiveStyle;
+                if (GUILayout.Button(InventoryPageRules.Name(candidate), style, GUILayout.Width(72)))
+                {
+                    _spawnPage = candidate;
+                    _pickerCacheValid = false;
+                }
+            }
+
+            GUILayout.FlexibleSpace();
+            GUILayout.Label($"<color=#AAAAAA>{inventory.AvailableItemIds.Count} item rows in the registry</color>");
+            GUILayout.EndHorizontal();
+
+            // ── where it lands ────────────────────────────────────────────────
+            DrawPlacementRow();
+
+            // ── search + amount + actions ─────────────────────────────────────
+            List<string> candidates = GetPickerIds(inventory, _spawnPage, _spawnSearch);
+
+            GUILayout.BeginHorizontal(_cardStyle);
+            GUILayout.Label("<color=#AAAAAA>Find:</color>", GUILayout.Width(40));
+
+            string typed = GUILayout.TextField(_spawnSearch ?? string.Empty, GUILayout.Width(150));
+            if (typed != _spawnSearch)
+            {
+                _spawnSearch = typed;
+                _pickerCacheValid = false;
+            }
+
+            GUILayout.Label("<color=#AAAAAA>×</color>", GUILayout.Width(14));
+            _spawnQty = GUILayout.TextField(_spawnQty ?? "1", GUILayout.Width(46));
+
+            GUILayout.Label(
+                string.IsNullOrEmpty(_spawnSelectedId)
+                    ? "<color=#AAAAAA>selected: <i>none</i></color>"
+                    : $"<color=#9AD0FF>selected: <b>{_spawnSelectedId}</b></color>",
+                GUILayout.Width(210));
+
+            // The debug stand-in for the oracle's `LootGen` call site, which the port has no counterpart
+            // for: without it no pickup could ever be spawned with AutoCollect set, so the walk-over
+            // collector would be untestable through the only tool that creates loot. See
+            // _spawnAutoCollect for why it defaults ON despite the oracle's conservative default.
+            _spawnAutoCollect = GUILayout.Toggle(
+                _spawnAutoCollect,
+                new GUIContent(" auto-collect",
+                    "Mark the spawned pickup auto-collectable: walking over it picks it up. This is the " +
+                    "port of AS3 Loot.auto, which only LootGen (enemy drops) sets; player drops and " +
+                    "room-placed items are deliberately false."),
+                GUILayout.Width(108));
+
+            if (GUILayout.Button("Spawn in world", GUILayout.Width(112)))
+                SpawnSelected(inventory, worldOnly: true);
+
+            if (GUILayout.Button("Add to bag", GUILayout.Width(90)))
+                SpawnSelected(inventory, worldOnly: false);
+
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+
+            DrawInventoryStatus();
+
+            GUILayout.Label($"<color=#AAAAAA>showing {candidates.Count} of {inventory.AvailableItemIds.Count} " +
+                            $"item rows on {InventoryPageRules.Name(_spawnPage)}</color>");
+
+            _spawnScroll = GUILayout.BeginScrollView(_spawnScroll, GUILayout.ExpandHeight(true));
+
+            if (candidates.Count == 0)
+            {
+                // Two different causes, named separately — an empty picker is otherwise indistinguishable
+                // from an empty registry, and those have completely different fixes.
+                GUILayout.Label(
+                    $"<color=#AAAAAA>nothing to spawn — no item row on {InventoryPageRules.Name(_spawnPage)} " +
+                    $"matches '{_spawnSearch}'. If the registry count above is 0, " +
+                    "GameDatabase.Initialize() has not populated it yet.</color>");
+            }
+            else
+            {
+                for (int i = 0; i < candidates.Count; i++)
+                {
+                    string id = candidates[i];
+                    ItemDefinition def = inventory.ResolveItem(id);
+
+                    GUILayout.BeginHorizontal(_cardStyle);
+                    GUILayout.Label($"<b>{(def != null ? def.displayName : id)}</b>", GUILayout.Width(180));
+                    GUILayout.Label($"<color=#AAAAAA>{id}</color>", GUILayout.Width(120));
+                    GUILayout.Label($"<color=#9AD0FF>{(def != null ? def.type.ToString() : "?")}</color>", GUILayout.Width(90));
+                    GUILayout.Label($"<color=#FFD24A>cat{InventoryCategoryRules.ForItem(def)}</color>", GUILayout.Width(50));
+
+                    GUIStyle style = id == _spawnSelectedId ? _tabActiveStyle : _tabInactiveStyle;
+                    if (GUILayout.Button("Select", style, GUILayout.Width(64)))
+                        _spawnSelectedId = id;
+
+                    GUILayout.FlexibleSpace();
+                    GUILayout.EndHorizontal();
+                }
+            }
+
+            GUILayout.EndScrollView();
+        }
+
+        /// <summary>
+        /// The picker's candidate list, cached per (page, search). The overlay repaints every frame, so
+        /// filtering ~500 ids and resolving each one per repaint would be a per-frame allocation and
+        /// dictionary walk for a list that changes only when the user types. <see cref="_pickerCacheValid"/>
+        /// is cleared by every input that can change the result.
+        /// </summary>
+        private List<string> GetPickerIds(PlayerInventory inventory, InventoryPage page, string search)
+        {
+            string normalised = search ?? string.Empty;
+
+            if (!_pickerCacheValid || _pickerCachePage != page || _pickerCacheSearch != normalised)
+            {
+                _pickerCache = InventoryItemPicker.Filter(
+                    inventory.AvailableItemIds,
+                    id => inventory.ResolveItem(id)?.type,
+                    id => inventory.ResolveItem(id)?.displayName,
+                    page,
+                    normalised);
+
+                _pickerCachePage = page;
+                _pickerCacheSearch = normalised;
+                _pickerCacheValid = true;
+            }
+
+            return _pickerCache;
+        }
+
+        /// <summary>Spawn the picker's selection, either into the world or into the bag.</summary>
+        private void SpawnSelected(PlayerInventory inventory, bool worldOnly)
+        {
+            if (string.IsNullOrEmpty(_spawnSelectedId))
+            {
+                SetInventoryStatus("select an item first", true);
+                return;
+            }
+
+            if (!TryParsePositive(_spawnQty, out int qty))
+            {
+                SetInventoryStatus($"quantity '{_spawnQty}' is not a positive number", true);
+                return;
+            }
+
+            if (!worldOnly)
+            {
+                InventoryCommandResult added = inventory.Submit(InventoryCommand.AddItem(_spawnSelectedId, qty));
+                SetInventoryStatus(
+                    added.Applied
+                        ? $"added {qty} × '{_spawnSelectedId}' to the bag"
+                        : $"rejected: {added.Reason}",
+                    !added.Applied);
+                return;
+            }
+
+            SpawnInWorld(inventory, _spawnSelectedId, qty, _spawnAutoCollect);
+        }
+
+        /// <summary>
+        /// Put <paramref name="quantity"/> of an item into the world with no inventory half — the
+        /// difference between this and <see cref="DropFromTab"/>, which also removes from the bag.
+        ///
+        /// <para>AS3 has no single counterpart. Enemies reach loot through <c>LootGen</c> and the player
+        /// through <c>Invent.drop()</c>, and a container carries its own rows; "make one appear here" is
+        /// the primitive all three are built from, so it is modelled directly rather than faked by
+        /// adding-then-dropping (which would work, but would make an empty bag unable to spawn).</para>
+        ///
+        /// <para><b>Deliberately not routed through the inventory command seam.</b> The seam exists for
+        /// inventory mutations, and this creates a <i>world entity</i> — a different replication problem
+        /// (once netcode lands it is a host-authoritative spawn, not a client request). Faking it as
+        /// add-then-drop would put it inside the seam at the cost of requiring bag room for something the
+        /// bag is not involved in, so the seam stays honest about what it covers.</para>
+        ///
+        /// <para><paramref name="autoCollect"/> is passed straight to <see cref="WorldItemPickup.Spawn"/>
+        /// and is the only way to make a pickup the walk-over collector will accept, because the port has
+        /// no <c>LootGen</c> (the oracle's one <c>auto = true</c> call site) yet. The status line says which
+        /// it was, so a spawn that "does not get picked up" is not mistaken for a broken collector.</para>
+        /// </summary>
+        private void SpawnInWorld(PlayerInventory inventory, string itemId, int quantity, bool autoCollect)
+        {
+            ItemDefinition definition = inventory.ResolveItem(itemId);
+            if (definition == null)
+            {
+                SetInventoryStatus($"no item row for '{itemId}' — nothing to spawn", true);
+                return;
+            }
+
+            Vector3 where = DropPosition();
+            WorldItemPickup pickup = WorldItemPickup.Spawn(definition, quantity, where, autoCollect);
+
+            SetInventoryStatus(
+                pickup != null
+                    ? $"spawned {quantity} × '{itemId}' at {where.x:0.##},{where.y:0.##}" +
+                      (autoCollect ? " (auto-collect)" : " (cursor only)")
+                    : $"the world refused to spawn '{itemId}' — see the Console for the reason",
+                pickup == null);
+        }
+
+        /// <summary>
+        /// The world position a drop or spawn lands at. Shared by <see cref="SpawnInWorld"/> and
+        /// <see cref="DropFromTab"/> so the two cannot disagree about where "in front of the player" is.
+        ///
+        /// <para><b>Facing is read here, not stored.</b> <see cref="_placementAnchor"/> names a direction
+        /// and this resolves it against the player's live <c>FacingDirection</c> at the moment of the
+        /// spawn, so turning around moves "in front" with you. Baking a sign into a text field at button
+        /// time would freeze it to whatever the player faced when the tester last typed — the failure
+        /// would look like the control doing nothing.</para>
+        ///
+        /// <para><b>Facing falls back to <c>1</c> (right) with no player.</b> The overlay can be opened
+        /// on a scene with no <see cref="PlayerController"/> at all (the harness arm of
+        /// <see cref="EnsureInventory"/>), where "front" has no meaning; right is the same default the
+        /// unit itself starts on (<c>UnitController._facingDirection = 1</c>).</para>
+        /// </summary>
+        private Vector3 DropPosition()
+        {
+            Vector3 origin = _livePlayer != null
+                ? _livePlayer.transform.position
+                : (_liveInventory != null ? _liveInventory.transform.position : Vector3.zero);
+
+            int facing = _livePlayer != null ? _livePlayer.FacingDirection : 1;
+            if (facing == 0) facing = 1;
+
+            if (!TryParseFloat(_placementDistance, out float distance)) distance = 1.5f;
+
+            switch (_placementAnchor)
+            {
+                case PlacementAnchor.AtFeet:
+                    return new Vector3(origin.x, origin.y, 0f);
+
+                case PlacementAnchor.InFront:
+                    return new Vector3(origin.x + facing * distance, origin.y, 0f);
+
+                case PlacementAnchor.Behind:
+                    return new Vector3(origin.x - facing * distance, origin.y, 0f);
+
+                // Named explicitly (not left to `default`) so that adding a new anchor is a compile-time
+                // hole a reviewer sees, rather than a new mode that silently inherits the raw offset.
+                // `default` stays for an out-of-range value, which an enum can always hold.
+                case PlacementAnchor.Custom:
+                default:
+                    if (!TryParseFloat(_dropOffsetX, out float offsetX)) offsetX = 0f;
+                    if (!TryParseFloat(_dropOffsetY, out float offsetY)) offsetY = -0.5f;
+                    return new Vector3(origin.x + offsetX, origin.y + offsetY, 0f);
+            }
+        }
+
+        /// <summary>
+        /// The placement control, rendered identically by the Spawn and Drop views.
+        ///
+        /// <para><b>One row shows exactly the field that is live.</b> Under <see cref="PlacementAnchor.Custom"/>
+        /// it shows the raw X/Y offset fields; under the facing-relative anchors it shows the single
+        /// distance field instead. Showing both at once would leave the inactive pair on screen silently
+        /// doing nothing — a typed value that changes no behaviour is worse than a hidden one.</para>
+        /// </summary>
+        private void DrawPlacementRow()
+        {
+            GUILayout.BeginHorizontal(_cardStyle);
+            GUILayout.Label("<color=#AAAAAA>Place:</color>", GUILayout.Width(46));
+
+            DrawAnchorButton("at feet", PlacementAnchor.AtFeet);
+            DrawAnchorButton("in front", PlacementAnchor.InFront);
+            DrawAnchorButton("behind", PlacementAnchor.Behind);
+            DrawAnchorButton("custom x/y", PlacementAnchor.Custom);
+
+            if (_placementAnchor == PlacementAnchor.Custom)
+            {
+                GUILayout.Label("<color=#AAAAAA>x</color>", GUILayout.Width(12));
+                _dropOffsetX = GUILayout.TextField(_dropOffsetX ?? "0", GUILayout.Width(46));
+                GUILayout.Label("<color=#AAAAAA>y</color>", GUILayout.Width(12));
+                _dropOffsetY = GUILayout.TextField(_dropOffsetY ?? "-0.5", GUILayout.Width(46));
+            }
+            else
+            {
+                GUILayout.Label("<color=#AAAAAA>distance</color>", GUILayout.Width(56));
+                _placementDistance = GUILayout.TextField(_placementDistance ?? "1.5", GUILayout.Width(46));
+            }
+
+            // Which way "front" currently points. Without it the two facing-relative anchors are
+            // indistinguishable until the item appears, and a tester checking both sides has no way to
+            // confirm the player actually turned.
+            string arrow = _livePlayer == null
+                ? "<color=#777777>no player — assuming →</color>"
+                : (_livePlayer.FacingDirection < 0
+                    ? "<color=#9AD0FF>facing ←</color>"
+                    : "<color=#9AD0FF>facing →</color>");
+            GUILayout.Label(arrow, GUILayout.Width(150));
+
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+        }
+
+        /// <summary>One anchor button, active-styled while it is the selected anchor.</summary>
+        private void DrawAnchorButton(string label, PlacementAnchor anchor)
+        {
+            GUIStyle style = _placementAnchor == anchor ? _tabActiveStyle : _tabInactiveStyle;
+            if (GUILayout.Button(label, style, GUILayout.Width(78)))
+                _placementAnchor = anchor;
+        }
+
+        /// <summary>
+        /// The Drop view: move something the player actually holds into the world, and show/collect what
+        /// is already lying there.
+        ///
+        /// <para><b>The picker lists the inventory, not the registry.</b> AS3's <c>Invent.drop()</c> takes
+        /// an item the inventory already has, so offering anything else would produce a guaranteed
+        /// rejection — the candidate list is <c>inventory.Items</c> and every row carries its held count.
+        /// The by-id row is kept as a fallback for dropping something you hold whose row is scrolled out
+        /// of view.</para>
+        ///
+        /// <para><b>Placement exists because the oracle drops at the owner's own position</b>
+        /// (<c>owner.X, owner.Y - owner.scY / 2</c>), and standing on the item you just dropped is a poor
+        /// way to test picking it up. The control is shared with the Spawn view — see
+        /// <see cref="DrawPlacementRow"/> — so the two views cannot place "in front" differently.</para>
+        ///
+        /// <para><b>Both lists' buttons defer.</b> The held list is drawn from <c>inventory.Items</c> and
+        /// "Drop 1" removes from it; the on-the-ground list walks <c>WorldItemPickup.Live</c> by index and
+        /// "Take"/"Destroy" remove from it. Mutating either inline broke the first (an
+        /// <c>InvalidOperationException</c> from the dictionary enumerator, reported from play) and
+        /// silently skipped a row in the second. The view still takes no <c>PlayerController</c> parameter
+        /// for that reason — the only thing that needed one was <c>Take</c>, which now runs in the flush.
+        /// The placement row reads the cached <see cref="_livePlayer"/> instead, for its facing.</para>
+        /// </summary>
+        private void DrawInventoryDropView(PlayerInventory inventory)
+        {
+            IReadOnlyDictionary<string, GameItemInstance> held = inventory.Items;
+
+            // ── where it lands (the same control the Spawn view shows) ────────
+            DrawPlacementRow();
+
+            // ── by-id fallback ────────────────────────────────────────────────
+            GUILayout.BeginHorizontal(_cardStyle);
+            GUILayout.Label("<color=#AAAAAA>by id</color>", GUILayout.Width(40));
+            _dropId = GUILayout.TextField(_dropId ?? string.Empty, GUILayout.Width(140));
+            GUILayout.Label("<color=#AAAAAA>×</color>", GUILayout.Width(14));
+            _dropQty = GUILayout.TextField(_dropQty ?? "1", GUILayout.Width(46));
+
+            if (GUILayout.Button("Drop", GUILayout.Width(56)))
+            {
+                if (!TryParsePositive(_dropQty, out int qty))
+                    SetInventoryStatus($"quantity '{_dropQty}' is not a positive number", true);
+                else if (string.IsNullOrEmpty(_dropId))
+                    SetInventoryStatus("type an item id first", true);
+                else
+                    DropFromTab(inventory, _dropId, qty);
+            }
+
+            if (GUILayout.Button("use the add row's id", GUILayout.Width(150)))
+            {
+                _dropId = _invAddId;
+                SetInventoryStatus(
+                    string.IsNullOrEmpty(_dropId) ? "the add row is empty too" : $"drop id set to '{_dropId}'",
+                    false);
+            }
+
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+
+            // ── drop from the actual inventory ────────────────────────────────
+            GUILayout.Label("<b>Drop from your inventory</b>");
+
+            GUILayout.BeginHorizontal(_cardStyle);
+            GUILayout.Label(
+                string.IsNullOrEmpty(_dropSelectedId)
+                    ? "<color=#AAAAAA>selected: <i>none</i> — click Select on a row</color>"
+                    : $"<color=#9AD0FF>selected: <b>{_dropSelectedId}</b></color>",
+                GUILayout.Width(250));
+            GUILayout.Label("<color=#AAAAAA>×</color>", GUILayout.Width(14));
+            _dropSelectQty = GUILayout.TextField(_dropSelectQty ?? "1", GUILayout.Width(46));
+
+            if (GUILayout.Button("Drop selected", GUILayout.Width(110)))
+            {
+                if (!TryParsePositive(_dropSelectQty, out int qty))
+                    SetInventoryStatus($"quantity '{_dropSelectQty}' is not a positive number", true);
+                else if (string.IsNullOrEmpty(_dropSelectedId))
+                    SetInventoryStatus("select a held item first", true);
+                else
+                    DropFromTab(inventory, _dropSelectedId, qty);
+            }
+
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+
+            if (held == null || held.Count == 0)
+            {
+                GUILayout.Label("<color=#AAAAAA>your inventory holds no items — use the Spawn tab, or the " +
+                                "add row on the Aid/Misc/Ammo pages</color>");
+            }
+            else
+            {
+                _dropHeldScroll = GUILayout.BeginScrollView(_dropHeldScroll, GUILayout.Height(132));
+
+                foreach (var kvp in held)
+                {
+                    GameItemInstance inst = kvp.Value;
+                    if (inst?.Definition == null) continue;
+
+                    GUILayout.BeginHorizontal(_cardStyle);
+                    GUILayout.Label($"<b>{inst.Definition.displayName}</b>", GUILayout.Width(170));
+                    GUILayout.Label($"<color=#AAAAAA>{kvp.Key}</color>", GUILayout.Width(110));
+                    GUILayout.Label($"<color=#9AD0FF>held <b>{inst.Quantity}</b></color>", GUILayout.Width(90));
+
+                    GUIStyle style = kvp.Key == _dropSelectedId ? _tabActiveStyle : _tabInactiveStyle;
+                    if (GUILayout.Button("Select", style, GUILayout.Width(64)))
+                    {
+                        _dropSelectedId = kvp.Key;
+
+                        // Pre-fill the whole stack only while the field is still the untouched default,
+                        // so a tester dropping 1 of 50 is not forced to retype it after every selection.
+                        if (_dropSelectQty == "1") _dropSelectQty = inst.Quantity.ToString();
+                    }
+
+                    // Queued, not dropped inline: this button is drawn inside a foreach over
+                    // inventory.Items, and DropFromTab removes from that very dictionary — the exact
+                    // `InvalidOperationException: Collection was modified` this view used to throw.
+                    if (GUILayout.Button("Drop 1", GUILayout.Width(62)))
+                        QueueInventoryAction(PendingInventoryAction.DropItem, kvp.Key, 1);
+
+                    GUILayout.FlexibleSpace();
+                    GUILayout.EndHorizontal();
+                }
+
+                GUILayout.EndScrollView();
+            }
+
+            DrawInventoryStatus();
+            GUILayout.Space(6);
+
+            // ── on the ground ─────────────────────────────────────────────────
+            GUILayout.BeginHorizontal();
+            GUILayout.Label($"<color=#AAAAAA>On the ground: <b>{WorldItemPickup.All.Count}</b> pickup(s)</color>");
+            if (GUILayout.Button("Clear all", GUILayout.Width(80)))
+            {
+                int removed = WorldItemPickup.DespawnAll();
+                SetInventoryStatus($"cleared {removed} pickup(s) from the world", false);
+            }
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+
+            GUILayout.Space(4);
+
+            _pickupScroll = GUILayout.BeginScrollView(_pickupScroll, GUILayout.ExpandHeight(true));
+
+            if (WorldItemPickup.All.Count == 0)
+            {
+                GUILayout.Label("<color=#AAAAAA>nothing on the ground yet — Spawn or Drop something</color>");
+            }
+            else
+            {
+                for (int i = 0; i < WorldItemPickup.All.Count; i++)
+                {
+                    WorldItemPickup pickup = WorldItemPickup.All[i];
+                    if (pickup == null) continue;
+
+                    GUILayout.BeginHorizontal(_cardStyle);
+                    GUILayout.Label($"<b>{pickup.ItemId}</b>", GUILayout.Width(140));
+                    GUILayout.Label($"×{pickup.Quantity}", GUILayout.Width(50));
+
+                    // The walk-over flag, shown because otherwise "I walked over it and nothing happened"
+                    // is indistinguishable from a broken collector: a pickup spawned with auto-collect
+                    // off is only ever takeable with the cursor, which is the oracle's own behaviour.
+                    GUILayout.Label(
+                        pickup.AutoCollect
+                            ? "<color=#7CE38B>auto</color>"
+                            : "<color=#777777>cursor</color>",
+                        GUILayout.Width(50));
+
+                    GUILayout.Label($"<color=#AAAAAA>at {pickup.Position.x:0.##},{pickup.Position.y:0.##}</color>", GUILayout.Width(150));
+
+                    // Both queued: this list walks WorldItemPickup.Live by index and Despawn() removes
+                    // from it, so doing either inline silently skipped the next row (Take also mutates the
+                    // inventory dictionary). Deferring also makes the index loop's re-read Count stable.
+                    if (GUILayout.Button("Take", GUILayout.Width(60)))
+                        QueuePickupAction(PendingInventoryAction.TakePickup, pickup);
+
+                    if (GUILayout.Button("Destroy", GUILayout.Width(76)))
+                        QueuePickupAction(PendingInventoryAction.DestroyPickup, pickup);
+
+                    GUILayout.FlexibleSpace();
+                    GUILayout.EndHorizontal();
+                }
+            }
+
+            GUILayout.EndScrollView();
+        }
+
+        /// <summary>Queue an inventory mutation to run after the current draw pass. See the field block
+        /// above <see cref="_pendingInventoryAction"/> for why this exists at all.</summary>
+        private void QueueInventoryAction(PendingInventoryAction action, string itemId, int quantity)
+        {
+            _pendingInventoryAction = action;
+            _pendingItemId = itemId;
+            _pendingQuantity = quantity;
+            _pendingPickup = null;
+        }
+
+        /// <summary>Queue a world-pickup action to run after the current draw pass.</summary>
+        private void QueuePickupAction(PendingInventoryAction action, WorldItemPickup pickup)
+        {
+            _pendingInventoryAction = action;
+            _pendingPickup = pickup;
+            _pendingItemId = pickup != null ? pickup.ItemId : string.Empty;
+            _pendingQuantity = 0;
+        }
+
+        /// <summary>
+        /// Run whatever a button queued, now that every loop that drew it has finished.
+        ///
+        /// <para><b>Must be called after <c>EndScrollView</c>, not inside it</b> — a scroll view is a
+        /// layout region, and mutating the data it just laid out from the inside leaves the region's
+        /// Begin/End unbalanced against what it measured.</para>
+        /// </summary>
+        private void FlushPendingInventoryAction(PlayerController player, PlayerInventory inventory)
+        {
+            PendingInventoryAction action = _pendingInventoryAction;
+            if (action == PendingInventoryAction.None) return;
+
+            // Cleared first: the handlers below can set a status message and, for a drop, clear the
+            // Drop view's selection — none of which should be able to re-enter this method.
+            _pendingInventoryAction = PendingInventoryAction.None;
+
+            switch (action)
+            {
+                case PendingInventoryAction.AddItem:
+                    SubmitInventory(inventory, InventoryCommand.AddItem(_pendingItemId, _pendingQuantity),
+                                    $"added {_pendingQuantity} × '{_pendingItemId}'");
+                    break;
+
+                case PendingInventoryAction.RemoveItem:
+                    SubmitInventory(inventory, InventoryCommand.RemoveItem(_pendingItemId, _pendingQuantity),
+                                    $"removed {_pendingQuantity} × '{_pendingItemId}'");
+                    break;
+
+                case PendingInventoryAction.DropItem:
+                    DropFromTab(inventory, _pendingItemId, _pendingQuantity);
+                    break;
+
+                case PendingInventoryAction.TakePickup:
+                    if (_pendingPickup != null)
+                    {
+                        // The same IInteractable the player's action key calls, so this exercises the real
+                        // collection path rather than a parallel one.
+                        WorldItemPickup taken = _pendingPickup;
+                        string takenId = taken.ItemId;
+                        taken.Interact(player.gameObject);
+
+                        // Interact() despawns the pickup ONLY when the seam accepted the add, so membership
+                        // of the live list is the honest success signal. (Not a null check on the component:
+                        // Destroy is deferred to end of frame, so `taken == null` would be false even on a
+                        // successful take and the message would claim the opposite of the truth.)
+                        bool leftTheWorld = !WorldItemPickup.All.Contains(taken);
+                        SetInventoryStatus(
+                            leftTheWorld
+                                ? $"took '{takenId}' via its interactable"
+                                : $"'{takenId}' stayed in the world — the inventory refused it (see the Console)",
+                            !leftTheWorld);
+                    }
+                    break;
+
+                case PendingInventoryAction.DestroyPickup:
+                    if (_pendingPickup != null) _pendingPickup.Despawn();
+                    break;
+            }
+        }
+
+        private void SubmitInventory(PlayerInventory inventory, InventoryCommand command, string successMessage)
+        {
+            InventoryCommandResult result = inventory.Submit(command);
+            SetInventoryStatus(result.Applied ? successMessage : $"rejected: {result.Reason}", !result.Applied);
+        }
+
+        private void DropFromTab(PlayerInventory inventory, string itemId, int quantity)
+        {
+            Vector3 where = DropPosition();
+
+            if (!inventory.DropItem(itemId, quantity, where, out string error))
+            {
+                SetInventoryStatus($"drop refused: {error}", true);
+                return;
+            }
+
+            SetInventoryStatus($"dropped {quantity} × '{itemId}' at {where.x:0.##},{where.y:0.##}", false);
+
+            // Dropping the last of a stack removes the very row the Drop view's picker is pointing at, so
+            // the selection is cleared rather than left naming something no longer held — which would read
+            // as "the picker is broken" on the next press.
+            if (inventory.Items == null || !inventory.Items.ContainsKey(itemId))
+            {
+                _dropSelectedId = string.Empty;
+            }
+        }
+
+        /// <summary>
+        /// Parse without throwing. <c>int.TryParse</c> rather than a try/catch so a half-typed field is a
+        /// stated rejection instead of an exception from inside the debug tool you opened to debug.
+        /// </summary>
+        private static bool TryParsePositive(string text, out int value)
+        {
+            value = 0;
+            if (!int.TryParse(text, out int parsed)) return false;
+            if (parsed <= 0) return false;
+            value = parsed;
+            return true;
+        }
+
+        private static bool TryParseFloat(string text, out float value)
+            => float.TryParse(text, System.Globalization.NumberStyles.Float,
+                              System.Globalization.CultureInfo.InvariantCulture, out value);
     }
 }
