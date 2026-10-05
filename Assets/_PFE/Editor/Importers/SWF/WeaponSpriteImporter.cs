@@ -1,6 +1,7 @@
 #if UNITY_EDITOR
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -61,11 +62,26 @@ namespace PFE.Editor.Importers.SWF
             var symbolTable = ReadSymbolTable(pfeRoot, result);
             if (symbolTable == null) return result;
 
-            // Step 2: extract vis{weaponId} symbols (held weapon sprites only)
-            var weaponSymbols = FilterWeaponSymbols(symbolTable, result);
+            // Step 2: read AllData.as — which ids are weapons, and which symbols a weapon names
+            // explicitly. This now runs BEFORE the symbol filter, because the filter's question ("is
+            // this symbol a weapon's art?") is answered by the weapon-id set and cannot be asked
+            // without it.
+            var scan = ScanWeaponVis(pfeRoot, result);
 
-            // Step 3: parse AllData.as for vweap + flare overrides
-            var visOverrides = ParseVisOverrides(pfeRoot, result);
+            // An empty weapon-id set cannot classify a single symbol, so the filter below would
+            // reject everything, nothing would be imported, and the run would then report every
+            // weapon as "No visual def" — one cause wearing N costumes. Stop here and say so. This
+            // guard is the general fix; the <all> tag above is the specific one.
+            if (scan.WeaponIds.Count == 0)
+            {
+                result.Warn("No <weapon> ids were read from AllData.as — aborting, because every " +
+                            "symbol would be rejected and every weapon reported as 'No visual def'.");
+                return result;
+            }
+
+            // Step 3: extract vis{weaponId} symbols (held weapon sprites only)
+            var weaponSymbols = FilterWeaponSymbols(symbolTable, scan, result);
+            var visOverrides  = scan.Overrides;
 
             // Step 4: parse SWF binary for frame labels (optional)
             SWFFile swfData = null;
@@ -150,37 +166,30 @@ namespace PFE.Editor.Importers.SWF
         }
 
         // ── Step 2: Filter weapon vis symbols ────────────────────────────────
-        // Pattern: starts with "vis" followed by lower-case letters/digits/underscore.
-        // Excludes: visual*, visbul*, visNPC*, visConsol*, visError*, visInform*, visSpec*,
-        //           vis trigger/trap/box/mwall/robo* (environment/unit objects, not held weapons).
-        static readonly Regex VisWeaponPattern = new(@"^vis[a-z_0-9]+$", RegexOptions.Compiled);
-        static readonly HashSet<string> ExcludePrefixes = new(StringComparer.OrdinalIgnoreCase)
-        {
-            "visual", "visbul", "visnpc", "visconsol", "viserror", "visinform",
-            "visjmp", "vislift", "vischeckpoint", "vismtrap", "vistrig", "vistrap",
-            "visbox", "vismwall", "visjmp", "visstand", "vispip", "visbody",
-            "vismain", "visset", "viswturret", "visrobo", "vistt", "visdron",
-            "visvzz", "visscene", "vissign", "visrobop", "visrobol", "visrobog",
-            "visrobom", "visrobos", "visrobogatl", "visrobogatp", "visrobolaser",
-            "visrobonova", "visrobosparkl", "visrobominigun", "visroboplasma",
-            "visroboplam", "visrobospark", "visdamexpl", "visdamgren", "visdamshot",
-            "visacidgr", "visbal", "visbomb", "viscry", "visdbomb", "visdin",
-            "visexc", "visfgren", "visgasgr", "visgren", "vishgren", "vishmine",
-            "visimpgr", "visimpmine", "vismercgr", "vismine", "vismolotov",
-            "visplagr", "visplamine", "visroboplagr", "visspgren", "visx37",
-            "viszebmine", "viscur",
-        };
-
+        //
+        // The decision itself lives in PFE.Data.Definitions.WeaponVisSymbolRule — a RUNTIME type, so
+        // the offline test wall can pin it. This method is only the adapter: it hands the rule the
+        // weapon ids and the explicit `vweap` symbol names read out of AllData.as.
+        //
+        // It used to be a hand-maintained blocklist of excluded prefixes, and that blocklist was
+        // silently wrong for the whole throwable and mine family: `vismolotov`, `visacidgr`,
+        // `visbomb`, `vismine`, `vismercgr` and 40 more were listed as "environment/unit objects, not
+        // held weapons", so no WeaponVisualDefinition was ever created for them,
+        // WeaponDefinition.weaponVisual stayed null, and a thrown grenade and a placed mine were
+        // simulated with no sprite at all. Prefix collisions made it worse — `visbal` swallowed
+        // `visbalemine`, `viscry` swallowed `viscryomine`, `visdin` swallowed `visdinamit`. See
+        // WeaponVisSymbolRule for the rule that replaced it and why it cannot drift.
         static List<(int symbolId, string symbolName)> FilterWeaponSymbols(
-            Dictionary<int, string> table, ImportResult result)
+            Dictionary<int, string> table,
+            WeaponVisScan scan,
+            ImportResult result)
         {
             var list = new List<(int symbolId, string symbolName)>();
             foreach (var kvp in table)
             {
-                string name = kvp.Value;
-                if (!VisWeaponPattern.IsMatch(name)) continue;
-                if (ExcludePrefixes.Any(p => name.StartsWith(p, StringComparison.OrdinalIgnoreCase))) continue;
-                list.Add((kvp.Key, name));
+                if (!WeaponVisSymbolRule.IsWeaponVisSymbol(kvp.Value, scan.WeaponIds, scan.OverrideSymbols))
+                    continue;
+                list.Add((kvp.Key, kvp.Value));
             }
             // Sort by symbol ID for deterministic output
             list.Sort((a, b) => a.symbolId.CompareTo(b.symbolId));
@@ -188,7 +197,7 @@ namespace PFE.Editor.Importers.SWF
             return list;
         }
 
-        // ── Step 3: Parse AllData.as for vweap/flare overrides ───────────────
+        // ── Step 3: Parse AllData.as for the weapon set and the vis overrides ─
         public class WeaponVisOverride
         {
             public string VWeap;   // vis.@vweap — override symbol name
@@ -197,41 +206,63 @@ namespace PFE.Editor.Importers.SWF
             public int    ShineRadius;
         }
 
-        static Dictionary<string, WeaponVisOverride> ParseVisOverrides(string pfeRoot, ImportResult result)
+        /// <summary>
+        /// Everything the symbol filter needs out of AllData.as: which ids are weapons, and which
+        /// symbols a weapon names explicitly. Gathered in one pass because both come from the same
+        /// <c>&lt;weapon&gt;</c> walk.
+        /// </summary>
+        public class WeaponVisScan
+        {
+            public readonly Dictionary<string, WeaponVisOverride> Overrides =
+                new Dictionary<string, WeaponVisOverride>(StringComparer.OrdinalIgnoreCase);
+
+            /// <summary>Every <c>&lt;weapon id&gt;</c> — the set that decides which <c>vis&lt;id&gt;</c> symbols are weapon art.</summary>
+            public readonly HashSet<string> WeaponIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            /// <summary>Every non-empty <c>vis.@vweap</c> — a symbol named instead of <c>vis</c> + id.</summary>
+            public readonly HashSet<string> OverrideSymbols = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        static WeaponVisScan ScanWeaponVis(string pfeRoot, ImportResult result)
         {
             string allDataPath = Path.Combine(pfeRoot, "scripts", "fe", "AllData.as");
-            var overrides = new Dictionary<string, WeaponVisOverride>(StringComparer.OrdinalIgnoreCase);
+            var scan = new WeaponVisScan();
 
             if (!File.Exists(allDataPath))
             {
-                result.Warn($"AllData.as not found at {allDataPath}. Skipping vweap/flare overrides.");
-                return overrides;
+                result.Warn($"AllData.as not found at {allDataPath}. No weapon ids, so nothing would " +
+                            "be imported.");
+                return scan;
             }
 
-            // Extract embedded XML from AllData.as: everything between <alldata> ... </alldata>
-            string raw = File.ReadAllText(allDataPath);
-            int xmlStart = raw.IndexOf("<alldata", StringComparison.OrdinalIgnoreCase);
-            int xmlEnd   = raw.LastIndexOf("</alldata>", StringComparison.OrdinalIgnoreCase);
-            if (xmlStart < 0 || xmlEnd < 0)
+            // The extraction lives in a RUNTIME type so the offline wall can pin it. It used to live
+            // right here, and it searched for a root element "<alldata>" that does not occur in the
+            // file at all — 0 matches, while <all> and </all> each occur exactly once. It therefore
+            // returned an EMPTY weapon-id set on every run, which was harmless while the symbol filter
+            // was a hand-maintained blocklist that never consulted AllData.as, and became fatal the
+            // moment the filter began classifying from that set: the filter rejected every symbol,
+            // nothing was imported, and all 213 weapons reported "No visual def" — one bug wearing 213
+            // costumes. See AllDataXml for the full account and its tests.
+            var outcome = AllDataXml.TryRead(
+                File.ReadAllText(allDataPath), out XElement root, out HashSet<string> weaponIds, out string error);
+
+            if (outcome != AllDataXml.Outcome.Ok)
             {
-                result.Warn("Could not find <alldata> block in AllData.as.");
-                return overrides;
-            }
-            string xmlText = raw.Substring(xmlStart, xmlEnd - xmlStart + "</alldata>".Length);
-
-            XElement root;
-            try { root = XElement.Parse(xmlText); }
-            catch (Exception ex)
-            {
-                result.Warn($"AllData.as XML parse failed: {ex.Message}");
-                return overrides;
+                result.Warn($"AllData.as could not be read ({outcome}: {error}) — no weapon ids, so " +
+                            "nothing would be imported.");
+                return scan;
             }
 
-            // Walk all <weapon> elements
+            foreach (string id in weaponIds) scan.WeaponIds.Add(id);
+
+            // Walk all <weapon> elements for the vis overrides
             foreach (var weaponEl in root.Descendants("weapon"))
             {
                 string weaponId = (string)weaponEl.Attribute("id");
                 if (string.IsNullOrEmpty(weaponId)) continue;
+
+                // The id set itself was already collected by AllDataXml.TryRead, for EVERY weapon — a
+                // weapon with no <vis> child still has a `vis<id>` symbol of its own to import.
 
                 var visEl = weaponEl.Element("vis");
                 if (visEl == null) continue;
@@ -243,13 +274,18 @@ namespace PFE.Editor.Importers.SWF
                     HasShell   = visEl.Attribute("shell") != null,
                     ShineRadius = (int?)visEl.Attribute("shine") ?? 0,
                 };
+
+                // A named symbol has to be importable even though it is not `vis` + id, or the
+                // override in WireWeaponDefinitions resolves to a definition that was never created.
+                if (!string.IsNullOrEmpty(ov.VWeap)) scan.OverrideSymbols.Add(ov.VWeap);
+
                 // Only store if there's actually something interesting
                 if (ov.VWeap != null || ov.Flare != null || ov.HasShell || ov.ShineRadius > 0)
-                    overrides[weaponId] = ov;
+                    scan.Overrides[weaponId] = ov;
             }
 
-            result.Info($"AllData.as: {overrides.Count} weapons with vis overrides.");
-            return overrides;
+            result.Info($"AllData.as: {scan.WeaponIds.Count} weapons, {scan.Overrides.Count} with vis overrides.");
+            return scan;
         }
 
         // ── Step 5: Copy frame PNGs ───────────────────────────────────────────
@@ -298,6 +334,21 @@ namespace PFE.Editor.Importers.SWF
         }
 
         // ── Step 6: Configure TextureImporter + collect Sprite refs ───────────
+        //
+        // Deliberately TWO passes.
+        //
+        // The obvious shape — loop the frames and call importer.SaveAndReimport() on each — is what
+        // silently lost 2,574 pivots on 10-05. SaveAndReimport runs an import per asset, and Unity 6
+        // imports asynchronously: the Editor log showed `Start importing <asset> (TextureImporter) ->
+        // (artifact id: …)` immediately followed by `Cannot open file '<asset>.meta' for write` — the
+        // writer colliding with its own reader, hundreds of times, because ~4,000 of those passes were
+        // fired back to back. Nothing outside Unity held the files (an exclusive CreateFile probe on the
+        // failures returns "free"), so it is an internal race, not a lock.
+        //
+        // StartAssetEditing/StopAssetEditing defers the imports and flushes them in ONE ordered pass, so
+        // that collision cannot arise. The price is that nothing is imported while the batch is open, so
+        // AssetDatabase.LoadAssetAtPath<Sprite> cannot be called until afterwards — hence pass 1 sets the
+        // settings, pass 2 reads the results back.
         static Dictionary<string, Sprite[]> ConfigureSprites(
             List<(int symbolId, string symbolName, List<string> destPaths)> copiedFiles,
             SWFFile swfData,
@@ -305,74 +356,233 @@ namespace PFE.Editor.Importers.SWF
         {
             var output = new Dictionary<string, Sprite[]>(StringComparer.OrdinalIgnoreCase);
 
-            foreach (var (symbolId, symbolName, destPaths) in copiedFiles)
+            // Target pivot per symbol — a pivot is a property of the symbol, not of a frame.
+            var pivotBySymbol = new Dictionary<string, Vector2>(StringComparer.OrdinalIgnoreCase);
+            foreach (var (symbolId, symbolName, _) in copiedFiles)
+                pivotBySymbol[symbolName] = ComputePivot(symbolId, swfData);
+
+            // ── Pass 1: set every importer inside a single batch ──────────────
+            AssetDatabase.StartAssetEditing();
+            try
             {
-                // Compute pivot from SWF bounds if available
-                Vector2 pivot = new(0.5f, 0.5f);
-                if (swfData != null)
+                foreach (var (_, symbolName, destPaths) in copiedFiles)
                 {
-                    Rect bounds = default;
-                    bool hasBounds = false;
-
-                    if (swfData.Frame1Bounds.TryGetValue(symbolId, out var f1b) && f1b.width > 0)
-                    { bounds = f1b; hasBounds = true; }
-                    else if (swfData.ShapeBounds.TryGetValue(symbolId, out var sb) && sb.width > 0)
-                    { bounds = sb; hasBounds = true; }
-                    else if (swfData.Symbols.TryGetValue(symbolId, out var sym) && sym.Bounds.width > 0)
-                    { bounds = sym.Bounds; hasBounds = true; }
-
-                    if (hasBounds)
+                    Vector2 pivot = pivotBySymbol[symbolName];
+                    foreach (string dest in destPaths)
                     {
-                        // Registration point (0,0) in Flash coords → pivot in Unity sprite space.
-                        // bounds.x = xMin (Flash Y-down), pivot Y needs flipping.
-                        float px = bounds.width  > 0 ? (0f - bounds.x) / bounds.width  : 0.5f;
-                        float py = bounds.height > 0 ? 1f - ((0f - bounds.y) / bounds.height) : 0.5f;
-                        pivot = new Vector2(px, py);
+                        string assetPath = ToAssetPath(dest);
+                        if (AssetImporter.GetAtPath(assetPath) is not TextureImporter importer) continue;
+                        ApplySpriteSettings(importer, assetPath, pivot);
                     }
                 }
+            }
+            finally
+            {
+                AssetDatabase.StopAssetEditing();   // one import pass over everything we touched
+            }
 
+            // ── Pass 2: verify each .meta landed and collect the stragglers ──────
+            //
+            // Verify against the DISK. Even a batched flush can drop a .meta, and Unity logs "Failed to
+            // write meta file" without throwing — so a silent no-op is possible and must be caught
+            // rather than trusted.
+            var failures = new List<(string assetPath, Vector2 pivot)>();
+            foreach (var (_, symbolName, destPaths) in copiedFiles)
+            {
+                Vector2 pivot = pivotBySymbol[symbolName];
                 var sprites = new Sprite[destPaths.Count];
+
                 for (int i = 0; i < destPaths.Count; i++)
                 {
-                    // Convert to project-relative asset path
-                    string assetPath = destPaths[i].Replace('\\', '/');
-                    int assetsIdx = assetPath.IndexOf("Assets/", StringComparison.OrdinalIgnoreCase);
-                    if (assetsIdx >= 0)
-                        assetPath = assetPath.Substring(assetsIdx);
-
-                    var importer = AssetImporter.GetAtPath(assetPath) as TextureImporter;
-                    if (importer == null) continue;
-
-                    bool changed = false;
-                    if (importer.textureType != TextureImporterType.Sprite)
-                    { importer.textureType = TextureImporterType.Sprite; changed = true; }
-                    if (importer.spritePixelsPerUnit != PixelsPerUnit)
-                    { importer.spritePixelsPerUnit = PixelsPerUnit; changed = true; }
-
-                    var settings = new TextureImporterSettings();
-                    importer.ReadTextureSettings(settings);
-                    if (settings.spriteAlignment != (int)SpriteAlignment.Custom ||
-                        Mathf.Abs(settings.spritePivot.x - pivot.x) > 0.001f ||
-                        Mathf.Abs(settings.spritePivot.y - pivot.y) > 0.001f)
-                    {
-                        settings.spriteAlignment = (int)SpriteAlignment.Custom;
-                        settings.spritePivot = pivot;
-                        importer.SetTextureSettings(settings);
-                        changed = true;
-                    }
-                    if (importer.filterMode != FilterMode.Bilinear)
-                    { importer.filterMode = FilterMode.Bilinear; changed = true; }
-                    if (!importer.alphaIsTransparency)
-                    { importer.alphaIsTransparency = true; changed = true; }
-
-                    if (changed)
-                        importer.SaveAndReimport();
-
+                    string assetPath = ToAssetPath(destPaths[i]);
+                    if (!MetaFileHasPivot(assetPath, pivot)) failures.Add((assetPath, pivot));
                     sprites[i] = AssetDatabase.LoadAssetAtPath<Sprite>(assetPath);
                 }
+
                 output[symbolName] = sprites;
             }
+
+            // ── Pass 3: repair the stragglers in BATCHES, pausing between rounds ─
+            //
+            // The first version of this repair walked the failures and called SaveAndReimport on each —
+            // i.e. it reintroduced, inside the fix, the exact per-asset import race the batch above
+            // exists to avoid. On 10-05 that produced 902 "Failed to write meta" errors from the repair
+            // path itself and left 25 pivots stuck. Repairing the whole set in one batch, and waiting
+            // before retrying, is both cheaper and the same shape as the pass that works.
+            for (int round = 0; round < RepairAttempts && failures.Count > 0; round++)
+            {
+                if (round > 0 && RepairDelayMs > 0)
+                    System.Threading.Thread.Sleep(RepairDelayMs);   // let Unity's in-flight import settle
+
+                AssetDatabase.StartAssetEditing();
+                try
+                {
+                    foreach (var (assetPath, pivot) in failures)
+                    {
+                        if (AssetImporter.GetAtPath(assetPath) is not TextureImporter importer) continue;
+
+                        ApplySpriteSettings(importer, assetPath, pivot);
+
+                        // Applying the settings is NOT enough on its own, and this is the subtle one.
+                        // Unity caches the importer in memory, and for a frame whose earlier write failed
+                        // the cached pivot is ALREADY the target — so SetTextureSettings is a no-op, the
+                        // asset is never marked dirty, and no import (hence no .meta write) is ever queued.
+                        // Run 2 showed precisely that: zero write errors AND zero sprite imports. The
+                        // forced import below is what actually makes Unity re-serialise the .meta.
+                        AssetDatabase.ImportAsset(assetPath, ImportAssetOptions.ForceUpdate);
+                    }
+                }
+                finally
+                {
+                    AssetDatabase.StopAssetEditing();
+                }
+
+                failures.RemoveAll(f => MetaFileHasPivot(f.assetPath, f.pivot));
+            }
+
+            foreach (var (assetPath, pivot) in failures)
+                result.Warn($"Pivot did not persist for {assetPath} (wanted " +
+                            $"{pivot.x:0.####}, {pivot.y:0.####}) — Unity could not write the .meta.");
+
             return output;
+        }
+
+        /// <summary>
+        /// The registration point for a symbol, taken from the SWF bounds, or <c>(0.5, 0.5)</c> when the
+        /// symbol has no usable bounds (the honest answer for art that genuinely has none).
+        /// </summary>
+        static Vector2 ComputePivot(int symbolId, SWFFile swfData)
+        {
+            if (swfData == null) return new Vector2(0.5f, 0.5f);
+
+            Rect bounds = default;
+            bool hasBounds = false;
+
+            if (swfData.Frame1Bounds.TryGetValue(symbolId, out var f1b) && f1b.width > 0)
+            { bounds = f1b; hasBounds = true; }
+            else if (swfData.ShapeBounds.TryGetValue(symbolId, out var sb) && sb.width > 0)
+            { bounds = sb; hasBounds = true; }
+            else if (swfData.Symbols.TryGetValue(symbolId, out var sym) && sym.Bounds.width > 0)
+            { bounds = sym.Bounds; hasBounds = true; }
+
+            if (!hasBounds) return new Vector2(0.5f, 0.5f);
+
+            // Registration point (0,0) in Flash coords → pivot in Unity sprite space.
+            // bounds.x = xMin (Flash Y-down), pivot Y needs flipping.
+            float px = bounds.width  > 0 ? (0f - bounds.x) / bounds.width  : 0.5f;
+            float py = bounds.height > 0 ? 1f - ((0f - bounds.y) / bounds.height) : 0.5f;
+            return new Vector2(px, py);
+        }
+
+        /// <summary>Destination path → the project-relative "Assets/…" path Unity addresses assets by.</summary>
+        static string ToAssetPath(string destPath)
+        {
+            string assetPath = destPath.Replace('\\', '/');
+            int assetsIdx = assetPath.IndexOf("Assets/", StringComparison.OrdinalIgnoreCase);
+            return assetsIdx >= 0 ? assetPath.Substring(assetsIdx) : assetPath;
+        }
+
+        /// <summary>
+        /// Applies sprite / PPU / filter / pivot settings to one importer and reports whether anything
+        /// actually changed, so a re-run over already-correct art stays a no-op.
+        ///
+        /// <para>The pivot decision is made from the <c>.meta</c> on disk, not from the importer, because
+        /// Unity updates the in-memory copy even when the write to disk failed — comparing against the
+        /// in-memory value is what made the original run skip the very frames it had just failed to
+        /// write.</para>
+        /// </summary>
+        static bool ApplySpriteSettings(TextureImporter importer, string assetPath, Vector2 pivot)
+        {
+            bool changed = false;
+
+            if (importer.textureType != TextureImporterType.Sprite)
+            { importer.textureType = TextureImporterType.Sprite; changed = true; }
+            if (importer.spritePixelsPerUnit != PixelsPerUnit)
+            { importer.spritePixelsPerUnit = PixelsPerUnit; changed = true; }
+
+            var settings = new TextureImporterSettings();
+            importer.ReadTextureSettings(settings);
+
+            if (settings.spriteAlignment != (int)SpriteAlignment.Custom ||
+                Mathf.Abs(settings.spritePivot.x - pivot.x) > 0.001f ||
+                Mathf.Abs(settings.spritePivot.y - pivot.y) > 0.001f ||
+                !MetaFileHasPivot(assetPath, pivot))
+            {
+                settings.spriteAlignment = (int)SpriteAlignment.Custom;
+                settings.spritePivot = pivot;
+                importer.SetTextureSettings(settings);
+                changed = true;
+            }
+
+            if (importer.filterMode != FilterMode.Bilinear)
+            { importer.filterMode = FilterMode.Bilinear; changed = true; }
+            if (!importer.alphaIsTransparency)
+            { importer.alphaIsTransparency = true; changed = true; }
+
+            return changed;
+        }
+
+        /// <summary>
+        /// How many batched repair rounds to run over the stragglers left by the main pass. Configurable.
+        /// Each round re-checks the disk and only re-touches what is still wrong, so raising this is
+        /// cheap; it is not a per-asset retry count.
+        /// </summary>
+        public static int RepairAttempts = 3;
+
+        /// <summary>
+        /// Pause between repair ROUNDS, in milliseconds. Deliberately a round-level pause, not a
+        /// per-asset sleep: the collision is with Unity's own asynchronous import, which needs a moment
+        /// to release the file, and only the (rare) stragglers should pay for it. A sleep here blocks the
+        /// editor's main thread, so keep it small. 0 disables the pause.
+        /// </summary>
+        public static int RepairDelayMs = 150;
+
+        /// <summary>
+        /// True when the asset's <c>.meta</c> on disk already records <paramref name="pivot"/> as the
+        /// sprite pivot.
+        ///
+        /// <para>Reads the file rather than the importer on purpose. <see cref="TextureImporter"/>
+        /// exposes Unity's in-memory state, which is updated even when the write to disk failed, so it
+        /// cannot be used either to decide whether a write is needed or to confirm one succeeded. Only
+        /// the file on disk can answer that — see the note in <see cref="ConfigureSprites"/>.</para>
+        /// </summary>
+        static bool MetaFileHasPivot(string assetPath, Vector2 pivot)
+        {
+            string metaPath = Path.GetFullPath(assetPath) + ".meta";
+            if (!File.Exists(metaPath)) return false;
+
+            try
+            {
+                foreach (string line in File.ReadLines(metaPath))
+                {
+                    // Top-level "spritePivot: {x: .., y: ..}". Sub-sprite entries inside a spriteSheet
+                    // are spelled "pivot:" alone, so this cannot accidentally match one of those.
+                    int key = line.IndexOf("spritePivot:", StringComparison.Ordinal);
+                    if (key < 0) continue;
+
+                    string body = line.Substring(key + "spritePivot:".Length);
+                    int xs = body.IndexOf("x:", StringComparison.Ordinal);
+                    int ys = body.IndexOf("y:", StringComparison.Ordinal);
+                    if (xs < 0 || ys < 0) return false;
+
+                    int comma = body.IndexOf(',', xs);
+                    if (comma < 0) return false;
+
+                    string sx = body.Substring(xs + 2, comma - (xs + 2)).Trim();
+                    string sy = body.Substring(ys + 2).Trim().TrimEnd('}').Trim();
+
+                    if (float.TryParse(sx, NumberStyles.Float, CultureInfo.InvariantCulture, out float px) &&
+                        float.TryParse(sy, NumberStyles.Float, CultureInfo.InvariantCulture, out float py))
+                        return Mathf.Abs(px - pivot.x) < 0.001f && Mathf.Abs(py - pivot.y) < 0.001f;
+
+                    return false;
+                }
+            }
+            catch (Exception)
+            {
+                // Unreadable or vanished file: treat as "not on disk" so the caller (re)writes it.
+            }
+            return false;
         }
 
         // ── Step 7: Create WeaponVisualDefinition assets ──────────────────────

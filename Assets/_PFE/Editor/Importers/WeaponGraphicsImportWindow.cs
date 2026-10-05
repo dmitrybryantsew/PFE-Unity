@@ -26,17 +26,67 @@ namespace PFE.Editor.Importers
     {
         // ── Default paths ──────────────────────────────────────────────────────
         static string DefaultPfeRoot => SourceImportPaths.PfeRoot;
-        static string DefaultSwfPath => SourceImportPaths.PfeSwfPath;
+
+        /// <summary>
+        /// The SWF the weapon-sprite import reads frame labels and <b>sprite pivots</b> from.
+        ///
+        /// <para><b>Was <c>SourceImportPaths.PfeSwfPath</c> (<c>&lt;root&gt;/pfe.swf</c>) — a file that
+        /// does not exist.</b> Nothing in the source tree provides it: the only game SWF is
+        /// <c>pfe/scripts/_assets/assets.swf</c> (<see cref="SourceImportPaths.AssetsSwfPath"/>), which
+        /// the other five import windows already use, and the root-level <c>sprite.swf</c> /
+        /// <c>sprite1.swf</c> / <c>texture.swf</c> are all 0 bytes. The project had already noticed the
+        /// absence and worked around it elsewhere (<c>WeaponMuzzleOffsetMath.cs</c>: "pfe.swf is not in
+        /// the repository").</para>
+        ///
+        /// <para><b>Why this matters more than "labels use defaults".</b> With <c>File.Exists</c>
+        /// false the window passes <c>swfArg = ""</c>, so <c>WeaponSpriteImporter.Run</c> sees
+        /// <c>swfPath</c> empty, leaves <c>swfData</c> null, and takes the fallback for <b>two</b>
+        /// things at once: every frame label is inferred from the frame count, and every sprite pivot
+        /// becomes <c>(0.5, 0.5)</c> — the importer's "no bounds" constant — instead of the SWF
+        /// registration point it computes when bounds are available. A single run in that state
+        /// rewrote 3,596 weapon-sprite <c>.meta</c> files from their registration-point pivots to
+        /// centre, silently (measured 10-04: HEAD held 4,027 registration-point pivots against 142
+        /// centre; the tree held 3,993 centre, and 100% of the changed values were exactly
+        /// <c>{0.5, 0.5}</c>, which a computed pivot never is).</para>
+        ///
+        /// <para><b>Verified against the shipped parser, not assumed.</b> Calling
+        /// <c>SWFParser.Parse</c> on <c>assets.swf</c> and applying this importer's own pivot formula
+        /// to symbol 1733 (<c>visa_energ</c>) reproduces the committed <c>.meta</c> value
+        /// <c>(0.37894738, 0.66666669)</c> as <c>(0.37894738, 0.66666663)</c> — the registration point,
+        /// from <c>Frame1Bounds</c>. So re-running <c>PFE/Art/Import Weapon Graphics</c> after this fix
+        /// restores the pivots and the real labels.</para>
+        /// </summary>
+        static string DefaultSwfPath => SourceImportPaths.AssetsSwfPath;
 
         // ── State ──────────────────────────────────────────────────────────────
-        string _pfeRoot  = DefaultPfeRoot;
-        string _swfPath  = DefaultSwfPath;
+        // ⚠ Do NOT initialise these from Default* in the field initializer.
+        // SourceImportPaths reads EditorPrefs, and EditorPrefs is illegal from a ScriptableObject
+        // constructor / instance field initializer — it throws
+        //   UnityException: GetString is not allowed to be called from a ScriptableObject
+        //   constructor (or instance field initializer), call it in OnEnable instead.
+        // Field initializers run in declaration order, so the throw aborts the constructor at the
+        // line below and leaves every LATER-declared field (including _log) null → NullReference
+        // Exception on every repaint. Resolved in OnEnable instead.
+        [SerializeField] string _pfeRoot;
+        [SerializeField] string _swfPath;
 
         bool _useSwfForLabels = true;  // parse SWF binary for exact frame labels
         bool _isRunning;
 
         Vector2 _scrollPos;
-        readonly List<string> _log = new();
+        List<string> _log;
+
+        // ── Lifecycle ──────────────────────────────────────────────────────────
+        void OnEnable()
+        {
+            // Empty => nothing typed by the user yet (or nothing persisted), so take the detected default.
+            if (string.IsNullOrEmpty(_pfeRoot)) _pfeRoot = DefaultPfeRoot;
+            if (string.IsNullOrEmpty(_swfPath)) _swfPath = DefaultSwfPath;
+
+            // Built here rather than in a field initializer so it can never be left null by an
+            // earlier initializer throwing (see the note on the path fields above).
+            _log ??= new List<string>();
+        }
 
         // ── Menu item ─────────────────────────────────────────────────────────
         [MenuItem("PFE/Art/Import Weapon Graphics")]

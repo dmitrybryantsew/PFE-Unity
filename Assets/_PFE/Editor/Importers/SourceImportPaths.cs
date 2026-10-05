@@ -89,6 +89,16 @@ namespace PFE.Editor.Importers
         public static string AssetsSwfPath => Combine("pfe", "scripts", "_assets", "assets.swf");
         public static string AssetsExportRoot => Combine("pfe", "scripts", "_assets");
         public static string SoundDefinitionPath => Combine("pfe", "scripts", "fe", "Snd.as");
+
+        /// <summary>
+        /// ⚠ <b>Do not use this as an import default.</b> <c>&lt;root&gt;/pfe.swf</c> is not in the
+        /// repository — the only game SWF is <see cref="AssetsSwfPath"/>, and the root-level
+        /// <c>sprite.swf</c>/<c>sprite1.swf</c>/<c>texture.swf</c> are 0 bytes. This constant was the
+        /// weapon-sprite window's default, and because the path did not exist the importer silently
+        /// took its fallback branch — rewriting 3,596 sprite pivots to centre and inferring every
+        /// frame label (see <c>WeaponGraphicsImportWindow.DefaultSwfPath</c>). Kept only so the name
+        /// resolves; it now has no callers.
+        /// </summary>
         public static string PfeSwfPath => Combine("pfe.swf");
 
         public static string[] RoomGraphicsExportRoots => NonEmpty(
