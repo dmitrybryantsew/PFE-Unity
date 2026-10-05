@@ -1,6 +1,7 @@
 #if UNITY_EDITOR
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using UnityEditor;
@@ -187,8 +188,28 @@ namespace PFE.Editor.Importers.SWF
         }
 
         /// <summary>
+        /// Extra batched repair rounds for a <c>.meta</c> Unity failed to write. Configurable.
+        /// </summary>
+        public static int RepairAttempts = 3;
+
+        /// <summary>
+        /// Pause between repair rounds, in milliseconds. Retry-only, not per-asset: it blocks the editor's
+        /// main thread, so keep it small. 0 disables the pause.
+        /// </summary>
+        public static int RepairDelayMs = 150;
+
+        /// <summary>
         /// After AssetDatabase.Refresh(), configure TextureImporter settings
         /// for all imported sprites and collect Sprite references.
+        ///
+        /// <para><b>Three passes, deliberately.</b> The obvious shape — walk the frames and call
+        /// <c>SaveAndReimport()</c> on each — is what silently lost thousands of pivots in the weapon
+        /// importer on 10-05. Unity 6 imports asynchronously, so a per-asset save collides with the import
+        /// it just started: <c>Cannot open file '…meta' for write</c>, then <c>Failed to write meta
+        /// file</c>, and the pivot stays at the default with no exception raised. Setting every importer
+        /// inside ONE <c>StartAssetEditing</c>/<c>StopAssetEditing</c> batch defers them into a single
+        /// ordered flush, so the collision cannot arise. The price is that nothing is loadable until the
+        /// batch closes — hence pass 1 sets, pass 2 reads back.</para>
         /// </summary>
         static void ConfigureImportSettings(ImportResult result, SWFFile swfData)
         {
@@ -196,54 +217,52 @@ namespace PFE.Editor.Importers.SWF
             var symbolIds = result.SpritesBySymbol.Keys.ToList();
             int effectivePPU = PixelsPerUnit * result.ZoomFactor;
 
+            // ── Pass 1: set every importer inside a single batch ──────────────
+            AssetDatabase.StartAssetEditing();
+            try
+            {
+                foreach (int symbolId in symbolIds)
+                {
+                    var frameMap = result.SpritesBySymbol[symbolId];
+                    string category = CategorizeSymbol(symbolId);
+                    string targetFolder = Path.Combine(CharacterArtRoot, category);
+                    Vector2 pivot = ClampPivot(PivotFor(result, symbolId));
+
+                    foreach (int frameNum in frameMap.Keys)
+                    {
+                        string destAssetPath = FrameAssetPath(targetFolder, frameMap.Count, frameNum);
+
+                        if (AssetImporter.GetAtPath(destAssetPath) is TextureImporter importer)
+                            ApplySettings(importer, effectivePPU, category, pivot);
+                        else
+                            result.Warnings.Add($"Symbol {symbolId} frame {frameNum}: TextureImporter not found at {destAssetPath}");
+                    }
+                }
+            }
+            finally
+            {
+                AssetDatabase.StopAssetEditing();   // one import pass over everything we touched
+            }
+
+            // ── Pass 2: verify each .meta landed ON DISK, collect stragglers, load ──
+            //
+            // Verified against the file, not the importer: Unity updates the in-memory copy even when the
+            // write to disk failed, so the importer cannot answer "did it persist?".
+            var failures = new List<(string assetPath, Vector2 pivot, int ppu, string category)>();
             foreach (int symbolId in symbolIds)
             {
                 var frameMap = result.SpritesBySymbol[symbolId];
                 string category = CategorizeSymbol(symbolId);
                 string targetFolder = Path.Combine(CharacterArtRoot, category);
-                int frameCount = frameMap.Count;
-
-                Vector2 pivot = result.PivotsBySymbol.TryGetValue(symbolId, out var p) ? p : new(0.5f, 0.5f);
+                Vector2 pivot = ClampPivot(PivotFor(result, symbolId));
 
                 var updatedFrames = new Dictionary<int, Sprite>();
                 foreach (int frameNum in frameMap.Keys.OrderBy(k => k))
                 {
-                    string destFileName = frameCount > 1
-                        ? $"f{frameNum:D3}.png"
-                        : "base.png";
-                    string destAssetPath = Path.Combine(targetFolder, destFileName);
+                    string destAssetPath = FrameAssetPath(targetFolder, frameMap.Count, frameNum);
 
-                    // Normalize path separators for Unity AssetDatabase
-                    destAssetPath = destAssetPath.Replace('\\', '/');
-
-                    var importer = AssetImporter.GetAtPath(destAssetPath) as TextureImporter;
-                    if (importer != null)
-                    {
-                        // Always force settings to ensure correctness after re-import
-                        importer.textureType = TextureImporterType.Sprite;
-                        importer.spritePixelsPerUnit = effectivePPU;
-                        importer.filterMode = FilterMode.Point;
-                        importer.textureCompression = TextureImporterCompression.Uncompressed;
-
-                        // Set pivot via TextureImporterSettings
-                        // TextureImporter requires 0-1 range, so clamp here only
-                        var settings = new TextureImporterSettings();
-                        importer.ReadTextureSettings(settings);
-                        settings.spriteAlignment = (int)SpriteAlignment.Custom;
-                        settings.spritePivot = new Vector2(
-                            Mathf.Clamp01(pivot.x),
-                            Mathf.Clamp01(pivot.y));
-                        importer.SetTextureSettings(settings);
-
-                        // Set sprite atlas tag
-                        importer.spritePackingTag = $"Character_{category}";
-
-                        importer.SaveAndReimport();
-                    }
-                    else
-                    {
-                        result.Warnings.Add($"Symbol {symbolId} frame {frameNum}: TextureImporter not found at {destAssetPath}");
-                    }
+                    if (!MetaFileHasPivot(destAssetPath, pivot))
+                        failures.Add((destAssetPath, pivot, effectivePPU, category));
 
                     // Load the sprite reference
                     var sprite = AssetDatabase.LoadAssetAtPath<Sprite>(destAssetPath);
@@ -255,6 +274,114 @@ namespace PFE.Editor.Importers.SWF
 
                 result.SpritesBySymbol[symbolId] = updatedFrames;
             }
+
+            // ── Pass 3: repair the stragglers in BATCHES, pausing between rounds ──
+            for (int round = 0; round < RepairAttempts && failures.Count > 0; round++)
+            {
+                if (round > 0 && RepairDelayMs > 0)
+                    System.Threading.Thread.Sleep(RepairDelayMs);   // let Unity's in-flight import settle
+
+                AssetDatabase.StartAssetEditing();
+                try
+                {
+                    foreach (var (assetPath, pivot, ppu, category) in failures)
+                    {
+                        if (AssetImporter.GetAtPath(assetPath) is not TextureImporter importer) continue;
+
+                        ApplySettings(importer, ppu, category, pivot);
+
+                        // Applying the settings is NOT enough on its own. Unity caches the importer in
+                        // memory, and for a frame whose earlier write failed the cached pivot is ALREADY
+                        // the target — so SetTextureSettings is a no-op, the asset is never marked dirty,
+                        // and no import (hence no .meta write) is ever queued. The forced import is what
+                        // actually makes Unity re-serialise the .meta.
+                        AssetDatabase.ImportAsset(assetPath, ImportAssetOptions.ForceUpdate);
+                    }
+                }
+                finally
+                {
+                    AssetDatabase.StopAssetEditing();
+                }
+
+                failures.RemoveAll(f => MetaFileHasPivot(f.assetPath, f.pivot));
+            }
+
+            foreach (var (assetPath, pivot, _, _) in failures)
+                result.Warnings.Add($"Pivot did not persist for {assetPath} (wanted " +
+                                    $"{pivot.x:0.####}, {pivot.y:0.####}) — Unity could not write the .meta.");
+        }
+
+        static Vector2 PivotFor(ImportResult result, int symbolId)
+            => result.PivotsBySymbol.TryGetValue(symbolId, out var p) ? p : new Vector2(0.5f, 0.5f);
+
+        /// <summary>Unity's pivot range is 0-1, so clamp here and only here.</summary>
+        static Vector2 ClampPivot(Vector2 pivot)
+            => new Vector2(Mathf.Clamp01(pivot.x), Mathf.Clamp01(pivot.y));
+
+        static string FrameAssetPath(string folder, int frameCount, int frameNum)
+            => Path.Combine(folder, frameCount > 1 ? $"f{frameNum:D3}.png" : "base.png").Replace('\\', '/');
+
+        static void ApplySettings(TextureImporter importer, int effectivePPU, string category, Vector2 pivot)
+        {
+            importer.textureType = TextureImporterType.Sprite;
+            importer.spritePixelsPerUnit = effectivePPU;
+            importer.filterMode = FilterMode.Point;
+            importer.textureCompression = TextureImporterCompression.Uncompressed;
+
+            var settings = new TextureImporterSettings();
+            importer.ReadTextureSettings(settings);
+            settings.spriteAlignment = (int)SpriteAlignment.Custom;
+            settings.spritePivot = pivot;
+            importer.SetTextureSettings(settings);
+
+            // Set sprite atlas tag
+            importer.spritePackingTag = $"Character_{category}";
+        }
+
+        /// <summary>
+        /// True when the asset's <c>.meta</c> on disk records <paramref name="pivot"/> as the sprite pivot.
+        ///
+        /// <para>Reads the file rather than the importer on purpose: <see cref="TextureImporter"/> exposes
+        /// Unity's in-memory state, which is updated even when the write to disk failed, so it cannot be
+        /// used either to decide whether a write is needed or to confirm one succeeded.</para>
+        /// </summary>
+        static bool MetaFileHasPivot(string assetPath, Vector2 pivot)
+        {
+            string metaPath = Path.GetFullPath(assetPath) + ".meta";
+            if (!File.Exists(metaPath)) return false;
+
+            try
+            {
+                foreach (string line in File.ReadLines(metaPath))
+                {
+                    // Top-level "spritePivot: {x: .., y: ..}". Sub-sprite entries inside a spriteSheet are
+                    // spelled "pivot:" alone, so this cannot accidentally match one of those.
+                    int key = line.IndexOf("spritePivot:", StringComparison.Ordinal);
+                    if (key < 0) continue;
+
+                    string body = line.Substring(key + "spritePivot:".Length);
+                    int xs = body.IndexOf("x:", StringComparison.Ordinal);
+                    int ys = body.IndexOf("y:", StringComparison.Ordinal);
+                    if (xs < 0 || ys < 0) return false;
+
+                    int comma = body.IndexOf(',', xs);
+                    if (comma < 0) return false;
+
+                    string sx = body.Substring(xs + 2, comma - (xs + 2)).Trim();
+                    string sy = body.Substring(ys + 2).Trim().TrimEnd('}').Trim();
+
+                    if (float.TryParse(sx, NumberStyles.Float, CultureInfo.InvariantCulture, out float px) &&
+                        float.TryParse(sy, NumberStyles.Float, CultureInfo.InvariantCulture, out float py))
+                        return Mathf.Abs(px - pivot.x) < 0.001f && Mathf.Abs(py - pivot.y) < 0.001f;
+
+                    return false;
+                }
+            }
+            catch (Exception)
+            {
+                // Unreadable or vanished file: treat as "not on disk" so the caller (re)writes it.
+            }
+            return false;
         }
 
         static void EnsureDirectoryStructure()
