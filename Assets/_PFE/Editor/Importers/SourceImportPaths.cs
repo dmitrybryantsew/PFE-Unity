@@ -88,7 +88,44 @@ namespace PFE.Editor.Importers
         public static string PfeSpritesRoot => Combine("pfe", "sprites");
         public static string AssetsSwfPath => Combine("pfe", "scripts", "_assets", "assets.swf");
         public static string AssetsExportRoot => Combine("pfe", "scripts", "_assets");
+
+        /// <summary>
+        /// FFDec's per-<c>DefineShape</c> SVG export: 2563 files named <c>{shapeId}_symbol{shapeId}.svg</c>
+        /// (measured 2026-10-05 — 2114 vector-only, 449 bitmap-filled, 0 bitmap-only, 21.76 MB total).
+        /// This is the only genuinely vector asset tree in the source repo.
+        ///
+        /// <para>⚠ The filename carries the <b>shape</b> id, which is a different id space from the
+        /// <b>sprite</b> ids under <see cref="PfeSpritesRoot"/> — a body part such as <c>159</c>
+        /// (korpus) has <i>no</i> file here, because <c>159</c> is a <c>DefineSprite</c>. So this tree
+        /// answers "what shapes exist?", never "what is this limb made of?".</para>
+        /// </summary>
+        public static string ShapesRoot => Combine("pfe", "scripts", "_assets", "shapes");
+
+        /// <summary>
+        /// FFDec's <c>DefineMorphShape</c> SVG export — only 5 files, named <c>{id}.svg</c> with <b>no</b>
+        /// <c>_symbol</c> suffix. That is a third naming convention, alongside
+        /// <see cref="ShapesRoot"/>'s <c>{id}_symbol{id}</c> and <see cref="PfeSpritesRoot"/>'s
+        /// <c>DefineSprite_{id}_symbol{id}</c> — the trap documented in
+        /// <c>docs/Diagnostics/Import_Source_Roots_And_Exporters_2026-10-04.md</c>.
+        /// </summary>
+        public static string MorphShapesRoot => Combine("pfe", "scripts", "_assets", "morphshapes");
+
         public static string SoundDefinitionPath => Combine("pfe", "scripts", "fe", "Snd.as");
+
+        /// <summary>
+        /// The pfe export's symbol table — semicolon-separated <c>symbolId;"symbolName"</c> lines, e.g.
+        /// <c>4356;"visualItem"</c>. Resolves a symbol <i>name</i> (which is what AS3 code and the
+        /// runtime rules talk about) to the <i>id</i> that names the PNG folder.
+        /// </summary>
+        public static string PfeSymbolTablePath => Combine("pfe", "symbolClass", "symbols.csv");
+
+        /// <summary>
+        /// JPEXS's per-<c>DefineSprite</c> PNG folder: <c>pfe/sprites/DefineSprite_{id}_{name}/</c>,
+        /// holding <c>1.png … N.png</c> where <c>N</c> is the 1-based frame number. The same layout
+        /// <c>WeaponSpriteImporter.CopyFramePngs</c> builds by hand.
+        /// </summary>
+        public static string PfeSpriteFolder(int symbolId, string symbolName)
+            => Combine("pfe", "sprites", $"DefineSprite_{symbolId}_{symbolName}");
 
         /// <summary>
         /// ⚠ <b>Do not use this as an import default.</b> <c>&lt;root&gt;/pfe.swf</c> is not in the
