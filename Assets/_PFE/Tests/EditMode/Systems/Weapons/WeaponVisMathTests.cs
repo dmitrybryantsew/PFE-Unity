@@ -1,4 +1,5 @@
 using NUnit.Framework;
+using PFE.Data.Definitions;
 using PFE.Systems.Weapons;
 using UnityEngine;
 
@@ -64,6 +65,71 @@ namespace PFE.Tests.EditMode.Systems.Weapons
             Assert.IsFalse(WeaponVisMath.IsFacingLeft(aimWorldX: 1f, visWorldX: 0f));
             // Exactly on the weapon is "not left" — the oracle's test is strict.
             Assert.IsFalse(WeaponVisMath.IsFacingLeft(aimWorldX: 0f, visWorldX: 0f));
+        }
+
+        // ── Whether the held sprite is hidden (the throw override) ────────────
+
+        /// <summary>
+        /// The throw override hides the held sprite only for a <b>thrown</b> weapon that is mid-throw.
+        ///
+        /// <para><b>The bug these guard.</b> "I select acidgr then minigun (or any other weapon) — its
+        /// graphics disappear." The presenter hid the sprite by writing the renderer's alpha to 0, but
+        /// only did so inside the thrown branch — so after a throw the alpha stayed 0 and the branch
+        /// never ran again for the next weapon. The new weapon was drawn fully transparent, and nothing
+        /// but another thrown weapon would ever clear it.</para>
+        /// </summary>
+        [Test]
+        public void HidesHeldSprite_OnlyForAThrownWeaponMidThrow()
+        {
+            Assert.IsTrue(WeaponVisMath.HidesHeldSprite(WeaponType.Thrown, tAttack: 15),
+                "a thrown weapon hides its held sprite while the throw is in progress");
+
+            Assert.IsFalse(WeaponVisMath.HidesHeldSprite(WeaponType.Thrown, tAttack: 0),
+                "…and shows it again the moment the throw finishes");
+        }
+
+        /// <summary>
+        /// <b>The control that matters.</b> A ranged weapon mid-attack has <c>tAttack &gt; 0</c> too, and
+        /// must stay visible: hiding on <c>tAttack</c> alone would blink every gun out for a few frames
+        /// after each shot. This is the assertion that fails if the <see cref="WeaponType.Thrown"/> gate
+        /// is dropped.
+        /// </summary>
+        [Test]
+        public void HidesHeldSprite_ANonThrownWeaponMidAttack_StaysVisible()
+        {
+            // Every weapon type that is not Thrown, at the same TAttack that hides a grenade.
+            foreach (WeaponType type in new[]
+                     {
+                         WeaponType.Internal, WeaponType.Melee, WeaponType.Guns,
+                         WeaponType.BigGun, WeaponType.Magic,
+                     })
+            {
+                Assert.IsFalse(WeaponVisMath.HidesHeldSprite(type, tAttack: 15),
+                    $"'{type}' must stay visible while it is mid-attack");
+            }
+
+            // …and the thrown case with identical inputs still hides, so the loop above is not
+            // passing merely because the helper always returns false.
+            Assert.IsTrue(WeaponVisMath.HidesHeldSprite(WeaponType.Thrown, tAttack: 15),
+                "the very same tAttack DOES hide a thrown weapon");
+        }
+
+        /// <summary>
+        /// A negative or zero countdown is "not attacking" for every type — the oracle's test is
+        /// <c>&gt; 0</c>, so a weapon that somehow reads back negative must not be hidden either.
+        /// </summary>
+        [Test]
+        public void HidesHeldSprite_NegativeCountdown_NeverHides()
+        {
+            foreach (WeaponType type in new[]
+                     {
+                         WeaponType.Internal, WeaponType.Melee, WeaponType.Guns,
+                         WeaponType.BigGun, WeaponType.Thrown, WeaponType.Magic,
+                     })
+            {
+                Assert.IsFalse(WeaponVisMath.HidesHeldSprite(type, tAttack: -1),
+                    $"'{type}' must not be hidden on a negative countdown");
+            }
         }
 
         // ── The conversion ────────────────────────────────────────────────────
