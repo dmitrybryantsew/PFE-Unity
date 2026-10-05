@@ -7,8 +7,9 @@ namespace PFE.Systems.Combat
     /// <summary>
     /// Factory interface for creating projectile instances.
     /// Preferred call: <see cref="Create(WeaponDefinition,Vector3,Vector2)"/>.
-    /// The factory resolves the correct prefab from <see cref="ProjectilePrefabRegistry"/>
-    /// using the weapon's <see cref="ProjectileArchetype"/>, so callers never hold prefab references.
+    /// The factory builds its own template in code (<c>ProjectileTemplateBuilder</c>), so callers never
+    /// hold a prefab or registry reference. The weapon's <see cref="ProjectileArchetype"/> is carried on
+    /// the definition but does not select the template — all nine archetypes share one.
     /// </summary>
     public interface IProjectileFactory
     {
@@ -27,8 +28,8 @@ namespace PFE.Systems.Combat
                           float? penetrationOverride = null);
 
         /// <summary>
-        /// Low-level overload: explicit prefab, for cases where the registry cannot be used
-        /// (e.g. editor tooling, tests). Prefer the WeaponDefinition overload at runtime.
+        /// Low-level overload: explicit template, for editor tooling and tests. Prefer the
+        /// WeaponDefinition overload at runtime.
         /// </summary>
         Projectile Create(Projectile prefab, Vector3 position, Quaternion rotation,
                           float damage, float speed, Vector2 direction,

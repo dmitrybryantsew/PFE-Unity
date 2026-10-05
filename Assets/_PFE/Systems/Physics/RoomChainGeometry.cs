@@ -411,9 +411,10 @@ namespace PFE.Systems.Physics
         /// straight through walls. The sweep is the projectile's CCD, and it is the whole reason this
         /// query exists rather than reusing <c>TestOverlapGeometry</c> the way the B1 harness does.</para>
         ///
-        /// <para><b>Why a capsule and not a box.</b> The shipped projectile prefab's collider is a
-        /// <c>CapsuleCollider2D</c> of 0.93 x 0.06 units with a horizontal axis, and the projectile
-        /// rotates to face its travel direction. So the hitbox is a <i>needle pointing where it
+        /// <para><b>Why a capsule and not a box.</b> The projectile's collider is a
+        /// <c>CapsuleCollider2D</c> of 0.93 x 0.06 units with a horizontal axis
+        /// (<c>ProjectileTemplateSpec.ColliderSize</c>; it used to be serialised on a prefab), and the
+        /// projectile rotates to face its travel direction. So the hitbox is a <i>needle pointing where it
         /// flies</i>, whose leading tip is ~46 px ahead of the transform centre — not a dot. Treating
         /// it as a small box at the centre would let every bullet bury itself half a tile into a wall
         /// before registering the hit. Passing <paramref name="facing"/> is what keeps the leading tip

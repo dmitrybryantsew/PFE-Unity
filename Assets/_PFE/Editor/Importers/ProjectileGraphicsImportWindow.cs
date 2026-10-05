@@ -15,22 +15,32 @@ namespace PFE.Editor.Importers
 {
     /// <summary>
     /// Imports projectile sprites from the original Flash export, creates
-    /// ProjectileVisualDefinition assets, wires weapon assets, and produces
-    /// a baseline ProjectilePrefabRegistry asset for the current Unity runtime.
+    /// ProjectileVisualDefinition assets, and wires weapon assets. No prefab registry is produced:
+    /// the projectile template is built in code by <c>ProjectileTemplateBuilder</c>.
     /// </summary>
     public class ProjectileGraphicsImportWindow : EditorWindow
     {
         static string DefaultProjectRoot => SourceImportPaths.PfeRoot;
 
-        string _projectRoot = DefaultProjectRoot;
+        // ⚠ Do NOT initialise this from DefaultProjectRoot in the field initializer — SourceImportPaths
+        // reads EditorPrefs, which is illegal from a ScriptableObject constructor / instance field
+        // initializer. The throw aborts the constructor here and leaves every LATER-declared field
+        // (including _logMessages) null → NullReferenceException on every repaint.
+        // Resolved in OnEnable instead. See MEMORY.md rule 20 / lesson #70.
+        [SerializeField] string _projectRoot;
         bool _importSprites = true;
         bool _createVisualAssets = true;
         bool _wireWeapons = true;
-        bool _createRegistry = true;
-        bool _assignRegistryToOpenScene = true;
         bool _isRunning;
         Vector2 _scrollPos;
-        readonly List<string> _logMessages = new();
+        List<string> _logMessages;
+
+        // ── Lifecycle ──────────────────────────────────────────────────────────
+        void OnEnable()
+        {
+            if (string.IsNullOrEmpty(_projectRoot)) _projectRoot = DefaultProjectRoot;
+            _logMessages ??= new List<string>();
+        }
 
         [MenuItem("PFE/Art/Import Projectile Graphics")]
         public static void ShowWindow()
@@ -45,8 +55,8 @@ namespace PFE.Editor.Importers
             EditorGUILayout.LabelField("Projectile Graphics Importer", EditorStyles.boldLabel);
             EditorGUILayout.HelpBox(
                 "Imports original PFE projectile sprite folders, creates ProjectileVisualDefinition assets, " +
-                "wires matching WeaponDefinition assets by vbul/default ballistic rules, and builds a " +
-                "ProjectilePrefabRegistry asset for the current projectile runtime path.",
+                "and wires matching WeaponDefinition assets by the vbul / default-ballistic rule. " +
+                "No prefab registry: the projectile template is built in code.",
                 MessageType.Info);
 
             EditorGUILayout.Space(4);
@@ -69,13 +79,13 @@ namespace PFE.Editor.Importers
             _importSprites = EditorGUILayout.Toggle("1. Import Sprites", _importSprites);
             _createVisualAssets = EditorGUILayout.Toggle("2. Create Visual SOs", _createVisualAssets);
             _wireWeapons = EditorGUILayout.Toggle("3. Wire Weapon Assets", _wireWeapons);
-            _createRegistry = EditorGUILayout.Toggle("4. Create Registry Asset", _createRegistry);
-            _assignRegistryToOpenScene = EditorGUILayout.Toggle("5. Assign Open Scene Scope", _assignRegistryToOpenScene);
 
             EditorGUILayout.Space(6);
             EditorGUILayout.HelpBox(
                 "After import, you can fine-tune scale/offset/rotation per projectile in the generated " +
-                "ProjectileVisualDefinition assets under Assets/_PFE/Data/Resources/ProjectileVisuals.",
+                "ProjectileVisualDefinition assets under Assets/_PFE/Data/Resources/ProjectileVisuals.\n\n" +
+                "No prefab registry is produced any more: the projectile template is built in code " +
+                "(ProjectileTemplateBuilder).",
                 MessageType.None);
 
             GUI.enabled = !_isRunning;
@@ -123,24 +133,11 @@ namespace PFE.Editor.Importers
                     _importSprites,
                     _createVisualAssets,
                     _wireWeapons,
-                    _createRegistry,
-                    _assignRegistryToOpenScene,
                     Log);
 
                 Log($"[OK] Imported sprite folders: {result.ImportedSpriteFolders}");
                 Log($"[OK] Created or updated visual assets: {result.CreatedOrUpdatedVisualAssets}");
                 Log($"[OK] Wired weapon assets: {result.WiredWeapons}");
-                Log($"[OK] Registry entries written: {result.RegistryEntries}");
-
-                if (result.AssignedOpenSceneScopes > 0)
-                {
-                    Log($"[OK] Assigned ProjectilePrefabRegistry to {result.AssignedOpenSceneScopes} open GameLifetimeScope object(s).");
-                }
-                else if (_assignRegistryToOpenScene && _createRegistry)
-                {
-                    Log("[WARN] No open GameLifetimeScope objects were auto-assigned. " +
-                        "If needed, drag the generated ProjectilePrefabRegistry asset into the scene's GameLifetimeScope manually.");
-                }
 
                 foreach (string warning in result.Warnings)
                     Log($"[WARN] {warning}");
@@ -177,9 +174,7 @@ namespace PFE.Editor.Importers
     {
         const string ProjectileArtRoot = "Assets/_PFE/Art/Projectiles";
         const string ProjectileVisualRoot = "Assets/_PFE/Data/Resources/ProjectileVisuals";
-        const string ProjectileRegistryAssetPath = "Assets/_PFE/Data/Resources/ProjectilePrefabRegistry.asset";
         const string WeaponSearchRoot = "Assets/_PFE/Data/Resources/Weapons";
-        const string GenericProjectilePrefabPath = "Assets/_PFE/Prefabs/projectile.prefab";
         const string DefaultBallisticId = "default_ballistic";
         const float DefaultFrameRate = 30f;
         const int PixelsPerUnit = 100;
@@ -197,8 +192,6 @@ namespace PFE.Editor.Importers
             public int ImportedSpriteFolders;
             public int CreatedOrUpdatedVisualAssets;
             public int WiredWeapons;
-            public int RegistryEntries;
-            public int AssignedOpenSceneScopes;
         }
 
         sealed class SourceVisualInfo
@@ -217,8 +210,6 @@ namespace PFE.Editor.Importers
             bool importSprites,
             bool createVisualAssets,
             bool wireWeapons,
-            bool createRegistry,
-            bool assignRegistryToOpenScene,
             Action<string> log)
         {
             var result = new ImportResult();
@@ -253,17 +244,6 @@ namespace PFE.Editor.Importers
                 result.WiredWeapons = WireWeapons(visuals);
                 log($"[OK] Updated {result.WiredWeapons} weapon assets with projectile visual references.");
             }
-
-            ProjectilePrefabRegistry registry = null;
-            if (createRegistry)
-            {
-                registry = CreateOrUpdateRegistry(result);
-                if (registry != null)
-                    log($"[OK] Registry asset ready at {ProjectileRegistryAssetPath}.");
-            }
-
-            if (assignRegistryToOpenScene && registry != null)
-                result.AssignedOpenSceneScopes = AssignRegistryToOpenSceneScopes(registry);
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
@@ -502,72 +482,6 @@ namespace PFE.Editor.Importers
             return updated;
         }
 
-        static ProjectilePrefabRegistry CreateOrUpdateRegistry(ImportResult result)
-        {
-            EnsureAssetDirectory(Path.GetDirectoryName(ProjectileRegistryAssetPath)?.Replace('\\', '/'));
-
-            var registry = AssetDatabase.LoadAssetAtPath<ProjectilePrefabRegistry>(ProjectileRegistryAssetPath);
-            bool created = registry == null;
-            if (created)
-                registry = ScriptableObject.CreateInstance<ProjectilePrefabRegistry>();
-
-            Projectile prefab = AssetDatabase.LoadAssetAtPath<Projectile>(GenericProjectilePrefabPath);
-            if (prefab == null)
-            {
-                result.Warnings.Add($"Generic projectile prefab not found at {GenericProjectilePrefabPath}.");
-                return null;
-            }
-
-            var entries = Enum.GetValues(typeof(ProjectileArchetype))
-                .Cast<ProjectileArchetype>()
-                .Select(archetype => new ProjectilePrefabRegistry.Entry
-                {
-                    archetype = archetype,
-                    prefab = prefab
-                })
-                .ToList();
-
-            registry.SetEntries(entries);
-            if (created)
-                AssetDatabase.CreateAsset(registry, ProjectileRegistryAssetPath);
-            else
-                EditorUtility.SetDirty(registry);
-
-            result.RegistryEntries = entries.Count;
-            return registry;
-        }
-
-        static int AssignRegistryToOpenSceneScopes(ProjectilePrefabRegistry registry)
-        {
-            int assigned = 0;
-
-            foreach (MonoBehaviour behaviour in Resources.FindObjectsOfTypeAll<MonoBehaviour>())
-            {
-                if (behaviour == null)
-                    continue;
-
-                Type behaviourType = behaviour.GetType();
-                if (!string.Equals(behaviourType.Name, "GameLifetimeScope", StringComparison.Ordinal))
-                    continue;
-
-                if (EditorUtility.IsPersistent(behaviour) || !behaviour.gameObject.scene.IsValid())
-                    continue;
-
-                var serializedObject = new SerializedObject(behaviour);
-                var property = serializedObject.FindProperty("_projectilePrefabRegistry");
-                if (property == null || property.objectReferenceValue == registry)
-                    continue;
-
-                property.objectReferenceValue = registry;
-                serializedObject.ApplyModifiedProperties();
-                EditorUtility.SetDirty(behaviour);
-                EditorSceneManager.MarkSceneDirty(behaviour.gameObject.scene);
-                assigned++;
-            }
-
-            return assigned;
-        }
-
         static Dictionary<string, ProjectileArchetype> BuildWeaponArchetypeLookup()
         {
             var counts = new Dictionary<string, Dictionary<ProjectileArchetype, int>>(StringComparer.OrdinalIgnoreCase);
@@ -681,11 +595,8 @@ namespace PFE.Editor.Importers
         }
 
         static bool ShouldUseDefaultBallistic(WeaponDefinition weapon)
-        {
-            return string.IsNullOrWhiteSpace(weapon.vbul) &&
-                   weapon.projectileArchetype == ProjectileArchetype.Ballistic &&
-                   (weapon.weaponType == WeaponType.Guns || weapon.weaponType == WeaponType.BigGun);
-        }
+            => PFE.Systems.Combat.ProjectileVisualDefaults.ShouldWireDefaultVisual(
+                   weapon.vbul, weapon.projectileArchetype, weapon.weaponType, weapon.IsUnarmed);
 
         static string GetArtFolderPath(string visualId)
         {

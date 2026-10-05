@@ -67,6 +67,16 @@ namespace PFE.Entities.Weapons
         [Header("Visual")]
         [SerializeField] private SpriteRenderer _visualRenderer;
 
+        /// <summary>
+        /// The stretched beam child, for a <c>spring='2'</c> laser — AS3's <c>vis.laser</c>
+        /// (<c>Bullet.as:213-215</c>). Left unassigned it is found by name under the visual renderer;
+        /// see <see cref="BeamChildName"/>. Null is legal and means "this prefab has no beam", which is
+        /// the state of every prefab in the project today.
+        /// </summary>
+        [Tooltip("Optional child stretched along the shot for spring='2' lasers. Auto-found as a " +
+                 "child named 'laser' when left empty — AS3's vis.laser, Bullet.as:213.")]
+        [SerializeField] private Transform _beamTransform;
+
         // ── Runtime state ────────────────────────────────────────────────────
 
         private bool          _hasDamageContext;
@@ -146,7 +156,10 @@ namespace PFE.Entities.Weapons
         private const float DefaultLifetime = 30f;
         private const float FlameLifetime1  = 0.7f;   // flame==1 short lifetime (AS3 ~21 frames)
         private const float FlameLifetime2  = 1.2f;   // flame==2 medium lifetime
-        private static readonly Vector2 PoolParkingPosition = new(10000f, 10000f);
+        // The parking spot comes from the template spec, which is where the old prefab's values now
+        // live — one source for "where a released round sits", read by both the template's initial
+        // placement and ResetProjectile below.
+        private static readonly Vector2 PoolParkingPosition = ProjectileTemplateSpec.ParkingPosition;
 
         private Rigidbody2D   _rb;
         private Collider2D    _triggerCollider;   // cached trigger — disabled during impact anim
@@ -1097,6 +1110,82 @@ namespace PFE.Entities.Weapons
         {
             if (!_isInitialized) return;
             UpdateVisualAnimation();
+            UpdateBeamStretch();
+        }
+
+        /// <summary>
+        /// The shot's <c>vis.@spring</c> — imported into <c>WeaponDefinition.springMode</c>. Set by the
+        /// spawner rather than carried on the plan: see the "Where projectile physics went" note in
+        /// <c>ShotPlan</c>, which removed the per-shot copy because the spawner already builds from the
+        /// definition. Default 1 is AS3's own declaration default (<c>Bullet.as:57</c>,
+        /// <c>Weapon.as:222</c>).
+        /// </summary>
+        public void SetSpringMode(int springMode) => _springMode = springMode;
+
+        private int _springMode = 1;
+
+        /// <summary>
+        /// The port's mirror of AS3's whole view-stretch block — <c>Bullet.as:213-227</c>, all three
+        /// branches, not just the beam.
+        ///
+        /// <para><b>Three arms, and they do not share a target.</b> A beam (<c>spring &gt;= 2</c> with a
+        /// <c>laser</c> child) stretches the <i>child</i> by distance from the flight's origin; a fast
+        /// round (<c>spring == 1 &amp;&amp; vel &gt; 100</c>) smears the <i>whole view</i> by its own
+        /// speed; everything else resets the view to its natural size. AS3 assigns <c>scaleX</c>
+        /// <b>absolutely</b> every frame, so there is no "base" to preserve — which is why writing the
+        /// raw factor is right, and why the natural-size arm can be an unconditional <c>1</c> (every
+        /// projectile visual definition in the project carries <c>localScale: {1,1,1}</c>, so the reset
+        /// and the untouched default are the same picture).</para>
+        ///
+        /// <para><b>The branch choice lives in the rules type, not here.</b>
+        /// <see cref="PFE.Systems.Weapons.ProjectilePhysicsMath.BulletViewScaleTarget"/> owns the order
+        /// <i>and</i> the one arm that writes nothing, so both are pinned by fixtures instead of being
+        /// reachable only through a private member of a <c>MonoBehaviour</c>. This method only converts
+        /// units, picks the transform and writes.</para>
+        ///
+        /// <para><b>Still inert for the beam until the template has the child.</b> The code-built
+        /// template (<see cref="ProjectileTemplateBuilder"/>) creates no child named <c>laser</c>, so the
+        /// beam arm is a no-op today — deliberately. It is now a one-line change in the builder rather
+        /// than a prefab edit, which is the whole reason building in code was worth doing. The smear arm,
+        /// by contrast, is <b>live now</b>:
+        /// it applies to any <c>spring == 1</c> weapon whose round exceeds 100 px/frame, which is the
+        /// owner's "rail — I am not sure but worth to check".</para>
+        /// </summary>
+        private void UpdateBeamStretch()
+        {
+            // AS3's `this.vel` is px/frame; `_velocity` is units/s. The conversion is the velocity
+            // factor (×0.3), not the identity and not the acceleration one.
+            float velocityPxPerFrame = _velocity.magnitude / ProjectilePhysicsMath.VelocityScale;
+
+            ProjectilePhysicsMath.ViewScaleTarget target = ProjectilePhysicsMath.BulletViewScaleTarget(
+                hasBeamChild:        _beamTransform != null,
+                spring:              _springMode,
+                velocityPxPerFrame:  velocityPxPerFrame,
+                hasDetonated:        _hasDetonated);
+
+            // `babah` inside the smear arm: AS3 writes nothing, so neither do we. Returning rather than
+            // writing 1 is the whole reason the target is a three-way choice.
+            if (target == ProjectilePhysicsMath.ViewScaleTarget.None) return;
+
+            bool beam = target == ProjectilePhysicsMath.ViewScaleTarget.BeamChild;
+            Transform targetTransform = beam ? _beamTransform : _visualTransform;
+            if (targetTransform == null) return;
+
+            // Only the beam arm measures distance, and only the smear arm measures speed — each is the
+            // other's 0, because `BulletViewScaleTarget` has already decided which arm is live.
+            float distancePx = beam
+                ? Vector2.Distance(_spawnPosition, transform.position) / TileQueryConstants.PixelToUnit
+                : 0f;
+
+            float scaleX = ProjectilePhysicsMath.BulletViewScaleX(
+                hasBeamChild:         beam,
+                spring:               _springMode,
+                velocityPxPerFrame:   velocityPxPerFrame,
+                distanceFromOriginPx: distancePx);
+
+            Vector3 scale = targetTransform.localScale;
+            scale.x = scaleX;
+            targetTransform.localScale = scale;
         }
 
         private void OnTriggerEnter2D(Collider2D other)
@@ -1377,9 +1466,8 @@ namespace PFE.Entities.Weapons
 
                 // The blast's visuals, as a SIBLING of Detonate rather than a line inside it. AS3 runs
                 // them last within the same routine (`explRun` → `explVis`, Bullet.as:705-720), which is
-                // exactly this position; keeping them out of Detonate means that method's documented
-                // "left alone on purpose" damage defect keeps a clean rollback diff, because the visuals
-                // do not touch the damage path and should not appear to.
+                // exactly this position; keeping them out of Detonate means the damage AoE and the
+                // presentation stay separable, so a change to one cannot silently move the other.
                 EmitExplosionVisuals(impactPos);
             }
 
@@ -1479,32 +1567,54 @@ namespace PFE.Entities.Weapons
         /// AoE: damages all IDamageable and destroys all IDestructibleTile in radius.
         /// </summary>
         /// <remarks>
-        /// <para><b>KNOWN DEFECT — this is the only explosion path in the port that is still wrong, and
-        /// it is wrong in three ways at once.</b> Recorded in
-        /// <c>docs/AUDIT_throwable_and_explosive_2026-10-03.md</c>; it is left alone here on purpose so
-        /// that a rollback diff can say which change moved the behaviour.</para>
+        /// <para><b>This used to be the one explosion path in the port that bypassed the resolver, and
+        /// it was wrong in three ways at once.</b> Recorded in
+        /// <c>docs/AUDIT_throwable_and_explosive_2026-10-03.md</c>; <b>closed 10-04</b>. The three
+        /// were:</para>
         /// <list type="number">
-        /// <item><description><b>No distance falloff.</b> <c>aoeHitDamage * factionMult</c> is flat to
+        /// <item><description><b>No distance falloff.</b> <c>aoeHitDamage * factionMult</c> was flat to
         ///     the rim. AS3 is <c>1</c> inside <c>r/2</c> then <c>2 − 2d/r</c>, and nothing at or
-        ///     beyond <c>r</c> (<c>Bullet.explGas():768-773</c>). The mine and the thrown grenade go
-        ///     through <c>DamageSystem.ExplosionDamageFor</c>, which is now correct — so the two
-        ///     explosion paths disagree.</description></item>
+        ///     beyond <c>r</c> (<c>Bullet.explGas():768-773</c>).</description></item>
         /// <item><description><b>No damage spread.</b> AS3 gives a blast <c>×0.7..1.3</c> at
         ///     <c>:763</c>.</description></item>
-        /// <item><description><b>It bypasses the resolver entirely</b> — <see cref="ApplyDirectDamage"/>
-        ///     with an explicit override goes straight to <c>IDamageable.TakeDamage</c>, a raw HP
-        ///     subtraction. So a rocket blast applies no vulnerability, no skin, no armour and no crit,
-        ///     where AS3's <c>unit.damage()</c> applies all four. This is the largest of the three and
-        ///     the reason the fix is a workstream rather than a line: routing it through
-        ///     <c>PendingDamage.Explosion</c> changes how every explosive round in the game damages
-        ///     things, and needs its own play-test.</description></item>
+        /// <item><description><b>It bypassed the resolver entirely</b> — <see cref="ApplyDirectDamage"/>
+        ///     with an explicit override went straight to <c>IDamageable.TakeDamage</c>, a raw HP
+        ///     subtraction. So a rocket blast applied no vulnerability, no skin, no armour and no crit,
+        ///     where AS3's <c>unit.damage()</c> applies all four.</description></item>
         /// </list>
+        ///
+        /// <para><b>The third is also why the blast drew no damage number.</b> The live overlay
+        /// (<c>FloatingDamageOverlay</c>) reads <c>DamageEventFeed</c>, and only the resolver writes
+        /// that feed. A grenade launcher is a <c>&lt;vis phisbul='1'&gt;</c> weapon, so its round is a
+        /// <see cref="Projectile"/> and its blast took the bypass — while a thrown grenade
+        /// (<c>ThrownObject.Detonate</c>) and a mine (<c>MineObject</c>) already reported through
+        /// <c>PendingDamage.Explosion</c> and therefore drew their numbers normally. That asymmetry is
+        /// exactly the reported symptom, and routing here through the same factory is the fix: all
+        /// three explosion paths now make the same call.</para>
+        ///
+        /// <para><b>The <c>_damage</c> fallback is gone with it.</b> AS3's two blast shapes
+        /// (<c>explGas</c>, <c>explBlast</c>) both read <c>damageExpl</c> and nothing else, so a round
+        /// that carries a radius and no blast damage deals <i>nothing</i> — it does not fall back to
+        /// the direct-hit damage. That fallback was a port invention, and it is dead on the shipped
+        /// data: of the 213 weapons, 44 carry <c>expl &gt; 0</c> and every one of those also carries
+        /// <c>damexpl &gt; 0</c>, and no weapon has <c>damexpl &gt; 0</c> without <c>expl &gt; 0</c>.
+        /// So dropping it changes no shipped weapon's numbers; it only stops the port inventing
+        /// one.</para>
+        ///
+        /// <para><b>Known gap — a projectile fires one pulse, even when its weapon carries a train.</b>
+        /// <c>explTip</c>/<c>explKol</c> are imported (<see cref="WeaponDefinition.explKol"/>) and
+        /// <c>ThrownObject</c> runs the full train, but a round cannot: <see cref="HandleImpact"/> calls
+        /// this and then <see cref="StartImpactAnimation"/>, which returns the instance to the pool in
+        /// the same call stack, so there is no object left to fire pulse 1. Four weapons are affected —
+        /// <c>zombivenom</c>, <c>zombiacid</c>, <c>zombipink</c> and <c>robogas</c>, all
+        /// <c>tip='0'</c> monster weapons with <c>explkol='12'</c>. Fixing it needs the round to survive
+        /// its own detonation (or a detached blast entity), which is its own workstream; recorded in
+        /// <c>TOPIC_open_work.md</c>. Every weapon the owner reported is <i>thrown</i>, so this gap does
+        /// not affect any of them.</para>
         /// </remarks>
         private void Detonate(Vector3 centre)
         {
             _hasDetonated = true;
-
-            float aoeHitDamage = _explDamage > 0f ? _explDamage : _damage;
 
             Collider2D[] hits = Physics2D.OverlapCircleAll(centre, _explRadius);
             foreach (var hit in hits)
@@ -1514,14 +1624,34 @@ namespace PFE.Entities.Weapons
                 var damageable = hit.GetComponent<IDamageable>();
                 if (damageable != null && damageable.IsAlive)
                 {
-                    // AS3 Bullet.explRun (weapon/Bullet.as:763-789): the blast damage is scaled per
-                    // target — ×0.25 when the target shares the firer's fraction (and is not the
-                    // player), then ×pers.autoExpl when the firer is the player and the target is the
-                    // player. Note the second gate multiplies *after* the first and the first excludes
-                    // F_PLAYER entirely, so the player's own explosion is full damage by default
-                    // (pers.autoExpl defaults to 1) — that is the oracle's behaviour, not a bug.
-                    float factionMult = ExplosionMultiplierFor(hit);
-                    ApplyDirectDamage(damageable, hit.transform.position, aoeHitDamage * factionMult);
+                    if (_hasDamageContext && _damageSystem != null)
+                    {
+                        // Report, do not resolve — the identical call a thrown grenade and a mine make,
+                        // so the three explosion paths finally agree. The per-target faction multiplier
+                        // is computed here because it needs this collider; the falloff, the spread and
+                        // the vulnerability/armour/crit terms all live in DamageSystem.
+                        //
+                        // AS3 Bullet.explGas (weapon/Bullet.as:763-789) scales the blast per target —
+                        // ×0.25 when the target shares the firer's fraction (and is not the player),
+                        // then ×pers.autoExpl when the firer is the player and the target is the
+                        // player. The second gate multiplies *after* the first and the first excludes
+                        // F_PLAYER entirely, so the player's own explosion is full damage by default
+                        // (pers.autoExpl defaults to 1) — the oracle's behaviour, not a bug.
+                        _damageSystem.Report(PendingDamage.Explosion(
+                            _damageContext, damageable,
+                            hit.transform.position, centre, _explRadius,
+                            factionMultiplier: ExplosionMultiplierFor(hit)));
+                    }
+                    else
+                    {
+                        // No damage context (the low-level factory overload) or no resolver injected.
+                        // Still reads _explDamage, never _damage — see the remark above. _explDamage and
+                        // _damageContext.ExplosionDamage are the same weapon attribute
+                        // (ProjectileFactory passes weapon.explosionDamage to both), so the two branches
+                        // cannot disagree about the number, only about how it is reduced.
+                        ApplyDirectDamage(damageable, hit.transform.position,
+                                          _explDamage * ExplosionMultiplierFor(hit));
+                    }
                 }
 
                 var tile = hit.GetComponent<IDestructibleTile>();
@@ -1571,7 +1701,14 @@ namespace PFE.Entities.Weapons
                 : 0;
 
             if (!PFE.Systems.Particles.ExplosionVisualRules.Plan(
-                    _visExpl, _damageType, water > 0, PresentationRng(), _explosionEmits,
+                    _visExpl, _damageType, water > 0,
+                    // Always the initial pulse — see the class note on the projectile pulse-train gap:
+                    // a round that has detonated is released by StartImpactAnimation in the same call
+                    // stack, so it cannot host the sustained train that would make a later pulse
+                    // possible. `explTip`/`explKol` are still imported and carried on the definition;
+                    // this is the one place they are not yet consumed.
+                    isInitialPulse: true,
+                    PresentationRng(), _explosionEmits,
                     out string soundId))
             {
                 return;
@@ -1765,7 +1902,23 @@ namespace PFE.Entities.Weapons
             }
             _visualRenderer  = GetComponentInChildren<SpriteRenderer>();
             _visualTransform = _visualRenderer != null ? _visualRenderer.transform : null;
+
+            // AS3's beam is a CHILD of the bullet view (`vis.laser`, `Bullet.as:213`), so the port
+            // looks for the same child by name. Absent is the normal state today: no prefab in the
+            // project has one, which is exactly why `spring='2'` weapons draw an ordinary round. The
+            // lookup is by name rather than a serialized field so an art change activates the stretch
+            // without a code change — but a serialized override still wins, for prefabs that name it
+            // differently.
+            if (_beamTransform == null && _visualTransform != null)
+            {
+                _beamTransform = _visualTransform.Find(BeamChildName);
+            }
         }
+
+        /// <summary>
+        /// The name of the beam child AS3 stretches — <c>vis.laser</c> (<c>Bullet.as:213</c>).
+        /// </summary>
+        public const string BeamChildName = "laser";
 
         private void CacheVisualDefaults()
         {

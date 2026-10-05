@@ -28,7 +28,6 @@ public class GameLifetimeScope : LifetimeScope
     [SerializeField] private MusicService      _musicService;
     [SerializeField] private ImpactSoundTable  _impactSoundTable;
     [SerializeField] private PfeInputSettings _inputSettings;
-    [SerializeField] private ProjectilePrefabRegistry _projectilePrefabRegistry;
     [SerializeField] private TileAssetDatabase tileAssetDatabase;
     [SerializeField] private TileFormDatabase _tileFormDatabase;
     [SerializeField] private TileTextureLookup _tileTextureLookup;
@@ -189,16 +188,10 @@ public class GameLifetimeScope : LifetimeScope
         builder.Register<IPhysicsWorldService, PhysicsWorldService>(Lifetime.Singleton).AsSelf();
 
         // === Factory Pattern ===
+        // ProjectileFactory builds its own template in code (ProjectileTemplateBuilder), so there is no
+        // prefab or registry to assign here. It used to warn when a ProjectilePrefabRegistry asset was
+        // unassigned; that asset and this field are both gone.
         builder.Register<IProjectileFactory, ProjectileFactory>(Lifetime.Singleton);
-
-        // === Projectile Prefab Registry ===
-        if (_projectilePrefabRegistry != null)
-            builder.RegisterInstance(_projectilePrefabRegistry);
-        else
-            Debug.LogWarning("[GameLifetimeScope] ProjectilePrefabRegistry not assigned — " +
-                             "weapons will log errors when firing. " +
-                             "Create the asset (Assets > Create > PFE > Projectile Prefab Registry) " +
-                             "and assign it here.");
 
         // === Scene MonoBehaviours that need injection ===
         var playerController = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);

@@ -10,24 +10,34 @@ namespace PFE.Systems.Combat
 {
     /// <summary>
     /// Creates and pools projectiles.
-    /// Uses <see cref="ProjectilePrefabRegistry"/> to resolve the prefab from
-    /// the weapon's <see cref="ProjectileArchetype"/>; callers never hold prefab refs.
+    ///
+    /// <para>The template is built in code (<see cref="ProjectileTemplateBuilder"/>) rather than loaded
+    /// from a prefab. It used to resolve one through <c>ProjectilePrefabRegistry</c>, but that registry
+    /// mapped <b>all nine archetypes to a single prefab</b> — so it selected nothing, and its only
+    /// observable behaviour was a <c>LogError</c> path when an entry was missing. Both are gone.</para>
+    ///
+    /// <para>One template, not one per archetype, is faithful to that: every archetype already resolved
+    /// to the same asset. Per-archetype templates are the natural extension if the <c>Laser</c> beam
+    /// child or a dynamic <c>Explosive</c> body is ever wanted — see
+    /// <see cref="ProjectileTemplateBuilder"/>.</para>
     /// </summary>
     public class ProjectileFactory : IProjectileFactory
     {
         private readonly IObjectResolver          _resolver;
-        private readonly ProjectilePrefabRegistry _registry;
         private readonly Dictionary<Projectile, GameObjectPool<Projectile>> _pools;
         private readonly PfeDebugSettings _debugSettings;
-        private Transform _poolRoot;
+        private Transform  _poolRoot;
+        private Projectile _template;
+
+        private ProjectileVisualDefinition _defaultVisual;
+        private bool                       _defaultVisualLoaded;
 
         private const int DefaultPoolSize = 20;
         private const int MaxPoolSize     = 100;
 
-        public ProjectileFactory(IObjectResolver resolver, ProjectilePrefabRegistry registry, PfeDebugSettings debugSettings = null)
+        public ProjectileFactory(IObjectResolver resolver, PfeDebugSettings debugSettings = null)
         {
             _resolver      = resolver;
-            _registry      = registry;
             _debugSettings = debugSettings;
             _pools         = new Dictionary<Projectile, GameObjectPool<Projectile>>();
         }
@@ -36,7 +46,7 @@ namespace PFE.Systems.Combat
 
         /// <summary>
         /// Primary path: spawn and fully initialize from a WeaponDefinition.
-        /// Resolves prefab by archetype, converts AS3 speeds, passes all hit data.
+        /// Builds the template on first use, converts AS3 speeds, passes all hit data.
         /// </summary>
         public Projectile Create(WeaponDefinition weapon, Vector3 position, Vector2 direction,
                                  float? penetrationOverride = null)
@@ -47,15 +57,11 @@ namespace PFE.Systems.Combat
                 return null;
             }
 
-            Projectile prefab = _registry != null
-                ? _registry.Get(weapon.projectileArchetype)
-                : null;
-
-            if (prefab == null)
+            Projectile template = GetOrCreateTemplate();
+            if (template == null)
             {
-                Debug.LogError($"[ProjectileFactory] No prefab for archetype " +
-                               $"'{weapon.projectileArchetype}' (weapon '{weapon.weaponId}'). " +
-                               "Register it in the ProjectilePrefabRegistry asset.");
+                Debug.LogError($"[ProjectileFactory] Could not build a projectile template " +
+                               $"(weapon '{weapon.weaponId}').");
                 return null;
             }
 
@@ -71,7 +77,7 @@ namespace PFE.Systems.Combat
             float unitySpeed = Mathf.Max(weapon.projectileSpeed * SimClock.FramesPerSecond / 100f, 2f);
             float unityExplRad = weapon.explRadius / 100f;
 
-            var proj = Spawn(prefab, position, Quaternion.identity);
+            var proj = Spawn(template, position, Quaternion.identity);
             if (proj == null) return null;
 
             proj.Initialize(
@@ -99,7 +105,11 @@ namespace PFE.Systems.Combat
                 // (Weapon.as:623-625). A string, so it rides along rather than becoming another
                 // positional primitive the factory would have to unpack.
                 visExpl:   weapon.visExpl);
-            proj.ApplyVisual(weapon.projectileVisual);
+
+            // AS3 gives every weapon with no `vbul` the `visualBullet` default (Weapon.as:521-525) —
+            // see ProjectileVisualDefaults. Without this a null definition reaches ApplyVisual, which
+            // restores the template's own (sprite-less) defaults and draws an invisible round.
+            proj.ApplyVisual(ResolveVisual(weapon.projectileVisual));
 
             if (_debugSettings?.LogProjectileSpawning == true)
             {
@@ -109,13 +119,13 @@ namespace PFE.Systems.Combat
                     $"activeSelf={proj.gameObject.activeSelf} activeInHierarchy={proj.gameObject.activeInHierarchy}.");
             }
 
-            proj.OnReturnToPool = p => GetOrCreatePool(prefab).Release(p);
+            proj.OnReturnToPool = p => GetOrCreatePool(template).Release(p);
             return proj;
         }
 
         /// <summary>
-        /// Low-level overload: explicit prefab.
-        /// Used by tests and editor tooling where no WeaponDefinition is available.
+        /// Low-level overload: explicit template. Used by tests and editor tooling where no
+        /// WeaponDefinition is available.
         /// </summary>
         public Projectile Create(Projectile prefab, Vector3 position, Quaternion rotation,
                                  float damage, float speed, Vector2 direction,
@@ -133,6 +143,47 @@ namespace PFE.Systems.Combat
             proj.Initialize(damage, speed, direction, gravityScale);
             proj.OnReturnToPool = p => GetOrCreatePool(prefab).Release(p);
             return proj;
+        }
+
+        // ── Template + default visual ────────────────────────────────────────
+
+        /// <summary>
+        /// The shared template, built once. Parented under the pool root so a teardown disposes of it
+        /// with the instances; <see cref="ClearAllPools"/> drops the reference with the root.
+        /// </summary>
+        private Projectile GetOrCreateTemplate()
+        {
+            if (_template != null)
+                return _template;
+
+            GameObject built = ProjectileTemplateBuilder.Build(GetOrCreatePoolRoot());
+            _template = built != null ? built.GetComponent<Projectile>() : null;
+            return _template;
+        }
+
+        /// <summary>
+        /// The weapon's own bullet art, or AS3's <c>visualBullet</c> stand-in when it has none. Loaded
+        /// once and cached: this is on the spawn path, and <c>Resources.Load</c> is not.
+        /// </summary>
+        private ProjectileVisualDefinition ResolveVisual(ProjectileVisualDefinition weaponVisual)
+        {
+            if (!ProjectileVisualDefaults.NeedsFallback(weaponVisual))
+                return weaponVisual;
+
+            if (!_defaultVisualLoaded)
+            {
+                _defaultVisual       = Resources.Load<ProjectileVisualDefinition>(
+                                           ProjectileVisualDefaults.ResourcePath);
+                _defaultVisualLoaded = true;
+
+                if (_defaultVisual == null)
+                    Debug.LogWarning(
+                        $"[ProjectileFactory] No default projectile visual at " +
+                        $"Resources/{ProjectileVisualDefaults.ResourcePath} — weapons with no `vbul` " +
+                        $"will draw an invisible round (AS3 would use `visualBullet`).");
+            }
+
+            return ProjectileVisualDefaults.Resolve(weaponVisual, _defaultVisual);
         }
 
         // ── Internal helpers ─────────────────────────────────────────────────
@@ -155,7 +206,7 @@ namespace PFE.Systems.Combat
             if (_debugSettings?.LogProjectileSpawning == true)
             {
                 Debug.Log(
-                    $"[ProjectileFactory] Pool fetch prefab='{prefab.name}' instance='{proj.name}' " +
+                    $"[ProjectileFactory] Pool fetch template='{prefab.name}' instance='{proj.name}' " +
                     $"active {activeBefore}->{pool.ActiveCount} inactive {inactiveBefore}->{pool.InactiveCount} " +
                     $"pos={position}.");
             }
@@ -201,6 +252,11 @@ namespace PFE.Systems.Combat
                 #endif
                 _poolRoot = null;
             }
+
+            // The template is a child of the pool root and has just been destroyed with it. Dropping
+            // the reference is what makes the next Create rebuild both rather than hand out a
+            // destroyed component.
+            _template = null;
         }
 
         private Transform GetOrCreatePoolRoot()
