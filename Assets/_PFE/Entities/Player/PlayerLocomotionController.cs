@@ -36,19 +36,19 @@ namespace PFE.Entities.Player
         private const float DefaultTeleportFreezeDuration = 0.2f;
 
         [Header("Locomotion Tuning")]
-        [SerializeField] private bool canDash = true;
-        [SerializeField] private bool canCrouch = true;
-        [SerializeField] private float dashDurationSeconds = DefaultDashDurationSeconds;
-        [SerializeField] private float dashCooldownSeconds = DefaultDashCooldownSeconds;
-        [SerializeField] private float dashSpeedMultiplier = DefaultDashSpeedMultiplier;
-        [SerializeField] private float crouchSpeedMultiplier = DefaultCrouchSpeedMultiplier;
-        [SerializeField] private float swimSpeedMultiplier = DefaultSwimSpeedMultiplier;
-        [SerializeField] private float jumpBufferSeconds = DefaultJumpBufferSeconds;
-        [SerializeField] private float coyoteTimeSeconds = DefaultCoyoteTimeSeconds;
-        [SerializeField] private float jumpHoldGravityScale = DefaultJumpHoldGravityScale;
-        [SerializeField] private float jumpCutGravityScale = DefaultJumpCutGravityScale;
-        [SerializeField] private float fallGravityScale = DefaultFallGravityScale;
-        [SerializeField] private float swimGravityScale = DefaultSwimGravityScale;
+        [SerializeField] internal bool canDash = true;
+        [SerializeField] internal bool canCrouch = true;
+        [SerializeField] internal float dashDurationSeconds = DefaultDashDurationSeconds;
+        [SerializeField] internal float dashCooldownSeconds = DefaultDashCooldownSeconds;
+        [SerializeField] internal float dashSpeedMultiplier = DefaultDashSpeedMultiplier;
+        [SerializeField] internal float crouchSpeedMultiplier = DefaultCrouchSpeedMultiplier;
+        [SerializeField] internal float swimSpeedMultiplier = DefaultSwimSpeedMultiplier;
+        [SerializeField] internal float jumpBufferSeconds = DefaultJumpBufferSeconds;
+        [SerializeField] internal float coyoteTimeSeconds = DefaultCoyoteTimeSeconds;
+        [SerializeField] internal float jumpHoldGravityScale = DefaultJumpHoldGravityScale;
+        [SerializeField] internal float jumpCutGravityScale = DefaultJumpCutGravityScale;
+        [SerializeField] internal float fallGravityScale = DefaultFallGravityScale;
+        [SerializeField] internal float swimGravityScale = DefaultSwimGravityScale;
 
         private IMovementMotor _motor;
         private UnitDefinition _definition;

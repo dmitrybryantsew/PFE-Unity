@@ -37,8 +37,8 @@ namespace PFE.Entities.Player
     public sealed class PlayerCharacterVisual : MonoBehaviour
     {
         [Header("Animation assets")]
-        [SerializeField] CharacterAnimationDefinition _definition;
-        [SerializeField] CharacterStyleData           _styleData;
+        [SerializeField] internal CharacterAnimationDefinition _definition;
+        [SerializeField] internal CharacterStyleData           _styleData;
 
         [Header("Armour binding")]
         [Tooltip("Auto-resolved from this GameObject or a parent when left empty.")]

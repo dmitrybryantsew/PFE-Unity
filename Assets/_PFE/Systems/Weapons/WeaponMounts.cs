@@ -41,16 +41,16 @@ namespace PFE.Systems.Weapons
         [Header("Mount points (assign child empty GameObjects)")]
         [SerializeField]
         [Tooltip("Hold point for all normal ranged/melee weapons. Corresponds to weaponX/Y in AS3.")]
-        private Transform _weaponHoldPoint;
+        internal Transform _weaponHoldPoint;
 
         [SerializeField]
         [Tooltip("Horn tip for magic/spell weapons (tip==5). Corresponds to magicX/Y in AS3. " +
                  "Leave empty for non-unicorn characters — falls back to WeaponHoldPoint.")]
-        private Transform _magicHoldPoint;
+        internal Transform _magicHoldPoint;
 
         [SerializeField]
         [Tooltip("Optional throw origin for WThrow weapons. Leave empty to use WeaponHoldPoint.")]
-        private Transform _throwPoint;
+        internal Transform _throwPoint;
 
         // ── Public accessors ───────────────────────────────────────────────────
 

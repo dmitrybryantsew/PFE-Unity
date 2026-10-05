@@ -21,7 +21,7 @@ namespace PFE.Entities.Player
 #else
         [Header("Jump Abilities")]
 #endif
-        [SerializeField] private bool canDoubleJump;
+        [SerializeField] internal bool canDoubleJump;
 
 #if ODIN_INSPECTOR
         [FoldoutGroup("Jump Abilities")]
@@ -29,7 +29,7 @@ namespace PFE.Entities.Player
         [SerializeField]
         [Tooltip("1 = normal jump only, 2 = double jump")]
         [Range(1, 3)]
-        private int maxJumpCount = 1;
+        internal int maxJumpCount = 1;
 
 #if ODIN_INSPECTOR
         [FoldoutGroup("Jump Abilities")]
@@ -37,7 +37,7 @@ namespace PFE.Entities.Player
         [SerializeField]
         [Tooltip("Multiplier applied to base jump force (from perks)")]
         [Range(0.5f, 2f)]
-        private float jumpForceMultiplier = 1f;
+        internal float jumpForceMultiplier = 1f;
 
 #if ODIN_INSPECTOR
         [FoldoutGroup("Jump Abilities")]
@@ -45,7 +45,7 @@ namespace PFE.Entities.Player
         [SerializeField]
         [Tooltip("Force multiplier for air jumps relative to ground jump (e.g. 0.8 = 80%)")]
         [Range(0.5f, 1f)]
-        private float airJumpForceRatio = 0.8f;
+        internal float airJumpForceRatio = 0.8f;
 
 #if ODIN_INSPECTOR
         [FoldoutGroup("Testing")]
@@ -53,27 +53,27 @@ namespace PFE.Entities.Player
         [Header("Testing")]
         [SerializeField]
         [Tooltip("Infinite mana for testing levitation without mana drain")]
-        private bool infiniteMana;
+        internal bool infiniteMana;
 
 #if ODIN_INSPECTOR
         [FoldoutGroup("Levitation")]
 #endif
         [Header("Levitation")]
-        [SerializeField] private bool canLevitate;
+        [SerializeField] internal bool canLevitate;
 
 #if ODIN_INSPECTOR
         [FoldoutGroup("Levitation")]
 #endif
         [SerializeField]
         [Tooltip("Max height above ground for levitation (0 = use UnitDefinition default)")]
-        private float levitationMaxHeight;
+        internal float levitationMaxHeight;
 
 #if ODIN_INSPECTOR
         [FoldoutGroup("Levitation")]
 #endif
         [SerializeField]
         [Tooltip("Levitation vertical acceleration (0 = use UnitDefinition default)")]
-        private float levitationAcceleration;
+        internal float levitationAcceleration;
 
 #if ODIN_INSPECTOR
         [FoldoutGroup("Levitation")]
@@ -81,7 +81,7 @@ namespace PFE.Entities.Player
         [SerializeField]
         [Tooltip("Mana cost per physics tick while levitating")]
         [Range(0f, 10f)]
-        private float levitationManaCostPerTick = 0.5f;
+        internal float levitationManaCostPerTick = 0.5f;
 
 #if ODIN_INSPECTOR
         [FoldoutGroup("Levitation")]
@@ -89,18 +89,18 @@ namespace PFE.Entities.Player
         [SerializeField]
         [Tooltip("Extra mana cost per tick when ascending")]
         [Range(0f, 10f)]
-        private float levitationManaCostUpward = 0.3f;
+        internal float levitationManaCostUpward = 0.3f;
 
 #if ODIN_INSPECTOR
         [FoldoutGroup("Movement Abilities")]
 #endif
         [Header("Movement Abilities")]
-        [SerializeField] private bool canAirDash;
+        [SerializeField] internal bool canAirDash;
 
 #if ODIN_INSPECTOR
         [FoldoutGroup("Movement Abilities")]
 #endif
-        [SerializeField] private bool canWallJump;
+        [SerializeField] internal bool canWallJump;
 
 #if ODIN_INSPECTOR
         [FoldoutGroup("Movement Abilities")]
@@ -108,13 +108,13 @@ namespace PFE.Entities.Player
         [SerializeField]
         [Tooltip("Multiplier applied to base move speed (from perks)")]
         [Range(0.5f, 3f)]
-        private float moveSpeedMultiplier = 1f;
+        internal float moveSpeedMultiplier = 1f;
 
 #if ODIN_INSPECTOR
         [FoldoutGroup("Teleport")]
 #endif
         [Header("Teleport")]
-        [SerializeField] private bool canTeleport;
+        [SerializeField] internal bool canTeleport;
 
 #if ODIN_INSPECTOR
         [FoldoutGroup("Teleport")]
@@ -122,7 +122,7 @@ namespace PFE.Entities.Player
         [SerializeField]
         [Tooltip("Hold duration before teleport executes (AS3: portTime=25 frames ≈ 0.42s)")]
         [Range(0f, 2f)]
-        private float teleportChargeTimeSeconds = 0.42f;
+        internal float teleportChargeTimeSeconds = 0.42f;
 
 #if ODIN_INSPECTOR
         [FoldoutGroup("Teleport")]
@@ -130,7 +130,7 @@ namespace PFE.Entities.Player
         [SerializeField]
         [Tooltip("Mana cost per teleport (AS3: portMana=25)")]
         [Range(0f, 100f)]
-        private float teleportManaCost = 25f;
+        internal float teleportManaCost = 25f;
 
 #if ODIN_INSPECTOR
         [FoldoutGroup("Teleport")]
@@ -138,7 +138,7 @@ namespace PFE.Entities.Player
         [SerializeField]
         [Tooltip("Cooldown between teleports in seconds (AS3: portDown=300 frames ≈ 5s)")]
         [Range(0f, 10f)]
-        private float teleportCooldownSeconds = 5f;
+        internal float teleportCooldownSeconds = 5f;
 
         private UnitDefinition _definition;
         private CharacterStats _characterStats;

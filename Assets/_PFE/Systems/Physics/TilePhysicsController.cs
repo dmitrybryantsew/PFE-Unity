@@ -104,26 +104,26 @@ namespace PFE.Systems.Physics
 
         [Header("Unit Dimensions (pixels, matching AS3)")]
         [Tooltip("Width of collision box in pixels (scX in AS3)")]
-        [SerializeField] private float collisionWidth = 30f;
+        [SerializeField] internal float collisionWidth = 30f;
 
         [Tooltip("Height of collision box in pixels (scY in AS3)")]
-        [SerializeField] private float collisionHeight = 50f;
+        [SerializeField] internal float collisionHeight = 50f;
 
         [Tooltip("Crouched collision height in pixels. If <= 0, it is derived from UnitDefinition.sitHeight or a standing-height multiplier.")]
-        [SerializeField] private float crouchedCollisionHeight = 0f;
+        [SerializeField] internal float crouchedCollisionHeight = 0f;
 
         [Tooltip("Offset from this transform to the collider feet position, in pixels. Negative Y moves the collider down.")]
-        [SerializeField] private Vector2 colliderOffsetPixels = Vector2.zero;
+        [SerializeField] internal Vector2 colliderOffsetPixels = Vector2.zero;
 
         [Header("Movement (matching AS3 Unit properties)")]
         [Tooltip("Horizontal acceleration (accel in AS3)")]
-        [SerializeField] private float acceleration = 2.0f;
+        [SerializeField] internal float acceleration = 2.0f;
 
         [Tooltip("Maximum horizontal speed (pixels/frame, maxdx in AS3)")]
-        [SerializeField] private float maxSpeedX = 8f;
+        [SerializeField] internal float maxSpeedX = 8f;
 
         [Tooltip("Maximum vertical speed (pixels/frame, maxdy in AS3)")]
-        [SerializeField] private float maxSpeedY = 20f;
+        [SerializeField] internal float maxSpeedY = 20f;
 
         // Jump force is deliberately NOT owned by this motor. The live constant is
         // PlayerLocomotionController.baseJumpForce (sourced from UnitDefinition.jumpForce,
@@ -134,39 +134,39 @@ namespace PFE.Systems.Physics
         // that is a design decision for the physics rewrite, not a warning cleanup.
 
         [Tooltip("Ground friction (brake in AS3, 0-1)")]
-        [SerializeField] private float groundFriction = 0.7f;
+        [SerializeField] internal float groundFriction = 0.7f;
 
         [Tooltip("Air friction")]
-        [SerializeField] private float airFriction = 0.95f;
+        [SerializeField] internal float airFriction = 0.95f;
 
         [Tooltip("Gravity multiplier (grav in AS3)")]
-        [SerializeField] private float gravityMult = 1.0f;
+        [SerializeField] internal float gravityMult = 1.0f;
 
         [Header("Physics Constants")]
         [Tooltip("Global gravity (World.ddy in AS3)")]
-        [SerializeField] private float globalGravity = 1.0f;
+        [SerializeField] internal float globalGravity = 1.0f;
 
         [Tooltip("Platform pass-through threshold (porog in AS3)")]
-        [SerializeField] private float platformThreshold = TileQueryConstants.PorogGrounded;
+        [SerializeField] internal float platformThreshold = TileQueryConstants.PorogGrounded;
 
         [Tooltip("Maximum distance a single collision sub-step is allowed to move before movement is subdivided.")]
-        [SerializeField] private float maxSubStepDistance = 9f;
+        [SerializeField] internal float maxSubStepDistance = 9f;
 
         [Tooltip("Maximum vertical step-up height in pixels when grounded and walking into a low obstacle.")]
-        [SerializeField] private float stepUpThreshold = 10f;
+        [SerializeField] internal float stepUpThreshold = 10f;
 
         [Tooltip("Reduced step-up threshold while airborne or rising.")]
-        [SerializeField] private float stepUpThresholdWhileAirborne = 4f;
+        [SerializeField] internal float stepUpThresholdWhileAirborne = 4f;
 
         [Tooltip("How long platform collisions stay disabled after a drop-through request.")]
-        [SerializeField] private float platformDropDurationSeconds = 0.18f;
+        [SerializeField] internal float platformDropDurationSeconds = 0.18f;
 
         [Header("Ladder Movement")]
         [Tooltip("Vertical climb speed in pixels/frame while attached to a ladder.")]
-        [SerializeField] private float ladderClimbSpeed = 5f;
+        [SerializeField] internal float ladderClimbSpeed = 5f;
 
         [Tooltip("Horizontal half-width in pixels used for ladder-specific collision probes.")]
-        [SerializeField] private float ladderProbeHalfWidth = 6f;
+        [SerializeField] internal float ladderProbeHalfWidth = 6f;
 
         [Header("State (read-only)")]
         [SerializeField] private bool isGrounded;
