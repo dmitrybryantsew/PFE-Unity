@@ -370,7 +370,16 @@ namespace PFE.Systems.Map.Serialization
 
                 // Weapon loadout & Ammo source
                 var loadout = player.GetComponent<PFE.Systems.Weapons.PlayerWeaponLoadout>();
-                var inv = (loadout?.AmmoSource as PFE.Systems.Inventory.GameInventory) ?? CurrentInventory;
+
+                // The player's own inventory first, and it has to be explicit rather than left to the
+                // `as GameInventory` arm: `PlayerWeaponLoadout.AmmoSource` is now the PlayerInventory
+                // (which routes mutations through the command seam), not the GameInventory itself, so
+                // that cast yields null. Left alone, the inventory would be written empty and read back
+                // empty with no error anywhere — the silent-data-loss shape this project keeps hitting.
+                // The other two arms stay for a rig that has no PlayerInventory component.
+                var inv = player.GetComponent<PFE.Systems.Inventory.PlayerInventory>()?.Inventory
+                          ?? (loadout?.AmmoSource as PFE.Systems.Inventory.GameInventory)
+                          ?? CurrentInventory;
                 if (inv != null)
                 {
                     snapshot.inventory = inv.CreateSaveData();
@@ -459,7 +468,16 @@ namespace PFE.Systems.Map.Serialization
                 }
 
                 var loadout = player.GetComponent<PFE.Systems.Weapons.PlayerWeaponLoadout>();
-                var inv = (loadout?.AmmoSource as PFE.Systems.Inventory.GameInventory) ?? CurrentInventory;
+
+                // The player's own inventory first, and it has to be explicit rather than left to the
+                // `as GameInventory` arm: `PlayerWeaponLoadout.AmmoSource` is now the PlayerInventory
+                // (which routes mutations through the command seam), not the GameInventory itself, so
+                // that cast yields null. Left alone, the inventory would be written empty and read back
+                // empty with no error anywhere — the silent-data-loss shape this project keeps hitting.
+                // The other two arms stay for a rig that has no PlayerInventory component.
+                var inv = player.GetComponent<PFE.Systems.Inventory.PlayerInventory>()?.Inventory
+                          ?? (loadout?.AmmoSource as PFE.Systems.Inventory.GameInventory)
+                          ?? CurrentInventory;
                 if (inv != null && playerState.inventory != null)
                 {
                     inv.RestoreFromSaveData(playerState.inventory);

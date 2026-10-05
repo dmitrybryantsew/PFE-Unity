@@ -221,11 +221,19 @@ namespace PFE.Core.Scripting
         /// exercises the real chain — <c>GetAmmoCount</c> → <c>ConsumeAmmo</c> → the reload — and it is
         /// the only way to see the difference an ammo <i>type</i> makes without a fight.</para>
         ///
-        /// <para><b>The inventory does not exist until this runs.</b> Nothing in production constructs a
-        /// <c>GameInventory</c> or assigns <see cref="PlayerWeaponLoadout.AmmoSource"/> — only tests do —
-        /// so every reload currently fills the magazine for free. This command creates and wires one, the
-        /// same way the F2 overlay does, which flips reloads from infinite to consuming. That side effect
-        /// is intended and is reported in the reply.</para>
+        /// <para><b>Since 2026-10-05 the running game does own an inventory</b>, so this no longer has to
+        /// create one. <c>PlayerController</c> builds a <c>PlayerInventory</c>, which owns the
+        /// <c>GameInventory</c> and assigns <see cref="PlayerWeaponLoadout.AmmoSource"/> to itself; this
+        /// command then feeds that live bag through the overlay (see below), and the mutation travels the
+        /// same <c>IInventoryCommandSink</c> seam a real pickup uses. Before that wiring, nothing in
+        /// production constructed a <c>GameInventory</c> at all — only tests did — so every reload filled
+        /// the magazine for free. Reloads now consume, which is the intended change and is reported in the
+        /// reply.</para>
+        ///
+        /// <para><b>The overlay owns the lazy fallback.</b> If the scene somehow has no
+        /// <c>PlayerInventory</c>, the overlay still creates and wires a stand-in, so this command keeps
+        /// working in a bare scene. Both front ends share that one implementation and therefore one
+        /// inventory — two bags would mean neither is held.</para>
         ///
         /// <para><b>The id must have an <c>ItemDefinition</c> row, not just an <c>AmmoDefinition</c>.</b>
         /// <c>GameInventory.AddItem</c> keys on the item row, and measured 2026-10-03 only <b>28 of the 75</b>

@@ -502,10 +502,14 @@ namespace PFE.Systems.Inventory
                 GameItemInstance item = kvp.Value;
                 if (item != null && item.Definition != null)
                 {
-                    // Map actual InventoryCategory to our 4-category system
-                    // Original: General=0, Weapons=1, Apparel=2, Aid=3, Misc=4, Ammo=5, Books=6, Keys=7
-                    // Our system: NotTracked=0, Usable=1, Ammo=2, Stuff=3
-                    int category = MapToWeightCategory(item.Definition.inventoryCategory);
+                    // AS3 Invent.as calcMass() charges each item to mass[item.invCat]. The category is
+                    // DERIVED from the item's tip/uses, not read from a UI grouping — see
+                    // InventoryCategoryRules, which replaced the fabricated
+                    // InventoryCategory -> 0..3 translation that used to live here. That translation
+                    // sent every item whose InventoryCategory was still the General default to slot 0
+                    // ("not tracked"), and 451 of the 500 imported items are exactly that — so 90% of
+                    // the catalogue contributed no mass at all.
+                    int category = InventoryCategoryRules.ForItem(item.Definition);
                     if (category >= 0 && category < 4)
                     {
                         categoryMass[category] += item.TotalWeight;
@@ -516,31 +520,6 @@ namespace PFE.Systems.Inventory
             // Update reactive property
             TotalWeight.Value = GetTotalMass();
             OnWeightChanged?.Invoke(TotalWeight.Value);
-        }
-
-        private int MapToWeightCategory(Data.Definitions.InventoryCategory category)
-        {
-            switch (category)
-            {
-                case Data.Definitions.InventoryCategory.General:
-                case Data.Definitions.InventoryCategory.Misc:
-                case Data.Definitions.InventoryCategory.Books:
-                case Data.Definitions.InventoryCategory.Keys:
-                    return 0; // NotTracked
-
-                case Data.Definitions.InventoryCategory.Aid:
-                    return 1; // Usable
-
-                case Data.Definitions.InventoryCategory.Ammo:
-                    return 2; // Ammo
-
-                case Data.Definitions.InventoryCategory.Weapons:
-                case Data.Definitions.InventoryCategory.Apparel:
-                    return 3; // Stuff
-
-                default:
-                    return 3; // Default to Stuff
-            }
         }
 
         /// <summary>

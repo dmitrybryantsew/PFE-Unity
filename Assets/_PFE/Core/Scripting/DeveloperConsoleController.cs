@@ -35,6 +35,7 @@ namespace PFE.Core.Scripting
         private DevConsoleRpgCommands _rpgCommands;
         private DevConsoleEffectCommands _effectCommands;
         private DevConsoleSpellCommands _spellCommands;
+        private DevConsoleInventoryCommands _inventoryCommands;
         private DevConsoleUiCommands _uiCommands;
 
         // The quick-action grid's buttons and their actions. Built once (OnGUI runs several times per
@@ -164,6 +165,7 @@ namespace PFE.Core.Scripting
             _rpgCommands ??= new DevConsoleRpgCommands();
             _effectCommands ??= new DevConsoleEffectCommands();
             _spellCommands ??= new DevConsoleSpellCommands();
+            _inventoryCommands ??= new DevConsoleInventoryCommands();
             _uiCommands ??= new DevConsoleUiCommands();
 
             if (_resolver != null)
@@ -218,7 +220,11 @@ namespace PFE.Core.Scripting
             // status` must work precisely when the spell wiring is what failed.
             _spellCommands.Wire(() => FindFirstObjectByType<PFE.Entities.Player.PlayerController>());
 
-            _service.SetCommandObjects(_playerCommands, _simCommands, _saveCommands, _colliderCommands, _profilerCommands, _rpgCommands, _effectCommands, _spellCommands, _uiCommands);
+            // Wired unconditionally for the same reason as `spell`: the inventory is a component on the
+            // player, so `inv status` must work precisely when the inventory wiring is what failed.
+            _inventoryCommands.Wire(() => FindFirstObjectByType<PFE.Entities.Player.PlayerController>());
+
+            _service.SetCommandObjects(_playerCommands, _simCommands, _saveCommands, _colliderCommands, _profilerCommands, _rpgCommands, _effectCommands, _spellCommands, _uiCommands, _inventoryCommands);
         }
 
         private LandMap ResolveLandMap()

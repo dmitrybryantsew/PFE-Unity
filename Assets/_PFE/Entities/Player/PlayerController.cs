@@ -8,6 +8,7 @@ using PFE.Entities.Units;
 using PFE.Systems.Combat;
 using PFE.Systems.Effects;
 using PFE.Systems.Interaction;
+using PFE.Systems.Inventory;
 using PFE.Systems.Audio;
 using PFE.Systems.Map;
 using PFE.Systems.Map.TileQuery;
@@ -83,12 +84,27 @@ namespace PFE.Entities.Player
         private PlayerManaTicker _manaTicker;
 
         /// <summary>
+        /// Walk-over loot collection — AS3 <c>Loot.take()</c>'s automatic half, gated on the player's
+        /// <c>isTake</c> window. Created here for the same reason as <see cref="PlayerManaTicker"/>: the
+        /// player is motor-driven, so <c>UnitController.SimTick</c> returns early for it and a separate
+        /// <see cref="ISimTickable"/> is the only per-tick hook. See <see cref="PlayerAutoPickup"/>.
+        /// </summary>
+        private PlayerAutoPickup _autoPickup;
+
+        /// <summary>
         /// The player's spell caster — the port of AS3 <c>UnitPlayer</c>'s spell half. Created here for
         /// the same reason as <see cref="PlayerManaTicker"/>: the player is motor-driven, so
         /// <c>UnitController.SimTick</c> returns early for it and a separate <c>ISimTickable</c> is the
         /// only way to get a per-tick hook. See <see cref="PlayerSpellCaster"/>.
         /// </summary>
         private PlayerSpellCaster _spellCaster;
+
+        /// <summary>
+        /// The player's inventory. Created in <c>Awake</c> like the caster, and wired from both
+        /// <c>Construct</c> and <c>Awake</c> — see <see cref="WireInventoryIfReady"/>. Per-player by
+        /// construction, which is what a second co-op player needs.
+        /// </summary>
+        private PlayerInventory _inventoryComponent;
 
         // The three spell input subscribers, held between Construct and Awake because Unity does not
         // order the two. Same reason and same shape as _pendingEffectResolver above.
@@ -150,6 +166,12 @@ namespace PFE.Entities.Player
             _pendingSpellCastSubscriber = spellCastSubscriber;
             _pendingSpellHotkeySubscriber = spellHotkeySubscriber;
             WireSpellCasterIfReady();
+
+            // Same ordering problem, same answer, for the inventory: the registry arrives here, while
+            // the loadout and the caster are built in Awake, so both sides call the wire. See
+            // WireInventoryIfReady for why the loadout half is order-critical.
+            EnsureInventoryComponent();
+            WireInventoryIfReady();
 
             // The effect-definition resolver, built from the DI singleton the container already owns so
             // there is one resolution story rather than a second registration to keep in step. Handed
@@ -363,6 +385,45 @@ namespace PFE.Entities.Player
             _spellCaster.BindInput(_pendingSpellCastSubscriber, _pendingSpellHotkeySubscriber);
         }
 
+        /// <summary>
+        /// Create the player's inventory component if it is not already present.
+        ///
+        /// <para><b>Added at runtime, not authored into the prefab.</b> The player is assembled from
+        /// components in <c>Awake</c> (stats, mana ticker, spell caster), so a runtime-only component
+        /// needs no scene edit — and a scene edit is the owner's call, not the agent's (rule #5).
+        /// Idempotent because <c>Construct</c> and <c>Awake</c> both call it, in either order.</para>
+        /// </summary>
+        private void EnsureInventoryComponent()
+        {
+            if (_inventoryComponent != null) return;
+            _inventoryComponent = GetComponent<PlayerInventory>() ?? gameObject.AddComponent<PlayerInventory>();
+        }
+
+        /// <summary>
+        /// Build and bind the inventory from whichever of <c>Construct</c>/<c>Awake</c> ran second.
+        ///
+        /// <para><b>Both sides are needed and neither can do it alone:</b> the content registry arrives
+        /// in <c>Construct</c> (it is the container's), while the loadout and the spell caster are built
+        /// in <c>Awake</c>. So each side calls this and it does whatever is possible at that moment.</para>
+        ///
+        /// <para><b>The loadout binding is order-critical.</b> <c>PlayerWeaponLoadout.Start</c> equips
+        /// the starting weapon, and the <c>AmmoSource</c> setter only rebuilds the factory for
+        /// <i>future</i> equips — so a weapon equipped before this runs keeps a null ammo source and
+        /// reloads for free (infinite ammo) for the rest of its life. <c>Awake</c> precedes
+        /// <c>Start</c>, so calling this from <c>Awake</c> is what makes that impossible.</para>
+        /// </summary>
+        private void WireInventoryIfReady()
+        {
+            if (_inventoryComponent == null) return;
+
+            if (_loadout != null) _inventoryComponent.BindLoadout(_loadout);
+            if (_spellCaster != null) _inventoryComponent.BindSpellCaster(_spellCaster);
+
+            // Null before injection; PlayerInventory tolerates it and rebuilds its sink once the real
+            // registry arrives, so calling this with null is a no-op rather than a permanent downgrade.
+            _inventoryComponent.Construct(_pendingRegistry);
+        }
+
         protected override void Awake()
         {
             base.Awake();
@@ -393,6 +454,18 @@ namespace PFE.Entities.Player
             // order Construct against Awake.
             _spellCaster = GetComponent<PlayerSpellCaster>() ?? gameObject.AddComponent<PlayerSpellCaster>();
             WireSpellCasterIfReady();
+
+            // The player's inventory. Created here for the same reason as the caster — the player is
+            // assembled in Awake, so a runtime-only component needs no scene edit — and wired from both
+            // sides because Unity does not order Awake against the container's injection.
+            EnsureInventoryComponent();
+            WireInventoryIfReady();
+
+            // Walk-over loot collection. Created AFTER the inventory block above because it needs the
+            // PlayerInventory that block has just ensured exists; putting it on the sim clock is
+            // AttachSimulation's job below.
+            _autoPickup = GetComponent<PlayerAutoPickup>() ?? gameObject.AddComponent<PlayerAutoPickup>();
+            _autoPickup.Construct(_inventoryComponent, this);
 
             // AS3 Pers.die() fires from inside damage() / bloodDamage() / manaDamage() when an organ
             // reaches zero (Pers.as:1693-1697, :1793-1797, :1739-1743). CharacterStats raises the
@@ -444,6 +517,14 @@ namespace PFE.Entities.Player
             if (_spellCaster != null)
             {
                 _spellCaster.Attach(clock, loop);
+            }
+
+            // Loot collection, also at PlayerMotor order and registered last. At equal order SimLoop runs
+            // in registration order, and this one only reads the player's transform — it owns no state any
+            // earlier block depends on — so last is both safe and the least surprising place for it.
+            if (_autoPickup != null)
+            {
+                _autoPickup.Attach(clock, loop);
             }
         }
 
@@ -507,6 +588,18 @@ namespace PFE.Entities.Player
             }
 
             Vector2 input = _input.CurrentMoveInput;
+
+            // Arm the loot-take window — AS3's `this.isTake = 40`, set while a horizontal direction is
+            // HELD (UnitPlayer.as:2551, :2570) or on a jump press (:2685). It is assigned, not
+            // accumulated, so holding a direction pins it at 40 rather than growing it, which is what
+            // makes "walk over loot and it gets picked up" a property of walking rather than of pressing
+            // something. Armed here, on the frame boundary, because a tick must not read Input: the tick
+            // only ages the value this sets.
+            if (_autoPickup != null &&
+                (Mathf.Abs(input.x) > 0.1f || (_input.Jump != null && _input.Jump.WasPressedThisFrame())))
+            {
+                _autoPickup.ArmTakeWindow();
+            }
 
             if (_locomotion != null)
             {

@@ -30,6 +30,7 @@ namespace PFE.Core.Scripting
         private DevConsoleRpgCommands _rpgCommands;
         private DevConsoleEffectCommands _effectCommands;
         private DevConsoleSpellCommands _spellCommands;
+        private DevConsoleInventoryCommands _inventoryCommands;
         private DevConsoleUiCommands _uiCommands;
         private bool _commandObjectsRegistered;
 
@@ -91,7 +92,8 @@ namespace PFE.Core.Scripting
             DevConsoleRpgCommands rpgCommands = null,
             DevConsoleEffectCommands effectCommands = null,
             DevConsoleSpellCommands spellCommands = null,
-            DevConsoleUiCommands uiCommands = null)
+            DevConsoleUiCommands uiCommands = null,
+            DevConsoleInventoryCommands inventoryCommands = null)
         {
             if (playerCommands != null) _playerCommands = playerCommands;
             if (simCommands != null) _simCommands = simCommands;
@@ -101,6 +103,7 @@ namespace PFE.Core.Scripting
             if (rpgCommands != null) _rpgCommands = rpgCommands;
             if (effectCommands != null) _effectCommands = effectCommands;
             if (spellCommands != null) _spellCommands = spellCommands;
+            if (inventoryCommands != null) _inventoryCommands = inventoryCommands;
             if (uiCommands != null) _uiCommands = uiCommands;
 
             if (_luaEngine == null) return;
@@ -117,6 +120,7 @@ namespace PFE.Core.Scripting
                 _luaEngine.RegisterType<DevConsoleRpgCommands>();
                 _luaEngine.RegisterType<DevConsoleEffectCommands>();
                 _luaEngine.RegisterType<DevConsoleSpellCommands>();
+                _luaEngine.RegisterType<DevConsoleInventoryCommands>();
                 _luaEngine.RegisterType<DevConsoleUiCommands>();
                 _commandObjectsRegistered = true;
             }
@@ -129,6 +133,7 @@ namespace PFE.Core.Scripting
             if (_rpgCommands != null) _luaEngine.SetGlobal("rpg", _rpgCommands);
             if (_effectCommands != null) _luaEngine.SetGlobal("eff", _effectCommands);
             if (_spellCommands != null) _luaEngine.SetGlobal("spell", _spellCommands);
+            if (_inventoryCommands != null) _luaEngine.SetGlobal("inv", _inventoryCommands);
             if (_uiCommands != null) _luaEngine.SetGlobal("ui", _uiCommands);
         }
 
@@ -209,12 +214,19 @@ namespace PFE.Core.Scripting
                               "  spell add <id>  - Grant a spell (no weapon needed). e.g. spell add sp_mshit\n" +
                               "  spell select <id> - Choose the spell the Def key (C) casts. A TOGGLE.\n" +
                               "  spell defs [f]  - The catalogue the caster can accept\n" +
+                              "  -- inventory (the player's own, through the command seam) --\n" +
+                              "  inv             - Engine health: component present, wired, and what is held\n" +
+                              "  inv list        - Every item stack with its quantity (same as `inv`)\n" +
+                              "  inv add <id> [n]    - Grant n of an item row. e.g. inv add kombu 3\n" +
+                              "  inv remove <id> [n] - Take n of an item row\n" +
+                              "  inv armor <id>  - Grant armour by id\n" +
+                              "  inv ammo <id>   - How many rounds of an ammo id are held\n" +
                               "  -- console ui (the console's own chrome) --\n" +
                               "  ui              - Report whether the quick-action button grid is shown\n" +
                               "  ui buttons on|off - Show / hide the button grid (title bar has a toggle too)\n" +
                               "  -- lua --\n" +
                               "  <lua code>      - Run any Lua expression (e.g. 'return 2+2', 'player:Heal(50)')\n" +
-                              "                    Globals: pfe.* (map/fog/rng), player, sim, save, collider, prof, rpg, eff, spell, ui";
+                              "                    Globals: pfe.* (map/fog/rng), player, sim, save, collider, prof, rpg, eff, spell, inv, ui";
                 AppendLog(help);
                 return help;
             }
@@ -538,6 +550,16 @@ namespace PFE.Core.Scripting
                     result = RunSpellShortcut(parts);
                     return true;
 
+                // The player's inventory. A bare `inv` is STATUS, matching col/prof/rpg/eff/spell: a verb
+                // that mutates on a typo is one mistyped character from an inventory you did not mean to
+                // change. Deliberately NOT an alias of `giveammo` — that one predates the inventory and
+                // writes through PlayerDebugEditorOverlay; this one goes through the command seam.
+                case "inv":
+                case "inventory":
+                    if (_inventoryCommands == null) return false;
+                    result = RunInventoryShortcut(parts);
+                    return true;
+
                 // The console's OWN chrome — the quick-action button grid. Deliberately not a `col`
                 // channel: the grid is not a world visualisation, and `col on all` must not be able to
                 // show or hide the console's buttons. See DevConsoleUiCommands.
@@ -775,6 +797,70 @@ namespace PFE.Core.Scripting
 
                 default:
                     return $"Unknown spell subject '{parts[1]}'.\n" + _spellCommands.Help();
+            }
+        }
+
+        /// <summary>
+        /// Dispatch the <c>inv</c> shortcuts: <c>inv</c> (status), <c>inv list</c>,
+        /// <c>inv add &lt;id&gt; [n]</c>, <c>inv remove &lt;id&gt; [n]</c>,
+        /// <c>inv armor &lt;id&gt;</c>, <c>inv ammo &lt;id&gt;</c>.
+        ///
+        /// <para><b>Every mutating subcommand goes through <see cref="PFE.Systems.Inventory.IInventoryCommandSink"/></b>
+        /// — the same seam gameplay and a future host will use — so this verb exercises the real path
+        /// (validate → resolve → apply) instead of a shortcut around it.</para>
+        ///
+        /// <para>A parse failure is an error, not a fallback: silently treating <c>inv ad x</c> as status
+        /// would print an empty inventory and read as "the inventory is broken".</para>
+        /// </summary>
+        private string RunInventoryShortcut(string[] parts)
+        {
+            if (parts.Length < 2) return _inventoryCommands.Status();
+
+            string sub = parts[1].ToLowerInvariant();
+
+            switch (sub)
+            {
+                // `list` is status: the status report already prints every stack, and a second listing
+                // implementation is a second thing to keep in step.
+                case "status":
+                case "health":
+                case "list":
+                case "ls":
+                    return _inventoryCommands.Status();
+
+                case "add":
+                case "give":
+                    {
+                        if (parts.Length < 3) return "Usage: inv add <itemId> [amount]";
+                        int amount = 1;
+                        if (parts.Length > 3 && !TryParseIntArg(parts, 3, out amount))
+                            return "Usage: inv add <itemId> [amount]";
+                        return _inventoryCommands.Add(parts[2], amount);
+                    }
+
+                case "remove":
+                case "rm":
+                case "take":
+                    {
+                        if (parts.Length < 3) return "Usage: inv remove <itemId> [amount]";
+                        int amount = 1;
+                        if (parts.Length > 3 && !TryParseIntArg(parts, 3, out amount))
+                            return "Usage: inv remove <itemId> [amount]";
+                        return _inventoryCommands.Remove(parts[2], amount);
+                    }
+
+                case "armor":
+                case "armour":
+                    if (parts.Length < 3) return "Usage: inv armor <armorId>";
+                    return _inventoryCommands.Armor(parts[2]);
+
+                case "ammo":
+                    if (parts.Length < 3) return "Usage: inv ammo <ammoId>";
+                    return _inventoryCommands.Ammo(parts[2]);
+
+                default:
+                    return $"Unknown inventory subject '{parts[1]}'. Use: inv | inv list | " +
+                           "inv add <id> [n] | inv remove <id> [n] | inv armor <id> | inv ammo <id>";
             }
         }
 
