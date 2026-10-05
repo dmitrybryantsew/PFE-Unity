@@ -15,10 +15,22 @@ namespace PFE.Editor.DataConverter
     /// </summary>
     public class DataConverterWindow : EditorWindow
     {
-        private string sourceFilePath = Importers.SourceImportPaths.AllDataAsPath;
+        // ⚠ Do NOT initialise this from SourceImportPaths in the field initializer — SourceImportPaths
+        // reads EditorPrefs, which is illegal from a ScriptableObject constructor / instance field
+        // initializer. The throw aborts the constructor here and leaves every LATER-declared field
+        // (including dataCounts) null → NullReferenceException on every repaint.
+        // Resolved in OnEnable instead. See MEMORY.md rule 20 / lesson #70.
+        [SerializeField] private string sourceFilePath;
         private Vector2 scrollPosition;
         private string analysisReport = "";
         private Dictionary<string, int> dataCounts = new Dictionary<string, int>();
+
+        // ── Lifecycle ──────────────────────────────────────────────────────────
+        private void OnEnable()
+        {
+            if (string.IsNullOrEmpty(sourceFilePath))
+                sourceFilePath = Importers.SourceImportPaths.AllDataAsPath;
+        }
 
         [MenuItem("Tools/PFE Data/Data Converter")]
         public static void ShowWindow()

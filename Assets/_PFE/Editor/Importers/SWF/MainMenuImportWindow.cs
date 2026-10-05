@@ -18,11 +18,24 @@ namespace PFE.Editor.Importers.SWF
 
         static string DefaultJpexsRoot => SourceImportPaths.AssetsExportRoot;
 
-        string _swfPath = DefaultSwfPath;
-        string _jpexsRoot = DefaultJpexsRoot;
+        // ⚠ Do NOT initialise these from Default* in the field initializer — SourceImportPaths reads
+        // EditorPrefs, which is illegal from a ScriptableObject constructor / instance field
+        // initializer. The throw aborts the constructor here and leaves every LATER-declared field
+        // (including _logMessages) null → NullReferenceException on every repaint.
+        // Resolved in OnEnable instead. See MEMORY.md rule 20 / lesson #70.
+        [SerializeField] string _swfPath;
+        [SerializeField] string _jpexsRoot;
         Vector2 _scrollPos;
-        List<string> _logMessages = new();
+        List<string> _logMessages;
         bool _isRunning;
+
+        // ── Lifecycle ──────────────────────────────────────────────────────────
+        void OnEnable()
+        {
+            if (string.IsNullOrEmpty(_swfPath)) _swfPath = DefaultSwfPath;
+            if (string.IsNullOrEmpty(_jpexsRoot)) _jpexsRoot = DefaultJpexsRoot;
+            _logMessages ??= new List<string>();
+        }
 
         // Pipeline results
         SWFFile _parsedSwf;
