@@ -6,6 +6,7 @@
         "UnityEditor.TestRunner",
         "PFE.Core",
         "PFE.Tests",
+        "PFE.Sim",
         "VContainer",
         "MessagePipe",
         "MessagePipe.VContainer",

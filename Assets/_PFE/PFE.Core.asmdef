@@ -12,7 +12,8 @@
         "MessagePipe",
         "MessagePipe.VContainer",
         "Unity.Mathematics",
-        "PFE.ModAPI"
+        "PFE.ModAPI",
+        "PFE.Sim"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

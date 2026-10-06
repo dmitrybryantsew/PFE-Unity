@@ -4,6 +4,7 @@
     "references": [
         "PFE.Core",
         "PFE.ModAPI",
+        "PFE.Sim",
         "Unity.InputSystem",
         "Unity.2D.Sprite.Editor"
     ],

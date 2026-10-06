@@ -1,14 +1,11 @@
 {
-    "name": "PFE.Systems.RPG.Editor",
-    "rootNamespace": "PFE.Systems.RPG.Editor",
+    "name": "PFE.Sim",
+    "rootNamespace": "PFE.Sim",
     "references": [
-        "PFE.Core",
-        "PFE.Editor",
-        "PFE.Sim"
+        "Unity.Mathematics",
+        "PFE.ModAPI"
     ],
-    "includePlatforms": [
-        "Editor"
-    ],
+    "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,

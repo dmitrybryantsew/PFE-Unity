@@ -28,9 +28,9 @@ namespace PFE.Tests.Editor.Core
     [TestFixture]
     public class NoDeltaInSimLintTests
     {
-        private const string SimClockPath = "Core/SimClock.cs";
+        private const string SimClockPath = "Sim/Clock/SimClock.cs";
         private const string SimLoopPath = "Core/SimLoop.cs";
-        private const string StepMathPath = "Systems/Physics/TilePhysicsStepMath.cs";
+        private const string StepMathPath = "Sim/Physics/Math/TilePhysicsStepMath.cs";
 
         /// <summary>
         /// Matches a bare <c>Time</c> identifier followed by a member access. The leading
