@@ -247,7 +247,9 @@ namespace PFE.Editor.Art.OnDemand
 
             var tessSw = Stopwatch.StartNew();
 
-            foreach (var rs in data.ResolveFrame(frame, index))
+            // Same collector as VectorSpriteReconstructor.BuildFrame: geometry-less placements
+            // (text/button/morph) are reported here rather than dropped silently.
+            foreach (var rs in data.ResolveFrame(frame, index, skippedNonShape: result.SkippedIds))
             {
                 int shapeId = rs.Shape.Id;
                 var geoms = GetShapeGeometry(shapeId);

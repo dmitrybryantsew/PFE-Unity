@@ -14,7 +14,12 @@ namespace PFE.Editor.VectorSample
         /// <summary>A <c>DefineSprite</c> — recurse into it.</summary>
         Sprite = 1,
 
-        /// <summary>Text / button / morph-shape. No SVG geometry; skip and report.</summary>
+        /// <summary>
+        /// Text / button / morph-shape. No SVG geometry, so it can never be drawn — the capture only
+        /// carries shapes. Reported through <see cref="VectorCaptureData.ResolveFrame"/>'s
+        /// <c>skippedNonShape</c> collector rather than dropped, because a silent skip makes a
+        /// text-bearing sprite look *broken* instead of *partially reconstructed*.
+        /// </summary>
         Other = 2,
     }
 
@@ -561,11 +566,18 @@ namespace PFE.Editor.VectorSample
         public float[][] ColourTransforms;
 
         /// <summary>Depth-first walk of a frame's display list, resolving nested sprites.</summary>
-        public IEnumerable<ResolvedShape> ResolveFrame(VectorFrame frame, int frameIndex, int maxDepth = 8)
+        /// <param name="skippedNonShape">
+        /// Optional collector for placements that resolve to nothing drawable — i.e. a
+        /// <see cref="PlacementKind.Other"/> (text/button/morph) leaf, at any nesting depth. Pass a
+        /// list to have them reported; leave null when the caller only needs the geometry (the walk
+        /// then allocates nothing extra). Ids are appended, never cleared.
+        /// </param>
+        public IEnumerable<ResolvedShape> ResolveFrame(
+            VectorFrame frame, int frameIndex, int maxDepth = 8, ICollection<int> skippedNonShape = null)
         {
             if (frame == null) yield break;
             foreach (var p in frame.Placements)
-                foreach (var s in ResolvePlacement(p, SwfMatrix.Identity, frameIndex, maxDepth))
+                foreach (var s in ResolvePlacement(p, SwfMatrix.Identity, frameIndex, maxDepth, skippedNonShape))
                     yield return s;
         }
 
@@ -582,9 +594,17 @@ namespace PFE.Editor.VectorSample
         /// <item>Ancestor colour transforms are <b>not</b> accumulated — only the leaf placement's
         /// <see cref="VectorPlacement.XformIndex"/> survives. Geometry is exact; tint is not.</item>
         /// </list>
+        ///
+        /// <para><b>Non-shape leaves are reported, not dropped.</b> A <see cref="PlacementKind.Other"/>
+        /// placement has no SVG in the capture, so it cannot be drawn at all; it is added to
+        /// <paramref name="skippedNonShape"/> so the caller can say "this frame is missing N
+        /// placements" instead of silently rendering a subset. Corpus-wide there are 857 such
+        /// placements, and sprite 797 is the worked example (its text is 796; only the emblem
+        /// survives).</para>
         /// </summary>
         IEnumerable<ResolvedShape> ResolvePlacement(
-            VectorPlacement p, SwfMatrix parent, int frameIndex, int depthLeft)
+            VectorPlacement p, SwfMatrix parent, int frameIndex, int depthLeft,
+            ICollection<int> skippedNonShape)
         {
             SwfMatrix composed = parent.Mul(SwfMatrix.FromPlacement(p));
 
@@ -595,7 +615,15 @@ namespace PFE.Editor.VectorSample
                 yield break;
             }
 
-            if (p.Kind != PlacementKind.Sprite || depthLeft <= 0) yield break;
+            if (p.Kind != PlacementKind.Sprite)
+            {
+                // Text / button / morph: geometry-less by construction. Record it; do NOT let this be a
+                // silent `yield break`, which is what made the preview under-report (see the class note).
+                skippedNonShape?.Add(p.CharacterId);
+                yield break;
+            }
+
+            if (depthLeft <= 0) yield break;
             if (!Sprites.TryGetValue(p.CharacterId, out var nested)) yield break;
             if (nested.Frames == null || nested.Frames.Length == 0) yield break;
 
@@ -603,7 +631,7 @@ namespace PFE.Editor.VectorSample
             if (nestedIndex < 0) nestedIndex = 0;
 
             foreach (var child in nested.Frames[nestedIndex].Placements)
-                foreach (var s in ResolvePlacement(child, composed, frameIndex, depthLeft - 1))
+                foreach (var s in ResolvePlacement(child, composed, frameIndex, depthLeft - 1, skippedNonShape))
                     yield return s;
         }
     }
