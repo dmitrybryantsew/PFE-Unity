@@ -1,4 +1,5 @@
 using UnityEngine;
+using PFE.Core.Ids;
 using PFE.Data.Definitions;
 using PFE.Systems.Combat;
 
@@ -29,15 +30,15 @@ namespace PFE.Systems.Weapons
     public readonly struct DamageContext
     {
         /// <summary>
-        /// GameObject that owns this weapon.
-        ///
-        /// <para><b>Correction:</b> this was documented as "used for friendly-fire filtering", but
-        /// nothing ever filtered on it — it is <c>null</c> on every production path, because all six
-        /// weapon controllers pass <c>null</c> and the spawner never fills it in. Friendly-fire
-        /// filtering is <see cref="OwnerFaction"/>, which carries the value the filtering actually
-        /// needs and does not require a <c>GetComponent</c> at hit time.</para>
+        /// Stable ID of the entity that owns this weapon.
         /// </summary>
-        public readonly GameObject Owner;
+        public readonly EntityId OwnerId;
+
+        /// <summary>
+        /// Legacy GameObject reference. Always null — DamageContext uses <see cref="OwnerId"/> and <see cref="OwnerFaction"/>.
+        /// </summary>
+        [System.Obsolete("DamageContext no longer stores GameObject references. Use OwnerId or OwnerFaction.")]
+        public GameObject Owner => null;
 
         /// <summary>
         /// Faction of the unit that owns this weapon — the attacker side of
@@ -245,7 +246,7 @@ namespace PFE.Systems.Weapons
         public readonly AmmoDefinition Ammo;
 
         public DamageContext(
-            GameObject owner,
+            EntityId ownerId,
             WeaponDefinition weapon,
             float baseDamage,
             float explosionDamage,
@@ -271,7 +272,7 @@ namespace PFE.Systems.Weapons
             float precisionMultiplier = 1f,
             AmmoDefinition ammo = null)
         {
-            Owner             = owner;
+            OwnerId           = ownerId;
             OwnerFaction      = ownerFaction;
             Weapon            = weapon;
             BaseDamage        = baseDamage;
@@ -298,6 +299,62 @@ namespace PFE.Systems.Weapons
             Ammo              = ammo;
         }
 
+        [System.Obsolete("Pass EntityId ownerId instead of GameObject owner.")]
+        public DamageContext(
+            GameObject owner,
+            WeaponDefinition weapon,
+            float baseDamage,
+            float explosionDamage,
+            float armorMultiplier,
+            float piercing,
+            float knockback,
+            Vector2 knockbackDir,
+            float critChance,
+            float critMultiplier,
+            DamageType damageType,
+            float destroyTiles,
+            float penetrationChance,
+            string dopEffect,
+            float dopDamage,
+            float dopChance,
+            FactionType ownerFaction = FactionType.Neutral,
+            float missChance = 0f,
+            float precision = 0f,
+            float antiPrecision = 0f,
+            bool isMelee = false,
+            float critInvis = 0f,
+            float desintegr = 0f,
+            float precisionMultiplier = 1f,
+            AmmoDefinition ammo = null)
+            : this(
+                EntityId.Empty,
+                weapon,
+                baseDamage,
+                explosionDamage,
+                armorMultiplier,
+                piercing,
+                knockback,
+                knockbackDir,
+                critChance,
+                critMultiplier,
+                damageType,
+                destroyTiles,
+                penetrationChance,
+                dopEffect,
+                dopDamage,
+                dopChance,
+                ownerFaction,
+                missChance,
+                precision,
+                antiPrecision,
+                isMelee,
+                critInvis,
+                desintegr,
+                precisionMultiplier,
+                ammo)
+        {
+        }
+
         /// <summary>
         /// This context with its damage and knockback scaled, every other field carried over.
         ///
@@ -315,7 +372,7 @@ namespace PFE.Systems.Weapons
         public DamageContext WithScaledDamage(float damageScale, float knockbackScale, Vector2? knockbackDir = null)
         {
             return new DamageContext(
-                owner:             Owner,
+                ownerId:           OwnerId,
                 weapon:            Weapon,
                 baseDamage:        BaseDamage * damageScale,
                 explosionDamage:   ExplosionDamage,
@@ -343,7 +400,6 @@ namespace PFE.Systems.Weapons
         }
 
         /// <summary>
-        /// <summary>
         /// AS3's <c>Unit.damage(amount, type)</c> reached with <b>no bullet</b> — the shape a prop
         /// impact uses (<c>Unit.udarBox</c>, <c>fe/unit/Unit.as:4237</c>) and a floor trap will
         /// (<c>Trap.as:188</c>).
@@ -367,7 +423,7 @@ namespace PFE.Systems.Weapons
         public static DamageContext Contact(float damage, DamageType damageType)
         {
             return new DamageContext(
-                owner:             null,
+                ownerId:           EntityId.Empty,
                 weapon:            null,
                 baseDamage:        damage,
                 explosionDamage:   0f,
@@ -528,7 +584,7 @@ namespace PFE.Systems.Weapons
             float shotProbiv = Mathf.Clamp01(def.penetration + (ammo != null ? ammo.penetrationBudget : 0f));
 
             return new DamageContext(
-                owner:             owner,
+                ownerId:           EntityId.Empty,
                 weapon:            def,
                 // AS3 Weapon.as:1516 `b.damage = resultDamage(this.damage, _loc1_) * this.ammoDamage`
                 // — the weapon-skill multiplier is the `p2` slot of resultDamage (:1629), i.e. a
