@@ -20,6 +20,7 @@ using PFE.Systems.Weapons;
 using PFE.Core.Rng;
 using PFE.Core.Ids;
 using PFE.Core.Scripting;
+using PFE.Systems.Campaign;
 using UnityEngine;
 
 public class GameLifetimeScope : LifetimeScope
@@ -183,6 +184,9 @@ public class GameLifetimeScope : LifetimeScope
         // types, so the impl-type binding is never added (see the note above SimLoop), and without it
         // the four sources could not [Inject] the concrete type.
         builder.RegisterEntryPoint<DamageSystem>().AsSelf();
+
+        // === Campaign Progression & World Transitions ===
+        builder.RegisterEntryPoint<CampaignManager>().As<ICampaignManager>().AsSelf();
 
         // === LowLevelPhysics2D World (Stage B) ===
         builder.Register<IPhysicsWorldService, PhysicsWorldService>(Lifetime.Singleton).AsSelf();
