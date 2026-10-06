@@ -1,5 +1,3 @@
-using UnityEngine;
-
 namespace PFE.Data.Definitions
 {
     /// <summary>

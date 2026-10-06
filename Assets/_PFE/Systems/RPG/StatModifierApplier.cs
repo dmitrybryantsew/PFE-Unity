@@ -1,4 +1,3 @@
-using UnityEngine;
 using PFE.Systems.RPG.Data;
 
 namespace PFE.Systems.RPG

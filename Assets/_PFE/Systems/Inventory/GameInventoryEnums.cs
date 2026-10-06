@@ -1,4 +1,3 @@
-using UnityEngine;
 using PFE.Data.Definitions;
 
 namespace PFE.Systems.Inventory
