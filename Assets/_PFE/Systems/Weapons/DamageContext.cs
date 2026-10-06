@@ -1,5 +1,5 @@
 using UnityEngine;
-using PFE.Core.Ids;
+using EntityId = PFE.Core.Ids.EntityId;
 using PFE.Data.Definitions;
 using PFE.Systems.Combat;
 
