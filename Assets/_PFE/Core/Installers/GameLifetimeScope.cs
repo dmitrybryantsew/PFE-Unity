@@ -8,6 +8,7 @@ using PFE.Core.Time;
 using PFE.Systems.Audio;
 using PFE.Systems.Combat;
 using PFE.Data.Definitions;
+using PFE.Data.Definitions.Campaign;
 using PFE.Systems.Map;
 using PFE.Systems.Map.Rendering;
 using PFE.Systems.Physics;
@@ -186,6 +187,24 @@ public class GameLifetimeScope : LifetimeScope
         builder.RegisterEntryPoint<DamageSystem>().AsSelf();
 
         // === Campaign Progression & World Transitions ===
+        // CampaignManager's constructor takes a CampaignCatalog, and VContainer resolves EVERY
+        // constructor parameter: ResolveOrParameter never consults ParameterInfo.HasDefaultValue, so the
+        // `= null` default on that parameter is not optional to the container — the same trap the note
+        // above DamageSystem records. Leaving it unregistered does not fail just this one service.
+        // EntryPointDispatcher.Dispatch resolves the whole IInitializable collection eagerly, so the
+        // throw is raised before the per-item try/catch and escapes Build()/Awake(): NO entry point
+        // starts at all. SimLoop and GameManager are registered after this line, so the observed
+        // symptom was no sim clock (tickables=0, tick=-1) and no map (props=<no room>).
+        var campaignCatalog = Resources.Load<CampaignCatalog>("CampaignCatalog");
+        if (campaignCatalog != null)
+        {
+            builder.RegisterInstance(campaignCatalog);
+        }
+        else
+        {
+            builder.RegisterInstance(ScriptableObject.CreateInstance<CampaignCatalog>());
+            Debug.LogWarning("[GameLifetimeScope] CampaignCatalog asset is missing from Resources. Created an empty runtime catalog.");
+        }
         builder.RegisterEntryPoint<CampaignManager>().As<ICampaignManager>().AsSelf();
 
         // === LowLevelPhysics2D World (Stage B) ===
