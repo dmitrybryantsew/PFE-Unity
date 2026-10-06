@@ -7,7 +7,7 @@ namespace PFE.Core
     /// Keep high-signal lifecycle logs enabled by default and make verbose diagnostics opt-in.
     /// </summary>
     [CreateAssetMenu(fileName = "PfeDebugSettings", menuName = "PFE/Debug Settings")]
-    public sealed class PfeDebugSettings : ScriptableObject
+    public sealed class PfeDebugSettings : ScriptableObject, PFE.Systems.Weapons.IWeaponDiagnosticSettings
     {
         [Header("Global")]
         [SerializeField]

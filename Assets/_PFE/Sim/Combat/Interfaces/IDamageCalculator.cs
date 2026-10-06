@@ -41,10 +41,10 @@ namespace PFE.Systems.Combat
         /// Complete damage calculation from weapon to target.
         /// </summary>
         DamageResult CalculateDamage(
-            WeaponDefinition weaponDef,
-            UnitStats attackerStats,
-            UnitStats targetStats,
-            AmmoDefinition ammoDef = null,
+            IWeaponStats weaponDef,
+            IUnitCombatStats attackerStats,
+            IUnitCombatStats targetStats,
+            IAmmoStats ammoDef = null,
             bool isBackstab = false,
             bool absolutePierce = false);
 

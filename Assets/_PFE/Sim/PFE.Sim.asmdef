@@ -3,7 +3,8 @@
     "rootNamespace": "PFE.Sim",
     "references": [
         "Unity.Mathematics",
-        "PFE.ModAPI"
+        "PFE.ModAPI",
+        "R3.Unity"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

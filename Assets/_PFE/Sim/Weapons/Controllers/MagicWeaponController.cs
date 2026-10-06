@@ -59,7 +59,7 @@ namespace PFE.Systems.Weapons.Controllers
         // ── State ─────────────────────────────────────────────────────────────
 
         public WeaponRuntimeState State { get; }
-        private readonly WeaponDefinition _def;
+        private readonly IWeaponStats _def;
 
         /// <summary>
         /// Live mana, or null for "no tracking" (see <see cref="IManaSource"/>). A null source skips

@@ -1,5 +1,6 @@
 using UnityEngine;
 using PFE.ModAPI;
+using PFE.Systems.Combat;
 #if ODIN_INSPECTOR
 using Sirenix.OdinInspector;
 #endif
@@ -12,7 +13,7 @@ namespace PFE.Data.Definitions
     /// Create instances via Assets > Create > PFE > Weapon Definition
     /// </summary>
     [CreateAssetMenu(fileName = "NewWeaponDef", menuName = "PFE/Weapon Definition")]
-    public class WeaponDefinition : ScriptableObject, IGameContent
+    public class WeaponDefinition : ScriptableObject, IGameContent, IWeaponStats
     {
         [Header("Identification")]
         public string weaponId;
@@ -473,5 +474,82 @@ namespace PFE.Data.Definitions
         // Legacy properties for compatibility
         public string SoundShoot => soundShoot;
         public string SoundReload => soundReload;
+
+        #region IWeaponStats
+        string IWeaponStats.weaponId => weaponId;
+        WeaponType IWeaponStats.weaponType => weaponType;
+        int IWeaponStats.punch => punch;
+        bool IWeaponStats.IsUnarmed => IsUnarmed;
+        int IWeaponStats.skillLevel => skillLevel;
+        int IWeaponStats.weaponLevel => weaponLevel;
+        float IWeaponStats.baseDamage => baseDamage;
+        float IWeaponStats.rapid => rapid;
+        int IWeaponStats.autoMode => autoMode;
+        bool IWeaponStats.IsAuto => IsAuto;
+        float IWeaponStats.precision => precision;
+        float IWeaponStats.antiPrecision => antiPrecision;
+        float IWeaponStats.deviation => deviation;
+        float IWeaponStats.armorPenetration => armorPenetration;
+        float IWeaponStats.knockback => knockback;
+        float IWeaponStats.critChance => critChance;
+        float IWeaponStats.critMultiplier => critMultiplier;
+        int IWeaponStats.projectilesPerShot => projectilesPerShot;
+        float IWeaponStats.projectileSpeed => projectileSpeed;
+        int IWeaponStats.burstCount => burstCount;
+        float IWeaponStats.explRadius => explRadius;
+        float IWeaponStats.explosionDamage => explosionDamage;
+        int IWeaponStats.explTip => explTip;
+        int IWeaponStats.explKol => explKol;
+        int IWeaponStats.magazineSize => magazineSize;
+        float IWeaponStats.reloadTime => reloadTime;
+        string IWeaponStats.ammoType => ammoType;
+        int IWeaponStats.maxDurability => maxDurability;
+        int IWeaponStats.prepFrames => prepFrames;
+        int IWeaponStats.ammoPerShot => ammoPerShot;
+        int IWeaponStats.rechargeFrames => rechargeFrames;
+        int IWeaponStats.recoilFrames => recoilFrames;
+        float IWeaponStats.recoilLift => recoilLift;
+        float IWeaponStats.magicPoolCost => magicPoolCost;
+        float IWeaponStats.manaHealthCost => manaHealthCost;
+        int IWeaponStats.throwTip => throwTip;
+        int IWeaponStats.fuseFrames => fuseFrames;
+        bool IWeaponStats.radio => radio;
+        float IWeaponStats.sens => sens;
+        MeleeType IWeaponStats.meleeType => meleeType;
+        float IWeaponStats.meleeDlina => meleeDlina;
+        float IWeaponStats.meleeMinDlina => meleeMinDlina;
+        bool IWeaponStats.meleeCombo => meleeCombo;
+        bool IWeaponStats.meleePowerAttack => meleePowerAttack;
+        ProjectileArchetype IWeaponStats.projectileArchetype => projectileArchetype;
+        DamageType IWeaponStats.damageType => damageType;
+        float IWeaponStats.bulletGravity => bulletGravity;
+        float IWeaponStats.bulletAccel => bulletAccel;
+        int IWeaponStats.bulletFlame => bulletFlame;
+        float IWeaponStats.bulletNavod => bulletNavod;
+        bool IWeaponStats.isPhysBullet => isPhysBullet;
+        bool IWeaponStats.bumc => bumc;
+        string IWeaponStats.soundShoot => soundShoot;
+        string IWeaponStats.soundReload => soundReload;
+        string IWeaponStats.soundHit => soundHit;
+        string IWeaponStats.soundPrep => soundPrep;
+        int IWeaponStats.soundPrepT1 => soundPrepT1;
+        int IWeaponStats.soundPrepT2 => soundPrepT2;
+        float IWeaponStats.noiseRadius => noiseRadius;
+        string IWeaponStats.soundFall => soundFall;
+        string IWeaponStats.soundSens => soundSens;
+        DecalType IWeaponStats.decalType => decalType;
+        float IWeaponStats.destroyTiles => destroyTiles;
+        float IWeaponStats.piercing => piercing;
+        float IWeaponStats.penetration => penetration;
+        string IWeaponStats.dopEffect => dopEffect;
+        float IWeaponStats.dopDamage => dopDamage;
+        float IWeaponStats.dopChance => dopChance;
+        bool IWeaponStats.alicornOnly => alicornOnly;
+        bool IWeaponStats.spell => spell;
+        IWeaponVisualStats IWeaponStats.weaponVisual => weaponVisual;
+        string IWeaponStats.muzzleFlareId => muzzleFlareId;
+        int IWeaponStats.shineRadius => shineRadius;
+        bool IWeaponStats.hasShell => hasShell;
+        #endregion
     }
 }

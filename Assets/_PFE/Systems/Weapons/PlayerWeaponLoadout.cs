@@ -592,7 +592,7 @@ namespace PFE.Systems.Weapons
             }
 
             UnitDefinition stats = _ownerUnit.Stats;
-            WeaponDefinition def = _current.State.Def;
+            IWeaponStats def = _current.State.Def;
 
             var inputs = new WeaponHoldPointMath.Inputs
             {

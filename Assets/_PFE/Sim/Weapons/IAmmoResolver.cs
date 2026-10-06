@@ -30,6 +30,6 @@ namespace PFE.Systems.Weapons
         /// The ballistics row for <paramref name="ammoId"/>, or <c>null</c> when it cannot be resolved.
         /// Implementations must not throw and must treat null/empty as unresolvable.
         /// </summary>
-        PFE.Data.Definitions.AmmoDefinition Resolve(string ammoId);
+        PFE.Systems.Combat.IAmmoStats Resolve(string ammoId);
     }
 }

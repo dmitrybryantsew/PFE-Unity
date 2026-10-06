@@ -51,7 +51,7 @@ namespace PFE.Systems.Weapons
         public readonly FactionType OwnerFaction;
 
         /// <summary>Static definition of the weapon that fired.</summary>
-        public readonly WeaponDefinition Weapon;
+        public readonly IWeaponStats Weapon;
 
         /// <summary>
         /// Direct hit damage, ammo multipliers already applied.
@@ -243,11 +243,11 @@ namespace PFE.Systems.Weapons
         /// returns early when the node is null — so an unresolved round leaves every multiplier at its
         /// identity and simply contributes nothing. Consumers must reproduce that.</para>
         /// </summary>
-        public readonly AmmoDefinition Ammo;
+        public readonly IAmmoStats Ammo;
 
         public DamageContext(
             EntityId ownerId,
-            WeaponDefinition weapon,
+            IWeaponStats weapon,
             float baseDamage,
             float explosionDamage,
             float armorMultiplier,
@@ -270,7 +270,7 @@ namespace PFE.Systems.Weapons
             float critInvis = 0f,
             float desintegr = 0f,
             float precisionMultiplier = 1f,
-            AmmoDefinition ammo = null)
+            IAmmoStats ammo = null)
         {
             OwnerId           = ownerId;
             OwnerFaction      = ownerFaction;
@@ -302,7 +302,7 @@ namespace PFE.Systems.Weapons
         [System.Obsolete("Pass EntityId ownerId instead of GameObject owner.")]
         public DamageContext(
             GameObject owner,
-            WeaponDefinition weapon,
+            IWeaponStats weapon,
             float baseDamage,
             float explosionDamage,
             float armorMultiplier,
@@ -325,7 +325,7 @@ namespace PFE.Systems.Weapons
             float critInvis = 0f,
             float desintegr = 0f,
             float precisionMultiplier = 1f,
-            AmmoDefinition ammo = null)
+            IAmmoStats ammo = null)
             : this(
                 EntityId.Empty,
                 weapon,
@@ -499,13 +499,13 @@ namespace PFE.Systems.Weapons
         /// <see cref="DamageContext.Ammo"/> and are applied by the damage path.
         /// </param>
         public static DamageContext FromWeapon(
-            WeaponDefinition def, GameObject owner, FactionType ownerFaction = FactionType.Neutral,
+            IWeaponStats def, GameObject owner, FactionType ownerFaction = FactionType.Neutral,
             int ownerWeaponSkillLevel = HitAvoidance.UnknownOwnerSkillLevel,
             float weaponSkillMultiplier = 1f,
             float critInvisChance = 0f,
             float desintegrChance = 0f,
             float precisionMultiplier = 1f,
-            AmmoDefinition ammo = null)
+            IAmmoStats ammo = null)
         {
             // ── Ammo fire-time fold (AS3 Weapon.setAmmo, Weapon.as:1746-1809) ───────────────────
             //

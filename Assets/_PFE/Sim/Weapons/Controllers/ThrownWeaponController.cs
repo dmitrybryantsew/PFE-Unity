@@ -41,7 +41,7 @@ namespace PFE.Systems.Weapons.Controllers
         // ── State ─────────────────────────────────────────────────────────────
 
         public WeaponRuntimeState State { get; }
-        private readonly WeaponDefinition _def;
+        private readonly IWeaponStats _def;
 
         /// <summary>
         /// The owner's RPG multipliers — null means "no owner stats", in which case every accessor
@@ -256,7 +256,7 @@ namespace PFE.Systems.Weapons.Controllers
             // ── The round this throw consumes ─────────────────────────────────
             // WThrow.shoot() calls setBullet(b) at :191, so the ammo's six fire-time terms reach the
             // shot. Read from ResolvedAmmoType so a debug ammo swap actually changes the throw.
-            AmmoDefinition ammo = _ammoResolver?.Resolve(State.ResolvedAmmoType);
+            IAmmoStats ammo = _ammoResolver?.Resolve(State.ResolvedAmmoType);
 
             // skillConf is AS3's level-deficit penalty, set by WThrow.attack()'s own gate (:78-106).
             // 1 until that gate is ported — see the class note.

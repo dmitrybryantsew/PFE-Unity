@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using PFE.Core;
 using PFE.Data.Definitions;
+using PFE.Systems.Combat;
 
 namespace PFE.Systems.Weapons.Controllers
 {
@@ -57,7 +58,7 @@ namespace PFE.Systems.Weapons.Controllers
         // ── State ─────────────────────────────────────────────────────────────
 
         public WeaponRuntimeState State { get; }
-        private readonly WeaponDefinition _def;
+        private readonly IWeaponStats _def;
 
         private float _frameAccum;
         private bool  _attackHeld;

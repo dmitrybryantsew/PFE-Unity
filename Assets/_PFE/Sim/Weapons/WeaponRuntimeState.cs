@@ -1,5 +1,6 @@
 using R3;
 using PFE.Data.Definitions;
+using PFE.Systems.Combat;
 
 namespace PFE.Systems.Weapons
 {
@@ -25,7 +26,7 @@ namespace PFE.Systems.Weapons
     public sealed class WeaponRuntimeState
     {
         // ── Definition reference ───────────────────────────────────────────────
-        public readonly WeaponDefinition Def;
+        public readonly IWeaponStats Def;
 
         // ── Ammo type ─────────────────────────────────────────────────────────
 
@@ -127,7 +128,7 @@ namespace PFE.Systems.Weapons
 
         // ── Constructor ────────────────────────────────────────────────────────
 
-        public WeaponRuntimeState(WeaponDefinition def)
+        public WeaponRuntimeState(IWeaponStats def)
         {
             Def              = def;
             CurrentAmmo      = def.magazineSize;

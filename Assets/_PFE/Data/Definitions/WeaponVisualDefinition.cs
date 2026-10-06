@@ -1,4 +1,5 @@
 using UnityEngine;
+using PFE.Systems.Combat;
 
 namespace PFE.Data.Definitions
 {
@@ -14,7 +15,7 @@ namespace PFE.Data.Definitions
     /// no Animator or AnimationClip is involved (mirrors the original gotoAndStop/gotoAndPlay logic).
     /// </summary>
     [CreateAssetMenu(fileName = "WeaponVis_new", menuName = "PFE/Weapon Visual Definition")]
-    public class WeaponVisualDefinition : ScriptableObject
+    public class WeaponVisualDefinition : ScriptableObject, IWeaponVisualStats
     {
         // ── Identification ────────────────────────────────────────────────────
         [Header("Identification")]
@@ -44,6 +45,7 @@ namespace PFE.Data.Definitions
         [Header("Animation — Shoot")]
         [Tooltip("frames[] index where the 'shoot' Flash label begins. -1 = not animated.")]
         public int shootFrameStart = -1;
+        int IWeaponVisualStats.shootFrameStart => shootFrameStart;
         [Tooltip("Number of frames in the shoot animation.")]
         public int shootFrameCount = 0;
 

@@ -15,6 +15,7 @@ using PFE.Systems.Magic;
 using PFE.Systems.Physics;
 using PFE.Systems.RPG;
 using PFE.Systems.RPG.Data;
+using PFE.Systems.Combat;
 using PFE.Systems.Weapons;
 using PerkDefinition = PFE.Systems.RPG.Data.PerkDefinition;
 using SkillDefinition = PFE.Systems.RPG.Data.SkillDefinition;
@@ -1776,7 +1777,7 @@ namespace PFE.Core.Scripting
         /// blank <c>ammoType</c> (melee, magic, unarmed). Those get a greyed label instead — an empty
         /// dropdown would read as a bug, and they never reload anyway (<c>magazineSize</c> 0).</para>
         /// </summary>
-        private void DrawAmmoTypeRow(IWeaponController curController, WeaponDefinition curDef)
+        private void DrawAmmoTypeRow(IWeaponController curController, IWeaponStats curDef)
         {
             if (curController?.State == null || curDef == null)
                 return;

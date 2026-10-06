@@ -25,8 +25,8 @@ namespace PFE.Systems.Combat
         /// Calculate total critical hit chance from all sources.
         /// </summary>
         public float CalculateCriticalChance(
-            WeaponDefinition weaponDef,
-            UnitStats ownerStats,
+            IWeaponStats weaponDef,
+            IUnitCombatStats ownerStats,
             float additionalChance = 0f)
         {
             return _combatCalculator.CalculateCriticalChance(
@@ -39,8 +39,8 @@ namespace PFE.Systems.Combat
         /// Calculate total critical hit damage multiplier.
         /// </summary>
         public float CalculateCriticalMultiplier(
-            WeaponDefinition weaponDef,
-            UnitStats ownerStats,
+            IWeaponStats weaponDef,
+            IUnitCombatStats ownerStats,
             float additionalMultiplier = 0f)
         {
             return _combatCalculator.CalculateCriticalMultiplier(

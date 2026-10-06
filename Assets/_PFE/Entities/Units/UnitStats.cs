@@ -19,7 +19,7 @@ namespace PFE.Entities.Units
 /// NPC's <c>UnitController</c> and the player's stack hold, so the effect set lives on it rather than
 /// on any one controller. See <see cref="Effects"/> and <see cref="TickEffects"/>.</para>
 /// </summary>
-public class UnitStats : IEffectHost
+public class UnitStats : IEffectHost, IUnitCombatStats
 {
 // === Core Vitals (Reactive) ===
 public readonly ReactiveProperty<float> CurrentHp;
@@ -856,6 +856,22 @@ public readonly ReactiveProperty<float> MaxMana;
 
     public bool IsAlive => CurrentHp.Value > 0;
     public bool IsDead => CurrentHp.Value <= 0;
+
+    #region IUnitCombatStats
+    float IUnitCombatStats.critChanceBonus => critChanceBonus;
+    float IUnitCombatStats.critChanceBonusAdditional => critChanceBonusAdditional;
+    float IUnitCombatStats.critDamageBonus => critDamageBonus;
+    float IUnitCombatStats.critInvisChance => critInvisChance;
+    float IUnitCombatStats.desintegrChance => desintegrChance;
+    bool IUnitCombatStats.isNonLiving => isNonLiving;
+    float IUnitCombatStats.damageBonus => damageBonus;
+    float IUnitCombatStats.damageMultiplier => damageMultiplier;
+    int IUnitCombatStats.weaponSkillLevel => weaponSkillLevel;
+    int IUnitCombatStats.weaponCurrentDurability => weaponCurrentDurability;
+    ArmourState IUnitCombatStats.armour => armour;
+    float IUnitCombatStats.armorEffectiveness => armorEffectiveness;
+    float IUnitCombatStats.currentHp => CurrentHp?.Value ?? 0f;
+    #endregion
 }
 
 }

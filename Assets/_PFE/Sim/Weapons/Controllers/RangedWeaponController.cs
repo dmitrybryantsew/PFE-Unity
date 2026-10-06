@@ -30,8 +30,8 @@ namespace PFE.Systems.Weapons.Controllers
         // ── State ─────────────────────────────────────────────────────────────
 
         public WeaponRuntimeState State { get; }
-        private readonly WeaponDefinition _def;
-        private readonly PfeDebugSettings _debugSettings;
+        private readonly IWeaponStats _def;
+        private readonly IWeaponDiagnosticSettings _debugSettings;
 
         // Flash-frame accumulator — fractional frames carry over between Tick() calls.
         private float _frameAccum;
@@ -120,7 +120,7 @@ namespace PFE.Systems.Weapons.Controllers
 
         // ── Constructor ───────────────────────────────────────────────────────
 
-        public RangedWeaponController(WeaponRuntimeState state, PfeDebugSettings debugSettings = null,
+        public RangedWeaponController(WeaponRuntimeState state, IWeaponDiagnosticSettings debugSettings = null,
                                       IAmmoSource ammoSource = null, PFE.Core.Rng.IRngService rng = null,
                                       IWeaponStatSource statSource = null, IAmmoResolver ammoResolver = null)
         {
@@ -495,7 +495,7 @@ namespace PFE.Systems.Weapons.Controllers
             // ResolvedAmmoType (not _def.ammoType) so the debug ammo swap actually changes what is
             // fired: reading the definition's own field here would leave a swapped weapon shooting its
             // original ballistics — the half-applied-swap shape the state's own comment warns about.
-            AmmoDefinition ammo = _ammoResolver?.Resolve(State.ResolvedAmmoType);
+            IAmmoStats ammo = _ammoResolver?.Resolve(State.ResolvedAmmoType);
 
             // ── Shared damage context (same for all pellets in this shot) ─────
             // The two attacker-side hit procs ride on the shot exactly as AS3 stamps them on the

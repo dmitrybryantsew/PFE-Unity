@@ -45,6 +45,8 @@ namespace PFE.Systems.Weapons
         }
 
         /// <inheritdoc/>
+        PFE.Systems.Combat.IAmmoStats IAmmoResolver.Resolve(string ammoId) => Resolve(ammoId);
+
         public AmmoDefinition Resolve(string ammoId)
         {
             if (_registry == null || string.IsNullOrEmpty(ammoId))

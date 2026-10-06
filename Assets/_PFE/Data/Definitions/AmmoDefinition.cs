@@ -1,5 +1,6 @@
 using UnityEngine;
 using PFE.ModAPI;
+using PFE.Systems.Combat;
 #if ODIN_INSPECTOR
 using Sirenix.OdinInspector;
 #endif
@@ -15,7 +16,7 @@ namespace PFE.Data.Definitions
     /// and modifier variants (armor piercing, explosive, incendiary, etc.).
     /// </summary>
     [CreateAssetMenu(fileName = "NewAmmoDef", menuName = "PFE/Ammo Definition")]
-    public class AmmoDefinition : ScriptableObject, IGameContent
+    public class AmmoDefinition : ScriptableObject, IGameContent, IAmmoStats
     {
         [Header("Identity")]
         [Tooltip("Unique ID for this ammo type")]
@@ -110,5 +111,22 @@ namespace PFE.Data.Definitions
 
         [Tooltip("Icon for inventory")]
         public Sprite icon;
+
+        #region IAmmoStats
+        string IAmmoStats.ammoId => ammoId;
+        string IAmmoStats.baseId => baseId;
+        int IAmmoStats.stackSize => stackSize;
+        AmmoModifier IAmmoStats.modifier => modifier;
+        int IAmmoStats.armorPiercingBonus => armorPiercingBonus;
+        float IAmmoStats.penetrationBudget => penetrationBudget;
+        float IAmmoStats.damageMultiplier => damageMultiplier;
+        float IAmmoStats.armorMultiplier => armorMultiplier;
+        float IAmmoStats.knockbackMultiplier => knockbackMultiplier;
+        float IAmmoStats.precisionMultiplier => precisionMultiplier;
+        bool IAmmoStats.extraDurabilityCost => extraDurabilityCost;
+        int IAmmoStats.fireDamage => fireDamage;
+        DamageType IAmmoStats.damageTypeOverride => damageTypeOverride;
+        string IAmmoStats.displayName => displayName;
+        #endregion
     }
 }

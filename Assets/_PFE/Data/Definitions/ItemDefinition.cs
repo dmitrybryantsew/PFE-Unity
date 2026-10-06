@@ -15,11 +15,15 @@ namespace PFE.Data.Definitions
     /// crafting materials, books, equipment, and special items.
     /// </summary>
     [CreateAssetMenu(fileName = "NewItemDef", menuName = "PFE/Item Definition")]
-    public class ItemDefinition : ScriptableObject, IGameContent
+    public class ItemDefinition : ScriptableObject, IGameContent, PFE.Systems.Inventory.IItemStats
     {
         [Header("Identity")]
         [Tooltip("Unique ID for this item")]
         public string itemId;
+
+        // IItemStats
+        string PFE.Systems.Inventory.IItemStats.itemId => itemId;
+        ItemType PFE.Systems.Inventory.IItemStats.type => type;
 
         // IGameContent
         string IGameContent.ContentId => itemId;

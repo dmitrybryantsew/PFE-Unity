@@ -31,10 +31,10 @@ namespace PFE.Systems.Combat
         /// <param name="isBackstab">Backstab attack (2x damage)</param>
         /// <param name="absolutePierce">Absolute pierce roll (ignores all armor)</param>
         public DamageResult CalculateDamage(
-            WeaponDefinition weaponDef,
-            UnitStats attackerStats,
-            UnitStats targetStats,
-            AmmoDefinition ammoDef = null,
+            IWeaponStats weaponDef,
+            IUnitCombatStats attackerStats,
+            IUnitCombatStats targetStats,
+            IAmmoStats ammoDef = null,
             bool isBackstab = false,
             bool absolutePierce = false)
         {
@@ -85,7 +85,7 @@ namespace PFE.Systems.Combat
         /// Step 1: Calculate base damage with all modifiers.
         /// Formula: (baseDamage + damAdd) * damMult * weaponSkill * durabilityPenalty
         /// </summary>
-        private float CalculateBaseDamage(WeaponDefinition weaponDef, UnitStats attackerStats)
+        private float CalculateBaseDamage(IWeaponStats weaponDef, IUnitCombatStats attackerStats)
         {
             float breaking = _combatCalculator.CalculateBreaking(
                 weaponDef.maxDurability,
@@ -108,7 +108,7 @@ namespace PFE.Systems.Combat
         /// <summary>
         /// Step 2: Apply ammo damage multiplier.
         /// </summary>
-        private float ApplyAmmoMultiplier(float damage, AmmoDefinition ammoDef)
+        private float ApplyAmmoMultiplier(float damage, IAmmoStats ammoDef)
         {
             if (ammoDef == null)
                 return damage;
@@ -123,8 +123,8 @@ namespace PFE.Systems.Combat
         /// </summary>
         private float ApplyVulnerability(
             float damage,
-            WeaponDefinition weaponDef,
-            UnitStats targetStats)
+            IWeaponStats weaponDef,
+            IUnitCombatStats targetStats)
         {
             // Get vulnerability based on damage type
             // For now, return damage unchanged (vulnerability system needs damage type lookup)
@@ -137,8 +137,8 @@ namespace PFE.Systems.Combat
         /// </summary>
         private float ApplyArmor(
             float damage,
-            WeaponDefinition weaponDef,
-            UnitStats targetStats,
+            IWeaponStats weaponDef,
+            IUnitCombatStats targetStats,
             bool absolutePierce)
         {
             if (absolutePierce)
@@ -158,7 +158,7 @@ namespace PFE.Systems.Combat
         /// <summary>
         /// Step 5: Check and apply critical hit.
         /// </summary>
-        private bool CheckCriticalHit(WeaponDefinition weaponDef, UnitStats attackerStats)
+        private bool CheckCriticalHit(IWeaponStats weaponDef, IUnitCombatStats attackerStats)
         {
             float critChance = _combatCalculator.CalculateCriticalChance(
                 weaponDef.critChance,

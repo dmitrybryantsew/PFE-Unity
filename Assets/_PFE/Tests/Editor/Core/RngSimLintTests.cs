@@ -19,15 +19,15 @@ namespace PFE.Tests.Editor.Core
 
         private static readonly string[] SimFilesToCheck = new[]
         {
-            "Systems/Combat/CombatCalculator.cs",
-            "Systems/Combat/CriticalHitSystem.cs",
-            "Systems/Combat/DurabilitySystem.cs",
+            "Sim/Combat/CombatCalculator.cs",
+            "Sim/Combat/CriticalHitSystem.cs",
+            "Sim/Combat/DurabilitySystem.cs",
             // Replaces "Systems/Weapons/DamageResolver.cs", which was deleted when damage resolution
             // moved here. Note this lint asserts each path EXISTS, so a rename or delete that skips
             // this list fails the test rather than silently dropping the file from coverage.
             "Systems/Combat/DamageSystem.cs",
-            "Systems/Combat/DamageCalculator.cs",
-            "Systems/Weapons/Controllers/RangedWeaponController.cs",
+            "Sim/Combat/DamageCalculator.cs",
+            "Sim/Weapons/Controllers/RangedWeaponController.cs",
             "Entities/Weapons/Projectile.cs",
             "Systems/Map/RoomDifficulty.cs",
             "Systems/Map/RoomGenerator.cs",

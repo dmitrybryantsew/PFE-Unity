@@ -176,10 +176,10 @@ namespace PFE.Systems.Inventory
         /// <c>@us</c> and <c>@invcat</c>, only this method changes — every caller and every fixture stays
         /// as it is.</para>
         /// </summary>
-        public static int ForItem(ItemDefinition item)
+        public static int ForItem(IItemStats item)
         {
             if (item == null) return NotTracked;
-            return ResolveFromItemType(item.type);
+            return ResolveFromItemType(item.Type);
         }
     }
 }
