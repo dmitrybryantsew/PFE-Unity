@@ -1,0 +1,63 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6d783fb7e76e4012beed5bcce6eb2f54, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.Campaign.LandDefinition
+  dataVersion: 1
+  gameVersion: 0.1.0
+  landId: minst
+  landName: Minst
+  tip: story
+  isProcedural: 0
+  stage: 9
+  baseDifficulty: 20
+  autoLevel: 0
+  biomeId: 5
+  configId: 0
+  sourceFileKey: rooms_minst
+  exitLandId: 
+  listCount: 5
+  loadScreenIndex: -1
+  limit: 0
+  fin: 0
+  gridWidth: 1
+  gridHeight: 1
+  entryCoordinates: {x: 0, y: 0}
+  backwallTexture: tConRough
+  backdropId: fonCanter
+  musicTrackId: music_minst
+  postMusic: 0
+  ambientDarkness: 0
+  colorGrade: pink
+  borderStyle: Q
+  visibilityRange: 0
+  hazardType: 3
+  hazardRadius: 0
+  hazardDamage: 10
+  hazardDamageType: 19
+  xpReward: 400
+  roomTemplates:
+  - {fileID: 11400000, guid: b0beb105a28b43a4394483836ec945e6, type: 2}
+  - {fileID: 11400000, guid: a725a64498fd91544a0cb73204c04a36, type: 2}
+  - {fileID: 11400000, guid: de6156543bc379a448eef30c8121534e, type: 2}
+  - {fileID: 11400000, guid: 8880c88b54dfc5145bc4892eb7bb3d6a, type: 2}
+  - {fileID: 11400000, guid: 6d1030c7b5e355846b23750b4a3506e6, type: 2}
+  - {fileID: 11400000, guid: 4c7faa07453d87144a74752b970fb020, type: 2}
+  - {fileID: 11400000, guid: 2dec00f93b9f319478159ff3395b9de1, type: 2}
+  - {fileID: 11400000, guid: 7beb413dac4646248960baa5f9ccdb06, type: 2}
+  - {fileID: 11400000, guid: 707d5b96a1722054e9798de7d90fa141, type: 2}
+  - {fileID: 11400000, guid: 567411991e26bee4c8a1fbe396bd0b7a, type: 2}
+  - {fileID: 11400000, guid: 394c7b7bfb9269c4984858bbbdf06265, type: 2}
+  - {fileID: 11400000, guid: ffe98949ea7f4f446ba43681d9cc03c1, type: 2}
+  - {fileID: 11400000, guid: 08ff15a9c818a0644b44f85bd32f0192, type: 2}
+  - {fileID: 11400000, guid: 37fbeeb8014f8a14a92087fd287c24aa, type: 2}
+  - {fileID: 11400000, guid: 13db52b2136e5f64fbab5933e4d006fd, type: 2}

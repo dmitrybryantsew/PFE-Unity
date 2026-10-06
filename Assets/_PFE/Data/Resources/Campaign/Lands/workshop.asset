@@ -1,0 +1,65 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6d783fb7e76e4012beed5bcce6eb2f54, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.Campaign.LandDefinition
+  dataVersion: 1
+  gameVersion: 0.1.0
+  landId: workshop
+  landName: Workshop
+  tip: story
+  isProcedural: 0
+  stage: 10
+  baseDifficulty: 25
+  autoLevel: 0
+  biomeId: 0
+  configId: 0
+  sourceFileKey: rooms_workshop
+  exitLandId: 
+  listCount: 0
+  loadScreenIndex: -1
+  limit: 0
+  fin: 0
+  gridWidth: 1
+  gridHeight: 1
+  entryCoordinates: {x: 0, y: 0}
+  backwallTexture: tBackWall
+  backdropId: 
+  musicTrackId: music_workshop
+  postMusic: 0
+  ambientDarkness: 0
+  colorGrade: 
+  borderStyle: 
+  visibilityRange: 0
+  hazardType: 0
+  hazardRadius: 0
+  hazardDamage: 0
+  hazardDamageType: 0
+  xpReward: 500
+  roomTemplates:
+  - {fileID: 11400000, guid: 8867319155cf01f43bd05e9089f27f50, type: 2}
+  - {fileID: 11400000, guid: d0414d5fc2ac4f7449269eac18bfb2b5, type: 2}
+  - {fileID: 11400000, guid: 7da45caf18ed74f4ea8f095ef61bea37, type: 2}
+  - {fileID: 11400000, guid: 9687c75549fadcd48b6532a89f3ab819, type: 2}
+  - {fileID: 11400000, guid: ae18be3f0796c6c46a8f30677bce16ce, type: 2}
+  - {fileID: 11400000, guid: ee005a3ebb4dba742bf126927edadfc6, type: 2}
+  - {fileID: 11400000, guid: a0a8add5164967e49897f88edd12523a, type: 2}
+  - {fileID: 11400000, guid: 4fc71293db18dbf48a7ef14ffe43d857, type: 2}
+  - {fileID: 11400000, guid: 305822d68d5691a42b6389546c623e3b, type: 2}
+  - {fileID: 11400000, guid: 87a0f65fc7e71d449a931c8fccaa92d7, type: 2}
+  - {fileID: 11400000, guid: 585d608a9013f5243b7f190e0d7d0574, type: 2}
+  - {fileID: 11400000, guid: 91224dd7c861e6549820f35a00491b8d, type: 2}
+  - {fileID: 11400000, guid: dc1ab45310d098a41b279824df739de8, type: 2}
+  - {fileID: 11400000, guid: 319a1a31972270241b7d6d4d3df6c2f1, type: 2}
+  - {fileID: 11400000, guid: 19bbf985647c1e34cbbc571a7ceab511, type: 2}
+  - {fileID: 11400000, guid: b69920ba6de1b1f458d6a55cc78c7c8b, type: 2}
+  - {fileID: 11400000, guid: ed8f69a3146705c44a787ff2f796f916, type: 2}

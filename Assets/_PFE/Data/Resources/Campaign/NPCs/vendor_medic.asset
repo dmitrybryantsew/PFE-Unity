@@ -1,0 +1,89 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c2eabf76b34c4c2d8360c7929f56fdba, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.Campaign.NpcDefinition
+  dataVersion: 1
+  gameVersion: 0.1.0
+  npcId: vendor_medic
+  visualId: Doctor
+  aliasName: 
+  vendorId: vendor_medic
+  interactionType: doc
+  iconIndex: 3
+  userAction1: 
+  userAction2: 
+  defaultWeapon: 
+  isSilent: 0
+  dialogues:
+  - dialogueId: vendor_medic_hi
+    isImportant: 0
+    requiredTrigger: 
+    requiredLand: 
+    requiredQuest: 
+    requiredQuestStage: 0
+    previousDialogueId: 
+    requiredArmor: 
+    requiredWeapon: 
+    requiredLevel: 0
+    music: 
+    actions: []
+  - dialogueId: velvetDial3
+    isImportant: 0
+    requiredTrigger: 
+    requiredLand: 
+    requiredQuest: 
+    requiredQuestStage: 0
+    previousDialogueId: velvetDial2
+    requiredArmor: 
+    requiredWeapon: 
+    requiredLevel: 0
+    music: 
+    actions:
+    - action: stage
+      target: 
+      value: storyFind
+      numericParam: 1
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: xp
+      target: 
+      value: 3000
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+  - dialogueId: vendor_medic_new1
+    isImportant: 0
+    requiredTrigger: 
+    requiredLand: 
+    requiredQuest: 
+    requiredQuestStage: 0
+    previousDialogueId: 
+    requiredArmor: 
+    requiredWeapon: 
+    requiredLevel: 9
+    music: 
+    actions: []
+  - dialogueId: dialPatient4
+    isImportant: 0
+    requiredTrigger: patient_tr1
+    requiredLand: 
+    requiredQuest: 
+    requiredQuestStage: 0
+    previousDialogueId: 
+    requiredArmor: 
+    requiredWeapon: 
+    requiredLevel: 0
+    music: 
+    actions: []

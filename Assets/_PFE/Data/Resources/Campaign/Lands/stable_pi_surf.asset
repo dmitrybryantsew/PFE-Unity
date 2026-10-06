@@ -1,0 +1,68 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6d783fb7e76e4012beed5bcce6eb2f54, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.Campaign.LandDefinition
+  dataVersion: 1
+  gameVersion: 0.1.0
+  landId: stable_pi_surf
+  landName: Stable Pi Surf
+  tip: story
+  isProcedural: 0
+  stage: 12
+  baseDifficulty: 0
+  autoLevel: 0
+  biomeId: 11
+  configId: 0
+  sourceFileKey: rooms_pis
+  exitLandId: 
+  listCount: 0
+  loadScreenIndex: -1
+  limit: 0
+  fin: 0
+  gridWidth: 1
+  gridHeight: 1
+  entryCoordinates: {x: 1, y: 7}
+  backwallTexture: sky
+  backdropId: fonFire
+  musicTrackId: music_encl_2
+  postMusic: 1
+  ambientDarkness: 0
+  colorGrade: fire
+  borderStyle: 
+  visibilityRange: 3
+  hazardType: 0
+  hazardRadius: 0
+  hazardDamage: 0
+  hazardDamageType: 0
+  xpReward: 0
+  roomTemplates:
+  - {fileID: 11400000, guid: bb05d782a88f990469cbd7b4e4b22299, type: 2}
+  - {fileID: 11400000, guid: 722b98e095ce00740930ee9330c3ce96, type: 2}
+  - {fileID: 11400000, guid: 7df4aa7910d165d45870082c97d81cf9, type: 2}
+  - {fileID: 11400000, guid: ee9d15823dcfa4148ad44b731d62f567, type: 2}
+  - {fileID: 11400000, guid: 8863745d13bf6f648a7a6162f5d929d2, type: 2}
+  - {fileID: 11400000, guid: 65a28767cf6372f489fa1df9672cb707, type: 2}
+  - {fileID: 11400000, guid: 32af24cfb22de554981f75ca9c5f6166, type: 2}
+  - {fileID: 11400000, guid: 6b30beefa4d56a04cbfc5d57867d7da7, type: 2}
+  - {fileID: 11400000, guid: d4850824fb8170940bdd6f2385acb9ef, type: 2}
+  - {fileID: 11400000, guid: 3e2555304b5cce14a816d40332a3591f, type: 2}
+  - {fileID: 11400000, guid: 98f1cdd6e208fe44ebbc993e80b88b5b, type: 2}
+  - {fileID: 11400000, guid: d65fbd51752869645a12f4e4c9f72e79, type: 2}
+  - {fileID: 11400000, guid: cf715258a91e29d408053971a04a2e90, type: 2}
+  - {fileID: 11400000, guid: 3cf87a6e7a09cda4d83808c329217819, type: 2}
+  - {fileID: 11400000, guid: 46e0186d7c79fbb41a6e916fa53a0ccb, type: 2}
+  - {fileID: 11400000, guid: f20c5a8dfd6d7a2419bd35286a229bc0, type: 2}
+  - {fileID: 11400000, guid: beb66cec5cae7ab4ebee2a21d4780583, type: 2}
+  - {fileID: 11400000, guid: 99b5f777dda95ab43a72589831eab234, type: 2}
+  - {fileID: 11400000, guid: 70cdf7dec5e700244a7d1f58d3be392e, type: 2}
+  - {fileID: 11400000, guid: cbe3e5127bceedd43b8a9e8e3f8da2a0, type: 2}

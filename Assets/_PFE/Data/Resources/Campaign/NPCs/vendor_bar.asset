@@ -1,0 +1,218 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c2eabf76b34c4c2d8360c7929f56fdba, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.Campaign.NpcDefinition
+  dataVersion: 1
+  gameVersion: 0.1.0
+  npcId: vendor_bar
+  visualId: VendorBar
+  aliasName: 
+  vendorId: vendor_bar
+  interactionType: v
+  iconIndex: 9
+  userAction1: 
+  userAction2: 
+  defaultWeapon: 
+  isSilent: 1
+  dialogues:
+  - dialogueId: dialEnd_vendor_bar
+    isImportant: 0
+    requiredTrigger: theend
+    requiredLand: 
+    requiredQuest: 
+    requiredQuestStage: 0
+    previousDialogueId: 
+    requiredArmor: 
+    requiredWeapon: 
+    requiredLevel: 0
+    music: 
+    actions: []
+  - dialogueId: vendor_bar_hi
+    isImportant: 1
+    requiredTrigger: 
+    requiredLand: 
+    requiredQuest: 
+    requiredQuestStage: 0
+    previousDialogueId: 
+    requiredArmor: 
+    requiredWeapon: 
+    requiredLevel: 0
+    music: 
+    actions:
+    - action: stage
+      target: 
+      value: storyContact
+      numericParam: 2
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: unlock
+      target: doorRBL1
+      value: 
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+  - dialogueId: vendor_bar_task
+    isImportant: 1
+    requiredTrigger: 
+    requiredLand: 
+    requiredQuest: 
+    requiredQuestStage: 0
+    previousDialogueId: 
+    requiredArmor: 
+    requiredWeapon: 
+    requiredLevel: 0
+    music: 
+    actions:
+    - action: stage
+      target: 
+      value: storyMain
+      numericParam: 1
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: openland
+      target: 
+      value: random_plant
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: sign
+      target: worldMap
+      value: 1
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+  - dialogueId: vendor_bar_stable
+    isImportant: 1
+    requiredTrigger: story_stable
+    requiredLand: 
+    requiredQuest: 
+    requiredQuestStage: 0
+    previousDialogueId: 
+    requiredArmor: 
+    requiredWeapon: 
+    requiredLevel: 0
+    music: 
+    actions:
+    - action: stage
+      target: 
+      value: storyStable
+      numericParam: 1
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: openland
+      target: 
+      value: raiders
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: check
+      target: rblCalam
+      value: 
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+  - dialogueId: vendor_bar_mane
+    isImportant: 1
+    requiredTrigger: story_mane
+    requiredLand: 
+    requiredQuest: 
+    requiredQuestStage: 0
+    previousDialogueId: 
+    requiredArmor: 
+    requiredWeapon: 
+    requiredLevel: 0
+    music: 
+    actions:
+    - action: stage
+      target: 
+      value: storyMane
+      numericParam: 1
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: showstage
+      target: 
+      value: storyMane
+      numericParam: 2
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: openland
+      target: 
+      value: random_mane
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: check
+      target: rblCalam
+      value: 
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: take
+      target: 
+      value: money
+      numericParam: 5000
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: take
+      target: 
+      value: binoc
+      numericParam: 1
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+  - dialogueId: dialRanger7
+    isImportant: 1
+    requiredTrigger: ranger_q1
+    requiredLand: 
+    requiredQuest: 
+    requiredQuestStage: 0
+    previousDialogueId: 
+    requiredArmor: 
+    requiredWeapon: 
+    requiredLevel: 0
+    music: 
+    actions:
+    - action: stage
+      target: 
+      value: storyRanger
+      numericParam: 5
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: showstage
+      target: 
+      value: storyRanger
+      numericParam: 6
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: trigger
+      target: 
+      value: ranger_q2
+      numericParam: 1
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0

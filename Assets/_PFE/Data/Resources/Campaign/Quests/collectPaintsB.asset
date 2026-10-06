@@ -1,0 +1,83 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 59cf33d85e6a4ed8a14714c8ffa7559d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.Campaign.QuestDefinition
+  dataVersion: 1
+  gameVersion: 0.1.0
+  questId: collectPaintsB
+  questTitle: Collectpaintsb
+  questDescription: 
+  employer: vendor_armor
+  isMainQuest: 0
+  rewardXp: 0
+  rewardSp: 0
+  rewardPay: 0
+  rewardReputation: 1
+  stages:
+  - stageIndex: 1
+    descriptionKey: collectPaintsB_stage_1
+    isHidden: 0
+    isOptional: 0
+    requiredItemId: p_gray
+    requiredItemCount: 1
+    turnInItemId: 
+  - stageIndex: 2
+    descriptionKey: collectPaintsB_stage_2
+    isHidden: 0
+    isOptional: 0
+    requiredItemId: p_purple
+    requiredItemCount: 1
+    turnInItemId: 
+  - stageIndex: 3
+    descriptionKey: collectPaintsB_stage_3
+    isHidden: 0
+    isOptional: 0
+    requiredItemId: p_orange
+    requiredItemCount: 1
+    turnInItemId: 
+  - stageIndex: 4
+    descriptionKey: collectPaintsB_stage_4
+    isHidden: 0
+    isOptional: 0
+    requiredItemId: p_brown
+    requiredItemCount: 1
+    turnInItemId: 
+  - stageIndex: 5
+    descriptionKey: collectPaintsB_stage_5
+    isHidden: 0
+    isOptional: 0
+    requiredItemId: p_lblue
+    requiredItemCount: 1
+    turnInItemId: 
+  - stageIndex: 6
+    descriptionKey: collectPaintsB_stage_6
+    isHidden: 0
+    isOptional: 0
+    requiredItemId: p_khaki
+    requiredItemCount: 1
+    turnInItemId: 
+  - stageIndex: 7
+    descriptionKey: collectPaintsB_stage_7
+    isHidden: 0
+    isOptional: 0
+    requiredItemId: p_dgreen
+    requiredItemCount: 1
+    turnInItemId: 
+  - stageIndex: 8
+    descriptionKey: collectPaintsB_stage_8
+    isHidden: 0
+    isOptional: 0
+    requiredItemId: 
+    requiredItemCount: 1
+    turnInItemId: 
+  nextQuestId: 

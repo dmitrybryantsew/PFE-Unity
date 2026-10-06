@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 59cf33d85e6a4ed8a14714c8ffa7559d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.Campaign.QuestDefinition
+  dataVersion: 1
+  gameVersion: 0.1.0
+  questId: freeCaptive
+  questTitle: Freecaptive
+  questDescription: 
+  employer: 
+  isMainQuest: 0
+  rewardXp: 10000
+  rewardSp: 1
+  rewardPay: 0
+  rewardReputation: 5
+  stages:
+  - stageIndex: 1
+    descriptionKey: freeCaptive_stage_1
+    isHidden: 0
+    isOptional: 0
+    requiredItemId: capt_raiders
+    requiredItemCount: 12
+    turnInItemId: 
+  nextQuestId: 

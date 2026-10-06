@@ -1,0 +1,65 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6d783fb7e76e4012beed5bcce6eb2f54, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.Campaign.LandDefinition
+  dataVersion: 1
+  gameVersion: 0.1.0
+  landId: nio
+  landName: Nio
+  tip: story
+  isProcedural: 0
+  stage: 2
+  baseDifficulty: 7
+  autoLevel: 0
+  biomeId: 0
+  configId: 0
+  sourceFileKey: rooms_nio
+  exitLandId: 
+  listCount: 3
+  loadScreenIndex: -1
+  limit: 0
+  fin: 0
+  gridWidth: 1
+  gridHeight: 1
+  entryCoordinates: {x: -1, y: 0}
+  backwallTexture: tTiles
+  backdropId: 
+  musicTrackId: music_plant_2
+  postMusic: 0
+  ambientDarkness: 0
+  colorGrade: lab
+  borderStyle: 
+  visibilityRange: 0
+  hazardType: 0
+  hazardRadius: 0
+  hazardDamage: 0
+  hazardDamageType: 0
+  xpReward: 100
+  roomTemplates:
+  - {fileID: 11400000, guid: b0b04e8dceab4584f9201d435cae564f, type: 2}
+  - {fileID: 11400000, guid: ca2323c0a02916d40ad32a55bed97dca, type: 2}
+  - {fileID: 11400000, guid: 3a46a068c72121d4c8a8eeda4da22ecf, type: 2}
+  - {fileID: 11400000, guid: 3f0bc8a23c63b2748947f2fa0f8bb2f2, type: 2}
+  - {fileID: 11400000, guid: 7a24d4dfaee6ef04db5f67689de1105c, type: 2}
+  - {fileID: 11400000, guid: dcfa84313b567fd43afefe561a9c60a5, type: 2}
+  - {fileID: 11400000, guid: aceb27cf5dea3f246b8b9332e596a5a3, type: 2}
+  - {fileID: 11400000, guid: f80ede0d15e63b544962fcf566720dd4, type: 2}
+  - {fileID: 11400000, guid: 80b8c8405668fd94f85165f726524d3c, type: 2}
+  - {fileID: 11400000, guid: 81c95ef6b1f7b9d4fb9132d19b6a63fa, type: 2}
+  - {fileID: 11400000, guid: 0a60a8d3b88cb1747b624eddc078b29e, type: 2}
+  - {fileID: 11400000, guid: 6b22d7416827cc44ba9b43069410cf0e, type: 2}
+  - {fileID: 11400000, guid: 1dcaa7c006d7f3841a92ba263515bcdd, type: 2}
+  - {fileID: 11400000, guid: 3dca6df7cc844a743b8b02f6e565cfec, type: 2}
+  - {fileID: 11400000, guid: 91fd3f630176ff844893e9014daf8a80, type: 2}
+  - {fileID: 11400000, guid: 271609feac26f464a95221051c325d0b, type: 2}
+  - {fileID: 11400000, guid: cf684dee87e5c794488b616b6021f19e, type: 2}

@@ -1,0 +1,62 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 59cf33d85e6a4ed8a14714c8ffa7559d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.Campaign.QuestDefinition
+  dataVersion: 1
+  gameVersion: 0.1.0
+  questId: storyStorm
+  questTitle: 'Story: Storm'
+  questDescription: 
+  employer: 
+  isMainQuest: 1
+  rewardXp: 100000
+  rewardSp: 0
+  rewardPay: 0
+  rewardReputation: 0
+  stages:
+  - stageIndex: 1
+    descriptionKey: storyStorm_stage_1
+    isHidden: 0
+    isOptional: 0
+    requiredItemId: 
+    requiredItemCount: 1
+    turnInItemId: 
+  - stageIndex: 2
+    descriptionKey: storyStorm_stage_2
+    isHidden: 1
+    isOptional: 0
+    requiredItemId: 
+    requiredItemCount: 1
+    turnInItemId: 
+  - stageIndex: 3
+    descriptionKey: storyStorm_stage_3
+    isHidden: 1
+    isOptional: 0
+    requiredItemId: 
+    requiredItemCount: 1
+    turnInItemId: 
+  - stageIndex: 4
+    descriptionKey: storyStorm_stage_4
+    isHidden: 1
+    isOptional: 0
+    requiredItemId: 
+    requiredItemCount: 1
+    turnInItemId: 
+  - stageIndex: 5
+    descriptionKey: storyStorm_stage_5
+    isHidden: 1
+    isOptional: 0
+    requiredItemId: 
+    requiredItemCount: 1
+    turnInItemId: 
+  nextQuestId: 

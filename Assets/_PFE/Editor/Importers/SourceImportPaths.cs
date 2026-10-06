@@ -102,6 +102,12 @@ namespace PFE.Editor.Importers
         public static string ShapesRoot => Combine("pfe", "scripts", "_assets", "shapes");
 
         /// <summary>
+        /// FFDec's raw raster image export: 428 PNG and JPEG files directly under <c>pfe/scripts/_assets/images/</c>.
+        /// Matches <c>ffdec:fill-bitmapId="{id}"</c> in shape SVGs.
+        /// </summary>
+        public static string RawImagesRoot => Combine("pfe", "scripts", "_assets", "images");
+
+        /// <summary>
         /// FFDec's <c>DefineMorphShape</c> SVG export — only 5 files, named <c>{id}.svg</c> with <b>no</b>
         /// <c>_symbol</c> suffix. That is a third naming convention, alongside
         /// <see cref="ShapesRoot"/>'s <c>{id}_symbol{id}</c> and <see cref="PfeSpritesRoot"/>'s

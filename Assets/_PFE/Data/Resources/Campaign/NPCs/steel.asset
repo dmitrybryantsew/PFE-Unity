@@ -1,0 +1,333 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c2eabf76b34c4c2d8360c7929f56fdba, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.Campaign.NpcDefinition
+  dataVersion: 1
+  gameVersion: 0.1.0
+  npcId: steel
+  visualId: Steel
+  aliasName: 
+  vendorId: 
+  interactionType: travel
+  iconIndex: 10
+  userAction1: dial
+  userAction2: dial
+  defaultWeapon: aglau
+  isSilent: 0
+  dialogues:
+  - dialogueId: dialCanter6
+    isImportant: 1
+    requiredTrigger: 
+    requiredLand: 
+    requiredQuest: 
+    requiredQuestStage: 0
+    previousDialogueId: 
+    requiredArmor: 
+    requiredWeapon: 
+    requiredLevel: 0
+    music: 
+    actions:
+    - action: quest
+      target: 
+      value: hydroPon
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+  - dialogueId: dialRanger1
+    isImportant: 1
+    requiredTrigger: story_ranger
+    requiredLand: 
+    requiredQuest: 
+    requiredQuestStage: 0
+    previousDialogueId: 
+    requiredArmor: 
+    requiredWeapon: 
+    requiredLevel: 0
+    music: 
+    actions:
+    - action: stage
+      target: 
+      value: storyRanger
+      numericParam: 1
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: showstage
+      target: 
+      value: storyRanger
+      numericParam: 2
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: showstage
+      target: 
+      value: storyRanger
+      numericParam: 8
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: trigger
+      target: 
+      value: ranger_q3
+      numericParam: 1
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+  - dialogueId: dialReadyToGo
+    isImportant: 1
+    requiredTrigger: ranger_q4
+    requiredLand: 
+    requiredQuest: 
+    requiredQuestStage: 0
+    previousDialogueId: 
+    requiredArmor: 
+    requiredWeapon: 
+    requiredLevel: 0
+    music: 
+    actions:
+    - action: openland
+      target: 
+      value: random_mbase
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: gotoland
+      target: 
+      value: random_mbase
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+  - dialogueId: dialRanger5
+    isImportant: 1
+    requiredTrigger: cold_death
+    requiredLand: 
+    requiredQuest: 
+    requiredQuestStage: 0
+    previousDialogueId: 
+    requiredArmor: 
+    requiredWeapon: 
+    requiredLevel: 0
+    music: 
+    actions:
+    - action: stage
+      target: 
+      value: storyRanger
+      numericParam: 4
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: showstage
+      target: 
+      value: storyRanger
+      numericParam: 7
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: trigger
+      target: 
+      value: ranger_q1
+      numericParam: 1
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+  - dialogueId: dialRanger6
+    isImportant: 1
+    requiredTrigger: cold_death
+    requiredLand: 
+    requiredQuest: 
+    requiredQuestStage: 0
+    previousDialogueId: 
+    requiredArmor: 
+    requiredWeapon: 
+    requiredLevel: 0
+    music: 
+    actions:
+    - action: openland
+      target: 
+      value: bunker
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+  - dialogueId: dialHelpCovert2
+    isImportant: 1
+    requiredTrigger: 
+    requiredLand: 
+    requiredQuest: storyHelpCovert
+    requiredQuestStage: 3
+    previousDialogueId: 
+    requiredArmor: 
+    requiredWeapon: 
+    requiredLevel: 0
+    music: 
+    actions:
+    - action: stage
+      target: 
+      value: storyHelpCovert
+      numericParam: 3
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: openland
+      target: 
+      value: hql
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+  - dialogueId: dialStorm2
+    isImportant: 1
+    requiredTrigger: 
+    requiredLand: 
+    requiredQuest: storyStorm
+    requiredQuestStage: 2
+    previousDialogueId: 
+    requiredArmor: 
+    requiredWeapon: 
+    requiredLevel: 0
+    music: 
+    actions:
+    - action: take
+      target: 
+      value: potion_rat
+      numericParam: 1
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: stage
+      target: 
+      value: storyStorm
+      numericParam: 2
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: showstage
+      target: 
+      value: storyStorm
+      numericParam: 3
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: showstage
+      target: 
+      value: storyStorm
+      numericParam: 4
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: trigger
+      target: 
+      value: storm
+      numericParam: 3
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: openland
+      target: 
+      value: art
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: dial
+      target: 
+      value: dialNoReturn
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+  - dialogueId: dialStorm5
+    isImportant: 1
+    requiredTrigger: 
+    requiredLand: 
+    requiredQuest: storyStorm
+    requiredQuestStage: 5
+    previousDialogueId: 
+    requiredArmor: 
+    requiredWeapon: 
+    requiredLevel: 0
+    music: 
+    actions:
+    - action: stage
+      target: 
+      value: storyStorm
+      numericParam: 5
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: stage
+      target: 
+      value: storyStorm
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: control off
+      target: 
+      value: 
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: music
+      target: 
+      value: pre_1
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: show
+      target: observer2
+      value: 
+      numericParam: 0
+      delaySeconds: 2
+      opt1: 0
+      opt2: 0
+    - action: dialog
+      target: 
+      value: dialStorm6
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: trigger
+      target: 
+      value: storm
+      numericParam: 4
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: trigger
+      target: 
+      value: fin
+      numericParam: 2
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: quest
+      target: 
+      value: storyFbattle
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: music
+      target: 
+      value: music_red
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0

@@ -1,0 +1,52 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6d783fb7e76e4012beed5bcce6eb2f54, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.Campaign.LandDefinition
+  dataVersion: 1
+  gameVersion: 0.1.0
+  landId: rbl
+  landName: Rbl
+  tip: base
+  isProcedural: 0
+  stage: 1
+  baseDifficulty: 0
+  autoLevel: 1
+  biomeId: 0
+  configId: 0
+  sourceFileKey: rooms_rbl
+  exitLandId: 
+  listCount: 1
+  loadScreenIndex: -1
+  limit: 0
+  fin: 0
+  gridWidth: 1
+  gridHeight: 1
+  entryCoordinates: {x: 0, y: 0}
+  backwallTexture: tStConcrete
+  backdropId: fonWay
+  musicTrackId: music_base
+  postMusic: 0
+  ambientDarkness: 0
+  colorGrade: 
+  borderStyle: 
+  visibilityRange: 0
+  hazardType: 0
+  hazardRadius: 0
+  hazardDamage: 0
+  hazardDamageType: 0
+  xpReward: 0
+  roomTemplates:
+  - {fileID: 11400000, guid: 51bde59503692db43aa298345d9ea602, type: 2}
+  - {fileID: 11400000, guid: 88e1a2eaa7b917c4aaa10a19d41c83c9, type: 2}
+  - {fileID: 11400000, guid: 58115e9ae47472b4b9d0581be97db9a1, type: 2}
+  - {fileID: 11400000, guid: 82f2d87e75a0dd245b8f23dbd17ab9b3, type: 2}

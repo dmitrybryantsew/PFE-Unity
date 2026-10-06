@@ -1,0 +1,119 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c2eabf76b34c4c2d8360c7929f56fdba, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.Campaign.NpcDefinition
+  dataVersion: 1
+  gameVersion: 0.1.0
+  npcId: askari2
+  visualId: Askari
+  aliasName: askari
+  vendorId: 
+  interactionType: 
+  iconIndex: 0
+  userAction1: dial
+  userAction2: dial
+  defaultWeapon: 
+  isSilent: 0
+  dialogues:
+  - dialogueId: dialRanger9
+    isImportant: 1
+    requiredTrigger: ranger_q1
+    requiredLand: 
+    requiredQuest: 
+    requiredQuestStage: 0
+    previousDialogueId: 
+    requiredArmor: 
+    requiredWeapon: 
+    requiredLevel: 0
+    music: 
+    actions:
+    - action: stage
+      target: 
+      value: storyRanger
+      numericParam: 7
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: quest
+      target: 
+      value: storyHelpCovert
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: showstage
+      target: 
+      value: storyRanger
+      numericParam: 5
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+  - dialogueId: dialHelpCovert1
+    isImportant: 1
+    requiredTrigger: soviet
+    requiredLand: 
+    requiredQuest: 
+    requiredQuestStage: 0
+    previousDialogueId: 
+    requiredArmor: 
+    requiredWeapon: 
+    requiredLevel: 0
+    music: 
+    actions:
+    - action: dblack
+      target: 
+      value: 3
+      numericParam: 0
+      delaySeconds: 2
+      opt1: 0
+      opt2: 0
+    - action: goto
+      target: 
+      value: -1 1
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+  - dialogueId: dialHelpCovert3
+    isImportant: 1
+    requiredTrigger: 
+    requiredLand: 
+    requiredQuest: storyHelpCovert
+    requiredQuestStage: 7
+    previousDialogueId: 
+    requiredArmor: 
+    requiredWeapon: 
+    requiredLevel: 0
+    music: 
+    actions:
+    - action: stage
+      target: 
+      value: storyHelpCovert
+      numericParam: 7
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: showstage
+      target: 
+      value: storyHelpCovert
+      numericParam: 8
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: trigger
+      target: 
+      value: observer
+      numericParam: 1
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0

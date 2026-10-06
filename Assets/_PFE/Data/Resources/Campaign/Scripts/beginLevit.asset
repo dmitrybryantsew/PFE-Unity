@@ -1,0 +1,81 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1ed95aec1f7a4c4786d94034eb622ce0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.Campaign.CampaignScriptDefinition
+  dataVersion: 1
+  gameVersion: 0.1.0
+  scriptId: beginLevit
+  actions:
+  - action: control off
+    target: 
+    value: 
+    numericParam: 0
+    delaySeconds: 0
+    opt1: 0
+    opt2: 0
+  - action: dial
+    target: 
+    value: begDialLevit
+    numericParam: 0
+    delaySeconds: 2
+    opt1: 0
+    opt2: 0
+  - action: dial
+    target: 
+    value: begDialLevit
+    numericParam: 1
+    delaySeconds: 1
+    opt1: 0
+    opt2: 0
+  - action: dial
+    target: 
+    value: begDialLevit
+    numericParam: 2
+    delaySeconds: 0
+    opt1: 0
+    opt2: 0
+  - action: perk
+    target: 
+    value: levitation
+    numericParam: 0
+    delaySeconds: 0
+    opt1: 0
+    opt2: 0
+  - action: mess
+    target: 
+    value: perkLevit
+    numericParam: 0
+    delaySeconds: 1
+    opt1: 0
+    opt2: 0
+  - action: off
+    target: this
+    value: 
+    numericParam: 0
+    delaySeconds: 0
+    opt1: 0
+    opt2: 0
+  - action: on
+    target: trLevit
+    value: 
+    numericParam: 0
+    delaySeconds: 0
+    opt1: 0
+    opt2: 0
+  - action: control on
+    target: 
+    value: 
+    numericParam: 0
+    delaySeconds: 0.2
+    opt1: 0
+    opt2: 0

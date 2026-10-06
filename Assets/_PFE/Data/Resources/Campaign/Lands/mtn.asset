@@ -1,0 +1,60 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6d783fb7e76e4012beed5bcce6eb2f54, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.Campaign.LandDefinition
+  dataVersion: 1
+  gameVersion: 0.1.0
+  landId: mtn
+  landName: Mtn
+  tip: story
+  isProcedural: 0
+  stage: 8
+  baseDifficulty: 17
+  autoLevel: 0
+  biomeId: 3
+  configId: 0
+  sourceFileKey: rooms_mtn
+  exitLandId: 
+  listCount: 5
+  loadScreenIndex: -1
+  limit: 0
+  fin: 0
+  gridWidth: 1
+  gridHeight: 1
+  entryCoordinates: {x: 0, y: 8}
+  backwallTexture: tTower
+  backdropId: fonRuins
+  musicTrackId: music_mane_2
+  postMusic: 0
+  ambientDarkness: 0
+  colorGrade: 
+  borderStyle: N
+  visibilityRange: 2
+  hazardType: 0
+  hazardRadius: 0
+  hazardDamage: 0
+  hazardDamageType: 0
+  xpReward: 300
+  roomTemplates:
+  - {fileID: 11400000, guid: a27eae1e2e82d8648955750543dd62b3, type: 2}
+  - {fileID: 11400000, guid: ba2ebc48536d7ea449b9d2ce2869f2e1, type: 2}
+  - {fileID: 11400000, guid: b6e9c0ebf9e440b4e8c670348a0d7a45, type: 2}
+  - {fileID: 11400000, guid: 5785b7ee40cc3a14696f6df67d5c13c0, type: 2}
+  - {fileID: 11400000, guid: a47b37e71fd8b314db448a834e6290a7, type: 2}
+  - {fileID: 11400000, guid: a38016c8195ff9c4b9dbcaf7e9ed7d61, type: 2}
+  - {fileID: 11400000, guid: 39733f637f34f4f44ab56a790c1476c0, type: 2}
+  - {fileID: 11400000, guid: f6d2766c89fb3b04990490fc805fd46f, type: 2}
+  - {fileID: 11400000, guid: b8a9dfdbdc447224185ca4054adda750, type: 2}
+  - {fileID: 11400000, guid: f446ad54fe14fb44c97be356b3cc7a54, type: 2}
+  - {fileID: 11400000, guid: 71f08f7f61959b04082345d748b1223e, type: 2}
+  - {fileID: 11400000, guid: f3ae3e1f95bee1648a8f996706cb176e, type: 2}

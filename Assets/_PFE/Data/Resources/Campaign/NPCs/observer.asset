@@ -1,0 +1,196 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c2eabf76b34c4c2d8360c7929f56fdba, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.Campaign.NpcDefinition
+  dataVersion: 1
+  gameVersion: 0.1.0
+  npcId: observer
+  visualId: SpriteBot
+  aliasName: spritebot
+  vendorId: 
+  interactionType: 
+  iconIndex: 0
+  userAction1: 
+  userAction2: 
+  defaultWeapon: 
+  isSilent: 0
+  dialogues:
+  - dialogueId: dialWat1
+    isImportant: 0
+    requiredTrigger: 
+    requiredLand: 
+    requiredQuest: 
+    requiredQuestStage: 0
+    previousDialogueId: dialHelpCovert4
+    requiredArmor: 
+    requiredWeapon: 
+    requiredLevel: 0
+    music: 
+    actions:
+    - action: trigger
+      target: 
+      value: observer
+      numericParam: 2
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: turn
+      target: observer
+      value: -1
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: mater
+      target: observer
+      value: 0
+      numericParam: 0
+      delaySeconds: 1
+      opt1: 0
+      opt2: 0
+    - action: fly
+      target: observer
+      value: 1:21
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: rem
+      target: observer
+      value: 
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+  - dialogueId: dialEncl6
+    isImportant: 1
+    requiredTrigger: 
+    requiredLand: 
+    requiredQuest: storyHome
+    requiredQuestStage: 4
+    previousDialogueId: 
+    requiredArmor: 
+    requiredWeapon: 
+    requiredLevel: 0
+    music: 
+    actions:
+    - action: stage
+      target: 
+      value: storyHome
+      numericParam: 4
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: showstage
+      target: 
+      value: storyHome
+      numericParam: 5
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: check
+      target: velvet
+      value: 
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+  - dialogueId: dialWat2
+    isImportant: 1
+    requiredTrigger: 
+    requiredLand: 
+    requiredQuest: storyHome
+    requiredQuestStage: 5
+    previousDialogueId: 
+    requiredArmor: 
+    requiredWeapon: 
+    requiredLevel: 0
+    music: 
+    actions:
+    - action: control off
+      target: 
+      value: 
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: openland
+      target: 
+      value: stable_pi
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: stage
+      target: 
+      value: storyHome
+      numericParam: 5
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: showstage
+      target: 
+      value: storyHome
+      numericParam: 6
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: trigger
+      target: 
+      value: observer
+      numericParam: 2
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: turn
+      target: observer
+      value: -1
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: mater
+      target: observer
+      value: 0
+      numericParam: 0
+      delaySeconds: 1
+      opt1: 0
+      opt2: 0
+    - action: fly
+      target: observer
+      value: 1:21
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: rem
+      target: observer
+      value: 
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: dialog
+      target: 
+      value: dialWat3
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: control on
+      target: 
+      value: 
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0

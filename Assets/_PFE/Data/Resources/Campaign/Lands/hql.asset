@@ -1,0 +1,62 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6d783fb7e76e4012beed5bcce6eb2f54, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.Campaign.LandDefinition
+  dataVersion: 1
+  gameVersion: 0.1.0
+  landId: hql
+  landName: Hql
+  tip: story
+  isProcedural: 0
+  stage: 10
+  baseDifficulty: 26
+  autoLevel: 0
+  biomeId: 0
+  configId: 0
+  sourceFileKey: rooms_hql
+  exitLandId: 
+  listCount: 0
+  loadScreenIndex: -1
+  limit: 0
+  fin: 0
+  gridWidth: 1
+  gridHeight: 1
+  entryCoordinates: {x: 0, y: 0}
+  backwallTexture: sky
+  backdropId: fonWay
+  musicTrackId: music_hql
+  postMusic: 0
+  ambientDarkness: 0
+  colorGrade: blue
+  borderStyle: 
+  visibilityRange: 10
+  hazardType: 0
+  hazardRadius: 0
+  hazardDamage: 0
+  hazardDamageType: 0
+  xpReward: 0
+  roomTemplates:
+  - {fileID: 11400000, guid: 7b64938e20d398d4db2d3028d92e8add, type: 2}
+  - {fileID: 11400000, guid: 544ae242d3a0bad46826286938a760bc, type: 2}
+  - {fileID: 11400000, guid: b1e9df46a981e7c42bffddae64425da7, type: 2}
+  - {fileID: 11400000, guid: 46c33723f287db24299559ece7304544, type: 2}
+  - {fileID: 11400000, guid: 790b02fc2b76eb24b8a250617d779e1f, type: 2}
+  - {fileID: 11400000, guid: 59eef3d55f230274081643aa5b85393a, type: 2}
+  - {fileID: 11400000, guid: 1cbe9f6c00ee8e443bb191930f21dccb, type: 2}
+  - {fileID: 11400000, guid: cb79b95a1cab8b9458cb05077ac79428, type: 2}
+  - {fileID: 11400000, guid: b217bbaf628266a45a4f36f613f60146, type: 2}
+  - {fileID: 11400000, guid: 8cd18a4d4d6535742a1f63840261fec7, type: 2}
+  - {fileID: 11400000, guid: 972ad838650ea4940b2a34d8fd66e725, type: 2}
+  - {fileID: 11400000, guid: 90c20c3c121958548b45cede1d37801e, type: 2}
+  - {fileID: 11400000, guid: 283eb0460adbd3e4fb9a251695bd2382, type: 2}
+  - {fileID: 11400000, guid: cf361eb4e6bb34a44af8da4c8f6b7db5, type: 2}

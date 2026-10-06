@@ -1,0 +1,71 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6d783fb7e76e4012beed5bcce6eb2f54, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.Campaign.LandDefinition
+  dataVersion: 1
+  gameVersion: 0.1.0
+  landId: raiders
+  landName: Raiders
+  tip: story
+  isProcedural: 0
+  stage: 3
+  baseDifficulty: 10
+  autoLevel: 0
+  biomeId: 0
+  configId: 0
+  sourceFileKey: rooms_raiders
+  exitLandId: 
+  listCount: 5
+  loadScreenIndex: 2
+  limit: 0
+  fin: 0
+  gridWidth: 1
+  gridHeight: 1
+  entryCoordinates: {x: 0, y: 1}
+  backwallTexture: sky
+  backdropId: fonDarkClouds
+  musicTrackId: music_raiders
+  postMusic: 0
+  ambientDarkness: 0
+  colorGrade: blue
+  borderStyle: 
+  visibilityRange: 10
+  hazardType: 0
+  hazardRadius: 0
+  hazardDamage: 0
+  hazardDamageType: 0
+  xpReward: 0
+  roomTemplates:
+  - {fileID: 11400000, guid: 6979a8c56d1b7cb4e91d97d6ffe954d9, type: 2}
+  - {fileID: 11400000, guid: 10fac3e0a083cea46aec882b2f150a44, type: 2}
+  - {fileID: 11400000, guid: 6f46f1c91576b234fad146c6d517a40c, type: 2}
+  - {fileID: 11400000, guid: ff9993c5e6eda8b4aa11c9e7303f187f, type: 2}
+  - {fileID: 11400000, guid: c8a320fc498daed4883665fcce9f8a56, type: 2}
+  - {fileID: 11400000, guid: b510da43857056b41a8d41f9fc2446e2, type: 2}
+  - {fileID: 11400000, guid: 312082e5a2ceaff4c9c7bc9972627709, type: 2}
+  - {fileID: 11400000, guid: 69450f25c28057d4ea3654c86b62fc9b, type: 2}
+  - {fileID: 11400000, guid: bb743e9a67c7a64458b61e0ab85bac34, type: 2}
+  - {fileID: 11400000, guid: cecb5885b194ee04c91c5f5b9e964189, type: 2}
+  - {fileID: 11400000, guid: add6929d07c22db46ba96b360ee31311, type: 2}
+  - {fileID: 11400000, guid: b4ef63c4c3d2ea042b415a9bcdab14a6, type: 2}
+  - {fileID: 11400000, guid: 775cfb64c0484054e886654faf080174, type: 2}
+  - {fileID: 11400000, guid: bd542f6f58b3c6f498af67e14afe15fe, type: 2}
+  - {fileID: 11400000, guid: 95aa65e1d6f870e4f87ce4fac1b094f6, type: 2}
+  - {fileID: 11400000, guid: 3bd0976172951ce47b1dfec2d0d1755a, type: 2}
+  - {fileID: 11400000, guid: c6ef89a123eacc442969e2e3cbd3329d, type: 2}
+  - {fileID: 11400000, guid: 128a19ed1ad5c02428278a21eb9bc69e, type: 2}
+  - {fileID: 11400000, guid: f681b9444b693b541ae8bc25b3459fc1, type: 2}
+  - {fileID: 11400000, guid: b8364832d5f2c7b4b87a63a728530d79, type: 2}
+  - {fileID: 11400000, guid: 9245440256331c64795c8018047963f5, type: 2}
+  - {fileID: 11400000, guid: ff8534d78ec3cca4dab022cad93c78e4, type: 2}
+  - {fileID: 11400000, guid: 6328a97c0b7da1b488a0dc682b52ba39, type: 2}

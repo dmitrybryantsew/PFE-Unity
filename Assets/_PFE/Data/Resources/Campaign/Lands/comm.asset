@@ -1,0 +1,53 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6d783fb7e76e4012beed5bcce6eb2f54, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.Campaign.LandDefinition
+  dataVersion: 1
+  gameVersion: 0.1.0
+  landId: comm
+  landName: Comm
+  tip: story
+  isProcedural: 0
+  stage: 11
+  baseDifficulty: 29
+  autoLevel: 0
+  biomeId: 0
+  configId: 0
+  sourceFileKey: rooms_comm
+  exitLandId: 
+  listCount: 0
+  loadScreenIndex: -1
+  limit: 0
+  fin: 0
+  gridWidth: 1
+  gridHeight: 1
+  entryCoordinates: {x: 0, y: 0}
+  backwallTexture: tEncl3
+  backdropId: fonEnclave
+  musicTrackId: music_encl_1
+  postMusic: 0
+  ambientDarkness: -30
+  colorGrade: sky
+  borderStyle: S
+  visibilityRange: 0
+  hazardType: 0
+  hazardRadius: 0
+  hazardDamage: 0
+  hazardDamageType: 0
+  xpReward: 500
+  roomTemplates:
+  - {fileID: 11400000, guid: 933d1a077395b7047bd809b82685e744, type: 2}
+  - {fileID: 11400000, guid: e68b2f17dd046a9499e4b2d79d67143e, type: 2}
+  - {fileID: 11400000, guid: 8a50a9147adbcbb4faf69ffecb979dfc, type: 2}
+  - {fileID: 11400000, guid: aad5add6096873245a87392749895af9, type: 2}
+  - {fileID: 11400000, guid: bef4793e39e63d440a6d2c03532aa276, type: 2}
