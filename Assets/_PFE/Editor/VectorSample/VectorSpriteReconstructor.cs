@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Text.RegularExpressions;
+using PFE.Editor.Art.OnDemand;
 using PFE.Editor.Importers;
 using Unity.VectorGraphics;
 using UnityEngine;
@@ -74,7 +75,12 @@ namespace PFE.Editor.VectorSample
         public int FrameIndex;
         public int ResolvedShapeCount;
 
-        /// <summary>Placed ids that produced no geometry — text/button/morph, or a missing SVG.</summary>
+        /// <summary>
+        /// Placed ids that produced no geometry. Two sources: a <see cref="PlacementKind.Other"/> leaf
+        /// (text/button/morph — no SVG exists in the capture, so it can never be drawn), and a shape
+        /// that tessellated to nothing without a recorded error. Populated during the display-list
+        /// walk, so a frame that is *partly* text reports it instead of looking merely wrong.
+        /// </summary>
         public readonly List<int> SkippedIds = new List<int>();
 
         /// <summary>Shapes whose SVG file was missing or unreadable.</summary>
@@ -86,6 +92,13 @@ namespace PFE.Editor.VectorSample
         /// is a toggle rather than a missing file.
         /// </summary>
         public readonly List<SkippedShape> SkippedHeavy = new List<SkippedShape>();
+
+        /// <summary>
+        /// Shapes whose geometry came from the raster fast-path rather than tessellation — i.e. the
+        /// drawn result is an <b>approximation</b> (one clamped quad) and not the tessellated vector.
+        /// Kept so the window can say which ids those were instead of presenting them as faithful.
+        /// </summary>
+        public readonly List<int> RasterApproximatedIds = new List<int>();
 
         public int VertexCount;
         public int TriangleCount;
@@ -145,6 +158,52 @@ namespace PFE.Editor.VectorSample
 
         /// <summary>Shape ids withheld by the size guard, with their byte counts.</summary>
         readonly Dictionary<int, long> _heavySkipped = new Dictionary<int, long>();
+
+        /// <summary>Shape ids drawn from a raster fast-path quad instead of a tessellation.</summary>
+        readonly HashSet<int> _rasterShapes = new HashSet<int>();
+
+        RasterFastPathProvider _raster;
+
+        // ── Raster fast-path ─────────────────────────────────────────────────
+        //
+        // A bitmap-pattern shape is a <path> filled with a repeating tile, and tessellating that at
+        // preview tolerance is what produced the historical freezes. Measured against the real export
+        // (2026-10-07): ALL TWELVE shapes over the 128 KB guard are bitmap-pattern, and so are all
+        // eight of the named freeze offenders. Two of those (4652, 495, 1131) are only ~1.5 KB, so the
+        // BYTE guard cannot see them at all — they sail past it and freeze the editor.
+        //
+        // The raster provider answers "is this shape a bitmap-pattern fill, and where is the bitmap?"
+        // and hands back a 4-vertex textured quad. It is OFF by default and must stay off by default:
+        // it draws ONE clamped quad, which is NOT the same picture as a repeated tile, so it belongs
+        // behind an explicit toggle in a window whose entire purpose is judging fidelity.
+
+        /// <summary>
+        /// Draw bitmap-pattern shapes from their source bitmap as a single quad instead of tessellating
+        /// the repeating pattern. Fast (sub-millisecond) but an <b>approximation</b>: see the note above.
+        /// </summary>
+        public bool UseRasterFastPath;
+
+        /// <summary>
+        /// Where the raw bitmaps live (<c>_assets/images/</c>). Null falls back to
+        /// <see cref="SourceImportPaths.RawImagesRoot"/> when the fast-path is first used.
+        /// </summary>
+        public string ImagesRoot;
+
+        /// <summary>How many distinct shapes have been drawn via the raster fast-path so far.</summary>
+        public int RasterShapeCount => _rasterShapes.Count;
+
+        /// <summary>True when this shape's cached geometry is a raster quad, not a tessellation.</summary>
+        public bool IsRasterApproximated(int shapeId) => _rasterShapes.Contains(shapeId);
+
+        /// <summary>
+        /// Cheap probe — a stat plus a cached SVG sniff, no tessellation — for the window to warn
+        /// *before* a build that a shape will be slow and that the byte guard cannot save it.
+        /// </summary>
+        public bool IsBitmapPatternShape(int shapeId)
+            => Raster != null && Raster.TryGetRasterMeta(shapeId, out var meta) && meta.IsRaster;
+
+        RasterFastPathProvider Raster
+            => _raster ?? (_raster = new RasterFastPathProvider(_shapesRoot, ImagesRoot));
 
         // ── Cost controls ────────────────────────────────────────────────────
         //
@@ -215,6 +274,7 @@ namespace PFE.Editor.VectorSample
             _geomMin.Clear();
             _shapeError.Clear();
             _heavySkipped.Clear();
+            _rasterShapes.Clear();
         }
 
         public string ShapeError(int shapeId)
@@ -313,6 +373,23 @@ namespace PFE.Editor.VectorSample
             {
                 _shapeError[shapeId] = "SVG not on disk: " + shape.File;
                 return result;
+            }
+
+            // Raster fast-path, BEFORE the size guard. Checked first because the guard cannot see the
+            // worst offenders: 4652/495/1131 are ~1.5 KB SVGs that tessellate for 12-22 minutes. If the
+            // bitmap cannot be resolved we fall through to the faithful path rather than return an
+            // empty result — a fast path that silently draws nothing would be worse than a slow one.
+            if (UseRasterFastPath && Raster != null
+                && Raster.TryGetRasterMeta(shapeId, out var rasterMeta) && rasterMeta.IsRaster)
+            {
+                var quad = Raster.CreateQuadGeometry(shapeId);
+                if (quad != null && quad.Count > 0)
+                {
+                    result.AddRange(quad);
+                    _geomMin[shapeId] = ComputeMin(quad);
+                    _rasterShapes.Add(shapeId);
+                    return result;
+                }
             }
 
             // Size guard. Checked BEFORE reading the file, because the cost here is dominated by path
@@ -447,7 +524,9 @@ namespace PFE.Editor.VectorSample
 
             var tessWatch = Stopwatch.StartNew();
 
-            foreach (var rs in _data.ResolveFrame(frame, index))
+            // result.SkippedIds doubles as the collector for geometry-less placements, so a frame that
+            // is partly text/button/morph reports them here instead of silently drawing a subset.
+            foreach (var rs in _data.ResolveFrame(frame, index, skippedNonShape: result.SkippedIds))
             {
                 int shapeId = rs.Shape.Id;
                 var geoms = GetShapeGeometry(shapeId);
@@ -471,6 +550,10 @@ namespace PFE.Editor.VectorSample
                 }
 
                 result.ResolvedShapeCount++;
+
+                // Report approximation, do not hide it: the window's whole job is judging fidelity.
+                if (_rasterShapes.Contains(shapeId) && !result.RasterApproximatedIds.Contains(shapeId))
+                    result.RasterApproximatedIds.Add(shapeId);
 
                 // Where this shape's SVG sits relative to its SWF-local origin.
                 Vector2 svgToSwf = ComputeSvgToSwf(rs, shapeId, geoms);

@@ -114,6 +114,14 @@ namespace PFE.Editor.VectorSample
         bool _allowHeavyShapes;
         bool _adaptiveTolerance = true;
 
+        // Off by default, and deliberately so. The fast-path draws ONE clamped quad where the real
+        // shape is a repeating tile, so it changes the picture — which is precisely what this window
+        // exists to detect. Enabling it trades fidelity for the ability to look at shapes that cannot
+        // be tessellated at all (the 12 over-guard shapes, and the ~1.5 KB monsters the byte guard
+        // cannot see). The diagnostics name every id drawn this way.
+        bool _useRasterFastPath;
+        int _rasterCostShapeCount;
+
         VectorUtils.TessellationOptions _tess = new VectorUtils.TessellationOptions
         {
             MaxCordDeviation = 0.5f,
@@ -327,6 +335,7 @@ namespace PFE.Editor.VectorSample
             _reconstructor.MaxShapeSvgBytes = Mathf.Max(1, _maxShapeSvgKb) * 1024L;
             _reconstructor.AllowHeavyShapes = _allowHeavyShapes;
             _reconstructor.AdaptiveTolerance = _adaptiveTolerance;
+            _reconstructor.UseRasterFastPath = _useRasterFastPath;
         }
 
         /// <summary>
@@ -347,6 +356,20 @@ namespace PFE.Editor.VectorSample
             foreach (int id in shapes) totalBytes += _reconstructor.GetShapeSvgBytes(id);
             _costShapeCount = shapes.Count;
             _costBytes = totalBytes;
+
+            // Count what the BYTE guard cannot protect against. A bitmap-pattern fill is tiny on disk
+            // and pathological to tessellate, so the cost line above under-reports it badly — and the
+            // worst three offenders in the export (4652/495/1131, ~1.5 KB each) sail straight through
+            // the guard. Shapes already over the guard are skipped here: they are withheld anyway, and
+            // skipping them avoids re-reading the 1-2 MB SVGs just to label them.
+            _rasterCostShapeCount = 0;
+            if (!_useRasterFastPath)
+            {
+                long guard = Mathf.Max(1, _maxShapeSvgKb) * 1024L;
+                foreach (int id in shapes)
+                    if (_reconstructor.GetShapeSvgBytes(id) <= guard && _reconstructor.IsBitmapPatternShape(id))
+                        _rasterCostShapeCount++;
+            }
 
             _pending = new PendingBuild
             {
@@ -432,11 +455,14 @@ namespace PFE.Editor.VectorSample
                 r.SpriteId, r.FrameIndex, r.ResolvedShapeCount, r.VertexCount, r.TriangleCount,
                 r.BuildMs, r.TessellateMs);
             if (r.SkippedIds.Count > 0)
-                sb.Append("   skipped ").Append(r.SkippedIds.Count).Append(" non-shape placement(s)");
+                sb.Append("   skipped ").Append(r.SkippedIds.Count).Append(" geometry-less placement(s): ")
+                  .Append(string.Join(", ", r.SkippedIds.Take(8).Select(i => i.ToString(CultureInfo.InvariantCulture))));
             if (r.MissingSvgIds.Count > 0)
                 sb.Append("   MISSING SVG: ").Append(string.Join(", ", r.MissingSvgIds.Select(i => i.ToString(CultureInfo.InvariantCulture))));
             if (r.SkippedHeavy.Count > 0)
                 sb.Append("   withheld ").Append(r.SkippedHeavy.Count).Append(" heavy shape(s)");
+            if (r.RasterApproximatedIds.Count > 0)
+                sb.Append("   ").Append(r.RasterApproximatedIds.Count).Append(" shape(s) drawn via RASTER approximation");
             return sb.ToString();
         }
 
@@ -1057,6 +1083,25 @@ namespace PFE.Editor.VectorSample
                 "Allow heavy shapes (expect a multi-second, possibly minute-long freeze)", _allowHeavyShapes);
             _adaptiveTolerance = EditorGUILayout.ToggleLeft(
                 "Adaptive tolerance (scale with shape size)", _adaptiveTolerance);
+
+            _useRasterFastPath = EditorGUILayout.ToggleLeft(
+                "Raster fast-path for bitmap-pattern fills (APPROXIMATE: one quad, not the tiled fill)",
+                _useRasterFastPath);
+            if (_useRasterFastPath)
+                EditorGUILayout.HelpBox(
+                    "Bitmap-pattern shapes are drawn as a single clamped quad from their source bitmap in "
+                    + "_assets/images/ instead of tessellating the repeating tile. This is the only way to "
+                    + "see shapes that otherwise cannot be tessellated at all, but it is NOT a faithful "
+                    + "reconstruction — the diagnostics list every id drawn this way.",
+                    MessageType.Warning);
+            else if (_rasterCostShapeCount > 0)
+                EditorGUILayout.HelpBox(
+                    _rasterCostShapeCount + " of the " + _costShapeCount + " shapes in this frame are "
+                    + "bitmap-pattern fills that the byte guard CANNOT withhold (they are small on disk "
+                    + "and pathological to tessellate — 4652/495/1131 are ~1.5 KB and take 12-22 min). "
+                    + "All 12 shapes over the guard are also in this class. Without the fast-path above, "
+                    + "selecting this sprite can freeze the editor.",
+                    MessageType.Warning);
             EditorGUI.indentLevel--;
 
             EditorGUILayout.Space(2);
@@ -1128,6 +1173,19 @@ namespace PFE.Editor.VectorSample
                             ? "skipped — every fill is a solid colour"
                             : "(none)",
                     EditorStyles.miniLabel);
+                if (_result.RasterApproximatedIds.Count > 0)
+                {
+                    EditorGUILayout.LabelField("raster-approximated shapes",
+                        string.Join(", ", _result.RasterApproximatedIds.Take(20)
+                            .Select(i => i.ToString(CultureInfo.InvariantCulture))),
+                        EditorStyles.miniLabel);
+                    EditorGUILayout.HelpBox(
+                        "The shapes above were drawn as a single clamped quad from their source bitmap, "
+                        + "not tessellated. The picture is NOT faithful for them — turn the raster "
+                        + "fast-path off to compare against the true (slow) reconstruction.",
+                        MessageType.Warning);
+                }
+
                 EditorGUILayout.LabelField("mesh bounds px",
                     _result.MeshBounds.size.x.ToString("0.#", CultureInfo.InvariantCulture) + "x"
                     + _result.MeshBounds.size.y.ToString("0.#", CultureInfo.InvariantCulture), EditorStyles.miniLabel);
