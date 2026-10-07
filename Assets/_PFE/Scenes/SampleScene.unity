@@ -244,6 +244,37 @@ Transform:
   m_Children: []
   m_Father: {fileID: 506188007}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &214816551
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 214816552}
+  m_Layer: 0
+  m_Name: BackgroundTiles
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &214816552
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 214816551}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: -1}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1131014994}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &367419980
 GameObject:
   m_ObjectHideFlags: 0
@@ -410,7 +441,6 @@ MonoBehaviour:
   _musicService: {fileID: 51114767}
   _impactSoundTable: {fileID: 11400000, guid: 48207d3df2fc0b94d85a2fa9c137ab4e, type: 2}
   _inputSettings: {fileID: 11400000, guid: 716bf2a18c566f24e9ebd795851063ac, type: 2}
-  _projectilePrefabRegistry: {fileID: 11400000, guid: 7f838c2eb2f326d43b38b748bbd16327, type: 2}
   tileAssetDatabase: {fileID: 11400000, guid: 0fa497166e867be41845d17ad4b5f6c6, type: 2}
   _tileFormDatabase: {fileID: 11400000, guid: d6fd93a7af79db0438cb9bbc0cdf75a8, type: 2}
   _tileTextureLookup: {fileID: 11400000, guid: 34d273b0c242e364c8d15a7299f0e101, type: 2}
@@ -547,7 +577,7 @@ MonoBehaviour:
   disableBackdropShadowBakeForDebug: 0
   tileParent: {fileID: 1361629690}
   backgroundParent: {fileID: 1131014994}
-  backgroundTileParent: {fileID: 0}
+  backgroundTileParent: {fileID: 214816552}
   backgroundObjectParent: {fileID: 168627597}
   backgroundPhysicalObjectParent: {fileID: 1926931328}
   lightingParent: {fileID: 65900791}
@@ -1002,7 +1032,8 @@ Transform:
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
-  m_Children: []
+  m_Children:
+  - {fileID: 214816552}
   m_Father: {fileID: 506188007}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1207902725
