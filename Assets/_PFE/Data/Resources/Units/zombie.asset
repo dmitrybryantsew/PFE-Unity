@@ -29,6 +29,7 @@ MonoBehaviour:
   massafix: 0
   moveSpeed: 4
   runMultiplier: 2
+  runSpeed: 0
   acceleration: 1.2
   braking: 0.5
   jumpForce: 15
@@ -52,7 +53,7 @@ MonoBehaviour:
   dexterity: 1
   skill: 1
   waterAbility: 1
-  hearingRange: 5
+  ear: 1
   damageType: 2
   isStable: 0
   bloodType: 2
@@ -87,19 +88,20 @@ MonoBehaviour:
     emp: 0
     pink: 1
     necro: 1
-  noiseLevel: 300
+  noiseRun: 600
   visualDamageLevel: 1
   splashDamage: 0
   tripDamage: 0
   dialogueSet: 
   teleportColor: {r: 1, g: 1, b: 1, a: 1}
-  sprite: {fileID: 0}
-  spriteSheetId: 
+  sprite: {fileID: -1597136923, guid: f811cb9034c63e54f88e5b2d9ef329ca, type: 3}
+  spriteSheetId: sprZombie0
   visualClassName: 
-  spriteSheet: []
+  spriteSheet:
+  - {fileID: -1597136923, guid: f811cb9034c63e54f88e5b2d9ef329ca, type: 3}
   spriteDimensions: {x: 120, y: 120}
-  spriteSheetColumns: 0
-  spriteSheetRows: 0
+  spriteSheetColumns: 24
+  spriteSheetRows: 9
   registrationPoint: {x: -1, y: -1}
   iconCell: {x: -1, y: -1}
   gender: 2

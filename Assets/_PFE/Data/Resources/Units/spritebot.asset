@@ -28,6 +28,7 @@ MonoBehaviour:
   massafix: 0
   moveSpeed: 8
   runMultiplier: 2
+  runSpeed: 0
   acceleration: 2
   braking: 0.5
   jumpForce: 15
@@ -51,7 +52,7 @@ MonoBehaviour:
   dexterity: 1.2
   skill: 1
   waterAbility: 0.75
-  hearingRange: 5
+  ear: 0
   damageType: 2
   isStable: 0
   bloodType: 0
@@ -86,7 +87,7 @@ MonoBehaviour:
     emp: 1
     pink: 1
     necro: 1
-  noiseLevel: 300
+  noiseRun: 200
   visualDamageLevel: 1
   splashDamage: 0
   tripDamage: 0
