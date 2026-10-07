@@ -32,6 +32,7 @@ namespace PFE.Core.Scripting
         private DevConsoleSpellCommands _spellCommands;
         private DevConsoleInventoryCommands _inventoryCommands;
         private DevConsoleUiCommands _uiCommands;
+        private DevConsoleEnemyAICommands _enemyAiCommands;
         private bool _commandObjectsRegistered;
 
         private bool _isOpen;
@@ -93,7 +94,8 @@ namespace PFE.Core.Scripting
             DevConsoleEffectCommands effectCommands = null,
             DevConsoleSpellCommands spellCommands = null,
             DevConsoleUiCommands uiCommands = null,
-            DevConsoleInventoryCommands inventoryCommands = null)
+            DevConsoleInventoryCommands inventoryCommands = null,
+            DevConsoleEnemyAICommands enemyAiCommands = null)
         {
             if (playerCommands != null) _playerCommands = playerCommands;
             if (simCommands != null) _simCommands = simCommands;
@@ -105,6 +107,7 @@ namespace PFE.Core.Scripting
             if (spellCommands != null) _spellCommands = spellCommands;
             if (inventoryCommands != null) _inventoryCommands = inventoryCommands;
             if (uiCommands != null) _uiCommands = uiCommands;
+            if (enemyAiCommands != null) _enemyAiCommands = enemyAiCommands;
 
             if (_luaEngine == null) return;
 
@@ -122,6 +125,7 @@ namespace PFE.Core.Scripting
                 _luaEngine.RegisterType<DevConsoleSpellCommands>();
                 _luaEngine.RegisterType<DevConsoleInventoryCommands>();
                 _luaEngine.RegisterType<DevConsoleUiCommands>();
+                _luaEngine.RegisterType<DevConsoleEnemyAICommands>();
                 _commandObjectsRegistered = true;
             }
 
@@ -135,6 +139,7 @@ namespace PFE.Core.Scripting
             if (_spellCommands != null) _luaEngine.SetGlobal("spell", _spellCommands);
             if (_inventoryCommands != null) _luaEngine.SetGlobal("inv", _inventoryCommands);
             if (_uiCommands != null) _luaEngine.SetGlobal("ui", _uiCommands);
+            if (_enemyAiCommands != null) _luaEngine.SetGlobal("ai", _enemyAiCommands);
         }
 
         /// <summary>
@@ -568,6 +573,14 @@ namespace PFE.Core.Scripting
                     result = RunUiShortcut(parts);
                     return true;
 
+                // The enemy-AI perception overlay. `col on ai` reaches the same channel — this verb
+                // exists for the parts sub-filter and the selection, which have no place in `col`.
+                case "ai":
+                case "enemyai":
+                    if (_enemyAiCommands == null) return false;
+                    result = RunEnemyAIShortcut(parts);
+                    return true;
+
                 default:
                     return false;
             }
@@ -994,6 +1007,78 @@ namespace PFE.Core.Scripting
                     }
 
                     return $"Unknown overlay subject '{parts[1]}'.\n" + _colliderCommands.Help();
+            }
+        }
+
+        /// <summary>
+        /// Dispatch the <c>ai</c> shortcuts: the enemy-AI perception overlay.
+        ///
+        /// <para><b>Why this is not folded into <c>col</c>.</b> The channel is one bit of
+        /// <see cref="DebugOverlayChannel"/> and <c>col on ai</c> reaches it, but the interesting
+        /// questions here are "which parts of the perception am I drawing" and "which enemy am I looking
+        /// at", and neither has a place in the collider verb's grammar.</para>
+        ///
+        /// <para>Like <c>col</c>, a bare verb is <b>status</b>, never a toggle.</para>
+        /// </summary>
+        private string RunEnemyAIShortcut(string[] parts)
+        {
+            if (parts.Length < 2) return _enemyAiCommands.Status();
+
+            string sub = parts[1].ToLowerInvariant();
+            string spec = parts.Length > 2
+                ? string.Join(",", parts, 2, parts.Length - 2)
+                : string.Empty;
+
+            // The shorthand arm needs the WHOLE tail from parts[1], not parts[2..]: for `ai vision,los`
+            // the verb IS the first token of the parts list, so `spec` is empty and using it would
+            // silently mean "all parts" — the "the toggle is on and shows everything" failure that this
+            // overlay's parsing contract exists to prevent.
+            string tail = string.Join(",", parts, 1, parts.Length - 1);
+
+            switch (sub)
+            {
+                case "on":
+                case "show":
+                    return _enemyAiCommands.On(spec);
+
+                case "off":
+                case "hide":
+                case "none":
+                    // `off` / `hide` / `none` all mean "turn the overlay off", matching `col off`/`col
+                    // none` — `none` is an OFF-token in the filter vocabulary too, so reading it as
+                    // anything else here would be the one place in the console where it is not.
+                    // Dropping the SELECTION is a different verb: `ai deselect` / `ai clear`. An
+                    // ambiguous `none` would be worse than a longer spelling.
+                    return _enemyAiCommands.Off();
+
+                case "parts":
+                case "part":
+                    return _enemyAiCommands.Parts(spec);
+
+                case "next":
+                    return _enemyAiCommands.Next();
+
+                case "prev":
+                case "previous":
+                    return _enemyAiCommands.Prev();
+
+                case "deselect":
+                case "clear":
+                    return _enemyAiCommands.SelectNone();
+
+                case "status":
+                case "list":
+                    return _enemyAiCommands.Status();
+
+                case "help":
+                case "?":
+                    return _enemyAiCommands.Help();
+
+                default:
+                    // A bare parts list is accepted as shorthand, because `ai vision,los` is
+                    // overwhelmingly what is meant. The reply names the parts it resolved to, so a
+                    // near-miss is visible rather than silent.
+                    return _enemyAiCommands.Parts(tail);
             }
         }
 

@@ -159,10 +159,29 @@ namespace PFE.Core
         /// </summary>
         UnitHealth = 1 << 13,
 
+        /// <summary>
+        /// The enemy-AI perception overlay: what each enemy can <b>see</b>, <b>hear</b> and detect at
+        /// close range, the line-of-sight ray it is actually testing, its target and last-known
+        /// position, and a full readout of the selected unit's blackboard. Sub-filtered by
+        /// <see cref="EnemyAIDebugFilter"/>; hotkey <b>F3</b>.
+        ///
+        /// <para><b>Why this is a channel and not a second F2-style front end.</b> It draws
+        /// <i>world</i> geometry — cones, radii and rays anchored to real units — so it belongs to the
+        /// mask, alongside tiles and unit colliders, where it can be switched on together with them and
+        /// reached by <c>col on ai</c>. The F2 overlay is a pure panel with no world drawing, which is
+        /// why nothing there goes through this mask.</para>
+        ///
+        /// <para><b>The three senses are drawn separately on purpose.</b> "It is chasing the player" is
+        /// not evidence of which of vision, hearing or close-proximity fired, and those have completely
+        /// different causes and fixes. An enemy that walks past the player, or one that stands beside
+        /// the player without reacting, is diagnosable only if the three are separable on screen.</para>
+        /// </summary>
+        EnemyAI = 1 << 14,
+
         /// <summary>Everything. <see cref="Legend"/> included — it is a channel like the rest.</summary>
         All = Tiles | Units | Doors | Triggers | Transitions | Objects
             | TileQuery | RoomData | PoolData | Clock | Legend | LowLevelPhysics
-            | DamageNumbers | UnitHealth
+            | DamageNumbers | UnitHealth | EnemyAI
     }
 
     /// <summary>
@@ -193,6 +212,7 @@ namespace PFE.Core
             (DebugOverlayChannel.LowLevelPhysics, "physics",   "the LowLevelPhysics2D (Box2D v3) chain mirror a projectile sweeps against"),
             (DebugOverlayChannel.DamageNumbers, "damage",      "floating damage numbers: a figure per landed hit, MISS per evaded one, nothing if the shot never collided"),
             (DebugOverlayChannel.UnitHealth,  "health",      "per-unit hp / armour / skin, drawn above every unit in view"),
+            (DebugOverlayChannel.EnemyAI,     "ai",          "enemy perception: vision cone, hearing radius, close bubble, LOS ray, target + the selected unit's state (F3)"),
         };
 
         /// <summary>
@@ -309,6 +329,15 @@ namespace PFE.Core
                 case "health": case "hpbar": case "healthbar": case "healthbars":
                 case "bars": case "bar":
                     channel = DebugOverlayChannel.UnitHealth; return true;
+
+                // The enemy-AI perception overlay. "ai" is the canonical name (and the console verb);
+                // "enemy"/"enemies" are claimed here rather than by the Units channel because that
+                // channel is about COLLIDERS while this one is the enemy-specific tool, and "enemy" is
+                // what someone reaches for when they mean the latter. "brain" is the type name.
+                case "ai": case "enemyai": case "enemy-ai":
+                case "enemy": case "enemies":
+                case "brain": case "brains":
+                    channel = DebugOverlayChannel.EnemyAI; return true;
 
                 default:
                     channel = DebugOverlayChannel.None;

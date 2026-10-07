@@ -37,6 +37,7 @@ namespace PFE.Core.Scripting
         private DevConsoleSpellCommands _spellCommands;
         private DevConsoleInventoryCommands _inventoryCommands;
         private DevConsoleUiCommands _uiCommands;
+        private DevConsoleEnemyAICommands _enemyAiCommands;
 
         // The quick-action grid's buttons and their actions. Built once (OnGUI runs several times per
         // frame) and rebuilt never — the lambdas read the live `_service` field, so a respawned service
@@ -167,6 +168,7 @@ namespace PFE.Core.Scripting
             _spellCommands ??= new DevConsoleSpellCommands();
             _inventoryCommands ??= new DevConsoleInventoryCommands();
             _uiCommands ??= new DevConsoleUiCommands();
+            _enemyAiCommands ??= new DevConsoleEnemyAICommands();
 
             if (_resolver != null)
             {
@@ -224,7 +226,7 @@ namespace PFE.Core.Scripting
             // player, so `inv status` must work precisely when the inventory wiring is what failed.
             _inventoryCommands.Wire(() => FindFirstObjectByType<PFE.Entities.Player.PlayerController>());
 
-            _service.SetCommandObjects(_playerCommands, _simCommands, _saveCommands, _colliderCommands, _profilerCommands, _rpgCommands, _effectCommands, _spellCommands, _uiCommands, _inventoryCommands);
+            _service.SetCommandObjects(_playerCommands, _simCommands, _saveCommands, _colliderCommands, _profilerCommands, _rpgCommands, _effectCommands, _spellCommands, _uiCommands, _inventoryCommands, _enemyAiCommands);
         }
 
         private LandMap ResolveLandMap()

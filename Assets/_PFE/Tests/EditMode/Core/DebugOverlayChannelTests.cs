@@ -30,24 +30,50 @@ namespace PFE.Tests.EditMode.Core
             DebugOverlayChannel.LowLevelPhysics,
             DebugOverlayChannel.DamageNumbers,
             DebugOverlayChannel.UnitHealth,
+            DebugOverlayChannel.EnemyAI,
         };
 
         private PfeDebugSettings _settings;
 
-        [SetUp]
-        public void SetUp()
+        /// <summary>
+        /// A throwaway settings instance, created on <b>first use</b> rather than in <c>[SetUp]</c>.
+        ///
+        /// <para><b>Why lazy, and why it matters.</b> <c>ScriptableObject.CreateInstance</c> is an
+        /// engine call. With it in <c>[SetUp]</c> the whole fixture died outside the editor with
+        /// <c>SecurityException: ECall methods must be packaged into a system module</c> — including the
+        /// two dozen tests below that never touch a settings object at all (parsing, formatting, the
+        /// catalogue round-trip). Those are precisely the guards that catch "added a channel and forgot
+        /// the <c>TryMatch</c> case", and they were unverifiable offline for no reason. The ECall is
+        /// scoped to the method that <i>mentions</i> it, so isolating it in
+        /// <see cref="CreateSettings"/> lets every test that does not ask for settings execute anywhere,
+        /// while the tests that do still run in Unity.</para>
+        /// </summary>
+        private PfeDebugSettings Settings
+        {
+            get
+            {
+                if (_settings == null) _settings = CreateSettings();
+                return _settings;
+            }
+        }
+
+        /// <summary>The only method in this file that mentions an engine call.</summary>
+        private static PfeDebugSettings CreateSettings()
         {
             // A throwaway instance, never the project asset: mutating the real ScriptableObject here
             // would leak into every later test in the domain through DebugOverlays' cached reference.
-            _settings = ScriptableObject.CreateInstance<PfeDebugSettings>();
+            return ScriptableObject.CreateInstance<PfeDebugSettings>();
         }
 
         [TearDown]
         public void TearDown()
         {
+            if (_settings == null) return;   // a test that never asked for settings has nothing to free
+
             // Fully qualified: `using PFE.Core;` plus `using UnityEngine;` makes a bare `Object`
             // ambiguous, and the compiler would resolve it by erroring at the call site.
             UnityEngine.Object.DestroyImmediate(_settings);
+            _settings = null;
         }
 
         // ── Default ──────────────────────────────────────────────────────────
@@ -56,23 +82,24 @@ namespace PFE.Tests.EditMode.Core
         public void Default_IsNone_SoTheGameDrawsNothing()
         {
             // "default is a game, rest is togglable from console" — the requirement, as an assertion.
-            Assert.AreEqual(DebugOverlayChannel.None, _settings.EnabledOverlays);
+            Assert.AreEqual(DebugOverlayChannel.None, Settings.EnabledOverlays);
 
             foreach (DebugOverlayChannel channel in EveryChannel)
             {
-                Assert.IsFalse(_settings.IsOverlayEnabled(channel), $"{channel} must default to off");
+                Assert.IsFalse(Settings.IsOverlayEnabled(channel), $"{channel} must default to off");
             }
         }
 
         [Test]
         public void Default_LeavesEveryLegacyFacadeFalse()
         {
-            Assert.IsFalse(_settings.ShowTileColliderDebug);
-            Assert.IsFalse(_settings.ShowUnitColliderDebug);
-            Assert.IsFalse(_settings.ShowAreaTriggerDebug);
-            Assert.IsFalse(_settings.ShowDoorColliderDebug);
-            Assert.IsFalse(_settings.ShowObjectColliderDebug);
-            Assert.IsFalse(_settings.SimTickOverlayEnabled);
+            Assert.IsFalse(Settings.ShowTileColliderDebug);
+            Assert.IsFalse(Settings.ShowUnitColliderDebug);
+            Assert.IsFalse(Settings.ShowAreaTriggerDebug);
+            Assert.IsFalse(Settings.ShowDoorColliderDebug);
+            Assert.IsFalse(Settings.ShowObjectColliderDebug);
+            Assert.IsFalse(Settings.ShowEnemyAIDebug);
+            Assert.IsFalse(Settings.SimTickOverlayEnabled);
         }
 
         // ── Independence: the contract the user asked for ────────────────────
@@ -80,49 +107,49 @@ namespace PFE.Tests.EditMode.Core
         [Test]
         public void TilesAndUnits_CanBeOnAtTheSameTime()
         {
-            _settings.EnabledOverlays |= DebugOverlayChannel.Tiles;
-            _settings.EnabledOverlays |= DebugOverlayChannel.Units;
+            Settings.EnabledOverlays |= DebugOverlayChannel.Tiles;
+            Settings.EnabledOverlays |= DebugOverlayChannel.Units;
 
-            Assert.IsTrue(_settings.IsOverlayEnabled(DebugOverlayChannel.Tiles));
-            Assert.IsTrue(_settings.IsOverlayEnabled(DebugOverlayChannel.Units));
+            Assert.IsTrue(Settings.IsOverlayEnabled(DebugOverlayChannel.Tiles));
+            Assert.IsTrue(Settings.IsOverlayEnabled(DebugOverlayChannel.Units));
         }
 
         [Test]
         public void TilesAndUnits_CanBeOnAtTheSameTime_ThroughTheLegacyFacades()
         {
             // The exact spellings the four existing presenters and the F5/F6 hotkeys use.
-            _settings.ShowTileColliderDebug = true;
-            _settings.ShowUnitColliderDebug = true;
+            Settings.ShowTileColliderDebug = true;
+            Settings.ShowUnitColliderDebug = true;
 
-            Assert.IsTrue(_settings.ShowTileColliderDebug);
-            Assert.IsTrue(_settings.ShowUnitColliderDebug);
+            Assert.IsTrue(Settings.ShowTileColliderDebug);
+            Assert.IsTrue(Settings.ShowUnitColliderDebug);
         }
 
         [Test]
         public void SetOverlay_TurningOneOn_LeavesEveryOtherChannelExactlyAsItWas()
         {
             // Turn them all on, then flip one on that is already on: nothing may change.
-            _settings.EnabledOverlays = DebugOverlayChannel.All;
+            Settings.EnabledOverlays = DebugOverlayChannel.All;
 
-            _settings.SetOverlay(DebugOverlayChannel.Doors, true);
+            Settings.SetOverlay(DebugOverlayChannel.Doors, true);
 
-            Assert.AreEqual(DebugOverlayChannel.All, _settings.EnabledOverlays);
+            Assert.AreEqual(DebugOverlayChannel.All, Settings.EnabledOverlays);
         }
 
         [Test]
         public void SetOverlay_TurningOneOff_LeavesEveryOtherChannelExactlyAsItWas()
         {
-            _settings.EnabledOverlays = DebugOverlayChannel.All;
+            Settings.EnabledOverlays = DebugOverlayChannel.All;
 
-            _settings.SetOverlay(DebugOverlayChannel.Doors, false);
+            Settings.SetOverlay(DebugOverlayChannel.Doors, false);
 
-            Assert.AreEqual(DebugOverlayChannel.All & ~DebugOverlayChannel.Doors, _settings.EnabledOverlays);
+            Assert.AreEqual(DebugOverlayChannel.All & ~DebugOverlayChannel.Doors, Settings.EnabledOverlays);
 
             // And every sibling survived, which is the part that matters.
             foreach (DebugOverlayChannel channel in EveryChannel)
             {
                 if (channel == DebugOverlayChannel.Doors) continue;
-                Assert.IsTrue(_settings.IsOverlayEnabled(channel), $"{channel} must survive turning Doors off");
+                Assert.IsTrue(Settings.IsOverlayEnabled(channel), $"{channel} must survive turning Doors off");
             }
         }
 
@@ -133,10 +160,10 @@ namespace PFE.Tests.EditMode.Core
             // two channels the same 1 << n would show up here and nowhere else.
             foreach (DebugOverlayChannel channel in EveryChannel)
             {
-                _settings.EnabledOverlays = DebugOverlayChannel.None;
-                _settings.SetOverlay(channel, true);
+                Settings.EnabledOverlays = DebugOverlayChannel.None;
+                Settings.SetOverlay(channel, true);
 
-                Assert.AreEqual(channel, _settings.EnabledOverlays,
+                Assert.AreEqual(channel, Settings.EnabledOverlays,
                     $"{channel} must occupy its own bit");
             }
         }
@@ -149,6 +176,11 @@ namespace PFE.Tests.EditMode.Core
             AssertFacadeTurnsOnExactly(DebugOverlayChannel.Objects, s => s.ShowObjectColliderDebug = true);
             AssertFacadeTurnsOnExactly(DebugOverlayChannel.Tiles, s => s.ShowTileColliderDebug = true);
             AssertFacadeTurnsOnExactly(DebugOverlayChannel.Units, s => s.ShowUnitColliderDebug = true);
+
+            // The facades are listed EXPLICITLY, not reflected over, so adding one to
+            // PfeDebugSettings does not add it here — and a test called "EachLegacyFacade" that
+            // silently skips the newest facade is a stale claim rather than a passing test.
+            AssertFacadeTurnsOnExactly(DebugOverlayChannel.EnemyAI, s => s.ShowEnemyAIDebug = true);
         }
 
         [Test]
@@ -157,18 +189,18 @@ namespace PFE.Tests.EditMode.Core
             // Read-only by design: the clock overlay has no setter, because a second way to switch it
             // would be a second copy of the state. So it is tested as a reader, not a writer — the
             // compiler rejected the setter form of this test, which is how the distinction surfaced.
-            _settings.EnabledOverlays = DebugOverlayChannel.None;
-            Assert.IsFalse(_settings.SimTickOverlayEnabled);
+            Settings.EnabledOverlays = DebugOverlayChannel.None;
+            Assert.IsFalse(Settings.SimTickOverlayEnabled);
 
-            _settings.SetOverlay(DebugOverlayChannel.Clock, true);
-            Assert.IsTrue(_settings.SimTickOverlayEnabled);
+            Settings.SetOverlay(DebugOverlayChannel.Clock, true);
+            Assert.IsTrue(Settings.SimTickOverlayEnabled);
 
-            _settings.SetOverlay(DebugOverlayChannel.Clock, false);
-            Assert.IsFalse(_settings.SimTickOverlayEnabled);
+            Settings.SetOverlay(DebugOverlayChannel.Clock, false);
+            Assert.IsFalse(Settings.SimTickOverlayEnabled);
 
             // And it tracks the Clock bit specifically, not "any overlay at all".
-            _settings.SetOverlay(DebugOverlayChannel.Tiles, true);
-            Assert.IsFalse(_settings.SimTickOverlayEnabled);
+            Settings.SetOverlay(DebugOverlayChannel.Tiles, true);
+            Assert.IsFalse(Settings.SimTickOverlayEnabled);
         }
 
         /// <summary>
@@ -177,10 +209,10 @@ namespace PFE.Tests.EditMode.Core
         /// </summary>
         private void AssertFacadeTurnsOnExactly(DebugOverlayChannel expected, System.Action<PfeDebugSettings> turnOn)
         {
-            _settings.EnabledOverlays = DebugOverlayChannel.None;
+            Settings.EnabledOverlays = DebugOverlayChannel.None;
             turnOn(_settings);
 
-            Assert.AreEqual(expected, _settings.EnabledOverlays,
+            Assert.AreEqual(expected, Settings.EnabledOverlays,
                 $"the {expected} facade must set exactly its own bit");
         }
 
@@ -208,11 +240,11 @@ namespace PFE.Tests.EditMode.Core
         [Test]
         public void None_MatchesNoChannel()
         {
-            _settings.EnabledOverlays = DebugOverlayChannel.None;
+            Settings.EnabledOverlays = DebugOverlayChannel.None;
 
             foreach (DebugOverlayChannel channel in EveryChannel)
             {
-                Assert.IsFalse(_settings.IsOverlayEnabled(channel), $"{channel} must be off under None");
+                Assert.IsFalse(Settings.IsOverlayEnabled(channel), $"{channel} must be off under None");
             }
         }
 
@@ -220,8 +252,8 @@ namespace PFE.Tests.EditMode.Core
         public void IsOverlayEnabled_WithNone_IsFalse()
         {
             // (x & 0) != 0 is always false; asserted so nobody "optimises" it into something else.
-            _settings.EnabledOverlays = DebugOverlayChannel.All;
-            Assert.IsFalse(_settings.IsOverlayEnabled(DebugOverlayChannel.None));
+            Settings.EnabledOverlays = DebugOverlayChannel.All;
+            Assert.IsFalse(Settings.IsOverlayEnabled(DebugOverlayChannel.None));
         }
 
         // ── Parsing ──────────────────────────────────────────────────────────
@@ -381,6 +413,8 @@ namespace PFE.Tests.EditMode.Core
             AssertAliases(DebugOverlayChannel.PoolData, "pool", "pooldata", "pooling");
             AssertAliases(DebugOverlayChannel.Clock, "clock", "simclock", "sim", "fps");
             AssertAliases(DebugOverlayChannel.Legend, "legend", "key");
+            AssertAliases(DebugOverlayChannel.EnemyAI, "ai", "enemyai", "enemy-ai",
+                                                       "enemy", "enemies", "brain", "brains");
         }
 
         private static void AssertAliases(DebugOverlayChannel expected, params string[] aliases)

@@ -178,7 +178,7 @@ namespace PFE.Core
         // screen clutter nobody can switch off. Display only: never gated by runtimeLoggingEnabled,
         // because silencing logs must not be able to hide the thing you turned on to look at.
 
-        [Header("Debug Visual Overlays (console: `col on <name>`, hotkeys F5/F6/F8/F9/F10)")]
+        [Header("Debug Visual Overlays (console: `col on <name>`, hotkeys F3/F5/F6/F8/F9/F10)")]
         [SerializeField]
         [Tooltip("Which debug visualisations are drawn. Default None = the game, and nothing else. " +
                  "Every entry is independent: turning one on never turns another off. " +
@@ -194,6 +194,12 @@ namespace PFE.Core
         [Tooltip("Which units the unit-collider overlay draws (only consulted while the Units overlay is on). " +
                  "A None filter turns the overlay off.")]
         private ColliderDebugUnitFilter unitColliderFilter = ColliderDebugUnitFilter.All;
+
+        [SerializeField]
+        [Tooltip("Which parts of the enemy-AI overlay are drawn (only consulted while the AI overlay is on, " +
+                 "channel `ai`, hotkey F3). A None filter turns the overlay off. " +
+                 "Console: `ai senses` / `ai vision,los` / `ai off`.")]
+        private EnemyAIDebugFilter enemyAIFilter = EnemyAIDebugFilter.All;
 
         // ── Simulation Tick (P1) ─────────────────────────────────────────────
 
@@ -428,6 +434,40 @@ namespace PFE.Core
         {
             get => unitColliderFilter;
             set => unitColliderFilter = value;
+        }
+
+        /// <summary>
+        /// Which parts of the enemy-AI perception overlay are drawn. A sub-filter of
+        /// <see cref="DebugOverlayChannel.EnemyAI"/>, exactly as <see cref="TileColliderFilter"/> is a
+        /// sub-filter of <see cref="DebugOverlayChannel.Tiles"/> — the channel decides <i>whether</i>
+        /// the overlay runs, this decides <i>what it shows</i>.
+        ///
+        /// <para><b>Settable, and read live by the overlay</b>, so the console (<c>ai vision,los</c>),
+        /// the panel's own toggle buttons and the Inspector all drive one value. Three copies of a
+        /// filter is three things that can disagree about what is on screen.</para>
+        ///
+        /// <para><b>Defaults to <see cref="EnemyAIDebugFilter.All"/>, and that is safe</b> because the
+        /// channel it belongs to defaults to <see cref="DebugOverlayChannel.None"/>: nothing draws
+        /// until the overlay is switched on, and when it is switched on the sensible thing is to see
+        /// everything. A filter defaulting to None would produce the "toggle is on and shows nothing"
+        /// failure, which is indistinguishable from a broken toggle.</para>
+        /// </summary>
+        public EnemyAIDebugFilter EnemyAIFilter
+        {
+            get => enemyAIFilter;
+            set => enemyAIFilter = value;
+        }
+
+        /// <summary>
+        /// Is the enemy-AI perception overlay on? A facade over
+        /// <see cref="DebugOverlayChannel.EnemyAI"/>, like the five above it, so <c>col on ai</c>,
+        /// <c>ai on</c>, F3 and the Inspector are four views of one bit rather than four pieces of
+        /// state that can disagree.
+        /// </summary>
+        public bool ShowEnemyAIDebug
+        {
+            get => IsOverlayEnabled(DebugOverlayChannel.EnemyAI);
+            set => SetOverlay(DebugOverlayChannel.EnemyAI, value);
         }
 
         // Simulation Tick flags are deliberately NOT gated by runtimeLoggingEnabled: the master
