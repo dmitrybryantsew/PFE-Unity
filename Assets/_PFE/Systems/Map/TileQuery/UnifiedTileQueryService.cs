@@ -95,6 +95,12 @@ namespace PFE.Systems.Map.TileQuery
             return flags;
         }
 
+        public SurfaceKind ClassifySurface(Vector2Int tileCoord)
+        {
+            if (Room == null || Room.tiles == null) return SurfaceKind.None;
+            return SurfaceKindRule.Of(Room.GetTileAtCoord(tileCoord));
+        }
+
         public TileMoveResult ResolveMove(in TileBox box, Vector2 delta, TileQueryFlags mask)
         {
             float maxDist = Mathf.Max(Mathf.Abs(delta.x), Mathf.Abs(delta.y));

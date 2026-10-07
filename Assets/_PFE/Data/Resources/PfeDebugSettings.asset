@@ -37,8 +37,9 @@ MonoBehaviour:
   logRoomRenderingLifecycle: 0
   logTileVisualCreationSummary: 0
   logTileColliderCreation: 0
+  logTelekinesisTrace: 0
   telekinesisGrabAnything: 0
-  enabledOverlays: 0
+  enabledOverlays: 4096
   tileColliderFilter: 15
   unitColliderFilter: 3
   simTickEnabled: 1
@@ -46,6 +47,7 @@ MonoBehaviour:
   simTickMotor: 1
   simTickRoom: 1
   simTickUnits: 1
+  unitMotor: 1
   simTickDamage: 1
   projectilesUseLowLevelPhysics: 1
   thrownObjectsUseTileSeam: 1
@@ -57,3 +59,4 @@ MonoBehaviour:
   rngLogCallSites: 0
   logEntityIdAssignment: 0
   showEntityIdOverlay: 0
+  showConsoleQuickButtons: 1

@@ -1,5 +1,6 @@
 using NUnit.Framework;
 using UnityEngine;
+using PFE.Core;
 using PFE.Systems.Map;
 using PFE.Systems.Physics;
 using PFE.Tests.EditMode.Systems.Map.TileCollision;
@@ -142,6 +143,27 @@ namespace PFE.Tests.EditMode.Systems.Physics
             Assert.AreSame(room, seenRoom, "The event must carry the room that changed.");
             Assert.AreEqual(expected, seenRegion,
                 "The region must arrive unchanged — callers depend on the one-tile border surviving.");
+        }
+
+        /// <summary>
+        /// The world steps in its own slot, strictly between the systems that write bodies and the
+        /// ones that read them.
+        ///
+        /// <para>Regression guard for the ordering defect: the world, <c>Projectile</c> and
+        /// <c>ThrownObject</c> all sat in <c>SimTickOrder.Projectiles</c> (40), so the world's
+        /// <c>Simulate()</c> and a projectile's sweep were ordered only by registration order. Static
+        /// geometry hides it; the first dynamic body would not. Asserted as an inequality rather than
+        /// against the literal 35, so renumbering the slots cannot silently break the intent.</para>
+        /// </summary>
+        [Test]
+        public void TickOrder_StepsAfterUnitsAndBeforeConsumers()
+        {
+            using var service = new PhysicsWorldService();
+
+            Assert.Greater(service.TickOrder, SimTickOrder.UnitsAndAi,
+                "Bodies are written by units/AI, so the world must step after them.");
+            Assert.Less(service.TickOrder, SimTickOrder.Projectiles,
+                "Projectiles read the world, so it must step before them.");
         }
 
         // ── Fixtures ─────────────────────────────────────────────────────────────────────────

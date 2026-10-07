@@ -226,6 +226,14 @@ namespace PFE.Core
         private bool simTickUnits = false;
 
         [SerializeField]
+        [Tooltip("Stage C flip (path 6): gives a SPAWNED unit a TilePhysicsController, so its movement runs on the hand-rolled AS3 motor instead of the legacy Kinematic Rigidbody2D + Unity-collider path. " +
+                 "OFF = unchanged: the unit is built with a Kinematic Rigidbody2D and a BoxCollider2D, and UnitController.StepUnit moves it with MovePosition, resolving walls against the tile query and groundedness against a ground probe. " +
+                 "ON = the unit also gets a TilePhysicsController (configured from its UnitDefinition and given the room), which then OWNS the unit's step: full AS3 run() — accel/brake, gravity, water drag, sub-stepped tile collision, step-up, ladders, one-way platforms, ceiling and wall resolution, and prop support. UnitController's own step stands down automatically (its _hasTilePhysics predicate), so the two cannot both run. " +
+                 "The Kinematic Rigidbody2D and BoxCollider2D are NOT removed in either mode — Stage D deletes them, and this is the rollback switch that keeps the old path selectable until then. " +
+                 "A unit the motor cannot move (a pinned unit, AS3 `fixed`) is still handed a motor but is not integrated, which is the oracle's own gate (Unit.as:1809). Behaviour toggle, NOT gated by runtimeLoggingEnabled.")]
+        private bool unitMotor = false;
+
+        [SerializeField]
         [Tooltip("Drives damage resolution from SimLoop at SimTickOrder.Damage instead of resolving each hit inline at the moment of contact. " +
                  "OFF = a hit is resolved by the source that reported it, immediately (the historical path). " +
                  "ON = the source only records the hit, and DamageSystem resolves it once per tick after every source has moved — which is what makes a hit reproducible and replicable across peers, because the result stops depending on the order the physics engine reported contacts. " +
@@ -443,6 +451,13 @@ namespace PFE.Core
         /// wiring time by <c>MapBridge</c>, which is where the spawner chain is handed the clock.
         /// </summary>
         public bool SimTickUnits                                 => simTickUnits;
+
+        /// <summary>
+        /// Whether a spawned unit is re-homed onto the hand-rolled <c>TilePhysicsController</c> motor
+        /// (Stage C, path 6) rather than the legacy Kinematic <c>Rigidbody2D</c> path. See the field's
+        /// tooltip; the old path stays selectable until Stage D.
+        /// </summary>
+        public bool UnitMotor                                    => unitMotor;
 
         /// <summary>
         /// Whether damage resolves on the tick (<c>SimTickOrder.Damage</c>) rather than inline at

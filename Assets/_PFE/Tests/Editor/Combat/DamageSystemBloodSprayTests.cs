@@ -120,6 +120,7 @@ namespace PFE.Tests.Editor.Combat
             bool ITileQueryService.IsOnGround(Rect boundsPx) => throw new NotSupportedException();
             TileRaycastHit? ITileQueryService.Raycast(Vector2 originPx, Vector2 direction, float maxDistancePx) => throw new NotSupportedException();
             TileQueryFlags ITileQueryService.Classify(Vector2Int tileCoord) => throw new NotSupportedException();
+            SurfaceKind ITileQueryService.ClassifySurface(Vector2Int tileCoord) => throw new NotSupportedException();
             TileMoveResult ITileQueryService.ResolveMove(in TileBox box, Vector2 delta, TileQueryFlags mask) => throw new NotSupportedException();
             bool ITileQueryService.ApplyDamage(Vector2 positionPx, int damage, int radiusTiles) => throw new NotSupportedException();
             void ITileQueryService.NotifyTilesMutated(RectInt tileRegion) => throw new NotSupportedException();

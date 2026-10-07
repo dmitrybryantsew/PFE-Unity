@@ -43,16 +43,17 @@ namespace PFE.Systems.Physics
         public IReadOnlyDictionary<RoomInstance, RoomChainGeometry> MirroredRooms => _roomGeometry;
 
         /// <summary>
-        /// Stepped in the <see cref="SimTickOrder.Projectiles"/> slot — the first intended consumer.
+        /// Stepped in the <see cref="SimTickOrder.PhysicsWorld"/> slot — its own, strictly between
+        /// the systems that write bodies (<see cref="SimTickOrder.UnitsAndAi"/>) and those that read
+        /// them (<see cref="SimTickOrder.Projectiles"/>).
         ///
-        /// <para><b>Open for Stage C.</b> A Box2D tick is write → step → read, but a single
-        /// <see cref="ISimTickable"/> occupies one slot, so today the write and the read would have
-        /// to share <c>Projectiles</c> and be ordered only by registration order. When the first
-        /// real consumer lands this needs to become an explicit split (bodies written before the
-        /// step, positions read after). It is left as-is now because Stage B has zero consumers, and
-        /// guessing a second order constant would silently become load-bearing.</para>
+        /// <para>Was <c>SimTickOrder.Projectiles</c>, the slot of its first consumer, which left the
+        /// world's <c>Simulate()</c> and a consumer's sweep separated only by registration order. See
+        /// <see cref="SimTickOrder.PhysicsWorld"/> for why that is load-bearing once a dynamic body
+        /// enters the world. Splitting it now costs nothing: with a static mirror the step cannot
+        /// change what a sweep sees, so this is a pure ordering change.</para>
         /// </summary>
-        public int TickOrder => SimTickOrder.Projectiles;
+        public int TickOrder => SimTickOrder.PhysicsWorld;
 
         public PhysicsWorldService()
         {

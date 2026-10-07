@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using PFE.Systems.Map.TileQuery;
 using PFE.Systems.Physics;
 using PFE.Systems.Telekinesis;
 
@@ -826,7 +827,7 @@ namespace PFE.Systems.Map
             }
 
             Vector2 candidatePosition = obj.position + delta;
-            if (HasCollision(room, obj, candidatePosition))
+            if (HasCollision(room, obj, candidatePosition, state.isHeldByTelekinesis, state.isThrown))
             {
                 // Record the refusal for the held prop so `tele probe` can name the blocking tile.
                 // Scoped to the held object on purpose: a prop resting on the ground refuses a
@@ -893,18 +894,32 @@ namespace PFE.Systems.Map
             obj.position = ClampToRoomBounds(room, obj, candidatePosition);
         }
 
-        bool HasCollision(RoomInstance room, ObjectInstance obj, Vector2 candidatePosition)
+        bool HasCollision(RoomInstance room, ObjectInstance obj, Vector2 candidatePosition,
+                          bool isLevitating, bool isThrown)
         {
-            Rect bounds = obj.GetApproximateBounds(candidatePosition);
+            Rect candidateBounds = obj.GetApproximateBounds(candidatePosition);
             float roomWidthPixels = room.width * WorldConstants.TILE_SIZE;
             float roomHeightPixels = room.height * WorldConstants.TILE_SIZE;
 
-            if (bounds.xMin < 0f || bounds.yMin < 0f || bounds.xMax > roomWidthPixels || bounds.yMax > roomHeightPixels)
+            // Leaving the room is a block, exactly as before — AS3 removes an object at
+            // loc.limX/limY (Location.as:267-268), so a prop must not walk out through the wall.
+            if (candidateBounds.xMin < 0f || candidateBounds.yMin < 0f ||
+                candidateBounds.xMax > roomWidthPixels || candidateBounds.yMax > roomHeightPixels)
             {
                 return true;
             }
 
-            return room.CheckCollision(bounds.position, bounds.size);
+            // The prop's OWN predicate — loc/Box.collisionTile, loc/Box.as:1260-1275 — not the unit's
+            // shared AABB check it used to borrow through RoomInstance.CheckCollision. That shared
+            // function disagreed with AS3 three ways for props: it made stairs and ramps solid (AS3
+            // passes both), and it used a `porog` window for the one-way platform whose rising guard
+            // was dead because the caller hardcoded velocityY = 0. See PropCollisionRule.
+            //
+            // Both bounds are needed: AS3's shelf clause tests the prop's CURRENT bottom against the
+            // shelf top (`Y2 > phY1`, :1270), which is the "already passed through" half of a one-way
+            // platform — passing only the candidate would make every shelf solid from above forever.
+            Rect currentBounds = obj.GetApproximateBounds(obj.position);
+            return PropCollisionRule.BlocksMove(room, candidateBounds, currentBounds, isLevitating, isThrown);
         }
 
         /// <summary>
@@ -1435,7 +1450,7 @@ namespace PFE.Systems.Map
 
             Vector2 carried = obj.position + new Vector2(supportState.cdx, supportState.cdy);
 
-            if (HasCollision(room, obj, carried))
+            if (HasCollision(room, obj, carried, state.isHeldByTelekinesis, state.isThrown))
             {
                 state.stay = false;
                 state.osnova = null;

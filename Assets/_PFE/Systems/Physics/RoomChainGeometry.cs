@@ -642,8 +642,13 @@ namespace PFE.Systems.Physics
             if (room == null || room.tiles == null) return false;
             if (x >= room.width || y >= room.height) return false;
 
-            TileQueryFlags flags = _query.Classify(new Vector2Int(x, y));
-            return (flags & TileQueryFlags.Solid) != 0;
+            // Read through the seam's surface classification rather than the flag mask, so the
+            // geometry and any per-consumer predicate share one definition of "what kind is this
+            // cell". The answer is identical — Solid is exactly `physicsType == Wall`, which is what
+            // `(Classify(x,y) & TileQueryFlags.Solid) != 0` already meant — but it is now stated in
+            // the AS3 vocabulary the rest of this file's notes use, and it is the same value a
+            // non-solid consumer would read (see SurfaceKind).
+            return _query.ClassifySurface(new Vector2Int(x, y)) == SurfaceKind.Solid;
         }
     }
 }

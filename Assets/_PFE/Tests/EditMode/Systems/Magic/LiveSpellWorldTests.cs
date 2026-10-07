@@ -32,6 +32,7 @@ namespace PFE.Tests.EditMode.Systems.Magic
         public abstract TileRaycastHit? Raycast(Vector2 originPx, Vector2 direction, float maxDistancePx);
 
         TileQueryFlags ITileQueryService.Classify(Vector2Int tileCoord) => throw new NotSupportedException();
+        SurfaceKind ITileQueryService.ClassifySurface(Vector2Int tileCoord) => throw new NotSupportedException();
         TileMoveResult ITileQueryService.ResolveMove(in TileBox box, Vector2 delta, TileQueryFlags mask) => throw new NotSupportedException();
         // No `= 1` on radiusTiles: an explicit interface implementation cannot be called with optional
         // arguments, so a default here would be a lie the compiler warns about (CS1066).

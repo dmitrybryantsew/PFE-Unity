@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using PFE.Data.Definitions;
 using PFE.Entities.Units;
 using PFE.Systems.Map.TileQuery;
+using PFE.Systems.Physics;
 using UnityEngine;
 
 namespace PFE.Systems.Map.Rendering
@@ -127,6 +128,24 @@ namespace PFE.Systems.Map.Rendering
         /// </remarks>
         PFE.Systems.Particles.Adapters.RoomParticleEmitter _particleEmitter;
 
+        /// <summary>
+        /// Whether each spawned unit is also given a <see cref="TilePhysicsController"/> — its home on
+        /// the hand-rolled AS3 motor (Stage C, path 6), gated by <c>PfeDebugSettings.UnitMotor</c>.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Why this class is the right place for the handover.</b> Path 6 (the legacy Kinematic
+        /// <c>Rigidbody2D</c>) is the <i>only</i> integration path any spawned unit has ever had —
+        /// nothing anywhere adds a motor to one — so the guide's "delete path 6" is unreachable until
+        /// the units are given a home, and this is the single construction site. See
+        /// <c>docs/Roadmap/LLP2D_IMPLEMENTATION_GUIDE.md</c> §0's 2026-10-02 banner (decision D2).</para>
+        ///
+        /// <para><b>Default off, and the old path stays intact.</b> The <c>Rigidbody2D</c> and
+        /// <c>BoxCollider2D</c> are built in both modes; this only <i>adds</i> the motor. That is what
+        /// makes it a one-flag A/B rather than a migration, and it is the rollback switch Stage D
+        /// removes.</para>
+        /// </remarks>
+        bool _useTileMotor;
+
         /// <summary>Unit ids already warned about, so a room full of them warns once each.</summary>
         readonly HashSet<string> _warnedMissingSprite = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         readonly HashSet<string> _warnedUnknownController = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -146,7 +165,8 @@ namespace PFE.Systems.Map.Rendering
             PFE.Core.SimClock simClock = null,
             PFE.Core.SimLoop simLoop = null,
             PFE.Systems.Effects.IEffectDefinitionResolver effectResolver = null,
-            PFE.Systems.Particles.Adapters.RoomParticleEmitter particleEmitter = null)
+            PFE.Systems.Particles.Adapters.RoomParticleEmitter particleEmitter = null,
+            bool useTileMotor = false)
         {
             _room = room;
             _parent = parent;
@@ -156,6 +176,7 @@ namespace PFE.Systems.Map.Rendering
             _simLoop = simLoop;
             _effectResolver = effectResolver;
             _particleEmitter = particleEmitter;
+            _useTileMotor = useTileMotor;
         }
 
         public int SpawnedCount => _spawned.Count;
@@ -392,6 +413,44 @@ namespace PFE.Systems.Map.Rendering
             // unconditionally — it early-returns when the state has no frames, so a single-frame unit
             // keeps the resting sprite ApplySprite just drew, and a 40-cell looping `stay` starts moving.
             visualObject.AddComponent<UnitAnimator>().Initialize(definition, renderer);
+
+            // ── The unit's home on the hand-rolled motor (Stage C, path 6) ──────────────────────
+            //
+            // Added BEFORE the UnitController, and that order is load-bearing: UnitController.Awake
+            // does GetComponent<TilePhysicsController>() and derives its `_hasTilePhysics` predicate
+            // from it, and Awake runs synchronously inside AddComponent. A motor added afterwards would
+            // never be seen, `_hasTilePhysics` would stay false, and BOTH the motor and the unit's own
+            // step would run every tick — the classic double-step.
+            //
+            // No `_room != null` guard: Spawn is only reachable from RefreshAll, which returns early
+            // when `_room?.units` is null, so the room is guaranteed here. A guard would be dead code
+            // whose comment claimed a failure mode that cannot occur.
+            //
+            // The Kinematic Rigidbody2D and BoxCollider2D built above are deliberately left in place in
+            // both modes. Stage D deletes them; this flag is the rollback switch until then, and the
+            // motor syncs `transform.position` itself so a Kinematic body that nothing else writes is
+            // harmless.
+            if (_useTileMotor)
+            {
+                var motor = unitObject.AddComponent<TilePhysicsController>();
+                motor.MarkUnitOwned();
+
+                if (definition != null)
+                {
+                    motor.ConfigureCollisionSize(definition.Width, definition.Height);
+                }
+
+                // Room context first, then the position — the same order RepositionForRoom documents
+                // (P0-2): every subsequent tick resolves tiles against currentRoom, so a stale room
+                // means colliding against the old grid at the new coordinates.
+                motor.SetRoom(_room);
+                motor.SetUnityPosition(unitObject.transform.position);
+
+                if (_simClock != null && _simLoop != null)
+                {
+                    motor.AttachSimulation(_simClock, _simLoop);
+                }
+            }
 
             Type controllerType = ResolveControllerType(unit.controllerId);
             var controller = (UnitController)unitObject.AddComponent(controllerType);

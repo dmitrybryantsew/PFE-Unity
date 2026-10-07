@@ -635,7 +635,9 @@ namespace PFE.Systems.Map.Rendering
             roomUnitSpawner = new RoomUnitSpawner(
                 room, backgroundPhysicalObjectParent, damageSystem: damageSystem,
                 simClock: simClock, simLoop: simLoop, effectResolver: effectResolver,
-                particleEmitter: particleEmitter);
+                particleEmitter: particleEmitter,
+                // Stage C path 6: read once at build time, like every other flag on this seam.
+                useTileMotor: debugSettings != null && debugSettings.UnitMotor);
             roomUnitSpawner.RefreshAll();
             Profiler.Mark("room.units.refreshAll");
 

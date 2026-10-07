@@ -110,8 +110,45 @@ namespace PFE.Core
         /// <summary>Player motor: integrate velocity, resolve tile collision. Player moves first.</summary>
         public const int PlayerMotor = 20;
 
+        /// <summary>
+        /// A <b>spawned unit's</b> motor — <c>TilePhysicsController</c> when it is driving an NPC
+        /// rather than the player.
+        ///
+        /// <para><b>Why not <see cref="PlayerMotor"/>.</b> Every motor used to report
+        /// <see cref="PlayerMotor"/>, so "the player moves first" was true only by registration luck:
+        /// the player's motor and N units' motors shared one order value, and
+        /// <see cref="SimLoop"/>'s tie-break is registration order. That is legal but it is not the
+        /// contract — AS3 steps the player and then the units — and it stops being harmless the moment
+        /// a unit's step can read or write anything the player's step touched. Giving the NPC motor its
+        /// own slot makes the ordering structural instead of incidental.</para>
+        ///
+        /// <para>Sits after <see cref="PlayerMotor"/> and before <see cref="UnitsAndAi"/>: the motor is
+        /// the integration half of a unit's frame, and a brain's decision must be applied by it in the
+        /// <i>same</i> tick (AS3 runs <c>control()</c> then <c>run()</c> in one pass), so a future
+        /// brain belongs in a slot at or below this one — never above it.</para>
+        /// </summary>
+        public const int UnitMotor = 25;
+
         /// <summary>Other units and AI.</summary>
         public const int UnitsAndAi = 30;
+
+        /// <summary>
+        /// The LowLevelPhysics2D world's step — its own slot, so write → step → read is explicit.
+        ///
+        /// <para><c>PhysicsWorldService</c> is the world's single owner and was originally registered
+        /// in <see cref="Projectiles"/>, the slot of its first consumer. One
+        /// <see cref="ISimTickable"/> occupies one slot, so the world's <c>Simulate()</c> and a
+        /// consumer's sweep shared an order value and were separated only by registration order. That
+        /// is harmless while the mirror is static — a sweep is a pure query, so the step cannot change
+        /// what it sees — but it becomes load-bearing the moment a dynamic body enters the world: a
+        /// body read before it was written, or written after the consumer read it, is a one-tick lag
+        /// that will be misdiagnosed as physics tuning.</para>
+        ///
+        /// <para>Sits after <see cref="UnitsAndAi"/> (the last systems that will write bodies) and
+        /// before <see cref="Projectiles"/> (the first that reads them), so the bracket is explicit
+        /// rather than incidental.</para>
+        /// </summary>
+        public const int PhysicsWorld = 35;
 
         /// <summary>Projectiles — need final positions from this tick.</summary>
         public const int Projectiles = 40;

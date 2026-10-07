@@ -133,7 +133,14 @@ public class MapBridge : MonoBehaviour
         // its accumulator to SimDt * MaxCatchupTicks and drops the rest, so the same load cannot
         // spiral. Gated on the flag here, read once at wiring time, exactly as SimTickMotor is read
         // once below for the player's motor.
-        if (_debugSettings != null && _debugSettings.SimTickUnits && _visualController != null)
+        // `UnitMotor` needs the clock too, and that is not obvious from either flag's name: turning
+        // the motor on without the handover would give a spawned unit a motor running on Unity's
+        // uncapped FixedUpdate at the legacy 2x scaling — a re-home that silently changes the units'
+        // speed and can still spiral. So the handover is gated on EITHER flag.
+        bool simDriveUnits = _debugSettings != null
+            && (_debugSettings.SimTickUnits || _debugSettings.UnitMotor);
+
+        if (simDriveUnits && _visualController != null)
         {
             _visualController.AttachSimulation(_simClock, _simLoop);
 
@@ -143,8 +150,10 @@ public class MapBridge : MonoBehaviour
                 // change, and silence would be ambiguous with "the flag did nothing".
                 Debug.Log(
                     "[MapBridge] Units are sim-driven at " + _simClock.TicksPerSecond +
-                    " Hz (unit tick fix ON; motor-less NPCs step on SimLoop, capped at " +
-                    PFE.Core.SimClock.MaxCatchupTicks + " ticks/frame)");
+                    " Hz (unit tick fix ON; units step on SimLoop, capped at " +
+                    PFE.Core.SimClock.MaxCatchupTicks + " ticks/frame). Driven by: " +
+                    (_debugSettings.SimTickUnits ? "SimTickUnits " : "") +
+                    (_debugSettings.UnitMotor ? "UnitMotor" : ""));
             }
             else
             {
@@ -152,7 +161,7 @@ public class MapBridge : MonoBehaviour
                 // units silently on the clock the fix exists to get them off — the spawner's own
                 // handover returns early on a null clock and would report nothing.
                 Debug.LogWarning(
-                    "[MapBridge] SimTickUnits is ON but no SimClock was injected, so motor-less units " +
+                    "[MapBridge] SimTickUnits/UnitMotor is ON but no SimClock was injected, so units " +
                     "stay on Unity's FixedUpdate. The unit tick fix is NOT active.");
             }
         }

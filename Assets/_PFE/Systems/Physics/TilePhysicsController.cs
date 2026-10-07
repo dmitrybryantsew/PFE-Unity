@@ -39,8 +39,32 @@ namespace PFE.Systems.Physics
         /// <summary>
         /// P1: runs after input is gathered and before everything downstream, so entities move
         /// against a settled room and triggers/damage see final positions.
+        ///
+        /// <para><b>Two slots, because there are two kinds of owner.</b> The player's motor keeps
+        /// <see cref="PFE.Core.SimTickOrder.PlayerMotor"/> (the player moves first). A motor driving a
+        /// <i>spawned unit</i> reports <see cref="PFE.Core.SimTickOrder.UnitMotor"/> instead, so
+        /// "player, then units" is structural rather than a tie-break on registration order. See
+        /// <see cref="MarkUnitOwned"/>.</para>
         /// </summary>
-        public int TickOrder => PFE.Core.SimTickOrder.PlayerMotor;
+        public int TickOrder => unitOwned
+            ? PFE.Core.SimTickOrder.UnitMotor
+            : PFE.Core.SimTickOrder.PlayerMotor;
+
+        /// <summary>
+        /// Declares this motor the owner of a <b>spawned unit's</b> step rather than the player's, which
+        /// moves it from <see cref="PFE.Core.SimTickOrder.PlayerMotor"/> to
+        /// <see cref="PFE.Core.SimTickOrder.UnitMotor"/>.
+        ///
+        /// <para><b>Set by <c>RoomUnitSpawner</c>, which is the layer that knows it is building an NPC.</b>
+        /// Safe to call at any point before the first tick: <see cref="PFE.Core.SimLoop"/> resolves the
+        /// order lazily (<c>EnsureOrder</c>), so a value set after <c>AddComponent</c> but before
+        /// <c>AttachSimulation</c> is honoured. A motor that is never marked keeps the player's slot,
+        /// which is what every existing motor does.</para>
+        /// </summary>
+        public void MarkUnitOwned()
+        {
+            unitOwned = true;
+        }
 
         /// <summary>
         /// One authoritative simulation step. Identical work to the legacy FixedUpdate body; only the
@@ -265,6 +289,21 @@ namespace PFE.Systems.Physics
             }
         }
 
+        /// <summary>
+        /// Whether the unit this motor drives is pinned — AS3 <c>Unit.fixed</c>, read through
+        /// <c>UnitController.IsFixed</c>.
+        ///
+        /// <para><b>Read through the unit rather than the definition, because for the training dummy
+        /// it is a property of the <i>placement</i>.</b> <c>TrainingDummyController.IsFixed</c> ORs its
+        /// own <c>fix</c> attribute on top of the definition field, and the Camp's five dummies share
+        /// one <c>&lt;unit id='training'&gt;</c> row — three pinned, two free. A definition-level read
+        /// could only pin all five or none.</para>
+        ///
+        /// <para>False for a motor with no <see cref="UnitController"/> on the object, which is the
+        /// player-prefab-less test case; a motor with nothing to move is not a pinned unit.</para>
+        /// </summary>
+        private bool IsFixed => Unit != null && Unit.IsFixed;
+
         // Legacy input state
         private float inputX;
         private bool inputDown; // For falling through platforms
@@ -293,6 +332,12 @@ namespace PFE.Systems.Physics
         private PFE.Core.SimClock simClock;
         private PFE.Core.SimLoop simLoop;
         private bool simAttached;
+
+        /// <summary>
+        /// True when this motor owns a spawned unit's step rather than the player's. Only affects
+        /// <see cref="TickOrder"/>; see <see cref="MarkUnitOwned"/>.
+        /// </summary>
+        private bool unitOwned;
 
         /// <summary>True when SimLoop owns the step and FixedUpdate must stand down.</summary>
         private bool SimDriven => simAttached && simClock != null;
@@ -435,6 +480,34 @@ namespace PFE.Systems.Physics
                 roomWorldPixelX = 0;
                 roomWorldPixelY = 0;
             }
+        }
+
+        /// <summary>
+        /// Size this motor's collision box from a unit's definition, in pixels.
+        ///
+        /// <para><b>Needed because the motor's defaults are the player's, and a spawned unit is built
+        /// from data rather than a prefab.</b> <c>RoomUnitSpawner</c> sizes the unit's
+        /// <c>BoxCollider2D</c> from <c>UnitDefinition.Width</c>/<c>Height</c> (AS3 <c>scX</c>/<c>scY</c>,
+        /// <c>Unit.as:1875-1876</c>); a motor left on the serialized 30×50 would resolve tile collision
+        /// against a box that is not the unit's, which reads as "it clips into walls" rather than as a
+        /// configuration gap. Both dimensions are ignored when non-positive so a definition with no
+        /// authored size keeps the serialized default.</para>
+        /// </summary>
+        public void ConfigureCollisionSize(float widthPixels, float heightPixels)
+        {
+            if (widthPixels > 0f)
+            {
+                collisionWidth = widthPixels;
+            }
+
+            if (heightPixels > 0f)
+            {
+                collisionHeight = heightPixels;
+            }
+
+            // Kept in step with the standing height so UpdateColliderProfile's crouch round-trip has a
+            // valid reference even if Start() has not run yet.
+            standingCollisionHeight = collisionHeight;
         }
 
         /// <summary>
@@ -700,7 +773,29 @@ namespace PFE.Systems.Physics
             wallLeft = false;
             wallRight = false;
             UpdateColliderProfile();
-            UpdateLadderState();
+
+            // ── AS3's `if(!this.fixed)` gate (Unit.as:1809) ──────────────────────────────────
+            //
+            // AS3 wraps the position integration in `if(!this.fixed)`: `forces()` and `control()` sit
+            // ABOVE that gate and still run — velocity accumulates, facing updates, the effect and
+            // contact-countdown ticks advance — but `run()`, the function holding `X += dx`, is never
+            // called, so X/Y never change. The consequences are the oracle's rather than a shortcut: a
+            // fixed unit is immune to knockback DISPLACEMENT (a shot still adds to dx; the value simply
+            // never lands) and takes no collision response.
+            //
+            // Everything that WRITES position in this motor is therefore what the gate has to cover:
+            // the ladder attach/snap, the tile-collision walk, the transform sync and the
+            // room-boundary exit. `UnitController.Move()` gates the same single write on the motor-less
+            // path; a motor-driven unit has no other write.
+            //
+            // This is load-bearing for the camp's three pinned dummies (fix="1"): re-homing them onto
+            // this motor without it would hand them straight to gravity.
+            bool fixedUnit = IsFixed;
+
+            if (!fixedUnit)
+            {
+                UpdateLadderState();
+            }
 
             // === AS3 Unit.run() equivalent ===
 
@@ -744,11 +839,14 @@ namespace PFE.Systems.Physics
             dy = Mathf.Clamp(dy, -verticalClamp, verticalClamp);
 
             // 5. Move with tile collision
-            MoveWithCollision();
-            RefreshLadderAttachment();
+            if (!fixedUnit)
+            {
+                MoveWithCollision();
+                RefreshLadderAttachment();
 
-            // 6. Sync Unity transform
-            SyncUnityPosition();
+                // 6. Sync Unity transform
+                SyncUnityPosition();
+            }
 
             // 7. Update facing
             if (dx > 0.5f) facingDirection = 1;
@@ -762,8 +860,12 @@ namespace PFE.Systems.Physics
             // 9. Check water
             CheckWater();
 
-            // 10. Check room boundary exit (AS3 Unit.as outLoc)
-            CheckRoomBoundaryExit();
+            // 10. Check room boundary exit (AS3 Unit.as outLoc). Writes posX/posY, so it is inside
+            // the `!fixed` gate for the same reason the collision walk is.
+            if (!fixedUnit)
+            {
+                CheckRoomBoundaryExit();
+            }
 
             // Decrement by the step's wall-clock duration, not by Unity's fixed delta, so dash and
             // platform-drop last the same number of real seconds at every tick rate. In legacy mode

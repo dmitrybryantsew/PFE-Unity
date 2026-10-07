@@ -161,6 +161,22 @@ namespace PFE.Systems.Map.TileQuery
         TileQueryFlags Classify(Vector2Int tileCoord);
 
         /// <summary>
+        /// The AS3 surface identity of a single tile coordinate — the "kind" half of the
+        /// classification, deliberately kept out of <see cref="TileQueryFlags"/>.
+        ///
+        /// <para>This is the tag each consumer predicates over: a projectile collides with
+        /// <see cref="SurfaceKind.Solid"/> only, a dynamic prop with <see cref="SurfaceKind.Solid"/>
+        /// and <see cref="SurfaceKind.Shelf"/>, and neither with <see cref="SurfaceKind.Diagon"/> or
+        /// <see cref="SurfaceKind.Stair"/>. One classification, one predicate per consumer — instead
+        /// of one shared <c>CheckCollision</c> whose answer has to be right for all of them at once.</para>
+        ///
+        /// <para>Delegates to <see cref="SurfaceKindRule.Of"/> so the seam and any pure predicate
+        /// (e.g. <see cref="PropCollisionRule"/>) read one definition and cannot drift.</para>
+        /// </summary>
+        [LocalOnly(Note = "Pure function of local tile state.")]
+        SurfaceKind ClassifySurface(Vector2Int tileCoord);
+
+        /// <summary>
         /// Swept move of an AABB (pixel space) by delta, subdivided by maxdelta (9px).
         /// Returns final position, collision flags, and remainder. Deterministic.
         /// </summary>

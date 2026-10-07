@@ -4,6 +4,7 @@ using UnityEngine;
 using PFE.Data.Definitions;
 using PFE.Entities.Units;
 using PFE.Systems.Map;
+using PFE.Systems.Physics;
 
 namespace PFE.Tests.Editor.Entities.Units
 {
@@ -279,6 +280,102 @@ namespace PFE.Tests.Editor.Entities.Units
             Assert.AreEqual(5, total, "the camp's test ground places five dummies");
             Assert.AreEqual(3, pinned,
                 "RoomsCamp.as pins three of them (fix=\"1\"); the other two carry only turn/light");
+        }
+
+        // ── 4. the gate inside the MOTOR (Stage C path 6) ────────────────────────────────────────
+
+        /// <summary>
+        /// The second gate site: <see cref="TilePhysicsController"/> must consult <c>fixed</c> too.
+        ///
+        /// <para><b>Why this section was added on 2026-10-07, and why it is not redundant with the
+        /// tests above.</b> The class note lists "the gate itself" as the third place <c>fixed</c> is
+        /// consulted, and that gate lives in <c>UnitController.Move()</c> — the <i>motor-less</i> path.
+        /// Re-homing spawned units onto the hand-rolled motor (behind <c>PfeDebugSettings.UnitMotor</c>)
+        /// created a <b>second</b> gate site, and a unit that is motor-driven never reaches
+        /// <c>UnitController.Move()</c> at all: <c>UnitController</c> stands down and the motor owns the
+        /// step. So a motor without the gate would move exactly the units the tests above prove are
+        /// pinned — 16 authored definitions plus the Camp's three <c>fix="1"</c> dummies — and every
+        /// test above would still be green.</para>
+        ///
+        /// <para>This is the same rot the class note describes: a gate that exists in one path while a
+        /// second path is added beside it. It is asserted through <c>SimTick</c> — the real entry point,
+        /// not a reflection poke — because the failure only appears once the motor actually steps.</para>
+        /// </summary>
+        private static (TilePhysicsController motor, GameObject go) MakeMotorDrivenUnit(bool isFixed)
+        {
+            var go = new GameObject("MotorDrivenUnitUnderTest");
+
+            // Disabled first: TilePhysicsController.Awake asserts on duplicates and UnitController.Awake
+            // resolves the motor with GetComponent once, so the components must all exist before any
+            // Awake runs — the same reason a prefab is safe and a hand-ordered build is not.
+            go.SetActive(false);
+            go.AddComponent<Rigidbody2D>();
+            go.AddComponent<BoxCollider2D>();
+            var motor = go.AddComponent<TilePhysicsController>();
+            var controller = go.AddComponent<UnitController>();
+            go.SetActive(true);
+
+            controller.Initialize(MakeTrainingDefinition(isFixed), new UnitStats(500f, 100f));
+
+            // An all-air room: nothing to stand on, so an ungated motor integrates gravity and the unit
+            // falls. That is what makes this test able to fail.
+            var room = new RoomInstance { id = "fixed_gate_room", borderOffset = 0 };
+            room.InitializeTiles();
+            motor.SetRoom(room);
+            motor.SetUnityPosition(new Vector3(1f, 1f, 0f));
+
+            return (motor, go);
+        }
+
+        [Test]
+        public void AFixedUnitsMotor_DoesNotIntegratePosition()
+        {
+            (TilePhysicsController motor, GameObject go) = MakeMotorDrivenUnit(isFixed: true);
+            UnitDefinition definition = motor.GetComponent<UnitController>().Stats;
+
+            try
+            {
+                Vector3 before = go.transform.position;
+                motor.SimTick(0);
+
+                Assert.AreEqual(before, go.transform.position,
+                    "AS3 gates run() on !fixed (Unit.as:1809), and for a motor-driven unit the motor IS " +
+                    "run(). Without this gate a pinned turret, trigger or dummy is handed straight to " +
+                    "gravity the moment it is re-homed onto the motor.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+                Object.DestroyImmediate(definition);
+            }
+        }
+
+        /// <summary>
+        /// The complement, and it is what makes the test above mean anything: an <i>unpinned</i> unit
+        /// driven by the same motor <b>must</b> move. Without it, "the position did not change" would
+        /// also pass if the motor never stepped at all — a room-less motor, a null unit, or a step that
+        /// returned early would all look identical to a working gate.
+        /// </summary>
+        [Test]
+        public void AnUnpinnedUnitsMotor_IntegratesPosition()
+        {
+            (TilePhysicsController motor, GameObject go) = MakeMotorDrivenUnit(isFixed: false);
+            UnitDefinition definition = motor.GetComponent<UnitController>().Stats;
+
+            try
+            {
+                Vector3 before = go.transform.position;
+                motor.SimTick(0);
+
+                Assert.Less(go.transform.position.y, before.y,
+                    "An unpinned unit over an all-air room must fall. If this fails the gate is not the " +
+                    "reason the test above passes, and that test is asserting nothing.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+                Object.DestroyImmediate(definition);
+            }
         }
     }
 }
