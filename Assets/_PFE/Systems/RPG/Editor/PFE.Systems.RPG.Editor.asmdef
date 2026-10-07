@@ -2,7 +2,8 @@
     "name": "PFE.Systems.RPG.Editor",
     "rootNamespace": "PFE.Systems.RPG.Editor",
     "references": [
-        "PFE.Core",
+        "PFE.View",
+        "PFE.Data",
         "PFE.Editor",
         "PFE.Sim"
     ],

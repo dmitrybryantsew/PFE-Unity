@@ -1,6 +1,5 @@
 using UnityEngine;
 using System.Collections.Generic;
-using VContainer;
 using PFE.ModAPI;
 using PFE.Data.Definitions;
 

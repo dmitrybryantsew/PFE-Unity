@@ -1,17 +1,12 @@
 {
-    "name": "PFE.Editor",
-    "rootNamespace": "PFE.Editor",
+    "name": "PFE.Data",
+    "rootNamespace": "PFE.Data",
     "references": [
-        "PFE.View",
-        "PFE.Data",
-        "PFE.ModAPI",
         "PFE.Sim",
-        "Unity.InputSystem",
-        "Unity.2D.Sprite.Editor"
+        "PFE.ModAPI",
+        "Unity.Mathematics"
     ],
-    "includePlatforms": [
-        "Editor"
-    ],
+    "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,

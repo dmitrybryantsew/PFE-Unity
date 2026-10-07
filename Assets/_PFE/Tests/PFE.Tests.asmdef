@@ -4,7 +4,8 @@
     "references": [
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner",
-        "PFE.Core",
+        "PFE.View",
+        "PFE.Data",
         "PFE.ModAPI",
         "PFE.Sim",
 		"VContainer",

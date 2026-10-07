@@ -20,7 +20,7 @@ namespace PFE.Data
     /// </summary>
     public class GameDatabase
     {
-        readonly PFE.Core.PfeDebugSettings _debugSettings;
+        readonly IGameDatabaseDebugSettings _debugSettings;
 
         /// <summary>The content registry backing this database. All content lives here.</summary>
         public ContentRegistry Registry { get; private set; }
@@ -35,15 +35,13 @@ namespace PFE.Data
         readonly Dictionary<string, RoomTemplate> _roomTemplates = new();
         readonly Dictionary<string, MapObjectDefinition> _mapObjectDefinitions = new();
 
-        public GameDatabase() : this(ScriptableObject.CreateInstance<PFE.Core.PfeDebugSettings>())
+        public GameDatabase() : this(DefaultGameDatabaseDebugSettings.Instance)
         {
         }
 
-        public GameDatabase(PFE.Core.PfeDebugSettings debugSettings)
+        public GameDatabase(IGameDatabaseDebugSettings debugSettings)
         {
-            _debugSettings = debugSettings != null
-                ? debugSettings
-                : ScriptableObject.CreateInstance<PFE.Core.PfeDebugSettings>();
+            _debugSettings = debugSettings ?? DefaultGameDatabaseDebugSettings.Instance;
             Registry = new ContentRegistry();
             Loader = new ModLoader();
         }

@@ -5,11 +5,31 @@
 // Class name matches the file name — Unity requires that for MonoBehaviours.
 
 using UnityEngine;
+using PFE.Core;
 
 namespace PFE.Core.Profiling
 {
     public sealed class PfeProfilerAutoDump : MonoBehaviour
     {
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterAssembliesLoaded)]
+        static void HookProfilerSettings()
+        {
+            PfeProfiler.ExternalEnabledResolver = () =>
+            {
+                var settings = Resources.Load<PfeDebugSettings>("PfeDebugSettings");
+                return settings == null || settings.ProfilingEnabled;
+            };
+        }
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+        static void HookAutoDump()
+        {
+            if (!PfeProfiler.Enabled) return;
+            var go = new GameObject("[PfeProfilerAutoDump]");
+            Object.DontDestroyOnLoad(go);
+            go.AddComponent<PfeProfilerAutoDump>();
+        }
+
         const int FirstFrame = 1;
         const int EarlyDumpFrame = 5;
         const int LateDumpFrame = 60;

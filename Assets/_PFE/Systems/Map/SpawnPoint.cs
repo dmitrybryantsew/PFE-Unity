@@ -30,15 +30,4 @@ namespace PFE.Systems.Map
             return WorldCoordinates.PixelToUnity(pixelPos);
         }
     }
-
-    /// <summary>
-    /// Type of spawn point
-    /// </summary>
-    public enum SpawnType
-    {
-        Player,
-        Enemy,
-        Boss,
-        NPC
-    }
 }

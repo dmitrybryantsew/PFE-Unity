@@ -1,5 +1,5 @@
 {
-    "name": "PFE.Core",
+    "name": "PFE.View",
     "rootNamespace": "PFE",
     "references": [
         "Unity.InputSystem",
@@ -13,7 +13,8 @@
         "MessagePipe.VContainer",
         "Unity.Mathematics",
         "PFE.ModAPI",
-        "PFE.Sim"
+        "PFE.Sim",
+        "PFE.Data"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

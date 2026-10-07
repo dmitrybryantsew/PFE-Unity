@@ -193,14 +193,20 @@ namespace PFE.Core.Profiling
             // PfeDebugSettings switch. HookAfterSceneLoad makes it reliable.
             if (!_settingsReliable) return true;
 
-            var settings = Resources.Load<PfeDebugSettings>("PfeDebugSettings");
-            // A missing asset leaves profiling ON so the tool works out of the box in a development
-            // build. The asset is the intended switch.
-            bool value = settings == null || settings.ProfilingEnabled;
+            if (ExternalEnabledResolver != null)
+            {
+                bool value = ExternalEnabledResolver();
+                _enabled = value;
+                return value;
+            }
 
-            _enabled = value;
-            return value;
+            return true;
         }
+
+        /// <summary>
+        /// Optional delegate to resolve profiling toggle from external settings (e.g. PfeDebugSettings in View layer).
+        /// </summary>
+        public static System.Func<bool> ExternalEnabledResolver;
 
         /// <summary>Drops all recorded data. Does not change <see cref="Enabled"/>.</summary>
         public static void Reset()
@@ -687,10 +693,6 @@ namespace PFE.Core.Profiling
             // and PlayerLoop work we do not control.
             OpenSpan("boot.afterSceneLoadGap",
                 "boot: gap between the AfterSceneLoad hook and GameManager.Start. Run 17 showed 485.8ms here with no region covering it");
-
-            var go = new GameObject("[PfeProfilerAutoDump]");
-            Object.DontDestroyOnLoad(go);
-            go.AddComponent<PfeProfilerAutoDump>();
         }
     }
 }

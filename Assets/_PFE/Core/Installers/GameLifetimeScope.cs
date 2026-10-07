@@ -238,14 +238,15 @@ public class GameLifetimeScope : LifetimeScope
 
         if (_debugSettings != null)
         {
-            builder.RegisterInstance(_debugSettings);
+            builder.RegisterInstance(_debugSettings).As<PFE.Data.IGameDatabaseDebugSettings>().AsSelf();
         }
         else
         {
             var runtimeDebugSettings = Resources.Load<PfeDebugSettings>("PfeDebugSettings");
             builder.RegisterInstance(runtimeDebugSettings != null
                 ? runtimeDebugSettings
-                : ScriptableObject.CreateInstance<PfeDebugSettings>());
+                : ScriptableObject.CreateInstance<PfeDebugSettings>())
+                .As<PFE.Data.IGameDatabaseDebugSettings>().AsSelf();
         }
 
         // Resolve once into a local: the simulation clock below needs the configured tick rate, and
