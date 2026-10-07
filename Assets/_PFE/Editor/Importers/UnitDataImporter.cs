@@ -293,6 +293,10 @@ namespace PFE.Editor.Importers
                     // Parse parameters (<param> tag) — AS3 `node = node0.param[0]` (`Unit.as:1338`)
                     ParseParams(unit, unitContent);
 
+                    // Parse unit extras (<un> tag) — AS3 `node0.un` (`UnitZombie.as:151-165`).
+                    // Reads `parentId`, which ParseParams does not touch, so the two are independent.
+                    ParseUnitExtras(unit, unitContent);
+
                     // Parse movement (<move> tag)
                     ParseMovement(unit, unitContent);
 
@@ -486,10 +490,39 @@ namespace PFE.Editor.Importers
 
             // Assigned only when present, exactly as AS3 does — so an absent attribute leaves the
             // field at its own default (None), which is AS3's field default too.
-            var bloodMatch = Regex.Match(attrs, @"blood='(\d+)'");
+            //
+            // The `\b` closes a hazard a previous pass found and chose only to document: the bare
+            // `blood='` also matches inside `hblood='20'`, and the oracle does author `hblood` on four
+            // `<item>` elements. It was harmless because none of them is a `<param>`, and it stays
+            // harmless now — the anchor just means the next person to move a `hblood` into a `<param>`
+            // gets a wrong value *and* a boundary to notice, instead of a silent one.
+            var bloodMatch = Regex.Match(attrs, @"\bblood='(\d+)'");
             if (bloodMatch.Success)
             {
                 unit.bloodType = (BloodType)int.Parse(bloodMatch.Groups[1].Value);
+            }
+        }
+
+        /// <summary>
+        /// Apply the unit's <c>&lt;un&gt;</c> element — AS3's "unit extras" node — to the definition.
+        ///
+        /// <para><b>The logic is in <see cref="UnitExtrasParser"/>, not here.</b> This class lives in
+        /// <c>PFE.Editor</c>, which <c>PFE.Tests</c> does not reference, so anything decided here can only
+        /// be tested by running Unity. <c>res</c> is an overloaded attribute name whose two AS3 owners
+        /// disagree about its meaning (<c>UnitZombie</c> reads it as "resurrects",
+        /// <c>UnitTrigger</c> as a resource requirement), so getting it wrong is a silent wrong write on
+        /// four units — exactly the kind of decision that needs a test. Same split, and the same reason,
+        /// as <see cref="UnitVulnerabilityParser"/>.</para>
+        ///
+        /// <para>Only <c>res</c> is read. The node carries about nineteen attributes; closing it is its
+        /// own workstream, and giving the others writers before anything reads them is the trap
+        /// <see cref="UnitDefinition.canResurrect"/> was already in.</para>
+        /// </summary>
+        private static void ParseUnitExtras(UnitDefinition unit, string content)
+        {
+            if (UnitExtrasParser.ParseCanResurrect(content, unit.parentId))
+            {
+                SetPrivateField(unit, "canResurrect", true);
             }
         }
 
@@ -506,6 +539,26 @@ namespace PFE.Editor.Importers
             {
                 float speed = ParseFloat(speedMatch.Groups[1].Value);
                 SetPrivateField(unit, "moveSpeed", speed);
+            }
+
+            // Run speed — AS3 `run` (`Unit.as:1070-1073`: `if(node.@run.length()) { this.runSpeed =
+            // node.@run; }`), an ABSOLUTE px/frame value, not a multiplier.
+            //
+            // It used to be dropped here, and the consequence was silent in both directions: the field
+            // did not exist, so nothing read it, and `RunSpeed` was `moveSpeed * runMultiplier` with
+            // `runMultiplier` hardcoded to 2 by SetUnitDefaults. Every unit therefore ran at exactly
+            // twice its walk speed. The data says otherwise — `zombie0` is speed 1.5, run 10.
+            //
+            // The leading `(?:^|\s)` is not decoration: an unanchored `run='…'` would also match the
+            // tail of a hypothetical `…run='…'` attribute, and the whole point of this read is that the
+            // authored value is what lands. AS3 tests `.length()`, i.e. presence, so an absent
+            // attribute must leave the field at 0 — which `RunSpeed` reads as "not authored, use the
+            // multiplier".
+            var runMatch = Regex.Match(attrs, @"(?:^|\s)run='(-?\d+\.?\d*)'");
+            if (runMatch.Success)
+            {
+                float run = ParseFloat(runMatch.Groups[1].Value);
+                SetPrivateField(unit, "runSpeed", run);
             }
 
             // Knockback susceptibility. AS3 reads it from the SAME <move> node — `Unit.as:1063` takes
@@ -548,8 +601,12 @@ namespace PFE.Editor.Importers
                 SetPrivateField(unit, "isFixed", fixedValue > 0f);
             }
 
-            // Parse accel
-            var accelMatch = Regex.Match(attrs, @"accel='(-?\d+\.?\d*)'");
+            // Parse accel (ground acceleration). The `\b` is load-bearing: without it this also matches
+            // inside `levitaccel='1.6'`, and the oracle authors `levitaccel` BEFORE `accel` in 8 of the
+            // 106 `<move>` rows that match — all 8 of which declare no ground `accel` at all, so the port
+            // silently gave those units their LEVITATION acceleration as their ground acceleration.
+            // Replayed against the real data: 8 of 106 matches read the wrong attribute.
+            var accelMatch = Regex.Match(attrs, @"\baccel='(-?\d+\.?\d*)'");
             if (accelMatch.Success)
             {
                 float accel = ParseFloat(accelMatch.Groups[1].Value);
@@ -564,16 +621,30 @@ namespace PFE.Editor.Importers
 
             string attrs = combMatch.Groups[1].Value;
 
+            // Every read below is name-searched over the whole attribute string, so a bare pattern also
+            // matches inside a longer attribute name — `armor='` inside `marmor='5'`, `accel='` inside
+            // `levitaccel='1.6'`. `Regex.Match` returns the FIRST match, so which one wins is decided by
+            // the DATA's attribute order, not by the order these blocks run in. The `\b` anchors make the
+            // match start at a name boundary, which is the only thing that actually prevents it.
+            //
+            // (An earlier comment here claimed `armor` "must be parsed before krep to avoid overwrite".
+            // That is a belief about a mechanism that does not exist: these regexes do not interact, and
+            // reordering them changes nothing. The real hazard was always the suffix neighbour.)
+
             // Parse hp (health)
-            var hpMatch = Regex.Match(attrs, @"hp='(\d+)'");
+            var hpMatch = Regex.Match(attrs, @"\bhp='(\d+)'");
             if (hpMatch.Success)
             {
                 int hp = int.Parse(hpMatch.Groups[1].Value);
                 SetPrivateField(unit, "health", hp);
             }
 
-            // Parse armor (must be parsed before krep to avoid overwrite)
-            var armorMatch = Regex.Match(attrs, @"armor='(\d+)'");
+            // Parse armor (physical). The `\b` matters: without it this also matches inside
+            // `marmor='5'`, and the oracle authors `marmor` BEFORE `armor` in 2 of the 51 rows that have
+            // either — both of which declare no physical `armor` at all, so the port silently invented
+            // `armor = 5` and `armor = 10` from their magic armour. Replayed against the real data:
+            // 2 of 51 matches read the wrong attribute.
+            var armorMatch = Regex.Match(attrs, @"\barmor='(\d+)'");
             if (armorMatch.Success)
             {
                 int armor = int.Parse(armorMatch.Groups[1].Value);
@@ -637,12 +708,54 @@ namespace PFE.Editor.Importers
                 SetPrivateField(unit, "dexterity", dexter);
             }
 
-            // Parse obs (observation range)
-            var obsMatch = Regex.Match(attrs, @"obs='(\d+)'");
-            if (obsMatch.Success)
+            // Parse observ (observation power) — AS3 `Unit.observ:Number = 0` (`:122282`), read on the
+            // same `<comb>` node as `ear`: `if(node.@observ.length()) this.observ += node.@observ;`
+            // (`:122994`).
+            //
+            // THE ATTRIBUTE IS `observ`, NOT `obs`. This pattern used to be `obs='(\d+)'`, which matches
+            // NOTHING: `grep -c "obs='"` over the whole 8 MB oracle returns 0, because `obs='` is not a
+            // substring of `observ='5'`. So 37 authored values were dropped on the floor and
+            // `observationRange` kept its default of 0 for every unit in the game — which is a *legal*
+            // value, so nothing ever looked wrong. It is the listener's scaling of the vision path only
+            // (`observation(intensity, this.observ)`, `:126474`), so the symptom was "enemies notice a
+            // little slower than the data says", not a visible failure.
+            //
+            // AS3 uses `+=`; a single read of one node makes assignment equivalent, and the port's
+            // importer does not merge parent definitions into the same instance, so there is nothing to
+            // accumulate onto. Recorded rather than silently flattened.
+            var observMatch = Regex.Match(attrs, @"\bobserv='(\d+)'");
+            if (observMatch.Success)
             {
-                int obs = int.Parse(obsMatch.Groups[1].Value);
-                SetPrivateField(unit, "observationRange", obs);
+                int observ = int.Parse(observMatch.Groups[1].Value);
+                SetPrivateField(unit, "observationRange", observ);
+            }
+
+            // Parse ear (hearing multiplier).
+            //
+            // AS3 reads it on the SAME element as `observ` — `if(node.@ear.length()) this.ear =
+            // node.@ear;` (`actionscript_project_context.txt:122998`), beside the `observ` read at
+            // `:122994`. It is the listener's factor in `listen()`'s product
+            // (`param1.noise * this.ear * loc.earMult`, `:126338`), so a row that authors `ear='0'` is
+            // stone deaf at any range and a row that authors `ear='2.5'` hears 2.5x further.
+            //
+            // The data is not hypothetical: spritebot/vortex/roller/roller2 all author `ear='0'`
+            // (`:3800-3845`) and the two hp='1000' sentinels do too (`:4038`). Leaving this unparsed
+            // would make every one of them keep the default 1 and behave like an ordinary listener.
+            //
+            // Fractional values are real (0.2 for a buried digger is set at runtime, 1.4 and 2.5 in the
+            // data), so this is a float parse, not an int one.
+            //
+            // The `\b` is load-bearing, not decoration. A bare `ear='` also matches inside `rear='1'`,
+            // which the oracle DOES author — on 18 `<mat>` tile elements (`:8696-8739`). Those are a
+            // different element and ParseCombat never sees them, so the collision is latent rather than
+            // live; but it is the exact shape rule #11 warns about (an attribute read by name-search
+            // silently picking up a suffix neighbour), and one `\b` removes it. No `<comb>` row authors
+            // `rear` today, so this costs nothing and removes a trap.
+            var earMatch = Regex.Match(attrs, @"\bear='(-?\d+\.?\d*)'");
+            if (earMatch.Success)
+            {
+                float ear = ParseFloat(earMatch.Groups[1].Value);
+                SetPrivateField(unit, "ear", ear);
             }
         }
 
@@ -743,6 +856,30 @@ namespace PFE.Editor.Importers
                 SetPrivateField(unit, "spriteDimensions", new Vector2Int(sprX, sprY));
             }
 
+            // Parse noise (Unit.noiseRun) — how loud this unit is while running.
+            //
+            // AS3 reads it here, on the same `<vis>` node the sheet name comes from:
+            // `if(node.@noise.length()) this.noiseRun = node.@noise;`
+            // (`actionscript_project_context.txt:123110`). The port previously did not read it at all and
+            // instead hardcoded the field to 300 in SetUnitDefaults — so every unit in the game was
+            // equally loud, and the value was wrong for all of them: the oracle's default is 200 and the
+            // data's most common authored value is 600.
+            //
+            // The spread is wide and load-bearing: `<vis noise='600'/>` on every zombie and raider,
+            // `noise='500'` on the robots, `noise='0'` on all three slimes (`:3439`, `:3456`, `:3467`).
+            // A slime that is silent by design and a zombie that is audible at 600 px are the two ends of
+            // the stealth system.
+            //
+            // `\b` for the same reason as `ear` below: `<vis>` is the only element this string holds, so
+            // there is no live collision, but a suffix neighbour (`...noise='` — e.g. a hypothetical
+            // `crynoise`) would be read as this unit's run noise without a word of warning.
+            var noiseMatch = Regex.Match(attrs, @"\bnoise='(\d+)'");
+            if (noiseMatch.Success)
+            {
+                int noise = int.Parse(noiseMatch.Groups[1].Value);
+                SetPrivateField(unit, "noiseRun", noise);
+            }
+
             // Parse sprDX/sprDY — the REGISTRATION POINT, not a draw size.
             //
             // These used to feed a field called "drawDimensions", which is not what they are. AS3
@@ -821,6 +958,14 @@ namespace PFE.Editor.Importers
             // Set sensible defaults for fields not in XML
             SetPrivateField(unit, "sitHeight", 0.5f);
             SetPrivateField(unit, "runMultiplier", 2f);
+            // AS3 `public var runSpeed:Number = 10` (`Unit.as:220`) is the DECLARED default, but it is
+            // not the right "source is silent" value here: `Unit.getXmlParam` only overwrites it when
+            // the row authors `run` (`:1070-1073`), so a row without the attribute keeps 10. Writing 10
+            // would therefore be faithful — and it is deliberately NOT written, because `RunSpeed`
+            // reads 0 as "not authored, use moveSpeed * runMultiplier" and that is the model the
+            // player's sprint already uses. Writing AS3's 10 here would silently give every silent row
+            // a 10 px/frame run and change the player's sprint. 0 is the honest "absent".
+            SetPrivateField(unit, "runSpeed", 0f);
             SetPrivateField(unit, "braking", 0.5f);
             SetPrivateField(unit, "canSwim", true);
             SetPrivateField(unit, "canLevitate", false);
@@ -836,7 +981,16 @@ namespace PFE.Editor.Importers
             SetPrivateField(unit, "damageType", DamageType.PhysicalMelee);
             SetPrivateField(unit, "dexterity", 1f);
             SetPrivateField(unit, "skill", 1f);
-            SetPrivateField(unit, "noiseLevel", 300);
+            // AS3 `Unit.noiseRun:int = 200` (`:122272`) and `Unit.ear:Number = 1` (`:122286`) — the
+            // declared defaults, which are also the right "the source is silent" values here, because
+            // AS3's own import only overwrites them when the row authors the attribute. `littlepip`
+            // authors neither, so these two numbers are the player's.
+            //
+            // The previous line here was `SetPrivateField(unit, "noiseLevel", 300)`: an invented name, an
+            // invented value, and no reader. See the field's doc for why 300 was wrong in both
+            // directions at once.
+            SetPrivateField(unit, "noiseRun", 200);
+            SetPrivateField(unit, "ear", 1f);
             SetPrivateField(unit, "detectionDistance", 400);
             SetPrivateField(unit, "actionPoints", 0);
         }

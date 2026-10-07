@@ -142,6 +142,27 @@ namespace PFE.Data.Definitions
         [Range(1f, 5f)]
         public float runMultiplier = 2f;
 
+        /// <summary>
+        /// AS3's <c>run</c> — the unit's <b>absolute</b> maximum speed while running, in pixels per
+        /// 30 Hz frame (<c>Unit.as:1072</c> <c>this.runSpeed = node.@run</c>). <c>0</c> = not authored.
+        ///
+        /// <para><b>Why this is not <see cref="runMultiplier"/>.</b> They are different quantities and
+        /// the data proves it: <c>zombie0</c> is <c>&lt;move speed='1.5' run='10' …/&gt;</c>, so its run
+        /// speed is <b>10 px/frame</b> — 6.7× its walk speed, which the <c>[Range(1f, 5f)]</c> multiplier
+        /// cannot express. The multiplier is the <i>player's</i> sprint knob: AS3 gives
+        /// <c>littlepip</c> no <c>run</c> attribute at all, so the port invented a multiplier for the
+        /// hold-to-sprint input and it is the right model there. An enemy brain reading
+        /// <c>RunSpeed</c> wants the oracle's absolute number.</para>
+        ///
+        /// <para><b>Ordering matters: absolute wins.</b> A row that authors <c>run</c> means exactly that
+        /// speed, so <see cref="RunSpeed"/> prefers this field whenever it is positive and only falls
+        /// back to the multiplier when it is not.</para>
+        /// </summary>
+        [Tooltip("AS3 'run' — absolute run speed in px/frame. 0 = not authored; RunSpeed falls back " +
+                 "to moveSpeed * runMultiplier.")]
+        [Range(0f, 30f)]
+        public float runSpeed = 0f;
+
         [Tooltip("Acceleration rate")]
         [Range(0.1f, 10f)]
         public float acceleration = 2f;
@@ -160,7 +181,7 @@ namespace PFE.Data.Definitions
 
         // Legacy properties for compatibility
         public float WalkSpeed => moveSpeed;
-        public float RunSpeed => moveSpeed * runMultiplier;
+        public float RunSpeed => runSpeed > 0f ? runSpeed : moveSpeed * runMultiplier;
         public float Acceleration => acceleration;
         public float JumpForce => jumpForce;
 
@@ -260,8 +281,29 @@ namespace PFE.Data.Definitions
         [Range(0, 200)]
         public int damage = 10;
 
-        [Tooltip("Observation range (detection)")]
-        [Range(0, 20)]
+        /// <summary>
+        /// AS3 <c>Unit.observ</c> — the enemy's <b>observation power</b>, authored on the
+        /// <c>&lt;comb&gt;</c> element as <c>observ='…'</c>.
+        ///
+        /// <para><b>This is not a detection range.</b> The name and the old tooltip both suggested one.
+        /// In the oracle it is the second argument to the player's suspicion meter —
+        /// <c>observation(intensity, this.observ)</c> (<c>actionscript_project_context.txt:126474</c>) —
+        /// where it <i>multiplies</i> the intensity by up to <c>1 + observ * 0.2</c> (see
+        /// <see cref="PFE.Entities.Units.NoiseMath"/>). A high <c>observ</c> makes a unit notice the
+        /// player faster from any given glimpse; it does not change how far it can see. It does
+        /// <b>not</b> scale the hearing path. <c>zombie9</c> authors <c>observ='6'</c>; 37 <c>&lt;comb&gt;</c>
+        /// rows carry one at all.</para>
+        ///
+        /// <para><b>This field spent its whole life at 0, because the importer's pattern was wrong.</b>
+        /// It read <c>obs='(\d+)'</c>, and <c>obs='</c> appears <b>zero</b> times in the 8 MB oracle — it is
+        /// not a substring of <c>observ='5'</c>. So all 37 authored values were dropped and every unit kept
+        /// the default, which is a <i>legal</i> value, so nothing ever looked broken: the symptom was only
+        /// "enemies notice a little slower than the data says". The pattern is now <c>\bobserv='(\d+)'</c>.
+        /// AS3's own default is <c>0</c> (<c>:122282</c>), which is why the field default matches.</para>
+        /// </summary>
+        [Tooltip("AS3 'observ' — observation power, not a range. Scales how fast this unit builds " +
+                 "suspicion of the player.")]
+        [Range(0, 200)]
         public int observationRange = 0;
 
         [Tooltip("Radiation damage on hit")]
@@ -284,9 +326,10 @@ namespace PFE.Data.Definitions
         [Range(0f, 2f)]
         public float waterAbility = 1f;
 
-        [Tooltip("Hearing range")]
-        [Range(0f, 20f)]
-        public float hearingRange = 5f;
+        [Tooltip("AS3 'ear' — the unit's hearing multiplier. 0 = stone deaf (every small robot in the " +
+                 "roster authors it), 1 = ordinary, 2.5 = the boss at :2761.")]
+        [Range(0f, 5f)]
+        public float ear = 1f;
 
         [Tooltip("Damage type")]
         public DamageType damageType = DamageType.PhysicalMelee;
@@ -356,9 +399,28 @@ namespace PFE.Data.Definitions
         #region Vision/AI
 
         [Header("Vision/AI")]
-        [Tooltip("Noise level generated")]
+        /// <summary>
+        /// AS3 <c>Unit.noiseRun:int = 200</c> — how loud this unit is when it moves at full speed,
+        /// authored on the <c>&lt;vis&gt;</c> element as <c>noise='…'</c>.
+        ///
+        /// <para><b>Renamed from <c>noiseLevel</c>, and the rename is the point.</b> The old name read as
+        /// "a tuning knob" and the importer accordingly <i>hardcoded</i> it to 300 for every unit in the
+        /// game instead of reading the attribute — so the value was invented, uniform, and read by no
+        /// code. The oracle's name says what it is: the noise you make while running. The default is the
+        /// oracle's 200 (<c>actionscript_project_context.txt:122272</c>), not the port's 300. Existing
+        /// <c>.asset</c> files still carry a stale <c>noiseLevel:</c> key; Unity ignores an unknown key
+        /// and the importer rewrites the value, so a reimport is all that is needed.</para>
+        ///
+        /// <para><b>The magnitude, for sanity-checking a row:</b> <c>&lt;vis noise='600'/&gt;</c> is what
+        /// every zombie and raider authors, so they are audible at 600 px when running; slimes author
+        /// <c>noise='0'</c> and are silent whatever they do. The player authors nothing and keeps 200.
+        /// See <see cref="PFE.Entities.Units.NoiseMath.MovementNoise"/> for how this is spent — at the
+        /// oracle's thresholds a unit is only ever at full <c>noiseRun</c> above 12 px/frame.</para>
+        /// </summary>
+        [Tooltip("AS3 'noise' (Unit.noiseRun) — the radius in px this unit is audible at while running " +
+                 "at full speed. 0 = silent. Default 200.")]
         [Range(0, 2000)]
-        public int noiseLevel = 300;
+        public int noiseRun = 200;
 
         [Tooltip("Visual damage level")]
         [Range(0, 10)]
@@ -527,7 +589,23 @@ namespace PFE.Data.Definitions
         [Tooltip("Will stay in place")]
         public bool willStayInPlace = false;
 
-        [Tooltip("Can resurrect")]
+        /// <summary>
+        /// AS3 <c>UnitZombie.isRes</c>, set from the <b>presence</b> of <c>&lt;un res='…'/&gt;</c>
+        /// (<c>UnitZombie.as:161-164</c> — the value is ignored, so <c>res='1'</c> and <c>res='2'</c>
+        /// mean the same thing). Only <c>zombie7/8/9</c> author it.
+        ///
+        /// <para><b>No reader yet.</b> The 300-tick resurrection countdown
+        /// (<c>UnitZombie.as:495-524</c>) is not ported, so nothing consumes this flag today and the
+        /// dead-zombie branch in <c>ZombieBrain.ResolveAnimState</c> collapses AS3's <c>sost == 3</c>
+        /// into <c>sost == 2</c>. The importer writes it so the data survives a re-import; a unit that
+        /// actually resurrects is feature work, not import repair.</para>
+        ///
+        /// <para><b><c>res</c> is an overloaded attribute.</b> <c>UnitTrigger</c> reads the same name
+        /// as a resource requirement (<c>UnitTrigger.as:117-119</c>), so this field is only correct if
+        /// the import applies it to the zombie family alone — see
+        /// <c>UnitDataImporter.ParseUnitExtras</c>.</para>
+        /// </summary>
+        [Tooltip("Can resurrect (AS3 UnitZombie.isRes; presence of <un res=.../>)")]
         public bool canResurrect = false;
 
         [Tooltip("Glows")]
