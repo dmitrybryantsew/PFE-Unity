@@ -131,7 +131,9 @@ namespace PFE.Systems.Map
                             ? spawnData.definition.GetAttribute("cl", string.Empty)
                             : string.Empty,
                         attributes: spawnData.attributes,
-                        facingDirection: UnitController.ResolveFacing(spawnData.GetAttribute("turn", null), 1, rng));
+                        turn: spawnData.GetAttribute("turn", null),
+                        difficulty: ResolveLocationDifficulty(difficulty),
+                        rng: rng);
                     break;
 
                 case "box":
@@ -204,10 +206,15 @@ namespace PFE.Systems.Map
         /// The placement's own attributes (<c>turn</c>/<c>fix</c>/<c>tr</c>…). The controller reads them
         /// in its constructor, so they have to survive this call.
         /// </param>
-        /// <param name="facingDirection">
-        /// 1 = right, -1 = left. Already resolved by the caller from the <c>turn</c> attribute
-        /// (<see cref="UnitController.ResolveFacing"/>); the default matches AS3's
-        /// <c>storona = 1</c> for units created with no authored placement.
+        /// <param name="turn">
+        /// The placement's raw <c>turn</c> attribute, or null when absent. <b>Raw, not resolved:</b> the
+        /// facing coin flip and the variant roll draw from the same spawn stream, and the oracle takes
+        /// them in that order (<c>Location.as:1185</c> <c>randomCid()</c> first, then
+        /// <c>Unit.as:609-613</c>). A pre-resolved direction would force the caller to draw before this
+        /// method runs and reverse the two.
+        /// </param>
+        /// <param name="difficulty">
+        /// AS3 <c>Location.locDifLevel</c>, consumed by <see cref="UnitVariantResolver.RandomCid"/>.
         /// </param>
         private static void CreateUnit(
             RoomInstance room,
@@ -218,25 +225,181 @@ namespace PFE.Systems.Map
             IUnitDefinitionProvider unitDefinitions = null,
             string controllerId = null,
             List<MapObjectAttributeData> attributes = null,
-            int facingDirection = 1)
+            string turn = null,
+            float difficulty = 0f,
+            PFE.Core.Rng.IRngService rng = null)
         {
-            float health = ResolveUnitHealth(unitId, unitDefinitions);
+            // The oracle does NOT spawn the id the room authored — it spawns a VARIANT of it.
+            // Location.createUnit() (Location.as:1169/1185) calls randomCid() and hands the result to
+            // Unit.create(), whose subclass joins the two (`UnitZombie.as:104 id = "zombie" + tr`).
+            // Passing the authored id through unchanged is what made a placed `zombie` resolve to
+            // Resources/Units/zombie.asset — the family template, which carries no <vis> art, no
+            // <comb hp> and no <move speed> at all. See UnitVariantResolver for the full argument.
+            //
+            // `tr` wins over the rolled cid, matching UnitZombie.as:83-101's precedence (saved object,
+            // then placement node, then cid). The placement node is the only layer the port has.
+            // `NoContext`, not `default` — a defaulted struct has `LandY == 0`, which is a real land
+            // index and would make `randomCid("ranger")` pick its `landY == 0` arm. See
+            // UnitVariantContext's remarks.
+            string resolvedId = UnitVariantResolver.ResolveSpawnId(
+                unitId,
+                difficulty,
+                rng,
+                UnitVariantResolver.NoContext,
+                MapObjectDataUtility.GetAttribute(attributes, "tr", null));
+
+            float health = ResolveUnitHealth(resolvedId, unitDefinitions);
+
+            // Hoisted out of the initializer below because the digger roll has to come AFTER it.
+            //
+            // AS3's draw order at a spawn is: randomCid() (Location.as:1185) -> the base Unit
+            // constructor's facing coin flip (Unit.as:609-613) -> the UnitZombie constructor's digger
+            // roll (UnitZombie.as:120-127). All three share one stream, so rolling the digger before the
+            // facing flip would swap two draws and shift every later placement in the room — a silent,
+            // whole-map change that no test would name.
+            int facing = UnitController.ResolveFacing(turn, 1, rng);
+            int digger = ResolveDiggerTier(resolvedId, attributes, difficulty, rng);
 
             var unit = new UnitInstance
             {
                 entityId = entityId.IsValid ? entityId.ToString() : string.Empty,
-                unitId = unitId,
-                unitType = unitId,
+                unitId = resolvedId,
+                unitType = resolvedId,
                 position = new Vector2(x, y),
                 isDead = false,
                 maxHealth = health,
                 currentHealth = health,
                 controllerId = controllerId ?? string.Empty,
                 attributes = MapObjectDataUtility.CloneAttributes(attributes),
-                facingDirection = facingDirection >= 0 ? 1 : -1
+                facingDirection = facing,
+                digger = digger
             };
 
+            // AS3 UnitZombie.setPos (UnitZombie.as:192-213) — the bury, resolved here because this is
+            // the port's `setPos`: the tiles are final (RoomSetup applies the border and carves the
+            // doors before it populates) and the room is not active yet, which is the state AS3's own
+            // `!loc.active` guard describes.
+            //
+            //   solid floor    -> `this.zak = true; this.zakop();`   => bury, waiting in ambush
+            //   no solid floor -> `this.zak = false;` and, for tier 2 only, `exterminate()`
+            //
+            // `exterminate()` is `loc.remObj(this)` + `disabled = true` (Unit.as:4411-4421), so a tier-2
+            // unit over a catwalk or a drop is removed before it is ever drawn — it never appears. Tier 1
+            // is left standing as an ordinary ghoul, which is what `zak = false` means: it keeps its
+            // `digger` value (a scripted `command()` can still dig it out) but never buries on its own.
+            bool groundSolid = room.HasWallUnderFeet(new Vector2(x, y));
+
+            if (digger != 0 && !groundSolid && digger == 2)
+            {
+                return;
+            }
+
+            unit.ambushArmed = digger != 0 && groundSolid;
+
             room.units.Add(unit);
+        }
+
+        /// <summary>
+        /// The zombie family's ambush tier — AS3 <c>UnitZombie.digger</c>
+        /// (<c>UnitZombie.as:120-127</c>).
+        ///
+        /// <code>
+        /// if(param3 &amp;&amp; param3.@dig.length()) { this.digger = param3.@dig; }
+        /// else { this.digger = isrnd(Math.min(param2 / 20 + 0.25,0.75)) ? 1 : 0; }
+        /// </code>
+        ///
+        /// <para><b>Placement first, and the value is not clamped.</b> <c>param3</c> is the placed
+        /// <c>&lt;obj&gt;</c> node — the same node whose <c>turn</c> the base constructor reads — so the
+        /// authored <c>dig=</c> wins over the roll. AS3 stores it verbatim and only ever tests it for
+        /// truthiness and against 1/2/3, so an out-of-range value falls through to the "senses nothing"
+        /// branch rather than being coerced; clamping here would silently turn an authored
+        /// <c>dig='5'</c> into a permanently inert tier 3.</para>
+        ///
+        /// <para><b><c>param2</c> is the difficulty, not the unit's health.</b> <c>Unit.create</c> is
+        /// <c>(id, dif, xml, loadObj, ncid)</c> and <c>Location.as:1175/1187</c> passes
+        /// <c>this.locDifLevel</c>; the base <c>Unit</c> constructor ignores the slot entirely (its hp
+        /// comes from <c>&lt;hp&gt;</c> in <c>getXmlParam</c>). So the chance is <b>25 % at difficulty
+        /// 0</b>, rising to the 75 % cap at difficulty 10 — which is why a level-0 room still hides a
+        /// quarter of its zombies in the floor.</para>
+        ///
+        /// <para><b>Nothing in the shipped data authors <c>dig=</c></b>, so today every zombie takes the
+        /// roll. That is recorded rather than assumed: the attribute is honoured because the oracle
+        /// honours it, and a future room that places one will get an authored ambusher.</para>
+        ///
+        /// <para><b>Only the zombie family rolls, and the roll is therefore inside the family gate.</b>
+        /// The draw belongs to <c>UnitZombie</c>'s constructor and to nothing else — a raider or a
+        /// training dummy never asks the stream for it. Rolling unconditionally would consume an extra
+        /// draw per non-zombie placement, which shifts every later placement in the room: no error, no
+        /// warning, and a whole map that quietly differs from the one AS3 would have generated.</para>
+        /// </summary>
+        private static int ResolveDiggerTier(
+            string unitId,
+            List<MapObjectAttributeData> attributes,
+            float difficulty,
+            PFE.Core.Rng.IRngService rng)
+        {
+            if (!RollsAmbushTier(unitId))
+            {
+                return 0;
+            }
+
+            string authored = MapObjectDataUtility.GetAttribute(attributes, "dig", null);
+
+            if (!string.IsNullOrWhiteSpace(authored))
+            {
+                if (int.TryParse(authored, NumberStyles.Integer, CultureInfo.InvariantCulture, out int tier))
+                {
+                    return tier;
+                }
+
+                // AS3 would store the raw string and then compare it against integers, so it would be
+                // truthy (burying) with no matching tier branch. Naming the value is the only way that
+                // becomes diagnosable instead of looking like a roll.
+                Debug.LogWarning(
+                    $"[RoomPopulator] Placement attribute dig='{authored}' is not an integer; ignoring " +
+                    $"it and rolling instead. AS3 would treat the raw string as a truthy tier with no " +
+                    $"matching branch.");
+            }
+
+            float chance = Mathf.Min(difficulty / 20f + 0.25f, 0.75f);
+            return rng != null && rng.Chance(chance) ? 1 : 0;
+        }
+
+        /// <summary>
+        /// Whether the zombie family owns this id, i.e. whether AS3's <c>UnitZombie</c> constructor is
+        /// the one that ran for it.
+        ///
+        /// <para><b>Why an id test rather than a flag.</b> The oracle makes the id and the tier in the
+        /// same constructor — <c>id = "zombie" + this.tr;</c> at <c>UnitZombie.as:104</c>, the roll at
+        /// <c>:120-127</c> — so "the id starts with <c>zombie</c>" and "a digger was rolled" are the same
+        /// statement, and the port can read the first instead of inventing a second source of truth. A
+        /// definition flag would have to be kept in sync with the controller table in
+        /// <c>RoomUnitSpawner</c>, which is a second place to get it wrong.</para>
+        ///
+        /// <para>The family is <c>zombie</c> (the template) plus <c>zombie0</c>..<c>zombie9</c> — 11
+        /// assets, all in <c>Resources/Units</c>; no other unit id in the project begins with the
+        /// word.</para>
+        /// </summary>
+        private static bool RollsAmbushTier(string unitId)
+        {
+            return !string.IsNullOrEmpty(unitId) &&
+                   unitId.StartsWith("zombie", StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// The port's analogue of AS3 <c>Location.locDifLevel</c> — the number
+        /// <see cref="UnitVariantResolver.RandomCid"/> scales its thresholds against.
+        ///
+        /// <para><c>Land.setLocDif()</c> (<c>Land.as:977-995</c>) computes
+        /// <c>locDifLevel = landDifLevel + &lt;land modifier&gt;</c> and then assigns
+        /// <c>enemyLevel = locDifLevel</c>, so <c>enemyLevel</c> is the field that carries it. (The
+        /// oracle afterwards adds a <c>globalDif</c> term to <c>enemyLevel</c> <i>only</i>, so the two
+        /// part company when <c>globalDif &gt; 2</c>; the port has no <c>globalDif</c>, so they coincide
+        /// here — recorded rather than papered over.)</para>
+        /// </summary>
+        private static float ResolveLocationDifficulty(RoomDifficulty difficulty)
+        {
+            return difficulty != null ? difficulty.enemyLevel : 0f;
         }
 
         /// <summary>
@@ -519,7 +682,9 @@ namespace PFE.Systems.Map
                     y: py,
                     entityId: entityId,
                     unitDefinitions: unitDefinitions,
-                    facingDirection: UnitController.ResolveFacing(null, 1, rng));
+                    turn: null,
+                    difficulty: ResolveLocationDifficulty(difficulty),
+                    rng: rng);
             }
         }
 

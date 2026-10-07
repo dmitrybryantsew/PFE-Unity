@@ -298,6 +298,19 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="ZXdSjvMHDxsj5Tmr" turn="-1" light="1"
+  - type: obj
+    id: zombie
+    definitionId: zombie
+    definition: {fileID: 11400000, guid: d56512d3ac0c0744eb90060a7d920ede, type: 2}
+    tileCoord: {x: 20, y: 15}
+    code: zmbeTestCoord2015
+    uid: 
+    attributes:
+    - key: turn
+      value: -1
+    items: []
+    scripts: []
+    parameters: code="zmbeTestCoord2015" turn="-1"
   - type: door
     id: doorboss
     definitionId: doorboss

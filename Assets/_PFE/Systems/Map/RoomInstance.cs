@@ -266,6 +266,86 @@ namespace PFE.Systems.Map
         }
 
         /// <summary>
+        /// Whether the two tiles directly beneath a pair of feet are <b>walls</b> — AS3
+        /// <c>UnitZombie.setPos</c>'s bury test (<c>UnitZombie.as:197-199</c>):
+        /// <c>kop1 = loc.getAbsTile(X - 10, Y + 10); kop2 = loc.getAbsTile(X + 10, Y + 10);
+        /// kop1.phis &gt; 0 &amp;&amp; kop2.phis &gt; 0</c>.
+        ///
+        /// <para><b>The offsets are the oracle's and they are feet-relative.</b> <c>Y + 10</c> is 10 px
+        /// <i>below</i> the feet and <c>X ± 10</c> is the left and right foot, so the two probes name the
+        /// single tile the unit is standing on, sampled at each foot. AS3 Y runs downward and this
+        /// room's does not, so "below" is <c>y - 10</c> here — the mirror, not a floor.</para>
+        ///
+        /// <para><b>Why <c>physicsType == Wall</c> and not <see cref="TileData.IsSolid"/>.</b>
+        /// <c>phis &gt; 0</c> is exactly "this cell is a real wall", and the decoder preserves that 1:1 —
+        /// <c>TileDecoder.MapPhysicsType</c> maps every non-zero <c>phis</c> to <c>Wall</c>, while
+        /// <c>Platform</c> is written only for a <c>shelf</c> form and <c>Stair</c> only for a
+        /// <c>stair</c> overlay, both of which AS3 leaves at <c>phis == 0</c>
+        /// (<c>Tile.as:182-186</c>). <see cref="TileData.IsSolid"/> is <c>&gt;= Wall</c>, so it would also
+        /// admit catwalks and slopes — tiles AS3's test says are <i>not</i> solid ground. That difference
+        /// is observable: an ambusher standing on a catwalk would bury here and would not in the
+        /// oracle.</para>
+        ///
+        /// <para><b>Same expression as <c>ProjectileOcclusionRule.BlocksProjectile</c>, different
+        /// question.</b> That rule asks "does this tile stop a bullet"; this asks "can a unit hide in the
+        /// floor here". They coincide today because both reduce to <c>phis &gt; 0</c>. Do not merge them —
+        /// one of the two will want to change.</para>
+        /// </summary>
+        /// <param name="roomLocalFeetPixels">
+        /// The feet in <b>room-local pixels</b> — the space <c>UnitInstance.position</c> is in, i.e.
+        /// world pixels with <c>ITileQueryService.OriginPixel</c> subtracted. Not world pixels: the
+        /// origin is non-zero for every room but the one at land (0,0).
+        /// </param>
+        public bool HasWallUnderFeet(Vector2 roomLocalFeetPixels)
+        {
+            const float footOffsetPixels = 10f;
+
+            return IsWallAtRoomLocalPixels(new Vector2(
+                       roomLocalFeetPixels.x - footOffsetPixels,
+                       roomLocalFeetPixels.y - footOffsetPixels))
+                && IsWallAtRoomLocalPixels(new Vector2(
+                       roomLocalFeetPixels.x + footOffsetPixels,
+                       roomLocalFeetPixels.y - footOffsetPixels));
+        }
+
+        /// <summary>
+        /// Whether the single tile containing a <b>room-local pixel point</b> is a <b>wall</b> —
+        /// the general form of the probe <see cref="HasWallUnderFeet"/> is built from.
+        ///
+        /// <para><b>Same predicate as <see cref="HasWallUnderFeet"/>, one point instead of two.</b> That
+        /// method's doc explains why "wall" means <c>physicsType == TilePhysicsType.Wall</c> and not
+        /// <see cref="TileData.IsSolid"/>; the same reasoning applies verbatim here, so it is not
+        /// repeated. Read that first.</para>
+        ///
+        /// <para><b>Why this exists as a public point probe.</b> AS3 asks the same
+        /// "is the tile at this point a wall" question at points that are <i>not</i> the feet:
+        /// <c>UnitZombie.checkJump</c> (<c>UnitZombie.as:465-484</c>) samples four headroom points
+        /// 85 and 125 px above the feet plus 40 px ahead, and the walk loop's wall test
+        /// (<c>UnitZombie.as:753-763</c>) samples the tile ahead at body height. Both are the same
+        /// <c>phis &gt; 0</c> test at a different offset. Exposing one point probe means the bury test,
+        /// the jump's headroom test and the wander's wall test cannot drift apart into three subtly
+        /// different notions of "wall".</para>
+        /// </summary>
+        /// <param name="roomLocalPixels">
+        /// Any point in <b>room-local pixels</b> — the space <c>UnitInstance.position</c> is in, i.e.
+        /// world pixels with <c>ITileQueryService.OriginPixel</c> subtracted. The point is floored to a
+        /// tile, so it need not be the centre or a corner of one.
+        /// </param>
+        public bool IsWallAtRoomLocalPixels(Vector2 roomLocalPixels)
+        {
+            return IsWallAtTile(WorldCoordinates.PixelToTile(roomLocalPixels));
+        }
+
+        bool IsWallAtTile(Vector2Int coord)
+        {
+            // GetTileAtCoord already answers null for an out-of-bounds coordinate, which is the right
+            // answer here: there is no floor outside the room, so an ambusher cannot bury there and a
+            // jumper cannot claim headroom there.
+            TileData tile = GetTileAtCoord(coord);
+            return tile != null && tile.physicsType == TilePhysicsType.Wall;
+        }
+
+        /// <summary>
         /// Activate this room (called when player enters).
         /// From AS3: Location.reactivate()
         /// </summary>
@@ -537,6 +617,43 @@ namespace PFE.Systems.Map
         /// pure and the value reproducible.</para>
         /// </summary>
         public int facingDirection = 1;
+
+        /// <summary>
+        /// AS3 <c>UnitZombie.digger</c> — <b>0</b> never buries, <b>1</b> buried ambusher, <b>2</b>
+        /// buried with a sharp ear, <b>3</b> buried and inert. Non-zero only for the zombie family.
+        ///
+        /// <para><b>Rolled per placement, not authored per definition.</b> <c>UnitZombie.as:120-127</c>
+        /// reads the <i>placed</i> node first — <c>if(param3 &amp;&amp; param3.@dig.length())
+        /// this.digger = param3.@dig;</c> — and otherwise rolls
+        /// <c>isrnd(Math.min(param2 / 20 + 0.25, 0.75))</c>, where <c>param2</c> is the
+        /// <b>difficulty</b> handed to the constructor (<c>Unit.create</c> is
+        /// <c>(id, dif, xml, loadObj, ncid)</c> and <c>Location.as:1175/1187</c> passes
+        /// <c>this.locDifLevel</c>). So the chance is <b>25 % at difficulty 0</b> and saturates at 75 %
+        /// from difficulty 10 — <i>not</i> a constant, and not derived from the unit's hp.</para>
+        ///
+        /// <para><b>Why it lives on the placement.</b> The same <c>zombie0</c> asset must be able to
+        /// spawn as a plain ghoul in one room and an ambusher in the next; a definition-level flag could
+        /// not express that, and the oracle does not try to.</para>
+        /// </summary>
+        public int digger = 0;
+
+        /// <summary>
+        /// Whether this placement resolved to a <b>buried</b> spawn — AS3's <c>setPos</c> gate
+        /// (<c>UnitZombie.as:192-213</c>): <c>digger != 0</c> <i>and</i> both tiles under the feet have
+        /// <c>phis &gt; 0</c>.
+        ///
+        /// <para>Resolved once, at population time, because that is where AS3 resolves it — inside
+        /// <c>setPos</c>, which <c>Location.createUnit</c> reaches through <c>putLoc</c> immediately
+        /// after the constructor. The tiles are final by then (<c>RoomSetup.FinalizeRoom</c> applies the
+        /// border and carves the doors <i>before</i> it populates), so the test sees the room the player
+        /// will actually walk into.</para>
+        ///
+        /// <para><b>This is not re-derived at runtime, on purpose.</b> AS3's bury is a one-way door:
+        /// <c>aiState</c> never returns to 5 (see <see cref="PFE.Entities.Enemies.EnemyAIState.Buried"/>),
+        /// so a risen ambusher stays risen. Keeping the decision on the record means a risen zombie
+        /// cannot re-bury itself by re-evaluating the same tiles.</para>
+        /// </summary>
+        public bool ambushArmed = false;
 
         public string GetAttribute(string key, string defaultValue = "")
         {

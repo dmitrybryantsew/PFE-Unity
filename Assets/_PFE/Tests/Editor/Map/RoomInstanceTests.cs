@@ -444,5 +444,130 @@ namespace PFE.Tests.Editor.Map
             Assert.Less(dynamicObject.position.y, initialY);
             Assert.AreEqual(1, room.ObjectPhysicsLayer.DynamicObjectCount);
         }
+
+        // ── HasWallUnderFeet: AS3 UnitZombie.setPos's bury test ─────────────────────────────────
+        //
+        // Three independent things have to be right for the ambush to work at all, and each of them
+        // fails SILENTLY — the observable symptom of all three is "no zombie ever buries", which is
+        // also what a tier-0 roll looks like. So they are pinned separately:
+        //
+        //   1. the 10 px DROP below the feet (`Y + 10`), which is what makes the probe read the floor
+        //      rather than the tile the unit is standing in;
+        //   2. the ±10 px FEET, which is what makes it two tiles rather than one;
+        //   3. the MIRROR — AS3's Y runs down, this room's runs up, so "below" is `y - 10`.
+        //
+        // The arithmetic the tests use: `RoomPopulator.ResolveLegacyBottomAnchorPixels` seats a unit at
+        // `(height - border - as3Row - 1) * TILE + 1`, and port row = `height - 1 - as3Row`. A unit
+        // standing on the bottom row of the room therefore occupies port row 1 with its feet at
+        // `1 * 40 + 1 = 41`, and the tiles it stands on are port row 0.
+
+        [Test]
+        public void HasWallUnderFeet_BothFootTilesWall_IsTrue()
+        {
+            RoomInstance room = CreateTestRoom();
+            room.tiles[10, 0].physicsType = TilePhysicsType.Wall;
+            room.tiles[11, 0].physicsType = TilePhysicsType.Wall;
+
+            // 2 tiles wide, centred on the 10/11 boundary: feet at x 430 and x 450, both inside a
+            // different column. Both are wall, so the ambush is possible.
+            Assert.IsTrue(room.HasWallUnderFeet(new Vector2(440f, 41f)));
+        }
+
+        [Test]
+        public void HasWallUnderFeet_OneFootOverAir_IsFalse()
+        {
+            RoomInstance room = CreateTestRoom();
+            room.tiles[10, 0].physicsType = TilePhysicsType.Wall;
+            room.tiles[11, 0].physicsType = TilePhysicsType.Air;
+
+            // AS3 is `kop1.phis > 0 && kop2.phis > 0` — a conjunction, so one foot over a hole refuses.
+            Assert.IsFalse(room.HasWallUnderFeet(new Vector2(440f, 41f)));
+        }
+
+        [Test]
+        public void HasWallUnderFeet_SingleTileUnit_ProbesTheSameColumnTwice()
+        {
+            RoomInstance room = CreateTestRoom();
+            room.tiles[10, 0].physicsType = TilePhysicsType.Wall;
+
+            // A 1-tile unit sits at `(col + 0.5) * 40 = 420`, so both feet land in column 10.
+            Assert.IsTrue(room.HasWallUnderFeet(new Vector2(420f, 41f)));
+        }
+
+        [Test]
+        public void HasWallUnderFeet_PlatformUnderFeet_IsFalse()
+        {
+            // THE test that distinguishes this predicate from `TileData.IsSolid()`.
+            //
+            // AS3's test is `phis > 0`, and a shelf form carries `phis == 0` with `shelf == true`
+            // (Tile.as:182-186) — the port turns that into `Platform` (TileDecoder.cs:223-227).
+            // `IsSolid()` is `physicsType >= Wall`, so it would answer TRUE here and bury a zombie under
+            // a catwalk that the oracle leaves standing as an ordinary ghoul. The assertion on
+            // `IsSolid()` is not decoration: it is the evidence that the two predicates really do
+            // disagree, so the `IsFalse` above is testing a choice rather than a tautology.
+            RoomInstance room = CreateTestRoom();
+            room.tiles[10, 0].physicsType = TilePhysicsType.Platform;
+            room.tiles[11, 0].physicsType = TilePhysicsType.Platform;
+
+            Assert.IsFalse(room.HasWallUnderFeet(new Vector2(440f, 41f)));
+            Assert.IsTrue(room.tiles[10, 0].IsSolid(), "IsSolid() must disagree — that is the whole point");
+        }
+
+        [Test]
+        public void HasWallUnderFeet_StairUnderFeet_IsFalse()
+        {
+            // Same argument as Platform: a stair overlay is `phis == 0` in AS3.
+            RoomInstance room = CreateTestRoom();
+            room.tiles[10, 0].physicsType = TilePhysicsType.Stair;
+            room.tiles[11, 0].physicsType = TilePhysicsType.Stair;
+
+            Assert.IsFalse(room.HasWallUnderFeet(new Vector2(440f, 41f)));
+        }
+
+        [Test]
+        public void HasWallUnderFeet_ProbesBelowTheFeet_NotTheRowTheUnitStandsIn()
+        {
+            // The `Y + 10` half, isolated. A unit in port row 1 has its feet at y = 41, which is INSIDE
+            // port row 1 — so a probe that dropped the offset would read row 1. Here row 1 is solid and
+            // row 0 is air, so dropping the offset flips this assertion.
+            RoomInstance room = CreateTestRoom();
+            room.tiles[10, 1].physicsType = TilePhysicsType.Wall;
+            room.tiles[11, 1].physicsType = TilePhysicsType.Wall;
+            room.tiles[10, 0].physicsType = TilePhysicsType.Air;
+            room.tiles[11, 0].physicsType = TilePhysicsType.Air;
+
+            Assert.IsFalse(room.HasWallUnderFeet(new Vector2(440f, 41f)));
+        }
+
+        [Test]
+        public void HasWallUnderFeet_FeetMatchThePlacementSeat()
+        {
+            // Pins the mirror against the formula that actually places units rather than against a
+            // literal, so the two cannot drift apart independently. If the seat or the probe moves,
+            // this fails and names which relationship broke.
+            RoomInstance room = CreateTestRoom();
+            int as3RowOfUnit = room.height - 2;   // port row 1
+            float feetY = (room.height - room.borderOffset - as3RowOfUnit - 1) * WorldConstants.TILE_SIZE + 1f;
+
+            Assert.AreEqual(41f, feetY);
+
+            room.tiles[10, 0].physicsType = TilePhysicsType.Wall;
+            room.tiles[11, 0].physicsType = TilePhysicsType.Wall;
+
+            Assert.IsTrue(room.HasWallUnderFeet(new Vector2(440f, feetY)));
+        }
+
+        [Test]
+        public void HasWallUnderFeet_BelowTheRoom_IsFalse()
+        {
+            // A unit standing on the room's floor row (port row 0) has its feet at y = 1, so the probe
+            // lands at row -1 — outside the grid. `GetTileAtCoord` answers null there, and "no tile" has
+            // to mean "no floor": a destroyed bottom row must not read as a wall.
+            RoomInstance room = CreateTestRoom();
+            room.tiles[10, 0].physicsType = TilePhysicsType.Wall;
+            room.tiles[11, 0].physicsType = TilePhysicsType.Wall;
+
+            Assert.IsFalse(room.HasWallUnderFeet(new Vector2(440f, 1f)));
+        }
     }
 }
