@@ -247,6 +247,31 @@ namespace PFE.Systems.Combat
             return Apply(hit, rng);
         }
 
+        /// <summary>
+        /// Draw the <b>contact-attack damage spread</b> — AS3 <c>Unit.udarUnit()</c>'s
+        /// <c>_loc3_ = Math.random() * 0.4 + 0.8</c> (<c>Unit.as:4149</c>), i.e. <c>×0.8..1.2</c>.
+        ///
+        /// <para><b>Why the caller cannot just roll its own.</b> The stream's owner is here. A roll taken
+        /// off <c>UnityEngine.Random</c> — which is what the enemy code currently does for its reaction
+        /// timers — would make a melee's damage depend on frame pacing and be unreproducible across
+        /// peers, and the whole point of <see cref="RngStream.Combat"/> is that it is not.</para>
+        ///
+        /// <para><b>Why it is not folded into the resolver.</b> It is the one combat roll the oracle takes
+        /// <i>before</i> it calls <c>damage()</c>, so it belongs to the caller — and the resolver's own
+        /// spread is a different one: <c>udarBullet</c>'s <c>×0.7..1.3</c> (<c>:4085</c>), which a
+        /// contact hit does not take at all (<see cref="PendingDamage.SkipsDamageVariance"/>). Folding
+        /// this in would silently apply it to prop impacts and explosions too, since they share the
+        /// <c>Contact</c> shape.</para>
+        ///
+        /// <para>Returns <c>1</c> when there is no RNG service, which leaves the hit unspread rather than
+        /// zeroing it — a wrong-but-finite damage is easier to notice than a hit that does nothing.</para>
+        /// </summary>
+        public float RollContactAttackVariance()
+        {
+            IRngService rng = IsTickAligned ? TickRng(_simLoop.TickIndex) : ImmediateRng();
+            return rng != null ? rng.NextFloat() * 0.4f + 0.8f : 1f;
+        }
+
         public void SimTick(int tickIndex)
         {
             if (_pending.Count == 0)

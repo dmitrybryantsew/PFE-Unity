@@ -67,6 +67,16 @@ namespace PFE.Entities.Units
         private bool _simAttached;
 
         /// <summary>
+        /// Protected access to the simulation loop for subclasses (e.g. enemy controllers).
+        /// </summary>
+        protected PFE.Core.SimLoop SimLoop => _simLoop;
+
+        /// <summary>
+        /// Protected access to the simulation clock for subclasses.
+        /// </summary>
+        protected PFE.Core.SimClock SimClock => _simClock;
+
+        /// <summary>
         /// True when <c>SimLoop</c> owns this unit's step and <see cref="FixedUpdate"/> must stand
         /// down. Mirrors <c>TilePhysicsController.SimDriven</c>; see the block comment above.
         /// </summary>
@@ -175,6 +185,35 @@ namespace PFE.Entities.Units
 
         protected virtual void Awake()
         {
+            ResolvePhysicsComponents();
+            ApplyDefinitionToCollider();
+        }
+
+        /// <summary>
+        /// Cache the physics components this controller drives, and put the body into the mode the manual
+        /// mover expects.
+        ///
+        /// <para><b>Why this is a method and not just the body of <c>Awake</c>.</b> In play mode Unity runs
+        /// <c>Awake</c> synchronously inside <c>AddComponent</c>, and <c>RoomUnitSpawner</c> depends on
+        /// that: it adds the <c>Rigidbody2D</c> and <c>BoxCollider2D</c> <i>before</i> the controller
+        /// (<c>:386</c>/<c>:389</c> against <c>:461</c>) precisely so the <c>GetComponent</c> calls below
+        /// find them. But <b>EditMode never runs <c>Awake</c> for <c>AddComponent</c></b> — there is no
+        /// <c>[ExecuteAlways]</c> anywhere in this project — so a fixture that builds a unit by hand and
+        /// then drives <c>SimTick</c> gets a controller whose <c>_rb</c> is null, and <see cref="Move"/>
+        /// dereferences it unguarded, so the first tick throws <c>NullReferenceException</c> out of
+        /// <c>_rb.MovePosition</c>. Note the asymmetry that made this invisible: <c>Move</c>'s feet read
+        /// guards <c>_collider</c> and nothing guards <c>_rb</c>, so a null collider degrades quietly
+        /// while a null body throws.</para>
+        ///
+        /// <para><see cref="Initialize"/> is the documented "the definition has only just arrived" seam,
+        /// and it runs after both components exist on every construction path, so resolving there as well
+        /// closes the gap. Idempotent, so the play-mode double call costs nothing — the same reasoning as
+        /// <c>EnemyController.Initialize</c>'s <c>_brain</c> re-resolve. The player is unaffected:
+        /// <c>PlayerController</c> builds its own stats and deliberately does not pass through
+        /// <see cref="Initialize"/> (<c>PlayerController.cs:440</c>).</para>
+        /// </summary>
+        protected void ResolvePhysicsComponents()
+        {
             _rb = GetComponent<Rigidbody2D>();
             _collider = GetComponent<Collider2D>();
 
@@ -185,8 +224,6 @@ namespace PFE.Entities.Units
 
             _cachedTilePhysics = GetComponent<TilePhysicsController>();
             _hasTilePhysics = _cachedTilePhysics != null;
-
-            ApplyDefinitionToCollider();
         }
 
         /// <summary>
@@ -265,6 +302,11 @@ namespace PFE.Entities.Units
         {
             _stats = stats;
             _unitStats = unitStats;
+
+            // Resolve before ApplyDefinitionToCollider, which sizes the collider and early-returns on a
+            // null one. In play mode Awake has already done this; in EditMode it has not. See
+            // ResolvePhysicsComponents for why both paths call it.
+            ResolvePhysicsComponents();
             ApplyDefinitionToCollider();
             SeedEvasionFromDefinition();
 
@@ -429,6 +471,141 @@ namespace PFE.Entities.Units
         }
 
         /// <summary>
+        /// Run AS3's <b>contact-attack pair</b> against another unit and report the hit: the attacker's
+        /// <c>attKorp()</c> (<c>Unit.as:3267-3277</c>) followed by the target's <c>udarUnit()</c>
+        /// (<c>:4125-4166</c>). An enemy brain reaches it the way <c>UnitZombie.control()</c> does —
+        /// <c>attKorp(celUnit, shok &lt;= 0 ? 1 : 0.5)</c> (<c>UnitZombie.as:940</c>).
+        ///
+        /// <para><b>Why it must come through <see cref="DamageSystem"/> and not
+        /// <c>target.TakeDamage</c>.</b> <c>TakeDamage</c> is the pipeline's <i>receiving</i> end — it is
+        /// what <c>DamageSystem</c> calls once the number is computed — so entering there drops the
+        /// target's vulnerability table, its <c>skin</c> resistance, its armour pool, the floating damage
+        /// number and the death check. A zombie clawing a player through it would do exactly the
+        /// unarmoured subtraction that <see cref="UnitStats.Damage"/> does, and nothing would look
+        /// wrong until someone put armour on.</para>
+        ///
+        /// <para><b><see cref="PendingDamage.Contact"/>, not <c>Direct</c>.</b> <c>udarUnit</c> does not
+        /// go through <c>udarBullet</c>, so the hit takes neither the hit-avoidance roll nor the
+        /// <c>udarBullet</c> damage spread (<c>×0.7..1.3</c>, <c>:4085</c>) — the same shape
+        /// <see cref="ReportEffectDamage"/> and <c>ReportPropImpact</c> use. It does have a spread of its
+        /// own, <c>×0.8..1.2</c> at <c>:4149</c>, and that is drawn here, before the report, because the
+        /// oracle draws it before <c>damage()</c> — see
+        /// <see cref="DamageSystem.RollContactAttackVariance"/>.</para>
+        ///
+        /// <para><b>The rate limiter is the target's, not the attacker's.</b> There is no attack
+        /// cooldown anywhere in this path: <c>attKorp</c> refuses a target whose <c>neujaz</c> is
+        /// running (<c>:3273</c>), and <c>udarUnit</c> then grants that window (<c>:4135</c>). So an
+        /// overlapping enemy lands a hit every <see cref="ContactInvulnerabilityMaxTicks"/> ticks and
+        /// the attacker needs no timer of its own.</para>
+        /// </summary>
+        /// <param name="target">The unit being hit. The oracle's <c>param1</c>.</param>
+        /// <param name="damageScale">
+        /// AS3 <c>attKorp</c>'s <c>param2</c> — the caller's multiplier on the attacker's <c>dam</c>.
+        /// <c>UnitZombie.as:940</c> passes <c>shok &lt;= 0 ? 1 : 0.5</c>, i.e. a half-strength hit while
+        /// the attacker is still reacting.
+        /// </param>
+        /// <returns>True when a hit was reported. False covers every refusal — no target, a dead
+        /// attacker, boxes that do not overlap, a target still inside its window, and a missing
+        /// <see cref="DamageSystem"/>.</returns>
+        public virtual bool TryContactAttack(UnitController target, float damageScale = 1f)
+        {
+            // AS3 attKorp:3269 — `this.sost > 1` refuses from a corpse, and a null target too.
+            if (!IsAlive || target == null || damageScale <= 0f)
+            {
+                return false;
+            }
+
+            // AS3 attKorp:3273 — an AABB test on the two COLLISION boxes, not a distance threshold.
+            // `param1.X1 > X2 || param1.X2 < X1 || param1.Y1 > Y2 || param1.Y2 < Y1`.
+            if (!CollisionBoxesOverlap(this, target))
+            {
+                return false;
+            }
+
+            // AS3 attKorp:3273 — `|| param1.neujaz > 0`. Read on the TARGET.
+            if (target.IsContactInvulnerable)
+            {
+                return false;
+            }
+
+            // AS3 udarUnit:4135 — granted before the damage, and before the dodge test, so a dodged
+            // swing still spends the target's window. The port has no contact-dodge roll (that lives on
+            // HitAvoidance and only the Direct path reaches it), so the grant sits here.
+            target.GrantContactInvulnerability();
+
+            // AS3 udarUnit:4149 — the spread, drawn before the damage is computed.
+            // AS3 udarUnit:4166 — `this.damage(param1.dam * _loc3_ * param2, param1.tipDamage)`.
+            // `_stats.damage` is the row's `<comb damage>`; `_stats.damageType` is its `<comb tipdam>`,
+            // which Unit.as:186 declares as 2 (D_PHIS) and only an explicit attribute moves.
+            float baseDamage = _stats != null ? _stats.damage : 0f;
+            DamageType type = _stats != null ? _stats.damageType : DamageType.PhysicalMelee;
+
+            if (_damageSystem != null)
+            {
+                float damage = baseDamage * _damageSystem.RollContactAttackVariance() * damageScale;
+
+                _damageSystem.Report(PendingDamage.Contact(
+                    DamageContext.Contact(damage, type),
+                    target,
+                    target.transform.position));
+
+                return true;
+            }
+
+            // Unarmoured fallback. Loud rather than silent, and the same shape ReportPropImpact uses:
+            // a hit that quietly does nothing is indistinguishable from a hit that missed, and a raw
+            // subtraction that looks like a working feature is how a missing injection survives to
+            // release.
+            if (!_warnedMissingDamageSystem)
+            {
+                _warnedMissingDamageSystem = true;
+                Debug.LogWarning(
+                    $"[{GetType().Name}] contact attack has no DamageSystem, so it is being applied as " +
+                    "raw HP damage — no armour, no vulnerabilities, no damage number. The spawner must " +
+                    "call SetDamageSystem, or the unit's GameObject must be in the scene scope's " +
+                    "autoInjectGameObjects.", this);
+            }
+
+            target.TakeDamage(baseDamage * damageScale);
+            return true;
+        }
+
+        /// <summary>
+        /// This unit's collision box in world space — AS3's <c>X1</c>/<c>X2</c>/<c>Y1</c>/<c>Y2</c>
+        /// (<c>Unit.as:1875-1878</c>). A unit with no collider degenerates to a point at its origin,
+        /// which is the honest answer for "there is no box".
+        /// </summary>
+        private Bounds CollisionBoxWorld =>
+            _collider != null ? _collider.bounds : new Bounds(transform.position, Vector3.zero);
+
+        /// <summary>
+        /// AS3's collision-box overlap test — <c>attKorp</c>'s
+        /// <c>param1.X1 &gt; X2 || param1.X2 &lt; X1 || param1.Y1 &gt; Y2 || param1.Y2 &lt; Y1</c>
+        /// (<c>Unit.as:3273</c>).
+        /// </summary>
+        /// <remarks>
+        /// <para><b>The boxes are the Unity colliders, not a rectangle recomputed from the
+        /// definition.</b> AS3's four edges are the unit's own body box, and the port's equivalent is the
+        /// <see cref="Collider2D"/> that <c>ApplyDefinitionToCollider</c> sizes from the same data —
+        /// including the <b>feet-anchored</b> <c>offset</c> (<c>Y1 = Y - scY</c>, <c>Y2 = Y</c>), which a
+        /// recomputed rectangle would have to duplicate and could get wrong. Reading the collider also
+        /// means a unit whose definition is missing still has a box — Unity's default 1x1 — rather than
+        /// none, so no test can pass or fail on whether a definition happened to be supplied.</para>
+        ///
+        /// <para>The oracle's other guard on this line, <c>param1.loc != loc</c>, has no port analogue:
+        /// it refuses a target in a different <c>Location</c>, and the port's spawner builds one room's
+        /// units at a time. Recorded rather than silently dropped.</para>
+        /// </remarks>
+        private static bool CollisionBoxesOverlap(UnitController a, UnitController b)
+        {
+            Bounds ba = a.CollisionBoxWorld;
+            Bounds bb = b.CollisionBoxWorld;
+
+            return ba.min.x <= bb.max.x && ba.max.x >= bb.min.x
+                && ba.min.y <= bb.max.y && ba.max.y >= bb.min.y;
+        }
+
+        /// <summary>
         /// Hand this unit the fixed-step simulation, so <c>SimLoop</c> drives its step instead of
         /// Unity's <c>FixedUpdate</c>.
         ///
@@ -564,6 +741,14 @@ namespace PFE.Entities.Units
             // hook would put a burn on whichever clock that unit happens to use.
             TickEffects();
 
+            // ...and the acoustic half, for the same reason. It runs BEFORE the move because AS3's noise
+            // block sits in the unit's own frame alongside `actions()`'s other countdowns, reading the
+            // velocity the step is about to act on — a move that collides zeroes `dx`, so reading it
+            // afterwards would silence every unit the moment it walked into a wall. `IsGrounded` is
+            // likewise last step's answer, which is what AS3's `stay` is.
+            TickNoise(IsGrounded, VelocityPixelsPerFrame);
+            TickSuspicion();
+
             ResolveGroundState();
             ApplyGravity();
             ApplyFriction();
@@ -592,6 +777,230 @@ namespace PFE.Entities.Units
             float scale = _simClock != null ? _simClock.StepScale : 1f;
             _unitStats?.TickEffects(scale);
         }
+
+        // === Acoustic perception — AS3's `noise` / `makeNoise()` / `observation()` =================
+        //
+        // The arithmetic is all in NoiseMath; what lives here is the *state* — how loud this unit
+        // currently is, and how suspicious of it the world has become.
+        //
+        // The state is on UnitController rather than on a component of its own for the same reason
+        // `_isGrounded` and `_velocity` are: every unit has it, AS3 declares it on `Unit`, and a
+        // separate component would need a lookup from the two places that already hold the unit (the
+        // motor and the sensors). The *suspicion* meter is the one piece AS3 declares on a subclass
+        // (`UnitPlayer`) rather than on `Unit`, and the note on `Suspicion` says why it is here anyway.
+
+        /// <summary>
+        /// AS3 <c>Unit.noise:int = 0</c> — how far this unit can currently be heard, in pixels before
+        /// the listener's own <c>ear</c> is applied. Raised by <see cref="MakeNoise"/>, decays 20 per
+        /// tick, and is <b>0 whenever the unit is not doing anything loud</b>.
+        /// </summary>
+        private int _noise;
+
+        /// <summary>
+        /// AS3 <c>Unit.noise_t:int = 30</c> — the cooldown on the visible "something made a sound here"
+        /// ripple. Kept because it is the only stateful half of <c>makeNoise</c>, and read by the F3
+        /// overlay so the mechanic is visible during a play-test.
+        /// </summary>
+        private int _noiseRippleTicks;
+
+        /// <summary>
+        /// AS3's <c>stay</c> as of the previous step, for detecting the landing edge. AS3 reads it
+        /// directly because its <c>run()</c> sets it; the port resolves groundedness in two different
+        /// places depending on the driver, so the edge is tracked here instead.
+        /// </summary>
+        private bool _noiseWasGrounded = true;
+
+        /// <summary>
+        /// The downward speed at the last airborne step, in px/frame — AS3's <c>dy</c> at the moment
+        /// <c>checkShelf</c> fires. AS3 reads it inline inside <c>run()</c>; the port resolves the
+        /// landing a step later (see <see cref="TickNoise"/>), so the value has to be carried.
+        /// </summary>
+        private float _noiseFallSpeedPixelsPerFrame;
+
+        /// <summary>
+        /// AS3's <c>UnitPlayer.obs</c> / <c>isObs</c> — the suspicion the world has accumulated about
+        /// this unit.
+        ///
+        /// <para><b>Declared on <c>UnitPlayer</c> in the oracle, and deliberately on the base class
+        /// here.</b> In AS3 only the player is ever the target of <c>findCel()</c>, so a per-enemy field
+        /// would have been dead weight; in the port the sensor loop only ever sees a
+        /// <see cref="UnitController"/> (<c>EnemySensors.Evaluate</c> takes
+        /// <c>IReadOnlyList&lt;UnitController&gt;</c>), so the meter has to be reachable from there or
+        /// the sensors would need a cast to a concrete player type. Non-player units simply never
+        /// accumulate any, because nothing calls <see cref="AddSuspicion"/> for them — which is the same
+        /// statement AS3 makes by declaring the field lower down the hierarchy.</para>
+        /// </summary>
+        private NoiseMath.Observation _suspicion;
+
+        /// <summary>How loud this unit currently is — AS3 <c>Unit.noise</c>.</summary>
+        public int Noise => _noise;
+
+        /// <summary>
+        /// This unit's base noise while running — AS3 <c>Unit.noiseRun</c>, from the definition's
+        /// <c>noiseRun</c> (XML <c>&lt;vis noise='…'/&gt;</c>).
+        /// </summary>
+        public int NoiseRun => _stats != null ? _stats.noiseRun : NoiseMath.DefaultNoiseRun;
+
+        /// <summary>
+        /// This unit's hearing multiplier — AS3 <c>Unit.ear</c>. <b>0 means stone deaf</b>, which is what
+        /// every small robot in the roster authors.
+        /// </summary>
+        public float Ear => _stats != null ? _stats.ear : NoiseMath.DefaultEar;
+
+        /// <summary>
+        /// This unit's observation power — AS3 <c>Unit.observ</c>, the <c>obs</c> attribute. Multiplies
+        /// how fast this unit builds suspicion of a target; it is <b>not</b> a sight range.
+        /// </summary>
+        public float ObservationPower => _stats != null ? _stats.observationRange : 0f;
+
+        /// <summary>Whether this unit is mechanical — AS3 <c>opt.robot</c>, the alarm-propagation exception.</summary>
+        public bool IsMechanical => _stats != null && _stats.isMechanical;
+
+        /// <summary>The suspicion meter — AS3's <c>obs</c>/<c>isObs</c> pair. See <see cref="_suspicion"/>.</summary>
+        public NoiseMath.Observation Suspicion => _suspicion;
+
+        /// <summary>
+        /// AS3 <c>UnitPlayer.maxObs = 20</c> — the value <see cref="Suspicion"/> commits at.
+        /// </summary>
+        public float MaxSuspicion => NoiseMath.DefaultMaxObservation;
+
+        /// <summary>
+        /// Ticks remaining on the "this unit made a sound" ripple cooldown — AS3 <c>Unit.noise_t</c>.
+        /// Read by the F3 overlay; the in-world ripple AS3 emits from <c>makeNoise</c> is still not
+        /// ported (recorded as an open item rather than quietly dropped).
+        /// </summary>
+        public int NoiseRippleTicks => _noiseRippleTicks;
+
+        /// <summary>
+        /// AS3 <c>Unit.makeNoise(param1, param2)</c> — raise this unit's noise to at least
+        /// <paramref name="amount"/>, and restart the ripple cooldown if it is due.
+        ///
+        /// <para><b>Public, because the two loudest things in the game are not movement.</b> Weapon fire
+        /// (<c>Unit.crash()</c> → <c>makeNoise(weap.noise, true)</c>) and doors
+        /// (<c>makeNoise(pers.noiseDoorOpen, true)</c>) both reach it from outside the unit's own step,
+        /// and both are authored 300–800 in the data — louder than any sprint. Movement calls it from
+        /// <see cref="TickNoise"/>.</para>
+        /// </summary>
+        /// <param name="amount">The sound's radius contribution. Non-positive is ignored entirely.</param>
+        /// <param name="isEvent">
+        /// AS3's <c>param2</c> — <c>true</c> for a discrete event (a gunshot, a landing, a door), which
+        /// is allowed to restart the ripple inside the cooldown's last third. A continuous source
+        /// (footsteps) passes <c>false</c> and gets one ripple per 30 ticks.
+        /// </param>
+        public void MakeNoise(int amount, bool isEvent = false)
+        {
+            if (amount <= 0)
+            {
+                // AS3 returns before touching noise_t, so a silent call is not even a quiet ripple.
+                return;
+            }
+
+            _noise = NoiseMath.MakeNoise(_noise, amount);
+
+            // Note the ripple cooldown is refreshed whether or not the value actually rose: AS3's
+            // `if(this.noise < param1)` guard covers only the assignment, and the `noise_t` block below
+            // it is unconditional. A quiet footstep during a gunshot therefore still re-arms the
+            // ripple — which is what makes the ripple read as "sound here", not "loudest sound here".
+            if (NoiseMath.ShouldRefreshNoiseRipple(_noiseRippleTicks, isEvent))
+            {
+                _noiseRippleTicks = NoiseMath.NoiseRippleTicks;
+            }
+        }
+
+        /// <summary>
+        /// One step of AS3's acoustic bookkeeping: the decay, the landing edge, and the movement noise.
+        ///
+        /// <para><b>Both facts are parameters because the two drivers disagree about where they live.</b>
+        /// A motor-driven unit's groundedness and velocity belong to its
+        /// <c>TilePhysicsController</c>; a motor-less unit's belong to this class. AS3 has one answer
+        /// because it has one <c>run()</c>. Passing them in keeps the arithmetic in one place without
+        /// making this class reach for a motor it may not have — and it is why this is not simply
+        /// another parameterless <c>TickEffects()</c>.</para>
+        ///
+        /// <para><b>The landing is detected as an edge, one step late.</b> AS3 knows the impact
+        /// <c>dy</c> because the shelf check that finds the ground is inside the same <c>run()</c> that
+        /// integrated the fall. The port resolves groundedness before the move and zeroes the velocity
+        /// during it, so by the time the edge is visible the speed is gone — hence
+        /// <see cref="_noiseFallSpeedPixelsPerFrame"/>, which remembers the last airborne speed. One
+        /// step of latency on a sound cue, and it means the value is the speed on the step <i>before</i>
+        /// contact rather than at it, which is the same number for any constant-acceleration fall.</para>
+        /// </summary>
+        /// <param name="grounded">This driver's grounded state — AS3's <c>stay</c>.</param>
+        /// <param name="velocityPixelsPerFrame">
+        /// This driver's velocity in px/frame — the same quantity AS3's <c>dx</c>/<c>dy</c> hold. The
+        /// sign convention differs between the drivers (the motor works in AS3's Y-down pixels, a
+        /// motor-less unit's <c>_velocity</c> is Unity's Y-up units/s), which is why both thresholds
+        /// compare magnitudes.
+        /// </param>
+        public void TickNoise(bool grounded, Vector2 velocityPixelsPerFrame)
+        {
+            if (grounded && !_noiseWasGrounded)
+            {
+                int landing = NoiseMath.LandingNoise(NoiseRun, _noiseFallSpeedPixelsPerFrame);
+                if (landing > 0)
+                {
+                    MakeNoise(landing, isEvent: true);
+                }
+            }
+
+            if (!grounded)
+            {
+                _noiseFallSpeedPixelsPerFrame = velocityPixelsPerFrame.y;
+            }
+
+            _noiseWasGrounded = grounded;
+
+            _noise = NoiseMath.TickNoise(_noise);
+            _noiseRippleTicks = NoiseMath.TickNoiseRipple(_noiseRippleTicks);
+
+            int movement = NoiseMath.MovementNoise(NoiseRun, velocityPixelsPerFrame.x, grounded);
+            if (movement > 0)
+            {
+                MakeNoise(movement);
+            }
+        }
+
+        /// <summary>
+        /// One step of the suspicion meter — AS3 <c>UnitPlayer</c>'s
+        /// <c>if(obs &gt; 0 &amp;&amp; isObs &lt;= 0) obs -= minusObs;</c> and its hold countdown.
+        ///
+        /// <para>Called for every unit rather than only for the player, because "who is a target" is a
+        /// question the sensors answer, not this class — see <see cref="_suspicion"/>. A unit nobody
+        /// observes simply keeps a meter at zero, and ticking a zero costs two comparisons.</para>
+        /// </summary>
+        public void TickSuspicion()
+        {
+            _suspicion = NoiseMath.TickObservation(_suspicion);
+        }
+
+        /// <summary>
+        /// Add to the suspicion meter — AS3 <c>UnitPlayer.observation(amount)</c>. Returns the meter's
+        /// value after the add.
+        /// </summary>
+        /// <param name="amount">
+        /// An already-scaled, non-negative intensity. The oracle's <c>observation()</c> does its
+        /// <c>sneak</c>/<c>demask</c>/<c>stealthMult</c> scaling before this point; the port has no
+        /// those inputs yet, so callers pass the raw sensor intensity and the scaling is an open item.
+        /// </param>
+        public float AddSuspicion(float amount)
+        {
+            _suspicion = NoiseMath.AddObservation(_suspicion, amount, MaxSuspicion);
+            return _suspicion.Value;
+        }
+
+        /// <summary>
+        /// AS3 <c>obs &gt;= maxObs</c> — whether the world has seen or heard enough of this unit to
+        /// commit to it.
+        /// </summary>
+        /// <remarks>
+        /// <b>There is deliberately no <c>ClearSuspicion()</c>.</b> The oracle never assigns <c>obs</c>
+        /// back to zero anywhere — the only writes are the accumulator, the ceiling clamp and the decay
+        /// (<c>:142187-142194</c>, <c>:140155-140157</c>). A reset method would look like housekeeping
+        /// and would quietly delete a real mechanic: after a fight, the player stays "hot" for as long
+        /// as the meter takes to drain (20 units at 0.1/tick ≈ 6.7 s), which is why the original is
+        /// hard to re-hide from immediately after being seen. Draining is the reset.
+        /// </remarks>
+        public bool IsObserved => NoiseMath.IsObserved(_suspicion, MaxSuspicion);
 
         // === IEffectReceiver — AS3's `this.addEffect(...)` reach =============================
         //
@@ -1030,6 +1439,15 @@ namespace PFE.Entities.Units
             {
                 transform.localScale = new Vector3(_facingDirection, 1, 1);
             }
+        }
+
+        /// <summary>
+        /// Explicitly set the unit's facing direction (+1 for Right, -1 for Left).
+        /// </summary>
+        public virtual void SetFacing(int direction)
+        {
+            _facingDirection = direction >= 0 ? 1 : -1;
+            ApplyFacingToTransform();
         }
 
         /// <summary>
@@ -1741,6 +2159,23 @@ namespace PFE.Entities.Units
         }
 
         /// <summary>
+        /// Grant this unit its own full window — AS3's <c>this.neujaz = this.neujazMax</c> at
+        /// <c>Unit.as:4135</c> (the contact-attack grant) and <c>:4222</c> (the prop-impact one).
+        ///
+        /// <para><b>Why an overload rather than making <see cref="ContactInvulnerabilityMaxTicks"/>
+        /// public.</b> That field is <c>virtual</c> precisely so a subclass can substitute its own value
+        /// — <c>PlayerController</c> uses the difficulty-scaled <c>Pers.neujazMax</c> — and the grant
+        /// site in the oracle is written on the <i>target</i>, from inside the attacker's call
+        /// (<c>param1.udarUnit(this, …)</c>). So an attacker needs "give the target its own window"
+        /// without knowing what that window is. Exposing the number would invite a caller to pass the
+        /// wrong one.</para>
+        /// </summary>
+        public virtual void GrantContactInvulnerability()
+        {
+            _contactInvulnerabilityTicks = ContactInvulnerabilityMaxTicks;
+        }
+
+        /// <summary>
         /// One tick of the contact-invulnerability countdown — AS3 <c>Unit.actions()</c>
         /// (<c>Unit.as:3061-3064</c>).
         /// </summary>
@@ -1820,6 +2255,19 @@ namespace PFE.Entities.Units
                 _velocity = value * TileQueryConstants.PerFrameVelocityToUnitsPerSecond;
             }
         }
+
+        /// <summary>
+        /// Public read-only view of <see cref="As3VelocityPixelsPerFrame"/>.
+        ///
+        /// <para><b>Added for the enemy brains, which are not subclasses.</b> An AS3 <c>animate()</c>
+        /// branches on <c>dx</c> in <i>px/frame</i> (<c>UnitZombie.as:276-297</c>: <c>dx &lt; 1</c> is
+        /// "stay", <c>|dx| &gt; 6</c> is "trot"), and <c>EnemyBrain</c> is a separate MonoBehaviour, so
+        /// it cannot reach the protected member. Reading <c>Velocity</c> instead would be the silent
+        /// 0.3× error the property above documents — a walking zombie would read 0.3 px/frame and a
+        /// running one 3 px/frame, so every threshold in the oracle would be crossed at the wrong
+        /// time.</para>
+        /// </summary>
+        public Vector2 VelocityPixelsPerFrame => As3VelocityPixelsPerFrame;
 
         /// <summary>
         /// Run this unit's side of AS3 <c>Box.attDrop</c> (<c>Box.as:914-940</c>) and

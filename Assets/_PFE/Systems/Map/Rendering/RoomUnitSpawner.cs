@@ -39,6 +39,8 @@ namespace PFE.Systems.Map.Rendering
             new Dictionary<string, Type>(StringComparer.OrdinalIgnoreCase)
             {
                 [TrainingDummyController.ControllerId] = typeof(TrainingDummyController),
+                [PFE.Entities.Enemies.Archetypes.ZombieController.ControllerId] = typeof(PFE.Entities.Enemies.Archetypes.ZombieController),
+                [PFE.Entities.Enemies.Archetypes.ZombieController.ControllerAlias] = typeof(PFE.Entities.Enemies.Archetypes.ZombieController),
             };
 
         readonly RoomInstance _room;
@@ -452,7 +454,10 @@ namespace PFE.Systems.Map.Rendering
                 }
             }
 
-            Type controllerType = ResolveControllerType(unit.controllerId);
+            string effectiveControllerId = !string.IsNullOrWhiteSpace(unit.controllerId)
+                ? unit.controllerId
+                : definition?.controllerId;
+            Type controllerType = ResolveControllerType(effectiveControllerId);
             var controller = (UnitController)unitObject.AddComponent(controllerType);
 
             // The seam UnitController.Initialize documents as the missing one: without it the unit has

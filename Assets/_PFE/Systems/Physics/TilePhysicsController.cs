@@ -767,6 +767,15 @@ namespace PFE.Systems.Physics
             // the contact-invulnerability call above it: the motor runs the unit's per-frame actions.
             Unit?.TickEffects();
 
+            // ...and the acoustic half of the same frame, for the same reason. The motor is where the
+            // authoritative grounded flag and the AS3 px/frame velocity live, so it passes its own —
+            // UnitController.TickNoise takes them as parameters rather than reaching back for a motor
+            // that a motor-less unit does not have. This is the call that gives the PLAYER a noise
+            // footprint, which is the whole point of the system: without it the player is silent and the
+            // hearing fix would only apply to enemies.
+            Unit?.TickNoise(IsGrounded, VelocityPixelsPerFrame);
+            Unit?.TickSuspicion();
+
             if (currentRoom == null) return;
 
             hitCeiling = false;

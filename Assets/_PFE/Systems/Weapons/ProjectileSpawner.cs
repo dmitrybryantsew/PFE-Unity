@@ -4,6 +4,7 @@ using VContainer;
 using PFE.Core;
 using PFE.Systems.Combat;
 using PFE.Data.Definitions;
+using PFE.Entities.Units;
 using PFE.Entities.Weapons;
 using PFE.Systems.Map;
 using PFE.Systems.Map.TileQuery;
@@ -59,6 +60,9 @@ namespace PFE.Systems.Weapons
         /// <summary>Cache for <see cref="ResolveTileQuery"/>, keyed on the room it was built for.</summary>
         private ITileQueryService _tileQuery;
 
+        /// <summary>Cache for <see cref="ResolveOwnerUnit"/>, invalidated when <see cref="Owner"/> changes.</summary>
+        private UnitController _ownerUnit;
+
         // ── Public API ────────────────────────────────────────────────────────
 
         /// <summary>
@@ -112,7 +116,70 @@ namespace PFE.Systems.Weapons
                 Debug.Log($"[ProjectileSpawner] SpawnFromPlans weapon='{_currentDef.weaponId}' count={plans.Count}.");
 
             foreach (var plan in plans)
+            {
+                AnnounceShot(plan);
                 SpawnOne(plan);
+            }
+        }
+
+        /// <summary>
+        /// Spend the shot's noise — AS3 <c>Unit.makeNoise(weap.noise, true)</c>, reached from
+        /// <c>Unit.crash(bullet)</c> when a round goes off and from the melee/throw paths directly.
+        ///
+        /// <para><b>This is the loudest thing in the game and it was being computed and thrown
+        /// away.</b> Every weapon controller already fills <see cref="ShotCues.MakeNoise"/> and
+        /// <see cref="ShotCues.NoiseRadius"/> from the weapon's <c>&lt;snd noise='…'/&gt;</c> — 400 for a
+        /// punch, 700 for a 10 mm, up to 1300 for a minigun (<c>actionscript_project_context.txt:3713</c>)
+        /// — and <c>ShotCues</c>'s fields had no reader anywhere. In the oracle a punch (400) carries
+        /// twice as far as a sprint (200), which is the entire shape of the stealth design: you can run
+        /// past a guard but you cannot shoot past one.</para>
+        ///
+        /// <para><b>The plan's value is used, not the definition's</b>, for the reason the projectile
+        /// path already documents for penetration: a debug-swapped or ammo-fed round has to be as loud
+        /// as the round that actually left the barrel, and the definition is shared by every wielder of
+        /// that weapon. <c>ShotCues.NoiseRadius</c> is carried in Unity units — every controller divides
+        /// the AS3 px value by <c>PpuScale</c> = 100 — so it is multiplied back here, the one place that
+        /// needs it in the oracle's own units. Dividing on the way in and multiplying on the way out is
+        /// deliberate rather than a round trip to nowhere: the plan is consumed by Unity-space code
+        /// (the projectile, the presenter), and only the acoustic model speaks pixels.</para>
+        ///
+        /// <para><c>isEvent: true</c> because a shot is a discrete event: two rounds in quick succession
+        /// should draw two ripples, where footsteps draw one per cooldown.</para>
+        /// </summary>
+        private void AnnounceShot(ShotPlan plan)
+        {
+            if (!plan.Cues.MakeNoise || plan.Cues.NoiseRadius <= 0f)
+            {
+                return;
+            }
+
+            UnitController shooter = ResolveOwnerUnit();
+            if (shooter == null)
+            {
+                return;
+            }
+
+            int noisePixels = Mathf.RoundToInt(plan.Cues.NoiseRadius * TileQueryConstants.UnitToPixel);
+            if (noisePixels > 0)
+            {
+                shooter.MakeNoise(noisePixels, isEvent: true);
+            }
+        }
+
+        /// <summary>
+        /// The firing unit — <see cref="Owner"/> resolved to a <see cref="UnitController"/>, cached
+        /// because this runs once per shot and <c>GetComponent</c> per shot per round is exactly the
+        /// kind of cost a minigun makes visible.
+        /// </summary>
+        private UnitController ResolveOwnerUnit()
+        {
+            if (_ownerUnit != null && Owner != null && _ownerUnit.transform == Owner)
+            {
+                return _ownerUnit;
+            }
+
+            _ownerUnit = Owner != null ? Owner.GetComponentInParent<UnitController>() : null;
+            return _ownerUnit;
         }
 
         // ── Internal ──────────────────────────────────────────────────────────

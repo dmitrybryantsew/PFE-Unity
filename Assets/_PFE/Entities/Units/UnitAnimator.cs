@@ -63,6 +63,21 @@ namespace PFE.Entities.Units
         bool _stopped;
 
         /// <summary>
+        /// Whether the sprite is allowed on screen — AS3 <c>vis.visible</c>, which
+        /// <c>UnitZombie.animate()</c> clears while a unit is buried in the floor
+        /// (<c>UnitZombie.as:265-268</c>) and restores when it digs out or dies.
+        ///
+        /// <para><b>Why the flag lives here and not on the renderer.</b> <see cref="Draw"/> is the only
+        /// thing that writes <c>renderer.enabled</c>, and it runs every animation frame. A caller that
+        /// simply set <c>renderer.enabled = false</c> would be undone by the very next <see cref="Draw"/>
+        /// — and only for units whose current state has frames, which is the shape of bug that looks
+        /// like "hiding works for some enemies". The hidden unit keeps stepping its animation, exactly as
+        /// the oracle does: <c>animate()</c>'s <c>aiState == 5</c> branch sets <c>vis.visible = false</c>
+        /// and then falls through to the same <c>blit</c>/<c>step</c> tail as every other branch.</para>
+        /// </summary>
+        bool _visible = true;
+
+        /// <summary>
         /// The cell currently on the renderer, so an unchanged cell is not reassigned every tick. Reset
         /// whenever the state changes, because the same index in a new state is a different cell.
         /// </summary>
@@ -105,7 +120,29 @@ namespace PFE.Entities.Units
             _drawnCell = -1;
             _timer = 0f;
 
+            // A re-bound animator is a freshly spawned unit, so it starts visible. Leaving the previous
+            // unit's hidden state in place would spawn a unit the caller cannot see and would not
+            // connect to the ambush it was hidden for.
+            _visible = true;
+
             return SetState(initialState);
+        }
+
+        /// <summary>
+        /// Show or hide the unit's sprite — AS3 <c>vis.visible</c>.
+        ///
+        /// <para>Not "disable the renderer": see <see cref="_visible"/> for why the flag has to be read
+        /// by <see cref="Draw"/> rather than written onto the renderer. A null renderer is legal and is
+        /// remembered, so a caller can set visibility before <see cref="Initialize"/> binds one.</para>
+        /// </summary>
+        public void SetVisible(bool visible)
+        {
+            _visible = visible;
+
+            if (_renderer != null)
+            {
+                _renderer.enabled = visible;
+            }
         }
 
         /// <summary>
@@ -211,7 +248,7 @@ namespace PFE.Entities.Units
             // the difference. UnitSpriteAnchor derives the offset from the sprite actually drawn, so a
             // correctly-pivoted cell yields zero and a centre-pivoted one yields the correction.
             UnitSpriteAnchor.ApplyTo(_renderer, cell, _definition.registrationPoint);
-            _renderer.enabled = cell != null;
+            _renderer.enabled = _visible && cell != null;
         }
 
         /// <summary>
