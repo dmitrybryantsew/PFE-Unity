@@ -85,7 +85,16 @@ namespace PFE.Systems.Map.Rendering
         private RoomObjectVisualManager roomObjectVisualManager;
         private RoomUnitSpawner roomUnitSpawner;
         private PFE.Systems.Map.Scripting.AreaTriggerSystem areaTriggerSystem;
-        private Transform visibilityRevealTargetTransform;
+
+        /// <summary>
+        /// The player whose light drives the fog — <b>the player, not its transform</b>, because the
+        /// light is not at the transform's origin. See
+        /// <see cref="FogOcclusionMath.ResolvePlayerLightPixelOffset"/>: AS3 puts the player's light
+        /// 12 px in front of the unit and 75.3 % of the way up its sprite
+        /// (<c>Location.lighting():3137-3140</c>), and both terms need the unit's own state — its
+        /// facing and its sprite height. Cached so the per-frame path does not search for it.
+        /// </summary>
+        private PlayerController visibilityRevealTargetPlayer;
 
         /// <summary>
         /// The port's damage authority, forwarded to every <see cref="RoomUnitSpawner"/> this
@@ -474,7 +483,7 @@ namespace PFE.Systems.Map.Rendering
             roomInstance = room;
             tileAssetDatabase = ResolveTileAssetDatabase(assetDatabase);
             Profiler.Mark("room.resolveTileDb");
-            visibilityRevealTargetTransform = null;
+            visibilityRevealTargetPlayer = null;
 
             // Point the particle adapters at THIS room. Done here rather than at the particle-view
             // creation below because the adapters are pushed, not injected, and this is the first
@@ -795,18 +804,28 @@ namespace PFE.Systems.Map.Rendering
                 return;
             }
 
-            if (visibilityRevealTargetTransform == null)
+            if (visibilityRevealTargetPlayer == null)
             {
-                PlayerController player = FindFirstObjectByType<PlayerController>();
-                if (player != null)
-                {
-                    visibilityRevealTargetTransform = player.transform;
-                }
+                visibilityRevealTargetPlayer = FindFirstObjectByType<PlayerController>();
             }
 
-            roomBackdropRenderer.UpdateVisibilityMask(visibilityRevealTargetTransform != null
-                ? (Vector3?)visibilityRevealTargetTransform.position
-                : null);
+            // AS3's light is NOT at the unit's origin: `Location.lighting():3137-3140` defaults to
+            // `(gg.X + gg.storona*12, gg.Y1 + gg.stayY*0.247)`, i.e. 12 px in front of the unit and
+            // 75.3 % of the way up its sprite. See FogOcclusionMath.ResolvePlayerLightPixelOffset for
+            // why this is load-bearing rather than cosmetic — with the light on the feet the AS3
+            // lattice ray sits exactly on a tile boundary, and the pixel↔unit round trip tips it into
+            // the tile below.
+            Vector3? playerLightWorldPosition = null;
+            if (visibilityRevealTargetPlayer != null)
+            {
+                Vector2 lightOffsetPixels = FogOcclusionMath.ResolvePlayerLightPixelOffset(
+                    visibilityRevealTargetPlayer.FacingDirection,
+                    visibilityRevealTargetPlayer.SpriteSizePixels.y);
+                playerLightWorldPosition = visibilityRevealTargetPlayer.transform.position
+                    + WorldCoordinates.PixelToUnity(lightOffsetPixels);
+            }
+
+            roomBackdropRenderer.UpdateVisibilityMask(playerLightWorldPosition);
         }
 
         /// <summary>
@@ -904,7 +923,7 @@ namespace PFE.Systems.Map.Rendering
             roomObjectVisualManager = null;
             roomUnitSpawner?.DestroyAll();
             roomUnitSpawner = null;
-            visibilityRevealTargetTransform = null;
+            visibilityRevealTargetPlayer = null;
             ReleaseCompositor();
 
             if (Application.isPlaying)
@@ -979,7 +998,7 @@ namespace PFE.Systems.Map.Rendering
             roomObjectVisualManager = null;
             roomUnitSpawner?.DestroyAll();
             roomUnitSpawner = null;
-            visibilityRevealTargetTransform = null;
+            visibilityRevealTargetPlayer = null;
 
             // The shared compositor outlives every room, so this is the one place its ~1100 baked
             // textures are guaranteed to be released. Ordered after the tile GameObjects are gone so
@@ -1028,7 +1047,7 @@ namespace PFE.Systems.Map.Rendering
             CleanupLegacyOverlayChildren();
             ApplyBackgroundLayerRendering(roomInstance);
             roomBackdropRenderer?.DestroyVisuals();
-            visibilityRevealTargetTransform = null;
+            visibilityRevealTargetPlayer = null;
             roomBackdropRenderer = new RoomBackdropRenderer(
                 roomInstance,
                 tileTextureLookup,
@@ -1373,6 +1392,7 @@ namespace PFE.Systems.Map.Rendering
             destination.vidRear = source.vidRear;
             destination.vid2Rear = source.vid2Rear;
             destination.opacity = source.opacity;
+            destination.doorOcclusion = source.doorOcclusion;
             destination.heightLevel = source.heightLevel;
             destination.slopeType = source.slopeType;
             destination.stairType = source.stairType;
@@ -1416,7 +1436,7 @@ namespace PFE.Systems.Map.Rendering
             roomObjectVisualManager = null;
             roomUnitSpawner?.DestroyAll();
             roomUnitSpawner = null;
-            visibilityRevealTargetTransform = null;
+            visibilityRevealTargetPlayer = null;
             isInitialized = false;
 
             // The room's tile query goes with it. An adapter still holding the old room would convert

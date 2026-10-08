@@ -152,6 +152,48 @@ namespace PFE.Systems.Map.TileQuery
         [LocalOnly]
         bool IsOnGround(Rect boundsPx);
 
+        /// <summary>
+        /// The same question with AS3's per-query modifiers — today only
+        /// <see cref="TileQueryOptions.CanFallThroughPlatforms"/>, i.e. <c>throu</c>.
+        ///
+        /// <para><b>Why this is an overload and not a default argument.</b> "Am I on the ground" is asked
+        /// by units, mines and props, and every one of them must keep the old answer; only a unit that has
+        /// asked to drop through a one-way platform wants the other one. A defaulted parameter would put
+        /// the two meanings on one name with no call site to grep for, which is precisely how a zombie's
+        /// drop would silently make the player fall through a catwalk.</para>
+        ///
+        /// <para><see cref="TileQueryOptions.IsTransparent"/> and
+        /// <see cref="TileQueryOptions.VelocityY"/> are ignored here: they belong to
+        /// <see cref="CheckCollision"/>'s swept test, not to a single resting probe.</para>
+        /// </summary>
+        [LocalOnly(Note = "Pure function of local tile state.")]
+        bool IsOnGround(Rect boundsPx, TileQueryOptions options);
+
+        /// <summary>
+        /// The horizontal span of the tiles supporting the bounds, in <b>world pixels</b> — AS3's
+        /// <c>min(tile.phX1)</c> / <c>max(tile.phX2)</c> over the tiles under the feet, which
+        /// <c>Unit.as:2301</c>/<c>:2305</c> reduce into the unit's <c>shX1</c>/<c>shX2</c> overhang
+        /// fractions.
+        ///
+        /// <para><b>Why a span and not the two fractions.</b> The oracle's reduction is a <c>min</c> of
+        /// <c>-(X1 - phX1)/scX</c>, which is decided by the <i>leftmost</i> supporting tile's left edge;
+        /// the fraction needs the unit's own body width, which is a fact about the unit and not about
+        /// the room. So the seam answers the room's half of the question and
+        /// <c>UnitOverhangMath</c> answers the unit's — one definition of each, and the arithmetic stays
+        /// testable without a room or a <c>GameObject</c>.</para>
+        ///
+        /// <para><b><c>false</c> is not "unknown".</b> It means no supporting tile was found, which the
+        /// caller must read as AS3's <c>shX1 = shX2 = 1</c> — <i>maximal</i> overhang. See
+        /// <c>UnitOverhangMath.NoSupportOverhang</c> for why treating it as a sentinel inverts the
+        /// behaviour.</para>
+        /// </summary>
+        [LocalOnly(Note = "Pure function of local tile state.")]
+        bool TryGetSupportSpan(
+            Rect boundsPx,
+            TileQueryOptions options,
+            out float supportLeftWorldPx,
+            out float supportRightWorldPx);
+
         /// <summary>First tile hit along a ray. Origin, direction and distance in world pixels.</summary>
         [LocalOnly]
         TileRaycastHit? Raycast(Vector2 originPx, Vector2 direction, float maxDistancePx);

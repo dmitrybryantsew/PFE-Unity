@@ -247,6 +247,12 @@ namespace PFE.Systems.Map.Rendering
         {
             if (tileData == null) return;
 
+            // AS3 `Location.hitTile()` gates EVERY destruction branch on `phis >= 1`
+            // (Location.as:2525, 2538, 2557, 2565). A ladder (`stair`) and a catwalk (`shelf`) carry
+            // `phis == 0`, so the oracle never destroys them however much `hp` the form declares.
+            // Without this the port let an explosion shoot out the catwalk it was standing on.
+            if (!tileData.IsDamageable()) return;
+
             // AS3 udar() takes an int.
             int damage = Mathf.RoundToInt(destroyAmount);
             if (damage <= 0) return;

@@ -330,6 +330,15 @@ namespace PFE.Entities.Enemies
                 blackboard.TargetDeltaX = bestTargetCenterPx.x - eyePosPx.x;
                 blackboard.TargetDeltaY = bestTargetCenterPx.y - eyePosPx.y;
                 blackboard.TimeSinceTargetSpottedTicks = 0;
+
+                // AS3 `aiSpok = maxSpok + 10` (`UnitZombie.as:657`), inside the `if(findCel())` block and
+                // only on the branch where `celUnit` was actually set — i.e. on a SIGHTING, which is
+                // exactly this commit. Without it the unit has no budget to spend once the target steps
+                // out of view, and the chase dies on the first obscured tick. See EnemyAwarenessMath.
+                //
+                // An assignment, not a `Max`: the oracle assigns here, and the value is the largest of
+                // the three arming sites, so an assignment can only ever lengthen a shorter alarm.
+                blackboard.AlertTimerTicks = EnemyAwarenessMath.FullAwarenessTicks;
                 return;
             }
 
@@ -347,6 +356,20 @@ namespace PFE.Entities.Enemies
                     UnityEngine.Random.value);
 
                 blackboard.LastHeardNoisePosition = heardCenterPx + jitter;
+
+                // AS3 `aiSpok = maxSpok - 1` (`UnitZombie.as:661`) — the `else` of `if(celUnit)` inside
+                // `if(findCel())`, which is exactly this branch: the noise meter filled, so the unit
+                // commits, but it has NOT seen the target, so `celUnit` stays null and the goal is a
+                // jittered position. This is an ASSIGNMENT, not a raise, and the value is deliberately
+                // one short of `maxSpok` (`EnemyAwarenessMath.SoundOnlyAwarenessTicks` = 290) so that a
+                // sound on its own can never promote the unit into the chase — it buys the alert state
+                // only, and `IsChasing` is false at 290 against a threshold of 300.
+                //
+                // It is wired here because leaving it out is not neutral: the sound path then had no
+                // budget at all and fell back on the 90-tick `StateTimerTicks` — about 3 s of searching
+                // where the oracle gives about 9.7 s — and `SoundOnlyAwarenessTicks` was a constant with
+                // a test and no caller.
+                blackboard.AlertTimerTicks = EnemyAwarenessMath.SoundOnlyAwarenessTicks;
             }
 
             if (seenCandidate == null)

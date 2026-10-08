@@ -1402,6 +1402,24 @@ namespace PFE.Systems.Map.Rendering
 
             sb.Append("\n  state       ").Append(EnemyAISelection.DescribeState(brain.CurrentState));
             sb.Append($"   facing {board.FacingDirection:+#;-#;0}  grounded={board.IsGrounded}");
+
+            // The ledge sense, as three numbers rather than as a verdict.
+            //
+            // This row exists because the whole family — the patrol's hop-or-turn, the chase's half hop —
+            // is gated on `shX` against a threshold, and there was no way to see either side of that
+            // comparison in a running build. A zombie that hopped its way along a flat corridor looked
+            // like a tuning problem for as long as it took to notice that `shX1`/`shX2` were reading
+            // their initialiser, 1, because the ground pass that writes them never ran for a motor-driven
+            // unit. `1` here means "nothing found under me", which is maximal overhang and NOT a sentinel
+            // — see UnitOverhangMath — so the number has to be visible to be readable as that.
+            //
+            // The body width is printed alongside them because the fractions are differences divided by
+            // it: a width of 0 means the collider has no size yet and every fraction below is meaningless.
+            sb.Append("\n  ground      ");
+            sb.Append($"shX1={selected.OverhangLeft:0.00}  shX2={selected.OverhangRight:0.00}");
+            sb.Append($"  ahead={selected.OverhangAhead:0.00}");
+            float bodyWidthPx = selected.Stats != null ? selected.Stats.Width * 100f : 0f;
+            sb.Append($"  bodyW={bodyWidthPx:0}px");
             sb.Append($"\n  hp          {Mathf.CeilToInt(selected.CurrentHealth)}/{Mathf.CeilToInt(selected.MaxHealth)}");
             sb.Append(selected.IsAlive ? "" : "  <color=#ff4040>DEAD</color>");
 

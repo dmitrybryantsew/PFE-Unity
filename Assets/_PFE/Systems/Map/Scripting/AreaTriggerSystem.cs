@@ -328,6 +328,20 @@ namespace PFE.Systems.Map.Scripting
                     }
                 }
             }
+
+            // AS3 `Box.setDoor()` force-relights the room when the door is *opened* — and only then:
+            // `if(param1) { loc.isRelight = true; loc.isRebuild = true; }` (Box.as:688-692, param1 =
+            // the new open state). The room's per-frame gate (Location.as:3398) then runs the full
+            // light pass on the next frame regardless of camera motion.
+            //
+            // This method is the port of `Box.setDoor` for the **script** and **Lua** paths
+            // (ExecuteAction "open"/"close" above, and LuaTriggerBridge); DoorPropPresenter is the
+            // same port for the player-interact path and requests it in SetOpen. Both must, or a door
+            // a script opens leaves the room behind it dark until the player happens to move.
+            if (isOpen)
+            {
+                room.RequestRelight();
+            }
         }
 
         private static void EjectPlayerIfOverlappingDoor(

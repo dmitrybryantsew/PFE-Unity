@@ -439,7 +439,22 @@ namespace PFE.Systems.Map.Rendering
 
                 if (definition != null)
                 {
-                    motor.ConfigureCollisionSize(definition.Width, definition.Height);
+                    // PIXELS, not world units — and the conversion is the whole point of this line.
+                    //
+                    // UnitDefinition.Width/Height are world units (the field tooltip says so: "Width
+                    // from 'sX' in AS3 (55px = 0.55 units)", Range(0.1f, 2f), and XMLConverter stores
+                    // `sX / 100f`), which is what the BoxCollider2D above wants. ConfigureCollisionSize
+                    // wants the opposite: its parameters are named widthPixels/heightPixels and the
+                    // motor feeds them straight into TileCollisionMath.CheckTileCollisionAt, which
+                    // divides by WorldConstants.TILE_SIZE to reach tile coordinates. Passing the world
+                    // value raw made every motored unit's collision box 100x too small — 0.55 x 0.70 px
+                    // for zombie0 instead of 55 x 70 — so the motor resolved tile collision against a
+                    // point while the BoxCollider2D the F6 overlay draws was the right size. The two
+                    // boxes must describe one body; UnitCollisionBoxMath is what makes them agree, and
+                    // it is a named call rather than an inline `* 100f` so the conversion is testable.
+                    motor.ConfigureCollisionSize(
+                        UnitCollisionBoxMath.PixelsFromWorldUnits(definition.Width),
+                        UnitCollisionBoxMath.PixelsFromWorldUnits(definition.Height));
                 }
 
                 // Room context first, then the position — the same order RepositionForRoom documents

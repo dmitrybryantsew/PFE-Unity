@@ -79,7 +79,13 @@ namespace PFE.Tests.EditMode.Systems.Physics
             }
         }
 
-        private static FakeUnitDefinitions Provider(float width = 2f, float height = 3f)
+        /// <summary>
+        /// A definition with zombie0's real authored size. The defaults are deliberately the
+        /// <b>world-unit</b> values (AS3 <c>sX='55' sY='70'</c> stored as <c>0.55</c>/<c>0.70</c> —
+        /// see the field tooltip and <c>XMLConverter</c>'s <c>sX / 100f</c>), not the pixel values,
+        /// because the trap this fixture guards against is exactly the two being confused.
+        /// </summary>
+        private static FakeUnitDefinitions Provider(float width = 0.55f, float height = 0.70f)
         {
             var definition = ScriptableObject.CreateInstance<UnitDefinition>();
             definition.id = "training";
@@ -183,13 +189,14 @@ namespace PFE.Tests.EditMode.Systems.Physics
             Assert.AreEqual(SimTickOrder.UnitMotor, motor.TickOrder,
                 "A motor built by the spawner drives an NPC, so it must not sit in the player's slot.");
 
-            Assert.AreEqual(2f, motor.CollisionWidth, 0.001f,
-                "The motor's collision box must come from the unit's definition (AS3 scX), not from the " +
-                "motor's player-shaped serialized default — otherwise it resolves tile collision " +
-                "against a box that is not the unit's, which reads as 'it clips into walls'.");
+            Assert.AreEqual(55f, motor.CollisionWidth, 0.001f,
+                "The motor's collision box must be the unit's authored size (AS3 scX='55') in PIXELS, " +
+                "not the motor's player-shaped serialized default — otherwise it resolves tile " +
+                "collision against a box that is not the unit's, which reads as 'it clips into walls'. " +
+                "The definition stores 0.55 world units; a motor fed that raw gets a 0.55 px box.");
 
-            Assert.AreEqual(3f, motor.CollisionHeight, 0.001f,
-                "Same for the height (AS3 scY).");
+            Assert.AreEqual(70f, motor.CollisionHeight, 0.001f,
+                "Same for the height (AS3 scY='70' -> 70 px). The definition's 0.70 must be scaled.");
         }
 
         /// <summary>

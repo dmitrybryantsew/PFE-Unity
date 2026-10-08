@@ -118,6 +118,8 @@ namespace PFE.Tests.Editor.Combat
             bool ITileQueryService.CheckCollision(Rect boundsPx, TileQueryOptions options) => throw new NotSupportedException();
             float ITileQueryService.GetGroundHeight(Vector2 positionPx) => throw new NotSupportedException();
             bool ITileQueryService.IsOnGround(Rect boundsPx) => throw new NotSupportedException();
+            bool ITileQueryService.IsOnGround(Rect boundsPx, TileQueryOptions options) => throw new NotSupportedException();
+            bool ITileQueryService.TryGetSupportSpan(Rect boundsPx, TileQueryOptions options, out float supportLeftWorldPx, out float supportRightWorldPx) => throw new NotSupportedException();
             TileRaycastHit? ITileQueryService.Raycast(Vector2 originPx, Vector2 direction, float maxDistancePx) => throw new NotSupportedException();
             TileQueryFlags ITileQueryService.Classify(Vector2Int tileCoord) => throw new NotSupportedException();
             SurfaceKind ITileQueryService.ClassifySurface(Vector2Int tileCoord) => throw new NotSupportedException();

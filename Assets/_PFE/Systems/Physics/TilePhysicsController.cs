@@ -320,6 +320,21 @@ namespace PFE.Systems.Physics
         private float activeLadderSnapX;
         private float dashTimer;
         private float platformDropTimer;
+
+        /// <summary>
+        /// AS3 <c>Unit.throu</c> (<c>Unit.as:296</c>) as a <b>level</b> the owning brain holds — the
+        /// motor-side twin of <c>UnitController._dropThroughPlatforms</c>.
+        ///
+        /// <para><b>Why a second field rather than reusing <see cref="platformDropTimer"/>.</b> That timer
+        /// is a <i>pulse</i> for a momentary input: the player's down double-tap is set for one frame, so
+        /// the motor has to keep the platform disabled long enough for the unit to actually leave it
+        /// (<c>platformDropDurationSeconds</c>). The zombie's condition is <i>sustained</i> — it is true
+        /// for as long as the target stays below — and re-arming a 0.18 s timer every tick would work by
+        /// accident while making the flag's lifetime a tuning value. The oracle's <c>throu</c> is a level,
+        /// so the enemy path gets a level.</para>
+        /// </summary>
+        private bool dropThroughPlatforms;
+
         private Vector2 dashVelocity;
         private float standingCollisionHeight;
         private float resolvedCrouchedCollisionHeight;
@@ -492,6 +507,17 @@ namespace PFE.Systems.Physics
         /// against a box that is not the unit's, which reads as "it clips into walls" rather than as a
         /// configuration gap. Both dimensions are ignored when non-positive so a definition with no
         /// authored size keeps the serialized default.</para>
+        ///
+        /// <para><b>Both parameters are PIXELS, and the caller must convert.</b>
+        /// <c>UnitDefinition.Width</c>/<c>Height</c> are world units (the field tooltip: "55px = 0.55
+        /// units"; <c>XMLConverter</c> stores <c>sX / 100f</c>) because the <c>BoxCollider2D</c> wants
+        /// them that way. This method wants the other convention — the values go straight into
+        /// <see cref="TileCollisionMath.CheckTileCollisionAt"/>, which divides by
+        /// <c>WorldConstants.TILE_SIZE</c> to reach tile coordinates. The call site scales by
+        /// <c>1f / TileQueryConstants.PixelToUnit</c>. Handing over the raw world value instead is a
+        /// silent 100x error: <c>zombie0</c> gets a 0.55×0.70 px box instead of 55×70, so the motor
+        /// collides against a point while the <c>BoxCollider2D</c> — and the box the collider debug
+        /// overlay draws — is the right size. Nothing throws; the unit just ignores walls.</para>
         /// </summary>
         public void ConfigureCollisionSize(float widthPixels, float heightPixels)
         {
@@ -556,9 +582,34 @@ namespace PFE.Systems.Physics
             wantsToUseLadder = wantsToClimb;
         }
 
+        /// <summary>
+        /// AS3 <c>Unit.throu</c> (<c>Unit.as:296</c>) — stop treating one-way platforms as ground.
+        ///
+        /// <para><b>Two callers with two shapes, deliberately.</b> The player's locomotion controller calls
+        /// this with a one-frame buffer, so the pulse (<see cref="StartPlatformDropThrough"/>, which also
+        /// breaks contact with a 1 px nudge) is what makes a double-tap actually leave the catwalk. A brain
+        /// calls it every tick its condition holds, which the stored level covers on its own — the nudge
+        /// only fires while there is something to drop off (see <see cref="StartPlatformDropThrough"/>).
+        /// </para>
+        /// </summary>
         public void SetDropThroughPlatforms(bool shouldDrop)
         {
-            if (shouldDrop)
+            // ── Rising edge only, and that is the whole difference between the two callers. ─────────
+            //
+            // The pulse exists to BREAK AN EXISTING CONTACT with a one-way surface, which is a one-off
+            // act, not a state. Re-arming it on every call would turn the 0.18 s pulse into a second,
+            // permanent level, and it would keep `canFallThrough` true for `platformDropDuration` after
+            // the level itself dropped back to false — a zombie whose target stops being below would
+            // keep ignoring catwalks for another fifth of a second.
+            //
+            // Invisible for the player, load-bearing for a brain. The player's flag is cleared at the end
+            // of the very tick it is set (`PlayerLocomotionController.cs:324`), so it is already a single
+            // rising edge and this changes nothing for it. A brain asserts its condition on every tick it
+            // holds — that is the oracle's shape — so without the edge test the pulse would never expire.
+            bool risingEdge = shouldDrop && !dropThroughPlatforms;
+            dropThroughPlatforms = shouldDrop;
+
+            if (risingEdge)
             {
                 StartPlatformDropThrough();
             }
@@ -856,6 +907,23 @@ namespace PFE.Systems.Physics
                 // 6. Sync Unity transform
                 SyncUnityPosition();
             }
+
+            // 6b. Hand this step's groundedness to the unit, which then resolves its own ledge
+            // (AS3 `shX1`/`shX2`).
+            //
+            // This is the second half of AS3's ground pass and it is not optional: a motored unit makes
+            // UnitController._hasTilePhysics true, which stands UnitController.StepUnit — and therefore
+            // ResolveGroundState — down entirely. Without this call the unit's overhang keeps its field
+            // initialiser, NoSupportOverhang = 1, which every ledge threshold reads as "standing on a
+            // lip"; the visible result was a zombie that hopped instead of running and hopped its way
+            // along patrol routes. See UnitController.ResolveGroundStateFromMotor for the full account.
+            //
+            // Placed after the move and after SyncUnityPosition because both halves of the answer must
+            // describe one position: the flag this step resolved, and the Collider2D.bounds the span is
+            // measured against. Outside the `!fixedUnit` gate on purpose — AS3's `if(!this.fixed)` wraps
+            // the position write, not the state resolution, and a pinned unit still has a body that is
+            // standing on something.
+            Unit?.ResolveGroundStateFromMotor(IsGrounded);
 
             // 7. Update facing
             if (dx > 0.5f) facingDirection = 1;
@@ -1174,11 +1242,18 @@ namespace PFE.Systems.Physics
                     dy = 0;
                     isGrounded = true;
                 }
-                else if (TryLandOnShelfProp(posY, newY, out ObjectInstance prop, out float surfaceWorldPixelY))
+                else if (!CanFallThroughPlatformsNow
+                    && TryLandOnShelfProp(posY, newY, out ObjectInstance prop, out float surfaceWorldPixelY))
                 {
                     // A prop is a floor too — AS3 Unit.checkShelf (Unit.as:2713-2741). The tile check
                     // above wins when it hits, which is the oracle's order: the tile loop runs first
                     // (:2317-2330), checkShelf last (:2340).
+                    //
+                    // Gated on `throu` because the oracle gates it there: the whole downward ground
+                    // search is `if(_loc5_ == 0 && !this.throu)` (:2334-2341) and `checkShelf` is the
+                    // last arm of that search (:2338). A crate is a `shelf` exactly like a catwalk is
+                    // (Unit.as:2578 tests `param1.shelf`, and `loc.objs` shelves are the prop form), so
+                    // a unit that has asked to fall must not be caught by one on the way down.
                     newY = surfaceWorldPixelY;
                     dy = 0;
                     isGrounded = true;
@@ -1566,15 +1641,32 @@ namespace PFE.Systems.Physics
         }
 
         /// <summary>
+        /// AS3 <c>Unit.throu</c> (<c>Unit.as:296</c>) as this motor sees it: whether a one-way surface
+        /// is not ground right now. Four triggers, one flag — holding Down (<c>ctr.keySit</c>), a live
+        /// drop pulse (the player's double-tap, which needs a lifetime longer than the one frame the
+        /// input buffer lives), the level a brain holds (the zombie's "the target is below me"), and
+        /// sliding down a ladder.
+        ///
+        /// <para><b>One definition, two readers.</b> Both the tile ground search
+        /// (<see cref="CheckGroundCollisionAt"/>) and the shelf-<b>prop</b> landing in
+        /// <see cref="MoveSingleStep"/> consult this, because the oracle's single flag does both jobs: it
+        /// makes a <c>shelf</c> tile return "no collision" (<c>Unit.as:2578</c>) <i>and</i> it gates the
+        /// whole downward ground search, <c>checkShelf</c> included (<c>:2338-2341</c>,
+        /// <c>if(_loc5_ == 0 &amp;&amp; !this.throu)</c>). Two copies of this expression is how a crate
+        /// would stay a floor for a unit that had asked to fall.</para>
+        /// </summary>
+        private bool CanFallThroughPlatformsNow => inputDown ||
+            platformDropTimer > 0f ||
+            dropThroughPlatforms ||
+            (isOnLadder && ladderInputY < -0.1f);
+
+        /// <summary>
         /// Check ground collision (walls and platforms below feet).
         /// Converts world pixel coordinates to room-local tile coordinates.
         /// </summary>
         private bool CheckGroundCollisionAt(float x, float y, float hw)
         {
-            // Don't fall through platforms when pressing down
-            bool canFallThrough = inputDown ||
-                platformDropTimer > 0f ||
-                (isOnLadder && ladderInputY < -0.1f);
+            bool canFallThrough = CanFallThroughPlatformsNow;
 
             bool hitPlatform;
             bool hit = TileCollisionMath.CheckGroundCollisionAt(
@@ -1596,7 +1688,18 @@ namespace PFE.Systems.Physics
         {
             platformDropTimer = Mathf.Max(platformDropTimer, platformDropDurationSeconds);
 
-            if (isGrounded)
+            // Guarded by `isOnPlatform`, not `isGrounded`. The nudge's job is to break contact with a
+            // ONE-WAY surface — AS3's `shelf` — and `isOnPlatform` is set by the ground query itself
+            // (CheckGroundCollisionAt) exactly when the support it found was one. `isGrounded` is also
+            // true on a solid floor, and a unit standing there has nothing to drop off: the nudge would
+            // write `posY -= 1f` and 2 px/frame of downward velocity on a path that has no business
+            // writing either. The wall branch of the ground query puts it straight back, so it is
+            // invisible — which is exactly why it would go unnoticed for as long as it existed.
+            //
+            // A unit resting on a shelf PROP is `isGrounded` and NOT `isOnPlatform`, and it still drops:
+            // through the level, and through the gated prop landing in MoveSingleStep. Nothing depends on
+            // this nudge to leave a crate.
+            if (isOnPlatform)
             {
                 dy = Mathf.Min(dy, -2f);
                 posY -= 1f;

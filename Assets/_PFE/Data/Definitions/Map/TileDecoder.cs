@@ -216,13 +216,27 @@ namespace PFE.Systems.Map
 
             if (form.phis != 0)
             {
-                // Map AS3 phis to Unity TilePhysicsType
-                tile.physicsType = MapPhysicsType(form.phis, form.shelf);
+                // Map AS3 phis to Unity TilePhysicsType.
+                // AS3 `Tile.inForm()` reads only `param1.phis` here (Tile.as:182-185); `shelf` is an
+                // independent flag assigned further down, so it must not colour this mapping.
+                tile.physicsType = MapPhysicsType(form.phis);
             }
 
+            // AS3 `if(param1.shelf) this.shelf = true;` (Tile.as:186-189) — `shelf` is a FLAG; it
+            // never touches `phis`. The only place the flag is read for collision is
+            // `Box.as:1262,1270`, and BOTH arms there are gated on `phis == 0 || phis == 3`: on a
+            // `phis == 1` wall the flag is inert.
+            //
+            // The port used to write `physicsType = Platform` unconditionally, so a beam overlay on a
+            // wall DEMOTED the wall — it stopped blocking light and stopped blocking the sight ray.
+            // Guarding on `!= Wall` keeps the flag's real scope (a shelf over open air, or over a
+            // ladder, is still a one-way platform) without letting it erase a wall.
             if (form.shelf)
             {
-                tile.physicsType = TilePhysicsType.Platform;
+                if (tile.physicsType != TilePhysicsType.Wall)
+                {
+                    tile.physicsType = TilePhysicsType.Platform;
+                }
                 tile.isLedge = true;
             }
 
@@ -271,18 +285,19 @@ namespace PFE.Systems.Map
         }
 
         /// <summary>
-        /// Map AS3 phis integer to Unity TilePhysicsType.
+        /// Map AS3 <c>phis</c> to the port's <see cref="TilePhysicsType"/>.
+        ///
+        /// <para><c>phis</c> alone decides. 0 is air; 1 (solid), 2 (a level-2 solid — the grate doors
+        /// at <c>AllData.as:4859-4860</c>) and 3 (a runtime ghost wall, <c>Spell.as:446</c>) are all
+        /// walls. There is deliberately no <c>shelf</c> parameter: AS3 never lets the shelf flag
+        /// change <c>phis</c> (<c>Tile.as:182-189</c>), and passing one in was how a shelf overlay
+        /// came to overwrite a wall.</para>
         /// </summary>
-        private static TilePhysicsType MapPhysicsType(int phis, bool shelf)
+        private static TilePhysicsType MapPhysicsType(int phis)
         {
-            if (shelf) return TilePhysicsType.Platform;
-
             return phis switch
             {
                 0 => TilePhysicsType.Air,
-                1 => TilePhysicsType.Wall,
-                // AS3 phis=3 is "ghost" wall (temporary, disappears)
-                3 => TilePhysicsType.Wall,
                 _ => TilePhysicsType.Wall
             };
         }

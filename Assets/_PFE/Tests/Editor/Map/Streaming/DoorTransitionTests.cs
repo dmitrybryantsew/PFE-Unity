@@ -1170,5 +1170,85 @@ namespace PFE.Tests.Editor.Map.Streaming
             Assert.That(streaming.CurrentRoom, Is.SameAs(roomB));
             Assert.That(roomB.isActive, Is.True);
         }
+
+        // ── Door open must force a relight (AS3 `Box.setDoor` → `Location.isRelight`) ─────────────
+        //
+        // `Box.as:688-692` is `if(param1) { loc.isRelight = true; loc.isRebuild = true; }` where
+        // `param1` is the *new* open state — so **opening** force-relights and closing does not. The
+        // room's step gate (`Location.as:3398`) then runs the full `lighting()` pass on the next frame
+        // regardless of camera motion. Without the port wiring this, a door opened while the player
+        // stood still left the mask stale until the player crossed a tile — the "open a door and the
+        // doorway stays dark" symptom. See RoomInstance.RequestRelight / RoomBackdropRenderer.
+
+        /// <summary>Builds a closed `door1` presenter over the fixture room, as the collision test does.</summary>
+        private DoorPropPresenter CreateClosedDoorPresenter(out MapObjectVisualDefinition visualDef)
+        {
+            var doorObj = new ObjectInstance
+            {
+                objectId = "door1",
+                objectType = "door",
+                position = new Vector2(200f, 100f), // covers tiles X 4..5, Y 2..4
+                runtimeState = new MapObjectRuntimeStateData { isOpen = false }
+            };
+
+            visualDef = ScriptableObject.CreateInstance<MapObjectVisualDefinition>();
+            visualDef.pixelSize = new Vector2Int(40, 80);
+
+            var go = new GameObject("RelightDoor");
+            go.transform.SetParent(_holderGo.transform);
+            var renderer = go.AddComponent<SpriteRenderer>();
+            var presenter = go.AddComponent<DoorPropPresenter>();
+            presenter.Initialize(_room, doorObj, visualDef, renderer, null);
+            return presenter;
+        }
+
+        [Test]
+        public void InitializingAClosedDoor_DoesNotRequestARelight()
+        {
+            // The control for the two tests below, and its own oracle point: `Box.initDoor` stamps
+            // `opac` (Box.as:667) but never touches `isRelight`. A room full of closed doors must not
+            // each buy a full light pass at activation.
+            DoorPropPresenter presenter = CreateClosedDoorPresenter(out MapObjectVisualDefinition visualDef);
+
+            Assert.That(_room.ConsumeRelightRequest(), Is.False,
+                "Initialize() must not request a relight — AS3 initDoor does not set isRelight");
+
+            Object.DestroyImmediate(visualDef);
+        }
+
+        [Test]
+        public void OpeningADoor_RequestsARelight()
+        {
+            DoorPropPresenter presenter = CreateClosedDoorPresenter(out MapObjectVisualDefinition visualDef);
+
+            // Drain whatever init left, so the assertion below can only be reading the open path.
+            Assert.That(_room.ConsumeRelightRequest(), Is.False, "precondition: init requested nothing");
+
+            presenter.SetOpen(true);
+
+            Assert.That(_room.ConsumeRelightRequest(), Is.True,
+                "opening a door is AS3's isRelight (Box.as:690) — it must force the full light pass, " +
+                "which is what reveals the room behind it without the player having to move");
+
+            Object.DestroyImmediate(visualDef);
+        }
+
+        [Test]
+        public void ClosingADoor_DoesNotRequestARelight()
+        {
+            // The asymmetry is the oracle's: `Box.as:688` guards the force flags with `if(param1)`,
+            // so a *close* relies on the camera-movement trigger to pick up the light it now blocks.
+            DoorPropPresenter presenter = CreateClosedDoorPresenter(out MapObjectVisualDefinition visualDef);
+
+            presenter.SetOpen(true);
+            _room.ConsumeRelightRequest(); // drain the open request, so this reads the close path only
+
+            presenter.SetOpen(false);
+
+            Assert.That(_room.ConsumeRelightRequest(), Is.False,
+                "closing must not request a relight — Box.as:688 sets isRelight only when opening");
+
+            Object.DestroyImmediate(visualDef);
+        }
     }
 }

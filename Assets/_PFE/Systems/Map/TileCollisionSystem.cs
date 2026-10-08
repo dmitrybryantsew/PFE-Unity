@@ -234,6 +234,11 @@ namespace PFE.Systems.Map
         /// Apply damage to tiles at a position.
         /// Returns true if any tile was damaged.
         /// Converts world pixel coordinates to room-local tile coordinates.
+        ///
+        /// <para>This is the port of AS3 <c>Location.hitTile()</c>, so it carries that method's gate:
+        /// every destruction branch there is guarded by <c>phis &gt;= 1</c>
+        /// (<c>Location.as:2525, 2538, 2557, 2565</c>). Without the gate a ladder or a catwalk — both
+        /// <c>phis == 0</c> in the oracle — could be shot away.</para>
         /// </summary>
         public bool ApplyDamage(Vector2 position, int damage, int radiusTiles = 1)
         {
@@ -248,7 +253,14 @@ namespace PFE.Systems.Map
                 for (int y = centerTile.y - radiusTiles; y <= centerTile.y + radiusTiles; y++)
                 {
                     TileData tile = room.GetTileAtCoord(new Vector2Int(x, y));
-                    if (tile != null && tile.TakeDamage(damage))
+
+                    // AS3 `if(param1.phis >= 1)` — a ladder/catwalk/ramp is scenery, not a target.
+                    if (tile == null || !tile.IsDamageable())
+                    {
+                        continue;
+                    }
+
+                    if (tile.TakeDamage(damage))
                     {
                         damaged = true;
 
@@ -268,6 +280,19 @@ namespace PFE.Systems.Map
         /// Cast a ray and get first collision point.
         /// Returns tile hit and position, or null if no collision.
         /// Converts world pixel coordinates to room-local tile coordinates.
+        ///
+        /// <para><b>This is the line-of-sight ray, and its predicate is <c>phis == 1</c>.</b> Every
+        /// sight consumer in the oracle funnels through one test — <c>Unit.look()</c> at
+        /// <c>Unit.as:4626</c> — and the other three (<c>Location.isLine()</c> at
+        /// <c>Location.as:2368-2388</c>, used by telekinesis <c>UnitPlayer.as:1765,1792,1934</c> and
+        /// <c>UnitPet.as:372</c>; and <c>Spell.as:260</c>) read the same field the same way. So a
+        /// ladder (<c>phis == 0</c>) and a catwalk (<c>phis == 0</c>) block nothing, at any angle.</para>
+        ///
+        /// <para><b>Deliberately not <c>TileData.IsSolid()</c>.</b> That helper is
+        /// <c>physicsType &gt;= Wall</c>, i.e. "blocks movement", and it includes <c>Platform</c> and
+        /// <c>Stair</c> — which is how enemies came to be unable to see through catwalks and ladders.
+        /// Each consumer gets its own predicate; this is the sight one. See
+        /// <see cref="PFE.Systems.Map.TileQuery.ProjectileOcclusionRule"/> for the bullet's.</para>
         /// </summary>
         public (TileData tile, Vector2 point)? Raycast(Vector2 origin, Vector2 direction, float maxDistance)
         {
@@ -284,22 +309,13 @@ namespace PFE.Systems.Map
                 Vector2Int tileCoord = WorldCoordinates.PixelToTile(localPos);
                 TileData tile = room.GetTileAtCoord(tileCoord);
 
-                if (tile != null && tile.IsSolid())
+                // AS3 `if(_loc15_.phis == 1 && ...bounds...) return 0;` (Unit.as:4626) — a wall stops
+                // sight outright. The port used to test `IsSolid()` and then special-case platforms
+                // with `direction.y < 0`; that whole platform arm is unreachable once the predicate is
+                // `Wall`, because a shelf is `phis == 0` and never blocks sight in any direction.
+                if (tile != null && tile.physicsType == TilePhysicsType.Wall)
                 {
-                    if (tile.IsPlatform() && direction.y < 0) // Only check platforms from above
-                    {
-                        Rect bounds = tile.GetBounds();
-                        // Convert bounds to world coordinates for comparison
-                        Rect worldBounds = new Rect(bounds.xMin + roomWorldPixelX, bounds.yMin + roomWorldPixelY, bounds.width, bounds.height);
-                        if (currentPos.y >= worldBounds.yMax)
-                        {
-                            return (tile, currentPos);
-                        }
-                    }
-                    else if (!tile.IsPlatform())
-                    {
-                        return (tile, currentPos);
-                    }
+                    return (tile, currentPos);
                 }
 
                 currentPos += step;

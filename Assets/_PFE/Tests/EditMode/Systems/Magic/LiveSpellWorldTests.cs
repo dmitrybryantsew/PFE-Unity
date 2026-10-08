@@ -28,6 +28,8 @@ namespace PFE.Tests.EditMode.Systems.Magic
         bool ITileQueryService.CheckCollision(Rect boundsPx, TileQueryOptions options) => throw new NotSupportedException();
         float ITileQueryService.GetGroundHeight(Vector2 positionPx) => throw new NotSupportedException();
         bool ITileQueryService.IsOnGround(Rect boundsPx) => throw new NotSupportedException();
+        bool ITileQueryService.IsOnGround(Rect boundsPx, TileQueryOptions options) => throw new NotSupportedException();
+        bool ITileQueryService.TryGetSupportSpan(Rect boundsPx, TileQueryOptions options, out float supportLeftWorldPx, out float supportRightWorldPx) => throw new NotSupportedException();
 
         public abstract TileRaycastHit? Raycast(Vector2 originPx, Vector2 direction, float maxDistancePx);
 

@@ -39,10 +39,10 @@ namespace PFE.Entities.Units
     /// <c>PfeDebugSettings.SimTickEnabled</c> is off. That trade is the caller's to make; this class
     /// needs nothing but a renderer.</para>
     ///
-    /// <para><b>What it does not do yet.</b> Nothing drives the state machine: with no AI ported,
-    /// <c>animState</c> stays <c>stay</c> forever, exactly as AS3's constructor leaves it
-    /// (<c>Unit.as:2860</c>). Walking, attacking and dying become visible the moment something calls
-    /// <see cref="SetState"/>; the stepping and the cell indexing are already the oracle's.</para>
+    /// <para><b>What drives it.</b> <see cref="EnemyBrain.UpdateAnimation"/> selects the state
+    /// (<see cref="SetState"/>) and poses a <c>stab</c> row (<see cref="SetStab"/>); the stepping and the
+    /// cell indexing here are the oracle's. A unit whose brain never calls <see cref="SetState"/> stays on
+    /// <c>stay</c> forever, exactly as AS3's constructor leaves it (<c>Unit.as:2860</c>).</para>
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class UnitAnimator : MonoBehaviour
@@ -183,6 +183,56 @@ namespace PFE.Entities.Units
             state.Restart(ref _frame, ref _stopped);
 
             return state.HasFrames;
+        }
+
+        /// <summary>
+        /// Pose a <c>stab</c> row from outside — AS3 <c>BlitAnim.setStab(progress)</c>
+        /// (<c>BlitAnim.as:3741-3751</c>): <c>this.f = this.maxf * clamp(progress, 0, 0.999)</c>.
+        ///
+        /// <para><b>Why a state needs this at all.</b> A row declared <c>stab='1'</c> is
+        /// <see cref="AnimationFrame.isStatic"/>, and <see cref="AnimationFrame.Step"/> returns
+        /// immediately for it — so it never advances by itself and, without a caller here, it can only
+        /// ever show its first cell. That is not hypothetical: the zombie's <c>jump</c> row is
+        /// <c>stab='1'</c> (<c>AllData.as:80</c>, <c>&lt;blit id='jump' y='3' len='16' stab='1'/&gt;</c>)
+        /// and the oracle drives it every airborne frame from
+        /// <c>UnitZombie.as:308</c>, so a port that plays it as an ordinary self-advancing row shows a
+        /// <b>frozen launch pose</b> for the whole arc — which reads as "the jump animation is wrong"
+        /// rather than as "the row is not being driven".</para>
+        ///
+        /// <para><b>Call it before <see cref="SetState"/>, not after.</b> That is the oracle's order and
+        /// it is load-bearing on exactly one frame: <c>setStab</c> is called at <c>:308</c> and the
+        /// restart at <c>:318</c> (<c>if(animState != animState2) { anims[animState].restart(); }</c>),
+        /// and <c>restart()</c> sets <c>f = firstf</c> — so on the frame the state <i>changes</i> into
+        /// <c>jump</c> the pose is discarded and cell 0 is drawn. Posing after <see cref="SetState"/>
+        /// would draw the velocity-derived cell one frame early and the launch pose would never be seen.
+        /// </para>
+        ///
+        /// <para><b>Consequence, stated because it looks like a bug:</b> on that one change frame
+        /// <c>_state</c> is still the <i>previous</i> row, so <see cref="AnimationFrame.FrameAtProgress"/>
+        /// is asked for a cell of the row the unit is leaving. The result is harmless <i>only</i> because
+        /// <see cref="SetState"/> discards it — which is the behaviour above, not an accident to be
+        /// repaired. Do not move this call after <see cref="SetState"/> to "get the right row": that
+        /// makes the pose survive the change frame and diverges from the oracle.
+        /// </para>
+        ///
+        /// <para><b>The cursor is written unconditionally, like AS3's.</b> <c>setStab</c> does not test
+        /// <c>stab</c>, so neither does this — the caller owns "only pose a row that is <c>stab</c>",
+        /// which mirrors the oracle having exactly one call site. The last-drawn cell is invalidated
+        /// because the cell <i>is</i> the cursor here: without that, <see cref="Draw"/>'s
+        /// unchanged-cell guard would skip the redraw and the row would hold its previous pose.</para>
+        /// </summary>
+        /// <param name="progress">Normalised pose, <c>0</c> at the start of the row and <c>1</c> at its
+        /// end. Clamped by <see cref="AnimationFrame.FrameAtProgress"/> below <c>1</c>, so the last cell
+        /// stays reachable.</param>
+        public void SetStab(float progress)
+        {
+            if (!_state.HasFrames)
+            {
+                return;
+            }
+
+            _frame = _state.FrameAtProgress(progress);
+            _drawnCell = -1;
         }
 
         /// <summary>

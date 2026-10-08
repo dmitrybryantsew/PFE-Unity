@@ -489,6 +489,20 @@ namespace PFE.Entities.Enemies
             if (_blackboard.AttackCooldownTicks > 0) _blackboard.AttackCooldownTicks--;
             if (_blackboard.AlertTimerTicks > 0) _blackboard.AlertTimerTicks--;
 
+            // Mirror the unit's `stay` onto the blackboard, which is where the F3 panel reads it from.
+            //
+            // It has to be written rather than read on demand: `EnemyBlackboard.IsGrounded` was a
+            // declared field with a `true` initialiser that NOTHING ever assigned, so the panel's
+            // `grounded=` readout was the constant `True` for every enemy in every state — a diagnostic
+            // that agreed with a broken build and would have agreed with a fixed one. The value is
+            // `UnitController.IsGrounded`, which is the same flag the archetypes branch on
+            // (`ResolveAnimState`, `HandleLedgeAhead`, `UpdateJump`), so the panel cannot disagree with
+            // the code it is describing.
+            if (_controller != null)
+            {
+                _blackboard.IsGrounded = _controller.IsGrounded;
+            }
+
             // Update candidate targets (find living players)
             RefreshTargetCandidates();
 
@@ -551,6 +565,25 @@ namespace PFE.Entities.Enemies
         }
 
         /// <summary>
+        /// Pose a state that is driven from outside rather than by stepping — AS3's
+        /// <c>BlitAnim.setStab</c> call sites. No-op by default: only the rows declared
+        /// <c>stab='1'</c> need it, and in <c>AllData.as</c> every one of those is a <c>jump</c>.
+        ///
+        /// <para><b>Called <i>before</i> <see cref="UnitAnimator.SetState"/>, and that order is the
+        /// oracle's.</b> <c>UnitZombie.animate()</c> poses at <c>:308</c> and restarts at <c>:318</c>, and
+        /// <c>restart()</c> overwrites the cursor — so the pose is discarded on the frame the state
+        /// <i>changes</i> and cell 0 is drawn instead. Swapping the two calls here would draw the
+        /// velocity-derived cell on the change frame, which is the launch cell's job. See
+        /// <see cref="UnitAnimator.SetStab"/>.</para>
+        /// </summary>
+        /// <param name="state">The id <see cref="ResolveAnimState"/> has just chosen, so an override can
+        /// decide whether it is a row it knows how to pose without asking the animator what it is
+        /// showing.</param>
+        protected virtual void PoseAnimationState(string state)
+        {
+        }
+
+        /// <summary>
         /// Push <see cref="ResolveAnimState"/>'s answer into the animator. Re-selecting the state already
         /// showing is a no-op inside <see cref="UnitAnimator.SetState"/>, which is what lets an AI assert
         /// its state every tick without rewinding the animation.
@@ -565,6 +598,9 @@ namespace PFE.Entities.Enemies
             string state = ResolveAnimState();
             if (!string.IsNullOrEmpty(state))
             {
+                // Pose first: the oracle poses a `stab` row at :308 and restarts the state at :318, and
+                // the restart wins on a change. See PoseAnimationState.
+                PoseAnimationState(state);
                 _animator.SetState(state);
             }
         }
@@ -605,6 +641,10 @@ namespace PFE.Entities.Enemies
                 SetState(EnemyAIState.Alert);
                 return;
             }
+
+            // The oracle's order: the edge reaction is decided before the move, so a turn it performs is
+            // the direction this tick's move follows (UnitZombie.as:789-835, then the speed write).
+            HandleLedgeAhead(tickIndex);
 
             MoveHorizontal(_blackboard.FacingDirection * _patrolSpeed);
 
@@ -657,6 +697,12 @@ namespace PFE.Entities.Enemies
                 int moveDir = diffX > 0 ? 1 : -1;
                 _blackboard.FacingDirection = moveDir;
                 ApplyFacing(moveDir);
+
+                // UnitZombie.as:890-900 is gated on `aiState == 2 || aiState == 3` — the alert state as
+                // well as the chase — so this hook belongs here too. See HandleLedgeAhead's remarks for
+                // why a handler must not expect a facing flip to survive this branch.
+                HandleLedgeAhead(tickIndex);
+
                 MoveHorizontal(moveDir * _alertSpeed);
             }
             else
@@ -673,15 +719,35 @@ namespace PFE.Entities.Enemies
 
         protected virtual void TickCombatChase(int tickIndex)
         {
-            if (_blackboard.TargetUnit == null || !_blackboard.TargetUnit.IsAlive)
+            // A DEAD target ends the hunt outright — there is nothing left to search for. This is the
+            // only remaining use of `TargetUnit` as an exit condition, and it is deliberately narrower
+            // than the old `TargetUnit == null` test. See the awareness note below.
+            if (_blackboard.TargetUnit != null && !_blackboard.TargetUnit.IsAlive)
             {
                 _blackboard.ClearTarget();
                 SetState(EnemyAIState.Alert);
                 return;
             }
 
-            // Target lost for more than 3 seconds (90 ticks)
-            if (_blackboard.TimeSinceTargetSpottedTicks > 90)
+            // ── The exit is the AWARENESS BUDGET, not the sighting. ────────────────────────────────
+            //
+            // This was `if (TargetUnit == null) { ClearTarget(); SetState(Alert); }` followed by
+            // `if (TimeSinceTargetSpottedTicks > 90) SetState(Alert);` — and the second line was DEAD
+            // CODE, because `EnemySensors.Evaluate` nulls `TargetUnit` on the very first tick the target
+            // is not visible. So the first guard always fired first, the 90-tick grace period could
+            // never be read, and the unit dropped out of the chase — and out of its run speed — on the
+            // FIRST obscured tick. That is the report: "it loses me too quickly … and can find me only
+            // if I go back into its LOS or make a sound."
+            //
+            // AS3 does not work that way. `celUnit` does clear the moment the target is not seen
+            // (`findCel()`'s trailing `this.celUnit = null`), but the hunt is driven by `aiSpok` and the
+            // GOAL by `celX`/`celY` — which survive, and which `aiSpok` keeps the unit walking toward
+            // until the budget drains. So a sighting is not what keeps the chase alive; the budget is.
+            //
+            // The direction below already reads `LastKnownTargetPosition`, which is the port's
+            // `celX`/`celY`, so nothing else has to change for the unit to keep pursuing a target it can
+            // no longer see. EnemyAwarenessMath carries the oracle's numbers.
+            if (!EnemyAwarenessMath.IsChasing(_blackboard.AlertTimerTicks))
             {
                 SetState(EnemyAIState.Alert);
                 return;
@@ -695,22 +761,21 @@ namespace PFE.Entities.Enemies
             //
             //   * In the oracle `shok` never gates movement. Its only two effects are halving a
             //     zombie's contact damage (`UnitZombie.as:940`) and refusing a raider's attacks
-            //     (`UnitRaider.as:1486`, `:1498`, `:1521`) — both offence, neither locomotion. The
-            //     damage half is already modelled (`ZombieBrain.ExecuteAttackAction`, via
-            //     `StaggerMath.HalvesOutgoingDamage`).
-            //   * The pause this code actually wants is a DIFFERENT field: `aiSpok` (`maxSpok = 30`,
-            //     `Unit.as:362`), which the oracle counts up to `maxSpok + 10` before promoting an
-            //     aware unit into the chase (`UnitZombie.as:623-675`) — about 40 ticks of "I have
-            //     noticed you" before it moves.
+            //     (`UnitRaider.cs:1486`, `:1498`, `:1521` in the port; the oracle's equivalents are the
+            //     same three sites) — both offence, neither locomotion. The damage half is already
+            //     modelled (`ZombieBrain.ExecuteAttackAction`, via `StaggerMath.HalvesOutgoingDamage`).
+            //   * The pause this code wants is not `shok` at all. It is a port-only "I have just noticed
+            //     you" beat, kept because a zombie that starts moving on the exact tick it acquires a
+            //     target reads as a teleport rather than as a reaction.
             //
-            // The port does not model `aiSpok`, so this gate is the stand-in for it and is kept: a
-            // pause that is too short is still closer to the oracle than none. It is NOT tuned to
-            // `shok`'s range, and it is deliberately left reading the field it always read — but be
-            // aware that widening `shok` to the oracle's 5..19 lengthened this pause from at most
-            // 0.23 s to at most 0.63 s as a side effect. The oracle's value here is ~40 ticks, so that
-            // is a move toward the oracle rather than away from it, but it is a real change and it was
-            // not the point of the edit. Closing the gap properly means modelling the `aiSpok`
-            // awareness ladder; that is its own task.
+            // It USED to be described here as a stand-in for `aiSpok`, on the grounds that the port did
+            // not model `aiSpok`. That is no longer true — `EnemyAwarenessMath` now carries the ladder,
+            // and `TickCombatChase`'s exit condition reads it. So this gate stands on its own as a
+            // deliberate port-only delay, and the two must not be conflated: `aiSpok` decides how long a
+            // unit KEEPS a target, this decides how long it waits before it starts moving toward one.
+            // Widening `shok` to the oracle's 5..19 lengthened this pause from at most 0.23 s to at most
+            // 0.63 s as a side effect of a different edit; that is still a real change and it is not
+            // justified by the oracle.
             if (_blackboard.ShockTimerTicks > 0)
             {
                 StopMovement();
@@ -723,7 +788,13 @@ namespace PFE.Entities.Enemies
             _blackboard.FacingDirection = chaseDir;
             ApplyFacing(chaseDir);
 
-            bool inRange = IsTargetInAttackRange();
+            // AS3 gates the contact attack on `celUnit` — a unit swings at something it can SEE
+            // (`UnitZombie.as:938`, `if(celUnit && celDX < optDistAtt && …)`). That gate matters more now
+            // that the chase deliberately outlives the sighting: `TargetDeltaX`/`TargetDeltaY` and
+            // `TargetDistance` are refreshed only while the target is visible, so without this test the
+            // unit would keep swinging at remembered distances for the whole awareness budget — through
+            // walls, at a player it cannot see.
+            bool inRange = _blackboard.TargetUnit != null && IsTargetInAttackRange();
 
             if (inRange && _blackboard.AttackCooldownTicks <= 0)
             {
@@ -744,6 +815,10 @@ namespace PFE.Entities.Enemies
                 StopMovement();
                 return;
             }
+
+            // UnitZombie.as:890-900 sits at the end of the chase's movement block, after the speed is
+            // decided and before it is applied — the same place this does.
+            HandleLedgeAhead(tickIndex);
 
             MoveHorizontal(chaseDir * _chaseSpeed);
         }
@@ -861,9 +936,112 @@ namespace PFE.Entities.Enemies
             }
         }
 
+        /// <summary>
+        /// AS3 <c>Unit.throu</c> (<c>Unit.as:296</c>) — tell the <b>live</b> movement layer whether
+        /// one-way platforms are ground for this unit right now.
+        ///
+        /// <para><b>Routed exactly the way <see cref="MoveHorizontal"/> is routed, and for the same
+        /// reason.</b> Exactly one of the two layers is driving this unit — <c>RoomUnitSpawner</c> picks
+        /// one — and a brain that wrote to both would have its answer honoured by whichever one is
+        /// actually stepping the unit, i.e. possibly by neither. One place decides which layer is live so
+        /// the two cannot disagree.</para>
+        ///
+        /// <para><b>It is a level, not a request.</b> The caller asserts it every tick it holds, and must
+        /// assert <c>false</c> on the ticks it does not — merely stopping the calls would leave the flag
+        /// latched, which is not the oracle's behaviour. <c>UnitZombie.control()</c> recomputes it every
+        /// frame with an explicit else-branch (<c>:857-864</c>) and clears it again near the room's floor
+        /// (<c>:934-937</c>).</para>
+        /// </summary>
+        protected virtual void SetDropThroughPlatforms(bool shouldDropThrough)
+        {
+            if (_motor != null)
+            {
+                _motor.SetDropThroughPlatforms(shouldDropThrough);
+            }
+            else if (_controller != null)
+            {
+                _controller.SetDropThroughPlatforms(shouldDropThrough);
+            }
+        }
+
+        /// <summary>
+        /// AS3 <c>UnitZombie.jump()</c> (<c>UnitZombie.as:388-399</c>) — give this unit an <b>upward</b>
+        /// velocity, in AS3's units (pixels per 30 Hz frame).
+        ///
+        /// <para><b>Routed exactly the way <see cref="MoveHorizontal"/> and
+        /// <see cref="SetDropThroughPlatforms"/> are routed, and for the same reason.</b> Exactly one of
+        /// the two layers is driving this unit — <c>RoomUnitSpawner</c> picks one — so a brain that wrote
+        /// to both would have its answer honoured by whichever one is actually stepping the unit, i.e.
+        /// possibly by neither.</para>
+        ///
+        /// <para><b>The two layers do not share a unit, and this method is where that is reconciled</b> —
+        /// the same 3.33× trap <see cref="MoveHorizontal"/> documents.
+        /// <c>TilePhysicsController.Jump</c> assigns straight into its <c>dy</c> (px/frame,
+        /// <c>:612</c>); <c>UnitController.SetVelocityY</c> assigns into a Unity-units-per-second field
+        /// (<c>:1565</c>).</para>
+        ///
+        /// <para><b>The sign is positive, and it is not a typo.</b> AS3 writes <c>dy = -jumpdy</c> because
+        /// AS3's Y grows <i>downward</i>; the port's grows <i>upward</i>, so the same impulse is positive
+        /// here. The negation belongs to the axis and not to the caller — a caller that carried the
+        /// oracle's minus sign across would drive the zombie into the floor.</para>
+        ///
+        /// <para><b>No "can I jump" test lives here.</b> The oracle's <c>jump()</c> guards on <c>stay</c>
+        /// and <c>Unit.as:1890</c> refuses when <c>jumpdy &lt;= 0</c>; both are the caller's, and both are
+        /// applied by <c>ZombieBrain.UpdateJump</c> before it gets here. A second copy in this seam would
+        /// be a second answer to "is this unit allowed to jump".</para>
+        /// </summary>
+        /// <param name="upwardForcePixelsPerFrame">The impulse in AS3's units — <c>jumpdy</c>, i.e.
+        /// <c>UnitDefinition.JumpForce</c> (18 for <c>zombie0</c>). Positive is up.</param>
+        protected virtual void JumpVertical(float upwardForcePixelsPerFrame)
+        {
+            if (_motor != null)
+            {
+                _motor.Jump(upwardForcePixelsPerFrame);
+            }
+            else if (_controller != null)
+            {
+                _controller.SetVelocityY(
+                    upwardForcePixelsPerFrame * TileQueryConstants.PerFrameVelocityToUnitsPerSecond);
+            }
+        }
+
         protected virtual void StopMovement()
         {
             MoveHorizontal(0f);
+        }
+
+        /// <summary>
+        /// A per-tick chance to react to the <b>edge of what this unit is standing on</b>, called
+        /// <i>before</i> the move in <see cref="TickPatrol"/> and <see cref="TickCombatChase"/>.
+        ///
+        /// <para><b>Why a hook rather than overriding the two ticks.</b> Both ticks do more than move —
+        /// they test the target and the noise latch and run the state timer — so an archetype that
+        /// overrode them would have to restate all of it to add one reaction. The oracle's shape is the
+        /// same: <c>UnitZombie.control()</c> decides a jump request and a desired direction, and
+        /// <c>move()</c> applies them. The reaction belongs <i>inside</i> the state branch, not instead
+        /// of it.</para>
+        ///
+        /// <para><b>The placement is load-bearing, not cosmetic.</b> It runs after the transitions and
+        /// before the move, so a reaction may flip the facing and the move then follows the <i>new</i>
+        /// facing — which is exactly what "turn around at the lip" means. Called before the transitions it
+        /// would react to an edge in a state the unit is already leaving.</para>
+        ///
+        /// <para><b>A caller that has already derived its own direction keeps it.</b>
+        /// <see cref="TickPatrol"/> moves along <c>_blackboard.FacingDirection</c>, so a flip by the
+        /// handler is followed. <see cref="TickCombatChase"/> moves along the direction to the target,
+        /// which it re-derives every tick, so a flip there lasts only until the next tick — which is the
+        /// oracle's behaviour too, since a chasing unit's <c>aiNapr</c> is re-derived from <c>celX</c>.
+        /// A handler that needs to change a chaser's course must do something other than flip.</para>
+        ///
+        /// <para><b>The base does nothing, and that is a decision.</b> AS3's ledge idiom is
+        /// per-archetype — it appears in <c>UnitAIRobot</c>, <c>UnitAlicorn</c>, <c>UnitAnt</c>,
+        /// <c>UnitBossNecr</c>, <c>UnitBossRaider</c>, <c>UnitHellhound</c> and <c>UnitZombie</c> — and
+        /// the archetypes that do <i>not</i> carry it must not inherit one. A default that turned every
+        /// enemy around at every lip would be a much larger behaviour change than the one being
+        /// ported.</para>
+        /// </summary>
+        protected virtual void HandleLedgeAhead(int tickIndex)
+        {
         }
 
         protected virtual void ApplyFacing(int direction)

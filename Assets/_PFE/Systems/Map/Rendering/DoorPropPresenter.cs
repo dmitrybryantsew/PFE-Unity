@@ -357,6 +357,23 @@ namespace PFE.Systems.Map.Rendering
             }
 
             ApplyTileCollision(open);
+
+            // AS3 `Box.setDoor()` force-relights the room when the door is *opened*, and only then:
+            // `if(param1) { loc.isRelight = true; loc.isRebuild = true; }` (Box.as:688-692, where
+            // param1 is the new open state). The room's per-frame gate (Location.as:3398) then runs
+            // the full light pass on the next frame regardless of camera motion, so opening a door
+            // immediately reveals what is behind it — including the hole a closed grate's low `opac`
+            // already lets through.
+            //
+            // Closing deliberately does *not* request a relight, matching the oracle: light that
+            // should now be blocked is picked up by the next camera/player movement instead. Init
+            // does not either — AS3 `initDoor` stamps `opac` (Box.as:667) without touching the flag,
+            // and Initialize() calls ApplyTileCollision directly rather than through here.
+            if (open && _room != null)
+            {
+                _room.RequestRelight();
+            }
+
             UpdateVisualFrame();
 
             if (_triggerSystem != null && _room != null)
@@ -431,6 +448,18 @@ namespace PFE.Systems.Map.Rendering
 
             TilePhysicsType targetType = isOpen ? TilePhysicsType.Air : TilePhysicsType.Wall;
 
+            // AS3 Box.setDoor() writes `opac` alongside `phis` on every tile the door covers
+            // (Box.as:684-685): 0 while open, the door's own `@opac` while closed. The default is 1
+            // (Box.as:72), so an unauthored door blocks light completely — only a door that authors
+            // `opac` opens a hole in its own shadow. The data does that on 11 doors, 0.1 (grates) to
+            // 0.8 (wooden doors) — AllData.as:4859-5039.
+            //
+            // Without this term the port closed every door to a full Wall, i.e. opacity 1, so a closed
+            // grate or window was solid black where AS3 costs a shadow ray only 0.1-0.2 and lets you
+            // see through. `phis` stays 1 for both cases, so this changes light only — enemy LOS and
+            // movement still treat a closed door as solid, which is what Box.as:684 does.
+            float doorOcclusion = isOpen ? 0f : ResolveClosedDoorOcclusion();
+
             for (int x = txMin; x <= txMax; x++)
             {
                 for (int y = tyMin; y <= tyMax; y++)
@@ -439,9 +468,23 @@ namespace PFE.Systems.Map.Rendering
                     if (tile != null)
                     {
                         tile.physicsType = targetType;
+                        tile.doorOcclusion = doorOcclusion;
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// AS3 <c>Box.door_opac</c> for this door — its <c>@opac</c>, defaulting to 1 exactly as
+        /// <c>Box.as:72</c> declares it. A door with no definition keeps that default, which is also
+        /// the behaviour this port had before the term existed, so a missing definition can only fail
+        /// back to the old result rather than to "see through the door".
+        /// </summary>
+        private float ResolveClosedDoorOcclusion()
+        {
+            return _objectInstance?.definition != null
+                ? _objectInstance.definition.GetDoorOcclusion()
+                : 1f;
         }
 
         /// <summary>

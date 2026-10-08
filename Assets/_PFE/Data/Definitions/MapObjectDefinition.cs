@@ -181,6 +181,30 @@ namespace PFE.Data.Definitions
                 : defaultValue;
         }
 
+        /// <summary>
+        /// AS3 <c>Box.door_opac</c> — the <c>@opac</c> a door stamps onto every tile it covers.
+        ///
+        /// <para><c>Box.as:72</c> declares it as <c>1</c>, <c>:293-295</c> parses <c>@opac</c> into it,
+        /// and <c>:667</c> (<c>initDoor</c>) and <c>:685</c> (<c>setDoor</c>, the closed branch) write it
+        /// onto <c>Tile.opac</c>. Because the default is 1, an unauthored door is a full light blocker
+        /// and the attribute only ever <i>opens a hole in the shadow</i>.</para>
+        ///
+        /// <para>The data uses that on 11 doors (<c>AllData.as:4859-5039</c>): <c>grate</c>/<c>hgrate</c>/
+        /// <c>alib1</c>/<c>alib2</c> 0.1, <c>window1</c>/<c>window2</c> 0.2, <c>door4</c>/<c>enclpole</c>
+        /// 0.3, <c>door1</c>/<c>door1a</c>/<c>door1b</c>/<c>hatch1</c> 0.8. A closed grate therefore costs
+        /// a shadow ray 0.1 rather than stopping it — which is why you can see through one in AS3.</para>
+        /// </summary>
+        public float GetDoorOcclusion()
+        {
+            return float.TryParse(
+                GetAttribute("opac"),
+                NumberStyles.Float,
+                CultureInfo.InvariantCulture,
+                out float parsed)
+                ? Mathf.Clamp01(parsed)
+                : 1f;
+        }
+
         public MapObjectPhysicalCapability GetResolvedPhysicalCapability()
         {
             if (physicalCapability != MapObjectPhysicalCapability.Unknown)

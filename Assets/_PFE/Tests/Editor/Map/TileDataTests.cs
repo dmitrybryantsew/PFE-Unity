@@ -181,6 +181,55 @@ namespace PFE.Tests.Editor.Map
             Assert.IsTrue(tile.IsStair());
         }
 
+        // ── IsDamageable — the `phis >= 1` gate ──────────────────────────────────────────
+
+        [Test]
+        public void IsDamageable_Wall_IsTrue()
+        {
+            TileData tile = new TileData { physicsType = TilePhysicsType.Wall };
+
+            Assert.IsTrue(tile.IsDamageable(),
+                "AS3 `Location.hitTile()` guards every destruction branch on `phis >= 1` " +
+                "(Location.as:2525, 2538, 2557, 2565), and a wall form carries `phis == 1`.");
+        }
+
+        [Test]
+        public void IsDamageable_SurfacePhysicsTypes_AreFalse()
+        {
+            Assert.IsFalse(new TileData { physicsType = TilePhysicsType.Air }.IsDamageable());
+
+            Assert.IsFalse(new TileData { physicsType = TilePhysicsType.Platform }.IsDamageable(),
+                "A shelf/catwalk is `phis == 0` (Tile.as:186-189) — scenery, not a destructible.");
+
+            Assert.IsFalse(new TileData { physicsType = TilePhysicsType.Stair }.IsDamageable(),
+                "A stair/ladder is `phis == 0` (Tile.as:194-197) — scenery, not a destructible.");
+        }
+
+        [Test]
+        public void TakeDamage_IsNotGated_SoTheGateMustStayAtTheCallers()
+        {
+            // This pair is what keeps the two halves of the rule apart, and it is the regression
+            // guard for a tempting "tidy-up": folding `IsDamageable()` INTO `TakeDamage()` would
+            // break the tests above it, because `TakeDamage` is AS3 `Tile.udar()` (Tile.as:340-348)
+            // — which checks only `indestruct` and `thre` and has no `phis` test at all. The gate
+            // belongs to `Location.hitTile()`, i.e. to the callers.
+            //
+            // If this test is ever deleted, a caller that forgets `IsDamageable()` silently regains
+            // the ability to shoot out the catwalk it is standing on.
+            TileData ladder = new TileData
+            {
+                physicsType = TilePhysicsType.Stair,
+                stairType = 1,
+                hitPoints = 1000,
+                indestructible = false,
+                damageThreshold = 0
+            };
+
+            Assert.IsFalse(ladder.IsDamageable());
+            Assert.IsTrue(ladder.TakeDamage(100), "udar() itself is ungated — that is the point.");
+            Assert.AreEqual(900, ladder.hitPoints);
+        }
+
         [Test]
         public void TakeDamage_DestructibleTile_ReducesHP()
         {
@@ -371,6 +420,45 @@ namespace PFE.Tests.Editor.Map
             // Far right of tile (clamped to the right edge)
             height = tile.GetGroundHeight(bounds.xMax + 100);
             Assert.AreEqual(bounds.yMax, height, 0.001f);
+        }
+
+        // -----------------------------------------------------------------------------------------
+        // doorOcclusion — AS3 `Tile.opac` as written by a door object (Box.as:667, 685).
+        // -----------------------------------------------------------------------------------------
+
+        /// <summary>
+        /// The default has to be the sentinel, not 0. <c>0</c> is what AS3 writes for an <i>open</i>
+        /// door, so a default of 0 would make "no door here" and "an open door here" the same value and
+        /// the occlusion rule would have to guess.
+        /// </summary>
+        [Test]
+        public void DoorOcclusion_DefaultsToTheSentinel_NotToZero()
+        {
+            TileData tile = new TileData();
+
+            Assert.AreEqual(TileData.NoDoorOcclusion, tile.doorOcclusion);
+            Assert.Less(tile.doorOcclusion, 0f,
+                "The sentinel must be negative — see FogOcclusionMathTests.NoDoorSentinel_LeavesTheWallOpaque.");
+        }
+
+        /// <summary>
+        /// AS3 <c>Tile.die()</c> clears <c>opac</c> along with <c>phis</c> (Tile.as:350-364), and a
+        /// door's own <c>die()</c> does the same (Box.as:806-807).
+        /// </summary>
+        [Test]
+        public void Destroy_ClearsTheDoorOcclusion()
+        {
+            TileData tile = new TileData
+            {
+                physicsType = TilePhysicsType.Wall,
+                doorOcclusion = 0.8f
+            };
+
+            tile.Destroy();
+
+            Assert.AreEqual(TileData.NoDoorOcclusion, tile.doorOcclusion,
+                "A destroyed door tile must not keep the door's fractional value; if anything later made " +
+                "the tile solid again the stale value would come back to life.");
         }
     }
 }

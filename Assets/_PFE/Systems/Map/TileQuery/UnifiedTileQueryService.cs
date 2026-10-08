@@ -63,12 +63,46 @@ namespace PFE.Systems.Map.TileQuery
 
         public bool IsOnGround(Rect boundsPx)
         {
+            return IsOnGround(boundsPx, TileQueryOptions.Default);
+        }
+
+        /// <summary>
+        /// The <c>throu</c>-aware ground probe. Only <see cref="TileQueryOptions.CanFallThroughPlatforms"/>
+        /// is consulted; see the interface's remarks for why this is an overload rather than a defaulted
+        /// parameter on <see cref="IsOnGround(Rect)"/>.
+        /// </summary>
+        public bool IsOnGround(Rect boundsPx, TileQueryOptions options)
+        {
             Vector2 origin = OriginPixel;
             return TileCollisionMath.IsOnGround(
                 Room,
                 boundsPx,
                 origin.x, origin.y,
-                platformThreshold: TileQueryConstants.PorogGrounded);
+                platformThreshold: TileQueryConstants.PorogGrounded,
+                canFallThroughPlatforms: options.CanFallThroughPlatforms);
+        }
+
+        /// <summary>
+        /// The support span for the unit's <c>shX1</c>/<c>shX2</c> overhang — see the interface's remarks
+        /// for why this returns a span rather than the fractions. Same coordinate convention as
+        /// <see cref="IsOnGround(Rect, TileQueryOptions)"/>: world-pixel bounds in, room origin
+        /// subtracted inside <c>TileCollisionMath</c>.
+        /// </summary>
+        public bool TryGetSupportSpan(
+            Rect boundsPx,
+            TileQueryOptions options,
+            out float supportLeftWorldPx,
+            out float supportRightWorldPx)
+        {
+            Vector2 origin = OriginPixel;
+            return TileCollisionMath.TryGetSupportSpan(
+                Room,
+                boundsPx,
+                origin.x, origin.y,
+                platformThreshold: TileQueryConstants.PorogGrounded,
+                canFallThrough: options.CanFallThroughPlatforms,
+                out supportLeftWorldPx,
+                out supportRightWorldPx);
         }
 
         public TileRaycastHit? Raycast(Vector2 originPx, Vector2 direction, float maxDistancePx)

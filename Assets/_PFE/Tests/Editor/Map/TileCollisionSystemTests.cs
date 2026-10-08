@@ -412,6 +412,117 @@ namespace PFE.Tests.Editor.Map
             Assert.AreEqual(TilePhysicsType.Wall, result.Value.tile.physicsType, "Should hit wall tile");
         }
 
+        // ── The sight ray keys on `phis == 1`, NOT on `IsSolid()` ─────────────────────────
+        //
+        // `TileData.IsSolid()` is `physicsType >= Wall`, i.e. "blocks movement", and it deliberately
+        // includes Platform and Stair (four other fixtures assert that, and they are right — see
+        // SurfaceKindTests, PropCollisionRuleTests, ProjectileOcclusionRuleTests and
+        // RoomInstanceTests). Sight needs a DIFFERENT predicate, exactly as
+        // ProjectileOcclusionRule does for bullets. These tests are the ones that fail if the ray
+        // ever goes back to `IsSolid()`.
+
+        [Test]
+        public void Raycast_ThroughALadder_NoHit()
+        {
+            // `Unit.look():4626` is `phis == 1` exactly, and a ladder form carries `phis == 0`
+            // (Tile.as:194-197). Before this was fixed the ladder fell into the ray's
+            // `else if (!tile.IsPlatform())` arm — `IsSolid()` was true and it was not a platform —
+            // so every ladder in the game was a blind spot for every enemy.
+            testRoom.tiles[5, 1] = CreateStair(5, 1);
+
+            var result = collisionSystem.Raycast(new Vector2(50f, 50f), Vector2.right, 200f);
+
+            Assert.IsNull(result, "A ladder must not block line of sight.");
+        }
+
+        [Test]
+        public void Raycast_ThroughACatwalk_NoHit()
+        {
+            // A catwalk is `phis == 0` too. This one happened to answer "no hit" before as well, but
+            // only because the ray's platform arm was unreachable and the `else if` excluded it —
+            // accidentally right, for the wrong reason. Now it is right by the predicate.
+            testRoom.tiles[5, 1] = CreatePlatform(5, 1);
+
+            var result = collisionSystem.Raycast(new Vector2(50f, 50f), Vector2.right, 200f);
+
+            Assert.IsNull(result, "A catwalk must not block line of sight.");
+        }
+
+        [Test]
+        public void Raycast_DownOntoACatwalk_NoHit()
+        {
+            // Direction must not matter: a shelf is `phis == 0`, so it blocks sight at no angle.
+            // The removed `IsPlatform() && direction.y < 0` arm could never have returned here
+            // anyway — it required `currentPos.y >= tileTop` while the sample it was testing is by
+            // construction INSIDE the tile, below `tileTop`.
+            testRoom.tiles[1, 5] = CreatePlatform(1, 5);
+
+            var result = collisionSystem.Raycast(new Vector2(50f, 245f), Vector2.down, 200f);
+
+            Assert.IsNull(result, "A catwalk must not block a downward sight ray either.");
+        }
+
+        [Test]
+        public void Raycast_WallAfterALadder_StillHitsTheWall()
+        {
+            // Negative control for the three above: a ray that must pass the ladder and then stop at
+            // a real wall. If the predicate were widened to "no hit ever", the three tests above
+            // would still pass — this one would not.
+            testRoom.tiles[3, 1] = CreateStair(3, 1);
+            testRoom.tiles[7, 1] = CreateWall(7, 1);
+
+            var result = collisionSystem.Raycast(new Vector2(50f, 50f), Vector2.right, 400f);
+
+            Assert.IsNotNull(result, "The ray must still stop at the wall beyond the ladder.");
+            Assert.AreEqual(new Vector2Int(7, 1), result.Value.tile.gridPosition,
+                "It must stop at the wall, not at the ladder it passed through.");
+        }
+
+        // ── Damage is gated on `phis >= 1` (Location.hitTile) ────────────────────────────
+
+        [Test]
+        public void ApplyDamage_LadderTile_IsRefused()
+        {
+            var tile = new TileData
+            {
+                gridPosition = new Vector2Int(2, 2),
+                physicsType = TilePhysicsType.Stair,
+                stairType = 1,
+                hitPoints = 1000,
+                indestructible = false,
+                damageThreshold = 0
+            };
+            testRoom.tiles[2, 2] = tile;
+
+            bool damaged = collisionSystem.ApplyDamage(new Vector2(90f, 90f), 100, radiusTiles: 0);
+
+            Assert.IsFalse(damaged,
+                "AS3 `Location.hitTile()` gates EVERY branch on `phis >= 1`; a ladder is `phis == 0`.");
+            Assert.AreEqual(1000, tile.hitPoints, "A ladder must keep full HP.");
+            Assert.AreEqual(TilePhysicsType.Stair, tile.physicsType, "A ladder must not be destroyed.");
+        }
+
+        [Test]
+        public void ApplyDamage_CatwalkTile_IsRefused()
+        {
+            var tile = new TileData
+            {
+                gridPosition = new Vector2Int(2, 2),
+                physicsType = TilePhysicsType.Platform,
+                isLedge = true,
+                hitPoints = 1000,
+                indestructible = false,
+                damageThreshold = 0
+            };
+            testRoom.tiles[2, 2] = tile;
+
+            bool damaged = collisionSystem.ApplyDamage(new Vector2(90f, 90f), 100, radiusTiles: 0);
+
+            Assert.IsFalse(damaged, "A shelf/catwalk is `phis == 0` and is not a destructible.");
+            Assert.AreEqual(1000, tile.hitPoints);
+            Assert.AreEqual(TilePhysicsType.Platform, tile.physicsType);
+        }
+
         [Test]
         public void CheckTileCollision_NullTile_NoCollision()
         {

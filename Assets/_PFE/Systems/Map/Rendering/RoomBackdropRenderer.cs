@@ -184,6 +184,15 @@ namespace PFE.Systems.Map.Rendering
         /// </summary>
         private int _staticLightSourceObjectCount = -1;
 
+        /// <summary>
+        /// The tile-opacity lookup handed to <see cref="FogOcclusionMath.ResolveRayTransmission"/>, so
+        /// that pure ray rule needs no room reference of its own.
+        ///
+        /// <para>Cached as a field on purpose: the ray is walked once per light per tile, so a closure
+        /// built at the call site would allocate tens of thousands of times per full pass.</para>
+        /// </summary>
+        private readonly Func<Vector2, float> _tileOpacityAt;
+
         private Texture2D _visibilityMaskTexture;
         private Sprite _visibilityMaskSprite;
         private Vector2Int _visibilityMaskTextureSize = Vector2Int.zero;
@@ -285,6 +294,7 @@ namespace PFE.Systems.Map.Rendering
             _backdropSharpenStrength = Mathf.Max(0f, backdropSharpenStrength);
             _globalDecorationTint = globalDecorationTint;
             _disableBackdropShadowBake = disableBackdropShadowBake;
+            _tileOpacityAt = ResolveLightBlockingOpacityAt;
         }
 
         public void CreateVisuals()
@@ -418,6 +428,17 @@ namespace PFE.Systems.Map.Rendering
                 int rowStart = y * width;
                 for (int x = 0; x < width; x++)
                 {
+                    // AS3 never assigns a light target to the room's outer ring on the low edge of each
+                    // axis — `Location.lighting():3143-3148` and `Grafon.setLight():689-699` both start
+                    // at 1 — and `lightBmp` (49x28 for the 48x25 grid, Grafon.as:141-143) keeps its
+                    // constructor's opaque black on the cells that loop never reaches. So these texels
+                    // must stay at the darkness `EnsureVisibilityMaskBuffers` gave them: not merely
+                    // unlit, but never "known" either. See FogOcclusionMath.IsInsideRevealArea.
+                    if (!FogOcclusionMath.IsInsideRevealArea(x, y, width, height))
+                    {
+                        continue;
+                    }
+
                     int index = rowStart + x;
                     float currentVisibility = _visibilityMaskCurrentVisibility[index];
                     float targetVisibility = _visibilityMaskTargetVisibility[index];
@@ -435,13 +456,16 @@ namespace PFE.Systems.Map.Rendering
                             continue;
                         }
 
-                        float sampleX = (x + 0.5f) * TileSizePixels;
-                        float sampleY = (y + 0.5f) * TileSizePixels;
+                        // AS3 samples the tile's TOP-LEFT CORNER, not its centre
+                        // (`Location.lighting():3152-3153`). The centre is half a tile off on both
+                        // axes, which moves the occlusion ray's target and so changes the lit set —
+                        // see FogOcclusionMath.ResolveLightSamplePixel for the measurement.
+                        Vector2 sample = FogOcclusionMath.ResolveLightSamplePixel(x, y, TileSizePixels);
                         targetVisibility = ambientVisibility;
 
                         for (int i = 0; i < _lightSources.Count; i++)
                         {
-                            float contribution = SampleLightContribution(_lightSources[i], sampleX, sampleY);
+                            float contribution = SampleLightContribution(_lightSources[i], sample.x, sample.y);
                             if (contribution > targetVisibility)
                             {
                                 targetVisibility = contribution;
@@ -505,7 +529,18 @@ namespace PFE.Systems.Map.Rendering
 
             bool playerChanged = playerSampleValid != _lastPlayerSampleValid ||
                 (playerSampleValid && currentPlayerSample != _lastPlayerSample);
-            if (!_visibilityMaskDirty && !playerChanged)
+
+            // AS3 `Location.as:3398` ORs two force flags into this decision: `isRelight` (set when a
+            // door opens, Box.as:690) and `isRebuild` (set when a solid tile changes,
+            // Location.as:2527/2586). The port folds both into the room's one-shot relight request —
+            // see RoomInstance.RequestRelight — and this is the read-and-clear. It is what makes
+            // opening a door reveal what is behind it without the player having to move first; before
+            // it, the mask refreshed only on a player tile crossing, so a door opened while standing
+            // still stayed dark. Consuming here is safe: the predicate is true whenever the request
+            // was set, so the request is only ever spent on a pass that actually runs.
+            bool relightRequested = _room != null && _room.ConsumeRelightRequest();
+
+            if (!FogOcclusionMath.ShouldRunFullLightPass(_visibilityMaskDirty, playerChanged, relightRequested))
             {
                 return false;
             }
@@ -647,9 +682,16 @@ namespace PFE.Systems.Map.Rendering
 
         /// <summary>
         /// Assembles the list the visibility pass iterates: the baked static set, plus the player's
-        /// triplet at its current position. AS3's per-frame path does the same thing — <c>lightAll()</c>
-        /// baked the lamps, then <c>Location.step()</c> calls <c>lighting()</c> with no arguments, i.e.
-        /// a single source at the camera.
+        /// light at its current position. AS3's per-frame path does the same thing — <c>lightAll()</c>
+        /// baked the lamps, then <c>Location.step():3400</c> calls <c>lighting()</c> with no
+        /// arguments, i.e. a <b>single</b> source at the camera.
+        ///
+        /// <para><b>The player gets ONE source, not a triplet.</b> AS3's +/-10 px triplet is the
+        /// <c>lightAll():3103-3105</c> form, which only ever runs over <c>this.objs</c> — the room's
+        /// lamps. The port gave the player a triplet too, which widened the reveal by 10 px each side
+        /// and, with the ray aimed at the tile corner, still left <b>6 tiles</b> lit that the oracle
+        /// leaves black in a 48 x 25 room. Reducing it to one source took that to <b>0</b>. See
+        /// <see cref="FogOcclusionMath.ResolveLightSamplePixel"/> for the paired measurement.</para>
         /// </summary>
         private void BuildLightSources(Vector3? playerWorldPosition)
         {
@@ -665,7 +707,10 @@ namespace PFE.Systems.Map.Rendering
 
             if (TryGetRoomLocalPixelPosition(playerWorldPosition, out Vector2 playerLocalPixels))
             {
-                AddLightTriplet(_lightSources, playerLocalPixels, innerRadiusPixels, outerRadiusPixels, 1f);
+                // ONE source. `AddLightTriplet` here was the port's invention — AS3 spreads a triplet
+                // over `this.objs` (lamps) only; the player's per-frame `lighting()` takes the
+                // no-argument path and places a single light. See this method's remarks.
+                AddLightSource(_lightSources, playerLocalPixels, innerRadiusPixels, outerRadiusPixels, 1f);
             }
         }
 
@@ -763,44 +808,42 @@ namespace PFE.Systems.Map.Rendering
                 return 1f;
             }
 
-            Vector2 delta = targetPixels - sourcePixels;
+            // The rule itself is `FogOcclusionMath.ResolveRayTransmission`, kept pure and pinned by
+            // FogOcclusionMathTests. It replaced an inline walk that returned "no occlusion" for any
+            // target within 40 px — which is not AS3's rule, and lit the solid tile directly below a
+            // light. See OcclusionRaySampleCount for the oracle and the regression.
+            return FogOcclusionMath.ResolveRayTransmission(
+                sourcePixels,
+                targetPixels,
+                LightOcclusionStepPixels,
+                _tileOpacityAt);
+        }
 
-            // AS3 walks the **dominant axis**, not the euclidean length. In `Location.lighting()` the
-            // step vector is derived from `_loc13_ = Tile.tileX` (or `Tile.tileY`) and the step count is
-            // `_loc15_ = _loc9_ / _loc13_`, i.e. max(|dx|,|dy|) / 40. Charging `delta.magnitude` instead
-            // gave a diagonal ray ~1.41x the samples of an axis-aligned ray of the same reach.
-            float dominantDistance = Mathf.Max(Mathf.Abs(delta.x), Mathf.Abs(delta.y));
-            if (dominantDistance <= LightOcclusionStepPixels)
+        /// <summary>
+        /// Tile opacity at a room-local pixel — the ray's lookup, see <see cref="_tileOpacityAt"/>.
+        ///
+        /// <para>Goes through <see cref="FogOcclusionMath.ResolveRayLookupCoord"/> rather than
+        /// <c>RoomInstance.GetTileAt</c>: the latter is a plain <c>floor</c>, which in this port's
+        /// Y-up space names the row <b>above</b> an exact tile boundary, where AS3's Y-down
+        /// <c>getAbsTile</c> names the row itself. See that method for why the <c>- 1</c> is not
+        /// re-derived here.</para>
+        /// </summary>
+        private float ResolveLightBlockingOpacityAt(Vector2 roomLocalPixels)
+        {
+            if (_room == null)
             {
-                return 1f;
+                return 0f;
             }
 
-            int steps = Mathf.Max(1, Mathf.CeilToInt(dominantDistance / LightOcclusionStepPixels));
-            float transmission = 1f;
-            for (int step = 1; step < steps; step++)
-            {
-                Vector2 sample = sourcePixels + delta * (step / (float)steps);
-                TileData tile = _room.GetTileAt(sample);
-                float opacity = ResolveLightBlockingOpacity(tile);
-                if (opacity <= 0f)
-                {
-                    continue;
-                }
-
-                transmission -= opacity;
-                if (transmission <= 0f)
-                {
-                    return 0f;
-                }
-            }
-
-            return Mathf.Clamp01(transmission);
+            Vector2Int coord = FogOcclusionMath.ResolveRayLookupCoord(
+                roomLocalPixels.x, roomLocalPixels.y, _room.height, TileSizePixels);
+            return ResolveLightBlockingOpacity(_room.GetTileAtCoord(coord));
         }
 
         /// <summary>
         /// AS3 <c>Tile.opac</c> for one tile — see <see cref="FogOcclusionMath"/>, which owns the rule
         /// and is pinned by <c>FogOcclusionMathTests</c>. This wrapper only supplies the room's
-        /// <c>wopac</c> option.
+        /// <c>wopac</c> option and the tile's door term.
         /// </summary>
         private float ResolveLightBlockingOpacity(TileData tile)
         {
@@ -812,6 +855,7 @@ namespace PFE.Systems.Map.Rendering
             float waterOpacity = _room?.environment != null ? _room.environment.waterOpacity : 0f;
             return FogOcclusionMath.ResolveTileOcclusionOpacity(
                 tile.physicsType,
+                tile.doorOcclusion,
                 tile.heightLevel,
                 tile.hasWater,
                 waterOpacity);

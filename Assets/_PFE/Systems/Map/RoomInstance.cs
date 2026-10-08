@@ -111,11 +111,62 @@ namespace PFE.Systems.Map
         /// <summary>
         /// Announces that tiles changed. Called by tile destruction and forwarded by
         /// <see cref="ITileQueryService.NotifyTilesMutated"/>. Safe to call with no listeners.
+        ///
+        /// <para><b>It also raises the relight request.</b> AS3 sets <c>isRebuild</c> when a solid
+        /// tile changes (<c>Location.as:2525</c>, <c>:2586</c>) and the room's step gate ORs
+        /// <c>isRebuild</c> into the condition that runs the full <c>lighting()</c> pass
+        /// (<c>Location.as:3398</c>) — so destroying a wall re-lights the room. The port raises this
+        /// notification from exactly those paths (tile destruction in <c>TileCollider</c>, the
+        /// damage path in <c>UnifiedTileQueryService</c>), so it is the same trigger, fed to the
+        /// same request the door raises.</para>
         /// </summary>
         public void NotifyTilesMutated(RectInt tileRegion)
         {
+            RequestRelight();
             TilesMutated?.Invoke(this, tileRegion);
         }
+
+        /// <summary>
+        /// "The light field is stale — re-run the full pass next frame." The port of AS3's
+        /// <c>Location.isRelight</c> (<c>Location.as:121</c>).
+        ///
+        /// <para><b>Why this lives on the room and not on the renderer.</b> AS3 keeps the flag on the
+        /// <c>Location</c> — the room — and both the writer (<c>Box.setDoor</c>, a prop) and the
+        /// reader (<c>Location.step</c>) reach it through the room. <see cref="RoomInstance"/> is the
+        /// port's <c>Location</c>, and both <c>DoorPropPresenter</c> and <c>RoomBackdropRenderer</c>
+        /// already hold one, so no new wiring is needed and the flag survives either side being
+        /// recreated.</para>
+        ///
+        /// <para><b>One-shot, like the oracle.</b> AS3 clears it unconditionally every frame
+        /// (<c>Location.as:3407</c>) and re-arms it from the event, so a request means "relight once",
+        /// not "relight until cancelled". <see cref="ConsumeRelightRequest"/> is the read-and-clear;
+        /// polling it twice returns <c>true</c> then <c>false</c>.</para>
+        ///
+        /// <para><b>Writers:</b> <see cref="NotifyTilesMutated"/> (a solid tile changed — AS3
+        /// <c>isRebuild</c>) and the door-open path (<c>Box.as:688-691</c> — AS3 <c>isRelight</c>).
+        /// <b>Reader:</b> the visibility-mask refresh gate.</para>
+        /// </summary>
+        public void RequestRelight()
+        {
+            _relightRequested = true;
+        }
+
+        /// <summary>
+        /// Reads and clears the pending relight request. Returns <c>true</c> exactly once per
+        /// <see cref="RequestRelight"/> — see that method for why it is one-shot.
+        /// </summary>
+        public bool ConsumeRelightRequest()
+        {
+            if (!_relightRequested)
+            {
+                return false;
+            }
+
+            _relightRequested = false;
+            return true;
+        }
+
+        private bool _relightRequested;
 
         public void RebuildRuntimeLayers()
         {
@@ -343,6 +394,37 @@ namespace PFE.Systems.Map
             // jumper cannot claim headroom there.
             TileData tile = GetTileAtCoord(coord);
             return tile != null && tile.physicsType == TilePhysicsType.Wall;
+        }
+
+        /// <summary>
+        /// Whether the single tile containing a <b>room-local pixel point</b> is something a unit could
+        /// hop <b>onto</b> — AS3 <c>UnitZombie.as:794</c>/<c>:813</c>,
+        /// <c>_loc1_.phis == 1 || _loc1_.shelf</c>.
+        ///
+        /// <para><b>Why this is not <see cref="IsWallAtRoomLocalPixels"/> plus a shelf test at the call
+        /// site.</b> The two mappings are the subtle part and they belong in one place, next to each
+        /// other so they can be read against each other. <c>TileDecoder.MapPhysicsType</c> maps
+        /// <b>every</b> non-zero <c>phis</c> to <see cref="TilePhysicsType.Wall"/>, and
+        /// <see cref="TilePhysicsType.Platform"/> is written <i>only</i> for a <c>shelf</c> form on a
+        /// <c>phis == 0</c> base — so the oracle's two terms are exactly <c>Wall || Platform</c>.
+        /// <see cref="TileData.IsSolidOrShelf"/> is that predicate and carries the full reasoning,
+        /// including why it is deliberately not <see cref="TileData.IsSolid"/>.</para>
+        ///
+        /// <para><b>Out of bounds is <c>false</c>, which is AS3's answer and not a fallback.</b>
+        /// <c>Location.getAbsTile</c> returns the sentinel <c>otstoy = new Tile(-1,-1)</c>
+        /// (<c>Location.as:269</c>) for a point outside the room, and <c>Tile</c>'s fields are declared
+        /// <c>phis:int = 0</c> / <c>shelf:Boolean = false</c> (<c>Tile.as:18</c>, <c>:20</c>) — so the
+        /// oracle reads "nothing there" too. <see cref="GetTileAtCoord"/> answers <c>null</c> for the
+        /// same point; the two agree by construction, and a test asserts it.</para>
+        /// </summary>
+        /// <param name="roomLocalPixels">
+        /// Any point in <b>room-local pixels</b> — the space <c>UnitInstance.position</c> is in. Floored
+        /// to a tile, so it need not be a centre or a corner.
+        /// </param>
+        public bool IsSolidOrShelfAtRoomLocalPixels(Vector2 roomLocalPixels)
+        {
+            TileData tile = GetTileAt(roomLocalPixels);
+            return tile != null && tile.IsSolidOrShelf();
         }
 
         /// <summary>

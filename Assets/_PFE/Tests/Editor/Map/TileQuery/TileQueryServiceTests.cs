@@ -482,23 +482,103 @@ namespace PFE.Tests.Editor.Map.TileQuery
                 "Applying remote mutations must not feed the outgoing delta stream.");
         }
 
+        // ── IsOnGround and AS3's `throu` ───────────────────────────────────────────────────
+
+        /// <summary>
+        /// A one-way platform is ground by default, and is <b>not</b> ground once
+        /// <see cref="TileQueryOptions.CanFallThroughPlatforms"/> is set — while a wall is ground either
+        /// way. That asymmetry is the whole drop-through mechanic.
+        /// </summary>
+        /// <remarks>
+        /// The wall half is not padding. It is what makes the flag safe for a unit to hold for as long as
+        /// its trigger lasts: AS3's <c>phis == 1</c> branch returns <c>1</c> before the shelf test is ever
+        /// reached (<c>Unit.as:2568-2582</c>), so a zombie chasing a target below across a solid floor
+        /// keeps standing on it instead of sinking through the room. A version of the flag that leaked
+        /// into the wall branch would look correct on a catwalk and destroy every floor.
+        /// </remarks>
+        [Test]
+        public void IsOnGround_CanFallThrough_IgnoresPlatformsButNotWalls()
+        {
+            const float tileSize = WorldConstants.TILE_SIZE;
+
+            // A catwalk at (3, 4), with a unit standing on its top edge. The probe samples 1 px below the
+            // feet, which lands inside the platform's `porog` band — exactly the geometry a zombie on a
+            // catwalk is in.
+            Vector2Int platformCoord = new Vector2Int(3, 4);
+            _room.tiles[platformCoord.x, platformCoord.y] =
+                MakeTile(platformCoord.x, platformCoord.y, TilePhysicsType.Platform);
+
+            Rect restingOnPlatform = new Rect(
+                platformCoord.x * tileSize,
+                (platformCoord.y + 1) * tileSize,
+                tileSize,
+                tileSize);
+
+            Rect restingOnWall = new Rect(
+                WallCoord.x * tileSize,
+                (WallCoord.y + 1) * tileSize,
+                tileSize,
+                tileSize);
+
+            ITileQueryService subject = new UnifiedTileQueryService(_room);
+            TileQueryOptions throu = new TileQueryOptions(canFallThroughPlatforms: true);
+
+            // The pre-existing answer, unchanged. Every consumer that has not asked to fall keeps this.
+            Assert.IsTrue(subject.IsOnGround(restingOnPlatform),
+                "By default a catwalk IS a floor — the answer every existing caller depends on.");
+
+            Assert.IsTrue(subject.IsOnGround(restingOnPlatform, TileQueryOptions.Default),
+                "and passing the default options explicitly must agree with the no-options overload.");
+
+            // The new answer: with `throu` the platform stops being ground, so the unit reports airborne
+            // and gravity takes it down through the shelf.
+            Assert.IsFalse(subject.IsOnGround(restingOnPlatform, throu),
+                "With AS3's `throu` the same catwalk is NOT ground — this is the zombie's drop.");
+
+            // Walls are untouched, in both directions.
+            Assert.IsTrue(subject.IsOnGround(restingOnWall), "A solid floor is ground.");
+            Assert.IsTrue(subject.IsOnGround(restingOnWall, throu),
+                "…and it is still ground with `throu` set. Walls are never one-way, so holding the flag " +
+                "over solid ground must change nothing.");
+
+            // A control on the fixture itself: if the platform had silently failed to be written, the
+            // "not ground with throu" assertion above would pass for the wrong reason. Prove the tile is
+            // really there and really a platform.
+            Assert.AreEqual(TilePhysicsType.Platform, _room.tiles[platformCoord.x, platformCoord.y].physicsType,
+                "fixture control: the catwalk must actually exist in the room, or the assertion above " +
+                "is vacuous.");
+        }
+
         // ── Authority map (P4.1) ───────────────────────────────────────────────────────────
 
         [Test]
         public void AuthorityMap_MutationsAreHostOnly()
         {
-            Assert.AreEqual(SimAuthority.Authoritative, AuthorityOf("ApplyDamage"));
-            Assert.AreEqual(SimAuthority.Authoritative, AuthorityOf("NotifyTilesMutated"));
+            Assert.AreEqual(SimAuthority.Authoritative,
+                AuthorityOf("ApplyDamage", typeof(Vector2), typeof(int), typeof(int)));
+            Assert.AreEqual(SimAuthority.Authoritative,
+                AuthorityOf("NotifyTilesMutated", typeof(RectInt)));
         }
 
         [Test]
         public void AuthorityMap_QueriesAreLocalOnly()
         {
-            Assert.AreEqual(SimAuthority.LocalOnly, AuthorityOf("IsSolidAt"));
-            Assert.AreEqual(SimAuthority.LocalOnly, AuthorityOf("CheckCollision"));
-            Assert.AreEqual(SimAuthority.LocalOnly, AuthorityOf("GetGroundHeight"));
-            Assert.AreEqual(SimAuthority.LocalOnly, AuthorityOf("IsOnGround"));
-            Assert.AreEqual(SimAuthority.LocalOnly, AuthorityOf("Raycast"));
+            Assert.AreEqual(SimAuthority.LocalOnly, AuthorityOf("IsSolidAt", typeof(Vector2Int)));
+            Assert.AreEqual(SimAuthority.LocalOnly,
+                AuthorityOf("CheckCollision", typeof(Rect), typeof(TileQueryOptions)));
+            Assert.AreEqual(SimAuthority.LocalOnly, AuthorityOf("GetGroundHeight", typeof(Vector2)));
+
+            // Both IsOnGround overloads, named by signature. The plain `Rect` one is "am I standing on
+            // anything" for every existing consumer; the `(Rect, TileQueryOptions)` one is the same
+            // question with AS3's `throu` applied. They are two members and each must be classified on
+            // its own — which is the whole reason the two are overloads rather than one method with a
+            // defaulted argument.
+            Assert.AreEqual(SimAuthority.LocalOnly, AuthorityOf("IsOnGround", typeof(Rect)));
+            Assert.AreEqual(SimAuthority.LocalOnly,
+                AuthorityOf("IsOnGround", typeof(Rect), typeof(TileQueryOptions)));
+
+            Assert.AreEqual(SimAuthority.LocalOnly,
+                AuthorityOf("Raycast", typeof(Vector2), typeof(Vector2), typeof(float)));
         }
 
         /// <summary>
@@ -539,10 +619,22 @@ namespace PFE.Tests.Editor.Map.TileQuery
 
         // ── Fixtures ──────────────────────────────────────────────────────────────────────
 
-        private static SimAuthority AuthorityOf(string methodName)
+        /// <summary>
+        /// Look a member up <b>by signature</b>, not by name.
+        /// </summary>
+        /// <remarks>
+        /// This took a bare name until <c>IsOnGround</c> was overloaded. <c>Type.GetMethod(name)</c>
+        /// throws <c>AmbiguousMatchException</c> as soon as a name has two overloads, so the failure would
+        /// have surfaced as an exception inside the authority tests — reading as "the authority map is
+        /// broken" rather than "the lookup is under-specified". Naming the parameter types makes the
+        /// helper immune to that, and makes the assertion say which overload it means.
+        /// </remarks>
+        private static SimAuthority AuthorityOf(string methodName, params Type[] parameterTypes)
         {
-            MethodInfo method = typeof(ITileQueryService).GetMethod(methodName);
-            Assert.IsNotNull(method, "ITileQueryService has no method named " + methodName);
+            MethodInfo method = typeof(ITileQueryService).GetMethod(methodName, parameterTypes);
+            Assert.IsNotNull(method,
+                "ITileQueryService has no method named " + methodName
+                + " taking " + parameterTypes.Length + " parameter(s)");
             return AuthorityResolver.Of(method);
         }
 

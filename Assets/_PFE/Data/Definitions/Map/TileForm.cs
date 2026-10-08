@@ -49,10 +49,20 @@ namespace PFE.Systems.Map
 
         // --- Physics ---
 
-        /// <summary>Physics type: 0=air, 1=wall. Only fForms typically set this.</summary>
+        /// <summary>
+        /// Physics type: 0 = air; 1 = solid; 2 = a level-2 solid (the grate doors,
+        /// <c>AllData.as:4859-4860</c>); 3 = a ghost wall, set only at runtime (<c>Spell.as:446</c>).
+        /// Non-zero is what makes a tile opaque (<c>Tile.as:198-201</c>).
+        /// </summary>
         public int phis;
 
-        /// <summary>One-way platform (shelf in AS3). Overrides to platform physics.</summary>
+        /// <summary>
+        /// One-way platform flag (AS3 <c>shelf</c>). <b>A flag — it is NOT a physics assignment.</b>
+        /// AS3 assigns it independently and never lets it touch <c>phis</c>
+        /// (<c>Tile.as:182-189</c>), and its only consumer reads it when <c>phis == 0 || phis == 3</c>
+        /// (<c>Box.as:1262, 1270</c>) — so on a wall the flag is inert. It decodes to
+        /// <see cref="TilePhysicsType.Platform"/> only where that would not overwrite a wall.
+        /// </summary>
         public bool shelf;
 
         /// <summary>Diagonal/slope direction: -1=left, 0=none, 1=right.</summary>

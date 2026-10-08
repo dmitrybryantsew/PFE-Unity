@@ -43,7 +43,46 @@ namespace PFE.Entities.Units
         // State
         protected Vector2 _velocity;
         protected bool _isGrounded;
+
+        /// <summary>
+        /// AS3 <c>Unit.throu</c> (<c>Unit.as:296</c>) — "ignore one-way surfaces when asking what I am
+        /// standing on".
+        ///
+        /// <para><b>A level, not a pulse, and that is the difference from the motor's player-side
+        /// verb.</b> The oracle recomputes <c>throu</c> every frame (<c>UnitZombie.as:857-864</c>,
+        /// <c>UnitPlayer.as:2640</c>) and the zombie's condition is <i>sustained</i> — it holds for as long
+        /// as the target stays below. A pulse would drop the zombie once and re-ground it on the next
+        /// tick, which reads as "the catwalk flickers".</para>
+        ///
+        /// <para><b>It is cleared by the writer, not by this class.</b> The owning brain asserts it every
+        /// tick it runs, so a brain that stops ticking (a corpse, a buried ambusher) leaves the last value
+        /// in place — which is harmless here because a corpse does not move and a buried unit is not
+        /// standing on anything. A self-clearing timer would be a second rule about when the flag expires
+        /// and would not be the oracle's.</para>
+        /// </summary>
+        protected bool _dropThroughPlatforms;
+
         protected int _facingDirection = 1; // 1 = Right, -1 = Left
+
+        /// <summary>
+        /// AS3 <c>Unit.shX1</c>/<c>shX2</c> — how much of this unit's body width hangs past the edge of
+        /// whatever it is standing on, per side. Negative means that side is fully supported; above
+        /// <c>0.5</c> means more than half the body is over the edge. Written by
+        /// <see cref="ResolveGroundState"/>; see <see cref="PFE.Entities.Units.UnitOverhangMath"/> for
+        /// the oracle's four writers, the formula, and why the "no support" value is <c>1</c> and not a
+        /// sentinel.
+        ///
+        /// <para><b>Both start at "no support", which is the safe reading for every early return.</b>
+        /// AS3 writes <c>shX1 = shX2 = 1</c> at the start of each descending pass
+        /// (<c>Unit.as:2251</c>), so a unit with no room, no collider or no query would carry the same
+        /// value the oracle's first write produces — rather than a stale fraction from a platform it
+        /// left ten ticks ago.</para>
+        /// </summary>
+        protected float _overhangLeft = UnitOverhangMath.NoSupportOverhang;
+
+        /// <inheritdoc cref="_overhangLeft"/>
+        protected float _overhangRight = UnitOverhangMath.NoSupportOverhang;
+
 
         // Components
         protected Rigidbody2D _rb;
@@ -1112,6 +1151,13 @@ namespace PFE.Entities.Units
             _groundPropSurfaceRoomLocalY = null;
             _groundPropCarryPixels = Vector2.zero;
 
+            // AS3 `Unit.as:2251` — `shX1 = shX2 = 1` at the start of the pass, i.e. "nothing supports
+            // either side yet". Every early return below therefore leaves the value the oracle's own
+            // first write would have produced, instead of a stale fraction from a platform this unit
+            // left ten ticks ago. `1` is maximal overhang, not "unknown" — see UnitOverhangMath.
+            _overhangLeft = UnitOverhangMath.NoSupportOverhang;
+            _overhangRight = UnitOverhangMath.NoSupportOverhang;
+
             if (_tileQuery == null || _collider == null)
             {
                 return;
@@ -1120,12 +1166,29 @@ namespace PFE.Entities.Units
             Rect probe = UnitGroundProbe.ToProbeRectPixels(
                 _collider.bounds, TileQueryConstants.PixelToUnit);
 
-            _isGrounded = _tileQuery.IsOnGround(probe);
+            // AS3 `throu`: while the owner has asked to drop, a one-way platform is not ground. Walls
+            // still are — the Wall branch of the ground probe returns before the platform branch is
+            // consulted — so a unit holding this flag on a solid floor does not sink. That is what lets
+            // the zombie hold it for as long as the target stays below.
+            _isGrounded = _tileQuery.IsOnGround(
+                probe,
+                new TileQueryOptions(canFallThroughPlatforms: _dropThroughPlatforms));
+
+            // AS3 `Unit.as:2301`/`:2305` — the tile loop writes the two overhang fractions as it
+            // resolves the landing, and this is the same pass. The span is in world pixels and so is
+            // `probe`, and the fraction is a *difference* of the two, so the room origin cancels and no
+            // space conversion is needed here.
+            ApplyOverhangIfGrounded(probe);
 
             // A tile under the feet wins outright — AS3 asks the tile grid first (the `while` loop at
             // Unit.as:2317-2330, then checkDiagon, then checkShelf last at :2340), and a floor is a
             // floor. Only when there is no tile is a prop a candidate for being the ground.
-            if (_isGrounded || _objectPhysicsLayer == null)
+            //
+            // `_dropThroughPlatforms` joins the early return for the same reason the tile answer wins:
+            // AS3's `throu` skips `checkShelf` — the prop half — as well as the tile half
+            // (Unit.as:2338-2341, `if(_loc5_ == 0 && !this.throu)`), so a crate must not become the floor
+            // a unit asked to fall through.
+            if (_isGrounded || _objectPhysicsLayer == null || _dropThroughPlatforms)
             {
                 return;
             }
@@ -1145,8 +1208,12 @@ namespace PFE.Entities.Units
                 return;
             }
 
+            // Hoisted into a local so the prop's overhang can be measured against the same feet rect the
+            // search used — one definition of "where this unit's feet are", not two.
+            Rect roomLocalFeet = RoomLocalFeetBoundsPixels();
+
             if (!_objectPhysicsLayer.TryFindGroundPropUnder(
-                    RoomLocalFeetBoundsPixels(),
+                    roomLocalFeet,
                     TileQueryConstants.PorogGrounded,
                     out ObjectInstance support,
                     out float surfaceRoomLocalY))
@@ -1158,6 +1225,15 @@ namespace PFE.Entities.Units
             _groundPropSurfaceRoomLocalY = surfaceRoomLocalY;
             _isGrounded = true;
 
+            // AS3 `Unit.as:2722-2729` — `checkShelf` writes the *same* two fractions against the prop's
+            // own `X1`/`X2`. It is the **last** writer in the oracle's order (tile loop, then
+            // `checkDiagon`, then `checkShelf` at `:2340`), so on a crate the crate's edges are the
+            // answer — which is exactly right, and is why a zombie that hopped onto a crate must read the
+            // crate's edge and not the floor's. The prop's bounds are already room-local, and so is
+            // `roomLocalFeet`, so the two sides of the subtraction share a space.
+            Rect propBounds = support.GetApproximateBounds();
+            ApplyOverhangFromSupport(roomLocalFeet, propBounds.xMin, propBounds.xMax);
+
             // AS3 Unit.as:2014-2026 — the carry is the support's LAST tick displacement, and only when
             // it is small enough to still be a floor. See UnitCheckShelfMath.IsSupportStillCarrying.
             MapObjectDynamicStateData supportState = support.runtimeState?.dynamicState;
@@ -1167,6 +1243,136 @@ namespace PFE.Entities.Units
                 _groundPropCarryPixels = new Vector2(supportState.cdx, supportState.cdy);
             }
             }
+        }
+
+        /// <summary>
+        /// The ground/overhang half of AS3's <c>run()</c> ground pass, for a unit whose step is owned by
+        /// its <c>TilePhysicsController</c> motor — the live path (<c>PfeDebugSettings.UnitMotor</c>).
+        ///
+        /// <para><b>Why this has to exist at all, and what its absence cost.</b> A motored unit makes
+        /// <see cref="_hasTilePhysics"/> true, and <see cref="SimTick"/> and <c>FixedUpdate</c> both
+        /// return on that predicate — so <see cref="StepUnit"/>, and with it
+        /// <see cref="ResolveGroundState"/>, <b>never ran for a motored unit</b>. Two fields therefore
+        /// never moved:</para>
+        ///
+        /// <list type="bullet">
+        /// <item><description><see cref="OverhangLeft"/>/<see cref="OverhangRight"/> kept their field
+        /// initialiser, <see cref="UnitOverhangMath.NoSupportOverhang"/> = <c>1</c> — which is
+        /// <i>maximal</i> overhang, i.e. "nothing supports me". Every threshold in the family reads that
+        /// as "I am standing on a lip", so a chasing zombie took its half hop 50 % of ticks and a
+        /// patrolling one took it 10 % of ticks and turned around on the other 90 %.</description></item>
+        /// <item><description><see cref="_isGrounded"/> was written by nothing but the Unity collision
+        /// callbacks — whose answer <see cref="UnitGroundProbe"/>'s own remarks call marginal by
+        /// construction at the 1 px seat — so it flickered, and
+        /// <c>ZombieBrain.ResolveAnimState</c>'s <c>!IsGrounded</c> branch drew the <c>jump</c> row
+        /// instead of <c>run</c>.</description></item>
+        /// </list>
+        ///
+        /// <para><b>AS3 cannot be in that state, and that is the proof it is a port defect rather than a
+        /// tuning problem.</b> <c>stay</c> and <c>shX1</c>/<c>shX2</c> are written by <i>one</i> pass
+        /// (<c>Unit.as:2251</c> seeds <c>shX = 1</c>, the tile loop at <c>:2301</c>/<c>:2305</c> reduces
+        /// it, and the same pass sets <c>stay</c>) — so "grounded with nothing under me" is unreachable
+        /// there, and the port reached it by splitting one pass across two components and then never
+        /// calling one half.</para>
+        ///
+        /// <para><b>The motor owns groundedness; this method does not re-decide it.</b> That is
+        /// deliberate and it is the one thing that makes the two halves agree. The motor resolves
+        /// <c>stay</c> inside its own sub-stepped collision walk, where it also knows the <i>direction</i>
+        /// of the motion — it clears groundedness before the vertical branch whenever it moves up
+        /// (<c>TilePhysicsController.MoveSingleStep</c>), which is AS3's own behaviour and which
+        /// <c>IsOnGround</c> cannot reproduce, because that samples the feet and a unit one pixel into
+        /// its first airborne tick still has its feet in the ground tile. Taking the flag as a parameter
+        /// is therefore what keeps <see cref="_isGrounded"/> a single source of truth instead of a
+        /// second opinion. <c>PlayerController</c> already reads the motor's flag the same way
+        /// (<c>_isGrounded = _tilePhysics.IsGrounded</c>).</para>
+        ///
+        /// <para><b>The prop arm of the pass is deliberately not repeated here.</b> The motor has its own
+        /// <c>checkShelf</c> — <c>TryLandOnShelfProp</c>/<c>RegisterSupportProp</c>, called from inside
+        /// the substep that lands on the prop — and it syncs the transform itself, so
+        /// <see cref="_groundProp"/>/<see cref="_groundPropCarryPixels"/> would be written for a
+        /// <c>Move()</c> that a motored unit never runs. One half of the pass per owner.</para>
+        /// </summary>
+        /// <param name="grounded">The motor's <c>stay</c> for the step it has just completed — its own
+        /// <c>TilePhysicsController.IsGrounded</c>. The motor must call this <i>after</i> its move, so
+        /// both the flag and <c>Collider2D.bounds</c> describe the same position.</param>
+        public void ResolveGroundStateFromMotor(bool grounded)
+        {
+            using (PFE.Core.Profiling.PfeProfiler.Region("unit.groundState.motor",
+                "physics: the motor-driven half of the ground pass — AS3 shX1/shX2 only. Called by TilePhysicsController.StepMotor."))
+            {
+                // AS3 `Unit.as:2251` — `shX1 = shX2 = 1` at the start of the pass. Written before the
+                // early return below for the same reason ResolveGroundState writes it before its own:
+                // a unit that loses its room must not keep a stale ledge from one it left.
+                _overhangLeft = UnitOverhangMath.NoSupportOverhang;
+                _overhangRight = UnitOverhangMath.NoSupportOverhang;
+
+                _isGrounded = grounded;
+
+                if (_tileQuery == null || _collider == null)
+                {
+                    return;
+                }
+
+                Rect probe = UnitGroundProbe.ToProbeRectPixels(
+                    _collider.bounds, TileQueryConstants.PixelToUnit);
+
+                ApplyOverhangIfGrounded(probe);
+            }
+        }
+
+        /// <summary>
+        /// AS3 <c>Unit.as:2301</c>/<c>:2305</c> — turn the span of tiles holding this unit up into its two
+        /// overhang fractions, when it is grounded.
+        ///
+        /// <para><b>Shared by both drivers</b> so the motor-less path and the motor path cannot compute
+        /// the ledge differently — which is exactly the drift that made the zombie hop in the live build
+        /// and not in the tests. The groundedness test is the caller's, already resolved, and reading
+        /// <see cref="_isGrounded"/> here rather than re-deriving it keeps the two call sites' only
+        /// difference the <i>source</i> of that flag.</para>
+        /// </summary>
+        private void ApplyOverhangIfGrounded(Rect probe)
+        {
+            if (!_isGrounded)
+            {
+                return;
+            }
+
+            if (_tileQuery.TryGetSupportSpan(
+                    probe,
+                    new TileQueryOptions(canFallThroughPlatforms: _dropThroughPlatforms),
+                    out float supportLeftPx,
+                    out float supportRightPx))
+            {
+                ApplyOverhangFromSupport(probe, supportLeftPx, supportRightPx);
+            }
+        }
+
+        /// <summary>
+        /// Turn a support span into this unit's two overhang fractions — AS3
+        /// <c>shX1 = -(X1 - phX1)/scX</c> and <c>shX2 = (X2 - phX2)/scX</c>
+        /// (<c>Unit.as:2301</c>/<c>:2305</c>).
+        ///
+        /// <para><b>Both arguments must be in the same pixel space, and it does not matter which.</b>
+        /// The fraction is a difference over the body width, so room-local and world pixels give the
+        /// identical answer — the room origin cancels. That is a convenience, not a licence: passing one
+        /// side in world pixels and the other in room-local would offset every ledge in every room that
+        /// is not at land (0,0), and look correct in every test built on an origin room. The two callers
+        /// above are therefore deliberately consistent — the tile path passes world for both, the prop
+        /// path room-local for both.</para>
+        ///
+        /// <para><b>The body width comes from the rect, not from <c>Stats</c>.</b> <c>scX</c> in the
+        /// oracle <i>is</i> the collision box width (<c>Y1 = Y - scY</c>, <c>X1 = X - scX/2</c>), so the
+        /// collider is the authority and a serialized stat could disagree with it.</para>
+        /// </summary>
+        /// <param name="feetRect">This unit's AABB, <c>xMin</c> at its left edge and <c>xMax</c> at its
+        /// right.</param>
+        /// <param name="supportLeftPx">The supporting tile's or prop's left edge, <c>phX1</c>.</param>
+        /// <param name="supportRightPx">The supporting tile's or prop's right edge, <c>phX2</c>.</param>
+        private void ApplyOverhangFromSupport(Rect feetRect, float supportLeftPx, float supportRightPx)
+        {
+            float width = feetRect.width;
+            _overhangLeft = UnitOverhangMath.OverhangLeft(feetRect.xMin, supportLeftPx, width);
+            _overhangRight = UnitOverhangMath.OverhangRight(feetRect.xMax, supportRightPx, width);
         }
 
         /// <summary>
@@ -1538,6 +1744,26 @@ namespace PFE.Entities.Units
         }
 
         /// <summary>
+        /// AS3 <c>Unit.throu</c> (<c>Unit.as:296</c>) — ask this unit's ground probe to ignore one-way
+        /// platforms, so it falls through whatever it is standing on.
+        ///
+        /// <para><b>The caller asserts it every tick it wants the drop</b>, exactly as
+        /// <c>UnitZombie.control()</c> recomputes the oracle's flag every frame (<c>:857-864</c>). This is
+        /// a level, not a one-shot: see <see cref="_dropThroughPlatforms"/> for why, and for why the
+        /// clearing is the writer's job rather than a timer's.</para>
+        ///
+        /// <para><b>Nothing happens until the next step.</b> The flag is read by
+        /// <see cref="ResolveGroundState"/>, which <see cref="StepUnit"/> runs once per step; the caller
+        /// is the brain, whose tick is ordered before the unit's. Setting it after a step and reading the
+        /// answer in the same tick would see the previous tick's groundedness — the same ordering trap
+        /// <c>TilePhysicsController</c>'s motor-side verb has.</para>
+        /// </summary>
+        public virtual void SetDropThroughPlatforms(bool shouldDropThrough)
+        {
+            _dropThroughPlatforms = shouldDropThrough;
+        }
+
+        /// <summary>
         /// Ground detection using collision normals — the <b>fallback</b> path, used only when this
         /// unit has no room and therefore no tile query (see <see cref="SetTileQuery"/>).
         /// Replaces the tile-based ground checking from AS3.
@@ -1614,6 +1840,37 @@ namespace PFE.Entities.Units
         public bool IsGrounded => _isGrounded;
         public Vector2 Velocity => _velocity;
         public int FacingDirection => _facingDirection;
+
+        /// <summary>
+        /// AS3 <c>Unit.shX1</c> — how much of this unit's body width hangs past the <b>left</b> edge of
+        /// whatever it is standing on. Negative means that side is fully supported; above <c>0.5</c> means
+        /// more than half the body is over the edge; <c>1</c> means nothing was found under it at all,
+        /// which is <i>maximal</i> overhang and not a sentinel. Resolved by
+        /// <see cref="ResolveGroundState"/>, so it lags the current tick's movement by one step — which is
+        /// exactly what AS3 does, since <c>control()</c> reads what the previous frame's <c>run()</c>
+        /// wrote. See <see cref="PFE.Entities.Units.UnitOverhangMath"/>.
+        /// </summary>
+        public float OverhangLeft => _overhangLeft;
+
+        /// <inheritdoc cref="OverhangLeft"/>
+        public float OverhangRight => _overhangRight;
+
+        /// <summary>
+        /// The overhang on the side this unit is facing — AS3's <c>aiNapr &lt; 0 ? shX1 : shX2</c>
+        /// selection, which every consumer in the family writes out inline. Kept here rather than at each
+        /// call site so "the edge ahead" has one definition and cannot be read as "the edge behind" in one
+        /// archetype and not another.
+        ///
+        /// <para><b>It uses the unit's <i>actual</i> facing, not a desired direction.</b> AS3's
+        /// <c>aiNapr</c> is the direction the AI wants to go this tick, which is aliased to <c>storona</c>
+        /// everywhere either is written — so for a patrolling unit the two coincide. For a chasing one
+        /// they do not: the port re-derives facing from the target's X every tick
+        /// (<c>EnemyBrain.TickCombatChase</c>), so "I want to go left but I am stuck" is not
+        /// representable. That is the honest reading of what the port has, and it is recorded rather than
+        /// papered over — see <c>docs/OnEnemiesAndAi/26_…md</c> §2.2.</para>
+        /// </summary>
+        public float OverhangAhead => UnitOverhangMath.OverhangToward(
+            _facingDirection, _overhangLeft, _overhangRight);
         public UnitDefinition Stats => _stats;
         public UnitStats UnitStats => _unitStats;
 

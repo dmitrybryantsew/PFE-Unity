@@ -569,5 +569,72 @@ namespace PFE.Tests.Editor.Map
 
             Assert.IsFalse(room.HasWallUnderFeet(new Vector2(440f, 1f)));
         }
+
+        // ── Relight request — the port of AS3 `Location.isRelight` ───────────────────────────────
+        //
+        // `Location.step():3398` ORs `isRelight` and `isRebuild` into the condition that runs the full
+        // `lighting()` pass, and `:3407` clears `isRelight` unconditionally every frame. So the flag is
+        // a one-shot "relight once", and the two writers are a door opening (Box.as:690) and a solid
+        // tile changing (Location.as:2527, :2586). Nothing set the port's equivalent, which is why a
+        // door opened while standing still left the room dark — see RoomBackdropRenderer's gate.
+
+        [Test]
+        public void ConsumeRelightRequest_WithNoRequest_ReturnsFalse()
+        {
+            // The negative control for the three tests below: a fresh room has NOT been asked to
+            // relight. Without this, `ConsumeRelightRequest` returning true for any reason would look
+            // like the writers working.
+            RoomInstance room = CreateTestRoom();
+
+            Assert.IsFalse(room.ConsumeRelightRequest());
+        }
+
+        [Test]
+        public void RequestRelight_IsOneShot_ConsumeReturnsTrueThenFalse()
+        {
+            // AS3 clears the flag every frame (Location.as:3407) and re-arms it from the event, so one
+            // request buys exactly one full pass. A sticky flag would re-run the expensive pass forever.
+            RoomInstance room = CreateTestRoom();
+            room.RequestRelight();
+
+            Assert.IsTrue(room.ConsumeRelightRequest(), "the request must be delivered once");
+            Assert.IsFalse(room.ConsumeRelightRequest(), "…and must not survive its own consumption");
+        }
+
+        [Test]
+        public void NotifyTilesMutated_RequestsARelight()
+        {
+            // AS3's *second* relight writer: `isRebuild` is set when a solid tile changes
+            // (Location.as:2525, :2586) and the same gate ORs it in (:3398). The port raises this
+            // notification from the destruction and damage paths, so routing it into the request is
+            // what makes "shoot a wall away and the room re-lights" work.
+            RoomInstance room = CreateTestRoom();
+
+            room.NotifyTilesMutated(new RectInt(10, 10, 1, 1));
+
+            Assert.IsTrue(room.ConsumeRelightRequest(),
+                "a tile mutation is AS3's `isRebuild` — it must force a full light pass");
+        }
+
+        [Test]
+        public void NotifyTilesMutated_StillRaisesTheEvent()
+        {
+            // Positive control for the change above: RequestRelight() was added *inside*
+            // NotifyTilesMutated, so a slip that replaced the event raise instead of preceding it would
+            // leave the physics mirror silently un-subscribed from every tile destruction. Assert the
+            // event still arrives, with the region intact.
+            RoomInstance room = CreateTestRoom();
+            RoomInstance seenRoom = null;
+            RectInt seenRegion = default;
+            int raised = 0;
+            room.TilesMutated += (r, region) => { seenRoom = r; seenRegion = region; raised++; };
+
+            RectInt region = new RectInt(9, 9, 3, 3);
+            room.NotifyTilesMutated(region);
+
+            Assert.AreEqual(1, raised, "the mutation event must still be raised exactly once");
+            Assert.AreSame(room, seenRoom);
+            Assert.AreEqual(region, seenRegion, "the region must reach listeners unchanged");
+        }
     }
 }

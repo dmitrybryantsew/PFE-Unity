@@ -61,7 +61,15 @@ namespace PFE.Entities.Enemies
         public bool HasLineOfSight;
 
         /// <summary>
-        /// How many simulation ticks have elapsed since target was last visible.
+        /// How many simulation ticks have elapsed since the target was last visible.
+        ///
+        /// <para><b>This is a readout, not the chase timeout — it used to be both, and that was the
+        /// bug.</b> <c>TickCombatChase</c> dropped out of the chase on <c>TargetUnit == null</c> and
+        /// then tested <c>TimeSinceTargetSpottedTicks &gt; 90</c>; because <c>EnemySensors.Evaluate</c>
+        /// nulls <c>TargetUnit</c> on the first obscured tick, the first test always fired and the
+        /// 90-tick grace period was unreachable. The retention budget is
+        /// <see cref="AlertTimerTicks"/> (<c>aiSpok</c>) — see <c>EnemyAwarenessMath</c>. This field is
+        /// still maintained and still shown by the F3 overlay, but nothing branches on it.</para>
         /// </summary>
         public int TimeSinceTargetSpottedTicks;
 
@@ -106,8 +114,22 @@ namespace PFE.Entities.Enemies
         public float SeenIntensity;
 
         /// <summary>
-        /// Alert countdown timer in simulation ticks (AS3 'aiSpok').
-        /// When > 0, the unit remains on high alert. Drops to 0 when search times out.
+        /// The unit's <b>awareness budget</b> — AS3 <c>UnitZombie.aiSpok</c> — in simulation ticks.
+        /// Armed by a sighting (<c>EnemySensors.Evaluate</c>), by an alarm (<c>RaiseAlarm</c>) and by an
+        /// ambusher rising (<c>ZombieBrain.Rise</c>); drained one tick at a time in
+        /// <c>EnemyBrain.SimTick</c>.
+        ///
+        /// <para><b>This, not <see cref="TargetUnit"/>, is what keeps a hunt alive.</b> The oracle clears
+        /// <c>celUnit</c> the moment the target is not seen but keeps the goal in <c>celX</c>/<c>celY</c>,
+        /// so a unit that has lost sight of its target still runs at it until this budget drains. Above
+        /// <c>EnemyAwarenessMath.ChaseThresholdTicks</c> the unit is chasing (full run speed); between 1
+        /// and that threshold it is searching at alert speed; at 0 it returns to patrol. See
+        /// <c>EnemyAwarenessMath</c> for the oracle's numbers and the tick/decrement translation.</para>
+        ///
+        /// <para><b>Previously documented as an "alert countdown" that nothing armed on sight</b> — which
+        /// is why the chase died on the first obscured tick. The name is kept because it is what the F3
+        /// overlay prints and what the hearing workstream already references; read it as
+        /// <c>aiSpok</c>.</para>
         /// </summary>
         public int AlertTimerTicks;
 
