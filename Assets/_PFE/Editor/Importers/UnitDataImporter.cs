@@ -76,6 +76,14 @@ namespace PFE.Editor.Importers
             var animUnmapped = new HashSet<string>();
             var animMissingFamily = new List<string>();
 
+            // Sound coverage. Same reason as the animation counters: "this unit has no death voice in
+            // the source" and "the <snd> parse silently found nothing" look identical from the asset
+            // alone, and the whole point of the family pass is that the first is rare. A zero here is
+            // the signal that the merge stopped working.
+            int deathVoiceUnits = 0;
+            int runVoiceUnits = 0;
+            int combatMusicUnits = 0;
+
             if (!File.Exists(AllDataPath))
             {
                 Debug.LogError(SourceImportPaths.MissingSourceMessage(AllDataPath, "AllData.as"));
@@ -334,6 +342,14 @@ namespace PFE.Editor.Importers
                     foreach (string unmapped in anim.UnmappedIds) animUnmapped.Add(unmapped);
                     if (anim.RowsWithoutId > 0) animRowsWithoutId += anim.RowsWithoutId;
 
+                    // Parse sounds (<snd> row), joined with the unit's family node exactly as the
+                    // animations above are. The family pass is not optional: see ParseSounds.
+                    ParseSounds(unit, unitContent, familyContent);
+
+                    if (!string.IsNullOrEmpty(unit.deathSoundId)) deathVoiceUnits++;
+                    if (!string.IsNullOrEmpty(unit.soundRun)) runVoiceUnits++;
+                    if (!string.IsNullOrEmpty(unit.musicTrack)) combatMusicUnits++;
+
                     // Parse weapons (<w> tags)
                     ParseWeapons(unit, unitContent);
 
@@ -398,9 +414,16 @@ namespace PFE.Editor.Importers
                   $"so no family pass ran: {string.Join(", ", animMissingFamily)}."
                 : string.Empty;
 
+            // Sound coverage. The family merge is what makes these non-zero; if the numbers collapse to
+            // near-zero the <snd> parse has broken, not the data.
+            string sndNote = deathVoiceUnits == 0
+                ? "  No unit imported a death voice — the <snd> parse (family merge included) found nothing."
+                : $"  Sounds: {deathVoiceUnits} unit(s) with a death voice, {runVoiceUnits} with a run " +
+                  $"loop, {combatMusicUnits} with combat music.";
+
             Debug.Log($"Unit import complete. Imported: {imported}  Updated: {updated}  " +
                       $"Skipped: {skipped}  Faction-unspecified: {unresolved}{note}{factionNote}" +
-                      $"{animNote}{unmappedNote}{noIdNote}{missingFamilyNote}");
+                      $"{animNote}{unmappedNote}{noIdNote}{missingFamilyNote}{sndNote}");
         }
 
         private static void ParsePhysics(UnitDefinition unit, string content)
@@ -458,17 +481,19 @@ namespace PFE.Editor.Importers
         /// Parses the <c>&lt;param&gt;</c> node — AS3 <c>Unit.as:1338-1415</c>, where
         /// <c>node = node0.param[0]</c>.
         ///
-        /// <para><b>Only <c>blood</c> is read here, and that is a recorded gap rather than a design.</b>
-        /// The node carries about nineteen attributes and <c>UnitDefinition</c> has thirteen fields for
+        /// <para><b>Two of the nineteen attributes are read here — <c>blood</c> and <c>trup</c> — and the
+        /// rest are a recorded gap rather than a design.</b>
+        /// The node carries about nineteen attributes and <c>UnitDefinition</c> has fourteen fields for
         /// them — <c>invulner</c>, <c>overlook</c>, <c>acttrap</c>, <c>npc</c>, <c>trup</c>,
         /// <c>blood</c>, <c>retdam</c>, <c>hero</c>, <c>pony</c>, <c>zombie</c>, <c>robot</c>,
         /// <c>insect</c>, <c>monster</c>, <c>alicorn</c>, <c>mech</c>, <c>hbonus</c>, <c>izvrat</c> —
         /// and <b>not one of them was parsed before this method existed</b>; every one sat at the value
-        /// <see cref="SetUnitDefaults"/> wrote. Of the thirteen fields only <c>isInvulnerable</c> and
-        /// <c>isAlicorn</c> have a runtime consumer, so most are low-value — but both of those are
-        /// still wrong today, and <c>isAlicorn</c> is not even written by the defaults. Closing the
-        /// whole node is its own workstream (see the notes); <c>blood</c> is the attribute this
-        /// workstream needs.</para>
+        /// <see cref="SetUnitDefaults"/> wrote. <c>trup</c> was one of those: the field
+        /// (<c>leavesCorpse</c>) existed, <see cref="SetUnitDefaults"/> wrote <c>true</c> into it, all
+        /// 149 assets serialised <c>leavesCorpse: 1</c> — and <b>nothing read it</b>, so it was a
+        /// constant wearing a field's clothes. It is read now, by the three brains whose oracle
+        /// <c>animate()</c> gates the death arm on it. Closing the whole node is still its own
+        /// workstream (see the notes).</para>
         ///
         /// <para><b>Absent means 0, not "red".</b> AS3 declares <c>public var blood:int = 0</c>
         /// (<c>Unit.as:416</c>) and assigns only when the attribute is present (<c>:1363-1366</c>), so
@@ -500,6 +525,24 @@ namespace PFE.Editor.Importers
             if (bloodMatch.Success)
             {
                 unit.bloodType = (BloodType)int.Parse(bloodMatch.Groups[1].Value);
+            }
+
+            // AS3 `Unit.as:1359-1361`:
+            //     if(node.@trup.length()) { this.trup = node.@trup > 0; }
+            // PRESENCE first, then the value — so this is deliberately NOT the `blood` shape above. An
+            // absent `trup` must leave the field alone, and AS3's field default is `true`
+            // (`Unit.as:422 public var trup:Boolean = true`), not false. Reading absent as false would
+            // silently strip the death animation from the 100-odd units that do not author it.
+            //
+            // `trup` is Russian for "corpse", and that is what it means: `trup == false` is the flag for
+            // "destroyed outright" — no corpse, no death animation, no death rattle. It gates the
+            // `die`/`death` arm of every `animate()` that has one (`UnitAnt.as:130`, `UnitMonstrik.as:102`,
+            // `UnitZombie.as`), it makes fire and laser damage destroy rather than gib (`:3723`, `:3727`),
+            // and it gates the `"trup"` sound (`:4347-4364`).
+            var trupMatch = Regex.Match(attrs, @"\btrup='(\d+)'");
+            if (trupMatch.Success)
+            {
+                unit.leavesCorpse = int.Parse(trupMatch.Groups[1].Value) > 0;
             }
         }
 
@@ -915,6 +958,92 @@ namespace PFE.Editor.Importers
                 Gender gender = sex == "m" ? Gender.Male : (sex == "w" ? Gender.Female : Gender.Other);
                 SetPrivateField(unit, "gender", gender);
             }
+        }
+
+        /// <summary>
+        /// Parse the unit's <c>&lt;snd&gt;</c> row — AS3 <c>Unit.as:1315-1335</c> — joined with the
+        /// unit's family node.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Why the family pass is mandatory, not a nicety.</b> AS3 does not merge a parent
+        /// node inside <c>Unit</c>; each family controller overrides <c>getXmlParam</c> and calls it
+        /// <i>twice</i> — the family id first, then the unit's own node, which overwrites only the
+        /// attributes it actually carries:</para>
+        /// <code>
+        /// // UnitAlicorn.as:231-234, and the same shape in UnitZombie:148, UnitAnt:77,
+        /// // UnitBloat:87, UnitHellhound:55, UnitRaider:302 (which passes this.parentId).
+        /// override public function getXmlParam(param1:String = null) : *
+        /// {
+        ///    super.getXmlParam("alicorn");   // family node
+        ///    super.getXmlParam();            // the unit's own node
+        /// }
+        /// </code>
+        /// <para>Of the 265 <c>&lt;snd&gt;</c> rows in AllData.as the family template almost always
+        /// carries the sound and its children carry none — <c>alicorn1/2/3</c> each have no
+        /// <c>&lt;snd&gt;</c> while <c>alicorn</c> holds <c>die='ali'</c> and
+        /// <c>music='combat_1'</c>. Reading only the unit's own node therefore leaves every child unit
+        /// silent, which is the state this importer was in: <b>all 148 units had an empty
+        /// <c>deathSoundId</c></b> and no enemy in the project could play a death voice. The family id
+        /// is the <c>parent=</c> attribute, which is the same string the oracle passes.</para>
+        ///
+        /// <para><b>Only three attributes are read, and <c>fall</c> is deliberately not one.</b> The
+        /// oracle's unit <c>&lt;snd&gt;</c> block reads exactly <c>music</c>, <c>musicp</c>,
+        /// <c>die</c> and <c>run</c> (<c>:1318-1334</c>); the port has fields for the first, third and
+        /// fourth (it has no <c>sndMusicPrior</c>). <c>UnitDefinition.fallingSoundId</c> is <b>not</b>
+        /// written here: a unit's falling sound is not an XML attribute at all. It comes from the
+        /// <c>sndFall()</c> hook (<c>Unit.as:2940</c>, an empty body) that only
+        /// <c>UnitPlayer.as:5007</c> and <c>UnitPon.as:208</c> override — controller-class data.
+        /// <c>snd.@fall</c> belongs to thrown weapons (<c>WThrow.as:28</c>) and loot boxes
+        /// (<c>Loot.as:122</c>), which are different definitions entirely.</para>
+        /// </remarks>
+        private static void ParseSounds(UnitDefinition unit, string content, string familyContent)
+        {
+            Dictionary<string, string> family = ReadSndAttributes(familyContent);
+            Dictionary<string, string> own = ReadSndAttributes(content);
+
+            ApplySndAttribute(unit, "musicTrack", own, family, "music");
+            ApplySndAttribute(unit, "deathSoundId", own, family, "die");
+            ApplySndAttribute(unit, "soundRun", own, family, "run");
+        }
+
+        /// <summary>
+        /// Read a node's <c>&lt;snd&gt;</c> attributes into a map, or an empty map when it has no such
+        /// row. All 265 rows in AllData.as are self-closing, which is the only form read here.
+        /// </summary>
+        private static Dictionary<string, string> ReadSndAttributes(string content)
+        {
+            var result = new Dictionary<string, string>(System.StringComparer.Ordinal);
+            if (string.IsNullOrEmpty(content)) return result;
+
+            // `[^>]*?` cannot cross a `>`, so this can never run past the element it opened.
+            var sndMatch = Regex.Match(content, @"<snd\s+([^>]*?)/>");
+            if (!sndMatch.Success) return result;
+
+            foreach (Match attr in Regex.Matches(sndMatch.Groups[1].Value, @"([A-Za-z_][A-Za-z0-9_]*)='([^']*)'"))
+            {
+                result[attr.Groups[1].Value] = attr.Groups[2].Value;
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Write <paramref name="field"/> from the unit's own <c>snd</c> attribute, falling back to the
+        /// family's — the oracle's order, where the own node is read second and overwrites.
+        /// </summary>
+        private static void ApplySndAttribute(
+            UnitDefinition unit,
+            string field,
+            Dictionary<string, string> own,
+            Dictionary<string, string> family,
+            string attribute)
+        {
+            if (!own.TryGetValue(attribute, out string value) && !family.TryGetValue(attribute, out value))
+            {
+                return;
+            }
+
+            SetPrivateField(unit, field, value);
         }
 
         private static void ParseWeapons(UnitDefinition unit, string content)
