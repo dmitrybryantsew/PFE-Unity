@@ -35,7 +35,12 @@ namespace PFE.Systems.Combat
             float critInvisChance = 0f,
             float desintegrChance = 0f,
             float targetCurrentHp = -1f,
-            bool targetIsNonLiving = false);
+            bool targetIsNonLiving = false,
+            bool targetIsGrounded = true,
+            bool targetIsInWater = false,
+            float allVulnerabilityMultiplier = 1f,
+            float shieldHp = 0f,
+            float shieldArmour = 0f);
 
         /// <summary>
         /// Complete damage calculation from weapon to target.

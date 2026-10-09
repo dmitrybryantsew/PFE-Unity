@@ -69,13 +69,39 @@ namespace PFE.Systems.Combat
         /// <summary>Nothing happened — a dead target, a null target, or a zero-damage context.</summary>
         public static readonly DamageOutcome None = default;
 
+        /// <summary>
+        /// The target's <c>shithp</c> <b>after</b> this hit absorbed it — AS3 <c>Unit.as:3629-3637</c>.
+        /// <see cref="NoShield"/> when the target had no shield up, or when the caller passed none.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>The resolver owns the arithmetic; the target owns the write.</b> The shield's pool
+        /// decrement is part of the reduction block in <c>Unit.damage()</c>, so it has to be computed
+        /// where the reduction is — but the value lives on the unit. Carrying the result out on the
+        /// outcome is the same split <see cref="ArmourIntegrityDamage"/> uses for the armour pool: the
+        /// formula stays pure and in one place, and <c>UnitStats.ApplyDamage</c> only writes it
+        /// down.</para>
+        ///
+        /// <para><see cref="NoShield"/> is a sentinel rather than <c>0</c> because <c>0</c> is a
+        /// meaningful value — it is "the shield was up and this hit broke it" — and a target that never
+        /// had a shield must not have its (already-zero) field overwritten by an unrelated hit's
+        /// outcome.</para>
+        /// </remarks>
+        public readonly float ShieldHpAfter;
+
+        /// <summary>
+        /// <see cref="ShieldHpAfter"/>'s "this hit did not touch a shield" sentinel. Negative so it can
+        /// never collide with a real pool value, which AS3 clamps at <c>0</c>.
+        /// </summary>
+        public const float NoShield = -1f;
+
         public DamageOutcome(
             float hpDamage,
             float armourIntegrityDamage = 0f,
             bool armourBroke = false,
             bool armourReduced = false,
             bool isCritical = false,
-            bool isStealthCritical = false)
+            bool isStealthCritical = false,
+            float shieldHpAfter = NoShield)
         {
             HpDamage = hpDamage;
             ArmourIntegrityDamage = armourIntegrityDamage;
@@ -83,6 +109,7 @@ namespace PFE.Systems.Combat
             ArmourReduced = armourReduced;
             IsCritical = isCritical;
             IsStealthCritical = isStealthCritical;
+            ShieldHpAfter = shieldHpAfter;
         }
 
         /// <summary>True when armour ate the whole hit — useful for feedback and for tests.</summary>

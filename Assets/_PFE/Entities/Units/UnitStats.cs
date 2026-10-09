@@ -158,8 +158,11 @@ public readonly ReactiveProperty<float> MaxMana;
     // === Spell/boss shield (AS3 Unit.shithp / Unit.shitArmor) ===
     //
     // A damage-absorbing layer that sits in FRONT of the armour pool, distinct from it. Granted by the
-    // sp_mshit spell (Spell.as:314-318) and set directly by four bosses (UnitAlicorn, UnitBossAlicorn,
-    // UnitBossDron, UnitBossUltra). The armour workstream deliberately kept it out of the armour model
+    // sp_mshit spell (Spell.as:314-318) and set directly by THREE bosses — UnitAlicorn.as:1090,
+    // UnitBossDron.as:275, UnitBossUltra.as:441/452. It is deliberately NOT four: UnitBossAlicorn
+    // declares shitMaxHp/t_shit/shitArmor and builds the visShit3 dome, but never assigns shithp, so its
+    // pool is permanently 0 and its dome is a one-shot break visual instead (die():709-712). The armour
+    // workstream deliberately kept this out of the armour model
     // (2026-09-29 notes: "shithp/shitArmor is NOT armour — it is ... a boss/summoned shield layer").
     // The RULE lives in PFE.Systems.Magic.SpellShield; only the state lives here.
 
@@ -424,6 +427,17 @@ public readonly ReactiveProperty<float> MaxMana;
             // AS3 Armor.damage() unequips on break (changeArmor("off"), Armor.as:331-334).
             if (broke) UnequipArmour();
         }
+
+        // The spell/boss shield pool. AS3 wears it inside the reduction block (Unit.as:3629-3637),
+        // which the resolver has already done — it hands back the post-hit pool value on the outcome
+        // and this only writes it down. `NoShield` means the target had no shield up (or the caller
+        // passed none), and a write must NOT happen then: 0 is a meaningful pool value ("this hit
+        // broke it"), so treating "no shield" as 0 would zero a shield the resolver never touched.
+        //
+        // Written before the health write, matching AS3's order (`shithp -= param1` at :3631 precedes
+        // `this.hp -= param1` at :3705), so a listener on the shield sees the new pool in the same
+        // tick as the health change that came with it.
+        if (outcome.ShieldHpAfter != DamageOutcome.NoShield) ShitHp = outcome.ShieldHpAfter;
 
         if (outcome.HpDamage > 0f) Damage(outcome.HpDamage);
 

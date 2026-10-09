@@ -886,5 +886,230 @@ namespace PFE.Tests.Editor.Combat
                 ArmourWear.PoolIntegrityDamage(DamageType.Explosive, 20f, spellShieldAbsorb: 15f),
                 1e-4f, "(20 - 15) * 2");
         }
+
+        // === D_SPARK: electricity is halved off the ground — Unit.as:3567-3573 ===
+        //
+        //   if(param2 == D_SPARK)
+        //      if(!stay && !this.inWater && this.isLaz == 0)
+        //         param1 *= 0.5;
+        //
+        // This is the whole of "the alicorn's lightning hit harder when I was on the ground", and
+        // `alilight`'s `<char tipdam='9'>` is D_SPARK. The rule only ever halves, so the absent control
+        // for each arm is the case where the hit stays whole.
+
+        [Test]
+        public void Spark_OnTheGround_TakesFullDamage()
+        {
+            var outcome = _calculator.ResolveDamage(
+                incomingDamage: 50f,
+                armourIntegrityDamage: 0f,
+                armour: ArmourState.None,
+                rng: NeverRolls(),
+                damageType: DamageType.Spark,
+                targetIsGrounded: true);
+
+            Assert.AreEqual(50f, outcome.HpDamage, 1e-4f, "Grounded is the unmodified case.");
+        }
+
+        [Test]
+        public void Spark_Airborne_IsHalved()
+        {
+            var outcome = _calculator.ResolveDamage(
+                incomingDamage: 50f,
+                armourIntegrityDamage: 0f,
+                armour: ArmourState.None,
+                rng: NeverRolls(),
+                damageType: DamageType.Spark,
+                targetIsGrounded: false);
+
+            Assert.AreEqual(25f, outcome.HpDamage, 1e-4f, "50 * 0.5 — the airborne penalty.");
+        }
+
+        [Test]
+        public void Spark_AirborneButInWater_TakesFullDamage()
+        {
+            // Water grounds a spark the same way the floor does — the second term of the same guard.
+            var outcome = _calculator.ResolveDamage(
+                incomingDamage: 50f,
+                armourIntegrityDamage: 0f,
+                armour: ArmourState.None,
+                rng: NeverRolls(),
+                damageType: DamageType.Spark,
+                targetIsGrounded: false,
+                targetIsInWater: true);
+
+            Assert.AreEqual(50f, outcome.HpDamage, 1e-4f, "inWater short-circuits the halving.");
+        }
+
+        [Test]
+        public void NonSpark_Airborne_IsNotHalved()
+        {
+            // The absent control for the type gate: airborne alone must not halve anything else, or the
+            // rule would be "airborne targets take half damage" — a very different game.
+            var outcome = _calculator.ResolveDamage(
+                incomingDamage: 50f,
+                armourIntegrityDamage: 0f,
+                armour: ArmourState.None,
+                rng: NeverRolls(),
+                damageType: DamageType.Laser,
+                targetIsGrounded: false);
+
+            Assert.AreEqual(50f, outcome.HpDamage, 1e-4f);
+        }
+
+        // === Spell/boss shield — Unit.as:3629-3637 ===
+        //
+        //   if(this.shithp > 0)
+        //   {
+        //      this.shithp -= param1;
+        //      if(this.shithp < 0) this.shithp = 0;
+        //      _loc8_ += this.shitArmor;
+        //   }
+
+        [Test]
+        public void Shield_WearsThePoolByTheWholeHit_AndAddsItsRatingToTheReduction()
+        {
+            var outcome = _calculator.ResolveDamage(
+                incomingDamage: 50f,
+                armourIntegrityDamage: 0f,
+                armour: ArmourState.None,
+                rng: NeverRolls(),
+                shieldHp: 300f,
+                shieldArmour: 25f);
+
+            // The pool takes the full 50 — not the 25 that survived the reduction. A shield that only
+            // wore by the post-reduction damage would last twice as long as the oracle's.
+            Assert.AreEqual(250f, outcome.ShieldHpAfter, 1e-4f, "300 - 50");
+            Assert.AreEqual(25f, outcome.HpDamage, 1e-4f, "50 - shitArmor 25");
+        }
+
+        [Test]
+        public void Shield_RatingAppliesToTypesThatReachNeitherArmourBranch()
+        {
+            // The `_loc8_ += this.shitArmor` sits OUTSIDE the two damage-type branches, so a poison hit
+            // — which gets no skin and no armour rating — still gets the shield's flat 25. That is the
+            // difference between "the shield is armour" and "the shield is a separate layer".
+            var outcome = _calculator.ResolveDamage(
+                incomingDamage: 50f,
+                armourIntegrityDamage: 0f,
+                armour: ArmourState.None,
+                rng: NeverRolls(),
+                damageType: DamageType.Poison,
+                shieldHp: 300f,
+                shieldArmour: 25f);
+
+            Assert.AreEqual(25f, outcome.HpDamage, 1e-4f, "50 - 25, with no skin and no channel");
+            Assert.AreEqual(250f, outcome.ShieldHpAfter, 1e-4f);
+        }
+
+        [Test]
+        public void Shield_PoolClampsAtZero_AndReportsTheBreak()
+        {
+            var outcome = _calculator.ResolveDamage(
+                incomingDamage: 400f,
+                armourIntegrityDamage: 0f,
+                armour: ArmourState.None,
+                rng: NeverRolls(),
+                shieldHp: 300f,
+                shieldArmour: 25f);
+
+            Assert.AreEqual(0f, outcome.ShieldHpAfter, 1e-4f, "300 - 400 clamps at 0, never negative");
+            Assert.AreEqual(375f, outcome.HpDamage, 1e-4f, "400 - 25 — the shield blunts even the hit it dies to");
+        }
+
+        [Test]
+        public void NoShield_ReportsNoShield_AndDoesNotZeroAPool()
+        {
+            // `0` is a meaningful pool value ("this hit broke it"), so "there was no shield" needs its
+            // own sentinel — otherwise a target that never had one would have its field overwritten by
+            // an unrelated hit's outcome.
+            var outcome = _calculator.ResolveDamage(
+                incomingDamage: 50f,
+                armourIntegrityDamage: 0f,
+                armour: ArmourState.None,
+                rng: NeverRolls(),
+                shieldHp: 0f,
+                shieldArmour: 25f);
+
+            Assert.AreEqual(DamageOutcome.NoShield, outcome.ShieldHpAfter, 1e-4f);
+            Assert.AreEqual(50f, outcome.HpDamage, 1e-4f, "An empty pool contributes no rating.");
+        }
+
+        [Test]
+        public void Shield_IsSkippedEntirelyWhenArmourIsIgnored()
+        {
+            // AS3's `param4` skips the whole `if(!param4)` reduction block — shield included. This is the
+            // path the DoT and environmental callers take, and it is why a bleed tick does not eat a
+            // boss's shield.
+            var outcome = _calculator.ResolveDamage(
+                incomingDamage: 50f,
+                armourIntegrityDamage: 0f,
+                armour: ArmourState.None,
+                rng: NeverRolls(),
+                ignoreArmour: true,
+                shieldHp: 300f,
+                shieldArmour: 25f);
+
+            Assert.AreEqual(DamageOutcome.NoShield, outcome.ShieldHpAfter, 1e-4f);
+            Assert.AreEqual(50f, outcome.HpDamage, 1e-4f);
+        }
+
+        // === Global vulnerability — Unit.as:3679-3682 ===
+        //
+        //   if(param2 != D_POISON && param2 != D_BLEED && param2 != D_INSIDE)
+        //      param1 *= this.allVulnerMult;
+
+        [Test]
+        public void AllVulnerability_MultipliesTheHit()
+        {
+            // 0.6 is the shielded alicorn's value (UnitAlicorn.as:593).
+            var outcome = _calculator.ResolveDamage(
+                incomingDamage: 50f,
+                armourIntegrityDamage: 0f,
+                armour: ArmourState.None,
+                rng: NeverRolls(),
+                allVulnerabilityMultiplier: 0.6f);
+
+            Assert.AreEqual(30f, outcome.HpDamage, 1e-4f, "50 * 0.6");
+        }
+
+        [Test]
+        public void AllVulnerability_IsNotAppliedToTheThreeDamageOverTimeTypes()
+        {
+            // A resistance perk must not blunt a bleed tick or a poison stack. The oracle names the three
+            // types individually rather than gating on a flag it does not have.
+            foreach (DamageType type in new[]
+                     { DamageType.Poison, DamageType.Bleed, DamageType.Internal })
+            {
+                var outcome = _calculator.ResolveDamage(
+                    incomingDamage: 50f,
+                    armourIntegrityDamage: 0f,
+                    armour: ArmourState.None,
+                    rng: NeverRolls(),
+                    damageType: type,
+                    allVulnerabilityMultiplier: 0.6f);
+
+                Assert.AreEqual(50f, outcome.HpDamage, 1e-4f, $"{type} must bypass allVulnerMult");
+            }
+        }
+
+        // === WearFrom forwards the shield's rating to the pool table ===
+
+        [Test]
+        public void UnitPoolWear_ReceivesTheShieldRating_ThroughWearFrom()
+        {
+            // Unit.as:3578-3584, the whole statement: the gate plus `_loc9_ = param1; if(shithp > 0)
+            // _loc9_ -= shitArmor;`. The argument existed on ArmourWear.PoolIntegrityDamage and on
+            // WearFrom and was supplied by no caller, so the subtraction never ran in production.
+            var pool = ArmourState.FromUnitPool(100f, 100f, 20f, 0f, 1f);
+
+            Assert.AreEqual(10f,
+                pool.WearFrom(DamageType.Explosive, 20f, spellShieldAbsorb: 15f), 1e-4f,
+                "(20 - 15) * 2");
+
+            Assert.AreEqual(0f,
+                pool.WearFrom(DamageType.PhysicalBullet, 10f, spellShieldAbsorb: 25f), 1e-4f,
+                "A hit no larger than the rating leaves nothing to wear — the :3578 gate.");
+        }
     }
 }

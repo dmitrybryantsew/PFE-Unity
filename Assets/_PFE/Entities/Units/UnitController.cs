@@ -439,6 +439,9 @@ namespace PFE.Entities.Units
             AttachEffectDamageSink();
         }
 
+        public DamageSystem DamageSystem => _damageSystem;
+        public UnitDefinition Definition => _stats;
+
         /// <summary>
         /// Point this unit's effect payload damage at <see cref="ReportEffectDamage"/>, so a burn, an
         /// acid tick or a poison tick goes through the damage pipeline rather than the raw HP
@@ -1838,6 +1841,7 @@ namespace PFE.Entities.Units
         // Public getters
 
         public bool IsGrounded => _isGrounded;
+        public void SetGrounded(bool grounded) => _isGrounded = grounded;
         public Vector2 Velocity => _velocity;
         public int FacingDirection => _facingDirection;
 
@@ -2041,6 +2045,88 @@ namespace PFE.Entities.Units
         public virtual float SkinResistance => _unitStats?.skinResistance ?? 0f;
 
         /// <summary>
+        /// The unit's spell/boss shield pool, read by the damage resolver — AS3 <c>Unit.shithp</c>.
+        /// <c>0</c> when no stats are assigned or no shield is up, which is AS3's own field default.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>The state lives on <see cref="UnitStats"/>, the rule lives in
+        /// <c>SpellShield</c>, and this is only the read the resolver needs.</b> Same split as
+        /// <see cref="SkinResistance"/>: the resolver reads it locally and hands back the post-hit pool
+        /// on <c>DamageOutcome.ShieldHpAfter</c>, which <c>UnitStats.ApplyDamage</c> writes down.</para>
+        ///
+        /// <para><b>This is what makes the alicorn's shield actually absorb damage.</b>
+        /// <c>AlicornController</c> used to keep its own private <c>_shieldHp</c> and subtract from it
+        /// in an overridden <c>ApplyDamage</c> — a second, divergent absorption that the resolver knew
+        /// nothing about, so the shield neither fed <c>shitArmor</c> into the reduction nor set
+        /// <c>allVulnerMult</c>, and nothing else in the game could see it.</para>
+        /// </remarks>
+        public virtual float ShieldHp => _unitStats?.ShitHp ?? 0f;
+
+        /// <summary>
+        /// The shield's flat rating — AS3 <c>Unit.shitArmor</c> (<c>Unit.as:160</c>, default <c>20</c>).
+        /// Read only while <see cref="ShieldHp"/> is positive.
+        /// </summary>
+        /// <remarks>
+        /// Forwarded rather than answered with AS3's field default of <c>20</c>: the rating is
+        /// per-unit (the alicorn sets <c>25</c>, or <c>50</c> on tr3 — <c>UnitAlicorn.as:152/172</c>) and
+        /// <c>UnitTurret.as:507</c> sets it to <c>0</c> while its shield is up, so a constant here would
+        /// be wrong for both. A unit with no stats answers <c>0</c>, which contributes nothing — the
+        /// unshielded behaviour.
+        /// </remarks>
+        public virtual float ShieldArmor => _unitStats?.ShitArmor ?? 0f;
+
+        /// <summary>
+        /// The tier that selects this unit's shield <b>dome</b> — AS3's <c>tr</c> as the shield visual
+        /// reads it (<c>UnitAlicorn.as:191</c>). <c>0</c> for every unit that is not an alicorn.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>It is a read on the controller rather than a field on the unit's data row because
+        /// the oracle decides it by class.</b> <c>if(this.tr == 3) new visShit2() else new visShit()</c>
+        /// lives in the alicorn's constructor, and the three dome classes are instantiated by three
+        /// different unit classes. So the tier is a property of the controller, exactly like
+        /// <see cref="IsPlayer"/> and <see cref="IsNonLiving"/>.</para>
+        ///
+        /// <para><b>Separate from <see cref="ShieldHp"/> on purpose.</b> The pool decides <i>whether</i>
+        /// a dome shows; this decides <i>which</i>. A unit can have one without the other — the
+        /// player's <c>sp_mshit</c> shield has a pool and its own dome that is not one of these three,
+        /// and an un-imported <c>visShit2</c> leaves a tr3 alicorn with a pool and no exact dome.</para>
+        /// </remarks>
+        public virtual int ShieldOverlayTier => 0;
+
+        /// <summary>
+        /// Whether this unit draws <c>visShit3</c> — the dome <c>UnitBossAlicorn</c> builds
+        /// (<c>UnitBossAlicorn.as:123-127</c>), the only place the oracle instantiates it.
+        /// </summary>
+        /// <remarks>
+        /// <b>Nothing returns <c>true</c> today, and that is correct.</b> The boss alicorn's dome is a
+        /// one-shot: <c>die():709-712</c> plays it from frame 2 on the first lethal hit and revives the
+        /// boss, rather than the pool-driven show/hide every other dome uses. <c>BossAlicornController</c>
+        /// therefore answers <c>false</c> — see the note there. This member is kept because the mapping
+        /// and the <c>boss</c> clip slot are real; only the play-once driver is missing.
+        /// </remarks>
+        public virtual bool UsesBossShieldOverlay => false;
+
+        /// <summary>
+        /// Whether this unit is one of the classes that can ever have a positive
+        /// <see cref="ShieldHp"/> — and therefore the only ones that need a shield <b>dome</b> built.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>AS3's own list, from the places that write <c>shithp</c>:</b> the <c>sp_mshit</c>
+        /// spell (<c>Spell.as:309-316</c>, which targets the caster and is how the <i>player</i> gets
+        /// one) and three bosses that set it directly — <c>UnitAlicorn.as:1090</c>,
+        /// <c>UnitBossDron.as:275</c>, <c>UnitBossUltra.as:441/452</c>. <c>UnitBossAlicorn</c> is
+        /// <b>not</b> on the list despite declaring <c>shitMaxHp</c>/<c>t_shit</c>/<c>shitArmor</c>: it
+        /// never assigns <c>shithp</c>, so its pool is 0 for its whole life. An ordinary NPC is the same
+        /// — building a renderer for one is a component and a poll that can never draw anything.</para>
+        ///
+        /// <para><b>Only the ordinary alicorn answers true today.</b> <c>BossDron</c> and
+        /// <c>BossUltra</c> still carry private shield fields that the damage pipeline cannot see, so a
+        /// dome for them would poll a pool that never moves. They are deliberately left out until that
+        /// shield is moved onto <see cref="ShieldHp"/> like the alicorn's — recorded, not forgotten.</para>
+        /// </remarks>
+        public virtual bool HasSpellShieldOverlay => false;
+
+        /// <summary>
         /// AS3 <c>Unit.knocked</c> — this unit's susceptibility to being thrown. Authored on the
         /// definition's <c>&lt;move&gt;</c> node; AS3's own default is <c>1</c>.
         /// </summary>
@@ -2155,15 +2241,31 @@ namespace PFE.Entities.Units
         /// the 75%-height sample). Read only by the <c>namok</c> droplet, which is suppressed when it is
         /// true.
         /// </summary>
-        /// <remarks>
-        /// <b>Always false on this base class, and that is a recorded gap rather than a default.</b> The
-        /// port computes submersion in exactly one place — <c>TilePhysicsController.CheckWater</c>, which
-        /// is the <i>player's</i> physics controller — so no NPC has the state. A subclass that does
-        /// have it (the player) overrides this. The consequence today is that a soaked NPC standing in
-        /// deep water still drips; that is a visual-only divergence, and it is preferred to reading a
-        /// per-tick water sample that nothing else computes.
-        /// </remarks>
-        public virtual bool IsFullySubmerged => false;
+        protected bool _isSubmergedOverride;
+        public void SetSubmergedOverride(bool submerged) => _isSubmergedOverride = submerged;
+        public virtual bool IsFullySubmerged => _cachedTilePhysics != null ? _cachedTilePhysics.IsFullySubmerged : _isSubmergedOverride;
+        public virtual bool IsInWater => _cachedTilePhysics != null ? _cachedTilePhysics.IsInWater : _isSubmergedOverride;
+
+        /// <summary>
+        /// AS3 <c>Unit.allVulnerMult</c> (<c>Unit.as:146</c>, default <c>1</c>) — the last multiplier
+        /// applied to every hit (<c>Unit.damage():3681</c>), and the target-side read
+        /// <see cref="PFE.Systems.Combat.IDamageable.AllVulnerabilityMultiplier"/> exposes.
+        ///
+        /// <para><b>Why it is a plain settable field here rather than a projection.</b> The oracle has a
+        /// single field on the unit and three writers: the skill/effect pipeline (the player's
+        /// <c>CharacterStats.allVulnerMult</c>), <c>Pers.defaultParams</c> (1), and the boss shield
+        /// (<c>UnitAlicorn.as:586-593</c>, <c>0.6</c>/<c>0.4</c> while <c>shithp &gt; 0</c>). The player
+        /// path already owns <c>CharacterStats</c>; the shield path needs to write this from a
+        /// controller. One settable value lets both, and keeps the arithmetic in
+        /// <c>DamageCalculator</c> where the rest of the formula lives.</para>
+        ///
+        /// <para><b>Recorded divergence: the player's skill/effect contributions are still not
+        /// wired.</b> <c>CharacterStats.allVulnerMult</c> exists and is maintained, but nothing copies it
+        /// onto this field, so a player's <c>defense</c>/<c>survival</c> ranks do not yet blunt incoming
+        /// damage. What this field does carry today is the alicorn shield. See
+        /// <c>BloodSprayRules.cs:46</c> for the original note.</para>
+        /// </summary>
+        public float AllVulnerabilityMultiplier { get; set; } = 1f;
 
         /// <summary>
         /// AS3 <c>storona</c> — the unit's facing as a sign, <c>+1</c> or <c>-1</c>

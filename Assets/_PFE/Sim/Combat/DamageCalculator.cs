@@ -2,6 +2,7 @@ using UnityEngine;
 using PFE.Core.Rng;
 using PFE.Data.Definitions;
 using PFE.Entities.Units;
+using PFE.Systems.Magic;
 
 namespace PFE.Systems.Combat
 {
@@ -315,6 +316,32 @@ namespace PFE.Systems.Combat
         /// a reduction branch — not universally, despite how it reads in the field name.
         /// </param>
         /// <param name="durabilityMultiplier">The weapon <c>breaking</c> term, <c>1 - breaking * 0.3</c>.</param>
+        /// <param name="targetIsGrounded">
+        /// AS3 <c>this.stay</c> — the target is resting on solid ground (<c>Unit.as:2382</c>). Read by the
+        /// <c>D_SPARK</c> rule; see <see cref="DamageType.Spark"/> below. Defaults to <c>true</c>, which
+        /// leaves the hit unmodified — the oracle's rule only ever halves.
+        /// </param>
+        /// <param name="targetIsInWater">
+        /// AS3 <c>this.inWater</c> — the second term of the <c>D_SPARK</c> rule. Defaults to <c>false</c>.
+        /// </param>
+        /// <param name="allVulnerabilityMultiplier">
+        /// AS3 <c>this.allVulnerMult</c> (<c>Unit.as:146</c>, default <c>1</c>) — the global multiplier
+        /// applied at <c>Unit.damage():3681</c>, after the crit block and before the HP write. This is
+        /// where the spell/boss shield's <c>0.6</c>/<c>0.4</c> lands, and where the player's
+        /// <c>defense</c>/<c>survival</c> ranks will land once <c>CharacterStats.allVulnerMult</c> is
+        /// wired to it.
+        /// </param>
+        /// <param name="shieldHp">
+        /// AS3 <c>this.shithp</c> — the spell/boss shield's own pool (<c>Unit.as:134</c>, default
+        /// <c>0</c>). Worn down by the whole incoming hit and blunting it by
+        /// <paramref name="shieldArmour"/> at the same time; see the <c>3b</c> block below. <c>0</c> is
+        /// "no shield", which is every unit that has never cast <c>sp_mshit</c> or spawned as a boss.
+        /// </param>
+        /// <param name="shieldArmour">
+        /// AS3 <c>this.shitArmor</c> (<c>Unit.as:160</c>, default <c>20</c>) — the shield's flat rating.
+        /// The alicorn sets <c>25</c> (<c>50</c> on tr3); the player's <c>Pers.defaultParams()</c> sets
+        /// <c>20</c>. Read only while <paramref name="shieldHp"/> is positive.
+        /// </param>
         public DamageOutcome ResolveDamage(
             float incomingDamage,
             float armourIntegrityDamage,
@@ -331,10 +358,40 @@ namespace PFE.Systems.Combat
             float critInvisChance = 0f,
             float desintegrChance = 0f,
             float targetCurrentHp = -1f,
-            bool targetIsNonLiving = false)
+            bool targetIsNonLiving = false,
+            bool targetIsGrounded = true,
+            bool targetIsInWater = false,
+            float allVulnerabilityMultiplier = 1f,
+            float shieldHp = 0f,
+            float shieldArmour = 0f)
         {
             if (incomingDamage <= 0f)
                 return DamageOutcome.None;
+
+            // ── 0. D_SPARK: electricity is halved in the air ─────────────────────────────────────
+            // AS3 `Unit.damage():3567-3573`:
+            //
+            //   if(param2 == D_SPARK)
+            //      if(!stay && !this.inWater && this.isLaz == 0)
+            //         param1 *= 0.5;
+            //
+            // Position is load-bearing: the oracle puts it immediately after the `if(param1 == 0)
+            // return 0` early-out above (:3563) and BEFORE the armour-pool block (:3578), so the armour
+            // wear is computed from the halved number. Applying it later would wear the target's plate
+            // for the full hit and only then halve what reaches the health bar.
+            //
+            // `isLaz == 0` is "not standing on a staircase". The port tracks no per-unit stair state
+            // (recorded on `PlayerWeaponLoadout.ResolveHoldPoint` for the same reason), so the term is
+            // always true here and is omitted rather than guessed at. Its only effect would be to grant
+            // full damage to a target on a slope, which the port cannot currently represent.
+            //
+            // This is the whole of the reported "the alicorn's lightning hit harder when I was on the
+            // ground": a grounded target takes the full `alilight` damage, a jumping or flying one takes
+            // half. `alilight`'s `<char tipdam='9'>` is D_SPARK, and 9 is `DamageType.Spark`.
+            if (damageType == DamageType.Spark && !targetIsGrounded && !targetIsInWater)
+            {
+                incomingDamage *= 0.5f;
+            }
 
             // ── 1. Pool depletion ────────────────────────────────────────────────────────────────
             // Integrity is reduced first, and the hit that empties it gets no reduction — AS3 zeroes
@@ -382,6 +439,36 @@ namespace PFE.Systems.Combat
                         armourReduced = true;
                     }
                 }
+            }
+
+            // ── 3b. Spell / boss shield ──────────────────────────────────────────────────────────
+            // AS3 `Unit.damage():3629-3637`, the third statement inside the `if(!param4)` reduction
+            // block — deliberately AFTER both damage-type branches and therefore OUTSIDE them:
+            //
+            //   if(this.shithp > 0)
+            //   {
+            //      this.shithp -= param1;
+            //      if(this.shithp < 0) this.shithp = 0;
+            //      _loc8_ += this.shitArmor;
+            //   }
+            //
+            // Two faithful details, both easy to get wrong:
+            //
+            //   * The pool is worn by the <b>whole incoming hit</b>, not by the damage that survived the
+            //     reduction — the shield takes the hit and *also* blunts it. So a 50-damage spark on a
+            //     300 pool leaves 250 and the target takes 50 - shitArmor.
+            //   * It is added to `_loc8_` outside the channel gate, so a damage type that reaches
+            //     neither armour branch (venom, poison, psionic, EMP, …) still gets the shield's flat
+            //     rating. That is the difference between "the shield is armour" and "the shield is a
+            //     separate layer", and the oracle is explicit about it.
+            //
+            // `ignoreArmour` (AS3 `param4`) skips the block entirely, shield included — which is what
+            // the DoT and environmental callers pass.
+            float shieldHpAfter = DamageOutcome.NoShield;
+            if (!ignoreArmour && shieldHp > 0f)
+            {
+                shieldHpAfter = SpellShield.AfterAbsorb(shieldHp, incomingDamage);
+                reduction += SpellShield.ArmourRating(shieldHp, shieldArmour);
             }
 
             reduction = reduction * armourMultiplier - piercing;
@@ -451,6 +538,33 @@ namespace PFE.Systems.Combat
                 damage *= 12f;
             }
 
+            // ── 4d. Global vulnerability ─────────────────────────────────────────────────────────
+            // AS3 `Unit.damage():3681` — the first statement inside the `if(param1 > 0)` block that
+            // leads to `this.hp -= param1` at :3705:
+            //
+            //   if(param2 != D_POISON && param2 != D_BLEED && param2 != D_INSIDE)
+            //      param1 *= this.allVulnerMult;
+            //
+            // The three excluded types are the damage-over-time channels: a resistance perk must not
+            // blunt a bleed tick or a poison stack, which is why the oracle names them individually
+            // rather than gating on a "is DoT" flag it does not have.
+            //
+            // This is the last multiplier before the health write, so it sits after the crit and
+            // disintegration blocks above and before the weapon-durability fold below. It is the term
+            // that makes a shield or a resistance perk actually mean something: the boss shield
+            // (`UnitAlicorn.as:586-593`) sets it to 0.6 (0.4 on tr3) while `shithp > 0`.
+            //
+            // Numerically it commutes with the durability fold (both are plain multiplications), so the
+            // only reason it is here rather than after is to read like the oracle.
+            if (damage > 0f
+                && damageType != DamageType.Poison
+                && damageType != DamageType.Bleed
+                && damageType != DamageType.Internal
+                && allVulnerabilityMultiplier != 1f)
+            {
+                damage *= allVulnerabilityMultiplier;
+            }
+
             // ── 5. Weapon durability ─────────────────────────────────────────────────────────────
             damage *= durabilityMultiplier;
 
@@ -463,7 +577,10 @@ namespace PFE.Systems.Combat
                 // AS3's `_loc5_ += 2`. Reported as its own bit rather than folded into `isCrit` so the
                 // three oracle reads (`_loc5_ > 0`, `_loc5_ >= 2`, `_loc5_ == 1 || _loc5_ == 3`) all
                 // remain expressible — see DamageOutcome.IsStealthCritical.
-                isStealthCritical: stealthCrit);
+                isStealthCritical: stealthCrit,
+                // Step 3b's pool result. `NoShield` when there was no shield up, so the target's write
+                // is a no-op rather than a zeroing — `0` is a real value here ("this hit broke it").
+                shieldHpAfter: shieldHpAfter);
         }
 
         #endregion

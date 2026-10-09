@@ -236,6 +236,15 @@ namespace PFE.Entities.Units
         /// <param name="type">Damage type of the hit.</param>
         /// <param name="damage">Incoming damage before reduction.</param>
         /// <param name="armourMultiplier">The weapon's <c>armorMult</c> (pool model only).</param>
+        /// <param name="spellShieldAbsorb">
+        /// The spell/boss shield's rating — AS3 <c>shitArmor</c>, read only while <c>shithp &gt; 0</c>
+        /// (<c>Unit.as:3581-3584</c>). Subtracted from the wear <b>before</b> the multipliers, and
+        /// because the subtraction comes first it also reproduces the oracle's gate at <c>:3578</c>: a
+        /// hit no larger than the rating leaves nothing to wear. Zero when no shield is up.
+        /// <para><b>Pool model only.</b> The player's equipped armour has no shield term in the oracle
+        /// — <c>:3578</c> is guarded on <c>!this.player</c> — so the argument is ignored for
+        /// <see cref="ArmourModel.EquippedItem"/>.</para>
+        /// </param>
         /// <returns>Integrity to remove. 0 when nothing is equipped.</returns>
         /// <remarks>
         /// <b>The resist is read from <see cref="resists"/>, not passed in.</b> An earlier signature
@@ -247,7 +256,8 @@ namespace PFE.Entities.Units
         public float WearFrom(
             DamageType type,
             float damage,
-            float armourMultiplier = 1f)
+            float armourMultiplier = 1f,
+            float spellShieldAbsorb = 0f)
         {
             if (!IsEquipped || damage <= 0f)
                 return 0f;
@@ -255,7 +265,7 @@ namespace PFE.Entities.Units
             switch (model)
             {
                 case ArmourModel.UnitPool:
-                    return ArmourWear.PoolIntegrityDamage(type, damage, armourMultiplier);
+                    return ArmourWear.PoolIntegrityDamage(type, damage, armourMultiplier, spellShieldAbsorb);
                 case ArmourModel.EquippedItem:
                     return ArmourWear.ItemIntegrityDamage(
                         type, damage, resists.GetResist(type), indestructible);

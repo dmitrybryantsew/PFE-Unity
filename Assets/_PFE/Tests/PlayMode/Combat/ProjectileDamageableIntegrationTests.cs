@@ -341,6 +341,21 @@ namespace PFE.Tests.PlayMode.Combat
             /// stealth crit is not suppressed. Answering <c>true</c> here would silently disable it.</summary>
             public bool IsNonLiving => false;
 
+            /// <summary>AS3 <c>this.stay</c> — grounded, so the <c>D_SPARK</c> rule does not halve.</summary>
+            public bool IsGrounded => true;
+
+            /// <summary>AS3 <c>this.inWater</c>.</summary>
+            public bool IsInWater => false;
+
+            /// <summary>AS3 <c>this.allVulnerMult</c> — the identity, AS3's field default.</summary>
+            public float AllVulnerabilityMultiplier => 1f;
+
+            /// <summary>AS3 <c>this.shithp</c> — <c>0</c>, the oracle's own field default: no shield.</summary>
+            public float ShieldHp => 0f;
+
+            /// <summary>AS3 <c>this.shitArmor</c> — inert, because <see cref="ShieldHp"/> is 0.</summary>
+            public float ShieldArmor => 0f;
+
             /// <summary>The last impulse handed in, so a test can assert the resolver produced one.</summary>
             public Vector2 ApplyKnockbackImpulse { get; private set; }
 

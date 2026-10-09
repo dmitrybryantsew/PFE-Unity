@@ -222,6 +222,21 @@ namespace PFE.Tests.Editor.Combat
             public bool IsInvulnerable { get; set; } = false;
             public bool IsNonLiving { get; set; } = false;
 
+            /// <summary>AS3 <c>this.stay</c> — grounded by default (see the D_SPARK rule).</summary>
+            public bool IsGrounded { get; set; } = true;
+
+            /// <summary>AS3 <c>this.inWater</c>.</summary>
+            public bool IsInWater { get; set; } = false;
+
+            /// <summary>AS3 <c>this.allVulnerMult</c> — identity by default.</summary>
+            public float AllVulnerabilityMultiplier { get; set; } = 1f;
+
+            /// <summary>AS3 <c>this.shithp</c> — <c>0</c> is "no shield".</summary>
+            public float ShieldHp { get; set; } = 0f;
+
+            /// <summary>AS3 <c>this.shitArmor</c> — inert while <see cref="ShieldHp"/> is 0.</summary>
+            public float ShieldArmor { get; set; } = 20f;
+
             public DamageOutcome LastOutcome;
 
             public void TakeDamage(float damage) => Health -= damage;

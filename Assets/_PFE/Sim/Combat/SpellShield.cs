@@ -21,6 +21,15 @@ namespace PFE.Systems.Magic
     /// editor and no engine — which is the same reason <see cref="SpellCastRules"/> and
     /// <c>HitAvoidance</c> are separate pure types. The <i>state</i> (<c>shithp</c>/<c>shitArmor</c>)
     /// lives on the unit; the <i>rule</i> lives here.</para>
+    ///
+    /// <para><b>Why this file lives under <c>Sim/</c> and not under <c>Systems/Magic/</c>.</b> It was
+    /// written in the magic namespace and stayed there, but its only consumer that matters is
+    /// <c>DamageCalculator</c>, which is in <c>PFE.Sim</c> — and <c>PFE.Sim</c> cannot reference
+    /// <c>PFE.View</c> (the dependency runs the other way: <c>Systems/Magic</c> is View and uses
+    /// <c>SimClock</c>). The shield's two arithmetic rules are now applied inside
+    /// <c>DamageCalculator.ResolveDamage</c>, so the file had to move to the assembly that can see it.
+    /// The namespace is deliberately left as <c>PFE.Systems.Magic</c> so every existing
+    /// <c>using</c> and test keeps compiling; a namespace does not have to match an assembly.</para>
     /// </summary>
     public static class SpellShield
     {

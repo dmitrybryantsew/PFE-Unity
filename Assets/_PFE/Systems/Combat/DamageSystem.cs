@@ -8,6 +8,7 @@ using PFE.Core.Rng;
 using PFE.Data.Definitions;
 using PFE.Entities.Units;
 using PFE.Systems.Map.TileQuery;
+using PFE.Systems.Magic;
 using PFE.Systems.Particles;
 using PFE.Systems.Particles.Adapters;
 using PFE.Systems.Weapons;
@@ -431,10 +432,36 @@ namespace PFE.Systems.Combat
 
             ArmourState armour = target.Armour;
 
+            // ── The spell/boss shield's two target-side reads ──────────────────────────────────────
+            // AS3 `Unit.shithp` / `Unit.shitArmor` (`Unit.as:134/160`). Read once, here, because both
+            // are consumed by two *different* statements in `Unit.damage()` and reading them twice
+            // would be two chances to see two different values:
+            //
+            //   * `:3578` — the armour-pool gate refuses to wear the plate at all while a shield is up
+            //     and the hit is no larger than the rating (`shithp <= 0 || param1 > shitArmor`). The
+            //     oracle writes the whole condition inline; `SpellShield.PermitsArmourPoolWear` is that
+            //     term on its own, tested against the oracle's numbers.
+            //   * `:3629-3637` — the reduction block spends the pool and adds `shitArmor` to the
+            //     reduction. `SpellShield.ArmourRating` is the rating, zero when no shield is up.
+            //
+            // Both are live per-tick reads, like `Armour` and `SkinResistance` above. A target with no
+            // shield answers `0`/`0`, the gate opens, and nothing about the unshielded path changes.
+            float shieldHp = target.ShieldHp;
+            float shieldArmor = target.ShieldArmor;
+
             DamageOutcome outcome = _calculator.ResolveDamage(
                 incomingDamage: incoming,
-                armourIntegrityDamage: armour.WearFrom(
-                    ctx.DamageType, incoming, armourMultiplier: ctx.ArmorMultiplier),
+                // AS3 `:3578-3584` — the pool wears only when the shield permits it, and it wears the
+                // hit *minus* the shield's rating (`_loc9_ = param1; if(shithp > 0) _loc9_ -= shitArmor`).
+                // Both halves used to be missing here: the gate was absent, and
+                // `ArmourWear.PoolIntegrityDamage`'s `spellShieldAbsorb` argument was written, tested
+                // and never supplied by any caller.
+                armourIntegrityDamage: SpellShield.PermitsArmourPoolWear(shieldHp, shieldArmor, incoming)
+                    ? armour.WearFrom(
+                        ctx.DamageType, incoming,
+                        armourMultiplier: ctx.ArmorMultiplier,
+                        spellShieldAbsorb: SpellShield.ArmourRating(shieldHp, shieldArmor))
+                    : 0f,
                 armour: armour,
                 rng: rng,
                 damageType: ctx.DamageType,
@@ -463,7 +490,31 @@ namespace PFE.Systems.Combat
                 critInvisChance: ctx.CritInvis,
                 desintegrChance: ctx.Desintegr,
                 targetCurrentHp: target.CurrentHealth,
-                targetIsNonLiving: target.IsNonLiving);
+                targetIsNonLiving: target.IsNonLiving,
+                // ── The two target-side position reads, for the D_SPARK rule ──────────────────────
+                // AS3 `Unit.damage():3567-3573` halves an electrical hit on a target that is off the
+                // ground and not in water. Both reads are live off the target, like `Armour` and
+                // `SkinResistance` above, because they change every tick.
+                //
+                // This is what makes `alilight` (`<char tipdam='9'>` = D_SPARK) hurt for its full 50 on
+                // the ground and for 25 in the air — the reported "it hit harder when I was on the
+                // ground".
+                targetIsGrounded: target.IsGrounded,
+                targetIsInWater: target.IsInWater,
+                // ── The global vulnerability multiplier ───────────────────────────────────────────
+                // AS3 `Unit.damage():3681`. Today this carries the spell/boss shield (0.6, or 0.4 on
+                // tr3 — `UnitAlicorn.as:586-593`); it is also the seam the player's
+                // `CharacterStats.allVulnerMult` (defense/survival/consumables) will reach, which
+                // `BloodSprayRules.cs:46` recorded as computed-and-dropped.
+                allVulnerabilityMultiplier: target.AllVulnerabilityMultiplier,
+                // ── The shield pool and its rating, for the reduction block ───────────────────────
+                // AS3 `Unit.damage():3629-3637`. `shieldHp` is worn by the whole hit and `shieldArmor`
+                // is added to the reduction — the shield absorbs *and* blunts, which is why a shielded
+                // alicorn is a genuinely different target rather than just one with more HP. The
+                // resolver hands the post-hit pool back on `DamageOutcome.ShieldHpAfter`, and
+                // `UnitStats.ApplyDamage` writes it down; this call never touches the field.
+                shieldHp: shieldHp,
+                shieldArmour: shieldArmor);
 
             target.ApplyDamage(outcome);
             ResolvedCount++;

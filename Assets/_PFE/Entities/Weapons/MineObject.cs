@@ -593,6 +593,12 @@ namespace PFE.Entities.Weapons
         /// <para>Named to match <c>UnitController.IsGrounded</c>, which is the same flag on the same
         /// unit model. False before the first step and false with no room, which is also what
         /// <see cref="MineBodyMath.Step"/> reports for a null query.</para>
+        ///
+        /// <para>A <i>placed</i> mine rests on the floor — AS3 <c>Mine.as:178</c> sets
+        /// <c>isFly = false</c> and the placement path pins it — so in practice this reads true and the
+        /// <c>D_SPARK</c> half-damage rule (<c>Unit.damage():3567-3573</c>) never applies to it. That
+        /// is a consequence of the step, not a constant: a thrown or falling mine is genuinely airborne
+        /// and this member must report so.</para>
         /// </summary>
         public bool IsGrounded => _grounded;
 
@@ -1161,6 +1167,31 @@ namespace PFE.Entities.Weapons
         /// and suppresses the stealth crit.
         /// </summary>
         public bool IsNonLiving => true;
+
+        /// <summary>A mine has no water state — AS3 <c>inWater</c> is a body-submersion sample it does
+        /// not run. <c>false</c> is the value that keeps the <c>D_SPARK</c> rule reading "dry".</summary>
+        public bool IsInWater => false;
+
+        /// <summary>
+        /// AS3 <c>Unit.allVulnerMult</c>, unmodified — a mine has no skill tree, no perks and no
+        /// shield, so it is the identity. AS3's own field default is <c>1</c>.
+        /// </summary>
+        public float AllVulnerabilityMultiplier => 1f;
+
+        /// <summary>
+        /// AS3 <c>Unit.shithp</c>, default <c>0</c>. Nothing in the oracle grants a mine a shield —
+        /// <c>sp_mshit</c> targets a caster and the three shielded bosses set their own — so the honest
+        /// answer is AS3's field default, which is also the one that contributes nothing to the
+        /// reduction and leaves the armour pool gate open.
+        /// </summary>
+        public float ShieldHp => 0f;
+
+        /// <summary>
+        /// AS3 <c>Unit.shitArmor</c>. Read only while <see cref="ShieldHp"/> is positive, which it never
+        /// is here, so the value is inert. <c>0</c> rather than AS3's field default of <c>20</c> because
+        /// this is a "no shield" answer, not an unmodified rating.
+        /// </summary>
+        public float ShieldArmor => 0f;
 
         public float CurrentHealth => _hp;
         public float MaxHealth     => _maxHp > 0f ? _maxHp : 1f;

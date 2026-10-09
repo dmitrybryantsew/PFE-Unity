@@ -118,6 +118,23 @@ namespace PFE.Tests.Editor.Combat
             /// </summary>
             public bool IsNonLiving { get; set; } = false;
 
+            /// <summary>AS3 <c>this.stay</c>. Grounded by default, so the <c>D_SPARK</c> rule leaves the
+            /// hit alone unless a test asks otherwise.</summary>
+            public bool IsGrounded { get; set; } = true;
+
+            /// <summary>AS3 <c>this.inWater</c> — the second term of the <c>D_SPARK</c> rule.</summary>
+            public bool IsInWater { get; set; } = false;
+
+            /// <summary>AS3 <c>this.allVulnerMult</c> — the identity by default, AS3's own field default.</summary>
+            public float AllVulnerabilityMultiplier { get; set; } = 1f;
+
+            /// <summary>AS3 <c>this.shithp</c> — <c>0</c> is "no shield", AS3's own field default.</summary>
+            public float ShieldHp { get; set; } = 0f;
+
+            /// <summary>AS3 <c>this.shitArmor</c> — AS3's field default is <c>20</c>, but it is read
+            /// only while <see cref="ShieldHp"/> is positive, so the default here is inert.</summary>
+            public float ShieldArmor { get; set; } = 20f;
+
             public int ApplyKnockbackCalls;
             public Vector2 LastKnockbackImpulse;
 

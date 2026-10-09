@@ -182,6 +182,12 @@ namespace PFE.Systems.Combat
         /// <param name="armourMultiplier">AS3 <c>bullet.armorMult</c>. Only values above 1 divide.</param>
         /// <param name="spellShieldAbsorb">
         /// AS3 <c>shitArmor</c>, subtracted before the multipliers. Zero when no shield is up.
+        /// <para>The subtraction also carries the oracle's gate at <c>:3578</c>
+        /// (<c>shithp &lt;= 0 || param1 &gt; shitArmor</c>): when the hit is no larger than the rating,
+        /// <c>wear</c> goes non-positive here and the clamp below returns <c>0</c>, which is the same
+        /// answer the skipped block would have produced. Callers that want to ask the question
+        /// directly rather than rely on the clamp have
+        /// <c>SpellShield.PermitsArmourPoolWear</c>.</para>
         /// </param>
         public static float PoolIntegrityDamage(
             DamageType type,
