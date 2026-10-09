@@ -12,6 +12,8 @@ using PFE.Entities.Units;
 using PFE.Systems.Effects;
 using PFE.Systems.Inventory;
 using PFE.Systems.Magic;
+using PFE.Systems.Map;
+using PFE.Systems.Map.Rendering;
 using PFE.Systems.Physics;
 using PFE.Systems.RPG;
 using PFE.Systems.RPG.Data;
@@ -37,7 +39,7 @@ namespace PFE.Core.Scripting
         public bool IsOpen = false;
 
         private Rect _windowRect = new Rect(60, 40, 920, 660);
-        private int _activeTab = 0; // 0: Pip Stats, 1: Skills, 2: Perks, 3: Weapons, 4: Armor, 5: Vitals & Presets, 6: Effects, 7: Spells, 8: Inventory, 9: Rig
+        private int _activeTab = 0; // 0: Pip Stats, 1: Skills, 2: Perks, 3: Weapons, 4: Armor, 5: Vitals & Presets, 6: Effects, 7: Spells, 8: Inventory, 9: Rig, 10: Spawn Unit
 
         private static readonly string[] TabNames = new string[]
         {
@@ -50,7 +52,8 @@ namespace PFE.Core.Scripting
             "☣️ Effects",
             "🔮 Spells",
             "🎒 Inventory",
-            "🧪 Rig"
+            "🧪 Rig",
+            "🧟 Spawn Unit"
         };
 
         // Scroll positions for each tab
@@ -532,6 +535,42 @@ namespace PFE.Core.Scripting
                 }
             }
 
+            // Every unit asset, grouped for the Spawn Unit tab's two dropdowns. Built once, from
+            // Resources rather than from the content registry, for the same reason the ammo table and the
+            // effect catalogue above are: the overlay is a debug tool that must work precisely when the
+            // registry failed to initialise, and a row present here but absent there is itself the
+            // diagnostic.
+            //
+            // An asset with no `id` is counted rather than dropped silently: the spawner resolves a unit
+            // by id, so such an asset is genuinely unspawnable — but "invisible in the picker" has to be
+            // a stated fact, and the tab prints the count.
+            if (_unitSpawnGroups == null)
+            {
+                var unitAssets = Resources.LoadAll<UnitDefinition>("Units");
+                var unitIds = new List<string>(unitAssets != null ? unitAssets.Length : 0);
+                _unitDefsById = new Dictionary<string, UnitDefinition>(StringComparer.OrdinalIgnoreCase);
+                _unitAssetsWithoutId = 0;
+
+                if (unitAssets != null)
+                {
+                    foreach (var unit in unitAssets)
+                    {
+                        if (unit == null) continue;
+                        if (string.IsNullOrWhiteSpace(unit.id))
+                        {
+                            _unitAssetsWithoutId++;
+                            continue;
+                        }
+
+                        unitIds.Add(unit.id);
+                        if (!_unitDefsById.ContainsKey(unit.id)) _unitDefsById.Add(unit.id, unit);
+                    }
+                }
+
+                _unitSpawnGroups = UnitSpawnCatalog.Build(unitIds);
+                _unitVisibleGroups = null;
+            }
+
             // The catalogue is what the quick rows are checked against, so the check belongs here —
             // once, after the load, not on a button click.
             VerifyQuickRowsResolve();
@@ -639,6 +678,22 @@ namespace PFE.Core.Scripting
                 padding = new RectOffset(8, 8, 6, 6)
             };
 
+            // The dropdown rows are the ONE place in this overlay where a control is NOT given an explicit
+            // height, and this is why: a GUIStyle paints its text inside `padding`, so a row must be at
+            // least `font.lineHeight + padding.vertical`. The rows were drawn at a hardcoded 20 px against
+            // a 12 px-padded card style, which left 8 px for a ~15 px glyph — every row clipped its text
+            // top and bottom, and nothing on screen said so. Copying the card style with tighter padding
+            // and letting the style size itself makes that drift impossible.
+            _unitRowStyle = new GUIStyle(_cardStyle)
+            {
+                padding = new RectOffset(8, 8, UnitRowPadY, UnitRowPadY)
+            };
+
+            _unitRowActiveStyle = new GUIStyle(_cardActiveStyle)
+            {
+                padding = new RectOffset(8, 8, UnitRowPadY, UnitRowPadY)
+            };
+
             _badgeStyle = new GUIStyle(GUI.skin.box)
             {
                 normal = { background = _texBadgeBg, textColor = new Color(0.9f, 0.95f, 1f) },
@@ -726,16 +781,15 @@ namespace PFE.Core.Scripting
             GUILayout.Space(6);
 
             // ── Tab Bar ──────────────────────────────────────────────────────────
-            GUILayout.BeginHorizontal();
-            for (int i = 0; i < TabNames.Length; i++)
-            {
-                GUIStyle style = (i == _activeTab) ? _tabActiveStyle : _tabInactiveStyle;
-                if (GUILayout.Button(TabNames[i], style, GUILayout.Height(28)))
-                {
-                    _activeTab = i;
-                }
-            }
-            GUILayout.EndHorizontal();
+            //
+            // WRAPS, because a horizontal strip does not. This is the defect the developer console's
+            // quick-action buttons already hit: a fixed strip runs off the right edge and the last
+            // buttons become unclickable, with nothing on screen to say so. Ten tabs already sat within
+            // a few tens of pixels of this window's 920, so the eleventh — the unit spawn tab — is
+            // exactly the one that would have been pushed past the edge, i.e. the new feature would be
+            // unreachable in the build it was added for. A wrapped strip cannot overflow at any window
+            // size or font.
+            DrawTabBar();
 
             GUILayout.Space(8);
 
@@ -743,6 +797,11 @@ namespace PFE.Core.Scripting
             // The Rig tab is deliberately exempt from this guard: its whole purpose is to BUILD a
             // player, so gating it on an existing player would make it unreachable in exactly the
             // empty scene it exists for.
+            //
+            // The Spawn Unit tab (10) is deliberately NOT exempt: every one of its placement anchors is
+            // resolved against the player's live position and facing, so with no player it would have to
+            // fall back to the world origin — a spawn point that looks like it worked and is in the
+            // wrong place. The refusal is the honest answer.
             if (player == null && _activeTab != 9)
             {
                 GUILayout.Box("PlayerController not found in scene. Please enter a gameplay room/scene.", _cardStyle, GUILayout.ExpandHeight(true));
@@ -782,9 +841,66 @@ namespace PFE.Core.Scripting
                 case 9:
                     DrawRigTab(player);
                     break;
+                case 10:
+                    DrawSpawnUnitTab(player);
+                    break;
             }
 
             GUI.DragWindow(new Rect(0, 0, _windowRect.width, 24));
+        }
+
+        // =========================================================================
+        // TAB BAR (wrapping)
+        // =========================================================================
+
+        /// <summary>Horizontal inset of the tab strip inside the window, matching <c>_windowStyle</c>'s padding.</summary>
+        private const float TabBarInset = 10f;
+
+        /// <summary>Per-tab slack for GUILayout's inter-element spacing, on top of the measured width.</summary>
+        private const float TabButtonSpacing = 4f;
+
+        /// <summary>
+        /// The tab strip, wrapped into as many rows as the window width needs.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Measured, not guessed.</b> Each tab's width comes from <c>GUIStyle.CalcSize</c> on its
+        /// own caption — which already includes the button's padding and border — so a longer label or a
+        /// larger font wraps sooner instead of clipping. GUILayout has no wrapping flow, so the rows are
+        /// driven explicitly: accumulate widths and start a new row when the next tab would pass the
+        /// right edge.</para>
+        ///
+        /// <para><b>The <c>used &gt; 0</c> guard</b> keeps a single tab wider than the whole strip on its
+        /// own row rather than wrapping before every tab.</para>
+        /// </remarks>
+        private void DrawTabBar()
+        {
+            float available = _windowRect.width - 2f * TabBarInset;
+
+            GUILayout.BeginHorizontal();
+            float used = 0f;
+
+            for (int i = 0; i < TabNames.Length; i++)
+            {
+                GUIStyle style = (i == _activeTab) ? _tabActiveStyle : _tabInactiveStyle;
+                float width = style.CalcSize(new GUIContent(TabNames[i])).x + TabButtonSpacing;
+
+                if (used > 0f && used + width > available)
+                {
+                    GUILayout.EndHorizontal();
+                    GUILayout.Space(2f);
+                    GUILayout.BeginHorizontal();
+                    used = 0f;
+                }
+
+                if (GUILayout.Button(TabNames[i], style, GUILayout.Height(28), GUILayout.Width(width)))
+                {
+                    _activeTab = i;
+                }
+
+                used += width;
+            }
+
+            GUILayout.EndHorizontal();
         }
 
         // =========================================================================
@@ -948,6 +1064,637 @@ namespace PFE.Core.Scripting
             // class had no OnDestroy at all, and a rig left behind would accumulate every play
             // session.
             if (_rigRoot != null) Destroy(_rigRoot);
+        }
+
+        // =========================================================================
+        // TAB 10: SPAWN UNIT
+        // =========================================================================
+        //
+        // Spawns a real enemy into the CURRENT room, through RoomUnitSpawner — the one producer that
+        // hands a unit its damage system, sim clock, tile query, object-physics layer, effect resolver
+        // and particle emitter. A tab that built its own GameObject would produce a unit that is
+        // unarmoured, falls through the floor and cannot be set on fire, and every one of those
+        // failures would be silent.
+        //
+        // Two dropdowns, because the flat list is 148 ids. "Family" is a curated grouping
+        // (UnitSpawnCatalog) — fine enough that family + tier names exactly one unit, coarse enough
+        // that the second list stays under ~15 rows. "Tier" is AS3's `tr`: the numeric suffix of the
+        // unit id, which only means anything once the family has cut the list down.
+
+        /// <summary>
+        /// Every unit asset grouped by family, built once in <see cref="LoadCatalogs"/>.
+        /// <b>From <c>Resources</c>, not the content registry</b> — for the same reason the ammo and
+        /// effect catalogues are: this is a debug tool that must work precisely when the registry failed
+        /// to initialise, and a row present here but absent there is itself the diagnostic.
+        /// </summary>
+        private List<UnitSpawnGroup> _unitSpawnGroups;
+
+        /// <summary>
+        /// <see cref="_unitSpawnGroups"/> with the non-spawnable rows removed, i.e. what the dropdowns
+        /// actually show. Rebuilt only when the toggle flips, not per repaint.
+        /// </summary>
+        private List<UnitSpawnGroup> _unitVisibleGroups;
+
+        /// <summary>Unit id → definition, for the per-row hp / sheet readout and for the spawn itself.</summary>
+        private Dictionary<string, UnitDefinition> _unitDefsById;
+
+        /// <summary>
+        /// Assets under <c>Resources/Units</c> that carry no <c>id</c>. Counted rather than ignored: a
+        /// unit with no id cannot be resolved by the spawner, so it is genuinely unspawnable — but
+        /// "invisible in the picker" must be a stated fact, not a silent omission.
+        /// </summary>
+        private int _unitAssetsWithoutId;
+
+        /// <summary>Selected row in each of the two dropdowns.</summary>
+        private int _unitFamilyIndex;
+        private int _unitVariantIndex;
+
+        /// <summary>How many to build per press, and the "show non-spawnable" filter.</summary>
+        private string _unitQty = "1";
+        private bool _unitShowNonSpawnable;
+
+        private Vector2 _unitSpawnScroll;
+        private Vector2 _unitPickerScroll;
+
+        /// <summary>
+        /// Vertical padding of a dropdown row. Small on purpose: the card styles carry 6 px top and
+        /// bottom, which on a single-line row is most of the row.
+        /// </summary>
+        private const int UnitRowPadY = 2;
+
+        /// <summary>Tallest the expanded dropdown may get before it scrolls, in pixels.</summary>
+        private const float UnitPickerMaxHeight = 300f;
+
+        /// <summary>
+        /// Row styles for the two dropdown lists, built in <see cref="InitStyles"/> from the card styles
+        /// with the vertical padding tightened. See <see cref="DrawUnitDropdown"/> for why the rows are
+        /// never given a height.
+        /// </summary>
+        private GUIStyle _unitRowStyle;
+        private GUIStyle _unitRowActiveStyle;
+
+        /// <summary>
+        /// Which picker is expanded: 0 = family, 1 = variant, -1 = neither. One at a time, so the two
+        /// lists can never both push the rest of the tab down.
+        /// </summary>
+        private int _unitOpenPicker = -1;
+
+        private string _unitSpawnStatus = string.Empty;
+        private bool _unitSpawnStatusIsError;
+
+        /// <summary>
+        /// The records this tab created, so its remove buttons can only ever touch those. Emptying
+        /// whatever happens to be in <c>room.units</c> would delete the room's authored enemies.
+        /// </summary>
+        private readonly List<UnitInstance> _unitSpawnedByTab = new List<UnitInstance>();
+
+        /// <summary>
+        /// The room <see cref="_unitSpawnedByTab"/> belongs to. A room change invalidates the tracked
+        /// records, so the list is cleared rather than left pointing at another room's units.
+        /// </summary>
+        private RoomInstance _unitSpawnTrackedRoom;
+
+        /// <summary>
+        /// Monotonic counter for the debug entity ids. It makes a debug spawn's id distinct from every
+        /// authored one by construction (<c>room:debug:&lt;id&gt;:NNN</c>), instead of guessing at an
+        /// index that the room's own spawn pass also uses.
+        /// </summary>
+        private int _unitSpawnSerial;
+
+        /// <summary>
+        /// The live room's controller. <c>MapBridge.VisualController</c> first, because that is the
+        /// injected reference; the scene search is the same fallback the developer console uses.
+        /// </summary>
+        private static RoomVisualController ResolveRoomVisualController()
+        {
+            var bridge = FindFirstObjectByType<MapBridge>();
+            if (bridge != null && bridge.VisualController != null)
+            {
+                return bridge.VisualController;
+            }
+
+            return FindFirstObjectByType<RoomVisualController>();
+        }
+
+        private void DrawSpawnUnitTab(PlayerController player)
+        {
+            // The shared placement row resolves "in front" from `_livePlayer`, which the Inventory tab
+            // is what normally assigns. Re-assigning here is what makes this tab work when the tester
+            // opens F2 straight onto it — without it, "in front" would silently mean "at the world
+            // origin", which is the same class of stale-anchor bug DrawPlacementRow documents.
+            if (player != null) _livePlayer = player;
+
+            _unitSpawnScroll = GUILayout.BeginScrollView(_unitSpawnScroll);
+
+            GUILayout.Label("<b>Spawn Unit</b> — build a real enemy into the room you are standing in.",
+                GUILayout.ExpandWidth(true));
+            GUILayout.Label(
+                "<color=#AAAAAA><size=11>It is built by RoomUnitSpawner, exactly like an authored enemy: " +
+                "same damage system, sim clock, tile query, object-physics layer, effect resolver and " +
+                "particle emitter. It is appended to the room's unit list, so it survives a room rebuild, " +
+                "and it draws nothing from the room's spawn RNG — a debug spawn cannot shift the seeded " +
+                "world.</size></color>",
+                GUILayout.ExpandWidth(true));
+
+            GUILayout.Space(6);
+
+            RoomVisualController room = ResolveRoomVisualController();
+            RoomInstance roomInstance = room != null ? room.RoomInstance : null;
+
+            // A room change invalidates the tracked records.
+            if (!ReferenceEquals(roomInstance, _unitSpawnTrackedRoom))
+            {
+                _unitSpawnTrackedRoom = roomInstance;
+                _unitSpawnedByTab.Clear();
+            }
+
+            DrawUnitSpawnRoomLine(room, roomInstance);
+            GUILayout.Space(6);
+
+            if (room == null || roomInstance == null)
+            {
+                GUILayout.Box(
+                    "No live room. The room controller exists only once a gameplay room has been built, " +
+                    "so enter a room (SampleScene) before spawning a unit.",
+                    _cardStyle, GUILayout.ExpandWidth(true));
+                GUILayout.EndScrollView();
+                return;
+            }
+
+            if (_unitSpawnGroups == null || _unitSpawnGroups.Count == 0)
+            {
+                // Two causes, named separately: an empty catalogue is not a broken filter.
+                GUILayout.Box(
+                    "The unit catalogue is empty — Resources/Units returned nothing, so this is a data " +
+                    "or import problem, not a filter one. Run PFE/Data/Import Units.",
+                    _cardStyle, GUILayout.ExpandWidth(true));
+                GUILayout.EndScrollView();
+                return;
+            }
+
+            EnsureVisibleUnitGroups();
+
+            DrawUnitSpawnPickers();
+            GUILayout.Space(6);
+
+            DrawPlacementRow();
+
+            GUILayout.BeginHorizontal(_cardStyle);
+            GUILayout.Label("<color=#AAAAAA>Qty</color>", GUILayout.Width(30));
+            _unitQty = GUILayout.TextField(_unitQty ?? "1", GUILayout.Width(44));
+            if (GUILayout.Button("Spawn", _tabActiveStyle, GUILayout.Height(24), GUILayout.Width(110)))
+            {
+                SpawnSelectedUnits(player, room);
+            }
+            if (GUILayout.Button("Remove all spawned here", GUILayout.Height(24), GUILayout.Width(180)))
+            {
+                RemoveAllSpawnedByTab(room);
+            }
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+
+            GUILayout.Space(4);
+            if (!string.IsNullOrEmpty(_unitSpawnStatus))
+            {
+                GUILayout.Label(
+                    (_unitSpawnStatusIsError ? "<color=#FF6666>" : "<color=#9AD0FF>") + _unitSpawnStatus + "</color>",
+                    GUILayout.ExpandWidth(true));
+            }
+
+            DrawSpawnedByTabList();
+            GUILayout.EndScrollView();
+        }
+
+        /// <summary>
+        /// The room line: which room, how many units it has as records and as live objects, and the
+        /// non-spawnable toggle.
+        /// </summary>
+        /// <remarks>
+        /// <b>The two counts are printed separately on purpose.</b> <c>records</c> is
+        /// <c>room.units.Count</c> and <c>live</c> is the spawner's own GameObject count; they disagree
+        /// exactly when a spawn failed, and a single collapsed number would hide the only symptom a
+        /// failed spawn has.
+        /// </remarks>
+        private void DrawUnitSpawnRoomLine(RoomVisualController room, RoomInstance roomInstance)
+        {
+            GUILayout.BeginHorizontal(_cardStyle);
+            GUILayout.Label(
+                roomInstance != null
+                    ? $"<b>Room:</b> {roomInstance.id}   <b>records:</b> {room.UnitRecordCount}   <b>live:</b> {room.LiveUnitCount}"
+                    : "<color=#FFAA33>no room</color>",
+                GUILayout.ExpandWidth(true));
+            GUILayout.EndHorizontal();
+
+            GUILayout.BeginHorizontal();
+            bool toggled = GUILayout.Toggle(
+                _unitShowNonSpawnable,
+                " show non-spawnable (" + UnitSpawnCatalog.NonSpawnableCount + " templates / NPCs / the player)",
+                GUILayout.ExpandWidth(true));
+            if (toggled != _unitShowNonSpawnable)
+            {
+                _unitShowNonSpawnable = toggled;
+                _unitVisibleGroups = null;
+                _unitOpenPicker = -1;
+            }
+            GUILayout.EndHorizontal();
+
+            if (_unitAssetsWithoutId > 0)
+            {
+                GUILayout.Label(
+                    $"<color=#FFAA33>{_unitAssetsWithoutId} asset(s) under Resources/Units have no `id`, so the " +
+                    "spawner cannot resolve them and they are not listed. A missing id is an import bug, not " +
+                    "a filter.</color>",
+                    GUILayout.ExpandWidth(true));
+            }
+        }
+
+        /// <summary>
+        /// Rebuild the filtered family list. Called from the draw path, but it does nothing unless the
+        /// cache was invalidated — the overlay repaints every frame and re-filtering 148 ids per repaint
+        /// is the cost the item picker's cache exists to avoid.
+        /// </summary>
+        private void EnsureVisibleUnitGroups()
+        {
+            if (_unitVisibleGroups != null) return;
+
+            _unitVisibleGroups = _unitShowNonSpawnable
+                ? new List<UnitSpawnGroup>(_unitSpawnGroups)
+                : UnitSpawnCatalog.Filter(_unitSpawnGroups, id => !UnitSpawnCatalog.IsNonSpawnable(id));
+
+            // A family can disappear when the filter hides it, so the selection is re-clamped rather
+            // than left pointing past the end of the list.
+            _unitFamilyIndex = Mathf.Clamp(_unitFamilyIndex, 0, Mathf.Max(0, _unitVisibleGroups.Count - 1));
+            ClampVariantIndex();
+        }
+
+        private UnitSpawnGroup SelectedUnitGroup()
+        {
+            if (_unitVisibleGroups == null || _unitVisibleGroups.Count == 0) return null;
+            int index = Mathf.Clamp(_unitFamilyIndex, 0, _unitVisibleGroups.Count - 1);
+            return _unitVisibleGroups[index];
+        }
+
+        private string SelectedUnitId()
+        {
+            UnitSpawnGroup group = SelectedUnitGroup();
+            if (group == null || group.Count == 0) return string.Empty;
+            int index = Mathf.Clamp(_unitVariantIndex, 0, group.Count - 1);
+            return group.VariantIds[index];
+        }
+
+        private void ClampVariantIndex()
+        {
+            UnitSpawnGroup group = SelectedUnitGroup();
+            _unitVariantIndex = group == null
+                ? 0
+                : Mathf.Clamp(_unitVariantIndex, 0, Mathf.Max(0, group.Count - 1));
+        }
+
+        /// <summary>
+        /// The two dropdowns, side by side, plus the resolved-row readout.
+        /// </summary>
+        /// <remarks>
+        /// <b>What the second dropdown says depends on the family.</b> For a single-root family the
+        /// number really is the tier, so the row reads <c>Tier 3 · raider3</c>; for a folded family
+        /// (<c>Robots</c> = <c>dron*</c> + <c>gutsy*</c> …) a number would identify nothing, so the id
+        /// stands alone. <c>UnitSpawnCatalog.VariantLabel</c> owns that decision, which is what makes it
+        /// testable.
+        /// </remarks>
+        private void DrawUnitSpawnPickers()
+        {
+            UnitSpawnGroup group = SelectedUnitGroup();
+            if (group == null) return;
+
+            GUILayout.BeginHorizontal();
+
+            GUILayout.BeginVertical(GUILayout.Width(280));
+            GUILayout.Label("<color=#AAAAAA>Family (type)</color>", GUILayout.ExpandWidth(true));
+            string[] familyLabels = new string[_unitVisibleGroups.Count];
+            for (int i = 0; i < familyLabels.Length; i++)
+            {
+                familyLabels[i] = UnitSpawnCatalog.FamilyLabel(_unitVisibleGroups[i]);
+            }
+
+            int family = DrawUnitDropdown(
+                familyLabels[Mathf.Clamp(_unitFamilyIndex, 0, familyLabels.Length - 1)],
+                _unitFamilyIndex, familyLabels, 0);
+            if (family != _unitFamilyIndex)
+            {
+                _unitFamilyIndex = family;
+                // A new family means a new variant list; keeping the old index would silently select a
+                // different unit than the one on screen a frame ago.
+                _unitVariantIndex = 0;
+            }
+            GUILayout.EndVertical();
+
+            GUILayout.Space(10);
+
+            GUILayout.BeginVertical(GUILayout.Width(300));
+            GUILayout.Label("<color=#AAAAAA>Variant / tier</color>", GUILayout.ExpandWidth(true));
+            string[] variantLabels = new string[group.Count];
+            for (int i = 0; i < variantLabels.Length; i++)
+            {
+                variantLabels[i] = UnitSpawnCatalog.VariantLabel(group, group.VariantIds[i]);
+            }
+
+            int variant = DrawUnitDropdown(
+                variantLabels[Mathf.Clamp(_unitVariantIndex, 0, variantLabels.Length - 1)],
+                _unitVariantIndex, variantLabels, 1);
+            if (variant != _unitVariantIndex)
+            {
+                _unitVariantIndex = variant;
+            }
+            GUILayout.EndVertical();
+
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+
+            DrawResolvedUnitRow(SelectedUnitId());
+        }
+
+        /// <summary>
+        /// The readout for the row the dropdowns currently resolve to. Every number here is the real one
+        /// off the definition — a debug readout that lies is worse than none, and the sheet size is the
+        /// difference between "spawns an enemy" and "spawns an invisible collider".
+        /// </summary>
+        private void DrawResolvedUnitRow(string unitId)
+        {
+            if (string.IsNullOrEmpty(unitId)) return;
+
+            UnitDefinition definition = ResolveUnitDefinition(unitId);
+            if (definition == null)
+            {
+                GUILayout.Label(
+                    $"<color=#FF6666>Resolved: {unitId} — no UnitDefinition under Resources/Units. " +
+                    "The spawn would create a unit with no stats and no art.</color>",
+                    GUILayout.ExpandWidth(true));
+                return;
+            }
+
+            int cells = definition.spriteSheetColumns * definition.spriteSheetRows;
+            string sheet = cells > 0
+                ? $"sheet {definition.spriteSheetColumns}×{definition.spriteSheetRows} ({cells} cells)"
+                : "<color=#FFAA33>NO SHEET — it will spawn as an invisible collider " +
+                  "(run PFE/Art/Import Unit Sprites)</color>";
+
+            GUILayout.Label(
+                $"Resolved: <b>{unitId}</b>   hp {definition.health}   fraction {definition.fraction}   {sheet}",
+                GUILayout.ExpandWidth(true));
+
+            if (UnitSpawnCatalog.IsNonSpawnable(unitId))
+            {
+                GUILayout.Label(
+                    "<color=#FFAA33>This is a family template / NPC / the player, not a spawnable enemy — " +
+                    "it carries no combat block, so it will not fight back.</color>",
+                    GUILayout.ExpandWidth(true));
+            }
+        }
+
+        /// <summary>
+        /// One in-place dropdown. Returns the newly chosen index, or <paramref name="current"/> when
+        /// nothing was clicked.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Why the list expands in place rather than floating.</b> IMGUI has no runtime popup —
+        /// <c>EditorGUILayout.Popup</c> is editor-only and this class lives in a runtime assembly with no
+        /// <c>UNITY_EDITOR</c> guards. An in-place list inside a bounded scroll view is not just the
+        /// workaround: it cannot be clipped by the window edge, which a floating popup can, and a
+        /// dropdown whose last rows are unreachable is the failure mode this project keeps finding.</para>
+        ///
+        /// <para>The loop only writes to a local and to <see cref="_unitOpenPicker"/>, never to a
+        /// collection it is iterating — the mutation-in-loop crash the inventory tab documents.</para>
+        /// </remarks>
+        private int DrawUnitDropdown(string caption, int current, IReadOnlyList<string> options, int pickerId)
+        {
+            bool open = _unitOpenPicker == pickerId;
+
+            // Measured, with the previous 24 px as a floor so the two columns' headers stay level and the
+            // look does not change -- but if a longer caption or a larger skin font ever needs more, the
+            // header grows instead of clipping. Same reasoning as the rows below.
+            GUIStyle headerStyle = open ? _tabActiveStyle : _tabInactiveStyle;
+            float headerHeight = Mathf.Max(24f, headerStyle.CalcSize(new GUIContent("Ag")).y);
+
+            if (GUILayout.Button(
+                    (open ? "▾  " : "▸  ") + caption,
+                    headerStyle,
+                    GUILayout.Height(headerHeight), GUILayout.ExpandWidth(true)))
+            {
+                _unitOpenPicker = open ? -1 : pickerId;
+                open = !open;
+            }
+
+            if (!open || options == null || options.Count == 0)
+            {
+                return current;
+            }
+
+            int chosen = current;
+
+            // Both numbers below are MEASURED off the style that actually draws the row, never assumed.
+            // `rowAdvance` is the style's natural single-line height plus its own margin, which is what
+            // GUILayout will really advance by -- the old code guessed 22 px and drew 20 px rows, so the
+            // viewport and the rows disagreed twice over. The cap arithmetic itself lives in
+            // UnitPickerLayout so it can be asserted offline instead of only being visible on screen.
+            float rowAdvance = _unitRowStyle.CalcSize(new GUIContent("Ag")).y + _unitRowStyle.margin.vertical;
+            if (rowAdvance <= 1f)
+            {
+                rowAdvance = 22f; // a style with neither font nor padding; keeps the arithmetic finite
+            }
+
+            float viewport = UnitPickerLayout.ViewportHeight(rowAdvance, options.Count, UnitPickerMaxHeight);
+
+            _unitPickerScroll = GUILayout.BeginScrollView(_unitPickerScroll, GUILayout.Height(viewport));
+
+            for (int i = 0; i < options.Count; i++)
+            {
+                // No GUILayout.Height here: the row's own style decides, so the glyph can never be
+                // clipped by a number that drifted away from the padding. `rowAdvance` above is computed
+                // from that same style, so the viewport and the rows agree by construction.
+                if (GUILayout.Button(options[i], i == current ? _unitRowActiveStyle : _unitRowStyle))
+                {
+                    chosen = i;
+                    _unitOpenPicker = -1;
+                }
+            }
+
+            GUILayout.EndScrollView();
+            return chosen;
+        }
+
+        /// <summary>
+        /// Build the selected unit <c>qty</c> times at the shared placement anchor.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>The record is authored here, not by <c>RoomPopulator.CreateUnit</c>.</b> That method
+        /// is private and, more importantly, it resolves a <i>variant</i> and rolls a facing and a digger
+        /// tier off the room's spawn RNG. A debug spawn must do neither: the tester picked the exact id,
+        /// and drawing from that stream would shift every later placement in the seeded room. So the
+        /// facing is taken from the player (the enemy faces you, which is also the useful default) and
+        /// <c>digger</c> stays 0, so a spawned zombie is a plain ghoul that is visible immediately rather
+        /// than a buried ambusher.</para>
+        ///
+        /// <para><b>The status is read back off the room, not assumed.</b> A spawn that silently failed
+        /// would otherwise print success — the exact bug the inventory tab's deferred actions hit. The
+        /// line prints the record and live-object counts <i>after</i> the press, so a divergence between
+        /// them is visible where the action was taken.</para>
+        /// </remarks>
+        private void SpawnSelectedUnits(PlayerController player, RoomVisualController room)
+        {
+            string unitId = SelectedUnitId();
+            if (string.IsNullOrEmpty(unitId))
+            {
+                SetUnitSpawnStatus("Nothing selected.", true);
+                return;
+            }
+
+            if (room == null || room.RoomInstance == null)
+            {
+                SetUnitSpawnStatus("No live room to spawn into.", true);
+                return;
+            }
+
+            UnitDefinition definition = ResolveUnitDefinition(unitId);
+            if (definition == null)
+            {
+                SetUnitSpawnStatus(
+                    $"No UnitDefinition for '{unitId}' — the unit would have no stats and no art. " +
+                    "Run PFE/Data/Import Units.", true);
+                return;
+            }
+
+            int quantity = 1;
+            if (!int.TryParse(_unitQty, out quantity)) quantity = 1;
+            quantity = Mathf.Clamp(quantity, 1, 20);
+
+            int facing = player != null && player.FacingDirection != 0 ? player.FacingDirection : 1;
+            Vector3 anchor = DropPosition();
+
+            int built = 0;
+            for (int i = 0; i < quantity; i++)
+            {
+                // Spread a batch out along the facing, or the whole stack lands inside one collider and
+                // looks like a single unit.
+                var worldPosition = new Vector3(anchor.x + facing * 0.8f * i, anchor.y, anchor.z);
+
+                var unit = new UnitInstance
+                {
+                    entityId = PFE.Core.Ids.EntityId
+                        .CreateForRoomSpawn(room.RoomInstance.id, "debug:" + unitId, _unitSpawnSerial++)
+                        .ToString(),
+                    unitId = unitId,
+                    unitType = unitId,
+                    isDead = false,
+                    maxHealth = definition.health,
+                    currentHealth = definition.health,
+                    // Empty, so RoomUnitSpawner falls through to the definition's own controllerId and
+                    // then to the id — the same precedence an authored placement with no `cl` gets.
+                    controllerId = string.Empty,
+                    attributes = new List<MapObjectAttributeData>(),
+                    facingDirection = facing,
+                    // 0 = never buries. A debug unit must be on screen the moment it is made.
+                    digger = 0
+                };
+
+                if (!room.SpawnUnitNow(unit, worldPosition))
+                {
+                    SetUnitSpawnStatus(
+                        "The room refused the spawn — it has no unit spawner yet, which means it has not " +
+                        "finished initialising.", true);
+                    return;
+                }
+
+                _unitSpawnedByTab.Add(unit);
+                built++;
+            }
+
+            SetUnitSpawnStatus(
+                $"Spawned {built} × {unitId} at ({anchor.x:0.##}, {anchor.y:0.##}). " +
+                $"Room now holds {room.UnitRecordCount} record(s), {room.LiveUnitCount} live object(s).",
+                false);
+        }
+
+        /// <summary>
+        /// Drop every record this tab created. Only this tab's own records — the room's authored enemies
+        /// are not this button's to delete.
+        /// </summary>
+        private void RemoveAllSpawnedByTab(RoomVisualController room)
+        {
+            if (_unitSpawnedByTab.Count == 0)
+            {
+                SetUnitSpawnStatus("Nothing spawned by this tab to remove.", false);
+                return;
+            }
+
+            int removed = 0;
+            for (int i = 0; i < _unitSpawnedByTab.Count; i++)
+            {
+                if (room != null && room.DespawnUnitNow(_unitSpawnedByTab[i])) removed++;
+            }
+
+            int asked = _unitSpawnedByTab.Count;
+            _unitSpawnedByTab.Clear();
+
+            // Report from what the seam actually did, not from the intent: a record already gone (room
+            // rebuilt, unit killed and culled) is a different outcome from a removal that failed.
+            SetUnitSpawnStatus(
+                $"Removed {removed} of {asked} record(s) this tab created. " +
+                $"Room now holds {(room != null ? room.UnitRecordCount : 0)} record(s), " +
+                $"{(room != null ? room.LiveUnitCount : 0)} live object(s).",
+                removed != asked);
+        }
+
+        /// <summary>
+        /// The list of records this tab made. No per-row buttons: a button drawn inside the loop that
+        /// drew its row mutates the collection being enumerated, which is a real
+        /// <c>InvalidOperationException</c> in this codebase. The one remove action sits outside it.
+        /// </summary>
+        private void DrawSpawnedByTabList()
+        {
+            GUILayout.Space(8);
+            GUILayout.Label(
+                $"<b>Spawned by this tab</b> — {_unitSpawnedByTab.Count} record(s). " +
+                "<color=#AAAAAA>Positions are room-local pixels, which is what the record stores.</color>",
+                GUILayout.ExpandWidth(true));
+
+            if (_unitSpawnedByTab.Count == 0)
+            {
+                GUILayout.Label("<color=#AAAAAA>None yet.</color>", GUILayout.ExpandWidth(true));
+                return;
+            }
+
+            const int maxRows = 14;
+            int rows = Mathf.Min(maxRows, _unitSpawnedByTab.Count);
+            for (int i = 0; i < rows; i++)
+            {
+                UnitInstance unit = _unitSpawnedByTab[i];
+                GUILayout.Label(
+                    $"{unit.unitId}  @ ({unit.position.x:0}, {unit.position.y:0})  hp {unit.currentHealth:0.#}/{unit.maxHealth:0.#}",
+                    GUILayout.ExpandWidth(true));
+            }
+
+            // A truncated list that says nothing reads as "there are 14", which is a wrong answer rather
+            // than a missing one.
+            if (_unitSpawnedByTab.Count > rows)
+            {
+                GUILayout.Label(
+                    $"<color=#AAAAAA>… {_unitSpawnedByTab.Count - rows} more not listed (first {rows} shown).</color>",
+                    GUILayout.ExpandWidth(true));
+            }
+        }
+
+        private void SetUnitSpawnStatus(string message, bool isError)
+        {
+            _unitSpawnStatus = message ?? string.Empty;
+            _unitSpawnStatusIsError = isError;
+        }
+
+        /// <summary>
+        /// The definition for an id, from the catalogue <see cref="LoadCatalogs"/> built.
+        /// </summary>
+        private UnitDefinition ResolveUnitDefinition(string unitId)
+        {
+            if (_unitDefsById == null || string.IsNullOrEmpty(unitId)) return null;
+            return _unitDefsById.TryGetValue(unitId, out UnitDefinition definition) ? definition : null;
         }
 
         // =========================================================================

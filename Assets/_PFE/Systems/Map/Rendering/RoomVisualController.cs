@@ -140,6 +140,19 @@ namespace PFE.Systems.Map.Rendering
         private PFE.Systems.Effects.IEffectDefinitionResolver effectResolver;
 
         /// <summary>
+        /// The container, forwarded to every <see cref="RoomUnitSpawner"/> this controller builds so a
+        /// spawned enemy can reach the weapon and audio services <c>[Inject]</c> cannot deliver to it.
+        /// </summary>
+        /// <remarks>
+        /// Held here for the same reason <see cref="damageSystem"/> is: this controller is a scene
+        /// object with no <c>[Inject]</c> of its own, and <c>MapBridge</c> — the injected one — owns it
+        /// as a serialized field, so the handover has to be walked down by hand. Stored before the
+        /// first room is built in the normal order, but <see cref="SetCombatServices"/> also reaches a
+        /// spawner that already exists, so the two are not order-dependent.
+        /// </remarks>
+        private VContainer.IObjectResolver resolver;
+
+        /// <summary>
         /// The live particle population and its art catalogue, handed down the same chain as
         /// <see cref="effectResolver"/> (this controller is a scene object with no <c>[Inject]</c> of its
         /// own, so <c>MapBridge</c> walks them down by hand).
@@ -265,6 +278,23 @@ namespace PFE.Systems.Map.Rendering
         {
             effectResolver = resolver;
             roomUnitSpawner?.SetEffectResolver(resolver);
+        }
+
+        /// <summary>
+        /// Give this controller the container, which it forwards to the room's unit spawner so a
+        /// spawned enemy can resolve the weapon and audio services it cannot get from <c>[Inject]</c>.
+        /// </summary>
+        /// <remarks>
+        /// <b>Safe in either order, and it never rebuilds the spawner.</b> Same shape as
+        /// <see cref="SetDamageSystem"/> and for the same reason: the spawner is stateful — it owns one
+        /// GameObject per unit record — so replacing it would orphan every existing unit and spawn a
+        /// duplicate. The stored container is used by the next <c>Initialize</c>; the setter on the
+        /// spawner covers a room that was already built.
+        /// </remarks>
+        public void SetCombatServices(VContainer.IObjectResolver objectResolver)
+        {
+            resolver = objectResolver;
+            roomUnitSpawner?.SetCombatServices(objectResolver);
         }
 
         /// <summary>
@@ -646,7 +676,10 @@ namespace PFE.Systems.Map.Rendering
                 simClock: simClock, simLoop: simLoop, effectResolver: effectResolver,
                 particleEmitter: particleEmitter,
                 // Stage C path 6: read once at build time, like every other flag on this seam.
-                useTileMotor: debugSettings != null && debugSettings.UnitMotor);
+                useTileMotor: debugSettings != null && debugSettings.UnitMotor,
+                // The container the spawner reaches the weapon/audio services through. Without it a
+                // spawned enemy has no weapon stack and no voice — see RoomUnitSpawner's field remarks.
+                resolver: resolver);
             roomUnitSpawner.RefreshAll();
             Profiler.Mark("room.units.refreshAll");
 
@@ -789,6 +822,97 @@ namespace PFE.Systems.Map.Rendering
             roomObjectVisualManager?.RefreshAll();
             roomUnitSpawner?.RefreshAll();
         }
+
+        /// <summary>
+        /// Append a caller-authored <see cref="UnitInstance"/> to this room and build it now.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Why this exists rather than a spawn inside the debug overlay.</b> A live unit is not
+        /// just a GameObject: <see cref="RoomUnitSpawner"/> is the one place that hands a spawned unit its
+        /// damage system, sim clock, tile query, object-physics layer, effect resolver and particle
+        /// emitter. A debug tab that built its own GameObject would get a unit that is unarmoured, falls
+        /// through the floor and cannot be set on fire — and every one of those failures is silent. So the
+        /// tab authors a <i>record</i> and this method hands it to the same producer an authored enemy goes
+        /// through; <c>RefreshAll</c> is what actually builds it.</para>
+        ///
+        /// <para><b>The position is converted here, not by the caller.</b> A <see cref="UnitInstance"/>
+        /// carries <b>room-local pixels</b> — the spawner does
+        /// <c>localPosition = WorldCoordinates.PixelToUnity(unit.position)</c> under the
+        /// physical-object parent — while a debug caller naturally holds a Unity world position. The
+        /// conversion goes through that same parent's <c>InverseTransformPoint</c>, so the two cannot
+        /// disagree about where the room's origin is. Re-deriving the origin from the land grid instead is
+        /// the coordinate-convention mistake this project has made repeatedly.</para>
+        ///
+        /// <para><b>Returns false rather than guessing.</b> A room that has not been initialised has no
+        /// spawner and no physical-object parent; falling back to <c>transform</c> would silently place
+        /// the unit at a different point than the one asked for, which is worse than a visible
+        /// refusal.</para>
+        ///
+        /// <para><b>Not on the room's spawn RNG.</b> This deliberately draws nothing from
+        /// <c>IRngService</c>: a debug spawn must not shift the seeded stream that generated the room, or
+        /// "the room is reproducible from its seed" would stop being true the moment a tester clicked a
+        /// button. The caller therefore supplies the facing.</para>
+        /// </remarks>
+        /// <param name="unit">The record to append. Its <c>position</c> is overwritten.</param>
+        /// <param name="worldPosition">Where the unit's feet should land, in Unity world space.</param>
+        /// <returns>True when the record was appended and the spawner rebuilt.</returns>
+        public bool SpawnUnitNow(UnitInstance unit, Vector3 worldPosition)
+        {
+            if (unit == null || roomInstance == null || roomUnitSpawner == null ||
+                backgroundPhysicalObjectParent == null)
+            {
+                return false;
+            }
+
+            unit.position = WorldCoordinates.UnityToPixel(
+                backgroundPhysicalObjectParent.InverseTransformPoint(worldPosition));
+
+            roomInstance.units.Add(unit);
+            roomUnitSpawner.RefreshAll();
+            return true;
+        }
+
+        /// <summary>
+        /// Drop a unit record from this room's list and destroy the GameObject built for it.
+        /// </summary>
+        /// <remarks>
+        /// <para>This is the inverse of <see cref="SpawnUnitNow"/> and it goes through the same
+        /// <c>RefreshAll</c> on purpose: a record removed from <c>room.units</c> becomes <i>stale</i> to
+        /// the spawner, which destroys its GameObject. Destroying the GameObject directly would leave the
+        /// record behind, and the next <c>RefreshAll</c> — which every room update calls — would rebuild
+        /// the unit, so the button would look like it did nothing.</para>
+        /// </remarks>
+        /// <returns>True when the record was present and removed.</returns>
+        public bool DespawnUnitNow(UnitInstance unit)
+        {
+            if (unit == null || roomInstance == null || roomUnitSpawner == null)
+            {
+                return false;
+            }
+
+            if (!roomInstance.units.Remove(unit))
+            {
+                return false;
+            }
+
+            roomUnitSpawner.RefreshAll();
+            return true;
+        }
+
+        /// <summary>
+        /// How many unit GameObjects this room's spawner currently has live.
+        /// </summary>
+        /// <remarks>
+        /// Read from the presenter that builds them rather than from <c>room.units</c> — the two numbers
+        /// disagree exactly when a spawn has failed, and that disagreement is the finding, so a debug
+        /// counter must not collapse them into one.
+        /// </remarks>
+        public int LiveUnitCount => roomUnitSpawner != null ? roomUnitSpawner.SpawnedCount : 0;
+
+        /// <summary>The number of unit <i>records</i> the room holds, spawned or not.</summary>
+        public int UnitRecordCount => roomInstance != null && roomInstance.units != null
+            ? roomInstance.units.Count
+            : 0;
 
         private void LateUpdate()
         {

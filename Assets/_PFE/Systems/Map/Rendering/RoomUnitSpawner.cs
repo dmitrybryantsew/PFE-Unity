@@ -1,10 +1,18 @@
 using System;
 using System.Collections.Generic;
+using PFE.Core;
 using PFE.Data.Definitions;
+using PFE.Entities.Enemies;
+using PFE.Entities.Enemies.Archetypes;
+using PFE.Entities.Enemies.Bosses;
 using PFE.Entities.Units;
+using PFE.Systems.Audio;
+using PFE.Systems.Combat;
 using PFE.Systems.Map.TileQuery;
 using PFE.Systems.Physics;
+using PFE.Systems.Weapons;
 using UnityEngine;
+using VContainer;
 
 namespace PFE.Systems.Map.Rendering
 {
@@ -38,9 +46,195 @@ namespace PFE.Systems.Map.Rendering
         static readonly Dictionary<string, Type> ControllerTypes =
             new Dictionary<string, Type>(StringComparer.OrdinalIgnoreCase)
             {
+                // Training
                 [TrainingDummyController.ControllerId] = typeof(TrainingDummyController),
-                [PFE.Entities.Enemies.Archetypes.ZombieController.ControllerId] = typeof(PFE.Entities.Enemies.Archetypes.ZombieController),
-                [PFE.Entities.Enemies.Archetypes.ZombieController.ControllerAlias] = typeof(PFE.Entities.Enemies.Archetypes.ZombieController),
+
+                // Family 10 — ArmedShooter
+                [ArmedShooterController.ControllerId] = typeof(ArmedShooterController),
+                [ArmedShooterController.ControllerAlias] = typeof(ArmedShooterController),
+                [RaiderController.ControllerId] = typeof(RaiderController),
+                [RaiderController.ControllerAlias] = typeof(RaiderController),
+                [SlaverController.ControllerId] = typeof(SlaverController),
+                [SlaverController.ControllerAlias] = typeof(SlaverController),
+                [ZebraController.ControllerId] = typeof(ZebraController),
+                [ZebraController.ControllerAlias] = typeof(ZebraController),
+                [RangerController.ControllerId] = typeof(RangerController),
+                [RangerController.ControllerAlias] = typeof(RangerController),
+                [EnclController.ControllerId] = typeof(EnclController),
+                [EnclController.ControllerAlias] = typeof(EnclController),
+                [MercController.ControllerId] = typeof(MercController),
+                [MercController.ControllerAlias] = typeof(MercController),
+                [NecrosController.ControllerId] = typeof(NecrosController),
+                [NecrosController.ControllerAlias] = typeof(NecrosController),
+
+                // Family 11 — Undead
+                [ZombieController.ControllerId] = typeof(ZombieController),
+                [ZombieController.ControllerAlias] = typeof(ZombieController),
+                // NOT ZombieController: UnitSpectre extends Unit, not UnitZombie, and guide 04 forbids
+                // routing it to ZombieBrain (no digger, no jump, no drop-through, no resurrection).
+                [SpectreController.ControllerId] = typeof(SpectreController),
+                [SpectreController.ControllerAlias] = typeof(SpectreController),
+                [GhoulController.ControllerId] = typeof(GhoulController),
+                [GhoulController.ControllerAlias] = typeof(GhoulController),
+                [DeadController.ControllerId] = typeof(DeadController),
+                [DeadController.ControllerAlias] = typeof(DeadController),
+
+                // Family 12 — Alicorn / Magic
+                [AlicornController.ControllerId] = typeof(AlicornController),
+                [AlicornController.ControllerAlias] = typeof(AlicornController),
+
+                // Family 13 — Robot
+                [RobobrainController.ControllerId] = typeof(RobobrainController),
+                [RobobrainController.ControllerAlias] = typeof(RobobrainController),
+                ["robot"] = typeof(RobobrainController),
+                [DronController.ControllerId] = typeof(DronController),
+                [DronController.ControllerAlias] = typeof(DronController),
+                ["dront"] = typeof(DronController),
+                [ProtectController.ControllerId] = typeof(ProtectController),
+                [ProtectController.ControllerAlias] = typeof(ProtectController),
+                [GutsyController.ControllerId] = typeof(GutsyController),
+                [GutsyController.ControllerAlias] = typeof(GutsyController),
+                [SentinelController.ControllerId] = typeof(SentinelController),
+                [SentinelController.ControllerAlias] = typeof(SentinelController),
+                [SpriteBotController.ControllerId] = typeof(SpriteBotController),
+                [SpriteBotController.ControllerAlias] = typeof(SpriteBotController),
+                [VortexController.ControllerId] = typeof(VortexController),
+                [VortexController.ControllerAlias] = typeof(VortexController),
+                [RollerController.ControllerId] = typeof(RollerController),
+                [RollerController.ControllerAlias] = typeof(RollerController),
+                [MspController.ControllerId] = typeof(MspController),
+                [MspController.ControllerAlias] = typeof(MspController),
+
+                // Family 14 — Flyer
+                [FlyerController.ControllerId] = typeof(FlyerController),
+                [FlyerController.ControllerAlias] = typeof(FlyerController),
+                [BloatController.ControllerId] = typeof(BloatController),
+                [BloatController.ControllerAlias] = typeof(BloatController),
+                [BatController.ControllerId] = typeof(BatController),
+                [BatController.ControllerAlias] = typeof(BatController),
+                ["bat"] = typeof(BatController),
+                ["bloodwing"] = typeof(BatController),
+                ["bloodwing2"] = typeof(BatController),
+                [PhoenixController.ControllerId] = typeof(PhoenixController),
+                [PhoenixController.ControllerAlias] = typeof(PhoenixController),
+                [BloatEmitterController.ControllerId] = typeof(BloatEmitterController),
+                [BloatEmitterController.ControllerAlias] = typeof(BloatEmitterController),
+                ["ebloat"] = typeof(BloatEmitterController),
+
+                // Family 15 — Climber
+                [ClimberController.ControllerId] = typeof(ClimberController),
+                [ClimberController.ControllerAlias] = typeof(ClimberController),
+                [AntController.ControllerId] = typeof(AntController),
+                [AntController.ControllerAlias] = typeof(AntController),
+                [AntEmitterController.ControllerId] = typeof(AntEmitterController),
+                [AntEmitterController.ControllerAlias] = typeof(AntEmitterController),
+                ["eant"] = typeof(AntEmitterController),
+
+                // Family 16 — Beast
+                [BeastController.ControllerId] = typeof(BeastController),
+                [BeastController.ControllerAlias] = typeof(BeastController),
+                [MonstrikController.ControllerId] = typeof(MonstrikController),
+                [MonstrikController.ControllerAlias] = typeof(MonstrikController),
+                ["rat"] = typeof(MonstrikController),
+                ["molerat"] = typeof(MonstrikController),
+                ["scorp"] = typeof(MonstrikController),
+                ["scorp1"] = typeof(MonstrikController),
+                ["scorp2"] = typeof(MonstrikController),
+                ["scorp3"] = typeof(MonstrikController),
+                ["tarakan"] = typeof(MonstrikController),
+                [HellhoundController.ControllerId] = typeof(HellhoundController),
+                [HellhoundController.ControllerAlias] = typeof(HellhoundController),
+                ["hellhound"] = typeof(HellhoundController),
+                ["hellhound1"] = typeof(HellhoundController),
+                [SlimeController.ControllerId] = typeof(SlimeController),
+                [SlimeController.ControllerAlias] = typeof(SlimeController),
+                ["slime"] = typeof(SlimeController),
+                ["cryoslime"] = typeof(SlimeController),
+                ["pinkslime"] = typeof(SlimeController),
+
+                // Family 17 — Aquatic
+                [AquaticController.ControllerId] = typeof(AquaticController),
+                [AquaticController.ControllerAlias] = typeof(AquaticController),
+                [FishController.ControllerId] = typeof(FishController),
+                [FishController.ControllerAlias] = typeof(FishController),
+                ["fish"] = typeof(FishController),
+                ["fish1"] = typeof(FishController),
+                ["fish2"] = typeof(FishController),
+                ["fish3"] = typeof(FishController),
+
+                // Family 18 — Trap / Stationary
+                [TrapController.ControllerId] = typeof(TrapController),
+                [TrapController.ControllerAlias] = typeof(TrapController),
+                [TurretController.ControllerId] = typeof(TurretController),
+                [TurretController.ControllerAlias] = typeof(TurretController),
+                ["turret"] = typeof(TurretController),
+                ["turret0"] = typeof(TurretController),
+                ["turret1"] = typeof(TurretController),
+                ["turret2"] = typeof(TurretController),
+                ["turret3"] = typeof(TurretController),
+                ["turret4"] = typeof(TurretController),
+                ["turret5"] = typeof(TurretController),
+                [BearTrapController.ControllerId] = typeof(BearTrapController),
+                [BearTrapController.ControllerAlias] = typeof(BearTrapController),
+                ["trap"] = typeof(BearTrapController),
+                ["mtrap"] = typeof(BearTrapController),
+                [TriggerController.ControllerId] = typeof(TriggerController),
+                [TriggerController.ControllerAlias] = typeof(TriggerController),
+                ["trigridge"] = typeof(TriggerController),
+                ["trigplate"] = typeof(TriggerController),
+                ["triglaser"] = typeof(TriggerController),
+                ["trigcans"] = typeof(TriggerController),
+                ["trcans"] = typeof(TriggerController),
+                ["trlaser"] = typeof(TriggerController),
+                ["trplate"] = typeof(TriggerController),
+                ["trridge"] = typeof(TriggerController),
+                [DamagerController.ControllerId] = typeof(DamagerController),
+                [DamagerController.ControllerAlias] = typeof(DamagerController),
+                ["damgren"] = typeof(DamagerController),
+                ["damshot"] = typeof(DamagerController),
+                ["damexpl1"] = typeof(DamagerController),
+                ["expl1"] = typeof(DamagerController),
+                [MagicWallController.ControllerId] = typeof(MagicWallController),
+                [MagicWallController.ControllerAlias] = typeof(MagicWallController),
+                ["mwall"] = typeof(MagicWallController),
+                [TransmitterController.ControllerId] = typeof(TransmitterController),
+                [TransmitterController.ControllerAlias] = typeof(TransmitterController),
+                ["transm"] = typeof(TransmitterController),
+                ["transmitter"] = typeof(TransmitterController),
+                [DestructiblePropController.ControllerId] = typeof(DestructiblePropController),
+                [DestructiblePropController.ControllerAlias] = typeof(DestructiblePropController),
+                ["destr1"] = typeof(DestructiblePropController),
+                ["destr"] = typeof(DestructiblePropController),
+
+                // Bosses
+                [BossController.ControllerId] = typeof(BossController),
+                [BossController.ControllerAlias] = typeof(BossController),
+                [BossRaiderController.ControllerId] = typeof(BossRaiderController),
+                [BossRaiderController.ControllerAlias] = typeof(BossRaiderController),
+                ["bossraider"] = typeof(BossRaiderController),
+                [BossEnclController.ControllerId] = typeof(BossEnclController),
+                [BossEnclController.ControllerAlias] = typeof(BossEnclController),
+                ["bossencl"] = typeof(BossEnclController),
+                [BossNecrController.ControllerId] = typeof(BossNecrController),
+                [BossNecrController.ControllerAlias] = typeof(BossNecrController),
+                ["bossnecr"] = typeof(BossNecrController),
+                [BossAlicornController.ControllerId] = typeof(BossAlicornController),
+                [BossAlicornController.ControllerAlias] = typeof(BossAlicornController),
+                ["bossalicorn"] = typeof(BossAlicornController),
+                [BossDronController.ControllerId] = typeof(BossDronController),
+                [BossDronController.ControllerAlias] = typeof(BossDronController),
+                ["bossdron"] = typeof(BossDronController),
+                ["megadron"] = typeof(BossDronController),
+                [BossUltraController.ControllerId] = typeof(BossUltraController),
+                [BossUltraController.ControllerAlias] = typeof(BossUltraController),
+                ["bossultra"] = typeof(BossUltraController),
+                ["ultra"] = typeof(BossUltraController),
+                [ThunderHeadController.ControllerId] = typeof(ThunderHeadController),
+                [ThunderHeadController.ControllerAlias] = typeof(ThunderHeadController),
+                ["thunderhead"] = typeof(ThunderHeadController),
+                [ThunderTurretController.ControllerId] = typeof(ThunderTurretController),
+                [ThunderTurretController.ControllerAlias] = typeof(ThunderTurretController),
+                ["ttur"] = typeof(ThunderTurretController),
             };
 
         readonly RoomInstance _room;
@@ -148,6 +342,31 @@ namespace PFE.Systems.Map.Rendering
         /// </remarks>
         bool _useTileMotor;
 
+        /// <summary>
+        /// The container, used to reach the services a spawned enemy needs that <c>[Inject]</c> cannot
+        /// deliver — the projectile factory and the sound service.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>One field rather than four, and that is the point.</b> The weapon and audio
+        /// services are all DI singletons the spawner has no other way to see, and threading each of
+        /// them as its own constructor parameter would add four more entries to a signature that is
+        /// already nine long — each one a thing a future caller can forget. Resolving them here, once,
+        /// keeps the seam at one parameter.</para>
+        ///
+        /// <para>Null is legal and is what every test construction gets: a spawner with no container
+        /// builds units with no weapon and no voice, which is exactly the pre-change behaviour and is
+        /// reported per unit rather than silently.</para>
+        /// </remarks>
+        IObjectResolver _resolver;
+
+        /// <summary>Whether <see cref="EnsureCombatServices"/> has run. One attempt, not one per unit.</summary>
+        bool _combatServicesResolved;
+
+        IProjectileFactory _projectileFactory;
+        ISoundService      _soundService;
+        PfeDebugSettings   _debugSettings;
+        PFE.Core.Rng.IRngService _rng;
+
         /// <summary>Unit ids already warned about, so a room full of them warns once each.</summary>
         readonly HashSet<string> _warnedMissingSprite = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         readonly HashSet<string> _warnedUnknownController = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -168,7 +387,8 @@ namespace PFE.Systems.Map.Rendering
             PFE.Core.SimLoop simLoop = null,
             PFE.Systems.Effects.IEffectDefinitionResolver effectResolver = null,
             PFE.Systems.Particles.Adapters.RoomParticleEmitter particleEmitter = null,
-            bool useTileMotor = false)
+            bool useTileMotor = false,
+            IObjectResolver resolver = null)
         {
             _room = room;
             _parent = parent;
@@ -179,6 +399,64 @@ namespace PFE.Systems.Map.Rendering
             _effectResolver = effectResolver;
             _particleEmitter = particleEmitter;
             _useTileMotor = useTileMotor;
+            _resolver = resolver;
+        }
+
+        /// <summary>
+        /// Resolve the enemy combat services once, from the container.
+        ///
+        /// <para><b>Once, not once per unit.</b> <c>Resolve</c> is a dictionary lookup but the failure
+        /// path is a thrown exception, and a room of twenty enemies should not run twenty of them.</para>
+        ///
+        /// <para><b>Each resolve is individually guarded.</b> A scene with no <c>SoundService</c>
+        /// assigned (the container logs that itself) must still spawn armed enemies, and a scene whose
+        /// container cannot supply a factory must still spawn enemies that make a noise on death. One
+        /// missing registration must not take the other three down.</para>
+        /// </summary>
+        void EnsureCombatServices()
+        {
+            if (_combatServicesResolved) return;
+            _combatServicesResolved = true;
+
+            if (_resolver == null) return;
+
+            try { _projectileFactory = _resolver.Resolve<IProjectileFactory>(); } catch { _projectileFactory = null; }
+            try { _soundService      = _resolver.Resolve<ISoundService>(); }      catch { _soundService      = null; }
+            try { _debugSettings     = _resolver.Resolve<PfeDebugSettings>(); }   catch { _debugSettings     = null; }
+            try { _rng               = _resolver.Resolve<PFE.Core.Rng.IRngService>(); } catch { _rng         = null; }
+        }
+
+        /// <summary>
+        /// Hand this spawner the container it reaches the weapon/audio services through, including any
+        /// units it has already built.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Retroactive, for the same reason <see cref="SetDamageSystem"/> is.</b> The normal
+        /// order is a handover before the room exists — <c>MapBridge.Construct</c> runs, then
+        /// <c>Start</c> builds the world — so the constructor argument covers it and this setter never
+        /// fires. It exists for the other order, because a spawner that only armed future spawns would
+        /// leave the first room's enemies mute and unarmed while every later room fought properly, and
+        /// that state is silent from the outside.</para>
+        ///
+        /// <para><b>Re-resolving is safe and deliberate.</b> <see cref="EnsureCombatServices"/> is
+        /// gated on <c>_combatServicesResolved</c>; clearing that flag makes the next call resolve
+        /// again, which is what turns a null-container spawner into an armed one. A resolver handed
+        /// over twice simply resolves the same singletons twice.</para>
+        /// </remarks>
+        public void SetCombatServices(IObjectResolver resolver)
+        {
+            _resolver = resolver;
+            _combatServicesResolved = false;
+            EnsureCombatServices();
+
+            foreach (KeyValuePair<UnitInstance, GameObject> pair in _spawned)
+            {
+                if (pair.Value != null && pair.Value.TryGetComponent(out EnemyController enemy))
+                {
+                    enemy.SetWeaponServices(
+                        _projectileFactory, _resolver, _soundService, _debugSettings, _rng);
+                }
+            }
         }
 
         public int SpawnedCount => _spawned.Count;
@@ -472,13 +750,66 @@ namespace PFE.Systems.Map.Rendering
             string effectiveControllerId = !string.IsNullOrWhiteSpace(unit.controllerId)
                 ? unit.controllerId
                 : definition?.controllerId;
+            if (string.IsNullOrWhiteSpace(effectiveControllerId) || !ControllerTypes.ContainsKey(effectiveControllerId))
+            {
+                if (!string.IsNullOrWhiteSpace(definition?.parentId) && ControllerTypes.ContainsKey(definition.parentId))
+                {
+                    effectiveControllerId = definition.parentId;
+                }
+                else
+                {
+                    string fallbackUnitId = unit.unitId ?? definition?.id;
+                    if (!string.IsNullOrWhiteSpace(fallbackUnitId))
+                    {
+                        effectiveControllerId = fallbackUnitId;
+                    }
+                }
+            }
             Type controllerType = ResolveControllerType(effectiveControllerId);
             var controller = (UnitController)unitObject.AddComponent(controllerType);
+
+            // ...and the seam that lets an NPC HOLD A WEAPON and MAKE A SOUND. Handed over here, before
+            // Initialize, because an archetype equips its weapon in Initialize/OnDefinitionAssigned —
+            // the first moment `Stats` is real. Same handover shape and the same reason as
+            // SetDamageSystem below: AddComponent never goes through VContainer, so `[Inject]` on the
+            // controller cannot reach a spawned unit.
+            //
+            // Without this the whole weapon stack was player-only: an enemy's `alilight` produced no
+            // projectile, no muzzle flare and no report, and no enemy in the project made any sound at
+            // all. Both were silent failures — the data was imported and catalogued the whole time.
+            if (controller is EnemyController enemyController)
+            {
+                EnsureCombatServices();
+                enemyController.SetWeaponServices(
+                    _projectileFactory, _resolver, _soundService, _debugSettings, _rng);
+            }
 
             // The seam UnitController.Initialize documents as the missing one: without it the unit has
             // no health, no <vulner> table, and logs "no UnitStats assigned" on every hit.
             UnitStats stats = definition != null ? new UnitStats(definition.health, 100f) : null;
             controller.Initialize(definition, stats);
+
+            // ...and the seam that lets a unit SHOW ITS SHIELD. The pool became real when the damage
+            // pipeline learned to spend `UnitStats.ShitHp`, but nothing drew it: the alicorn's dome was a
+            // private field on its controller that no renderer could read, so a shielded alicorn looked
+            // exactly like an unshielded one. This is the reader, and it is the same missing-seam shape
+            // as the weapon handover above — AddComponent never goes through VContainer, so the visual
+            // has to be built here, where the body renderer and the controller both exist.
+            //
+            // AFTER Initialize, not before: AlicornController reads its tier from the definition's id
+            // there, and the tier is what selects the dome (AS3 UnitAlicorn.as:191).
+            //
+            // Gated on HasSpellShieldOverlay so an ordinary NPC — whose pool is 0 for its whole life —
+            // does not get a component and a per-frame poll that can never draw anything.
+            if (controller.HasSpellShieldOverlay)
+            {
+                var shieldOverlay = visualObject.AddComponent<UnitShieldOverlay>();
+                shieldOverlay.Initialize(
+                    stats,
+                    controller.ShieldOverlayTier,
+                    controller.UsesBossShieldOverlay,
+                    renderer);
+            }
 
             // ...and this is the seam that stops it falling through the floor. A unit's groundedness is
             // AS3's `isLaz` (Unit.as:1962) — a question about the tile under its feet — and the port was
@@ -637,6 +968,13 @@ namespace PFE.Systems.Map.Rendering
             if (ControllerTypes.TryGetValue(controllerId, out Type type))
             {
                 return type;
+            }
+
+            // Fallback: trim trailing digits (e.g. "zombie3" -> "zombie", "dron2" -> "dron", "bloat5" -> "bloat")
+            string baseId = System.Text.RegularExpressions.Regex.Replace(controllerId, @"\d+$", "");
+            if (!string.IsNullOrWhiteSpace(baseId) && ControllerTypes.TryGetValue(baseId, out Type baseType))
+            {
+                return baseType;
             }
 
             if (_warnedUnknownController.Add(controllerId))

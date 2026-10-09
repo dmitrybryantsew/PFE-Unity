@@ -61,7 +61,7 @@ public class MapBridge : MonoBehaviour
     // defaults were "deliberately omitted" while the line beneath it carried three — the code is the
     // truth, and it is why a scene cannot opt out of a registration by relying on the default.
     [Inject]
-    public void Construct(GameManager gameManager, RoomGenerator roomGenerator, TileTextureLookup tileTextureLookup, MaterialRenderDatabase materialRenderDatabase, TileMaskLookup tileMaskLookup, RoomBackgroundLookup roomBackgroundLookup, PFE.Core.PfeDebugSettings debugSettings, PFE.Core.SimClock simClock, PFE.Core.SimLoop simLoop, PFE.Systems.Physics.IPhysicsWorldService physicsWorldService, PFE.Systems.Combat.DamageSystem damageSystem, PFE.Data.ContentRegistry registry = null, PFE.Systems.Particles.ParticleWorld particleWorld = null, PFE.Systems.Particles.Rendering.ParticleSpriteCatalog particleCatalog = null, PFE.Systems.Particles.Adapters.TileQueryParticleWater particleTileWater = null, PFE.Systems.Particles.Adapters.RoomParticleEmitter particleEmitter = null)
+    public void Construct(GameManager gameManager, RoomGenerator roomGenerator, TileTextureLookup tileTextureLookup, MaterialRenderDatabase materialRenderDatabase, TileMaskLookup tileMaskLookup, RoomBackgroundLookup roomBackgroundLookup, PFE.Core.PfeDebugSettings debugSettings, PFE.Core.SimClock simClock, PFE.Core.SimLoop simLoop, PFE.Systems.Physics.IPhysicsWorldService physicsWorldService, PFE.Systems.Combat.DamageSystem damageSystem, PFE.Data.ContentRegistry registry = null, PFE.Systems.Particles.ParticleWorld particleWorld = null, PFE.Systems.Particles.Rendering.ParticleSpriteCatalog particleCatalog = null, PFE.Systems.Particles.Adapters.TileQueryParticleWater particleTileWater = null, PFE.Systems.Particles.Adapters.RoomParticleEmitter particleEmitter = null, VContainer.IObjectResolver objectResolver = null)
     {
         _gameManager = gameManager;
         _roomGenerator = roomGenerator;
@@ -121,6 +121,21 @@ public class MapBridge : MonoBehaviour
         if (_visualController != null && particleTileWater != null && particleEmitter != null)
         {
             _visualController.SetParticleAdapters(particleTileWater, particleEmitter);
+        }
+
+        // ...and the container itself, down the SAME chain, so a spawned enemy can resolve the weapon
+        // and audio services that [Inject] cannot reach it: a unit is built with AddComponent, which
+        // VContainer never observes, so the spawner is the only handover point. One field on the
+        // spawner rather than four constructor parameters keeps this seam from growing a tail of
+        // individually-forgettable services; see RoomUnitSpawner's field remarks.
+        //
+        // IObjectResolver is registered by the container itself, so this parameter is never the
+        // decorative-null case the header comment above warns about. Null is still legal and is what a
+        // test rig gets: the spawner then builds units with no weapon and no voice, which is the
+        // pre-change behaviour and is reported per unit rather than silently.
+        if (_visualController != null && objectResolver != null)
+        {
+            _visualController.SetCombatServices(objectResolver);
         }
 
         // P1: hand the fixed-step simulation down the SAME chain, so a motor-less NPC steps on
