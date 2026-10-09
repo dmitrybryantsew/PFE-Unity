@@ -163,33 +163,75 @@ namespace PFE.Tests.Editor.UnitAnimation
         }
 
         /// <summary>
-        /// <c>derg</c> is real, appears on <c>raider</c>, and has no field in <see cref="AnimationSet"/>.
-        /// It must be <b>reported</b>, not silently dropped — a silent drop is how a state that the game
-        /// actually plays goes missing from the port without anything failing.
+        /// An id with no field in <see cref="AnimationSet"/> is <b>reported</b>, not silently dropped — a
+        /// silent drop is how a state that the game actually plays goes missing from the port without
+        /// anything failing.
+        ///
+        /// <para><b>The fixture is synthetic now, and that is the only honest option.</b> This used to
+        /// parse <c>RaiderNode</c> and assert <c>derg</c> was unmapped. It is not any more: <c>derg</c>,
+        /// <c>super</c> and <c>attack</c> are all authored rows (by nine units between them) and
+        /// <see cref="AnimationSet"/> now has a field for each, so <c>AllData.as</c> holds no unmapped id
+        /// at all. Asserting the report against a real id would be asserting that the port had lost a row
+        /// — the opposite of the intent. The behaviour is still real, so it is driven with a row that
+        /// genuinely has no field.</para>
         /// </summary>
         [Test]
         public void Parse_UnmappedId_IsReportedNotDropped()
         {
-            var result = UnitAnimationParser.Parse(RaiderNode);
+            const string synthetic = @"<blit id='stay' y='0' len='4'/>
+<blit id='nosuchstate' y='9' len='7'/>";
 
-            CollectionAssert.Contains(result.UnmappedIds, "derg");
-            Assert.IsFalse(AnimationSet.IsMapped("derg"), "control: derg genuinely has no field");
+            var result = UnitAnimationParser.Parse(synthetic);
+
+            CollectionAssert.Contains(result.UnmappedIds, "nosuchstate");
+            Assert.IsFalse(AnimationSet.IsMapped("nosuchstate"), "control: the id genuinely has no field");
             Assert.IsTrue(AnimationSet.IsMapped("stay"), "control: stay genuinely has one");
+
+            // Control that the row was refused rather than stored under a fallback id.
+            Assert.AreEqual(1, result.SetIds.Count, "only `stay` should have been stored");
         }
 
         [Test]
-        public void KnownUnmappedIds_MatchTheOracleGap()
+        public void KnownUnmappedIds_IsEmptyBecauseEveryAuthoredIdHasAField()
         {
-            // The three ids in AllData.as that AnimationSet has no field for. Pinned so that adding a
-            // field without updating this list is caught, and so a field is not removed silently.
-            CollectionAssert.AreEquivalent(
-                new[] { "derg", "super", "attack" },
-                UnitAnimationParser.KnownUnmappedIds);
+            // Empty on purpose — see the remark on UnitAnimationParser.KnownUnmappedIds. Pinned so a
+            // future row the set cannot hold is added here deliberately rather than discovered later as a
+            // silently missing animation.
+            CollectionAssert.IsEmpty(UnitAnimationParser.KnownUnmappedIds);
 
-            foreach (string id in UnitAnimationParser.KnownUnmappedIds)
+            // Regression guard for the three ids that used to be listed here. Each is authored by real
+            // units, so each must have a field; if one is dropped from AnimationSet this fails rather than
+            // the row quietly vanishing from nine units' sheets.
+            foreach (string id in new[] { "attack", "derg", "super" })
             {
-                Assert.IsFalse(AnimationSet.IsMapped(id), $"{id} is listed as unmapped but AnimationSet maps it");
+                Assert.IsTrue(AnimationSet.IsMapped(id),
+                    $"'{id}' is an authored row in AllData.as (scorp1..3 / raider,slaver,zebra / " +
+                    "zombie2,5,7) and must have a field in AnimationSet.");
             }
+        }
+
+        /// <summary>
+        /// The three recovered ids land in their own fields, with the oracle's own numbers — the positive
+        /// control for the guard above. <c>raider</c>'s <c>derg</c> is
+        /// <c>&lt;blit id='derg' y='6' len='8' rep='1'/&gt;</c> (<c>AllData.as:84</c>).
+        /// </summary>
+        [Test]
+        public void Parse_RecoveredIds_LandInTheirOwnFields()
+        {
+            var raider = UnitAnimationParser.Parse(RaiderNode);
+            Assert.AreEqual(8, raider.Animations.derg.length, "raider's derg row is len='8'");
+            Assert.AreEqual(6, raider.Animations.derg.row, "raider's derg row is y='6'");
+            Assert.IsTrue(raider.Animations.derg.replay, "raider's derg row is rep='1'");
+            CollectionAssert.DoesNotContain(raider.UnmappedIds, "derg",
+                "derg is mapped now, so it must not be reported as unmapped");
+
+            // The other two, with their real rows (AllData.as:1150 and :872).
+            var scorp = UnitAnimationParser.Parse("<blit id='attack' len='15' ff='1'/>");
+            Assert.AreEqual(15, scorp.Animations.attack.length);
+
+            var zombie = UnitAnimationParser.Parse("<blit id='super' y='8' len='4' rep='1'/>");
+            Assert.AreEqual(4, zombie.Animations.super.length);
+            Assert.AreEqual(8, zombie.Animations.super.row);
         }
 
         // ── the family/variant overlay — the controller's double getXmlParam call ────────────
@@ -308,10 +350,17 @@ namespace PFE.Tests.Editor.UnitAnimation
         {
             var set = new AnimationSet();
 
-            Assert.IsFalse(set.TrySet("derg", new AnimationFrame { row = 6, length = 8 }),
-                "derg has no field, so TrySet must report the failure rather than swallow it");
+            Assert.IsFalse(set.TrySet("nosuchstate", new AnimationFrame { row = 6, length = 8 }),
+                "nosuchstate has no field, so TrySet must report the failure rather than swallow it");
             Assert.IsTrue(set.TrySet("walk", new AnimationFrame { length = 5 }));
             Assert.AreEqual(5, set.walk.length);
+
+            // The other half, and the one that changed: `derg` HAS a field now (it is an authored row on
+            // raider/slaver/zebra), so TrySet must accept it. This is the guard against a future edit
+            // re-adding it to the unmapped list.
+            Assert.IsTrue(set.TrySet("derg", new AnimationFrame { row = 6, length = 8 }));
+            Assert.AreEqual(8, set.derg.length);
+            Assert.AreEqual(6, set.derg.row);
         }
 
         // ── robustness ───────────────────────────────────────────────────────────────────────

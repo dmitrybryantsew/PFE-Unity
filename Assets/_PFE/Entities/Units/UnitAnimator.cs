@@ -148,7 +148,16 @@ namespace PFE.Entities.Units
         /// <summary>
         /// Select the AS3 animation state by id (<c>stay</c>, <c>walk</c>, <c>trot</c>, <c>run</c>,
         /// <c>jump</c>, <c>die</c>, <c>death</c>, <c>fall</c>, <c>sit</c>, <c>fly</c>, <c>dig</c>,
-        /// <c>plav</c>, <c>polz</c>, <c>laz</c>, <c>pre</c> — see <see cref="AnimationSet.As3Ids"/>).
+        /// <c>plav</c>, <c>polz</c>, <c>laz</c>, <c>pre</c>, <c>attack</c>, <c>derg</c>, <c>super</c> — see
+        /// <see cref="AnimationSet.As3Ids"/>).
+        ///
+        /// <para><b>"Exists" means the unit's own sheet authors it, and the two ways it can fail are
+        /// different.</b> An id with no field in <see cref="AnimationSet"/> is a port gap; an id that has
+        /// a field but no row on <i>this</i> definition is a data/behaviour mismatch. Both return
+        /// <c>false</c> and both leave <see cref="HasAnimation"/> false, which is the honest answer —
+        /// <c>Draw</c> then leaves the sprite alone rather than showing a blank cell. The second case is
+        /// the one that shipped a bug: the alicorn brain returned <c>pre</c> for a sheet with no
+        /// <c>pre</c> row, so the alicorn vanished for up to 40 ticks after every spell.</para>
         ///
         /// <para><b>Re-selecting the current state is a no-op, on purpose.</b> The oracle restarts only
         /// when the state <i>changes</i> — <c>if(animState != animState2)</c> — so a caller that asserts

@@ -208,18 +208,23 @@ namespace PFE.Data.Definitions
     /// <c>Unit.as:1430-1436</c> fills as <c>anims[xbl.@id] = new BlitAnim(xbl)</c>.
     ///
     /// <para><b>The ids are the oracle's, and they are mostly Russian.</b> There are 176
-    /// <c>&lt;blit&gt;</c> rows in <c>AllData.as</c> across 18 distinct ids. Five of them do not
-    /// translate one-to-one, so <see cref="TrySet"/> owns that mapping in one place:</para>
+    /// <c>&lt;blit&gt;</c> rows in <c>AllData.as</c> across <b>18</b> distinct ids, and every one of the
+    /// 18 now has a field here. Four of them do not translate one-to-one, so <see cref="TrySet"/> owns
+    /// that mapping in one place:</para>
     /// <list type="table">
     /// <item><term>plav</term><description>плавать — swim</description></item>
     /// <item><term>polz</term><description>ползать — crawl</description></item>
     /// <item><term>laz</term><description>лазать — climb</description></item>
     /// <item><term>pre</term><description>pre-attack</description></item>
     /// </list>
-    /// <para><c>derg</c>, <c>super</c> and <c>attack</c> have no field here and are reported by the
-    /// importer rather than dropped silently. <see cref="drag"/> and <see cref="transform"/> appear in
-    /// no oracle row, so they are never populated — kept so the field set is not silently narrowed.
-    /// </para>
+    /// <para><b><c>derg</c>, <c>super</c> and <c>attack</c> are authored rows, and the port used to drop
+    /// them.</b> An earlier revision had no field for the three, reported them through
+    /// <c>UnitAnimationParser.KnownUnmappedIds</c>, and a lint banned any brain from returning them. That
+    /// deleted the animations rather than porting them: <c>scorp1..3</c> punch with <c>attack</c>,
+    /// <c>raider</c>/<c>slaver</c>/<c>zebra</c> fly with <c>derg</c>, and <c>zombie2</c>/<c>zombie5</c>/
+    /// <c>zombie7</c> have a <c>super</c> state. They are ordinary fields now, and
+    /// <c>KnownUnmappedIds</c> is empty. <see cref="drag"/> and <see cref="transform"/> appear in no
+    /// oracle row, so they are never populated — kept so the field set is not silently narrowed.</para>
     ///
     /// <para><b>Where the states come from — and why the parent chain matters.</b> The oracle splits
     /// animation data across two nodes and joins them in the controller:</para>
@@ -282,6 +287,31 @@ namespace PFE.Data.Definitions
         /// <summary>AS3 <c>pre</c>.</summary>
         public AnimationFrame preAttack;
 
+        /// <summary>
+        /// AS3 <c>attack</c>. <b>Real data, and it was being dropped.</b>
+        ///
+        /// <para>An earlier revision listed this in <c>UnitAnimationParser.KnownUnmappedIds</c> and the
+        /// lint <i>forbade</i> a brain from returning it, on the reading that it was an unplayable id.
+        /// It is not: <c>AllData.as</c> authors <c>&lt;blit id='attack' len='15' ff='1'/&gt;</c> on
+        /// <b>scorp1</b>, <b>scorp2</b> and <b>scorp3</b> (lines 1150, 1174, 1198), and
+        /// <c>UnitMonstrik.animate():115</c> is what plays it (<c>t_punch &gt; 0</c>). Dropping the row
+        /// meant the scorpion's punch had no frames at all — the animation was deleted, not fixed.</para>
+        /// </summary>
+        public AnimationFrame attack;
+
+        /// <summary>
+        /// AS3 <c>derg</c>. Authored by <b>raider</b>, <b>slaver</b> and <b>zebra</b> (lines 84, 218,
+        /// 320) and selected by <c>UnitRaider.animate():445-459</c> in the <c>flyer</c>/<c>levit</c>
+        /// branches.
+        /// </summary>
+        public AnimationFrame derg;
+
+        /// <summary>
+        /// AS3 <c>super</c>. The undead's empowered state — authored by <b>zombie2</b>, <b>zombie5</b>
+        /// and <b>zombie7</b> (lines 809, 845, 872).
+        /// </summary>
+        public AnimationFrame super;
+
         /// <summary>No oracle id — never populated.</summary>
         public AnimationFrame drag;
 
@@ -341,6 +371,9 @@ namespace PFE.Data.Definitions
                 case "polz": crawl = frame; break;
                 case "laz": climb = frame; break;
                 case "pre": preAttack = frame; break;
+                case "attack": attack = frame; break;
+                case "derg": derg = frame; break;
+                case "super": super = frame; break;
             }
         }
 
@@ -348,7 +381,7 @@ namespace PFE.Data.Definitions
         public static readonly string[] As3Ids =
         {
             "stay", "walk", "trot", "run", "jump", "die", "death", "fall", "sit", "fly", "dig",
-            "plav", "polz", "laz", "pre"
+            "plav", "polz", "laz", "pre", "attack", "derg", "super"
         };
 
         AnimationFrame GetMapped(string as3Id)
@@ -370,6 +403,9 @@ namespace PFE.Data.Definitions
                 case "polz": return crawl;
                 case "laz": return climb;
                 case "pre": return preAttack;
+                case "attack": return attack;
+                case "derg": return derg;
+                case "super": return super;
                 default: return default;
             }
         }

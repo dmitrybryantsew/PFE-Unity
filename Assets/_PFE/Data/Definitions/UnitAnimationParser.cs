@@ -34,8 +34,20 @@ namespace PFE.Data.Definitions
         /// Every AS3 id that appears in <c>AllData.as</c> but has no field in
         /// <see cref="AnimationSet"/>. Named here so the importer's report can be specific rather than
         /// "some rows were skipped".
+        ///
+        /// <para><b>Empty, and that is the point.</b> This used to hold <c>derg</c>, <c>super</c> and
+        /// <c>attack</c>, and the earlier reading was that they were "unplayable ids". They are not
+        /// unplayable — they are <i>authored</i>, by nine units between them
+        /// (<c>scorp1..3</c>, <c>raider</c>/<c>slaver</c>/<c>zebra</c>,
+        /// <c>zombie2</c>/<c>zombie5</c>/<c>zombie7</c>), and listing them here is what deleted those
+        /// rows from the port. <see cref="AnimationSet"/> now has a field for each, so the list is kept
+        /// (rather than removed) as the slot a future unmapped id must be reported through.</para>
+        ///
+        /// <para>A fourth id, <c>wake</c>, was named alongside them in one review. It does not exist in
+        /// <c>AllData.as</c> at all — <c>grep "id='wake'"</c> is 0 hits — so it was never a row to
+        /// drop.</para>
         /// </summary>
-        public static readonly string[] KnownUnmappedIds = { "derg", "super", "attack" };
+        public static readonly string[] KnownUnmappedIds = { };
 
         /// <summary>What one parse produced.</summary>
         public sealed class Result

@@ -119,6 +119,101 @@ namespace PFE.Tests.Editor.Common
         }
 
         /// <summary>
+        /// Replace every <b>comment</b> with spaces, but keep string and char literals <b>verbatim</b> —
+        /// the mirror of <see cref="StripCommentsAndStrings"/>, for the lints that need to read the
+        /// literals rather than merely prove they are gone.
+        ///
+        /// <para><b>Why both directions are needed.</b> A presence lint asks "is this call still here",
+        /// and must not be satisfiable by a comment that names it — so it strips strings too. A lint that
+        /// asks "which ids does this method return" has the opposite requirement: the literals <i>are</i>
+        /// the data. Stripping them yields an empty set, and an empty set passes every
+        /// <c>all ids are valid</c> assertion vacuously. Using the wrong one of these two is a silent
+        /// nothing in both cases, so they are kept side by side where the difference is visible.</para>
+        ///
+        /// <para>The comment handling is identical to <see cref="StripCommentsAndStrings"/>; only the
+        /// literal branches differ. Line structure is preserved in both, so an offset still maps to a
+        /// line.</para>
+        /// </summary>
+        internal static string StripCommentsKeepStrings(string source)
+        {
+            var output = new System.Text.StringBuilder(source.Length);
+
+            for (int i = 0; i < source.Length; i++)
+            {
+                char c = source[i];
+
+                // Line comment.
+                if (c == '/' && i + 1 < source.Length && source[i + 1] == '/')
+                {
+                    while (i < source.Length && source[i] != '\n')
+                    {
+                        output.Append(' ');
+                        i++;
+                    }
+
+                    if (i < source.Length) output.Append('\n');
+                    continue;
+                }
+
+                // Block comment.
+                if (c == '/' && i + 1 < source.Length && source[i + 1] == '*')
+                {
+                    i += 2;
+                    while (i + 1 < source.Length && !(source[i] == '*' && source[i + 1] == '/'))
+                    {
+                        output.Append(source[i] == '\n' ? '\n' : ' ');
+                        i++;
+                    }
+
+                    i++;
+                    continue;
+                }
+
+                // Verbatim string — copied through unchanged, doubled quote included.
+                if (c == '@' && i + 1 < source.Length && source[i + 1] == '"')
+                {
+                    int start = i;
+                    i += 2;
+                    while (i < source.Length)
+                    {
+                        if (source[i] == '"')
+                        {
+                            if (i + 1 < source.Length && source[i + 1] == '"') i += 2;
+                            else { i++; break; }
+                        }
+                        else i++;
+                    }
+
+                    output.Append(source, start, i - start);
+                    i--;   // the loop's own i++ steps past the closing quote
+                    continue;
+                }
+
+                // Regular string or char literal — copied through unchanged, escapes included.
+                if (c == '"' || c == '\'')
+                {
+                    int start = i;
+                    char quote = c;
+                    i++;
+                    while (i < source.Length && source[i] != quote)
+                    {
+                        if (source[i] == '\\') i++;
+                        i++;
+                    }
+
+                    if (i < source.Length) i++;   // consume the closing quote
+                    output.Append(source, start, i - start);
+                    i--;   // the loop's own i++ steps past the closing quote
+                    continue;
+                }
+
+                output.Append(c);
+            }
+
+            return output.ToString();
+        }
+
+        /// <summary>
         /// Replace every comment and string/char literal with spaces, preserving line structure so a
         /// reported offset still maps to a line. Handles the four forms this project's C# uses:
         /// <c>//</c>, <c>/* */</c>, <c>"…"</c> with escapes, and verbatim <c>@"…"</c> with doubled quotes.

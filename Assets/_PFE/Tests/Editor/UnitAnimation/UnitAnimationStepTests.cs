@@ -416,9 +416,43 @@ namespace PFE.Tests.Editor.UnitAnimation
 
             try
             {
-                // `derg`, `super` and `attack` exist in AllData.as with no field in AnimationSet, so an
-                // unmapped id must read as "nothing to play" rather than throwing.
-                Assert.That(animator.SetState("derg"), Is.False);
+                // An id with no field in AnimationSet at all — `swim` and `wake` were once returned by
+                // brains and are not AS3 ids (the swim id is `plav`; `wake` is not in AllData.as). It must
+                // read as "nothing to play" rather than throwing.
+                Assert.That(animator.SetState("wake"), Is.False);
+                Assert.That(animator.HasAnimation, Is.False);
+                Assert.That(animator.CurrentCellIndex, Is.EqualTo(-1));
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+            }
+        }
+
+        /// <summary>
+        /// A <b>mapped</b> id this definition does not author must also read as "nothing to play".
+        ///
+        /// <para><b>This is the case that used to be tested by accident.</b>
+        /// <c>UnitAnimator_UnknownState_ReportsNoAnimation</c> used <c>derg</c> and described it as
+        /// unmapped. It was unmapped then; it has a field now (<c>derg</c>, <c>super</c> and
+        /// <c>attack</c> are all authored rows — see <c>AnimationSet</c>). The distinction matters
+        /// because the two failure modes are different: an unmapped id is a port gap, while a mapped id
+        /// the unit does not author is the shape of a real bug that shipped — the alicorn brain returned
+        /// <c>pre</c> while the alicorn sheet authored no <c>pre</c> row, and the sprite blanked for up
+        /// to 40 ticks after every spell. Both must be silent no-ops here, and both are asserted.</para>
+        /// </summary>
+        [Test]
+        public void UnitAnimator_MappedButUnauthoredState_ReportsNoAnimation()
+        {
+            UnitDefinition definition = MakeDefinition(columns: 4, rows: 2, stayLength: 4, replay: true);
+            UnitAnimator animator = MakeAnimator(definition, out GameObject go);
+
+            try
+            {
+                Assert.IsTrue(AnimationSet.IsMapped("derg"), "control: derg is mapped, so this is the mapped case");
+
+                Assert.That(animator.SetState("derg"), Is.False,
+                    "a mapped id with no row on this definition is not playable");
                 Assert.That(animator.HasAnimation, Is.False);
                 Assert.That(animator.CurrentCellIndex, Is.EqualTo(-1));
             }

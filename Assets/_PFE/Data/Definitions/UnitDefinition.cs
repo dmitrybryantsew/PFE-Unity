@@ -347,7 +347,10 @@ namespace PFE.Data.Definitions
                  "134 <param> nodes that do not author `blood` are bleed-immune, not red.")]
         public BloodType bloodType = BloodType.None;
 
-        [Tooltip("Leaves corpse on death")]
+        [Tooltip("AS3 `trup` — 'corpse'. True means the unit leaves a body and plays its die/death " +
+                 "animation. False means it is destroyed outright: no corpse, no death frame, no death " +
+                 "rattle. Field default is AS3's `true` (Unit.as:422); <param trup='0'> sets false. " +
+                 "Only the 3 units that author it (rat, tarakan, ant) are false.")]
         public bool leavesCorpse = true;
 
         [Tooltip("Is invulnerable")]
