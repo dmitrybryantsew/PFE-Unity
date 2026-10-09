@@ -119,6 +119,11 @@ namespace PFE.Entities.Enemies.Archetypes
         /// </summary>
         public override void SimTick(int tickIndex)
         {
+            if (_controller is ZombieController zc && !zc.IsAlive && zc.CanResurrect)
+            {
+                zc.UpdateResurrectTick();
+            }
+
             // AS3 decrements `aiJump` near the top of `UnitZombie.control()` (`:582-585`), ahead of the
             // `aiState` branch that tests it (`:839`). The order matters only at the boundary where the
             // cooldown reaches zero: the oracle decrements first and tests after, so this does too.

@@ -175,7 +175,7 @@ namespace PFE.Entities.Enemies
         /// <c>Initialize</c> call, so a brain reading the definition in
         /// <see cref="OnDefinitionAssigned"/> can never observe a half-built unit.</para>
         /// </summary>
-        public void AttachController(UnitController controller)
+        public virtual void AttachController(UnitController controller)
         {
             _controller = controller;
             ResolveComponents();
@@ -456,6 +456,15 @@ namespace PFE.Entities.Enemies
         /// </summary>
         protected const float AlarmNoiseMultiplier = 1.2f;
 
+        /// <summary>AS3 Unit.alarma() entry point for external noise or sight alarm.</summary>
+        public virtual void Alarma(float sourceX = -1f, float sourceY = -1f)
+        {
+            Vector2 src = (sourceX >= 0 && sourceY >= 0)
+                ? new Vector2(sourceX, sourceY)
+                : (Vector2)transform.position * 100f;
+            OnDamaged(0f, src);
+        }
+
         public virtual void OnDamaged(float amount, Vector2 damageSourcePx)
         {
             if (_currentState == EnemyAIState.Dead)
@@ -542,10 +551,37 @@ namespace PFE.Entities.Enemies
                     break;
             }
 
+            // The port-only `Attack` state's one and only entry point.
+            //
+            // It lives HERE rather than inside `TickCombatChase` because every archetype and every boss
+            // overrides `TickCombatChase` WITHOUT calling `base`. The base's `if (StopsToAttack)` arm
+            // therefore never ran for any brain in the game, and since `SetState(EnemyAIState.Attack)`
+            // appears nowhere else, the whole `Attack` state was unreachable — while
+            // `EnemyFamiliesAndBossesTests.StopsToAttack_FollowsArchetypeRules` passed, because it
+            // asserts the property's VALUE and not that anything reads it. A property no code path reads
+            // is dead code whatever it returns.
+            TryEnterAttackState();
+
             // ...and draw, which the oracle also does last. `UnitZombie.animate()` runs after
             // `control()` in the same frame, and the state it picks is a function of the decision
             // `control()` just made — including the speed this tick commanded.
             UpdateAnimation();
+
+            // Advance the unit's weapons, so a mount that was told to fire this tick actually produces
+            // a projectile. Last in the tick on purpose: the state tick above is what sets the facing
+            // and the aim point, and the weapon has to consume this tick's values rather than the
+            // previous tick's.
+            //
+            // Driven from the brain rather than from `UnitController.StepUnit` because the live settings
+            // run units on the hand-rolled motor (`unitMotor: 1`) and `TilePhysicsController.StepMotor`
+            // bypasses `StepUnit` entirely — see `EnemyController.TickWeaponMounts` for the full note.
+            //
+            // `_controller` is typed `UnitController` here (it is the base the brain drives), so the
+            // weapon half needs the enemy cast; a brain on a non-enemy controller has no mounts.
+            if (_controller is EnemyController enemy && _simLoop != null)
+            {
+                enemy.TickWeaponMounts(_simLoop.Clock.SimDt);
+            }
         }
 
         /// <summary>
@@ -562,6 +598,56 @@ namespace PFE.Entities.Enemies
         protected virtual string ResolveAnimState()
         {
             return null;
+        }
+
+        public string CurrentResolvedAnimState => ResolveAnimState();
+
+        /// <summary>
+        /// True when the animator is <b>already</b> showing <paramref name="as3Id"/> — the port of AS3's
+        /// <c>animState != "death"</c> test, which the death arms of <c>UnitAnt.as:132</c>,
+        /// <c>UnitMonstrik.as:104</c> and <c>UnitRaider.as:406-416</c> all use to decide between
+        /// <c>die</c> and <c>death</c>.
+        ///
+        /// <para><b>It has to ask the animator, not a brain field.</b> AS3's <c>animState</c> is the
+        /// <i>last id the animator was given</i> — it is written by the assignment the test reads, and it
+        /// survives across frames. A brain field would be a second copy of that value and the two would
+        /// drift the first time a state was set from anywhere else. <see cref="UnitAnimator.StateName"/>
+        /// is the same string AS3's <c>animState</c> holds, and it is already what
+        /// <see cref="AlicornBrain"/> reads for the same purpose.</para>
+        ///
+        /// <para>Returns <c>false</c> when there is no animator, which matches AS3: a unit with no
+        /// <c>anims</c> entry cannot be showing anything, so the <c>!= "death"</c> test is true and the
+        /// <c>die</c> arm is taken.</para>
+        /// </summary>
+        protected bool ShowingAnimState(string as3Id)
+        {
+            return _animator != null && string.Equals(_animator.StateName, as3Id, StringComparison.Ordinal);
+        }
+
+        /// <summary>
+        /// True when this unit's oracle <c>animate()</c> has a reachable death arm — AS3's
+        /// <c>trup &amp;&amp; (sost == 2 || sost == 3)</c> (<c>UnitAnt.as:130</c>,
+        /// <c>UnitMonstrik.as:102</c>, <c>UnitRaider.as:402</c>).
+        ///
+        /// <para><b><c>trup</c> is Russian for "corpse", and <c>trup='0'</c> makes the whole arm
+        /// unreachable.</b> The three units that author it — <c>rat</c>, <c>tarakan</c> and <c>ant</c> —
+        /// also author <b>no</b> <c>die</c> and no <c>death</c> row, which is the corroboration that the
+        /// flag and the data agree: if the arm were reachable, AS3's
+        /// <c>anims[animState].restart()</c> would be a TypeError on an unregistered id. So a dead rat
+        /// does not play a death animation and never could — it keeps playing its live state, which is
+        /// what "the corpse stops moving" looks like in this game.</para>
+        ///
+        /// <para>Defaulting to <c>true</c> when the definition is missing is AS3's own field default
+        /// (<c>Unit.as:422 public var trup:Boolean = true</c>), so an unbound brain behaves like the
+        /// majority of units rather than like the three exceptions.</para>
+        /// </summary>
+        protected bool HasReachableDeathAnimation
+        {
+            get
+            {
+                UnitDefinition definition = _controller != null ? _controller.Definition : null;
+                return definition == null || definition.leavesCorpse;
+            }
         }
 
         /// <summary>
@@ -848,6 +934,37 @@ namespace PFE.Entities.Enemies
         /// happens to overlap.
         /// </summary>
         protected virtual bool StopsToAttack => true;
+        public bool CanStopToAttack => StopsToAttack;
+
+        /// <summary>
+        /// Enter <see cref="EnemyAIState.Attack"/> for a brain that opted in via
+        /// <see cref="StopsToAttack"/> and has a target inside its own <see cref="IsTargetInAttackRange"/>.
+        ///
+        /// <para><b>Called from <see cref="SimTick"/>, after the state tick</b>, so that it applies to
+        /// every brain rather than only to one that happens to call <c>base.TickCombatChase</c> — see the
+        /// note at the call site. A brain whose <see cref="StopsToAttack"/> is <c>false</c> (the twelve
+        /// AS3 contact attackers, which damage whatever their box overlaps while still running) is
+        /// unaffected: the first guard returns immediately.</para>
+        ///
+        /// <para>The entry is gated on <c>AttackCooldownTicks</c> so the state is a <i>swing marker</i>
+        /// rather than a per-tick oscillation. <see cref="SetState"/> arms the cooldown to
+        /// <c>_attackCooldownTicks</c> (30 = one second), so a unit in range enters the state about once a
+        /// second instead of alternating chase/attack every tick — which would otherwise halve its
+        /// movement, because <see cref="SetState"/>'s <c>Attack</c> arm calls <c>StopMovement()</c>. The
+        /// gate cannot suppress a hit: <c>AttackCooldownTicks</c> has no archetype reader (only the F3
+        /// overlay and the base <c>TickCombatChase</c>, which no archetype runs), so each archetype still
+        /// attacks on its own cadence inside its own chase tick.</para>
+        /// </summary>
+        void TryEnterAttackState()
+        {
+            if (_currentState != EnemyAIState.CombatChase) return;
+            if (!StopsToAttack) return;
+            if (_blackboard.TargetUnit == null) return;
+            if (_blackboard.AttackCooldownTicks > 0) return;
+            if (!IsTargetInAttackRange()) return;
+
+            SetState(EnemyAIState.Attack);
+        }
 
         protected virtual void TickAttack(int tickIndex)
         {

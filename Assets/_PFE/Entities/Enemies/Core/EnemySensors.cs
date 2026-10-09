@@ -230,7 +230,8 @@ namespace PFE.Entities.Enemies
                 return;
             }
 
-            bool shouldRaycast = (tickIndex % RaycastThrottleInterval == 0);
+            // Oracle AS3 gates raycast checks on `aiTCh % 10 == 1`
+            bool shouldRaycast = (tickIndex % RaycastThrottleInterval == 1);
 
             UnitController seenCandidate = null;
             float seenIntensity = 0f;

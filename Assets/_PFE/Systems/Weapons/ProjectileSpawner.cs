@@ -60,6 +60,18 @@ namespace PFE.Systems.Weapons
         /// <summary>Cache for <see cref="ResolveTileQuery"/>, keyed on the room it was built for.</summary>
         private ITileQueryService _tileQuery;
 
+        /// <summary>
+        /// The room's particle emitter, used to draw a shot's muzzle flare.
+        ///
+        /// <para><b>Why this is resolved here rather than injected.</b> The same reason
+        /// <see cref="_landMap"/> is: the spawner is constructed with <c>new</c> by
+        /// <c>PlayerWeaponLoadout</c>, which is a scene component, so nothing runs
+        /// <c>[Inject]</c> on it. Null is legal — a bare test, or a scene with no particle world — and
+        /// then a shot simply has no flare, which is the state every weapon in the game was in before
+        /// this was wired.</para>
+        /// </summary>
+        private PFE.Systems.Particles.Adapters.RoomParticleEmitter _particleEmitter;
+
         /// <summary>Cache for <see cref="ResolveOwnerUnit"/>, invalidated when <see cref="Owner"/> changes.</summary>
         private UnitController _ownerUnit;
 
@@ -87,6 +99,14 @@ namespace PFE.Systems.Weapons
             {
                 try { _landMap = _resolver.Resolve<LandMap>(); }
                 catch { _landMap = null; }
+            }
+
+            // ...and the muzzle-flare emitter, on the same terms: optional, resolved rather than
+            // injected, and null is a legitimate "no flare" state rather than a wiring failure.
+            if (_resolver != null && _particleEmitter == null)
+            {
+                try { _particleEmitter = _resolver.Resolve<PFE.Systems.Particles.Adapters.RoomParticleEmitter>(); }
+                catch { _particleEmitter = null; }
             }
         }
 
@@ -118,8 +138,33 @@ namespace PFE.Systems.Weapons
             foreach (var plan in plans)
             {
                 AnnounceShot(plan);
+                SpawnMuzzleFlare(plan);
                 SpawnOne(plan);
             }
+        }
+
+        /// <summary>
+        /// Draw the shot's muzzle flare — AS3 <c>vis.@flare</c>, emitted at the bullet's spawn point.
+        ///
+        /// <para><b><see cref="ShotCues.SpawnMuzzleFlash"/> was written by all five weapon controllers
+        /// and read by nobody</b>, so no weapon in the game — the player's included — drew a flare even
+        /// though every definition carries a <c>muzzleFlareId</c> and the emitter table has the id
+        /// (<c>alilight</c>'s <c>flare='spark'</c> resolves to the <c>spark</c> particle →
+        /// <c>flSpark</c>). This is that cue's reader.</para>
+        ///
+        /// <para>The id comes from the <b>definition</b>, not the plan, for the same reason
+        /// <see cref="SpawnProjectile"/> reads the definition: the plan carries no flare field, and
+        /// adding one would be a second copy of a value the spawner already owns.</para>
+        /// </summary>
+        private void SpawnMuzzleFlare(ShotPlan plan)
+        {
+            if (!plan.Cues.SpawnMuzzleFlash) return;
+            if (_particleEmitter == null) return;
+            if (_currentDef == null || string.IsNullOrEmpty(_currentDef.muzzleFlareId)) return;
+
+            _particleEmitter.Emit(
+                _currentDef.muzzleFlareId,
+                new Vector3(plan.WorldPosition.x, plan.WorldPosition.y, 0f));
         }
 
         /// <summary>
