@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c2eabf76b34c4c2d8360c7929f56fdba, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.Campaign.NpcDefinition
+  m_EditorClassIdentifier: PFE.Data::PFE.Data.Definitions.Campaign.NpcDefinition
   dataVersion: 1
   gameVersion: 0.1.0
   npcId: calam2

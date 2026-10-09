@@ -105,7 +105,7 @@ MonoBehaviour:
   iconCell: {x: -1, y: -1}
   gender: 2
   musicTrack: 
-  deathSoundId: 
+  deathSoundId: bloat
   fallingSoundId: 
   soundRun: 
   detectionDistance: 400
@@ -243,6 +243,30 @@ MonoBehaviour:
       replay: 0
       isStatic: 0
     preAttack:
+      row: 0
+      length: 0
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 0
+      replay: 0
+      isStatic: 0
+    attack:
+      row: 0
+      length: 0
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 0
+      replay: 0
+      isStatic: 0
+    derg:
+      row: 0
+      length: 0
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 0
+      replay: 0
+      isStatic: 0
+    super:
       row: 0
       length: 0
       firstFrame: 0

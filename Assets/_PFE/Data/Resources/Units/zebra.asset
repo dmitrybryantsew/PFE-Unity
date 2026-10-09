@@ -103,8 +103,8 @@ MonoBehaviour:
   registrationPoint: {x: -1, y: -1}
   iconCell: {x: -1, y: -1}
   gender: 2
-  musicTrack: 
-  deathSoundId: 
+  musicTrack: combat_1
+  deathSoundId: rm
   fallingSoundId: 
   soundRun: 
   detectionDistance: 400
@@ -239,6 +239,30 @@ MonoBehaviour:
       replay: 1
       isStatic: 0
     preAttack:
+      row: 0
+      length: 0
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 0
+      replay: 0
+      isStatic: 0
+    attack:
+      row: 0
+      length: 0
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 0
+      replay: 0
+      isStatic: 0
+    derg:
+      row: 6
+      length: 8
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 1
+      replay: 1
+      isStatic: 0
+    super:
       row: 0
       length: 0
       firstFrame: 0

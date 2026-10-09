@@ -271,7 +271,7 @@ MonoBehaviour:
   registrationPoint: {x: 100, y: 160}
   iconCell: {x: -1, y: -1}
   gender: 2
-  musicTrack: 
+  musicTrack: combat_1
   deathSoundId: 
   fallingSoundId: 
   soundRun: 
@@ -407,6 +407,30 @@ MonoBehaviour:
       replay: 1
       isStatic: 0
     preAttack:
+      row: 0
+      length: 0
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 0
+      replay: 0
+      isStatic: 0
+    attack:
+      row: 0
+      length: 0
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 0
+      replay: 0
+      isStatic: 0
+    derg:
+      row: 0
+      length: 0
+      firstFrame: 0
+      returnFrame: 0
+      frameStep: 0
+      replay: 0
+      isStatic: 0
+    super:
       row: 0
       length: 0
       firstFrame: 0
