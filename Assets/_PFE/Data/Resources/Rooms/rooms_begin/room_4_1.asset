@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_4_1
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_4_1
   sourceCollectionId: rooms_begin
   type: pass
@@ -46,7 +46,7 @@ MonoBehaviour:
     tileCoord: {x: 27, y: 21}
   - id: web1br
     tileCoord: {x: 34, y: 21}
-  doorQuality: 000000000200000002000000020000000000000000000000000000000000000000000000000000000200000000000000020000000000000000000000000000000000000002000000000000000000000002000000020000000000000002000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: "C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._._._\u0410.C.H.H.H.H.H.H\nC.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._E._E._E._E._E._E._E._E.C.C.C.C.C.C.C.C.C.C.C.C._._._\u0410.C.H.H.H.H.H.H\nC.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._E._E._E._E._E._E._E._E.C.C.C.C.C.C.C.C.C.C.C.C._._._\u0410.C.H.H.H.H.H.H\nC.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._E._E._E._E._E._E._E._E.C.C.C.C.C.C.C.C.C.C.C.C._._._\u0410.C.H.H.H.H.H.H\nC._E._E._E._E._E._E._E.C.C.C.C.C.C.C.C.C.C._E._E._E\u0410.CE.CE.CE.CE.CE.C.C.C.C.C.C.C.C.C.C.C.C._._._\u0410.C.H.H.H.H.H.H\nC._E._E._E._E._E._E._E.C.C.C.C.C.C.C.C.C.C._E._E._E\u0410.CE.CE.CE.CE.CE.C.C.C.C.C.C.C.C.C.C.C.C._._._\u0410.C.H.H.H.H.H.H\nC._E._E._E._E._E._E._E.C.C.C.C.C.C.C.C.C.C._E._E._E\u0410.CE.CE.CE.CE.CE.C.C.C.C.C.C.C.C.C.C.C.C._._._\u0410.C.C.C.C.C.C.C\nC.C.C.C.C._._._._._._._._._._._._._._._._\u0410._._._._._._._._._._._._._._._._.C._._._._._._._._._.C\nC.C.C.C.C._._._._._._._._._._._._._._._._\u0410._._._._._._._._._._._._._._._._.C._._._._._._._._._.C\nC.C.C.C.C._._._._._._._._._._._._._._._._\u0410._._._._._._._._._._._._._._._._.C._._._._._._._._._.C\nC.C.C.C.C._._._._._._._._._._._._._.C.C.C.C.C._\u0411._._._._._._._._._._._._._.C.C.C.C.C.C._-._-._-._\u0410-.C\nC.C.C.C.C._*._*._*._*._*._*._*._*._*._*._*._*._*.C.C.C.C.C._\u0411._._._._._._._._._._._._._._._._._._._._._._._\u0410.C\nC.C.C.C.C._*._*._*._*._*._*._*._*._*._*._*._*._*.C.C.C.C.C._\u0411._._._._._._._._._._._._._._._._._._._._._._._\u0410.C\nC.C.C.C.C._*._*._*._*._*._*._*._*._*._*._*._*._*.C.C.C.C.C._\u0411._._._._._._._._._._._._._._._._._._._._._._._\u0410.C\nC.C.C.C.C._*._*._*._*._*._*._*._*._*._*._*._*._*.C.C.C.C.C._\u0411._._._._._._._._._._._._._._._._._._._._._._._\u0410.C\nC.C.C.C.C._*._*._*._*._*._*._*._*._*._*._*._*._*.C.C.C.C.C._\u0411._._._._._._._._._._._._._._._._._._._._._._._\u0410.C\nC.C.C.C.C._*._*._*._*._*._*._*._*._*._*._*._*._*.C.C.C.C.C.C.C.C.C._E._E._E._E._E._E._E._E._E._E\u0410.C.C.C.C.C.C.C.C.C.C.C\n_*._*._*._*._*._*._*._*._*._*._*.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._E._E._E._E._E._E._E._E._E._E\u0410.C.H.H.H.H.H.H.H.H.H.H\n_*._*._*._*._*._*._*._*._*._*._*.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._E._E._E._E._E._E._E._E._E._E\u0410.C.H.H.H.H.H.H.H.H.H.H\n_*._*._*._*._*._*._*._*._*._*._*.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._E._E._E._E._E._E._E._E._E._E\u0410.C.H.H.H.H.H.H.H.H.H.H\nC.C.C.C.C._*._*._*._*._*._*.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._E._E._E._E._E._E._E._E._E._E\u0410.C.H.H.H.H.H.H.H.H.H.H\nC.C.C.C.C._*._*._*._*._*._*.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._E._E._E._E._E._E._E._E._E._E\u0410.C.H.H.H.H.H.H.H.H.H.H\nC.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._E._E._E._E._E._E._E._E._E._E\u0410.C.H.H.H.H.H.H.H.H.H.H\nC.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._E._E._E._E._E._E._E._E._E._E\u0410.C.H.H.H.H.H.H.H.H.H.H\nC.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.H.H.H.H.H.H.H.H.H.H"
   objects:
   - type: box
@@ -144,9 +144,17 @@ MonoBehaviour:
       - act: swap
         targ: trPl
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: mess
         targ: 
         val: trPl
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="wIx3z013ypGZZ4jo"
   - type: box
     id: woodbox

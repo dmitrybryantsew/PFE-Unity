@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: dressing
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: dressing
   sourceCollectionId: rooms_prob
   type: pass
@@ -118,7 +118,7 @@ MonoBehaviour:
     tileCoord: {x: 35, y: 3}
   - id: pipe4
     tileCoord: {x: 37, y: 3}
-  doorQuality: 000000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000000000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000
+  doorQuality: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
   tileDataString: "S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S\nS._._._._S._S._S._S._._._._S._S._S._S._._._._._I._I._I._I._I._I._._._._._S._S._S._S._.S.S.S.S.S._._._._._._._._.S\nS._._._._S._S._S._S._._._._S._S._S._S._._._._.S.S.S.S.S.S._._._._._S._S._S._S._.S.S.S.S.S._._._._._._._._.S\nS._._._._S._S._S._S._._._._S._S._S._S._._._._.S.S._._.S.S._\u0415._\u0415._\u0415._._S._S._S._S._._I._I._I._I._I._._._._._._._._.S\nS.S.S.S.T.T.T.T.S.S.S.S.S.S.S.S.S.S.S.S.S._._.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S\nS._F._F._F._F._F._F._F._F._F._F.S.T.T.T.T.T.T.T.T.T.T.T.T.T.T.T.T.T.T.T.T.T.T.T.T.T.T.S._._._._._._._._.S\nS._F._F._F._F._F._F._F._F._F._F.S._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B.S._._Z._Z._Z._Z._Z._Z._.S\nS._F._F._F._F._F._F._F._F._F._F.S._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B.S._._Z._Z._Z._Z._Z._Z._.S\nS.TF.TF.TF.TF.TF.TF.TF.TF.TF.TF.S._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B.S._._Z._Z._Z._Z._Z._Z._.S\nS._B._B._B._B._B._B._B._B._B._B._._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._._._Z._Z._Z._Z._Z._Z._.S\nS._B._B._B._B._B._B._B._B._B._B._._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._._._Z._Z._Z._Z._Z._Z._.S\nS._B._B._B._B._B._B._B._B._B._B._._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._._._._._._._._._.S\nS.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S._\u0420._\u0420._\u0420._\u0420.S.S.S\nS._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.S._._._._._._._._.SQ\nS._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.S._._Z._Z._Z._Z._Z._Z._.SQ\nS._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.S._._Z._Z._Z._Z._Z._Z._.SQ\nS._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420.S._._Z._Z._Z._Z._Z._Z._.S\nS._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.S._._Z._Z._Z._Z._Z._Z._.S\nS._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.S._._Z._Z._Z._Z._Z._Z._.S\nS._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420.S._._Z._Z._Z._Z._Z._Z._.S\nS._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.S._._Z._Z._Z._Z._Z._Z._.S\nS._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._Z._Z._Z._Z._Z._Z._.S\nS._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._Z._Z._Z._Z._Z._Z._.S\nS._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.S\nS.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S"
   objects:
   - type: door
@@ -165,7 +165,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="iChZcVBMco3wF63M"
-  - type: obj
+  - type: unit
     id: encl
     definitionId: encl
     definition: {fileID: 11400000, guid: bd63e94e2cdd9b64baa1344275d633d8, type: 2}
@@ -575,7 +575,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="zOLl0E6uH4pgp7xR"
-  - type: obj
+  - type: unit
     id: rat
     definitionId: rat
     definition: {fileID: 11400000, guid: 91aa9373086f9584dafaf4723062b4a4, type: 2}
@@ -586,7 +586,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="DvUwNM52mVeclcsc"
-  - type: obj
+  - type: unit
     id: rat
     definitionId: rat
     definition: {fileID: 11400000, guid: 91aa9373086f9584dafaf4723062b4a4, type: 2}
@@ -597,7 +597,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="P3MRzJBfqjleMgeP"
-  - type: obj
+  - type: unit
     id: rat
     definitionId: rat
     definition: {fileID: 11400000, guid: 91aa9373086f9584dafaf4723062b4a4, type: 2}
@@ -608,7 +608,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="uKGByFLJhoqJ30D6"
-  - type: obj
+  - type: unit
     id: rat
     definitionId: rat
     definition: {fileID: 11400000, guid: 91aa9373086f9584dafaf4723062b4a4, type: 2}

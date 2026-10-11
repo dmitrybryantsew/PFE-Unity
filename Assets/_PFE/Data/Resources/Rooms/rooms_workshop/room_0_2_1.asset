@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_0_2_1
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_0_2_1
   sourceCollectionId: rooms_workshop
   type: pass
@@ -40,10 +40,10 @@ MonoBehaviour:
     tileCoord: {x: 41, y: 12}
   - id: znak
     tileCoord: {x: 12, y: 3}
-  doorQuality: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: "D.D.D.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.B._D._D.B.H.H.H.H\nD._._.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.B._D._D.B.H.H.H.H\nD._._.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.A.A.A.A.A.A.A.H.H.H.H.H.B._D._D.B.H.H.H.H\nD._._._._._._._._._._._._._._._._._._._._._._._._._.D.H.A._._._._._.A.H.H.H.H.H.B._D._D.B.H.H.H.H\nD._._._._._._._._._._._._._._._._._._._._._._._._._.D.H.A._._._._._.A.H.H.H.H.H.B._D\u041A._D\u041A.B.H.H.H.H\nD.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.H.A.A.A.A._._.A.H.H.H.H.H.B._D._D.B.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.A._._.A.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.A._._.A.H.H.H.H.H.B._D._D.B.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.A._._.A.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.A._-._-.A.H.H.H.H.H.B._D._D.B.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.A._*._*.A.H.H.H.H.H.H.H.H.A.A.A.A.A.A.A.A.A._*._*.A.H.H.H.H.H.B._D\u041A._D\u041A.B.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.A._*._*.A.H.H.H.H.H.H.H.H.A._*._*._*._*._*._*._*._*._*._*.A.H.H.H.H.H.B._D._D.B.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.A._*._*.A.H.H.H.H.H.H.H.H.A._*._*._*._*._*._*._*._*._*._*.A.H.H.H.H.H.B._D._D.B.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.A._*._*.A.H.H.H.H.H.H.H.H.A._*._*._*.A.A.A.A.A.A.A.A.H.H.H.H.H.B._D._D.B.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.A._*._*.A.A.A.A.A.A.A.A.A.A._*._*._*.A.H.H.H.H.H.H.H.H.H.H.H.H.B._D\u041A._D\u041A.B.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.A._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*.A.H.H.H.H.H.H.H.H.H.H.H.H.B._D._D.B.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.A._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*.A.H.H.H.H.H.H.H.H.H.H.H.H.B._D._D.B.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.H.H.H.H.H.H.H.H.H.H.H.H.B._D._D.B.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.B.B.B.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.B._D\u041A._D\u041A.B.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H._D._D.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B._D._D.B.H.H.H.H\nH.H.H.H.H.H._L._L._L.HL.HL.HL.HL.HL.HL.HL._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D.B.H.H.H.H\nH.H.H.H.H.H._L._L._L._L._L._L._L._L._L._L._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D.B.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H"
   objects:
-  - type: obj
+  - type: unit
     id: ant
     definitionId: ant
     definition: {fileID: 11400000, guid: e7ae344a7b6006f4da447e86f904bf1c, type: 2}
@@ -54,7 +54,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="Sd4SPno1ipA158su"
-  - type: obj
+  - type: unit
     id: ant
     definitionId: ant
     definition: {fileID: 11400000, guid: e7ae344a7b6006f4da447e86f904bf1c, type: 2}
@@ -65,7 +65,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="I80wBxhqG5Uq2TLI"
-  - type: obj
+  - type: unit
     id: ant
     definitionId: ant
     definition: {fileID: 11400000, guid: e7ae344a7b6006f4da447e86f904bf1c, type: 2}
@@ -87,7 +87,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="gK3ycSTWCupON0qP"
-  - type: obj
+  - type: unit
     id: ant
     definitionId: ant
     definition: {fileID: 11400000, guid: e7ae344a7b6006f4da447e86f904bf1c, type: 2}
@@ -120,7 +120,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="vbTIvDzn1sDsT3iS"
-  - type: obj
+  - type: unit
     id: eant
     definitionId: eant
     definition: {fileID: 11400000, guid: af18b5fa4b2fdf14586997d253e32b40, type: 2}

@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: "\u043A\u0430\u043D\u0430\u043B\u0438\u0437\u0430\u0446\u0438\u044F"
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: "\u043A\u0430\u043D\u0430\u043B\u0438\u0437\u0430\u0446\u0438\u044F"
   sourceCollectionId: rooms_plant
   type: pass
@@ -230,7 +230,7 @@ MonoBehaviour:
     tileCoord: {x: 30, y: 5}
   - id: rad
     tileCoord: {x: 23, y: 14}
-  doorQuality: 020000000200000002000000020000000200000002000000020000000000000002000000020000000200000002000000020000000200000000000000000000000000000002000000020000000000000000000000000000000000000002000000
+  doorQuality: 030000000300000003000000030000000000000003000000040000000400000004000000040000000400000003000000030000000000000002000000000000000300000002000000000000000200000000000000040000000000000000000000
   tileDataString: "CA.CA.CA.CA.CA._D._D.CA.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA.CA._G._G.CA.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA.CA.CA.CA._D._D._D._D.CA.CA.CA.CA\n_D._D._D._D._D._D._D.CA.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA.DA._G._G.DA.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA.CA._D._D._D._D._D._D._D._D._D._D\n_D._D._D._D._D._D._D.CA.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA.DA._G._G.EA._A.GA.GA.GA.GA.GA.GA.GA.GA.GA._A.CA._D._D._D._D._D._D._D._D._D._D\n_D._D._D._D._D._D._D.CA.GA.GA.GA.GA.GA.GA.GA.AA.GA.GA.GA.GA.GA._A._A._A._A._A._A.GA.GA.GA.AA.GA.GA.GA._A._A._A.CA._D._D._D._D._D._D._D._D._D._D\nCA._D-._D-._D-._D._D._D.CA.CA.CA.CA.CA.CA.CA.CA.DA.CA.DA.DA.DA._A._A._A._A._A._A._A._A.DA.DA.CA.DA._A._A._A._A._A.CA._D._D._D._D._D._D\u0410._D-._D-._D-.CA\n_D._D._D._D._D._D._D.CA._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._A._A._A._A._D.H;D.HD.CA._D._D._D._D._D._D\u0410._D._D._D._D\n_D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._A._A._A._A.HD.HD.HD._D._D._D._D._D._D._D\u0410._D._D._D._D\n_D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D.E;D.ED.ED._D._D._D._D.ED.HD.HD.H;D.H:A._A._A._A.ED.ED.ED._D._D._D._D._D._D._D\u0410._D._D._D._D\nCA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA._E-._E-.CA.CA.CA.DA.CA.DA.DA.DA._E\u0411-._E-._E-._E\u0410-.DA.DA.DA.DA.EA.EA._A._A.DA.DA.DA.DA.CA.CA.CA.CA._E-._E\u0410-.CA.CA.CA.CA\nGA.GA.GA.GA.CA._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E.DA._E\u0411._E._E._E\u0410.FA._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E\u0410._E._E._E._E\nGA.GA.GA.GA.CA._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E.CA._E\u0411._E._E._E\u0410.FA._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E\u0410._E._E._E._E\nGA.GA.GA.GA.CA.CA.CA.CA._E*._E*._E*._E*._E*._E*._E*._E*._E*._E*.CA.CA.CA.CA._E\u0411._E._E._E\u0410.CA.CA.DA._E*._E*._E*.EE.EE._E*._E*._E*._E*._E*.CA.CA.CA._E._E\u0410._E._E._E._E\nCA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA._E\u0411._E._E._E\u0410.CA.DA.DA.CA.DA.DA.DA.DA.DA.DA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA\nCA.CA._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E\u0411._E._E._E\u0410._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E\n_E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E\n_E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E\nCA.CA.CA.CA.CA.CA._E-._E-.CA.CA._E-._E-._E-._E._E._E._E._E-._E-._E._E._E._E-._E-.DE-._E-._E._E._E._E-._E-._E-._E._E._E._E._E._E._E._E-._E-._E._E.CA.CA._E-._E-.CA\nCA._E._E._E._E._E._E._E.CA.CA._E*._E*._E*._E*._E*._E*._E*._E*._E*._E*._E*._E*.DE.HE.HE._E*._E*._E*._E*._E*._E*._E*._E*._E*._E*._E*._E*._E*._E*._E*._E*._E*._E*.CA.CA._E._E.CA\nCA._E._E._E._E._E._E._E.CA.CA._E*._E*._E*._E*._E*._E*._E*._E*.HE.HE._;E*.EE.HE.EE.EE.HE._E*.DE._E*._E*._E*._E*._E*._E*._E*._E*._E*._E*._E*._E*._E*._E*._E*.CA.CA._E._E.CA\nCA._E._E._E._E._E._E._E.CA.CA.CA.CA.CA.CA.CA.DA.CA.DA.DA.DA.DA.DA.DA.DA.DA.DA.DA.DA.DA.CA.DA.DA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA._E._E.CA\nCA.CA.CA.CA.CA.CA._E-._E-.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.DA.DA.DA.DA.DA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA._E-._E-.CA\n_E._E._E._E._E._E._E._E._E.CA.CA.CA._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E\n_E._E._E._E._E._E._E._E._E.CA.CA.CA._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E\n_E._E._E._E._E._E._E._E._E.CA.CA.CA._E._E._E._E._E._E._E.AE._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E.AE._E._E._E._E._E._E._E._E._E._E\nCA.CA.CA.CA._E-._E-._E-._E-.CA.CA.CA.CA.CA._E-._E-._E-._E-.CA.CA.CA.CA.CA._E-._E-._E-._E-.CA.CA.CA.CA.CA._E-._E-._E-._E-.CA.CA.CA.CA.CA._E-._E-._E-._E-.CA.CA.CA.CA"
   objects:
   - type: trap
@@ -277,7 +277,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="BtfF1R2AM6l1oFst"
-  - type: obj
+  - type: unit
     id: slime
     definitionId: slime
     definition: {fileID: 11400000, guid: e76b1173a8bf9ca48bd556a2a454931e, type: 2}
@@ -288,7 +288,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="WjXGvSY4e5aYMjWI"
-  - type: obj
+  - type: unit
     id: slime
     definitionId: slime
     definition: {fileID: 11400000, guid: e76b1173a8bf9ca48bd556a2a454931e, type: 2}
@@ -495,7 +495,7 @@ MonoBehaviour:
     musicTrack: music_plant_1
     colorScheme: green
     backgroundColorScheme: 
-    backgroundWall: 
+    backgroundWall: tBackWall
     backgroundForm: 0
     transparentBackground: 0
     hasSky: 0

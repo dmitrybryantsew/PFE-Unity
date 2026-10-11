@@ -11,14 +11,14 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: "\u043C\u0435\u0434.\u0431\u043B\u043E\u043A.\u0437\u0430\u0434"
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: "\u043C\u0435\u0434.\u0431\u043B\u043E\u043A.\u0437\u0430\u0434"
   sourceCollectionId: rooms_encl
   type: back
   fixedPosition: {x: 0, y: 0, z: 0}
   difficultyLevel: 0
   maxInstances: 2
-  allowRandom: 1
+  allowRandom: 0
   specificMapOnly: 0
   backgroundRoomId: 
   backgroundDecorations:
@@ -126,7 +126,7 @@ MonoBehaviour:
     tileCoord: {x: 31, y: 1}
   - id: enclbanner
     tileCoord: {x: 45, y: 1}
-  doorQuality: 020000000200000002000000020000000200000002000000000000000000000000000000020000000200000002000000020000000200000002000000020000000200000002000000000000000200000002000000020000000200000002000000
+  doorQuality: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
   tileDataString: "S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S\nS.S.S.S.S.S.S.S.S.S.S._O._Y._Y._O._Y._Y._O._O._O._O._Y._Y._Y._O._O._Y._O._O._Y._._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G.S\nS.S.S.S.S.S.S.S.S.S.S._O._O._Y._Y._Y._O._O._O._O._O._Y._O._Y._Y._Y._Y._O._O._Y._._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G.S\nS.S.S.S.S.S.S.S.S.S.S._._.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S._G._G._G._F._F._F._F._F._F._F._F._F._F._G._G._G.S\nS._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G.S._G._G._F._F._F._F._F._F._F._F._F._F._F._F._G._G.S\nS._G._G._G._F._F._F._F._F._F._F._F._F._F._G._G._G._F._F._F._F._F._F._F._F._F._F._G._G._G._._G._G._F\u0420._F\u0420._F\u0420._F\u0420._F._F._F._F._F._F._F._F._G._G.S\nS._G._G._G._F._F._F._F._F._F._F._F._F._F._G._G._G._F._F\u0420._F\u0420._F\u0420._F._F._F._F._F._F._G._G._G._._G._G._F._F._F._F._F._F._F._F._F._F._F._F._G._G.S\nS._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G.S._G._G._F._F._F._F._F._F._F._F._F\u0420._F\u0420._F\u0420._F\u0420._G._G.S\nS._G._G._G\u0420._G\u0420._G\u0420._G\u0420._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G.S._G._G._G._F._F._F._F._F._F._F._F._F._F._G._G._G.S\nS._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G\u0420._G\u0420._G\u0420._G\u0420._G._G._G._._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G.S\nS._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G.S\nS._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G.S\nS._\u0420._\u0420._\u0420._\u0420.S.S.S.S.S._\u0420._\u0420._\u0420._\u0420.S.S.S.S.S._G\u0420._G\u0420._G\u0420._G\u0420._G\u0420._G\u0420.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S\nS._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y.S._G._G._G._G._G._G._G._G._G._G._G._F._F._F._F._F._F._G._G._G._G._G._G._G._G._G._G._G.S\nS._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y.S._G._G._G._G._G._G._G._G._G._G._G._F._F._F._F._F._F._G._G._G._G._G._G._G._G._G._G._G.S\nS._Y\u0420._Y\u0420._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y\u0420._Y\u0420.S.S.S.S.S._G._G._G._G._G._G._G._G._G._G._G._F._F._F._F._F._F._G._G._G._G._G._G._G._G._G._G._G.S\nS._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y.S._G\u0420._G\u0420._G._G._G._G._G._G._G._G._G._F._F._F._F._F._F._G._G._G._G._G._G._G._G._G._G._G.S\nS._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y.S._G._G._G._G._G._G._G._G._G._G._G._F._F._F._F\u0421._F\u0420._F\u0420.T.T.T.T.T._G._G._G._G._G._G.S\nS._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420._\u0420.S.S.S.S.S.S.S.S.S.S._G._G._G._G._G._G._G._G._G._G._G._F._F._F\u0421._F._F._F._G._G._G._G._G._G._G._G._G._G._G.S\nS._._._._._._._._._._._._._.S.S.S.S.S._G._G._G._G._G._G.T.T.T.T.T._F\u0420._F\u0420._F._F._F._F._G._G._G._G._G._G._G._G._G._G._G.S\nS._._._._._._._._._._._._._.S.S.S.S.S._G._G._G._G._G._G._G._G._G._G._G._F._F._F._F._F._F._G._G._G._G._G._G._G._G\u0420._G\u0420._G._G.S\nS._._._._._._._._._._._._._.S.S.S.S.S._G._G._G._G._G._G._G._G._G._G._G._F._F._F._F._F._F._G._G._G._G._G._G._G._G._G._G._G.S\nS.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S._G._G._G\u0420._G\u0420._G._G._G._G._G._G._G._F._F._F._F._F._F._G._G._G._G._G._G._G._G._G._G._G.S\nS.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S._G._G._G._G._G._G._G._G._G._G._G._F._F._F._F._F._F._G._G._G._G._G._G._G._G._G._G._G.S\nS.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S"
   objects:
   - type: door

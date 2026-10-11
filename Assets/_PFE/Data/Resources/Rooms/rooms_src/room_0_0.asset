@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_0_0
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_0_0
   sourceCollectionId: rooms_src
   type: pass
@@ -120,7 +120,7 @@ MonoBehaviour:
     tileCoord: {x: 20, y: 3}
   - id: vent
     tileCoord: {x: 27, y: 3}
-  doorQuality: 020000000200000002000000020000000000000000000000000000000000000000000000000000000000000000000000020000000200000002000000020000000000000000000000020000000200000002000000020000000200000002000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: "J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J\nJ._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.J\nJ._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.J\nJ._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.J\nJ._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.J\nJ._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.J\nJ._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.J\nJ._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.J\nJ.J.J.J.J.J.J.J.J.J.J.J._-._-._-._-._-._-._-._-._-._-._-._-._-._-._-._-._-._-._-._-._-._\u0410-._-._-.J.J.J.J.J.J.J.J.J.J.J.J\nJ._._._._._._._._._._.J._._._._._._._._._._._._._._._._._._._._._._\u0410._._.J._._._._._._._._._._.J\nJ._._._._._._._._._._.J._._._._._._._._._._._._._._._._._._._._._._\u0410._._.J._._._._._._._._._._.J\nJ._._._._._._._._._._.J._._._._._._._._._._._._._._._._._._._._._._\u0410._._.J._._._._._._._._._._.J\nJ._._._._._._._._._._.J._._._._._._._._._._._._._._._._._._._._._._\u0410._._.J._._._._._._._._._._.J\nJ._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\u0410._._._G._._._._._._._._._._.J\nJ._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\u0410._._._G._._._._._._._._._._.J\nJ._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\u0410._._._G._._._._._._._._._._.J\nJ.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H"
   objects:
   - type: box
@@ -158,7 +158,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="WSCLVa5WROyFSolO"
-  - type: obj
+  - type: unit
     id: npc
     definitionId: npc
     definition: {fileID: 11400000, guid: 2b067238a37bc224c99b891f75cdd086, type: 2}
@@ -195,7 +195,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="sdDaprV0vJYKTV6l"
-  - type: obj
+  - type: unit
     id: ranger
     definitionId: ranger
     definition: {fileID: 11400000, guid: 73156fd43c765fe41a8521cb472c31bf, type: 2}
@@ -210,7 +210,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="O4CeiswdkFjqYLZi" ai="stay" fraction="100"
-  - type: obj
+  - type: unit
     id: ranger
     definitionId: ranger
     definition: {fileID: 11400000, guid: 73156fd43c765fe41a8521cb472c31bf, type: 2}
@@ -223,7 +223,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="ij9xtbJmYTurWuhe" fraction="100"
-  - type: obj
+  - type: unit
     id: ranger
     definitionId: ranger
     definition: {fileID: 11400000, guid: 73156fd43c765fe41a8521cb472c31bf, type: 2}
@@ -236,7 +236,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="gqzIPbGjaFZlCmQ2" fraction="100"
-  - type: obj
+  - type: unit
     id: ranger
     definitionId: ranger
     definition: {fileID: 11400000, guid: 73156fd43c765fe41a8521cb472c31bf, type: 2}
@@ -249,7 +249,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="CHnaONIWRGW7RoWu" fraction="100"
-  - type: obj
+  - type: unit
     id: ranger
     definitionId: ranger
     definition: {fileID: 11400000, guid: 73156fd43c765fe41a8521cb472c31bf, type: 2}
@@ -411,7 +411,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="tLMiiyvMarPvBMAk"
-  - type: obj
+  - type: unit
     id: vendor
     definitionId: vendor
     definition: {fileID: 11400000, guid: e79f68a6043bb8a4ebe67cddaf04aa3b, type: 2}
@@ -426,7 +426,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="oQzBjL2sAKZQf2co" turn="-1" npc="vendor_sr"
-  - type: obj
+  - type: unit
     id: wturret
     definitionId: wturret
     definition: {fileID: 11400000, guid: dd3e6fb52f3321e4ebc033e908bae0a5, type: 2}
@@ -476,7 +476,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="VYHzJwqpfIWGMKrm"
-  - type: obj
+  - type: unit
     id: npc
     definitionId: npc
     definition: {fileID: 11400000, guid: 2b067238a37bc224c99b891f75cdd086, type: 2}
@@ -491,7 +491,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="moJkxnTYEEBOUUua" npc="calam4" turn="-1"
-  - type: obj
+  - type: unit
     id: npc
     definitionId: npc
     definition: {fileID: 11400000, guid: 2b067238a37bc224c99b891f75cdd086, type: 2}
@@ -509,7 +509,7 @@ MonoBehaviour:
     scripts: []
     parameters: code="cveatSpsKBcxWjPg" uid="observer2" npc="observer2" turn="1"
       fly="1"
-  - type: obj
+  - type: unit
     id: npc
     definitionId: npc
     definition: {fileID: 11400000, guid: 2b067238a37bc224c99b891f75cdd086, type: 2}

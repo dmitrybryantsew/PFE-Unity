@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_2_1
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_2_1
   sourceCollectionId: rooms_thunder
   type: pass
@@ -144,10 +144,10 @@ MonoBehaviour:
     tileCoord: {x: 41, y: 20}
   - id: light2
     tileCoord: {x: 41, y: 22}
-  doorQuality: 020000000200000002000000020000000000000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000002000000020000000200000002000000020000000200000002000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: "S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S._._._._.S.S.S.S\nS._Y._Y._Q._._._._._Q._Y._Y._Y._._._._._._._._._._._._._._._._._._._._._._._._._Y._Y._Y._Q._._._._._Q._Y._Y.S\nS._Y._Y._Q._._._._._Q._Y._Y._Y._._._._._._._._._._._._._._._._._._._._._._._._._Y._Y._Y._Q._._._._._Q._Y._Y.S\nS._Y._Y._Q._._._._._Q._Y._Y._Y._._._._._._._._._._._._._._._._._._._._._._._._._Y._Y._Y._Q._._._._._Q._Y._Y.S\nS._Y._Y._Q._._._._._Q._Y._Y._Y._._._._._._._._._._._._._._._._._._._._._._._._._Y._Y._Y._Q._._._._._Q._Y._Y.S\nS._Y._Y._Q._._._._._Q._Y._Y._Y._._._._._._._._._._._._._._._._._._._._._._._._._Y._Y._Y._Q._._._._._Q._Y._Y.S\nS._Y._Y._Q._._._._._Q._Y._Y._Y._._._._._._._._._._._._._._._._._._._._._._._._._Y._Y._Y._Q._._._._._Q._Y._Y.S\nS._Y._Y._Q._._._._._Q._Y._Y._Y._._._._._._._._._._._._._._._._._._._._._._._._._Y._Y._Y._Q._._._._._Q._Y._Y.S\nS.SY.SY.SQ._\u0415._\u0415._\u0415._\u0415.SQ.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.SQ.S.S.S.S.SQ.SY.SY.S\nS._Y._Y._Q._._._._._Q._Y._Y._Y._._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._._Y._Y._Y._Q._._._._._Q._Y._Y.S\nS._Y._Y._Q._._._._._Q._Y._Y._Y._._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._._Y._Y._Y._Q._._._._._Q._Y._Y.S\nS._Y._Y._Q._._._._._Q._Y._Y._Y._._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._._Y._Y._Y._Q._._._._._Q._Y._Y.S\nS._Y._Y._Q._._._._._Q._Y._Y._Y._._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._._Y._Y._Y._Q._._._._._Q._Y._Y.S\nS._Y._Y._Q._._._._._Q._Y._Y._Y._._._._._._._._._._._._._._._._._._._._._._._._._Y._Y._Y._Q._._._._._Q._Y._Y.S\nS._Y._Y._Q._._._._._Q._Y._Y._Y._._._._._._._._._._._._._._._._._._._._._._._._._Y._Y._Y._Q._._._._._Q._Y._Y.S\nS._Y._Y._Q._._._._._Q._Y._Y._Y._._._._._._._._._._._._._._._._._._._._._._._._._Y._Y._Y._Q._._._._._Q._Y._Y.S\nS.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S._P\u0415._P\u0415._P\u0415._P\u0415.S.S.S.S\nSP._P._F._F._P._P._P._P._F._F._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._F._F._P._P._P._P._F._F._P.SP\nSP._P._F._F._P._P._P._P._F._F._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._F._F._P._P._P._P._F._F._P.SP\nSP._P._F._F._P._P._P._P._F._F._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._F._F._P._P._P._P._F._F._P.SP\nSP._P._F._F._P._P._P._P._F._F._P._P._P._P._P._P._O._O._O._O._O._O._O._P._P._O._O._O._O._O._O._O._P._P._P._P._P._P._F._F._P._P._P._P._F._F._P.SP\nSP._P._F._F._P._P._P._P._F._F._P._P._P._P._P._P._O._O._O._O._O._O._O._P._P._O._O._O._O._O._O._O._P._P._P._P._P._P._F._F._P._P._P._P._F._F._P.SP\nSP._P._F._F._P._P._P._P._F._F._P._P._P._P._P._P._O._O._O._O._O._O._O._P._P._O._O._O._O._O._O._O._P._P._P._P._P._P._F._F._P._P._P._P._F._F._P.SP\nSP._P._F._F._P._P._P._P._F._F._P._P._P._P._P._P._O._O._O._O._O._O._O._P._P._O._O._O._O._O._O._O._P._P._P._P._P._P._F._F._P._P._P._P._F._F._P.SP\nSP.SP.SP.SP._P._P._P._P.SP.SP.SP.SP.SP.SP.SP.SP.SP.SP.SP.SP.SP.SP.SP.SP.SP.SP.SP.SP.SP.SP.SP.SP.SP.SP.SP.SP.SP.SP.SP.SP.SP.SP.SP.SP.SP.SP.SP.SP"
   objects:
-  - type: obj
+  - type: unit
     id: encl
     definitionId: encl
     definition: {fileID: 11400000, guid: bd63e94e2cdd9b64baa1344275d633d8, type: 2}
@@ -158,7 +158,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="lbIwBcHOLyYzJJrl"
-  - type: obj
+  - type: unit
     id: encl
     definitionId: encl
     definition: {fileID: 11400000, guid: bd63e94e2cdd9b64baa1344275d633d8, type: 2}
@@ -169,7 +169,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="icLiYRSBfpdMLMh1"
-  - type: obj
+  - type: unit
     id: encl
     definitionId: encl
     definition: {fileID: 11400000, guid: bd63e94e2cdd9b64baa1344275d633d8, type: 2}
@@ -180,7 +180,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="f6udZU8uS8Kqux4o"
-  - type: obj
+  - type: unit
     id: encl
     definitionId: encl
     definition: {fileID: 11400000, guid: bd63e94e2cdd9b64baa1344275d633d8, type: 2}
@@ -191,7 +191,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="F1DqA9kxg9TdyOZ9"
-  - type: obj
+  - type: unit
     id: encl
     definitionId: encl
     definition: {fileID: 11400000, guid: bd63e94e2cdd9b64baa1344275d633d8, type: 2}
@@ -202,7 +202,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="q88GZShD1fa0EHJp"
-  - type: obj
+  - type: unit
     id: encl
     definitionId: encl
     definition: {fileID: 11400000, guid: bd63e94e2cdd9b64baa1344275d633d8, type: 2}
@@ -213,7 +213,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="t2pCf1ZswwtnCynx"
-  - type: obj
+  - type: unit
     id: encl
     definitionId: encl
     definition: {fileID: 11400000, guid: bd63e94e2cdd9b64baa1344275d633d8, type: 2}
@@ -224,7 +224,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="bZT6CsoP0sauGm2M"
-  - type: obj
+  - type: unit
     id: encl
     definitionId: encl
     definition: {fileID: 11400000, guid: bd63e94e2cdd9b64baa1344275d633d8, type: 2}
@@ -235,7 +235,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="PGEbSImh89zKRuex"
-  - type: obj
+  - type: unit
     id: encl
     definitionId: encl
     definition: {fileID: 11400000, guid: bd63e94e2cdd9b64baa1344275d633d8, type: 2}
@@ -246,7 +246,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="Ew2xxcTg4vKRkLKG"
-  - type: obj
+  - type: unit
     id: encl
     definitionId: encl
     definition: {fileID: 11400000, guid: bd63e94e2cdd9b64baa1344275d633d8, type: 2}

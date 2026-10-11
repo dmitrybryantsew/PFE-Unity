@@ -11,14 +11,14 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: "\u043F\u043E\u043C\u0435\u0449\u0435\u043D\u0438\u044F5_1"
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: "\u043F\u043E\u043C\u0435\u0449\u0435\u043D\u0438\u044F5_1"
   sourceCollectionId: rooms_pi
   type: back
   fixedPosition: {x: 0, y: 0, z: 0}
   difficultyLevel: 0
   maxInstances: 2
-  allowRandom: 1
+  allowRandom: 0
   specificMapOnly: 0
   backgroundRoomId: 
   backgroundDecorations:
@@ -84,7 +84,7 @@ MonoBehaviour:
     tileCoord: {x: 12, y: 2}
   - id: paint
     tileCoord: {x: 15, y: 2}
-  doorQuality: 020000000000000002000000000000000000000000000000020000000200000000000000000000000000000000000000020000000200000002000000000000000000000000000000020000000200000002000000020000000200000002000000
+  doorQuality: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
   tileDataString: "A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA._._._._._._._._._._._._._._._._._._.J._R._R._R._R._R._R._R.J._._._._._._._._._._._._._._._._._._._.A\nA._._._._._._._._._._._._._._._._._._.J._R._R._R._R._R._R._R._A._._._._._._._._._._._._._._._._._._._.A\nA._._._._._._._._._._._._._._._._._._._A._R._R._R._R._R._R._R._A._._._._._._._._._._._._._._._._._._._.A\nA._._._._._._._._._._._._._._._._._._._A._R._R._R._R._R._R._R._A._._._._._._._._._._._._._._._._._._._.A\nA.K.K.K.K.K.K.K._._.K.K.K.K.K.K.K.K.K.J.K.K.K.K.K._._.J.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.A\nA._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.A\nA._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.A\nA.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.A\nA.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.J.J.J._._._._._._._._._._._._._._._._._._._.A\nA._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R.J.J.J._._._._._._._._._._._._._._._._._._._.A\nA._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R.J.J.J._._._._._._._._._._._._._._._._._._._.A\nA._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R.J.J.J._._._._._._._._._._._._._._._._._._._.A\nA.K.K.K.K.K.K.K.K.K.K.K.K.K.K.J._R\u0411\u0415._R\u0415.J.K.K.K.K.K.K.J.J.J.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.A\nA.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J._R\u0411._R._R._R._R._R._R._R._R.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.A\nA.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J._R\u0411._R._R._R._R._R._R._R._R.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.A\nA.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J._R\u0411._R._R._R._R._R._R._R._R.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.A\nA.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.K.J._R\u0415._R\u0419._R._R._R._R._R.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.A\nA.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J._R._R._R._R._R\u0419._R._R._R._R.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.A\nA.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J._R._R._R._R._R._R\u0419._R._R._R.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.A\nA.K.K.K.K.K.K.K.K.K.K.K.K.K.K.J._R._R._R._R._R._R\u0418._R\u0415.J.K.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.A\nA._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R\u0418._R._R._R._R.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.A\nA._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R\u0418._R._R._R._R._R.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.A\nA._R._R._R._R._R._R._R._R._R._R._R.K:R.K;R.K,R.J.K.K.K.K.K.K.K.K.K.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A"
   objects:
   - type: box

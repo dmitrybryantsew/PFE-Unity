@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: "\u0431\u0430\u0441\u0441\u0435\u0439\u043D"
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: "\u0431\u0430\u0441\u0441\u0435\u0439\u043D"
   sourceCollectionId: rooms_plant
   type: pass
@@ -82,7 +82,7 @@ MonoBehaviour:
     tileCoord: {x: 30, y: 17}
   - id: stok2
     tileCoord: {x: 14, y: 17}
-  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000
+  doorQuality: 030000000300000003000000030000000300000003000000040000000400000004000000040000000400000000000000030000000300000003000000030000000300000004000000040000000000000004000000040000000000000000000000
   tileDataString: "C.C.C.C._._._._._._._._._._._._._._._.C.C.C.C.C.C.C.C.C.C._._._._._._._._._._._._._._._._._._._\nC._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\nC._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\nC._._._._._._._._._._._._._-._-._-._-._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\nC._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._-._-._-._-._-._-._-._-._-._-._-._-._-._-._-._-._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._\u0410.C.C._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B.C.C._-._-._\u0413._._._._._._._\n_._._._._._._._\u0410.C.C._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*.C.C._._._._\u0413._._._._._._\n_._._._._._._._\u0410.C.C._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*.C.C._._._._._\u0413._._._._._\n_._._._._._._._\u0410.C.C._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*.C.C._._._._._._\u0413._._._._\n_._._._.C.C.C.C.C.C._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*.C.C._._._._._._._-._-._-._\n_._._._.C._B._B._B.C.C._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*.C.C._._._._._._._._._._\n_._._._._._B._B._B.C.C._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*.C.C._._._._._._._._._._\n_._._._._._B._B._B.C.C._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*.C.C._._._._._._._._._._\n_._-._-._-.C.C.C.C.C.C._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*.C.C._-._-._-._-._-._-._-._-._-._\n_._._._._._._._.C.C._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*.C.C._._._._._._._._._._\n_._._._._._._._.C.C._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*.C.C._._._._._._._._._._\n_._._._._._._._.C.C._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*._B*.C.C._._._._._._._._._._\n_.C._._\u0410.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._\u0411._._.C.C.C.C.C._\n_._H._H._H\u0410._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H\u0411._H._H._H._H._H._H._H._\n_._H._H._H\u0410._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H\u0411._H._H._H._H._H._H._H._\n_._H._H._H\u0410._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H\u0411._H._H._H._H._H._H._H._\n_._._._._-._-._-._-._-._-._-._-._-._-._-._-._-._-._-._-._-._-._-._-._-._-._-._-._-._-._-._-._-._-._-._-._-._-._-._-._-._-._-._-._._._._"
   objects:
   - type: door
@@ -96,7 +96,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="rfL7ZDrXzlQjcMgE"
-  - type: obj
+  - type: unit
     id: bloodwing
     definitionId: bloodwing
     definition: {fileID: 11400000, guid: 8cb413623584f5e44aac1dffdaa1d68b, type: 2}
@@ -107,7 +107,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="u6R4zoYBjdZa247m"
-  - type: obj
+  - type: unit
     id: bloodwing
     definitionId: bloodwing
     definition: {fileID: 11400000, guid: 8cb413623584f5e44aac1dffdaa1d68b, type: 2}
@@ -118,7 +118,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="qZwSkxLzkge8pzBM"
-  - type: obj
+  - type: unit
     id: bloodwing
     definitionId: bloodwing
     definition: {fileID: 11400000, guid: 8cb413623584f5e44aac1dffdaa1d68b, type: 2}
@@ -129,7 +129,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="IlKmNzUrXx3zx4r8"
-  - type: obj
+  - type: unit
     id: bloodwing
     definitionId: bloodwing
     definition: {fileID: 11400000, guid: 8cb413623584f5e44aac1dffdaa1d68b, type: 2}
@@ -173,7 +173,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="zjpcusEeNtwoIhAM"
-  - type: obj
+  - type: unit
     id: bloodwing
     definitionId: bloodwing
     definition: {fileID: 11400000, guid: 8cb413623584f5e44aac1dffdaa1d68b, type: 2}
@@ -184,7 +184,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="iYJZwi8whkDNjbLO"
-  - type: obj
+  - type: unit
     id: bloodwing
     definitionId: bloodwing
     definition: {fileID: 11400000, guid: 8cb413623584f5e44aac1dffdaa1d68b, type: 2}

@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_2_0
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_2_0
   sourceCollectionId: rooms_thunder
   type: pass
@@ -166,10 +166,10 @@ MonoBehaviour:
     tileCoord: {x: 37, y: 9}
   - id: enclbanner
     tileCoord: {x: 41, y: 9}
-  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000020000000200000002000000020000000200000002000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: "S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S\nS._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U.T._F._F._F._F._F._F._F._F._F._F._F.S\nS._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U.T._F._F._F._F._F._F._F._F._F._F._F.S\nS._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U.T._F._F._F._F._F._F._F._F._F._F._F.S\nS._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U.T._F._F._F._F._F._F._F._F._F._F._F.S\nS._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._G._F._F._F._F._F._F._F._F._F._F._F.S\nS._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._G._F._F._F._F._F._F._F._F._F._F._F.S\nS._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._G._F._F._F._F._F._F._F._F._F._F._F.S\nS._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415.S.S.S.S.S.S.S.S.S.T.T.T.T.T.T.T.T.T.T.T.T.S\nS._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.S\nS._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.S\nS._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.S\nS._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.S\n_G._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A\n_G._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A\n_G._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A\nS.S._Y\u0415._Y\u0415._Y\u0415._Y\u0415._Y\u0415._Y\u0415._Y\u0415._Y\u0415._Y\u0415._Y\u0415._Y\u0415._Y\u0415._Y\u0415._Y\u0415._Y\u0415.SY.SY.SY.SY.SY.SY.SY.SY.SY.TY.TY.TY.TY.TY.TY.TY.TY.TY.TY.TY.TY.TY.TY._Y\u0415._Y\u0415._Y\u0415._Y\u0415._Y\u0415._Y\u0415._Y\u0415.SY\nS.S._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y.SY\nS.S._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y.SY\nS.S._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y.SY\nS.S._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._O._O._O._O._O._O._Y._Y._Y._Y._O._O._O._O._O._O._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y.SY\nS.S._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._O._O._O._O._O._O._Y._Y._Y._Y._O._O._O._O._O._O._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y.SY\nS.S._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._O._O._O._O._O._O._Y._Y._Y._Y._O._O._O._O._O._O._Y._Y._Y._Y._Y._F._F._F._F._Y._Y._Y.SY\nS.S._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._O._O._O._O._O._O._Y._Y._Y._Y._O._O._O._O._O._O._Y._Y._Y._Y._Y._F._F._F._F._Y._Y._Y.SY\nS.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY.SY._F._F._F._F.SY.SY.SY.SY"
   objects:
-  - type: obj
+  - type: unit
     id: encl
     definitionId: encl
     definition: {fileID: 11400000, guid: bd63e94e2cdd9b64baa1344275d633d8, type: 2}
@@ -180,7 +180,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="vU85JBbOxCPWC9RV"
-  - type: obj
+  - type: unit
     id: encl
     definitionId: encl
     definition: {fileID: 11400000, guid: bd63e94e2cdd9b64baa1344275d633d8, type: 2}
@@ -191,7 +191,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="vyyJcwtzEaXv1nZd"
-  - type: obj
+  - type: unit
     id: encl
     definitionId: encl
     definition: {fileID: 11400000, guid: bd63e94e2cdd9b64baa1344275d633d8, type: 2}
@@ -202,7 +202,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="Pno1dCg1QpYJieRg"
-  - type: obj
+  - type: unit
     id: encl
     definitionId: encl
     definition: {fileID: 11400000, guid: bd63e94e2cdd9b64baa1344275d633d8, type: 2}
@@ -213,7 +213,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="L2QncF8J1OKab5iZ"
-  - type: obj
+  - type: unit
     id: encl
     definitionId: encl
     definition: {fileID: 11400000, guid: bd63e94e2cdd9b64baa1344275d633d8, type: 2}
@@ -224,7 +224,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="kvgJu1JUCrg66pDu"
-  - type: obj
+  - type: unit
     id: encl
     definitionId: encl
     definition: {fileID: 11400000, guid: bd63e94e2cdd9b64baa1344275d633d8, type: 2}
@@ -235,7 +235,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="qKW0grtF5Cd6e19c"
-  - type: obj
+  - type: unit
     id: encl
     definitionId: encl
     definition: {fileID: 11400000, guid: bd63e94e2cdd9b64baa1344275d633d8, type: 2}
@@ -246,7 +246,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="aRtssZS0Y3c5Htaa"
-  - type: obj
+  - type: unit
     id: encl
     definitionId: encl
     definition: {fileID: 11400000, guid: bd63e94e2cdd9b64baa1344275d633d8, type: 2}

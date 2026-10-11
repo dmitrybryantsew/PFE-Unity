@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_2_0
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_2_0
   sourceCollectionId: rooms_hql
   type: pass
@@ -50,7 +50,7 @@ MonoBehaviour:
     tileCoord: {x: 40, y: 22}
   - id: metal
     tileCoord: {x: 7, y: 21}
-  doorQuality: 020000000200000002000000020000000000000002000000000000000200000000000000000000000000000000000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: '_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
 
     _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
@@ -101,7 +101,7 @@ MonoBehaviour:
 
     H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.E.E.H.H.H.H.H.H.H.E.E.E.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H'
   objects:
-  - type: obj
+  - type: unit
     id: mine
     definitionId: mine
     definition: {fileID: 11400000, guid: 01175fdf5effab8449dc622f301ad809, type: 2}
@@ -167,7 +167,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="pMOvjFuLWExzUdxf"
-  - type: obj
+  - type: unit
     id: msp
     definitionId: msp
     definition: {fileID: 11400000, guid: 79e4bcfc810c419448c44c83d583171b, type: 2}
@@ -178,7 +178,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="vDPfPlgYy7SE8lLz"
-  - type: obj
+  - type: unit
     id: trap
     definitionId: trap
     definition: {fileID: 11400000, guid: 94236a07ba271e241a7f9bcd11eb093d, type: 2}
@@ -189,7 +189,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="dAT1pxrybTCmJcSq"
-  - type: obj
+  - type: unit
     id: mine
     definitionId: mine
     definition: {fileID: 11400000, guid: 01175fdf5effab8449dc622f301ad809, type: 2}
@@ -200,7 +200,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="bfPqbsv92QJbRQy0"
-  - type: obj
+  - type: unit
     id: mine
     definitionId: mine
     definition: {fileID: 11400000, guid: 01175fdf5effab8449dc622f301ad809, type: 2}
@@ -211,7 +211,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="cYFI2SuSRDodrXE7"
-  - type: obj
+  - type: unit
     id: mine
     definitionId: mine
     definition: {fileID: 11400000, guid: 01175fdf5effab8449dc622f301ad809, type: 2}

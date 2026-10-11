@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_2_3
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_2_3
   sourceCollectionId: rooms_mtn
   type: pass
@@ -58,7 +58,7 @@ MonoBehaviour:
     tileCoord: {x: 39, y: 15}
   - id: musor1
     tileCoord: {x: 39, y: 19}
-  doorQuality: 020000000200000002000000020000000000000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000002000000020000000200000002000000020000000200000002000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: "A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A._._._._._._._._._._._._._._.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N\nA._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._._._._._._._._._._._._._._.N._._._._._._._._._._._._._._._.N\nA._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._._._._._._._._._._._._._._.N._._._._._._._._._._._._._._._.N\nA._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._._._._._._._._._._._._._._.N._._._._._._._._._._._._._._._.N\nA._N\u041A._N\u041A._N\u041A._N\u041A._N\u041A._N\u041A._N\u041A._N\u041A._N._N._N._N._N._N._N._N._._._._._._._._._._._._._._._A._._._._._._._._._._._._._._._.N\nA._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._._._._._._._._._._._._._._._A._._._._._._._._._._._._._._._.N\nA._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._._._._._._._._._._._._._._._A._._._._._._._._._._._._._._._.N\nA._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._._._._._._._._._._._._._._._A._._._._._._._._._._._._._._._.N\nA.A.A.A.A.A.A.A.A.A.K.A.A.A.A.A.A._._._._._._._._._._._._._._.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N\nN._._._._._._._._._._._._._._._.N._._._._._._._._._._._._._._.N._._._._._._._._._._._._._._._.N\nN._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.N\nN._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.N\nN._._._._._._._._._._._._._._._.N._._._._._._._._._._._._._._.N._._._._._._._._._._._._._._._.N\nN._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.N\nN._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.N\nN._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M.N._._._._._._._._._._._._._._.N._._._._._._._._._._._._._._._.N\nN.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N._\u041A._\u041A._._._._._._._._._._._._.N.N.N.N.N.N.N.N.N.N.N.N.N._A._A.N.N\nNC._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C.EC._._._._._._._._._._._._._._.NC._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C.N\nNC._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C.EC._._._._._._._._._._._._._._.NC._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C.N\nNC._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C.EC._._._._._._._._._._._._._._.NC._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C.N\nNC.NC.NC.NC.NC.NC.NC.NC.NC.NC.NC.NC.NC.NC.NC.NC.NC._._._._._._._._._._._._._._\u041A.NC.NC.NC.NC.NC.NC.NC.NC.NC.NC.NC.NC.NC.NC.NC.NC.N\nNC._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._._._._._._._._._._._._._._._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C.N\nNC._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._._._._._._._._._._._._._._._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C.N\nNC._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._._._._._._._._._._._._._._._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C.N\nNC._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._._._._._._._._._._._._._._._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C.N"
   objects:
   - type: box
@@ -105,7 +105,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="yCdNP1lRJeW6cTIa"
-  - type: obj
+  - type: unit
     id: alicorn
     definitionId: alicorn
     definition: {fileID: 11400000, guid: a26047f529a359f4da09fd7fe3169bf3, type: 2}
@@ -127,7 +127,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="aTgdH7tNeH0T3mUD"
-  - type: obj
+  - type: unit
     id: alicorn
     definitionId: alicorn
     definition: {fileID: 11400000, guid: a26047f529a359f4da09fd7fe3169bf3, type: 2}
@@ -138,7 +138,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="aCICMUxusVzuyYN5"
-  - type: obj
+  - type: unit
     id: bloodwing
     definitionId: bloodwing
     definition: {fileID: 11400000, guid: 8cb413623584f5e44aac1dffdaa1d68b, type: 2}
@@ -149,7 +149,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="uFBq95WY506ry3R3"
-  - type: obj
+  - type: unit
     id: bloodwing
     definitionId: bloodwing
     definition: {fileID: 11400000, guid: 8cb413623584f5e44aac1dffdaa1d68b, type: 2}
@@ -160,7 +160,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="iA6xu7q1b7JaObzo"
-  - type: obj
+  - type: unit
     id: bloodwing
     definitionId: bloodwing
     definition: {fileID: 11400000, guid: 8cb413623584f5e44aac1dffdaa1d68b, type: 2}
@@ -261,7 +261,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="KE1uOVhF0aUtAqlE"
-  - type: obj
+  - type: unit
     id: armturret
     definitionId: armturret
     definition: {fileID: 11400000, guid: 485a5442239ff174dafac0f96a1b402d, type: 2}
@@ -351,7 +351,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="ic6hQsXaHBSlOO9e"
-  - type: obj
+  - type: unit
     id: msp
     definitionId: msp
     definition: {fileID: 11400000, guid: 79e4bcfc810c419448c44c83d583171b, type: 2}
@@ -362,7 +362,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="TzPDFzUE7Cj5I2lb"
-  - type: obj
+  - type: unit
     id: msp
     definitionId: msp
     definition: {fileID: 11400000, guid: 79e4bcfc810c419448c44c83d583171b, type: 2}
@@ -373,7 +373,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="B3rHFzJxBF9BtAV6"
-  - type: obj
+  - type: unit
     id: msp
     definitionId: msp
     definition: {fileID: 11400000, guid: 79e4bcfc810c419448c44c83d583171b, type: 2}
@@ -384,7 +384,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="EWLAyo5BNfWvFv4P"
-  - type: obj
+  - type: unit
     id: alicorn
     definitionId: alicorn
     definition: {fileID: 11400000, guid: a26047f529a359f4da09fd7fe3169bf3, type: 2}
@@ -423,7 +423,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="IaRwEpEJfS8lEl4T"
-  - type: obj
+  - type: unit
     id: msp
     definitionId: msp
     definition: {fileID: 11400000, guid: 79e4bcfc810c419448c44c83d583171b, type: 2}

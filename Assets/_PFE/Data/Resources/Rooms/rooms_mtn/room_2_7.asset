@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_2_7
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_2_7
   sourceCollectionId: rooms_mtn
   type: pass
@@ -70,7 +70,7 @@ MonoBehaviour:
     tileCoord: {x: 34, y: 9}
   - id: poster
     tileCoord: {x: 21, y: 9}
-  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000002000000020000000200000002000000020000000200000002000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: "N.N._\u0411._.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N\nN._._\u0411._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.N\nN._._\u0411._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.N\nN._._\u0411._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.N\nN._._\u0411._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.N\nN._._\u0411._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.N\nN._._\u0411._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.N\nN._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.N\nNC._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C.NC.NC.NC.NC.N\nNC._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C.N\nNC._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C.N\nNC._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C.N\nBC.BC.BC.BC.BC.BC.BC.BC.BC.BC.BC.BC.BC.BC.BC.BC.BC.BC.BC._C\u041A._C\u041A._C\u041A._C\u041A._C\u041A._C\u041A._C\u041A._C\u041A._C\u041A._C\u041A.BC.BC.BC.BC.BC.BC.BC.BC.BC.BC.BC.BC.BC.BC._C\u041A._C\u0410\u041A.BC.BC.B\nNC._C._C._C.BC._C._C._C.BC._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C.BC._C._C._C._C._C\u0410._C._C.N\nNC._C._C._C._C._C._C._C.BC._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C.BC._C._C._C._C._C\u0410._C._C.N\nNC._C._C._C._C._C._C._C.BC._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C.BC._C._C._C._C._C\u0410._C._C.N\nNC.BC._C\u041A._C\u0410\u041A.BC.BC.BC.BC.BC._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C.BC._C._C._C._C._C\u0410._C._C.N\nN._C._C._C\u0410._C._C._C._C.BC._C._._._._._._._._._._._._._._._._._._._._._._._._._._._._._C.BC._C._C._C._C._C\u0410._C._C.N\nN._C._C._C\u0410._C._C._C._C.BC._C._._._._._._._._._._._._._._._._._._._._._._._._._._._._._C.BC._C._C._C._C._C\u0410._C._C.N\nN._C._C._C\u0410._C._C._C._C.BC._C._._._._._._._._._._._._._._._._._._._._._._._._._._._._._C.BC._C._C._C._C._C\u0410._C._C.N\nN._C\u041A._C\u041A._C\u041A._C\u041A._C\u041A._C\u041A._C\u041A.BC._C._._._._._._._._._._._._._._._._._._._._._._._._._._._._._C.BC._C\u041A._C\u041A._C\u041A._C\u041A._C\u041A._C\u041A._C\u041A.N\nN._C._C._C._C._C._C._C._C._C._._._._._._._._._._._._._._._._._._._._._._._._._._._._._C._C._C._C._C._C._C._C._C.N\nN._C._C._C._C._C._C._C._C._C._._._._._._._._._._._._._._._._._._._._._._._._._._._._._C._C._C._C._C._C._C._C._C.N\nN._C._C._C._C._C._C._C._C._C._._._._._._._._._._._._._._._._._._._._._._._._._._._._._C._C._C._C._C._C._C._C._C.N\nN.NC._C\u0411\u041A._C\u041A.NC.NC.NC.NC.NC.NC.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N"
   objects:
   - type: door
@@ -84,7 +84,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="E7BbXhaDt9FwzFTm"
-  - type: obj
+  - type: unit
     id: alicorn
     definitionId: alicorn
     definition: {fileID: 11400000, guid: a26047f529a359f4da09fd7fe3169bf3, type: 2}
@@ -105,7 +105,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="qKji6UG9Uo5htVzt" tr="1" turn="1" allid="1" dis="1" ai="quiet"
-  - type: obj
+  - type: unit
     id: alicorn
     definitionId: alicorn
     definition: {fileID: 11400000, guid: a26047f529a359f4da09fd7fe3169bf3, type: 2}
@@ -126,7 +126,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="ln4emdlNndmlGldo" tr="2" turn="1" allid="1" dis="1" ai="quiet"
-  - type: obj
+  - type: unit
     id: alicorn
     definitionId: alicorn
     definition: {fileID: 11400000, guid: a26047f529a359f4da09fd7fe3169bf3, type: 2}
@@ -296,7 +296,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="JgXAX24xqV1htTOV" h="10" w="23" scr="maneStory1"
-  - type: obj
+  - type: unit
     id: bloodwing
     definitionId: bloodwing
     definition: {fileID: 11400000, guid: 8cb413623584f5e44aac1dffdaa1d68b, type: 2}
@@ -307,7 +307,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="H9flSHJ1nMBF9KnF"
-  - type: obj
+  - type: unit
     id: bloodwing
     definitionId: bloodwing
     definition: {fileID: 11400000, guid: 8cb413623584f5e44aac1dffdaa1d68b, type: 2}

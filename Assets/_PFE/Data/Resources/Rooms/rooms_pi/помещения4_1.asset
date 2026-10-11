@@ -11,14 +11,14 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: "\u043F\u043E\u043C\u0435\u0449\u0435\u043D\u0438\u044F4_1"
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: "\u043F\u043E\u043C\u0435\u0449\u0435\u043D\u0438\u044F4_1"
   sourceCollectionId: rooms_pi
   type: back
   fixedPosition: {x: 0, y: 0, z: 0}
   difficultyLevel: 0
   maxInstances: 2
-  allowRandom: 1
+  allowRandom: 0
   specificMapOnly: 0
   backgroundRoomId: 
   backgroundDecorations:
@@ -92,7 +92,7 @@ MonoBehaviour:
     tileCoord: {x: 20, y: 17}
   - id: paint
     tileCoord: {x: 32, y: 9}
-  doorQuality: 000000000000000002000000000000000200000002000000000000000000000000000000000000000000000000000000020000000000000002000000000000000200000002000000020000000200000002000000020000000000000000000000
+  doorQuality: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
   tileDataString: "A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._R._R._R._R._R._R._._I._I._I._I._I._I._I._I.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._Q._R._R._R._R._R._R._._I._I._I._I._I._I._I._I.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._Q._R._R._R._R._R._R.J.A.A.A.A._I._I.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA._P._P._P._P._P._P._P._P._P._P._P._P._F._F._P._Q._R._R._R._R._R._R.J.A.A.A.A._I._I._I._I.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.J._R\u0415._R\u0415._R\u0419._R._R._R.J.A.A.A.A._I._I._I._I.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J._R._R._R._R\u0419._R._R.J.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.J._R._R._R._R\u0418._R\u0415._R\u0415.J.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.A\nA._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._R._R._R\u0418._R._R._R._._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q.A\nA._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._Q._R\u0415._R\u0415._R\u0419._R._R._R._._._._._._._._._._._._._._._._._._._._._._._._.A\nA._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._Q._R._R._R._R\u0419._R._R._._._._._._._._._._._._._._._._._._._._._._._._.A\nA._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._Q._R._R._R._R\u0418._R\u0415._R\u0415.J._\u0415._\u0415._\u0419._._._._._._._._._._._._._._._._._._._._.A\nA.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.A\nA.J._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.A\nA.J._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.A\nA.J._._.J.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.J._._.J.K.J._._.J.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.A\nA._R._R._R._R.J._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q.J._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q.A\nA._R._R._R._R.J._._._._._._._._._._._._._._._._._._._._.J._._._._._._._._._._._._._._._._._._._._.A\nA._R._R._R._R.J._._._._._._._._._._._._._._._._._._._._.J._._._._._._._._._._._._._._._._._._._._.A\nA._R._R._R._R.J._._._._._._._._._._._._._._._._._._._._.J._._._._._._._._._._._._._._._._._._._._.A\nA.K.K.K.K.J.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.J.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A"
   objects:
   - type: obj

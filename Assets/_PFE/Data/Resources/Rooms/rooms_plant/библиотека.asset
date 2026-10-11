@@ -11,13 +11,13 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: "\u0431\u0438\u0431\u043B\u0438\u043E\u0442\u0435\u043A\u0430"
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: "\u0431\u0438\u0431\u043B\u0438\u043E\u0442\u0435\u043A\u0430"
   sourceCollectionId: rooms_plant
   type: uniq
   fixedPosition: {x: 0, y: 0, z: 0}
   difficultyLevel: 2
-  maxInstances: 2
+  maxInstances: 1
   allowRandom: 1
   specificMapOnly: 0
   backgroundRoomId: 
@@ -130,7 +130,7 @@ MonoBehaviour:
     tileCoord: {x: 40, y: 19}
   - id: paint
     tileCoord: {x: 24, y: 19}
-  doorQuality: 000000000200000002000000020000000000000002000000020000000200000002000000020000000200000002000000000000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000
+  doorQuality: 030000000300000000000000000000000000000000000000040000000400000000000000000000000000000003000000030000000300000003000000030000000300000004000000040000000400000004000000040000000000000000000000
   tileDataString: "_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._H._H._H._H._H._H._H._H._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._H._H._H._H._H._H._H._H._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._H._H._H._H._H._H._H._H._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\nB.B.B.B.B.B.B.B.B.B.B._H-._H-._H-._H-._H-._H-._H-._H-.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B\n_._._._._._._._._._.B._H._H._H._H._H._H._H._H._._._._.B._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E.B._._._._\n_._._._._._._._._._._._H._H._H._H._H._H._H._H._._._._._._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._._._._._\n_._._._._._._._._._._._H._H._H._H._H._H._H._H._._._._._._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._._._._._\n_._-._-._-._-._-._-._-._-._-.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B._._.B.B.B.B.B.B.B.B.B.B.B\n_._._._._._._._._._.B._E._E._E._E._E._E._E._E._E._E._E.B._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M.B\n_._._._._._._._._._.B._E._E._E._E._E._E._E._E._E._E._E.B._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M.B\n_._._._._._._._._._.B._E._E._E._E._E._E._E._E._E._E._E.B._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M.B\n_._-._-._-._-._-._\u0410-._-._-._-.B._E._E._E._E._E._E._E._E._E._E._E.B._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M.B\n_._._._._._._\u0410._._._.B.B.B.B.B.B._-._-.B.B.B.B.B._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M.B\n_._._._._._._\u0410._._._._._._._._._._._._._._._.B._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M.B\n_._._._._._._\u0410._._._._._._._._._._._._._._._.B._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M.B\n_-._-._-._-._._._\u0410._._._._._._._._._._._._._._._.B.B.B.B.B.B.B.B.B.B._\u0411._.B.B.B.B.B.B.B.B.B.B.B.B.B.B\n_._._._._._._\u0410._._._._._._._._._._._._._._._.B._._._._._._._._._._\u0411._._._._._._._._._._.B._E._E._E.B\n_._._._._._._\u0410._._._._._._._._._._._._._._._.B._._._._._._._._._._\u0411._._._._._._._._._._.B._E._E._E.B\n_._._._._._._\u0410._._._._._._._._._._._._._._._.B._._._._._._._._._._\u0411._._._._._._._._._._.B._E._E._E.B\n_-._-._-._-._._._\u0410._._._.B.B.B.B.B.B.B.B.B.B.B.B.B._._._._._._._._._._\u0411._._._._._._._._._._._._._._.B\n_._._._._._._\u0410._._._._.B._F._F._F._F._F._F._F._F.B._._._._._._._._._._._._\u0411._._._._._._._._._._._._._._.B\n_._._._._._._\u0410._._._._._._F._F._F._F._F._F._F._F._._._._._._._._._._._._._\u0411._._._._._._._._._._._._._._.B\n_._._._._._._\u0410._._._._._._F._F._F._F._F._F._F._F._._._._._._._._._._._._._\u0411._._._._._._._._._._._._._._.B\n_._._._._-._-._\u0410-._-._._._._._._-._-._-._-._._.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B"
   objects:
   - type: box
@@ -227,7 +227,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="YpxhAxN9RHwiJOD3" allid="1"
-  - type: obj
+  - type: unit
     id: turret
     definitionId: turret
     definition: {fileID: 11400000, guid: f2ca5afcb9555924892e03a0eceb5802, type: 2}
@@ -293,7 +293,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="RU8hkGsDYnVrY0ES"
-  - type: obj
+  - type: unit
     id: robot
     definitionId: robot
     definition: {fileID: 11400000, guid: 0c13624f860691f41aa4d13a4147af0a, type: 2}
@@ -304,7 +304,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="gJ3Sd65DCUWh3GVk"
-  - type: obj
+  - type: unit
     id: robot
     definitionId: robot
     definition: {fileID: 11400000, guid: 0c13624f860691f41aa4d13a4147af0a, type: 2}
@@ -524,7 +524,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="oigOlF2kseQlVLH3"
-  - type: obj
+  - type: unit
     id: robot
     definitionId: robot
     definition: {fileID: 11400000, guid: 0c13624f860691f41aa4d13a4147af0a, type: 2}
@@ -535,7 +535,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="RdiJa0XDtked1yS4"
-  - type: obj
+  - type: unit
     id: landturret
     definitionId: landturret
     definition: {fileID: 11400000, guid: 61d8cb23a8596bb44a6486e9336cf03e, type: 2}
@@ -546,7 +546,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="dhy1ZnObjMCYk7na"
-  - type: obj
+  - type: unit
     id: landturret
     definitionId: landturret
     definition: {fileID: 11400000, guid: 61d8cb23a8596bb44a6486e9336cf03e, type: 2}
@@ -557,7 +557,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="dg7DNsMZC8b9W2Hk"
-  - type: obj
+  - type: unit
     id: turret
     definitionId: turret
     definition: {fileID: 11400000, guid: f2ca5afcb9555924892e03a0eceb5802, type: 2}
@@ -568,7 +568,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="PXtXt3Rh0C4lsE77"
-  - type: obj
+  - type: unit
     id: turret
     definitionId: turret
     definition: {fileID: 11400000, guid: f2ca5afcb9555924892e03a0eceb5802, type: 2}

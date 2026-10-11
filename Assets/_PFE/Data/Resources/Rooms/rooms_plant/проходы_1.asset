@@ -11,14 +11,14 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: "\u043F\u0440\u043E\u0445\u043E\u0434\u044B_1"
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: "\u043F\u0440\u043E\u0445\u043E\u0434\u044B_1"
   sourceCollectionId: rooms_plant
   type: back
   fixedPosition: {x: 0, y: 0, z: 0}
   difficultyLevel: 1
   maxInstances: 2
-  allowRandom: 1
+  allowRandom: 0
   specificMapOnly: 0
   backgroundRoomId: 
   backgroundDecorations:
@@ -26,10 +26,10 @@ MonoBehaviour:
     tileCoord: {x: 43, y: 7}
   - id: minkrut
     tileCoord: {x: 44, y: 5}
-  doorQuality: 020000000200000000000000000000000200000002000000000000000000000000000000000000000000000000000000000000000000000000000000020000000200000000000000000000000000000000000000000000000000000000000000
+  doorQuality: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
   tileDataString: "H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.A.A.A.A.A.A.A.A.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.A.A.A.A.A.A.A.A.A.A.A.A.A.A.H\nH.H._.F.F.F.F._._._._._._._._.H.H.H.H.H.H.H.H.H.H.H.H._._._._._._.A.A.A.A.A.A.A.A._H._H._H._H._H._H.H\nH.H.H.H.H.H.H._._._._._._._._.H.H.H.H.H.H.H.H.H.H.H.H._._._._._._._._I._I._I._I._I._I._I._H._H._H._H._H._H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H._._.H.H.H.H.H.H.H.H.H.H.H.H._._._._._._.A.A.A.A.A.A.A.A.A.A._H-._H-._H-._H-.H\nA.A.A.A.A.A.A.H.H.H.H.H.H._._.H.H.H._._._._.H._._.H.H._\u0414._\u0414.H.H.H.H.H._._._._.H.H.H.H.A._H._H._H._H.H\nH.H.H.H.H.A.A._._._._._._._._.H.H.H._._._._._._._._._._._.H.H.H.H.H._._._._._._._._.F._H._H._H._H.H\nH.H.H.H.H.A.A._._._._._._._._.H.H.H._._._._._._._._._._._.H.H.H.H.H.H.H._._.H.H.H.H.A._H._H._H._H.H\nH.H.H.H.H.A.A._._.H.H.H.H.H.H.H.H.H.H._._._.H.H.H.H.H.H.H.H.H.H.H.H.H.H._._.H.H.H.H.A._H._H._H._H.H\nH.H.H.H.H.A.A._._.H.H.H.H.H.H.H.H.H.H._\u0414._\u0414._\u0414.H.H.H.H.H.H.H.H.H.H.H.H.H.H._._.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.A.A._\u0414._\u0410\u0414.H.H.H.H.H.H.H.H.H.H._._._._._._._._._._._._.H.H.H.H.H._._.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.A.A._._\u0410.H.H.H.H.H.H.H.H.H.H._._._._._._._._._._._._.H.H.H.H.H._._.H.H.H.H.H.H.H.H.H.H\nH._I._I._I._I._I._I._._\u0410.H.H.H.H.H.H.H.H.H.H.H._._._._._._._._._._._.H.H.H.H.H._._.H.H.H.H.H.H.H.H.H.H\nH._I._I.H.H.A.A._._\u0410.H.H.H.H.H.H.H.H.H.H.H._\u0414._\u0414._\u0414._\u0414.H.H.H.H._\u0414._\u0414._\u0414.H.H.H.H.H._._.H.H.H.H.H.H.H.H.H.H\nH._I._I.H.H.A.A._._\u0410.H.H.H.H.H.H.H.H.H.H.H._._._._.H.H.H.H._._._.H.H.H.H.H._._.H.H.H.H.H.H.H.H.H.H\nH._I._I.H.H.A.A._\u0414._\u0410\u0414.H.H.H.H.H.H.H.H.H.H.H._._._._.H.H.H.H._._._.H.H.H.H.H.F.F.H.H.H.H.H.H.H.H.H.H\nH._I._I.H.H.A.A._._\u0410.H.H.H.H.H.H.H.H.H.H.H._\u0414._\u0414._\u0414._\u0414.H.H.H.H._._._.H.H.H.H.H._._._._._._._._._._._.H\nH._I._I.H.H.A.A._._\u0410._._._._._._._._._._._._._._._._.H.H.H._\u0414._\u0414._\u0414.H.H.H.H.H._._._._._._._._._._._.H\nH._I._I.H:I.H:I.A:I.A:I._._._._._._._._._._._._._._._._._._.H.H.H._._._.H._._._.H._._._._._._._._._._._.H\nH.H.H.H.H.A.A._._._._._._._._._._._._._._._._._._.H.H.H._._._.H._._._._._._._._._._._._._._._.H\nH.H.H.H.H.A.A.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H._._._.F._._._._._._._._._.H.H.H.H.H.H.H\nH.H.H.H.H.A.A.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H._._._._._.H.H.H.H.H.H.H\nH.H.H.H.H.A.A.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H._._._._._.H.H.H.H.H.H.H\nH.H.H.H.H.A.A.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H"
   objects:
-  - type: obj
+  - type: unit
     id: rat
     definitionId: rat
     definition: {fileID: 11400000, guid: 91aa9373086f9584dafaf4723062b4a4, type: 2}
@@ -121,7 +121,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="UWaWV71UGDzPxBJI"
-  - type: obj
+  - type: unit
     id: rat
     definitionId: rat
     definition: {fileID: 11400000, guid: 91aa9373086f9584dafaf4723062b4a4, type: 2}
@@ -132,7 +132,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="dJKnz1qJftDLyIlR"
-  - type: obj
+  - type: unit
     id: rat
     definitionId: rat
     definition: {fileID: 11400000, guid: 91aa9373086f9584dafaf4723062b4a4, type: 2}
@@ -143,7 +143,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="hwCPn5k1UkDlHETS"
-  - type: obj
+  - type: unit
     id: scorp
     definitionId: scorp
     definition: {fileID: 11400000, guid: f9d80b2df85d5424fac08f8479002729, type: 2}
@@ -154,7 +154,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="zqIuZS0NPxFAtTqL"
-  - type: obj
+  - type: unit
     id: molerat
     definitionId: molerat
     definition: {fileID: 11400000, guid: 1408e310852cb0742aa198feb9353ea9, type: 2}

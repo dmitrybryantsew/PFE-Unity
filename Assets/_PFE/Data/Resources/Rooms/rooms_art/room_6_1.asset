@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_6_1
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_6_1
   sourceCollectionId: rooms_art
   type: pass
@@ -226,7 +226,7 @@ MonoBehaviour:
     tileCoord: {x: 18, y: 21}
   - id: electro
     tileCoord: {x: 17, y: 21}
-  doorQuality: 000000000000000000000000000000000000000000000000000000000200000002000000020000000200000000000000000000000000000000000000000000000000000000000000020000000200000002000000020000000200000000000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: "O.O.O.O.A.A.A.A.A.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.A.A.A.A.A.O.O.O.O\n_K._K._K._K._._F._F._F.A._._._._._._._._._U._U._U._U._._U._U._U._U._._U._U._U._U._._._._._._._._.A._F._F._F._._K._K._K._K\n_K._K._K._K._._F._F._F.A._._._._._._._._._U._U._U._U._._U._U._U._U._._U._U._U._U._._._._._._._._.A._F._F._F._._K._K._K._K\n_K._K._K._K._._F._F._F.A._._._._._._._._._U._U._U._U._._U._U._U._U._._U._U._U._U._._._._._._._._.A._F._F._F._._K._K._K._K\nO.O.O.O.A._F._F._F.A._._._._._._._._._U._U._U._U.O.O.O.O.O.O._U._U._U._U._._._._._._._._.A._F._F._F.A.O.O.O.O\nO.O.O.O.A._F._F._F._Q._._._._._._._._._U._U._U._U._._U._U._U._U._._U._U._U._U._._._._._._._._._Q._F._F._F.A.O.O.O.O\nO.O.O.O.A._F._F._F._Q._._._._._._._._._U._U._U._U._._U._U._U._U._._U._U._U._U._._._._._._._._._Q._F._F._F.A.O.O.O.O\nO.O.O.O.A._F._F._F._Q._._._._._._._._._U._U._U._U._._U._U._U._U._._U._U._U._U._._._._._._._._._Q._F._F._F.A.O.O.O.O\nO.O.O.O.A._F._F._F._Q._._._._._._.O.O.O.O.O.O.O._U\u0415._U\u0415._U\u0415._U\u0415.O.O.O.O.O.O.O._._._._._._._Q._F._F._F.A.O.O.O.O\nO.O.O.O.A._F._F._F._Q._._._._._._.O._U._U._U._U._U._._U._U._U._U._._U._U._U._U._U.O._._._._._._._Q._F._F._F.A.O.O.O.O\nO.O.O.O.A._F._F._F._Q._._._._._._.O._U._U._U._U._U._._U._F._F._U._._U._U._U._U._U.O._._._._._._._Q._F._F._F.A.O.O.O.O\nO.O.O.O.A._F._F._F._Q._._._._._._.O._U._U._U._U._U._._U._F._F._U._._U._U._U._U._U.O._._._._._._._Q._F._F._F.A.O.O.O.O\nO.O.O.O.A._F._F._F._Q._._._._._._.O._U._U._U._U._U._._U\u0418._U\u0415._U\u0415._U\u0419._._U._U._U._U._U.O._._._._._._._Q._F._F._F.A.O.O.O.O\nO.O.O.O.A._F._F._F._Q._._._._._._.O.O.O.O.O.O.O._U._U._U._U.O.O.O.O.O.O.O._._._._._._._Q._F._F._F.A.O.O.O.O\nO.O.O.O.A._F._F._F._Q._._._._._._._.O._U._U._U._U._._U._U._U._U._._U._U._U._U.O._._._._._._._._Q._F._F._F.A.O.O.O.O\nO.O.O.O.A._F._F._F._Q._._._._._._._.O._U._U._U._U._._U._U._U._U._._U._U._U._U.O._._._._._._._._Q._F._F._F.A.O.O.O.O\nO.O.O.O.A._F._F._F._Q._._._._._._._._._U._U._U._U._._U._U._U._U._._U._U._U._U._._._._._._._._._Q._F._F._F.A.O.O.O.O\nO.O.O.O.A._F._F._F._Q._._._._._._._._._U._U._U._U._._U._U._U._U._._U._U._U._U._._._._._._._._._Q._F._F._F.A.O.O.O.O\nO.O.O.O.A._F._F._F._Q._._._._._._._._._U._U._U._U.O._U\u0411\u0415._U\u0415._U\u0415._U\u0410\u0415.O._U._U._U._U._._._._._._._._._Q._F._F._F.A.O.O.O.O\nO.O.O.O.A._F._F._F._Q._._._._._._._._._U._F._F._U.O._U\u0411._U._U._U\u0410.O._U._F._F._U._._._._._._._._._Q._F._F._F.A.O.O.O.O\nO.O.O.O.A._F._F._F._Q._._._._._._._.O.O.O.O.O.O._U\u0411._U._U._U\u0410.O.O.O.O.O.O._._._._._._._._Q._F._F._F.A.O.O.O.O\nO.O.O.O.A._F._F._F._Q._._._._._._._._._U._U._U._U._._U\u0411._U._U._U\u0410._._U._U._U._U._._._._._._._._._Q._F._F._F.A.O.O.O.O\nO.O.O.O.A._F._F._F._Q._._._._._._._._._U._U._U._U._._U\u0411._U._U._U\u0410._._U._U._U._U._._._._._._._._._Q._F._F._F.A.O.O.O.O\nO.O.O.O.A._F._F._F.A;Q._._._._._._._._._U._U._U._U._._U\u0411._U._U._U\u0410._._U._U._U._U._._._._._._._._.A;Q._F._F._F.A.O.O.O.O\nO.O.O.O.A.A.A.A.A.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.A.A.A.A.A.O.O.O.O"
   objects:
   - type: door
@@ -439,7 +439,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="EA4d9HS3SMdYd2Dk" uid="plat2" allid="2"
-  - type: obj
+  - type: unit
     id: sentinel
     definitionId: sentinel
     definition: {fileID: 11400000, guid: e4e3e3a7d564193458b20330eff53b13, type: 2}
@@ -454,7 +454,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="SFy4PsLIBrNVKh4S" hero="3" multhp="2"
-  - type: obj
+  - type: unit
     id: sentinel
     definitionId: sentinel
     definition: {fileID: 11400000, guid: e4e3e3a7d564193458b20330eff53b13, type: 2}
@@ -467,7 +467,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="eGphqsLY9RZyIbBV" multhp="2"
-  - type: obj
+  - type: unit
     id: sentinel
     definitionId: sentinel
     definition: {fileID: 11400000, guid: e4e3e3a7d564193458b20330eff53b13, type: 2}

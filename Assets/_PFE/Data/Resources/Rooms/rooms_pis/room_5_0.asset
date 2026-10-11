@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_5_0
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_5_0
   sourceCollectionId: rooms_pis
   type: pass
@@ -52,7 +52,7 @@ MonoBehaviour:
     tileCoord: {x: 4, y: 20}
   - id: stenka3
     tileCoord: {x: 4, y: 6}
-  doorQuality: 020000000200000002000000020000000200000000000000000000000000000000000000000000000000000000000000020000000200000002000000020000000200000002000000000000000000000000000000000000000200000002000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: 'C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._._._._._._._._._._._._._._._._._._._
 
     C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._._._._._._._._._._._._._._._._._._._
@@ -103,7 +103,7 @@ MonoBehaviour:
 
     H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H'
   objects:
-  - type: obj
+  - type: unit
     id: hellhound
     definitionId: hellhound
     definition: {fileID: 11400000, guid: 6b4ce41dc97996545b96636e01f08163, type: 2}
@@ -116,7 +116,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="aeEU7Fsjl8M8SaAs" turn="-1"
-  - type: obj
+  - type: unit
     id: dron
     definitionId: dron
     definition: {fileID: 11400000, guid: 3bae6e09bbe3c214b9e0967e21752f24, type: 2}
@@ -131,7 +131,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="ZQp3UsEvh25sgdgw" turn="-1" tr="3"
-  - type: obj
+  - type: unit
     id: dron
     definitionId: dron
     definition: {fileID: 11400000, guid: 3bae6e09bbe3c214b9e0967e21752f24, type: 2}
@@ -146,7 +146,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="lD40dVk3Ibat2YjH" turn="-1" tr="3"
-  - type: obj
+  - type: unit
     id: dron
     definitionId: dron
     definition: {fileID: 11400000, guid: 3bae6e09bbe3c214b9e0967e21752f24, type: 2}
@@ -172,7 +172,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="F6VGYUNCLJr8jraD"
-  - type: obj
+  - type: unit
     id: hellhound
     definitionId: hellhound
     definition: {fileID: 11400000, guid: 6b4ce41dc97996545b96636e01f08163, type: 2}
@@ -185,7 +185,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="fOhw0LhufRbooofw" turn="-1"
-  - type: obj
+  - type: unit
     id: hellhound
     definitionId: hellhound
     definition: {fileID: 11400000, guid: 6b4ce41dc97996545b96636e01f08163, type: 2}

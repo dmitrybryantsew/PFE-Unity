@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_0_0
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_0_0
   sourceCollectionId: rooms_comm
   type: pass
@@ -156,7 +156,7 @@ MonoBehaviour:
     tileCoord: {x: 41, y: 19}
   - id: enil
     tileCoord: {x: 44, y: 19}
-  doorQuality: 020000000200000002000000020000000000000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000002000000020000000200000002000000020000000200000002000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: 'S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S
 
     S._._._._._._._._._._._._._.S._._._._._._._._._._._._._._._._._._.S._._._._._._._._._._._._._.S
@@ -255,7 +255,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="bl5z8Fd2X7wBcKeX"
-  - type: obj
+  - type: unit
     id: cturret
     definitionId: cturret
     definition: {fileID: 11400000, guid: c57d7448f31cf144c8f299782156c1e2, type: 2}
@@ -266,7 +266,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="jNorlMTajXnkSF0K"
-  - type: obj
+  - type: unit
     id: cturret
     definitionId: cturret
     definition: {fileID: 11400000, guid: c57d7448f31cf144c8f299782156c1e2, type: 2}
@@ -277,7 +277,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="MMq0tXrTLQNHmxZh"
-  - type: obj
+  - type: unit
     id: cturret
     definitionId: cturret
     definition: {fileID: 11400000, guid: c57d7448f31cf144c8f299782156c1e2, type: 2}
@@ -493,6 +493,10 @@ MonoBehaviour:
       - act: dialog
         targ: 
         val: termText18
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="Glx162L36zXra3Da"
   spawnPoints:
   - tileCoord: {x: 2, y: 15}

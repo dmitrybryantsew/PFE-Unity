@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_2_6
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_2_6
   sourceCollectionId: rooms_mtn
   type: pass
@@ -56,7 +56,7 @@ MonoBehaviour:
     tileCoord: {x: 39, y: 23}
   - id: heap3
     tileCoord: {x: 22, y: 15}
-  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: "N._._._._\u0411._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.N\nN._._._._\u0411._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.N\nN._._._._\u0411._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.N\nN._._._._\u0411._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.N\nN._._._._\u0411._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.N\nN._._._._\u0411._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.N\nN._._._._\u0411._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.N\nN._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.N\nN._A._A._A._._._._._._._._._.N.N.N.N._._._._A._A._A._A.N.N.N.N.N._._._._._._._._A._A\u041A._A\u041A._A\u041C._A._._._._A._A._A.N\nN._._._._._._._._._._._._._._._._._._._._C._C._C._C.NC.NC.NC.NC.N._._._._._._._._._._._._\u041C._._._._._._.N\nN._._._._._._._._._._._._._._._._._._._._C._C._C._C.NC.NC.NC.NC.N._._._._._._._._._._._._._\u041C._._._._._.N\nN._._._._._._._._._._._._._._._._._._._._C._C._C._C.NC.NC.NC.NC.N._._._._._._._._._._._._._._\u041C._._._._.N\nN._._._._._._._._._._._._._._._._._._._._C._C._C._C._C._C.NC._C._._._._._._._._._._._._._._._\u041B._\u041A._\u041A.N.N.N\nN._._._._._._._._._._._._._._._._._._._._C._C._C._C._C._C.NC._C._._._._._._._._._._._._._._\u041B._._._._._.N\nN._._._._._._._._._._._._._._._._._._._._C._C._C._C._C._C._C._C._._._._._._._._._._._._._\u041B._._._._._._.N\nN._._._._._._._._._._._._._._._._._._._._C._C._C._C._C._C._C._C._._._._._._._._._._._._._._._._._._._.N\nN._A._A._A._._._._A.NA.NA.NA.NA._A._A._A._A._A._A._A._A._A.NA.NA.NA.NA._A._A._A._._.N.N.N.N.N._A._A._A._A._A._A._._._._A._A._A.N\nN._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.N\nN._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.N\nN._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.N\nN._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.N\nN._._._._._._.E._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.N\nN._._._._._._.E._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.N\nN._._._._._._.E.E._._._._._._._._._._._._._._.E._._._._._._._._._._._._._._._._._._._._._._._.N\nN.N._\u0411\u041A._\u041A.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N"
   objects:
   - type: trap
@@ -224,7 +224,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="odCqUljVP6pgpW1s"
-  - type: obj
+  - type: unit
     id: trap
     definitionId: trap
     definition: {fileID: 11400000, guid: 94236a07ba271e241a7f9bcd11eb093d, type: 2}
@@ -257,7 +257,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="Tz5Bh7XcoG37MTHr"
-  - type: obj
+  - type: unit
     id: trap
     definitionId: trap
     definition: {fileID: 11400000, guid: 94236a07ba271e241a7f9bcd11eb093d, type: 2}
@@ -345,7 +345,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="RELq9p02Q6Nrm4Zz"
-  - type: obj
+  - type: unit
     id: alicorn
     definitionId: alicorn
     definition: {fileID: 11400000, guid: a26047f529a359f4da09fd7fe3169bf3, type: 2}
@@ -356,7 +356,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="yuu8uAr7iMGeodL1"
-  - type: obj
+  - type: unit
     id: alicorn
     definitionId: alicorn
     definition: {fileID: 11400000, guid: a26047f529a359f4da09fd7fe3169bf3, type: 2}
@@ -373,7 +373,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="GtL5vaIKUvivUX3q" turn="-1" allid="1" dis="1"
-  - type: obj
+  - type: unit
     id: alicorn
     definitionId: alicorn
     definition: {fileID: 11400000, guid: a26047f529a359f4da09fd7fe3169bf3, type: 2}
@@ -413,14 +413,26 @@ MonoBehaviour:
       - act: allact
         targ: 
         val: activate
+        n: 1
+        opt1: 
+        opt2: 
+        t: 
       - act: allact
         targ: 
         val: close
+        n: 2
+        opt1: 
+        opt2: 
+        t: 
       - act: off
         targ: this
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="KIGHlzv8lbEltwf1" h="8" w="1"
-  - type: obj
+  - type: unit
     id: bloat
     definitionId: bloat
     definition: {fileID: 11400000, guid: ab23dccecabecbf4e9019535dfa0d378, type: 2}
@@ -431,7 +443,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="A71am8c8irVVsgAO"
-  - type: obj
+  - type: unit
     id: bloat
     definitionId: bloat
     definition: {fileID: 11400000, guid: ab23dccecabecbf4e9019535dfa0d378, type: 2}
@@ -442,7 +454,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="xjEyCNbLy7QWwqI0"
-  - type: obj
+  - type: unit
     id: bloat
     definitionId: bloat
     definition: {fileID: 11400000, guid: ab23dccecabecbf4e9019535dfa0d378, type: 2}
@@ -453,7 +465,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="LbdY7LqpaanoF1sM"
-  - type: obj
+  - type: unit
     id: bloat
     definitionId: bloat
     definition: {fileID: 11400000, guid: ab23dccecabecbf4e9019535dfa0d378, type: 2}
@@ -464,7 +476,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="SJJgbFArtLmeqiCh"
-  - type: obj
+  - type: unit
     id: bloat
     definitionId: bloat
     definition: {fileID: 11400000, guid: ab23dccecabecbf4e9019535dfa0d378, type: 2}

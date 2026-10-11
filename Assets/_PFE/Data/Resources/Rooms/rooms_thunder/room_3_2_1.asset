@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_3_2_1
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_3_2_1
   sourceCollectionId: rooms_thunder
   type: pass
@@ -24,7 +24,7 @@ MonoBehaviour:
   backgroundDecorations:
   - id: exit_light
     tileCoord: {x: 38, y: 9}
-  doorQuality: 000000000000000002000000020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: 'S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S
 
     S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S
@@ -155,9 +155,17 @@ MonoBehaviour:
       - act: trus
         targ: 
         val: 5
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: off
         targ: this
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="HrABTBzjoVsv4ank"
   - type: area
     id: area
@@ -174,9 +182,17 @@ MonoBehaviour:
       - act: trus
         targ: 
         val: 8
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: off
         targ: this
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="qRtvvyJosOsNqqvk"
   - type: area
     id: area

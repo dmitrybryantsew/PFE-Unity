@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_1_0
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_1_0
   sourceCollectionId: rooms_hql
   type: pass
@@ -50,7 +50,7 @@ MonoBehaviour:
     tileCoord: {x: 24, y: 17}
   - id: blood2
     tileCoord: {x: 25, y: 17}
-  doorQuality: 020000000200000002000000020000000200000002000000000000000200000002000000020000000000000000000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: '_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
 
     _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
@@ -101,7 +101,7 @@ MonoBehaviour:
 
     H.H.E.H.H.E.H.H.G.G.G._L._L.GL.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H'
   objects:
-  - type: obj
+  - type: unit
     id: scorp
     definitionId: scorp
     definition: {fileID: 11400000, guid: f9d80b2df85d5424fac08f8479002729, type: 2}
@@ -112,7 +112,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="bPEL6aKt16kEjznX"
-  - type: obj
+  - type: unit
     id: scorp
     definitionId: scorp
     definition: {fileID: 11400000, guid: f9d80b2df85d5424fac08f8479002729, type: 2}
@@ -123,7 +123,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="aq9DCLC3MAK9McbB"
-  - type: obj
+  - type: unit
     id: scorp
     definitionId: scorp
     definition: {fileID: 11400000, guid: f9d80b2df85d5424fac08f8479002729, type: 2}

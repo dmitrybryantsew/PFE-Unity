@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: w_necros
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: w_necros
   sourceCollectionId: rooms_prob
   type: pass
@@ -92,7 +92,7 @@ MonoBehaviour:
     tileCoord: {x: 7, y: 15}
   - id: chole5
     tileCoord: {x: 40, y: 5}
-  doorQuality: 020000000200000002000000020000000200000002000000000000000000000000000000000000000000000000000000020000000200000002000000020000000200000002000000000000000000000000000000000000000000000000000000
+  doorQuality: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
   tileDataString: "P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P\nP.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P\nP.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P\nQ._V._V._V._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._V._V._V._V._V._V.Q\nQ._V._V._V._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._V._V._V._V._V._V.Q\nQ._V._V._V._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._V._V._V._V._V._V.Q\nQ._V._V._V._._._._._.Q.Q._W._W._W._W._._._._._._._._._._._._._._._._._._._._._._._._._._._V._V._V.PV._V\u041D._V\u041D.Q\nQ._V._V._V._._._._._.Q.Q._W._W._W._W._._._._._._._._._._._._._._._._W._W\u041D._W\u041D.P.P._\u0411._._._._._._V._V._V.PV._V._V.Q\nQ._V._V._V._._._._._.Q.Q._W._W._W._W._._._._._._._._._._._._._._._._W._W._W._W.P._\u0411._._._._._.PV.PV.PV.PV._V._V.Q\nQ._V\u041D._V\u041D._V\u041D.P.P.P.P.P.P.P.P.P.P.P._\u0411._._._._._._._._._._._._._._._W._W._W._W.P._\u0411._._._._._._V._V._V._V._V._V.Q\nQ._V._V._V._._._._._._._._W.PW.PW.PW._\u0411._._._._._._._._._._._._._._._W._W._W._W.P._\u0411._._._._._._V._V._V._V._V._V.Q\nQ._V._V._V._._._._._._._._W._W._W.PW._\u0411._._._._._._\u041E._\u041D._\u041D.P.P.P.P.P.P.P.P.P.P.P._\u0411._._._._._._V._V._V._V._V._V.Q\nQ._V._V._V._._._._._._._._W._W._W._W._\u0411._._._._._\u041E._._._._._._._._._._._._._._._\u0411._._._._._._V._V._V._V._V._V.Q\nQ._V._V._V._._._._._._._._W._W._W._W._\u0411._._._._\u041E._._._._._._._._._._._._._._._._\u0411._._._._._._V._V._V._V._V._V.Q\nQ._V._V._V._._._._._._._._W._W._W._W._\u0411._._._\u041E._._._._._._._._._._._._._._._._._._._._._._._V._V._V._V._V._V.Q\nQ._V._V._V._._._._\u041E._\u041D._\u041D._\u041D.P.P.P.P.P.P.P._._._._._._._._._._._._._._._._._._._._._._._._V._V._V._V._V._V.Q\nQ._V._V._V._._._\u041E._._._._._W._W._W._W._W._W.P._._._._._._._._._._._._._W\u041D._W\u041D._W\u041D.Q.Q._._._._._._._V._V._V._V._V._V.Q\nQ._V._V._V._._\u041E._._._._._._W._W._W._W._W._W.P._._._._._._._._._._._._._W._W._W.Q.Q._._._._._.Q.QV.QV._V\u041D._V\u041D._V\u041D._V\u041D.Q\nQ._V\u041D._V\u041D._V\u041D._\u041D._._._._._._._W._W._W._W._W._W.P._\u041D._\u041D._\u041D._\u041F._._._._._._._._._W._W._W._._._._._._._.Q.QV._V._V._V._V._V.Q\nQ._V._V._V._._._._._._._._W._W._W._W._W._W.P._._._._._\u041F._._._._._._._._W._W._W._._._._._._._.Q.QV._V._V._V._V._V.Q\nQ._V._V._V._._._._._._._._W._W._W._W._W._W._._._._._._._\u041F._._._._._._._W._W._W._._._._._._._.E.EV._V._V._V._V._V.Q\nQ._V._V._V._W._W._W._W._W._W._W._W._W._W._W._W._W._W._W._W._W._W._W._W._W\u041F._W._W._W._W._W._W._W._W._W._W._W._W._W._W._W._W._V._V._V._V._V._V.Q\nP.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P\nP.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P\nP.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P"
   objects:
   - type: obj
@@ -296,6 +296,10 @@ MonoBehaviour:
       - act: wave
         targ: 
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="D1PhWXjXDOiUMJiV" autoclose="30"
   - type: player
     id: player

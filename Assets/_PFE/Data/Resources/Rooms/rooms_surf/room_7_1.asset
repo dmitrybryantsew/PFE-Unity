@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_7_1
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_7_1
   sourceCollectionId: rooms_surf
   type: pass
@@ -102,10 +102,10 @@ MonoBehaviour:
     tileCoord: {x: 35, y: 13}
   - id: musor2
     tileCoord: {x: 39, y: 19}
-  doorQuality: 020000000000000002000000020000000200000002000000000000000000000000000000000000000000000000000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: "_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.R;.R.R.R.R.R.R.R.R.R\n_._._._._._._._._._._._._._._._._._.C._._._._._._._._._._._._._._._._._.R;.R.R.R._._._.R.R.R.R.R\n_._._._._._._._._._._._._._._._._._.CN.CN.CN.FN.FN.FN.FN.CN.CN.CN.CN.CN.CN.CN.CN.CN.CN.CN.CN.CN.CN.CN.EN.EN.EN.CN.CN.CN.CN.CN\n_._._._._._._._._._._._._._._._._._.CN._N._N._N._N._N._N._N._N._N._N._N._N._N._N.CN._N._N._N._N._N._N._N._N._N._N._N._N._N.CN\n_._._._._._._._._._._._._._._._._._.CN._N._N._N._N._N._N._N._N._N._N._N._N._N._N.CN._N._N._N._N._N._N._N._N._N._N._N._N._N.CN\n_._._._._._._._._._._._._._._._._._._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N.CN._N._N._N._N._N._N._N._N._N._N._N._N._N.CN\n_._._._._._._._._._._._._._._._._._._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N\n_._._._._._._._._._._._._._._._._._.CN._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N\n_._._._._._._._._._._._._._._._._._.CN.CN.CN.CN.CN.CN.CN.CN.CN.CN.CN.CN.CN.CN.CN.CN.CN.CN.CN.CN.CN.CN.CN.CN.CN.CN.CN.CN.CN.CN\n_._._._._._._._._._._._._._._._._._.CN._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N.CN._N._N._N._N._N._N._N._N.CN\n_._._._._._._._._._._._._._._._._._.CN._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N.CN._N._N._N._N._N._N._N._N.CN\n_._._._._._._._._._._._._._._._._._.CN._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N.CN._N._N._N._N._N._N._N._N.CN\n_D._._._._D._._._._D._._._._D._D._D._D._D._D._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N\n_D._K._K._K._D._K._K._K._D._K._K._K._D._D._D._D._D._D._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N\n_D._K._K._K._D._K._K._K._D._K._K._K._D._D\u041B._D\u041A._D\u041A.CD.CD.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C\n_D._K._K._K._D._K._K._K._D._K._K._K._D\u041B._D._D._D.CD.CD.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C\nC.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H"
   objects:
-  - type: obj
+  - type: unit
     id: mine
     definitionId: mine
     definition: {fileID: 11400000, guid: 01175fdf5effab8449dc622f301ad809, type: 2}
@@ -116,7 +116,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="OtwSIJNXEpjE1x7Q"
-  - type: obj
+  - type: unit
     id: raider
     definitionId: raider
     definition: {fileID: 11400000, guid: 78df2015123b4124fa2fdc5977d63f5c, type: 2}
@@ -234,7 +234,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="qW6jRbCXUbQpTiJh"
-  - type: obj
+  - type: unit
     id: mine
     definitionId: mine
     definition: {fileID: 11400000, guid: 01175fdf5effab8449dc622f301ad809, type: 2}
@@ -245,7 +245,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="R4DU1shlTSuFp2aH"
-  - type: obj
+  - type: unit
     id: raider
     definitionId: raider
     definition: {fileID: 11400000, guid: 78df2015123b4124fa2fdc5977d63f5c, type: 2}
@@ -319,7 +319,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="SWyNXmbc3D0JDMDa"
-  - type: obj
+  - type: unit
     id: raider
     definitionId: raider
     definition: {fileID: 11400000, guid: 78df2015123b4124fa2fdc5977d63f5c, type: 2}

@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: buttons2
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: buttons2
   sourceCollectionId: rooms_prob
   type: pass
@@ -34,7 +34,7 @@ MonoBehaviour:
     tileCoord: {x: 17, y: 4}
   - id: stlight3
     tileCoord: {x: 29, y: 4}
-  doorQuality: 000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000000000
+  doorQuality: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
   tileDataString: "A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A._G._G._._._._._G._._._._._G._._._._._._._R._R._R._R._._._._._._._G._._._._._G._._._._._G._G.A.A.A.A\nA.A.A.A._G._G._._._._._G._._._._._G._._._._._._._R._R._R._R._._._._._._._G._._._._._G._._._._._G._G.A.A.A.A\nA.A.A.A._G._G._._._._._G._._._._._G._._._._._._._R._R._R._R._._._._._._._G._._._._._G._._._._._G._G.A.A.A.A\nA.A.A.A._G._G._._._._._G._._._._._G._._._._._._._R._R._R._R._._._._._._._G._._._._._G._._._._._G._G.A.A.A.A\nA.A.A.A._P._P._P._P._P._P._P._P._P._P._P._P._P._P\u0410.AP.AP.AP.A.A.A.A.A.A.AP.AP.AP._P\u0411._P._P._P._P._P._P._P._P._P._P._P._P._P.A.A.A.A\nA.A.A.A._G._G._._._._._G._._._._._G._._\u0410._._._._._R._R._R._R._._._._._\u0411._._G._._._._._G._._._._._G._G.A.A.A.A\nA.A.A.A._G._G._._._._._G._._._._._G._._\u0410._._._._._R._R._R._R._._._._._\u0411._._G._._._._._G._._._._._G._G.A.A.A.A\nA.A.A.A._G._G._._._._._G._._._._._G._._\u0410._._._._._R._R._R._R._._._._._\u0411._._G._._._._._G._._._._._G._G.A.A.A.A\nA.A.A.A._G._G._._._._._G._._._._._G._._._._._\u0410.AG.A.A.A.A.AG._\u0411._._._._._G._._._._._G._._._._._G._G.A.A.A.A\nA.A.A.A._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P\u0410._P._P._P._P._P._P._P\u0411._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P.A.A.A.A\nA._G._._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R\u0410._R._R._R._R._R._R._R\u0411._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._._G.A\nA._G._._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R\u0410._R._R._R._R._R._R._R\u0411._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._._G.A\nA._G._._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R\u0410._R._R._R._R._R._R._R\u0411._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._._G.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A"
   objects:
   - type: player
@@ -98,9 +98,17 @@ MonoBehaviour:
       - act: open
         targ: buttons2P1
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: open
         targ: buttons2P2
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="OFSpwVUEl6xIg4oB" autoclose="30"
   - type: box
     id: knop1

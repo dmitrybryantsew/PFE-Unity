@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_5_2
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_5_2
   sourceCollectionId: rooms_art
   type: pass
@@ -170,7 +170,7 @@ MonoBehaviour:
     tileCoord: {x: 16, y: 8}
   - id: rad
     tileCoord: {x: 19, y: 8}
-  doorQuality: 000000000000000000000000000000000000000000000000000000000200000002000000020000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000000000200000002000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: "H.H.H.H.H.H.H.H.H.A.A.A.A._S\u0411._S._S._S.A.A.A.A.A.A.A.A.A.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M\nH.H.H.H.H.H.H.H.H.A.A.A.A._S\u0411._S._S._S.A.A.A.A.A.A.A.A.A.M._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H\nH.H.H.H.H.H.H.H.H.A.A.A.A._S\u0411._S._S._S.A.A.A.A.A.A.A.A.A.M._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H\nH.H.H.H.H.H.H.H.H.A.A.A.A._T\u0411\u0415._T\u0415._T\u0415._T\u0415.A.A.A.A.A.A.A.A.A.M._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H\nH.H.H.H.H.H.H.H.H.A._F._F._U._U\u0411._U._U._U._U._U._U._U._U._U._U._U.A.M._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H.M:H.M;H.M,H.M.M.M\nM.M.M.M.M.M.M.M.M.A._F._F._U._U\u0411._U._U._U._U._U._U._U._U._F._F._U.A.M._T._T.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M\n_T._T._T._T._T._T._T._T.M.A._F._F._U._U\u0411._U._U._U._U._U._U._U._U._F._F._U.A.M._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T.M.H.H.H.H\n_T._T._T._T._T._T._T._T.M.A.AU.AU.AU._U\u0411._U._U._U._U._U._U._U._U._U._U._U.A.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M._T._T.M.H.H.H.H\nM.M.M.M.M.M._T._T.M.A._F._F._U._U\u0411._U._U._U._U._U._U._U._U._U._U._U._._H._H._S._S._H._H._H._S._S._H._H.M.H.H.M._T-._T\u0410-.M.H.H.H.H\nH.H.H.H.H.M._T._T.M.A._F._F._U._U\u0411._U._U._U._U._U._U._U._U._U._U._U._._H._H._S._S._H._H._H._S._S._H._H.M.H.H.M._T._T\u0410.M.H.H.H.H\nH.H.H.H.H.M._T._T.M.A._F._F._U._U\u0411._F._F._U._U._U._U._U._U._U._U._U._._H._H._S._S._H._H._H._S._S._H._H.M.H.H.M._T._T\u0410.M.H.H.H.H\nH.H.H.H.H.M._T._T.M.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.M.M._T-._T-.M.M.M._T-._T-.M.M.M.H.H.M._T._T\u0410.M.H.H.H.H\nH.H.H.H.H.M._T._T.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M._T._T.M.M.M._T._T.M.M.M.M.M.M._T._T\u0410.M.H.H.H.H\nH.H.H.H.H.M._H._H._H._H._H._H._H._H._H.M.M._H._H._H._H._H._H._H._H._H._T._T._T._T._T._T._T._T._T._T._T._T._T.M.M._T._T\u0410.M.H.H.H.H\nH.H.H.H.H.M._H._H._H._H._H._H._H._H._H.M.M._H._H._H._H._H._H._H._H._H._T._T._T._T._T._T._T._T._T._T._T._T._T.M.M._T._T\u0410.M.H.H.H.H\nH.H.H.H.H.M._H._H._H._H._H._H._H._H._H.M.M._H._H._H._H._H._H._H._H._H.M.M.M.M.M.M.M.M.M.M.M._T\u0411-._T-.M.M._T._T\u0410.M.H.H.H.H\nH.H.H.H.H.M._H-._H-._H-.M.M.M._H-._H-._H-.M.M._H-._H-._H-.M.M.M._H-._H-._H-.M.H.H.H.H.H.H.H.H.H.M._T\u0411._T.M.M._T._T\u0410.M.H.H.H.H\nH.H.H.H.H.M._H._H._H._S._S._S._H._H._H.M.M._H._H._H._S._S._S._H._H._H.M.H.H.H.H.H.H.H.H.H.M._T\u0411._T.M.M._T._T\u0410.M.H.H.H.H\nH.H.H.H.H.M._H._H._H._S._S._S._H._H._H.M.M._H._H._H._S._S._S._H._H._H.M.H.H.H.H.H.H.H.H.H.M._T\u0411._T._T._T._T._T\u0410.M.H.H.H.H\nH.H.H.H.H.M._H._H._H._S._S._S._H._H._H.M.M._H._H._H._S._S._S._H._H._H.M.H.H.H.H.H.H.H.H.H.M._T\u0411._T._T._T._T._T\u0410.M.H.H.H.H\nH.H.H.H.H.M._H-._H-._H-.M.M.M._H-._H-._H-.M.M._H-._H-._H-.M.M.M._H-._H-._H-.M.H.H.H.H.H.H.H.H.H.M.M.M.M.M.M.M.M.H.H.H.H\nH.H.H.H.H.M._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H.M.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.M._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H.M.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.M._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H.M.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H"
   objects:
   - type: box
@@ -263,7 +263,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="I2ATmkWYxIVH1ppD"
-  - type: obj
+  - type: unit
     id: zombie
     definitionId: zombie
     definition: {fileID: 11400000, guid: d56512d3ac0c0744eb90060a7d920ede, type: 2}
@@ -282,7 +282,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="UrsH0zSSZLZuPiGz" turn="-1" tr="3" multhp="3" dig="0"
-  - type: obj
+  - type: unit
     id: zombie
     definitionId: zombie
     definition: {fileID: 11400000, guid: d56512d3ac0c0744eb90060a7d920ede, type: 2}
@@ -301,7 +301,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="bLOh4RpAoipRPej5" turn="1" tr="5" multhp="3" dig="1"
-  - type: obj
+  - type: unit
     id: zombie
     definitionId: zombie
     definition: {fileID: 11400000, guid: d56512d3ac0c0744eb90060a7d920ede, type: 2}
@@ -320,7 +320,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="sLkJjtsHKdAcNWn3" turn="1" tr="2" multhp="3" dig="0"
-  - type: obj
+  - type: unit
     id: zombie
     definitionId: zombie
     definition: {fileID: 11400000, guid: d56512d3ac0c0744eb90060a7d920ede, type: 2}
@@ -339,7 +339,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="BPRJKaaoTSB1GJLE" turn="1" tr="4" multhp="3" dig="1"
-  - type: obj
+  - type: unit
     id: zombie
     definitionId: zombie
     definition: {fileID: 11400000, guid: d56512d3ac0c0744eb90060a7d920ede, type: 2}
@@ -369,7 +369,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="U4x4WEhbLZggxCbf"
-  - type: obj
+  - type: unit
     id: msp
     definitionId: msp
     definition: {fileID: 11400000, guid: 79e4bcfc810c419448c44c83d583171b, type: 2}
@@ -382,7 +382,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="dTUzZ7G2WMZaNMxW" multhp="2"
-  - type: obj
+  - type: unit
     id: msp
     definitionId: msp
     definition: {fileID: 11400000, guid: 79e4bcfc810c419448c44c83d583171b, type: 2}
@@ -395,7 +395,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="m36kRL8YbLaI3YfZ" multhp="2"
-  - type: obj
+  - type: unit
     id: armturret
     definitionId: armturret
     definition: {fileID: 11400000, guid: 485a5442239ff174dafac0f96a1b402d, type: 2}
@@ -412,7 +412,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="sguF11txa38PuuZU" turn="1" multhp="2" tr="6"
-  - type: obj
+  - type: unit
     id: armturret
     definitionId: armturret
     definition: {fileID: 11400000, guid: 485a5442239ff174dafac0f96a1b402d, type: 2}
@@ -429,7 +429,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="XxZDHvyRwsKQst6U" turn="1" multhp="2" tr="6"
-  - type: obj
+  - type: unit
     id: cturret
     definitionId: cturret
     definition: {fileID: 11400000, guid: c57d7448f31cf144c8f299782156c1e2, type: 2}
@@ -444,7 +444,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="Z6znLkUqERC7Qqju" multhp="2" tr="4"
-  - type: obj
+  - type: unit
     id: slime
     definitionId: slime
     definition: {fileID: 11400000, guid: e76b1173a8bf9ca48bd556a2a454931e, type: 2}
@@ -457,7 +457,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="SD5KXzaCtvGJnija" multhp="3"
-  - type: obj
+  - type: unit
     id: slime
     definitionId: slime
     definition: {fileID: 11400000, guid: e76b1173a8bf9ca48bd556a2a454931e, type: 2}
@@ -470,7 +470,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="yrxaqICfWfM5hYnQ" multhp="3"
-  - type: obj
+  - type: unit
     id: slime
     definitionId: slime
     definition: {fileID: 11400000, guid: e76b1173a8bf9ca48bd556a2a454931e, type: 2}
@@ -483,7 +483,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="werg8cXz0lUNQO5J" multhp="3"
-  - type: obj
+  - type: unit
     id: slime
     definitionId: slime
     definition: {fileID: 11400000, guid: e76b1173a8bf9ca48bd556a2a454931e, type: 2}
@@ -496,7 +496,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="HsrHhKXISPwmGpF1" multhp="3"
-  - type: obj
+  - type: unit
     id: slime
     definitionId: slime
     definition: {fileID: 11400000, guid: e76b1173a8bf9ca48bd556a2a454931e, type: 2}
@@ -581,7 +581,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="W2ogMSB6gtFJfrBS" lock="0"
-  - type: obj
+  - type: unit
     id: trridge
     definitionId: trridge
     definition: {fileID: 11400000, guid: b18ed878977c33b4fabbbdecc8c96402, type: 2}
@@ -594,7 +594,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="DiL4ADcVCxezCfYV" allid="1"
-  - type: obj
+  - type: unit
     id: trridge
     definitionId: trridge
     definition: {fileID: 11400000, guid: b18ed878977c33b4fabbbdecc8c96402, type: 2}
@@ -607,7 +607,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="eWzAqLDvrc50w7cJ" allid="2"
-  - type: obj
+  - type: unit
     id: damgren
     definitionId: damgren
     definition: {fileID: 11400000, guid: f2d791930cc86db40ae978e4d9ae87e2, type: 2}
@@ -620,7 +620,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="TLAsLJMfEz8bnuJf" allid="1"
-  - type: obj
+  - type: unit
     id: damgren
     definitionId: damgren
     definition: {fileID: 11400000, guid: f2d791930cc86db40ae978e4d9ae87e2, type: 2}
@@ -663,7 +663,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="G6uRfV5289NRRzcb" turn="-1" tr="2" multhp="3" dig="1"
-  - type: obj
+  - type: unit
     id: zombie
     definitionId: zombie
     definition: {fileID: 11400000, guid: d56512d3ac0c0744eb90060a7d920ede, type: 2}
@@ -682,7 +682,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="e5XjzjhJs8OXwWOg" turn="1" tr="2" multhp="3" dig="1"
-  - type: obj
+  - type: unit
     id: zombie
     definitionId: zombie
     definition: {fileID: 11400000, guid: d56512d3ac0c0744eb90060a7d920ede, type: 2}
@@ -701,7 +701,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="pt8NO7A25dU7LqIS" turn="1" tr="6" multhp="3" dig="1"
-  - type: obj
+  - type: unit
     id: zombie
     definitionId: zombie
     definition: {fileID: 11400000, guid: d56512d3ac0c0744eb90060a7d920ede, type: 2}
@@ -712,7 +712,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="sd37iXy8YDdeC5z7"
-  - type: obj
+  - type: unit
     id: zombie
     definitionId: zombie
     definition: {fileID: 11400000, guid: d56512d3ac0c0744eb90060a7d920ede, type: 2}

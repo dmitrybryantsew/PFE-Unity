@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_2_1_1
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_2_1_1
   sourceCollectionId: rooms_nio
   type: pass
@@ -62,10 +62,10 @@ MonoBehaviour:
     tileCoord: {x: 21, y: 13}
   - id: konstr
     tileCoord: {x: 18, y: 13}
-  doorQuality: 020000000200000002000000020000000000000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: "A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA._._._._._._._._._._._._._._._._._._._._._._._.A._._._._._._._._._._._._._._._._._._._._._._.A\nA._._._._._._._._._._._._._._._._._._._._._._._.A._._._._._._._._._._._._._._._._._._._._._._.A\nA._._._._._._._._._._._._._._._._._._._._._._._.A._._._._._._._._._._._._._._._._._._._._._._.A\nA._._._\u0410.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A._\u0411._._.A\nA._._._\u0410.A._._._._._._._._._._._._._.A._._._._._._._._._._._.A._._._.A._K._K._K._K._K._K._K._K.A._\u0411._._.A\nA._._._\u0410.A._._._._._._._._._._._._._.A._._._._._._._._._._._.A._._._.A._K._K._K._K._K._K._K._K.A._\u0411._._.A\nA._._._\u0410.A._._._._._._._._._._._._._.A._._._._._._._._._._._.A._._._.A._K._K._K._K._K._K._K._K.A._\u0411._._.A\nA._._._\u0410.A.A.A.A.A.A.A.A.A.A.A._\u0411._._.A._-._-._-._\u0411-._._._._._\u0410-._-._-.A._-._-._\u0410-.A._K._K._K._K._K._K._K._K.A._\u0411._._.A\nA._._._\u0410.A.A._._._._._._._._.A._\u0411._._.A._._._._\u0411._._._._._\u0410._._.A._._._\u0410.A._K._K._K._K._K._K._K._K.A._\u0411._._.A\nA._._._\u0410.A.A._._._._._._._._.A._\u0411._._.A._._._._\u0411._._._._._\u0410._._.A._._._\u0410.A._K._K._K._K._K._K._K._K.A._\u0411._._.A\nA._._._\u0410.A.A._._._._._._._._.A._\u0411._._.A._._._._\u0411._._._._._\u0410._._.A._._._\u0410.A._K._K._K._K._K._K._K._K.A._\u0411._._.A\nA.A.A.A.A.A._._._._._._._._.A._\u0411._._.A.A.A.A.A.A.A.A.A.A.A.A.A._._._\u0410.A.A.A.A.A.A.A.A.A.A._\u0411._._.A\nA._._._._._._._._._._._._._.A._\u0411._._._._._._._F._F._F._F._F._F._F._F.A._._._\u0410.A._._._._._._._._.A._\u0411._._.A\nA._._._._._._._._._._._._._.A._\u0411._._._._._._._F._F._F._F._F._F._F._F.A._._._\u0410.A._._._._._._._._.A._\u0411._._.A\nA._._._._._._._._._._._._._.A._\u0411._._._._._._._F._F._F._F._F._F._F._F.A._._._\u0410.A._._._._._._._._.A._\u0411._._.A\nA._-._-._-.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A._F._F._F._F._F._F._F._F.A._._._\u0410.A._._._._._._._._.A.A.A.A.A\nA._._._._._._._._._._._._._._._._._._._._.A._F._F._F._F._F._F._F._F.A._._._\u0410.A._._._._._._._._._._._._.A\nA._._._._._._._._._._._._._._._._._._._._.A._F._F._F._F._F._F._F._F.A._._._\u0410.A._._._._._._._._._._._._.A\nA._._._._._._._._._._._._._._._._._._._._.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A._._._.A\nA.A.A.A.A.A.A.A.A.A.A._-._-._-._-._._._._._._.A._._._._._._._._._._._._._._._._._._._._._.A._-._-._-.A\nA._._._._._._._._._.A._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A._._._.A\nA._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A._._._.A\nA._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A._._._.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A"
   objects:
-  - type: obj
+  - type: unit
     id: mine
     definitionId: mine
     definition: {fileID: 11400000, guid: 01175fdf5effab8449dc622f301ad809, type: 2}
@@ -377,7 +377,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="Tzgg2ojRhTJZ0bce"
-  - type: obj
+  - type: unit
     id: turret
     definitionId: turret
     definition: {fileID: 11400000, guid: f2ca5afcb9555924892e03a0eceb5802, type: 2}
@@ -388,7 +388,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="B3rP7shsG6t7W2rX"
-  - type: obj
+  - type: unit
     id: msp
     definitionId: msp
     definition: {fileID: 11400000, guid: 79e4bcfc810c419448c44c83d583171b, type: 2}
@@ -399,7 +399,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="WXNPNba6V0U7ZXaZ"
-  - type: obj
+  - type: unit
     id: landturret
     definitionId: landturret
     definition: {fileID: 11400000, guid: 61d8cb23a8596bb44a6486e9336cf03e, type: 2}
@@ -410,7 +410,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="T8TaQevrKh4lqAwf"
-  - type: obj
+  - type: unit
     id: mine
     definitionId: mine
     definition: {fileID: 11400000, guid: 01175fdf5effab8449dc622f301ad809, type: 2}
@@ -421,7 +421,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="Vm7LW8eWOhhsK6I4"
-  - type: obj
+  - type: unit
     id: spritebot
     definitionId: spritebot
     definition: {fileID: 11400000, guid: b6e6a1a7eb67f344fb680b28f689733c, type: 2}
@@ -432,7 +432,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="UVDiU9wAO2TDRQbq"
-  - type: obj
+  - type: unit
     id: spritebot
     definitionId: spritebot
     definition: {fileID: 11400000, guid: b6e6a1a7eb67f344fb680b28f689733c, type: 2}
@@ -443,7 +443,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="zZl9tpCE0lnv4whW"
-  - type: obj
+  - type: unit
     id: spritebot
     definitionId: spritebot
     definition: {fileID: 11400000, guid: b6e6a1a7eb67f344fb680b28f689733c, type: 2}
@@ -454,7 +454,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="Jary4Qdu2rknyL4g"
-  - type: obj
+  - type: unit
     id: spritebot
     definitionId: spritebot
     definition: {fileID: 11400000, guid: b6e6a1a7eb67f344fb680b28f689733c, type: 2}
@@ -465,7 +465,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="b0iQQqCHmd7cegMw"
-  - type: obj
+  - type: unit
     id: roller
     definitionId: roller
     definition: {fileID: 11400000, guid: bc6e49884f4b9b343af9403b670cc47d, type: 2}

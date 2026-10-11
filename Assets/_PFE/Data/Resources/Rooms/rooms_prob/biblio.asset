@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: biblio
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: biblio
   sourceCollectionId: rooms_prob
   type: pass
@@ -236,7 +236,7 @@ MonoBehaviour:
     tileCoord: {x: 13, y: 2}
   - id: zhaluzi
     tileCoord: {x: 13, y: 2}
-  doorQuality: 020000000000000002000000020000000200000000000000020000000200000002000000020000000200000002000000020000000000000002000000020000000200000000000000020000000200000002000000020000000200000002000000
+  doorQuality: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
   tileDataString: "B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B\nB._._._._._._._._._._._._._._._._._._._._._._._.B._._._._._._._._._._._._._._._._._._._._._._.B\nB._._._._._._._._._._._._._._._._._._._._._._._.B._._._._._._._._._._._._._._._._._._._._._._.B\nB._._._._._._._._._._._._._._._._._._._._._._._.B._._._._._._._._._._._._._._._._._._._._._._.B\nB._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.B\nB._._._._._._._._._._._._._._._._._._._._._._._._._._F._F._F._F._F._F._F._F._F._F._F._F._._._._._._._._._.B\nB._._._._._._._._._._._._._._._._._._._._._._._._._._F._F._F._F._F._F._F._F._F._F._F._F._._._._._._._._._.B\nB.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B._N\u0414._N\u0410\u0414.B.B.B\nB._._._._._._._._._._._._._._._._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._._._._._._._._._._._._._\u0410._._.B\nB._._._._._._._._._._._._._._._._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._._._._._._._._._._._._._\u0410._._.B\nB._._._._._._._._._._._._._._._._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._._._._._._._._._._._._._\u0410._._.B\nB._._._._._._._._._._._._._._._._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._._._._._._._._._._._._._\u0410._._.B\nB._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0411._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._\u0410._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414.B\nB._._._._._._._._._._._._._._._\u0411._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._\u0410._._._._._._._._._._._._._._.B\nB._._._._._._._._._._._._._._._\u0411._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._\u0410._._._._._._._._._._._._._._.B\nB._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0411._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._\u0410._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414.B\nB._._._._._._._._._._._._._._._\u0411._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._\u0410._._._._._._._._._._._._._._.B\nB._._._._._._._._._._._._._._._\u0411._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._\u0410._._._._._._._._._._._._._._.B\nB._._._._._._._._._._._._._._._\u0411._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._\u0410._._._._._._._._._._._._._._.B\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.AD._D\u0414._D\u0414._D\u0417._D._D\u0414._D\u0414._D\u0414._D\u0414._D\u0414._D\u0414._D._D\u0416._D\u0414._D\u0414.BD.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B\nA._F._F._F._F._F._F._F._F._F._F._F._F._F.AF._F.AD._D._D._D._D\u0417._D._D._D._D._D._D._D\u0416._D._D._D._D._D.B._._._._._._._._._._._._._.B\nA._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._D._D._D._D._D._D\u0417._D._D._D._D._D\u0416._D._D._D._D._D._D.B._._._._._._._._._._._._._.B\nA._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._D._D._D._D._D._D\u0416._D\u0414._D\u0414._D\u0414._D\u0414._D\u0417._D._D._D._D._D._D._._._._._._._._._._._._._._.B\nA._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._D._D._D._D._D\u0416._D._D._D._D._D._D._D\u0417._D._D._D._D._D._._._._._._._._._._._._._._.B\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B"
   objects:
   - type: box
@@ -456,7 +456,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="HknGRzVeWikAdX5E"
-  - type: obj
+  - type: unit
     id: bloodwing
     definitionId: bloodwing
     definition: {fileID: 11400000, guid: 8cb413623584f5e44aac1dffdaa1d68b, type: 2}
@@ -467,7 +467,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="mI2oYUpNuH5oRfmx"
-  - type: obj
+  - type: unit
     id: bloodwing
     definitionId: bloodwing
     definition: {fileID: 11400000, guid: 8cb413623584f5e44aac1dffdaa1d68b, type: 2}
@@ -478,7 +478,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="BtIFMOVocpk9vlZO"
-  - type: obj
+  - type: unit
     id: bloodwing
     definitionId: bloodwing
     definition: {fileID: 11400000, guid: 8cb413623584f5e44aac1dffdaa1d68b, type: 2}
@@ -489,7 +489,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="xD7u2AxEFYACNV2z"
-  - type: obj
+  - type: unit
     id: bloodwing
     definitionId: bloodwing
     definition: {fileID: 11400000, guid: 8cb413623584f5e44aac1dffdaa1d68b, type: 2}
@@ -500,7 +500,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="VQXl4fZQGU0aFucV"
-  - type: obj
+  - type: unit
     id: bloodwing
     definitionId: bloodwing
     definition: {fileID: 11400000, guid: 8cb413623584f5e44aac1dffdaa1d68b, type: 2}
@@ -511,7 +511,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="xUMSMIzSgbElln8J"
-  - type: obj
+  - type: unit
     id: bloodwing
     definitionId: bloodwing
     definition: {fileID: 11400000, guid: 8cb413623584f5e44aac1dffdaa1d68b, type: 2}
@@ -615,7 +615,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="W1upXls2dh45BTbY" locktip="0" indestruct="1"
-  - type: obj
+  - type: unit
     id: zombie
     definitionId: zombie
     definition: {fileID: 11400000, guid: d56512d3ac0c0744eb90060a7d920ede, type: 2}

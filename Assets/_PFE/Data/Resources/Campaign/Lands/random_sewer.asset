@@ -17,6 +17,8 @@ MonoBehaviour:
   landId: random_sewer
   landName: Sewer
   tip: rnd
+  isProbLand: 0
+  isTestLand: 0
   isProcedural: 1
   stage: 4
   baseDifficulty: 10
@@ -69,3 +71,70 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 8fef3ac07a4bf4d4cbc1e98d2bfa0c5c, type: 2}
   - {fileID: 11400000, guid: 0a75a56c6da3f5c44939a21f84e0e170, type: 2}
   - {fileID: 11400000, guid: b3c86df0b595286458b8b288ed29f800, type: 2}
+  probRooms:
+  - id: slimes
+    hasLevel: 0
+    level: 0
+    imp: 0
+    tip: 1
+    prize: 1
+    close: 0
+    contents:
+    - tip: box
+      uid: slimesF1
+      qid: 
+  - id: tower1
+    hasLevel: 0
+    level: 0
+    imp: 0
+    tip: 1
+    prize: 1
+    close: 0
+    contents:
+    - tip: box
+      uid: tower1F1
+      qid: 
+  - id: zombies
+    hasLevel: 0
+    level: 0
+    imp: 0
+    tip: 2
+    prize: 0
+    close: 0
+    contents:
+    - tip: unit
+      uid: zombiesF1
+      qid: 
+  - id: pit
+    hasLevel: 0
+    level: 0
+    imp: 0
+    tip: 2
+    prize: 0
+    close: 0
+    contents:
+    - tip: unit
+      uid: 
+      qid: pitF1
+  - id: camp
+    hasLevel: 0
+    level: 0
+    imp: 1
+    tip: 1
+    prize: 1
+    close: 0
+    contents:
+    - tip: box
+      uid: campF1
+      qid: 
+  - id: w_zombie
+    hasLevel: 1
+    level: 1
+    imp: 0
+    tip: 2
+    prize: 0
+    close: 0
+    contents:
+    - tip: wave
+      uid: 
+      qid: 

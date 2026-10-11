@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_1_0
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_1_0
   sourceCollectionId: rooms_workshop
   type: pass
@@ -118,10 +118,10 @@ MonoBehaviour:
     tileCoord: {x: 42, y: 2}
   - id: light1
     tileCoord: {x: 45, y: 2}
-  doorQuality: 000000000200000002000000020000000200000002000000000000000000000000000000000000000000000000000000000000000200000002000000020000000000000002000000020000000200000002000000020000000200000002000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: "B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B\nB._._._._._._._._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._._._._._._._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F.A\nB._._._._._._._._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._._._._._._._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F.A\nB._._._._._._._._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._G._._._._._._._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F.A\nB.B.B.B.B._._\u0410.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.F.F.F.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nB._._._._._._\u0410._._._._._._._._._._._._._._._._._._._._._._._._._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F\nB._._._._._._\u0410._._._._._._._._._._._._._._._._._._._._._._._._._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F\nB._._._._._._\u0410._._._._._._._._._._._._._._._._._.A.A.A.A._._._._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F\nB._-._-._-.A._._\u0410.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A._G._G.A._._._.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nB._._._.B._._\u0410.A._._._._._I._I._I._I._I._I._I._I._I._I._I._I._I._G._G.A._._._.B.B.B.B.B.B.B.B.B.B.B.B.B.B._Q._Q.A\nB._._._.B._._\u0410.A._._._._.A.A.A.A.A.A.A.A.A.A.A.A.A._G-._G-.A._._._._F._F._F._F._F._F._F._F._F._F._F._F._F._F._Q._Q.A\nB._._._.B._._\u0410.A._._._._.A._._._._._._._._G._G.KI._I._I._G._G.A._._._._F._F._F._F._F._F._F._F._F._F._F._F._F._F._Q._Q.A\nB.B.B.B.B._._\u0410.A._._.A.A.A._._._._._._._._G._G.A.A.A.A.A.A._._._._F._F._F._F._F._F._F._F._F._F._F.BF.BF.BF.B.B.A\n_._._._._._._\u0410._._._._._._G._._._._._._._.A.A.A._._._._._._._._.A.A.A.A.A.A.A.A.A.AF.AF.AF._F._F._F._F.A\n_._._._._._._._._._._._._G._._._._._._._.A._._._._._._._._._._._I._I._I._I._I._I._I._I._I._F._F._F._F._F._F._F.A\n_._._._._._._._._._._._._G._._._._._._._.A.A.A._-._-._-._-.B.B.B.B.B.B.B.B.B.B.B.B.B._._._._._._._.A\nB.B.B.B.B.B.B.B.B.A.A.A.A._._._._._._._.A._._._._._._._G._._._._._._._._._._._._G._._._._._._._.A\nA._._._._._._._._._._._.A._._._._._._._.A._._._._._._._G._._._._._._._._._._._._G._._._._._._._.A\nA._._._._._._._._._._._.A._._._._._._._.A._._._._._._._G._._._._._._._._._._._._G._._._._._._._.A\nA._._._._._._._._._-._-._-.A.A.A.A.F.F.F.F.A._O._O._._._._._G._._O._O._O._O._._._._._O._O._G._._._._._._._.A\nA._._O._O._O._O._O._O._O._O._._._G._._._G._._._._._G._O._O._._._._._G._._O._O._O._O._._._._._O._O._G._._._._._._._.A\nA._._O._O._O._O._O._O._O._O._._._G._._._G._._._._._G._O._O._._._._._G._._O._O._O._O._._._._._O._O._G._._._._._._._.A\nA._._O._O._O._O._O._O._O._O._._._G._._._G._._._._._G._O._O._._._._._G._._O._O._O._O._._._._._O._O._G._._._._._._._.A\nA.F.FO.FO.FO.FO.FO.FO.FO.FO.F.F.FG.F.F.FG.F.F.F.F.FG.FO.FO.F.F.F.F.FG.F.FO.FO.FO.FO.F.F.F.F.FO.FO.FG._._._._._._._.A\nA.A.A.A.B.B.B.B.A.A.A.A.AG.B.B.BG.B.A.A.A.A.A.B.B.B.B.A.A.A.A.A.B.B.B.B.A.A.A.A.A.A.A.A.A.A.A.A.A"
   objects:
-  - type: obj
+  - type: unit
     id: roller
     definitionId: roller
     definition: {fileID: 11400000, guid: bc6e49884f4b9b343af9403b670cc47d, type: 2}
@@ -202,6 +202,10 @@ MonoBehaviour:
       - act: pop
         targ: plat1
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="z29qaNVHiNNE0dNS"
   - type: box
     id: elpanel
@@ -246,6 +250,10 @@ MonoBehaviour:
       - act: stop
         targ: plat1
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="mNYQuGu5wMUKccoD"
   - type: box
     id: woodbox
@@ -273,6 +281,10 @@ MonoBehaviour:
       - act: open
         targ: hatch1
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="JR0CpAfY04zPpnGv"
   - type: door
     id: hatch2
@@ -302,7 +314,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="NztsjmVRdF350nIj" lock="0"
-  - type: obj
+  - type: unit
     id: armturret
     definitionId: armturret
     definition: {fileID: 11400000, guid: 485a5442239ff174dafac0f96a1b402d, type: 2}
@@ -348,7 +360,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="yvVCg6TByPqd40IL"
-  - type: obj
+  - type: unit
     id: armturret
     definitionId: armturret
     definition: {fileID: 11400000, guid: 485a5442239ff174dafac0f96a1b402d, type: 2}
@@ -411,6 +423,10 @@ MonoBehaviour:
       - act: move
         targ: plat2
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="BitdzuJ6zBR6w6gv" h="3"
   - type: box
     id: couch
@@ -457,7 +473,7 @@ MonoBehaviour:
         value: 1
     scripts: []
     parameters: code="pMjGvij18RwtJWXk"
-  - type: obj
+  - type: unit
     id: armturret
     definitionId: armturret
     definition: {fileID: 11400000, guid: 485a5442239ff174dafac0f96a1b402d, type: 2}
@@ -536,7 +552,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="sEnoQMQ3JizAJYuX"
-  - type: obj
+  - type: unit
     id: roller
     definitionId: roller
     definition: {fileID: 11400000, guid: bc6e49884f4b9b343af9403b670cc47d, type: 2}
@@ -597,7 +613,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="zzhgvbfGN3p5qhcA"
-  - type: obj
+  - type: unit
     id: roller
     definitionId: roller
     definition: {fileID: 11400000, guid: bc6e49884f4b9b343af9403b670cc47d, type: 2}
@@ -619,7 +635,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="AHUjTym4MzKiGna1"
-  - type: obj
+  - type: unit
     id: roller
     definitionId: roller
     definition: {fileID: 11400000, guid: bc6e49884f4b9b343af9403b670cc47d, type: 2}
@@ -630,7 +646,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="uUBufpUx3YAzEDtp"
-  - type: obj
+  - type: unit
     id: roller
     definitionId: roller
     definition: {fileID: 11400000, guid: bc6e49884f4b9b343af9403b670cc47d, type: 2}
@@ -641,7 +657,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="pvpBbDvuY8tglSrU"
-  - type: obj
+  - type: unit
     id: roller
     definitionId: roller
     definition: {fileID: 11400000, guid: bc6e49884f4b9b343af9403b670cc47d, type: 2}

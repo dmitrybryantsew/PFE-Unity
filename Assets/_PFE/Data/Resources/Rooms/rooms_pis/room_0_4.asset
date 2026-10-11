@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_0_4
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_0_4
   sourceCollectionId: rooms_pis
   type: pass
@@ -68,7 +68,7 @@ MonoBehaviour:
     tileCoord: {x: 13, y: 16}
   - id: zavod1
     tileCoord: {x: 12, y: 17}
-  doorQuality: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: 'G.G.G.G.G.G.G.CT._T._T._T._T._T.CT.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G
 
     G.G.G.G.G.G.G.CT._T._T._T._T._T.CT.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G
@@ -141,7 +141,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="bo2d0hgKC822rtgs"
-  - type: obj
+  - type: unit
     id: dron
     definitionId: dron
     definition: {fileID: 11400000, guid: 3bae6e09bbe3c214b9e0967e21752f24, type: 2}
@@ -154,7 +154,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="C2jqIjCL5QMYYa0I" tr="3"
-  - type: obj
+  - type: unit
     id: dron
     definitionId: dron
     definition: {fileID: 11400000, guid: 3bae6e09bbe3c214b9e0967e21752f24, type: 2}
@@ -178,7 +178,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="pwftMBwNfs2QBabm"
-  - type: obj
+  - type: unit
     id: encl
     definitionId: encl
     definition: {fileID: 11400000, guid: bd63e94e2cdd9b64baa1344275d633d8, type: 2}
@@ -195,7 +195,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="YqHcxLv5NC148wZ3" turn="-1" ai="stay" tr="3"
-  - type: obj
+  - type: unit
     id: encl
     definitionId: encl
     definition: {fileID: 11400000, guid: bd63e94e2cdd9b64baa1344275d633d8, type: 2}
@@ -212,7 +212,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="qBS9aFeN8TbUPQj9" turn="1" ai="stay" tr="3"
-  - type: obj
+  - type: unit
     id: encl
     definitionId: encl
     definition: {fileID: 11400000, guid: bd63e94e2cdd9b64baa1344275d633d8, type: 2}

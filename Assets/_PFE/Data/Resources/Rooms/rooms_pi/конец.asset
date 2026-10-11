@@ -11,14 +11,14 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: "\u043A\u043E\u043D\u0435\u0446"
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: "\u043A\u043E\u043D\u0435\u0446"
   sourceCollectionId: rooms_pi
   type: pass
   fixedPosition: {x: 0, y: 0, z: 0}
   difficultyLevel: 0
   maxInstances: 2
-  allowRandom: 1
+  allowRandom: 0
   specificMapOnly: 0
   backgroundRoomId: "\u043A\u043E\u043D\u0435\u04462"
   backgroundDecorations:
@@ -122,7 +122,7 @@ MonoBehaviour:
     tileCoord: {x: 6, y: 13}
   - id: schem
     tileCoord: {x: 18, y: 11}
-  doorQuality: 020000000200000002000000020000000000000002000000020000000000000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000002000000020000000200000002000000
+  doorQuality: 000000000000000000000000000000000000000000000000040000000000000000000000000000000000000003000000030000000300000003000000030000000300000000000000000000000000000000000000000000000000000000000000
   tileDataString: "MF.MF.MF.MF.MF.MF.MF.MF.MF.AF.AF.AF.AF.AF.AF.AF.AF.AF.AF.AF.AF.AF.AF.AF.AF.AF.AF.AF.AF.AF.AF.AF.AF.AF.AF.AF.AF.AF.AF.AF.AF.AF.AF.AF.AF.AF.AF.AF\n_F._F._F._F._F._F._F._F._F.A.A.A.A.A.A._N._N._N._N._N._N._N._F._F._F._N._N._N._N._N._._._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N.AF\n_F._F._F._F._F._F._F._F._F.A.A.A.A.A.A._N._N._N._N._N._N._N._F._F._F._N._N._N._N._N._._._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N.AF\n_F._F._F._F._F._F._F._F._F.A.A.A.A.A.A._N._N._N._N._N._N._N._F._F._F._N._N._N._N._N._._._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N.AF\nMF._F\u0415._F\u0415._F\u0415._F\u0415._F\u0415._F\u0415._F\u0415._F\u0415.A.A.A.A.A.A._N._N._N._N._N._N._N._F._F._F._N._N._N._N._N._._._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N.AF\n_F._F._F._F._F._F._F._F._F.A.A.A.A.A.A._N._N._N._N._N._N._N._F._F._F._N._N._N._N._N._._._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N.AF\n_F._F._F._F._F._F._F._F._F.A.A.A.A.A.A._._._._._._._._F._F._F._._._._._._._._._._._._._._._._._._._._._._.AF\n_F._F._F._F._F._F._F._F._F.A.A.A.A.A.A._._._._._._._._F._F._F._._._._._._._._._._._._._._._._._._._._._._.AF\nMF._F\u0415._F\u0415._F\u0415._F\u0415._F\u0415._F\u0415._F\u0415._F\u0415.A.A.A.A.A.A._._._._._._._._F._F._F._._._._._._._._._._._._._._._._._._._._._._.A\n_F._F._F._F._F._F._F._F._F.A.A.A.A.A.A._._._._._._._._F._F._F._._._._._._._._._._._._._._._._._._._._._._.A\n_F._F._F._F._F._F._F._F._F.A.A.A.A.A.A._._._._._._._._F._F._F._._O._O._O._._._._._._._._O._O._._F._F._F._F._F._._O._O.A\n_F._F._F._F._F._F._F._F._F.A.A.A.A.A.A._._._._._._._._F._F._F._._O._O._O._._._._._._._._O._O._._F._F._F._F._F._._O._O.A\nMF._F\u0415._F\u0415._F\u0415._F\u0415._F\u0415._F\u0415._F\u0415._F\u0415.A.A.A.A.A.A._._._._._._._._F._F._F._._O._O._O._._._._._._._._O._O._._F._F._F._F._F._._O._O.A\n_F._F._F._F._F._F._F._F._F._G._G._G._G._G._G._._._._._._._._F._F._F._._O._O._O._._._._._._._._O._O._._F._F._F._F._F._._O._O.A\n_F._F._F._F._F._F._F._F._F._G._G._G._G._G._G._._._._._._._._F._F._F._._O._O._O._._._._._._._._O._O._._F._F._F._F._F._._O._O.A\n_F._F._F._F._F._F._F._F._F._G._G._G._G._G._G._._._._._._._._F._F._F._._O._O._O._._._._._._._._O._O._._F._F._F._F._F._._O._O.A\nMF._F\u0415._F\u0415._F\u0415._F\u0415._F\u0415.AF.AF.AF.A.A.A.A.A.A.A.A._Q\u0411\u0415._Q\u0415._Q\u0415._Q\u0415._Q\u0415.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.AB\n_F._F._F._F._F._F._F._F._F.A.A.A.A.A.A._Q._Q._Q\u0411._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q.AB\n_F._F._F._F._F._F._F._F._F.A.A.A.A.A.A._Q._Q._Q\u0411._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q.AB\n_F._F._F._F._F._F._F._F._F.A.A.A.A.A.A._Q._Q._Q\u0411._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._Q.AB\nMF._F\u0415._F\u0415._F\u0415._F\u0415._F\u0415._F\u0415._F\u0415._F\u0415.A.A.A.A.A.A._Q._Q._Q\u0411._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._Q.AB\n_F._F._F._F._F._F._F._F._F.A.A.A.A.A.A._Q._Q._Q\u0411._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._Q.AB\n_F._F._F._F._F._F._F._F._F.A.A.A.A.A.A._Q._Q._Q\u0411._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._Q.AB\n_F._F._F._F._F._F._F._F._F.A.A.A.A.A.A._Q._Q._Q\u0411._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._O._Q.AB\nMB.MB.MB.MB._\u0415._\u0415._\u0415._\u0415.MB.AB.AB.AB.AB.AB.AB.AB.AB.AB.AB.AB.AB.AB.AB.AB.AB.AB.AB.AB.AB.AB.AB.AB.AB.AB.AB.AB.AB.AB.AB.AB.AB.AB.AB.AB.AB.AB.AB.AB"
   objects:
   - type: area
@@ -140,6 +140,10 @@ MonoBehaviour:
       - act: close
         targ: piF2
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="hjoZyqyeJ2dsbFeU"
   - type: box
     id: instdoor
@@ -169,7 +173,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="vYkkCNIP9OfY1OzZ" h="15" w="2" scr="stablePi3"
-  - type: obj
+  - type: unit
     id: turret
     definitionId: turret
     definition: {fileID: 11400000, guid: f2ca5afcb9555924892e03a0eceb5802, type: 2}
@@ -180,7 +184,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="sfmsAL8MZl2bkjOr"
-  - type: obj
+  - type: unit
     id: turret
     definitionId: turret
     definition: {fileID: 11400000, guid: f2ca5afcb9555924892e03a0eceb5802, type: 2}
@@ -191,7 +195,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="kLEbmW3MMRvNBeJz"
-  - type: obj
+  - type: unit
     id: npc
     definitionId: npc
     definition: {fileID: 11400000, guid: 2b067238a37bc224c99b891f75cdd086, type: 2}
@@ -217,7 +221,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="bLMfc5ZOlUG6MCH6"
-  - type: obj
+  - type: unit
     id: npc
     definitionId: npc
     definition: {fileID: 11400000, guid: 2b067238a37bc224c99b891f75cdd086, type: 2}
@@ -258,7 +262,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="Kx43Q882mAQKMwVn" scr="stablePi2"
-  - type: obj
+  - type: unit
     id: stabpon
     definitionId: stabpon
     definition: {fileID: 11400000, guid: c6e3203e78d5bd34195afb810f014258, type: 2}
@@ -273,7 +277,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="JAx8yzUYsz2gbMaK" tr="1"
-  - type: obj
+  - type: unit
     id: stabpon
     definitionId: stabpon
     definition: {fileID: 11400000, guid: c6e3203e78d5bd34195afb810f014258, type: 2}
@@ -288,7 +292,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="V6yHbFl7o3Q4gRy9" tr="32"
-  - type: obj
+  - type: unit
     id: stabpon
     definitionId: stabpon
     definition: {fileID: 11400000, guid: c6e3203e78d5bd34195afb810f014258, type: 2}
@@ -303,7 +307,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="dEDmOYMKEbaD5ti7" tr="4"
-  - type: obj
+  - type: unit
     id: stabpon
     definitionId: stabpon
     definition: {fileID: 11400000, guid: c6e3203e78d5bd34195afb810f014258, type: 2}
@@ -318,7 +322,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="C9e2fCr8EB3pNMgP" tr="22"
-  - type: obj
+  - type: unit
     id: stabpon
     definitionId: stabpon
     definition: {fileID: 11400000, guid: c6e3203e78d5bd34195afb810f014258, type: 2}
@@ -333,7 +337,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="clLoS4J4drQj5sGx" tr="6"
-  - type: obj
+  - type: unit
     id: stabpon
     definitionId: stabpon
     definition: {fileID: 11400000, guid: c6e3203e78d5bd34195afb810f014258, type: 2}
@@ -348,7 +352,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="tOC6NecjWPZRuYtA" tr="25"
-  - type: obj
+  - type: unit
     id: stabpon
     definitionId: stabpon
     definition: {fileID: 11400000, guid: c6e3203e78d5bd34195afb810f014258, type: 2}
@@ -363,7 +367,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="gbYb2sWIUHVw6l3J" tr="16"
-  - type: obj
+  - type: unit
     id: stabpon
     definitionId: stabpon
     definition: {fileID: 11400000, guid: c6e3203e78d5bd34195afb810f014258, type: 2}

@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_0_0
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_0_0
   sourceCollectionId: rooms_way
   type: pass
@@ -40,7 +40,7 @@ MonoBehaviour:
     tileCoord: {x: 1, y: 22}
   - id: musor2
     tileCoord: {x: 7, y: 22}
-  doorQuality: 020000000200000002000000020000000200000002000000000000000000000000000000000000000000000000000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: '_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
 
     _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
@@ -91,7 +91,7 @@ MonoBehaviour:
 
     H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H'
   objects:
-  - type: obj
+  - type: unit
     id: zebpon
     definitionId: zebpon
     definition: {fileID: 11400000, guid: 176ce5fa01be0d745bf7861ec1c78c1a, type: 2}
@@ -106,7 +106,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="ay4TwznxQEcupubw" turn="-1" tr="2"
-  - type: obj
+  - type: unit
     id: zebpon
     definitionId: zebpon
     definition: {fileID: 11400000, guid: 176ce5fa01be0d745bf7861ec1c78c1a, type: 2}
@@ -138,18 +138,38 @@ MonoBehaviour:
       - act: control off
         targ: 
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: dialog
         targ: 
         val: dialZebra1
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: trigger
         targ: 
         val: encounter_way
+        n: 1
+        opt1: 
+        opt2: 
+        t: 
       - act: gotoland
         targ: 
         val: covert
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: control on
         targ: 
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="dJCIuOyFRZU1LsQP" h="22"
   - type: player
     id: player
@@ -162,7 +182,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="YgCBWzx9yyKeOLSi"
-  - type: obj
+  - type: unit
     id: zebpon
     definitionId: zebpon
     definition: {fileID: 11400000, guid: 176ce5fa01be0d745bf7861ec1c78c1a, type: 2}
@@ -179,7 +199,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="cuRga03e8VTToCEs" turn="-1" tr="4" name="askari"
-  - type: obj
+  - type: unit
     id: zebpon
     definitionId: zebpon
     definition: {fileID: 11400000, guid: 176ce5fa01be0d745bf7861ec1c78c1a, type: 2}
@@ -194,7 +214,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="Ako9BcWtwfiKNqWa" turn="-1" tr="1"
-  - type: obj
+  - type: unit
     id: zebpon
     definitionId: zebpon
     definition: {fileID: 11400000, guid: 176ce5fa01be0d745bf7861ec1c78c1a, type: 2}

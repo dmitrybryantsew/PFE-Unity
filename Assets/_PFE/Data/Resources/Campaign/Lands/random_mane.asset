@@ -17,6 +17,8 @@ MonoBehaviour:
   landId: random_mane
   landName: Mane
   tip: rnd
+  isProbLand: 0
+  isTestLand: 0
   isProcedural: 1
   stage: 7
   baseDifficulty: 15
@@ -105,3 +107,123 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 7a0d9d0be71af7c4b89af9e90cdf6d40, type: 2}
   - {fileID: 11400000, guid: aa78cbe406b9ebf41918a1d13334f78e, type: 2}
   - {fileID: 11400000, guid: 6553c555cbdbf1e4e942ff741a95bb22, type: 2}
+  probRooms:
+  - id: away
+    hasLevel: 1
+    level: 0
+    imp: 0
+    tip: 1
+    prize: 1
+    close: 0
+    contents:
+    - tip: box
+      uid: awayF1
+      qid: 
+  - id: buttons5
+    hasLevel: 1
+    level: 0
+    imp: 0
+    tip: 1
+    prize: 0
+    close: 0
+    contents:
+    - tip: box
+      uid: buttons5F1
+      qid: 
+    - tip: box
+      uid: buttons5F2
+      qid: 
+    - tip: box
+      uid: buttons5F3
+      qid: 
+    - tip: box
+      uid: buttons5F4
+      qid: 
+  - id: speed
+    hasLevel: 1
+    level: 0
+    imp: 0
+    tip: 1
+    prize: 1
+    close: 0
+    contents:
+    - tip: box
+      uid: speedF1
+      qid: 
+  - id: bloatking
+    hasLevel: 1
+    level: 0
+    imp: 0
+    tip: 2
+    prize: 0
+    close: 0
+    contents:
+    - tip: unit
+      uid: 
+      qid: bloatkingF1
+  - id: griff
+    hasLevel: 1
+    level: 1
+    imp: 1
+    tip: 2
+    prize: 0
+    close: 0
+    contents:
+    - tip: unit
+      uid: 
+      qid: griffF1
+  - id: slavers
+    hasLevel: 1
+    level: 1
+    imp: 0
+    tip: 2
+    prize: 0
+    close: 0
+    contents:
+    - tip: unit
+      uid: slaversF1
+      qid: 
+  - id: blaster
+    hasLevel: 1
+    level: 1
+    imp: 0
+    tip: 2
+    prize: 0
+    close: 0
+    contents:
+    - tip: unit
+      uid: 
+      qid: blasterF1
+  - id: grav
+    hasLevel: 1
+    level: 2
+    imp: 0
+    tip: 2
+    prize: 0
+    close: 0
+    contents:
+    - tip: unit
+      uid: 
+      qid: gravF1
+  - id: biblio
+    hasLevel: 1
+    level: 2
+    imp: 0
+    tip: 2
+    prize: 0
+    close: 0
+    contents:
+    - tip: unit
+      uid: biblioU1
+      qid: 
+  - id: w_grif
+    hasLevel: 1
+    level: 2
+    imp: 0
+    tip: 2
+    prize: 0
+    close: 0
+    contents:
+    - tip: wave
+      uid: 
+      qid: 

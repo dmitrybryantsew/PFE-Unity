@@ -11,13 +11,13 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: "\u043A\u043E.\u043F\u0430\u0440\u043A\u0443\u0440!!!"
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: "\u043A\u043E.\u043F\u0430\u0440\u043A\u0443\u0440!!!"
   sourceCollectionId: rooms_mane
   type: uniq
   fixedPosition: {x: 0, y: 0, z: 0}
   difficultyLevel: 3
-  maxInstances: 2
+  maxInstances: 1
   allowRandom: 1
   specificMapOnly: 0
   backgroundRoomId: 
@@ -132,7 +132,7 @@ MonoBehaviour:
     tileCoord: {x: 31, y: 11}
   - id: books
     tileCoord: {x: 33, y: 11}
-  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000
+  doorQuality: 000000000000000003000000030000000300000002000000020000000400000004000000040000000200000000000000000000000300000003000000030000000200000004000000040000000000000004000000040000000000000000000000
   tileDataString: "N.N.N.N._._._._.N.N.N.N.N._._._._.N.N.N.N.N.N.N.N.N.N.N.N.N.N._._._._.N.N.N.N.N._._._._.N.N.N.N\nN._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._C._C._._._._._C._C._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H.N\nN._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._C._C._._._._._C._C._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H.N\nN._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._C._C._._._._._C._C._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H.N\nN._D-._D-._D-._D-._D-._D-._D-._D-._D-._D-._D-._D-._D-._D-._D-._D-._D._D._D._C._C._._._._._C._C._D._D._D._D._D._D._D._D._D._D-._D-._D-._D-._D-._D-._D-._D-._D-._D-.N\nN._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._C._C._._._._._C._C._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H.N\nN._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._C._C._._._._._C._C._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H.N\nN._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._C._C._._._._._C._C._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H.N\nN.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.BA._C._C._._._._._C\u041A._C\u041A.BA.BA._A._A._A.BA.B.B.B.B.B.B.B.B.B.B.B.B.B.N\n_A._A._A._A.B._._._._._._._._._._._._._._._A._C._C._._._._._C._C._A._._._M._M._M._M._._._A._._._._._.B._A._A._A._A\n_A._A._A._A.B._._._._._._._._._._._._._._._A._C._C._._._._._C._C._A._._-._M-._M-._M-._M-._-._-.NA._._._._._.B._A._A._A._A\n_A._A._A._A.B._._._._._._._._._._._._._._._A._C._C._._._._._C._C._A._._._M._M._M._M._._.M._\u0411._._._._.B._A._A._A._A\nN._D-._D-._D-.B._._._._._._._._._-._-._-._-._._._A._C._C._._._._._C._C._A._._._M._M._M._M._._._._._._._._.B._D-._D-._D-.N\n_A._A._A._A.B._._._._._._._._._._._._._._._A._C._C._._\u041C._._._C._C._A._._._M._M._M._M._._._._._._._._.B._A._A._A._A\n_A._A._A._A.B._._._._._._._._._._._._._._._A._C._C._._._\u041C._._C._C._A._._._M._M._M._M._._._._._._._._.B._A._A._A._A\n_A._A._A._A.B._._._._._._._._._._._._._._._A._C._C._._._._._C._C._A._._._M._M._M._M._._.M._._._._._.B._A._A._A._A\nN._D-._D-._D-.B.N.N.EA._A._A._A._A._A._A._A._A._A._A._A._A._C._C._._._._._C._C._A._A._A._A._A._A.EA.E.D.N.N.D.EA._A._A.BA._D-._D-._D-.N\n_A._A._A._A.B._._._._._._._._._._._._._._._A._C._C._._._._._C._C._A._._._._._._._._._._._._._._.B._A._A._A._A\n_A._A._A._A.B._._._._._._._._\u0414._\u0414._\u0414._\u0414._._._._A._C._C._._._._._C._C._A._._._._-._-._-._-._-._-._-._-._-._-._-.B._A._A._A._A\n_A._A._A._A.B._._._._._._._._._._._._._._._A._C._C._._._._._C._C._A._._._._._._._._._._._._._._.B._A._A._A._A\nN._D-._D-._D-.B._._._._._._._._._._._._._._.DA._C\u041A._C\u041A._\u041C._._._._C._C._A._._._._._._._._._._._._._._.B._D-._D-._D-.N\nN._D._D._D.B._._._._._._._._._._._._._._.DA._C._C._._\u041C._._._C._C._A._._._._._._._._._._._._._._.B._D._D._D.N\n_D._D._D._D._._._._._._._._._._._._._._._._A._C._C._._._\u041C._._C._C._A._._._._._._._._._._._._._._._._D._D._D._D\n_D._D._D._D._._._._._._._._._._._._._._._._A._C._C._._._._\u041C._C._C._A._._._._._._._._._._._._._._._._D._D._D._D\nN.N.N.N.N._A-._A-.N.N.N.N.N.N._A\u041A._A\u041A._A\u041A._A\u041A.N.N.N.N.N._\u041A._\u041A._\u041A._\u041A.N.N.N.N.N._A\u041A._A\u041A._A\u041A._A\u041A.N.N.N.N.N.N._A-._A-.N.N.N.N.N"
   objects:
   - type: box
@@ -432,7 +432,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="wvbYsLBjCj5CA0nv"
-  - type: obj
+  - type: unit
     id: ebloat
     definitionId: ebloat
     definition: {fileID: 11400000, guid: 1f318101da73eae4992134243db714ea, type: 2}
@@ -443,7 +443,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="JZ6vdHrTeb3yNk3p"
-  - type: obj
+  - type: unit
     id: ebloat
     definitionId: ebloat
     definition: {fileID: 11400000, guid: 1f318101da73eae4992134243db714ea, type: 2}

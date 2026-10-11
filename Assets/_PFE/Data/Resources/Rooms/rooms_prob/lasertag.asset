@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: lasertag
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: lasertag
   sourceCollectionId: rooms_prob
   type: pass
@@ -70,7 +70,7 @@ MonoBehaviour:
     tileCoord: {x: 24, y: 5}
   - id: stabledoor
     tileCoord: {x: 4, y: 9}
-  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000000000000020000000200000002000000020000000200000002000000
+  doorQuality: 000000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
   tileDataString: "A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA._._._._._._._.A._._O._O._._._O._O._._._O._O._._._._._._._._O._O._._._O._O._._._O._O._.A._._._._._._._._.A\nA._._._._._._._.A._._O._O._._._O._O._._._O._O._._._._._._._._O._O._._._O._O._._._O._O._.A._._._._._._._._.A\nA._._._._._._._.A._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415.A._._._._._._._._.A\nA._._.A.A.A.A.A.A._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A._\u0415._\u0415._\u0415._\u0415.A._P._P._P.A\nA._\u0411._._._._._._.A._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A._._._._.A._._._.A\nA._\u0411._._._._._._.A._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A._._._.A\nA._\u0411._._._._._._.A._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A._._._.A\nA._\u0411._._._._._._.A._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q.A._P._P._P.A\nA._\u0411._._._._._._.A._._._._Q._O._O._Q._._._._Q._O._O._Q._._._._Q._Q._O._O._Q._Q._O._O._Q._Q._._._._._._._.A._._._.A\nA._\u0411._._._._._._._._._._._Q._O._O._Q._._._._Q._O._O._Q._._._._Q._Q._O._O._Q._Q._O._O._Q._Q._._._._._._._.A._._._.A\nA._\u0411._._._._._._._._._._._Q._O._O._Q._._._._Q._O._O._Q._._._._Q._Q._O._O._Q._Q._O._O._Q._Q._._._._._._._.A._._._.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A._P._P._P.A\nA._._._._._._._._._._._._._._._._._._._._._._._._._Q.J._O._O._O._Q._Q._O._O._O._O._O._Q._Q._O._O._O.A.A._._._.A\nA._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q.J._O._O._O._Q._Q._O._O._O._O._O._Q._Q._O._O._O.A.A._._._.A\nA._._._._._._._._._._._._._._._._._._._._Q._._._._._Q.A._O._O._O._Q._Q._O._O._O._O._O._Q._Q._O._O._O.A.A._._._.A\nA._._._._._._._._._._._._._._._._._._._._Q._._._._._Q.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A._P._P._P.A\nA._._._._._._Q._Q._Q._Q\u0415._Q\u0415._Q\u0415._Q\u0415._Q\u0415._Q._Q._Q.A.A.A.A.A.A._._._Q.A._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P.A.A._._._.A\nA._._._._._.A._._._._._._._._Q._._.J.J.J.J.J.J._._._Q.A._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P.A.A._._._.A\nA.A.A.A.A.A.A.A.A.A.A.A._._._Q._._.J.J.J.J.J.J._._._Q.A._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P.A.A._._._.A\nA._._._._._._._._Q._._._Q._._._Q._._.A.A.A.A.A.A._._._Q.A._._._._._._._._._._._._._._._.A.A._P._P._P.A\nA._._._._._._._._Q._._._Q._._._Q._\u0415._\u0415.A._._._._.A._._._Q._._._._._._._._._._._._._._._._._._._._._.A\nA._._._._._._._._Q._._._Q._._._Q._._._._._._._.A._._._Q._._._._._._._._._._._._._._._._._._._._._.A\nA._._._._._._._._Q._._._Q._._._Q._._._._._._._.A._._._._.A._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q.A.A.A._._._.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A._._._._.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A"
   objects:
   - type: obj
@@ -84,7 +84,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="oIjwY86pfzs7RQ1e"
-  - type: obj
+  - type: unit
     id: trlaser
     definitionId: trlaser
     definition: {fileID: 11400000, guid: 1dd11b8b172ad40488734bd8c71910df, type: 2}
@@ -99,7 +99,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="KF3hydNTi3XKgEYj" allid="d1" allact="open"
-  - type: obj
+  - type: unit
     id: trlaser
     definitionId: trlaser
     definition: {fileID: 11400000, guid: 1dd11b8b172ad40488734bd8c71910df, type: 2}
@@ -112,7 +112,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="m0leNgNw2k5SSuyq" allid="d2"
-  - type: obj
+  - type: unit
     id: trlaser
     definitionId: trlaser
     definition: {fileID: 11400000, guid: 1dd11b8b172ad40488734bd8c71910df, type: 2}
@@ -136,7 +136,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="ZvFXes10C6MjoSXo"
-  - type: obj
+  - type: unit
     id: trlaser
     definitionId: trlaser
     definition: {fileID: 11400000, guid: 1dd11b8b172ad40488734bd8c71910df, type: 2}
@@ -149,7 +149,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="lXhmD2oYgLecbq4r" allid="d2"
-  - type: obj
+  - type: unit
     id: trlaser
     definitionId: trlaser
     definition: {fileID: 11400000, guid: 1dd11b8b172ad40488734bd8c71910df, type: 2}
@@ -162,7 +162,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="ARwBSR9if7tzLuwH" allid="d2"
-  - type: obj
+  - type: unit
     id: trlaser
     definitionId: trlaser
     definition: {fileID: 11400000, guid: 1dd11b8b172ad40488734bd8c71910df, type: 2}
@@ -175,7 +175,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="xT4wBFmoHOabZ3i8" allid="d2"
-  - type: obj
+  - type: unit
     id: trlaser
     definitionId: trlaser
     definition: {fileID: 11400000, guid: 1dd11b8b172ad40488734bd8c71910df, type: 2}
@@ -188,7 +188,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="S4UTPK7P15hc2uei" allid="d2"
-  - type: obj
+  - type: unit
     id: trlaser
     definitionId: trlaser
     definition: {fileID: 11400000, guid: 1dd11b8b172ad40488734bd8c71910df, type: 2}
@@ -201,7 +201,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="sgXTaa25VPIGsPPj" allid="d2"
-  - type: obj
+  - type: unit
     id: trlaser
     definitionId: trlaser
     definition: {fileID: 11400000, guid: 1dd11b8b172ad40488734bd8c71910df, type: 2}
@@ -214,7 +214,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="bPMKydtrp5yVyxAD" allid="d2"
-  - type: obj
+  - type: unit
     id: trlaser
     definitionId: trlaser
     definition: {fileID: 11400000, guid: 1dd11b8b172ad40488734bd8c71910df, type: 2}
@@ -227,7 +227,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="RdM9F5b4NZtmybzO" allid="d2"
-  - type: obj
+  - type: unit
     id: trlaser
     definitionId: trlaser
     definition: {fileID: 11400000, guid: 1dd11b8b172ad40488734bd8c71910df, type: 2}
@@ -244,7 +244,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="fq0x9kwQGjyLX8FU" allid="d3" allact="open"
-  - type: obj
+  - type: unit
     id: trlaser
     definitionId: trlaser
     definition: {fileID: 11400000, guid: 1dd11b8b172ad40488734bd8c71910df, type: 2}
@@ -259,7 +259,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="KhZguFIQKtf82xoc" allid="d1" allact="open"
-  - type: obj
+  - type: unit
     id: trlaser
     definitionId: trlaser
     definition: {fileID: 11400000, guid: 1dd11b8b172ad40488734bd8c71910df, type: 2}
@@ -276,7 +276,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="GphndDKLFPt5FeFi" allid="d3" allact="open"
-  - type: obj
+  - type: unit
     id: trlaser
     definitionId: trlaser
     definition: {fileID: 11400000, guid: 1dd11b8b172ad40488734bd8c71910df, type: 2}
@@ -291,7 +291,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="nSxrovra1PSme0dE" allid="d1" allact="open"
-  - type: obj
+  - type: unit
     id: trlaser
     definitionId: trlaser
     definition: {fileID: 11400000, guid: 1dd11b8b172ad40488734bd8c71910df, type: 2}
@@ -308,7 +308,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="g3BIP75ZWQhgU80F" allid="d3" allact="open"
-  - type: obj
+  - type: unit
     id: hturret2
     definitionId: hturret2
     definition: {fileID: 11400000, guid: b7b404d4f27107f40ac6003fe0a1a66b, type: 2}
@@ -323,7 +323,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="w65PzX73o974lxnC" allid="d2" multhp="10"
-  - type: obj
+  - type: unit
     id: hturret2
     definitionId: hturret2
     definition: {fileID: 11400000, guid: b7b404d4f27107f40ac6003fe0a1a66b, type: 2}
@@ -338,7 +338,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="ib2PK9up5gnWjdSB" allid="d2" multhp="10"
-  - type: obj
+  - type: unit
     id: hturret2
     definitionId: hturret2
     definition: {fileID: 11400000, guid: b7b404d4f27107f40ac6003fe0a1a66b, type: 2}
@@ -353,7 +353,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="vrq36HwEXaEtNXD4" allid="d2" multhp="10"
-  - type: obj
+  - type: unit
     id: hturret2
     definitionId: hturret2
     definition: {fileID: 11400000, guid: b7b404d4f27107f40ac6003fe0a1a66b, type: 2}
@@ -368,7 +368,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="sLK6yLGTPvPGfP7D" allid="d2" multhp="10"
-  - type: obj
+  - type: unit
     id: hturret2
     definitionId: hturret2
     definition: {fileID: 11400000, guid: b7b404d4f27107f40ac6003fe0a1a66b, type: 2}
@@ -411,7 +411,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="CBu5Ba6k6OeQWMCR" inter="0" autoclose="150" allid="d1"
-  - type: obj
+  - type: unit
     id: armturret
     definitionId: armturret
     definition: {fileID: 11400000, guid: 485a5442239ff174dafac0f96a1b402d, type: 2}
@@ -424,7 +424,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="ZiXmaDt8gEedHdue" turn="-1"
-  - type: obj
+  - type: unit
     id: trlaser
     definitionId: trlaser
     definition: {fileID: 11400000, guid: 1dd11b8b172ad40488734bd8c71910df, type: 2}
@@ -441,7 +441,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="n9VF8XcHfQ4HYgVc" allid="d3" allact="open"
-  - type: obj
+  - type: unit
     id: armturret
     definitionId: armturret
     definition: {fileID: 11400000, guid: 485a5442239ff174dafac0f96a1b402d, type: 2}
@@ -506,7 +506,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="iCT4PBN14RrgQFwK"
-  - type: obj
+  - type: unit
     id: trlaser
     definitionId: trlaser
     definition: {fileID: 11400000, guid: 1dd11b8b172ad40488734bd8c71910df, type: 2}
@@ -517,7 +517,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="FzDu3ZkPWM7sWg0g"
-  - type: obj
+  - type: unit
     id: trlaser
     definitionId: trlaser
     definition: {fileID: 11400000, guid: 1dd11b8b172ad40488734bd8c71910df, type: 2}
@@ -528,7 +528,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="Xs61j5Xwr4Y7QRl2"
-  - type: obj
+  - type: unit
     id: trlaser
     definitionId: trlaser
     definition: {fileID: 11400000, guid: 1dd11b8b172ad40488734bd8c71910df, type: 2}
@@ -539,7 +539,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="cfQKSOU824ILjFmz"
-  - type: obj
+  - type: unit
     id: trlaser
     definitionId: trlaser
     definition: {fileID: 11400000, guid: 1dd11b8b172ad40488734bd8c71910df, type: 2}
@@ -550,7 +550,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="DRWptcwyJeR0Ndcz"
-  - type: obj
+  - type: unit
     id: trlaser
     definitionId: trlaser
     definition: {fileID: 11400000, guid: 1dd11b8b172ad40488734bd8c71910df, type: 2}
@@ -561,7 +561,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="nL9S1unzsGdXHSaM"
-  - type: obj
+  - type: unit
     id: armturret
     definitionId: armturret
     definition: {fileID: 11400000, guid: 485a5442239ff174dafac0f96a1b402d, type: 2}
@@ -574,7 +574,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="ZbqTPCdbJKMG0CsW" turn="-1"
-  - type: obj
+  - type: unit
     id: trlaser
     definitionId: trlaser
     definition: {fileID: 11400000, guid: 1dd11b8b172ad40488734bd8c71910df, type: 2}
@@ -600,7 +600,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="z6slcd0g2VRqesuk" allid="d4"
-  - type: obj
+  - type: unit
     id: trlaser
     definitionId: trlaser
     definition: {fileID: 11400000, guid: 1dd11b8b172ad40488734bd8c71910df, type: 2}
@@ -613,7 +613,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="lnFpxK6wQLAj8TEL" allid="d2"
-  - type: obj
+  - type: unit
     id: trlaser
     definitionId: trlaser
     definition: {fileID: 11400000, guid: 1dd11b8b172ad40488734bd8c71910df, type: 2}
@@ -626,7 +626,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="GqoDjExda4cAFjPp" allid="d2"
-  - type: obj
+  - type: unit
     id: trlaser
     definitionId: trlaser
     definition: {fileID: 11400000, guid: 1dd11b8b172ad40488734bd8c71910df, type: 2}
@@ -639,7 +639,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="a1hihq5xLe0vlXms" allid="d2"
-  - type: obj
+  - type: unit
     id: hturret2
     definitionId: hturret2
     definition: {fileID: 11400000, guid: b7b404d4f27107f40ac6003fe0a1a66b, type: 2}
@@ -650,7 +650,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="kWp9vFBE3WbnE1K7"
-  - type: obj
+  - type: unit
     id: hturret2
     definitionId: hturret2
     definition: {fileID: 11400000, guid: b7b404d4f27107f40ac6003fe0a1a66b, type: 2}
@@ -661,7 +661,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="jqqfSyrc95DwmQrj"
-  - type: obj
+  - type: unit
     id: hturret2
     definitionId: hturret2
     definition: {fileID: 11400000, guid: b7b404d4f27107f40ac6003fe0a1a66b, type: 2}
@@ -672,7 +672,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="udpzOUsDBuFcgkKr"
-  - type: obj
+  - type: unit
     id: trlaser
     definitionId: trlaser
     definition: {fileID: 11400000, guid: 1dd11b8b172ad40488734bd8c71910df, type: 2}
@@ -815,7 +815,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="SdhrVPM57htHdA1Z"
-  - type: obj
+  - type: unit
     id: trlaser
     definitionId: trlaser
     definition: {fileID: 11400000, guid: 1dd11b8b172ad40488734bd8c71910df, type: 2}
@@ -830,7 +830,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="F1KQsxrbW3tunDQ2" allid="d2" allact="spawn"
-  - type: obj
+  - type: unit
     id: trlaser
     definitionId: trlaser
     definition: {fileID: 11400000, guid: 1dd11b8b172ad40488734bd8c71910df, type: 2}
@@ -858,7 +858,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="pZSnPw3FpfKFBJiA" lock="1"
-  - type: obj
+  - type: unit
     id: trlaser
     definitionId: trlaser
     definition: {fileID: 11400000, guid: 1dd11b8b172ad40488734bd8c71910df, type: 2}
@@ -873,7 +873,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="iuGLGZQ2dmGEpEha" allid="d2" allact="spawn"
-  - type: obj
+  - type: unit
     id: trlaser
     definitionId: trlaser
     definition: {fileID: 11400000, guid: 1dd11b8b172ad40488734bd8c71910df, type: 2}
@@ -888,7 +888,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="IJVsrMeOWUSgO3Jj" allid="d2" allact="spawn"
-  - type: obj
+  - type: unit
     id: trlaser
     definitionId: trlaser
     definition: {fileID: 11400000, guid: 1dd11b8b172ad40488734bd8c71910df, type: 2}
@@ -903,7 +903,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="C4yyeqGU8kDNcLAy" allid="d2" allact="spawn"
-  - type: obj
+  - type: unit
     id: trlaser
     definitionId: trlaser
     definition: {fileID: 11400000, guid: 1dd11b8b172ad40488734bd8c71910df, type: 2}
@@ -918,7 +918,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="lKdg1JX4riYHeTQp" allid="d2" allact="spawn"
-  - type: obj
+  - type: unit
     id: trlaser
     definitionId: trlaser
     definition: {fileID: 11400000, guid: 1dd11b8b172ad40488734bd8c71910df, type: 2}
@@ -933,7 +933,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="iUNg2rdZ1oTyKgHd" allid="d2" allact="spawn"
-  - type: obj
+  - type: unit
     id: trlaser
     definitionId: trlaser
     definition: {fileID: 11400000, guid: 1dd11b8b172ad40488734bd8c71910df, type: 2}
@@ -948,7 +948,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="xpx6MBRe0ZRjTVZn" allid="d2" allact="spawn"
-  - type: obj
+  - type: unit
     id: trlaser
     definitionId: trlaser
     definition: {fileID: 11400000, guid: 1dd11b8b172ad40488734bd8c71910df, type: 2}
@@ -963,7 +963,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="ncGFJlemqHTxIDgS" allid="d2" allact="spawn"
-  - type: obj
+  - type: unit
     id: trlaser
     definitionId: trlaser
     definition: {fileID: 11400000, guid: 1dd11b8b172ad40488734bd8c71910df, type: 2}
@@ -978,7 +978,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="pXR0I0I5zJHnrphj" allid="d2" allact="spawn"
-  - type: obj
+  - type: unit
     id: trlaser
     definitionId: trlaser
     definition: {fileID: 11400000, guid: 1dd11b8b172ad40488734bd8c71910df, type: 2}
@@ -993,7 +993,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="srMEth9CqnIXmmBp" allid="d2" allact="spawn"
-  - type: obj
+  - type: unit
     id: trlaser
     definitionId: trlaser
     definition: {fileID: 11400000, guid: 1dd11b8b172ad40488734bd8c71910df, type: 2}
@@ -1008,7 +1008,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="jZha924VYjQPHla7" allid="d2" allact="spawn"
-  - type: obj
+  - type: unit
     id: trlaser
     definitionId: trlaser
     definition: {fileID: 11400000, guid: 1dd11b8b172ad40488734bd8c71910df, type: 2}
@@ -1023,7 +1023,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="fNrnRGAT7Traj5eU" allid="d2" allact="spawn"
-  - type: obj
+  - type: unit
     id: trlaser
     definitionId: trlaser
     definition: {fileID: 11400000, guid: 1dd11b8b172ad40488734bd8c71910df, type: 2}
@@ -1038,7 +1038,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="DkZeiPPbGvPdkGlm" allid="d2" allact="spawn"
-  - type: obj
+  - type: unit
     id: trlaser
     definitionId: trlaser
     definition: {fileID: 11400000, guid: 1dd11b8b172ad40488734bd8c71910df, type: 2}
@@ -1053,7 +1053,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="RhutXDkhXmIyIm3d" allid="d2" allact="spawn"
-  - type: obj
+  - type: unit
     id: zombie
     definitionId: zombie
     definition: {fileID: 11400000, guid: d56512d3ac0c0744eb90060a7d920ede, type: 2}
@@ -1068,7 +1068,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="QcGgOYSqvIcmEJ7I" dig="1" tr="0"
-  - type: obj
+  - type: unit
     id: trlaser
     definitionId: trlaser
     definition: {fileID: 11400000, guid: 1dd11b8b172ad40488734bd8c71910df, type: 2}
@@ -1083,7 +1083,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="CUivGRiVJWMOQcbQ" allid="d2" allact="spawn"
-  - type: obj
+  - type: unit
     id: trlaser
     definitionId: trlaser
     definition: {fileID: 11400000, guid: 1dd11b8b172ad40488734bd8c71910df, type: 2}

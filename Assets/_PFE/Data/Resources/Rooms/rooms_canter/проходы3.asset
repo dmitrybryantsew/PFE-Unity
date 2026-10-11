@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: "\u043F\u0440\u043E\u0445\u043E\u0434\u044B3"
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: "\u043F\u0440\u043E\u0445\u043E\u0434\u044B3"
   sourceCollectionId: rooms_canter
   type: pass
@@ -192,7 +192,7 @@ MonoBehaviour:
     tileCoord: {x: 44, y: 13}
   - id: pipe4
     tileCoord: {x: 39, y: 13}
-  doorQuality: 000000000200000000000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000
+  doorQuality: 020000000300000000000000020000000200000002000000040000000200000000000000000000000200000003000000000000000000000003000000030000000300000004000000000000000200000002000000020000000000000000000000
   tileDataString: "Q.Q.Q.Q._W._W._W._W.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q._V._V.Q.Q.Q.Q.Q.Q.Q._V._V.Q.Q.Q.Q.Q.Q.Q._V._V.Q.Q.Q.Q.Q\n_W._W._W._W._W._W._W._W._W._W._._._._._._._._._._._._V._V._V._V._V._V._S._S._V._V._V._V._V._V._V._V.Q.Q._V._V._V._V._V._V.Q.Q.Q\n_W._W._W._W._W._W._W._W._W._W._._._._._._._._._._._._V._V._V._V._V._V._S._S._V._V._V._V._V._V._V._V.Q.Q._V._V._V._V._V._V._V._V._V\n_W._W._W._W._W._W._W._W._W._W._._._._._._._._._._.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q._V._V.Q.Q._V._V.Q.Q._V._V._V._V._V\nQ._W-._W-.Q.Q.Q.Q.Q._W-._W-.Q._._._._._._._._._.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q._V._V.Q.Q._V._V.Q.Q._V\u0411._V.Q.Q.Q\nQ._W._W._W._W._W._W._W._W._W.Q._._._._._._._._._.Q.Q.Q.Q.Q.Q.Q.Q._V._V._V._V._V._V.FV._V._V._S._S._V._V.Q.Q._V\u0411._V._V._V._A\nQ._W._W._W._W._W._W._W._W._W.Q._._._._._._._._._._._V._V._V._V.Q.Q.Q._V._V._V._V._V._V.FV._V._V._S._S._V._V.Q.Q._V\u0411._V._V._V._A\nQ._W._W._W._W._W._W._W._W._W.Q._._._._._._._._._._._V._V._V._V.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q._V\u0411._V._V._V._A\nQ._W._W._W._W._W._W._W._W._W.Q._._._._._._._._._.Q.Q.Q._V._V.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q._V\u0411._V.Q.Q.Q\nQ._W._W._W._W._W._W._W._W._W.Q._._._._._._._._._.Q.Q.Q._V._V.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q._V._V._V._S._S._S._V._V._V.Q.Q.Q\nQ._W._W._W._W._W._W._W._W._W._._._._._._._._._._.Q.Q.Q._V._V._V._V._V._V._V._V._V._V.Q.Q.Q._V._V._V._S._S._S._V._V._V.Q.Q.Q\nQ._W._W._W._W._W._W._W._W._W._._._._._._._._._._.Q.Q.Q._V._V._V._V._V._V._V._V._V._V.Q.Q.Q._V\u0411-._V-.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q\nQ.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q._-._-.Q.Q._._S._S._._.Q.Q.Q.FV.FV.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q._V\u0411._V.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q\n_W._W._W._W._W._W._W._W._W._W.Q._._.Q.Q._._S._S._._.Q.Q.Q._V._V.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q._V\u0411._V._V._V._V._V._V._V._V._V._V.Q\n_W._W._W._W._W._W._W._W._W._W.Q._._._._._._S._S._._.Q.Q.Q._V._V._V._V._V._V._V._V._V._V.Q.Q.Q._V\u0411._V._V._V._V._V._V._V._V._V._V._V\n_W._W._W._W._W._W._W._W._W._W.Q._._._._._._S._S._._.Q.Q.Q._V._V._V._V._V._V._V._V._V._V.Q.Q.Q._V._V.Q.Q._V._V._V.Q.Q._V._V._V\nQ._W-._W-._W-._W-._W-._W-._W._W._W.Q._-._-.Q.Q.Q.Q.Q._-._-.Q.Q.Q._V-._V-.Q.Q._V._V.Q.Q._V-._V-.Q.Q.Q._V._V.Q.Q._V._V._V.Q.Q._V._V.Q\n_W._W._W._W._W._W._W._W._W._W.Q._._.Q.Q.Q.Q.Q._._.Q.Q.Q._V._V.Q.Q._V._V.Q.Q._V._V.Q.Q.Q._V._V._S._S._V._V._V._S._S._V._V.Q\n_W._W._W._W._W._W._W._W._W._W.Q._._._._._._._._._.Q.Q.Q._V._V._V._V._V._V._V._V._V._V.Q.Q.Q._V._V._S._S._V._V._V._S._S._V._V._V\n_W._W._W._W._W._W._W._W._W._W.Q._._._._._._._._._.Q.Q.Q._V._V._V._V._V._V._V._V._V._V.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q._V._V._V\nQ._W-._W-._W-._W._W._W._W._W._W.Q._._._S._S._.Q.Q._-._-.Q.Q.Q._V._V.Q.Q._V-._V-.Q.Q._S._S.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q._V._V.Q\n_W._W._W._W._W._W._W._W._W._W.Q._._._S._S._.Q.Q._._.Q.Q.Q._V._V.Q.Q._V._V.Q.Q._S._S.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q._V-._V-.Q\n_W._W._W._W._W._W._W._W._W._W._._._._S._S._._._._._.Q.Q.Q._V._V._V._V._V._V.Q.Q._S._S.FV._V._V._V._V._S._S._V._V._V._V._V._V._V._V\n_W._W._W._W._W._W._W._W._W._W._._._._S._S._._._._._.Q.Q.Q._V._V._V._V._V._V.Q.Q._S._S.FV._V._V._V._V._S._S._V._V._V._V._V._V._V._V\nQ.Q.Q.Q._W-._W-._W-._W-.Q.Q.Q.Q.Q.Q._-._-.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q._V-._V-.Q.Q.Q.Q.Q"
   objects:
   - type: door
@@ -679,7 +679,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="cNCcYl3Vyau8l8Se"
-  - type: obj
+  - type: unit
     id: transm
     definitionId: transm
     definition: {fileID: 11400000, guid: 4c4fee23f22040043a1849ddd87cfc7b, type: 2}
@@ -690,7 +690,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="ZwBEaHlmEOrDwbA6"
-  - type: obj
+  - type: unit
     id: transm
     definitionId: transm
     definition: {fileID: 11400000, guid: 4c4fee23f22040043a1849ddd87cfc7b, type: 2}
@@ -701,7 +701,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="z5Zcqhkn2IBlFykG"
-  - type: obj
+  - type: unit
     id: transm
     definitionId: transm
     definition: {fileID: 11400000, guid: 4c4fee23f22040043a1849ddd87cfc7b, type: 2}

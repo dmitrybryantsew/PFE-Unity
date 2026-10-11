@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: bloat_breeding
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: bloat_breeding
   sourceCollectionId: rooms_prob
   type: pass
@@ -48,7 +48,7 @@ MonoBehaviour:
     tileCoord: {x: 5, y: 2}
   - id: minkrut
     tileCoord: {x: 4, y: 12}
-  doorQuality: 000000000200000002000000020000000000000000000000000000000000000000000000000000000000000000000000000000000000000002000000020000000000000000000000020000000200000000000000000000000000000000000000
+  doorQuality: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
   tileDataString: 'B.B.B.B.B.B.B.B.B.B.B.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H
 
     B._C._C._C._C._C._C._C._C._C._C._._._._._._._.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H
@@ -129,16 +129,28 @@ MonoBehaviour:
       - act: actprob
         targ: 
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     - eventName: over
       actions:
       - act: stage
         targ: 
         val: killBloats
+        n: 1
+        opt1: 
+        opt2: 
+        t: 
       - act: quest
         targ: 
         val: killAnthills
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="EFu9Rj0fJV3E9UOZ" w="9" h="4"
-  - type: obj
+  - type: unit
     id: ebloat
     definitionId: ebloat
     definition: {fileID: 11400000, guid: 1f318101da73eae4992134243db714ea, type: 2}
@@ -151,7 +163,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="TCEg8vykKfjakrCj" qid="bloatF1"
-  - type: obj
+  - type: unit
     id: ebloat
     definitionId: ebloat
     definition: {fileID: 11400000, guid: 1f318101da73eae4992134243db714ea, type: 2}
@@ -164,7 +176,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="TWVCqbmqL0x91ZeH" qid="bloatF1"
-  - type: obj
+  - type: unit
     id: ebloat
     definitionId: ebloat
     definition: {fileID: 11400000, guid: 1f318101da73eae4992134243db714ea, type: 2}
@@ -177,7 +189,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="sknmLofSC8oKgBQ8" qid="bloatF1"
-  - type: obj
+  - type: unit
     id: ebloat
     definitionId: ebloat
     definition: {fileID: 11400000, guid: 1f318101da73eae4992134243db714ea, type: 2}
@@ -190,7 +202,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="C51hERbZev2Ze7Nu" qid="bloatF1"
-  - type: obj
+  - type: unit
     id: ebloat
     definitionId: ebloat
     definition: {fileID: 11400000, guid: 1f318101da73eae4992134243db714ea, type: 2}

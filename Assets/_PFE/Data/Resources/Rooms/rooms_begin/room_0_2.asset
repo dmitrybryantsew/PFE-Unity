@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_0_2
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_0_2
   sourceCollectionId: rooms_begin
   type: pass
@@ -70,7 +70,7 @@ MonoBehaviour:
     tileCoord: {x: 37, y: 1}
   - id: web1bl
     tileCoord: {x: 11, y: 2}
-  doorQuality: 000000000200000002000000000000000000000000000000020000000200000002000000020000000200000002000000000000000200000002000000020000000200000002000000000000000200000002000000020000000000000002000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: "C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._._\u0410.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C\nC.C.C.C.C._._.C.C.C.C._._._._._._._._._._._._._._._._._._._._._\u0410.C.C.C.C.C._D._D._D._D._D._D._D._D._D._D._D\nC.C.C.C.C._._.C.C.C.C._._._._._._._._._._._._._._._._._._._._._\u0410.C.C.C.C.C._D._D._D._D._D._D._D._D._D._D._D\nC.C.C.C.C._._.C.C.C.C._._._._._._._._._._._._._._._._._._._._._\u0410.C.C.C.C.C._D._D._D._D._D._D._D._D._D._D._D\nC.C.C.C.C._._.C.C.C.C._._._._._._._._._._._._.C;.C;.C;.C;.C;.C;.C;._._\u0410.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C\nC.C.C.C.C.F.F.C.C.C.C.C.C.C.C.C.C.C._._._._._.C.C.C.C.C.C.C._._\u0410.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C\nC._D._D._D._D._D._D._D._D._D._D._D._D.C.C.C.C.C._._._._._.C.C.C.C.C.C.C._._\u0410.C._E._E._E._E._E._E._E._E._E._E._E._E._E._E.C\nC._D._D._D._D._D._D._D._D._D._D._D._D.C.C.C.C.C._._._._._.C.C.C.C.C.C.C._._\u0410.C._E._E._E._E._E._E._E._E._E._E._E._E._E._E.C\nC._D._D._D._D._D._D._D._D._D._D._D._D.C.C.C.C.C._._._._._.C.C.C.C.C.C.C._._\u0410.C._E._E._E._E._E._E._E._E._E._E._E._E._E._E.C\nC._D._D._D._D._D._D._D._D._D._D._D._D.C.C.C.C.C._._._._._.C.C.C.C.C.C.C._._\u0410.C._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E\nC._D._D._D._D._D._D._D._D._D._D._D._D.C.C.C.C.C._._._._._.C.C.C.C.C.C.C._._\u0410.C._E-._E-._E-._E-._E-._E-.C.C.C._E._E._E._E._E._E\nC._D._D._D._D._D._D._D._D._D._D._D._D.C._D._D._D.C._._._._._.C.C.C.C.C.C.C._._\u0410.C._E._E._E._E._E._E.C.C.C._E._E._E._E._E._E\nC._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D.C._._._._._._D._D._D._D._D._D._D._._\u0410.C._E-._E-._E-._E-._E-._E-.C.C.C.C.C.C.C.C.C\nC._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D.C._._._._._._D._D._D._D._D._D._D._._\u0410.C._E._E._E._E._E._E.C.C.C.C.C.C.C.C.C\nC.C.C.C.C.C.C._._\u0410.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._._\u0410.C._E-._E-._E-._E-._E-._E-.C.C.C.C.C.C.C.C.C\nC._._._._._._._._\u0410._._._._._._._._._._.C._._._._._._._._._._._._\u0410.C._E._E._E._E._E._E.C.C.C.C.C.C.C.C.C\nC._._._._._._._._\u0410._._._._._._._._._._.C._._._._._._._._._._._._\u0410.C._E-._E-._E-._E-._E-._E-.C.C.C.C.C.C.C.C.C\nC._._._._._._._._\u0410._._._._._._._._._._.C._._._._._._._._._._._._\u0410.C._E._E._E._E._E._E.C.C.C.C.C.C.C.C.C\nC._-._-._-._-._-._._._\u0410._._._-._-._-._-._-._-._-._-.C._._._._._._._._._._._._\u0410.C._E-._E-._E-._E-._E-._E-.C.C.C.C.C.C.C.C.C\nC._._._._._._._._\u0410._._._._._._._._._._.C._._._._._._._._._._._._\u0410.C._E._E._E._E._E._E.C.C.C.C.C.C.C.C.C\nC._._._._._._._._\u0410._._._._._._._._._._.C._._._._._._._._._._._._\u0410.C._E-._E-._E-._E-._E-._E-.C.C.C.C.C.C.C.C.C\nC._._._._._._._._._._._._._._._._._._.C._._._._._._._._._._._._\u0410.C._E._E._E._E._E._E._E._E._E._E._E._E._E._E.C\nC._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\u0410._._E._E._E._E._E._E._E._E._E._E._E._E._E._E.C\nC._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\u0410._._E._E._E._E._E._E._E._E._E._E._E._E._E._E.C\nC.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C"
   objects:
   - type: box
@@ -198,6 +198,10 @@ MonoBehaviour:
       - act: off
         targ: trDash
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="hBInxY3ALuz54TAU"
   - type: box
     id: chest
@@ -218,7 +222,7 @@ MonoBehaviour:
         value: 1
     scripts: []
     parameters: code="gAJM9qVqJ07CxMij" lock="0"
-  - type: obj
+  - type: unit
     id: molerat
     definitionId: molerat
     definition: {fileID: 11400000, guid: 1408e310852cb0742aa198feb9353ea9, type: 2}
@@ -288,7 +292,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="hfBYx3aP6VOG3SNB" lock="0"
-  - type: obj
+  - type: unit
     id: molerat
     definitionId: molerat
     definition: {fileID: 11400000, guid: 1408e310852cb0742aa198feb9353ea9, type: 2}
@@ -299,7 +303,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="ejN3xMeJLfvYZ7bK"
-  - type: obj
+  - type: unit
     id: molerat
     definitionId: molerat
     definition: {fileID: 11400000, guid: 1408e310852cb0742aa198feb9353ea9, type: 2}
@@ -321,7 +325,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="YLAis2dLq4LwfKoO"
-  - type: obj
+  - type: unit
     id: rat
     definitionId: rat
     definition: {fileID: 11400000, guid: 91aa9373086f9584dafaf4723062b4a4, type: 2}
@@ -343,7 +347,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="i9PpIQ6j1jOSIJ2G"
-  - type: obj
+  - type: unit
     id: bloat
     definitionId: bloat
     definition: {fileID: 11400000, guid: ab23dccecabecbf4e9019535dfa0d378, type: 2}
@@ -382,7 +386,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="w2WmQFK6GL2FCABd"
-  - type: obj
+  - type: unit
     id: rat
     definitionId: rat
     definition: {fileID: 11400000, guid: 91aa9373086f9584dafaf4723062b4a4, type: 2}

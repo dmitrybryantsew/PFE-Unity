@@ -11,14 +11,14 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: "\u043A\u0440\u0438\u043E\u043B\u0430\u0431"
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: "\u043A\u0440\u0438\u043E\u043B\u0430\u0431"
   sourceCollectionId: rooms_stable
   type: back
   fixedPosition: {x: 0, y: 0, z: 0}
   difficultyLevel: 0
   maxInstances: 2
-  allowRandom: 1
+  allowRandom: 0
   specificMapOnly: 0
   backgroundRoomId: 
   backgroundDecorations:
@@ -60,7 +60,7 @@ MonoBehaviour:
     tileCoord: {x: 45, y: 8}
   - id: vent
     tileCoord: {x: 43, y: 8}
-  doorQuality: 000000000200000002000000000000000200000002000000020000000200000002000000020000000000000002000000000000000200000002000000000000000000000002000000020000000200000000000000000000000000000000000000
+  doorQuality: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
   tileDataString: "A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA._Q._Q._Q._Q._Q._Q.KQ._F._F._F._F._F._F._F._F._F.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA._Q._Q._Q._Q._Q._Q.KQ._F._F._F._F._F._F._F._F._F.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA._Q._Q._Q._Q._Q._Q.KQ._F._F._F._F._F._F._F._F._F.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A._F._F\u0410.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A._F._F\u0410.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA._._._._._._._._._\u0410._._._._._._._._._._._._._._._._._._._._._._Q._Q._Q._Q._Q._Q.A.A.A.A.A.A.A.A.A.A.A\nA._._._._._._._._._\u0410._._._._._._._._._._._._._._._._._._._._._._Q._Q._Q._Q._Q._Q.A._F._F._F._F._F._F._F._F._F.A\nA._F._F._F._F._F._F._F._._\u0410._F._F._F._F._F._F._F._._._._._._F._F._F._F._F._F._F._._._Q._Q._Q._Q._Q._Q.A._F._F._F._F._F._F._F._F._F.A\nA._F._S._S._F._S._S._F._._\u0410._F._S._S._F._S._S._F._._._._._._F._S._S._F._S._S._F._._._Q._Q._Q._Q._Q._Q._._F._F._F._F._F._F._F._F._F.A\nA._F._S._S._F._S._S._F._._\u0410._F._S._S._F._S._S._F._._._._._._F._S._S._F._S._S._F._._._Q._Q._Q._Q._Q._Q._._F._F._F._F._F._F._F._F._F.A\nA._F._S._S._F._S._S._F._._\u0410._F._S._S._F._S._S._F._._._._._._F._S._S._F._S._S._F._._._Q._Q._Q._Q._Q._Q._._F._F._F._F._F._F._F._F._F.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A._F\u0411._F.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A._F\u0411._F.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A._F\u0411._F.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A._._._._._._._\u0411._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A\nA.A.A.A.A.A.A.A.A.A.A._._._._._._._\u0411._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A\nA.A.A.A.A.A.A.A.A.A.A._._._._._._._\u0411._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A\nA.A.A.A.A.A.A.A.A.A.A._._._._._._._\u0411._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A\nA._F._F._F._F._F._F._F._F._F.A._._._._._._._\u0411._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A\nA._F._F._F._F._F._F._F._F._F.A._Q._Q._Q._Q._Q._Q._Q\u0411._Q._F._F._F._F._F._F._F._Q._Q._Q\u0410._Q\u0415._Q\u0415._Q\u0415.A.A.A.A._F\u0415._F\u0415._F\u0415._F\u0415._F\u0415._F\u0415._F\u0415._F\u0415._F\u0415._F\u0415._F\u0415.A\nA._F._F._F._F._F._F._F._F._F._._Q._._._._._._\u0411._Q._F._S._S._F._S._S._F._Q._._\u0410._._._Q.K._._.K._F._S._S._F._F._F._F._F._S._S._F.A\nA._F._F._F._F._F._F._F._F._F._._Q._._._._._._\u0411._Q._F._S._S._F._S._S._F._Q._._\u0410._._._Q.K._._.K._F._S._S._F._F._F._F._F._S._S._F.A\nA._F._F._F._F._F._F._F._F._F._._Q._._._._._._\u0411._Q._F._S._S._F._S._S._F._Q._._\u0410._._._Q.K._._.K._F._S._S._F._F._F._F._F._S._S._F.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A"
   objects:
   - type: door
@@ -437,7 +437,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="HZBmHpSQdELIhyev"
-  - type: obj
+  - type: unit
     id: slime
     definitionId: slime
     definition: {fileID: 11400000, guid: e76b1173a8bf9ca48bd556a2a454931e, type: 2}
@@ -450,7 +450,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="nNfYjlpgh8AjfRqF" tr="1"
-  - type: obj
+  - type: unit
     id: slime
     definitionId: slime
     definition: {fileID: 11400000, guid: e76b1173a8bf9ca48bd556a2a454931e, type: 2}
@@ -463,7 +463,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="MIvUavvwKkL3hHIp" tr="1"
-  - type: obj
+  - type: unit
     id: slime
     definitionId: slime
     definition: {fileID: 11400000, guid: e76b1173a8bf9ca48bd556a2a454931e, type: 2}
@@ -476,7 +476,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="oBNtmtt1DGU0w6Iy" tr="1"
-  - type: obj
+  - type: unit
     id: slime
     definitionId: slime
     definition: {fileID: 11400000, guid: e76b1173a8bf9ca48bd556a2a454931e, type: 2}
@@ -489,7 +489,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="kzXdgA3187VSlccd" tr="1"
-  - type: obj
+  - type: unit
     id: slime
     definitionId: slime
     definition: {fileID: 11400000, guid: e76b1173a8bf9ca48bd556a2a454931e, type: 2}
@@ -502,7 +502,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="oG4jHg3phnMxMFHs" tr="1"
-  - type: obj
+  - type: unit
     id: slime
     definitionId: slime
     definition: {fileID: 11400000, guid: e76b1173a8bf9ca48bd556a2a454931e, type: 2}
@@ -515,7 +515,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="dYjOd8zAhbyRRoNi" tr="1"
-  - type: obj
+  - type: unit
     id: slime
     definitionId: slime
     definition: {fileID: 11400000, guid: e76b1173a8bf9ca48bd556a2a454931e, type: 2}
@@ -528,7 +528,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="kxYLYQ2kYzXhy8go" tr="1"
-  - type: obj
+  - type: unit
     id: slime
     definitionId: slime
     definition: {fileID: 11400000, guid: e76b1173a8bf9ca48bd556a2a454931e, type: 2}
@@ -541,7 +541,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="hc3qBsFfQQM0Mkqo" tr="1"
-  - type: obj
+  - type: unit
     id: slime
     definitionId: slime
     definition: {fileID: 11400000, guid: e76b1173a8bf9ca48bd556a2a454931e, type: 2}
@@ -554,7 +554,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="BK9BbCFyiuE4pUER" tr="1"
-  - type: obj
+  - type: unit
     id: slime
     definitionId: slime
     definition: {fileID: 11400000, guid: e76b1173a8bf9ca48bd556a2a454931e, type: 2}

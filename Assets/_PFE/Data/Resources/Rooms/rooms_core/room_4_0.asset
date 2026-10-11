@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_4_0
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_4_0
   sourceCollectionId: rooms_core
   type: pass
@@ -92,10 +92,10 @@ MonoBehaviour:
     tileCoord: {x: 4, y: 7}
   - id: monitor
     tileCoord: {x: 9, y: 6}
-  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: "A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nAR._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R.A._._._._._._._._._._._._._._._._._._._._._.A._R._R._R._R._R._R._R._R.AR\nAR._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R.A._._._._._._._._._._._._._._._._._._._._._.A._R._R._R._R._R._R._R._R.AR\nAR._R._R._R._R._R._R._R._R._R._R._R._O._O._R._R.A._._._._._._._._._._._._._._._._._._._._._.A._R._R._R._R._R._R._R._R.AR\nAR._R._R._R._R._R._R._R._R._R._R._R._O._O._R._R.A._._._._._._._._._._._._._._._._._._._._._.A._R._R._R._R._R._R._R._R.AR\nAR._R._R._R._R._R._R._R._R._R._R._R._O._O._R._R.A._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._._._._._._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415.A._R._R._R._R._R._R._R._R.AR\nAR._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._._._._._._._._._._._._._._._._._._._._._._.A._R\u0415._R\u0410\u0415.AR.AR.AR.AR.AR.AR.AR\nAR._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._._._._._._._._._._._._._._._._._._._._._._._._R._R\u0410._R._R._R._R._R._R.AR\n_R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._._._._._._._._._._._._._._._._._._._._._._._._R._R\u0410._R._R._R._R._R._R._R\n_R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._._._._._._._._._._._._._._._._._._._._._._._._R._R\u0410._R._R._R._R._R._R._R\n_R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R.A._._._._._._._._._._._._._._._._._._._._._._._R._R\u0410._R._R._R._R._R._R._R\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A._._._._._._._._._._._._._._._._._._._._._.A.A.A.A.A.A.A.A.A.A\nA._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A\nA._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A\nA._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A\nA._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A\nA._Q._Q._Q._O._O._O._O._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q\u0418._Q\u0415._O\u0415._O\u0415._O\u0415._Q\u0415._Q\u0419._Q._Q._Q._Q._Q._O._O._Q._Q._Q._Q._Q.A\n_P._P._P._P._O._O._O._O._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P\u0418._P._P._O._O._O._P._P._P\u0419._P._P._P._P._O._O._P._P._P._P._P.A\n_P._P._P._P._O._O._O._O._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P\u0418._P._P._P._O._O._O._P._P._P._P\u0419._P._P._P._O._O._P._P._P._P._P.A\n_P._P._P._P._O._O._O._O._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P\u0418._P._P._P._P._O._O._O._P._P._P._P._P\u0419._P._P._O._O._P._P._P._P._P.A\nA.AP.AP.AP.AP.AP.AP.AP.AP.AP.AP.AP.AP.AP.AP.AP.AP.AP.AP.AP.AP.AP.AP._P\u0411\u0415._P\u0415._P\u0415._P\u0415._P\u0410\u0415.AP.AP.AP.AP.AP.AP.AP._P\u0411\u0415._P\u0415._P\u0415._P\u0415._P\u0410\u0415.AP.AP.AP.AP.AP.AP.AP.A\nA._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P\u0411._P._P._P._P\u0410._P._P._P._P._P._P._P._P\u0411._P._P._P._P\u0410._P._P._P._P._P._P._P.A\nA._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P\u0411\u0415._P\u0415._P\u0415._P\u0415._P\u0410\u0415._P._P._P._P._P._P._P._P\u0411\u0415._P\u0415._P\u0415._P\u0415._P\u0410\u0415._P._P._P._P._P._P._P.A\nA._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P\u0411._P._P._P._P\u0410._P._P._P._P._P._P._P._P\u0411._P._P._P._P\u0410._P._P._P._P._P._P._P.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A"
   objects:
-  - type: obj
+  - type: unit
     id: slaver
     definitionId: slaver
     definition: {fileID: 11400000, guid: 91392397f716d694e92096340448b372, type: 2}
@@ -151,21 +151,45 @@ MonoBehaviour:
       - act: control off
         targ: 
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: show
         targ: sharp
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: dialog
         targ: 
         val: stableDialSlavers
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: show
         targ: 
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: control on
         targ: 
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: off
         targ: this
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="zLcEvjTxn7Lfu4FE" h="6"
   - type: door
     id: window2
@@ -208,15 +232,31 @@ MonoBehaviour:
       - act: open
         targ: coreD1
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: open
         targ: coreD2
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: open
         targ: coreD3
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: dialog
         targ: 
         val: coreDialOpen
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="NnUHO6K4DGLMHvAS" time="45"
   - type: box
     id: instdoor
@@ -251,7 +291,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="ogqbU7E5bk3VfhWK"
-  - type: obj
+  - type: unit
     id: roller
     definitionId: roller
     definition: {fileID: 11400000, guid: bc6e49884f4b9b343af9403b670cc47d, type: 2}
@@ -262,7 +302,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="JfCw7ydFFIAvH4S6"
-  - type: obj
+  - type: unit
     id: roller
     definitionId: roller
     definition: {fileID: 11400000, guid: bc6e49884f4b9b343af9403b670cc47d, type: 2}
@@ -437,7 +477,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="uUSPoXeXw0DC12tW"
-  - type: obj
+  - type: unit
     id: slaver
     definitionId: slaver
     definition: {fileID: 11400000, guid: 91392397f716d694e92096340448b372, type: 2}

@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_1_4
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_1_4
   sourceCollectionId: rooms_begin
   type: pass
@@ -24,7 +24,7 @@ MonoBehaviour:
   backgroundDecorations:
   - id: chole2
     tileCoord: {x: 8, y: 9}
-  doorQuality: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: "B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.D.D.D.D._._\u0410.D.D.D\nB.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.D.D.D.D._._\u0410.D.D.D\nB.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.D.D.D.D._._\u0410.D.D.D\nB.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.D.D.D.D._._\u0410.D.D.D\nB.B.B.B.B.B._A._A.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.D.D.D.D._._\u0410.D.D.D\nB.B.B.B.B.B._A-._A-.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.D.D.D.D._._\u0410.D.D.D\nB.B.B.B.B.B._A._A.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.D.D.D.D._._\u0410.D.D.D\nB.B.B.B.B.B._A._A.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.D.D.D.D._._\u0410.D.D.D\nB.B._A._A._A._A._A._A._A._A._A.D.D.D._._._._._._._._._._._._._._._._._._._._._._._._._.D.D.D.D._._\u0410.D.D.D\nB.B._A._A._A._A._A._A._A._A._A.D.D.D._._._._._._._._._._._._._._._._._._._._._._._._._.D.D.D.D._._\u0410.D.D.D\nB.B._A._A._A._A._A._A._A._A._A.D.D.D._._._._._._._._._._._._._._._._._._._._._._._._._.D.D.D.D._._\u0410.D.D.D\nB.B._A._A._A._A._A._A._A._A._A.D.D.D._._._._._._._._._._._._._._._._._._._._._._._._._.D.D.D.D._._\u0410.D.D.D\nB.B._A._A._A._A._A._A._A._A._A.D.D.D._._._._._._._._._._._._._._._._._._._._._._._._._.D.D.D.D._._\u0410.D.D.D\nB.B._A-._A-._A-._A-._A-._A._A._A._A.D.D.D._._._._._._._._._._._._._._._._._._._._._._._._._.D.D.D.D._._\u0410.D.D.D\nB.B._A._A._A._A._A._A._A._A._A.D.D.D._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\u0410._._._\nB.B._A._A._A._A._A._A._A._A._A.D.D.D._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\u0410._._._\nB.B._A-._A-._A-._A-._A-._A._A._A._A.D.D.D._._._._._._._._._._._._._._._._._._._._._._-._-._-._-.D.D.D.D.D.D.D.D.D\nB.B._A._A._A._A._A._A._A._A._A.D.D.D._._._._._._._._._._._._._._._._._._._._._._._._._.D.D.D.D.D.D.D.D.D\nB.B._A._A._A._A._A._A._A._A._A.D.D.D._._._._._._._._._._._._._._._._._._._._._._._._._.D.D.D.D.D.D.D.D.D\nB.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B\nB.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B\nB.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B\nB.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B\nB.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B\nB.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B"
   objects:
   - type: box
@@ -54,7 +54,7 @@ MonoBehaviour:
         value: 2
     scripts: []
     parameters: code="Bs0KwbxiKhRrFWK1" lock="0"
-  - type: obj
+  - type: unit
     id: expl1
     definitionId: expl1
     definition: {fileID: 11400000, guid: 18535bbafba8eed46a14f54ecb3aed1b, type: 2}
@@ -65,7 +65,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="bWXjh7rXXpl6hS8W"
-  - type: obj
+  - type: unit
     id: expl1
     definitionId: expl1
     definition: {fileID: 11400000, guid: 18535bbafba8eed46a14f54ecb3aed1b, type: 2}
@@ -80,6 +80,10 @@ MonoBehaviour:
       - act: off
         targ: trExpl2
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="CBa1zmb7OcmAEy5j" uid="trExpl1"
   - type: box
     id: detonator
@@ -96,8 +100,12 @@ MonoBehaviour:
       - act: dam
         targ: trExpl1
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="iNsO0TcTwnWxGEhO"
-  - type: obj
+  - type: unit
     id: expl1
     definitionId: expl1
     definition: {fileID: 11400000, guid: 18535bbafba8eed46a14f54ecb3aed1b, type: 2}
@@ -142,11 +150,19 @@ MonoBehaviour:
       - act: dialog
         targ: 
         val: begDialExpl
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: off
         targ: this
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="ClSnzpn3gxk9DCvN" uid="trExpl2" h="12" w="5"
-  - type: obj
+  - type: unit
     id: scorp
     definitionId: scorp
     definition: {fileID: 11400000, guid: f9d80b2df85d5424fac08f8479002729, type: 2}

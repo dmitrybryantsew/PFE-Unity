@@ -17,6 +17,8 @@ MonoBehaviour:
   landId: surf
   landName: Surf
   tip: story
+  isProbLand: 0
+  isTestLand: 0
   isProcedural: 0
   stage: 2
   baseDifficulty: 0
@@ -66,3 +68,4 @@ MonoBehaviour:
   - {fileID: 11400000, guid: a68d76e761587fc4a950e97ca87b771d, type: 2}
   - {fileID: 11400000, guid: dd4813bcd108e7e4ba071bd7f1f1c5af, type: 2}
   - {fileID: 11400000, guid: 40f67a62e43b2c04b94147876cc90fca, type: 2}
+  probRooms: []

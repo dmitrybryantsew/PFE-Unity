@@ -129,15 +129,19 @@ MonoBehaviour:
   - weaponId: robogatp
     chance: 1
     difficulty: 0
+    isFixedWeapon: 1
   - weaponId: robomlau2
     chance: 1
     difficulty: 0
+    isFixedWeapon: 1
   - weaponId: robogas
     chance: 1
     difficulty: 0
+    isFixedWeapon: 1
   - weaponId: roboplagr
     chance: 1
     difficulty: 0
+    isFixedWeapon: 1
   animations:
     stay:
       row: 0

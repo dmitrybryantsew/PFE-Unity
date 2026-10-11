@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: hounds
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: hounds
   sourceCollectionId: rooms_prob
   type: pass
@@ -54,7 +54,7 @@ MonoBehaviour:
     tileCoord: {x: 4, y: 8}
   - id: oper
     tileCoord: {x: 6, y: 8}
-  doorQuality: 000000000200000002000000020000000000000000000000000000000000000000000000000000000000000000000000020000000200000002000000020000000000000000000000020000000200000002000000000000000200000002000000
+  doorQuality: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
   tileDataString: "S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S\nS._._._._._._._._N._._._._._._._._._._N._._._._.S.S.S.S.S.S.S._._._._._._._._._._._._.S.S.S.S.S.S\nS._._._._._._._._N._._._._._._._._._._N._._._._.S.S.S.S.S._._._._._._._._._._._._._._._._.S.S.S.S\nS._._._._._._._._N._._._._._._._._._._N._._._._.S.S.S.S.S._._._._._._._._._._._._._._._._.S.S.S.S\nS._._._._._._._._N._._._._._._._._._._N._._._._.S.S.S.S.S.S.S._\u0415._\u0415._\u0415._\u0410\u0415.S.S.S.S._\u0411\u0415._\u0415._\u0415._\u0415.S.S.S.S.S.S\nS._\u0415._\u0415._\u0415.S.S._\u0415._\u0415._N\u0415._._._._._._._._._._N._._._._.S.S.S.S.S.S.S._._._._\u0410._N._._._N._\u0411._._._.S.S.S.S.S.S\nS._._._._._._._._N._._._._._._._._._._N._._._._.S.S.S.S.S.S.S._._._._\u0410._N._._._N._\u0411._._._.S.S.S.S.S.S\nS._N._N._N._N._N._N._N._N._._._._._._._._._._N\u0415._\u0415._\u0415._\u0415._\u0415.S.S._Z._Z._Z._Z.S._._._._\u0410._N._._._N._\u0411._._._.S._Z._Z._Z._Z.S\nS._Z._Z._Z._Z._Z._Z._Z._N._._._._._._._._._._N._._._._.S.S._Z._Z._Z._Z._._._._._\u0410._N._._._N._\u0411._._._._._Z._Z._Z._Z.S\nS._Z._Z._Z._Z._Z._Z._Z._N._._._._._._._._._._N._._._._.S.S._Z._Z._Z._Z._._._._._\u0410._N._._._N._\u0411._._._._._Z._Z._Z._Z.S\nS._Z._Z._Z._Z._Z._Z._Z._N._._._._._._._._._._N._._._._.S.S._Z._Z._Z._Z._._._._._\u0410._N._._._N._\u0411._._._._._Z._Z._Z._Z.S\nS.S.S.S.S.S.S.S.S.S.S._._._._._._._._N._._._._.S.S.SZ.SZ.SZ.SZ.S._._._._\u0410._N._._._N._\u0411._._._.S.SZ.SZ.SZ.SZ.S\nS._Z._Z._Z._Z._Z._Z._Z._Z.SZ.S._._._._._._._._N._._._._.S.S._Z._Z._Z._Z.S._._._._\u0410._N._._._N._\u0411._._._.S._Z._Z._Z._Z.S\nS._Z._Z._Z._Z._Z._Z._Z._Z._Z._._._._._._._N._N._N._._._._.T.T._Z._Z._Z._Z._._._._._\u0410._N._N._N._N._\u0411._._._._._Z._Z._Z._Z.SQ\nS._Z._Z._Z._Z._Z._Z._Z._Z._Z._._._._._._._N._N._N._._._._.T.T._Z._Z._Z._Z._._._._._\u0410._N._N._N._N._\u0411._._._._._Z._Z._Z._Z.SQ\nS._Z._Z._Z._Z._Z._Z._Z._Z._Z._._._._._._._N._N._N._._._._.T.T._Z._Z._Z._Z._._._._._\u0410._N._N._N._N._\u0411._._._._._Z._Z._Z._Z.SQ\nS.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S\nS.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H"
   objects:
   - type: box
@@ -163,7 +163,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="hIIid1ZDG7uO7HDP" allid="a2" allact="open"
-  - type: obj
+  - type: unit
     id: hellhound
     definitionId: hellhound
     definition: {fileID: 11400000, guid: 6b4ce41dc97996545b96636e01f08163, type: 2}
@@ -176,7 +176,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="z3hdcihvJAl1MVqM" qid="houndF1"
-  - type: obj
+  - type: unit
     id: hellhound
     definitionId: hellhound
     definition: {fileID: 11400000, guid: 6b4ce41dc97996545b96636e01f08163, type: 2}
@@ -189,7 +189,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="lKEPmZSCwe1l5n5O" qid="houndF1"
-  - type: obj
+  - type: unit
     id: hellhound
     definitionId: hellhound
     definition: {fileID: 11400000, guid: 6b4ce41dc97996545b96636e01f08163, type: 2}
@@ -202,7 +202,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="Q6GU4wAYtU2D25Yt" qid="houndF1"
-  - type: obj
+  - type: unit
     id: hellhound
     definitionId: hellhound
     definition: {fileID: 11400000, guid: 6b4ce41dc97996545b96636e01f08163, type: 2}
@@ -215,7 +215,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="c37PUj48Yy5DaZ9r" qid="houndF1"
-  - type: obj
+  - type: unit
     id: hellhound
     definitionId: hellhound
     definition: {fileID: 11400000, guid: 6b4ce41dc97996545b96636e01f08163, type: 2}

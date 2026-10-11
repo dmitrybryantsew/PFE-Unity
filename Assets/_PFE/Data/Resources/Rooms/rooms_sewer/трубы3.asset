@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: "\u0442\u0440\u0443\u0431\u044B3"
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: "\u0442\u0440\u0443\u0431\u044B3"
   sourceCollectionId: rooms_sewer
   type: pass
@@ -176,7 +176,7 @@ MonoBehaviour:
     tileCoord: {x: 14, y: 1}
   - id: stok2
     tileCoord: {x: 45, y: 10}
-  doorQuality: 000000000000000002000000000000000200000002000000020000000200000000000000020000000200000000000000000000000000000000000000020000000000000002000000020000000000000000000000020000000200000002000000
+  doorQuality: 020000000000000002000000000000000200000002000000020000000000000000000000020000000200000002000000000000000000000000000000020000000200000002000000020000000200000000000000020000000000000000000000
   tileDataString: 'A.A.A.A.A._L._L.A.A.A.A.A.A.A._T._T.A.A.A.A.A.A.A._L._L.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A._L._L.A.A.A.A.A
 
     A._L._L._L._L._L._L._A._T._T.M.L.L.M._T._T.M.HL.HL.HL.HL.HL._L._L._L._L._L._L._L.HL.HL._L._L._L._L._L._L._L._L._L._L._L._L._L.HL.HL.HL.A
@@ -645,7 +645,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="kKnVTKAhk6quwH46"
-  - type: obj
+  - type: unit
     id: ebloat
     definitionId: ebloat
     definition: {fileID: 11400000, guid: 1f318101da73eae4992134243db714ea, type: 2}

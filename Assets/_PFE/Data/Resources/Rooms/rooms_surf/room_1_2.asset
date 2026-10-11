@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_1_2
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_1_2
   sourceCollectionId: rooms_surf
   type: pass
@@ -26,7 +26,7 @@ MonoBehaviour:
     tileCoord: {x: 14, y: 9}
   - id: musor1
     tileCoord: {x: 13, y: 11}
-  doorQuality: 000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: "H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.E.H.H.E.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.E.H.H.E.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.E.H.H.E.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.EC._C._C.EC.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.EC._C._C.EC.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.EC._C._C.EC.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.BC.BC.BC.BC.BC.BC.BC.EC.EC.EC.EC.EC.EC.EC.EC.EC._C._C.EC.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.BC._C._C._C._C._C.BC._C._C._C._C._C._C._C._C._C._C._C.EC.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.BC._C._C._C._C._C.BC._C._C._C._C._C._C._C._C._C._C._C.EC.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.BC._C._C._C._C._C.BC._C._C._C._C._C._C._C._C._C._C._C.EC.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.BC._C._C._C._C._C.BC._C._C._C._C._C._C._C._C._C._C._C.EC.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.BC._C._C._C._C._C.BC._C._C._C._C._C._C._C._C._C._C._C.EC.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.BC.BC.BC.BC.BC.BC.BC.EC.EC.EC.EC.EC.EC.EC.EC.EC._C\u0411-._C-.EC.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.EC._C\u0411._C.EC.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.EC._C\u0411._C.EC.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.EC._C\u0411._C.EC.H.H.H._._._.H.H.H.H.H.H.H._._.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.EC._C\u0411._C.EC.H.H.H._\u0414.H.H.H.H.H.H._._._._._._._._._._._._._\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.EC._C\u0411._C.EC.H.H.H._.H.H.H.H.H.H.H.H.H._\u0414._\u0414.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.EC._C\u0411._C.EC.H.H.H._.H.H.H.H.H.H.H.H.H._._.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.EC._C\u0411._C._C._._._._._._._._._._._._._._._.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H._.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H._._._._._._._.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H"
   objects:
   - type: box
@@ -40,7 +40,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="tlfpRZCXffPbbAWA"
-  - type: obj
+  - type: unit
     id: rat
     definitionId: rat
     definition: {fileID: 11400000, guid: 91aa9373086f9584dafaf4723062b4a4, type: 2}
@@ -68,7 +68,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="wTKLeXZ6UCsF5oVI" w="1" h="5" tilehp="1"
-  - type: obj
+  - type: unit
     id: rat
     definitionId: rat
     definition: {fileID: 11400000, guid: 91aa9373086f9584dafaf4723062b4a4, type: 2}
@@ -98,7 +98,7 @@ MonoBehaviour:
         value: 2
     scripts: []
     parameters: code="aDT3YZk4GPzs8lvG" cont="*"
-  - type: obj
+  - type: unit
     id: molerat
     definitionId: molerat
     definition: {fileID: 11400000, guid: 1408e310852cb0742aa198feb9353ea9, type: 2}
@@ -109,7 +109,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="yqgzySWLvYwxDEiL"
-  - type: obj
+  - type: unit
     id: rat
     definitionId: rat
     definition: {fileID: 11400000, guid: 91aa9373086f9584dafaf4723062b4a4, type: 2}

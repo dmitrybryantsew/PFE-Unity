@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_4_0
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_4_0
   sourceCollectionId: rooms_art
   type: pass
@@ -36,10 +36,10 @@ MonoBehaviour:
     tileCoord: {x: 14, y: 1}
   - id: vent
     tileCoord: {x: 39, y: 15}
-  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000000000000000000000000000000000000000000002000000020000000000000002000000020000000000000000000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: "A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\n_I._I._I._I._I.A.A.A.A.A.A.A.A.A._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\n_I._I._I._I._I.A.A.A.A.A.A.A.A.A._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I.A.A.A.A._I._I._I._I._I._I._I._I._I._I._I._I._I.A\nA.A.A._I._I.A.A.A.A.A.A.A.A.A.A.A.A.A._I._I.A.A.A.A.A.A.A.A._I._I.A.A.A.A._I._I._I._I._I._I._I._I._I._I._I._I._I.A\nA.A.A._I._I.A.A.A.A.A.A.A.A.A.A.A.A.A._I._I.A.A.A.A.A.A.A.A._I._I.A.A.A.A._I\u0415._I\u0415.A.A.A.A.A.A.A.A.A._I._I.A\nA.A.A._I._I._I._I._I._I._I._I._I._I._I.A.A._I._I._I._I._I._I._I._I._I._I._I.A._I._I.A.A._O._I._I._I._I._I._I._I._I._I.A.A.A._I._I.A\nA.A.A._I._I._I._I._I._I._I._I._I._I._I.A.A._I._I._I._I._I._I._I._I._I._I._I.A._I._I.A.A._O._I._I._I._I._I._I._I._I._I.A.A.A._I._I.A\nA.A.A.A.A.A.A.A._I\u0415._I\u0415.A.A._I._I.A.A._I._I.A.A._I\u0415._I\u0410\u0415.A.A.A.A.A.A._I._I.A.A._O._I._I._I._I._I._I._I._I._I.A.A.A._I._I.A\nA.A.A.A.A.A.A.A._I._I.A.A._I._I._I._I._I._I.A.A._I._I\u0410.A.A.A.A.A.A._I._I.A.A.A.A.A.A.A.A.A.A._I\u0415._I\u0415.A.A.A._I._I.A\nA.A.A.A.A.A.A.A._I._I.A.A._I._I._I._I._I._I.A.A._I._I\u0410.A.A.A.A.A.A._I._I._I._I._I._I.A.A._I._I._I._I._I._I._I._O.A._I._I.A\nA.A.A._I._I._I._I._I._I._I._I._I._I._I.A.A._I._I._I._I._I._I\u0410.A.A.A.A.A.A._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._O.A._I._I.A\nA.A.A._I._I._I._I._I._I._I._I._I._I._I.A.A._I._I._I._I._I._I\u0410.A.A.A.A.A.A._I._I._I._I._I._I.A.A._I._I._I._I._I._I._I._O.A._I._I.A\nA.A.A.A.A.A.A.A._I._I.A.A._I\u0415._I\u0415.A.A._I\u0415._I\u0415.A.A._I._I\u0410.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A._I._I.A\nA.A.A.A.A.A.A.A._I._I._I._I._I._I._I._I._I._I._I._I._I._I\u0410.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A._I._I.A\nA.A.A.A.A.A.A.A._I._I._I._I._I._I._I._I._I._I._I._I._I._I\u0410.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A._I._I.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A._I._I._I._I._I._I.A._I._I.A\nO.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.A.A._I._I._I._I._I._I.A._I._I.A\nO.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.A.A._I._I._I._I._I._I.A._I._I.A\n_I._I._I._I._I.O.O.O.O.O.O.O.O._I._I._I._I._I._I._I._I._I._I._I._I._I._I.O.O.O.O.O.O.O.O.O.A.A._I._I._I._I._I._I._I._I._I.A\n_I._I._I._I._I.O.O.O.O.O.O.O.O._I._I._I._I._I._I._I._I._I._I._I._I._I._I.O.O.O.O.O.O.O.O.O.A.A._I._I._I._I._I._I._I._I._I.A\nO.O.O._I._I.O.O.O.O.O.O.O.O._I._I.O.O._I._I.O.O._I._I.O.O._I._I.O.O.O.O.O.O.O.O.O.A.A._I.A.A.A.A.A.A.A.A.A\nO.O.O._I._I.O.O.O.O.O.O.O.O._I._I.O.O._I._I.O.O._I._I.O.O._I._I.O.O.O.O.O.O.O.O.O.A.A._I.A.A.A.A.A.A.A.A.A\nO.O.O._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I.O.O._I._I._I._I._I._I._I._I._I._I._I._I._I.O.O.A.A._I.A.A.A.A.A.A.A.A.A\nO.O.O._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I.O.O._I._I._I._I._I._I._I._I._I._I._I._I._I.O.O.A.A._I._I._I._I._I._I._I._I._I._I\nO.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O._I\u0415._I\u0415.O.O.A.A.A.A.A.A.A.A.A.A.A.A"
   objects:
-  - type: obj
+  - type: unit
     id: dron
     definitionId: dron
     definition: {fileID: 11400000, guid: 3bae6e09bbe3c214b9e0967e21752f24, type: 2}
@@ -87,7 +87,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="bvJ7Ku2u1q0PgQQZ"
-  - type: obj
+  - type: unit
     id: armturret
     definitionId: armturret
     definition: {fileID: 11400000, guid: 485a5442239ff174dafac0f96a1b402d, type: 2}
@@ -104,7 +104,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="NoHc4HnqquSJwjM7" turn="-1" multhp="2" tr="6"
-  - type: obj
+  - type: unit
     id: cturret
     definitionId: cturret
     definition: {fileID: 11400000, guid: c57d7448f31cf144c8f299782156c1e2, type: 2}
@@ -119,7 +119,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="Zy7iqyRa3dnDyVQi" multhp="2" tr="6"
-  - type: obj
+  - type: unit
     id: dron
     definitionId: dron
     definition: {fileID: 11400000, guid: 3bae6e09bbe3c214b9e0967e21752f24, type: 2}
@@ -134,7 +134,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="HMhYEB0h2v7WFrIm" tr="2" multhp="2"
-  - type: obj
+  - type: unit
     id: dron
     definitionId: dron
     definition: {fileID: 11400000, guid: 3bae6e09bbe3c214b9e0967e21752f24, type: 2}
@@ -149,7 +149,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="KrXQdu5VPdpF720X" tr="2" multhp="2"
-  - type: obj
+  - type: unit
     id: dron
     definitionId: dron
     definition: {fileID: 11400000, guid: 3bae6e09bbe3c214b9e0967e21752f24, type: 2}
@@ -164,7 +164,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="jJKvm3u6HHhIOuFI" tr="1" multhp="2"
-  - type: obj
+  - type: unit
     id: dron
     definitionId: dron
     definition: {fileID: 11400000, guid: 3bae6e09bbe3c214b9e0967e21752f24, type: 2}
@@ -179,7 +179,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="j5njU79HfOd6MD8W" tr="1" multhp="2"
-  - type: obj
+  - type: unit
     id: dron
     definitionId: dron
     definition: {fileID: 11400000, guid: 3bae6e09bbe3c214b9e0967e21752f24, type: 2}
@@ -194,7 +194,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="V1x6II3Gbg1IbnCB" tr="1" multhp="2"
-  - type: obj
+  - type: unit
     id: armturret
     definitionId: armturret
     definition: {fileID: 11400000, guid: 485a5442239ff174dafac0f96a1b402d, type: 2}
@@ -211,7 +211,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="VMYe5Yg8PnAGrQVX" turn="1" multhp="2" tr="6"
-  - type: obj
+  - type: unit
     id: dron
     definitionId: dron
     definition: {fileID: 11400000, guid: 3bae6e09bbe3c214b9e0967e21752f24, type: 2}
@@ -226,7 +226,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="hrdoYJWZIFs6fkU1" tr="2" multhp="2"
-  - type: obj
+  - type: unit
     id: dron
     definitionId: dron
     definition: {fileID: 11400000, guid: 3bae6e09bbe3c214b9e0967e21752f24, type: 2}

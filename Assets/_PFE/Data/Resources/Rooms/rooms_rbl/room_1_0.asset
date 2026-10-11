@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_1_0
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_1_0
   sourceCollectionId: rooms_rbl
   type: pass
@@ -54,7 +54,7 @@ MonoBehaviour:
     tileCoord: {x: 16, y: 14}
   - id: vkonstr
     tileCoord: {x: 18, y: 14}
-  doorQuality: 020000000200000002000000020000000000000000000000000000000000000000000000000000000000000000000000020000000200000002000000020000000000000000000000020000000200000002000000020000000200000002000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: "A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._R._F._F._F._F._F._F._R._F._F._F._F._F._F.A\nA._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._R._F._F._F._F._F._F._R._F._F._F._F._F._F.A\nA._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._R._F._F._F._F._F._F._R._F._F._F._F._F._F.A\nA._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._R._F._F._F._F._F._F._R._F._F._F._F._F._F.A\nA._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._R._F._F._F._F._F._F._R._F._F._F._F._F._F.A\nA._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._R._F._F._F._F._F._F._R-._F-._F-._F-._F-._F-._F\u0410-.A\nA._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._R._F._F._F._F._F._F._R._F._F._F._F._F._F\u0410.A\nA._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._R._F._F._F._F._F._F._R._F._F._F._F._F._F\u0410.A\nA._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._R._F._F._F._F._F._F._R._F._F._F._F._F._F\u0410.A\nA._._._._._._._._._._._._._._._._._._._._._._.A._._._._._._._._._._R._F._F._F._F._F._F._R._F._F._F._F._F._F\u0410.A\nA._-._-._-._-._\u0411-._-._-._-._-._-._-._-._-._-._-._-._-._-._-._-._-._-.A._._._._._._._._._._R._F._F._F._F._F._F._R-._F-._F-._F-._F-._F-._F\u0410-.A\nA._._._._._\u0411._._._._._._._._._._._._._._._._._._R._._._._._._._._._._R._F._F._F._F._F._F._R._F._F._F._F._F._F\u0410.A\n_._._._._._\u0411._._._._._._._._._._._-._-._-._-._._._._R._._._._._._._._._._R._F._F._F._F._F._F._R._F._F._F._F._F._F\u0410.A\n_._._._._._\u0411._._._._._._._._._._._._._._._._._._R._._._._._._._._._._R._F._F._F._F._F._F._R._F._F._F._F._F._F\u0410.A\n_._._._._._\u0411._._._._._._._._._._._._._._._._._._R._._._._._._._._._._R._F._F._F._F._F._F._R._F._F._F._F._F._F\u0410.A\nA.A.A.A.A._\u0411-._-.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A._\u0411._.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A._\u0411._.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A._\u0411._._._._._._._._._._._._._._._._._._._._._._._._.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A._\u0411._._._._._._._._._._._._._._._._._._._._._._._._.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A._\u0411._._._._._._._._._._._._._._._._._._._._._._._._.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A._\u0411._._._._._._._._._._._._._._._._._._._._._._._._.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A"
   objects:
   - type: box
@@ -81,7 +81,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="AsDCGvUHhokNnkic"
-  - type: obj
+  - type: unit
     id: training
     definitionId: training
     definition: {fileID: 11400000, guid: ac889134e573dbf4e95e1f8a5cb8084d, type: 2}
@@ -180,7 +180,7 @@ MonoBehaviour:
     scripts: []
     parameters: code="UuqEPGxPXiRdyfPd" prob="bossalicorn1" lock="1" locktip="0"
       key="key_gruz" light="1"
-  - type: obj
+  - type: unit
     id: training
     definitionId: training
     definition: {fileID: 11400000, guid: ac889134e573dbf4e95e1f8a5cb8084d, type: 2}
@@ -195,7 +195,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="jYE4QZuCBhwo9Voh" turn="1" light="1"
-  - type: obj
+  - type: unit
     id: training
     definitionId: training
     definition: {fileID: 11400000, guid: ac889134e573dbf4e95e1f8a5cb8084d, type: 2}
@@ -212,7 +212,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="WEqCysOP6BwxoT0g" turn="-1" tr="1" fix="1"
-  - type: obj
+  - type: unit
     id: training
     definitionId: training
     definition: {fileID: 11400000, guid: ac889134e573dbf4e95e1f8a5cb8084d, type: 2}
@@ -244,6 +244,10 @@ MonoBehaviour:
       - act: dialog
         targ: 
         val: rblDialBoss
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="RXT7BvYHL9CvgYLm"
   - type: box
     id: mcrate1
@@ -282,8 +286,12 @@ MonoBehaviour:
       - act: dialog
         targ: 
         val: rblDialTrain
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="QdBG0Cis2fuu1nmw"
-  - type: obj
+  - type: unit
     id: training
     definitionId: training
     definition: {fileID: 11400000, guid: ac889134e573dbf4e95e1f8a5cb8084d, type: 2}
@@ -298,19 +306,6 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="ZXdSjvMHDxsj5Tmr" turn="-1" light="1"
-  - type: obj
-    id: zombie
-    definitionId: zombie
-    definition: {fileID: 11400000, guid: d56512d3ac0c0744eb90060a7d920ede, type: 2}
-    tileCoord: {x: 20, y: 15}
-    code: zmbeTestCoord2015
-    uid: 
-    attributes:
-    - key: turn
-      value: -1
-    items: []
-    scripts: []
-    parameters: code="zmbeTestCoord2015" turn="-1"
   - type: door
     id: doorboss
     definitionId: doorboss

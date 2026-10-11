@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_0_0
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_0_0
   sourceCollectionId: rooms_grave
   type: pass
@@ -42,7 +42,7 @@ MonoBehaviour:
     tileCoord: {x: 6, y: 15}
   - id: stree
     tileCoord: {x: 37, y: 15}
-  doorQuality: 020000000200000002000000020000000200000002000000000000000000000000000000000000000000000000000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: '_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
 
     _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
@@ -93,7 +93,7 @@ MonoBehaviour:
 
     H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H'
   objects:
-  - type: obj
+  - type: unit
     id: npc
     definitionId: npc
     definition: {fileID: 11400000, guid: 2b067238a37bc224c99b891f75cdd086, type: 2}
@@ -143,7 +143,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="Gai3MLRd1BEdvknw" scr="vse"
-  - type: obj
+  - type: unit
     id: npc
     definitionId: npc
     definition: {fileID: 11400000, guid: 2b067238a37bc224c99b891f75cdd086, type: 2}
@@ -158,7 +158,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="k8pfnsKpVEqaP6ZB" npc="sc4" turn="1"
-  - type: obj
+  - type: unit
     id: npc
     definitionId: npc
     definition: {fileID: 11400000, guid: 2b067238a37bc224c99b891f75cdd086, type: 2}
@@ -173,7 +173,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="oUjkRwBw09dNDzof" npc="velvet_end" turn="1"
-  - type: obj
+  - type: unit
     id: npc
     definitionId: npc
     definition: {fileID: 11400000, guid: 2b067238a37bc224c99b891f75cdd086, type: 2}
@@ -188,7 +188,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="wxKTBmxRRmT9SETm" npc="sc2" turn="1"
-  - type: obj
+  - type: unit
     id: npc
     definitionId: npc
     definition: {fileID: 11400000, guid: 2b067238a37bc224c99b891f75cdd086, type: 2}
@@ -216,7 +216,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="dprtfHSNt9gOJFDV" hide="1"
-  - type: obj
+  - type: unit
     id: npc
     definitionId: npc
     definition: {fileID: 11400000, guid: 2b067238a37bc224c99b891f75cdd086, type: 2}
@@ -231,7 +231,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="SppxLr7jKqMOSFUw" npc="calam_end" turn="-1"
-  - type: obj
+  - type: unit
     id: npc
     definitionId: npc
     definition: {fileID: 11400000, guid: 2b067238a37bc224c99b891f75cdd086, type: 2}
@@ -246,7 +246,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="yjCiub8CNTo2i4p1" npc="steel_end" turn="-1"
-  - type: obj
+  - type: unit
     id: npc
     definitionId: npc
     definition: {fileID: 11400000, guid: 2b067238a37bc224c99b891f75cdd086, type: 2}
@@ -261,7 +261,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="MZ30fbzfCTcpMdbz" npc="askari_end" turn="-1"
-  - type: obj
+  - type: unit
     id: npc
     definitionId: npc
     definition: {fileID: 11400000, guid: 2b067238a37bc224c99b891f75cdd086, type: 2}

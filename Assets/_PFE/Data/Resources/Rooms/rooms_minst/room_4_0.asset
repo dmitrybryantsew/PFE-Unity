@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_4_0
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_4_0
   sourceCollectionId: rooms_minst
   type: pass
@@ -40,7 +40,7 @@ MonoBehaviour:
     tileCoord: {x: 31, y: 11}
   - id: light5
     tileCoord: {x: 33, y: 11}
-  doorQuality: 000000000000000002000000020000000000000000000000000000000000000000000000000000000000000000000000000000000000000002000000020000000000000000000000000000000000000000000000000000000000000000000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: 'G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G
 
     G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G
@@ -322,7 +322,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="HoXLBiBxvVouqscx"
-  - type: obj
+  - type: unit
     id: training
     definitionId: training
     definition: {fileID: 11400000, guid: ac889134e573dbf4e95e1f8a5cb8084d, type: 2}
@@ -335,7 +335,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="fLXs5b5Km43C7KvY" turn="1"
-  - type: obj
+  - type: unit
     id: zebra
     definitionId: zebra
     definition: {fileID: 11400000, guid: 83d3603e3c2ea644f8e61c5637414bca, type: 2}

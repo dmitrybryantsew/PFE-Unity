@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_8_1_1
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_8_1_1
   sourceCollectionId: rooms_art
   type: pass
@@ -72,7 +72,7 @@ MonoBehaviour:
     tileCoord: {x: 19, y: 3}
   - id: light1
     tileCoord: {x: 25, y: 3}
-  doorQuality: 020000000200000002000000000000000200000002000000000000000200000002000000020000000200000002000000000000000200000002000000020000000200000000000000020000000200000002000000020000000200000000000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: "A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.AQ.AQ._Q._Q.AQ.AQ.AQ.A.A.A\nA._F._F._F._F._F._F._F.K._._._._._._._._._._F._F._F._F._F._F._F._F._F._._._._._._._._._._._.AQ.AQ._Q._Q.AQ.AQ.AQ.A.A.A\nA._F._F._F._F._F._F._F._._._._._._._._._._._F._F._F._F._F._F._F._F._F._._._._._._._._._._._._Q._Q._Q._Q._Q._Q._Q.K._I.A\nA._F._F._F._F._F._F._F._._._._._._._._._._._F._F._F._F._F._F._F._F._F._._._._._._._._._._._.A.A.A.A.A.A.A.A._I.A\nA.K.K.K.O.O.O.K.K._._._._._._O._O._._._F._F._F._F._F._F._F._F._F._._._._._._._._._._._._._._.A.A.A.A.A._I.A\nA._._._._._._._._._._._._._._O._O._._._F._F._F._F._F._F._F._F._F._._._._._._._._._._._._._._.A.A.A.A.A._I.A\nA._._._._._._._._._._._._._._O._O._._._F._F._F._F._F._F._F._F._F._._._._._._._._._._._._._._.A.A.A.A.A._I.A\nA._._._._._._._._._._._._._._O._O._._._F._F._F._F._F._F._F._F._F._._._._._._._._._._._._._._.A.A.A.A.A._I.A\nA._._._._._._._._._._._._._.O._\u0415._\u0415._\u0415._F\u0415._F\u0415._F\u0415._F\u0415._F\u0415._F\u0415._F._F._F._._._._._._._._._._._._._._.A.A.A.A.A._I.A\nA._._._._._._._._._._._._._.O._._._._F._F._F._F._F._F._F._F._F._._._._._._._._._._._._._._.A._F._F._F._F._F.A\nA._._._._._._._._._._._._._.O._._._._F._F._F._F._F._F._F._F._F._._._O._O._._._._._._._._._._._._F._F._F._F._F.A\nA._._._._._._._.O.O.O.O.O.O.O._._._._F._F._F._F._F._F._F._F._F._._._O._O._._._._._._._._._._._._F._F._F._F._F.A\nA._._._._._._._._._._._._._._._._._._F._F._F._F._F._F._F._F._F._._._O._O._._._._._._._._._._._._F._F._F._F._F.A\nA._._._._._._._._._._._._._._._._._._F._F._F._F._F._F._F._F._F.O.O.O.O.O.O._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415.A._Q\u0415.AQ.AQ.AQ.AQ.A\nA.O.O.O.O.O.O.O.O.O._\u0415._\u0415._\u0419._._._._._._F._F._F._F._F._F._F._F._F._._._._._._._._._._._._._._.A._Q._Q._Q._Q._Q.A\nA._F._F._F._._._._._O._O._._._._\u0419._._._._._F._F._F._F._F._F._F._F._F._._._._._._._._._._._._._._.A.AQ.AQ.AQ.AQ._Q\u0415.A\nA._F._F._F._._._._._O._O._._._._._\u0415._\u0415._\u0415.O.O.O.O.O.O.O.O.O.O.O._._._._._._._._._._._._._.A.AQ.AQ.AQ.AQ._Q.A\nA._F._F._F._._._._._O._O._._._._._._._._F._F._O._O._O._O._O._O._O._F._F._._._._._O._O._O._._._._._._.A.AQ.AQ.AQ.AQ._Q\u0415.A\nA._F._F._F._._._._._O._O._._._._._._._._F._F._O._O._O._O._O._O._O._F._F._._._._._O._O._O._._._._._._.A.AQ.AQ.AQ.AQ._Q.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.AQ.AQ.AQ.AQ._Q\u0415.A\nA._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q.AQ.AQ.AQ.AQ.AQ.AQ.AQ.AQ.AQ.AQ.AQ.AQ.AQ.AQ.AQ.AQ.AQ.AQ.AQ.AQ.AQ.AQ.AQ.AQ.AQ.AQ.AQ.AQ.AQ.AQ.AQ.AQ.AQ._Q.A\nA._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q.AQ.AQ.AQ.AQ.AQ.AQ.AQ.AQ.AQ._Q.AQ.AQ.AQ._Q.AQ.AQ.AQ._Q.AQ.AQ.AQ.AQ._Q.AQ._Q.AQ._Q._Q._Q.AQ.AQ.AQ.AQ._Q\u0415.A\nA.AQ.AQ.AQ.AQ.AQ.AQ.AQ.AQ._Q._Q._Q._Q.AQ.AQ.AQ.AQ.AQ.AQ.AQ.AQ.AQ._Q.AQ.AQ.AQ._Q.AQ.AQ.AQ._Q.AQ.AQ.AQ.AQ._Q.AQ._Q.AQ._Q.AQ._Q._Q._Q._Q._Q._Q.A\nA.AQ.AQ.AQ.AQ.AQ.AQ.AQ.AQ._Q._Q._Q._Q.A:Q.A:Q.A:Q.A:Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q.AQ._Q._Q.AQ.AQ.AQ.AQ.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A"
   objects:
   - type: box
@@ -97,7 +97,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="fqZJh6QhERtg6y9g"
-  - type: obj
+  - type: unit
     id: zebra
     definitionId: zebra
     definition: {fileID: 11400000, guid: 83d3603e3c2ea644f8e61c5637414bca, type: 2}
@@ -178,7 +178,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="qgFrVDxDJstZ651J"
-  - type: obj
+  - type: unit
     id: ranger
     definitionId: ranger
     definition: {fileID: 11400000, guid: 73156fd43c765fe41a8521cb472c31bf, type: 2}

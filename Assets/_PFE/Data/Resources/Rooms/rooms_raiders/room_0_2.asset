@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_0_2
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_0_2
   sourceCollectionId: rooms_raiders
   type: pass
@@ -50,7 +50,7 @@ MonoBehaviour:
     tileCoord: {x: 33, y: 13}
   - id: stok2
     tileCoord: {x: 30, y: 13}
-  doorQuality: 000000000000000000000000020000000200000002000000020000000200000002000000020000000200000000000000020000000200000000000000020000000200000002000000000000000000000000000000020000000000000000000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: "D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D._T._T\u0410.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D\nD.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D._T._T\u0410.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D\nD.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D._T._T\u0410.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D\nD.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D._T._T\u0410.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D\nL._._._._._._._._._._._._._._._._._._._._._._._._._._\u0410._._._._._._._._._._._T._T._T._T._T._T._T.L.L.L.L\nL._._._._._._._._._._._._._._._._._._._._._._._._._._\u0410._._._._._._._._._._._T._T._T._T._T._T._T.L.L.L.L\nL._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._T._T._T._T._T._T._T.L.L.L.L\nL._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._T._T._T._T._T._T._T.L.L.L.L\nL.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.LT.LT._T-._T._T-.LT.LT.L.L.L.L\nL.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.LT.LT._T._T._T.LT.LT.L.L.L.L\nL.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.LT.LT._T._T._T.LT.LT.L.L.L.L\nL.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.LT.LT._T-._T._T-.LT.LT.L.L.L.L\nL._._._._._._._._._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._._._._._._._._._._._._._._._._._._.L\nL._._._._._._._._._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._._._._._._._._._._._._._._._._._._.L\nL._._._._._._._._._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._._._._._._._._._._._._._._._._._._.L\nL._._._._._._\u0412._-._-.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L._._._._._._._._._._._._._._._._._._.L\nL._._._._._\u0412._._._.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*.L\nL._._._._\u0412._._._._.L.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nL._-._-._-._\u0413._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\nL._._._._._\u0413._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\nL._._._._._._\u0413._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\nL._._._._._._._-._-._-._-._-._-._._._._._._._._._._-._-._-._-._-._._._._._-._-._-._-.L.L.L.L.L.L.L.L.L.L.L.L.L\nL._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.L.L.L.L.L.L.L.L.L.L.L.L.L\nL._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.L.L.L.L.L.L.L.L.L.L.L.L.L\nL.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L"
   objects:
   - type: door
@@ -66,7 +66,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="eoxtBNqju0TEuDAS" allid="a1"
-  - type: obj
+  - type: unit
     id: slime
     definitionId: slime
     definition: {fileID: 11400000, guid: e76b1173a8bf9ca48bd556a2a454931e, type: 2}
@@ -77,7 +77,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="p9Yr7fQzDHzSUU6j"
-  - type: obj
+  - type: unit
     id: slime
     definitionId: slime
     definition: {fileID: 11400000, guid: e76b1173a8bf9ca48bd556a2a454931e, type: 2}
@@ -88,7 +88,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="EBYxlDq1OHGykEtQ"
-  - type: obj
+  - type: unit
     id: slime
     definitionId: slime
     definition: {fileID: 11400000, guid: e76b1173a8bf9ca48bd556a2a454931e, type: 2}
@@ -121,7 +121,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="azwJRBJVxibC5FLe"
-  - type: obj
+  - type: unit
     id: fish
     definitionId: fish
     definition: {fileID: 11400000, guid: f8a75ed607b3a1847a7865d53728974f, type: 2}
@@ -132,7 +132,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="gprVwodCgZxU7pPy"
-  - type: obj
+  - type: unit
     id: fish
     definitionId: fish
     definition: {fileID: 11400000, guid: f8a75ed607b3a1847a7865d53728974f, type: 2}
@@ -143,7 +143,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="eWwXTuu3z2I6uaW0"
-  - type: obj
+  - type: unit
     id: fish
     definitionId: fish
     definition: {fileID: 11400000, guid: f8a75ed607b3a1847a7865d53728974f, type: 2}
@@ -204,6 +204,10 @@ MonoBehaviour:
       - act: gotoland
         targ: 
         val: random_sewer
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="y4QOt9ZKNyUr1hyZ" h="5"
   - type: trap
     id: radbarrel
@@ -305,9 +309,17 @@ MonoBehaviour:
       - act: dialog
         targ: 
         val: surfDialSewer
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: off
         targ: this
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="zAfvB68J917mEq9o"
   spawnPoints:
   - tileCoord: {x: 2, y: 15}

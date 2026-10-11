@@ -17,6 +17,8 @@ MonoBehaviour:
   landId: random_mbase
   landName: Mbase
   tip: story
+  isProbLand: 0
+  isTestLand: 0
   isProcedural: 1
   stage: 10
   baseDifficulty: 22
@@ -77,3 +79,4 @@ MonoBehaviour:
   - {fileID: 11400000, guid: e27a45ca2545b4f458a7cd7adb86b01c, type: 2}
   - {fileID: 11400000, guid: cdf22911680001a4ea960651ab5ac040, type: 2}
   - {fileID: 11400000, guid: 1776c544cc0cd9b4fada3baf4e9e416d, type: 2}
+  probRooms: []

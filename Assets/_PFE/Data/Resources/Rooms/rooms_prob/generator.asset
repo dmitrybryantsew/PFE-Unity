@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: generator
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: generator
   sourceCollectionId: rooms_prob
   type: pass
@@ -160,7 +160,7 @@ MonoBehaviour:
     tileCoord: {x: 36, y: 2}
   - id: vent
     tileCoord: {x: 38, y: 2}
-  doorQuality: 020000000200000002000000000000000200000002000000000000000000000000000000000000000000000000000000020000000200000002000000020000000200000002000000020000000200000002000000000000000000000002000000
+  doorQuality: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
   tileDataString: "A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I.A._._._._._._.A._._._._._._._.A._._._._._._.A\nA._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I.A._._._._._._.A._._._._._._._.A._._._._._._.A\nA._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I.A._._._._._._._._._._._._._._._._._._._._._.A\nA._._._.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A._\u0411._.A.A._._._._._._._._._._._._._._._._._._._._._.A\nA._._._.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A._\u0411._._._._._._._._._._._._._._._._._._._._._._._._.A\nA._._._.A.A._U._U._U._U._U._U._U._U._U._._._._._._._._\u0411._._._._._._._._._._._._._._._._._._._._._._._._.A\nA._._._.A.A._U._U._U._U._U._U._U._U._U._._._._._._._._\u0411._._._._._._._._._._._._._._._._._._._._._._._._.A\nA._._._.A.A._U._U._U._U._U._U._U._U._U._._._._._._._._\u0411._._._._._._._._._._._._._._._\u0415._\u0415._\u0415.J.J.J.J.J.J.J.A\nA._._._.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A._\u0411._._._._._._._._._._._._._._._._._.J._G._G._G._G._G._G.A\nA._._._.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A._\u0411._._._._._._._._._._._._._._._._._.J._G._G._G._G._G._G.A\nA._._._.A._U._U._U._U._O._O._U._U._U._O._O._U._U._U._U.A.A._\u0411._._._._._._._._._._._._._._._._._._._G._G._G._G._G._G.A\nA._._._.A._U._U._U._U._O._O._U._U._U._O._O._U._U._U._U.A.A._\u0411._._._._._._._._._._._._._._._._._._._G._G._G._G._G._G.A\nA._._._.A._U\u0415._U\u0415._U\u0415._U\u0415._U\u0415._U\u0415._U\u0415._U\u0415._U\u0415._U\u0415._U\u0415._U\u0415._U\u0415._U\u0415._U\u0415.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA._._._.A._._._._._._._._._._._._._._._.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA._._._.A._._._._._._._._._._._._._._._.A._P._P._P._P._P._P.AP._P._P._P._P.AP._P._P._P._P.AP._P._P._P._P._P._P._P._P._P.A\nA._._._.A._._._._._._._._._._._._._._._.A._._._._._._.A._._._._.A._._._._.A._._._O._O._O._._._O._O.A\nA._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._O._O._O._._._O._O.A\nA._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._O._O._O._._._O._O.A\nA._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._O._O._O._._._O._O.A\nA._O._O._O.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A"
   objects:
   - type: box
@@ -210,6 +210,10 @@ MonoBehaviour:
       - act: on
         targ: genA1
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="Jod1fq3JZqkSnoRb" fun="generator"
   - type: box
     id: knop1
@@ -243,9 +247,17 @@ MonoBehaviour:
       - act: robots
         targ: 
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: off
         targ: this
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="d3ohJqtU31zANuKc" uid="genA1" off="1"
   - type: door
     id: door4
@@ -468,7 +480,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="xvEOFnsJCIp28rfL" off="1"
-  - type: obj
+  - type: unit
     id: protect
     definitionId: protect
     definition: {fileID: 11400000, guid: 2f0bd37ce2b5ba14ebb9a036e5ed9b51, type: 2}

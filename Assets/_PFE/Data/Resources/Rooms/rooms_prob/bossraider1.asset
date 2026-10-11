@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: bossraider1
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: bossraider1
   sourceCollectionId: rooms_prob
   type: pass
@@ -80,7 +80,7 @@ MonoBehaviour:
     tileCoord: {x: 7, y: 11}
   - id: railing
     tileCoord: {x: 11, y: 11}
-  doorQuality: 000000000000000002000000020000000200000002000000000000000000000000000000000000000000000000000000000000000000000002000000020000000200000002000000000000000000000000000000000000000000000000000000
+  doorQuality: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
   tileDataString: "A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA._F._F._F._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._F._F._F.A\nA._F._F._F._._O._O._._._._._._._._._._._._._._._._._O._O._._._._._._._._._._._._._._._._._O._O._._F._F._F.A\nA._F._F._F._._O._O._._._._._._._._._._._._._._._._._O._O._._._._._._._._._._._._._._._._._O._O._._F._F._F.A\nA._F._F._F._._O._O._._._._._._._._._._._._._._._._._O._O._._._._._._._._._._._._._._._._._O._O._._F._F._F.A\nA._F._F._F._-._-._-._-._-._-._-._\u0411-._-._-._-._-._\u0413._._._._._._._O._O._._._._._._._\u0412._-._-._-._-._-._-._\u0410-._-._-._-._-._-._F._F._F.A\nA._F-._F._F._._._._._._._._\u0411._._._._._._\u0413._._._._._._O._O._._._._._._\u0412._._._._._._._._\u0410._._._._._._F._F._F-.AQ\nA._F._F._F._._._._._._._._\u0411._._._._._._._\u0413._._._._._O._O._._._._._\u0412._._._._._._._._._\u0410._._._._._._F._F._F.AQ\nA._F._F._F._._._._._._._._\u0411._._._._._._._\u0412._-._\u0410-._-._-._-._-._-._-._\u0411-._-._\u0413._._._._._._._._._\u0410._._._._._._F._F._F.AQ\nA._F-._F._F._._._._._._._._\u0411._._._._._._\u0412._._._\u0410._._._._._._._\u0411._._._\u0413._._._._._._._._\u0410._._._._._._F._F._F-.A\nA._F._F._F._._._._._._._._\u0411._._._._._\u0412._._._._\u0410._._._._._._._\u0411._._._._\u0413._._._._._._._\u0410._._._._._._F._F._F.A\nA._F._F._F._F._F._F._F._F._F._F._F\u0411._F._F._F._F\u0412._F._F._F._F._F\u0410._F._F._F._F._F._F._F\u0411._F._F._F._F._F\u0413._F._F._F._F._F._F\u0410._F._F._F._F._F._F._F._F.A\nA._F._F._F._F._F._F._F._F._F._F._F\u0411._F._F._F\u0412._F._F._F._F._F._F\u0410._F._F._F._F._F._F._F\u0411._F._F._F._F._F._F\u0413._F._F._F._F._F\u0410._F._F._F._F._F._F._F._F.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A"
   objects:
   - type: box
@@ -151,7 +151,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="XjITlMeLE7aA5zdf" prize="1"
-  - type: obj
+  - type: unit
     id: bossraider
     definitionId: bossraider
     definition: {fileID: 11400000, guid: 9afbf2a60b0008949b02eaa8afb470bd, type: 2}

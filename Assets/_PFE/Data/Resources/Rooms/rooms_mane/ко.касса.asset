@@ -11,13 +11,13 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: "\u043A\u043E.\u043A\u0430\u0441\u0441\u0430"
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: "\u043A\u043E.\u043A\u0430\u0441\u0441\u0430"
   sourceCollectionId: rooms_mane
   type: uniq
   fixedPosition: {x: 0, y: 0, z: 0}
   difficultyLevel: 2
-  maxInstances: 2
+  maxInstances: 1
   allowRandom: 1
   specificMapOnly: 0
   backgroundRoomId: 
@@ -148,7 +148,7 @@ MonoBehaviour:
     tileCoord: {x: 7, y: 21}
   - id: konstr
     tileCoord: {x: 4, y: 21}
-  doorQuality: 020000000200000002000000020000000000000002000000020000000200000000000000020000000200000002000000020000000200000002000000020000000000000002000000020000000200000002000000020000000200000002000000
+  doorQuality: 030000000300000000000000000000000300000003000000000000000000000004000000040000000400000003000000000000000000000002000000030000000300000004000000000000000400000004000000040000000000000000000000
   tileDataString: "N.N.N.N._A._A._A._A.N.N.N.N.N.N.N.N.N.N.N.N.N.N._A._A._A._A.N.N.N.N.N._A._A._A._A.N.N.N.N.N._A._A._A._A.N.N.N.N\n_A._C._C._C._C._C._C._C._C._C._C._C._D._D._D._D._D._D._D._._._._._D._D._._._._._._._._D._D._._._._._._._._D._D._._._._._A\n_A._C._C._C._C._C._C._C._C._C._C._C._D._D._D._D._D._D._D._._._._._D._D._._._._._._._._D._D._._._._._._._._D._D._._._._._A\n_A._C._C._C._C._C._C._C._C._C._C._C._D._D._D._D._D._D._D._._._._._D._D._._._._._._._._D-._D-._._._._._._._._D._D._._._._._A\nN._C-._A-._A-._A-._A-._C-._C._C._C._C._C._D._D._D._D._D._D._D._._._._\u041A._D\u041A._D\u041A._\u041A._\u041C._._._._._._D._D._._._._._._\u041B._\u041A._D\u041A._D\u041A._\u041A._._._.N\nN._C._A._A._A._A._C._C._C._C._C._C._D._D._D._D._D._D._D._._._._._D._D._._._\u041C._._._._._D._D._._._._._\u041B._._._D._D._._._._._\nN._C._A._A._A._A._C._C._C._C._C._C._D._D._D._D._D._D._D._._._._._D._D._._._._\u041A._\u041C._._._D._D._._._\u041B._\u041A._._._._D._D._._._._._\nN._C._A._A._A._A._C._C._C._C._C._C._D._D._D._D._D._D._D._._._._F._F._F._F._._._F._._\u041C._._D._D._._\u041B._._F._._._F._F._F._F._._._._\nNA._A._A.NA.N.D.DA._A._A._A.DA.N.N.N._F._F._F.N.N.N.N.N.N.N.N.D.D.D.D.D.D.N.N.N.B.B.B.B.B.B.B.B.B.B.B.B.B.N\nN._C._C._C._C._C._C._C._C._C._C._C._D._D._H._H._H._D._D._._._._._D._D._._._._._._._._D._D._._._.B._._._._D._D._._._._.N\nN._C._C._C._C._C._C._C._C._C._C._C._D._D._H._H._H._D._D._._._._._D._D._._._._._._._._D._D._._._.B._._._._D._D._._._._.N\nN._C._C._C._C._C._C._C._C._C._C._C._D._D._H._H._H._D._D._._._._._D._D._._._._._._._._D._D._._._.B._._._._D._D._._._._.N\nN._O._O._O._O._F._F._F._F._C._C._C._D._D._H._H._H._D._D._._._._._D._D._._._._._._._._D._D._._._.B._._._._D._D._._._._.N\nN._C\u041A._C\u041A._C\u041A._C\u041A._F._F._F._F._C._C._C._D._D._H._H._H._D._D._._._._._D._D._._._._._._._._D._D._._._.B._._._._D._D._._._._.N\n_C._C._C._C._C._F._F._F._F._C._C._C._D._D._H._H._H._D._D._._._._._D._D._._._._._._._._D._D._._._._._._._._D._D._._._._.N\n_C._C._C._C._C._F._F._F._F._C._C._C._D._D._H._H._H._D._D._._._._._D._D._._._._._._._._D._D._._._.B._._._._D._D._._._._.N\nN.N.N.DA._A._A._A._A._A._A.DA.D.N.N._H._H._H.N.N.N.N.DA._A-._A-.DA.D.N.N.D.D.D.E.E.D.B.B.B.B.B.B.B.B.B.B.B.B.B.N\n_A._C._C._C._C._C._C._C._C._C._C._C._D._D._H._H._H._D._D._._._._._D._D._._._._._._._._D._D._._._._._._._._D._D._._._._._A\n_A._C._C._C._C._C._C._C._C._C._C._C._D._D._H._H._H._D._D._._._._._D._D._._._._._._._._D._D._._._._._._._._D._D._._._._._A\n_A._C._C._C._C._C._C._C._C._C._C._C._D._D._H._H._H._D._D._._._._._D._D._._._._._._._._D._D._._._._._._._._D._D._._._._._A\nN._C._C._C._C._C._C._C._C._C._C._C._D._D._H._H._H._D._D._._._._._D._D._._._._._._._._D._D._._._._._._._._D._D._._._._.N\n_C._C._C._C._C\u0414._C\u0414._C\u0414._C\u0414._C._C._C._C._D._D._H._H._H._D._D._._._._._D._D._._._._._._._._D._D._._._._._._._._D._D._._._._._\n_C._C._C._C._C._C._C._C._C._C._C._C._D._D._H._H._H._D._D._._._._._D._D._._._._._._._._D._D._._._._._._._._D._D._._._._._\n_C._C._C._C._C._C._C._C._C._C._C._C.N;D.N._H._H._H.N.N;D._._._._._D._D._._._._._._._._D._D._._._._._._._._D._D._._._._._\nN.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N._\u041A._\u041A._\u041A._\u041A.N.N.N.N.N._\u041A._\u041A._\u041A._\u041A.N.N.N.N.N._\u041A._\u041A._\u041A._\u041A.N.N.N.N"
   objects:
   - type: box
@@ -365,7 +365,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="E3Pxh4rutymfFxwG"
-  - type: obj
+  - type: unit
     id: vendor
     definitionId: vendor
     definition: {fileID: 11400000, guid: e79f68a6043bb8a4ebe67cddaf04aa3b, type: 2}
@@ -391,7 +391,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="Z5YX8FJZzhc0T0Xr" locktip="0"
-  - type: obj
+  - type: unit
     id: hturret
     definitionId: hturret
     definition: {fileID: 11400000, guid: 8f56077a3039876479e34ae2d3a9173c, type: 2}

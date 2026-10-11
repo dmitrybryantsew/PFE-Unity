@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: slavers
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: slavers
   sourceCollectionId: rooms_prob
   type: pass
@@ -68,7 +68,7 @@ MonoBehaviour:
     tileCoord: {x: 22, y: 20}
   - id: chole1
     tileCoord: {x: 31, y: 20}
-  doorQuality: 020000000200000002000000020000000000000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000
+  doorQuality: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
   tileDataString: "N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N\nN._I._I._I._I._I._I._I._I._I._I._I._I._I._I.FH._H._H._H._H._H._H._H._H._H._H.FH._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H.N\nN._I._I._I._I._I._I._I._I._I._I._I._I._I._I.FH._H._H._H._H._H._H._H._H._H._H.FH._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H.N\nN._I\u0411._I.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N._._.N.N.N.N.N.N.N\nN._I\u0411._I.N._._._._._._._._._._._._.N._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.N\nN._I\u0411._I.N._._._._._._._._._._._._.N._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.N\nN._I\u0411._I.N._._._._._._._._._._._._.N._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.N\nN._I\u0411._I.N._._._._._._._._._._._._.N._._._._._._._._\u0414._\u0414._\u0414._\u0414._._._\u0414._\u0414._\u0414._\u0414._._._\u0414._\u0414._\u0414._\u0414._._._._._._._.N\nN._I\u0411._I.N._\u041A._\u041A._\u041A._\u041A._\u041A._\u041A._\u041A._\u041A._\u041A._\u041A._\u041A._\u041A.N._\u041A._\u041A._\u041A._\u041A._\u041A._._._._._._._._._._._._._._._._._._._._._\u041A._\u041A._\u041A._\u041A._\u041A.N\nN._I\u0411._I.N._._._._._._._._._._._._.N._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.N\nN._I\u0411._I.N._._._._._._._._._._._._._._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M.N\nN._I\u0411._I.N._._._._._._._._._._._._._._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M.N\nN._I\u0411._I.N.N._\u041A._\u041C._._\u041A._\u041A._\u041A._\u041A.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N\nN._I\u0411._I.N._._._._\u041C._._._._._._._._.N._._._._._._._._._._._._._._.N._._._._._._._._._._._._._._._.N\nN._I\u0411._I.N._._._._._\u041C._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.N\nN._I\u0411._I.N._._._._._._\u041C._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.N\nN._I\u0411._I.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N._\u041A._\u041A._\u041A._\u0410\u041A.N.N\nN._I\u0411._I.N._._._._._._._._._._._.N._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\u0410._.N\nN._I\u0411._I.N._._._._._._._._._._._.N._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\u0410._.N\nN._I\u0411._I.N._._._._._._._._._._._.N._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\u0410._.N\nN._I\u0411._I.N._\u041A._\u041A._\u041A._\u041A._\u041A._\u041A._\u041A._\u041A._\u041A._\u041A._\u041A.N._K\u041A._K\u041A._K\u041A._K\u041A._K\u041A._K\u041A._K\u041A._K\u041A._K\u041A._K\u041A._K\u041A._K\u041A._K\u041A._K\u041A._K\u041A._K\u041A._K\u041A._K\u041A._K\u041A._K\u041A._K\u041A._K\u041A._K\u041A._K\u041A._K\u041A._K\u041A._K\u041A._K\u041A._K\u041A._K\u0410\u041A._K\u041A.N\nN._I\u0411._I._._._._._._._._._._._._.N._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K\u0410._K.N\nN._I\u0411._I._._._._._._._._._._._._._._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K\u0410._K.N\nN._I\u0411._I._._._._._._._._._._._._._._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K\u0410._K.N\nN.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N"
   objects:
   - type: box
@@ -82,7 +82,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="e88T20fCvyEgo3JG"
-  - type: obj
+  - type: unit
     id: trcans
     definitionId: trcans
     definition: {fileID: 11400000, guid: 7c3e2278d8f6c284c95d36d188e48f39, type: 2}
@@ -93,7 +93,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="Ly1LCYzFS8jIF7Sw"
-  - type: obj
+  - type: unit
     id: trcans
     definitionId: trcans
     definition: {fileID: 11400000, guid: 7c3e2278d8f6c284c95d36d188e48f39, type: 2}
@@ -104,7 +104,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="fmfUHiFfLfuRVlj3"
-  - type: obj
+  - type: unit
     id: trcans
     definitionId: trcans
     definition: {fileID: 11400000, guid: 7c3e2278d8f6c284c95d36d188e48f39, type: 2}
@@ -115,7 +115,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="GEn4VFaJqpWXiMyj"
-  - type: obj
+  - type: unit
     id: trcans
     definitionId: trcans
     definition: {fileID: 11400000, guid: 7c3e2278d8f6c284c95d36d188e48f39, type: 2}
@@ -150,7 +150,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="JFXuJmu1S7q2pXRV" lock="15"
-  - type: obj
+  - type: unit
     id: mine
     definitionId: mine
     definition: {fileID: 11400000, guid: 01175fdf5effab8449dc622f301ad809, type: 2}
@@ -194,7 +194,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="XG3Lg1XFWhHqERN6"
-  - type: obj
+  - type: unit
     id: mine
     definitionId: mine
     definition: {fileID: 11400000, guid: 01175fdf5effab8449dc622f301ad809, type: 2}
@@ -205,7 +205,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="xrpKn6P1zQCB4OGl"
-  - type: obj
+  - type: unit
     id: slime
     definitionId: slime
     definition: {fileID: 11400000, guid: e76b1173a8bf9ca48bd556a2a454931e, type: 2}
@@ -227,7 +227,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="jhsv6IeEqRGUnewM"
-  - type: obj
+  - type: unit
     id: trap
     definitionId: trap
     definition: {fileID: 11400000, guid: 94236a07ba271e241a7f9bcd11eb093d, type: 2}
@@ -306,7 +306,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="rEqNpRDXmiuzdo9G" lock="5"
-  - type: obj
+  - type: unit
     id: slaver
     definitionId: slaver
     definition: {fileID: 11400000, guid: 91392397f716d694e92096340448b372, type: 2}
@@ -334,7 +334,7 @@ MonoBehaviour:
     scripts: []
     parameters: code="TmFqjyNsihyQM4OH" uid="slaversF1" tr="2" hero="1" ai="stay"
       weap="wquest1" unres="1" turn="-1" name="rubanok" ear="0.3"
-  - type: obj
+  - type: unit
     id: captive
     definitionId: captive
     definition: {fileID: 11400000, guid: 8358e97a7bcb3694c88de10f204d24d3, type: 2}
@@ -345,7 +345,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="PGJ8jo5sRWt9sGXs"
-  - type: obj
+  - type: unit
     id: captive
     definitionId: captive
     definition: {fileID: 11400000, guid: 8358e97a7bcb3694c88de10f204d24d3, type: 2}
@@ -356,7 +356,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="fduKJPdn7FCnYP8U"
-  - type: obj
+  - type: unit
     id: captive
     definitionId: captive
     definition: {fileID: 11400000, guid: 8358e97a7bcb3694c88de10f204d24d3, type: 2}
@@ -367,7 +367,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="fEAjhvaJCdVlr0Ns"
-  - type: obj
+  - type: unit
     id: captive
     definitionId: captive
     definition: {fileID: 11400000, guid: 8358e97a7bcb3694c88de10f204d24d3, type: 2}
@@ -378,7 +378,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="QrFmBFnvUJOVXErQ"
-  - type: obj
+  - type: unit
     id: captive
     definitionId: captive
     definition: {fileID: 11400000, guid: 8358e97a7bcb3694c88de10f204d24d3, type: 2}
@@ -435,7 +435,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="FsSaxpXIEH4q73aA" prize="1"
-  - type: obj
+  - type: unit
     id: slaver
     definitionId: slaver
     definition: {fileID: 11400000, guid: 91392397f716d694e92096340448b372, type: 2}
@@ -448,7 +448,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="eY7CtQP04JzT8byt" tr="1"
-  - type: obj
+  - type: unit
     id: slaver
     definitionId: slaver
     definition: {fileID: 11400000, guid: 91392397f716d694e92096340448b372, type: 2}
@@ -461,7 +461,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="VBOE0jNMpuFbEOD0" tr="3"
-  - type: obj
+  - type: unit
     id: slaver
     definitionId: slaver
     definition: {fileID: 11400000, guid: 91392397f716d694e92096340448b372, type: 2}

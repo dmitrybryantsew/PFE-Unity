@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: bloatking
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: bloatking
   sourceCollectionId: rooms_prob
   type: pass
@@ -52,7 +52,7 @@ MonoBehaviour:
     tileCoord: {x: 1, y: 10}
   - id: minkrut
     tileCoord: {x: 7, y: 13}
-  doorQuality: 020000000200000002000000020000000000000000000000000000000000000000000000000000000000000000000000020000000200000002000000020000000000000000000000020000000200000002000000020000000200000002000000
+  doorQuality: 000000000300000003000000030000000000000000000000000000000000000000000000000000000000000003000000030000000000000000000000000000000000000004000000040000000400000004000000020000000000000000000000
   tileDataString: "_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A.A.A.A.A\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A._._._.A\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A._._._.A\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\nA.A.A.A.A.A.A.A.A.A.A.A.N._._._._._._._._._._._._._.D._._._._._._._._._._._._._._._._._._._._._\nNE.NE.NE.NE.NE.NE.NE.NE.NE.NE.NE.A.N._._._._._._._._._._._E._E._E.DE._E._E._E._._._._._._._._._._._._._._._._._._\nNE._E._E._E._E._E._E._E._E._E.NE.A.N._._._._._._._._._._._E._E._E.DE._E._E._E._._._._._._._._._._._._._._._._._._\nNE._E._E._E._E._E._E._E._E._E.NE.AE.NE._E\u041A._E\u041A._._._._._._._._.DE.DE.DE.DE.DE.DE.DE._._._._._._._._._._._._._._._._._._\nNE._E._E._E._E._E._E._E._E._E.NE.AE.NE._E._E._._._._._._._._._E._E._E.DE._E._E._E._._._._._._._._._._._._._._._._._._\nNE._E._E._E._E._E._E._E._E._E._E._E._E._E._E._K._K._K._K._K._K._K._K._E._E._E._E._E._E._E._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K\nNE._E._E._E._E._E._E._E._E._E._E._E._E._E._E._K._K._K._K._K._K._K._K._E._E._E._E._E._E._E._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K\nNE._E._E._E._E._E._E._E._E._E._E._E._E._E._E._K._K._K._K._K._K._K._K._E._E._E._E._E._E._E._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K\nN.N.N.N.N.N.N.EA.EA.EA.N.A.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N\nN.N.N.N.N.N.N._A._A._A.N.A.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N\nN.N.N.N.N.N.N._A._A._A.N.A.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N\nN.N.N.N.N.N.N._A\u041A._A\u041A._A\u041A.N.A.A.A.A.A.A.A.A.A.A.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N\nN.N.N.N.N._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A.A.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N\nN.N.N.N.N._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A.A.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N\nN.N.N.N.N.N.N.N.N.N.N.A.A.A.A.A.A.A.A.A.A.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N\nN.N.N.N.N.N.N.N.N.N.N.A.A.A.A.A.A.A.A.A.A.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N\nN.N.N.N.N.N.N.N.N.N.N.A.A.A.A.A.A.A.A.A.A.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N"
   objects:
   - type: box
@@ -120,7 +120,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="vRnaS2vG7zla5O4f" indestruct="1" prize="1"
-  - type: obj
+  - type: unit
     id: bloat
     definitionId: bloat
     definition: {fileID: 11400000, guid: ab23dccecabecbf4e9019535dfa0d378, type: 2}
@@ -303,7 +303,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="SdkiKg1pccd7u77g"
-  - type: obj
+  - type: unit
     id: msp
     definitionId: msp
     definition: {fileID: 11400000, guid: 79e4bcfc810c419448c44c83d583171b, type: 2}

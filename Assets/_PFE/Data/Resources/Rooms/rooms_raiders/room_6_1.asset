@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_6_1
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_6_1
   sourceCollectionId: rooms_raiders
   type: pass
@@ -126,7 +126,7 @@ MonoBehaviour:
     tileCoord: {x: 43, y: 20}
   - id: swindow
     tileCoord: {x: 42, y: 18}
-  doorQuality: 020000000000000002000000000000000000000000000000000000000000000000000000000000000000000002000000020000000000000002000000020000000200000002000000020000000000000002000000020000000000000002000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: "C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._._\u0410.C.C\nC._._._._._._._._._._.C._._._._._._._._._._._._._._._._._._._._.C._H._H._H._H._H._H._H._H._H.C._._._\u0410._.C\nC._._._._._._._._._._.C._._._._._._._._._._._._._._._._._._._._.C._H._H._H._H._H._H._H._H._H.C._._._\u0410._.C\nC._._._._._._._._._._.C._._._._._._._._._._._._._._._._._._._._.C._H._H._H._H._H._H._H._H._H.C._._._\u0410._.C\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._H._H._H._H._H._H._H._H._H._._._._\u0410._.C\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._H._H._H._H._H._H._H._H._H._._._._\u0410._.C\n_._._._._._._._._._._._._._._._._._._._._._._._._._.C:.C;.C,.C.C.C.C.C.C.C.C._H-._H\u0413._H-._H-.C.C.C.C.C.C.C\nC.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._E._E._E._E._E._E.C._H._H._H\u0413._H.C.C.C.C.C.C.C\nC._._._._._._._._._._._._._._._._._._._._._._._._._._._._.C._E._E._E._E._E._E.C._H._H._H\u0412._H-.C.C.C.C.C.C.C\nC._._._._._._._._._._._._._._._._._._._._._._._._._._._._.C._E._E._E._E._E._E.C._H._H\u0412._H._H._H._H._H._H._H._H._H\nC._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414.C._E._E._E._E._E._E.C._H-._H\u0413._H._H._H._H._H._H._H._H._H\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._.C._E._E._E._E._E._E.C._H._H._H\u0413._H._H._H._H._H._H._H._H\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._E._E._E._E._E._E._._H._H._H\u0412._H-.C.C.C.C.C.C.C\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._E._E._E._E._E._E._._H._H\u0412._H._H.C.C.C.C.C.C.C\nC.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._H-._H\u0413._H._H.C.C.C.C.C.C.C\nC._._._._._._._._._._._._.C._._._._._._._._._._._._._._._._._._._._.C.C.C._H._H._H\u0413._H.C.C.C.C.C.C.C\nC._._._._._._._._._._._._.C._._._._._._._._._._._._._._._._._._._._.C.C.C._H._H._H\u0412._H-.C.C.C.C.C.C.C\nC._._._._._._._._._._._._.C._._._._._._._._._._._._._._._._._._._._.C.C.C._H._H\u0412._H._H.C.C.C.C.C.C.C\nC._._._._._._._._._._._._._._._._._._._._._._._._._\u0412._-._-._-._-._-._-._-._-.C.C.C._H-._H\u0413._H._H.C._B._B._B._B.CB.CB\n_._._._._._._._._._._._._._._._._._._._._._._._._\u0412._._._._._._._._._._._._H._H._H._H\u0413._H.C._B._B._B._B.CB.CB\n_._._._._._._._._._._._._._._._._._._._._._._._\u0412._._._._._._._._._._._._._H._H._H._H\u0412._H-.C._B._B._B._B._B._B\n_._._._._._._._._._._._._._._._._._._._._._._\u0412._._._._._._._._._._._._._._H._H._H\u0412._H._H.C._B._B._B._B._B._B\nC.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._\u0411._.C.C.C.C.C.C.C.C\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.C._\u0411._.C.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.C._\u0411._.C.H.H.H.H.H.H.H"
   objects:
   - type: box
@@ -177,7 +177,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="Dh9mQLBYIOTIokvp" lock="11" key="key_raiders"
-  - type: obj
+  - type: unit
     id: captive
     definitionId: captive
     definition: {fileID: 11400000, guid: 8358e97a7bcb3694c88de10f204d24d3, type: 2}
@@ -276,7 +276,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="EbVaHCVoRCyu0gN8"
-  - type: obj
+  - type: unit
     id: rat
     definitionId: rat
     definition: {fileID: 11400000, guid: 91aa9373086f9584dafaf4723062b4a4, type: 2}
@@ -287,7 +287,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="bGcPJVrx7reHPuln"
-  - type: obj
+  - type: unit
     id: rat
     definitionId: rat
     definition: {fileID: 11400000, guid: 91aa9373086f9584dafaf4723062b4a4, type: 2}
@@ -377,7 +377,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="NQFE1JM4pCzKSLPB" key="key_raiders"
-  - type: obj
+  - type: unit
     id: slaver
     definitionId: slaver
     definition: {fileID: 11400000, guid: 91392397f716d694e92096340448b372, type: 2}
@@ -416,7 +416,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="KS063a2D1e8kNGvM"
-  - type: obj
+  - type: unit
     id: slaver
     definitionId: slaver
     definition: {fileID: 11400000, guid: 91392397f716d694e92096340448b372, type: 2}
@@ -440,7 +440,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="v7MaiBHkBFbUhiuZ"
-  - type: obj
+  - type: unit
     id: raider
     definitionId: raider
     definition: {fileID: 11400000, guid: 78df2015123b4124fa2fdc5977d63f5c, type: 2}
@@ -453,7 +453,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="y9CzFmE3nc4PKETN" tr="1"
-  - type: obj
+  - type: unit
     id: slaver
     definitionId: slaver
     definition: {fileID: 11400000, guid: 91392397f716d694e92096340448b372, type: 2}
@@ -510,7 +510,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="GrMUvMrWjYPfojNw"
-  - type: obj
+  - type: unit
     id: raider
     definitionId: raider
     definition: {fileID: 11400000, guid: 78df2015123b4124fa2fdc5977d63f5c, type: 2}
@@ -578,7 +578,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="CDLmV0zk927raIa8"
-  - type: obj
+  - type: unit
     id: trridge
     definitionId: trridge
     definition: {fileID: 11400000, guid: b18ed878977c33b4fabbbdecc8c96402, type: 2}
@@ -591,7 +591,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="yn7ksGtNBYtYtpNC" allid="1"
-  - type: obj
+  - type: unit
     id: damgren
     definitionId: damgren
     definition: {fileID: 11400000, guid: f2d791930cc86db40ae978e4d9ae87e2, type: 2}

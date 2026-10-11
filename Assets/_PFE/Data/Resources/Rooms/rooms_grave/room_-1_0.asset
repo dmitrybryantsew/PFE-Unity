@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_-1_0
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_-1_0
   sourceCollectionId: rooms_grave
   type: pass
@@ -36,7 +36,7 @@ MonoBehaviour:
     tileCoord: {x: 16, y: 12}
   - id: stree
     tileCoord: {x: 26, y: 15}
-  doorQuality: 020000000200000002000000020000000200000002000000000000000000000000000000000000000000000000000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: '_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
 
     _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
@@ -106,6 +106,10 @@ MonoBehaviour:
       - act: music_rep
         targ: 
         val: music_fall_2
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="qwewJCBEx9pkWb3P" h="20" w="8"
   - type: area
     id: area

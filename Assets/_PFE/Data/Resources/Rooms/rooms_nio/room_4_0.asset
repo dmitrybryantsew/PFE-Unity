@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_4_0
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_4_0
   sourceCollectionId: rooms_nio
   type: pass
@@ -98,10 +98,10 @@ MonoBehaviour:
     tileCoord: {x: 40, y: 23}
   - id: musor2
     tileCoord: {x: 0, y: 6}
-  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000002000000020000000200000002000000020000000200000002000000020000000200000002000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: "A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA._F._F._F._F._F._F._F._F._O._O._O._O._F._F._F._F._O._O._O._O._F._O._O._O._O._F._O._O._O._O._F._F._F._F._O._O._O._O._F._._._.A._F._F._F.A\nA._F._F._F._F._F._F._F._F._O._O._O._O._F._F._F._F._O._O._O._O._F._O._O._O._O._F._O._O._O._O._F._F._F._F._O._O._O._O._F._._._.A._F._F._F.A\nA._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._._._.A._F\u0415._F\u0415._F\u0415.A\nA._F._F._F._F._F._F._F.A._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._F\u0415._G\u0415._G\u0415._F\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._._._.A._F._F._F.A\nA._F._F._F._F._F._F._F.A._._._._._._._._._._._._._._F._G._G._F._._._._._._._._._._._._._._._._._.A._F._F._F.A\nA._F._F._F._F._F._F._F.A._._._._._._._._._._._._._._F._G._G._F._._._._._._._._._._._._._._._._._.A._F._F._F.A\nA.A.A.A.A._._.A.A._._._._._._._._._._._._._._F._G._G._F._._._._._._._._._._._._._._._._._.A._F._F._F.A\nA._._._._._._._.A._._._._._._._._._._._._._._F._G._G._F._._._._._._._._._._._._._._._._._._._F._F._F.A\n_._._._._._._._._._._._._._._._._._._._._._._F._G._G._F._._._._._._._._._._._._._._._._._._._F._F._F.A\n_._._._._._._._._._._._._._._._._._._._._._._F._G._G._F._._._._._._._._._._._._._._._._._._._F._F._F.A\n_._._._._._._._._._._._._._._._._._._._._._._F._G._G._F._._._._._._._._._._._._._._._._._._._F._F._F.A\nA.A.A.A.A.A.A.A.A._._._._._._._._._._._._._._F._G._G._F._._._._._._._._._._._._._._._._._.A.AF.AF.AF.A\nA._F._F._F._F._F._F._F.A._._._._._._._._._._._._._._F._G._G._F._._._._._._._._._._._._._._._._._.A._F._F._F.A\nA._F._F._F._F._F._F._F._._._._._._._._._._._._._._._F._G._G._F._._._._._._._._._._._._._._._._._.A._F._F._F.A\nA._F._F._F._F._F._F._F._._._._._._._._._._._._._._._F._G._G._F._._._._._._._._._._._._._._._._._.A._F._F._F.A\nA._F._F._F._F._F._F._F.A._._._._._._._._._._._._._._F._G._G._F._._._._._._._._._._._._._._._._._.A._F\u0415._F\u0415._F\u0415.A\nA._F\u0415._F\u0415.AF.AF.AF.AF.AF.A._._._._._._._._._._._._._._F._G._G._F._._._._._._._._._._._._._._._._._.A._F._F._F.A\nA._F._F._F._F._F._F._F.A._._._._._._._._._._._._._._F._G._G._F._._._._._._._._._._._._._._._._._.A._F._F._F.A\nA._F._F._F._F._F._F._F.A._._._._._._._._._._._._._._F._G._G._F._._._._._._._._._._._._._._._._._.A._F._F._F.A\nA._F._F._F._F._F._F._F._G._._._._.K.K.K.K._._._._._.K.K.K.K._._._._._.K.K.K.K._._._._._._._._.A._F\u0415._F\u0415._F\u0415.A\nA._F._F._F._F._F._F._F._G._._._._._O._O._O._O._._._._._._O._O._O._O._._._._._._O._O._O._O._._._._._._._._._._F._F._F.A\nA._F._F._F._F._F._F._F._G._._._._._O._O._O._O._._._._._._O._O._O._O._._._._._._O._O._O._O._._._._._._._._._._F._F._F.A\nA._F._F._F._F._F._F._F._G._._._._._O._O._O._O._._._._._._O._O._O._O._._._._._._O._O._O._O._._._._._._._._._._F._F._F.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A"
   objects:
-  - type: obj
+  - type: unit
     id: roller
     definitionId: roller
     definition: {fileID: 11400000, guid: bc6e49884f4b9b343af9403b670cc47d, type: 2}
@@ -112,7 +112,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="qnM5j47uDRfkQl7o"
-  - type: obj
+  - type: unit
     id: roller
     definitionId: roller
     definition: {fileID: 11400000, guid: bc6e49884f4b9b343af9403b670cc47d, type: 2}
@@ -123,7 +123,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="iwnqdZhlbKnrO1mP"
-  - type: obj
+  - type: unit
     id: roller
     definitionId: roller
     definition: {fileID: 11400000, guid: bc6e49884f4b9b343af9403b670cc47d, type: 2}
@@ -134,7 +134,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="tllk6C5aJJWR74B8"
-  - type: obj
+  - type: unit
     id: roller
     definitionId: roller
     definition: {fileID: 11400000, guid: bc6e49884f4b9b343af9403b670cc47d, type: 2}
@@ -226,7 +226,7 @@ MonoBehaviour:
         value: col2
     scripts: []
     parameters: code="JGIWYaw4FGkxFajJ"
-  - type: obj
+  - type: unit
     id: roller
     definitionId: roller
     definition: {fileID: 11400000, guid: bc6e49884f4b9b343af9403b670cc47d, type: 2}
@@ -342,7 +342,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="FI49ZVxfAdaoNXYo"
-  - type: obj
+  - type: unit
     id: gutsy
     definitionId: gutsy
     definition: {fileID: 11400000, guid: ece9b8a6b03b9774e80f2dc23b4cc77f, type: 2}

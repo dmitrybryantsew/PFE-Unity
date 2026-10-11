@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_0_1
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_0_1
   sourceCollectionId: rooms_surf
   type: pass
@@ -44,7 +44,7 @@ MonoBehaviour:
     tileCoord: {x: 13, y: 16}
   - id: heap1
     tileCoord: {x: 3, y: 19}
-  doorQuality: 020000000200000002000000020000000200000002000000000000000000000000000000000000000000000000000000020000000200000000000000000000000000000000000000000000000200000002000000020000000200000002000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: 'G.G.G.G.G.G.G.G.G.G._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
 
     G.G.G.G.G.G._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
@@ -125,9 +125,17 @@ MonoBehaviour:
       - act: dialog
         targ: 
         val: surfDialFirst
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: off
         targ: this
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="UZErLgC2CGAdpzE0" h="20" w="2"
   spawnPoints:
   - tileCoord: {x: 2, y: 9}

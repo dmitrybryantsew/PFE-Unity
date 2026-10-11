@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: barahlo
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: barahlo
   sourceCollectionId: rooms_prob
   type: pass
@@ -86,7 +86,7 @@ MonoBehaviour:
     tileCoord: {x: 6, y: 20}
   - id: blood1
     tileCoord: {x: 33, y: 2}
-  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000000000000200000002000000020000000000000000000000020000000200000002000000000000000200000002000000
+  doorQuality: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
   tileDataString: "A.A.A.A.A.A.A.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA._T._T._T._T._T._._._._._._._._._._._M._._._.I._._._._D.ID.ID._D._._._._._.A._T._T._T._T._T._T._T._T._T._T._T._T._T.A\nA._T._T._T._T._T._._._._._._._._._._._M._._._.I._._._._D.ID.ID._D._._._._._._._T._T._T._T._T._T._T._T._T._T._T._T._T.A\nA._T._T._T._T._T._._._._._._._._._._._M._._._.I._._._._D.ID.ID._D._._._._._._._T._T._T._T._T._T._T._T._T._T._T._T._T.A\nA.A.A.A.A.A.A._\u0414._\u0414._\u0414.I.I.I.I._._.I._\u0414._\u0414._\u0414.I._._._._D._D._D._D._._._._._._._T._T._T._T._T._T._T._T._T._T._T._T._T.A\nI._._._._._._._._._.I._D._D._D._._.I._._._.I._\u0414._\u0414._\u0414.I.I.I.I._\u0414._\u0414._\u0414.I.I.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nI._._._._._._._._._.I._D._D._D._._.I._._._.I._._._.I.I.I.I._._._.I._._._._M._._._._D._D._._T._T._T._T._T.A\nI._._._._._._._._._.I._D._D._D._._.I._._._.I._._._.I.I.I.I._._._.I._._._._M._._._._D._D._._T._T._T._T._T.A\nI._D\u0414._D\u0414.I.I.I.I.I.I.I.I.I.I.I._\u0414._\u0414.I._\u0414._\u0414._\u0414.I._\u0414._\u0414._\u0414.I.I.I.I._\u0414._\u0414._\u0414.I._._._._M._._._._D._D._._T._T._T._T._T.A\nI._D._D.I._._._._._._._._._._._._.I._._._._M._._._._D._D._D._D._._._.I._\u0414._\u0414._\u0414.I._\u0414._\u0414._\u0414.I.I.A.A.A.A.A.A.A\nI._D._D.I._._._._._._._._._._._._.I._._._._M._._._._D._D._D._D._._._.I._._._.I._._._._._._._._._._._.I\nI._\u0414._\u0414.I._._._.A.A.A.A.A.A.A._D\u0414._D\u0414.I._._._._M._._._._D._D._D._D._._._.I._._._.I._._._._._._._._._._._.I\nI._._._M._._._._._T._T._T._T._T.A._D._D.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I._._._.I.I.I.I.I.I.I.I.I.I._D\u0414._D\u0414.I\nI._._._M._._._._._T._T._T._T._T.A._D._D._D._D._._._._._._._._._._._._._D._D._._._._._._._._._._._D._D.I._D._D.I\nI._._._M._._._._._T._T._T._T._T.A._D._D._D._D._._._._._._._._._._._._._D._D._._._._._._._._._._._D._D.I._D._D.I\nI.A.A.A.A.A.A.A.A.A.A.A.A.A.I.I.I.I._._._._._._._._._._._._.I.I._._._._._._._._._._._D._D.I._D._D.I\nI.I.I.I.I.I.I.A.A.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I._._._.I.I.I._D\u0414._D\u0414.I\nI.IA.IA.IA.IA.IA.IA.AA.A._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M.I._._._._._._._._._._._._._._._._._.I\nI.IA._A._A._A._A._A.AA.A._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M.I._._._._._._._._._._._._._._._._._.I\nI.IA._A._A._A._A._A.AA.A._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M\u0414._M\u0414._M\u0414._M\u0414.I._._._._._._._._._._._._._._._._._.I\nI.IA._A._A._A._A._A.AA.A._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M.I.I.I.I.I._\u0414._\u0414._\u0414.I.I.I.I.A.A.A.A.A.A.A\nI.IA._A._A._A._A._A.AA.A._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._._._._._._._._._._._._._._T._T._T._T._T.A\nI.IA._A._A._A._A._A.AA.A._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._._._._._._._._._._._._._._T._T._T._T._T.A\nI.IA._A._A._A._A._A.AA.A._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._._._._._._._._._._._._._._T._T._T._T._T.A\nI.I.I.I.I.I.I.A.A.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.A.A.A.A.A.A.A"
   objects:
   - type: box
@@ -152,6 +152,10 @@ MonoBehaviour:
       - act: move3
         targ: barahloF2
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="IUziwsrxvpZP5Q1Q"
   - type: box
     id: box
@@ -331,7 +335,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="VkYowr8Drwu3Kbiw"
-  - type: obj
+  - type: unit
     id: spectre
     definitionId: spectre
     definition: {fileID: 11400000, guid: 03d8c55e0aebcf24ab8b3e6191826a32, type: 2}
@@ -476,7 +480,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="oGJaRR9mH70zrb49"
-  - type: obj
+  - type: unit
     id: trap
     definitionId: trap
     definition: {fileID: 11400000, guid: 94236a07ba271e241a7f9bcd11eb093d, type: 2}
@@ -487,7 +491,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="RYBfEnv7gERzuJv1"
-  - type: obj
+  - type: unit
     id: trap
     definitionId: trap
     definition: {fileID: 11400000, guid: 94236a07ba271e241a7f9bcd11eb093d, type: 2}

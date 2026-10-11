@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_5_2
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_5_2
   sourceCollectionId: rooms_raiders
   type: pass
@@ -66,7 +66,7 @@ MonoBehaviour:
     tileCoord: {x: 14, y: 8}
   - id: light2
     tileCoord: {x: 3, y: 8}
-  doorQuality: 000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: "B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.H.H.H.H.H.H.H.H.H.H.H.H.H\nB.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.H.H.H.H.H.H.H.H.H.H.H.H.H\nB.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.H.H.H.H.H.H.H.H.H.H.H.H.H\nB.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B._L._L._L._L._L._L._L._L._L._L._L.H.H\nB.B._F._F._G._F._F._G._F._F._G._F._F._F._F._F._F.B._._._._._._._._._._._._._._._._.C._L._L._L._L._L._L._L._L._L._L._L.H.H\nB.B._F._F._G._F._F._G._F._F._G._F._F._F._F._F._F.B._._._._._._._._._._._._._._._._.C._L._L._L._L._L._L._L._L._L._L._L.H.H\nB.B._F._F._G._F._F._G._F._F._G._F._F._F._F._F._F._H._._._._._._._._._._._._._._._._.C._L._L._L._L._L._L._L._L._L._L._L.H.H\nB.B._F-._F-._G-._F-._F-._G-._F-._F-._G-._F-._F-._F-._F-._F-._F-.B._-._-._-._-._._._._._._._._._._._._.C._L-._L-._L-._L-._L-._L-._L-._L-._L-._L-._L-.H.H\nB.B._F._F._G._F._F._G._F._F._G._F._F._F._F._F._F._._._._._._._._._._._._._._._._._.C._L._L._L._L._L._L._L._L._L._L._L.H.H\nB.B._F._F._G._F._F._G._F._F._G._F._F._F._F._F._F._._._._._._._._._._._._._._._._._._._L._L._L._L._L._L._L._L._L._L._L.H.H\nB.B._F._F._G._F._F._G._F._F._G._F._F._F._F._F._F._._._._._._._._._._._._._._._._._._._L._L._L._L._L._L._L._L._L._L._L.H.H\nB.B._F._F._G._F._F._G._F._F._G._F._F._F._F._F._F._._._._._._._._._._._._._._._._._._._L._L._L._L._L._L._L._L._L._L._L.H.H\nB.B.B.B.B._\u0411._.B.B.B.B.B.B.B.B.B.B.B._A._A._A._A._A.FA.FA._A._A.FA._A._A._A._A._A.FA.C.C.C.C.C.C.C.C.C.C.C.C.C.C\nB.B.B.B.B._\u0411._.B.B.B.B.B.B.B.B.B.B.B._._._._._._._._._._._._._._._._.C.H.H.H.H.H.H.H.H.H.H.H.H.H\nB.B.B.B.B._\u0411._.B.B.B.B.B.B.B.B.B.B.B._._._._._._._._._._._._._._._._.C.H.H.H.H.H.H.H.H.H.H.H.H.H\nB.B.B._._._\u0411._._._._.B._._.B._._.B._._._._._._._._._._._._._._._._._.C.H.H.H.H.H.H.H.H.H.H.H.H.H\nB.B.B._._._\u0411._._._._._._._._._._._._._._._._._._._._._._._._._._._._.C.C.C.C.C.C.C.C.C.C.C.C.C.C\nB.B.B._._._\u0411._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._\u0411._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._\u0411._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\nB.B.C.C.C._\u0411-._-.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C\nH.H.H.H.H._\u0411._.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H._\u0411._.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H._\u0411._.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H._\u0411._.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H"
   objects:
   - type: door
@@ -102,7 +102,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="CnQoBwEjYk6aSoEJ"
-  - type: obj
+  - type: unit
     id: mine
     definitionId: mine
     definition: {fileID: 11400000, guid: 01175fdf5effab8449dc622f301ad809, type: 2}
@@ -113,7 +113,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="BONvmYzAzPCiCGJf"
-  - type: obj
+  - type: unit
     id: mine
     definitionId: mine
     definition: {fileID: 11400000, guid: 01175fdf5effab8449dc622f301ad809, type: 2}
@@ -137,7 +137,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="Pw3Mi7H5KKPseDSE" lock="0"
-  - type: obj
+  - type: unit
     id: slaver
     definitionId: slaver
     definition: {fileID: 11400000, guid: 91392397f716d694e92096340448b372, type: 2}
@@ -156,7 +156,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="AVsnJoU2eIuY0t1Y" tr="2" turn="-1" ai="stay" unres="1"
-  - type: obj
+  - type: unit
     id: mine
     definitionId: mine
     definition: {fileID: 11400000, guid: 01175fdf5effab8449dc622f301ad809, type: 2}
@@ -257,7 +257,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="VnA4dVgPsZrWUSyZ"
-  - type: obj
+  - type: unit
     id: scorp
     definitionId: scorp
     definition: {fileID: 11400000, guid: f9d80b2df85d5424fac08f8479002729, type: 2}
@@ -322,6 +322,10 @@ MonoBehaviour:
       - act: unlock
         targ: surfD3
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="Rsh9hK34JwxVwUtr"
   - type: box
     id: wallsafe
@@ -349,6 +353,10 @@ MonoBehaviour:
       - act: unlock
         targ: surfSafe1
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="KeIYHN5mOW6i4yhr"
   - type: box
     id: box

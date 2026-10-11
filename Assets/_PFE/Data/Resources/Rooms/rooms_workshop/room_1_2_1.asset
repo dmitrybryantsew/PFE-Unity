@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_1_2_1
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_1_2_1
   sourceCollectionId: rooms_workshop
   type: pass
@@ -80,7 +80,7 @@ MonoBehaviour:
     tileCoord: {x: 8, y: 8}
   - id: konstr
     tileCoord: {x: 9, y: 4}
-  doorQuality: 020000000200000000000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: "A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA._F._F._F._F._F.A._D._D._D._D._D._D._D._D._F._F._F._D._D._D._D._D._D._D._D._D._D._D._D._F._F._F._D._D._D._D._D._D._D._D._D._._F._F._F._F.A\nA._F._F._F._F._F.A._D._D._D._D._D._D._D._D._F._F._F._D._D._D._D._D._D._D._D._D._D._D._D._F._F._F._D._D._D._D._D._D._D._D._D._._F._F._F._F.A\nA._F._F._F._F._F.A._._._._._._._._._F._F._F._D._D._D._D._D._D._D._D._D._D._D._D._F._F._F._D._._._._._._._._.A._F._F._F._F.A\nA._D._D.DD.D.D.D._\u041A._\u041A._\u041A._._._._._.ED.ED.ED.ED._D._D._D._D._D._._._D.ED.ED.ED.ED._D._D._D._._._._._._._._.A._-._-._-._\u0410-.A\nA._D._D._D._._._._._._._._._._._._D._D._D._D._D._D._D._D._D._._._D._D._D._D._D._D._D._D._._._._._._._._._._._._._\u0410.A\nA._D._D._D._._._._._._._._._._._._._._._._._._D._D._D._._._._._._D._D._._._._._._._._._._._._._._._._\u0410.A\nA._D._D._D._._._._._._._._._._._._._._._._._._D._D._D._._._._._._D._D._._._._._._._._._._._._._._._._\u0410.A\nA._D\u041A._D\u041A.DD._._._._._\u041A._\u041A._\u041A._\u041A._\u041A._._._._._._._._._D._D._D._._._._._._D._D._._._._._._._._._F._F._F._F._F._F._F._F\u0410.AF\nA._D._D.DD._._._._._._._._._._._._._._._._._._D._D._D._._._._._._D._D._._._._._._._._._F._F._F._F._F._F._F._F\u0410.AF\nA._D._D.DD._._._._._._._._._._._._._._._._._._D._D._D._._._._._._D._D._._._._._._._._._F._F._F._F._F._F.AF.AF.AF\nA._D\u041A._D\u041A.DD._._._._.A._._._._._.AD.AD.AD._D._D._D._D.AD.AD.AD._._._._._._D._D._._._._._._._._._F._F._F._F._F._F._F._F._F\nA._D._D._D._._._._.A._._._._._._D._D._D._D._D._D._D._D._D._D._._._._._._D._D._._._._._._._._._F._F._F._F._F._F._F._F._F\nA._D._D._D._._._._.A._._._._._._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._._._._._._._._._F._F._F._F._F._F._F._F._F\nA._D\u041A._D\u041A._D._._._._.AD.AD.AD.AD._D._D._D._D.DD.DD.DD.DD.DD.DD._D._D._D._D._D._D._D._D._D._._._._._._._._._F._F-._F-._F-._F-._F-.AF.AF.AF\nA._D._D._D._._._._._D._D._D._D._D._D._D._D._D._._._._.D._._._._._._._._D._D._._._._._._._._._F._F._F._F._F._F._F._F.AF\nA._D._D._D._._._._._D._D._D._D._D._D._D._D._D._._._._.D._._._._._._._._D._D._._._._._._._._._F._F._F._F._F._F._F._F.AF\nA._D._D._D._D\u041A._D\u041A.DD.DD.DD.DD.DD._._._.DD.DD.DD._._._._._._._._._._._._._D._D._._._._._._._._._F._F-._-._._._._._.A\nA.AD.AD._D._D._D._D._D._D._D._D._._._._D._D._D._._._._._._._._._._._._._D._D._._._._._._._._._F._F._._._._._._.A\nA._D._D._D._._._._._._._._._._._D._D._D._._._._._._._._._._._._.A.A.A._._._._._._._._F._F._._._._._._.A\nA._D._D._D._._._._._._._._._._._D._D._D._._._._._._._._._._._._._F._F._F._._._._.A.A.A.A.A._._._._._._.A\nA._D._D._D._._._._._._._._._._._D._D._D._._._._._._._._._._._._._F._F._F._._._.AF.AF._F._F._F.AF._._._._-._-._.A\nA.D.D.D._\u041A._\u041A._\u041A._\u041A._\u041A._._._._._._D._D._D._._._._._._._._.A.A.A._F._F._F._F._._._._F._F._F._F._F._F._._._._._._.A\nA._._._._._._._._._._._._._._D._D._D._._._._._._._._._F._F._F._F._F._F._F._._._._F._F._F._F._F._F._._._._._._.A\nA._._._._._._._._._._.A.A.A.D.D.D._._._._._.A.A.A.AF.AF._F-._F-._F._F._F.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A"
   objects:
   - type: door
@@ -263,7 +263,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="bNjeFzed62utLds3" allid="a2" allact="close"
-  - type: obj
+  - type: unit
     id: bossturret
     definitionId: bossturret
     definition: {fileID: 11400000, guid: 9eae626b8427c6740a171e037fdfc3c5, type: 2}
@@ -348,7 +348,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="bEXevh0zx6ylpp56"
-  - type: obj
+  - type: unit
     id: bossturret
     definitionId: bossturret
     definition: {fileID: 11400000, guid: 9eae626b8427c6740a171e037fdfc3c5, type: 2}

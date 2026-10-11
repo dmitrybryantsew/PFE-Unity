@@ -17,6 +17,8 @@ MonoBehaviour:
   landId: covert
   landName: Covert
   tip: base
+  isProbLand: 0
+  isTestLand: 0
   isProcedural: 0
   stage: 1
   baseDifficulty: 0
@@ -50,3 +52,4 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 54ccb29ec2c4747439eca2885397689c, type: 2}
   - {fileID: 11400000, guid: 807830800371e444dbb9723770c398cd, type: 2}
   - {fileID: 11400000, guid: 3ca8525c87905d3458a5d7476f25bd69, type: 2}
+  probRooms: []

@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_2_1
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_2_1
   sourceCollectionId: rooms_begin
   type: pass
@@ -22,7 +22,7 @@ MonoBehaviour:
   specificMapOnly: 0
   backgroundRoomId: 
   backgroundDecorations: []
-  doorQuality: 020000000200000002000000020000000000000000000000020000000200000002000000020000000200000002000000000000000000000000000000000000000000000000000000020000000200000002000000020000000200000002000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: "C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C\n_._.F._._._._._._._._._._._._._._._._.F._._._._._._._._._._._._._._._._._._._._._._._._._._._.C\n_._.F._._._._._._._._._._._._._._._._.F._._._._._._._._._._._._._._._._._._._._._._._._._._._.C\nC.C.C._-._-._\u0413._._._._._._._._._._._._._.F._._._._._._._._._._._._._._._._._._._._._._._._._._._.C\nC.C.C._._._._\u0413._._._._._._._._._._._._.F._._._._._._._._._._._._._._._._._._._._._._._._._._._.C\nC.C.C._._._._._\u0413._._._._._._._._._._._.F._._._._._._._._._._._._._._._._._._._._._._._._._._._.C\nC.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._._._._._\u0412._-._-._-.C.C.C.C.E.E.E.C.C.C.C.C.C\nC.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._._._._._._._._._._\u0412._._._._.C.C.C.C._A._A._A._A._A._A._A._A.C\nC.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._._._._._._._._._\u0412._._._._._.C.C.C.C.CA.CA.CA.CA.CA.CA._A._A.C\nC.C._._._._._._._._._._._._._._._._._._._._._._._._._._._\u0412._._._._._._.C.C.C.C.CA.CA.CA.CA.CA.CA._A._A.C\nC.C._._._._._._._._._._._._._._._._._._._._._._._._._._\u0412._._._._._._._.C.C.C.C.CA._A._A._A._A._A._A._A.C\nC.C._._._._._._._._._._._._._._._._._._._._._._._._._\u0412._._._._._._._._.C.C.C.C.CA._A-._A-._A-._A._A._A._A.C\nC.C._._\u0410.D.D.D.D._._.D.D._._.D.D._._.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.C.C.C.C.CA._A._A._A._A._A._A._A.C\nC.C._._\u0410.D.D.D.D._._.D.D._._.D.D._._.D.C.C.C.C.C.C.C.C.C._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A.C\nC.C._._\u0410.D.D.D.D._._.D.D._._.D.D._._.D.C.C.C.C.C.C.C.C.C._._.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C\nC.C._._\u0410.D.D.D.D._._.D.D._._.D.D._._.D.C.C.C.C.C.C.C.C.C._C._C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C\nC.C._._\u0410.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._C._C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C\nC.C._._\u0410.C.C.C._._._._._._._._._._I._I._I._I._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._I._I._I._I._I._I._I._I._I.C\nC.C._._\u0410.C.C.C._._._._._._._._._.C.C.C.C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C.C.C.C.C.C.C.C.C.C.C\nC.C._._\u0410.C.C.C._._._._._.C.C.C.C.C.C.C.C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C.C.C.C.C.C.C.C.C.C.C\nC.C._._\u0410.C.C.C._._._._._.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._C._C\u0410.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C\nC.C._._\u0410._._._._._._._._._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C\u0410._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C.CC\nC.C._._\u0410._._._._._._._._._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C\u0410._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C.CC\nC.C._._\u0410._._._._._._._._._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C\u0410._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C.CC\nC.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._C._C._C._C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C"
   objects:
   - type: trap
@@ -157,7 +157,7 @@ MonoBehaviour:
         value: 100
     scripts: []
     parameters: code="DjyenstHgwvcA3Lh"
-  - type: obj
+  - type: unit
     id: bloat
     definitionId: bloat
     definition: {fileID: 11400000, guid: ab23dccecabecbf4e9019535dfa0d378, type: 2}
@@ -168,7 +168,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="na3wwzYpsO76ptc7"
-  - type: obj
+  - type: unit
     id: bloat
     definitionId: bloat
     definition: {fileID: 11400000, guid: ab23dccecabecbf4e9019535dfa0d378, type: 2}
@@ -384,9 +384,17 @@ MonoBehaviour:
       - act: unlock
         targ: trMDoor
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: off
         targ: trWeaponUp
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="CMzLmlZdXvkead6a"
   - type: checkpoint
     id: checkpoint

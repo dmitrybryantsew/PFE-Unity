@@ -228,6 +228,7 @@ MonoBehaviour:
   - weaponId: mercgr
     chance: 1
     difficulty: 0
+    isFixedWeapon: 1
   - weaponId: anti
     chance: 0.25
     difficulty: 19

@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_12_1
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_12_1
   sourceCollectionId: rooms_surf
   type: pass
@@ -58,7 +58,7 @@ MonoBehaviour:
     tileCoord: {x: 25, y: 16}
   - id: remains2
     tileCoord: {x: 14, y: 16}
-  doorQuality: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: '_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.D.D
 
     _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.D.D
@@ -109,7 +109,7 @@ MonoBehaviour:
 
     H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.D.D.D.D.D.D.D.D.D.D.D.D.H.H.H.H.H.H.H.H.H.H.H.H.H.H.D.D'
   objects:
-  - type: obj
+  - type: unit
     id: raider
     definitionId: raider
     definition: {fileID: 11400000, guid: 78df2015123b4124fa2fdc5977d63f5c, type: 2}
@@ -128,7 +128,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="k6dIZiF41fyeQ5uf" ai="stay" turn="-1" tr="5" weap="p9mm"
-  - type: obj
+  - type: unit
     id: raider
     definitionId: raider
     definition: {fileID: 11400000, guid: 78df2015123b4124fa2fdc5977d63f5c, type: 2}
@@ -145,7 +145,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="A8br3VOMiVcyqpVz" ai="stay" turn="-1" tr="3"
-  - type: obj
+  - type: unit
     id: raider
     definitionId: raider
     definition: {fileID: 11400000, guid: 78df2015123b4124fa2fdc5977d63f5c, type: 2}
@@ -162,7 +162,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="ebizFa1IdLxAYZH1" ai="stay" turn="-1" tr="4"
-  - type: obj
+  - type: unit
     id: raider
     definitionId: raider
     definition: {fileID: 11400000, guid: 78df2015123b4124fa2fdc5977d63f5c, type: 2}
@@ -179,7 +179,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="kJVw3q5iwjYkoIgT" ai="stay" turn="-1" tr="2"
-  - type: obj
+  - type: unit
     id: raider
     definitionId: raider
     definition: {fileID: 11400000, guid: 78df2015123b4124fa2fdc5977d63f5c, type: 2}
@@ -214,7 +214,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="vNvr2nBZDcpt2hH1" h="22" scr="surfStory"
-  - type: obj
+  - type: unit
     id: npc
     definitionId: npc
     definition: {fileID: 11400000, guid: 2b067238a37bc224c99b891f75cdd086, type: 2}
@@ -234,7 +234,7 @@ MonoBehaviour:
     scripts: []
     parameters: code="MraR4xuhkXhpQYkj" uid="surfCalam" npc="calam" fly="1" turn="-1"
       invis="1"
-  - type: obj
+  - type: unit
     id: raider
     definitionId: raider
     definition: {fileID: 11400000, guid: 78df2015123b4124fa2fdc5977d63f5c, type: 2}

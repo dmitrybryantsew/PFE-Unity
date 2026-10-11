@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_8_1
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_8_1
   sourceCollectionId: rooms_art
   type: pass
@@ -106,7 +106,7 @@ MonoBehaviour:
     tileCoord: {x: 29, y: 19}
   - id: poster
     tileCoord: {x: 41, y: 21}
-  doorQuality: 020000000200000002000000000000000000000000000000020000000200000002000000020000000000000000000000000000000000000000000000000000000000000000000000020000000200000002000000020000000200000002000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: "O.O.O.O.O.O.O.O.O.O.A.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\n_._._._._._._.O.O.O.A._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P.A\n_._._._._._._.O.O.O.A._U._U._U._U._U._U._O._O._O._O._O._O._U._U._U._U._U._U._._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P.A\n_._._._._._._.O.O.O.A._U._U._U._U._U._U._O._O._O._O._O._O._U._U._U._U._U._U._._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P.A\nO.O.O.O.O.O.O.O.O.O.A._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._._P._P._P._P._P._P._P._P._P._P._P._F._F._P._P._P._P.A\nO.O.O.O.O.O.O.O.O.O.A._U._O._O._U._U._U._O._O._U._U._O._O._U._U._U._O._O._U._._P._P._P._P._P._P._P._P._P._P._P._F._F._P._P._P._P.A\nO.O.O.O.O.O.O.O.O.O.A._U._O._O._U._U._U._O._O._U._U._O._O._U._U._U._O._O._U._._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P.A\nO.O.O.O.O.O.O.O.O.O.A._U._O._O._U._U._U._O._O._U._U._O._O._U._U._U._O._O._U._._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P.A\nO.O.O.O.O.O.O.O.O.O.A._U._O._O._U._U._U._O._O._U._U._O._O._U._U._U._O._O._U._._P._P._P._F._F._F._F._P._P._P._P._P._P._P._P._P._P.A\nO.O.O.O.O.O.O.O.O.O.A._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._._Q._Q._Q.O.O.O.O.O._Q\u0415._Q\u0415._Q\u0419._Q._Q._Q._Q._Q._Q.A\nO.O.O.O.O.O.O.O.O.O.A._U._U._U._U._U._U._O._O._O._O._O._O._U._U._U._U._U._U._._R._R._R._R._R._R._R._R._R._R._R._R\u0419._R._R._R._R._R._R\nO.O.O.O.O.O.O.O.O.O.A._U._U._U._U._U._U._O._O._O._O._O._O._U._U._U._U._U._U._._R._R._R._R._R._R._R._R._R._R._R._R\u0418._R\u0415._R\u0415._R._R._R._R\nO.O.O.O.O.O.O.O.O.O.A._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._._R._R._R._R._R._R._R._R._R._R._R\u0418._R._R._R._R._R._R._R\nO.O.O.O.O.O.O.O.O.O.A._._._._._._._._._._._._._._._._._._.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nO.O.O.O.O.O.O.O.O.O.A._._._._._._._._._._._._._._._._._._.A.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O\nO.O.O.A.A.A.A.A.A.A.A._._._._._._._._._._._._._._._._._._.A.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O\nO.O.O.A._I._I._I._I._I._I._I._._._._._._._._._._._._._._._._._._.A.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O\nO.O.O.A._I._I._I._I._I._I._I._._._._._._._._._._._._._._._._._._.A.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O\nO.O.O.A._I._I.A.A.A.A.A._._._._._._._._._._._._._._._._._._.A.A.A.A.A.A.O.O.O.O.O.O.O.O.O.O.O.O.O\nO.O.O.A._I._I.A.O.O.O.A._._._._._._._._._._._._._._._._._._._I._I._I._I._I.A.O.O.O.O.O.A.A.A.A.A.A.A.A\nO.O.O.A._I._I.A.O.O.O.A._._._._._._._._._._._._._._._._._._.A.A.A.A._I\u0415.A.O.O.O.O.O.A._R._R._R._R._R._R.A\nO.O.O.A._I._I.A.O.O.O.A._._._._._._._._._._._._._._._._._._.A.O.O.A._I\u0415.A.A.A.A.A.A.A._R._R._R._R._R._R.AI\nO.O.O.A._I._I.A.O.O.O.A._._._._._._._._._._._._._._._._._._.A.O.O.A._I._I._I._I._I._I._I._I._R._R._R._R._R._R.AI\nO.O.O.A._I._I.A.O.O.O.A._._._._._._._._._._._._._._._._._._.A.O.O.A.A.A.A.A.A.A.A.A._R._R._R._R._R._R.A\nO.O.O.A._I\u0415._I\u0415.A.O.O.O.A.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.A.O.O.O.O.O.O.O.O.O.O.A.A.A.A.A.A.A.A"
   objects:
   - type: box
@@ -296,7 +296,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="QF8p1Zk9kGlAzYi4"
-  - type: obj
+  - type: unit
     id: zebra
     definitionId: zebra
     definition: {fileID: 11400000, guid: 83d3603e3c2ea644f8e61c5637414bca, type: 2}

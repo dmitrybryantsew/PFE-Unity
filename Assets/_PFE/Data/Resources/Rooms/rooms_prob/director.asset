@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: director
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: director
   sourceCollectionId: rooms_prob
   type: pass
@@ -238,7 +238,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="vZ7tlqfbsSA1XxON"
-  - type: obj
+  - type: unit
     id: hturret2
     definitionId: hturret2
     definition: {fileID: 11400000, guid: b7b404d4f27107f40ac6003fe0a1a66b, type: 2}
@@ -251,7 +251,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="zrsH8U9gAiy0qJSJ" tr="1"
-  - type: obj
+  - type: unit
     id: hturret2
     definitionId: hturret2
     definition: {fileID: 11400000, guid: b7b404d4f27107f40ac6003fe0a1a66b, type: 2}
@@ -281,7 +281,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="rtHxYpyod4ygBl6L" minetip="6" mine="4" lock="10"
-  - type: obj
+  - type: unit
     id: hturret2
     definitionId: hturret2
     definition: {fileID: 11400000, guid: b7b404d4f27107f40ac6003fe0a1a66b, type: 2}
@@ -294,7 +294,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="nHuX9LrxmKbtsVvt" tr="1"
-  - type: obj
+  - type: unit
     id: hturret2
     definitionId: hturret2
     definition: {fileID: 11400000, guid: b7b404d4f27107f40ac6003fe0a1a66b, type: 2}

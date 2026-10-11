@@ -129,9 +129,11 @@ MonoBehaviour:
   - weaponId: flamer
     chance: 1
     difficulty: 0
+    isFixedWeapon: 1
   - weaponId: assr
     chance: 1
     difficulty: 0
+    isFixedWeapon: 1
   animations:
     stay:
       row: 0

@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: talisman
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: talisman
   sourceCollectionId: rooms_prob
   type: pass
@@ -56,7 +56,7 @@ MonoBehaviour:
     tileCoord: {x: 36, y: 3}
   - id: kolonna
     tileCoord: {x: 9, y: 17}
-  doorQuality: 000000000200000000000000020000000200000002000000020000000200000002000000020000000200000002000000000000000200000002000000020000000000000002000000000000000200000002000000020000000000000002000000
+  doorQuality: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
   tileDataString: 'A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A
 
     A.AV.AV.AV.AV.AV._V._V._._._._._._._._._._._._._._._._.A._V._V._V._V._V._V._V.FV._V._V._V._V._V._V._V._V._V._V._V._V._V._V.A
@@ -152,7 +152,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="AUzZizygpniCGW4p" allid="1"
-  - type: obj
+  - type: unit
     id: alicorn
     definitionId: alicorn
     definition: {fileID: 11400000, guid: a26047f529a359f4da09fd7fe3169bf3, type: 2}
@@ -182,7 +182,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="eqI8sIa8F39lJOwW" allid="2"
-  - type: obj
+  - type: unit
     id: alicorn
     definitionId: alicorn
     definition: {fileID: 11400000, guid: a26047f529a359f4da09fd7fe3169bf3, type: 2}
@@ -225,7 +225,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="R9l6lhGAaz8GMZNf" allid="3"
-  - type: obj
+  - type: unit
     id: alicorn
     definitionId: alicorn
     definition: {fileID: 11400000, guid: a26047f529a359f4da09fd7fe3169bf3, type: 2}
@@ -242,7 +242,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="fR8m3Ny7cabKMLPC" turn="1" tr="3" pole="3"
-  - type: obj
+  - type: unit
     id: wturret
     definitionId: wturret
     definition: {fileID: 11400000, guid: dd3e6fb52f3321e4ebc033e908bae0a5, type: 2}
@@ -292,7 +292,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="v6K26e9rHdI1h4oz" allid="4"
-  - type: obj
+  - type: unit
     id: alicorn
     definitionId: alicorn
     definition: {fileID: 11400000, guid: a26047f529a359f4da09fd7fe3169bf3, type: 2}
@@ -416,7 +416,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="ylI5g37os3czxWRa"
-  - type: obj
+  - type: unit
     id: alicorn
     definitionId: alicorn
     definition: {fileID: 11400000, guid: a26047f529a359f4da09fd7fe3169bf3, type: 2}
@@ -433,7 +433,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="BfR0oaCafYI1IKB5" tr="1" dis="1" allid="5"
-  - type: obj
+  - type: unit
     id: alicorn
     definitionId: alicorn
     definition: {fileID: 11400000, guid: a26047f529a359f4da09fd7fe3169bf3, type: 2}
@@ -465,6 +465,10 @@ MonoBehaviour:
       - act: shoot
         targ: talisman_a2
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="ZLARS7yNBQGjNywI"
   - type: door
     id: alib1
@@ -569,7 +573,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="cUc1Y89kPctpXAMj" allact="open" allid="a3"
-  - type: obj
+  - type: unit
     id: alicorn
     definitionId: alicorn
     definition: {fileID: 11400000, guid: a26047f529a359f4da09fd7fe3169bf3, type: 2}
@@ -677,7 +681,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="exkuSkVUWvcj1NSo"
-  - type: obj
+  - type: unit
     id: roller
     definitionId: roller
     definition: {fileID: 11400000, guid: bc6e49884f4b9b343af9403b670cc47d, type: 2}

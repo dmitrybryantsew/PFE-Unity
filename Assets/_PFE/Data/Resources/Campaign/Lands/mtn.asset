@@ -17,6 +17,8 @@ MonoBehaviour:
   landId: mtn
   landName: Mtn
   tip: story
+  isProbLand: 0
+  isTestLand: 0
   isProcedural: 0
   stage: 8
   baseDifficulty: 17
@@ -58,3 +60,4 @@ MonoBehaviour:
   - {fileID: 11400000, guid: f446ad54fe14fb44c97be356b3cc7a54, type: 2}
   - {fileID: 11400000, guid: 71f08f7f61959b04082345d748b1223e, type: 2}
   - {fileID: 11400000, guid: f3ae3e1f95bee1648a8f996706cb176e, type: 2}
+  probRooms: []

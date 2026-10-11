@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: griff
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: griff
   sourceCollectionId: rooms_prob
   type: pass
@@ -70,10 +70,10 @@ MonoBehaviour:
     tileCoord: {x: 4, y: 1}
   - id: pipes2
     tileCoord: {x: 1, y: 5}
-  doorQuality: 020000000200000000000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000002000000020000000200000002000000
+  doorQuality: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
   tileDataString: "N.N.N.N.N.N.N.N.N.N.N.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nN._E._E._E._E._E._E._E._E._E.N.A.A._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T.A\nN._E._E._E._E._E._E._E._E._E.N.A.A._T._T._T._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K.A\nN._E._E._E._E._E._E._E._E._E.N.A.A._T._T._T._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K.A\nN._E._E.NE.NE.NE.NE.NE.NE.NE.N.A.A._T-._T-._T\u0411-._T-._T-._T-._T-._T-._T-._T-._T-._T-._T-._T-._T-._T-._T-._T-._T-._T-._T-._T-._T-._T-._T-._T-._T-._T-._T-._T-._T-._T-._T-._T-.A\nN._E._E.NE.NE.NE.NE.NE.NE.NE.N.A.A._T._T._T\u0411._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T.A\nN._E._E.NE.NE.NE.AE.AE.AE.AE.A.A.A._T._T._T\u0411._._K._K._K._K._._K._K._K._K._._K._K._K._K._._K._K._K._K._._K._K._K._K._._K._K._K._K._.A\nN._E._E.NE.NE.NE.AE._T._T._T._T._T.AT._T._T._T\u0411._._K._K._K._K._._K._K._K._K._._K._K._K._K._._K._K._K._K._._K._K._K._K._._K._K._K._K._.A\nN._E._E.NE.NE.NE.AE._T._T._T._T._T._T._T._T._T\u0411._._K._K._K._K._._K._K._K._K._._K._K._K._K._._K._K._K._K._._K._K._K._K._._K._K._K._K._.A\nN._E._E.NE.NE.NE.AE._T._T._T._T._T._T._T._T._T\u0411._._K._K._K._K._._K._K._K._K._._K._K._K._K._._K._K._K._K._._K._K._K._K._._K._K._K._K._.A\nN._E._E.NE.NE.NE.AE.AE.AE.AE.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A._._\u0410.A.A.A\nN.FE.FE.NE.NE.NE.NE.NE.NE.NE.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N._C._C\u0410.N.N.N\nN._C._C._C._C._C._C._C._C._C.NC._C._C._C._C._._._._._._._._._._C._C._C._C.NC._C._C._C._C._._._._._._._._._._._C._C\u0410._C._C.N\nN._C._C._C._C._C._C._C._C._C.NC._C._C._C._C._._._._._._._._._._C._C._C._C._C._C._C._C._C._._._._._._._._._._._C._C\u0410._C._C.N\nN._C._C._C._C._C._C._C._C._C.NC._C._C._C._C._._._._._._._._._._C._C._C._C._C._C._C._C._C._._._._._._._._._._._C._C\u0410._C._C.N\nN._C._C._C._C._C._C._C._C._C.NC._C._C._C._C._._._._._._._._._._C._C._C\u041A._C\u041A.NC._C\u041A._C\u041A._C\u041A._C\u041A._\u041A._._._._._._._._._._C._C\u0410._C._C.N\nN._C._C._C._C._C._C._C._C._C.NC._C._C._C._C._._._._._._._._._._C._C._C._C.NC._C._C._C._C._._._._._._._._._._._C._C._C._C.N\nN._C._C._C._C._C._C._C._C._C.NC._C._C._C._C._._._._._._._._._._C._C._C._C.NC._C._C._C._C._._._._._._._._._._._C._C._C._C.N\nN._C._C._C._C._C._C._C._C._C.NC._C._C._C._C._._._._._._._._._\u041A._C\u041A._C\u041A._C\u041A._C\u041A.NC._C._C._C._C._._._._._._._._._._._C._C._C._C.N\nN._C._C._C._C._C._C._C._C._C._C._C._C._C._C._._._._._._._._._._C._C._C._C.NC._C._C._C._C._._._._._._._._._._._C._C._C._C.N\nN._C._C._C._C._C._C._C._C._C._C._C._C._C._C._._._._._._._._._._C._C._C._C.NC._C._C._C._C._._._._._._._._._._._C._C._C._C.N\nN.N.N._D._D.N.N.N.N.N.N.N.N.N.N.N._D._D.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.ED.ED.N.N.N.N.N.N.N.N.N.N\nN._D._D._D._D._D._D._D._D._D._D._D._D._S._S._D._D._D._D.ED.ED.ED._D._D._D._D._D._S._S._S._S._S._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D.N\nN._D._D._D._D._D._D._D._D._D._D._D._D._S._S._D._D._D._D.ED.ED.ED._D._D._D._D._D._S._S._S._S._S._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D.N\nN.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N"
   objects:
-  - type: obj
+  - type: unit
     id: molerat
     definitionId: molerat
     definition: {fileID: 11400000, guid: 1408e310852cb0742aa198feb9353ea9, type: 2}
@@ -176,7 +176,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="myEohDzsIhsydACH"
-  - type: obj
+  - type: unit
     id: merc
     definitionId: merc
     definition: {fileID: 11400000, guid: 08677b36cc558b0498d299ef921c44da, type: 2}
@@ -191,7 +191,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="rne8YPcQ1ty0NSDR" tr="1" qid="griffF1"
-  - type: obj
+  - type: unit
     id: merc
     definitionId: merc
     definition: {fileID: 11400000, guid: 08677b36cc558b0498d299ef921c44da, type: 2}
@@ -206,7 +206,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="ZFVTDTL7Ed1wx6mh" tr="3" qid="griffF1"
-  - type: obj
+  - type: unit
     id: merc
     definitionId: merc
     definition: {fileID: 11400000, guid: 08677b36cc558b0498d299ef921c44da, type: 2}
@@ -221,7 +221,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="WbjI5mPdTUCkWlZA" tr="2" qid="griffF1"
-  - type: obj
+  - type: unit
     id: merc
     definitionId: merc
     definition: {fileID: 11400000, guid: 08677b36cc558b0498d299ef921c44da, type: 2}
@@ -262,7 +262,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="Lv6aery2B8dtlmyI"
-  - type: obj
+  - type: unit
     id: captive
     definitionId: captive
     definition: {fileID: 11400000, guid: 8358e97a7bcb3694c88de10f204d24d3, type: 2}
@@ -277,7 +277,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="NJFjdiJMMWCDTHEn" tr="3" allid="a1"
-  - type: obj
+  - type: unit
     id: captive
     definitionId: captive
     definition: {fileID: 11400000, guid: 8358e97a7bcb3694c88de10f204d24d3, type: 2}
@@ -292,7 +292,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="cpFm2XAb8kZvQ6tm" tr="10" allid="a1"
-  - type: obj
+  - type: unit
     id: merc
     definitionId: merc
     definition: {fileID: 11400000, guid: 08677b36cc558b0498d299ef921c44da, type: 2}
@@ -307,7 +307,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="U5QMiLdIqQ9XMKVV" tr="4" qid="griffF1"
-  - type: obj
+  - type: unit
     id: captive
     definitionId: captive
     definition: {fileID: 11400000, guid: 8358e97a7bcb3694c88de10f204d24d3, type: 2}
@@ -322,7 +322,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="Ym3EXKiHCQRmrdkV" tr="7" allid="a1"
-  - type: obj
+  - type: unit
     id: captive
     definitionId: captive
     definition: {fileID: 11400000, guid: 8358e97a7bcb3694c88de10f204d24d3, type: 2}
@@ -337,7 +337,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="QkTUgpT92ckkBGOt" tr="2" allid="a1"
-  - type: obj
+  - type: unit
     id: captive
     definitionId: captive
     definition: {fileID: 11400000, guid: 8358e97a7bcb3694c88de10f204d24d3, type: 2}
@@ -352,7 +352,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="oNTy0MO75ccL1mpq" tr="8" allid="a1"
-  - type: obj
+  - type: unit
     id: captive
     definitionId: captive
     definition: {fileID: 11400000, guid: 8358e97a7bcb3694c88de10f204d24d3, type: 2}
@@ -367,7 +367,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="hmpPjX0sIHrNwESx" tr="1" allid="a1"
-  - type: obj
+  - type: unit
     id: captive
     definitionId: captive
     definition: {fileID: 11400000, guid: 8358e97a7bcb3694c88de10f204d24d3, type: 2}
@@ -382,7 +382,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="X8yAZgyBkTh7MmY8" tr="11" allid="a1"
-  - type: obj
+  - type: unit
     id: captive
     definitionId: captive
     definition: {fileID: 11400000, guid: 8358e97a7bcb3694c88de10f204d24d3, type: 2}
@@ -454,7 +454,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="VQ8l1b68t4mZuiI6"
-  - type: obj
+  - type: unit
     id: captive
     definitionId: captive
     definition: {fileID: 11400000, guid: 8358e97a7bcb3694c88de10f204d24d3, type: 2}
@@ -469,7 +469,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="WlIzzELO12WRWP93" tr="4" allid="a1"
-  - type: obj
+  - type: unit
     id: molerat
     definitionId: molerat
     definition: {fileID: 11400000, guid: 1408e310852cb0742aa198feb9353ea9, type: 2}
@@ -480,7 +480,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="s15SbNtuhBr80YF9"
-  - type: obj
+  - type: unit
     id: rat
     definitionId: rat
     definition: {fileID: 11400000, guid: 91aa9373086f9584dafaf4723062b4a4, type: 2}
@@ -491,7 +491,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="fUYIVIvlCTchF6DZ"
-  - type: obj
+  - type: unit
     id: rat
     definitionId: rat
     definition: {fileID: 11400000, guid: 91aa9373086f9584dafaf4723062b4a4, type: 2}
@@ -519,9 +519,17 @@ MonoBehaviour:
       - act: dialog
         targ: 
         val: velvetDial7
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: off
         targ: this
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="EyMehlfrB0tVtzKU" h="10"
   - type: door
     id: door1a

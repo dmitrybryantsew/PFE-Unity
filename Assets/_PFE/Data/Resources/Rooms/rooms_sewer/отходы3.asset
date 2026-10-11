@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: "\u043E\u0442\u0445\u043E\u0434\u044B3"
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: "\u043E\u0442\u0445\u043E\u0434\u044B3"
   sourceCollectionId: rooms_sewer
   type: pass
@@ -154,7 +154,7 @@ MonoBehaviour:
     tileCoord: {x: 45, y: 6}
   - id: stok2
     tileCoord: {x: 22, y: 18}
-  doorQuality: 000000000200000000000000000000000000000000000000000000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000000000000200000002000000000000000200000002000000
+  doorQuality: 000000000200000000000000020000000000000003000000020000000000000000000000040000000400000002000000020000000000000000000000020000000200000002000000020000000000000002000000020000000000000000000000
   tileDataString: "A.A.A.A.A._A._A.A.A.A.A.A.A.A._A._A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A._A._A.A.A.A.A.A.A.A._A._A.A.A.A.A.A\nA._K._K._K.M._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T.M.L.L.L.L.M._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T.M.H.A\n_._K._K._K.M._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T.M.L.L.L.L.M._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T.M.H.A\n_._K._K._K.M.M.M.M.M.M.M.M.M.M.M.M.M.M._T._T.M.L.L.L.L.M._T._T.M.M.M.M.M.M.M.M._A._A._A.M.M.M.M._T\u0411._T.M.H.A\nA._-._._._._._._K._K._K._._._._._._._.M._T._T.M._._._._.M._T._T.M._._._._._._._._E._E._E._E._E._E.M._T\u0411._T.M.H.A\nA._._._._._._._K._K._K._._._._._._._._._._._._._._._._._._._._._._._._._._._E._E._E._E._E._E.M._T\u0411._T.M.M.A\n_._._._._._._._K._K._K._._._._._._._._._._._._._._._._._._._._._._._._._._._E._E._E._E._E._E.M._T\u0411._T._T._T._A\n_._._._._._._._K._K._K._._._._._._._._._._._._._._._._._._._._._._._._._._._E._E._E._E._E._E.M._T\u0411._T._T._T._A\nA._-._-._._._._._K._K._K._._.L.L.L._._._._._._._._._._._._._._._._.L.L.L._._._E._E._E._E._E._E.M._T\u0411._T.M.M.A\nA._._._._._._.L.L.L._._.L.L.L._._._._._._._._H._H._._._._._._._.L.L.L._._.L.L.L.L.L.L.M._T\u0411._T.M.H.A\nA._._._._._._.L.L.L._*._*.L.L.L._*._*._*._*._*._*._*._H*._H*._*._*._*._*._*._*._*.L.L.L._*._*.L.L.L.L.L.L.M._T\u0411._T.M.H.A\nA._._.L.L._._.L.L.L._*._*.L.L.L._*._*._*._*._*._*._*._H*._H*._*._*._*._*._*._*._*.L.L.L._*._*.L.L.L.L.L.L.M._T\u0411._T.M.H.A\nA._K._K._K._K._K._K.L.L.L._*._*.L.L.L._*.L.L.L.L.L.L.L.L.L.L.L.L.L.L._*.L.L.L._*._*.L.L.L.H.H.H.M._T\u0411._T.M.H.A\nA._K._K._K._K._K._K.L.L.L._*._*.L.L.L._*.L.L.L.L.L.L.L.L.L.L.L.L.L.L._*.L.L.L._*._*.L.L.L.H.H.H.M._T\u0411._T.M.M.A\nA.L.L._._._._.L.L.L._*._*.L.L.L._*.L.L.L.L.L.L.L.L.L.L.L.L.L.L._*.L.L.L._*._*.L.L.L.H.H.H.M._T\u0411._T._T._T._A\nA._._._._._._.L.L.L._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*.L.L.L.H.H.H.M._T\u0411._T._T._T._A\nA._._._._._._.L.L.L._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*.L.L.L.M.M.M.M._T\u0411._T.M.M.A\nA._._._._.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L._*._*.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.M._T._T._T._T._T.M.L.A\n_._._._._._._.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L._*._*.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.M._T._T._T._T._T.M.L.A\n_._._._._._._.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L._*._*.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.M.M._A._A.M.M.M.L.A\nA._-._-.L.L._._._._._S._S.L.L.L.L.L.L.L._*._*._*._*._*._*._*._*._*._*.L.L.L._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E.A\nA._._.L.L._._._._._S._S.L.L._._.L.L.L._*._*._*._*._*._*._*._*._*._*.L.L.L._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E\n_._._.L.L._._.L.L._S._S._K._K._._.L.L.L._*._*._*._*._*._*._*._*._*._*.L.L.L._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E\n_._._.L.L._._.L.L._S._S._K._K._._.L.L.L._*._*._*._*._*._*._*._*._*._*.L.L.L._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E\nA.A.A.A.A._A-._A-.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A._-._-._-._-.A.A.A.A.A._-._-._-._-.A.A.A.A"
   objects:
   - type: box
@@ -542,7 +542,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="MLuZGATpmpf35G5j"
-  - type: obj
+  - type: unit
     id: ebloat
     definitionId: ebloat
     definition: {fileID: 11400000, guid: 1f318101da73eae4992134243db714ea, type: 2}

@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_1_4
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_1_4
   sourceCollectionId: rooms_pis
   type: pass
@@ -70,7 +70,7 @@ MonoBehaviour:
     tileCoord: {x: 13, y: 10}
   - id: wires2
     tileCoord: {x: 13, y: 9}
-  doorQuality: 000000000000000000000000000000000000000000000000000000000000000000000000000000000200000002000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: 'G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G
 
     G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G
@@ -121,7 +121,7 @@ MonoBehaviour:
 
     G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.C.C.C.C.C.C._T-._T-._T-._T-.C.C.C.C.C.C.G'
   objects:
-  - type: obj
+  - type: unit
     id: hellhound
     definitionId: hellhound
     definition: {fileID: 11400000, guid: 6b4ce41dc97996545b96636e01f08163, type: 2}
@@ -147,7 +147,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="Iq4FHwmeK60q992d"
-  - type: obj
+  - type: unit
     id: encl
     definitionId: encl
     definition: {fileID: 11400000, guid: bd63e94e2cdd9b64baa1344275d633d8, type: 2}
@@ -164,7 +164,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="HCaHHchjf2IHEDxo" turn="-1" ai="stay" tr="4"
-  - type: obj
+  - type: unit
     id: encl
     definitionId: encl
     definition: {fileID: 11400000, guid: bd63e94e2cdd9b64baa1344275d633d8, type: 2}
@@ -181,7 +181,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="QxlXyCkaUCgkRqOy" turn="-1" ai="stay" tr="3"
-  - type: obj
+  - type: unit
     id: encl
     definitionId: encl
     definition: {fileID: 11400000, guid: bd63e94e2cdd9b64baa1344275d633d8, type: 2}
@@ -198,7 +198,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="qc0CfQdCoMcUqUA0" turn="-1" ai="stay" tr="2"
-  - type: obj
+  - type: unit
     id: encl
     definitionId: encl
     definition: {fileID: 11400000, guid: bd63e94e2cdd9b64baa1344275d633d8, type: 2}
@@ -215,7 +215,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="Y3F2XSH91VFWeNyW" turn="-1" ai="stay" tr="3"
-  - type: obj
+  - type: unit
     id: dron
     definitionId: dron
     definition: {fileID: 11400000, guid: 3bae6e09bbe3c214b9e0967e21752f24, type: 2}

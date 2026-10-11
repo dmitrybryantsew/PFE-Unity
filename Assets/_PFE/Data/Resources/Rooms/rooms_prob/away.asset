@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: away
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: away
   sourceCollectionId: rooms_prob
   type: pass
@@ -86,7 +86,7 @@ MonoBehaviour:
     tileCoord: {x: 30, y: 4}
   - id: storage
     tileCoord: {x: 27, y: 21}
-  doorQuality: 020000000200000002000000020000000000000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000020000000200000002000000020000000200000002000000
+  doorQuality: 030000000300000003000000030000000000000000000000000000000000000000000000000000000000000003000000030000000300000003000000000000000000000004000000040000000400000004000000040000000000000000000000
   tileDataString: "_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B._._._._._._._\n_._._._._._._._._.B._N._N._N._N._N._N._N._N._N._N._N._N._N._N.BN._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N.B._._._._._._._\n_._._._._._._._._._._N._N._N._N._N._N._N._N._N._N._N._N._N._N.BN._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N.B._._._._._._._\n_._._._._._._._._._._N._N._N._N._N._N._N._N._N._N._N._N._N._N.BN._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N.B._._._._._._._\n_._._._._._._._._._._N._N._N._N._N._N._N._N._N._N._N._N._N._N.BN._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N.B._._._._._._._\n_._._._._._._._._._._N._N._N._N._N._N._N._N._N._N._N._N._N._N.BN._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N.B._._._._._._._\n_._._._._._._._._\u0410.B._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N.B._._._._._._._\n_._._._._._._._._\u0410.B._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N.B._._._._._._._\n_._._._._._._._._\u0410.B.BN.BN.BN.BN.BN.BN.BN.BN.BN.BN.BN.BN.BN.BN.BN.BN.BN.BN.BN.BN.BN.BN.BN.BN.BN.BN._N._N\u0410.BN.BN.B._._._._._._._\n_K._K._N._N._N._N._K._K._K._._N._N._N._N._N._N._N._N._N._N._N._N._N._N.BN._N._N._N._N._N._N._N._N._N._N._N._N._N\u0410._N._N.B._K._K._K._K._K._K._K\n_K._K._N._N._N._N._K._K._K._._N._N._N._N._N._N._N._N._N._N._N._N._N._N.BN._N._N._N._N._N._N._N._N._N._N._N._N._N\u0410._N._N.B._K._K._K._K._K._K._K\n_N._N._N._N._N._N._N._N._N._._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N\u0410._N._N._._N._N._N._N._N._N._N\n_N._N._N._N._N._N._N._N._N._._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N\u0410._N._N._._N._N._N._N._N._N._N\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.AN.AN._N._N._N.AN.A\nA.AF.AF.AF.AF.AF.AF._F._F._F._F._F._F._F._F._F.A._._._._._._._._._._._._._._._._._._._._._._._.A._N._N._N._N._N._N.N\nA.AF.AF.AF.AF.AF.AF._F._F._F._F._F._F._F._F._F.A._._._._._._._._._._._._._._._._._._._._._._._.A._N._N._N._N._N._N.N\nA.AF.AF.AF.AF.AF.AF._F._F._F._F._F._F._F._F._F.A._._._._._._._._._._._._._._._._._._._._._._._.A._N._N._N._N._N._N.N\nA.AF.AF.AF.AF.AF.AF._F._F._F._F._F._F._F._F._F.A._\u041A._\u041A._\u041A._\u041A._\u041A._\u041A._\u041A._\u041A._\u041A._\u041A._._._._._\u041A._\u041A._\u041A._\u041A._\u041A._\u041A._\u041A._\u041A._\u041A.A._N._N._N._N._N._N.N\nA.AF._F._F._F._F._F._F._F._F._F._F._F._F._F._F._._._._._._._._._._._._._._._._._._._._._._._._._G._N._N._N._N._N._N.N\nA.AF._F._F._F._F._F._F._F._F._F._F._F._F._F._F._._._._._._._._._._._._._._._._._._._._._._._._._G._N._N._N._N._N._N.N\nA.AF._F._F._F._F._F._F._F._F._F._F._F._F._F._F._._._._._._._._._._._._._._._._._._._._._._._._._G._Q._Q._Q._Q._Q._Q.N\nN.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N"
   objects:
   - type: door
@@ -135,7 +135,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="AXCZzSxD7Z78Jkv0"
-  - type: obj
+  - type: unit
     id: trridge
     definitionId: trridge
     definition: {fileID: 11400000, guid: b18ed878977c33b4fabbbdecc8c96402, type: 2}
@@ -146,7 +146,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="xwhIViT5v9Nj1Zhm"
-  - type: obj
+  - type: unit
     id: trridge
     definitionId: trridge
     definition: {fileID: 11400000, guid: b18ed878977c33b4fabbbdecc8c96402, type: 2}
@@ -157,7 +157,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="LrbDxZoFYY5uHzCE"
-  - type: obj
+  - type: unit
     id: trridge
     definitionId: trridge
     definition: {fileID: 11400000, guid: b18ed878977c33b4fabbbdecc8c96402, type: 2}
@@ -220,9 +220,17 @@ MonoBehaviour:
       - act: alarm
         targ: 
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: off
         targ: this
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="nnfscHD3LC7nOKqH" h="1" w="6"
   - type: obj
     id: enspawn
@@ -315,7 +323,7 @@ MonoBehaviour:
         value: 1
     scripts: []
     parameters: code="thJcscatHyqsol3k" prize="1"
-  - type: obj
+  - type: unit
     id: msp
     definitionId: msp
     definition: {fileID: 11400000, guid: 79e4bcfc810c419448c44c83d583171b, type: 2}
@@ -326,7 +334,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="qknWNvkkUbDc1wtl"
-  - type: obj
+  - type: unit
     id: mine
     definitionId: mine
     definition: {fileID: 11400000, guid: 01175fdf5effab8449dc622f301ad809, type: 2}
@@ -337,7 +345,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="zL7SzOWDkBPxnNlF"
-  - type: obj
+  - type: unit
     id: trap
     definitionId: trap
     definition: {fileID: 11400000, guid: 94236a07ba271e241a7f9bcd11eb093d, type: 2}
@@ -431,18 +439,38 @@ MonoBehaviour:
       - act: control off
         targ: 
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: move1
         targ: this
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 1
       - act: dialog
         targ: 
         val: probAwayDial1
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: control on
         targ: 
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 3
       - act: open
         targ: awayF2
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="oyy18u99zSTU8YZk" uid="awayF1" prize="1"
   - type: door
     id: platform1

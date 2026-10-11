@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_2_1
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_2_1
   sourceCollectionId: rooms_minst
   type: pass
@@ -34,7 +34,7 @@ MonoBehaviour:
     tileCoord: {x: 9, y: 4}
   - id: chole3
     tileCoord: {x: 30, y: 8}
-  doorQuality: 020000000200000002000000020000000000000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000002000000020000000200000002000000020000000200000002000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: "A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA._G._F._F._F._G.A._._._._._._._._._._._._._._._G._F._F._F._F._G._._._._._._._._._._._._._._.A._G._F._F._F._G.A\nA._G._F._F._F._G.A._._.Q.Q.Q.Q.Q.F.F.F.Q.Q.Q.Q.QG._F._F._F._F.QG.Q.Q.Q.F.F.F.F.Q.F.F.Q.Q._._.A._G._F._F._F._G.A\nA._G._F._F._F._G.A._._._._._._._._._._._._._._.QG._F-._F-._F-._F-.QG._._._._._._._._._._._._._._.A._G._F._F._F._G.A\nA._G-._F-._F-._F-._G-.A._._._._._._._._._._._._._._.QG._F._F._F._F.QG._._._._._._._._._._._._._._.A._G-._F-._F-._F-._G-.A\nA._G._F._F._F._G.A._._._._._._._._._._._._._._.QG._F._F._F._F.EG._._._._._._._._._._._._._._.A._G._F._F._F._G.A\nA._G._F._F._F._G.A._._._._._._._._._._._._._._.QG._F._F._F._F.EG._._._._._._._._._._._._._._.A._G._F._F._F._G.A\nA._G._F._F._F._G.A._._._._._._._._._._._._._._.QG._F-._F-._F-._F-.QG._._._._._._._._._._._._._._.A._G._F._F._F._G.A\nA._G._F._F._F._G._._._._._._._._._._._._._._._.QG._F._F._F._F.QG._._._._._._._._._._._._._._._._G._F._F._F._G.A\nA._G._F._F._F._G._._._._._._._._._._._._._._._.QG._F._F._F._F.QG._._._._._._._._._._._._._._._._G._F._F._F._G.A\nA._G._F._F._F._G._._._._._._._._._._._._._._._.QG._F._F._F._F.QG._._._._._._._._._._._._._._._._G._F._F._F._G.A\nA.A.A.A.A.A.A._._._._._._._._._._._._._._._G-._F-._G-._G-._F-._G-._._._._._._._._._._._._._._.A.A.A.A.A.A.A\n_G._G.AG._G._G._G.FG._._._._._._._._._._._._._._._G._F._G._G._F._G._._._._._._._._._._._._._._.FG._G._G._G._G._G._G\n_G._G._G._G._G._G.FG._._._._._._._._._._._._._._._G._F._G._G._F._G._._._._._._._._._._._._._._.FG._G._G._G._G._G._G\n_G._G._G._G._G._G.FG._._._._._._._._._._._._._._._G._F._G._G._F._G._._._._._._._._._._._._._._.FG._G._G._G._G._G._G\n_G._G._G._G._G._G.FG._._._._._._._._._._._._._._._G._F._G._G._F._G._._._._._._._._._._._._._._.FG._G._G._G._G._G._G\nA.A.A.A._G\u0411-._G-.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.AF._G-._G-.AF.AG.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A._G-._G-.A.A.A.A\nA._._._._G\u0411._G._._._._._._._._._.A._._._._._._G._F._G._G._F._G._._._._.A._._._._._._._._._.A._G._G.A._._.A\nA._._._._G\u0411._G._._._._._._._._._.A._._._._._._G._F._G._G._F._G._._._._.A._._._._._._._._._.A._G._G.A._._.A\nA._P._P._P._P\u0411._P._P._P._P._P._P._P._P._P._P.AP._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P.AP._P._P._P._P._P._P._P._P._P.AP._P._P.AP._P._P.A\nA._P*._P*._P*._P\u0411*._P*._P*._P*._P*._P*._P*._P*._P*._P*._P*._Q*._P*._P*._P*._P*._P*._P*._P*._P*._P*._P*._P*._P*._P*._P*._P*._Q*._P*._P*._P*._P*._P*._P*._P*._P*._P*._Q*._P*._P*._Q*._P*._P*.A\nA._P*._P*._P*._P\u0411*._P*._P*._P*._P*._P*._P*._P*._P*._P*._P*._Q*._P*._P*._P*._P*._P*._P*._P*._P*._P*._P*._P*._P*._P*._P*._P*._Q*._P*._P*._P*._P*._P*._P*._P*._P*._P*._Q*._P*._P*._Q*._P*._P*.A\nA._P*._P*._P*._P\u0411*._P*._P*._P*._P*._P*._P*._P*._P*._P*._P*._Q*._P*._P*._P*._P*._P*._P*._P*._P*._P*._P*._P*._P*._P*._P*._P*._Q*._P*._P*._P*._P*._P*._P*._P*._P*._P*._Q*._P*._P*._Q*._P*._P*.A\nA._P*._P*._P*._P\u0411*._P*._P*._P*._P*._P*._P*._P*._P*._P*._P*._Q*._P*._P*._P*._P*._P*._P*._P*._P*._P*._P*._P*._P*._P*._P*._P*._Q*._P*._P*._P*._P*._P*._P*._P*._P*._P*._Q*._P*._P*._Q*._P*._P*.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A"
   objects:
   - type: area
@@ -54,12 +54,24 @@ MonoBehaviour:
       - act: open
         targ: minstD1
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: open
         targ: minstD2
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: off
         targ: this
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="A62f6G03wcWoQxLc" h="23"
   - type: door
     id: door3
@@ -72,7 +84,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="jCKPIpfzivTd1SPG" uid="minstD2"
-  - type: obj
+  - type: unit
     id: sentinel
     definitionId: sentinel
     definition: {fileID: 11400000, guid: e4e3e3a7d564193458b20330eff53b13, type: 2}
@@ -98,7 +110,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="eBgp1ELPIdU8ushN" uid="minstD1"
-  - type: obj
+  - type: unit
     id: transm
     definitionId: transm
     definition: {fileID: 11400000, guid: 4c4fee23f22040043a1849ddd87cfc7b, type: 2}
@@ -109,7 +121,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="jeWK4LPX0EySH0cb"
-  - type: obj
+  - type: unit
     id: transm
     definitionId: transm
     definition: {fileID: 11400000, guid: 4c4fee23f22040043a1849ddd87cfc7b, type: 2}
@@ -120,7 +132,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="u0SFqTMGU4in6rjq"
-  - type: obj
+  - type: unit
     id: sentinel
     definitionId: sentinel
     definition: {fileID: 11400000, guid: e4e3e3a7d564193458b20330eff53b13, type: 2}

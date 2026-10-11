@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_7_1
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_7_1
   sourceCollectionId: rooms_hql
   type: pass
@@ -64,7 +64,7 @@ MonoBehaviour:
     tileCoord: {x: 7, y: 4}
   - id: hkonstr
     tileCoord: {x: 1, y: 4}
-  doorQuality: 020000000200000002000000020000000000000002000000000000000000000000000000000000000000000000000000000000000000000000000000020000000000000002000000020000000200000002000000020000000200000002000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: 'C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C
 
     C.C.C.C._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D.C
@@ -328,7 +328,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="zDB5yS892WYQTdmN"
-  - type: obj
+  - type: unit
     id: zebra
     definitionId: zebra
     definition: {fileID: 11400000, guid: 83d3603e3c2ea644f8e61c5637414bca, type: 2}
@@ -364,7 +364,7 @@ MonoBehaviour:
     scripts: []
     parameters: code="ITFX6RRZnnGtW8jR" hero="1" scr="zebraKill" turn="-1" ai="quiet"
       name="centurion" tr="5" weap="zebr^1" red="1" hpmult="2"
-  - type: obj
+  - type: unit
     id: zebra
     definitionId: zebra
     definition: {fileID: 11400000, guid: 83d3603e3c2ea644f8e61c5637414bca, type: 2}
@@ -383,7 +383,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="SEkF7XgNaGuBp42F" tr="5" turn="1" ai="stay" red="1"
-  - type: obj
+  - type: unit
     id: zebra
     definitionId: zebra
     definition: {fileID: 11400000, guid: 83d3603e3c2ea644f8e61c5637414bca, type: 2}
@@ -402,7 +402,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="eqy8LjCuuKA95FGr" tr="5" turn="1" ai="stay" red="1"
-  - type: obj
+  - type: unit
     id: zebra
     definitionId: zebra
     definition: {fileID: 11400000, guid: 83d3603e3c2ea644f8e61c5637414bca, type: 2}
@@ -421,7 +421,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="hXobMmE15OeghHVW" turn="-1" ai="stay" red="1" tr="5"
-  - type: obj
+  - type: unit
     id: mine
     definitionId: mine
     definition: {fileID: 11400000, guid: 01175fdf5effab8449dc622f301ad809, type: 2}
@@ -434,7 +434,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="e89RumzpyJzGeRTg" tr="6"
-  - type: obj
+  - type: unit
     id: mine
     definitionId: mine
     definition: {fileID: 11400000, guid: 01175fdf5effab8449dc622f301ad809, type: 2}
@@ -447,7 +447,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="yS1904mZGMNGdob0" tr="5"
-  - type: obj
+  - type: unit
     id: mine
     definitionId: mine
     definition: {fileID: 11400000, guid: 01175fdf5effab8449dc622f301ad809, type: 2}
@@ -458,7 +458,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="JsLUwEC7IP8JyeTp"
-  - type: obj
+  - type: unit
     id: mine
     definitionId: mine
     definition: {fileID: 11400000, guid: 01175fdf5effab8449dc622f301ad809, type: 2}

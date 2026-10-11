@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_2_2
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_2_2
   sourceCollectionId: rooms_thunder
   type: pass
@@ -88,7 +88,7 @@ MonoBehaviour:
     tileCoord: {x: 39, y: 10}
   - id: enclave
     tileCoord: {x: 5, y: 2}
-  doorQuality: 000000000000000002000000020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: 'S.S.S.S._G._G._G._G.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S
 
     S.S._._._G._G._G._G._._.S.T.T.T.T.T.T.T.T.T.T.T.T.T.T.T.T.T.T.T.T.T.T.T.T.T.T.T.T.T.T.T.T.T.T.T.T.S
@@ -171,7 +171,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="imwEg9eBeVHDhspR" key="key_encl" lock="10" allid="a1" allact="open"
-  - type: obj
+  - type: unit
     id: encl
     definitionId: encl
     definition: {fileID: 11400000, guid: bd63e94e2cdd9b64baa1344275d633d8, type: 2}
@@ -182,7 +182,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="HavzBMhv3jIgmHF9"
-  - type: obj
+  - type: unit
     id: encl
     definitionId: encl
     definition: {fileID: 11400000, guid: bd63e94e2cdd9b64baa1344275d633d8, type: 2}

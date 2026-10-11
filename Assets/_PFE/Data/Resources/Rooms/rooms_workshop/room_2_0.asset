@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_2_0
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_2_0
   sourceCollectionId: rooms_workshop
   type: pass
@@ -136,7 +136,7 @@ MonoBehaviour:
     tileCoord: {x: 10, y: 2}
   - id: lyellow
     tileCoord: {x: 15, y: 22}
-  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: "B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.A.A.A.A.A.A.A.A.B.B.B.B.B.B.B.A.A.A.A.B.B.B.B.B.B.B\nB._._._._._._._._._._._._._._._._.B._P._P._P._P.AP._P._P._P.AP._P._P.AP._P._P._P._P._P._P._P.AP._P._P.AP._P._P._P._P._P._P.B\nB._._._._._._._._._._._._._._._._.B._P._P._P._P.AP._P._P._P.AP._P-._P-.AP._P._P._P._P._P._P._P.AP._P-._P-.AP._P._P._P._P._P._P.B\nB._._._._._._._._._._._._._._._._.B._P._P._P._P._P._P._P._P._P._P._P.AP._P._P._P._P._P._P._P.AP.KP.KP.AP._P._P._P._P._P._P.B\nB._._._._.B._P\u041A._P\u041A.B.A._P._P._P.B._._._.B._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P.AP._P._P._P._P._P._P.B\n_._._._._.B._P._P.B.A._P._P._P.A._._._._._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P.AP._P._P._P._P._P._P.B\n_._._._._.B._P._P.B.A.AP._P._P.A._._._._._P._P._P._P._P.AP.AP.AP._P._P._P._P._P._P._P.AP._P._P._P._P._P._P._P._P._P._P.AP.AP.AP.A\n_._._._._.B._P-._P-.B.A._P._P._P.A._._._._._P._P._P._P._P.AP.AP.AP._P._P._P._P._P._P._P.AP._P._P._P._P._P._P._P._P._P._P._P._P._P.A\nB.B.B.B.B.B._P._P.B.A._P._P._P.A._._._._._P._P._P._P._P.AP.AP.AP._P._P._P._P._P._P._P.AP._P._P._P._P._P._P._P._P._P._P._P._P._P.A\nB._F._F._F._F.B._P._P.B.A._P._P._P.A._._._._._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P.A\nB._F._F._F._F.B._P-._P-.B.A._P._P.AP.A._\u041A._\u041A.B.B.AP.AP.AP.AP.AP.AP.AP.AP.AP.AP.AP.AP.AP.AP.AP.AP.AP.AP.AP.AP._P*._P*._P*._P*._P*._P*._P*._P*._P*.A\nB._F._F._F._F.B._P._P.B.A._P._P._P.A._._._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._._._.A.A.A.A.A.A.A.A.A.A.A\nB._F-._F-._F-._F-.B._P._P.B.A._P._P._P.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A._._._.A._._._._._._._._._.B\nB._F._F._F._F.B._P-._P-.B.A._P._P._P.A.A._._._G._G._._._._G._._G._._._G._._._._G._G._G._._._.A._._._._._._._._._.B\nB._F._F._F._F.B._P._P.B.A.AP._P._P.A.A._._._G._G._._._._G._._G._._._G._._._._G._G._G._._._.A._._._._._._._._._.B\nB._F._F._F._F.B._P._P.B.A._P._P._P.A.A._._._G._G._._._._G._._G._._._G._._._._G._G._G._._._.A._._._._._._._._._.B\nB._F._F._F._F.B._P-._P-.B.A._P._P._P.A.A._._.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A._._._._._._._._._.B\nB._F._F._F._F.B._P._P.B.A._P._P._P.A.A._._._._G._._G._._G._._G._._G._._._G._G._._._._._._.F._._._._._._._._._.B\nB._F._F._F._F.B._P._P.B.A._P._P.AP.A.A._._._._G._._G._._G._._G._._G._._._G._G._._._._._._.A._._._._._._._._._.B\nB._F._F._F._F.B._P-._P-.B.A._P._P._P.A.A._._._._G._._G._._G._._G._._G._._._G._G._._._._._._-.A._-._._._._._._._._.B\nB._F._F._F._F.B._._._._._._._._.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A._._._._.A._._._._._._._._._.B\nB._F._F._F._F._._._._._._._._._._._F._F._F._F._F._F._F._F._F._F._F._F._._._._._._._._._._._._._._._._._._._._.B\nB._F._F._F._F._._._._._._._._._._._F._F._F._F._F._F._F._F._F._F._F._F._._._._._._._._._._._._._._._._._._._._.B\nB._F._F._F._F._._._._._._._._._._._F._F._F._F._F._F._F._F._F._F._F._F._._._._._._._._._._._._._._._._._._._._.B\nB.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B._._._.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B"
   objects:
   - type: box
@@ -359,7 +359,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="KhXjTKkCTdtyRgfc"
-  - type: obj
+  - type: unit
     id: msp
     definitionId: msp
     definition: {fileID: 11400000, guid: 79e4bcfc810c419448c44c83d583171b, type: 2}
@@ -370,7 +370,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="tSchg3G017o8Lbhh"
-  - type: obj
+  - type: unit
     id: msp
     definitionId: msp
     definition: {fileID: 11400000, guid: 79e4bcfc810c419448c44c83d583171b, type: 2}
@@ -396,8 +396,12 @@ MonoBehaviour:
       - act: allact
         targ: 
         val: move2
+        n: a3
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="KNDrCfrr3LTNlRR6"
-  - type: obj
+  - type: unit
     id: msp
     definitionId: msp
     definition: {fileID: 11400000, guid: 79e4bcfc810c419448c44c83d583171b, type: 2}

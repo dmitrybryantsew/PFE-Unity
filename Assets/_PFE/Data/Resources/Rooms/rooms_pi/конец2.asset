@@ -11,14 +11,14 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: "\u043A\u043E\u043D\u0435\u04462"
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: "\u043A\u043E\u043D\u0435\u04462"
   sourceCollectionId: rooms_pi
   type: back
   fixedPosition: {x: 0, y: 0, z: 0}
   difficultyLevel: 0
   maxInstances: 2
-  allowRandom: 1
+  allowRandom: 0
   specificMapOnly: 0
   backgroundRoomId: 
   backgroundDecorations:
@@ -116,7 +116,7 @@ MonoBehaviour:
     tileCoord: {x: 2, y: 3}
   - id: enil
     tileCoord: {x: 1, y: 1}
-  doorQuality: 000000000200000002000000020000000000000000000000000000000000000000000000000000000000000000000000020000000200000002000000020000000000000000000000000000000000000002000000020000000000000000000000
+  doorQuality: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
   tileDataString: "A._R._R.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA._R._R.A.G.G.G.G.G.G.G.G.G.G.G.A._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P.A.G.G.G.G.G.G.G.G.G.G.G.G.G.G.A\nA._R._R.A.G.G.G.G.G.G.G.G.G.G.G.A._._._O._O._O._O._O._O._O._O._O._O._O._O._._.A.G.G.G.G.G.G.G.G.G.G.G.G.G.G.A\nA._R._R.A.G.G.G.G.G.G.G.G.G.G.G.A._._._O._O._O._O._O._O._O._O._O._O._O._O._._.A.G.G.G.G.G.G.G.G.G.G.G.G.G.G.A\nA._R._R.A.G.G.G.G.G.G.G.G.G.G.G.A._._._O._O._O._O._O._O._O._O._O._O._O._O._._.A.G.G.G.G.G.G.G.G.G.G.G.G.G.G.A\nA._R._R.A.G.G.G.G.G.G.G.G.G.G.G.A._._._O._O._O._O._O._O._O._O._O._O._O._O._._.A.G.G.G.G.G.G.G.G.G.G.G.G.G.G.A\nA._R._R.A.A.A.A.A.A.A.A.A.A.A.A.A._Y\u0415._Y\u0415._Y\u0415._Y\u0415._Y\u0415._Y\u0415._Y\u0415._Y\u0415._Y\u0415._Y\u0415._Y\u0415._Y\u0415._Y\u0415._Y\u0415._Y\u0415._Y\u0415.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA._R._R.A._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q.A\nA._R._R.A._Q._._._._._._._Q._._._._Q._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Q._._._._Q._._._._._Q._._._._._Q.A\nA._R._R.A._Q._._._._._._._Q._._._._Q._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Q._._._._Q._._._._._Q._._._._._Q.A\nA._R._R.A._Q._._._._._._._Q._._._._Q._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Q._._._._Q._._._._._Q._._._._._Q.A\nA._R._R.A._Q._._._._._._._Q._._._._Q._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Q._._._._Q._._._._._Q._._._._._Q.A\nA._R._R.A._Q._._._._._._._Q._._._._Q._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Q._._._._Q._._._._._Q._._._._._Q.A\nA._R._R._._Q._._._._._._._Q._._._._Q._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Q._._._._Q._._._._._._._._._._Q.A\nA._R._R._._Q._._._._._._._Q._._._._Q._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Q._._._._Q._._._._._._._._._._Q.A\nA._R._R._._Q._._._._._._._Q._._._._Q._._._._._._._._._._._._._._._._._Q._._._._Q._._._._._._._._._._Q.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.A\nA.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.A\nA.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.A\nA.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.A\nA.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.A\nA.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.A\nA.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A"
   objects:
   - type: box
@@ -143,7 +143,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="bORnZFPw1DjoPWjB" lock="0"
-  - type: obj
+  - type: unit
     id: npc
     definitionId: npc
     definition: {fileID: 11400000, guid: 2b067238a37bc224c99b891f75cdd086, type: 2}
@@ -158,7 +158,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="OH1O2LYUuNfCV7WJ" npc="sc12" turn="1"
-  - type: obj
+  - type: unit
     id: npc
     definitionId: npc
     definition: {fileID: 11400000, guid: 2b067238a37bc224c99b891f75cdd086, type: 2}
@@ -236,8 +236,12 @@ MonoBehaviour:
       - act: gotoland
         targ: 
         val: stable_pi_surf
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="o5U8VIz4Y9Mc7tfl"
-  - type: obj
+  - type: unit
     id: npc
     definitionId: npc
     definition: {fileID: 11400000, guid: 2b067238a37bc224c99b891f75cdd086, type: 2}

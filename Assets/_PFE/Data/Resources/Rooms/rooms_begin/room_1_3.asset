@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_1_3
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_1_3
   sourceCollectionId: rooms_begin
   type: pass
@@ -56,7 +56,7 @@ MonoBehaviour:
     tileCoord: {x: 4, y: 21}
   - id: rad
     tileCoord: {x: 43, y: 13}
-  doorQuality: 020000000200000002000000020000000000000000000000000000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000020000000200000002000000020000000200000002000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: "D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D\nD._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D.DD._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D.DD._D._D._D._D._D._D._D._D.DD.DD._D._D.D\nD._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D.D\nD._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D.DD.DD.DD.DD.DD._D._D.D\nD._D._D._D._D._D._D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D._D._D.D\nD._D._D._D._D._D._D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D._D._D.D\nD._D._D._D._D._D._D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D._D._D.D\nD._D._D._D._D._D._D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D._D._D.D\nD._D-._D-._D-._D-._D-._D-.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D._._._._._._._D.DD._D._D._D._D._D._D._D.D\nD._D._D._D._D._D._D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D._._._._._._._D._D._D._D._D._D._D._D._D.D\nD._D._D._D._D._D._D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D._._._._._._._D._D._D._D._D._D._D._D._D.D\nD._D._D._D._D._D._D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D._-._-._-._-.D\nD._D-._D-._D-._D-.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D._._._._._._._._\n_._D._D._D._D.D._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._D._D._D._D._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._D._D._D._D._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\nD.D.D.D.D.D.D.D.D._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.D.D.D.D.D.D.D.D\nD.D.D.D.D.D.D.D.D._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.D.D.D.D.D.D.D.D\nD.D.D.D.D.D.D.D.D._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.D.D.D.D.D.D.D.D\nD.D.D.D.D.D.D.D.D._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*.D.D.D.D.D.D.D.D\nD.D.D.D.D.D.D.D.D._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*.D.D.D.D.D.D.D.D\nD.D.D.D.D.D.D.D.D._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*.D.D.D._._._._._\nD.D.D.D.D.D.D.D.D._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*.D.D.D._._._._._\nD.D.D.D.D.D.D.D.D._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*.D.D.D._._._._._\nD.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D._._\u0410.D.D.D"
   objects:
   - type: box
@@ -208,7 +208,7 @@ MonoBehaviour:
         value: 1
     scripts: []
     parameters: code="fmIBCOfR18GsPpXo"
-  - type: obj
+  - type: unit
     id: molerat
     definitionId: molerat
     definition: {fileID: 11400000, guid: 1408e310852cb0742aa198feb9353ea9, type: 2}
@@ -219,7 +219,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="rqfYFdsZ4ubr1eY8"
-  - type: obj
+  - type: unit
     id: rat
     definitionId: rat
     definition: {fileID: 11400000, guid: 91aa9373086f9584dafaf4723062b4a4, type: 2}
@@ -230,7 +230,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="UaPeFFzFm0C1w4Nj"
-  - type: obj
+  - type: unit
     id: rat
     definitionId: rat
     definition: {fileID: 11400000, guid: 91aa9373086f9584dafaf4723062b4a4, type: 2}
@@ -372,9 +372,17 @@ MonoBehaviour:
       - act: dialog
         targ: 
         val: begDialWater
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: off
         targ: this
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="q7u4JaHfwlsGZXAq"
   spawnPoints:
   - tileCoord: {x: 2, y: 15}

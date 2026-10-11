@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_2_2
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_2_2
   sourceCollectionId: rooms_mtn
   type: pass
@@ -86,7 +86,7 @@ MonoBehaviour:
     tileCoord: {x: 42, y: 5}
   - id: poster
     tileCoord: {x: 3, y: 5}
-  doorQuality: 020000000200000002000000020000000000000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000002000000020000000200000002000000020000000200000002000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: "N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N._._._._._._._._._._._._._._.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N\nN._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F.N._._._._._._._._._._._._._._.N._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C.N\nN._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F.N._._._._._._._._._._._._._._.N._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C.N\nN._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F.N._._._._._._._._._._._._._._.N._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C.N\nN._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._._._._._._._._._._._._._._._._._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C.N\nN._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._._._._._._._._._._._._._._._._._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C.N\nN._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._._._._._._._._._._._._._._._._._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C.N\nN._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._._._._._._._._._._._._._._._._._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C.N\nN.N.N.F.F.N.N.N.N.N.N.N.N.N.N.N.N._._._._._._._._._._._._._._.N.N.N.N.N.N.N.N.N.N.N.N.F.F.N.N.N\nN._._._._._._._._._._._._._._._.N._._._._._._._._._._._._._._.N._._._._._._._._._._._._._._._.N\nN._._._._._._._._._._._._._._._.N._._._._._._._._._._._._._._.N._._._._._._._._._._._._._._._.N\nN._._._._._._._._._._._._._._._.N._._._._._._._._._._._._._._.N._._._._._._._._._._._._._._._.N\nN._._._._._._._._._._._._._._._.N._._._._._._._._._._._._._._.N._._._._._._._._._._._._._._._.N\nN._._._._._._._._._._._._._._._.N._._._._._._._._._._._._._._.N._._._._._._._._._._._._._._._.N\nN._._._._._._._._._._._._._._._.N._._._._._._._._._._._._._._.N._._._._._._._._._._._._._._._.N\nN._._._._._._._._._._._._._._._.N._._._._._._._._._._._._._._.N._._._._._._._._._._._._._._._.N\nN.N.N.F.F.N.N.N.N.N.N.N.N.N.N.N.N._._._._._._._._._._._._._\u041A._\u041A.N.N.N.F.F.N.N.N.N.N.N.N.N.N.N.N.N\nN._F._F._F._F._F._F.NF._F._F._F._F._F._F._F._F.N._._._._._._._._._._._._._._.N._._._._._._._._._._._._._F._F._F.N\nN._F._F._F._F._F._F.NF._F._F._F._F._F._F._F._F._._._._._._._._._._._._._._._.N._._._._._._._._._._._._._F._F._F.N\nN._F._F._F._F._F._F.NF._F._F._F._F._F._F._F._F._._._._._._._._._._._._._._._.F._._._._._._._._._._._._._F._F._F.N\nN._F._F._F._F._F._F.NF._F._F._F._F._F._F._F._F.N._._._._._._._._._._._._._._.F._._._._._._._._._._._._._F._F._F.N\nN._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._._._._._._._._._._._._._._._.F._._._._._._._._._._._._._F._F._F.N\nN._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._._._._._._._._._._._._._._._.N._._._._._._._._._._._._._F._F._F.N\nN._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F.N._._._._._._._._._._._._._._.N._._._._._._._._._._._._._F._F._F.N\nN.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N._._._._._._._._._._._._._._.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N"
   objects:
   - type: box
@@ -111,7 +111,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="hwengQyvynVkYoRs"
-  - type: obj
+  - type: unit
     id: alicorn
     definitionId: alicorn
     definition: {fileID: 11400000, guid: a26047f529a359f4da09fd7fe3169bf3, type: 2}
@@ -122,7 +122,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="OFwznkeNL5LxFOOL"
-  - type: obj
+  - type: unit
     id: alicorn
     definitionId: alicorn
     definition: {fileID: 11400000, guid: a26047f529a359f4da09fd7fe3169bf3, type: 2}
@@ -133,7 +133,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="cZsgtof64TNuAiW6"
-  - type: obj
+  - type: unit
     id: alicorn
     definitionId: alicorn
     definition: {fileID: 11400000, guid: a26047f529a359f4da09fd7fe3169bf3, type: 2}
@@ -144,7 +144,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="wZtjgnGDxGqELUJG"
-  - type: obj
+  - type: unit
     id: alicorn
     definitionId: alicorn
     definition: {fileID: 11400000, guid: a26047f529a359f4da09fd7fe3169bf3, type: 2}
@@ -155,7 +155,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="M34RHrXy1bx0yTPj"
-  - type: obj
+  - type: unit
     id: turret
     definitionId: turret
     definition: {fileID: 11400000, guid: f2ca5afcb9555924892e03a0eceb5802, type: 2}
@@ -166,7 +166,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="errAQT5ddVL0Fy16"
-  - type: obj
+  - type: unit
     id: turret
     definitionId: turret
     definition: {fileID: 11400000, guid: f2ca5afcb9555924892e03a0eceb5802, type: 2}
@@ -177,7 +177,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="kyahA2F7zLX19gq0"
-  - type: obj
+  - type: unit
     id: turret
     definitionId: turret
     definition: {fileID: 11400000, guid: f2ca5afcb9555924892e03a0eceb5802, type: 2}
@@ -188,7 +188,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="KXM2Fg2azcAB8SD2"
-  - type: obj
+  - type: unit
     id: wturret
     definitionId: wturret
     definition: {fileID: 11400000, guid: dd3e6fb52f3321e4ebc033e908bae0a5, type: 2}
@@ -201,7 +201,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="pUg9jpbuU5ddhFjE" vis="left"
-  - type: obj
+  - type: unit
     id: wturret
     definitionId: wturret
     definition: {fileID: 11400000, guid: dd3e6fb52f3321e4ebc033e908bae0a5, type: 2}
@@ -499,7 +499,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="nB0sKUjVMyHT1d2f"
-  - type: obj
+  - type: unit
     id: alicorn
     definitionId: alicorn
     definition: {fileID: 11400000, guid: a26047f529a359f4da09fd7fe3169bf3, type: 2}

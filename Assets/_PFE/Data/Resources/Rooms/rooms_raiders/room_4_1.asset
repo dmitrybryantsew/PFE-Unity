@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_4_1
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_4_1
   sourceCollectionId: rooms_raiders
   type: pass
@@ -100,10 +100,10 @@ MonoBehaviour:
     tileCoord: {x: 38, y: 13}
   - id: stillage
     tileCoord: {x: 32, y: 9}
-  doorQuality: 020000000200000002000000020000000200000002000000000000000000000000000000000000000000000000000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: "_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._.I._._._._._._._._._._._._._._._._._._.I._._._._._._._._._._._._._._._._._.I._._._._._\n_._._._._.ID.ID.ID.ID.ID.ID.ID.ID.ID.ID.ID.ID.ID.ID.ID.ID.ID.ID.ID.ID.ID.ID.ID.ID.ID.ID.ID.ID.ID.ID._D._D.ID.ID.ID.ID.ID.ID._._._._._\n_._._._._.ID._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D.ID._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D.ID._._._._._\n_._._._._.ID._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D.ID._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._._._._._._\n_._._._._.ID._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D.ID._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._._._._._._\n_._._._._.ID._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D.ID._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D.ID._._._._._\n_._._._._.ID.ID._D._D\u0410.ID.ID.ID.ID.ID.ID.ID.ID.ID.ID.ID.ID._D._D.ID.ID.ID.ID.ID.ID.ID._D._D\u0410.ID.ID.ID.ID.ID.ID._D\u0411\u0414._D\u0414.ID.ID.ID._._._._._\n_._._._._.ID._D._D._D\u0410._D._D._D._D._D._D.ID._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D\u0410._D.ID._D._D._D._D._D\u0411._D._D._D.ID._._._._._\n_._._._._._._D._D._D\u0410._D._D._D._D._D._D.ID._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D\u0410._D.ID._D._D._D._D._D\u0411._D._D._D.ID._._._._._\n_._._._._._._D._D._D\u0410._D._D._D._D._D._D.ID._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D\u0410._D.ID._D._D._D._D._D\u0411._D._D._D.ID._._._._._\n_._._._._.ID._D._D._D\u0410._D._D._D._D._D._D.ID._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D\u0410._D.ID._D._D._D._D._D\u0411._D._D._D.ID._._._._._\n_._._._._.ID.ID.ID.ID.ID.ID.ID._D\u0414._D\u0410\u0414.ID.ID.ID.ID.ID.ID.ID.ID.ID.ID.ID.ID.ID.ID.ID.ID.ID.ID.ID.ID.ID.ID.ID.ID._D\u0411\u0414._D\u0414.ID.ID.ID._._._._._\n_._._._._.ID._D._D._D._D._D._D._D._D\u0410._D._D._D._D._D._D._D._D._D.ID._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D\u0411._D._D._D.ID._._._._._\n_K._K._K._K._K.ID._D._D._D._D._D._D._D._D\u0410._D._D._D._D._D._D._D._D._D.ID._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D\u0411._D._D._D.ID._K._K._K._K._K\n_K._K._K._K._K._D._D._D._D._D._D._D._D._D\u0410._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D\u0411._D._D._D._D._K._K._K._K._K\n_K._K._K._K._K._D._D._D._D._D._D._D._D._D\u0410._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D\u0411._D._D._D._D._K._K._K._K._K\nC.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._D._D\u0410.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.C._D._D\u0410.C.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.C._D._D\u0410.C.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H"
   objects:
-  - type: obj
+  - type: unit
     id: captive
     definitionId: captive
     definition: {fileID: 11400000, guid: 8358e97a7bcb3694c88de10f204d24d3, type: 2}
@@ -191,7 +191,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="VsYe8aT3mKE05ynp"
-  - type: obj
+  - type: unit
     id: slaver
     definitionId: slaver
     definition: {fileID: 11400000, guid: 91392397f716d694e92096340448b372, type: 2}
@@ -204,7 +204,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="UexCH8d8yoUyA7gC" tr="1"
-  - type: obj
+  - type: unit
     id: raider
     definitionId: raider
     definition: {fileID: 11400000, guid: 78df2015123b4124fa2fdc5977d63f5c, type: 2}
@@ -217,7 +217,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="LUQks8UxD0q0rvqf" tr="5"
-  - type: obj
+  - type: unit
     id: raider
     definitionId: raider
     definition: {fileID: 11400000, guid: 78df2015123b4124fa2fdc5977d63f5c, type: 2}
@@ -230,7 +230,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="utjJHOe4qzB52jDW" tr="6"
-  - type: obj
+  - type: unit
     id: raider
     definitionId: raider
     definition: {fileID: 11400000, guid: 78df2015123b4124fa2fdc5977d63f5c, type: 2}
@@ -249,7 +249,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="FryZKUPpCKaahyLz" ear="0" tr="4" ai="stay" turn="-1"
-  - type: obj
+  - type: unit
     id: slaver
     definitionId: slaver
     definition: {fileID: 11400000, guid: 91392397f716d694e92096340448b372, type: 2}
@@ -268,7 +268,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="YMg85JDmGg49eXS2" ear="0" tr="2" ai="stay" turn="1"
-  - type: obj
+  - type: unit
     id: mine
     definitionId: mine
     definition: {fileID: 11400000, guid: 01175fdf5effab8449dc622f301ad809, type: 2}
@@ -279,7 +279,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="jy2JtdwehnPU3jZF"
-  - type: obj
+  - type: unit
     id: slaver
     definitionId: slaver
     definition: {fileID: 11400000, guid: 91392397f716d694e92096340448b372, type: 2}
@@ -557,6 +557,10 @@ MonoBehaviour:
       - act: unlock
         targ: surfD1
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="rys0si1R40eQxZfS"
   - type: box
     id: case

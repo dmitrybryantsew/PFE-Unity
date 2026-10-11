@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_2_2
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_2_2
   sourceCollectionId: rooms_workshop
   type: pass
@@ -198,7 +198,7 @@ MonoBehaviour:
     tileCoord: {x: 10, y: 2}
   - id: potek
     tileCoord: {x: 20, y: 2}
-  doorQuality: 020000000200000002000000020000000000000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000002000000020000000200000002000000020000000000000002000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: "B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.A.A.A.B.B\nB._N._N._N._N._N._N._N._N._N._N._N._N._N._N.B._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J.B._._._._._._._._._._._G._G._G._.B\nB._N._N._N._N._N._N._N._N._N._N._N._N._N._N.B._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J.B._._._._._._._._._._._G._G._G._.B\nB._N._N._N._N._N._N._N._N._N._N._N._N._N._N.B._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J.B._._._._._._._._._._._G._G._G._.B\nB._N._N._N._N._N._N._N._N._N._N._N._N._N._N.B._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J.B._._._._._._._._._._._G._G._G._.B\nB._N._N._N._N._N._N._N._N._N._N._N._N._N._N.B._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J.B._._._._._._._._._._._G._G._G._.B\nB._N._N._N._N._N._N._N._N._N._N._N._N._N._N._._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._._._._._._._._._._._._G._G._G._.B\nB._N._N._N._N._N._N._N._N._N._N._N._N._N._N._._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._._F._F._F._F._F._F._F._F._._._G._G._G._.B\nB.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.A._G-._G\u0410-.A.A._G._G._G.A.B\nB._._._._._._._._._._._._._._._N._._._._._._._._._._N._._._N._._._N._._._N._._._._N._G._G\u0410._._._G._G._G._.B\nB._._._._._._._._._._._._._._._N._._._._._._._._._._N._._._N._._._N._._._N._._._._N._G._G\u0410._._._G._G._G._.B\nB._._._._._._._._._._._._._._._N._._._._._._._._._._N._._._N._._._N._._._N._._._._N._G._G\u0410._._._G._G._G._.B\nB._._._._._._._._._._._._._._._N._._._._._._._._._._N._._._N._._._N._._._N._._._._N._G._G\u0410._._._G._G._G._.B\nB._._._._._._._._._._._._._._._N._._._._._._._._._._N._._._N._._._N._._._N._._._._N._G._G\u0410._._._G._G._G._.B\nB._._._._H-._-._-._H-._\u0413._._._._._._._N._._._._._._._._._._N._._._N._._._N._._._N._._._._N._G._G\u0410._._._G._G._G._.B\nB._._._._H._._._H._._\u0413._._._._._._N._._._._._._._._._._N._._._N._._._N._._._N._._._._N._G._G\u0410._._._G._G._G._.B\nB.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.A._G-._G\u0410-.A.A._G._G._G.A.B\nB._._._._._._._._._._._._._N._._._._._._._._._._._N._._._._._._._._._._._N._._._._G._G\u0410._._._G._G._G._.B\nB._._._._._._._._._._._._._N._._._._._._._._._._._N._._._._._._._._._._._N._._._._G._G\u0410._._._G._G._G._.B\nB._._._._._._._._._._._._._N._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._N._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._N._._._._G._G\u0410._._._G._G._G._.B\nB._._._._._._._._._._._._._N._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._N._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._N._._._._G._G\u0410._._._G._G._G._.B\nB._._._._._._._._._._._._._N._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._N\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._\u0414._N._._._._G._G\u0410._._._G._G._G._.B\nB._._._._._._._._._._._._._N._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._N._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._N._._._._G._G\u0410._._._G._G._G._.B\nB._._._._._._._._._._._._._N._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._N._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._N._._._._G._G\u0410._._._G._G._G._.B\nB.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.A.A.A.B.B"
   objects:
   - type: box
@@ -249,6 +249,10 @@ MonoBehaviour:
       - act: dialog
         targ: 
         val: termText15
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="f3Z1NszoFJk0w3NZ"
   - type: box
     id: term2
@@ -463,7 +467,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="kwBkvsEIR43SrTtk"
-  - type: obj
+  - type: unit
     id: hturret
     definitionId: hturret
     definition: {fileID: 11400000, guid: 8f56077a3039876479e34ae2d3a9173c, type: 2}
@@ -474,7 +478,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="JSeW9Np2K9W7OeSU"
-  - type: obj
+  - type: unit
     id: hturret
     definitionId: hturret
     definition: {fileID: 11400000, guid: 8f56077a3039876479e34ae2d3a9173c, type: 2}
@@ -522,9 +526,17 @@ MonoBehaviour:
       - act: refill
         targ: 
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: off
         targ: this
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="ROtiJ3Mc2vt7jvr7"
   - type: box
     id: indoor4

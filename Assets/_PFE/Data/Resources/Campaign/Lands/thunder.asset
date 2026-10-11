@@ -17,6 +17,8 @@ MonoBehaviour:
   landId: thunder
   landName: Thunder
   tip: story
+  isProbLand: 0
+  isTestLand: 0
   isProcedural: 0
   stage: 12
   baseDifficulty: 0
@@ -53,3 +55,4 @@ MonoBehaviour:
   - {fileID: 11400000, guid: a71953926bfc2ce4892ea1c8d1de4fa5, type: 2}
   - {fileID: 11400000, guid: bef5144ea4338334d8357186db2f53af, type: 2}
   - {fileID: 11400000, guid: e19c034e00364484f9fdf0d17b502912, type: 2}
+  probRooms: []

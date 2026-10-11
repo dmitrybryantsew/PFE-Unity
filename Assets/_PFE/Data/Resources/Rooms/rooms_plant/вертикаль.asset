@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: "\u0432\u0435\u0440\u0442\u0438\u043A\u0430\u043B\u044C"
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: "\u0432\u0435\u0440\u0442\u0438\u043A\u0430\u043B\u044C"
   sourceCollectionId: rooms_plant
   type: pass
@@ -82,7 +82,7 @@ MonoBehaviour:
     tileCoord: {x: 18, y: 17}
   - id: pipe2
     tileCoord: {x: 18, y: 9}
-  doorQuality: 020000000200000002000000020000000200000002000000020000000000000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000020000000000000002000000
+  doorQuality: 030000000300000003000000030000000300000003000000040000000000000004000000000000000400000003000000030000000300000003000000030000000300000004000000000000000400000000000000040000000000000000000000
   tileDataString: "_._._._._._\u0411._._._._._.B.B.B.B.B.B.B.B._._._._._._._._._._.B.B.B.B.B.B.B.B._._._._._._._._._._._\n_._._._._._\u0411._._._._._.B.D.D.D.D.D.D.B._._._._._._._._._._.B.D.D.D.D.D.D.B._._._._._._._._._._._\n_._._._._._\u0411._._._._._.B.D.D.D.D.D.D.B._._._._._._._._._._.B.D.D.D.D.D.D.B._._._._._._._._._._._\n_._._._._._\u0411._._._._._.B.D.D.D.D.D.D.B._._._._._._._._._._.B.D.D.D.D.D.D.B._._._._._._._._._._._\n_.A.A._._._\u0411._._._._._.B.B.B.B.B.B.B.B._._._._._._._._._._.B.B.B.B.B.B.B.B._._._._._._._._\u0412._-._-._-\n_._._._._._\u0411._._._._._._._G._G._G._G._G._G._._._._._._._._._._._._._G._G._G._G._G._G._._._._._._._._\u0412._._._._\n_._._._._._\u0411._._._._._._._G._G._G._G._G._G._._._._._._._._._._._._._G._G._G._G._G._G._._._._._._-._-._\u0413._._._._\n_._._._._._._._._._._._._G._G._G._G._G._G._._._._._._._._._._._._._G._G._G._G._G._G._._._._._._._._._\u0413._._._\n_.A.A._._._._._._._._\u0410.B.B.B.B.B.B.B.B._._._._._._._._._._.B.B.B.B.B.B.B.B._-._\u0413._._._._._._\u0412._-._-._-\n_._._._._._._._._._._\u0410.B.D.D.D.D.D.D.B._._._._._._._._._._.B._._.D.D.D.D.B._._._\u0413._._._._\u0412._._._._\n_._._._._._._._._._._\u0410.B.D.D.D.D.D.D.B._._._._._._._._._._.B._-._-.D.D.D.D.B._._._._-._-._-._\u0413._._._._\n_._._._._._._._._._._\u0410.B.D.D.D.D.D.D.B._._._._._._._._._._.B._._.D.D.D.D.B._._._._._._._._\u0413._._._\n_.A.A._._._._._._._._\u0410.B.D.D.D.D.D.D.B._._._._._._._._._._.B._._.D.D.D.D.B._._._._._._._._\u0412._-._-._-\n_._._._._._._._._._._\u0410.B._._._._._._.B._._._._._._._._._._.B._._._._._._.B._._._._._._._\u0412._._._._\n_._._._._._._._._._._\u0410.B._._._._._._.B._._._._._._._._._._.B._._._._._._.B._._._._._-._-._\u0413._._._._\n_._._._._._._._._._._\u0410.B.D.D.D.D.D.D.B._._._._._._._._._._.B.D.D.D.D.D.D.B._._._._._._._._\u0413._._._\n_.A.A._._._._._._._._\u0410.B.D.D.D.D.D.D.B._._._._._._._._._._.B.D.D.D.D.D.D.B._._._._._._._._\u0412._-._-._-\n_._._._._._._._._._._\u0410.B.D.D.D.D.D.D.B._._._._._._._._._._.B.D.D.D.D.D.D.B._._._._._._._\u0412._._._._\n_._._._._._._._._._._\u0410.B.D.D.D.D.D.D.B._._._._._._._._._._.B.D.D.D.D.D.D.B._._._._._-._-._\u0413._._._._\n_._._._._._._._._._._\u0410.B.B.B.B.B.B.B.B._._._._._._._._._._.B.B.B.B.B.B.B.B._._._._._._._._\u0413._._._\n_.A.A._._._._._._._._\u0410.B._D._D._D._D._D._D.B._._._._._._._._._._.B._F._F._F._F._F._F.B._._._._._._._._\u0412._-._-._-\n_._._._._._._._._._._\u0410.B._D._D._D._D._D._D.B._._._._._._._._._._.B._F._F._F._F._F._F.B._._._._._._._\u0412._._._._\n_._._._._._._._._._._\u0410.B._D._D._D._D._D._D._._._._._._._._._._._._._F._F._F._F._F._F.B._._._._._-._-._._._._._\n_._._._._._._._._._._\u0410.B._D._D._D._D._D._D._._._._._._._._._._._._._F._F._F._F._F._F.B._._._._._._._._._._._\n_._._._._-._-._-._-._._._.B.B.B.B.B.B.B.B._._._._-._-._-._-._._._.B.B.B.B.B.B.B.B._._._._-._-._-._-._._._._"
   objects:
   - type: box
@@ -296,7 +296,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="nzoaUDNhJNGZJn7Y"
-  - type: obj
+  - type: unit
     id: spritebot
     definitionId: spritebot
     definition: {fileID: 11400000, guid: b6e6a1a7eb67f344fb680b28f689733c, type: 2}
@@ -340,7 +340,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="DxWhbLHxZFy412Oj"
-  - type: obj
+  - type: unit
     id: bloat
     definitionId: bloat
     definition: {fileID: 11400000, guid: ab23dccecabecbf4e9019535dfa0d378, type: 2}
@@ -351,7 +351,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="yf3FbOwzElUQRtlw"
-  - type: obj
+  - type: unit
     id: bloat
     definitionId: bloat
     definition: {fileID: 11400000, guid: ab23dccecabecbf4e9019535dfa0d378, type: 2}
@@ -362,7 +362,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="qkV1YXdc0IY4g7fh"
-  - type: obj
+  - type: unit
     id: bloat
     definitionId: bloat
     definition: {fileID: 11400000, guid: ab23dccecabecbf4e9019535dfa0d378, type: 2}
@@ -373,7 +373,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="DYkdpykOcsMmfBj8"
-  - type: obj
+  - type: unit
     id: bloodwing
     definitionId: bloodwing
     definition: {fileID: 11400000, guid: 8cb413623584f5e44aac1dffdaa1d68b, type: 2}
@@ -485,7 +485,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="DnjzmwEM6vFEShc9"
-  - type: obj
+  - type: unit
     id: bloodwing
     definitionId: bloodwing
     definition: {fileID: 11400000, guid: 8cb413623584f5e44aac1dffdaa1d68b, type: 2}

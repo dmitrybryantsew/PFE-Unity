@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_2_0
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_2_0
   sourceCollectionId: rooms_minst
   type: pass
@@ -112,10 +112,10 @@ MonoBehaviour:
     tileCoord: {x: 36, y: 7}
   - id: skel
     tileCoord: {x: 2, y: 7}
-  doorQuality: 020000000200000002000000020000000200000002000000000000000000000000000000000000000000000000000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000000000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: "Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q._._._._._._._._._._._._._._.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q\nQ._._._._._._._.Q._W._W._W._W._W._W._W.QW._W._W._W._._._._._._._._._W._W._W.QW._W._W._W._W._W._W._W.Q._._._._._._._.Q\nQ._._._._._._._.Q._W._W._W._W._W._W._W._W\u041D._W\u041D._W\u041D._W\u041D._\u041F._._._._._._._\u041E._W\u041D._W\u041D._W\u041D._W\u041D._W._W._W._W._W._W._W.Q._._._._._._._.Q\nQ._._._._._._._.Q._W._W._W._W._W._W._W._W._W._W._W._._\u041F._._._._._\u041E._._W._W._W._W._W._W._W._W._W._W._W.Q._._._._._._._.Q\nQ._._._._._._._.Q._W._W._W._W._W._W._W._W._W._W._W._._\u041E._\u041D._\u041D._\u041D._\u041D._\u041F._._W._W._W._W._W._W._W._W._W._W._W.Q._._._._._._._.Q\n_._._._._._._._.Q._W._W._W._W._W._W._W._W._W._W._W._\u041E._._._._._._._\u041F._W._W._W._W._W._W._W._W._W._W._W.Q._._._._._._._._\n_._._._._._._._._._W._W._W._W._W._W._W._W\u041E._W\u041D._W\u041D._W\u041D._._._._._._._._._W\u041D._W\u041D._W\u041D._W\u041F._W._W._W._W._W._W._W._._._._._._._._._\n_._._._._._._._._._W._W._W._W._W._W._W\u041E._W._W._W._W._._._._._._._._._W._W._W._W._W\u041F._W._W._W._W._W._W._._._._._._._._._\nQ.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q._\u041D._\u041D._\u041D._W\u041F._W._W._W._W._._._._._._._._._W._W._W._W._W\u041E._\u041D._\u041D._\u041D.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q\nQ._._._._._._._._._._._._._._._W._W\u041F._W._W._W._._._._._._._._._W._W._W._W\u041E._W._._._._._._._._._._._._._._.Q\nQ._._._._._._._._._._._._._._._W._W._W\u041D._W\u041D._W\u041D._\u041F._._._._._._._\u041E._W\u041D._W\u041D._W\u041D._W._W._._._._._._._._._._._._._._.Q\nQ._._._._._._._._._._._._._._._W._W._W._W._W._._\u041F._._._._._\u041E._._W._W._W._W._W._._._._._._._._._._._._._._.Q\nQ._._._._._._._._._._._._._._._W._W._W._W._W._._\u041E._\u041D._\u041D._\u041D._\u041D._\u041F._._W._W._W._W._W._._._._._._._._._._._._._._.Q\n_._._._._._._._._._._._._._._._W._W._W._W._W._\u041E._._._._._._._\u041F._W._W._W._W._W._._._._._._._._._._._._._._.Q\n_._._._._._._._._._._._._._._._W._W._W\u041D._W\u041D._W\u041D._\u041F._._._._._._._\u041E._W\u041D._W\u041D._W\u041D._W._W._._._._._._._._._._._._._._.Q\n_._._._._._._._._._._._._._._._W._W._W._W._W._._\u041F._._._._._\u041E._._W._W._W._W._W._._._._._._._._._._._._._._.Q\n_._._._._._._._._._._._._._._._W._W._W._W._W._._\u041E._\u041D._\u041D._\u041D._\u041D._\u041F._._W._W._W._W._W._._._._._._._._._._._._._._.Q\n_._._._._._._._._._._._._._._._W._W._W._W._W._\u041E._._._._._._._\u041F._W._W._W._W._W._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._W._W._W._W._W\u041E._._._._._._._._._W\u041F._W._W._W._W._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._W._W._W._W\u041E._W._._._._._._._._._W._W\u041F._W._W._W._._._._._._._._._._._._._._._\nQ.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H"
   objects:
-  - type: obj
+  - type: unit
     id: transm
     definitionId: transm
     definition: {fileID: 11400000, guid: 4c4fee23f22040043a1849ddd87cfc7b, type: 2}
@@ -137,7 +137,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="gAIWqyQxB7FlVVEk"
-  - type: obj
+  - type: unit
     id: bloodwing
     definitionId: bloodwing
     definition: {fileID: 11400000, guid: 8cb413623584f5e44aac1dffdaa1d68b, type: 2}
@@ -148,7 +148,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="fqf4AYQL2niyQkwD"
-  - type: obj
+  - type: unit
     id: bloodwing
     definitionId: bloodwing
     definition: {fileID: 11400000, guid: 8cb413623584f5e44aac1dffdaa1d68b, type: 2}
@@ -170,7 +170,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="Zrt6RFKqCK8aBhBX"
-  - type: obj
+  - type: unit
     id: zombie
     definitionId: zombie
     definition: {fileID: 11400000, guid: d56512d3ac0c0744eb90060a7d920ede, type: 2}
@@ -203,7 +203,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="TBfkwt3SjPOs5was"
-  - type: obj
+  - type: unit
     id: zombie
     definitionId: zombie
     definition: {fileID: 11400000, guid: d56512d3ac0c0744eb90060a7d920ede, type: 2}
@@ -214,7 +214,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="qlmaNrjxnx7YjwIn"
-  - type: obj
+  - type: unit
     id: zombie
     definitionId: zombie
     definition: {fileID: 11400000, guid: d56512d3ac0c0744eb90060a7d920ede, type: 2}
@@ -258,7 +258,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="byUPyAtTdiqmXkzi"
-  - type: obj
+  - type: unit
     id: scorp3
     definitionId: scorp3
     definition: {fileID: 11400000, guid: bdb8fd70cd50d9b4b94dd7fc6df5026a, type: 2}
@@ -269,7 +269,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="Eta8rEsGLdp0x84v"
-  - type: obj
+  - type: unit
     id: transm
     definitionId: transm
     definition: {fileID: 11400000, guid: 4c4fee23f22040043a1849ddd87cfc7b, type: 2}
@@ -280,7 +280,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="CQSJTbBaCX5Dpz4J"
-  - type: obj
+  - type: unit
     id: transm
     definitionId: transm
     definition: {fileID: 11400000, guid: 4c4fee23f22040043a1849ddd87cfc7b, type: 2}

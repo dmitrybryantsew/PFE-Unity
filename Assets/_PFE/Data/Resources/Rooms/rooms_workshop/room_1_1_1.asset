@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_1_1_1
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_1_1_1
   sourceCollectionId: rooms_workshop
   type: pass
@@ -72,7 +72,7 @@ MonoBehaviour:
     tileCoord: {x: 43, y: 13}
   - id: bio
     tileCoord: {x: 45, y: 13}
-  doorQuality: 020000000200000002000000020000000000000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000002000000020000000200000002000000020000000200000002000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: 'L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.A.A.A.A.A.A.A.A.A.A.A.A.A
 
     L._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._F._F._F._F._F._F._F._F._F._F._F.A
@@ -383,7 +383,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="gVpCzB53HKx4KSYg" norad="1" w="10"
-  - type: obj
+  - type: unit
     id: zombie
     definitionId: zombie
     definition: {fileID: 11400000, guid: d56512d3ac0c0744eb90060a7d920ede, type: 2}
@@ -398,7 +398,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="PWjIcgstCrPRx1pL" tr="4" dig="2"
-  - type: obj
+  - type: unit
     id: zombie
     definitionId: zombie
     definition: {fileID: 11400000, guid: d56512d3ac0c0744eb90060a7d920ede, type: 2}
@@ -413,7 +413,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="JuCMDOUJvia4FWDT" tr="5" dig="2"
-  - type: obj
+  - type: unit
     id: zombie
     definitionId: zombie
     definition: {fileID: 11400000, guid: d56512d3ac0c0744eb90060a7d920ede, type: 2}
@@ -428,7 +428,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="vv69ycMzsF9WVQNH" tr="6" dig="1"
-  - type: obj
+  - type: unit
     id: zombie
     definitionId: zombie
     definition: {fileID: 11400000, guid: d56512d3ac0c0744eb90060a7d920ede, type: 2}

@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_4_1
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_4_1
   sourceCollectionId: rooms_minst
   type: pass
@@ -186,7 +186,7 @@ MonoBehaviour:
     tileCoord: {x: 39, y: 19}
   - id: skel
     tileCoord: {x: 29, y: 15}
-  doorQuality: 020000000200000002000000020000000000000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000002000000020000000200000002000000020000000200000002000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: "A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA._N._N._N._N.J._N._N._N._N.A._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N.A\nA._N._N._N._N.J._N._N._N._N.A._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N.A\nA._N._N._N._N.J._N._N._N._N.A._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N.A\nA._P._P._P._P.J._P._P._P._P.A._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P.A\n_G._P._P._P._P._G._P._P._P._P._._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P.A\n_G._P._P._P._P._G._P._P._P._P._._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P.A\n_G._P._P._P._P._G._P._P._P._P._._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P.A\nA.AN.AN.AN.AN.AN.AN.AN.AN.AN.AN.AN.AN.AN.AN.AN.AN.AN.AN.AN.AN.AN.AN.AN.AN.AN.AN.AN.AN.AN.AN.AN.AN.AN.AN.AN.AN.AN.AN.AN.AN.AN.AN._N-._N\u0410-.AN.AN.A\nA._N._N._N._N._N._N._N._N._N.JN._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N.JN._N._N._N._N._N._N._N\u0410._N._N.A\nA._N._N._N._N._N._N._N._N._N.JN._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N.JN._N._N._N._N._N._N._N\u0410._N._N.A\nA._N._N._N._N._N._N._N._N._N.JN._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N.JN._N._N._N._N._N._N._N\u0410._N._N.A\nA._P._P._P._P._P._P._P._P._P.J._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P.J._P._P._P._P._P._P._P\u0410._P._P.A\nA._P._P._P._P._P._P._P._P._P._G._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._G._P._P._P._P._P._P._P\u0410._P._P.A\nA._P._P._P._P._P._P._P._P._P._G._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._G._P._P._P._P._P._P._P\u0410._P._P.A\nA._P._P._P._P._P._P._P._P._P._G._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._G._P._P._P._P._P._P._P\u0410._P._P.A\nA.AN._N\u0411-._N-.AN.AN.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA._N._N\u0411._N._N._N.A._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.Q\nA._N._N\u0411._N._N._N.A._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.Q\nA._N._N\u0411._N._N._N.A._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.Q\nA._P._P\u0411._P._P._P.A._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.Q\nA._P._P\u0411._P._P._P._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.Q\nA._P._P\u0411._P._P._P._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.Q\nA._P._P\u0411._P._P._P._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.Q\nA.A.A.A.A.A.A.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q._-._-.Q.Q.Q.Q"
   objects:
   - type: box
@@ -319,6 +319,10 @@ MonoBehaviour:
       - act: dialog
         targ: 
         val: termText13
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="UuWje5AO7hKb7Vdv"
   - type: door
     id: door3

@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_1_4_1
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_1_4_1
   sourceCollectionId: rooms_pis
   type: pass
@@ -36,7 +36,7 @@ MonoBehaviour:
     tileCoord: {x: 26, y: 14}
   - id: stlight1
     tileCoord: {x: 34, y: 14}
-  doorQuality: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000020000000200000002000000000000000000000000000000000000000000000000000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: 'G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G
 
     G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G
@@ -87,7 +87,7 @@ MonoBehaviour:
 
     G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G'
   objects:
-  - type: obj
+  - type: unit
     id: hellhound
     definitionId: hellhound
     definition: {fileID: 11400000, guid: 6b4ce41dc97996545b96636e01f08163, type: 2}
@@ -100,7 +100,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="xnFB4CnY0X0XlmzZ" turn="1"
-  - type: obj
+  - type: unit
     id: encl
     definitionId: encl
     definition: {fileID: 11400000, guid: bd63e94e2cdd9b64baa1344275d633d8, type: 2}
@@ -126,7 +126,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="MkVYB2pSDG8CeG0r"
-  - type: obj
+  - type: unit
     id: encl
     definitionId: encl
     definition: {fileID: 11400000, guid: bd63e94e2cdd9b64baa1344275d633d8, type: 2}
@@ -137,7 +137,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="V3ESWMknpSRUS9X6"
-  - type: obj
+  - type: unit
     id: encl
     definitionId: encl
     definition: {fileID: 11400000, guid: bd63e94e2cdd9b64baa1344275d633d8, type: 2}

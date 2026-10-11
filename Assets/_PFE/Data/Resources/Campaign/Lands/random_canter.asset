@@ -17,6 +17,8 @@ MonoBehaviour:
   landId: random_canter
   landName: Canter
   tip: rnd
+  isProbLand: 0
+  isTestLand: 0
   isProcedural: 1
   stage: 9
   baseDifficulty: 18
@@ -95,3 +97,118 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 98ae504b63555d84da0e9bd4d3d874c4, type: 2}
   - {fileID: 11400000, guid: 56b78d57b5ee4b844a93f67730d66af8, type: 2}
   - {fileID: 11400000, guid: 3a1c19a585d4f3546b41d1cc6f4d408f, type: 2}
+  probRooms:
+  - id: buttons6
+    hasLevel: 1
+    level: 0
+    imp: 0
+    tip: 1
+    prize: 0
+    close: 0
+    contents:
+    - tip: box
+      uid: buttons6F1
+      qid: 
+    - tip: box
+      uid: buttons6F2
+      qid: 
+    - tip: box
+      uid: buttons6F3
+      qid: 
+    - tip: box
+      uid: buttons6F4
+      qid: 
+    - tip: box
+      uid: buttons6F5
+      qid: 
+    - tip: box
+      uid: buttons6F6
+      qid: 
+  - id: jump
+    hasLevel: 1
+    level: 0
+    imp: 0
+    tip: 1
+    prize: 1
+    close: 0
+    contents:
+    - tip: box
+      uid: jumpF1
+      qid: 
+  - id: sphera
+    hasLevel: 1
+    level: 0
+    imp: 0
+    tip: 1
+    prize: 1
+    close: 0
+    contents:
+    - tip: box
+      uid: spheraF1
+      qid: 
+  - id: zaput
+    hasLevel: 1
+    level: 0
+    imp: 0
+    tip: 1
+    prize: 1
+    close: 0
+    contents:
+    - tip: box
+      uid: zaputF1
+      qid: 
+  - id: talisman
+    hasLevel: 1
+    level: 0
+    imp: 0
+    tip: 1
+    prize: 1
+    close: 0
+    contents:
+    - tip: box
+      uid: talismanF1
+      qid: 
+  - id: podval
+    hasLevel: 1
+    level: 1
+    imp: 0
+    tip: 0
+    prize: 1
+    close: 0
+    contents:
+    - tip: box
+      uid: podvalF1
+      qid: 
+  - id: sttech
+    hasLevel: 1
+    level: 1
+    imp: 0
+    tip: 1
+    prize: 0
+    close: 0
+    contents:
+    - tip: box
+      uid: sttechF1
+      qid: 
+  - id: w_necros
+    hasLevel: 1
+    level: 1
+    imp: 0
+    tip: 2
+    prize: 0
+    close: 0
+    contents:
+    - tip: wave
+      uid: 
+      qid: 
+  - id: barahlo
+    hasLevel: 1
+    level: 2
+    imp: 0
+    tip: 2
+    prize: 0
+    close: 0
+    contents:
+    - tip: box
+      uid: barahloF1
+      qid: 

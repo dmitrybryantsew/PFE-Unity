@@ -17,6 +17,8 @@ MonoBehaviour:
   landId: begin
   landName: Begin
   tip: story
+  isProbLand: 0
+  isTestLand: 0
   isProcedural: 0
   stage: 1
   baseDifficulty: 0
@@ -66,3 +68,4 @@ MonoBehaviour:
   - {fileID: 11400000, guid: de4b31c5f37f8d14c988c8383391e9e8, type: 2}
   - {fileID: 11400000, guid: 9320d29133174c44d9a1ae9066e687cf, type: 2}
   - {fileID: 11400000, guid: c03f5f0b94584a84eb33e6cafb625768, type: 2}
+  probRooms: []

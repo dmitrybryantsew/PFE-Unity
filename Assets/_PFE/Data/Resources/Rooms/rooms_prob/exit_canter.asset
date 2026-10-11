@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: exit_canter
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: exit_canter
   sourceCollectionId: rooms_prob
   type: pass
@@ -152,7 +152,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="xT22y0TGEyksYzHG" tele="1"
-  - type: obj
+  - type: unit
     id: ranger
     definitionId: ranger
     definition: {fileID: 11400000, guid: 73156fd43c765fe41a8521cb472c31bf, type: 2}
@@ -171,7 +171,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="Ac04DINQiTajfqkO" turn="-1" tr="2" fraction="100" ai="stay"
-  - type: obj
+  - type: unit
     id: ranger
     definitionId: ranger
     definition: {fileID: 11400000, guid: 73156fd43c765fe41a8521cb472c31bf, type: 2}
@@ -203,7 +203,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="phmDJUBO9V7ds2f2" h="16" scr="canterRangers"
-  - type: obj
+  - type: unit
     id: ranger
     definitionId: ranger
     definition: {fileID: 11400000, guid: 73156fd43c765fe41a8521cb472c31bf, type: 2}
@@ -242,7 +242,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="KgH4wrzoxYpvBC8R"
-  - type: obj
+  - type: unit
     id: npc
     definitionId: npc
     definition: {fileID: 11400000, guid: 2b067238a37bc224c99b891f75cdd086, type: 2}

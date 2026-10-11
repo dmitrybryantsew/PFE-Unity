@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_6_3
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_6_3
   sourceCollectionId: rooms_raiders
   type: pass
@@ -56,7 +56,7 @@ MonoBehaviour:
     tileCoord: {x: 29, y: 10}
   - id: chains
     tileCoord: {x: 32, y: 10}
-  doorQuality: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: "H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H._._._._._._._._._._.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H._._._._._._._._._._.H.H.H.H.H.H.H.H.H.H.H.H._._._._._._._._.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H._._._._._._._._._._.H.H.H.H.H.H.H.H.H.H.H.H._._._._._._._._.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H._._\u0410.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H._._._._._._._._.H.H\nH.H.H.H.H.H.H._._._._._._._._._._._\u0410._.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H._._._._._._._._.H.H\nH.H.H.H.H.H.H._._._._._._._._._._._\u0410._.H.H.H.H.H.H.H._._._._._._._._._._.H.H.H.H.H._._.H.H.H.H.H\nH.H.H.H.H.H.H._._._._._._._._._._._\u0410._.H.H.H.H.H.H.H._._._._._._._._._._.H.H.H.H.H._._.H.H.H.H.H\nH.H.H.H.H.H.H._._._._._._._._._._._\u0410._.H.H.H.H.H.H.H._._._._._._._._._._._._._._._._._.H.H.H.H.H\n_._._._._._._._._._._._._._._._._._\u0410._.H.H.H.H.H.H.H._._._._._._._._._._._._._._._._._.H.H.H.H.H\n_._._._._._._._._._._._._._._._._._\u0410._.H.H.H.H.H.H.H._._._._._._._._._._.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H._._\u0410.H.H.H.H.H.H.H.H.H.H.H.H.H.H._\u0411._.H.H.H.H.C.C.C.C.C.C.C.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H._._\u0410.H.H.H.H.H.H.H.H.H.H.H.H._._._\u0411._._._._._.C.C._E._E._E._E.C.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H._._\u0410._._._._._._.H.H.H.H.H.H._._._\u0411._._._._._.C.C._E._E._E._E.C.H.H.H\nH.H.H.H._._.F._._._._._._._._._._._\u0410._._._._._._._._._._._._._._._\u0411._._._._._.C.C._E-._E-._E-._E-.C.H.H.H\nH.H.H.H._._.F._._._._._._._._._._._\u0410._._._._._._._._._._._._._._._\u0411._._._._._.C.C._E._E._E._E.C.H.H.H\nH.H.H.H._._.F._._._._._._._._._._._\u0410._.H.H.H.H.H.H.H.H.H.H.H._._._\u0411._._._._._._._E._E._E._E._E.C.H.H.H\nH.H.H.H._._.F._._._._._._._._._._._\u0410._.H.H.H.H.H.H.H.H.H.H.H._._._\u0411._._._._._._._E._E._E._E._E.C.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.C.C.C.C.C.C.C.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H"
   objects:
   - type: box
@@ -125,7 +125,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="SwwdytzPyA3togYM"
-  - type: obj
+  - type: unit
     id: ant
     definitionId: ant
     definition: {fileID: 11400000, guid: e7ae344a7b6006f4da447e86f904bf1c, type: 2}
@@ -136,7 +136,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="oOMxOjd0X0z6423w"
-  - type: obj
+  - type: unit
     id: ant
     definitionId: ant
     definition: {fileID: 11400000, guid: e7ae344a7b6006f4da447e86f904bf1c, type: 2}
@@ -147,7 +147,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="SeJWRcB9tvFtuse9"
-  - type: obj
+  - type: unit
     id: ant
     definitionId: ant
     definition: {fileID: 11400000, guid: e7ae344a7b6006f4da447e86f904bf1c, type: 2}
@@ -158,7 +158,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="D1S1exVRa6ucVsyW"
-  - type: obj
+  - type: unit
     id: ant
     definitionId: ant
     definition: {fileID: 11400000, guid: e7ae344a7b6006f4da447e86f904bf1c, type: 2}
@@ -169,7 +169,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="EUyW4pIcCC2MmXUa"
-  - type: obj
+  - type: unit
     id: ant
     definitionId: ant
     definition: {fileID: 11400000, guid: e7ae344a7b6006f4da447e86f904bf1c, type: 2}
@@ -180,7 +180,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="cjncmznCfOtFRbHc"
-  - type: obj
+  - type: unit
     id: ant
     definitionId: ant
     definition: {fileID: 11400000, guid: e7ae344a7b6006f4da447e86f904bf1c, type: 2}
@@ -191,7 +191,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="cMauoo9WLJ47oFgW"
-  - type: obj
+  - type: unit
     id: ant
     definitionId: ant
     definition: {fileID: 11400000, guid: e7ae344a7b6006f4da447e86f904bf1c, type: 2}
@@ -202,7 +202,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="O45FFxq2C7ZoqOEd"
-  - type: obj
+  - type: unit
     id: ant
     definitionId: ant
     definition: {fileID: 11400000, guid: e7ae344a7b6006f4da447e86f904bf1c, type: 2}
@@ -213,7 +213,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="jao52UDnbhIpPc58"
-  - type: obj
+  - type: unit
     id: ant
     definitionId: ant
     definition: {fileID: 11400000, guid: e7ae344a7b6006f4da447e86f904bf1c, type: 2}
@@ -246,7 +246,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="hGxZjTeFTJreghLz"
-  - type: obj
+  - type: unit
     id: scorp
     definitionId: scorp
     definition: {fileID: 11400000, guid: f9d80b2df85d5424fac08f8479002729, type: 2}
@@ -307,7 +307,7 @@ MonoBehaviour:
         value: 1
     scripts: []
     parameters: code="lZJ5PnRgkbZzIMrx"
-  - type: obj
+  - type: unit
     id: eant
     definitionId: eant
     definition: {fileID: 11400000, guid: af18b5fa4b2fdf14586997d253e32b40, type: 2}

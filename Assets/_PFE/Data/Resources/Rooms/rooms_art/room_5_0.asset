@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_5_0
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_5_0
   sourceCollectionId: rooms_art
   type: pass
@@ -76,10 +76,10 @@ MonoBehaviour:
     tileCoord: {x: 15, y: 15}
   - id: vent
     tileCoord: {x: 12, y: 15}
-  doorQuality: 020000000000000000000000000000000000000002000000020000000200000002000000020000000200000002000000000000000000000000000000020000000200000002000000000000000000000000000000000000000000000000000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: "A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A._P._P._P._P._P._P._P._P.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A._R._R._R._R._R._R._R._R._R._R._R._R.A.A.A.A.A.A.A.A.A.A.A.A.A._P._P._P._P._P._P._P._P._F\nA.A.A.A.A.A.A.A.A._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R.A.A.A.A.A.A.A.A._P._P._P._P._P._P._P._P._F\nA.A.A.A.A.A.A.A.A._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R.A.A.A.A.A.A.A.A.A.A.A.A._I._I\u0410.A.A.A\nA.A.A.A.A.A.A.A.A._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q.A.A.A.A.A.A.A.A.A.A.A.A._I._I\u0410.A.A.A\nA.A.A.A.A.A.A._F._F._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._I._I._I._I._I._I.A.A.A.A.A.A._I._I\u0410.A.A.A\nA.A.A.A.A.A.A._F._F._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._I._I._I._I._I._I.A.A.A.A.A.A._I._I\u0410.A.A.A\nA.A.A.A.A.A.A.A.A._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q.A.A.A.A._I._I.A.A.A.A.A.A._I._I\u0410.A.A.A\nA.A.A.A.A.A.A.A.A._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R.A.A.A.A._I._I.A.A.A.A.A.A._I._I\u0410.A.A.A\nA._I._I._I._I._I._I._I._I._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._F._F.A.A._I._I._I._I._I._I._I._I._I._I.A.A.A\nA._I._I._I._I._I._I._I._I._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._F._F.A.A._I._I._I._I._I._I._I._I._I._I.A.A.A\nA._I._I\u0410.A.A.A.A.A.A.A._I\u0415.A.A.A.A.A.A._I\u0415.A.A.A.A._I\u0415.A.A.A.A.A.A._I\u0415.A.A.A.A.A._I\u0415._I\u0415.A.A.A.A.A.A._I\u0415._I\u0415.A.A.A\nA._I._I\u0410.A.A.A.A.A.A.A._I._I._I._I._I._I._I._I.A.A.A.A._I._I._I._I._I._I._I._I.A.A.A.A.A._I._I.A.A.A.A.A.A._I._I.A.A.A\nA._I._I\u0410.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A._I._I._I._I._I._I._I._I._I._I.A.A.A\nA._I._I\u0410.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A._I._I._I._I._I._I._I._I._I._I.A.A.A\nA._I._I\u0410.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA._I._I\u0410.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A._F._F._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P.A._._._._._._.A\nA._I._I\u0410.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A._F._F._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q.A._._._._._._.A\nA._I._I\u0410.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A._._._._._._._._._._._._._._._._._._._._._._._._._._._.A\nA._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._._._._._._._._._._._._._._._._._._._._._._._._._._._.A\n_I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._._._._._._._._._._._._._._._._._._._._._._._._._._._.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A._\u0415._\u0410\u0415.A.A.A"
   objects:
-  - type: obj
+  - type: unit
     id: cturret
     definitionId: cturret
     definition: {fileID: 11400000, guid: c57d7448f31cf144c8f299782156c1e2, type: 2}
@@ -94,7 +94,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="uiVU7QQwQG5oHo32" multhp="2" tr="4"
-  - type: obj
+  - type: unit
     id: cturret
     definitionId: cturret
     definition: {fileID: 11400000, guid: c57d7448f31cf144c8f299782156c1e2, type: 2}
@@ -109,7 +109,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="JXuOnukfgHrzV8PU" multhp="2" tr="4"
-  - type: obj
+  - type: unit
     id: armturret
     definitionId: armturret
     definition: {fileID: 11400000, guid: 485a5442239ff174dafac0f96a1b402d, type: 2}
@@ -126,7 +126,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="yl9l7eqq3R6H3Q9Z" turn="1" multhp="2" tr="7"
-  - type: obj
+  - type: unit
     id: msp
     definitionId: msp
     definition: {fileID: 11400000, guid: 79e4bcfc810c419448c44c83d583171b, type: 2}
@@ -139,7 +139,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="ZwKnwAhT8hsdIhOX" multhp="2"
-  - type: obj
+  - type: unit
     id: msp
     definitionId: msp
     definition: {fileID: 11400000, guid: 79e4bcfc810c419448c44c83d583171b, type: 2}
@@ -347,7 +347,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="K65cB996lZaPHva4" lock="15"
-  - type: obj
+  - type: unit
     id: armturret
     definitionId: armturret
     definition: {fileID: 11400000, guid: 485a5442239ff174dafac0f96a1b402d, type: 2}
@@ -364,7 +364,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="pjwZcUlr703t6H6Q" turn="-1" multhp="2" tr="7"
-  - type: obj
+  - type: unit
     id: armturret
     definitionId: armturret
     definition: {fileID: 11400000, guid: 485a5442239ff174dafac0f96a1b402d, type: 2}
@@ -381,7 +381,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="h4tSaMQSIdzxYjFs" turn="1" multhp="2" tr="6"
-  - type: obj
+  - type: unit
     id: cturret
     definitionId: cturret
     definition: {fileID: 11400000, guid: c57d7448f31cf144c8f299782156c1e2, type: 2}
@@ -396,7 +396,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="ArnQpgAiZFz1YRr3" multhp="2" tr="5"
-  - type: obj
+  - type: unit
     id: cturret
     definitionId: cturret
     definition: {fileID: 11400000, guid: c57d7448f31cf144c8f299782156c1e2, type: 2}

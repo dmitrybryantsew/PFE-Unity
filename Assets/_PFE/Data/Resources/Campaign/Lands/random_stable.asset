@@ -17,6 +17,8 @@ MonoBehaviour:
   landId: random_stable
   landName: Stable
   tip: rnd
+  isProbLand: 0
+  isTestLand: 0
   isProcedural: 1
   stage: 5
   baseDifficulty: 12
@@ -92,3 +94,176 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 02342634ffc51d148a3a7468acb2b2ee, type: 2}
   - {fileID: 11400000, guid: 5368d3024fbbcd34fb01032a150625ae, type: 2}
   - {fileID: 11400000, guid: f33066f7df8a1794fbb943b558988f94, type: 2}
+  probRooms:
+  - id: doors
+    hasLevel: 1
+    level: 0
+    imp: 0
+    tip: 1
+    prize: 1
+    close: 0
+    contents:
+    - tip: box
+      uid: doorsF1
+      qid: 
+  - id: buttons4
+    hasLevel: 1
+    level: 0
+    imp: 0
+    tip: 1
+    prize: 0
+    close: 0
+    contents:
+    - tip: box
+      uid: buttons4F1
+      qid: 
+    - tip: box
+      uid: buttons4F2
+      qid: 
+    - tip: box
+      uid: buttons4F3
+      qid: 
+    - tip: box
+      uid: buttons4F4
+      qid: 
+    - tip: box
+      uid: buttons4F5
+      qid: 
+    - tip: box
+      uid: buttons4F6
+      qid: 
+  - id: lift
+    hasLevel: 1
+    level: 0
+    imp: 0
+    tip: 1
+    prize: 1
+    close: 0
+    contents:
+    - tip: box
+      uid: liftF1
+      qid: 
+  - id: platform
+    hasLevel: 1
+    level: 0
+    imp: 0
+    tip: 1
+    prize: 1
+    close: 0
+    contents:
+    - tip: box
+      uid: platformF1
+      qid: 
+  - id: digger
+    hasLevel: 1
+    level: 1
+    imp: 0
+    tip: 1
+    prize: 1
+    close: 0
+    contents:
+    - tip: box
+      uid: diggerF1
+      qid: 
+  - id: tech
+    hasLevel: 1
+    level: 1
+    imp: 0
+    tip: 1
+    prize: 1
+    close: 0
+    contents:
+    - tip: box
+      uid: techF1
+      qid: 
+  - id: data
+    hasLevel: 1
+    level: 2
+    imp: 0
+    tip: 1
+    prize: 0
+    close: 0
+    contents:
+    - tip: box
+      uid: dataF1
+      qid: 
+  - id: floating
+    hasLevel: 1
+    level: 1
+    imp: 0
+    tip: 1
+    prize: 0
+    close: 0
+    contents:
+    - tip: box
+      uid: floatingF1
+      qid: 
+    - tip: box
+      uid: floatingF2
+      qid: 
+  - id: lasertag
+    hasLevel: 1
+    level: 1
+    imp: 0
+    tip: 1
+    prize: 1
+    close: 0
+    contents:
+    - tip: box
+      uid: lasertagF1
+      qid: 
+  - id: turrets
+    hasLevel: 1
+    level: 0
+    imp: 0
+    tip: 2
+    prize: 1
+    close: 0
+    contents:
+    - tip: box
+      uid: turretsF1
+      qid: 
+  - id: robots
+    hasLevel: 1
+    level: 1
+    imp: 0
+    tip: 2
+    prize: 0
+    close: 0
+    contents:
+    - tip: unit
+      uid: 
+      qid: robotsF1
+  - id: sentinels
+    hasLevel: 1
+    level: 2
+    imp: 0
+    tip: 2
+    prize: 0
+    close: 0
+    contents:
+    - tip: unit
+      uid: 
+      qid: sentinelsF1
+  - id: telekin
+    hasLevel: 1
+    level: 2
+    imp: 0
+    tip: 2
+    prize: 1
+    close: 0
+    contents:
+    - tip: box
+      uid: telekinF1
+      qid: 
+  - id: w_robots
+    hasLevel: 1
+    level: 2
+    imp: 0
+    tip: 2
+    prize: 0
+    close: 0
+    contents:
+    - tip: wave
+      uid: 
+      qid: 

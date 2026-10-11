@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_1_6
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_1_6
   sourceCollectionId: rooms_pis
   type: pass
@@ -82,7 +82,7 @@ MonoBehaviour:
     tileCoord: {x: 42, y: 1}
   - id: web1tl
     tileCoord: {x: 34, y: 1}
-  doorQuality: 000000000000000000000000000000000000000000000000000000000000000000000000020000000000000002000000000000000200000002000000000000000000000000000000000000000200000000000000000000000000000002000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: 'G.G.G.G.G.G._A._A._A._A._A._A.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.M.M.M.M.M.M.M.M.M.M.M.M.M.G.G
 
     G.G.G.G.G.G._A._A._A._A._A._A.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.M._T._T._T._T._T._T._T._T._T._T._T.M.G.G
@@ -161,9 +161,17 @@ MonoBehaviour:
       - act: check
         targ: pisF1
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: off
         targ: this
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="N2yOci6UKmMtZWQf" w="3"
   - type: checkpoint
     id: checkpoint

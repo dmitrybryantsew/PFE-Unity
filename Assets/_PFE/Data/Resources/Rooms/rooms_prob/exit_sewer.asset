@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: exit_sewer
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: exit_sewer
   sourceCollectionId: rooms_prob
   type: pass
@@ -107,6 +107,10 @@ MonoBehaviour:
       - act: gotoland
         targ: 
         val: raiders
+        n: 1
+        opt1: 2
+        opt2: 2
+        t: 
     parameters: code="TqlXu8FxA7qZD5P2" h="2"
   - type: area
     id: area
@@ -127,6 +131,10 @@ MonoBehaviour:
       - act: dialog
         targ: 
         val: sewerNextLevel
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="TE5wn7cf0ARqgKmw" uid="trig_sewerNextLevel" w="7" trig="1"
   - type: checkpoint
     id: checkpoint
@@ -191,12 +199,24 @@ MonoBehaviour:
       - act: refill
         targ: 
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: upland
         targ: 
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: off
         targ: this
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="RZgfrVxVqVOmbfaM" h="4"
   spawnPoints:
   - tileCoord: {x: 8, y: 7}

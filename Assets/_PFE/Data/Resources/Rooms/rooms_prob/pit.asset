@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: pit
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: pit
   sourceCollectionId: rooms_prob
   type: pass
@@ -106,7 +106,7 @@ MonoBehaviour:
     tileCoord: {x: 27, y: 1}
   - id: chole4
     tileCoord: {x: 12, y: 1}
-  doorQuality: 000000000200000002000000020000000000000000000000020000000200000002000000020000000200000002000000000000000200000002000000020000000000000000000000020000000200000002000000020000000200000002000000
+  doorQuality: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
   tileDataString: "M.M.M.M.M.M.M.M.M.M.M.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L\nM._T._T._T._T._T._T._T._T._T.M._._._._._._._._._._._._._._._._._._._._._._._._._._._T._T._T._T._T._T._T._T._T._T.L\nM._T._T._T._T._T._T._T._T._T._._._._._._._._._._._._._._._._._._._._._._._._._._._._T._T._T._T._T._T._T._T._T._T.L\nM._T._T._T._T._T._T._T._T._T._._._._._._._._._._._._._._._._._._._._._._._._._._._._T._T._T._T._T._T._T._T._T._T.L\nM.M.M.M.M.M.M.M.M.M.M._._._._._._._._._._._._._._._._._._._._._._._._._._\u0410.M.M.M.M.M.M.M.M.M.M.L\nL._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\u0410._._._._._._._._._._.L\nL._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\u0410._._._._._._._._._._.L\nL._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\u0410._._._._._._._._._._.L\nL._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\u0410._._._._._._._._._._.L\nL._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.L\nL._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.L\nL.M.M._-._-._-._-._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._-._-._-._-.M.M.L\nL._._._._._._._._._._._._._._._._._.M.M._-._-._-._-._-._-._-._-.M.M._._._._._._._._._._._._._._._._._.L\nL._._._._._._._-._-._-._._._._._._._._._._._._._._._._._._._._._._._._._._._._._-._-._-._._._._._._.L\nL._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.L\nL._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.L\nL.L.L.L.L.L._._._._.M.M.M.M.M.M.M._._._._._._._._._._._._._._.M.M.M.M.M.M.M._._._._.L.L.L.L.L.L\nL.L.L.L.L.L._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.L.L.L.L.L.L\nL.L.L.L.L.L._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.L.L.L.L.L.L\nL.L.L.L.L.L._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.L.L.L.L.L.L\nL.L.L.L.L.L.L.L._T-._T-._T-._T-._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T-._T-._T-._T-.L.L.L.L.L.L.L.L\nL.L.L._._._._.E._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T.E._._._._.L.L.L\nL.L.L._._._._.E._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T.E._._._._.L.L.L\nL.L.L._._._._.E._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T.E._._._._.L.L.L\nL.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L"
   objects:
   - type: door
@@ -254,7 +254,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="i7OAkLMKFX7hUHUF"
-  - type: obj
+  - type: unit
     id: zombie
     definitionId: zombie
     definition: {fileID: 11400000, guid: d56512d3ac0c0744eb90060a7d920ede, type: 2}
@@ -277,14 +277,26 @@ MonoBehaviour:
       - act: up
         targ: pitU4
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: up
         targ: pitU5
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: up
         targ: pitU6
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="CRTC0yhmo2AZ82kM" uid="pitU1" tr="5" dig="3" hero="1" qid="pitF1"
-  - type: obj
+  - type: unit
     id: zombie
     definitionId: zombie
     definition: {fileID: 11400000, guid: d56512d3ac0c0744eb90060a7d920ede, type: 2}
@@ -309,9 +321,13 @@ MonoBehaviour:
       - act: stage
         targ: 
         val: killLucerne
+        n: 1
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="fo9g1ypmIMFZf8mP" uid="pitU4" tr="6" dig="3" hero="1" qid="pitF1"
       name="lucerne"
-  - type: obj
+  - type: unit
     id: zombie
     definitionId: zombie
     definition: {fileID: 11400000, guid: d56512d3ac0c0744eb90060a7d920ede, type: 2}
@@ -326,7 +342,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="Pa39kBQhZbtnZ7l9" tr="1" dig="2"
-  - type: obj
+  - type: unit
     id: zombie
     definitionId: zombie
     definition: {fileID: 11400000, guid: d56512d3ac0c0744eb90060a7d920ede, type: 2}
@@ -341,7 +357,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="KY5ZIQ1Qfq55eJEs" tr="2" dig="2"
-  - type: obj
+  - type: unit
     id: zombie
     definitionId: zombie
     definition: {fileID: 11400000, guid: d56512d3ac0c0744eb90060a7d920ede, type: 2}
@@ -364,12 +380,24 @@ MonoBehaviour:
       - act: up
         targ: pitU1
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: up
         targ: pitU2
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: up
         targ: pitU3
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="rYY8zwe28Q7jSFMC" tr="4" dig="0" hero="1" qid="pitF1"
   - type: box
     id: weapbox
@@ -428,7 +456,7 @@ MonoBehaviour:
     scripts: []
     parameters: code="EcuyUbs63ABLXtEv" port="23:3" vis="Port" emit="purple_spark"
       dens="2"
-  - type: obj
+  - type: unit
     id: zombie
     definitionId: zombie
     definition: {fileID: 11400000, guid: d56512d3ac0c0744eb90060a7d920ede, type: 2}
@@ -443,7 +471,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="zsGOoBeCIMzIOqEF" uid="pitU5" dig="3" tr="4"
-  - type: obj
+  - type: unit
     id: zombie
     definitionId: zombie
     definition: {fileID: 11400000, guid: d56512d3ac0c0744eb90060a7d920ede, type: 2}
@@ -458,7 +486,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="w8sihiRuUldDq4wx" uid="pitU2" dig="3" tr="3"
-  - type: obj
+  - type: unit
     id: zombie
     definitionId: zombie
     definition: {fileID: 11400000, guid: d56512d3ac0c0744eb90060a7d920ede, type: 2}
@@ -473,7 +501,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="rinxaGrtJdJVvTBs" tr="0" dig="2"
-  - type: obj
+  - type: unit
     id: zombie
     definitionId: zombie
     definition: {fileID: 11400000, guid: d56512d3ac0c0744eb90060a7d920ede, type: 2}
@@ -488,7 +516,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="y95AzJxF3mZjY1fj" uid="pitU3" dig="3" tr="2"
-  - type: obj
+  - type: unit
     id: zombie
     definitionId: zombie
     definition: {fileID: 11400000, guid: d56512d3ac0c0744eb90060a7d920ede, type: 2}

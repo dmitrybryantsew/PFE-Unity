@@ -129,6 +129,7 @@ MonoBehaviour:
   - weaponId: robomlau
     chance: 1
     difficulty: 0
+    isFixedWeapon: 1
   - weaponId: robogatl
     chance: 0.5
     difficulty: 0

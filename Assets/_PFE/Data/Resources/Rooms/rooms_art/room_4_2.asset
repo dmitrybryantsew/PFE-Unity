@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_4_2
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_4_2
   sourceCollectionId: rooms_art
   type: pass
@@ -120,7 +120,7 @@ MonoBehaviour:
     tileCoord: {x: 45, y: 9}
   - id: skel
     tileCoord: {x: 17, y: 19}
-  doorQuality: 000000000200000002000000000000000000000000000000020000000000000000000000020000000200000002000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: "H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.M.M.M.M\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.M._T._T._T\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.M._T._T._T\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M._H._H.M\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.M._H._H._H._H._H._A._A._A._A._H._H._H._H._H._H._H._H.M\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.M._H._H._H._H._H._A._A._A._A._H._H._H._H._H._H._H._H.M\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.M._H._H._H._H._H._A._A._A._A._H._H._H._H._H._H._H._H.M\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.M.M.M.M.M.M.M.M.M.M.M._H-._H-._H-._H-._H-.M.M.M.M.M._H-._H-._H-._H-._H-.M.M.M\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.M._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H.M.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.M._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H.M.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.M._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H.M.H.H\nM.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M._H-._H-._H-._H-._H-.M.M.M.M.M._H-._H-._H-._H-._H-.M.M.M.M.M._H-._H-._H-._H-._H-.M.H.H\nM._H._H._H._H._H._H._H._H._H._H._H._H._H._H._._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H.M.H.H\nM._H._H._H._H._H._H._H._H._H._H._H._H._H._H._._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H.M.H.H\nM._H._H._H._H._H._H._H._H._H._H._H._H._H._H._._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H.M.H.H\nM._H._H._H._H._H._H._H\u0412._H-._H-._H-.M.M.M.M.M.M.M.M.M.M._._._.M.M.M.M.M.M.M._._._.M.M.M.M.M.M.M._._._.M.M.H.H\n_H._H._H._H._H._H._H\u0412._H._H._H._H.M.H.H.H.H.H.H.H.H.M._T._T._T.M.M.M.M.M.M.M._T._T._T.M.M.M.M.M.M.M._T._T._T.M.H.H.H\n_H._H._H._H._H._H\u0412._H._H._H._H._H.M.H.H.H.H.H.H.H.H.M._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T.M.H.H.H\n_H._H._H._H._H\u0412._H._H._H._H._H._H.M.H.H.H.H.H.H.H.H.M._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T.M.H.H.H\nM.M.M.M.M.M.M.M.M.M.M.M.H.H.H.H.H.H.H.H.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.H.H.H"
   objects:
   - type: box
@@ -200,7 +200,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="zfe7gUhjXsy1G096"
-  - type: obj
+  - type: unit
     id: zombie
     definitionId: zombie
     definition: {fileID: 11400000, guid: d56512d3ac0c0744eb90060a7d920ede, type: 2}
@@ -219,7 +219,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="RnyRML2rDavGFZGP" turn="1" tr="6" multhp="3" dig="1"
-  - type: obj
+  - type: unit
     id: zombie
     definitionId: zombie
     definition: {fileID: 11400000, guid: d56512d3ac0c0744eb90060a7d920ede, type: 2}
@@ -238,7 +238,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="sf1ju2ct1Ydjj9tZ" turn="-1" tr="5" multhp="3" dig="1"
-  - type: obj
+  - type: unit
     id: zombie
     definitionId: zombie
     definition: {fileID: 11400000, guid: d56512d3ac0c0744eb90060a7d920ede, type: 2}
@@ -305,7 +305,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="S7g5BYCFuZDWI1rm"
-  - type: obj
+  - type: unit
     id: zombie
     definitionId: zombie
     definition: {fileID: 11400000, guid: d56512d3ac0c0744eb90060a7d920ede, type: 2}
@@ -335,7 +335,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="fVfDnULx35UCFNTd"
-  - type: obj
+  - type: unit
     id: scorp3
     definitionId: scorp3
     definition: {fileID: 11400000, guid: bdb8fd70cd50d9b4b94dd7fc6df5026a, type: 2}
@@ -389,7 +389,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="mm2nxmkHtnJzMMzW" allid="1" allact="swap" lock="0"
-  - type: obj
+  - type: unit
     id: zombie
     definitionId: zombie
     definition: {fileID: 11400000, guid: d56512d3ac0c0744eb90060a7d920ede, type: 2}
@@ -408,7 +408,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="fMVhUAJJ7LQaRas9" turn="1" tr="2" multhp="3" dig="1"
-  - type: obj
+  - type: unit
     id: zombie
     definitionId: zombie
     definition: {fileID: 11400000, guid: d56512d3ac0c0744eb90060a7d920ede, type: 2}
@@ -427,7 +427,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="T2knXdrz4PkeBqur" turn="-1" tr="2" multhp="3" dig="1"
-  - type: obj
+  - type: unit
     id: zombie
     definitionId: zombie
     definition: {fileID: 11400000, guid: d56512d3ac0c0744eb90060a7d920ede, type: 2}

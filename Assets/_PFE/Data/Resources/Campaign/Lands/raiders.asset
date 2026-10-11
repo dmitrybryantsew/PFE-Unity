@@ -17,6 +17,8 @@ MonoBehaviour:
   landId: raiders
   landName: Raiders
   tip: story
+  isProbLand: 0
+  isTestLand: 0
   isProcedural: 0
   stage: 3
   baseDifficulty: 10
@@ -69,3 +71,4 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 9245440256331c64795c8018047963f5, type: 2}
   - {fileID: 11400000, guid: ff8534d78ec3cca4dab022cad93c78e4, type: 2}
   - {fileID: 11400000, guid: 6328a97c0b7da1b488a0dc682b52ba39, type: 2}
+  probRooms: []

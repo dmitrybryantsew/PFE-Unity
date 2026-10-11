@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_9_0
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_9_0
   sourceCollectionId: rooms_pis
   type: pass
@@ -44,7 +44,7 @@ MonoBehaviour:
     tileCoord: {x: 34, y: 19}
   - id: trava
     tileCoord: {x: 39, y: 19}
-  doorQuality: 020000000200000000000000000000000000000000000000000000000000000000000000000000000000000000000000020000000200000002000000020000000200000000000000020000000200000002000000020000000200000002000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: '_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
 
     _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
@@ -95,7 +95,7 @@ MonoBehaviour:
 
     H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.J.H.H.H.J.H.H.H.G.G.G'
   objects:
-  - type: obj
+  - type: unit
     id: npc
     definitionId: npc
     definition: {fileID: 11400000, guid: 2b067238a37bc224c99b891f75cdd086, type: 2}
@@ -130,7 +130,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="NUBRzKhlUVIY9dSO" uid="pisF4" hide="1"
-  - type: obj
+  - type: unit
     id: encl
     definitionId: encl
     definition: {fileID: 11400000, guid: bd63e94e2cdd9b64baa1344275d633d8, type: 2}
@@ -143,7 +143,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="UJUJ6f018xBSsrPh" ai="stay"
-  - type: obj
+  - type: unit
     id: encl
     definitionId: encl
     definition: {fileID: 11400000, guid: bd63e94e2cdd9b64baa1344275d633d8, type: 2}
@@ -156,7 +156,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="TcucaBNCOIjWtYDD" ai="stay"
-  - type: obj
+  - type: unit
     id: encl
     definitionId: encl
     definition: {fileID: 11400000, guid: bd63e94e2cdd9b64baa1344275d633d8, type: 2}
@@ -186,9 +186,17 @@ MonoBehaviour:
       - act: check
         targ: pisF4
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: off
         targ: this
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="FvJYyRTy9bDhUJu1" h="16"
   spawnPoints:
   - tileCoord: {x: 2, y: 15}

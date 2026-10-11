@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: "\u0441\u044E\u0440\u043F\u0440\u0438\u0437"
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: "\u0441\u044E\u0440\u043F\u0440\u0438\u0437"
   sourceCollectionId: rooms_plant
   type: pass
@@ -62,7 +62,7 @@ MonoBehaviour:
     tileCoord: {x: 1, y: 9}
   - id: door
     tileCoord: {x: 23, y: 17}
-  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000
+  doorQuality: 000000000000000003000000030000000300000003000000040000000000000000000000000000000400000000000000030000000300000003000000030000000300000004000000000000000000000004000000040000000000000000000000
   tileDataString: "C._._._._._._._._.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._._._._._._._._._._._._._._._._._._._._.C\nC._H._H._H._H._H._H._H._H.C._._._._._._._._._._._.C._G._G._G._G.C._._._._._._._._._._.C._._._._._._._._._.C\nC._H._H._H._H._H._H._H._H.C._._._._._._._._._._._.C._G._G._G._G.C._._._._._._._._._._.C._._._._._._._._._.C\nC.CH.CH.CH.CH.CH.CH._H._H\u0410.C.C.C.C.C.C.C.C.C.C._._\u0410.C._G._G._G._G.C._\u0411-._-.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._._.C\nC._H._H._H._H._H._H._H._H\u0410.C.C.C.C.C.C.C.C.C.C._._\u0410.C._G-._G-._G-._G-.C._\u0411._._._._._._._._._._._._._._._._.C._-._-.C\n_._H._H._H._H._H._H._H._H\u0410.C.C.C.C.C.C.C.C.C.C._._\u0410.C._G._G._G._G.C._\u0411._._._._._._._._._._._._._._._._.C._._.C\n_._H._H._H._H._H._H._H._H\u0410.C.C.C.C.C.C.C.C.C.C._._\u0410.C._G._G._G._G.C._\u0411._._._._._._._._._._._._._._._._.C._._.C\n_._H._H._H._H._H._H._H._H\u0410.C.C.C.C.C.C.C.C.C.C._._.C._G._G._G._G.C._\u0411._._._._._._._._._._._._._._._._.C._._.C\n_._H._H._H._H._H._H._H._H\u0410.C._._._._._._._._._._._.C._G-._G-._G-._G-.C._B\u0411._B._B._B._B._B._B._B._B._B.C._._._._._._.C.F.F.C\n_._H._H._H._H._H._H._H._H\u0410.C._._._._._._._._._._._.C._G._G._G._G.C._B\u0411*._B*._B*._B*._B*._B*._B*._B*._B*._B*.C._._._._._._._._._._\n_._H._H._H._H._H._H._H._H.C._._.C.C.C.C.C.C.C._._.C._G-._G-._G-._G-.C._B\u0411*._B*._B*._B*._B*._B*._B*._B*._B*._B*.C._._._._._._._._._._\n_._H._H._H._H._H._H._H._H.C._._.C.C.C.C.C.C.C._._.C._G._G._G._G.C._B\u0411*._B*._B*._B*._B*._B*._B*._B*._B*._B*.C._._._._._._._._._._\nC.C.C.C.C.C.C.C.C.C._-._-.C.C.C.C.C.C.C.C.C.C._G._G._G._G.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._-._-._-._-._-._-.C\n_._._._._._._._._._._._._._._._._._._._._.C._G._G._G._G.C._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._.C._G._G._G._G.C._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._.C._G._G._G._G.C._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._G._G._G._G._._._._._._._._._._._._._._._._-._-._-._-._-._-._\n_._._._._._._._._._._._._._._._._._._._._._._G._G._G._G._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._G._G._G._G._._._._._._._.C._._._._._._._._._._._._._._\n_._._._._._._._._._._._._.A;.A.A.A;._._._._._._G._G._G._G._._._._._._._.C._._._._._._._._._._._._._._\nC.C.C.C.C._-._\u0410-.C.C.C.C.C.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.C.C.C.C.C.C.C.E.E.E.E.C.C.C.C\n_._._._._._._\u0410._.C._._._.A._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._G._G._G._._._._._._._._._._._._\n_._._._._._._\u0410._.C._*._*._*.C._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._G._G._G._._._._._._._._._._._._\n_._._._._._._\u0410._.C._*._*._*.C._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._G._G._G._._._._._._._._._._._._\n_._._._._G-._G-._G\u0410-._G-._._._._._.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._._._._G-._G-._G-._G-._._._._"
   objects:
   - type: box
@@ -76,7 +76,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="sFALz6DAaoOLcx3o"
-  - type: obj
+  - type: unit
     id: roller
     definitionId: roller
     definition: {fileID: 11400000, guid: bc6e49884f4b9b343af9403b670cc47d, type: 2}
@@ -87,7 +87,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="wHD23b1rbRmfiXWR"
-  - type: obj
+  - type: unit
     id: roller
     definitionId: roller
     definition: {fileID: 11400000, guid: bc6e49884f4b9b343af9403b670cc47d, type: 2}
@@ -131,7 +131,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="Ki1SdXvo940YzC1E"
-  - type: obj
+  - type: unit
     id: roller
     definitionId: roller
     definition: {fileID: 11400000, guid: bc6e49884f4b9b343af9403b670cc47d, type: 2}
@@ -186,7 +186,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="fqBaEJpWF3uLOM9C"
-  - type: obj
+  - type: unit
     id: mine
     definitionId: mine
     definition: {fileID: 11400000, guid: 01175fdf5effab8449dc622f301ad809, type: 2}
@@ -252,7 +252,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="dDBUtWVEbhRj39gv"
-  - type: obj
+  - type: unit
     id: roller
     definitionId: roller
     definition: {fileID: 11400000, guid: bc6e49884f4b9b343af9403b670cc47d, type: 2}
@@ -263,7 +263,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="fgObdzfkT4cUCWS3"
-  - type: obj
+  - type: unit
     id: roller
     definitionId: roller
     definition: {fileID: 11400000, guid: bc6e49884f4b9b343af9403b670cc47d, type: 2}
@@ -329,7 +329,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="qvzaeGO1fv44fdf8"
-  - type: obj
+  - type: unit
     id: roller
     definitionId: roller
     definition: {fileID: 11400000, guid: bc6e49884f4b9b343af9403b670cc47d, type: 2}
@@ -340,7 +340,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="PdEjhRR972my7Pxn"
-  - type: obj
+  - type: unit
     id: roller
     definitionId: roller
     definition: {fileID: 11400000, guid: bc6e49884f4b9b343af9403b670cc47d, type: 2}
@@ -461,7 +461,7 @@ MonoBehaviour:
     musicTrack: music_plant_1
     colorScheme: 
     backgroundColorScheme: 
-    backgroundWall: 
+    backgroundWall: tBackWall
     backgroundForm: 0
     transparentBackground: 0
     hasSky: 0

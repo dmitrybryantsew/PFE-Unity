@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_6_2
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_6_2
   sourceCollectionId: rooms_raiders
   type: pass
@@ -54,7 +54,7 @@ MonoBehaviour:
     tileCoord: {x: 26, y: 6}
   - id: light2
     tileCoord: {x: 29, y: 6}
-  doorQuality: 000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000002000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: "H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.C._\u0411._.C.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.C._\u0411._.C.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.C._\u0411._.C.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.C._\u0411._.C.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.C.C.C.C.C._\u0411._.C.C.C.C.C.H.H.H\nH.H.H.H.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._._._._._\u0411._._F._F._F._F.C.H.H.H\nH.H.H.H.C._._._._._._._._._._._._._._._._._._.C._C._C._C._C._C._C._C._C._C.C._._._._._\u0411._._F._F._F._F.C.H.H.H\nH.H.H.H.C._._._._._._._._._._._._._._._._._._._._C._C._C._C._C._C._C._C._C._._._._._._\u0411._._F._F._F._F.C.H.H.H\nH.H.H.H.C._._._._._._._._._._._._._._._._._._._._C._C._C._C._C._C._C._C._C._._._._._._\u0411._._F._F._F._F.C.H.H.H\nH.H.H.H.C._\u0411-._-.C.C._-._-._-._-._-._-._-._-._-._-._-._-.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.H.H.H\nH.H.H.H.C._\u0411._._._._._._._._._._._._._._._.C.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.C._\u0411._._._._._._._._._._._._._._._.C.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.C._\u0411._._._._._._._._._._._._._._._.C.H.H.H.H.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B\nH.H.H.H.C._\u0411._._._._._._._._._._._._._._._.C.H.H.H.H.B._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F\nH.H.H.H.C._\u0411._._._._._._._._._._._._._._._.C.H.H.H.H.B._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F\nH.H.H.H.C._\u0411._._._._._._._._._._._._._._._.C.H.H.H.H.B._F-._F-._F-._F-._F-._F-._F-._F._F._F._F._F._F._F._F\u0412._F-._F-.B.B.B.B\nH.H.H.H.C._\u0411._._._._._._._._._._._._._._._.C.C.C.B.B.B._F._F._F._F._F._F._F._F._F._F._F._F._F._F\u0412._F._F._F.B.H.H.H\n_._._._._._\u0411._._._._._._._._._._._._._._._._._._._._._F._F._F._F._F._F._F._F._F._F._F._F._F._F\u0412._F._F._F._F.B.H.H.H\n_._._._._._\u0411._._._._._._._._._._._._._._._._._._._._._F._F._F._F._F._F._F._F._F._F._F._F._F\u0412._F._F._F._F._F.B.H.H.H\n_._._._._._\u0411._._._._._._._._._._._._._._._._._._._._._F._F._F._F._F._F._F._F._F._F._F._F\u0412._F._F._F._F._F._F.B.H.H.H\nC.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H"
   objects:
   - type: box
@@ -68,7 +68,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="hmxtL1ciebZGxkpd"
-  - type: obj
+  - type: unit
     id: slaver
     definitionId: slaver
     definition: {fileID: 11400000, guid: 91392397f716d694e92096340448b372, type: 2}
@@ -193,7 +193,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="m9DHW6NGzDMSnss7"
-  - type: obj
+  - type: unit
     id: slaver
     definitionId: slaver
     definition: {fileID: 11400000, guid: 91392397f716d694e92096340448b372, type: 2}

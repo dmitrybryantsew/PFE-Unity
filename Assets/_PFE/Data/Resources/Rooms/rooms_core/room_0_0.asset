@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_0_0
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_0_0
   sourceCollectionId: rooms_core
   type: pass
@@ -144,7 +144,7 @@ MonoBehaviour:
     tileCoord: {x: 41, y: 13}
   - id: storage
     tileCoord: {x: 26, y: 13}
-  doorQuality: 000000000200000002000000020000000200000002000000000000000000000000000000000000000000000000000000020000000200000002000000020000000000000002000000020000000200000002000000000000000000000000000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: "A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F.A.A.A.A.A.A.A.A.A.A.AF.AF.AF.AF.AF.A.A.A.A.A.A.A.A.A.A\nA._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F.A.A.A.A.A.A.A.A.A.A.AF.AF.AF.AF.AF.A.A.A.A.A.A.A.A.A.A\nA._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F.A.A.A.A.A.A.A.A.A.A.AF.AF.AF.AF.AF.A.A.A.A.A.A.A.A.A.A\nA._F._F._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._F._F.A.A.A.A.A.A.A.A.A.A.AF.AF.AF.AF.AF.A.A.A.A.A.A.A.A.A.A\nA._F._F._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._F._F.A.A.A.A.A.A.A.A.A.A.AF.AF.AF.AF.AF.A.A.A.A.A.A.A.A.A.A\nA._F._F._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._F._F.A.A.A.A.A.A.A.A.A.A.AF.AF.AF.AF.AF.A.A.A.A.A.A.A.A.A.A\nA._F._F._R._R._R._R._R._R._R._R._O._O._R._R._R._R._R._R._R._R._F._F.A._._._._._._._._._._F._F._F._F._F._._._._._._._._._.A\nA._F._F._R._R._R._R._R._R._R._R._O._O._R._R._R._R._R._R._R._R._F._F.A._._._._._._._._._._F._F._F._F._F._._._._._._._._._.A\nA._F._F._R._R._R._R._R._R._O._R._O._O._R._O._R._R._R._R._R._R._F._F.A._._._._._._._._._._F._F._F._F._F._._._._._._._._._.A\nA._F._F._R._R._R._R._R._R._O._R._O._O._R._O._R._R._R._R._R._R._F._F.A._._._._._._._._._._F._F._F._F._F._._._._._._._._._.A\nA._F._F._R._R._R._R._O._O._O._O._O._O._O._O._O._O._R._R._R._R._F._F.A._._._._._._._._._._F._F._F._F._F._._._._._._._._._.A\nA._F._F._R._R._R._R._O._O._O._O._O._O._O._O._O._O._R._R._R._R._F._F.A._._._._._._._._._._F._F._F._F._F._._._._._._._._._.A\nA._F._F._R._R._R._R._O._O._O._O._O._O._O._O._O._O._R._R._R._R._F._F._._._._._._._._._._._F._F._F._F._F._._._._._._._._._._\nA._F._F._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._F._F._._._._._._._._._._._F._F._F._F._F._._._._._._._._._._\nA._F._F._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._F._F._._._._._._._._._._._F._F._F._F._F._._._._._._._._._._\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415.AF.AF.AF.AF.AF._\u0411\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415.A\nA._._._._._._._._._._._._._._._._._._._._._._.A._._._._._._._._._._F._F._F._F._F._\u0411._._._._._._._._.A\nA._._._._._._._._._._._._._._._._._._._._._._.A._._._._._._._._._._F._F._F._F._F._\u0411._._._._._._._._.A\nA._._._._._._._._._._._._._._._._._._._._._._.A._._._._._._._._._._F._F._F._F._F._\u0411._._._._._._._._.A\nA._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._F._F._F._F._F._\u0411._._._._._._._._.A\nA._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._F._F._F._F._F._._._._._._._._._.A\nA._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._F._F._F._F._F._._._._._._._._._.A\nA.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.A.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A"
   objects:
   - type: door
@@ -240,7 +240,7 @@ MonoBehaviour:
         value: 1
     scripts: []
     parameters: code="gyPGjfqzF8hPo0Gl" lock="0" mine="0" cont="*"
-  - type: obj
+  - type: unit
     id: npc
     definitionId: npc
     definition: {fileID: 11400000, guid: 2b067238a37bc224c99b891f75cdd086, type: 2}

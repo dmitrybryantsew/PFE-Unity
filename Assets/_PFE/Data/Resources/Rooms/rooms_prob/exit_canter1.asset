@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: exit_canter1
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: exit_canter1
   sourceCollectionId: rooms_prob
   type: pass
@@ -88,7 +88,7 @@ MonoBehaviour:
     tileCoord: {x: 45, y: 14}
   - id: awindow
     tileCoord: {x: 46, y: 14}
-  doorQuality: 000000000000000000000000020000000200000002000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+  doorQuality: 000000000000000000000000030000000300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
   tileDataString: 'Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q
 
     Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q
@@ -169,6 +169,10 @@ MonoBehaviour:
       - act: dialog
         targ: 
         val: canterNextLevel
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="xZAJiiiBEuPfCrFR" uid="trig_canterNextLevel" h="12" trig="1"
   - type: player
     id: player
@@ -211,12 +215,24 @@ MonoBehaviour:
       - act: landlevel
         targ: 
         val: minst
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: off
         targ: this
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: control on
         targ: 
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="aFOE5IcZgVpoWxoi" h="12"
   - type: area
     id: area
@@ -235,6 +251,10 @@ MonoBehaviour:
       - act: gotoland
         targ: 
         val: minst
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="H9GR1i57C5147YgI" h="18"
   - type: area
     id: area
@@ -253,12 +273,24 @@ MonoBehaviour:
       - act: refill
         targ: 
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: upland
         targ: 
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: off
         targ: this
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="phmDJUBO9V7ds2f2" h="16"
   spawnPoints:
   - tileCoord: {x: 4, y: 19}

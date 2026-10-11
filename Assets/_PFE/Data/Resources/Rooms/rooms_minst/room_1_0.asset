@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_1_0
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_1_0
   sourceCollectionId: rooms_minst
   type: pass
@@ -114,10 +114,10 @@ MonoBehaviour:
     tileCoord: {x: 38, y: 19}
   - id: skel
     tileCoord: {x: 44, y: 7}
-  doorQuality: 020000000200000002000000020000000200000002000000000000000000000000000000000000000000000000000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: "QW.QW.QW.QW.QW.QW.QW.QW.QW.QW.QW.QW.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q\nQW._W._W._W._W._W._W._W._W._W._W._W.Q._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._W._W._W._W.QW\nQW._W._W._W._W._W._W._W._W._W._W._W.Q._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._W._W._W._W.QW\nQW._W._W._W._W._W._W._W._W._W._W._W.Q._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._W._W._W._W.QW\nQW._W._W._W._W._W._W._W._W._W._W._W.Q._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._W._W._W._W.QW\nQW._W._W._W._W._W._W._W._W._W._W._W.Q._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._W._W._W._W._W\nQW._W._W._W._W._W._W._W._W._W._W._W._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._W._W._W._W._W\nQW._W._W._W._W._W._W._W._W._W._W._W._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._W._W._W._W._W\nQ.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q._\u041D._\u041D._\u041D._\u041D._\u041D._\u041D._\u041D._\u041D._\u041D._\u041D._\u041D._\u041D._\u041D._\u041D._\u041D._\u041D._\u041D._\u041D._\u041D._\u041D._\u041D._\u041D._\u041D._\u041D._\u041D._\u041D._\u041D._\u041D._\u041D._\u041D.Q.Q.Q.Q.Q\nQ._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.Q\nQ._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.Q\nQ._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.Q\nQ._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.Q\n_W._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._W\n_W._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._W\n_W._._._._._._._._._._._._._._._._._N._N._N._N._N._N._N._N._N._N._N._N._N._N._._._._._._._._._._._._._._._._._W\n_W._W._W._W._W._W._W._W._W._W._W._W._W._W._W._W._W._N._N._N._N._N._N._N._N._N._N._N._N._N._N._W._W._W._W._W._W._W._W._W._W._W._W._W._W._W._W._W\n_W._W._W._W._W._W._W._W._W._W._W._W._W._W._W._W._W._N._N._N._N._N._N._N._N._N._N._N._N._N._N._W._W._W._W._W._W._W._W._W._W._W._W._W._W._W._W._W\n_W._W._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._W._W\n_W._W._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._W._W\nQ.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H"
   objects:
-  - type: obj
+  - type: unit
     id: bloodwing
     definitionId: bloodwing
     definition: {fileID: 11400000, guid: 8cb413623584f5e44aac1dffdaa1d68b, type: 2}
@@ -128,7 +128,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="CvMKhBA58jkCqbRV"
-  - type: obj
+  - type: unit
     id: zombie
     definitionId: zombie
     definition: {fileID: 11400000, guid: d56512d3ac0c0744eb90060a7d920ede, type: 2}
@@ -174,7 +174,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="mrtmhl9lP0MkGGrQ"
-  - type: obj
+  - type: unit
     id: scorp3
     definitionId: scorp3
     definition: {fileID: 11400000, guid: bdb8fd70cd50d9b4b94dd7fc6df5026a, type: 2}
@@ -207,7 +207,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="eeRa2BfeaJwXqzyf"
-  - type: obj
+  - type: unit
     id: scorp3
     definitionId: scorp3
     definition: {fileID: 11400000, guid: bdb8fd70cd50d9b4b94dd7fc6df5026a, type: 2}
@@ -336,7 +336,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="QPZrShG9prxZCfMa"
-  - type: obj
+  - type: unit
     id: bloodwing
     definitionId: bloodwing
     definition: {fileID: 11400000, guid: 8cb413623584f5e44aac1dffdaa1d68b, type: 2}
@@ -358,7 +358,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="jHrP9VPHpo5BYYGl"
-  - type: obj
+  - type: unit
     id: bloodwing
     definitionId: bloodwing
     definition: {fileID: 11400000, guid: 8cb413623584f5e44aac1dffdaa1d68b, type: 2}

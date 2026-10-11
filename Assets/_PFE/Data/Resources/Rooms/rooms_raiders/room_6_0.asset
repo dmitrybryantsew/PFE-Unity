@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_6_0
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_6_0
   sourceCollectionId: rooms_raiders
   type: pass
@@ -140,7 +140,7 @@ MonoBehaviour:
     tileCoord: {x: 8, y: 4}
   - id: poster
     tileCoord: {x: 14, y: 2}
-  doorQuality: 020000000000000000000000000000000000000000000000020000000200000002000000020000000200000002000000020000000000000002000000000000000200000002000000020000000200000002000000020000000000000002000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: "C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C\nC._._._._._._._._._._._._._._._.C._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B.C._._._._._._._._._._._._._._.C\nC._._._._._._._._._._._._._._._.C._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B.C._._._._._._._._._._._._._._.C\nC._._._._._._._._._._._._._._._.C._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B.C._._._._._._._._._._._._._._.C\n_._._._._._._._._._._._._._._._.C._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B.C._._._._._._._._._._._._._._.C\n_._._._._._._._._._._._._._._._._._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._._._._._._._._._._._._._._._.C\n_._._._._._._._._._._._._._._._._._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._._._._._._._._._._._._._._._.C\nC.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._H._H\u0410.C.C\nC._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._D._D._D._D._D._D.C._H._H\u0410.C.C\nC._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._D._D._D._D._D._D.C._H._H\u0410.C.C\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._-._-._\u0410-.C.CD.CD._D._D\u0410.CD.CD.C._H._H\u0410.C.C\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\u0410.C._D._D._D._D\u0410._D._D.C._H._H\u0410.C.C\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\u0410.C._D._D._D._D\u0410._D._D.C._H._H\u0410.C.C\nC.C.C.C.C.C._\u0411-._-._-._-._-._-._-._-._-._-._-._-._\u0411-._._._._._._._._._._._._._._._._._\u0410.C._D._D._D._D\u0410._D._D.C._H._H\u0410.C.C\nC.C.C.C.C.C._\u0411._._._._._._._._._._._._\u0411._._._._._._._._._._._._._._._._._\u0410.C._D._D._D._D\u0410._D._D.C._H._H\u0410.C.C\nC.C.C.C.C.C._\u0411._._._._._._._._._._._._\u0411._._._._._._._._\u0410-._-._-._-._-._-._-._-._-._\u0410-.C._D._D._D._D\u0410._D._D.C._H._H\u0410.C.C\n_I._I._I._I._I.FI._\u0411._._._._._._._._._._._._\u0411._._._._._._._._\u0410._._._._._._._._._\u0410.C._D._D._D._D\u0410._D._D.C._H._H\u0410.C.C\nC.C.C.C.C.C.C.C.C._._._._._._._._._._\u0411._._._._._._._._\u0410._._._._._._._._._\u0410.C._D._D._D._D\u0410._D._D.C._H._H\u0410.C.C\nC._._._._._._._._._._._._._._._._._._\u0411._._._._._._._._\u0410._._._._._._._._._\u0410.C._D._D._D._D\u0410._D._D.C._H._H\u0410.C.C\nC._._._._._._._._._._._._._._._._._._\u0411._._._._._._._._\u0410._._._._._._._._._\u0410.C._D._D._D._D\u0410._D._D.C._H._H\u0410.C.C\nC.C.C._._\u0410.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.CD.CD._D._D\u0410.CD.CD.C._H._H\u0410.C.C\n_._._._._\u0410._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E\u0410._E._E.C._H._H\u0410.C.C\n_._._._._\u0410._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E\u0410._E._E.C._H._H\u0410.C.C\n_._._._._\u0410._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E\u0410._E._E.C._H._H\u0410.C.C\nC.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._H._H\u0410.C.C"
   objects:
   - type: door
@@ -198,7 +198,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="Rk5BlXrchBMunDNe"
-  - type: obj
+  - type: unit
     id: captive
     definitionId: captive
     definition: {fileID: 11400000, guid: 8358e97a7bcb3694c88de10f204d24d3, type: 2}
@@ -242,7 +242,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="hah6M5AkX34I9Ndk"
-  - type: obj
+  - type: unit
     id: captive
     definitionId: captive
     definition: {fileID: 11400000, guid: 8358e97a7bcb3694c88de10f204d24d3, type: 2}
@@ -385,7 +385,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="IiaJM0It2rXjyfBO"
-  - type: obj
+  - type: unit
     id: rat
     definitionId: rat
     definition: {fileID: 11400000, guid: 91aa9373086f9584dafaf4723062b4a4, type: 2}
@@ -396,7 +396,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="iAi0wGeykA2eYl1k"
-  - type: obj
+  - type: unit
     id: rat
     definitionId: rat
     definition: {fileID: 11400000, guid: 91aa9373086f9584dafaf4723062b4a4, type: 2}
@@ -407,7 +407,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="ZIGRRS8tvo0fIBDG"
-  - type: obj
+  - type: unit
     id: rat
     definitionId: rat
     definition: {fileID: 11400000, guid: 91aa9373086f9584dafaf4723062b4a4, type: 2}
@@ -429,7 +429,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="yoPAZClucX2wwFAw"
-  - type: obj
+  - type: unit
     id: molerat
     definitionId: molerat
     definition: {fileID: 11400000, guid: 1408e310852cb0742aa198feb9353ea9, type: 2}
@@ -455,7 +455,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="RB0RREVYMkI5NnUa" lock="3" key="key_raiders"
-  - type: obj
+  - type: unit
     id: slaver
     definitionId: slaver
     definition: {fileID: 11400000, guid: 91392397f716d694e92096340448b372, type: 2}
@@ -482,21 +482,45 @@ MonoBehaviour:
       - act: off
         targ: this
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: control off
         targ: 
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: dial
         targ: 
         val: surfDialHello2
+        n: 0
+        opt1: 
+        opt2: 
+        t: 2
       - act: dialog
         targ: 
         val: surfDialHello2
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: on
         targ: this
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: control on
         targ: 
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="zaiZB9M0XMskqVf4" tr="5" hero="1" weap="smg10" name="overseer"
   - type: box
     id: medbox

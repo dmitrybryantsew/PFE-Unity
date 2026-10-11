@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: floating
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: floating
   sourceCollectionId: rooms_prob
   type: pass
@@ -58,7 +58,7 @@ MonoBehaviour:
     tileCoord: {x: 36, y: 6}
   - id: rad
     tileCoord: {x: 27, y: 8}
-  doorQuality: 000000000200000000000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000000000000000000002000000020000000200000002000000020000000200000000000000
+  doorQuality: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
   tileDataString: "A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA._._._._._._._.A._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A._._._H._H._H._H._H.A\nA._._._._._._._.A._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A._._._H._H._H._H._H.A\nA._._._._._._._.A._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A._._._H._H._H._H._H.A\nA._H._H\u0410.A._-._-._-._-.A._._\u0410.A._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*.A.A.A.A.A._._\u0410.A.A.A.A.A.A\nA._H._H\u0410.A._._._._.A._*._\u0410*.A._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*.A.A.A.A.A._._\u0410.A.A._H._H._H.A\nA._H._H\u0410.A._._._._.A._*._\u0410*.A.A.A.A.A.A.A._*._*._*.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A._._\u0410.A.A._H._H._H.A\nA._H._H\u0410.A._*._*._*._*._*._*._\u0410*.A._._._._._.A._*._*._*.A._O*._O*._O*._O*._*._*._*._*._*._*._*.A._F._F._F._F.A._*._*._\u0410*._*.A._H._H._H.A\nA._H._H\u0410.A.A._\u0411*._*._*._*._*._\u0410*.A._._._._._.A._*._*._*.A._O*._O*._O*._O*._*._*._*._*._*._*._*.A._F._F._F._F.A._*._*._*._*.A._._.A.A\nA._H._H._H.A._\u0411*._*._*._*._*._\u0410*.A._-._-._-._-._-.A._*._*._*.A._O*._O*._O*._O*._*._*._*._*._*._*._*.A._F._F._F._F.A._*._*._*._*.A._*._*.A.A\nA._H._H._H.A._\u0411*._*._*._*._*._\u0410*.A._._._._._.A._*._*._*.A._O*._O*._O*._O*.A._*._*.A._*._*._*.A._._._.A.A._*._*._*._*.A._*._*.A.A\nA._H._H._H.A._\u0411*._*._*._*._*._\u0410*.A.A.A._*._*._*.A._*._*._*.A._O*._O*._O*._O*.A._*._*.A._*._*._*.A._*._*._*.A.A._*._*._*._*.A._*._*.A.A\nA.A.A.A.A._\u0411*._*._*._*._*._\u0410*.A.A.A._*._*._*.A._*._*._*.A._O*._O*._O*._O*.A._*._*.A._*._*._*._*._*._*._*.A.A._*._*._*._*.A._*._*.A.A\nA.A.A.A.A._*._*._*._*._*._*._I*._I*._I*._*._*._*.A._*._*._*.A.A.A.A.A.A._*._*.A._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*.A\nA._*._*.A.A._*._*._*._*._*._*.A.A.A._*._*._*.A._*._*._*._*._*._*._*._*._*._*._*.A.A.A.A.A._*._*._*._*._*._*._*._*._*._*._*._*._*.A\nA._*._*._*._*._*._*._*._*._*._*.A.A.A._*._*._*.A._*._*._*._*._*._*._*._*._*._*._*._*._*._*._*.A.A.A.A.A.A.A._*._*.A.A.A.A.A.A\nA.M.M.A.A.A.A.A.A.A.A.A.A.A._*._*._*.A._*._*.A.A.A.A.A.A.A._*._*._*._*._*._*._*._*._*._*._*._*.A._*._*.A._H._H._H._H.A\nA._F-._F-._F-._F._F._F._F._F._F._F._F.A.A._*._*._*.A.A.A.A._*._*._*._*._*.A.A.A.A._*._*._*._*._*._*._*._*._*.A._*._*.A._H._H._H._H.A\nA._F._F._F._F._F._F._F._F._F._F._F.A.A._*._*._*.A._*._*._*._*._*._*._*._*._*._*._*.A.A.A.A.A.A.A.A._*._*.A._*._*.A._H._H._H._H.A\nA._F._F._F._F._F._F._F._F._F._F._F.A.A._*._*._*._*._*._*._*._*._*.A._*._*._*._*._*.A._._._._._._.A._*._*.A._*._*.A._H._H._H._H.A\nA._F-._F-._F-._F-._F-._F-._F-._F-._F-._F-._F-.A.A._*._*._*._*._*._*._*._*._*.A._*._*._*._*._*.F._._._._._._.A._*._*.A._*._*.A._._.A.A.A\nA._F._F._F._F._F._F._F._F._F._F._F._.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A._._._.A._*._*.A._*._*.A._*._*.A._*._*.A.A.A\nA._F._F._F._F._F._F._F._F._F._F._F._._._._._._._._._._S._S._S._S._S._S._S._S._S._S._S._S.A._*._*._*._*._*._*._*._*._*._*._*.A.A.A\nA._F._F._F._F._F._F._F._F._F._F._F._._._._._._._._._._S._S._S._S._S._S._S._S._S._S._S._S.A._*._*._*._*._*._*._*._*._*._*._*.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A"
   objects:
   - type: box
@@ -160,7 +160,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="vTOJpW2nNaWDCTeZ" uid="floatingF2"
-  - type: obj
+  - type: unit
     id: trap
     definitionId: trap
     definition: {fileID: 11400000, guid: 94236a07ba271e241a7f9bcd11eb093d, type: 2}
@@ -237,7 +237,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="zDm6ssjFryUuPBP3"
-  - type: obj
+  - type: unit
     id: landturret
     definitionId: landturret
     definition: {fileID: 11400000, guid: 61d8cb23a8596bb44a6486e9336cf03e, type: 2}
@@ -316,7 +316,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="jtH71hK76IzLnWlr" allid="a2"
-  - type: obj
+  - type: unit
     id: landturret
     definitionId: landturret
     definition: {fileID: 11400000, guid: 61d8cb23a8596bb44a6486e9336cf03e, type: 2}
@@ -338,7 +338,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="t4XZdOGOPn2XRnry"
-  - type: obj
+  - type: unit
     id: fish
     definitionId: fish
     definition: {fileID: 11400000, guid: f8a75ed607b3a1847a7865d53728974f, type: 2}
@@ -392,7 +392,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="RdceuSjjOtZGAm0M" allact="open" allid="a2"
-  - type: obj
+  - type: unit
     id: fish
     definitionId: fish
     definition: {fileID: 11400000, guid: f8a75ed607b3a1847a7865d53728974f, type: 2}
@@ -403,7 +403,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="bsFOWCKmHiq2lWLG"
-  - type: obj
+  - type: unit
     id: slime
     definitionId: slime
     definition: {fileID: 11400000, guid: e76b1173a8bf9ca48bd556a2a454931e, type: 2}
@@ -414,7 +414,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="WFvc6xZAKiLMwZhO"
-  - type: obj
+  - type: unit
     id: slime
     definitionId: slime
     definition: {fileID: 11400000, guid: e76b1173a8bf9ca48bd556a2a454931e, type: 2}
@@ -462,6 +462,10 @@ MonoBehaviour:
       - act: dam
         targ: floatingA1
         val: 10000
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="latSrgFNGrcuOxMR"
   - type: area
     id: area

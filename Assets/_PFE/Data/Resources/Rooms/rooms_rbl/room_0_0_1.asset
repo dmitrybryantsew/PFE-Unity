@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_0_0_1
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_0_0_1
   sourceCollectionId: rooms_rbl
   type: pass
@@ -140,7 +140,7 @@ MonoBehaviour:
     tileCoord: {x: 27, y: 9}
   - id: pipe3
     tileCoord: {x: 29, y: 9}
-  doorQuality: 020000000200000002000000020000000000000000000000000000000000000000000000000000000000000000000000020000000200000000000000000000000000000000000000020000000000000000000000000000000000000002000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: "C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C\nC._._._._._._._._._.C.CN.C.C.C.C.C.C.CN.CN.CN.C.C.C.C.C.C.CN.CN.CN.C.C.C.C.C.C.CN.C._B._B._B._B._B._B._B._B._B.C\nC._._._._._._._._._.C._N._N._N._N._N._N._N._N._M._M._M._M._M._M._M._M._M._M._M._M._M._N._N._N._N._N.C._B._B._B._B._B._B._B._B._B.C\nC._._._._._._._._._.C._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N.C._B._B._B._B._B._B._B._B._B.C\nC._._._._._._._._._.C._N._N._N._N._N._N._N._N._N._N._._._._._._._N._N._N._._._N._N._N._N._N.C._B._B._B._B._B._B._B._B._B.C\nC._M._M._M._M._M._M._M._M._M.C._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M.C._B._B._B._B._B._B.CB._B._B.C\nC._M._M._M._M._M._M._M._M._M._._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._._B._B._B._B._B._B._B._B._B.C\nC._M._M._M._M._M._M._M._M._M._._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._._B._B._B._B._B._B._B._B._B.C\nC.C.C.C.C.C.C.C.C.C.C.C._-._\u0410-.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C\nB.B.B.B.B.B.B.B.B.B.C.C._._\u0410.C._._._._._._._._._._._._._._._._.C._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B.C\nB.B.B.B.B.B.B.B.B.B.C.C._._\u0410.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B.C\nB.B.B.B.B.B.B.B.B.B.C._._._\u0410._._._._._._._._._._._._._._._._._.C._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B.C\nB.B.B.B.B.B.B.B.B.B.C._._._\u0410._._._._._._._._._._._._._._._._._.C._N._N._N._N._N._N._N-._N-._N-._N-._N-._N-._N-._N-._N-.C\nB.B.B.B.B.B.B.B.B.B.C._M._M._M\u0410._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M.C._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N.C\nB.B.B.B.B.B.B.B.B.B.C._M._M._M\u0410._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N.C\nB.B.B.B.B.B.B.B.B.B.C._M._M._M\u0410._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._M._._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N.C\nC.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C\nB.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B\nB.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B\nB.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B\nB.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B\nB.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B\nB.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B\nB.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B\nB.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B"
   objects:
   - type: box
@@ -193,7 +193,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="hPw7orZ6w8AK2kbV" lock="0" light="1"
-  - type: obj
+  - type: unit
     id: npc
     definitionId: npc
     definition: {fileID: 11400000, guid: 2b067238a37bc224c99b891f75cdd086, type: 2}
@@ -451,7 +451,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="hEOYryZHLDsAGFEG"
-  - type: obj
+  - type: unit
     id: vendor
     definitionId: vendor
     definition: {fileID: 11400000, guid: e79f68a6043bb8a4ebe67cddaf04aa3b, type: 2}
@@ -602,7 +602,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="klITSvngHylm8mn8"
-  - type: obj
+  - type: unit
     id: ponpon
     definitionId: ponpon
     definition: {fileID: 11400000, guid: 11aa3c79d900c4a44a5653fd7ddec042, type: 2}
@@ -617,7 +617,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="CvZ98syjEP75ldVZ" turn="1" tr="19"
-  - type: obj
+  - type: unit
     id: ponpon
     definitionId: ponpon
     definition: {fileID: 11400000, guid: 11aa3c79d900c4a44a5653fd7ddec042, type: 2}
@@ -632,7 +632,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="aBMn11ydgzbj9P12" turn="1" tr="23"
-  - type: obj
+  - type: unit
     id: ponpon
     definitionId: ponpon
     definition: {fileID: 11400000, guid: 11aa3c79d900c4a44a5653fd7ddec042, type: 2}
@@ -647,7 +647,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="XJPdMkDdW7YZP6i9" turn="-1" tr="24"
-  - type: obj
+  - type: unit
     id: ponpon
     definitionId: ponpon
     definition: {fileID: 11400000, guid: 11aa3c79d900c4a44a5653fd7ddec042, type: 2}
@@ -662,7 +662,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="YDETEdvp4EfVW1yz" tr="18"
-  - type: obj
+  - type: unit
     id: ponpon
     definitionId: ponpon
     definition: {fileID: 11400000, guid: 11aa3c79d900c4a44a5653fd7ddec042, type: 2}
@@ -679,7 +679,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="oD1ko45XNxscowPa" uid="buhar" turn="1" tr="25" rep="sortir"
-  - type: obj
+  - type: unit
     id: vendor
     definitionId: vendor
     definition: {fileID: 11400000, guid: e79f68a6043bb8a4ebe67cddaf04aa3b, type: 2}
@@ -694,7 +694,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="SQEorBPjmYlBtriV" turn="-1" npc="vendor_bar"
-  - type: obj
+  - type: unit
     id: ponpon
     definitionId: ponpon
     definition: {fileID: 11400000, guid: 11aa3c79d900c4a44a5653fd7ddec042, type: 2}
@@ -750,6 +750,10 @@ MonoBehaviour:
       - act: tell
         targ: buhar
         val: int
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="GfFHy9mwjI47vyKV" w="9" h="7"
   - type: box
     id: wcup
@@ -795,7 +799,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="IavP9Q1YY9C9aZDw"
-  - type: obj
+  - type: unit
     id: vendor
     definitionId: vendor
     definition: {fileID: 11400000, guid: e79f68a6043bb8a4ebe67cddaf04aa3b, type: 2}

@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: lair
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: lair
   sourceCollectionId: rooms_prob
   type: pass
@@ -148,7 +148,7 @@ MonoBehaviour:
     tileCoord: {x: 7, y: 17}
   - id: chains
     tileCoord: {x: 4, y: 17}
-  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000000000000200000002000000020000000000000002000000020000000200000002000000020000000200000002000000
+  doorQuality: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
   tileDataString: 'B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B
 
     B._._._._._._._._._._._._._._._._._._._._._._._.C._._._._._._._._._._._._._._._._._._.C._._._.B
@@ -223,7 +223,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="SePdvcqjP0MiC6b1"
-  - type: obj
+  - type: unit
     id: raider
     definitionId: raider
     definition: {fileID: 11400000, guid: 78df2015123b4124fa2fdc5977d63f5c, type: 2}
@@ -236,7 +236,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="gDu8NFjemJJIlsVl" tr="1"
-  - type: obj
+  - type: unit
     id: raider
     definitionId: raider
     definition: {fileID: 11400000, guid: 78df2015123b4124fa2fdc5977d63f5c, type: 2}
@@ -249,7 +249,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="nT7EvLWRpVcEv5X3" tr="2"
-  - type: obj
+  - type: unit
     id: raider
     definitionId: raider
     definition: {fileID: 11400000, guid: 78df2015123b4124fa2fdc5977d63f5c, type: 2}
@@ -262,7 +262,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="xdx0m6AzhJ8KY4Xi" tr="3"
-  - type: obj
+  - type: unit
     id: raider
     definitionId: raider
     definition: {fileID: 11400000, guid: 78df2015123b4124fa2fdc5977d63f5c, type: 2}
@@ -275,7 +275,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="x4dT9exherNDnJzP" tr="4"
-  - type: obj
+  - type: unit
     id: raider
     definitionId: raider
     definition: {fileID: 11400000, guid: 78df2015123b4124fa2fdc5977d63f5c, type: 2}
@@ -288,7 +288,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="pcwQwGutryOjME8X" tr="9"
-  - type: obj
+  - type: unit
     id: raider
     definitionId: raider
     definition: {fileID: 11400000, guid: 78df2015123b4124fa2fdc5977d63f5c, type: 2}
@@ -301,7 +301,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="z5epZlsUgk3GF2Yq" tr="5"
-  - type: obj
+  - type: unit
     id: raider
     definitionId: raider
     definition: {fileID: 11400000, guid: 78df2015123b4124fa2fdc5977d63f5c, type: 2}
@@ -314,7 +314,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="Qu4sEAm3Av2eq5jl" tr="7"
-  - type: obj
+  - type: unit
     id: raider
     definitionId: raider
     definition: {fileID: 11400000, guid: 78df2015123b4124fa2fdc5977d63f5c, type: 2}
@@ -331,7 +331,7 @@ MonoBehaviour:
         value: s_rollup
     scripts: []
     parameters: code="GT0f47YCTfwZh9g4" tr="8"
-  - type: obj
+  - type: unit
     id: raider
     definitionId: raider
     definition: {fileID: 11400000, guid: 78df2015123b4124fa2fdc5977d63f5c, type: 2}
@@ -344,7 +344,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="T1DavxQzMUWw7eIN" tr="6"
-  - type: obj
+  - type: unit
     id: raider
     definitionId: raider
     definition: {fileID: 11400000, guid: 78df2015123b4124fa2fdc5977d63f5c, type: 2}
@@ -375,6 +375,10 @@ MonoBehaviour:
       - act: stage
         targ: 
         val: killMadfox
+        n: 1
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="BPaDdsVCymeB1TLP" uid="raidersF1" tr="8" hero="1" emit="3"
       ai="stay" weap="flamer" unres="1" turn="1" name="madfox"
   - type: door
@@ -658,7 +662,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="cTs5g28rxCNpM3FG"
-  - type: obj
+  - type: unit
     id: captive
     definitionId: captive
     definition: {fileID: 11400000, guid: 8358e97a7bcb3694c88de10f204d24d3, type: 2}
@@ -671,7 +675,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="o0Fhi7W9Yi3z1FsU" sr="2"
-  - type: obj
+  - type: unit
     id: captive
     definitionId: captive
     definition: {fileID: 11400000, guid: 8358e97a7bcb3694c88de10f204d24d3, type: 2}
@@ -682,7 +686,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="avOaJi2hwk2oVEgs"
-  - type: obj
+  - type: unit
     id: captive
     definitionId: captive
     definition: {fileID: 11400000, guid: 8358e97a7bcb3694c88de10f204d24d3, type: 2}

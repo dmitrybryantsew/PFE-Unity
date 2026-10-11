@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_3_0_1
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_3_0_1
   sourceCollectionId: rooms_nio
   type: pass
@@ -130,7 +130,7 @@ MonoBehaviour:
     tileCoord: {x: 42, y: 23}
   - id: minkrut
     tileCoord: {x: 31, y: 9}
-  doorQuality: 000000000000000000000000000000000000000002000000020000000200000002000000020000000200000002000000000000000000000002000000000000000000000002000000000000000000000000000000000000000000000000000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: 'B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B
 
     B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B
@@ -273,7 +273,7 @@ MonoBehaviour:
         value: col2
     scripts: []
     parameters: code="dbXbrUXUjl9NP55D"
-  - type: obj
+  - type: unit
     id: rat
     definitionId: rat
     definition: {fileID: 11400000, guid: 91aa9373086f9584dafaf4723062b4a4, type: 2}
@@ -284,7 +284,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="fXIX2jYVLFaSqRbQ"
-  - type: obj
+  - type: unit
     id: rat
     definitionId: rat
     definition: {fileID: 11400000, guid: 91aa9373086f9584dafaf4723062b4a4, type: 2}
@@ -358,7 +358,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="Jykg1YdBIG13sTdA"
-  - type: obj
+  - type: unit
     id: ant
     definitionId: ant
     definition: {fileID: 11400000, guid: e7ae344a7b6006f4da447e86f904bf1c, type: 2}
@@ -369,7 +369,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="cYKvgAaAqmgADUM8"
-  - type: obj
+  - type: unit
     id: ant
     definitionId: ant
     definition: {fileID: 11400000, guid: e7ae344a7b6006f4da447e86f904bf1c, type: 2}
@@ -380,7 +380,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="ITVlanHoq7TEgjAO"
-  - type: obj
+  - type: unit
     id: slime
     definitionId: slime
     definition: {fileID: 11400000, guid: e76b1173a8bf9ca48bd556a2a454931e, type: 2}
@@ -391,7 +391,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="AHSbJJueH90t3e6J"
-  - type: obj
+  - type: unit
     id: slime
     definitionId: slime
     definition: {fileID: 11400000, guid: e76b1173a8bf9ca48bd556a2a454931e, type: 2}
@@ -426,7 +426,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="Z96dcUIGVNI0w1If"
-  - type: obj
+  - type: unit
     id: trap
     definitionId: trap
     definition: {fileID: 11400000, guid: 94236a07ba271e241a7f9bcd11eb093d, type: 2}

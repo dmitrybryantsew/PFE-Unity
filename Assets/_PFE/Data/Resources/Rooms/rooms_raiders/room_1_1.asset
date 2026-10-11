@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_1_1
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_1_1
   sourceCollectionId: rooms_raiders
   type: pass
@@ -46,7 +46,7 @@ MonoBehaviour:
     tileCoord: {x: 39, y: 8}
   - id: hkonstr
     tileCoord: {x: 45, y: 8}
-  doorQuality: 020000000200000000000000000000000000000000000000000000000000000000000000000000000000000000000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: '_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
 
     _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
@@ -112,12 +112,24 @@ MonoBehaviour:
       - act: off
         targ: this
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: off
         targ: surfAR1
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: off
         targ: surfAR2
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="MYIlp9wztnBlbK1Y"
   - type: door
     id: grate
@@ -130,7 +142,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="GUbdngQuPo208YQG"
-  - type: obj
+  - type: unit
     id: slaver
     definitionId: slaver
     definition: {fileID: 11400000, guid: 91392397f716d694e92096340448b372, type: 2}
@@ -167,7 +179,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="oB0Gxrbalxg2wLV9" allid="a1" allact="open"
-  - type: obj
+  - type: unit
     id: mines
     definitionId: mines
     definition: {fileID: 11400000, guid: a5e70dde7c716194cb73575be10afa4c, type: 2}
@@ -178,7 +190,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="WXDT5hI8JeYqZ6Mm"
-  - type: obj
+  - type: unit
     id: mines
     definitionId: mines
     definition: {fileID: 11400000, guid: a5e70dde7c716194cb73575be10afa4c, type: 2}
@@ -200,7 +212,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="skqDeF88DDuENtXl"
-  - type: obj
+  - type: unit
     id: armturret
     definitionId: armturret
     definition: {fileID: 11400000, guid: 485a5442239ff174dafac0f96a1b402d, type: 2}
@@ -215,7 +227,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="mWgDWWKecuV25hV7" turn="-1" tr="7"
-  - type: obj
+  - type: unit
     id: slaver
     definitionId: slaver
     definition: {fileID: 11400000, guid: 91392397f716d694e92096340448b372, type: 2}
@@ -283,9 +295,17 @@ MonoBehaviour:
       - act: alarm
         targ: 
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: off
         targ: this
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="aqhYEahkpiqoljO0" uid="surfAR2" w="4" h="6" allid="a2"
   - type: door
     id: door2

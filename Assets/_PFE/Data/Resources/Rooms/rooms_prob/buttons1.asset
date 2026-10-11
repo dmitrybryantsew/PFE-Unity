@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: buttons1
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: buttons1
   sourceCollectionId: rooms_prob
   type: pass
@@ -52,7 +52,7 @@ MonoBehaviour:
     tileCoord: {x: 8, y: 17}
   - id: light2
     tileCoord: {x: 5, y: 16}
-  doorQuality: 020000000200000000000000000000000000000000000000000000000000000000000000000000000000000002000000020000000000000002000000000000000000000000000000020000000200000002000000020000000200000002000000
+  doorQuality: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
   tileDataString: "A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA._._._._._._._._._._._._._._._._._._._._._._._._._.A._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P.A\nA._._._._._._._._._._._._._._._._._._._._._._._._._._._._O._O._O._._._._._._O._O._O._O._O._._._._._._O.A\nA._._._._._._._._._._._._._._._._._._._._._._._._._._._._O._O._O._._._._._._O._O._O._O._O._._._._._._O.A\nA._._._._._._._._._._._._._._._._._._._._._._._._._._._._O._O._O._._._._._._O._O._O._O._O._._._._._._O.A\nA.A.A.A.A.A.A.A.A.A._._._._._._._._._._._._._._._._._._._O._O._O._._._._._._O._O._O._O._O._._._._._._O.A\nA.A.A.A.A.A.A.A.A.A._._._._._._._._._._._._._._._._._._._O._O._O._._._._._._O._O._O._O._O._._._._._._O.A\nA.A.A.A.A.A.A.A.A.A._._._._._._._._._._._._._._._._._._._O._O._O._._._._._._O._O._O._O._O._._._._._._O.A\nA.A.A.A.A.A.A.A.A.A.A.A.A._\u0411-._-.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA._._._._._._._._._._._._._\u0411._._._._._._._._._.A._.A.A.A.A.A._.A.A.A._.A.A.A._.A.A.A.A.A.A.A.A.A\nA._._._._._._._._._._._._._\u0411._._._._._._._._._.A._.A.A.A.A.A._.A.A.A._.A.A.A._.A.A.A.A.A.A.A.A.A\nA._._._._._._._._._._._._._\u0411._._._._._._._._._._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I.A\nA._._._._._._._._._._._._._\u0411._._._._._._._._._.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A._\u0411-._-.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A._\u0411._._._._._._._._._._._._.A:.A:._._._._._._._._._._._._.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A._\u0411._._._._._._._._._._._._.A.A._._._._._._._._._._._._.A.A.A.A.A.A.A.A\nA.A.A._F._F._F._F._F._F.A.A.A.A._\u0411._._._._._._._._._._._._.A._._._._._._._._._._._._._.A.A.A.A.A.A.A.A\nA.A.A._H._H._H._._._._._H._._._\u0411._._._._._._._._._._._._._._._._._._._._._._._._._._.A.A.A.A.A.A.A.A\nA.A.A._H._H._H._._._._._H._._._\u0411._._._._._._._._._._._._._._._._._._._._._._._._._._.A.A.A.A.A.A.A.A\nA.A.A._H._H._H._._._._._H._._._\u0411._._._._._._._._._._._._.A._._._._._._._._._._._._._.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A._._._._._.A.A.A._._._._._.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A._._._._._.A.A.A._._._._._.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A._._._._._.A.A.A._._._._._.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A._._._._._.A.A.A._._._._._.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A._._._._._.A.A.A._._._._._.A.A.A.A.A.A.A.A"
   objects:
   - type: door
@@ -221,7 +221,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="QFI9Cd83QvPmAQov" indestruct="1"
-  - type: obj
+  - type: unit
     id: wturret
     definitionId: wturret
     definition: {fileID: 11400000, guid: dd3e6fb52f3321e4ebc033e908bae0a5, type: 2}
@@ -251,6 +251,10 @@ MonoBehaviour:
       - act: shoot
         targ: buttons1_a2
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="zotkKTfKVDP3Vv0U" autoclose="60"
   - type: player
     id: player

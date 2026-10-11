@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: w_grif
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: w_grif
   sourceCollectionId: rooms_prob
   type: pass
@@ -52,7 +52,7 @@ MonoBehaviour:
     tileCoord: {x: 10, y: 23}
   - id: musor1
     tileCoord: {x: 16, y: 23}
-  doorQuality: 020000000200000002000000020000000000000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000002000000020000000200000002000000020000000200000002000000
+  doorQuality: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
   tileDataString: "CE.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE\nCE._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E.CE._E._E._E._E._E._C._C._C._C._E._E._E._E._E.CE._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E.CE\nCE._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E.CE._E._E._E._E._E._C._C._C._C._E._E._E._E._E.CE._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E.CE\nC._._._._._._._._._._._._._._._.C._._._._._._C._C._C._C._._._._._.C._._._._._._._._._._._._._._._.C\nC._\u041A._\u041A._._._._._._._._._._._._._\u041A.C._\u041A._._._._._C._S._S._C._._._._._\u041A.C._\u041A._._._._._._._._._._._._._\u041A._\u041A.C\nC._._._._._._._._._._._._._._._._._._._._._._C._S._S._C._._._._._._._._._._._._._._._._._._._._._.C\nC._._._._._._._._._._._._._._._._._._._._._._C._S._S._C._._._._._._._._._._._._._._._._._._._._._.C\nCE._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._C._S._S._C._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E.CE\nCE.CE.CE.CE.CE.CE._E\u041A._E\u041A._E\u041A._E\u0410\u041A.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE._C\u041A._C\u041A._C\u041A._C\u041A.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE._E\u0411\u041A._E\u041A._E\u041A._E\u041A.CE.CE.CE.CE.CE.CE\nCE._E._E._E._E._E._E._E._E._E\u0410._E._E._E._E._E._E.CE._E._E._E._E._E._C._C._C._C._E._E._E._E._E.CE._E._E._E._E._E._E._E\u0411._E._E._E._E._E._E._E._E.CE\nCE._E._E._E._E._E._E._E._E._E\u0410._E._E._E._E._E._E.CE._E._E._E._E._E._C._C._C._C._E._E._E._E._E.CE._E._E._E._E._E._E._E\u0411._E._E._E._E._E._E._E._E.CE\nC._._._._._._._._._\u0410._._._._._._.C._._._._._._C._C._C._C._._._._._.C._._._._._._._\u0411._._._._._._._._.C\nC._\u041A._\u041A._._._._._._._\u0410._._._._._._\u041A.C._\u041A._._._._._C._C._C._C._._._._._\u041A.C._\u041A._._._._._._\u0411._._._._._._._\u041A._\u041A.C\nC._._._._._._._._._._._._._._._._._._._._._._C._C._C._C._F._F._F._._._._._._._._._._._._._._._._._._.C\nC._._._._._._._._._._._._._._._._._._._._._._C._C._C._C._F._F._F._._._._._._._._._._._._._._._._._._.C\nCE._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._C._C._C._C._F._F._F._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E.CE\nCE.CE.CE.CE.CE.CE._E\u0411\u041A._E\u041A._E\u041A._E\u041A.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE._C\u041A._C\u041A._C\u041A._C\u041A.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE._E\u041A._E\u041A._E\u041A._E\u0410\u041A.CE.CE.CE.CE.CE.CE\nCE._E._E._E._E._E._E\u0411._E._E._E._E._E._E._E._E._E.CE._E._E._E._E._E._C._C._C._C._E._E._E._E._E.CE._E._E._E._E._E._E._E._E._E._E\u0410._E._E._E._E._E.CE\nCE._E._E._E._E._E._E\u0411._E._E._E._E._E._E._E._E._E.CE._E._E._E._E._E._C._C._C._C._E._E._E._E._E.CE._E._E._E._E._E._E._E._E._E._E\u0410._E._E._E._E._E.CE\nC._._._._._._\u0411._._._._._._._._._.C._._._._._._C._C._C._C._._._._._.C._._._._._._._._._._\u0410._._._._._.C\nC._\u041A._\u041A._._._._\u0411._._._._._._._._._\u041A.C._\u041A._._._._._C._S._S._C._._._._._\u041A.C._\u041A._._._._._._._._._\u0410._._._._\u041A._\u041A.C\nC._._._._._._._._._._._._._._._._._._._._._._C._S._S._C._._._._._._._._._._._._._._._._._._._._._.C\nC._._._._._._._._._._._._._._._._._._._._._._C._S._S._C._._._._._._._._._._._._._._._._._._._._._.C\nCE._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._C._S._S._C._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E.CE\nC.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C"
   objects:
   - type: box
@@ -206,6 +206,10 @@ MonoBehaviour:
       - act: wave
         targ: 
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="MsQRNlxmdQ9PwJ22" autoclose="30"
   - type: box
     id: woodbox

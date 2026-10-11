@@ -11,14 +11,14 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: "\u0441\u0442\u043E\u043A\u04382\u0437\u0430\u0434"
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: "\u0441\u0442\u043E\u043A\u04382\u0437\u0430\u0434"
   sourceCollectionId: rooms_canter
   type: back
   fixedPosition: {x: 0, y: 0, z: 0}
   difficultyLevel: 0
   maxInstances: 2
-  allowRandom: 1
+  allowRandom: 0
   specificMapOnly: 0
   backgroundRoomId: 
   backgroundDecorations:
@@ -112,7 +112,7 @@ MonoBehaviour:
     tileCoord: {x: 38, y: 9}
   - id: potek
     tileCoord: {x: 0, y: 1}
-  doorQuality: 000000000000000000000000000000000000000000000000020000000200000000000000000000000000000000000000020000000200000000000000020000000200000002000000020000000200000002000000020000000200000000000000
+  doorQuality: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
   tileDataString: "Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.H.H.H.H.H.H.H.H\nQ._._H._H._H._H._._._._.Q._._._._._._._._.Q._._._._._._._._.Q._._._._._._._._.Q.Q.Q.H.H.H.H.H.H.H.H\nQ._._H._H._H._H._._._._.Q._._._._._._._._.Q._._._._._._._._.Q._._._._._._._._.Q.Q.Q.H.H.H.H.H.H.H.H\nQ._._H._H._H._H._._._._.Q._._._._._._._._.Q._._._._._._._._.Q._._._._._._._._.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q\nQ._._H._H._H._H._._._._.Q._._._._._._._._.Q._._._._._._._._.Q._._._._._._._._.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q\nQ._._H._H._H._H._._._._.Q._._._._._._._._.Q._._._._._._._._.Q._._._._._._._._.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q\nQ._._H._H._H._H._._._._._._._._._._._S._S._S.Q._._._._._._._._.Q._._._._._._._._._._W._W._W._W._W._W.Q.Q.Q.Q\nQ._._H._H._H._H._._._._._._._._._._._S._S._S.Q._._._._._._._._.Q._F._F._F._._._._._._._W._W._W._W._W._W.Q.Q.Q.Q\nQ.M._T\u0411._T._T._T.M.M.M.M.Q.Q.Q.M._._.M.M.M.M.M.M.M._._.M.M.M.M.M.M.M._._.M.Q.Q.Q._F-._F-._W\u0411._W._W._W.Q.Q.Q.Q\nQ.M._T\u0411._T._T._T._T._T._T.M.Q.Q.Q.M._T*._T*._T*._T*._T*._T*._T*._T*._T*._T*._T*._T*._T*._T*._T*._T*._T*._T*._T*._T*.M.Q.Q.Q._F._F._W\u0411._W._W._W.Q.Q.Q.Q\nQ.M._T\u0411._T._T._T._T._T._T.M.Q.Q.Q.M._T*._T*._T*._T*._T*._T*._T*._T*._T*._T*._T*._T*._T*._T*._T*._T*._T*._T*._T*._T*.M.Q.Q.Q._F._F._W\u0411._W._W._W.Q.Q.Q.Q\nQ.M._T*._T*._T*._T*.M._T\u0411._T.M.Q.Q.Q.M.M.M.M.M.M.M.M.M.M._T*._T*.M.M.M.M.M.M.M.M.M.M.Q.Q.Q._F._F._W\u0411._W._W._W.Q.Q.Q.Q\nQ.M.M.M.M.M.M._T\u0411._T.M.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.M._T*._T*.M.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q._F._F._W\u0411._W._W._W.Q.Q.Q.Q\nQ._T._T._T._T._T._T._T\u0411._T.M.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.M._T*._T*.M.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q\nQ._T._T._T._T._T._T._T\u0411._T.M.M.M.M.M.M.Q.Q.Q.Q.Q.Q.Q.M._T*._T*.M.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q\nQ._T._T\u0410.M._T*._T*._T*._T\u0411*._T*.M._T._T._T._T._._V._V.Q.Q.Q.Q.Q.M.M.M.M.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q\nQ._T._T\u0410.M._T*._T*._T*._T*._T*.M._T._T._T._T._._V._V.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q\nQ._T._T\u0410.M.M.M.M.M.M.M._T._T._T._T.M._V\u0411._V.Q.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.Q\nQ._T._T\u0410._T._T._T._T._T._T._T._T._T._T._T.M._V\u0411._V.Q.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.Q\nQ._T*._T*._T*._T*._T*._T*._T*._T*._T*._T*._T*._T*._T*.M._V\u0411._V.Q.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.Q\nQ.M.M.M.M.M.M.M.M.M.M.M.M.M.M._V\u0411._V.Q.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.Q\nQ._V._V._V._V._V._V._V._V._V._V._V._V._V._V._V\u0411._V.Q.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.Q\nQ._V._V._V._V._V._V._V._V._V._V._V._V._V._V._V\u0411._V.Q.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.Q\nQ._V._V._V._V._V._V._V._V._V._V._V._V._V._V._V\u0411._V.Q.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.Q\nQ.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q"
   objects:
   - type: door

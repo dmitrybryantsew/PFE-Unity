@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_2_0
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_2_0
   sourceCollectionId: rooms_comm
   type: pass
@@ -196,7 +196,7 @@ MonoBehaviour:
     tileCoord: {x: 45, y: 8}
   - id: light7
     tileCoord: {x: 45, y: 10}
-  doorQuality: 020000000200000002000000020000000000000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000002000000020000000200000002000000020000000200000002000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: "SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF.SF\nSF._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F.SF\nSF._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F.SF\nSF._F._F._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._Y._F._F.SF\nSF._F._F._Y._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._Y._F._F.SF\nSF._F._F._Y._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._Y._F._F.SF\nSF._F._F._Y._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._Y._F._F.SF\nSF._F._F._Y._._._._._._._._._._._._._._._._.TF.TF.TF.TF.TF.TF.TF.TF._._._._._._._._._._._._._._._._._Y._F._F.SF\nSF._F._F._Y._._._._._._._._._._._._._Y._Y._Y._Y.TF._F._F._F._F._F._F.TF._Y._Y._Y._Y._._._._._._._._._._._._._Y._F._F.SF\nSF._F._F._Y._._._._._._._._._._._._._Y.TZ.TZ.TZ.TF._F._F._F._F._F._F.TF.TZ.TZ.TZ._Y._._._._._._._._._._._._._Y._F._F.SF\nSF._F._F._Y._._._._._._._._._._._._._Y._Z._Z._Z._F._F._F._F._F._F._F._F._Z._Z._Z._Y._._._._._._._._._._._._._Y._F._F.SF\nSF._F._F._Y._._._._._._._._._._._._._Y._Z._Z._Z._F._F._F._F._F._F._F._F._Z._Z._Z._Y._._._._._._._._._._._._._Y._F._F.SF\nSF._F._F._Y._._._._._._._._._._._._._Y._Z._Z._Z._F._F._F._F._F._F._F._F._Z._Z._Z._Y._._._._._._._._._._._._._Y.SF.SF.SF\n_Y._Y._Y._Y._._._._._._._._._._._._._Y._Z._Z._Z._F._F._F._F._F._F._F._F._Z._Z._Z._Y._._._._._._._._._._._._._Y._Y._Y._Y\n_Y._Y._Y._Y._._._._._._._._._._._._._Y._Z._Z._Z._F._F._F._F._F._F._F._F._Z._Z._Z._Y._._._._._._._._._._._._._Y._Y._Y._Y\n_Y._Y._Y._Y._._._._._._._._._._._._._Y._Z._Z._Z._F._F._F._F._F._F._F._F._Z._Z._Z._Y._._._._._._._._._._._._._Y._Y._Y._Y\nSF.SF.SF.S.S.S._._._._._._._._._._._Y.SZ.SZ.SZ.SF.SF.SF.SF.SF.SF.SF.SF.SZ.SZ.SZ._Y._._._._._._._._._._.S.S.SY.SF.SF.SF\nSF._F._F._Y._._._._._._._._._._._._._Y._F._F._F._F._F.TY._Y._Y.TY._F._F._F._F._F._Y._._._._._._._._._._._._._Y._F._F.SF\nSF._F._F._Y._._._._._._._._._._._._._Y._F._F._F._F._F.TY._Y._Y.TY._F._F._F._F._F._Y._._._._._._._._._._._._._Y._F._F.SF\nSF._F._F._Y._._._._._._._._._._._._._Y._F._F._F._F._F.TY._Y._Y.TY._F._F._F._F._F._Y._._._._._._._._._._._._._Y._F._F.SF\nSF._F._F._Y._Y\u0420._Y\u0420._Y\u0420._Y\u0420._Y\u0420._Y\u0420._Y\u0420._Y\u0420._Y\u0420._Y\u0420._Y\u0420._Y\u0420._Y._F._F._F._F._F.TY._Y._Y.TY._F._F._F._F._F._Y._Y\u0420._Y\u0420._Y\u0420._Y\u0420._Y\u0420._Y\u0420._Y\u0420._Y\u0420._Y\u0420._Y\u0420._Y\u0420._Y\u0420._Y._F._F.SF\nSF._F._F._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._F._F._F._F._F.TY._Y._Y.TY._F._F._F._F._F._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._F._F.SF\nSF._F._F._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._F._F._F._F._F._Y._Y._Y._Y._F._F._F._F._F._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._F._F.SF\nSF._F._F._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._F._F._F._F._F._Y._Y._Y._Y._F._F._F._F._F._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._Z._F._F.SF\nSF.SF.SF.S.S.S.S.S.S.S.S.S.S.S.S.S.S.SF.SF.SF.SF.SF.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.S.SF.SF.SF"
   objects:
   - type: area
@@ -227,7 +227,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="XVkFs7KL1jGsRp8W" key="key_encl" lock="25"
-  - type: obj
+  - type: unit
     id: encl
     definitionId: encl
     definition: {fileID: 11400000, guid: bd63e94e2cdd9b64baa1344275d633d8, type: 2}

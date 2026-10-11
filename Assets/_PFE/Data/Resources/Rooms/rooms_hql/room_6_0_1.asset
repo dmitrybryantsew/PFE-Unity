@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_6_0_1
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_6_0_1
   sourceCollectionId: rooms_hql
   type: pass
@@ -118,7 +118,7 @@ MonoBehaviour:
     tileCoord: {x: 32, y: 9}
   - id: bvent
     tileCoord: {x: 22, y: 9}
-  doorQuality: 020000000200000002000000020000000000000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000002000000020000000200000002000000020000000200000002000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: "C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.C.C.C.C.C.C.C.C.C.C.C\nC._._._._._._._._._._._._._.E._._._._._.AF._F._F._F._F._F._F.AF._F._O._O._F._F._F._F._F.A._E._E._E._E._E._E._E._E._E._E.C\nC._._._._._._._._._._._._._.E._._._._._.AF._F._F._F._F._F._F.AF._F._O._O._F._F._F._F._F.A._E._E._E._E._E._E._E._E._E._E.C\nC._._._._._._._._._._._._._.E._._._._._.AF._F._F._F._F._F._F.AF._F._O._O._F._F._F._F._F.A._E._E._E._E._E._E._E._E._E._E.C\nC._._._._._._._._._._._._._._._._._._._._F._F._F._F._F._F._F._F._F._O._O._F._F._F._F._F.A._E._E._E._E._E._E._E._E._E._E.C\nC._._._._._._._._._._._._._._._._._._._._F._F._F._F._F._F._F._F._F._O._O._F._F._F._F._F.A._E._E._E._E._E._E._E._E._E._E.C\nC._._._._._._._._._\u0412._-._-._-._-.E.E.E.E.E.E.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.EE.EE.EE.EE.EE.EE.EE.EE.EE.EE.C\nC._._._._._._._._\u0412._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.C\nC._._._._._._._\u0412._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.C\nC._._._._._._\u0412._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.C\nC._-._-._-._-._-._\u0413._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.C\nC._._._._._._._\u0413._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.C\nC._._._._._._._._\u0413._._._._._._._._._._._._-._O-._O-._O-._O-._O-._O-._-._._._._._._._._._._._._._._._._._._._.C\nC._._._._._._._O._O._\u0413._._._._._._._._._._._._O._O._O._O._O._O._._._._._._._O._O._._._._._._._._._._._._.C\nC._._._._._._._O._O._._\u0413._._._._._._._._._._._O._O._O._O._O._O._._._._._._._O._O._._._._._._._._._._._._.C\nC._._._._._._._O._O._._._\u0413._._._._._._._._._._O._O._O._O._O._O._._._._._._._O._O._._._._._._._._._._._._.C\nC.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._._.C.C.C\nC._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.C\nC._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._O._O._O._O._.C\nC._._._._._._-._-._-._-._._._-._-._-._-._._._-._-._-._-._._._._._._._._._._._._._._._._._._._._._O._O._O._O._.C\nC._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\u0412._-._-._-._-.B.B.B.B.B.B.B.B\nC._._._._._._._._._._._._._O._O._._._._._._._._._._._._._._._._._._._._\u0412._._._._._.B._C._C._C._C._C._C.B\nC._._._._._._._._._._._._._O._O._._._._._._._._._._._._._._._._._._._\u0412._._._._._._._._C._C._C._C._C._C.B\nC._._._._._._._._._._._._._O._O._._._._._._._._._._._._._._._._._._\u0412._._._._._._._._._C._C._C._C._C._C.B\nC.C.C.C.C.C._-._-._-._-.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.B.B.B.B.B.B.B.B"
   objects:
   - type: door
@@ -248,7 +248,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="H1ibpia16UobcJb6" open="1"
-  - type: obj
+  - type: unit
     id: zebra
     definitionId: zebra
     definition: {fileID: 11400000, guid: 83d3603e3c2ea644f8e61c5637414bca, type: 2}
@@ -261,7 +261,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="VaMRwpm6iUWMH1yR" tr="5"
-  - type: obj
+  - type: unit
     id: zebra
     definitionId: zebra
     definition: {fileID: 11400000, guid: 83d3603e3c2ea644f8e61c5637414bca, type: 2}
@@ -272,7 +272,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="Si1d92VgmUtU8F9L"
-  - type: obj
+  - type: unit
     id: zebra
     definitionId: zebra
     definition: {fileID: 11400000, guid: 83d3603e3c2ea644f8e61c5637414bca, type: 2}
@@ -283,7 +283,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="TlbHppHOszsjZQCl"
-  - type: obj
+  - type: unit
     id: zebra
     definitionId: zebra
     definition: {fileID: 11400000, guid: 83d3603e3c2ea644f8e61c5637414bca, type: 2}
@@ -294,7 +294,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="g50nCKJZp6mxso2s"
-  - type: obj
+  - type: unit
     id: zebra
     definitionId: zebra
     definition: {fileID: 11400000, guid: 83d3603e3c2ea644f8e61c5637414bca, type: 2}
@@ -307,7 +307,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="S7tmWAZ1yGpnwckf" tr="5"
-  - type: obj
+  - type: unit
     id: zebra
     definitionId: zebra
     definition: {fileID: 11400000, guid: 83d3603e3c2ea644f8e61c5637414bca, type: 2}
@@ -318,7 +318,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="EAy5GaDg8F61N4pq"
-  - type: obj
+  - type: unit
     id: zebra
     definitionId: zebra
     definition: {fileID: 11400000, guid: 83d3603e3c2ea644f8e61c5637414bca, type: 2}
@@ -329,7 +329,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="XFn8brC3nLmvfPfq"
-  - type: obj
+  - type: unit
     id: zebra
     definitionId: zebra
     definition: {fileID: 11400000, guid: 83d3603e3c2ea644f8e61c5637414bca, type: 2}

@@ -11,14 +11,14 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: "\u043A\u0430\u043C\u0435\u0440\u044B.\u0437\u0430\u0434"
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: "\u043A\u0430\u043C\u0435\u0440\u044B.\u0437\u0430\u0434"
   sourceCollectionId: rooms_mbase
   type: back
   fixedPosition: {x: 0, y: 0, z: 0}
   difficultyLevel: 0
   maxInstances: 2
-  allowRandom: 1
+  allowRandom: 0
   specificMapOnly: 0
   backgroundRoomId: 
   backgroundDecorations:
@@ -80,7 +80,7 @@ MonoBehaviour:
     tileCoord: {x: 5, y: 13}
   - id: vents
     tileCoord: {x: 1, y: 2}
-  doorQuality: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002000000000000000200000002000000020000000200000000000000000000000000000000000000000000000000000000000000
+  doorQuality: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
   tileDataString: "O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O\nO.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O\nO._I._I._I._I._I._I.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O\nO._I._I._I._I._I._I.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O\nO.O.O.O.O._I._I.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O\nO.O.O.O.O._I._I.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O\nO._I._I._I._I._I._I.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O\nO._I._I._I._I._I._I.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O\nO._I.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O\nO._I.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O._O._O._O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O\nO._I.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O._O._O._O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O\nO._I.I.I.I.I.I.I.I.I.I.I.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O._F._F._F.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O\nO._I.I._D._D._D._D._D._D._D._D.I.O.O.O.O.O.O._._._._._._._._._._._._._._._._._._._._._._._._._._._._.O.O\nO._I.I._D._D._D._D._D._D._D._D.I.O.O.O._O._O.O._._._._._._._._._._._._._._._._._._._._._._._._._._._._.O.O\nO._I.I._D._D._D._D._D._D._D._D.I.O.O.O._O._O._F._._._._._._._._._._._._._._._._._._._._._._._._._._._._.O.O\nO._I.I._D._D._D._D._D._D._D._D.I.O.O.O._O._O.O._._._._._._._._._._._._._._._._._._._._._._._._._._._._.O.O\nO._I.I.I.I.I._._.I.I.I.I.O.O.O._I\u0415._I\u0415.O._._._._._._._._._._._._._._._._._.O:.O;.O,.O._F\u0415._F\u0415.O.O.O._F\u0415._F\u0415.O.O\nO._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I.O._._._._._._._._._._._._._.O:.O;.O,.O.O.O.O.O._O._O.O.O.O._O._O.O.O\nO.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O._._._._._._._._._.O:.O;.O,.O.O.O.O.O.O.O.O.O._O._O._._._._O._O.O.O\nO.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O._._._._._.O:.O;.O,.O.O.O.O.O.O.O.O.O.O.O.O.O._O._O._._._._O._O.O.O\nO.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O._F\u0415._F\u0415.O.O.O._F\u0415._F\u0415.O.O\nO.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O._._.O.O.O._._.O.O\nO.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O._._._._._._._.O.O\nO.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O._._._._._._._.O.O\nO.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O"
   objects:
   - type: box
@@ -204,7 +204,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="ZhAfjzk8WtagXplo"
-  - type: obj
+  - type: unit
     id: turret
     definitionId: turret
     definition: {fileID: 11400000, guid: f2ca5afcb9555924892e03a0eceb5802, type: 2}
@@ -215,7 +215,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="owM9SmZ761YerlSR"
-  - type: obj
+  - type: unit
     id: armturret
     definitionId: armturret
     definition: {fileID: 11400000, guid: 485a5442239ff174dafac0f96a1b402d, type: 2}

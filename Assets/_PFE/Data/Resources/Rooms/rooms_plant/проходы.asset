@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: "\u043F\u0440\u043E\u0445\u043E\u0434\u044B"
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: "\u043F\u0440\u043E\u0445\u043E\u0434\u044B"
   sourceCollectionId: rooms_plant
   type: pass
@@ -30,7 +30,7 @@ MonoBehaviour:
     tileCoord: {x: 2, y: 21}
   - id: door
     tileCoord: {x: 44, y: 5}
-  doorQuality: 000000000200000000000000000000000000000002000000020000000200000002000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+  doorQuality: 000000000300000000000000000000000300000000000000040000000400000002000000000000000000000002000000020000000000000002000000000000000300000002000000000000000200000000000000020000000000000000000000
   tileDataString: "G.G.G.G.G._._.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G._._.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.D._C\u0411._C.D.G.G.G.G\nG.G.G.G.G._A._A.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G._A._A.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.D._C\u0411._C.D.G.G.G.G\n_._A._A._A._A._A._A._A._A._A._A._A.G.G.G.G.G.G.G.G.G.G.G._A._A.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.D._C\u0411._C.D.G.G.G.G\n_._A._A._A._A._A._A._A._A._A._A._A.G.G.G.G.G.G.G.G.G.G.G._A._A.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.D._C\u0411._C.D.G.G.G.G\nG.G.G.E.E.G.G.G.G.G.EA.EA.G.G.G.G.G.G.G.G.G.G.G._A._A.G.G.G.G.G.G.G.G.G.G.D.D.D.D.D.D._C\u0411._C.D.D.D.D.D\nG.G.G._A._A.G.G.G.G.G._A._A.G.G.G.G.GA.GA._A._A._A._A._A._A._A._A._A._A._A._A._A.G.G.G.G.D._C._C._C._C._C._C\u0411._C._C._C._C._C._\n_._A._A._A._A.G.G.G.G.G._A._A.G.G.G.G.GA._A._A._A._A._A._A._A._A._A._A._A._A._A._A.G.G.G.G.D._C._C._C._C._C._C\u0411._C._C._C._C._C._\n_._A._A._A._A.G.G.G.G.G._A._A.G.G.G.G._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A.G.G.G.G.D._C._C._C._C._C._C\u0411._C._C._C._C._C._\nG.G.G.G.G.G.G.G._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A.G.G.G.G.D._C._C\u0410.D.D.D.D.D.D.D.D.D.D\nG.G.G.G.G.G.G.G._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A.G.G.G.G.D._C._C\u0410.D.G.G.G.G.G.G.G.G.G\nG.G.G.G.G.G.G.G._A._A\u0410.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.D._C._C\u0410.D.G.G.G.G.G.G.G.G.G\nG.G.G.G.G.G.G.G._A._A\u0410.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.D._C._C\u0410.D.G.G.G.G.G.G.G.G.G\nG.G.G.G.G.G.G.G._A._A\u0410.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.D._C._C\u0410.D.G.G.G.G.G.G.G.G.G\nG.G.G.G.G.G.G.G._A._A\u0410.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.D._C._C\u0410.D.G.G.G.G.G.G.G.G.G\n_._A._A._A._A._A._A._A._A._A\u0410.EA.EA._A._A._A._A.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.D._C._C\u0410.D.G.G.G.G.G.G.G.G.G\n_._A._A._A._A._A._A._A._A._A\u0410.EA.EA._A._A._A._A.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.D._C._C\u0410.D.G.G.G.G.G.G.G.G.G\nG.G.G.G.G.G.G.G.G.G.G.G.G.G._A._A.G.G.G.G.G.G.D.D.D.D.D.D.D.D.D.D.D.D.D.D._C._C\u0410.D.D.D.D.D.D.D.D.D.D\nG.G.G.G.G.G.G.G.G.G.G.G.G._A._A._A._A.G.G.G.G.G.D._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C\u0410._C._C._C._C._C._C._C._C._C._C\nG.G.G.G.G.G.G.G.G.G.G.G.G._A._A._A._A.G.G.G.G.G.D._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C\u0410._C._C._C._C._C._C._C._C._C._C\nG.G.G.G.G.G.G.G.G.G.G.G.G._A._A._A._A.G.G.G.G.G.D._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C\u0410._C._C._C._C._C._C._C._C._C._C\nG.G.G.G.G.G.G.G.G.C.C.C.C.E.E.E.E.C.C.C.C.G.D._C._C\u0410.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D\n_._C._C._C._C._C._C._C._C.DC._C._C._C._C._C._C._C._C._C._C.C.G.D._C._C\u0410.D.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G\n_._C._C._C._C._C._C._C._C.DC._C._C._C._C._C._C._C._C._C._C.C.G.D._C._C\u0410.D.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G\n_._C._C._C._C._C._C._C._C.DC._C._C._C._C._C._C._C._C._C._C.C.G.D._C._C\u0410.D.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G\nC.C.C.C._-._-._-._-.C.C.C.C.C._-._-._-._-.C.C.C.C.C.D._._\u0410.D.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G"
   objects:
   - type: box
@@ -339,7 +339,7 @@ MonoBehaviour:
     musicTrack: music_plant_1
     colorScheme: black
     backgroundColorScheme: 
-    backgroundWall: 
+    backgroundWall: tBackWall
     backgroundForm: 0
     transparentBackground: 0
     hasSky: 0

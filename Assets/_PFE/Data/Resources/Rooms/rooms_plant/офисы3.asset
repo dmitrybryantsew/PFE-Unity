@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: "\u043E\u0444\u0438\u0441\u044B3"
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: "\u043E\u0444\u0438\u0441\u044B3"
   sourceCollectionId: rooms_plant
   type: pass
@@ -170,7 +170,7 @@ MonoBehaviour:
     tileCoord: {x: 5, y: 20}
   - id: clock
     tileCoord: {x: 26, y: 6}
-  doorQuality: 000000000200000000000000020000000200000002000000020000000200000002000000020000000200000002000000000000000200000002000000020000000000000000000000020000000200000002000000020000000200000002000000
+  doorQuality: 030000000300000000000000030000000000000003000000020000000400000002000000000000000400000003000000000000000000000002000000000000000200000002000000020000000000000002000000020000000000000000000000
   tileDataString: "A.A.A.A.A._A._A.A.A.A.A.A.A.A._A._A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A._A._A.A.A.A.A.A.A.A._A._A.A.A.A.A.A\n_D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D\n_D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D\n_D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D\nA.C.C.C.C.C.C.C.C.C._._.C.C.C.C.C.C.C.C.C.C.C.C._._.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.A\nA.C.C.C.C.C.C.C._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J.C._._._._._._._._._.C._._._._._._._._._\nA._I._I._I._I._I._I._I._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J.C._._._._._._._._._.C._._._._._._._._._\nA._I._I.C.C.C.C.C._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._._._._._._._._._._._._._._._._._._._._\nA._I._I.C.C.C.C.C._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._._._._._._._._._._._._._._._.C.C.C.C.A\nA._I._I._I._I._I._I.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._-._-._-._-._-._-._\u0412._-._-.C.C.C.C.C.C.C.C.C.A\nA._I._I._I._I._I._I.C.C.C.C._B._B._B._B._B._B._B._B.C._._._._._._._._._._._._._._._\u0412._._._.C.C.C.C.C.C.C.C.C.A\nA._I._I.C.C._I._I.C.C.C.C._B._B._B._B._B._B._B._B.C._._._._._._._._._._._._._._\u0412._._._._.C.C.C.C.C.C.C.C.C.A\nA._I._I.C.C._I._I._I._I._I._I._B._B._B._B._B._B._B._B.C._._._._._._._._._._._._._\u0412._._._._._.C.C.C.C.C.C.C.C.C.A\nA._I._I.C.C.C.C.C.C.C.C._B._B._B._B._B._B._B._B.C._._._._._._._._._._._._\u0412._._._._._._.C.C.C.C.C._D._D._D._D._A\n_I._I._I._I._I._I.C.C.C.C.C.C.C.C.C.C.C.C.C.C._._._._._._._\u0412._-._-.D.D.D.D.C.C.C.C.C.C.C.C.C.C._D._D._D._D._A\n_I._I._I._I._I._I.C.C.C.C.C._._._._._._._._._._._._._._._\u0412._._._.E.D.D.C.C.C.C.C.C.C.C.C.C.C._D._D._D._D._A\nA.C.C.C._I._I.C.C.C.C.C._._._._._._._._._._._._._._\u0412._._._._.E.E._C._C._C._C._C._G._C._C._C._C._G._C._C._C\u0410._C-._C-.A\nA.C.C.C._I._I.C.C.C.C.C._._._._._._._._._._._._._\u0412._._._._._.FA.FA._C._C._C._C._C._G._C._C._C._C._G._C._C._C\u0410._C._C.A\nA.C.C.C._I._I._I._I._I._I._I._._._._._._._._._._._._\u0412._._._._._._.FA.EA._C._C._C._C._C._G._C._C._C._C._G._C._C._C\u0410._C._C.A\nA.C.C.C.C.C.C.C.C.C.C._._._._._._._\u0412._-._-.C.C.C.C.C.D.D.C.D.D.D._H\u0411._H.C.C.C.C.C.C.C.C.C.C.C.C._H._H\u0410.A\nA._B._B._B._B._B._B._B._B._B.C._._._._._._\u0412._._._.C._B._B._B._B._B._B._B._B._B.D._H\u0411._H.C.C.C.C.C.C.C.C.C.C.C.C._H._H\u0410.A\nA._B._B._B._B._B._B._B._B._B.C._._._._._\u0412._._._._.C._B._B._B._B._B._B._B._B._B.D._H\u0411._H._._._._._._._._._._._._._H._H\u0410._A\n_A._B._B._B._B._B._B._B._B._B._._._._._\u0412._._._._._._._B._B._B._B._B._B._B._B._B.C._H\u0411._H._._._._._._._._._._._._._H._H\u0410._A\n_A._B._B._B._B._B._B._B._B._B._._._._\u0412._._._._._._._._B._B._B._B._B._B._B._B._B.D._H\u0411._H._._._._._._._._._._._._._H._H\u0410._A\nA.A.A.A.A._A-._A-.A.A.A.A.A.A._-._-._-._-.A.A.A.A.A.A._A-._A-.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A._A-._A-._A-._A-.A.A.A.A"
   objects:
   - type: door
@@ -699,7 +699,7 @@ MonoBehaviour:
     musicTrack: music_plant_1
     colorScheme: 
     backgroundColorScheme: 
-    backgroundWall: 
+    backgroundWall: tBackWall
     backgroundForm: 0
     transparentBackground: 0
     hasSky: 0

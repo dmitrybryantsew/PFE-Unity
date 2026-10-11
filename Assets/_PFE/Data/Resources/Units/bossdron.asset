@@ -129,9 +129,11 @@ MonoBehaviour:
   - weaponId: dronmlau
     chance: 1
     difficulty: 0
+    isFixedWeapon: 1
   - weaponId: drongr
     chance: 1
     difficulty: 0
+    isFixedWeapon: 1
   animations:
     stay:
       row: 0

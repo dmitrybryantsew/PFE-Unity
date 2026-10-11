@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_9_3
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_9_3
   sourceCollectionId: rooms_surf
   type: pass
@@ -60,7 +60,7 @@ MonoBehaviour:
     tileCoord: {x: 5, y: 5}
   - id: skel
     tileCoord: {x: 43, y: 5}
-  doorQuality: 000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: 'G.G.G.G.G.G.G.G.GA.GA.DA.DA.DA.DA.DA.DA.DA.DA.DA.DA.DA.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G._A._A.G.G.G.G.G
 
     G.G.DE.DE.DE.DE.DE.DE.DA.DA.DA.DA.DA.DA.DA.DA.DA.DA.DA.DA.DA.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G._A._A.G.G.G.G.G
@@ -221,7 +221,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="tfbcGFRf1SeHigea"
-  - type: obj
+  - type: unit
     id: scorp
     definitionId: scorp
     definition: {fileID: 11400000, guid: f9d80b2df85d5424fac08f8479002729, type: 2}
@@ -232,7 +232,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="i7hPYQOvkpPHR0fw"
-  - type: obj
+  - type: unit
     id: scorp
     definitionId: scorp
     definition: {fileID: 11400000, guid: f9d80b2df85d5424fac08f8479002729, type: 2}

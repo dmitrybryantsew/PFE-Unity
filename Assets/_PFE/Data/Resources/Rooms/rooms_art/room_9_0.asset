@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_9_0
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_9_0
   sourceCollectionId: rooms_art
   type: pass
@@ -150,7 +150,7 @@ MonoBehaviour:
     tileCoord: {x: 24, y: 22}
   - id: depot
     tileCoord: {x: 1, y: 12}
-  doorQuality: 000000000200000000000000000000000000000000000000020000000200000002000000020000000200000002000000000000000200000002000000020000000200000002000000000000000000000000000000000000000000000000000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: "O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O\nO.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O\nO.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O\nO.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O\nO.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O\nO._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._U._U._U._U._U._U._U._U._U._U._U._U._U.O._U._U._U._U\nO._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._U._U._U._U._U._U._U._U._O._U._U._O._U._U._U._U._U._U\nO._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._U._U._U._U._U._U._U._U._U._U._O._O._U._U._U._U._U._U\nO._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._U._U._U._U._U._U._U._U._U._U._O._O._U._U._U._U._U._U\nO._U\u0415._U\u0415._U\u0415._U\u0415._U\u0418._U\u0415._U\u0415._U\u0415._U\u0415.O.O.O.O.O.O.O.O.O.O.O._\u0415._\u0415._\u0419._\u0415._\u0415._\u0415._\u0415._\u0415._\u0415.O.O.O.O.O.O.O.O._I\u0415.O.O.O.O.O.O.O.O.O\nO._U._U._U._U\u0418._U._U._U._U._U.O._._._._._._._._._._._._._._\u0419._._._._._.O.O.O.O.O.O.O.O._I._I._I._I.O.O.O.O.O.O\nO._U._U._U\u0418._U._U._U._U._U._U.O._._._._._._._._._._._._._._._\u0419._._._._.O.O.O.O.O.O.O.O.O.O.O._I.O.O.O.O.O.O\nO._U\u0415._U\u0415._U\u0419._U._U._U._U._U._U.O._._._._._._._._._._._._._._._._\u0419._._._.O.O.O.O.O.O.O.O._I._I._I._I.O.O.O.O.O.O\nO._U._U._U._U\u0419._U._U._U._U._U._._._._._._._._._._._._._._._._._._\u0419._._.O.O.O.O.O.O.O.O._I.O.O.O.O.O.O.O.O.O\nO._U._U._U._U._U\u0419._U._U._F._F._._._._._._._._._._._._._._._._._._\u0418._\u0415._\u0415.O.O.O.O.O.O.O.O._I._I._I._I.O.O.O.O.O.O\nO.O.O.O.O.O.O.O.O.O.O._\u0415._\u0415._\u0415._\u0419._._._._._._._._._._._._\u0418._._._.O.O.O.O.O.O.O.O.O.O.O._I.O.O.O.O.O.O\nO._._._._._._._._._._._._._._._\u0419._._._._._._._._._._\u0418._._._._.O.O.O.O.O.O.O.O._I._I._I._I.O.O.O.O.O.O\nO._._._._._._._._._._._._._._._._\u0419._._._._._._._._\u0418._._._._._.O.O.O.O.O.O.O.O._I.O.O.O.O.O.O.O.O.O\nO._._._._._._._._._._._._._._._._._\u0419._._._._._._\u0418._._._._._._.O.O.O.O.O.O.O.O._I._I._I._I.O.O.O.O.O.O\nO._._._._._._._\u0418._\u0415._\u0415.O.O.O.O.O.O.O.O.O.O.O._\u0415._\u0415._\u0419._._._._._._.O.O.O.O.O.O.O.O.O.O.O._I\u0415.O.O.O.O.O.O\nO._._._._._._\u0418._._._._._._._._._._._._._._._._._._\u0419._._._._._._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U.O\nO._._._._._\u0418._._._._._._._._._._._._._._._._._._._._\u0419._._._._._U._U._U._U._U._O._O._U._U._U._U._U._U._U._U._U._U.O\nO._._._._\u0418._._._._._._._._._._._._._._._._._._._._._._\u0419._._._._U._U._U._U._U._U._U._U._O._O._U._U._U._U._U._U._U.O\nO._._._\u0418._._._._._._._._._._._._._._._._._._._._._._._._\u0419._._._U._U._U._U._U._U._U._O._O._O._U._U._U._U._U._U._U.O\nO.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O.O._-._\u0410-.O"
   objects:
   - type: box
@@ -263,7 +263,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="o7JfCss2eCmgJFRd"
-  - type: obj
+  - type: unit
     id: ranger
     definitionId: ranger
     definition: {fileID: 11400000, guid: 73156fd43c765fe41a8521cb472c31bf, type: 2}
@@ -280,7 +280,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="R8dYCryaodjL8W2x" turn="-1" tr="3" multhp="2"
-  - type: obj
+  - type: unit
     id: zebra
     definitionId: zebra
     definition: {fileID: 11400000, guid: 83d3603e3c2ea644f8e61c5637414bca, type: 2}
@@ -299,7 +299,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="UqwX1sQvF8mZsHVp" turn="-1" tr="4" multhp="2" ai="quiet"
-  - type: obj
+  - type: unit
     id: protect
     definitionId: protect
     definition: {fileID: 11400000, guid: 2f0bd37ce2b5ba14ebb9a036e5ed9b51, type: 2}
@@ -318,7 +318,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="a1CwSEx4qy9EOQNc" turn="1" tr="1" multhp="2" ai="quiet"
-  - type: obj
+  - type: unit
     id: ranger
     definitionId: ranger
     definition: {fileID: 11400000, guid: 73156fd43c765fe41a8521cb472c31bf, type: 2}
@@ -335,7 +335,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="Xc54KPxI8BseHouq" turn="1" tr="2" multhp="2"
-  - type: obj
+  - type: unit
     id: cturret
     definitionId: cturret
     definition: {fileID: 11400000, guid: c57d7448f31cf144c8f299782156c1e2, type: 2}

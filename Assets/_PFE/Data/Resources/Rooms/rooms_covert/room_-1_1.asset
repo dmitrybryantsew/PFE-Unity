@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_-1_1
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_-1_1
   sourceCollectionId: rooms_covert
   type: pass
@@ -56,7 +56,7 @@ MonoBehaviour:
     tileCoord: {x: 20, y: 10}
   - id: bvent
     tileCoord: {x: 25, y: 10}
-  doorQuality: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: 'M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M
 
     M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M
@@ -107,7 +107,7 @@ MonoBehaviour:
 
     M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M.M'
   objects:
-  - type: obj
+  - type: unit
     id: npc
     definitionId: npc
     definition: {fileID: 11400000, guid: 2b067238a37bc224c99b891f75cdd086, type: 2}
@@ -124,7 +124,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="UAh15CAQ5gZX9cW1" turn="-1" npc="zeb2" trig="soviet"
-  - type: obj
+  - type: unit
     id: npc
     definitionId: npc
     definition: {fileID: 11400000, guid: 2b067238a37bc224c99b891f75cdd086, type: 2}
@@ -183,7 +183,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="SHW2qgIEQru1dgnO"
-  - type: obj
+  - type: unit
     id: npc
     definitionId: npc
     definition: {fileID: 11400000, guid: 2b067238a37bc224c99b891f75cdd086, type: 2}
@@ -198,7 +198,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="PcX2BkRoUOplDzdS" turn="1" npc="velvet_s"
-  - type: obj
+  - type: unit
     id: npc
     definitionId: npc
     definition: {fileID: 11400000, guid: 2b067238a37bc224c99b891f75cdd086, type: 2}
@@ -228,7 +228,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="SEVusuLLrSJRIEvC" scr="sovietStory"
-  - type: obj
+  - type: unit
     id: npc
     definitionId: npc
     definition: {fileID: 11400000, guid: 2b067238a37bc224c99b891f75cdd086, type: 2}
@@ -245,7 +245,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="lZ1q0H7MxXWry1TL" turn="1" npc="zeb4" trig="soviet"
-  - type: obj
+  - type: unit
     id: npc
     definitionId: npc
     definition: {fileID: 11400000, guid: 2b067238a37bc224c99b891f75cdd086, type: 2}

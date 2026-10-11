@@ -17,6 +17,8 @@ MonoBehaviour:
   landId: minst
   landName: Minst
   tip: story
+  isProbLand: 0
+  isTestLand: 0
   isProcedural: 0
   stage: 9
   baseDifficulty: 20
@@ -61,3 +63,4 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 08ff15a9c818a0644b44f85bd32f0192, type: 2}
   - {fileID: 11400000, guid: 37fbeeb8014f8a14a92087fd287c24aa, type: 2}
   - {fileID: 11400000, guid: 13db52b2136e5f64fbab5933e4d006fd, type: 2}
+  probRooms: []

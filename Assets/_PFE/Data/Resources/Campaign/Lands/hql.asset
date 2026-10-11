@@ -17,6 +17,8 @@ MonoBehaviour:
   landId: hql
   landName: Hql
   tip: story
+  isProbLand: 0
+  isTestLand: 0
   isProcedural: 0
   stage: 10
   baseDifficulty: 26
@@ -60,3 +62,4 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 90c20c3c121958548b45cede1d37801e, type: 2}
   - {fileID: 11400000, guid: 283eb0460adbd3e4fb9a251695bd2382, type: 2}
   - {fileID: 11400000, guid: cf361eb4e6bb34a44af8da4c8f6b7db5, type: 2}
+  probRooms: []

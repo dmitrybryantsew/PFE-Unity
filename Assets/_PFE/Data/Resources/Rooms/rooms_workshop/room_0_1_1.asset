@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_0_1_1
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_0_1_1
   sourceCollectionId: rooms_workshop
   type: pass
@@ -28,7 +28,7 @@ MonoBehaviour:
     tileCoord: {x: 21, y: 2}
   - id: wires1
     tileCoord: {x: 27, y: 2}
-  doorQuality: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000002000000020000000200000000000000000000000000000000000000020000000000000000000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: "H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.B.B.B.B.B.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.A._._\u0410.A.A\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.B.B.B.B.B.B.B.B._._._.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.A._._\u0410.A.A\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.B._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._._._\u0410.A.A\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.B._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._._._\u0410.A.A\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.B._F\u041A._F\u041A.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.A._._\u0410.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.B._F._F.B.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A._._\u0410.A.A\nA._.A._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A._._._._._._._._.A.A._._\u0410.A.A\nA._.A._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A._._._._._._._._.A.A._._\u0410.A.A\nA._.A._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A._._._._._._._._.A.A._._\u0410.A.A\nA._.A._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A._-._-._-.A.A.A.A.A.A.A._._\u0410.A.A\nA._.A._._._._._._._._._._._._.J._T._T.J._._._._._._._._._._._._._._.A._*._*._*._*._*._*._*._*.A.A._._\u0410.A.A\nA._.A._._._._._._._._._._._._.J._T._T.J._._._._._._._._._._._._._._.A._*._*._*._*._*._*._*._*.A.A._._\u0410.A.A\nA._.A._._._._._._._._._._._._.J._T._T.J._._._._._._._._._._._._._._.A.A.A.A.A.A.A.A.A.A.A._._\u0410.A.A\nA._.A._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A._._._._._._._._._._._._\u0410.A.A\nA._.A._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\u0410.A.A\nA._.A._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\u0410.A.A\nA._.A._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\u0410.A.A\nA.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.B._I._I.B.H.H.A.A\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.B._I._I.B.H.H.A.A\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.B._I\u041A._I\u041A.B.H.H.A.A\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.B._I._I.B.H.H.A.A\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.B._I._I.B.H.H.A.A\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.B._I\u041A._I\u041A.B.H.H.A.A"
   objects:
   - type: box
@@ -190,7 +190,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="pi5p2TAcprNJx3Ni"
-  - type: obj
+  - type: unit
     id: dron
     definitionId: dron
     definition: {fileID: 11400000, guid: 3bae6e09bbe3c214b9e0967e21752f24, type: 2}
@@ -201,7 +201,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="MJ7NXZTqn9GVcouj"
-  - type: obj
+  - type: unit
     id: dron
     definitionId: dron
     definition: {fileID: 11400000, guid: 3bae6e09bbe3c214b9e0967e21752f24, type: 2}
@@ -212,7 +212,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="t75ORYSbkdrVlTX3"
-  - type: obj
+  - type: unit
     id: dron
     definitionId: dron
     definition: {fileID: 11400000, guid: 3bae6e09bbe3c214b9e0967e21752f24, type: 2}
@@ -223,7 +223,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="LJXUrFwgjxlHPvXf"
-  - type: obj
+  - type: unit
     id: dron
     definitionId: dron
     definition: {fileID: 11400000, guid: 3bae6e09bbe3c214b9e0967e21752f24, type: 2}
@@ -234,7 +234,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="VafpATgcU9mR6dYI"
-  - type: obj
+  - type: unit
     id: dron
     definitionId: dron
     definition: {fileID: 11400000, guid: 3bae6e09bbe3c214b9e0967e21752f24, type: 2}
@@ -279,9 +279,17 @@ MonoBehaviour:
       - act: dam
         targ: wall1
         val: 1000
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: off
         targ: this
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="avjh7XyXmyTzRofX" h="12"
   - type: door
     id: door2

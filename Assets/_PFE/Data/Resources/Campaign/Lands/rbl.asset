@@ -17,6 +17,8 @@ MonoBehaviour:
   landId: rbl
   landName: Rbl
   tip: base
+  isProbLand: 0
+  isTestLand: 0
   isProcedural: 0
   stage: 1
   baseDifficulty: 0
@@ -50,3 +52,87 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 88e1a2eaa7b917c4aaa10a19d41c83c9, type: 2}
   - {fileID: 11400000, guid: 58115e9ae47472b4b9d0581be97db9a1, type: 2}
   - {fileID: 11400000, guid: 82f2d87e75a0dd245b8f23dbd17ab9b3, type: 2}
+  probRooms:
+  - id: bossraider1
+    hasLevel: 1
+    level: 0
+    imp: 0
+    tip: 2
+    prize: 0
+    close: 1
+    contents:
+    - tip: unit
+      uid: bossraider1F1
+      qid: 
+  - id: bossraider2
+    hasLevel: 1
+    level: 0
+    imp: 0
+    tip: 2
+    prize: 0
+    close: 1
+    contents:
+    - tip: unit
+      uid: bossraider2F1
+      qid: 
+  - id: bossultra1
+    hasLevel: 1
+    level: 0
+    imp: 0
+    tip: 2
+    prize: 0
+    close: 1
+    contents:
+    - tip: unit
+      uid: bossultra1F1
+      qid: 
+  - id: bossalicorn1
+    hasLevel: 1
+    level: 0
+    imp: 0
+    tip: 2
+    prize: 0
+    close: 1
+    contents:
+    - tip: unit
+      uid: bossalicorn1F1
+      qid: 
+  - id: bossnecr1
+    hasLevel: 1
+    level: 0
+    imp: 0
+    tip: 2
+    prize: 0
+    close: 1
+    contents:
+    - tip: unit
+      uid: bossnecr1F1
+      qid: 
+  - id: bossdron1
+    hasLevel: 1
+    level: 0
+    imp: 0
+    tip: 2
+    prize: 0
+    close: 1
+    contents:
+    - tip: unit
+      uid: bossdron1F1
+      qid: 
+  - id: bossencl
+    hasLevel: 1
+    level: 0
+    imp: 0
+    tip: 2
+    prize: 0
+    close: 1
+    contents:
+    - tip: unit
+      uid: bossenclF1
+      qid: 
+    - tip: unit
+      uid: bossenclF2
+      qid: 
+    - tip: unit
+      uid: bossenclF3
+      qid: 

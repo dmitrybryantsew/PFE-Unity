@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_0_1
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_0_1
   sourceCollectionId: rooms_pis
   type: pass
@@ -60,7 +60,7 @@ MonoBehaviour:
     tileCoord: {x: 14, y: 13}
   - id: hole4
     tileCoord: {x: 35, y: 5}
-  doorQuality: 000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: 'H.H.H.H.H.H.H.C._T._T._T._T._T.C.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H
 
     H.H.H.H.H.H.H.C._T._T._T._T._T.C.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H
@@ -111,7 +111,7 @@ MonoBehaviour:
 
     G.G.G.G.G.G.G.C._T._T._T._T._T.C.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G'
   objects:
-  - type: obj
+  - type: unit
     id: encl
     definitionId: encl
     definition: {fileID: 11400000, guid: bd63e94e2cdd9b64baa1344275d633d8, type: 2}
@@ -128,7 +128,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="mYF4jBliHmENzzGl" turn="-1" ai="stay" tr="4"
-  - type: obj
+  - type: unit
     id: encl
     definitionId: encl
     definition: {fileID: 11400000, guid: bd63e94e2cdd9b64baa1344275d633d8, type: 2}
@@ -145,7 +145,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="NsC0RP1I3UdXSyBs" turn="1" ai="stay" tr="3"
-  - type: obj
+  - type: unit
     id: hellhound
     definitionId: hellhound
     definition: {fileID: 11400000, guid: 6b4ce41dc97996545b96636e01f08163, type: 2}
@@ -160,7 +160,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="O2x3bkS14DJvqHDq" turn="-1" ai="stay"
-  - type: obj
+  - type: unit
     id: hellhound
     definitionId: hellhound
     definition: {fileID: 11400000, guid: 6b4ce41dc97996545b96636e01f08163, type: 2}

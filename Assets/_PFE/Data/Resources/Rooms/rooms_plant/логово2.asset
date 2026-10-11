@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: "\u043B\u043E\u0433\u043E\u0432\u043E2"
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: "\u043B\u043E\u0433\u043E\u0432\u043E2"
   sourceCollectionId: rooms_plant
   type: pass
@@ -94,7 +94,7 @@ MonoBehaviour:
     tileCoord: {x: 42, y: 22}
   - id: plesen
     tileCoord: {x: 39, y: 22}
-  doorQuality: 000000000200000002000000000000000000000000000000020000000200000000000000000000000000000000000000000000000200000000000000020000000000000000000000020000000200000000000000000000000000000002000000
+  doorQuality: 030000000300000003000000000000000000000003000000040000000400000000000000000000000400000003000000020000000000000003000000000000000300000004000000040000000000000000000000040000000000000000000000
   tileDataString: "GA.GA.GA.GA._A._A._A._A.GA.GA.GA.GA.GA._A._A._A._A.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA.CA.CA._C._C._C._C.CA.CA.CA.CA\n_A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA.DA._C._C._C._C._C._C._C._C._C\n_A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A.GA.GA.GA.GA.GA.GA.GA.GA.GA._;A._A.GA.GA._A.GA.GA.GA.GA.GA.GA.GA.DA._C._C._C._C._C._C._C._C._C\n_A._A._A._A._A._A._A.G;A.G,A.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA._A._A.GA._A._A._A.GA._A._A._A.GA._A.GA.GA.GA.GA.DA._C._C._C._C._C._C._C._C._C\nGA.GA.GA._A._A._A.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA._A.GA._A._A._A._A._A._A._A._A._A._A._A._A._A.GA._A.GA.EA.EA.DA.CA._C._C\u0410.CA.CA.CA.CA\nGA.GA._A._A._A._A.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA._A.GA.GA._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A.GA._A._A.EA._C._C._C._C._C\u0410._C._C._C._C\n_A._A._A._A._A._A._A.GA.GA.GA.GA._A.GA.GA.GA._A._A._A._A.GA._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._C._C._C._C._C\u0410._C._C._C._C\n_A._A._A._A._A._A._A._A._A._A._A._A._A.GA.GA._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._C._C._C._C._C\u0410._C._C._C._C\nGA.HA.HA._A._A._A._A._A._A._A._A._A._A.GA._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A.EA._C._C._C._C._C\u0410._C\u0412._C-._C-.CA\nHA.HA.HA.HA.H;A._A.H;A.HA.HA.G,A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A.GA.DA._C._C._C._C._C\u0410._C._C._C._C\nHA.HA.HA.HA.HA.HA.HA.HA.HA.GA.GA._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A.GA.DA._C._C._C._C._C\u0410._C._C._C._C\nHA.HA.HA.HA.HA.HA.HA.HA.GA.GA.GA._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A.GA.CA._C._C._C\u0412.EC._C\u0410._C._C._C._C\nCA.EA.EA.DA.DA.EA.EA.EA.GA.GA.GA.G;A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A.G;A._A._A._A._A._A.GA.GA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA\n_D._D._D._D._D._D._D.DA.GA.GA.GA.GA.G;A._A._A._A._A._A._A.G:A.G;A.G,A.GA.GA._A.G,A.GA.G;A._A._A.GA.GA.GA._A._A._A.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA\n_D._D._D._D._D._D._D.DA.GA.GA.GA.GA.GA.GA.H;A._A._A.H;A.GA.GA.GA.GA.GA.GA._A.GA.GA.GA.GA._A.GA.GA._A._A._A._A.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA\n_D._D._D._D._D._D._D.DA.GA.GA.GA.GA.GA.GA.HA.HA.HA.HA.GA.GA.GA.GA.GA.GA._A.GA.GA.GA.GA._A._A._A._A._A._A.GA.GA.GA.GA.GA.GA.GA.CA.CA.CA.CA.CA.CA\nCA.DA.CA.DA.DA.CA.DA.DA.GA.GA.GA.GA.GA.GA.GA.HA.HA.HA.HA.GA.GA.GA.GA._A._A._A.GA.GA.GA.GA._A._A._A._A._A.GA.GA.GA.GA.GA.GA.GA.CA._D._D._D.CA.CA\nGA.GA.GA.HA.HA.HA.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA.HA.HA.HA.HA._;A._;A._A._A._A._A._A._A.GA.GA._A._A._A._A._A._A.GA.GA.GA.GA.HA.HA.DA._D._D._D.CA.CA\nGA.GA.GA.GA.HA.HA.HA.GA.GA.GA.GA.GA.GA.GA.GA.GA.GA.HA.HA._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A._A.HA.HA.HA.HA.DA._D._D._D.CA.CA\nCA.CA.CA.CA.DA.DA.DA.CA.CA.CA.CA.CA.CA.CA.DA.CA.DA.DA.DA.DA.EA.E,A._A._A._A._A.EA.DA.DA.DA.DA._A._A.EA.EA._A.E,A.DA.DA.DA.DA.CA.CA.CA.CA.CA.CA.CA\nCA._C._C._C._C._C._C._C._C._C.FC._C._C._C._C._C._C._C._C._C._C._C._A._C._A._A._C.CA.DA.DA._C._A._A._C._C._A._C._C._C._C._C._C._C._C._C._C._C.CA\n_C._C._C._C._C._C._C._C._C._C.FC._C._C._C._C._C._C._C._C._C._C._C._C._A._A.H;C.H,C.DA.CA.DA.H;C._A._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C\n_C._C._C._C._C._C._C._C._C._C.FC._C._C._C._C._C._C._C._C._C._C._A.E;C.H,C._C.HC.HC.DA.CA.CA.HC.HC.E;C.E:C._C._C._C._C._C._C._C._C._C._C._C._C._C._C\n_C._C._C._C._C._C._C._C._C._C.FC._C._C._C._C._C._C._C.H:C.H;C.HC.HC.EC.EC.EC.EC.HC.CA.CA.CA.HC.EC.EC.HC.HC.EC.H,C.HC.H;C.H:C._C._C._C._C._C._C._C._C\nCA.CA.CA.CA._C-._C-._C-._C-.CA.CA.CA.CA.CA._C-._C-._C-._C-.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA._C-._C-._C-._C-.CA.CA.CA.CA"
   objects:
   - type: box
@@ -207,7 +207,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="ZLjkhbgq3go8DXLe"
-  - type: obj
+  - type: unit
     id: bloodwing
     definitionId: bloodwing
     definition: {fileID: 11400000, guid: 8cb413623584f5e44aac1dffdaa1d68b, type: 2}
@@ -218,7 +218,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="tS6sJzo9k6dFuLFh"
-  - type: obj
+  - type: unit
     id: bloodwing
     definitionId: bloodwing
     definition: {fileID: 11400000, guid: 8cb413623584f5e44aac1dffdaa1d68b, type: 2}
@@ -229,7 +229,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="zty9sz97baihNXHF"
-  - type: obj
+  - type: unit
     id: bloodwing
     definitionId: bloodwing
     definition: {fileID: 11400000, guid: 8cb413623584f5e44aac1dffdaa1d68b, type: 2}
@@ -240,7 +240,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="Ab1iIrJLIN7ZCbVH"
-  - type: obj
+  - type: unit
     id: bloodwing
     definitionId: bloodwing
     definition: {fileID: 11400000, guid: 8cb413623584f5e44aac1dffdaa1d68b, type: 2}
@@ -365,7 +365,7 @@ MonoBehaviour:
     musicTrack: music_plant_1
     colorScheme: green
     backgroundColorScheme: 
-    backgroundWall: 
+    backgroundWall: tBackWall
     backgroundForm: 0
     transparentBackground: 0
     hasSky: 0

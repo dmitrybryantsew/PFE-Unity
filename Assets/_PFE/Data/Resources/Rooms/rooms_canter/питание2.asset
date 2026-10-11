@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: "\u043F\u0438\u0442\u0430\u043D\u0438\u04352"
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: "\u043F\u0438\u0442\u0430\u043D\u0438\u04352"
   sourceCollectionId: rooms_canter
   type: pass
@@ -164,7 +164,7 @@ MonoBehaviour:
     tileCoord: {x: 39, y: 9}
   - id: banner
     tileCoord: {x: 39, y: 20}
-  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000000000000000000000200000002000000020000000000000002000000020000000000000002000000020000000200000002000000
+  doorQuality: 020000000300000003000000000000000000000000000000040000000000000004000000040000000000000000000000030000000300000003000000000000000300000000000000040000000400000000000000040000000000000000000000
   tileDataString: "Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q._V._V._V._V.Q.Q.Q.Q.Q._A._A._A._A.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q._A._A._A._A.Q.Q.Q.Q\nQ._S._S._V._V._V._V._V._V._S._S.Q._V._V._V._V._V._V._V.Q._V._V._V._V._V._V._V._._V._V._V._V._V._V._V.Q._V._V._V._V._V._V._V._V._V._V._V.Q\nQ._S._S._V._V._V._V._V._V._S._S._._V._V._V._V._V._V._V.Q._V._V._V._V._V._V._V._._V._V._V._V._V._V._V.Q._V._V._V._V._V._V._V._V._V._V._V._I\nQ._S._S._V._V.Q.Q._V._V._S._S._._V._V._V._V._V._V._V.Q._V._V._V._V._V._V._V._._V._V._V._V._V._V._V.Q._V._V._V._V._V._V._V._V._V._V._V._I\nQ.Q.Q._V-._V-.Q.Q._V-._V-.Q.Q.Q.Q.D.D.Q.Q.Q.Q.Q._V-._V-._V-._V-._V-._V-._V-.Q._V-._V-._V-._V-._V-._V-._V-.Q.Q.Q.Q.Q._V\u0411._V._V._V._V._V._V.Q\n_V._S._S._V._V.Q.Q._V._V._S._S._._V._V._V._V._V._V._V.Q._A._A._A._A._A._A._A.Q._A._A._A._A._A._A._A.Q._A._A._A._A._V\u0411._V._V._V._V._V._V._V\n_V._S._S._V._V._V._V._V._V._S._S._._V._V._V._V._V._V._V.Q._A._A._A._A._A._A._A._._A._A._A._A._A._A._A._._A._A._A._A._V\u0411._V._V._V._V._V._V._V\n_V._S._S._V._V._V._V._V._V._S._S._._V._V._V._V._V._V._V.Q._A._A._A._A._A._A._A._._A._A._A._A._A._A._A._._A._A._A._A._V\u0411._V._V._V._V._V._V._V\nQ.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q._\u0411._.Q.Q.Q._._\u0410.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.D.D.D.D.Q.Q.Q.Q.Q.Q.Q.Q\n_._._._._._._._._._._._._._._._._\u0411._._._._._._\u0410._._K._K._K._._._._._._._._._K._K._K._._._._O._O._._K._K._K._K\n_._._._._._._._._._._._._._._._._\u0411._._._._._._\u0410._._K._K._K._._._._._._._._._K._K._K._._._._O._O._._K._K._K._K\n_._._._._._._._._._._._._._._._._\u0411._._._._._._\u0410._._K._K._K._._._._._._._._._K._K._K._._F._F._O._O._._K._K._K._K\nQ._-._-.Q.Q.Q._-._-._\u0411._._._._._._._._-._-._-._\u0411-._-._-._-._._K._K._K._._._._._._._-._-.B.B.B.B.B.B.B.B.B.B.B.B.Q\n_._._._._._._._._\u0411._._._._._._._._._._._\u0411._._._._._K._K._K._._._._._._._._.B._W._W._W._W._W._W._W._W._W._W._W.Q\n_._._._._._._._._\u0411._._._._._._._._._._._\u0411._._._._._K._K._K._._._._._._._._.B._W._W._W._W._W._W._W._W._W._W._W.Q\n_._._._._._._._._\u0411._._._._._._._._._._._\u0411._._._._._K._K._K._._._._._._._._.B._W._W._W._W._W._W._W._W._W._W._W.Q\nQ.B.B.B.B.B.B.B._\u0411._.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B._-._-._\u0413._._._.B._W._W._W._W._W._W._W._W._W._W._W.Q\nQ._W._W._W._W._W._W._W._W\u0411._W.B._F._F._F._F._F._F._F._F.B._W._W._W._W._W._W._W._W.B._._._._\u0413._._.B._W._W._W._W._W._W._F._F._W._W._W.Q\nQ._W._W._W._W._W._W._W._W\u0411._W.B._F._F._F._F._F._F._F._F.B._W._W._W._W._W._W._W._W.B._._._._\u0412._-._-.B.B.B.B.B.B.B.B.B.B._._\u0410.Q\nQ._W._W._W._W._W._W._W._W\u0411._W.B._W._W._H._H._H._H._W._W.B._W._W._W._W._W._W._W._W.B._._._\u0412._._._._H._H._H.B.B.B.B._H._H._H._W._W\u0410.Q\nQ._W-._W-._W-._W-._W-._W-._W-._W-._W-.B._W._W._H._H._H._H._W._W.B._W._W._W._W._W._W._W._W.B._-._-._\u0413._._._._H._H._H._._F._F._._H._H._H._W._W\u0410.Q\n_W._W._W._W._W._W._W._W._W._W.B._W._W.A.A.A.A._W._W.B._W._W._W._W._W._W._W._W.B._._._._\u0413._._._H._H._H._._F._F._._H._H._H._W._W\u0410.Q\n_W._W._W._W._W._W._W._W._W._W._._W._W._H._H._H._H._W._W._._W._W._W._W._W._W._W._W._._._._._\u0412._-._-._H._H._H._._F._F._._H._H._H._W._W\u0410.Q\n_W._W._W._W._W._W._W._W._W._W._._W._W._H._H._H._H._W._W._._W._W._W._W._W._W._W._W._._._._\u0412._._._._H._H.B;H.B.B.B.B.B;H._H._H._W._W\u0410.Q\nQ.Q.Q.Q._W-._W-._W-._W-.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q._W-._W-._W-._W-.Q.Q.Q.Q.Q._-._-._-._-.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q"
   objects:
   - type: door
@@ -815,7 +815,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="dWzUTu7jvmBBgWyi"
-  - type: obj
+  - type: unit
     id: msp
     definitionId: msp
     definition: {fileID: 11400000, guid: 79e4bcfc810c419448c44c83d583171b, type: 2}
@@ -826,7 +826,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="nHnfvgA3RVORvER3"
-  - type: obj
+  - type: unit
     id: msp
     definitionId: msp
     definition: {fileID: 11400000, guid: 79e4bcfc810c419448c44c83d583171b, type: 2}
@@ -837,7 +837,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="sph29LofLKSYcSPJ"
-  - type: obj
+  - type: unit
     id: msp
     definitionId: msp
     definition: {fileID: 11400000, guid: 79e4bcfc810c419448c44c83d583171b, type: 2}
@@ -848,7 +848,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="Id9tvPBJaiuCLhU5"
-  - type: obj
+  - type: unit
     id: msp
     definitionId: msp
     definition: {fileID: 11400000, guid: 79e4bcfc810c419448c44c83d583171b, type: 2}
@@ -859,7 +859,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="cY9V9YEWkVDoXfYk"
-  - type: obj
+  - type: unit
     id: msp
     definitionId: msp
     definition: {fileID: 11400000, guid: 79e4bcfc810c419448c44c83d583171b, type: 2}
@@ -892,7 +892,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="kfKX51sYl4c1wtKt"
-  - type: obj
+  - type: unit
     id: transm
     definitionId: transm
     definition: {fileID: 11400000, guid: 4c4fee23f22040043a1849ddd87cfc7b, type: 2}
@@ -914,7 +914,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="RkdhtUZ4A99oi4zA"
-  - type: obj
+  - type: unit
     id: transm
     definitionId: transm
     definition: {fileID: 11400000, guid: 4c4fee23f22040043a1849ddd87cfc7b, type: 2}

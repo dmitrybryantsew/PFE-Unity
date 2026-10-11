@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_3_0
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_3_0
   sourceCollectionId: rooms_begin
   type: pass
@@ -74,7 +74,7 @@ MonoBehaviour:
     tileCoord: {x: 28, y: 0}
   - id: web1br
     tileCoord: {x: 20, y: 13}
-  doorQuality: 020000000200000002000000020000000000000002000000020000000200000002000000020000000200000002000000020000000200000000000000020000000000000002000000020000000200000002000000020000000200000002000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: "C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C\nC._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E.C.C._._._._._._._._._._._._._K._K._K._K._._._.C\nC._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E.C.C._._._._._._._._._._._._._K._K._K._K._._._.C\nC._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E.C.C.C.C.C.C.C.C.C.C.C._._._._K._K._K._K._._._.C\nC._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E\u0410.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._._._._K._K._K._K._._._.C\nC._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E\u0410.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._._._._K._K._K._K._._._.C\nC._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E\u0410.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._._._._K._K._K._K._._._.C\nC._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E\u0410.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._._._._K._K._K._K._._._.C\nC.C.C.C.C.C.C.C._\u0411-._-._-._-.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._._._._K._K._K._K._._._.C\nC.C.C.C.C.C.C.C._\u0411._._._._._._._._._.E._._._._.C._._._._._K._K._K._._._._._._._._._._K._K._K._K._._._.C\nC.C.C.C.C.C.C.C._\u0411._._._._._._._._._.E._._._._._._._._._._K._K._K._._._._._._._._._._K._K._K._K._._._.C\nC.C.C.C.C.C.C.C._\u0411._._._._._._._._._.E._._._._._._._._._._K._K._K._._._._._._._._._._K._K._K._K._._._.C\nC.C.C.C.C.C.C.C._\u0411._._._._._._._.C.C.C.C.C.C.C.C.C.C.C.C._K-._K-._K-.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C\n_._._._._._._._._\u0411._._._._._._._._._.EA._A._A._A._A.C.C.C.C.C._K._K._K._._._._._._._._._._._._._._._._._\n_._._._._._._._._\u0411._._._._._._._._._.EA._A._A._A._A.C.C.C.C.C._K._K._K._._._._._._._._._._._._._._._._._\n_._._._._._._._._\u0411._._._._._._._._._.EA._A._A._A._A.C.C.C.C.C._K._K._K._._._._._._._._._._._._._._._._._\nC.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._E\u0411._E.C.C.C.C.C.C.C.C.C.C.C.C.C.C\nC._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E\u0411._E._E._E._E._E._E._E._E._E._E._E._E._E._E.C\nC._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E\u0411._E._E._E._E._E._E._E._E._E._E._E._E._E._E.C\nC._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E\u0411._E._E._E._E._E._E._E._E._E._E._E._E._E._E.C\nC._E-._E-._E-._E-._E-._E-._E-._E-._E-._E-._E-._E-._E-._E-._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E\u0411._E._E._E._E._E._E._E._E._E._E._E._E._E._E.C\nC._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E\u0411._E._E._E._E._E._E._E._E._E._E._E._E._E._E.C\nC._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E\u0411._E._E._E._E._E._E._E._E._E._E._E._E._E._E.C\nC._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E\u0411._E._E._E._E._E._E._E._E._E._E._E._E._E._E.C\nC.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C"
   objects:
   - type: box
@@ -102,6 +102,10 @@ MonoBehaviour:
       - act: off
         targ: trDestroy
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="gO5yOvJSFpQtPyKd" lock="0" cont="case"
   - type: box
     id: chest
@@ -130,6 +134,10 @@ MonoBehaviour:
       - act: sign
         targ: trSignTum
         val: 1
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="YHNxJTtfKVYIBil8" uid="trSign5" lock="1" lockhp="1000" cont="case"
   - type: box
     id: bigbox
@@ -247,11 +255,19 @@ MonoBehaviour:
       - act: off
         targ: trDoor
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     - eventName: die
       actions:
       - act: off
         targ: trDoor
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="n2rh2CtIuxEw1Rju" lock="1"
   - type: box
     id: wallcab
@@ -291,6 +307,10 @@ MonoBehaviour:
       - act: off
         targ: trBoxes
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="ixa0pvAl9lwzb8HH"
   - type: unit
     id: tarakan
@@ -361,6 +381,10 @@ MonoBehaviour:
       - act: mess
         targ: 
         val: trMedic
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="S60YL5s8s7AfZX9Y"
   - type: box
     id: woodbox
@@ -457,9 +481,17 @@ MonoBehaviour:
       - act: off
         targ: this
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: sign
         targ: trSign4
         val: 1
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="unGCSPPdrP9xKZpP" mess="trInstr"
   - type: area
     id: area
@@ -547,6 +579,10 @@ MonoBehaviour:
       - act: off
         targ: this
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="FLqEGWa7eW6gKhtM" mess="trBattle"
   - type: player
     id: player

@@ -11,14 +11,14 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: "\u0440\u0435\u0448\u0435\u0442\u043A\u04383\u0437\u0430\u0434"
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: "\u0440\u0435\u0448\u0435\u0442\u043A\u04383\u0437\u0430\u0434"
   sourceCollectionId: rooms_canter
   type: back
   fixedPosition: {x: 0, y: 0, z: 0}
   difficultyLevel: 0
   maxInstances: 2
-  allowRandom: 1
+  allowRandom: 0
   specificMapOnly: 0
   backgroundRoomId: 
   backgroundDecorations:
@@ -66,7 +66,7 @@ MonoBehaviour:
     tileCoord: {x: 19, y: 7}
   - id: pipe1
     tileCoord: {x: 19, y: 7}
-  doorQuality: 000000000000000002000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000000000000000000000000020000000200000000000000000000000200000002000000
+  doorQuality: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
   tileDataString: "Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q\nQ._._._._._._._._._._._._._._._._._.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q._._._._._._._._._._._._._._._._._.Q\nQ._._._._._._._._._._._._._._._._._.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q._._._._._._._._._._._._._._._._._.Q\nQ._._._._._._._._._._._._._._._._._.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q._._._._._._._._._._._._._._._._._.Q\nQ.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q._-._-._\u0413._._._.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q._._._._\u0412._-._-.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q\nQ.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q._._._._\u0413._._.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q._._._\u0412._._._.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q\nQ.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q._._._._\u0412._-._-.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q._-._-._\u0413._._._.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q\nH.H.H.H.H.H.H.H.H.Q.Q.Q._._._\u0412._._._.Q._V._V._V._V._V._V._V._V._V._V.Q._._._._\u0413._._.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q\nH.H.H.H.H.H.H.H.H.Q.Q.Q._-._-._\u0413._._._.Q._V._V._V._V._V._V._V._V._V._V.Q._._._._\u0412._-._-.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q\nH.H.H.H.H.H.H.H.H.Q.Q.Q._._._._\u0413._._._._V._S._S._V._V._V._V._S._S._V._._._._\u0412._._._._._._._._._._._._._._.Q\nH.H.H.H.H.H.H.G.G.Q.Q.Q._._._._\u0412._-._-._._V._S._S._V._V._V._V._S._S._V._._-._-._\u0413._._._._._._._._._._._._._._.Q\nH.H.H.H.H.G.G.G.G.Q.Q.Q._._._\u0412._._._._._V._S._S._V._V._V._V._S._S._V._._._._._\u0413._._._._._._._._._._._._._.Q\nH.H.H.H.G.G.G.G.G.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q._._\u0410.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q\nH.H.H.H.G.G.G.G.G.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q._I._I\u0410.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q\nH.H.H.H.G.G.Q.Q.Q.Q.Q.Q.Q._I._I.Q.Q.Q.Q._I._I.Q.Q._I._I\u0410.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q\nH.H.H.H.G.G.Q.Q.Q.Q.Q.Q.Q._I._I.Q.Q.Q.Q._I._I.Q.Q._I._I\u0410.Q.Q.Q.H.G.G.G.G.G.G.G.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.G.G.Q.Q.Q.Q.Q.Q.Q._I-._I-.Q.Q.Q.Q._I-._I-.Q.Q._I._I\u0410.Q.Q.Q.H.H.G.G.G.G.G.G.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.G.Q.Q.Q._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I\u0410.Q.Q.Q.H.H.H.G.G.G.G.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.Q.Q.Q._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I\u0410.Q.Q.Q.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.Q.Q.Q._I\u0411._I.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nG.G.H.H.H.H.Q.Q.Q._I\u0411._I.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.G.G.G.G\nG.G.G.H.H.H.Q.Q.Q._I\u0411._I.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.H.H.H.H.H.H.H.H.H.H.H.G.G.G.G.G.G.G.G.G\nG.G.G.H.H.H.Q.Q.Q._I\u0411._I._I._I._I._I._I._I.Q.Q.Q.G.G.G.H.H.H.H.H.H.H.H.H.H.H.H.G.G.G.G.G.G.G.G.G.G.G.G.G\nG.G.G.G.H.H.Q.Q.Q._I\u0411._I._I._I._I._I._I._I.Q.Q.Q.G.G.G.G.H.H.H.H.H.H.H.H.H.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G\nG.G.G.G.H.H.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.Q.G.G.G.G.H.H.H.H.H.H.H.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G"
   objects:
   - type: obj
@@ -366,7 +366,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="NbiXiwVOptOJ9CoD"
-  - type: obj
+  - type: unit
     id: transm
     definitionId: transm
     definition: {fileID: 11400000, guid: 4c4fee23f22040043a1849ddd87cfc7b, type: 2}

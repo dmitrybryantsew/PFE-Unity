@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: sliv
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: sliv
   sourceCollectionId: rooms_prob
   type: pass
@@ -58,10 +58,10 @@ MonoBehaviour:
     tileCoord: {x: 44, y: 2}
   - id: light1
     tileCoord: {x: 41, y: 2}
-  doorQuality: 020000000200000002000000000000000000000000000000000000000000000000000000000000000000000000000000020000000200000000000000020000000200000002000000020000000200000002000000020000000200000002000000
+  doorQuality: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
   tileDataString: "L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nL._T._T._T._T._._._._._._._._._._._._._._._._._._._._._._._._._._._._._C._C._C._C._C._C._C._C._C._C._C._C._C._C.A\nL._T._T._T._T._._._._._._._._._._._._._._._._._._._._._._._._._._._._._C._C._C._C._C._C._C._C._C._C._C._C._C._C.A\nL._T._T._T._T._._._._._._._._._._._._._.A.A._\u0411-._-._-._-._-._-._-._-.A.A.A.A.A.A.A._C._C._C._C._C._C._C._C._C._C._C._C.A\nL._T._T._T._T._._._._._._._._._._._._._.A._._\u0411._._._._._._._._.A.A.A.A.A.A._C._C._C._C._C._C._C._C._C._C._C._C.A\nL._T._T._T._T._._._._._._._._._._._._._.A._._\u0411._._._._._._._._.A.A.A.A.A.A._C._C._C._C._C._C._C._C._C._C._C._C.A\nL._T._T._T._T._._._._._._._._._._._._._.A._._\u0411._._._._._._._._.A.A._T._T._T.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nL._T._T._T._T._._._._._._._._._._._._._.A._._\u0411._._._._._._._._.A.A._T._T._T.A._T._T._T._T._T._T._T._T._T._T._T._T.A\nA.A.A.A.A._._._._._._._._._._._._._.A._._._._._._._._._._.A.A._T._T._T.A._T._T._T._T._T._T._T._T._T._T._T._T.A\nA.A.A.A.A._*._*._*._*._*._*._*._*._*._*._*._*._*.A._*._*._*._*._*._*._*._*._*._*.A.A._T*._T*._T*.A.A.A.A.A.A.A.A.A.A.A._T._T.A\nA.A.A.A.A._*._*._*._*._*._*._*._*._*._*._*._*._*.A._*._*._*._*._-*._-*._\u0413*._*._*._*.A.A._T*._T*._T*.A._._._._._._._._._T._T._T._T.A\nA.A.A.A.A._*._*._*._*._*._*._*._*._*._*._*._*._*.A._*._*._*._*._*._*._*._\u0413*._*._*._T*._T*._T*._T*._T*.A._._._._._._._._._T._T._T._T.A\nA.A.A.A.A.A.A._T*._T*.A.A.A.A.A.A.A.A.A.A._*._*._*._*._*._*._*._\u0412*._-*._-*.A.A.A.A.A.A._._._._._._._._.A.A.A.A.A\nA._*._*._*._*._*._*._*._*._*._*._*._*._*._*.A.A._\u0411*._*._*._*._*._*._*._*._\u0412*._*._*._*._*._*.A.A._._._._._._._._._._.A.A.A.A.A\nA._*._*._*._*._*._*._*._*._*._*._*._*._*._*.A.A._\u0411*._*._*._*._*._*._*._\u0412*._*._*._*._*._*._*.A.A._*._*._*._*._*._*._*._*._*._*.A.A.A.A.A\nA._\u0411-*._-*._-*._-*._-*._-*._-*._-*._-*._*._*._*._*._*.A.A._\u0411*._*._*._*._*._*._\u0412*._*._*._*._*._*._*._*.A.A._*._*._*._*._-*._-*._*._*._*._*.A.A.A.A.A\nA._\u0411*._*._*._*._*._*._*._*._*._*._*._*._*._*.A.A._\u0411*._*._*._-*._-*._-*._*._*._*._*._*._*._*._*.A.A._*._*._*._*._-*._-*._*._*._*._*.A.A.A.A.A\nA._\u0411*._*._*._*._*._*._*._*._*._*._*._*._*._*.A.A._\u0411*._*._*._*._*._*._*._*._*._*._*._*._*._*.A.A._*._*._*._*._-*._-*._*._*._*._*.ET._T._T._T._T\nA._\u0411*._*._*._*._*._*._*._*._*._*._*._*._*._*.A.A._\u0411*._*._*._*._*._*._*._*._*._*._*._*._*._*.A.A._*._*._*._*._*._*._*._*._*._*.A.A.A.A.A\nA._\u0411*._*._*._*._*._*._*._*._*._*._*._*._*._*.A.A._\u0411*._*._*._*._*._*._*._*._*._*._*._*._*._*.A.A._*._*._*._*._*._*._*._*._*._*.A.A.A.A.A\nA._\u0411*._*._*._*._*._*._*._*._*._*._*._*._*._*.A.A._\u0411*._*._*._*._*._*._*._*._*._*._*._*._*._*._T*._T*._*._*._*._*._*._*._*._*._*._*.A.A.A.A.A\nA._\u0411*._*._*._*._*._*._*._*._*._*._*._*._*._*.A.A._\u0411*._*._*._*._*._*._*._*._*._*._*._*._*._*._T*._T*._*._*._*._*._*._*._*._*._*._*.A.A.A.A.A\nA.A.A.A.A.A.A.ET.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.AT.AT.AT.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A._T.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A._T.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A._T.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A._T.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A"
   objects:
-  - type: obj
+  - type: unit
     id: fish
     definitionId: fish
     definition: {fileID: 11400000, guid: f8a75ed607b3a1847a7865d53728974f, type: 2}
@@ -105,7 +105,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="b3IeIyQ0rmoncdRh"
-  - type: obj
+  - type: unit
     id: fish
     definitionId: fish
     definition: {fileID: 11400000, guid: f8a75ed607b3a1847a7865d53728974f, type: 2}
@@ -116,7 +116,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="rjTsirMixBOG6ALD"
-  - type: obj
+  - type: unit
     id: fish
     definitionId: fish
     definition: {fileID: 11400000, guid: f8a75ed607b3a1847a7865d53728974f, type: 2}
@@ -138,7 +138,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="SpPpKwORISgI5bp7"
-  - type: obj
+  - type: unit
     id: expl1
     definitionId: expl1
     definition: {fileID: 11400000, guid: 18535bbafba8eed46a14f54ecb3aed1b, type: 2}
@@ -181,6 +181,10 @@ MonoBehaviour:
       - act: open
         targ: slivA1
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="BSuTUrm4w2z83tae"
   - type: player
     id: player
@@ -208,6 +212,10 @@ MonoBehaviour:
       - act: dam
         targ: slivA2
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="tucjBER3bWLDtgLg"
   - type: box
     id: safe
@@ -244,7 +252,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="RsTNMWucRj4vOhjg"
-  - type: obj
+  - type: unit
     id: fish
     definitionId: fish
     definition: {fileID: 11400000, guid: f8a75ed607b3a1847a7865d53728974f, type: 2}
@@ -255,7 +263,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="XZd7jPrv2ryFOxe6"
-  - type: obj
+  - type: unit
     id: fish
     definitionId: fish
     definition: {fileID: 11400000, guid: f8a75ed607b3a1847a7865d53728974f, type: 2}
@@ -266,7 +274,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="l8QX3BFS6Bq983ZP"
-  - type: obj
+  - type: unit
     id: fish
     definitionId: fish
     definition: {fileID: 11400000, guid: f8a75ed607b3a1847a7865d53728974f, type: 2}
@@ -277,7 +285,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="oFS7T0rd3Hfp54h1"
-  - type: obj
+  - type: unit
     id: fish
     definitionId: fish
     definition: {fileID: 11400000, guid: f8a75ed607b3a1847a7865d53728974f, type: 2}

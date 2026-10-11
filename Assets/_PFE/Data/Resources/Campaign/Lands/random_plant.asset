@@ -17,6 +17,8 @@ MonoBehaviour:
   landId: random_plant
   landName: Plant
   tip: rnd
+  isProbLand: 0
+  isTestLand: 0
   isProcedural: 1
   stage: 3
   baseDifficulty: 0
@@ -101,3 +103,188 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 01e9b32e3d576374bbd938714ee5f3f9, type: 2}
   - {fileID: 11400000, guid: ae46db8bc7cb51645bbdd4cbd78760e2, type: 2}
   - {fileID: 11400000, guid: 8bceb8a640f7234449cbbb2adb2ad36b, type: 2}
+  probRooms:
+  - id: labirint
+    hasLevel: 0
+    level: 0
+    imp: 0
+    tip: 1
+    prize: 1
+    close: 0
+    contents:
+    - tip: box
+      uid: labirintF1
+      qid: 
+  - id: buttons1
+    hasLevel: 0
+    level: 0
+    imp: 0
+    tip: 1
+    prize: 0
+    close: 0
+    contents:
+    - tip: box
+      uid: buttons1F1
+      qid: 
+    - tip: box
+      uid: buttons1F2
+      qid: 
+    - tip: box
+      uid: buttons1F3
+      qid: 
+  - id: radioactive
+    hasLevel: 1
+    level: 1
+    imp: 0
+    tip: 1
+    prize: 1
+    close: 0
+    contents:
+    - tip: box
+      uid: radioactiveF1
+      qid: 
+    - tip: box
+      uid: radioactiveF2
+      qid: 
+  - id: buttons2
+    hasLevel: 1
+    level: 1
+    imp: 0
+    tip: 1
+    prize: 0
+    close: 0
+    contents:
+    - tip: box
+      uid: buttons2F1
+      qid: 
+    - tip: box
+      uid: buttons2F2
+      qid: 
+  - id: buttons3
+    hasLevel: 1
+    level: 2
+    imp: 0
+    tip: 1
+    prize: 0
+    close: 0
+    contents:
+    - tip: box
+      uid: buttons3F1
+      qid: 
+    - tip: box
+      uid: buttons3F2
+      qid: 
+    - tip: box
+      uid: buttons3F3
+      qid: 
+    - tip: box
+      uid: buttons3F4
+      qid: 
+    - tip: box
+      uid: buttons3F5
+      qid: 
+    - tip: box
+      uid: buttons3F6
+      qid: 
+    - tip: box
+      uid: buttons3F7
+      qid: 
+  - id: sliv
+    hasLevel: 1
+    level: 2
+    imp: 0
+    tip: 1
+    prize: 1
+    close: 0
+    contents:
+    - tip: box
+      uid: slivF1
+      qid: 
+  - id: tower2
+    hasLevel: 1
+    level: 2
+    imp: 0
+    tip: 1
+    prize: 1
+    close: 0
+    contents:
+    - tip: box
+      uid: tower2F1
+      qid: 
+  - id: ant_breeding
+    hasLevel: 0
+    level: 0
+    imp: 0
+    tip: 2
+    prize: 0
+    close: 0
+    contents:
+    - tip: unit
+      uid: 
+      qid: antF1
+  - id: scorpions
+    hasLevel: 1
+    level: 1
+    imp: 0
+    tip: 2
+    prize: 0
+    close: 0
+    contents:
+    - tip: unit
+      uid: 
+      qid: scorpionsF1
+  - id: bloat_breeding
+    hasLevel: 1
+    level: 2
+    imp: 0
+    tip: 2
+    prize: 0
+    close: 0
+    contents:
+    - tip: unit
+      uid: 
+      qid: bloatF1
+  - id: director
+    hasLevel: 1
+    level: 1
+    imp: 0
+    tip: 2
+    prize: 0
+    close: 0
+    contents:
+    - tip: box
+      uid: directorF1
+      qid: 
+  - id: lair
+    hasLevel: 1
+    level: 2
+    imp: 0
+    tip: 2
+    prize: 0
+    close: 0
+    contents:
+    - tip: unit
+      uid: raidersF1
+      qid: 
+  - id: w_raiders
+    hasLevel: 1
+    level: 2
+    imp: 0
+    tip: 2
+    prize: 0
+    close: 0
+    contents:
+    - tip: wave
+      uid: 
+      qid: 
+  - id: generator
+    hasLevel: 1
+    level: 2
+    imp: 0
+    tip: 2
+    prize: 0
+    close: 0
+    contents:
+    - tip: unit
+      uid: generatorU1
+      qid: 

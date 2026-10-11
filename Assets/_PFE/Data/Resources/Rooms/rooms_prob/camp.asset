@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: camp
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: camp
   sourceCollectionId: rooms_prob
   type: pass
@@ -58,7 +58,7 @@ MonoBehaviour:
     tileCoord: {x: 1, y: 22}
   - id: moss
     tileCoord: {x: 11, y: 22}
-  doorQuality: 000000000200000002000000020000000000000000000000020000000200000002000000000000000000000000000000000000000000000002000000020000000200000002000000000000000000000000000000000000000000000000000000
+  doorQuality: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
   tileDataString: "L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L\nL.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L\nL.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L\nL.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L\nL.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L\nL.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L\nL.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L._._._._._._._._.L\nL.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L._._._._._._._._.L\nL._._._._._._._._._._._._._._._._._._._._._._.E._T._T._T._T._T._T._T._T._T._T._T._T._T._T._T._._._._._._._._.L\nL._._._._._._._._._._._._._._._._._._._._._._.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I\nL._._._._._._._._._._._._._._._._._._._._._._.ID._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D.I\nL._._._._._._._._._._._._._._._._._._._._._._.ID._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D.I\nL._._._._._._._._._._._._._._._._._._._._._._.ID._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D.I\nL._._._._._._._._._._._._._._._._._._._._._._._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D.I\nL._._._._._._._._._._._._._._._._._._._._._._._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D.I\nL._._._._._._._._._._._._._._._._._._._-._\u0410-.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I\nL._._._._._._._._._._._._._._._._._._._._\u0410.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I\nL._._._._._._._._._._._._._._._._._._._._\u0410.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I\nL._._._._._._._._._._._._._._._._._._._._\u0410.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I\nL._._._._._._._._._._._._._._._._._._._._\u0410.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I\nL._._._._._._._._._._._._._._._._._._._._.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I\nL._._._._._._._._._._._._._._._._._._._._.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I\nL._._._._._._._._._._._._._._._._._._._._.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I\nL._._._._._._._._._._._._._._._._._._._._.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I\nL.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L"
   objects:
   - type: box
@@ -216,12 +216,24 @@ MonoBehaviour:
       - act: dialog
         targ: 
         val: velvetDial4
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: showstage
         targ: 
         val: storyFind
+        n: 2
+        opt1: 
+        opt2: 
+        t: 
       - act: off
         targ: this
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="EVpHus1UkObuXgfj"
   - type: box
     id: woodbox
@@ -275,6 +287,10 @@ MonoBehaviour:
       - act: dialog
         targ: 
         val: velvetDial5
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="MF9vrgZRjp1BMUVT" inter="12" time="60"
   spawnPoints:
   - tileCoord: {x: 3, y: 23}

@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_8_1
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_8_1
   sourceCollectionId: rooms_surf
   type: pass
@@ -78,7 +78,7 @@ MonoBehaviour:
     tileCoord: {x: 5, y: 13}
   - id: musor2
     tileCoord: {x: 15, y: 19}
-  doorQuality: 020000000200000002000000020000000200000002000000000000000000000000000000000000000000000000000000020000000000000002000000020000000200000002000000020000000200000002000000020000000200000002000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: "_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._.R._._._._._._._._._._._._._._._._._._._._._._._._\nR.R.R.R.R.R.R.R.R.R.R.R.R.R.R.R.R.R.R.R.R.R.R.R._._._._._._._._._._._._._._._._._._._._._._._._\nR.R.R.R.R.R.R.R.R.R.R.R.R.R.R.R.R.R.R.R.R.R.R.R._._._._._._._._._._._._._._._._._._._._._._._._\nC.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._._._._._._._._._._._._._._._._._._._._._._._._\nCN._N._N._N._N._N._N._N._N._N._N._N._N._N.CN._N._N._N._N._N._N._N._N.CN._._._._._._._._._._._._._._._._._._._._._._._._\nCN._N._N._N._N._N._N._N._N._N._N._N._N._N.CN._N._N._N._N._N._N._N._N.CN._._._._._._._._._._._._._._._._._._._._._._._._\nCN._N._N._N._N._N._N._N._N._N._N._N._N._N.CN._N._N._N._N._N._N._N._N.CN._._._._._._._._._._._._._._._._._._._._._._._._\n_N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N.CN._._._._._._._._._._._._._._._._._._._._._._._._\n_N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N.CN._._._._._._._._._._._._._._._._._._._._._._._._\nCN.CN.CN.CN.CN.CN.CN.CN.CN.CN.CN.CN.CN.CN.CN.CN._N\u041A._N\u041A._N\u041A._N\u041A._N\u041A.CN.CN.CN._._._._._._._._._._._._._._._._._._._._._._._._\nCN._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N.CN._._._._._._._._._._._._._._._._._._._._._._._._\nCN._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N.CN._._._._._._._._._._._._._._._._._._._._._._._._\nCN._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N\u041B._N\u041A._N\u041A._N\u041A._N\u041A._N\u041A.CN._._._._._._._._._._._._._._._._._._._._._._._._\n_N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N\u041B._N._N._N._N._N._N._N._._._._._._._._._._._._._._._._._._._._._._._._\n_N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N\u041B._N._N._N._N._N._N._N._N._._._._._._._._._._._._._._._._._._._._._._._._\nC.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._\u041A._\u041A._\u041C._._._._._._._._._._._._._._._._._._._._._\nC.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._._._._\u041C._._._._._._._._._._._._._._._._._._._._\nC.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nG.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H"
   objects:
   - type: box
@@ -147,7 +147,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="jPaHr6u5oQzaFdQq"
-  - type: obj
+  - type: unit
     id: raider
     definitionId: raider
     definition: {fileID: 11400000, guid: 78df2015123b4124fa2fdc5977d63f5c, type: 2}
@@ -160,7 +160,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="oggxRfUgzOOp9zBB" tr="3"
-  - type: obj
+  - type: unit
     id: trap
     definitionId: trap
     definition: {fileID: 11400000, guid: 94236a07ba271e241a7f9bcd11eb093d, type: 2}
@@ -215,7 +215,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="aXCMfRADlUtR7gHY"
-  - type: obj
+  - type: unit
     id: raider
     definitionId: raider
     definition: {fileID: 11400000, guid: 78df2015123b4124fa2fdc5977d63f5c, type: 2}
@@ -250,7 +250,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="uWp8RRd1uDyIYCSx"
-  - type: obj
+  - type: unit
     id: trap
     definitionId: trap
     definition: {fileID: 11400000, guid: 94236a07ba271e241a7f9bcd11eb093d, type: 2}

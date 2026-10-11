@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_2_4
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_2_4
   sourceCollectionId: rooms_begin
   type: pass
@@ -72,10 +72,10 @@ MonoBehaviour:
     tileCoord: {x: 44, y: 9}
   - id: web1bl
     tileCoord: {x: 22, y: 9}
-  doorQuality: 000000000000000002000000020000000200000002000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000020000000200000002000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: "D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D\nD.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J.D\nD.D.D.D._A._A._A.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J.D\nD.D.D.D.EA.EA.EA.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J._J.D\nD.D.D.D._A._A._A.E._B._B._B._B._B\u0410._B._B._B._B._B.D.D.D.D._J._J._J._J._J._J._J._J._J._J._J.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D\nD.D.D.D._A._A._A.E._B._B._B._B._B\u0410._B._B._B._B._B.D.D.D.D._D\u0411-._D-._D-._D-._D-._D-._D-._D-._D-._D-._D-.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D\nD.D.D.D._A._A._A.E._B._B._B._B._B\u0410._B._B._B._B._B.D.D.D.D._D\u0411._D._D._D._D._D._D._D._D._D._D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D\nD.D.D.D._A._A._A.E._B._B._B._B._B\u0410._B._B._B._B._B.D.D.D.D._D\u0411._D._D._D._D._D._D._D._D._D._D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D\nD.D.D.D.D.D.D.D.D.D.D._._\u0410.D.D.D.D.D.D.D.D.D._D\u0411._D._D._D._D._D._D._D._D._D._D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D\nD.D.D.D._._._._._._\u0410._._._\u0410._._._\u0410._._._._.D.D._D\u0411._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D.D\nD.D.D.D._._._._._._\u0410._._._\u0410._._._\u0410._._._._.D.D._D\u0411._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D.D\nD.D.D.D._._._._._._\u0410._._._\u0410._._._\u0410._._._._.D.D._D\u0411._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D.D\nD.D.D.D._._._._._._\u0410._._._\u0410._._._\u0410._._._._.D.D.DD.DD.DD.DD.DD.DD.DD.DD.DD.DD.DD.DD.DD.DD.DD.DD.DD.DD._D-._D\u0413._D._D._D._D._D.D\nD.D.D.D._._._._._._\u0410._._._\u0410._._._\u0410._._._._.D.D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D.DD._D._D._D\u0413._D._D._D._D.D\n_._._._._._._._._._._._._\u0410._._._._._._._._._._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D.DD._D._D._D._D\u0413._D._D._D.D\n_._._._._._._._._._._._._\u0410._._._._._._._._._._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D.DD._D._D._D._D._D\u0413._D._D.D\nD.D.D.D.D.D._._._._._._._._._._._._.D.D.D.D.DD.DD.DD.DD.DD.DD.DD.DD.DD.DD.DD._D._D.DD.DD.DD.DD.DD._D._D._D._D._D\u0412._D-._D-.D\nD.D.D.D.D.D._._._._._._._._._._._._.D.D.D.D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D\u0412._D._D._D.D\nD.D.D.D.D.D._._._._._._._._._._._._.D.D.D.D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D\u0412._D._D._D._D.D\nD.D.D.D.D.D._._._._._._._._._._._._.D.D.D.D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D._D\u0412._D._D._D._D._D.D\nD.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D\nD.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D\nD.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D\nD.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D\nD.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D.D"
   objects:
-  - type: obj
+  - type: unit
     id: scorp
     definitionId: scorp
     definition: {fileID: 11400000, guid: f9d80b2df85d5424fac08f8479002729, type: 2}
@@ -166,7 +166,7 @@ MonoBehaviour:
         value: antidote
     scripts: []
     parameters: code="nU9OlTakvHEAABrz"
-  - type: obj
+  - type: unit
     id: scorp
     definitionId: scorp
     definition: {fileID: 11400000, guid: f9d80b2df85d5424fac08f8479002729, type: 2}
@@ -229,7 +229,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="ouDrRyNcGUlUgIkE"
-  - type: obj
+  - type: unit
     id: scorp
     definitionId: scorp
     definition: {fileID: 11400000, guid: f9d80b2df85d5424fac08f8479002729, type: 2}
@@ -240,7 +240,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="moRetnE4CT8jpfB0"
-  - type: obj
+  - type: unit
     id: scorp
     definitionId: scorp
     definition: {fileID: 11400000, guid: f9d80b2df85d5424fac08f8479002729, type: 2}
@@ -251,7 +251,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="yFbFnlnxncM0LJc0"
-  - type: obj
+  - type: unit
     id: scorp
     definitionId: scorp
     definition: {fileID: 11400000, guid: f9d80b2df85d5424fac08f8479002729, type: 2}

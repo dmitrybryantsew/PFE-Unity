@@ -17,6 +17,8 @@ MonoBehaviour:
   landId: way
   landName: Way
   tip: base
+  isProbLand: 0
+  isTestLand: 0
   isProcedural: 0
   stage: 8
   baseDifficulty: 0
@@ -47,3 +49,4 @@ MonoBehaviour:
   xpReward: 0
   roomTemplates:
   - {fileID: 11400000, guid: fa331de463e79fd4386a6429e0c7cb90, type: 2}
+  probRooms: []

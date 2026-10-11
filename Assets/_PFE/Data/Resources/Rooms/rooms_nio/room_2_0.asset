@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_2_0
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_2_0
   sourceCollectionId: rooms_nio
   type: pass
@@ -198,7 +198,7 @@ MonoBehaviour:
     tileCoord: {x: 6, y: 23}
   - id: musor2
     tileCoord: {x: 34, y: 23}
-  doorQuality: 000000000000000002000000000000000000000000000000020000000200000002000000020000000200000002000000000000000000000002000000000000000000000000000000020000000200000002000000020000000200000000000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: "B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B\nB._R._R._R._R._R._R._R.BR._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R.BR._R._R._R._R._R._R._R.B\nB._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R.B\nB._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R.B\nB.B.B.B.B.B.B.B.B.B._G\u0415._G\u0415._G\u0415.B.B.B.B.B.B.B.B.B.BG._\u0415._\u0415.BG.B.B.B.B.B.B.B.B.B._G\u0415._G\u0415._G\u0415.B.B.B.B.B.B.B.B.B.B\nB.B.B.B._._._._._._._G._G._G._._._._._O._O._._._._G._._._G._._._._O._O._._._._._G._G._G._._._._._._.B.B.B.B\nB.B.B.B._._._._._._._G._G._G._._._._._O._O._._._._G._._._G._._._._O._O._._._._._G._G._G._._._._._._.B.B.B.B\nB.B.B.B._._._._._._._G._G._G._._._._._O._O._._._._G._._._G._._._._O._O._._._._._G._G._G._._._._._._.B.B.B.B\nB.B.B.B._._._._._._._G._G._G._._._._._O._O._._._._G._._._G._._._._O._O._._._._._G._G._G._._._._._._.B.B.B.B\n_F._F._F._G._._._._._._._G._G._G._._._._._O._O._._._._G._._._G._._._._O._O._._._._._G._G._G._._._._._._._._F._F._F\n_F._F._F._G._._._._._._._G._G._G._._._._._O._O._._._._G._._._G._._._._O._O._._._._._G._G._G._._._._._._._._F._F._F\n_F._F._F._G._._._._._._._G._G._G._._._._._O._O._._._._G._._._G._._._._O._O._._._._._G._G._G._._._._._._._._F._F._F\nB.B.B.B.B.B.B.B.B.B._G._G._G.B.B.B.B.B.B.B.B.B.BG._\u0415._\u0415.BG.B.B.B.B.B.B.B.B.B._G._G._G.B.B.B.B.B.B.B.B.B.B\nB.B.B.B.B._._._._._._G._G._G._._._._._._._._._._G._._._G._._._._._._._._._._G._G._G._._._._O._O.B.B.B.B.B\nB.B.B.B.B._._._._._._G._G._G._._._._._._F._F._F._._G._._._G._._F._F._F._._._._._._G._G._G._._._._._O.B.B.B.B.B\nB.B.B.B.B._._._._._._G._G._G._._._._._._F._O._F._._G._._._G._._F._O._F._._._._._._G._G._G._._._._._O.B.B.B._.B\nB.B.B.B.B._._._._._._G._G._G._._._._._._F._F._F._._G._._._G._._F._F._F._._._._._._G._G._G._._._._O._O.B.E.E.E.B\nB.B.B.B.B._._._._._._G._G._G._._._._._._._._._._G._._._G._._._._._._._._._._G._G._G._._._._O._O.B._._._.B\nB.B.B.B.B._._._._._._G._G._G._._._._._._._._._._G._._._G._._._._._._._._._._G._G._G._._._._._O.B._._._.B\nB.B.B.B.B._._._._._._G._G._G._._.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B._._._G._G._G._._._._._O.B.E.E.E.B\nB._F._F._F.B._._._._._._G._G._G._._._._F._F._F._F._F._F._._G._G._._F._F._F._F._F._F._._._._G._G._G._._._._._.B._F._F._F.B\nB._F._F._F._G._._._._._._G._G._G._._._._F._F._F._F._F._F._._G._G._._F._F._F._F._F._F._._._._G._G._G._._._._._._._F._F._F.B\nB._F._F._F._G._._._._._._G._G._G._._._._F._F._F._F._F._F._._G._G._._F._F._F._F._F._F._._._._G._G._G._._._._._._._F._F._F.B\nB._F._F._F._G._._._._._._G._G._G._._._._F._F._F._F._F._F._._G._G._._F._F._F._F._F._F._._._._G._G._G._._._._._._._F._F._F.B\nB.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B._O\u0415._O\u0415.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B"
   objects:
   - type: door
@@ -242,7 +242,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="fgdaYiQXnU6sEdjg" allid="a1"
-  - type: obj
+  - type: unit
     id: armturret
     definitionId: armturret
     definition: {fileID: 11400000, guid: 485a5442239ff174dafac0f96a1b402d, type: 2}
@@ -354,7 +354,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="bQR7uYNWs0VjlLEl"
-  - type: obj
+  - type: unit
     id: gutsy
     definitionId: gutsy
     definition: {fileID: 11400000, guid: ece9b8a6b03b9774e80f2dc23b4cc77f, type: 2}
@@ -502,7 +502,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="xKHyYWtovdmT2tYB"
-  - type: obj
+  - type: unit
     id: spritebot
     definitionId: spritebot
     definition: {fileID: 11400000, guid: b6e6a1a7eb67f344fb680b28f689733c, type: 2}
@@ -572,7 +572,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="Kh3kqfHsPBMGjQMB"
-  - type: obj
+  - type: unit
     id: wturret
     definitionId: wturret
     definition: {fileID: 11400000, guid: dd3e6fb52f3321e4ebc033e908bae0a5, type: 2}
@@ -583,7 +583,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="ZhPw1axCpNKDDCmf"
-  - type: obj
+  - type: unit
     id: wturret
     definitionId: wturret
     definition: {fileID: 11400000, guid: dd3e6fb52f3321e4ebc033e908bae0a5, type: 2}

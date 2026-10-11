@@ -228,6 +228,7 @@ MonoBehaviour:
   - weaponId: mercgr
     chance: 1
     difficulty: 0
+    isFixedWeapon: 1
   - weaponId: cflamer
     chance: 0.01
     difficulty: 19

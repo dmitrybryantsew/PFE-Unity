@@ -320,9 +320,11 @@ MonoBehaviour:
   - weaponId: robomlau
     chance: 1
     difficulty: 0
+    isFixedWeapon: 1
   - weaponId: robogas
     chance: 1
     difficulty: 0
+    isFixedWeapon: 1
   - weaponId: cflamer
     chance: 0.3
     difficulty: 0

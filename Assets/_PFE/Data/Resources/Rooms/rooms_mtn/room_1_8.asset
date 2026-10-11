@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_1_8
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_1_8
   sourceCollectionId: rooms_mtn
   type: pass
@@ -48,7 +48,7 @@ MonoBehaviour:
     tileCoord: {x: 28, y: 17}
   - id: musor1
     tileCoord: {x: 39, y: 17}
-  doorQuality: 020000000200000000000000000000000200000000000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000000000000020000000200000002000000020000000200000002000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: "_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.C.C.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.C.C._E._E._E._E._E._E._E._E._E._E._E._E.CE\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.C.C._E._E._E._E._E._E._E._E._E._E._E._E.CE\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.C.C._E._E._E._E._E._E._E._E._E._E._E._E.CE\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.C.C._E\u041A._E\u041A._E\u041A._E\u041A._E\u041A._E\u041A._E\u041A._E\u041A._E\u041A._E\u041A._E\u041A._E\u041A.CE\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.C.C._E._E._E._E._E._E._E._E._E._E._E._E.CE\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.C.C._E._E._E._E._E._E._E._E._E._E._E._E.CE\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.C.C._E._E._E._E._E._E._E._E._E._E._E._E.CE\n_._._._._._._._._._._._._._._._._._._._._._._._._._.C.C.C.C.C.C.C.C.C.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE\n_._._._._._._._._._._._._._._._._._._._._._._._._._.C.CE._E._E._E._E._E._E.CE.CF.CF.CF.CF.CF._E._E._E._E._E._E.CE.CE\n_._._._._._._._._._._._._._._._._._._._._._._._._._.C.CE._E._E._E._E._E._E.CF._F._F._F._F.CF._E._E._E._E._E._E.CE.CE\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._E._E._E._E._E._E._E.CF._F._F._F._F.CF._E._E._E._E._E._E.CE.CE\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._E._E._E._E._E._E._E.CF._F._F._F._F.CF._E._E._E._E._E._E.CE.CE\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._E._E._E._._._._E.CF._F._F._F._F.CF._E._._._._E._E.CE.CE\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._E._E._E._._._._E._G._F._F._F._F._G._E._._._._E._E._E._E\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._E._E._E._._._._E._G._F._F._F._F._G._E._._._._E._E._E._E\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._E._E._E._._._._E._G._F._F._F._F._G._E._._._._E._E._E._E\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._E._E._E._E._E._E._E._G._F._F._F._F._G._E._E._E._E._E._E._E._E\nJ.J.J.J.J.J.J.J.J.J.J.J._._._._._._.J.J.J.J.J.J.J.J.J.JE.JE.JE.JE.JE.JE.JE.JE.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE.CE\nB.B.B.B.B.B.B.B.B.B.B.E.E.E,.E;.E;.E,.E.E.B.B.B.B.B.B.B.B.BE.BE.BE.BE.BE.BE.BE.BE.BE.BE.BE.BE.BE.BE.BE.BE.BE.BE.BE.BE.BE\nB.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.BE.BE.BE.BE.BE.BE.BE.BE.BE.BE.BE.BE.BE.BE.BE.BE.BE.BE.BE.BE.BE\n_._._._._._._._._._._._._._._._._._._._._._._._._._.C.CE.CE.CE._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E\n_._._._._._._._._._._._._._._._._._._._._._._._._._.C.CE.CE.CE._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E\n_._._._._._._._._._._._._._._._._._._._._._._._._._.C.CE.CE.CE._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E\n_._._._._._._._._._._._._._._._._._._._._._._._._._.C.C.C.C._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E"
   objects:
   - type: box
@@ -152,7 +152,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="KXZTFjAH5Pbne4wL"
-  - type: obj
+  - type: unit
     id: msp
     definitionId: msp
     definition: {fileID: 11400000, guid: 79e4bcfc810c419448c44c83d583171b, type: 2}
@@ -163,7 +163,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="LgVZFpg76X1KmTNW"
-  - type: obj
+  - type: unit
     id: msp
     definitionId: msp
     definition: {fileID: 11400000, guid: 79e4bcfc810c419448c44c83d583171b, type: 2}
@@ -174,7 +174,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="Gown3dFIltq01t3s"
-  - type: obj
+  - type: unit
     id: msp
     definitionId: msp
     definition: {fileID: 11400000, guid: 79e4bcfc810c419448c44c83d583171b, type: 2}

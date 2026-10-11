@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: "\u043F\u0435\u0449\u0435\u0440\u04302"
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: "\u043F\u0435\u0449\u0435\u0440\u04302"
   sourceCollectionId: rooms_stable
   type: pass
@@ -118,7 +118,7 @@ MonoBehaviour:
     tileCoord: {x: 1, y: 22}
   - id: light1
     tileCoord: {x: 23, y: 3}
-  doorQuality: 020000000200000000000000000000000000000002000000020000000200000002000000000000000000000000000000000000000000000000000000020000000000000000000000020000000200000002000000020000000200000002000000
+  doorQuality: 030000000300000000000000000000000300000002000000020000000200000002000000000000000000000003000000000000000000000003000000000000000200000002000000020000000000000000000000040000000000000000000000
   tileDataString: "A.A.A.A.A._Q._Q.A.A.A.A.A.A.A._Q._Q.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A._Q._Q._Q._Q.A.A.A.A\n_P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P.J._R._R._R._R._R._R._R._R._R._R._R._R._R.J._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N\n_P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._._R._R._R._R._R._R._R._R._R._R._R._R._R.J._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N\n_P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._._R._R._R._R._R._R._R._R._R._R._R._R._R.J._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N\nA.K.K.K.K.K.K,P.K;P.K:P._P._P._P._P._P._P._P._._R._R._R._R._R._R._R._R._R._R._R._R._R.J._N._N._N._N._N._N._N._N._N\u0410._N\u0415._N\u0415._N\u0415._N\u0415._N\u0415._N\u0415._N\u0415.A\nA.J.J.J.J.J.K.K.K.K.K.K.K.K.K.K.J._R\u0415._R\u0415._R\u0415._R\u0415._R\u0419._R._R._R._O._R._R._O._R.J._N._N._N._N._N._N._N._N._N\u0410._N._N._N._N._N._N._N._N\nA.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J._R._R._R._R._R._R\u0419._R._R._O._R._R._O._R._._N._N._N._N._N._N._N._N._N\u0410._N._N._N._N._N._N._N._N\nA.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J._R._R._R._R._R._R._R\u0419._R._F._F._F._F._R._._N._N._N._N._N._N._N._N._N\u0410._N._N._N._N._N._N._N._N\nA.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J._\u0411._.J.K.K.K.K.K.K.K.K.K.J.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.A\nA.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.J._I\u0411._I.J.G.G.G.G.G.G.G.G.G.G.G.G.G.G._._._._._.G.G.G.G.G.G.G.A\nA.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.G.J._I\u0411._I.J.G.G.G._._._._._._._.G.G.G._._._._.G;.G.G.G.G.G.G.G.G.A\nA.G.G.G.G.G.G._._._._._.G.G.G.G.G.J._I\u0411._I._._._._._._._._._._._._._._._.G,.G.G.G.G.G._._._.G.G.G.A\nA.G.G.G._._._._._._._._._._._.G.G.J._I\u0411._._._._._._._._._._._._.G:.G;.G,.G.G.G.G.G.G._._._._._.G.G.A\n_._._._._._._._._._._._._._._._.G.J._I._._._._._._._._._._._.G.G.G.G.G.G.G._._._._._._._._.G.G.A\n_._._._._._.G.G,._._._._._._._._._._._._.J._._._._._._._._._._.G.G.G.G.G._._._._._._.G._._.G.G.A\n_._._._._._.G.G._._._._._._._._._._._._I.J._._._._._._._._._._._._._.G.G._._._._._._.G._._.G.G.A\nA.G.G._._._._.G._._._._.G.G._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.G.A\nA.G.G.G._._._._._._._._.G.G._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\nA.G.G.G._._._._._._._._._._._._._._._._._._.G,.G.G.G;.G:._._._._._._._._._._.G;.G,.G.G._._._._._._._\nA.G.G.G.G.G.G.H.H.H._._._._._.G;.G,.J._I._._.G.G.G.G.G.G.G.G;._._._._._._._.G.G.G.G._._._._._._._._\nA.G.G.G.G.G.H.H.H.H.H.H.H.G.G.G.G.J._I._I.J.G.G.G.G.G.G.G.G._._._._._.H;.G.G.G.G.G._._._.G:.G;.G.G.A\nA.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J._I._I.J.J.J.J.J.J.G.G.G.H.H;._.H;.H.H.G.G.G.G._._._.G.G.G.G.G.A\n_I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I.J.G.G.H.H.H.H.H.H.G.G.G.G.H._._._._._._._._._\n_I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I.J.H.H.H.H.H.H.G.G.G.G.G.H.H.H;._._._._._._._._\nA.A.A.A.A._I\u0415._I\u0415.A.A.A.A.A.A.A._I\u0415._I\u0415.A.A.A.A.A.A.A._I\u0415._I\u0415.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A"
   objects:
   - type: box
@@ -154,7 +154,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="x40Ma9tgHLtk1pdo"
-  - type: obj
+  - type: unit
     id: vendor
     definitionId: vendor
     definition: {fileID: 11400000, guid: e79f68a6043bb8a4ebe67cddaf04aa3b, type: 2}
@@ -167,7 +167,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="WWL7HWd8f3T8sDiY" turn="-1"
-  - type: obj
+  - type: unit
     id: ebloat
     definitionId: ebloat
     definition: {fileID: 11400000, guid: 1f318101da73eae4992134243db714ea, type: 2}
@@ -233,7 +233,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="fxRsdqecNRrHUfTi"
-  - type: obj
+  - type: unit
     id: turret
     definitionId: turret
     definition: {fileID: 11400000, guid: f2ca5afcb9555924892e03a0eceb5802, type: 2}
@@ -244,7 +244,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="BcvnA71F36TdaK46"
-  - type: obj
+  - type: unit
     id: turret
     definitionId: turret
     definition: {fileID: 11400000, guid: f2ca5afcb9555924892e03a0eceb5802, type: 2}

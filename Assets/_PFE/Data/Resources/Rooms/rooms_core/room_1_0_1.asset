@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_1_0_1
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_1_0_1
   sourceCollectionId: rooms_core
   type: pass
@@ -80,7 +80,7 @@ MonoBehaviour:
     tileCoord: {x: 13, y: 9}
   - id: draw
     tileCoord: {x: 33, y: 9}
-  doorQuality: 000000000000000000000000000000000000000000000000000000000200000002000000020000000200000002000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: "H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.A._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.A._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.A._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.A._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.A._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.A.AP.AP._G\u0411\u0415._G\u0415.AP.AP.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.A._P._P._G\u0411._G._P._P.A._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N.A._P._P._P._P._P._P.A.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.A._P._P._G\u0411._G._P._P.A._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N.A._P._P._P._P._P._P.A.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.A._P._P._G\u0411._G._P._P.A._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N.A._P._P._P._P._P._P.A.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.A._P._P._G\u0411._G._P._P._._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._._P._P._P._P._P._P.A.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.A._P._P._G\u0411._G._P._P._._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._._P._P._P._P._P._P.A.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.A._P._P._G\u0411._G._P._P._._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._._P._P._P._P._P._P.A.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A._G\u0415._G\u0410\u0415.A.A.A.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.A._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._G._G\u0410._R._R.A.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.A._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._G._G\u0410._R._R.A.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.A._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._G._G\u0410._R._R.A.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.A._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._G._G\u0410._R._R.A.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.H.H.H.H.H.H"
   objects:
   - type: box
@@ -153,6 +153,10 @@ MonoBehaviour:
       - act: dialog
         targ: 
         val: termText7
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="G4UmFERcWQhj52w4"
   - type: box
     id: tumba2
@@ -278,7 +282,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="JgmTmAnKpUlaa9HR"
-  - type: obj
+  - type: unit
     id: protect
     definitionId: protect
     definition: {fileID: 11400000, guid: 2f0bd37ce2b5ba14ebb9a036e5ed9b51, type: 2}
@@ -289,7 +293,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="i0rGVZMv23kFvT9O"
-  - type: obj
+  - type: unit
     id: gutsy
     definitionId: gutsy
     definition: {fileID: 11400000, guid: ece9b8a6b03b9774e80f2dc23b4cc77f, type: 2}
@@ -300,7 +304,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="oH9UWeOi2WFAvv8y"
-  - type: obj
+  - type: unit
     id: spritebot
     definitionId: spritebot
     definition: {fileID: 11400000, guid: b6e6a1a7eb67f344fb680b28f689733c, type: 2}
@@ -311,7 +315,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="xDSqq3umZU33eSSc"
-  - type: obj
+  - type: unit
     id: spritebot
     definitionId: spritebot
     definition: {fileID: 11400000, guid: b6e6a1a7eb67f344fb680b28f689733c, type: 2}
@@ -322,7 +326,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="XyMtKs5am4ZmCSgY"
-  - type: obj
+  - type: unit
     id: spritebot
     definitionId: spritebot
     definition: {fileID: 11400000, guid: b6e6a1a7eb67f344fb680b28f689733c, type: 2}
@@ -333,7 +337,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="c57CqWPeFv1IoZs5"
-  - type: obj
+  - type: unit
     id: spritebot
     definitionId: spritebot
     definition: {fileID: 11400000, guid: b6e6a1a7eb67f344fb680b28f689733c, type: 2}

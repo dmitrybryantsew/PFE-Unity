@@ -17,6 +17,8 @@ MonoBehaviour:
   landId: stable_pi_atk
   landName: Stable Pi Atk
   tip: rnd
+  isProbLand: 0
+  isTestLand: 0
   isProcedural: 1
   stage: 12
   baseDifficulty: 0
@@ -92,3 +94,4 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 881d434dce38a7046b5383c6dbbdabb9, type: 2}
   - {fileID: 11400000, guid: 22422ab08967dfc47baaf70a64e59759, type: 2}
   - {fileID: 11400000, guid: d613dfb18c944d248ae53bbe2e628a25, type: 2}
+  probRooms: []

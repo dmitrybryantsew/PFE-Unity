@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_2_2
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_2_2
   sourceCollectionId: rooms_raiders
   type: pass
@@ -62,7 +62,7 @@ MonoBehaviour:
     tileCoord: {x: 20, y: 22}
   - id: moss
     tileCoord: {x: 30, y: 22}
-  doorQuality: 020000000200000002000000020000000000000000000000000000000200000002000000020000000200000000000000020000000200000002000000020000000000000000000000000000000000000000000000000000000200000000000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: "C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._T._T\u0410.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C\nC.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._T._T\u0410.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C\nC.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._T._T\u0410.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C\nC.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._T._T\u0410.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C\nC._._._._._._._._._.C.C.C.C.C.C.C.C.C._C._C._C._C._C._C.CC._C._C._C._C._C._T._T\u0410._C._C._C._C._C.CC._C._C._C._C._C._C._C._C.C\nC._._._._._._._._._.C.C.C.C.C.C.C.C.C._C._C._C._C._C._C.CC._C._C._C._C._C._T._T\u0410._C._C._C._C._C.CC._C._C._C._C._C._C._C._C.C\nC._._._._._._._._._.C.C.C.C.C.C.C.C.C._C._C._C._C._C._C.CC._C._C._C._C._C._T._T\u0410._C._C._C._C._C.CC._C._C._C._C._C._C._C._C.C\nC._._._._._._._._._.C.C.C.C.C.C.C.C.C._C._C._C._C._C._C.CC._C._C._C._C._C._T._T\u0410._C._C._C._C._C.CC._C._C._C._C._C._C._C._C.C\nC._._._._._._._._._._T._T._T._T._T._T._T._T._._C._C._C._C._C._C._C._C._C._C._C._C._T._T\u0410._C._C._C._C._C._C._C._C._C._C._C._C._C._C.C\nC._._._._._._._._._._T._T._T._T._T._T._T._T._._C._C._C._C._C._C._C._C._C._C._C._C._T._T\u0410._C._C._C._C._C._C._C._C._C._C._C._C._C._C.C\nC._._._._._._._._._._T._T._T._T._T._T._T._T._._C._C._C._C._C._C._C._C._C._C._C._C._T._T\u0410._C._C._C._C._C._C._C._C._C._C._C._C._C._C.C\nC._._._._._._._\u0412._-._-.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C\nC._._._._._._\u0412._._._.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C\nC._._._._._\u0412._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.C\nC._._._._\u0412._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.C\nC._._._\u0412._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.C\nL.L.L.L.L.L.L.L.L.L.L._-._-._\u0413._._._._._._._._._._._._._._._._._._._._._._\u0412._-._-.L.L.L.L.L.L.L.L.L.L\nL.L.L.L.L.L.L.L.L.L.L._._._._\u0413._._._._._._._._._._._._._._._._._._._._\u0412._._._.L.L.L.L.L.L.L.L.L.L\nL.L.L.L.L.L.L.L.L.L.L._._._._._\u0413._._._._._._._._._._._._._._._._._._\u0412._._._._.L.L.L.L.L.L.L.L.L.L\nL.L.L.L.L.L.L.L.L.L.L._._._._._._\u0413._._._._._._._._._._._._._._._._\u0412._._._._._.L.L.L.L.L.L.L.L.L.L\nL.L.L.L.L.L.L.L.L.L.L._._._._._._._\u0413._._._._._._._._._._._._._._\u0412._._._._._._.L.L.L.L.L.L.L.L.L.L\nL.L.L.L.L.L.L.L.L.L.L._._._._._._._._\u0413._._._._._._._._._._._._\u0412._._._._._._._.L.L.L.L.L.L.L.L.L.L\nL.L.L.L.L.L.L.L.L.L.L._._._._._._._._._\u0413._._._._._._._._._._\u0412._._._._._._._._.L.L.L.L.L.L.L.L.L.L\nL.L.L.L.L.L.L.L.L.L.L._._._._._._._._._._\u0413._._._._._._._._\u0412._._._._._._._._._.L.L.L.L.L.L.L.L.L.L\nL.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L.L"
   objects:
   - type: door
@@ -113,7 +113,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="aj9MJkXjDlm5Xy3W"
-  - type: obj
+  - type: unit
     id: fish
     definitionId: fish
     definition: {fileID: 11400000, guid: f8a75ed607b3a1847a7865d53728974f, type: 2}
@@ -124,7 +124,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="KAKgBZnpRw6KHDf8"
-  - type: obj
+  - type: unit
     id: fish
     definitionId: fish
     definition: {fileID: 11400000, guid: f8a75ed607b3a1847a7865d53728974f, type: 2}
@@ -135,7 +135,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="RAGLpUgf2oJkSmLS"
-  - type: obj
+  - type: unit
     id: fish
     definitionId: fish
     definition: {fileID: 11400000, guid: f8a75ed607b3a1847a7865d53728974f, type: 2}
@@ -146,7 +146,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="cN7YofizaUfZD7NB"
-  - type: obj
+  - type: unit
     id: fish
     definitionId: fish
     definition: {fileID: 11400000, guid: f8a75ed607b3a1847a7865d53728974f, type: 2}
@@ -157,7 +157,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="UC1gA401Mnb03lDe"
-  - type: obj
+  - type: unit
     id: slime
     definitionId: slime
     definition: {fileID: 11400000, guid: e76b1173a8bf9ca48bd556a2a454931e, type: 2}
@@ -168,7 +168,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="MkXhhEY7dIoNqJ2u"
-  - type: obj
+  - type: unit
     id: slime
     definitionId: slime
     definition: {fileID: 11400000, guid: e76b1173a8bf9ca48bd556a2a454931e, type: 2}
@@ -179,7 +179,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="pWQKTHBa1OXZv8Gd"
-  - type: obj
+  - type: unit
     id: slime
     definitionId: slime
     definition: {fileID: 11400000, guid: e76b1173a8bf9ca48bd556a2a454931e, type: 2}
@@ -190,7 +190,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="RiOnS3A9OsxTbqko"
-  - type: obj
+  - type: unit
     id: slime
     definitionId: slime
     definition: {fileID: 11400000, guid: e76b1173a8bf9ca48bd556a2a454931e, type: 2}
@@ -201,7 +201,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="bYjfxOllvOXLeUNy"
-  - type: obj
+  - type: unit
     id: bloodwing
     definitionId: bloodwing
     definition: {fileID: 11400000, guid: 8cb413623584f5e44aac1dffdaa1d68b, type: 2}
@@ -212,7 +212,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="irKj81YlrJoNKyv4"
-  - type: obj
+  - type: unit
     id: bloodwing
     definitionId: bloodwing
     definition: {fileID: 11400000, guid: 8cb413623584f5e44aac1dffdaa1d68b, type: 2}
@@ -223,7 +223,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="JUjq8rqHPCvxU8ts"
-  - type: obj
+  - type: unit
     id: bloodwing
     definitionId: bloodwing
     definition: {fileID: 11400000, guid: 8cb413623584f5e44aac1dffdaa1d68b, type: 2}
@@ -234,7 +234,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="GsYN0zGvCzTc7qHD"
-  - type: obj
+  - type: unit
     id: slime
     definitionId: slime
     definition: {fileID: 11400000, guid: e76b1173a8bf9ca48bd556a2a454931e, type: 2}
@@ -245,7 +245,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="w23NL65kn6ChyCiH"
-  - type: obj
+  - type: unit
     id: slime
     definitionId: slime
     definition: {fileID: 11400000, guid: e76b1173a8bf9ca48bd556a2a454931e, type: 2}
@@ -302,7 +302,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="Qh4LtAzJxV0pcTHb"
-  - type: obj
+  - type: unit
     id: molerat
     definitionId: molerat
     definition: {fileID: 11400000, guid: 1408e310852cb0742aa198feb9353ea9, type: 2}

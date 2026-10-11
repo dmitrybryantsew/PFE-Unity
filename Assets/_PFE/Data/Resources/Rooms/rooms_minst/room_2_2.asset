@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_2_2
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_2_2
   sourceCollectionId: rooms_minst
   type: pass
@@ -50,7 +50,7 @@ MonoBehaviour:
     tileCoord: {x: 33, y: 5}
   - id: skel
     tileCoord: {x: 35, y: 5}
-  doorQuality: 000000000200000002000000020000000200000002000000000000000000000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: "H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.I.I.I.I.I.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.I._._._.I.H\nH.H.I.I.I.I.I.I.I.I.I.I.I.I.I.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.I._._._.I.H\nH.H.I._D._D._D._D._D._D._D._D._D._D.H._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.I.H\nH.H.I._D._D._D._D._D._D._D._D._D._D.H._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.I.H\nH.H.I._D._D._D._D.ID.ID.ID.ID.ID.ID.ID._._.I.I.I.I.I.I._._._.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I._._.I.I.I.I.I.I\nH.H.I.I.I.I.I.ID.H.H.H.H.H.H._\u0414._\u0414.H.H.H.H.H.H._._._.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H._._._._._._._._\nH.H.H.H.H.H.H.HD.H.H.H.H.H.H._._.H.H.H.H.H.H._._._.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H._._._._._._._._\nH.H.H.H.H.H.H.H.H.H.H.H.H.H._._.H.H.H.H.H.H._._._._._._._._._._._._._._._._._._._._.I.I.I._\u0414._\u0410\u0414.I\nI.I.I.I.I.I.I.I.I.I.I.I.H.H._._.H.H.H.H.H.H._._._._._._._._._._._._._._._._._._._._.I.I.I._._\u0410.I\n_._._._._._._._._._._.I.H.H._\u0414._\u0414.H.H.H.H.H.H._._._.I.I.I.I.I.I.I.I.I._._.I.I.I.I._\u0414._\u0414.I.I.I._._\u0410.I\n_._._._._._._._._._._.I.H.H._._.H.H.H.H.H.H._._._.H.H.I.I.I.I.I.H.H._._.H.H.H.H._._.I.I.I._._\u0410.I\n_._._._._._._._._._._.I.H.H._._.H.H.H.H.H.H._._._.H.H.I._._._.I.H.H._._.H.H.H.H._._.I.I.I._._\u0410.I\n_._._._._._._._._._._._._._._._._._._._._._._._._.H.H.I._._._.I.H.H._\u0414._\u0414.H.H.H.H._._.I.I.I._._\u0410.I\n_._._._._._._._._._._._._._._._._._._._._._._._._.H.H.I._._._.I.I.I._._._._._._._._.I.I.I._._\u0410.I\nI.I.I.I.I.I.I.I.I.I.I.I.H.H.H.H.H.H._._.I.I.I.I.I.H.H.I._._._._._.F._._._._._._._._.E._._._._\u0410.I\nH.H.I._._._._._._.I.I.I.H.H.H.H.H.H._._.H.H.H.H.H.H.H.I.I.I.I.I.I.I._\u0414._\u0414.I.I.I.I._\u0414._\u0414.I.I.I.I.I.I\nH.H.I._._._._._._.I.I.I.I.I.I.I.I.I._._.H.H.H.H.H.H.H.H.H.H.H.H.H.H._._.H.H.H.H._._.I.I.I.I.I.I\nH.H.I._._._._._._._._._._._._._._._._._.H.H.H.H.H.H.H.H.H.H.H.H.H.H._._.H.H.H.H._._._._._._._._\nH.H.I._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.H.H.H.H._._._._._._._._\nH.H.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I._._._._._._._._._._._._._._._._._._.H.H.H.H._._.I.I.I.I.I.I\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.I.H.H.H._._.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H._._.H.H.H.H.H.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H"
   objects:
   - type: box
@@ -119,7 +119,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="QZ6v4eZ39TaLwyLH"
-  - type: obj
+  - type: unit
     id: slime
     definitionId: slime
     definition: {fileID: 11400000, guid: e76b1173a8bf9ca48bd556a2a454931e, type: 2}
@@ -130,7 +130,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="IMkvkTn91uMOapwp"
-  - type: obj
+  - type: unit
     id: slime
     definitionId: slime
     definition: {fileID: 11400000, guid: e76b1173a8bf9ca48bd556a2a454931e, type: 2}
@@ -141,7 +141,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="YctVxt2DUhReCjx8"
-  - type: obj
+  - type: unit
     id: slime
     definitionId: slime
     definition: {fileID: 11400000, guid: e76b1173a8bf9ca48bd556a2a454931e, type: 2}
@@ -163,7 +163,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="cJuVfwDP0j5vJTfO"
-  - type: obj
+  - type: unit
     id: slime
     definitionId: slime
     definition: {fileID: 11400000, guid: e76b1173a8bf9ca48bd556a2a454931e, type: 2}
@@ -174,7 +174,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="vp57N8JmXWEimiFB"
-  - type: obj
+  - type: unit
     id: zombie
     definitionId: zombie
     definition: {fileID: 11400000, guid: d56512d3ac0c0744eb90060a7d920ede, type: 2}
@@ -187,7 +187,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="Z3jhvePLRGn1dWol" dig="1"
-  - type: obj
+  - type: unit
     id: slime
     definitionId: slime
     definition: {fileID: 11400000, guid: e76b1173a8bf9ca48bd556a2a454931e, type: 2}
@@ -220,7 +220,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="AXfarhtNFININ7PR"
-  - type: obj
+  - type: unit
     id: zombie
     definitionId: zombie
     definition: {fileID: 11400000, guid: d56512d3ac0c0744eb90060a7d920ede, type: 2}
@@ -244,7 +244,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="qOPyZFLYRDY8Rtz4"
-  - type: obj
+  - type: unit
     id: slime
     definitionId: slime
     definition: {fileID: 11400000, guid: e76b1173a8bf9ca48bd556a2a454931e, type: 2}
@@ -321,7 +321,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="INolH6HuvzE8K9W4"
-  - type: obj
+  - type: unit
     id: zombie
     definitionId: zombie
     definition: {fileID: 11400000, guid: d56512d3ac0c0744eb90060a7d920ede, type: 2}
@@ -345,7 +345,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="HR0Z7Wy113smSXYc"
-  - type: obj
+  - type: unit
     id: necros
     definitionId: necros
     definition: {fileID: 11400000, guid: 17ff549e030bb2442a7e4bad4207c4d1, type: 2}

@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: exit_mane1
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: exit_mane1
   sourceCollectionId: rooms_prob
   type: pass
@@ -90,7 +90,7 @@ MonoBehaviour:
     tileCoord: {x: 7, y: 12}
   - id: potek
     tileCoord: {x: 0, y: 12}
-  doorQuality: 020000000200000002000000020000000200000000000000000000000000000000000000000000000200000002000000020000000200000000000000000000000000000000000000020000000200000002000000020000000200000002000000
+  doorQuality: 030000000300000003000000030000000000000003000000000000000000000000000000040000000400000003000000030000000000000000000000000000000000000004000000040000000400000004000000040000000000000000000000
   tileDataString: "_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._._._._._._._._._._._._._._._._._._._._._._._._._._._._\nN.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N._\u0411._._._._._._._._._._._._._._._._._._._._\nB.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B._\u0411._._._._._._._._._._._._._._._._._._._._\nB.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B._\u0411._._._._._._._._._._._._._._._._._._._._\nB.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B._\u0411._._._._._._._._._._._._._._._._._._._._\nEC.EC._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._\u0411._._._._._._._._._._._._._._._._._._._._\nEC.EC._C._C._C._C._._._C._C._C._C._C._._._C._C._C._C._C._._._C._C._C._C._C._\u0411._._._._._._._._._._._._._._._._._._._._\nEC.EC._C._C._C._C._._._C._C._C._C._C._._._C._C._C._C._C._._._C._C._C._C._C._\u0411._._._._._._._._._._._._._._._._._._._._\nEC.EC.EC._C._C._C._._._C._C._C._C._C._._._C._C._C._C._C._._._C._C._C._C._C._._._._._._._._._._._._._._._._._._._._._\nEC.EC.EC.EC._C._C._._._C._C._C._C._C._._._C._C._C._C._C._._._C._C._C._C._C._._._._._._._._._._._._._._._._._._._._._\nEC.EC.EC.EC.EC._C._._._C._C._C._C._C._._._C._C._C._C._C._._._C._C._C._C._C._._._._._._._._._._._._._._._._._._._._._\nJC.JC.JC.JC.JC.JC.J.J.JC.JC.JC.JC.JC.J.J.JC.JC.JC.JC.JC.J.J.JC.JC.JC.JC.JC.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J\nBC.BC.BC.BC.BC.BC.B.B.BC.BC.BC.BC.BC.B.B.BC.BC.BC.BC.BC.B.B.BC.BC.BC.BC.BC.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B\nBC.BC.BC.BC.BC.BC.B.B._C._C._C._C._C._._._C._C.BC.BC.BC._._._C._C._C._C._C._._._._._._._._._._._._._._._._._._._._._\nB.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B._._._._._._._._._._._._._._._._._._._._._\nB.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B._._._._._._._._._._._._._._._._._._._._._\nB.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B._._._._._._._._._._._._._._._._._._._._._\nB.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B._._._._._._._._._._._._._._._._._._._._._"
   objects:
   - type: area
@@ -110,12 +110,24 @@ MonoBehaviour:
       - act: landlevel
         targ: 
         val: mtn
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: off
         targ: this
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: control on
         targ: 
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="gAl39HHkfKRKEpGi" h="18"
   - type: area
     id: area
@@ -134,6 +146,10 @@ MonoBehaviour:
       - act: gotoland
         targ: 
         val: mtn
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="T2mNZ5w9EXnxxVb3" h="18"
   - type: area
     id: area
@@ -152,12 +168,24 @@ MonoBehaviour:
       - act: refill
         targ: 
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: upland
         targ: 
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: off
         targ: this
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="RXAq6P3igxNIIjym" h="8"
   - type: area
     id: area
@@ -178,6 +206,10 @@ MonoBehaviour:
       - act: dialog
         targ: 
         val: maneMtn
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="a2DymsYDCHzAPv4O" uid="trig_maneMtn" h="8" trig="1"
   - type: checkpoint
     id: checkpoint

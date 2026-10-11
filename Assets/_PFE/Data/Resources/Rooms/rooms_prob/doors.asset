@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: doors
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: doors
   sourceCollectionId: rooms_prob
   type: pass
@@ -70,7 +70,7 @@ MonoBehaviour:
     tileCoord: {x: 41, y: 18}
   - id: wires1
     tileCoord: {x: 41, y: 16}
-  doorQuality: 000000000200000000000000000000000200000002000000000000000000000000000000000000000000000000000000000000000200000000000000020000000000000000000000000000000000000000000000000000000000000000000000
+  doorQuality: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
   tileDataString: "A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F.A.A.A.A.A.A.A.A.A.A.A.A\nA._._._._._._._._._._._._._._._._._._._._._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F.A.A.A.A._O._O._O._O._O._O._O.A\nA._._._._._._._._._._._._._._._._._._._._._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F.A.A.A.A._O._O._O._O._O._O._O.A\nA._._._._._._._._._._._._._._._._._._._._._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._I._I._I._I._O._O._O._O._O._O._O.A\nA.A.A.A.A.A.A.A.A._._\u0410.A.A.A.A.A.A.A.A.A.A.AF.AF.AF.AF.AF.AF.AF.AF.AF.AF.AF.AF.AF.AF.A.A.A.A.A.A.A.A.A.K.K.K.A\nA._._._._.A.A.A.A._._\u0410.A.A.A.A.A.A.A.A.A.A.AF.AF.AF.AF.AF.AF.AF.AF.AF.AF.AF.AF.AF.AF.A.A.A.A.A.A.A.A.A.K.K.K.A\nA._._._._._._._._._._\u0410._._._._._._._._._._._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F.AF.KF.KF.KF.A\nA._._._._._._._._._._\u0410._._._._._._._._._._._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F.AF.AF.AF.AF.AQ\nA._._._._._._._._._._\u0410._._._._._._._._._._._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F.AF.AF.AF.AF.AQ\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.AB.AB.AB.AB.AB.AB.AB.AB.AB.AB.AB.AB.AB.AB.AB._._.AB.AB.AB.AB.AB.A.A.A.AQ\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._F._B._B._B._B._B._B.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B._B.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A"
   objects:
   - type: bonus
@@ -242,15 +242,31 @@ MonoBehaviour:
       - act: swap
         targ: doorsD1
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: swap
         targ: doorsD3
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: swap
         targ: doorsD4
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: swap
         targ: doorsD7
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="GL1Ub9mwqVAzFKF7" allid="a1"
   - type: door
     id: door3
@@ -308,15 +324,31 @@ MonoBehaviour:
       - act: swap
         targ: doorsD1
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: swap
         targ: doorsD3
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: swap
         targ: doorsD5
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: swap
         targ: doorsD6
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="m61rNvCj7cGri9u4" allid="a1"
   - type: box
     id: knop1
@@ -335,12 +367,24 @@ MonoBehaviour:
       - act: swap
         targ: doorsD1
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: swap
         targ: doorsD2
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: swap
         targ: doorsD5
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="jPxvMY8YgEE4N2YS" allid="a1"
   - type: box
     id: knop1
@@ -359,18 +403,38 @@ MonoBehaviour:
       - act: swap
         targ: doorsD2
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: swap
         targ: doorsD3
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: swap
         targ: doorsD4
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: swap
         targ: doorsD6
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: swap
         targ: doorsD7
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="Dr5jmDdzojfABUQ7" allid="a1"
   - type: box
     id: knop1
@@ -389,12 +453,24 @@ MonoBehaviour:
       - act: swap
         targ: doorsD1
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: swap
         targ: doorsD3
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: swap
         targ: doorsD4
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="jNfqfmbVGPUgYSvs" allid="a1"
   - type: box
     id: termh
@@ -424,12 +500,24 @@ MonoBehaviour:
       - act: swap
         targ: doorsD2
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: swap
         targ: doorsD4
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: swap
         targ: doorsD5
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="fWFavyRwx8w5p1v9" allid="a1"
   - type: area
     id: area
@@ -465,15 +553,31 @@ MonoBehaviour:
       - act: swap
         targ: doorsD1
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: swap
         targ: doorsD3
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: swap
         targ: doorsD5
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
       - act: swap
         targ: doorsD7
         val: 
+        n: 
+        opt1: 
+        opt2: 
+        t: 
     parameters: code="Tf0EVcgRd8ToAxlV" allid="a1"
   - type: box
     id: cryocap

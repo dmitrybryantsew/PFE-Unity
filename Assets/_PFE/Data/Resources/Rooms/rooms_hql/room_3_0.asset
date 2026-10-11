@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_3_0
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_3_0
   sourceCollectionId: rooms_hql
   type: pass
@@ -84,7 +84,7 @@ MonoBehaviour:
     tileCoord: {x: 27, y: 16}
   - id: metal
     tileCoord: {x: 27, y: 7}
-  doorQuality: 020000000200000002000000000000000200000002000000020000000200000002000000020000000000000002000000020000000200000002000000020000000000000002000000020000000200000002000000020000000200000002000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: "_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._.D._T._T._T._T._T._T._T._T._T._T._T._T._T.BC.BC.BC.BC.BC.BC.BC.BC.BC.BC.BC.BC.BC.BC\n_._._._._._._._._._._._._._._._._._._._.D._T._T._T._T._T._T._T._T._T._T._T._T._T.BC._C._C._C.CC._C._C._C._C._C.CC._C._C.CC\n_._._._._._._._._._._._._._._._._._._._.DC.BC.BC.BC.BC.BC.BC.BC.BC.BC.BC.BC.BC.BC.BC._C._C._C.CC._C._C._C._C._C.EC._C._C.CC\n_._._._._._._._._._._._._._._._._._._._.DC._C._C._C._C._C._C._C._C._C._C._C._C._C.CC._C._C._C.CC._C._C._C._C._C.EC._C._C.CC\nCC.CC.CC.CC.CC.CC.CC.CC.CC.CC.CC.CC.CC.CC.CC.CC.CC.BC._C._C.CC._C._C._C._C._C._C._C._C._C._C._C._C._C.CC._C._C._C.CC._C._C._C._C._C.CC._C._C.CC\nCC._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C.BC._C._C.CC._C._C._C._C._C._C._C._C._C._C._C._C._C.CC._C._C._C.CC._C._C._C._C._C.CC.CC.CC.CC\nCC._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C.BC._C._C.CC._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C.CC._C._C._C._C._C.CC._C._C._C\nCC._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C.BC._C._C.CC._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C\nCC.BC.BC._C._C\u0410.BC.BC.BC.BC.BC.BC.BC.BC.BC.BC.BC.BC.BC._C._C.CC._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C\nCC._C._C._C._C\u0410._C._C._C._C._C._C._C._C._C._C._C._C.BC._C._C.CC.CC.CC._C._C.CC.CC.CC.CC.CC._C._C.BC.BC.BC.BC.BC.BC.BC.BC.BC.BC.BC.BC.BC.BC.BC.BC\nCC._C._C._C._C\u0410._C._C._C._C._C._C._C._C._C._C._C._C.BC._C._C.CC._C._C._C._C._C._C._C._C.CC._C._C.BC._D._D._D._D._D._D._D._D._D._D._D._D._D._D.BC\nCC._C._C._C._C\u0410._C._C._C._C._C._C._C._C._C._C._C._C.BC._C._C.CC._C._C._C._C._C._C._C._C.CC._C._C.BC._D._D._D._D._D._D._D._D._D._D._D._D\u0414._D\u0414._D\u0414.BC\nCC.CC.CC.CC.CC.CC.CC.CC.CC.EC.EC.EC.EC.EC.EC.EC.EC.BC._C._C.CC._C._C._C._C._C._C._C._C.CC._C._C.BC._D._D._D._D._D._D._D._D._D._D._D._D._D._D.BC\n_C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C.BC._C._C.CC.CC.CC.CC.CC.CC.CC.CC.CC.CC._C-._C-.BC._D._D._D._D._D._D._D._D._D._D._D._D._D._D.BC\n_C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C.BC.CD.CD.CD.CD.ED.ED.CD.CD.CD._D._D._D._D._D.BC\nCC.CC.CC.CC._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C._C.EC._D._D._D._D._D._D._D._D._D._D._D._D._D._D.BC\nC.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B"
   objects:
   - type: box
@@ -131,7 +131,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="wSjCQ6rUvDtuJffL"
-  - type: obj
+  - type: unit
     id: expl1
     definitionId: expl1
     definition: {fileID: 11400000, guid: 18535bbafba8eed46a14f54ecb3aed1b, type: 2}
@@ -144,7 +144,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="HfRsD7pQErX7ysLB" allid="a1"
-  - type: obj
+  - type: unit
     id: expl1
     definitionId: expl1
     definition: {fileID: 11400000, guid: 18535bbafba8eed46a14f54ecb3aed1b, type: 2}
@@ -168,7 +168,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="rmcG7GKswkSa7Uqs"
-  - type: obj
+  - type: unit
     id: mine
     definitionId: mine
     definition: {fileID: 11400000, guid: 01175fdf5effab8449dc622f301ad809, type: 2}
@@ -179,7 +179,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="UKpN5KcOUwHIidNY"
-  - type: obj
+  - type: unit
     id: trap
     definitionId: trap
     definition: {fileID: 11400000, guid: 94236a07ba271e241a7f9bcd11eb093d, type: 2}
@@ -190,7 +190,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="eivP9hQFTlKdZDh1"
-  - type: obj
+  - type: unit
     id: trplate
     definitionId: trplate
     definition: {fileID: 11400000, guid: a5c82bc59f5b4684f9405e9cc7f7c826, type: 2}
@@ -214,7 +214,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="WqzzGynj6DMz81k8"
-  - type: obj
+  - type: unit
     id: damgren
     definitionId: damgren
     definition: {fileID: 11400000, guid: f2d791930cc86db40ae978e4d9ae87e2, type: 2}
@@ -227,7 +227,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="E889FbEOwL0d94Ok" allid="a2"
-  - type: obj
+  - type: unit
     id: damgren
     definitionId: damgren
     definition: {fileID: 11400000, guid: f2d791930cc86db40ae978e4d9ae87e2, type: 2}
@@ -240,7 +240,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="W9yh4ZmEUGFUcRRG" allid="a2"
-  - type: obj
+  - type: unit
     id: trplate
     definitionId: trplate
     definition: {fileID: 11400000, guid: a5c82bc59f5b4684f9405e9cc7f7c826, type: 2}
@@ -253,7 +253,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="ebPLqQDBCSDse9Qc" allid="a2"
-  - type: obj
+  - type: unit
     id: mine
     definitionId: mine
     definition: {fileID: 11400000, guid: 01175fdf5effab8449dc622f301ad809, type: 2}
@@ -264,7 +264,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="d8oZP7NSyt5E8lsv"
-  - type: obj
+  - type: unit
     id: mine
     definitionId: mine
     definition: {fileID: 11400000, guid: 01175fdf5effab8449dc622f301ad809, type: 2}
@@ -275,7 +275,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="wfOHSWWvU9Shf9m7"
-  - type: obj
+  - type: unit
     id: mine
     definitionId: mine
     definition: {fileID: 11400000, guid: 01175fdf5effab8449dc622f301ad809, type: 2}
@@ -288,7 +288,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="SSK9RW1WVV4Ol8d6" tr="5"
-  - type: obj
+  - type: unit
     id: damshot
     definitionId: damshot
     definition: {fileID: 11400000, guid: d844cdf3159f0cf498f98f1c31b58f8b, type: 2}
@@ -303,7 +303,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="VZXQUCF6KylA3Iy8" turn="-1" allid="a3"
-  - type: obj
+  - type: unit
     id: msp
     definitionId: msp
     definition: {fileID: 11400000, guid: 79e4bcfc810c419448c44c83d583171b, type: 2}
@@ -316,7 +316,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="mOMjXLQa5m1S90A0" ear="0"
-  - type: obj
+  - type: unit
     id: trap
     definitionId: trap
     definition: {fileID: 11400000, guid: 94236a07ba271e241a7f9bcd11eb093d, type: 2}
@@ -327,7 +327,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="OD4XO51I9zM1z8s5"
-  - type: obj
+  - type: unit
     id: trridge
     definitionId: trridge
     definition: {fileID: 11400000, guid: b18ed878977c33b4fabbbdecc8c96402, type: 2}
@@ -384,7 +384,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="MM0vu4YRBxGTg0eE"
-  - type: obj
+  - type: unit
     id: mine
     definitionId: mine
     definition: {fileID: 11400000, guid: 01175fdf5effab8449dc622f301ad809, type: 2}
@@ -430,7 +430,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="s86rlrwvv8hPA69u"
-  - type: obj
+  - type: unit
     id: rat
     definitionId: rat
     definition: {fileID: 11400000, guid: 91aa9373086f9584dafaf4723062b4a4, type: 2}

@@ -188,9 +188,11 @@ MonoBehaviour:
   - weaponId: aliblade
     chance: 1
     difficulty: 0
+    isFixedWeapon: 1
   - weaponId: alimray
     chance: 1
     difficulty: 0
+    isFixedWeapon: 1
   animations:
     stay:
       row: 0

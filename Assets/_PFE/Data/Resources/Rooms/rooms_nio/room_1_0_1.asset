@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_1_0_1
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_1_0_1
   sourceCollectionId: rooms_nio
   type: pass
@@ -192,7 +192,7 @@ MonoBehaviour:
     tileCoord: {x: 44, y: 11}
   - id: skel
     tileCoord: {x: 5, y: 19}
-  doorQuality: 000000000200000002000000020000000200000002000000020000000200000000000000000000000000000002000000020000000200000002000000020000000200000002000000020000000200000000000000020000000200000002000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: 'B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B
 
     B._._._._._._._._._._._._._._._._.B.EJ._J._J._J._J._J._J._J._J._J._J.EJ.B._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H._H.B
@@ -276,7 +276,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="ADDdBtTB4mPralAQ"
-  - type: obj
+  - type: unit
     id: fish
     definitionId: fish
     definition: {fileID: 11400000, guid: f8a75ed607b3a1847a7865d53728974f, type: 2}
@@ -287,7 +287,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="NPmfeSVhBTFbsSy8"
-  - type: obj
+  - type: unit
     id: fish
     definitionId: fish
     definition: {fileID: 11400000, guid: f8a75ed607b3a1847a7865d53728974f, type: 2}
@@ -432,7 +432,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="mVAdergepnvABjo7"
-  - type: obj
+  - type: unit
     id: slime
     definitionId: slime
     definition: {fileID: 11400000, guid: e76b1173a8bf9ca48bd556a2a454931e, type: 2}
@@ -603,7 +603,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="UKGIgEU5QyKvghvB"
-  - type: obj
+  - type: unit
     id: roller
     definitionId: roller
     definition: {fileID: 11400000, guid: bc6e49884f4b9b343af9403b670cc47d, type: 2}

@@ -17,6 +17,8 @@ MonoBehaviour:
   landId: random_encl
   landName: Encl
   tip: rnd
+  isProbLand: 0
+  isTestLand: 0
   isProcedural: 1
   stage: 11
   baseDifficulty: 27
@@ -69,3 +71,85 @@ MonoBehaviour:
   - {fileID: 11400000, guid: d967a585a0bd33a48ba0a761d7b7ca12, type: 2}
   - {fileID: 11400000, guid: 0d120062cb6737948806684073b11a76, type: 2}
   - {fileID: 11400000, guid: e77bcb1cd4f1c8f41bb2219c9ca00cd6, type: 2}
+  probRooms:
+  - id: buttons7
+    hasLevel: 1
+    level: 0
+    imp: 0
+    tip: 1
+    prize: 0
+    close: 0
+    contents:
+    - tip: box
+      uid: buttons7F1
+      qid: 
+    - tip: box
+      uid: buttons7F2
+      qid: 
+    - tip: box
+      uid: buttons7F3
+      qid: 
+    - tip: box
+      uid: buttons7F4
+      qid: 
+    - tip: box
+      uid: buttons7F5
+      qid: 
+    - tip: box
+      uid: buttons7F6
+      qid: 
+  - id: dressing
+    hasLevel: 1
+    level: 1
+    imp: 0
+    tip: 2
+    prize: 0
+    close: 0
+    contents:
+    - tip: unit
+      uid: 
+      qid: dressingE1
+  - id: electro
+    hasLevel: 1
+    level: 0
+    imp: 0
+    tip: 1
+    prize: 1
+    close: 0
+    contents:
+    - tip: box
+      uid: electroF1
+      qid: 
+  - id: moln
+    hasLevel: 1
+    level: 1
+    imp: 0
+    tip: 1
+    prize: 1
+    close: 0
+    contents:
+    - tip: box
+      uid: molnF1
+      qid: 
+  - id: hounds
+    hasLevel: 1
+    level: 1
+    imp: 0
+    tip: 2
+    prize: 0
+    close: 0
+    contents:
+    - tip: unit
+      uid: 
+      qid: houndF1
+  - id: w_encl
+    hasLevel: 1
+    level: 1
+    imp: 0
+    tip: 2
+    prize: 0
+    close: 0
+    contents:
+    - tip: wave
+      uid: 
+      qid: 

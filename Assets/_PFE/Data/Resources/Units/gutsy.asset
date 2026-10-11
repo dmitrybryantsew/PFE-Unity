@@ -208,6 +208,7 @@ MonoBehaviour:
   - weaponId: robofire
     chance: 1
     difficulty: 0
+    isFixedWeapon: 1
   - weaponId: roboplasma2
     chance: 0.3
     difficulty: 18

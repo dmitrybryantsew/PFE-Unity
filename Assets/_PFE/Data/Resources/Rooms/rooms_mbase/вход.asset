@@ -11,14 +11,14 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: "\u0432\u0445\u043E\u0434"
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: "\u0432\u0445\u043E\u0434"
   sourceCollectionId: rooms_mbase
   type: beg0
   fixedPosition: {x: 0, y: 0, z: 0}
   difficultyLevel: 0
   maxInstances: 2
-  allowRandom: 1
+  allowRandom: 0
   specificMapOnly: 0
   backgroundRoomId: 
   backgroundDecorations:
@@ -92,10 +92,10 @@ MonoBehaviour:
     tileCoord: {x: 37, y: 17}
   - id: rangers
     tileCoord: {x: 42, y: 17}
-  doorQuality: 020000000200000002000000020000000000000002000000000000000000000000000000000000000000000000000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000002000000
+  doorQuality: 030000000300000003000000030000000300000000000000000000000000000000000000000000000000000003000000030000000300000003000000030000000000000004000000040000000400000000000000000000000000000000000000
   tileDataString: "_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A.A.A._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A.A.A._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A.A.A._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A.A.A._U-._U-._U-._U-._U-._U-._U-._U-._U-._U-._U-._U-._U-._U-._U\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A.A.A._U._U._U._U._U._U._O._O._U._U._U._U._U._U._U\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A.A.A._U._U._U._U._U._U._O._O._U._U._U._U._U._U._U\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A.A.A._U._U._U._U._U._U._O._O._U._U._U._U._U._U._U\n_._._\u0415._\u0415._\u0411\u0415._\u0415._\u0415._\u0415._\u0415._\u0415._._._._._._._._._._._._._._._._._._._._.A.A.A._U-._U-._U-._U-.O.O.O.O.O._U-._U-._U-._U-._U-._U\n_._._._._\u0411._._._._._._._._._._._._._._._._._._._._._._._._._.A.A.A._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U\n_._._._._\u0411._._._._._._._._._._._._._._._._._._._._._._._._._.A.A.A._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U\n_._._._._\u0411._._._._._._._._._._._._._._._._._._._._._._._._._.A.A.A._U._U._U._U._U._U._U._U._U._U._U._U._U._U._U\n_._._._._\u0411._._._._._._._._._._._._._._._._._._._._._._._._._.A.A.A.OU.OU._Q._Q\u0410.OU.OU.OU.OU.OU.OU.OU.OU.OU.OU.OU\n_._._._._\u0411._._._._._._._._._._._._._._._._._._._._._._._._._.A.A.A._N._N._N._N\u0410._N._N._G._N._G._N._N._N._N._N._N\n_._._._._\u0411._._._._._._._._._._._._._._._._._._._._._._._._._.A.A.A._N._N._N._N\u0410._N._N._G._N._G._N._N._N._N._N._N\n_._._._._\u0411._._._._._._._._F._._._._._F._._._._._._._F._._._._._F.A.A.A._N._N._N._N\u0410._N._N._G._N._G._N._N._N._N._N._N\n_._._._._U\u0415._U\u0415._U\u0415._U\u0415._._._._._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._G._Q._G._N._N._N._N\u0410._N._N._G._N._G._N._N._N\u0410.ON.ON.ON\n_._._._._U._U._U._U._._._._._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._G._Q._G._N._N._N._N._N._N._G._N._G._N._N._N\u0410._N._N._N\n_._._._._U._U._U._U._._._._._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._G._Q._G._N._N._N._N._N._N._G._N._G._N._N._N\u0410._N._N._N\n_._._._._U._U._U._U._._._._._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._K._G._Q._G._N._N._N._N._N._N._G._N._G._N._N._N\u0410._N._N._N\nC.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B\nB.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B\nB.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B\nB.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B\nB.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B.B"
   objects:
-  - type: obj
+  - type: unit
     id: ranger
     definitionId: ranger
     definition: {fileID: 11400000, guid: 73156fd43c765fe41a8521cb472c31bf, type: 2}
@@ -114,7 +114,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="zosOKqtSICg5XPFW" tr="1" turn="-1" ai="quiet" weap="glau"
-  - type: obj
+  - type: unit
     id: ranger
     definitionId: ranger
     definition: {fileID: 11400000, guid: 73156fd43c765fe41a8521cb472c31bf, type: 2}
@@ -157,7 +157,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="u0mPHqIE5dgDm3Or"
-  - type: obj
+  - type: unit
     id: npc
     definitionId: npc
     definition: {fileID: 11400000, guid: 2b067238a37bc224c99b891f75cdd086, type: 2}
@@ -172,7 +172,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="gm6iniFpAgMaWgds" uid="mbaseSteel" npc="steel2" turn="1"
-  - type: obj
+  - type: unit
     id: turret
     definitionId: turret
     definition: {fileID: 11400000, guid: f2ca5afcb9555924892e03a0eceb5802, type: 2}
@@ -183,7 +183,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="f5OS2ECr7rnrZLSH"
-  - type: obj
+  - type: unit
     id: turret
     definitionId: turret
     definition: {fileID: 11400000, guid: f2ca5afcb9555924892e03a0eceb5802, type: 2}
@@ -194,7 +194,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="A25l2ANEFsv7gWbB"
-  - type: obj
+  - type: unit
     id: turret
     definitionId: turret
     definition: {fileID: 11400000, guid: f2ca5afcb9555924892e03a0eceb5802, type: 2}

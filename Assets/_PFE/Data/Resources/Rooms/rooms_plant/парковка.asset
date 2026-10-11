@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: "\u043F\u0430\u0440\u043A\u043E\u0432\u043A\u0430"
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: "\u043F\u0430\u0440\u043A\u043E\u0432\u043A\u0430"
   sourceCollectionId: rooms_plant
   type: pass
@@ -106,7 +106,7 @@ MonoBehaviour:
     tileCoord: {x: 43, y: 16}
   - id: draw
     tileCoord: {x: 2, y: 1}
-  doorQuality: 000000000200000002000000000000000000000000000000020000000000000000000000000000000000000000000000000000000200000000000000020000000000000002000000020000000200000002000000000000000200000000000000
+  doorQuality: 000000000300000002000000020000000000000003000000020000000000000000000000000000000200000003000000030000000000000003000000030000000300000002000000000000000200000000000000020000000000000000000000
   tileDataString: "C.C.C.C.C._C._C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._C._C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._I._I.C.C.C.C.C\n_C._C._C._C._C._C._C._C._C.CA._J._J._J._J._J._J._J._J._J._J._J._J.CA._C._C.CA._._._._._._._._._._._._._.CA.A._F._F._F.A.CA.CA.C\n_C._C._C._C._C._C._C._C._C.CA._J._J._J._J._J._J._J._J._J._J._J._J._J._C._C.CA._._._._._._._._._._._._._.CA.A._H._H._H.A.CA.CA.C\n_C._C._C._C._C._C._C._C._C.CA._J._J._J._J._J._J._J._F._J._J._J._J._J._C._C.CA._._._._._._._._._._._._._.CA.A.AH._H._H\u0410.A.CA.CA.C\nC.CA.CA.CA.CA._C-._C-.CA.CA.CA._J._J._J._J._J._J\u0412._J-.CJ.CJ.CJ.CJ.CJ.CA._C-._C-.CA._._._._._\u0412._-._-._-._-._._._._.CA.A._H._H._H\u0410.A.CA.CA.C\n_C._C._C._C._C._C._C._C._C.CA._J._J._J._J._J\u0412._J._J._J._J._J._J._J.CA._C._C.CA._._._._\u0412._._._._._._S._S._._._K._._H._H._H._._K._D._D\n_C._C._C._C._C._C._C._C._C._J._J._J._J._J\u0412._J._J._J._J._J._J._J._J._J._C._C._._._-._-._\u0413._._._._._._S._S._._._K._._H._H._H._._K._D._D\n_C._C._C._C._C._C._C._C._C._J._J._J._J\u0412._J._J._J._J._J._J._J._J._J._J._C._C._._._._._._\u0413._._._._._S._S._._F._K._._H._H._H._._K._D._D\nCA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.DA.EA.EA.DA.CA.CA.DA.DA.DA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.A._H._H._H.A.CA.CA.C\nCA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.DA.DA.CA.CA.CA.DA.EA.EA.EA.EA.DA.EA.EA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.A._H._H._H.A.CA.CA.C\nCA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.DA.EA.EA.EA.EA._A._A.EA.EA.DA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.A._H._H._H._F._I._I._I\nCA.CA.CA.CA.CA.CA.CA.CA.CA.CA.DA.DA.DA.DA.CA.CA.DA.EA._A._A._A._A.DA.DA.EA.DA.DA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.A._H._H._H._F._I._I._I\nCA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.DA.EA.EA._A._A._A._A._A.EA.DA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.A._H._H._H.A.CA.CA.C\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.CA.A._H._H._H.A.CA.CA.C\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.CA.A._H._H._H._F._I._I._I\n_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.CA.A._H._H._H._F._I._I._I\nCA.CA.CA.CA.CA.CA.CA.CA._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._K._._H._H._H.A.CA.CA.C\n_._._._._._._.CA._._._._._._._._._._._.E.D._._._._._._._._._._._._._._._._._._._K._._H._H._H.A.CA.CA.C\n_._._._._._._._._._._._._._._._._._.D.D.D.D._._._._._._._._._._._._._._._._._F._K._._H._H._H.A.CA.CA.C\n_._._._._F._F._._._._._._._._._._.E:.E,.E.D.D.E.E.E;._._._._._._._._._._._._._.CA.CA.CA.A._H._H._H.A.CA.CA.C\nCA.CA.CA.C._._.CA.CA.CA.CA.CA.CA.CA.DA.DA.CA.DA.DA.DA.DA.DA.DA.DA.DA.CA.CA.DA.CA.DA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.A._E-._E-._E-.A.CA.CA.C\n_E._E._E._E._E._E._E.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA._E._E._E._E._E._E._E._E\n_E._E._E._E._E._E._E.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA._E._E._E._E._E._E._E._E\n_E._E._E._E._E._E._E.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA.CA._E._E._E._E._E._E._E._E\nC.C.C.C.C._E-._E-.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C.C._-._-.C.C.C.C.C"
   objects:
   - type: box
@@ -570,7 +570,7 @@ MonoBehaviour:
     musicTrack: music_plant_1
     colorScheme: yellow
     backgroundColorScheme: 
-    backgroundWall: 
+    backgroundWall: tBackWall
     backgroundForm: 0
     transparentBackground: 0
     hasSky: 0

@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_5_3
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_5_3
   sourceCollectionId: rooms_raiders
   type: pass
@@ -52,7 +52,7 @@ MonoBehaviour:
     tileCoord: {x: 41, y: 6}
   - id: pipe4
     tileCoord: {x: 41, y: 8}
-  doorQuality: 000000000000000000000000020000000200000002000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: "H.H.H.H.H._\u0411._.H.H.H.H.H.H.H.C.C.C.C.C.C.C.C.H.H.H.H.H.H.H.H.D.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H._\u0411._.H.H.H.H.H.H.H.C._C._C._C._C._C._C._C._._.H.H.H.H.H.H.D.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H\nH.H.H.H.H._\u0411._.H.H.H.H.H.H.H.C._C._C._C._C._C._C._C._._.H.H._._._._.D._._.H.H._._.F._._._._.F._._.H.H.H\nH.H.H.H.H._\u0411._.H.H.H.H.H.H.H.C._C-._C-._C-._C-._C-._C-._C-._-._-.H.H._._._._._._._.H.H._._.F._._._._.F._._.H.H.H\nH.H.H.H.H._\u0411._._._._._._._._.C._C._C._C._C._C._C._C._._.H.H._._\u0410.H.H.D._._.H.H._._.H.H.H.H.H.H._._.H.H.H\nH.H.H.H.H._\u0411._._._._._._._._._._C._C._C._C._C._C._C._._.H.H._._\u0410.H.H.D._._.H.H.F.F.H.H.H.H.H.H.F.F.H.H.H\nH.H.H.H.H._\u0411._._._._._._._._._._C._C._C._C._C._C._C._._.H.H._._\u0410.H.H.D._._.H.H._._._._._._._._._._.H.H.H\nH.H.H.H.H.H.H.H._._\u0410.H.H.H.H.C._C._C._C._C._C._C._C._._.H.H._._\u0410.H.H.D._._.H.H._._._._._._._._._._.H.H.H\nH.H.H.H.H.H.H.H._._\u0410.H.H.H.H.C._C._C._C._C._C._C._C._._.H.H._._\u0410.H.H.D._._.H.H._._._._._._._._._._.H.H.H\nH.H.H.H.H.H.H.H._._\u0410.H.H.H.H.C._C._C._C._C._C._C._C._._.H.H._._\u0410.H.H.D._._._.F._._._._._._._._._._.H.H.H\nH.H.H.H.H.H.H.H._._\u0410.H.H.H.H.C.C.C.C.C.C.C.C.H.H.H.H._._\u0410.H.H.D._._._.F._._._._._._._._._._.H.H.H\nH.H.H.H.H.H.H.H._._\u0410.H.H.H.H.C.H.H.H.H.H.H.H.H.H.H.H._._\u0410.H.H.H.H.H.H.H.H.H.H.H.H.H.H.F.F.H.H.H.H\nH.H.H.H.H.H.H.H._._\u0410.H.H.H.H.C.H.H.H.H.H.H.H._._._._._._\u0410.H.H.H.H._._._._._.H.H.H.H.H._._.H.H.H.H\nH.H.H.H.H.H.H.H._._\u0410.H.H.H.H.C.H.H.H.H.H.H.H._._._._._._\u0410.H.H.H.H._._._._._.H.H.H.H.H._._._._._._\nH.H.H.H._._._._._._\u0410._._._._.C.H.H.H.H.H.H.H._._\u0410.H.H.H.H.H.H.H.H.F.F.H._._._._._._.F._._._._._._\nH.H.H.H._._._._._._\u0410._._._._.C.H.H.H.H.H.H.H._._\u0410.H.H.H.H.H.H.H.H._._.H.H.H.H.H.H.H.H.H.H.D._\u0414._\u0414.H\nH.H.H.H._._._._._._\u0410._._._._.C.H.H.H.H.H.H.H._._\u0410.H.H.H.H.H.H.H.H._._.H.H.H.H.H.H.H.H.H.H.D._._.H\nH.H.H.H._._._._._._._._._._.E._._._._._._._._._\u0410._._._._._._._._._._.H.D.D.D.D.D.D.D.D.D.D._\u0414._\u0414.H\nH.H.H.H._._._._._._._._._._.E._._._._._._._._._\u0410._._._._._._._._._._.H.D._C._C._C._C._C._C.DC.DC.D._._.H\nH.H.H.H._._._._._._._._._._.E._._._._._._._._._._._._._._._._._._._.H.D._C._C._C._C._C._C.DC.DC.D._._.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.C.F.F.F.F.F.F.F.F.F.F.F.F.F.F.F.F.F.F.F.H.D._C._C._C._C._C._C.DC.DC.D._._.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.C._._._._._._._._._._._._._._._._._._._.H.D._C._C._C._C._C._C._C._C._._._.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.C.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.D._C._C._C._C._C._C._C._C._._._.H\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.C.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.D.D.D.D.D.D.D.D.D.D.D.D.D\nH.H.H.H.H.H.H.H.H.H.H.H.H.H.C.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H.H"
   objects:
   - type: box
@@ -66,7 +66,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="rllONJLPiqM41uxi"
-  - type: obj
+  - type: unit
     id: ant
     definitionId: ant
     definition: {fileID: 11400000, guid: e7ae344a7b6006f4da447e86f904bf1c, type: 2}
@@ -88,7 +88,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="IJMqqHAqJjsaHhXT"
-  - type: obj
+  - type: unit
     id: ant
     definitionId: ant
     definition: {fileID: 11400000, guid: e7ae344a7b6006f4da447e86f904bf1c, type: 2}
@@ -99,7 +99,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="Auqxr5Xc0HHznU6M"
-  - type: obj
+  - type: unit
     id: ant
     definitionId: ant
     definition: {fileID: 11400000, guid: e7ae344a7b6006f4da447e86f904bf1c, type: 2}
@@ -231,7 +231,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="pIXNajlS34DKSeiJ"
-  - type: obj
+  - type: unit
     id: ant
     definitionId: ant
     definition: {fileID: 11400000, guid: e7ae344a7b6006f4da447e86f904bf1c, type: 2}
@@ -330,7 +330,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="bGzOqpXwqyCEBvAH"
-  - type: obj
+  - type: unit
     id: ant
     definitionId: ant
     definition: {fileID: 11400000, guid: e7ae344a7b6006f4da447e86f904bf1c, type: 2}
@@ -413,7 +413,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="T2O4rSpp05FNrDdW"
-  - type: obj
+  - type: unit
     id: ant
     definitionId: ant
     definition: {fileID: 11400000, guid: e7ae344a7b6006f4da447e86f904bf1c, type: 2}
@@ -424,7 +424,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="OXakYLGM6UFpcy9T"
-  - type: obj
+  - type: unit
     id: ant
     definitionId: ant
     definition: {fileID: 11400000, guid: e7ae344a7b6006f4da447e86f904bf1c, type: 2}
@@ -435,7 +435,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="pGBadWCljZDr7BYp"
-  - type: obj
+  - type: unit
     id: trap
     definitionId: trap
     definition: {fileID: 11400000, guid: 94236a07ba271e241a7f9bcd11eb093d, type: 2}
@@ -446,7 +446,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="ftYrSahRwh3bTpvE"
-  - type: obj
+  - type: unit
     id: ant
     definitionId: ant
     definition: {fileID: 11400000, guid: e7ae344a7b6006f4da447e86f904bf1c, type: 2}
@@ -490,7 +490,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="jyr8omzoDxVaSZ9F"
-  - type: obj
+  - type: unit
     id: rat
     definitionId: rat
     definition: {fileID: 11400000, guid: 91aa9373086f9584dafaf4723062b4a4, type: 2}
@@ -529,7 +529,7 @@ MonoBehaviour:
         value: 2
     scripts: []
     parameters: code="EmtsSqYHQu6T4qu7"
-  - type: obj
+  - type: unit
     id: ant
     definitionId: ant
     definition: {fileID: 11400000, guid: e7ae344a7b6006f4da447e86f904bf1c, type: 2}
@@ -540,7 +540,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="JwXY9OXx9iwFGt5u"
-  - type: obj
+  - type: unit
     id: ant
     definitionId: ant
     definition: {fileID: 11400000, guid: e7ae344a7b6006f4da447e86f904bf1c, type: 2}

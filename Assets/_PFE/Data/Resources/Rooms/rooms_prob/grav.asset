@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: grav
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: grav
   sourceCollectionId: rooms_prob
   type: pass
@@ -60,7 +60,7 @@ MonoBehaviour:
     tileCoord: {x: 10, y: 4}
   - id: light5
     tileCoord: {x: 10, y: 8}
-  doorQuality: 020000000200000002000000020000000200000002000000000000000200000000000000000000000200000000000000020000000200000002000000020000000200000002000000020000000000000002000000020000000200000002000000
+  doorQuality: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000
   tileDataString: "B._._.N.N.N.N.N.N.N.N.N.N.N._._.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N._._.A.BC.BC.BC.BC.B\nB._._._._._._.N.N.N.N.N.N.N._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A._C._C._C._C.B\nB._._._._._._.N.N.N.N.N.N.N._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._C._C._C._C.B\nB._._._._._._.NC._C._C._C._C._C.NC._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._C._C._C._C.B\nB._._._._._._._C._C._C._C._C._C._C._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A._C\u041A._C\u041A._C\u041A._C\u041A.B\nB._._._._._._._C._C._C._C._C._C._C._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A._C._C._C._C.B\nB._._._._._._.NC._C._C._C._C._C.NC._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A._C._C._C._C.B\nB._._._._._._.NC._F\u0415._F\u0415._F\u0415._F\u0415._F\u0415.NC._._._._._._._._._._._._._._._\u0415._\u0415._._._._._._._._._._._._.A._C._C._C._C.B\nB._._._._._._._F._F._F._F._F._F._F._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A._C._C._C._C.B\nB._._._._._._._._._K._K._K._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A._C._C._C._C.B\nB._._._._._._._._._K._K._K._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A._C._C._C._C.B\nB._._._._._._._._._K._K._K._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._.A._C._C._C._C.B\nB._._._._._._._._._K._K._K._._._._._._C\u041A._C\u041A._C\u041A._C\u041A._C\u041A._._._._._._._._._._._._._._._.N.N._\u041A._\u041A._\u041A.A._C._C._C._C.B\nB._._._._._._._._._K._K._K._._._._._._C._._._._C._._._._._._._._._._._._._._._._._._._._.A._C._C._C._C.B\nB._._._._._._._._._K._K._K._._._._._._C._._._._C._._._._._._._._._._._._._._._._._._._._.A._C._C._C._C.B\nB._._._._._._._._._K._K._K._._._._._._C._._._._C._._._._._._._._._._._._._._._._._._._._.A._C._C._C._C.B\nB._._._._._._._._._K._K._K._._._._._._C._._._._C._._._._._._._._._._._._._._._._._._._._.A._C._C._C._C.B\nB._._._._._._._._._K._K._K._._._._._._C._._._._C._._._._._._._._._._._._._._._._._._._._.A._C._C._C._C.B\nB._._._._._._._._._K._K._K._._._._._._C._._._._C._._._._._._._._._._._._._._._._._._._._.A._C._C._C._C.B\nB._._._._._._._._._K._K._K._._._._._._C._._._._C._._._._._._._._._._._._._._._._._._._._.A._C._C._C._C.B\nB._._._._._._.N.N.N.N.N.N._._._._.N.N.N.N.N._._._._._._._._.A.A.A.A.A.A._._._._._._.A.B.B.B.B.B\nB._._._._._._._C._C._C._C._C._C._._._._.N.N.N.N.N._._._._._._._._._C._C._C._C._C._C._._._._._._.A.B.B.B.B.B\nB._._._._._._._C._C._C._C._C._C._._._._.N.N.N.N.N._._._._._._._._._C._C._C._C._C._C._._._._._._.A.B.B.B.B.B\nB._._.N.N.N.N.NC._C._C._C._C.NC.NC.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.NC._C._C._C._C.NC.N.N.N.N._._.A.B.B.B.B.B\nB._._.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N._._.A.B.B.B.B.B"
   objects:
   - type: door
@@ -93,7 +93,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="iWI34YaXAmNQVtrx" h="23" w="42" grav="0.2"
-  - type: obj
+  - type: unit
     id: merc
     definitionId: merc
     definition: {fileID: 11400000, guid: 08677b36cc558b0498d299ef921c44da, type: 2}
@@ -108,7 +108,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="puRpq0BYUZvhpYGH" tr="2" qid="gravF1"
-  - type: obj
+  - type: unit
     id: merc
     definitionId: merc
     definition: {fileID: 11400000, guid: 08677b36cc558b0498d299ef921c44da, type: 2}
@@ -123,7 +123,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="wxsLRJp5pSOaKWZd" tr="4" qid="gravF1"
-  - type: obj
+  - type: unit
     id: merc
     definitionId: merc
     definition: {fileID: 11400000, guid: 08677b36cc558b0498d299ef921c44da, type: 2}
@@ -142,7 +142,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="cr8VBmbE5RYnlbWR" tr="3" emit="3" qid="gravF1" weap="antidrak"
-  - type: obj
+  - type: unit
     id: merc
     definitionId: merc
     definition: {fileID: 11400000, guid: 08677b36cc558b0498d299ef921c44da, type: 2}

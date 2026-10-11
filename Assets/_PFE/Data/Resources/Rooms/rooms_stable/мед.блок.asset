@@ -11,13 +11,13 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: "\u043C\u0435\u0434.\u0431\u043B\u043E\u043A"
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: "\u043C\u0435\u0434.\u0431\u043B\u043E\u043A"
   sourceCollectionId: rooms_stable
   type: uniq
   fixedPosition: {x: 0, y: 0, z: 0}
   difficultyLevel: 2
-  maxInstances: 2
+  maxInstances: 1
   allowRandom: 1
   specificMapOnly: 0
   backgroundRoomId: 
@@ -128,7 +128,7 @@ MonoBehaviour:
     tileCoord: {x: 44, y: 13}
   - id: med
     tileCoord: {x: 16, y: 13}
-  doorQuality: 020000000200000002000000020000000000000002000000020000000200000002000000020000000200000002000000020000000200000000000000020000000000000000000000020000000200000002000000020000000200000002000000
+  doorQuality: 030000000300000000000000030000000000000003000000040000000400000000000000000000000000000003000000030000000000000000000000000000000300000004000000040000000000000000000000020000000000000000000000
   tileDataString: "A.A.A.A._Q._Q._Q._Q.A.A.A.A.A._Q._Q._Q._Q.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A._Q._Q.A.A.A.A.A\n_P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._._R._R._R._R._R._R._R\n_P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._._R._R._R._R._R._R._R\n_P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P.J._N._N._N._N._N._N._N._N._N._N\u0415._N\u0415._N\u0415._N._N._N._N._N._N._N._N._N._._R._R._R._R._R._R._R\nA._Q\u0415._Q\u0415._Q\u0415.J.K.K.K.K.K.K.K.K.K.K.K.K.K.J._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N.J._R\u0415._R\u0415._R\u0415._R\u0415._R\u0415._R\u0415.A\n_P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P.J._N._N._N._N\u0415._N\u0415._N\u0415._N._N._N._N._N._N._N._N._N._N\u0415._N\u0415._N\u0415._N._N._N.J._R._R._R._R._R._R._R\n_P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P.J._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N.J._R._R._R._R._R._R._R\n_P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P._P.J._N._N._N._N._N._N._N._N._N._N\u0415._N\u0415._N\u0415._N._N._N._N._N._N._N._N._N.J._R._R._R._R._R._R._R\nA.K.K.K.K,P.K;P.K:P._P._P._P._P._P._P._P._P._P._P._P._._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N.J._R\u0415._R\u0415._R\u0415._R\u0415._R\u0415._R\u0415.A\nA.J.J.J.K.K.K.K.K,P.K;P.K:P._P._P._P._P._P._P._P._._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N.J._R._R._R._R._R._R.A\nA.J.J.J.J.J.J.J.K.K.K.K.K,P.K;P.K:P._P._P._P._._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N.J._R._R._R._R._R._R.A\nA.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.J._Q\u0415._Q\u0415._Q\u0415.J.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.A\nA._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q.J._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q.J._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q.A\nA._._._._._._._._._._._._._._._._._._._._._._._._P._P._P._P._P._P._P._P._P._P._P._._._._._._._._._._._._._\nA._._._._._._._._._._._._._._._._._._._._._._._._P._P._P._P._P._P._P._P._P._P._P._._._._._._._._._._._._._\nA._._._._._._._._._._._._._._._._._._._._._._._._P._P._P._P._P._P._P._P._P._P._P._._._._._._._._._._._._._\nA.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.J._._.J.A\nA.J.J._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N.J._P._P._P._P._P._P._P._P._P._P._P._P._O._O._O._O._P._P._P._P._P._P._P._P._P._O._O._P.A\nA.J.J._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N.J._P._P._P._P._P._P._P._P._P._O._O._P._O._O._O._O._P._O._O._P._P._P._P._P._P._O._O._P.A\nA.J.J._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N.J._P._P._P._P._P._P._P._P._P._P._P._P._O._O._O._O._P._P._P._P._P._P._P._P._P._O._O._P.A\nA.J.J._Q._Q._Q._Q._Q.JN._Q._Q._Q.JN._Q._Q._Q._Q._Q.J.J.K.K.J._Q._Q._Q._Q.J.K.K.J._O._O._O._O.J.K.K.J._Q._Q._Q._Q.J.K.K.J.A\n_Q._O._Q._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._Q._R._R._R._R._R._R._R._R._R._R._R._R._O._O._O._O._R._R._R._R._R._R._R._R._R._R._R._R._R\n_Q._O._Q._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._Q._R._R._R._R._R._R._R._R._R._R._R._R._O._O._O._O._R._R._R._R._R._R._R._R._R._R._R._R._R\n_Q._O._Q._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._Q._R._R._R._R._R._R._R._R._R._R._R._R._O._O._O._O._R._R._R._R._R._R._R._R._R._R._R._R._R\nA.A.A.A._Q\u0415._Q\u0415._Q\u0415._Q\u0415.A.A.A.A.A._Q\u0415._Q\u0415._Q\u0415._Q\u0415.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A"
   objects:
   - type: box
@@ -252,7 +252,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="y0Vxp45IamKmdOmQ"
-  - type: obj
+  - type: unit
     id: doctor
     definitionId: doctor
     definition: {fileID: 11400000, guid: 733bc4f80ca437843abd4ce9a1871f6d, type: 2}

@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: "\u0434\u0438\u0430\u0433\u043E\u043D"
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: "\u0434\u0438\u0430\u0433\u043E\u043D"
   sourceCollectionId: rooms_plant
   type: pass
@@ -90,10 +90,10 @@ MonoBehaviour:
     tileCoord: {x: 23, y: 1}
   - id: gate
     tileCoord: {x: 9, y: 17}
-  doorQuality: 000000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000002000000020000000200000002000000
+  doorQuality: 030000000000000000000000030000000300000003000000000000000400000004000000040000000400000003000000030000000000000003000000030000000300000004000000040000000400000004000000040000000000000000000000
   tileDataString: "_._._._._._._._._._.B.B.B._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._\n_E._E._E._E._E._E._E._E._E._E.BE.BE.BE._E._E._E._E._E._E.BE._E._E._E._E._E._E._E._E.B._._._._._._._._._._._._._._._._._._._\n_E._E._E._E._E._E._E._E._E._E.BE.BE.BE._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._._._._._._._._._._._._._._._._._._._._\n_E._E._E._E._E._E._E._E._E._E._I._I._I._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._._._._._._._._._._._._._._._._._._._._\n_.B.B.B.B.B.B.B.B.B.B.B.B.A.A.A.A.A.A.A.A.A.B.B.B.B.B.B.B.B._-._-._-._-._._._\u0412._-.B.B.B.B.B.B.B.B.B.A\n_._._._._._._._._._._._._.A._G._G._G._G._G._G._G.A._._._._._._._._._._._._._._\u0412._._._._._._._._._._._.A\n_._._._._._._._._._._._._.A._G._G._G._G._G._G._G._._._._._._._._._._._._._._\u0412._._._._._._._._._._._._.A\n_._._._._._._._._._._._._.A._G._G._G._G._G._G._G._._._._._._._._._._._._._\u0412._._._._._._._._._._._._._.A\nC._-._-._-._\u0411-._-._-._-._-._._._._.A.A.A.A.A.A.A.A.A.A._._._._._._._._._._\u0412._._._._._._._._.AG.AG.AG.AG.AG.AG.A\nC._._._._\u0411._._._._._._._._._._._._._._._._._._._._._._._._\u0412._-._-._-._._._._._._._._._.AG._G._G._G._G._G.A\nC._._._._\u0411._._._._._._._._._._._._._._._._._._._._._._._\u0412._._._._._._._._._._._._._._G._G._G._G._G._G.A\nC._._._._\u0411._._._._._._._._._._._._._._._._._._._._._._\u0412._._._._._._._._._._._._._._._G._G._G._G._G._G.A\nC._-._-._-._-._-._-._-._-._-._\u0413._._._._._._._._._._._\u0410._-._-._-._-._._._._._._._._._._._._._._._.AG.AG.AG.AG.AG.AG.A\n_._._._._._._._._._._._\u0413._._._._._._._._._._\u0410._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._\u0413._._._._._._._._._\u0410._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._\u0413._._._._._._._._\u0410._._._._._._._._._._._._._._._._._._._._._._._._._._\n_._-._-._-._-._-._._._._._._._._._-._-._-._-._-._-._-._-._\u0411._._._._._._._._._._._._._._._._._\u0412._-._-._-._-._-._-._-._\n_._._._._._._._._._._._._._._._._._._._._._._\u0411._._._._._._._._._._\u0412._-._-._-._-._-._-._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._\u0411._._._._._._._._._\u0412._._._._._._._._._._._._._._._._\n_._._._._._._._._._._._._._._._._._._._._._._\u0411._._._._._._._._\u0412._._._._._._._._._._._._._._._._._\n_.BE.BE.BE.BE.BE.BE.BE.BE._E-._E-._E-.BE.BE.BE.BE.BE.BE.BE.B.B.B.B._._.B.B.B.B.BE.BE.BE.BE.BE.BE.BE._E-._E-._E-.BE.BE.BE.BE.BE.BE.BE.BE._\n_._E._E._E._E.DE.DE.DE.DE._E._E._E._E._E._E._E._E._E._E.C._._._._._._._._.C._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._\n_._E._E._E._E.DE.DE.DE.DE._E._E._E._E._E._E._E._E._E._E.C._._._._._._._._.C._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._\n_._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E.C._._._._._._._._.C._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._E._\n_.BE.BE.BE.BE.BE.BE.BE.BE._E._E._E._E._E-._E-._E-._E-._E._E._._._._-._-._-._-._._._._E._E._E-._E-._E-._E-._E._E._E._E._E._E-._E-._E-._E-._E._E._E._"
   objects:
-  - type: obj
+  - type: unit
     id: trap
     definitionId: trap
     definition: {fileID: 11400000, guid: 94236a07ba271e241a7f9bcd11eb093d, type: 2}
@@ -249,7 +249,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="GjAZBIFSY8rpRJ1b"
-  - type: obj
+  - type: unit
     id: landturret
     definitionId: landturret
     definition: {fileID: 11400000, guid: 61d8cb23a8596bb44a6486e9336cf03e, type: 2}
@@ -304,7 +304,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="YhW289whUfnFcs4Q"
-  - type: obj
+  - type: unit
     id: landturret
     definitionId: landturret
     definition: {fileID: 11400000, guid: 61d8cb23a8596bb44a6486e9336cf03e, type: 2}
@@ -425,7 +425,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="ifTkYGhx3525NgWw"
-  - type: obj
+  - type: unit
     id: landturret
     definitionId: landturret
     definition: {fileID: 11400000, guid: 61d8cb23a8596bb44a6486e9336cf03e, type: 2}
@@ -671,7 +671,7 @@ MonoBehaviour:
     musicTrack: music_plant_1
     colorScheme: 
     backgroundColorScheme: 
-    backgroundWall: 
+    backgroundWall: tBackWall
     backgroundForm: 0
     transparentBackground: 0
     hasSky: 0

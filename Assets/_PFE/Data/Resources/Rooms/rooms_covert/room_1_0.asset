@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: room_1_0
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: room_1_0
   sourceCollectionId: rooms_covert
   type: pass
@@ -84,7 +84,7 @@ MonoBehaviour:
     tileCoord: {x: 21, y: 21}
   - id: metal
     tileCoord: {x: 0, y: 19}
-  doorQuality: 020000000200000002000000020000000200000002000000000000000000000000000000000000000000000000000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000
+  doorQuality: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000
   tileDataString: '_._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
 
     _._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._._
@@ -146,7 +146,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="KR7qt0o6dkCqEKAE"
-  - type: obj
+  - type: unit
     id: vendor
     definitionId: vendor
     definition: {fileID: 11400000, guid: e79f68a6043bb8a4ebe67cddaf04aa3b, type: 2}
@@ -161,7 +161,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="OO9fNpbpuuoDt18A" turn="-1" npc="vendor_zebr"
-  - type: obj
+  - type: unit
     id: zebpon
     definitionId: zebpon
     definition: {fileID: 11400000, guid: 176ce5fa01be0d745bf7861ec1c78c1a, type: 2}
@@ -176,7 +176,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="MeKnMLeeu5Qi61NJ" tr="3" turn="-1"
-  - type: obj
+  - type: unit
     id: zebpon
     definitionId: zebpon
     definition: {fileID: 11400000, guid: 176ce5fa01be0d745bf7861ec1c78c1a, type: 2}
@@ -224,7 +224,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="AafeBrQclrV8CX5D"
-  - type: obj
+  - type: unit
     id: zebpon
     definitionId: zebpon
     definition: {fileID: 11400000, guid: 176ce5fa01be0d745bf7861ec1c78c1a, type: 2}
@@ -359,7 +359,7 @@ MonoBehaviour:
     items: []
     scripts: []
     parameters: code="xV2W99dk3erAIIpa"
-  - type: obj
+  - type: unit
     id: npc
     definitionId: npc
     definition: {fileID: 11400000, guid: 2b067238a37bc224c99b891f75cdd086, type: 2}

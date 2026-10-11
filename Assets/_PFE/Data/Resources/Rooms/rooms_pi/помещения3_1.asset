@@ -11,14 +11,14 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8ab89f53269751418489876af5b0bc3, type: 3}
   m_Name: "\u043F\u043E\u043C\u0435\u0449\u0435\u043D\u0438\u044F3_1"
-  m_EditorClassIdentifier: PFE.Core::PFE.Systems.Map.RoomTemplate
+  m_EditorClassIdentifier: PFE.Data::PFE.Systems.Map.RoomTemplate
   id: "\u043F\u043E\u043C\u0435\u0449\u0435\u043D\u0438\u044F3_1"
   sourceCollectionId: rooms_pi
   type: back
   fixedPosition: {x: 0, y: 0, z: 0}
   difficultyLevel: 0
   maxInstances: 2
-  allowRandom: 1
+  allowRandom: 0
   specificMapOnly: 0
   backgroundRoomId: 
   backgroundDecorations:
@@ -74,7 +74,7 @@ MonoBehaviour:
     tileCoord: {x: 23, y: 21}
   - id: chert
     tileCoord: {x: 17, y: 21}
-  doorQuality: 020000000200000002000000000000000000000000000000000000000200000002000000020000000200000002000000020000000200000002000000020000000000000000000000020000000000000000000000020000000200000002000000
+  doorQuality: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
   tileDataString: "A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A\nA._I._I._I._I._I._I._I._I._I._I.J.J.J.J.J.J.J.J.J.J.J.J._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I.A\nA._I._I._I._I._I._I._I._I._I._I.J.J.J.J.J.J.J.J.J.J.J.J._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I.A\nA._I._I\u0410.J.K.K.K.K.K._._.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K._._.K.K.K.K.K.K.K.K.K.K.K._._.K.J._I._I.A\nA._I._I\u0410.J._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q.J._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q._Q.J._Q._Q._Q._Q._Q._Q._Q._Q.J._I._I.A\nA._I._I\u0410.J._._F._F._F._._._._._._._._._._._.J._._._._._._._._._._._._F._F._F._.J._._._._._._._._.J._I._I.A\nA._I._I\u0410.J._._F._F._F._._._._._._._._._._._.J._._._._._._._._._._._._F._F._F._.J._._._._._._._._.J._I._I.A\nA._I._I\u0410.J._._F._F._F._._._._._._._._._._._.J._._._._._._._._._._._._F._F._F._.J._._._._._._._._.J._I._I.A\nA._I._I\u0410.J.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.J._I._I.A\nA._I._I\u0410.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J._I._I.A\nA._I._I\u0410.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J.J._I._I.A\nA._I._I\u0410.J.J.J.J.J.J.J.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.J.J._I._I._I._I._I._I._I.A\nA._I._I\u0410.J.J.J.J.J.J.J._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N.J.J._I._I._I._I._I._I._I.A\nA._I._I\u0410.J.J.J.J.J.J.J._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N.J.J.J.J.J.J._I._I.J.A\nA._I._I\u0410.J.J.J.J.J.J.J._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N.J.J.J.J.J.J._I._I.J.A\nA._I._I._I._I._I._I._I._I._I._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N._N.J.J.J.J.J.J._I._I.J.A\nA.J.J.J.J.J.J.J.J.J.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.J._I._I.J.A\nA.J.J.J.J.J._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I.J._I._I.J.A\nA.J.J.J.J.J._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I._I.J._I._I.J.A\nA.J.J.J.J.J._I._I.J.J._._.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K.K._._.K.K.K.J.A\nA.J.J.J.J.J._I._I.J.J._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._Q._._._._._._._._._._._._._.J._F._F._F._F._F._F._F.A\nA.J.J.J.J.J.J.J.J.J._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._Q._._F._F._F._._._._._._._._._._._F._F._F._F._F._F._F.A\nA.J.J.J.J.J.J.J.J.J._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._Q._._F._F._F._._._._._._._._._._._F._F._F._F._F._F._F.A\nA.J.J.J.J.J.J.J.J.J._R._R._R._R._R._R._R._R._R._R._R._R._R._R._R._Q._._F._F._F._._._._._._._._._._._F._F._F._F._F._F._F.A\nA.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A.A"
   objects:
   - type: obj

@@ -17,6 +17,8 @@ MonoBehaviour:
   landId: garages
   landName: Garages
   tip: story
+  isProbLand: 0
+  isTestLand: 0
   isProcedural: 0
   stage: 6
   baseDifficulty: 15
@@ -48,3 +50,4 @@ MonoBehaviour:
   roomTemplates:
   - {fileID: 11400000, guid: 7323c2c3c0108fe4b8a21fbc1bf7bf31, type: 2}
   - {fileID: 11400000, guid: 9a93944d4184a3c47a9215ff4968c2d4, type: 2}
+  probRooms: []
