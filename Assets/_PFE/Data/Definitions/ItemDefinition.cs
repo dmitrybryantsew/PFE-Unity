@@ -58,6 +58,41 @@ namespace PFE.Data.Definitions
         [Tooltip("Can only be sold, not used")]
         public bool isSellOnly = false;
 
+        // ── Legacy (raw AS3 attributes) ───────────────────────────────────────
+        // The two raw classification strings off the AllData.as <item> row, kept verbatim.
+        //
+        // WHY `type` IS NOT ENOUGH. `type` is a coarse enum stamped from `tip` by
+        // FixDataImport.GetItemTypeFromSource, and that mapping is many-to-one: `compa`, `compm`,
+        // `compe`, `compp` and `compw` ALL become ItemType.Component. The loot tables are keyed on the
+        // DISTINCT strings — LootGen.init builds arr[item.@tip] per raw tip (LootGen.as:81-86) — so a
+        // consumer holding only the enum cannot reconstruct the pools. Same reasoning, and the same
+        // fix, as MapObjectDefinition.legacyTip.
+        //
+        // `tip2` IS NOT DECORATIVE — IT OPENS A SECOND LOOT POOL. init() pushes the row into
+        // arr[item.@tip2] as well as arr[item.@tip] (LootGen.as:98-112), and the two pools read their
+        // weight from different attributes: the primary pool uses @chance defaulting to 1 (:89), while
+        // the tip2 pool uses @chance2 falling back to @chance and then to 0 (:108). Dropping this
+        // field silently empties arr["eda"] and arr["co"].
+        //
+        // Both are populated by SimpleDataImporter.ImportItems, through ItemXmlRows, so the reader
+        // that the offline fixture exercises is the reader that runs. They are empty on an asset made
+        // by hand or by an older import, which is what the importer's repair pass detects and fills.
+        //
+        // Measured on the shipped file: 58 of the 500 <item> rows carry a tip2 — 37 tip='food' rows
+        // with tip2='eda' and 21 tip='scheme' rows with tip2='co' — and 0 of the 213 <weapon> rows do.
+        // No row is missing a tip.
+
+#if ODIN_INSPECTOR
+        [BoxGroup("Legacy (raw AS3 attributes)")]
+#else
+        [Header("Legacy (raw AS3 attributes)")]
+#endif
+        [Tooltip("Raw AS3 @tip, verbatim (e.g. 'compa', 'compw'). NOT the same as 'type'.")]
+        public string legacyTip;
+
+        [Tooltip("Raw AS3 @tip2 ('' when absent). Opens a second loot pool keyed on this value.")]
+        public string tip2;
+
 #if ODIN_INSPECTOR
         [BoxGroup("Acquisition")]
 #else

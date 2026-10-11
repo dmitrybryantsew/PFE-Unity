@@ -79,11 +79,35 @@ namespace PFE.Systems.Weapons.Controllers
         /// <summary>
         /// The NPC half of <c>WThrow.getAmmo()</c> (<c>WThrow.as:274-279</c>) — <c>kolAmmo</c>,
         /// default 4, decremented per throw and never refilled (<c>reloadWeapon()</c> is an empty
-        /// override, <c>:264</c>). Reached only through
-        /// <see cref="ThrownAmmoRule.DecideForCounterOwner"/>, which the port has no owner for yet.
+        /// override, <c>:264</c>). Reached only when <see cref="_npcOwner"/> is set.
         /// </summary>
         private int _kolAmmo;
         private const int DefaultKolAmmo = 4;
+
+        /// <summary>
+        /// Whether the owner is an NPC, i.e. which half of <c>WThrow.getAmmo()</c> applies.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>This is the port's <c>owner.player</c> test, and without it an enemy threw
+        /// endlessly.</b> <see cref="ThrownAmmoRule.Decide"/> reads "no <c>IAmmoSource</c>" as the port's
+        /// <i>training</i> mode — correct for the player, and the wrong question for an NPC, which has no
+        /// inventory <i>by design</i> and is supposed to burn its own four-round counter
+        /// (<c>WThrow.as:274-279</c>). <c>EnemyWeaponMount</c> passes <c>ammoSource: null</c>, so every
+        /// enemy grenade thrower landed on <c>TrainingInfinite</c> and had unlimited ammunition —
+        /// <c>raider9</c>, <c>merc</c>, <c>bossultra</c> and <c>bossdron</c>. <c>DecideForCounterOwner</c>
+        /// existed for exactly this and had no caller.</para>
+        /// </remarks>
+        private readonly bool _npcOwner;
+
+        /// <summary>
+        /// Throws left on the NPC counter — AS3 <c>WThrow.kolAmmo</c>. <c>-1</c> for a player-owned
+        /// weapon, whose ammo comes from the inventory and has no counter.
+        ///
+        /// <para>Read by <c>ArmedShooterBrain</c> because AS3 flips <c>attackerType</c> to 0 the moment the
+        /// counter empties (<c>UnitRaider.as:1546-1549</c>): a raider that has thrown its four grenades
+        /// stops being a thrower and charges.</para>
+        /// </summary>
+        public int RemainingThrows => _npcOwner ? _kolAmmo : -1;
 
         /// <summary>
         /// AS3 <c>_loc1_</c> — the weapon-skill multiplier WThrow reads in <c>shoot()</c>
@@ -111,13 +135,15 @@ namespace PFE.Systems.Weapons.Controllers
         public ThrownWeaponController(WeaponRuntimeState state, IWeaponStatSource statSource = null,
                                       IAmmoResolver ammoResolver = null,
                                       PFE.Core.Rng.IRngService rng = null,
-                                      IAmmoSource ammoSource = null)
+                                      IAmmoSource ammoSource = null,
+                                      bool npcOwner = false)
         {
             State         = state;
             _def          = state.Def;
             _statSource   = statSource;
             _ammoResolver = ammoResolver;
             _ammoSource   = ammoSource;
+            _npcOwner     = npcOwner;
             _rng          = rng != null
                 ? rng.GetStream(PFE.Core.Rng.RngStream.Combat)
                 : new PFE.Core.Rng.PcgRngService().GetStream(PFE.Core.Rng.RngStream.Combat);
@@ -452,18 +478,33 @@ namespace PFE.Systems.Weapons.Controllers
 
         /// <summary>
         /// AS3 <c>WThrow.getAmmo()</c> (<c>WThrow.as:268-280</c>). The decision itself is
-        /// <see cref="ThrownAmmoRule.Decide"/>, which is Unity-free so the offline wall can pin it;
-        /// this method only performs the side effect.
+        /// <see cref="ThrownAmmoRule"/>, which is Unity-free so the offline wall can pin it; this method
+        /// only performs the side effect.
         ///
-        /// <para><b>The defect this closes.</b> The port ran the NPC counter for the player. Nothing
-        /// refills <c>kolAmmo</c> and <c>WThrow.reloadWeapon()</c> is empty, so a player threw exactly
-        /// four grenades (AS3's <c>kolAmmo = 4</c>) and then could not throw again for the rest of the
-        /// session — reported as "quickly press fire, it throws like 5 and then I can't throw
-        /// grenades again". A wired inventory consumes a real item; no inventory is the port's
-        /// training mode, as it is for every other weapon.</para>
+        /// <para><b>The two halves are selected by the owner, not by "is an ammo source wired".</b>
+        /// <c>owner.player</c> decides which branch AS3 runs, and the port's stand-in for that flag is
+        /// <see cref="_npcOwner"/> — not the presence of an <see cref="IAmmoSource"/>, which is the
+        /// port's separate <i>training mode</i> concept. Reading the counter for the player capped a
+        /// session at four throws ("quickly press fire, it throws like 5 and then I can't throw grenades
+        /// again"); reading training mode for an NPC gave every enemy grenade thrower unlimited
+        /// ammunition. Both are the same collapsed distinction.</para>
         /// </summary>
         private bool ConsumeAmmo()
         {
+            if (_npcOwner)
+            {
+                // AS3's non-player branch (WThrow.as:274-279). No inventory is consulted at all: an NPC
+                // has none, which is why this is not `Decide(hasAmmoSource: false, …)` — that spelling is
+                // the port's training mode and returns TrainingInfinite.
+                ThrownAmmoRule.Outcome counterOutcome = ThrownAmmoRule.DecideForCounterOwner(_kolAmmo);
+                if (counterOutcome == ThrownAmmoRule.Outcome.ConsumeCounter)
+                {
+                    _kolAmmo--;
+                    return true;
+                }
+                return false;
+            }
+
             ThrownAmmoRule.Outcome outcome = ThrownAmmoRule.Decide(
                 hasAmmoSource:   _ammoSource != null,
                 inventoryRounds: _ammoSource != null ? _ammoSource.GetAmmoCount(AmmoId) : 0,

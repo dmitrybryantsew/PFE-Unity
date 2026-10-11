@@ -72,6 +72,14 @@ namespace PFE.Entities.Enemies.Bosses
 
         protected override void TickCombatChase(int tickIndex)
         {
+            // Budget, not sighting — see `EnemyBrain.ChaseBudgetExhausted`. This boss hovers in
+            // place, so the "cannot see the target" arm stays a hold rather than a pursuit.
+            if (ChaseBudgetExhausted)
+            {
+                SetState(EnemyAIState.Alert);
+                return;
+            }
+
             if (_blackboard.TargetUnit == null) return;
 
             float dx = _blackboard.TargetDeltaX;

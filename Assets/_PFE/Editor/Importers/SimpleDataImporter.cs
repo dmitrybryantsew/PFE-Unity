@@ -2,11 +2,13 @@
 using UnityEngine;
 using UnityEditor;
 using System.IO;
+using System.Collections.Generic;
 using PFE.Data.Definitions;
 using PFE.Editor.Importers;
 // The AllData.as readers live in the runtime assembly on purpose — PFE.Tests cannot reference
 // PFE.Editor, so anything written here instead would be invisible to the offline wall.
 using PFE.Systems.Weapons;
+using PFE.Systems.Items;
 
 namespace PFE.Editor
 {
@@ -89,19 +91,23 @@ namespace PFE.Editor
             Directory.CreateDirectory(outputPath);
 
             string content = File.ReadAllText(SourceFilePath);
-            var matches = System.Text.RegularExpressions.Regex.Matches(content,
-                "<item\\s+([^>]*?)tip\\s*=\\s*['\"]([^'\"]*)['\"]([^>]*?)>",
-                System.Text.RegularExpressions.RegexOptions.Singleline);
+
+            // The row scan lives in the runtime assembly (`ItemXmlRows`) rather than here, so the
+            // offline fixture exercises the same reader this importer runs. Two private regexes for
+            // the same rows is how a fix to one silently misses the other.
+            List<ItemXmlRow> rows = ItemXmlRows.Parse(content);
 
             int imported = 0, ammoImported = 0, repaired = 0;
-            foreach (System.Text.RegularExpressions.Match match in matches)
+            foreach (ItemXmlRow row in rows)
             {
-                string tipCode = match.Groups[2].Value;
-
-                string tagContent = match.Groups[1].Value + match.Groups[3].Value;
-                string id = ExtractAttribute(tagContent, "id");
-
+                string id = row.Id;
                 if (string.IsNullOrEmpty(id)) continue;
+
+                // A row with no `tip` is skipped. This is the same set of rows the previous regex
+                // matched — it required `tip=` — but stated rather than implied, so the skip is
+                // visible. Measured: 0 of the 500 shipped rows lacks one.
+                string tipCode = row.Tip;
+                if (string.IsNullOrEmpty(tipCode)) continue;
 
                 bool isAmmo = tipCode == "a";
 
@@ -112,13 +118,14 @@ namespace PFE.Editor
                 {
                     var item = ScriptableObject.CreateInstance<ItemDefinition>();
                     item.itemId = id;
-                    ApplyTipDefaults(item, tipCode, tagContent);
+                    ApplyLegacyTips(item, row);
+                    ApplyTipDefaults(item, tipCode, row.Attrs);
                     AssetDatabase.CreateAsset(item, assetPath);
 
                     imported++;
                     if (isAmmo) ammoImported++;
                 }
-                else if (NeedsTipRepair(existing, tipCode))
+                else if (NeedsTipRepair(existing, tipCode) || NeedsLegacyTipRepair(existing, row))
                 {
                     // Repair a row created before this tip was imported, without a second menu pass.
                     //
@@ -127,13 +134,48 @@ namespace PFE.Editor
                     // and the create branch above never runs. Without this branch the spell import
                     // would report success and change nothing — the same "reported success, wrote
                     // nothing" shape as the self-closing-`<weapon>` bug in `WeaponXmlBlocks`.
-                    ApplyTipDefaults(existing, tipCode, tagContent);
+                    //
+                    // **It is also the path that fills `legacyTip`/`tip2` on the ~500 rows that
+                    // already exist.** Those two fields are new, so every pre-existing asset has them
+                    // empty — and because `existing` is non-null for all of them, the create branch
+                    // cannot reach them. Gating this branch on `NeedsTipRepair` alone would report a
+                    // successful import while writing neither field: the same trap, twice.
+                    ApplyLegacyTips(existing, row);
+                    ApplyTipDefaults(existing, tipCode, row.Attrs);
                     EditorUtility.SetDirty(existing);
                     repaired++;
                 }
             }
             Debug.Log($"Items: {imported} created ({ammoImported} of them ammunition), {repaired} repaired");
         }
+
+        /// <summary>
+        /// Copy the row's raw <c>@tip</c> / <c>@tip2</c> onto the definition.
+        ///
+        /// <para>Separate from <see cref="ApplyTipDefaults"/> because the two answer different
+        /// questions: this records <b>what the source row said</b>, unconditionally, for every tip;
+        /// that one stamps the derived enum and the type-specific block, and deliberately handles only
+        /// the tips it understands. Folding them together would make the raw attributes as narrow as
+        /// the enum mapping — the exact loss this field exists to prevent.</para>
+        /// </summary>
+        private static void ApplyLegacyTips(ItemDefinition item, ItemXmlRow row)
+        {
+            item.legacyTip = row.Tip;
+            item.tip2 = row.Tip2;
+        }
+
+        /// <summary>
+        /// Whether an existing row is missing its raw tip attributes, so the import can backfill them.
+        ///
+        /// <para><b>Why this is not folded into <see cref="NeedsTipRepair"/>.</b> That method is a
+        /// <c>switch</c> over the tips this importer understands and returns <c>false</c> for every
+        /// other one — by design, so a run does not rewrite all 500 assets. The raw attributes are not
+        /// tip-specific: they apply to every row, so they need their own condition, and that condition
+        /// is what makes the first run after this change backfill all 500 and every later run a
+        /// no-op.</para>
+        /// </summary>
+        private static bool NeedsLegacyTipRepair(ItemDefinition item, ItemXmlRow row)
+            => item.legacyTip != row.Tip || item.tip2 != row.Tip2;
 
         /// <summary>
         /// Whether an <b>existing</b> row is missing what its <c>tip</c> implies, so the import can

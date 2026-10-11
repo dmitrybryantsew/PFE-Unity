@@ -20,6 +20,27 @@ namespace PFE.Systems.Map
         public string templateId;
         public Vector3Int landPosition;
 
+        /// <summary>
+        /// AS3 <c>Location.landProb</c> (<c>Land.as:790</c>): the <c>&lt;prob id&gt;</c> this room is, for a
+        /// detached prob room. Empty for every room that sits on a land grid.
+        ///
+        /// <para><b>It is the identity of a prob room, not a coordinate.</b> AS3 keys prob rooms by this
+        /// string (<c>this.probs[nprob]</c>) rather than by position, because they are not on the land
+        /// grid — <c>loc.noMap = true</c> keeps them off the minimap and out of the land's own lookup
+        /// (<c>:791</c>). The port has no <c>noMap</c> flag, so this field carries the fact instead: a
+        /// prob room is detached by <i>not being registered in the land map</i> and by
+        /// <c>ProbTransition.AdmitsGridStep</c> refusing a grid step out of one. It is also what lets
+        /// the runtime find the room and return the player to the land they came from
+        /// (<c>Land.as:1393-1408</c>).</para>
+        ///
+        /// <para><b>Off the grid does not mean "no position".</b> A prob room's coordinate is still real
+        /// — the origin (<c>ProbTransition.ProbRoomLandPosition</c>) — and every world quantity derived
+        /// from a room (render origin, collision geometry, player spawn) comes from it. Detaching by a
+        /// sentinel coordinate instead placed the room ~4e10 units from the player; see that constant.
+        /// </para>
+        /// </summary>
+        public string probId = string.Empty;
+
         // Tile grid
         public TileData[,] tiles;
 
@@ -285,10 +306,8 @@ namespace PFE.Systems.Map
         /// </summary>
         public bool CheckCollision(Vector2 pos, Vector2 size)
         {
-            float roomWorldPixelX = landPosition.x * WorldConstants.ROOM_WIDTH * WorldConstants.TILE_SIZE
-                                  - borderOffset * WorldConstants.TILE_SIZE;
-            float roomWorldPixelY = landPosition.y * WorldConstants.ROOM_HEIGHT * WorldConstants.TILE_SIZE
-                                  - borderOffset * WorldConstants.TILE_SIZE;
+            float roomWorldPixelX = WorldCoordinates.RoomOriginPixelX(landPosition.x, borderOffset);
+            float roomWorldPixelY = WorldCoordinates.RoomOriginPixelY(landPosition.y, borderOffset);
 
             Rect worldBounds = new Rect(pos.x + roomWorldPixelX, pos.y + roomWorldPixelY, size.x, size.y);
 
@@ -924,6 +943,39 @@ namespace PFE.Systems.Map
             }
 
             return definition != null ? definition.GetAttribute("allact", string.Empty) : string.Empty;
+        }
+
+        /// <summary>
+        /// The object's <c>prob</c> id — the detached room its interaction enters — or empty when it has
+        /// none.
+        ///
+        /// <para><b>Placement only.</b> AS3 reads <c>prob</c> from the placed node and nowhere else:
+        /// <c>if(this.xml.@prob.length()) this.prob = this.xml.@prob</c> (<c>Interact.as:391-393</c>).
+        /// The definition half of <c>Interact.init</c> (<c>param2</c>, <c>:287-289</c>) copies
+        /// <c>allact</c>, <c>inter</c>, <c>time</c> and a dozen more, but <b>never</b> <c>prob</c> — so
+        /// unlike <see cref="GetAllAct"/> this must not fall back to the definition.</para>
+        ///
+        /// <para><b>Present-and-empty is absent, and that is load-bearing.</b> The guard is
+        /// <c>.length()</c>, so a <c>prob=''</c> leaves AS3's field <c>null</c> and the entry branch is
+        /// skipped. <see cref="RoomPopulator.PlaceReturnDoor"/> writes exactly that on the <c>doorout</c>
+        /// box on purpose: the empty attribute documents "this object does <i>not</i> enter a prob room,
+        /// its own <c>allact='probreturn'</c> runs instead". This accessor returns <c>""</c> for both the
+        /// absent and the empty case, which is the same falsy answer AS3 gets — so callers test
+        /// <c>Length &gt; 0</c> rather than presence. See lesson #134: a present-but-empty value is not
+        /// the same as an absent one in general, and here AS3's <c>.length()</c> is what makes it so.</para>
+        ///
+        /// <para><b>Read before the <c>allact</c> switch, never instead of the lookup.</b>
+        /// <c>Interact.allAct</c> tests <c>prob</c> first and reaches its <c>allact</c> chain only in the
+        /// <c>else</c> (<c>:1558-1565</c>). That single ordering is what makes the descent loop work: the
+        /// bottom-row exit box carries <c>prob='exit_&lt;land&gt;'</c> <i>and</i> inherits
+        /// <c>allact='exit'</c> from its definition (<c>AllData.as:5016</c>), so it must enter the exit
+        /// room rather than advance the level. The exit room's own box carries no <c>prob</c> — which is
+        /// the only reason <c>exit</c> ever fires.</para>
+        /// </summary>
+        public string GetProb()
+        {
+            EnsureStructuredData();
+            return MapObjectDataUtility.GetAttribute(attributes, "prob", string.Empty);
         }
 
         /// <summary>

@@ -800,6 +800,11 @@ namespace PFE.Entities.Units
             // own update, after `run()` has resolved that frame's collisions. Sweeping before the move
             // would read a velocity the step has not yet acted on.
             SweepPropImpacts();
+
+            // AS3 `Trap.step` (`Trap.as:147-161`) runs from the trap's own object step, which this port
+            // does not have — so the unit sweeps instead, immediately after the move for the same reason
+            // the prop sweep is here: `attKorp` reads `dy`, and the move is what settles it.
+            SweepTrapImpacts();
         }
 
         /// <summary>
@@ -2762,6 +2767,112 @@ namespace PFE.Entities.Units
                     "raw HP damage — no armour, no vulnerabilities. The spawner must call " +
                     "SetDamageSystem, or the unit's GameObject must be in the scene scope's " +
                     "autoInjectGameObjects.", this);
+            }
+
+            TakeDamage(damage);
+        }
+
+        /// <summary>
+        /// Whether this unit passes over spike traps instead of into them — AS3 <c>Unit.isFly</c>, which
+        /// both arms of <c>Trap.attKorp</c> test.
+        ///
+        /// <para><b>The port has no flying flag yet, so this defaults to <c>false</c> and every unit is
+        /// currently ground-bound as far as traps are concerned.</b> That matches the oracle for every
+        /// unit the base map spawns except the bloat emitter, which is a flyer and would in the oracle
+        /// sail over a spike field. A flyer brain that knows it flies should override this rather than
+        /// have the trap rule guess.</para>
+        /// </summary>
+        protected virtual bool IsFlying => false;
+
+        /// <summary>
+        /// Run this unit's side of AS3 <c>Trap.step</c>/<c>Trap.attKorp</c> (<c>Trap.as:147-197</c>):
+        /// find a spike trap this unit is falling or rising into, damage it, and start the contact
+        /// immunity window.
+        ///
+        /// <para><b>Call once per unit step, after <see cref="SweepPropImpacts"/></b> — both read the
+        /// velocity the move has just settled, and the oracle reads <c>dy</c> at that same point.</para>
+        ///
+        /// <para><b>Safe for a unit with no room, no layer or no traps.</b> All three are ordinary
+        /// states and all three return immediately, so no caller needs to pre-check.</para>
+        /// </summary>
+        public virtual void SweepTrapImpacts()
+        {
+            if (_objectPhysicsLayer == null || _collider == null)
+            {
+                return;
+            }
+
+            // AS3 `Trap.attKorp:182` — `Boolean(param1.neujaz)` refuses the hit, and every firing arm
+            // sets `neujaz = neujazMax` (`:189`/`:194`). Checking before the query means a unit already
+            // inside a window never pays for the scan, and — because a prop impact can grant the same
+            // window earlier in this step — the trap can never double-hit a crate's victim.
+            if (IsContactInvulnerable)
+            {
+                return;
+            }
+
+            float difficulty = _tileQuery?.Room?.difficulty?.enemyLevel ?? 0f;
+
+            if (!_objectPhysicsLayer.TryFindImpactingTrapFor(
+                    RoomLocalFeetBoundsPixels(),
+                    TrapTriggerMath.ToAs3Dy(VelocityPixelsPerFrame.y),
+                    0f, // AS3 `osndy`: the port carries no support displacement for tile ground. See
+                        // TrapTriggerMath.TryResolveDamage — the rising arm degenerates to `dy < 0`.
+                    Mass,
+                    difficulty,
+                    IsFlying,
+                    out RoomObjectPhysicsLayer.TrapEntry trap,
+                    out float damage))
+            {
+                return;
+            }
+
+            // AS3 `Trap.as:189`/`:194` — `param1.neujaz = param1.neujazMax`. Granted before the damage
+            // is reported, matching the prop sweep, so a re-entrant sweep in the same step cannot
+            // double-hit.
+            GrantContactInvulnerability(ContactInvulnerabilityMaxTicks);
+
+            ReportTrapImpact(damage, trap);
+        }
+
+        /// <summary>
+        /// Hand a spike trap's damage to the port's damage authority.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Why <see cref="PendingDamage.Contact"/>, same as the prop impact.</b> AS3
+        /// <c>Trap.attKorp</c> calls <c>param1.damage(amount, tipDamage)</c> directly — no avoidance
+        /// roll, no ±30% spread — so <c>Direct</c> would be wrong in exactly the way the prop sweep's
+        /// remarks describe.</para>
+        ///
+        /// <para><b>AS3's <c>@tipdam</c> is not mapped.</b> The oracle passes it as the damage
+        /// <i>type</i>; no shipped <c>spikes</c>/<c>fspikes</c> row authors one (both rows carry only
+        /// <c>@damage</c>), so every trap hit is <see cref="DamageType.PhysicalMelee"/>. If a row ever
+        /// gains a <c>@tipdam</c>, this is the line that has to learn it.</para>
+        /// </remarks>
+        protected virtual void ReportTrapImpact(float damage, RoomObjectPhysicsLayer.TrapEntry trap)
+        {
+            if (damage <= 0f)
+            {
+                return;
+            }
+
+            if (_damageSystem != null)
+            {
+                _damageSystem.Report(PendingDamage.Contact(
+                    DamageContext.Contact(damage, DamageType.PhysicalMelee),
+                    this,
+                    transform.position));
+                return;
+            }
+
+            if (!_warnedMissingDamageSystem)
+            {
+                _warnedMissingDamageSystem = true;
+                Debug.LogWarning(
+                    $"[{GetType().Name}] a spike trap ('{trap?.Object?.objectId}') has no DamageSystem, " +
+                    "so it is being applied as raw HP damage — no armour, no vulnerabilities. The " +
+                    "spawner must call SetDamageSystem, or the unit's GameObject must be in the scene " +
+                    "scope's autoInjectGameObjects.", this);
             }
 
             TakeDamage(damage);

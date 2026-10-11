@@ -37,6 +37,16 @@ namespace PFE.Data.Definitions.Campaign
                 landDef.landName = FormatTitle(id);
                 landDef.tip = node.Attributes?["tip"]?.Value?.Trim() ?? (isTest ? "test" : "story");
 
+                // AS3 `prob='1'` (Game.as:75-82, LandAct.as:48/147-149): the land is a *detached room
+                // collection*, not a playable level. `LandAct.prob` is an int defaulting to 0 and is
+                // assigned only when the attribute is present, so the test is a value test here — unlike
+                // the `<prob>` element's own imp/prize/close, which are presence tests.
+                //
+                // Exactly one land carries it (`id='prob'`, `file='rooms_prob'`). It is the collection
+                // `Land.buildProb` looks up by name (Land.as:783-804), so reading it is what makes the
+                // prob rooms reachable at all.
+                landDef.isProbLand = node.Attributes?["prob"]?.Value == "1";
+
                 landDef.isProcedural = node.Attributes?["rnd"]?.Value == "1";
                 landDef.stage = ParseInt(node.Attributes?["stage"]?.Value, 1);
                 landDef.baseDifficulty = ParseInt(node.Attributes?["dif"]?.Value, 0);
@@ -73,6 +83,18 @@ namespace PFE.Data.Definitions.Campaign
                     landDef.hazardDamage = ParseFloat(optNode.Attributes["wdam"]?.Value, 0f);
                     landDef.hazardDamageType = ParseInt(optNode.Attributes["wtipdam"]?.Value, 0);
                     landDef.xpReward = ParseInt(optNode.Attributes["xp"]?.Value, 0);
+                }
+
+                // AS3 <prob id level imp tip prize close> children of <land> (Land.as:809-863). These are
+                // the bonus/boss rooms a doorprob/doorboss opens into. Nothing read them before — this
+                // parser selected only //land, //quest, //npc and //scr — so the doors were unbuildable.
+                XmlNodeList probNodes = node.SelectNodes("./prob");
+                if (probNodes != null)
+                {
+                    foreach (XmlNode probNode in probNodes)
+                    {
+                        landDef.probRooms.Add(ParseProbRoom(probNode));
+                    }
                 }
 
                 results.Add(landDef);
@@ -249,6 +271,59 @@ namespace PFE.Data.Definitions.Campaign
                 opt1 = ParseInt(actNode.Attributes?["opt1"]?.Value, 0),
                 opt2 = ParseInt(actNode.Attributes?["opt2"]?.Value, 0)
             };
+        }
+
+        /// <summary>
+        /// One AS3 <c>&lt;prob id level imp tip prize close&gt;</c> child of a <c>&lt;land&gt;</c>
+        /// (<c>Land.as:809-863</c>, <c>Probation.as:64-131</c>).
+        ///
+        /// <para>Two traps live here, both of which the oracle resolves by <i>presence</i> rather than by
+        /// value:</para>
+        /// <list type="bullet">
+        /// <item><c>level</c>: <c>newRandomProb</c> tests <c>xml.@level.length == 0</c>, so
+        /// <c>level='0'</c> and no <c>level</c> at all are different answers. <c>hasLevel</c> records
+        /// which one this is; <c>level</c> is only meaningful when <c>hasLevel</c>.</item>
+        /// <item><c>imp</c>, <c>prize</c>, <c>close</c>: tested as <c>xml.@x.length()</c>, so
+        /// <c>close='0'</c> still means "closes". A <c>== "1"</c> comparison would be wrong.</item>
+        /// </list>
+        ///
+        /// <para><c>tip</c> is the exception — it is a value (<c>Probation.as:93-96</c>, default 0), and
+        /// <c>"2"</c> is what makes the door a <c>doorboss</c> rather than a <c>doorprob</c>.</para>
+        /// </summary>
+        public static ProbRoomDefinition ParseProbRoom(XmlNode probNode)
+        {
+            var prob = new ProbRoomDefinition();
+            if (probNode?.Attributes == null) return prob;
+
+            prob.id = probNode.Attributes["id"]?.Value?.Trim() ?? string.Empty;
+
+            // Absent is not 0. Land.as:821 compares xml.@level.length == 0, not xml.@level <= maxlevel alone.
+            XmlAttribute levelAttr = probNode.Attributes["level"];
+            prob.hasLevel = levelAttr != null;
+            prob.level = ParseInt(levelAttr?.Value, 0);
+
+            // Presence tests, matching Probation.as:89-99 and Land.as:824.
+            prob.imp = probNode.Attributes["imp"] != null;
+            prob.prize = probNode.Attributes["prize"] != null;
+            prob.close = probNode.Attributes["close"] != null;
+
+            prob.tip = probNode.Attributes["tip"]?.Value?.Trim() ?? string.Empty;
+
+            XmlNodeList conNodes = probNode.SelectNodes("./con");
+            if (conNodes != null)
+            {
+                foreach (XmlNode conNode in conNodes)
+                {
+                    prob.contents.Add(new ProbContentData
+                    {
+                        tip = conNode.Attributes?["tip"]?.Value?.Trim() ?? string.Empty,
+                        uid = conNode.Attributes?["uid"]?.Value?.Trim() ?? string.Empty,
+                        qid = conNode.Attributes?["qid"]?.Value?.Trim() ?? string.Empty
+                    });
+                }
+            }
+
+            return prob;
         }
 
         private static XmlDocument ExtractGameXmlDocument(string content)

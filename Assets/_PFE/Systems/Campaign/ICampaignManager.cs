@@ -25,6 +25,7 @@ namespace PFE.Systems.Campaign
         void AdvanceQuestStage(string questId, int nextStage);
         void CompleteQuest(string questId);
 
-        void TransitionToLand(string targetLandId, string spawnPoint = null);
+        /// <param name="forceRegenerate">AS3 <c>Game.crea</c> — rebuild even if a layout is cached.</param>
+        void TransitionToLand(string targetLandId, string spawnPoint = null, bool forceRegenerate = false);
     }
 }

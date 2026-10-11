@@ -739,8 +739,8 @@ namespace PFE.Systems.Map.Rendering
             int borderOffset = Mathf.Max(0, roomInstance.borderOffset);
             
             Vector2 roomPixelPos = new Vector2(
-                roomInstance.landPosition.x * WorldConstants.ROOM_WIDTH * WorldConstants.TILE_SIZE - borderOffset * WorldConstants.TILE_SIZE,
-                roomInstance.landPosition.y * WorldConstants.ROOM_HEIGHT * WorldConstants.TILE_SIZE - borderOffset * WorldConstants.TILE_SIZE
+                WorldCoordinates.RoomOriginPixelX(roomInstance.landPosition.x, borderOffset),
+                WorldCoordinates.RoomOriginPixelY(roomInstance.landPosition.y, borderOffset)
             );
 
             return WorldCoordinates.PixelToUnity(roomPixelPos);
@@ -1672,6 +1672,9 @@ namespace PFE.Systems.Map.Rendering
                 return null;
             }
 
+            // Editor preview builds one room with no neighbours, so no door is ever drawn. Open the whole
+            // candidate mask so the preview still shows the room's doorways.
+            RoomSetup.ActivateAllCandidateDoors(room);
             RoomSetup.FinalizeRoom(room, template);
 
             if (!string.IsNullOrEmpty(template.backgroundRoomId))
@@ -1680,6 +1683,7 @@ namespace PFE.Systems.Map.Rendering
                 if (backgroundTemplate != null)
                 {
                     RoomInstance backgroundRoom = generator.GenerateRoom(backgroundTemplate, landPosition);
+                    RoomSetup.ActivateAllCandidateDoors(backgroundRoom);
                     RoomSetup.FinalizeRoom(backgroundRoom, backgroundTemplate);
                     backgroundRoom.roomType = "back";
                     room.backgroundRoom = backgroundRoom;

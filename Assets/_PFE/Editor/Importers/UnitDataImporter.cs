@@ -1076,7 +1076,12 @@ namespace PFE.Editor.Importers
                     difficulty = int.Parse(difMatch.Groups[1].Value);
                 }
 
-                weapons.Add(new WeaponChance(weaponId, chance, difficulty));
+                // Parse f (fixed). This one goes through a named parser rather than a local regex
+                // because `f='` is a SUBSTRING of `dif='`, so a naive match marks every
+                // difficulty-gated row as fixed. See WeaponRowParser for the full account.
+                bool isFixed = WeaponRowParser.IsFixed(weaponAttrs);
+
+                weapons.Add(new WeaponChance(weaponId, chance, difficulty, isFixed));
             }
 
             SetPrivateField(unit, "weapons", weapons.ToArray());

@@ -148,11 +148,45 @@ namespace PFE.Systems.Map.Streaming
                 return;
             }
 
-            // Check if player entered the door trigger
-            if (other.CompareTag("Player") || other.GetComponent<PFE.Systems.Physics.IMovementMotor>() != null)
+            if (IsPlayerActor(other))
             {
                 TryTriggerTransition(other.gameObject);
             }
+        }
+
+        /// <summary>
+        /// Whether <paramref name="other"/> is the player — and <b>only</b> the player.
+        ///
+        /// <para><b>The old clause was <c>other.CompareTag("Player") ||
+        /// other.GetComponent&lt;IMovementMotor&gt;() != null</c>, and that <c>||</c> was the bug.</b>
+        /// Every spawned NPC carrying a motor satisfies it — <c>PfeDebugSettings.UnitMotor</c> gives them
+        /// a <see cref="PFE.Systems.Physics.TilePhysicsController"/>, which implements
+        /// <c>IMovementMotor</c> — so an enemy bumping a door trigger called
+        /// <c>RoomTransitionManager.TransitionThroughDoor</c> with <i>its own</i> GameObject as the
+        /// "player": the room was re-rendered, <c>landMap.currentRoom</c> flipped and the camera snapped,
+        /// while the real player was left standing in the old room's coordinates. Reported as
+        /// "map graphics fully disappear while I am in the middle of the room".</para>
+        ///
+        /// <para><b>AS3 only ever moves the player.</b> <c>UnitPlayer.outLoc</c>
+        /// (<c>UnitPlayer.as:540</c>) overrides the base <c>Unit.outLoc</c> (<c>Unit.as:1882</c>), which
+        /// returns <c>false</c> and never changes room. The player root is tagged <c>"Player"</c> and
+        /// carries the <c>PlayerController</c> (<c>PlayerRigBuilder.cs:127,133</c>), so either half of
+        /// the test would do; both are kept so a missing tag cannot silently disable every door. Public
+        /// so the rule is assertable without a live physics callback.</para>
+        /// </summary>
+        public static bool IsPlayerActor(Collider2D other)
+        {
+            if (other == null)
+            {
+                return false;
+            }
+
+            if (other.CompareTag("Player"))
+            {
+                return true;
+            }
+
+            return other.GetComponentInParent<PFE.Entities.Player.PlayerController>() != null;
         }
 
         #endregion
@@ -250,7 +284,7 @@ namespace PFE.Systems.Map.Streaming
                 Gizmos.color = Color.yellow;
                 Vector3 targetPos = new Vector3(
                     doorInstance.targetRoomPosition.x * WorldConstants.ROOM_SIZE_PIXELS.x,
-                    doorInstance.targetRoomPosition.y * WorldConstants.ROOM_SIZE_PIXELS.y,
+                    WorldCoordinates.LandRowToWorldPixelY(doorInstance.targetRoomPosition.y),
                     0
                 );
                 Gizmos.DrawLine(transform.position, targetPos);

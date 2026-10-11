@@ -359,10 +359,8 @@ namespace PFE.Systems.Map.TileQuery
                 if (Room == null) return Vector2.zero;
                 int border = Room.borderOffset;
                 return new Vector2(
-                    Room.landPosition.x * WorldConstants.ROOM_WIDTH * WorldConstants.TILE_SIZE
-                        - border * WorldConstants.TILE_SIZE,
-                    Room.landPosition.y * WorldConstants.ROOM_HEIGHT * WorldConstants.TILE_SIZE
-                        - border * WorldConstants.TILE_SIZE);
+                    WorldCoordinates.RoomOriginPixelX(Room.landPosition.x, border),
+                    WorldCoordinates.RoomOriginPixelY(Room.landPosition.y, border));
             }
         }
     }

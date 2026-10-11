@@ -1,19 +1,26 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using UnityEngine;
 using PFE.Core;
 using PFE.Data;
 using PFE.Character;
 using PFE.Data.Definitions;
+using PFE.Data.Definitions.Campaign;
 using PFE.Entities.Player;
 using PFE.Entities.Player.Rig;
 using PFE.Entities.Units;
+using PFE.Systems.Campaign;
 using PFE.Systems.Effects;
 using PFE.Systems.Inventory;
 using PFE.Systems.Magic;
 using PFE.Systems.Map;
+using PFE.Systems.Map.Generation;
+using PFE.Systems.Map.Minimap;
 using PFE.Systems.Map.Rendering;
+using PFE.Systems.Map.Serialization;
+using PFE.Systems.Map.Streaming;
 using PFE.Systems.Physics;
 using PFE.Systems.RPG;
 using PFE.Systems.RPG.Data;
@@ -39,7 +46,7 @@ namespace PFE.Core.Scripting
         public bool IsOpen = false;
 
         private Rect _windowRect = new Rect(60, 40, 920, 660);
-        private int _activeTab = 0; // 0: Pip Stats, 1: Skills, 2: Perks, 3: Weapons, 4: Armor, 5: Vitals & Presets, 6: Effects, 7: Spells, 8: Inventory, 9: Rig, 10: Spawn Unit
+        private int _activeTab = 0; // 0: Pip Stats, 1: Skills, 2: Perks, 3: Weapons, 4: Armor, 5: Vitals & Presets, 6: Effects, 7: Spells, 8: Inventory, 9: Rig, 10: Spawn Unit, 11: Lands, 12: Land State, 13: Land Map
 
         private static readonly string[] TabNames = new string[]
         {
@@ -53,8 +60,37 @@ namespace PFE.Core.Scripting
             "🔮 Spells",
             "🎒 Inventory",
             "🧪 Rig",
-            "🧟 Spawn Unit"
+            "🧟 Spawn Unit",
+            "🗺️ Lands",
+            "🧭 Land State",
+            "📍 Land Map",
+            "💾 Save / Load"
         };
+
+        /// <summary>How many tabs the strip actually ships. Exposed <b>so the strip test can assert against
+        /// the real roster</b> rather than a hand-copied literal: <c>TabStripLayoutTests</c> used to hardcode
+        /// the count, read "thirteen" and stayed green while the strip grew to fourteen, because nothing tied
+        /// that number to <see cref="TabNames"/>. A test that cannot go red is not a test.</summary>
+        public static int TabCount => TabNames.Length;
+
+        /// <summary>Index of the campaign "Lands" tab — the debug travel map. Named because two other
+        /// rules key off it (the no-player guard, and the tab-strip comment that counts it).</summary>
+        private const int LandsTab = 11;
+
+        /// <summary>Index of the "Land State" tab — the live readout of the land the player is standing in.
+        /// Named for the same reason <see cref="LandsTab"/> is: the no-player guard has to exempt it.</summary>
+        private const int LandStateTab = 12;
+
+        /// <summary>Index of the "Land Map" tab — the drawn minimap of the built land. Exempt from the
+        /// no-player guard for the same reason as <see cref="LandStateTab"/>: it reads the live
+        /// <c>LandMap</c>, not the player, and the land being wrong is exactly when it is needed.</summary>
+        private const int LandMapTab = 13;
+
+        /// <summary>Index of the "Save / Load" tab — the quick-save slot, the checkpoint record, and the
+        /// autosave timer. Exempt from the no-player guard for the same reason as
+        /// <see cref="LandStateTab"/>: it reads <c>SaveManager</c> and the campaign, not the player, and a
+        /// save that will not load is exactly when a scene without a live player is being looked at.</summary>
+        private const int SaveLoadTab = 14;
 
         // Scroll positions for each tab
         private Vector2 _pipStatsScroll;
@@ -785,10 +821,11 @@ namespace PFE.Core.Scripting
             // WRAPS, because a horizontal strip does not. This is the defect the developer console's
             // quick-action buttons already hit: a fixed strip runs off the right edge and the last
             // buttons become unclickable, with nothing on screen to say so. Ten tabs already sat within
-            // a few tens of pixels of this window's 920, so the eleventh — the unit spawn tab — is
-            // exactly the one that would have been pushed past the edge, i.e. the new feature would be
-            // unreachable in the build it was added for. A wrapped strip cannot overflow at any window
-            // size or font.
+            // a few tens of pixels of this window's 920, so the eleventh — the unit spawn tab — was
+            // exactly the one pushed past the edge, and the twelfth (Lands) would have gone the same way.
+            // A wrapped strip cannot overflow at any window size or font — but only if the wrap budget is
+            // the quantity GUILayout really advances by; see DrawTabBar, where an assumed per-button
+            // spacing was the remaining few pixels of overrun.
             DrawTabBar();
 
             GUILayout.Space(8);
@@ -802,7 +839,26 @@ namespace PFE.Core.Scripting
             // resolved against the player's live position and facing, so with no player it would have to
             // fall back to the world origin — a spawn point that looks like it worked and is in the
             // wrong place. The refusal is the honest answer.
-            if (player == null && _activeTab != 9)
+            //
+            // The Lands tab is exempt for the Rig tab's reason, one layer up: it rebuilds the WORLD, and
+            // reads nothing at all from the player. A scene whose player failed to spawn is exactly when
+            // you want to travel somewhere else, so gating it would remove the one control that can get
+            // you out.
+            //
+            // The Land State tab (12) is exempt for the same reason again: it reads the campaign's
+            // per-land runtime state and the built LandMap, and every control on it is a way to change
+            // what the NEXT build does. Gating it on a player would hide it in precisely the scene where
+            // the land is wrong.
+            //
+            // The Land Map tab (13) is exempt for that reason once more: it draws the live LandMap, and
+            // the player marker is optional — the map itself is the answer.
+            //
+            // The Save / Load tab (14) is exempt because it reads SaveManager and the campaign's
+            // checkpoint record, neither of which is the player. It is also the tab you want when a load
+            // came back wrong, and a load that came back wrong is a plausible reason there is no live
+            // player to gate on.
+            if (player == null && _activeTab != 9 && _activeTab != LandsTab &&
+                _activeTab != LandStateTab && _activeTab != LandMapTab && _activeTab != SaveLoadTab)
             {
                 GUILayout.Box("PlayerController not found in scene. Please enter a gameplay room/scene.", _cardStyle, GUILayout.ExpandHeight(true));
                 GUI.DragWindow(new Rect(0, 0, _windowRect.width, 30));
@@ -844,6 +900,18 @@ namespace PFE.Core.Scripting
                 case 10:
                     DrawSpawnUnitTab(player);
                     break;
+                case LandsTab:
+                    DrawLandsTab();
+                    break;
+                case LandStateTab:
+                    DrawLandStateTab();
+                    break;
+                case LandMapTab:
+                    DrawLandMapTab(player);
+                    break;
+                case SaveLoadTab:
+                    DrawSaveLoadTab();
+                    break;
             }
 
             GUI.DragWindow(new Rect(0, 0, _windowRect.width, 24));
@@ -853,54 +921,100 @@ namespace PFE.Core.Scripting
         // TAB BAR (wrapping)
         // =========================================================================
 
-        /// <summary>Horizontal inset of the tab strip inside the window, matching <c>_windowStyle</c>'s padding.</summary>
-        private const float TabBarInset = 10f;
-
-        /// <summary>Per-tab slack for GUILayout's inter-element spacing, on top of the measured width.</summary>
-        private const float TabButtonSpacing = 4f;
-
         /// <summary>
         /// The tab strip, wrapped into as many rows as the window width needs.
         /// </summary>
         /// <remarks>
-        /// <para><b>Measured, not guessed.</b> Each tab's width comes from <c>GUIStyle.CalcSize</c> on its
-        /// own caption — which already includes the button's padding and border — so a longer label or a
-        /// larger font wraps sooner instead of clipping. GUILayout has no wrapping flow, so the rows are
-        /// driven explicitly: accumulate widths and start a new row when the next tab would pass the
-        /// right edge.</para>
+        /// <para><b>Measured, not guessed — twice over, and the second one was the bug.</b> Each tab's
+        /// width comes from <c>GUIStyle.CalcSize</c> on its own caption (which already includes the
+        /// button's padding and border), so a longer label or a larger font wraps sooner instead of
+        /// clipping. GUILayout has no wrapping flow, so the rows are driven explicitly: accumulate widths
+        /// and start a new row when the next tab would pass the right edge.</para>
+        ///
+        /// <para><b>What was wrong: the per-tab advance.</b> The budget added a hard-coded
+        /// <c>4f</c> per button as "GUILayout's inter-element spacing". GUILayout does not use a constant
+        /// — it advances by the <i>style's own</i> <c>margin</c>, which is what
+        /// <c>CalcSize(...).y + style.margin.vertical</c> already reads for the unit picker's rows
+        /// (<c>DrawUnitPicker</c>). With eleven tabs the difference accumulates across ten gaps, so the
+        /// strip overran the window by roughly that much and the <b>last</b> tab — the newest one — sat
+        /// on the edge. That is the defect, and it is why the eleventh tab is the one that showed it.</para>
+        ///
+        /// <para><b>What was wrong: the available width.</b> It was <c>_windowRect.width</c> minus twice a
+        /// hard-coded inset, i.e. derived from the window rect on the assumption that the content area is
+        /// inset by exactly the style's padding. That assumption is about <c>GUI.Window</c>'s own
+        /// client-rect arithmetic, which this file does not control.
+        /// <see cref="MeasureContentWidth"/> asks IMGUI for the real number instead, so the wrap is exact
+        /// at any window size, any skin and any padding.</para>
         ///
         /// <para><b>The <c>used &gt; 0</c> guard</b> keeps a single tab wider than the whole strip on its
         /// own row rather than wrapping before every tab.</para>
         /// </remarks>
         private void DrawTabBar()
         {
-            float available = _windowRect.width - 2f * TabBarInset;
+            float available = MeasureContentWidth();
 
-            GUILayout.BeginHorizontal();
-            float used = 0f;
-
+            // Per-tab widths, measured off the styles that actually draw them. Both styles are used
+            // because the active tab is bold and therefore wider; measuring only the inactive one would
+            // under-budget the row that happens to hold the active tab.
+            var widths = new float[TabNames.Length];
             for (int i = 0; i < TabNames.Length; i++)
             {
                 GUIStyle style = (i == _activeTab) ? _tabActiveStyle : _tabInactiveStyle;
-                float width = style.CalcSize(new GUIContent(TabNames[i])).x + TabButtonSpacing;
+                widths[i] = TabStripLayout.TabWidth(style.CalcSize(new GUIContent(TabNames[i])).x, style.margin.horizontal);
+            }
 
-                if (used > 0f && used + width > available)
+            int[] rowStarts = TabStripLayout.RowStarts(widths, available);
+
+            int row = 0;
+            GUILayout.BeginHorizontal();
+            for (int i = 0; i < TabNames.Length; i++)
+            {
+                if (row + 1 < rowStarts.Length && rowStarts[row + 1] == i)
                 {
                     GUILayout.EndHorizontal();
                     GUILayout.Space(2f);
                     GUILayout.BeginHorizontal();
-                    used = 0f;
+                    row++;
                 }
 
-                if (GUILayout.Button(TabNames[i], style, GUILayout.Height(28), GUILayout.Width(width)))
+                GUIStyle style = (i == _activeTab) ? _tabActiveStyle : _tabInactiveStyle;
+                if (GUILayout.Button(TabNames[i], style, GUILayout.Height(28), GUILayout.Width(widths[i])))
                 {
                     _activeTab = i;
                 }
-
-                used += width;
             }
 
             GUILayout.EndHorizontal();
+        }
+
+        /// <summary>
+        /// The width IMGUI will actually give a row inside this window's content area, measured from the
+        /// layout engine rather than derived from <c>_windowRect</c>.
+        /// </summary>
+        /// <remarks>
+        /// A zero-height, expand-width probe in a throw-away horizontal group. Its width is the enclosing
+        /// vertical group's content width — i.e. the window rect minus whatever <c>GUI.Window</c> really
+        /// insets by (padding <i>and</i> border), which is the quantity the old
+        /// <c>_windowRect.width - 2 * TabBarInset</c> was guessing at. Zero height, so it costs no visible
+        /// space; deterministic per frame, so it is the same during Layout and Repaint.
+        ///
+        /// <para>Falls back to <c>_windowRect</c> minus the style padding when the probe returns nothing
+        /// usable — a degenerate style must not make the strip un-renderable, and an over-wide budget
+        /// only degrades to the old behaviour rather than to an empty strip.</para>
+        /// </remarks>
+        private float MeasureContentWidth()
+        {
+            GUILayout.BeginHorizontal();
+            Rect probe = GUILayoutUtility.GetRect(
+                GUIContent.none, GUIStyle.none, GUILayout.ExpandWidth(true), GUILayout.Height(0f));
+            GUILayout.EndHorizontal();
+
+            if (probe.width > 1f)
+            {
+                return probe.width;
+            }
+
+            return Mathf.Max(1f, _windowRect.width - _windowStyle.padding.horizontal);
         }
 
         // =========================================================================
@@ -1064,6 +1178,10 @@ namespace PFE.Core.Scripting
             // class had no OnDestroy at all, and a rig left behind would accumulate every play
             // session.
             if (_rigRoot != null) Destroy(_rigRoot);
+
+            // The Land Map tab owns a runtime Texture2D. A texture is not garbage collected with the
+            // MonoBehaviour, so without this every play session leaks one image the size of the land.
+            ReleaseLandMapTexture();
         }
 
         // =========================================================================
@@ -1160,6 +1278,42 @@ namespace PFE.Core.Scripting
         /// index that the room's own spawn pass also uses.
         /// </summary>
         private int _unitSpawnSerial;
+
+        // ── Lands tab (11) state ──────────────────────────────────────────────
+        //
+        // This tab is the debug stand-in for the travel-map PAGE, which does not exist yet — the camp's
+        // wall map publishes TravelMapOpenedMessage and nothing consumes it. It is deliberately built on
+        // the real rules rather than around them: the gate columns come from TravelMapModel (the port of
+        // PipPageInfo's visibility/travellability filters) and the Go button goes through
+        // CampaignManager.BeginMission, which is the same call the map's confirm button makes. So the tab
+        // both lets a tester reach any land and tells them which lands the real page would have offered.
+
+        private Vector2 _landsScroll;
+
+        /// <summary>Case-insensitive filter over land id / display name / tip.</summary>
+        private string _landSearch = string.Empty;
+
+        /// <summary>
+        /// AS3 <c>World.w.testMode</c>, fed to <see cref="TravelMapModel"/>. On by default because this
+        /// tab's purpose is to reach a land, and a land that is invisible to the model is exactly the one
+        /// a tester cannot otherwise get to. Turning it off shows what the shipped page would show.
+        /// </summary>
+        private bool _landTestMode = true;
+
+        /// <summary>What the last Go/Regen press did, shown under the buttons.</summary>
+        private string _landStatus = string.Empty;
+        private bool _landStatusIsError;
+
+        /// <summary>Refresh button state: the catalogue is an asset, but the gates depend on runtime state
+        /// (<c>visited</c>/<c>access</c>) that changes as you play, so the model is rebuilt on demand.</summary>
+        private bool _landModelStale = true;
+
+        /// <summary>
+        /// The gate model, rebuilt from the live campaign state whenever <see cref="_landModelStale"/> is
+        /// set. Cached because <c>DrawLandRows</c> asks it three questions per row and the overlay
+        /// repaints every frame.
+        /// </summary>
+        private TravelMapModel _landModel;
 
         /// <summary>
         /// The live room's controller. <c>MapBridge.VisualController</c> first, because that is the
@@ -1695,6 +1849,1733 @@ namespace PFE.Core.Scripting
         {
             if (_unitDefsById == null || string.IsNullOrEmpty(unitId)) return null;
             return _unitDefsById.TryGetValue(unitId, out UnitDefinition definition) ? definition : null;
+        }
+
+        // =========================================================================
+        // =========================================================================
+        // TAB 11: CAMPAIGN LANDS (the debug travel map)
+        // =========================================================================
+
+        /// <summary>
+        /// Every land in the catalogue, with its travel gates, and a button that rebuilds the world there.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Why this exists at all.</b> Two independent things are missing from the loop: the
+        /// travel-map page (nothing consumes <c>TravelMapOpenedMessage</c>) and <c>WorldBuilder</c>'s
+        /// procedural routing (only 10 of the 33 lands are <c>isProcedural</c>; the rest are authored, so
+        /// they can be entered today). Without this tab the only way to reach a land is to already be
+        /// standing in the camp in front of a working wall map, which is the thing under test. This is a
+        /// test harness, not the feature.</para>
+        ///
+        /// <para><b>The gates are the shipped rules, not a re-derivation.</b> <see cref="TravelMapModel"/>
+        /// is the port of AS3's visibility filter (<c>PipPageInfo.as:143-205</c>) and
+        /// <c>Game.checkTravel</c> (<c>Game.as:483-506</c>), and it is fed the live
+        /// <see cref="CampaignManager.LandStates"/> and the live trigger table — so the three columns are
+        /// what the real page would decide, computed by the code that will draw it. This tab is therefore
+        /// the model's first consumer, and a wrong gate shows up here instead of in the shipped page.</para>
+        ///
+        /// <para><b>Both buttons are production seams.</b> <c>Go</c> is
+        /// <see cref="CampaignManager.BeginMission"/> — the same call the map's confirm button makes, so a
+        /// base land is entered without a rebuild and a mission land is regenerated. <c>Regen</c> is
+        /// <see cref="CampaignManager.TransitionToLand"/> with <c>forceRegenerate</c>, which is what
+        /// <c>gotoNextLevel</c> uses; it is the only way to see a procedural land assemble a second
+        /// layout. Neither writes world state directly.</para>
+        /// </remarks>
+        private void DrawLandsTab()
+        {
+            _landsScroll = GUILayout.BeginScrollView(_landsScroll);
+
+            GUILayout.Label("<b>Campaign Lands</b> — rebuild the world in any land in the catalogue.",
+                GUILayout.ExpandWidth(true));
+            GUILayout.Label(
+                "<color=#AAAAAA><size=11>This is the debug stand-in for the travel map. The camp's wall map " +
+                "grants travel and asks for the map to open, but no page consumes that request yet, so " +
+                "pressing E on it produces nothing on screen. The gate columns below are computed by " +
+                "TravelMapModel — the real rules — and Go is the same call the page's confirm button will " +
+                "make.</size></color>",
+                GUILayout.ExpandWidth(true));
+
+            GUILayout.Space(6);
+
+            CampaignManager campaign = CampaignManager.Current;
+            if (campaign == null)
+            {
+                GUILayout.Box(
+                    "No CampaignManager. It is created by the game lifetime scope, so this tab needs a " +
+                    "play-mode session with the gameplay scene loaded (the same requirement as every " +
+                    "other tab).",
+                    _cardStyle, GUILayout.ExpandWidth(true));
+                GUILayout.EndScrollView();
+                return;
+            }
+
+            DrawCampaignStateLine(campaign);
+            GUILayout.Space(6);
+
+            CampaignCatalog catalog = campaign.Catalog;
+            if (catalog == null || catalog.AllLands == null || catalog.AllLands.Count == 0)
+            {
+                GUILayout.Box(
+                    "The campaign catalogue is empty or missing (Resources/CampaignCatalog). This is a " +
+                    "data problem, not a filter one — run PFE/Data/Import Campaign.",
+                    _cardStyle, GUILayout.ExpandWidth(true));
+                GUILayout.EndScrollView();
+                return;
+            }
+
+            DrawLandFilterRow(campaign, catalog);
+            GUILayout.Space(4);
+
+            if (!string.IsNullOrEmpty(_landStatus))
+            {
+                GUILayout.Label(
+                    (_landStatusIsError ? "<color=#FF6666>" : "<color=#9AD0FF>") + _landStatus + "</color>",
+                    GUILayout.ExpandWidth(true));
+            }
+
+            DrawLandRows(campaign, catalog);
+
+            GUILayout.EndScrollView();
+        }
+
+        /// <summary>
+        /// Where you are, whether travel is granted, and how many times the wall map has fired.
+        /// </summary>
+        /// <remarks>
+        /// <b><c>TravelMapOpenCount</c> is the answer to "is the wall map interactable?"</b> The counter
+        /// is the only observable effect the wall map has today, because the page it opens does not
+        /// exist. Stand in the camp, press E on the map, and read this line: unchanged means the
+        /// interaction never reached the object (presenter/collider/registration), incremented means it
+        /// reached it and the missing page is the whole of the symptom.
+        /// </remarks>
+        private void DrawCampaignStateLine(CampaignManager campaign)
+        {
+            GUILayout.BeginHorizontal(_cardStyle);
+            GUILayout.Label(
+                $"<b>In land:</b> {(string.IsNullOrEmpty(campaign.CurrentLandId.CurrentValue) ? "<color=#FFAA33>(none)</color>" : campaign.CurrentLandId.CurrentValue)}" +
+                $"   <b>mission:</b> {(string.IsNullOrEmpty(campaign.MissionId) ? "—" : campaign.MissionId)}" +
+                $"   <b>travel granted:</b> {(campaign.TravelUnlocked ? "<color=#55FF55>yes</color>" : "<color=#FFAA33>no</color>")}" +
+                $"   <b>wall-map opens:</b> <b>{campaign.TravelMapOpenCount}</b>",
+                GUILayout.ExpandWidth(true));
+            GUILayout.EndHorizontal();
+        }
+
+        /// <summary>The search box, the test-mode toggle and the refresh button.</summary>
+        private void DrawLandFilterRow(CampaignManager campaign, CampaignCatalog catalog)
+        {
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("<color=#AAAAAA>Find:</color>", GUILayout.Width(38));
+            _landSearch = GUILayout.TextField(_landSearch ?? string.Empty, GUILayout.Width(170));
+
+            bool toggled = GUILayout.Toggle(
+                _landTestMode,
+                " test mode (show lands the page would hide)",
+                GUILayout.Width(300));
+            if (toggled != _landTestMode)
+            {
+                _landTestMode = toggled;
+                _landModelStale = true;
+            }
+
+            if (GUILayout.Button("Refresh gates", GUILayout.Width(120)))
+            {
+                _landModelStale = true;
+            }
+
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+
+            if (_landModelStale || _landModel == null)
+            {
+                // Rebuilt from the live campaign state, which is what makes the columns track
+                // visited/access as you play rather than freezing at whatever they were on open.
+                _landModel = TravelMapModel.FromCatalog(
+                    catalog,
+                    campaign.LandStates,
+                    campaign.GetTrigger,
+                    () => campaign.CurrentLandId.CurrentValue,
+                    _landTestMode);
+                _landModelStale = false;
+            }
+        }
+
+        /// <summary>One row per land: identity, gates, and the two travel buttons.</summary>
+        private void DrawLandRows(CampaignManager campaign, CampaignCatalog catalog)
+        {
+            string current = campaign.CurrentLandId.CurrentValue ?? string.Empty;
+            int shown = 0;
+
+            for (int i = 0; i < catalog.AllLands.Count; i++)
+            {
+                LandDefinition land = catalog.AllLands[i];
+                if (land == null || string.IsNullOrEmpty(land.landId)) continue;
+                if (!MatchesLandFilter(land)) continue;
+
+                shown++;
+
+                TravelLand facts = TravelLand.From(land);
+                bool isCurrent = string.Equals(land.landId, current, StringComparison.OrdinalIgnoreCase);
+
+                GUILayout.BeginHorizontal(_cardStyle);
+
+                GUILayout.Label(
+                    (isCurrent ? "<color=#55FF55><b>▶ </b></color>" : string.Empty) +
+                    $"<b>{land.landId}</b> <color=#AAAAAA>{land.DisplayName}</color>",
+                    GUILayout.Width(230));
+
+                GUILayout.Label(
+                    $"tip={land.tip}  stage={land.stage}  " +
+                    (land.isProcedural ? "<color=#FFAA33>procedural</color>" : "authored") +
+                    $"  rooms={land.roomTemplates?.Count ?? 0}  fin={land.fin}",
+                    GUILayout.Width(330));
+
+                GUILayout.Label(LandGateText(_landModel, facts), GUILayout.Width(220));
+
+                if (GUILayout.Button(isCurrent ? "Rebuild" : "Go", GUILayout.Width(78)))
+                {
+                    GoToLand(campaign, land);
+                }
+
+                if (GUILayout.Button("Regen", GUILayout.Width(66)))
+                {
+                    RegenerateLand(campaign, land);
+                }
+
+                GUILayout.FlexibleSpace();
+                GUILayout.EndHorizontal();
+            }
+
+            if (shown == 0)
+            {
+                GUILayout.Label(
+                    "<color=#FFAA33>No land matches the filter.</color> An empty list here is the filter, " +
+                    "not the catalogue — clear the Find box to see all " +
+                    $"{catalog.AllLands.Count} land(s).",
+                    GUILayout.ExpandWidth(true));
+            }
+            else
+            {
+                GUILayout.Label($"<color=#AAAAAA>{shown} of {catalog.AllLands.Count} land(s).</color>",
+                    GUILayout.ExpandWidth(true));
+            }
+        }
+
+        /// <summary>
+        /// The three gates, each labelled, because "not offered" and "offered but not travelable" are
+        /// different states with different causes and a single greyed row would hide which one applies.
+        /// </summary>
+        private static string LandGateText(TravelMapModel model, TravelLand facts)
+        {
+            if (model == null) return "<color=#FFAA33>gates unknown</color>";
+
+            string visible = model.IsVisible(facts)
+                ? "<color=#55FF55>visible</color>"
+                : "<color=#888888>hidden</color>";
+            string loaded = TravelMapModel.IsLoaded(facts)
+                ? "<color=#55FF55>loaded</color>"
+                : "<color=#FFAA33>no rooms</color>";
+            string travel = model.CanTravel(facts)
+                ? "<color=#55FF55>travellable</color>"
+                : "<color=#888888>not travellable</color>";
+
+            return $"{visible} / {loaded} / {travel}";
+        }
+
+        /// <summary>
+        /// Case-insensitive substring match over id, display name and tip. Blank matches everything.
+        /// </summary>
+        private bool MatchesLandFilter(LandDefinition land)
+        {
+            if (string.IsNullOrWhiteSpace(_landSearch)) return true;
+
+            string needle = _landSearch.Trim();
+            return Contains(land.landId, needle) ||
+                   Contains(land.DisplayName, needle) ||
+                   Contains(land.tip, needle);
+        }
+
+        private static bool Contains(string haystack, string needle)
+        {
+            return !string.IsNullOrEmpty(haystack) &&
+                   haystack.IndexOf(needle, StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        /// <summary>
+        /// Enter the land through <see cref="CampaignManager.BeginMission"/> — the shipped path.
+        /// </summary>
+        private void GoToLand(CampaignManager campaign, LandDefinition land)
+        {
+            // Deliberately not a direct TransitionToLand: BeginMission is what the map's confirm button
+            // calls, including its "a base land is not regenerated" rule, and a debug button that skipped
+            // that rule would test a code path nothing ships.
+            bool started = campaign.BeginMission(land.landId);
+            SetLandStatus(started
+                ? $"beginMission('{land.landId}') — the world rebuilds on the next frame."
+                : $"beginMission('{land.landId}') did nothing: you are already there, or the id is empty.",
+                !started);
+        }
+
+        /// <summary>
+        /// Force a fresh layout in the land through <c>forceRegenerate</c>, which is
+        /// <c>gotoNextLevel</c>'s path.
+        /// </summary>
+        private void RegenerateLand(CampaignManager campaign, LandDefinition land)
+        {
+            campaign.TransitionToLand(land.landId, null, forceRegenerate: true);
+            SetLandStatus(
+                $"TransitionToLand('{land.landId}', forceRegenerate: true) — a fresh layout, same as " +
+                "gotoNextLevel. Only a procedural land assembles differently.",
+                false);
+        }
+
+        private void SetLandStatus(string message, bool isError)
+        {
+            _landStatus = message;
+            _landStatusIsError = isError;
+        }
+
+        // =========================================================================
+        // TAB 12: LAND STATE — the live readout of the land you are standing in
+        // =========================================================================
+        //
+        // WHY THIS IS A SEPARATE TAB FROM "LANDS" (11). Lands is a travel map: it answers "where can I
+        // go". This answers "what is the land I am in, and is it actually built correctly". Those are
+        // different questions with different failure modes, and the second one is the one you need when
+        // a procedural land comes out as a single room, or its rooms do not connect, or the exit is on
+        // the wrong row — because the answer is in the runtime state and the plan, not in the catalogue.
+        //
+        // It is also the only place the conf RULES are visible at runtime. Every rule lives in
+        // LandLayoutPlanner, which is pure, so the tab can re-plan the selected land with a throwaway
+        // RNG and show the resulting cell grid WITHOUT touching the live world or the live RNG stream.
+
+        private Vector2 _landStateScroll;
+
+        /// <summary>
+        /// Which land the plan preview is for. Independent of the land you are standing in, because the
+        /// two questions are different: "why is THIS land wrong" needs the live state, "does conf 3 even
+        /// produce the layout I think it does" needs to be askable about any land from anywhere.
+        /// </summary>
+        private string _landStatePreviewId = string.Empty;
+
+        /// <summary>Stage the plan preview is computed at. AS3's <c>landStage</c> is a descent counter, and
+        /// every conf gates something on it (conf 0 clamps the grid, conf 0/1/3/5/6 gate the deep exit),
+        /// so a preview at one stage can only ever be half the story.</summary>
+        private int _landStatePreviewStage;
+
+        /// <summary>Last action's result, so a button that did nothing says so.</summary>
+        private string _landStateStatus = string.Empty;
+
+        /// <summary>
+        /// Text the user is typing into each numeric field, keyed by field.
+        ///
+        /// <para>IMGUI keeps no per-control editing state for a <c>TextField</c> over a computed string,
+        /// so the buffer has to live here. Keyed rather than a single field because the runtime stage and
+        /// the preview stage are two different numbers on the same screen, and one buffer would make
+        /// typing in one scramble the other.</para>
+        /// </summary>
+        private readonly Dictionary<string, string> _landStateIntBuffers = new Dictionary<string, string>();
+
+        private void DrawLandStateTab()
+        {
+            _landStateScroll = GUILayout.BeginScrollView(_landStateScroll);
+
+            GUILayout.Label("<b>Land State</b> — the live land, its runtime variables, and whether the " +
+                            "world it built is traversable.", GUILayout.ExpandWidth(true));
+            GUILayout.Label(
+                "<color=#AAAAAA><size=11>Everything in the runtime section is edited in place: the values " +
+                "are the ones the next build reads, so changing the descent stage or the visited flag and " +
+                "then pressing Rebuild is how you reproduce a specific land without playing to it. The " +
+                "plan preview below re-runs LandLayoutPlanner on a throwaway RNG, so looking at a layout " +
+                "never disturbs the seeded world you are standing in.</size></color>",
+                GUILayout.ExpandWidth(true));
+
+            GUILayout.Space(6);
+
+            CampaignManager campaign = CampaignManager.Current;
+            if (campaign == null)
+            {
+                GUILayout.Box(
+                    "No CampaignManager. It is created by the game lifetime scope, so this tab needs a " +
+                    "play-mode session with the gameplay scene loaded.",
+                    _cardStyle, GUILayout.ExpandWidth(true));
+                GUILayout.EndScrollView();
+                return;
+            }
+
+            CampaignCatalog catalog = campaign.Catalog;
+            if (catalog == null || catalog.AllLands == null || catalog.AllLands.Count == 0)
+            {
+                GUILayout.Box(
+                    "The campaign catalogue is empty or missing (Resources/CampaignCatalog). Run " +
+                    "PFE/Data/Import Campaign.",
+                    _cardStyle, GUILayout.ExpandWidth(true));
+                GUILayout.EndScrollView();
+                return;
+            }
+
+            string currentId = campaign.CurrentLandId.CurrentValue ?? string.Empty;
+            LandDefinition current = string.IsNullOrEmpty(currentId) ? null : catalog.GetLand(currentId);
+
+            DrawLandStateIdentity(campaign, current, currentId);
+            GUILayout.Space(6);
+            DrawLandStateRuntime(campaign, current, currentId);
+            GUILayout.Space(6);
+            DrawLandStateGeneratorInputs(campaign);
+            GUILayout.Space(6);
+            DrawLandStateBuiltWorld(campaign, currentId);
+            GUILayout.Space(6);
+            DrawLandStatePlanPreview(campaign, catalog, current, currentId);
+            GUILayout.Space(6);
+            DrawLandStateActions(campaign, current, currentId);
+
+            GUILayout.EndScrollView();
+        }
+
+        /// <summary>Section A — the current land's authored data, read-only.</summary>
+        private void DrawLandStateIdentity(CampaignManager campaign, LandDefinition land, string currentId)
+        {
+            GUILayout.BeginVertical(_cardStyle);
+
+            GUILayout.Label("<b>A. Land identity</b> <color=#AAAAAA>(LandDefinition — authored data)</color>",
+                GUILayout.ExpandWidth(true));
+
+            if (land == null)
+            {
+                GUILayout.Label(
+                    $"<color=#FFAA33>No LandDefinition for the current land id " +
+                    $"'{currentId}'{(string.IsNullOrEmpty(currentId) ? " (no land entered yet)" : string.Empty)}." +
+                    "</color> The catalogue is what LandIdToCollection and the build route key off, so a " +
+                    "land without one is built as authored whatever its real conf is.",
+                    GUILayout.ExpandWidth(true));
+                GUILayout.EndVertical();
+                return;
+            }
+
+            GUILayout.Label(
+                $"<b>{land.landId}</b>  <color=#AAAAAA>{land.landName}</color>   " +
+                $"tip=<b>{land.tip}</b>   " +
+                (land.isProcedural
+                    ? "<color=#FFAA33><b>procedural</b></color> (buildRandomLand)"
+                    : "<color=#9AD0FF>authored</color> (buildSpecifLand)") +
+                $"   conf=<b>{land.configId}</b>",
+                GUILayout.ExpandWidth(true));
+
+            GUILayout.Label(
+                $"grid=<b>{land.gridWidth}x{land.gridHeight}</b>   " +
+                $"entry=<b>({land.entryCoordinates.x},{land.entryCoordinates.y})</b>   " +
+                $"stage(data)=<b>{land.stage}</b>   dif=<b>{land.baseDifficulty}</b>   " +
+                $"autoLevel={(land.autoLevel ? "1" : "0")}   biome=<b>{land.biomeId}</b>",
+                GUILayout.ExpandWidth(true));
+
+            GUILayout.Label(
+                $"exit prob=<b>{(string.IsNullOrEmpty(land.exitLandId) ? "(none)" : land.exitLandId)}</b>   " +
+                $"collection=<b>{land.sourceFileKey}</b>   " +
+                $"rooms=<b>{land.roomTemplates?.Count ?? 0}</b>   " +
+                $"xp=<b>{land.xpReward}</b>   loadScr=<b>{land.loadScreenIndex}</b>   fin=<b>{land.fin}</b>",
+                GUILayout.ExpandWidth(true));
+
+            // The conf is only half the rule set; the grid the conf actually runs on can differ, and the
+            // single most common "this land is wrong" report is a grid that was never clamped the way the
+            // conf expects. Show the effective grid next to the declared one.
+            if (land.isProcedural)
+            {
+                int effectiveMy = land.gridHeight;
+                string note = string.Empty;
+                if (land.configId == 0 && _landStatePreviewStageOf(land) <= 0)
+                {
+                    effectiveMy = 3;
+                    note = "  <color=#FFAA33>← clamped to 3 rows while stage &lt;= 0 (Land.as:180-183)</color>";
+                }
+
+                GUILayout.Label(
+                    $"effective grid at stage {_landStatePreviewStageOf(land)}: <b>{land.gridWidth}x{effectiveMy}</b>" +
+                    note,
+                    GUILayout.ExpandWidth(true));
+            }
+
+            GUILayout.EndVertical();
+        }
+
+        /// <summary>The runtime landStage for a land, without creating a state entry for a land you never visited.</summary>
+        private static int _landStatePreviewStageOf(LandDefinition land)
+        {
+            CampaignManager campaign = CampaignManager.Current;
+            if (campaign == null || land == null) return 0;
+            return campaign.LandStates.TryGet(land.landId, out LandRuntimeState state) ? state.landStage : 0;
+        }
+
+        /// <summary>Section B — the runtime variables, all editable in place.</summary>
+        private void DrawLandStateRuntime(CampaignManager campaign, LandDefinition land, string currentId)
+        {
+            GUILayout.BeginVertical(_cardStyle);
+            GUILayout.Label("<b>B. Runtime state</b> <color=#AAAAAA>(LandRuntimeState — what the next build " +
+                            "reads; edits apply immediately)</color>", GUILayout.ExpandWidth(true));
+
+            if (string.IsNullOrEmpty(currentId))
+            {
+                GUILayout.Label("<color=#FFAA33>No land entered yet — nothing to show.</color> " +
+                                "Use the Lands tab's Go button first.", GUILayout.ExpandWidth(true));
+                GUILayout.EndVertical();
+                return;
+            }
+
+            LandRuntimeState state = campaign.LandStates.Get(currentId);
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Label($"landStage (<color=#AAAAAA>AS3 st</color>):", GUILayout.Width(170));
+            int stage = DrawLandStateIntField("runtime.stage." + currentId, state.landStage, 70f);
+            if (stage != state.landStage)
+            {
+                state.landStage = stage;
+                SetLandStateStatus($"landStage = {stage}. Rebuild to apply.", false);
+            }
+
+            bool upStage = GUILayout.Toggle(state.upStage, " upStage (<color=#AAAAAA>blocks the next upland</color>)",
+                GUILayout.Width(330));
+            if (upStage != state.upStage) state.upStage = upStage;
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+
+            GUILayout.BeginHorizontal();
+            bool visited = GUILayout.Toggle(state.visited, " visited", GUILayout.Width(110));
+            if (visited != state.visited) state.visited = visited;
+
+            bool access = GUILayout.Toggle(state.access, " access", GUILayout.Width(110));
+            if (access != state.access) state.access = access;
+
+            bool passed = GUILayout.Toggle(state.passed, " passed", GUILayout.Width(110));
+            if (passed != state.passed) state.passed = passed;
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("lastCpCode:", GUILayout.Width(170));
+            state.lastCpCode = GUILayout.TextField(state.lastCpCode ?? string.Empty, GUILayout.Width(200));
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+
+            // The derived difficulty, shown because it is NOT the runtime stage: AS3 takes the max of the
+            // incoming stage and the land's own `dif` (Land.as:120-124), so raising landStage past `dif`
+            // changes nothing until it exceeds it. A tester who edits the stage and sees no change in
+            // enemy strength is looking at this, not at a bug.
+            if (land != null)
+            {
+                int dif = land.isProcedural
+                    ? Mathf.Max(state.landStage, land.baseDifficulty)
+                    : (land.autoLevel ? state.landStage : land.baseDifficulty);
+
+                GUILayout.Label(
+                    $"<color=#AAAAAA>derived:</color> landDifLevel=<b>{dif}</b> " +
+                    $"<color=#AAAAAA>(AS3 max(stage, dif) for procedural; dif, or stage when autoLevel, for " +
+                    $"authored)</color>   lootLimit=<b>{state.landStage + 3}</b>   " +
+                    $"gameStage=<b>{land.stage}</b>",
+                    GUILayout.ExpandWidth(true));
+            }
+
+            GUILayout.EndVertical();
+        }
+
+        /// <summary>
+        /// Section C — the campaign triggers the generator actually reads.
+        ///
+        /// <para>Only two families matter to land generation and both are invisible everywhere else:
+        /// <c>mbase_visited</c> decides whether conf 4's entry cell is the authored <c>beg0</c> or a random
+        /// room (<c>Land.as:276</c>), and <c>prob_&lt;id&gt;</c> makes <c>newRandomProb</c> skip a prob it
+        /// would otherwise place (<c>Land.as:759</c>). A land whose boss door is missing is usually a
+        /// prob trigger left over from an earlier run.</para>
+        /// </summary>
+        private void DrawLandStateGeneratorInputs(CampaignManager campaign)
+        {
+            GUILayout.BeginVertical(_cardStyle);
+            GUILayout.Label("<b>C. Generator inputs</b> <color=#AAAAAA>(campaign triggers the builder " +
+                            "branches on)</color>", GUILayout.ExpandWidth(true));
+
+            int mbase = campaign.GetTrigger("mbase_visited");
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("mbase_visited:", GUILayout.Width(170));
+            GUILayout.Label(
+                mbase > 0
+                    ? $"<b>{mbase}</b> <color=#55FF55>set</color> <color=#AAAAAA>→ conf 4 (random_mbase) " +
+                      "starts on a random room, not the authored beg0</color>"
+                    : $"<b>{mbase}</b> <color=#888888>unset</color> <color=#AAAAAA>→ conf 4 places its " +
+                      "authored beg0 entry room</color>",
+                GUILayout.ExpandWidth(true));
+
+            if (GUILayout.Button(mbase > 0 ? "Clear" : "Set", GUILayout.Width(70)))
+            {
+                campaign.SetTrigger("mbase_visited", mbase > 0 ? 0 : 1);
+                SetLandStateStatus($"mbase_visited = {(mbase > 0 ? 0 : 1)}. Rebuild random_mbase to apply.", false);
+            }
+            GUILayout.EndHorizontal();
+
+            // prob_* triggers. The catalogue has no index of them, so they are found by asking for the
+            // ids the lands' prob tables would name — a miss is reported, not silently treated as unset.
+            GUILayout.Label("<color=#AAAAAA>prob_* triggers (a set one makes the builder skip that " +
+                            "boss door):</color>", GUILayout.ExpandWidth(true));
+
+            CampaignCatalog catalog = campaign.Catalog;
+            int shown = 0;
+            if (catalog != null && catalog.AllLands != null)
+            {
+                for (int i = 0; i < catalog.AllLands.Count; i++)
+                {
+                    LandDefinition l = catalog.AllLands[i];
+                    if (l == null || !l.isProcedural || string.IsNullOrEmpty(l.exitLandId)) continue;
+
+                    int v = campaign.GetTrigger("prob_" + l.exitLandId);
+                    if (v <= 0) continue;
+
+                    shown++;
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Label($"prob_{l.exitLandId} = <b>{v}</b> <color=#AAAAAA>({l.landId})</color>",
+                        GUILayout.Width(340));
+                    if (GUILayout.Button("Clear", GUILayout.Width(70)))
+                    {
+                        campaign.SetTrigger("prob_" + l.exitLandId, 0);
+                        SetLandStateStatus($"prob_{l.exitLandId} cleared.", false);
+                    }
+                    GUILayout.FlexibleSpace();
+                    GUILayout.EndHorizontal();
+                }
+            }
+
+            if (shown == 0)
+            {
+                GUILayout.Label(
+                    "<color=#888888>none set — every land's prob table is fully available, so a boss door " +
+                    "will be placed wherever the conf asks for one.</color>",
+                    GUILayout.ExpandWidth(true));
+            }
+
+            GUILayout.EndVertical();
+        }
+
+        /// <summary>
+        /// Section D — the world that was actually built, plus the two checks that answer "is it usable":
+        /// reachability from the entry, and whether each door's grid direction agrees with the direction
+        /// its neighbour actually sits in.
+        /// </summary>
+        private void DrawLandStateBuiltWorld(CampaignManager campaign, string currentId)
+        {
+            GUILayout.BeginVertical(_cardStyle);
+            GUILayout.Label("<b>D. Built world</b> <color=#AAAAAA>(the live LandMap)</color>",
+                GUILayout.ExpandWidth(true));
+
+            LandMap map = ResolveLandMap();
+            if (map == null)
+            {
+                GUILayout.Label(
+                    "<color=#FFAA33>No LandMap.</color> The bridge has not performed a land transition in " +
+                    "this session, so no world has been built.",
+                    GUILayout.ExpandWidth(true));
+                GUILayout.EndVertical();
+                return;
+            }
+
+            int roomCount = map.GetRoomCount();
+            GUILayout.Label(
+                $"bounds=<b>[{map.minBounds.x},{map.maxBounds.x}) x [{map.minBounds.y},{map.maxBounds.y})</b>   " +
+                $"rooms=<b>{roomCount}</b>   " +
+                $"current=<b>{(map.currentRoom != null ? map.currentRoom.id : "(none)")}</b> " +
+                $"at <b>{map.currentRoom?.landPosition}</b>",
+                GUILayout.ExpandWidth(true));
+
+            if (roomCount == 0)
+            {
+                GUILayout.Label("<color=#FFAA33>The map is empty — the build produced no rooms.</color>",
+                    GUILayout.ExpandWidth(true));
+                GUILayout.EndVertical();
+                return;
+            }
+
+            int activeDoors = 0, exits = 0, checkpoints = 0, unreachable = 0;
+            int verticalDoors = 0, verticalMismatch = 0;
+            var unreachableRooms = new List<string>();
+            var mismatchRooms = new List<string>();
+
+            HashSet<Vector3Int> reachable = ReachableRooms(map);
+
+            foreach (RoomInstance room in map.GetAllRooms())
+            {
+                if (room == null) continue;
+
+                if (!reachable.Contains(room.landPosition))
+                {
+                    unreachable++;
+                    if (unreachableRooms.Count < 6) unreachableRooms.Add($"{room.landPosition}:{room.id}");
+                }
+
+                if (room.doors != null)
+                {
+                    foreach (DoorInstance door in room.doors)
+                    {
+                        if (door == null || !door.isActive) continue;
+                        activeDoors++;
+
+                        if (door.side != DoorSide.Bottom && door.side != DoorSide.Top) continue;
+                        verticalDoors++;
+
+                        RoomInstance target = map.GetRoom(door.targetRoomPosition);
+                        if (target == null) continue;
+
+                        // The door's SIDE says where it is carved in the room; the world delta says which
+                        // way the room it leads to actually is. A door in the floor must lead DOWN.
+                        //
+                        // Do NOT compare the grid delta against the world delta here. The world delta is
+                        // the grid delta times one room height, so their signs always agree and such a
+                        // check can never fire — which is exactly what this readout used to do, and why it
+                        // reported "all doors fine" on a vertically mirrored world.
+                        float worldDy = RoomTransitionManager.GetRoomOriginUnity(target).y
+                                      - RoomTransitionManager.GetRoomOriginUnity(room).y;
+
+                        bool leadsDown = worldDy < 0f;
+                        bool shouldLeadDown = door.side == DoorSide.Bottom;
+
+                        if (Mathf.Abs(worldDy) > 0.0001f && leadsDown != shouldLeadDown)
+                        {
+                            verticalMismatch++;
+                            if (mismatchRooms.Count < 4)
+                            {
+                                mismatchRooms.Add($"{room.landPosition} {door.side}→{target.landPosition}");
+                            }
+                        }
+                    }
+                }
+
+                if (room.objects != null)
+                {
+                    foreach (ObjectInstance obj in room.objects)
+                    {
+                        if (obj == null) continue;
+                        string type = obj.objectType ?? string.Empty;
+                        if (type.IndexOf("exit", StringComparison.OrdinalIgnoreCase) >= 0) exits++;
+                        if (type.IndexOf("checkpoint", StringComparison.OrdinalIgnoreCase) >= 0) checkpoints++;
+                    }
+                }
+            }
+
+            GUILayout.Label(
+                $"active doors=<b>{activeDoors}</b>   exit boxes=<b>{exits}</b>   " +
+                $"checkpoints=<b>{checkpoints}</b>",
+                GUILayout.ExpandWidth(true));
+
+            // ── Reachability ────────────────────────────────────────────────────
+            //
+            // This is the check that answers the original report ("no transition between the rooms of a
+            // random land"). A room no active door reaches is a room the player can never stand in, and
+            // the count alone does not show it: a land can be 20 rooms and 1 connected island.
+            if (unreachable == 0)
+            {
+                GUILayout.Label(
+                    $"<color=#55FF55>reachable:</color> all <b>{roomCount}</b> room(s) reachable from the " +
+                    "entry over active doors.",
+                    GUILayout.ExpandWidth(true));
+            }
+            else
+            {
+                GUILayout.Label(
+                    $"<color=#FF6666>reachable:</color> <b>{roomCount - unreachable}</b> of <b>{roomCount}</b> " +
+                    $"reachable — <b>{unreachable}</b> stranded: {string.Join(", ", unreachableRooms)}" +
+                    (unreachable > unreachableRooms.Count ? ", …" : string.Empty),
+                    GUILayout.ExpandWidth(true));
+            }
+
+            // ── Door direction vs world direction ───────────────────────────────
+            //
+            // The land grid keeps AS3's numbering — grid y+1 is the row BELOW (Land.gotoLoc case 3
+            // steps y+1 and places the player at the target's ceiling; case 4 steps y-1 and places them
+            // at its floor) — and AS3's rendering agrees with that, because Flash screen Y grows down.
+            // Unity's +Y grows up, so the world Y of a land row is negated once, in
+            // WorldCoordinates.LandRowToWorldPixelY. This readout is the live check that the two still
+            // agree: a door carved in the floor must lead to a room rendered below.
+            if (verticalDoors == 0)
+            {
+                GUILayout.Label("<color=#888888>no vertical doors in this land.</color>",
+                    GUILayout.ExpandWidth(true));
+            }
+            else if (verticalMismatch == 0)
+            {
+                GUILayout.Label(
+                    $"<color=#55FF55>door direction:</color> all <b>{verticalDoors}</b> vertical door(s) " +
+                    "point at a neighbour on the side they are on.",
+                    GUILayout.ExpandWidth(true));
+            }
+            else
+            {
+                GUILayout.Label(
+                    $"<color=#FF6666>door direction:</color> <b>{verticalMismatch}</b> of <b>{verticalDoors}</b> " +
+                    $"vertical door(s) point at a neighbour that is on the OPPOSITE side in world space " +
+                    $"({string.Join(", ", mismatchRooms)}). The grid step and the room-origin Y sign " +
+                    "disagree; see the Land State section notes.",
+                    GUILayout.ExpandWidth(true));
+            }
+
+            GUILayout.EndVertical();
+        }
+
+        /// <summary>
+        /// Flood fill from the room the map considers current, following each active door's recorded
+        /// <c>targetRoomPosition</c>.
+        ///
+        /// <para><b>Why the door's own target and not adjacency.</b> Two rooms can be grid neighbours and
+        /// not be connected — that is the whole point of a door. Walking the adjacency graph instead would
+        /// report a land as fully connected while every door in it is shut, which is exactly the state
+        /// this readout exists to catch.</para>
+        /// </summary>
+        private static HashSet<Vector3Int> ReachableRooms(LandMap map)
+        {
+            var seen = new HashSet<Vector3Int>();
+            RoomInstance start = map.currentRoom;
+            if (start == null) return seen;
+
+            var queue = new Queue<RoomInstance>();
+            queue.Enqueue(start);
+            seen.Add(start.landPosition);
+
+            while (queue.Count > 0)
+            {
+                RoomInstance room = queue.Dequeue();
+                if (room.doors == null) continue;
+
+                foreach (DoorInstance door in room.doors)
+                {
+                    if (door == null || !door.isActive) continue;
+
+                    RoomInstance next = map.GetRoom(door.targetRoomPosition);
+                    if (next == null || !seen.Add(next.landPosition)) continue;
+                    queue.Enqueue(next);
+                }
+            }
+
+            return seen;
+        }
+
+        /// <summary>The live LandMap, via the bridge that owns the reference to it.</summary>
+        private static LandMap ResolveLandMap()
+        {
+            var bridge = FindFirstObjectByType<MapBridge>();
+            return bridge != null ? bridge.CurrentLandMap : null;
+        }
+
+        /// <summary>
+        /// Section E — the plan the conf rules produce, for any land, at any stage.
+        ///
+        /// <para><b>The RNG is a throwaway.</b> <c>LandLayoutPlanner.Plan</c> draws from the stream it is
+        /// handed, so passing a fresh <c>PcgRngService</c> means a preview cannot shift the world the
+        /// player is standing in. The seed is fixed, so the preview is stable across frames rather than
+        /// reshuffling on every repaint — a preview that changed while you looked at it would be worse
+        /// than none.</para>
+        /// </summary>
+        private void DrawLandStatePlanPreview(CampaignManager campaign, CampaignCatalog catalog,
+            LandDefinition current, string currentId)
+        {
+            GUILayout.BeginVertical(_cardStyle);
+            GUILayout.Label("<b>E. Plan preview</b> <color=#AAAAAA>(LandLayoutPlanner, throwaway RNG — " +
+                            "does not touch the live world)</color>", GUILayout.ExpandWidth(true));
+
+            if (string.IsNullOrEmpty(_landStatePreviewId))
+            {
+                _landStatePreviewId = current != null && current.isProcedural ? current.landId : currentId;
+            }
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("land:", GUILayout.Width(40));
+
+            var options = new List<LandDefinition>();
+            var captions = new List<string>();
+            for (int i = 0; i < catalog.AllLands.Count; i++)
+            {
+                LandDefinition l = catalog.AllLands[i];
+                if (l == null || string.IsNullOrEmpty(l.landId)) continue;
+                options.Add(l);
+                captions.Add(l.landId);
+            }
+
+            int selected = options.FindIndex(l => string.Equals(l.landId, _landStatePreviewId,
+                StringComparison.OrdinalIgnoreCase));
+            if (selected < 0) selected = 0;
+
+            int picked = GUILayout.SelectionGrid(selected, captions.ToArray(), 6);
+            if (picked != selected && picked >= 0 && picked < options.Count)
+            {
+                _landStatePreviewId = options[picked].landId;
+                selected = picked;
+            }
+
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+
+            LandDefinition land = selected >= 0 && selected < options.Count ? options[selected] : null;
+            if (land == null)
+            {
+                GUILayout.EndVertical();
+                return;
+            }
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("stage:", GUILayout.Width(40));
+            _landStatePreviewStage = Mathf.Clamp(
+                DrawLandStateIntField("preview.stage", _landStatePreviewStage, 50f), 0, 9);
+            GUILayout.Label(
+                "<color=#AAAAAA>AS3 landStage — every conf gates something on it (grid clamp, deep exit, " +
+                "beg room, roof row).</color>",
+                GUILayout.ExpandWidth(true));
+            GUILayout.EndHorizontal();
+
+            if (!land.isProcedural)
+            {
+                GUILayout.Label(
+                    $"<color=#9AD0FF>{land.landId}</color> is authored (conf is unused): its rooms come from " +
+                    "the templates' own fixedPosition, not from a conf branch. Switch to a " +
+                    "<color=#FFAA33>procedural</color> land to see a plan.",
+                    GUILayout.ExpandWidth(true));
+                GUILayout.EndVertical();
+                return;
+            }
+
+            bool visited = false;
+            bool mbaseVisited = campaign.GetTrigger("mbase_visited") > 0;
+            if (campaign.LandStates.TryGet(land.landId, out LandRuntimeState previewState))
+            {
+                visited = previewState.visited;
+            }
+
+            LandLayoutPlan plan;
+            try
+            {
+                plan = LandLayoutPlanner.Plan(new LandLayoutRequest
+                {
+                    LandId = land.landId,
+                    Conf = land.configId,
+                    GridWidth = land.gridWidth,
+                    GridHeight = land.gridHeight,
+                    LandStage = _landStatePreviewStage,
+                    EntryCell = land.entryCoordinates,
+                    Visited = visited,
+                    MbaseVisited = mbaseVisited,
+                }, new PFE.Core.Rng.PcgRngService());
+            }
+            catch (Exception ex)
+            {
+                GUILayout.Label($"<color=#FF6666>Plan threw: {ex.Message}</color>", GUILayout.ExpandWidth(true));
+                GUILayout.EndVertical();
+                return;
+            }
+
+            int exits = 0, checks = 0, probs = 0, tips = 0;
+            foreach (LandCellPlan c in plan.Cells)
+            {
+                if (c.HasExit) exits++;
+                if (c.Checkpoint != CheckpointKind.None) checks++;
+                if (c.Prob != ProbKind.None) probs++;
+                if (c.Fill == CellFill.Tip) tips++;
+            }
+
+            Vector3Int entry = WorldBuilder.ResolveProceduralEntry(land.entryCoordinates, plan.GridSize);
+
+            GUILayout.Label(
+                $"conf=<b>{plan.Conf}</b>   grid=<b>{plan.GridSize.x}x{plan.GridSize.y}</b>   " +
+                $"cells=<b>{plan.CellCount}</b>   entry=<b>({entry.x},{entry.y})</b>" +
+                (entry.x != land.entryCoordinates.x || entry.y != land.entryCoordinates.y
+                    ? " <color=#FFAA33>(clamped)</color>" : string.Empty) +
+                $"   forcedProbs=<b>{plan.ForcedProbs.Count}</b>",
+                GUILayout.ExpandWidth(true));
+
+            GUILayout.Label(
+                $"tips=<b>{tips}</b>   exits=<b>{exits}</b>   checkpoints=<b>{checks}</b>   probs=<b>{probs}</b>   " +
+                $"visited=<b>{visited}</b>   mbaseVisited=<b>{mbaseVisited}</b>   " +
+                $"uniqueRoomPerCell=<b>{plan.UniqueRoomPerCell}</b>",
+                GUILayout.ExpandWidth(true));
+
+            if (exits == 0 && land.configId != 4)
+            {
+                GUILayout.Label(
+                    "<color=#FF6666>This plan places no exit.</color> At this stage the land would be a " +
+                    "dead end. Conf 0 and 1 gate the deep exit on the stage, conf 3 needs an even-parity " +
+                    "top-row cell, so try a higher stage.",
+                    GUILayout.ExpandWidth(true));
+            }
+
+            // The grid itself, one line per AS3 row (y = 0 is the ceiling). Each cell is a compact glyph
+            // so a whole land fits on screen at once — which is the only way to see a rule like "exits on
+            // the bottom row, checkpoints on the even cells" rather than infer it from counts.
+            GUILayout.Label("<color=#AAAAAA>legend: B=beg tip  T=tip  .=random   E=exit  e=deep exit  " +
+                            "C=checkpoint  c=beg checkpoint  P=forced prob  p=chance prob  " +
+                            "W=water  G=gas  *=mirror  x=no placement</color>",
+                GUILayout.ExpandWidth(true));
+
+            var sb = new System.Text.StringBuilder();
+            for (int y = 0; y < plan.GridSize.y; y++)
+            {
+                sb.Append(y == 0 ? "y=0 " : $"y={y} ");
+                for (int x = 0; x < plan.GridSize.x; x++)
+                {
+                    if (!plan.TryGetCell(x, y, out LandCellPlan c))
+                    {
+                        sb.Append("?? ");
+                        continue;
+                    }
+
+                    char g = '.';
+                    if (c.SuppressPlacement) g = 'x';
+                    else if (c.Fill == CellFill.Tip) g = (c.Tip != null && c.Tip.StartsWith("beg")) ? 'B' : 'T';
+
+                    string marks = string.Empty;
+                    if (c.Exit == ExitKind.Deep) marks += "e";
+                    else if (c.Exit == ExitKind.Shallow) marks += "E";
+                    if (c.Checkpoint == CheckpointKind.Begin) marks += "c";
+                    else if (c.Checkpoint == CheckpointKind.Normal) marks += "C";
+                    if (c.Prob == ProbKind.Forced) marks += "P";
+                    else if (c.Prob == ProbKind.Chance) marks += "p";
+                    if (c.Water >= 0) marks += "W";
+                    if (c.Gas) marks += "G";
+                    if (c.Mirror) marks += "*";
+
+                    sb.Append(g).Append(marks.PadRight(3)).Append(' ');
+                }
+                sb.Append('\n');
+            }
+
+            GUILayout.Label(sb.ToString(), GUILayout.ExpandWidth(true));
+
+            if (plan.ForcedProbs.Count > 0)
+            {
+                var forced = new List<string>();
+                foreach (ForcedProbPlan fp in plan.ForcedProbs)
+                {
+                    forced.Add($"({fp.Position.x},{fp.Position.y}) stage>={fp.MinStage}");
+                }
+                GUILayout.Label($"<color=#AAAAAA>forced probs placed before the main pass: " +
+                                $"{string.Join(", ", forced)}</color>", GUILayout.ExpandWidth(true));
+            }
+
+            GUILayout.EndVertical();
+        }
+
+        /// <summary>Section F — the buttons that make a change stick.</summary>
+        private void DrawLandStateActions(CampaignManager campaign, LandDefinition land, string currentId)
+        {
+            GUILayout.BeginVertical(_cardStyle);
+            GUILayout.Label("<b>F. Actions</b>", GUILayout.ExpandWidth(true));
+
+            GUILayout.BeginHorizontal();
+
+            if (land != null && GUILayout.Button($"Rebuild '{land.landId}'", GUILayout.Width(220)))
+            {
+                bool ok = campaign.BeginMission(land.landId);
+                SetLandStateStatus(
+                    ok
+                        ? $"BeginMission('{land.landId}') — the world rebuilds on the next frame with the " +
+                          "state above."
+                        : $"BeginMission('{land.landId}') did nothing: you are already there, or the id is empty.",
+                    !ok);
+            }
+
+            if (land != null && GUILayout.Button("Force regenerate", GUILayout.Width(150)))
+            {
+                campaign.TransitionToLand(land.landId, null, forceRegenerate: true);
+                SetLandStateStatus(
+                    $"TransitionToLand('{land.landId}', forceRegenerate: true) — a fresh layout.",
+                    false);
+            }
+
+            if (!string.IsNullOrEmpty(currentId) && GUILayout.Button("Reset runtime state", GUILayout.Width(170)))
+            {
+                LandRuntimeState state = campaign.LandStates.Get(currentId);
+                state.landStage = 0;
+                state.upStage = false;
+                state.visited = false;
+                state.passed = false;
+                state.lastCpCode = string.Empty;
+                SetLandStateStatus(
+                    $"'{currentId}' reset to landStage 0, upStage/visited/passed false, no checkpoint code. " +
+                    "access is deliberately kept — it is a travel-map unlock, not land progress.",
+                    false);
+            }
+
+            if (!string.IsNullOrEmpty(currentId) && GUILayout.Button("Descend one level", GUILayout.Width(160)))
+            {
+                bool incremented = campaign.LandStates.UpLandLevel(currentId);
+                SetLandStateStatus(
+                    incremented
+                        ? $"'{currentId}' landStage -> {campaign.LandStates.Get(currentId).landStage}."
+                        : $"'{currentId}' landStage unchanged: upStage is already set, so the next upland " +
+                          "is blocked (Game.as:474-481). Clear upStage first.",
+                    !incremented);
+            }
+
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+
+            if (!string.IsNullOrEmpty(_landStateStatus))
+            {
+                // The colour tag is baked in by SetLandStateStatus — wrapping it in a second one here
+                // would nest two <color> tags, and Unity's rich text does not nest: the outer one wins
+                // and an error would render in the ordinary colour.
+                GUILayout.Label(_landStateStatus, GUILayout.ExpandWidth(true));
+            }
+
+            GUILayout.EndVertical();
+        }
+
+        private void SetLandStateStatus(string message, bool isError)
+        {
+            _landStateStatus = isError
+                ? "<color=#FF6666>" + message + "</color>"
+                : "<color=#9AD0FF>" + message + "</color>";
+        }
+
+        /// <summary>
+        /// An editable integer, because <c>GUILayout</c> has no numeric field (<c>IntField</c> is
+        /// <c>EditorGUILayout</c>-only, and this overlay runs in a build too).
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Why a per-key text buffer and not <c>int.Parse</c> on the field text.</b> A raw
+        /// <c>TextField</c> over <c>value.ToString()</c> cannot be typed into: every keystroke writes the
+        /// parsed number back, the field re-renders from it, and a half-typed <c>"12"</c> collapses to
+        /// <c>"1"</c> the moment <c>"1"</c> parses. The buffer is what the user is typing; the int is what
+        /// the game uses. They are allowed to disagree while the text is mid-edit.</para>
+        ///
+        /// <para><b>Re-sync rule.</b> When the text is unchanged this frame, the buffer is refreshed from
+        /// the live value <em>only if the buffer holds a valid number that disagrees with it</em> — i.e.
+        /// some button changed the value. A buffer that is empty or half-typed is left alone, so clearing
+        /// the field to retype does not have the old number pushed back into it.</para>
+        /// </remarks>
+        private int DrawLandStateIntField(string key, int value, float width)
+        {
+            if (!_landStateIntBuffers.TryGetValue(key, out string buffer) || buffer == null)
+            {
+                buffer = value.ToString();
+                _landStateIntBuffers[key] = buffer;
+            }
+
+            string edited = GUILayout.TextField(buffer, GUILayout.Width(width));
+
+            if (edited != buffer)
+            {
+                _landStateIntBuffers[key] = edited;
+                return int.TryParse(edited, out int parsed) ? parsed : value;
+            }
+
+            if (int.TryParse(buffer, out int asInt) && asInt != value)
+            {
+                _landStateIntBuffers[key] = value.ToString();
+            }
+
+            return value;
+        }
+
+        // =========================================================================
+        // TAB 13: LAND MAP — the minimap of the built land
+        // =========================================================================
+        //
+        // The port of the original's Pip-Boy map page. AS3 paints a per-tile BitmapData
+        // (`Land.drawMap`, Land.as:1517-1538, calling `Location.drawMap`, Location.as:2711-2817) and
+        // shows it on the Pip-Boy's info page (`PipPageInfo.as:94-103`, sized/positioned at :816-833).
+        // This tab is deliberately NOT that page: it is the same image in the F2 debug panel, so the
+        // land can be looked at now rather than after the interface exists. When the interface lands,
+        // the drawing half moves and this tab is deleted.
+        //
+        // The image is one texel per tile, composed by LandMinimapComposer from the LIVE LandMap (not a
+        // re-plan) and uploaded to a Texture2D. It is REBUILT only when the map structurally changes or
+        // on demand, never every frame: a 7x7 land is ~59k tiles, and SetPixels32 over that per frame
+        // is pure waste for an image that only changes when you cross a door.
+        //
+        // The collision-outline debug tools are NOT used here, and should not be. `col on tiles` draws
+        // world-space wireframes for the live view (ColliderDebugOverlay); a minimap is a top-down
+        // picture, and the two answer different questions. What this tab draws is tile COLOURS, which is
+        // what the oracle's minimap is — see docs/LandGameplayLoop/07_MINIMAP.md.
+
+        private Vector2 _landMapScroll;
+        private int _landMapZoom = 2;
+
+        /// <summary>Draw every room, visited or not — the panel-local port of the oracle's global
+        /// <c>World.w.drawAllMap</c>. A local flag rather than <c>LandMap.DrawAllMap</c> so a debug
+        /// toggle cannot silently change what the game itself renders.</summary>
+        private bool _landMapRevealAll;
+
+        /// <summary>The uploaded image. Null until a build succeeds; recreated when the land's size
+        /// changes and destroyed with the overlay.</summary>
+        private Texture2D _landMapTexture;
+
+        /// <summary>What <see cref="_landMapTexture"/> was built from. Rebuilt when this differs, which
+        /// is the whole cache key — see <see cref="LandMapSignature"/>.</summary>
+        private string _landMapSignature = string.Empty;
+
+        private LandMinimapStats _landMapStats;
+
+        /// <summary>Last action's result, so a button that did nothing says so.</summary>
+        private string _landMapStatus = string.Empty;
+
+        private void DrawLandMapTab(PlayerController player)
+        {
+            _landMapScroll = GUILayout.BeginScrollView(_landMapScroll);
+
+            GUILayout.Label("<b>Land Map</b> — the minimap of the land the player is standing in, " +
+                            "drawn from the live LandMap at one pixel per tile.",
+                GUILayout.ExpandWidth(true));
+            GUILayout.Label(
+                "<color=#AAAAAA><size=11>This is the original's Pip-Boy map image " +
+                "(Land.drawMap + Location.drawMap) shown in the debug panel until the interface exists. " +
+                "Visibility is per <b>room</b>: the oracle also fades tiles by their own visi, which the " +
+                "port does not carry.</size></color>",
+                GUILayout.ExpandWidth(true));
+
+            GUILayout.Space(6);
+
+            LandMap map = ResolveLandMap();
+            if (map == null)
+            {
+                GUILayout.Box(
+                    "No LandMap. The bridge has not performed a land transition in this session, so no " +
+                    "world has been built. Use the Lands tab's Go button, or enter a room in play mode.",
+                    _cardStyle, GUILayout.ExpandWidth(true));
+                GUILayout.EndScrollView();
+                return;
+            }
+
+            MinimapPlayerMarker marker = ResolvePlayerMarker(player);
+            string signature = LandMapSignature(map, _landMapRevealAll, marker);
+
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("Refresh", GUILayout.Width(90)))
+            {
+                _landMapSignature = string.Empty; // forces the rebuild below
+                _landMapStatus = "Rebuilt from the live map.";
+            }
+
+            GUILayout.Label("zoom:", GUILayout.Width(40));
+            _landMapZoom = Mathf.Clamp(
+                Mathf.RoundToInt(GUILayout.HorizontalSlider(_landMapZoom, 1f, 6f, GUILayout.Width(120))), 1, 6);
+            GUILayout.Label($"<b>{_landMapZoom}x</b>", GUILayout.Width(34));
+
+            bool revealAll = GUILayout.Toggle(_landMapRevealAll, " reveal unvisited rooms", GUILayout.Width(200));
+            if (revealAll != _landMapRevealAll)
+            {
+                _landMapRevealAll = revealAll;
+                _landMapStatus = revealAll
+                    ? "Revealing every room (the oracle's World.w.drawAllMap)."
+                    : "Showing only visited rooms.";
+            }
+
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+
+            // The cache. A signature change means the room set, a room's visited flag, the current room
+            // or the player's tile moved — i.e. the image would differ. Anything else (a destroyed tile,
+            // a door opening) is not in the signature and is picked up by Refresh; see LandMapSignature.
+            if (_landMapTexture == null || signature != _landMapSignature)
+            {
+                RebuildLandMapTexture(map, marker, signature);
+            }
+
+            if (_landMapTexture == null)
+            {
+                GUILayout.Box(
+                    "The land has no positioned rooms to draw — the build produced nothing.",
+                    _cardStyle, GUILayout.ExpandWidth(true));
+                GUILayout.EndScrollView();
+                return;
+            }
+
+            DrawLandMapStats();
+            GUILayout.Space(4);
+            DrawLandMapLegend();
+            GUILayout.Space(4);
+            DrawLandMapImage();
+
+            if (!string.IsNullOrEmpty(_landMapStatus))
+            {
+                GUILayout.Space(4);
+                GUILayout.Label(_landMapStatus, GUILayout.ExpandWidth(true));
+            }
+
+            GUILayout.EndScrollView();
+        }
+
+        // =========================================================================
+        // SAVE / LOAD TAB
+        // =========================================================================
+
+        private Vector2 _saveLoadScroll;
+
+        /// <summary>
+        /// Mirror of <c>SaveManager</c>'s autosave settings. The manager exposes
+        /// <c>SetAutoSaveEnabled</c>/<c>SetAutoSaveInterval</c> but <b>no getters</b> — both fields are
+        /// <c>[SerializeField] private</c> — so the tab cannot read the live values back. These are seeded
+        /// from the manager's own defaults and kept in step by the setters below, and the tab says so
+        /// rather than presenting a mirrored value as the manager's own.
+        /// </summary>
+        private bool _saveLoadAutoEnabled = true;
+        private float _saveLoadAutoInterval = 300f;
+
+        private string _saveLoadStatus = string.Empty;
+
+        /// <summary>
+        /// The F2 panel's save/load surface. <c>DevConsoleSaveCommands</c> already exposes the same three
+        /// operations to the Lua console; this tab exists because a console verb reports into a log the
+        /// developer has to go and read, while a save/load round-trip is something you want to <i>do</i>
+        /// and watch — and because <c>CampaignManager.TeleportToCheckpoint</c> had no caller at all.
+        /// </summary>
+        private void DrawSaveLoadTab()
+        {
+            _saveLoadScroll = GUILayout.BeginScrollView(_saveLoadScroll);
+
+            GUILayout.Label("<b>Save / Load</b> — the quick-save slot, the checkpoint record, and the " +
+                            "autosave timer.", GUILayout.ExpandWidth(true));
+            GUILayout.Label(
+                "<color=#AAAAAA><size=11>A checkpoint writes the <b>autosave</b> slot, not the quick one " +
+                "(SaveManager.RequestCheckpointSave — AS3 World.saveGame(-1)). Loading restores the " +
+                "campaign block and then resumes at the recorded checkpoint; the land-entry rule that " +
+                "picks the room is CheckpointRules.ResumeRoomOnEntry, which is exercised offline.</size></color>",
+                GUILayout.ExpandWidth(true));
+
+            GUILayout.Space(6);
+
+            SaveManager save = SaveManager.Instance;
+            if (save == null)
+            {
+                GUILayout.Box(
+                    "No SaveManager in the scene. It is created by the game lifetime scope, so this tab " +
+                    "needs a play-mode session with the gameplay scene loaded.",
+                    _cardStyle, GUILayout.ExpandWidth(true));
+                GUILayout.EndScrollView();
+                return;
+            }
+
+            DrawSaveLoadSlotRow("Quick save", SaveManager.QuickSaveSlotId);
+            GUILayout.Space(2);
+            DrawSaveLoadSlotRow("Autosave", SaveManager.AutoSaveSlotId);
+
+            GUILayout.Space(6);
+            GUILayout.Label($"current slot: <b>{save.GetCurrentSaveId() ?? "-"}</b>", GUILayout.ExpandWidth(true));
+            GUILayout.Label($"save dir: <size=11>{WorldSerializer.GetSaveDirectory()}</size>",
+                GUILayout.ExpandWidth(true));
+
+            GUILayout.Space(6);
+            GUILayout.BeginHorizontal();
+
+            if (GUILayout.Button("Quick Save", GUILayout.Width(110)))
+            {
+                _saveLoadStatus = save.QuickSave(ResolveLandMap())
+                    ? "Quick save written."
+                    : "Quick save FAILED — see the Unity console (a null LandMap is the usual cause).";
+            }
+
+            if (GUILayout.Button("Quick Load", GUILayout.Width(110)))
+            {
+                // HasQuickSave is checked first so "no save yet" reports as itself: the two have
+                // completely different fixes, and QuickLoad's own refusal says only "no quick save found".
+                _saveLoadStatus = !save.HasQuickSave()
+                    ? "No quick save on disk — press Quick Save first."
+                    : save.QuickLoad(ResolveLandMap())
+                        ? "Quick load applied."
+                        : "Quick load FAILED — see the Unity console.";
+            }
+
+            if (GUILayout.Button("Checkpoint Save", GUILayout.Width(140)))
+            {
+                _saveLoadStatus = save.RequestCheckpointSave()
+                    ? "Checkpoint save written to the autosave slot."
+                    : "Checkpoint save FAILED — see the Unity console.";
+            }
+
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+
+            if (!string.IsNullOrEmpty(_saveLoadStatus))
+            {
+                GUILayout.Space(4);
+                GUILayout.Label(_saveLoadStatus, GUILayout.ExpandWidth(true));
+            }
+
+            GUILayout.Space(8);
+            DrawSaveLoadCheckpointBlock();
+
+            GUILayout.Space(8);
+            DrawSaveLoadAutoSaveBlock(save);
+
+            GUILayout.Space(8);
+            DrawSaveLoadAllSaves(save);
+
+            GUILayout.EndScrollView();
+        }
+
+        private static void DrawSaveLoadSlotRow(string label, string slotId)
+        {
+            bool present = WorldSerializer.SaveExists(slotId);
+            string path = WorldSerializer.GetSaveFilePath(slotId);
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Label($"<b>{label}</b>", GUILayout.Width(90));
+            GUILayout.Label(
+                present ? "<color=#7CFC00>present</color>" : "<color=#FF8080>absent</color>",
+                GUILayout.Width(72));
+
+            if (present)
+            {
+                var info = new FileInfo(path);
+                GUILayout.Label(
+                    $"<size=11>{FormatSaveBytes(info.Length)}  written " +
+                    $"{info.LastWriteTimeUtc:yyyy-MM-dd HH:mm:ss}Z</size>",
+                    GUILayout.ExpandWidth(true));
+            }
+            else
+            {
+                GUILayout.Label($"<size=11>{path}</size>", GUILayout.ExpandWidth(true));
+            }
+
+            GUILayout.EndHorizontal();
+        }
+
+        private void DrawSaveLoadCheckpointBlock()
+        {
+            GUILayout.Label("<b>Checkpoint</b>", GUILayout.ExpandWidth(true));
+
+            CampaignManager campaign = CampaignManager.Current;
+            if (campaign == null)
+            {
+                GUILayout.Box("No CampaignManager — the checkpoint record lives on it.",
+                    _cardStyle, GUILayout.ExpandWidth(true));
+                return;
+            }
+
+            CampaignManager.CheckpointRecord? recorded = campaign.CurrentCheckpoint;
+            if (recorded == null)
+            {
+                GUILayout.Label(
+                    "none recorded — activate a checkpoint in play, or load a save that carries one.",
+                    GUILayout.ExpandWidth(true));
+                return;
+            }
+
+            CampaignManager.CheckpointRecord checkpoint = recorded.Value;
+            GUILayout.Label(
+                $"land <b>{checkpoint.landId}</b>   room <b>({checkpoint.roomX}, {checkpoint.roomY}, " +
+                $"{checkpoint.roomZ})</b>   code " +
+                $"<b>{(string.IsNullOrEmpty(checkpoint.code) ? "-" : checkpoint.code)}</b>",
+                GUILayout.ExpandWidth(true));
+
+            GUILayout.BeginHorizontal();
+
+            if (GUILayout.Button("Go to checkpoint", GUILayout.Width(150)))
+            {
+                // AS3 Consol.as:447 `World.w.land.gotoCheckPoint()` — jump to the checkpoint, in the
+                // checkpoint's own room. The room half is the land-entry resume: TransitionToLand rebuilds
+                // the land, and because a checkpoint can only have been activated by standing in its land,
+                // that land is already `visited`, so firstVisit is false and ResumeRoomOnEntry picks the
+                // checkpoint's room. Without that wiring this button would land the player on the entry
+                // cell and look like it had merely reloaded the land.
+                campaign.TransitionToLand(checkpoint.landId);
+                _saveLoadStatus = $"Transitioning to '{checkpoint.landId}' — the entry resumes in the " +
+                                  "checkpoint's room.";
+            }
+
+            if (GUILayout.Button("Return (hub)", GUILayout.Width(120)))
+            {
+                _saveLoadStatus = campaign.TeleportToCheckpoint(main: false)
+                    ? "Checkpoint teleport started (AS3 CheckPoint.teleport, hub branch)."
+                    : "Checkpoint teleport is a no-op here (a main checkpoint whose mission is the hub).";
+            }
+
+            if (GUILayout.Button("Return (main)", GUILayout.Width(120)))
+            {
+                _saveLoadStatus = campaign.TeleportToCheckpoint(main: true)
+                    ? "Checkpoint teleport started (main branch -> the mission land)."
+                    : "Checkpoint teleport is a no-op here (a main checkpoint whose mission is the hub).";
+            }
+
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+        }
+
+        private void DrawSaveLoadAutoSaveBlock(SaveManager save)
+        {
+            GUILayout.Label("<b>Autosave</b>", GUILayout.ExpandWidth(true));
+
+            GUILayout.BeginHorizontal();
+
+            bool enabled = GUILayout.Toggle(_saveLoadAutoEnabled, " enabled", GUILayout.Width(110));
+            if (enabled != _saveLoadAutoEnabled)
+            {
+                _saveLoadAutoEnabled = enabled;
+                save.SetAutoSaveEnabled(enabled);
+                _saveLoadStatus = enabled ? "Autosave enabled." : "Autosave disabled.";
+            }
+
+            GUILayout.Label("interval:", GUILayout.Width(58));
+            _saveLoadAutoInterval = GUILayout.HorizontalSlider(
+                _saveLoadAutoInterval, 30f, 900f, GUILayout.Width(180));
+            GUILayout.Label($"<b>{_saveLoadAutoInterval:0} s</b>", GUILayout.Width(64));
+
+            if (GUILayout.Button("Apply interval", GUILayout.Width(110)))
+            {
+                save.SetAutoSaveInterval(_saveLoadAutoInterval);
+                _saveLoadStatus = $"Autosave interval set to {_saveLoadAutoInterval:0} s.";
+            }
+
+            if (GUILayout.Button("Trigger now", GUILayout.Width(100)))
+            {
+                _saveLoadStatus = save.TriggerAutoSave()
+                    ? "Autosave written."
+                    : "Autosave refused (disabled, or the world is not ready).";
+            }
+
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+
+            GUILayout.Label(
+                "<color=#AAAAAA><size=11>A mirror, not a readback — SaveManager exposes the setters but " +
+                "not the fields, so these controls show what this tab last applied.</size></color>",
+                GUILayout.ExpandWidth(true));
+        }
+
+        private void DrawSaveLoadAllSaves(SaveManager save)
+        {
+            List<SaveMetadata> all = save.GetAllSaves();
+            GUILayout.Label($"<b>All saves</b> ({(all != null ? all.Count : 0)})", GUILayout.ExpandWidth(true));
+
+            if (all == null || all.Count == 0)
+            {
+                GUILayout.Label("none on disk.", GUILayout.ExpandWidth(true));
+                return;
+            }
+
+            foreach (SaveMetadata meta in all)
+            {
+                if (meta == null) continue;
+
+                GUILayout.BeginHorizontal();
+
+                // Not GetDisplayName() directly: it does `saveId.Substring(0, 8)`, which throws on a
+                // shorter id — an exception inside a debug panel that is meant to be readable when
+                // something else has already gone wrong.
+                string name = string.IsNullOrEmpty(meta.saveId)
+                    ? "(no id)"
+                    : meta.saveId.Length >= 8 ? meta.GetDisplayName() : meta.saveId;
+
+                GUILayout.Label(
+                    $"{name}  <size=11>rooms={meta.roomCount}  {FormatSaveBytes(meta.fileSize)}</size>",
+                    GUILayout.ExpandWidth(true));
+
+                if (GUILayout.Button("Load", GUILayout.Width(70)))
+                {
+                    _saveLoadStatus = save.LoadGame(meta.saveId, ResolveLandMap())
+                        ? $"Loaded '{meta.saveId}'."
+                        : $"Load of '{meta.saveId}' FAILED — see the Unity console.";
+                }
+
+                if (GUILayout.Button("Delete", GUILayout.Width(70)))
+                {
+                    _saveLoadStatus = save.DeleteSave(meta.saveId)
+                        ? $"Deleted '{meta.saveId}'."
+                        : $"Delete of '{meta.saveId}' FAILED.";
+                }
+
+                GUILayout.EndHorizontal();
+            }
+        }
+
+        private static string FormatSaveBytes(long bytes)
+        {
+            if (bytes < 1024) return $"{bytes} B";
+            if (bytes < 1024 * 1024) return $"{bytes / 1024f:0.#} KiB";
+            return $"{bytes / (1024f * 1024f):0.#} MiB";
+        }
+
+        /// <summary>
+        /// A cheap structural fingerprint of everything the image depends on, so the texture is rebuilt
+        /// on a real change and reused otherwise.
+        ///
+        /// <para><b>What it deliberately excludes.</b> Per-tile state — a wall destroyed, a door opened —
+        /// is not in here, because reading all 59k tiles every frame to detect it would cost more than
+        /// the rebuild it saves. The Refresh button is the escape hatch, and it is the honest trade for
+        /// a debug panel: the alternative is a per-frame full scan to catch a change you can also just
+        /// ask for.</para>
+        /// </summary>
+        private static string LandMapSignature(LandMap map, bool revealAll, in MinimapPlayerMarker marker)
+        {
+            int count = 0, visited = 0;
+            int minX = int.MaxValue, minY = int.MaxValue, maxX = int.MinValue, maxY = int.MinValue;
+
+            foreach (RoomInstance room in map.GetAllRooms())
+            {
+                if (room == null)
+                {
+                    continue;
+                }
+
+                count++;
+                if (room.isVisited) visited++;
+
+                Vector3Int p = room.landPosition;
+                if (p.x < minX) minX = p.x;
+                if (p.y < minY) minY = p.y;
+                if (p.x > maxX) maxX = p.x;
+                if (p.y > maxY) maxY = p.y;
+            }
+
+            Vector3Int current = map.currentRoom != null
+                ? map.currentRoom.landPosition
+                : new Vector3Int(int.MinValue, int.MinValue, int.MinValue);
+
+            Vector2Int playerTile = marker.Present
+                ? WorldCoordinates.PixelToTile(marker.RoomLocalPixels)
+                : new Vector2Int(int.MinValue, int.MinValue);
+
+            return string.Join("|",
+                count, visited, minX, minY, maxX, maxY,
+                current.x, current.y, current.z,
+                revealAll ? 1 : 0,
+                marker.Present ? 1 : 0, marker.Cell.x, marker.Cell.y, playerTile.x, playerTile.y);
+        }
+
+        /// <summary>The player's cell and room-local tile, or <see cref="MinimapPlayerMarker.None"/>.
+        /// Read from <c>TilePhysicsController.PixelPosition</c> — the same source the telekinesis cursor
+        /// uses (PlayerTelekinesisController:1464) — so the marker and the rest of the game cannot
+        /// disagree about where the player's feet are.</summary>
+        private static MinimapPlayerMarker ResolvePlayerMarker(PlayerController player)
+        {
+            if (player == null)
+            {
+                return MinimapPlayerMarker.None;
+            }
+
+            var physics = player.GetComponent<TilePhysicsController>();
+            if (physics == null)
+            {
+                return MinimapPlayerMarker.None;
+            }
+
+            Vector2 worldPixels = physics.PixelPosition;
+            return new MinimapPlayerMarker(
+                true,
+                WorldCoordinates.WorldToLand(worldPixels),
+                WorldCoordinates.WorldToLocal(worldPixels));
+        }
+
+        private void RebuildLandMapTexture(LandMap map, in MinimapPlayerMarker marker, string signature)
+        {
+            if (!LandMinimapComposer.TryBuild(map, _landMapRevealAll, marker,
+                    out LandMinimapBuffer buffer, out _landMapStats))
+            {
+                ReleaseLandMapTexture();
+                _landMapSignature = signature;
+                return;
+            }
+
+            if (_landMapTexture == null ||
+                _landMapTexture.width != buffer.Width ||
+                _landMapTexture.height != buffer.Height)
+            {
+                ReleaseLandMapTexture();
+                _landMapTexture = new Texture2D(buffer.Width, buffer.Height, TextureFormat.RGBA32, false)
+                {
+                    // Point filtering so a tile stays a crisp square at every zoom; the whole point of a
+                    // per-tile image is that a single tile is legible.
+                    filterMode = FilterMode.Point,
+                    wrapMode = TextureWrapMode.Clamp,
+                    name = "PFE.LandMinimap"
+                };
+            }
+
+            // The buffer is bottom-up, which is what SetPixels32 expects; see LandMinimapBuffer.
+            _landMapTexture.SetPixels32(buffer.Pixels);
+            _landMapTexture.Apply(false, false);
+            _landMapSignature = signature;
+        }
+
+        private void ReleaseLandMapTexture()
+        {
+            if (_landMapTexture != null)
+            {
+                Destroy(_landMapTexture);
+                _landMapTexture = null;
+            }
+        }
+
+        private void DrawLandMapStats()
+        {
+            LandMinimapStats s = _landMapStats;
+            string hidden = s.RoomsHidden > 0
+                ? $"<color=#FFAA33>hidden=<b>{s.RoomsHidden}</b></color>"
+                : "hidden=<b>0</b>";
+
+            GUILayout.Label(
+                $"rooms=<b>{s.RoomsTotal}</b>   drawn=<b>{s.RoomsDrawn}</b>   {hidden}   " +
+                $"image=<b>{_landMapTexture.width}x{_landMapTexture.height}</b>px   " +
+                $"cells=[{s.MinCell.x},{s.MaxCell.x}] x [{s.MinCell.y},{s.MaxCell.y}]   " +
+                $"revealAll=<b>{(s.RevealAll ? 1 : 0)}</b>",
+                GUILayout.ExpandWidth(true));
+        }
+
+        /// <summary>The colours the image can contain, as inline swatches. Every one is a
+        /// <see cref="MinimapPalette"/> field, so the legend cannot drift from what is drawn.
+        ///
+        /// <para><b>Hand-wrapped into short rows on purpose.</b> As one label the legend rendered ~165
+        /// characters; the window is 920 px wide and the label style does not wrap, so IMGUI would have
+        /// silently CLIPPED the tail — and the tail is <c>current room</c> and <c>player</c>, the two
+        /// markers a reader most needs the key for. Nothing goes red for this: not the compiler, not a
+        /// test, not a log. The budget is ~135 rendered characters (≈880 px of content at fontSize 12,
+        /// ≈6.5 px/char); these rows are ~55 each. Rich-text tags cost no width, so count what the row
+        /// DRAWS, not its source.</para></summary>
+        private static void DrawLandMapLegend()
+        {
+            GUILayout.Label(
+                "<color=#AAAAAA>legend: </color>" +
+                Swatch(MinimapPalette.Solid, "wall") + "  " +
+                Swatch(MinimapPalette.SolidDamaged, "wall&lt;100hp") + "  " +
+                Swatch(MinimapPalette.SolidIndestructible, "indestructible") + "  " +
+                Swatch(MinimapPalette.SolidDoor, "door tile"),
+                GUILayout.ExpandWidth(true));
+
+            GUILayout.Label(
+                "        " +
+                Swatch(MinimapPalette.Air, "open") + "  " +
+                Swatch(MinimapPalette.Water, "water") + "  " +
+                Swatch(MinimapPalette.ShelfOrSlope, "shelf/slope") + "  " +
+                Swatch(MinimapPalette.Stair, "ladder"),
+                GUILayout.ExpandWidth(true));
+
+            GUILayout.Label(
+                "        " +
+                Swatch(MinimapPalette.MarkerDoor, "door") + "  " +
+                Swatch(MinimapPalette.MarkerExit, "exit") + "  " +
+                Swatch(MinimapPalette.MarkerProb, "prob") + "  " +
+                Swatch(MinimapPalette.MarkerCheckpoint, "checkpoint") + "  " +
+                Swatch(MinimapPalette.MarkerInteractable, "loot") + "  " +
+                Swatch(MinimapPalette.MarkerNpc, "unit"),
+                GUILayout.ExpandWidth(true));
+
+            GUILayout.Label(
+                "        " +
+                Swatch(MinimapPalette.CurrentRoomOutline, "current room") + "  " +
+                Swatch(MinimapPalette.Player, "player"),
+                GUILayout.ExpandWidth(true));
+        }
+
+        private static string Swatch(Color32 color, string label)
+        {
+            return $"<color=#{ColorUtility.ToHtmlStringRGB(color)}>■</color>{label}";
+        }
+
+        private void DrawLandMapImage()
+        {
+            float width = _landMapTexture.width * _landMapZoom;
+            float height = _landMapTexture.height * _landMapZoom;
+
+            // Cap the drawn width so a big land cannot push the layout off the window. The vertical
+            // scroll view clips horizontally, so an uncapped width would simply be unreachable.
+            float maxWidth = Mathf.Max(240f, _windowRect.width - 80f);
+            if (width > maxWidth)
+            {
+                float scale = maxWidth / width;
+                width *= scale;
+                height *= scale;
+            }
+
+            Rect rect = GUILayoutUtility.GetRect(width, height);
+            GUI.DrawTexture(rect, _landMapTexture, ScaleMode.StretchToFill, false);
         }
 
         // =========================================================================
@@ -4905,5 +6786,91 @@ namespace PFE.Core.Scripting
         private static bool TryParseFloat(string text, out float value)
             => float.TryParse(text, System.Globalization.NumberStyles.Float,
                               System.Globalization.CultureInfo.InvariantCulture, out value);
+    }
+
+    /// <summary>
+    /// The tab strip's wrapping arithmetic, as a pure function.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Extracted because this rule has now been wrong once and the defect was arithmetic, not
+    /// drawing.</b> The strip used to budget a hard-coded 4 px per button for "GUILayout's spacing" while
+    /// GUILayout really advances by the style's own <c>margin</c>; with eleven tabs the difference
+    /// accumulated across ten gaps and pushed the last tab past the window's right edge. Nothing went red,
+    /// because the only way to see it was to look at the running editor.</para>
+    ///
+    /// <para>Pure and engine-free on purpose — it takes measured widths, not styles — so the wrap can be
+    /// asserted offline. <c>PlayerDebugEditorOverlay</c> measures (<c>CalcSize</c> + <c>margin</c>,
+    /// <c>GUILayoutUtility.GetRect</c> for the row width) and this decides. Mirrors
+    /// <c>UnitPickerLayout</c>, which exists for the same reason: the unit picker's viewport and rows
+    /// disagreed because each guessed the row height separately.</para>
+    /// </remarks>
+    public static class TabStripLayout
+    {
+        /// <summary>
+        /// How much horizontal room one tab consumes in a <c>GUILayout</c> row: the caption's measured
+        /// width plus the style's own margin, which is what GUILayout advances by between elements.
+        /// </summary>
+        public static float TabWidth(float measuredCaptionWidth, float styleMarginHorizontal)
+        {
+            return measuredCaptionWidth + styleMarginHorizontal;
+        }
+
+        /// <summary>
+        /// The index each row starts at. Row 0 always starts at 0, so the result has one entry per row and
+        /// the rows partition <c>[0, widths.Count)</c>.
+        /// </summary>
+        /// <remarks>
+        /// Greedy, and <b>never splits a tab</b>: a row takes tabs until the next one would pass
+        /// <paramref name="available"/>, then the next row begins. Two guards matter:
+        /// <list type="bullet">
+        /// <item><c>used &gt; 0</c> — a single tab wider than the whole strip gets a row to itself rather
+        /// than wrapping before every tab, which would produce an empty row before each one.</item>
+        /// <item>a non-positive <paramref name="available"/> — degenerate (a window collapsed to nothing)
+        /// and would otherwise put one tab per row; treated as "one row", the honest degradation.</item>
+        /// </list>
+        /// <para>Widths are assumed to be the already-combined per-tab advances from
+        /// <see cref="TabWidth"/>; passing raw caption widths reintroduces exactly the bug this class
+        /// exists to prevent.</para>
+        /// </remarks>
+        public static int[] RowStarts(IReadOnlyList<float> widths, float available)
+        {
+            if (widths == null || widths.Count == 0)
+            {
+                return Array.Empty<int>();
+            }
+
+            var starts = new List<int> { 0 };
+
+            if (available <= 0f)
+            {
+                return starts.ToArray();
+            }
+
+            float used = 0f;
+            for (int i = 0; i < widths.Count; i++)
+            {
+                float width = widths[i] > 0f ? widths[i] : 0f;
+
+                if (used > 0f && used + width > available)
+                {
+                    starts.Add(i);
+                    used = 0f;
+                }
+
+                used += width;
+            }
+
+            return starts.ToArray();
+        }
+
+        /// <summary>
+        /// Whether the strip needs more than one row — i.e. whether it wraps at all. A read of
+        /// <see cref="RowStarts"/>, exposed because a test asserting "the new tab fits on one row" is
+        /// clearer than counting row starts.
+        /// </summary>
+        public static bool Wraps(IReadOnlyList<float> widths, float available)
+        {
+            return RowStarts(widths, available).Length > 1;
+        }
     }
 }

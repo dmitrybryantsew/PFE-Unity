@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using PFE.Systems.Map.DataMigration;
+using PFE.Systems.Map.Generation;
 using PFE.Data.Definitions;
 
 namespace PFE.Systems.Map.DataMigration
@@ -20,12 +21,6 @@ namespace PFE.Systems.Map.DataMigration
         private AS3ObjectMapping objectMapping;
         private readonly AS3LandDefaultsDatabase landDefaults;
         private readonly MapObjectCatalog objectCatalog;
-
-        // Characters that indicate open/passable space for door detection
-        private static readonly HashSet<string> DoorOpenCodes = new HashSet<string>
-        {
-            "", "_", ".", "_E", "_K"
-        };
 
         public AS3ToUnityConverter(AS3ObjectMapping mapping, AS3LandDefaultsDatabase landDefaults = null, MapObjectCatalog objectCatalog = null)
         {
@@ -89,12 +84,67 @@ namespace PFE.Systems.Map.DataMigration
                     Mathf.FloorToInt(Mathf.Sqrt(as3Room.x * as3Room.x + as3Room.y * as3Room.y) / 2f), 0, 20);
             }
 
-            // Generation
-            template.allowRandom = true;
-            template.maxInstances = 2;
+            // Generation. AS3 computes both of these PER ROOM (Room.as:24-83) and the port used to
+            // hard-code them, which moved the random-fill pool in two directions at once.
+            //
+            //   rnd  (Room.as:26, 60-79) — true unless the room's `tip` is one of Room.nornd, or the
+            //        options carry `nornd`. Those rooms are backgrounds, roofs and passages: AS3 reaches
+            //        them only through `newTipLoc` for the cells the conf names by tip, never as random
+            //        fill. Hard-coding `true` put 127 of them into the random pool across the ten
+            //        procedural lands, crowding out real gameplay rooms.
+            //
+            //   kol  (Room.as:24, 60-83) — the room's draw quota for one land build, and ALSO the
+            //        weight: `newRandomLoc` pushes a candidate `kol*kol` times (Land.as:912-920), so
+            //        getting it wrong changes the odds quadratically, not linearly. 2 by default; 1 for
+            //        `tip == "uniq"` or an options `uniq`; 4 for an options `test` (which also forces
+            //        `lvl = 0`). Hard-coding 2 made each of the 32 `uniq` rooms four times as likely as
+            //        AS3 makes it.
+            //
+            // Both are read through `GetOption(key, null)` so "absent" is distinguishable from
+            // "present but empty": AS3 guards every one of these on `.length()`, so `tip=""` leaves the
+            // field undefined rather than empty, and neither is a member of nornd. An empty options
+            // dictionary is equivalent to AS3's `if(this.xml.options.length())` block never running —
+            // for these two fields the defaults are the same either way, so no separate presence flag is
+            // needed.
+            string rawTip = as3Room.GetOption("tip", null);
+
+            template.allowRandom = !RoomNorndTips.Contains(rawTip) &&
+                                   !as3Room.options.ContainsKey("nornd");
+
+            if (as3Room.options.ContainsKey("test"))
+            {
+                template.maxInstances = 4;
+                template.difficultyLevel = 0;   // Room.as:82-83 sets lvl as well as kol
+            }
+            else if (rawTip == "uniq" || as3Room.options.ContainsKey("uniq"))
+            {
+                template.maxInstances = 1;
+            }
+            else
+            {
+                template.maxInstances = 2;
+            }
 
             return template;
         }
+
+        /// <summary>
+        /// AS3 <c>Room.nornd</c> (<c>Room.as:6</c>) — the tips that are never random fill.
+        ///
+        /// <para>Transcribed verbatim, because the set is the rule: <c>beg0</c> (the entry cell's own
+        /// room), <c>back</c>/<c>roof</c>/<c>pass</c>/<c>passroof</c>/<c>roofpass</c> (the structural
+        /// shells) and <c>vert</c>/<c>surf</c> (the vertical and surface connectors). A room whose tip is
+        /// one of these is placed only where the conf names that tip — <c>Land.as:226-352</c> is a chain
+        /// of <c>newTipLoc("beg…")</c>/<c>newTipLoc("passroof")</c> calls for exactly those cells.</para>
+        ///
+        /// <para>Compared with <see cref="StringComparer.Ordinal"/> and <b>without trimming</b>: AS3 does
+        /// <c>this.tip == _loc2_</c> against the raw attribute value, so a tip of <c>"back "</c> would not
+        /// match there either. Trimming here would accept rooms the oracle keeps out.</para>
+        /// </summary>
+        private static readonly HashSet<string> RoomNorndTips = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "beg0", "back", "roof", "pass", "passroof", "roofpass", "vert", "surf"
+        };
 
         /// <summary>
         /// Convert multiple rooms at once.
@@ -359,7 +409,11 @@ namespace PFE.Systems.Map.DataMigration
                         {
                             act = sourceAction.act,
                             targ = sourceAction.targ,
-                            val = sourceAction.val
+                            val = sourceAction.val,
+                            n = sourceAction.n,
+                            opt1 = sourceAction.opt1,
+                            opt2 = sourceAction.opt2,
+                            t = sourceAction.t
                         });
                     }
                 }
@@ -428,94 +482,50 @@ namespace PFE.Systems.Map.DataMigration
         }
 
         // =====================================================
-        //  DOORS — using tile codes, not single chars
+        //  DOORS — the room's own <doors> element
         // =====================================================
 
         /// <summary>
-        /// Parse door configuration. Uses GetTileCode() for dot-separated format.
+        /// Read the room's door qualities from the AS3 <c>&lt;doors&gt;</c> element.
+        ///
+        /// <para>AS3 does exactly this in the <c>Location</c> constructor — it never derives doors from
+        /// the tile grid:</para>
+        /// <code>
+        /// Location.as:605-608   s = nroom.doors[0]; this.doors = s.split(".");
+        /// Location.as:633-641   else { while(i &lt; 22) this.doors[i] = 2; }   // no &lt;doors&gt; -&gt; all-2
+        /// </code>
+        ///
+        /// <para><b>This replaces a tile-code heuristic that was an invention.</b> The oracle's own
+        /// attribute was never read, yet 413 of its 639 rooms carry it (exactly 1:1 with
+        /// <c>&lt;room&gt;</c>, e.g. <c>RoomsPlant.as:119</c>); the four room files without it take the
+        /// all-2 default above. The heuristic also wrote slots <c>6-11 / 12-17 / 18-23</c> while every
+        /// consumer reads <c>6-10 / 11-16 / 17-21</c> (<see cref="DoorMatchMath.SlotRange"/>,
+        /// <c>RoomGenerator.GetDoorSide</c>, <c>DoorCarver.CarveDoor</c>), so 163 of 959 of its entries
+        /// landed on the wrong wall — 86 of them never carved at all. And because it wrote
+        /// <c>Narrow</c> (2) unconditionally, the oracle's wide doors (quality 3/4, its <i>modal</i>
+        /// value) could never occur. See <c>docs/LandGameplayLoop/06_DOOR_CARVE_AUDIT.md</c>.</para>
+        ///
+        /// <para>The string is captured during the XML parse by <c>AS3RoomParser</c> under the
+        /// <c>_doors_raw</c> option and decoded by <see cref="DoorMatchMath.Split"/> — the same 22-slot,
+        /// oracle-ordered decode the runtime uses. The slots therefore come out already in the oracle's
+        /// own order and need no remapping.</para>
         /// </summary>
         private int[] ParseDoorConfiguration(AS3RoomData as3Room)
         {
-            int[] doorQuality = new int[24];
+            as3Room.options.TryGetValue("_doors_raw", out string raw);
 
-            // Right side: doors 0-5
-            for (int i = 0; i < 6; i++)
-            {
-                int y = 4 + i * 3;
-                if (y < WorldConstants.ROOM_HEIGHT)
-                {
-                    string edge = as3Room.GetTileCode(WorldConstants.ROOM_WIDTH - 1, y);
-                    string inner = as3Room.GetTileCode(WorldConstants.ROOM_WIDTH - 2, y);
-                    if (IsDoorCandidate(edge) || IsDoorCandidate(inner))
-                        doorQuality[i] = (int)DoorQuality.Narrow;
-                }
-            }
+            // 22 meaningful slots: 0-5 right, 6-10 bottom, 11-16 left, 17-21 top. A missing or empty
+            // string yields all-DefaultQuality (2), which is AS3's documented fallback.
+            int[] slots = DoorMatchMath.Split(raw);
 
-            // Bottom side: doors 6-11
-            for (int i = 0; i < 6; i++)
+            // RoomTemplate.doorQuality is allocated with slack to 24; only 0..21 are read.
+            int[] doorQuality = new int[WorldConstants.DOORS_PER_ROOM];
+            for (int i = 0; i < slots.Length && i < doorQuality.Length; i++)
             {
-                int x = 4 + i * 7;
-                if (x < WorldConstants.ROOM_WIDTH)
-                {
-                    string edge = as3Room.GetTileCode(x, WorldConstants.ROOM_HEIGHT - 1);
-                    string inner = as3Room.GetTileCode(x, WorldConstants.ROOM_HEIGHT - 2);
-                    if (IsDoorCandidate(edge) || IsDoorCandidate(inner))
-                        doorQuality[6 + i] = (int)DoorQuality.Narrow;
-                }
-            }
-
-            // Left side: doors 12-17
-            for (int i = 0; i < 6; i++)
-            {
-                int y = 4 + i * 3;
-                if (y < WorldConstants.ROOM_HEIGHT)
-                {
-                    string edge = as3Room.GetTileCode(0, y);
-                    string inner = as3Room.GetTileCode(1, y);
-                    if (IsDoorCandidate(edge) || IsDoorCandidate(inner))
-                        doorQuality[12 + i] = (int)DoorQuality.Narrow;
-                }
-            }
-
-            // Top side: doors 18-23
-            for (int i = 0; i < 6; i++)
-            {
-                int x = 4 + i * 7;
-                if (x < WorldConstants.ROOM_WIDTH)
-                {
-                    string edge = as3Room.GetTileCode(x, 0);
-                    string inner = as3Room.GetTileCode(x, 1);
-                    if (IsDoorCandidate(edge) || IsDoorCandidate(inner))
-                        doorQuality[18 + i] = (int)DoorQuality.Narrow;
-                }
+                doorQuality[i] = slots[i];
             }
 
             return doorQuality;
-        }
-
-        private static bool IsDoorCandidate(string tileCode)
-        {
-            if (string.IsNullOrEmpty(tileCode)) return true;
-
-            string trimmed = tileCode.Trim();
-            if (trimmed == "" || trimmed == "_") return true;
-
-            // The first character determines the primary form type.
-            // fForms are A-T (Latin uppercase) — all are walls (phis=1).
-            // If the first char is a letter (Latin or Cyrillic), the tile has structure.
-            // Only pure air/empty codes are door candidates.
-            char first = trimmed[0];
-
-            // Any letter as first char means a form applies — likely solid
-            // (fForms A-T are walls; Cyrillic chars in first position also indicate structure)
-            if (char.IsLetter(first))
-                return false;
-
-            // Underscore-prefixed codes are overlays on air (_E, _K, etc.) — passable
-            if (first == '_')
-                return true;
-
-            return DoorOpenCodes.Contains(trimmed);
         }
 
         // =====================================================
@@ -573,14 +583,35 @@ namespace PFE.Systems.Map.DataMigration
             return options;
         }
 
+        /// <summary>
+        /// A room option, else the land's, else <paramref name="fallback"/>.
+        ///
+        /// <para><b>A present-but-empty attribute is ABSENT, not an override.</b> AS3 gates every one of
+        /// these on the attribute's <i>length</i>, not on its presence
+        /// (<c>Location.as:390</c> <c>if(nroom.options.@backwall.length())</c>, and the same shape at
+        /// <c>:394, :402, :406-436</c>). <c>@backwall.length()</c> is <b>0</b> for <c>backwall=""</c>, so an
+        /// explicitly empty attribute leaves the land's value standing — and <c>Location.as:376-387</c>
+        /// seeds twelve fields from <c>this.land.act</c> before the room gets a say.</para>
+        ///
+        /// <para><b>This used to return the empty string and stop.</b> <c>TryGetValue</c> succeeds on a key
+        /// the parser stored with an empty value, so <c>&lt;options tip="beg0" backwall="" music="…"/&gt;</c>
+        /// (<c>RoomsPlant.as:1223</c>) wiped the land's wall instead of deferring to it — 43 of 639 imported
+        /// rooms ended up with <c>backgroundWall: ""</c>, and <c>RoomBackdropRenderer.CreateRoomBackdrop</c>
+        /// then returned without drawing anything at all, leaving the camera's clear colour visible.</para>
+        /// </summary>
         private static string ResolveOption(AS3RoomData room, IReadOnlyDictionary<string, string> inheritedOptions, string key, string fallback)
         {
-            if (room != null && room.options.TryGetValue(key, out string roomValue))
+            // `.length()` — a non-empty room value is the only thing that overrides the land.
+            if (room != null &&
+                room.options.TryGetValue(key, out string roomValue) &&
+                !string.IsNullOrEmpty(roomValue))
             {
                 return roomValue;
             }
 
-            if (inheritedOptions != null && inheritedOptions.TryGetValue(key, out string inheritedValue))
+            if (inheritedOptions != null &&
+                inheritedOptions.TryGetValue(key, out string inheritedValue) &&
+                !string.IsNullOrEmpty(inheritedValue))
             {
                 return inheritedValue;
             }
@@ -588,14 +619,33 @@ namespace PFE.Systems.Map.DataMigration
             return fallback;
         }
 
+        /// <summary>
+        /// A boolean room option — true only when the attribute is <b>present and non-empty</b>.
+        ///
+        /// <para>AS3 tests <c>.length()</c> for these too (<c>transpfon</c> <c>Location.as:398</c>,
+        /// <c>noblack</c> <c>:442</c>, <c>retdark</c> <c>:478</c>, <c>sky</c> <c>:518</c>), so
+        /// <c>transpfon=""</c> means <i>off</i>, not <i>on</i>. <see cref="ContainsKey(string)"/> could not
+        /// tell those apart.</para>
+        ///
+        /// <para>⚠ The <paramref name="inheritedOptions"/> fallback here is <b>wider than AS3</b>, and that
+        /// divergence is pre-existing and deliberately untouched: <c>Location.as:376-387</c> inherits exactly
+        /// twelve <i>valued</i> fields from the land and no flags, whereas this method would inherit a land
+        /// flag if one existed. It is a no-op against the current data — no land in <c>GameData.as</c>
+        /// declares <c>transpfon</c>, <c>sky</c>, <c>noblack</c> or <c>retdark</c> — so narrowing it here
+        /// would be a behaviour change in a pass whose subject is a missing backdrop. Tracked, not fixed.</para>
+        /// </summary>
         private static bool ResolveFlag(AS3RoomData room, IReadOnlyDictionary<string, string> inheritedOptions, string key)
         {
-            if (room != null && room.options.ContainsKey(key))
+            if (room != null &&
+                room.options.TryGetValue(key, out string roomValue) &&
+                !string.IsNullOrEmpty(roomValue))
             {
                 return true;
             }
 
-            return inheritedOptions != null && inheritedOptions.ContainsKey(key);
+            return inheritedOptions != null &&
+                inheritedOptions.TryGetValue(key, out string inheritedValue) &&
+                !string.IsNullOrEmpty(inheritedValue);
         }
 
         // =====================================================

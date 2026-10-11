@@ -782,6 +782,22 @@ namespace PFE.Systems.Map.Rendering
                 EnsureCombatServices();
                 enemyController.SetWeaponServices(
                     _projectileFactory, _resolver, _soundService, _debugSettings, _rng);
+
+                // ...and AS3's `locDifLevel`, which the weapon roll in Initialize reads. It has to be
+                // handed over HERE, before Initialize, because `Unit.getXmlWeapon(param1)` is called from
+                // the unit's constructor (`UnitRaider.as:257-272`) and the port mirrors that by rolling
+                // in Initialize. See EnemyController.SetLocationDifficulty for why the room's difficulty
+                // cannot be reached any other way at this point in the build order.
+                //
+                // The value is `RoomPopulator.ResolveLocationDifficulty`'s: AS3's `locDifLevel` is
+                // `Location.enemyLevel` (`Land.as:983`), not `baseDifficulty`. The two are equal today
+                // (RoomGenerator writes both from `template.difficultyLevel`) but the oracle adds a
+                // `globalDif` term to `enemyLevel` alone, so reading the field the oracle reads is what
+                // keeps this correct when that term lands.
+                if (_room != null && _room.difficulty != null)
+                {
+                    enemyController.SetLocationDifficulty(_room.difficulty.enemyLevel);
+                }
             }
 
             // The seam UnitController.Initialize documents as the missing one: without it the unit has

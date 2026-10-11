@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using PFE.Data.Definitions;
 using PFE.Systems.Map.TileQuery;
 using PFE.Systems.Physics;
 using PFE.Systems.Telekinesis;
@@ -287,10 +288,240 @@ namespace PFE.Systems.Map
             SyncWithRoom(roomObjects);
         }
 
+        // ── AS3 `loc.Trap` — the static spike traps ────────────────────────────────────────────────
+        //
+        // `RoomPopulator.CreateTrap` has always built an `ObjectInstance` with `objectType = "trap"`
+        // (540 of the 639 shipped rooms place at least one) and NOTHING read it: the object drew the
+        // shared `vismine` sprite and was otherwise inert. That is the whole of "the traps do nothing".
+        //
+        // They live on this layer rather than in a system of their own because this layer is the one
+        // per-room object registry a unit already holds a reference to (`SetObjectPhysicsLayer`), and
+        // the query shape is identical to the prop-impact one: "which static object overlaps this
+        // unit's box right now".
+
+        /// <summary>
+        /// One placed spike trap, with its trigger volume and authored numbers resolved once per room
+        /// object list.
+        ///
+        /// <para>The volume comes from the definition's <c>@sX</c>/<c>@sY</c>/<c>@size</c>/<c>@wid</c>/
+        /// <c>@floor</c>, <b>not</b> from the imported sprite, because that is how the oracle computes it
+        /// (<c>Trap.as:79-94</c>). The shared <c>vismine</c> sprite is 38x38 px while a <c>spikes</c>
+        /// trigger box is a whole 40 px tile — deriving the box from the art would leave every trap 2 px
+        /// shy on each side, which is exactly the kind of quiet mismatch that reads as "it works
+        /// sometimes".</para>
+        /// </summary>
+        public sealed class TrapEntry
+        {
+            public readonly ObjectInstance Object;
+
+            /// <summary>The trigger volume in room-local pixels, Y up. See <see cref="TrapTriggerMath"/>.</summary>
+            public readonly TrapTriggerMath.TrapBox Box;
+
+            /// <summary>AS3 <c>@att</c> — 1 fires on a faller, 2 on a riser. <c>Trap.as:108-111</c>.</summary>
+            public readonly int TriggerAttribute;
+
+            /// <summary>AS3 <c>@damage</c>, the authored per-hit magnitude. <c>Trap.as:95</c>.</summary>
+            public readonly float DamageAttribute;
+
+            internal TrapEntry(ObjectInstance obj, in TrapTriggerMath.TrapBox box, int trigger, float damage)
+            {
+                Object = obj;
+                Box = box;
+                TriggerAttribute = trigger;
+                DamageAttribute = damage;
+            }
+        }
+
+        readonly List<TrapEntry> _traps = new List<TrapEntry>();
+
+        /// <summary>
+        /// Membership set for <see cref="_traps"/>. <see cref="Register"/> is called both directly by
+        /// <c>RoomInstance.AddObject</c> and again by <see cref="Rebuild"/>'s loop, so without this an
+        /// object would be entered twice and a unit standing on one trap would be hit by "two".
+        /// </summary>
+        readonly HashSet<ObjectInstance> _trapLookup = new HashSet<ObjectInstance>();
+
+        /// <summary>The number of spike traps currently registered for this room.</summary>
+        public int TrapCount => _traps.Count;
+
+        /// <summary>The registered traps, in registration order. Read-only; the entries are immutable.</summary>
+        public IReadOnlyList<TrapEntry> Traps => _traps;
+
+        /// <summary>
+        /// Read one object as a trap, or report that it is not one.
+        ///
+        /// <para><c>objectType == "trap"</c> is the marker <c>RoomPopulator.CreateTrap</c> stamps, and it
+        /// is the same string <c>MapObjectDefinition.GetResolvedPlacementType</c> produces for both the
+        /// tip and the family route — so a definition that reaches here by either path is caught.</para>
+        /// </summary>
+        static bool TryBuildTrapEntry(ObjectInstance obj, out TrapEntry entry)
+        {
+            entry = null;
+
+            if (obj == null || !obj.isActive || obj.IsDestroyed())
+            {
+                return false;
+            }
+
+            if (!string.Equals(obj.objectType, "trap", System.StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            MapObjectDefinition definition = obj.definition;
+            if (definition == null)
+            {
+                // No definition means no @size/@wid/@damage to read. Falling back to "one tile, zero
+                // damage" would register a trap that can never fire, which is a silent no-op; refusing
+                // here at least keeps the count honest.
+                return false;
+            }
+
+            // Trap.as:108-115 — `spDam = @att` (field default 1), `floor = @floor.length()`.
+            int trigger = ParseIntAttribute(definition, "att", TrapTriggerMath.TriggerFalling);
+            bool floor = !string.IsNullOrEmpty(definition.GetAttribute("floor", string.Empty));
+
+            // Trap.as:79-94 — `scX = (@sX > 0) ? @sX : @size * tileX`, likewise for Y.
+            float extentX = TrapTriggerMath.ResolveExtentX(
+                ParseIntAttribute(definition, "size", 1),
+                ParseFloatAttribute(definition, "sX", 0f));
+            float extentY = TrapTriggerMath.ResolveExtentY(
+                ParseIntAttribute(definition, "wid", 1),
+                ParseFloatAttribute(definition, "sY", 0f));
+
+            TrapTriggerMath.TrapBox box = TrapTriggerMath.ComputeBox(
+                obj.position.x, obj.position.y, extentX, extentY, floor);
+
+            entry = new TrapEntry(
+                obj, box, trigger, ParseFloatAttribute(definition, "damage", 0f));
+            return true;
+        }
+
+        static int ParseIntAttribute(MapObjectDefinition definition, string key, int defaultValue)
+        {
+            return int.TryParse(
+                definition.GetAttribute(key, string.Empty),
+                System.Globalization.NumberStyles.Integer,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out int parsed)
+                ? parsed
+                : defaultValue;
+        }
+
+        static float ParseFloatAttribute(MapObjectDefinition definition, string key, float defaultValue)
+        {
+            return float.TryParse(
+                definition.GetAttribute(key, string.Empty),
+                System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out float parsed)
+                ? parsed
+                : defaultValue;
+        }
+
+        void RemoveTrap(ObjectInstance obj)
+        {
+            if (!_trapLookup.Remove(obj))
+            {
+                return;
+            }
+
+            for (int i = _traps.Count - 1; i >= 0; i--)
+            {
+                if (ReferenceEquals(_traps[i].Object, obj))
+                {
+                    _traps.RemoveAt(i);
+                    return;
+                }
+            }
+        }
+
+        /// <summary>
+        /// The trap half of a unit's step — AS3 <c>Trap.step</c>/<c>Trap.attKorp</c>
+        /// (<c>Trap.as:147-197</c>), inverted so the <i>unit</i> asks rather than the trap.
+        ///
+        /// <para><b>Why inverted.</b> The oracle iterates <c>loc.units</c> inside each trap's own
+        /// <c>step()</c>. The port has no per-object step driver for static map objects, and inventing
+        /// one would add a second clock; the unit already has exactly one step and already sweeps for
+        /// prop impacts on it. The two are equivalent for the same reason the prop sweep's comment gives:
+        /// the predicate is a pure overlap test, so "every trap against every unit" is the same set of
+        /// hits whichever way it is enumerated.</para>
+        ///
+        /// <para><b>First hit wins, and that is the oracle's behaviour.</b> <c>Trap.attKorp</c> opens
+        /// with <c>if(param1 == null || Boolean(param1.neujaz)) return false;</c> and every firing arm
+        /// sets <c>neujaz = neujazMax</c>, so a unit straddling two traps is hit by one and refused by
+        /// the rest. The caller grants the immunity window; this method does not.</para>
+        /// </summary>
+        /// <param name="unitFeetBoundsPixels">The unit's AABB in room-local pixels, <c>yMin</c> at the
+        /// feet — the same rect <c>UnitController</c> already builds for the prop sweep.</param>
+        /// <param name="unitDyAs3">The unit's vertical velocity in <b>AS3 sign</b> (positive = falling).
+        /// Build it with <see cref="TrapTriggerMath.ToAs3Dy"/>; the port's own velocity is up-positive
+        /// and passing it raw inverts every trap.</param>
+        /// <param name="unitOsnDyAs3">AS3 <c>osndy</c>, the support's last-tick displacement. The port
+        /// does not carry it for tile support, so callers pass 0 — see
+        /// <see cref="TrapTriggerMath.TryResolveDamage"/>.</param>
+        public bool TryFindImpactingTrapFor(
+            Rect unitFeetBoundsPixels,
+            float unitDyAs3,
+            float unitOsnDyAs3,
+            float massa,
+            float difficulty,
+            bool isFlying,
+            out TrapEntry trap,
+            out float damage)
+        {
+            trap = null;
+            damage = 0f;
+
+            if (_traps.Count == 0)
+            {
+                return false;
+            }
+
+            // AS3 `param1.X` is the unit's centre; the port hands over a rect, so take the midpoint.
+            // `RoomLocalFeetBoundsPixels` puts the feet at yMin and the head at yMax.
+            float centerX = unitFeetBoundsPixels.xMin + unitFeetBoundsPixels.width * 0.5f;
+            float feetY = unitFeetBoundsPixels.yMin;
+            float headY = unitFeetBoundsPixels.yMax;
+
+            for (int i = 0; i < _traps.Count; i++)
+            {
+                TrapEntry candidate = _traps[i];
+                if (candidate?.Object == null || !candidate.Object.isActive || candidate.Object.IsDestroyed())
+                {
+                    continue;
+                }
+
+                if (TrapTriggerMath.TryResolveDamage(
+                        candidate.Box,
+                        candidate.TriggerAttribute,
+                        candidate.DamageAttribute,
+                        centerX,
+                        feetY,
+                        headY,
+                        unitDyAs3,
+                        unitOsnDyAs3,
+                        massa,
+                        difficulty,
+                        isFlying,
+                        out float resolved) &&
+                    resolved > 0f)
+                {
+                    trap = candidate;
+                    damage = resolved;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         public void Rebuild(IReadOnlyList<ObjectInstance> objects)
         {
             _dynamicObjects.Clear();
             _dynamicObjectLookup.Clear();
+            _traps.Clear();
+            _trapLookup.Clear();
             MarkQueryCandidatesDirty();
 
             if (objects == null)
@@ -315,6 +546,17 @@ namespace PFE.Systems.Map
             }
 
             obj.InitializeDynamicRuntimeState();
+
+            // Spike traps are registered here rather than in a sweep of their own: this is the single
+            // path every room object passes through (`RoomInstance.AddObject` calls it directly, and
+            // `Rebuild`'s loop calls it again), so an incrementally-maintained list cannot go stale the
+            // way a count-keyed rebuild can — a room that adds one trap without changing the count
+            // would have kept an old list forever. `_trapLookup` makes the second call a no-op.
+            if (_trapLookup.Add(obj) && TryBuildTrapEntry(obj, out TrapEntry trapEntry))
+            {
+                _traps.Add(trapEntry);
+            }
+
             if (!obj.ShouldTrackInPhysicsLayer())
             {
                 return false;
@@ -332,7 +574,14 @@ namespace PFE.Systems.Map
 
         public bool Unregister(ObjectInstance obj)
         {
-            if (obj == null || !_dynamicObjectLookup.Remove(obj))
+            if (obj == null)
+            {
+                return false;
+            }
+
+            RemoveTrap(obj);
+
+            if (!_dynamicObjectLookup.Remove(obj))
             {
                 return false;
             }
@@ -640,6 +889,8 @@ namespace PFE.Systems.Map
             {
                 _dynamicObjects.Clear();
                 _dynamicObjectLookup.Clear();
+                _traps.Clear();
+                _trapLookup.Clear();
                 _lastKnownRoomObjectCount = 0;
                 MarkQueryCandidatesDirty();
                 return;

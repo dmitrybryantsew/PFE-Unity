@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using PFE.Data.Definitions;
+using PFE.Systems.Map.Actions;
 using PFE.Systems.Map.Scripting;
 using UnityEngine;
 
@@ -30,6 +31,102 @@ namespace PFE.Systems.Map.Rendering
         readonly List<ObjectInstance> _staleObjects = new List<ObjectInstance>();
 
         public AreaTriggerSystem TriggerSystem { get; set; }
+
+        ObjectActionDispatcher _objectActions;
+
+        /// <summary>
+        /// The <c>allact</c> dispatcher, used for one question: <b>does this object carry a script we can
+        /// actually run?</b> — the admission test for <see cref="DoorPropPresenter"/>.
+        ///
+        /// <para>Built lazily from <see cref="DoorPropPresenter.CreateSceneDispatcher"/> so there is a
+        /// single composition site, and settable so a test can supply a double. Both of its dependencies
+        /// are read at call time, which means this must not be touched before
+        /// <c>CampaignManager.Initialize</c> has run or <c>map</c> will not be among the registered ids
+        /// and the camp's wall map will get no interaction surface for the room's lifetime.</para>
+        /// </summary>
+        public ObjectActionDispatcher ObjectActions
+        {
+            get
+            {
+                if (_objectActions == null)
+                {
+                    _objectActions = DoorPropPresenter.CreateSceneDispatcher();
+                }
+
+                return _objectActions;
+            }
+            set => _objectActions = value;
+        }
+
+        /// <summary>
+        /// Whether <paramref name="obj"/> should get a <see cref="DoorPropPresenter"/> — i.e. whether it
+        /// is interactable at all.
+        ///
+        /// <para><b>Extracted as a pure function because this rule has now been wrong twice.</b> It first
+        /// admitted only objectType <c>"door"</c>, family Door, or a visual id starting with <c>"door"</c>
+        /// — which excluded the seven <c>allact='comein'</c> Z doors on all three counts, so pressing E on
+        /// the camp's backroom door did nothing. Family Transition was added for them. Then the camp's wall
+        /// map (<c>wmap</c>, <c>allact='map'</c>, <c>tip='box'</c>, family Furniture, visual
+        /// <c>viswmap</c>) missed all three of the same tests, so the camp could not send the player
+        /// anywhere — the same failure with the same cause. Both times nothing went red, because the
+        /// question is a shape question and the answer was a list of shapes.</para>
+        ///
+        /// <para>Taking the shape values rather than an <see cref="ObjectInstance"/> is what makes it
+        /// testable offline: an <c>ObjectInstance</c> needs a <c>MapObjectDefinition</c> to carry a
+        /// definition-level <c>allact</c>, and that is a <c>ScriptableObject</c> (an ECall in the offline
+        /// harness), while every input here is a string or a bool.</para>
+        /// </summary>
+        /// <param name="objectType">The placement's <c>type</c>, e.g. <c>"box"</c> or <c>"door"</c>.</param>
+        /// <param name="definitionIsInteractiveFamily">
+        /// Whether the definition's family is one of the families that own their interaction surface
+        /// rather than carrying a script: <c>Door</c>, <c>Transition</c> and <c>Checkpoint</c>.
+        ///
+        /// <para><b>Checkpoint was added third, for the same reason the first two were.</b> AS3 does not
+        /// give a checkpoint an <c>allact</c> — <c>CheckPoint</c> constructs its own <c>Interact</c> with
+        /// <c>actFun = activate</c> and <c>userAction = "activate"</c> (<c>CheckPoint.as:86-90</c>), and
+        /// <c>Location.as:2008</c> picks the class by <c>tip</c>. The port's <c>DoorPropPresenter</c> is
+        /// "the port of AS3's Box interaction surface — and, today, the only IInteractable", so a
+        /// checkpoint that is not admitted here cannot be interacted with <i>at all</i>: it falls to
+        /// <c>ObjectColliderDebugPresenter</c>, which implements nothing. That was the checkpoint's exact
+        /// state — placed, drawn, and inert.</para>
+        /// </param>
+        /// <param name="visualObjectId">The visual's <c>objectId</c>, or null.</param>
+        /// <param name="allAct">The resolved <c>allact</c>, or null/empty when there is none.</param>
+        /// <param name="dispatcherHandles">
+        /// Asked only when every shape test has failed, and only for a non-empty <paramref name="allAct"/>.
+        /// Passing a delegate rather than a dispatcher keeps the caller's dispatcher lazy — it is built
+        /// on first use, not once per object.
+        /// </param>
+        public static bool UsesDoorPresenter(
+            string objectType,
+            bool definitionIsInteractiveFamily,
+            string visualObjectId,
+            string allAct,
+            Func<string, bool> dispatcherHandles)
+        {
+            if (string.Equals(objectType, "door", StringComparison.OrdinalIgnoreCase)) return true;
+            if (definitionIsInteractiveFamily) return true;
+
+            if (!string.IsNullOrEmpty(visualObjectId) &&
+                visualObjectId.StartsWith("door", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            // The last clause is "this object carries a script the dispatcher can actually run", which no
+            // shape test can answer. Deliberately not "has an allact": an unported id would then get a
+            // presenter, Dispatch would report it unhandled, and Interact would fall through to
+            // ToggleOpen() — so pressing E on a `hack_robot` terminal or a `stand` would start toggling it
+            // open. That is a behaviour change for every unported branch, and this pass is not that.
+            //
+            // No clause is needed for `prob`, even though AS3's gate is `allact || prob != null`
+            // (Interact.as:1315). Every object that carries a prob is already admitted above: the prob
+            // carriers are exactly four ids — `exit`, `doorout`, `doorprob`, `doorboss` — and all four are
+            // in MapObjectDefinition.TransitionIds, so the family clause catches them. A `prob` clause here
+            // would be unreachable code that reads like a safeguard, and the next person to move a prob id
+            // out of that set would trust it.
+            return !string.IsNullOrEmpty(allAct) && dispatcherHandles != null && dispatcherHandles(allAct);
+        }
 
         sealed class Presenter
         {
@@ -230,12 +327,20 @@ namespace PFE.Systems.Map.Rendering
             // seven of them the `allact='comein'` Z doors. The presenter then decides for itself whether
             // to stamp tiles and whether to open and close (see DoorPropPresenter.IsDoorBox), so the
             // Z doors get interaction without acquiring a solid closed state they never had in AS3.
-            bool usesDoorPresenter =
-                string.Equals(obj.objectType, "door", StringComparison.OrdinalIgnoreCase) ||
-                (obj.definition != null &&
-                 (obj.definition.family == MapObjectFamily.Door ||
-                  obj.definition.family == MapObjectFamily.Transition)) ||
-                (visual != null && visual.objectId != null && visual.objectId.StartsWith("door", StringComparison.OrdinalIgnoreCase));
+            //
+            // See UsesDoorPresenter for the full history — this rule has been wrong twice, and the second
+            // time was the camp's wall map (`wmap`, `allact='map'`), which is what lets the camp send the
+            // player to a land at all. The dispatcher clause is asked last and lazily, so a door never
+            // pays for building a dispatcher it does not consult.
+            bool usesDoorPresenter = UsesDoorPresenter(
+                obj.objectType,
+                obj.definition != null &&
+                    (obj.definition.family == MapObjectFamily.Door ||
+                     obj.definition.family == MapObjectFamily.Transition ||
+                     obj.definition.family == MapObjectFamily.Checkpoint),
+                visual != null ? visual.objectId : null,
+                obj.GetAllAct(),
+                allAct => ObjectActions.Handles(allAct));
             if (usesDoorPresenter)
             {
                 DoorPropPresenter doorPresenter = presenter.gameObject.GetComponent<DoorPropPresenter>();
@@ -244,6 +349,11 @@ namespace PFE.Systems.Map.Rendering
                     doorPresenter = presenter.gameObject.AddComponent<DoorPropPresenter>();
                 }
                 doorPresenter.Initialize(_room, obj, visual, presenter.renderer, TriggerSystem);
+
+                // Hand over the dispatcher the admission test above was answered from, so the presenter
+                // runs the same one. Without this each presenter would build its own from the same
+                // inputs — correct today, but it is a second composition site that can drift.
+                doorPresenter.ObjectActions = ObjectActions;
             }
 
             if (!isArea && !usesDoorPresenter)

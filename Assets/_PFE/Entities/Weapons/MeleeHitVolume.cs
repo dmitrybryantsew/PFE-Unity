@@ -1,5 +1,6 @@
 using UnityEngine;
 using VContainer;
+using PFE.Entities.Units;
 using PFE.Systems.Combat;
 using PFE.Systems.Weapons;
 using PFE.Core.Messages;
@@ -47,13 +48,36 @@ namespace PFE.Entities.Weapons
         [Inject] private PFE.Systems.Combat.DamageSystem _damageSystem;
 #pragma warning restore CS0649
 
+        // ── Owner ─────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// The unit swinging this volume, resolved from the hierarchy — the volume is a child of the
+        /// wielder's weapon object on both paths (<c>PlayerWeaponLoadout</c>'s scene child, and the
+        /// child <c>EnemyWeaponMount</c> builds).
+        /// </summary>
+        private UnitController _ownerUnit;
+
+        /// <summary>Whether the hierarchy has been walked. Cached, because a miss would otherwise re-walk every trigger.</summary>
+        private bool _ownerResolved;
+
         // ── Initialization ────────────────────────────────────────────────────
 
         private void Awake()
         {
+            // Before SetActive(false): the owner walk is a hierarchy query, and it is clearer to do it
+            // while this object is still active.
+            ResolveOwner();
+
             _collider = GetComponent<CapsuleCollider2D>();
             _collider.isTrigger = true;
             SetActive(false);
+        }
+
+        private void ResolveOwner()
+        {
+            if (_ownerResolved) return;
+            _ownerResolved = true;
+            _ownerUnit = GetComponentInParent<UnitController>();
         }
 
         /// <summary>Update the damage payload for this hit. Call from PlayerWeaponLoadout
@@ -97,15 +121,34 @@ namespace PFE.Entities.Weapons
         // ── Trigger detection ─────────────────────────────────────────────────
 
         /// <summary>
-        /// Applies melee damage to anything the volume overlaps.
+        /// Applies melee damage to anything the volume overlaps, <b>except units of the wielder's own
+        /// faction</b>.
         ///
-        /// <para><b>Deliberately not faction-filtered.</b> AS3 melee has no <c>fraction</c> test:
-        /// <c>Unit.udarUnit</c> (<c>fe/unit/Unit.as:4125-4167</c>) applies damage unconditionally, and
-        /// neither does its caller <c>Unit.udar</c> (<c>:3277</c>). Of the 38 <c>fraction</c>
-        /// comparisons in AS3, none is on the melee path — so a club really does hit an ally, and
-        /// adding a <c>FactionRule</c> check here would be a gameplay change dressed up as a port fix.
-        /// Ranged and thrown weapons are filtered (see <see cref="PFE.Systems.Weapons.FactionRule"/>);
-        /// melee is not, and that asymmetry is the oracle's.</para>
+        /// <para><b>The faction filter is the oracle's, and this class used to say the opposite.</b>
+        /// The old comment reasoned from <c>Unit.udarUnit</c> (<c>Unit.as:4125-4167</c>) and its caller
+        /// <c>Unit.udar</c> (<c>:3277</c>) — both of which really do apply damage with no <c>fraction</c>
+        /// test — and concluded that melee is faction-blind in AS3. But those are the <i>pair-level</i>
+        /// functions; the thing that decides <i>which pairs are tested at all</i> is the loop in
+        /// <c>Bullet.run()</c>, and melee goes through it: <c>WClub.as:161-162</c> sets
+        /// <c>checkLine = true; b.checkLine = checkLine;</c> on its bullet, and the very next thing that
+        /// loop does (<c>Bullet.as:515</c>) is</para>
+        /// <code>
+        /// if((this.targetObj || _loc2_.fraction != this.owner.fraction) &amp;&amp; X &gt;= _loc2_.X1 &amp;&amp; …)
+        /// </code>
+        /// <para>A swing carries no <c>targetObj</c>, so the fraction test is the whole rule — the same
+        /// predicate <see cref="FactionRule.CanHitDirectly"/> already encodes for projectiles. Confirmed
+        /// by <c>WClub.as:517</c>'s <c>this.weap.isLine(X,Y)</c>, which only a weapon (never a plain
+        /// bullet) has.</para>
+        ///
+        /// <para><b>What the missing filter cost.</b> Two things, and the second is why this was fixed
+        /// now: a player's swing damaged friendly NPCs, and — once enemy melee was enabled, since every
+        /// ArmedShooter that rolls a <c>tip == 1</c> weapon now swings one — <b>an enemy damaged itself
+        /// and its allies</b>. AS3's <c>weaponX = X; weaponY = Y - scY * 0.5</c> puts the muzzle inside
+        /// the owner's own body, so the volume genuinely overlaps its wielder.</para>
+        ///
+        /// <para><b>Non-units stay unfiltered.</b> A crate or a barrel is not a <c>Unit</c> and has no
+        /// <c>fraction</c> in AS3 either — those are handled by <c>udarBox</c> — so only a
+        /// <see cref="UnitController"/> target is tested.</para>
         /// </summary>
         private void OnTriggerEnter2D(Collider2D other)
         {
@@ -114,11 +157,21 @@ namespace PFE.Entities.Weapons
             var damageable = other.GetComponent<IDamageable>();
             if (damageable == null || !damageable.IsAlive) return;
 
+            ResolveOwner();
+
+            if (_ownerUnit != null)
+            {
+                UnitController targetUnit = other.GetComponentInParent<UnitController>();
+                if (targetUnit != null
+                    && !FactionRule.CanHitDirectly(_ownerUnit.Faction, targetUnit.Faction))
+                {
+                    return;
+                }
+            }
+
             if (_hasDamageContext && _damageSystem != null)
             {
                 // Report, do not resolve — DamageSystem owns the formula and the tick that runs it.
-                // Melee stays unfiltered by faction, as it is in AS3; that decision belongs to the
-                // caller, not here. See the remarks on OnTriggerEnter2D.
                 _damageSystem.Report(PendingDamage.Direct(
                     _damageContext, damageable, other.transform.position));
             }

@@ -469,6 +469,82 @@ namespace PFE.Tests.Editor.Map.Streaming
             Object.DestroyImmediate(texture);
         }
 
+        /// <summary>
+        /// <b>A checkpoint keeps an enabled trigger collider.</b> This is the half of the checkpoint
+        /// interaction bug that no offline test can reach.
+        ///
+        /// <para>The collider is what <c>PlayerController.FindCursorTarget</c> raycasts against
+        /// (<c>Physics2D.OverlapCircleAll</c>), and <c>DoorPropPresenter.ConfigureCollider</c> used to
+        /// disable it for anything that was not an <c>IsInteractableDoor</c> — which a checkpoint is not:
+        /// it authors no <c>inter</c> attribute and its <c>interactionMode</c> is empty. With the collider
+        /// off, the cursor could never hit the checkpoint, so <c>CanInteract</c> was never even asked and
+        /// pressing E did nothing. Fixing <c>CanInteract</c> alone would have left it broken.</para>
+        ///
+        /// <para><b>Editor-only.</b> The harness needs real <c>GameObject</c>s, so this fixture is 0/N
+        /// <c>ECall</c> in a plain shell and cannot run in the offline wall — the same reason it lives
+        /// beside the other <c>DoorPropPresenter</c> cases rather than in the wall's green set.</para>
+        /// </summary>
+        [Test]
+        public void DoorPropPresenter_Checkpoint_KeepsItsTriggerColliderEnabled()
+        {
+            var checkpointObj = new ObjectInstance
+            {
+                objectId = "checkpoint",
+                objectType = "checkpoint",
+                position = new Vector2(200f, 100f),
+                runtimeState = new MapObjectRuntimeStateData(),
+            };
+
+            var visualDef = ScriptableObject.CreateInstance<MapObjectVisualDefinition>();
+            visualDef.pixelSize = new Vector2Int(130, 229);
+
+            var go = new GameObject("TestCheckpoint");
+            go.transform.SetParent(_holderGo.transform);
+            var renderer = go.AddComponent<SpriteRenderer>();
+            var presenter = go.AddComponent<DoorPropPresenter>();
+
+            presenter.Initialize(_room, checkpointObj, visualDef, renderer, null);
+
+            BoxCollider2D collider = go.GetComponent<BoxCollider2D>();
+            Assert.That(collider, Is.Not.Null, "RequireComponent(BoxCollider2D) must have added one");
+            Assert.That(collider.enabled, Is.True,
+                "the checkpoint must keep its collider, or the cursor can never hit it and E does nothing");
+
+            Object.DestroyImmediate(visualDef);
+        }
+
+        /// <summary>
+        /// Control for the case above: a prop that is neither a door nor a checkpoint still gets its
+        /// collider disabled, so the fix did not simply enable trigger colliders everywhere.
+        /// </summary>
+        [Test]
+        public void DoorPropPresenter_PlainProp_StillDisablesItsTriggerCollider()
+        {
+            var propObj = new ObjectInstance
+            {
+                objectId = "septum",
+                objectType = "box",
+                position = new Vector2(200f, 100f),
+                runtimeState = new MapObjectRuntimeStateData(),
+            };
+
+            var visualDef = ScriptableObject.CreateInstance<MapObjectVisualDefinition>();
+            visualDef.pixelSize = new Vector2Int(40, 80);
+
+            var go = new GameObject("TestProp");
+            go.transform.SetParent(_holderGo.transform);
+            var renderer = go.AddComponent<SpriteRenderer>();
+            var presenter = go.AddComponent<DoorPropPresenter>();
+
+            presenter.Initialize(_room, propObj, visualDef, renderer, null);
+
+            BoxCollider2D collider = go.GetComponent<BoxCollider2D>();
+            Assert.That(collider, Is.Not.Null);
+            Assert.That(collider.enabled, Is.False, "a plain prop must not capture cursor hits");
+
+            Object.DestroyImmediate(visualDef);
+        }
+
         [Test]
         public void DoorPropPresenter_ClosingDoor_WithPlayerInside_PushesPlayerToSideNotUp()
         {
@@ -1022,6 +1098,44 @@ namespace PFE.Tests.Editor.Map.Streaming
 
             // Invalid direction
             Assert.That(m4.TransitionThroughEdge(99, playerGo), Is.False);
+        }
+
+        /// <summary>
+        /// Only the player may drive a door transition — a motor-driven NPC must not.
+        ///
+        /// <para><b>This pins the removed clause.</b> <c>OnTriggerEnter2D</c> used to accept
+        /// <c>other.CompareTag("Player") || other.GetComponent&lt;IMovementMotor&gt;() != null</c>, and
+        /// <c>PfeDebugSettings.UnitMotor</c> gives every spawned NPC a <c>TilePhysicsController</c>
+        /// (an <c>IMovementMotor</c>), so an enemy bumping a door trigger transitioned the room with its
+        /// own GameObject as the "player". The room was re-rendered and <c>landMap.currentRoom</c>
+        /// flipped while the player stood still — reported as "map graphics fully disappear while I am
+        /// in the middle of the room".</para>
+        ///
+        /// <para>The negative control carries a real <c>TilePhysicsController</c> on purpose: it is the
+        /// exact thing the old clause matched, so this test would fail if the clause came back.</para>
+        /// </summary>
+        [Test]
+        public void DoorTrigger_OnlyThePlayerIsAnActor()
+        {
+            var playerGo = new GameObject("Player");
+            playerGo.transform.SetParent(_holderGo.transform);
+            playerGo.tag = "Player";
+            var playerCollider = playerGo.AddComponent<BoxCollider2D>();
+
+            Assert.That(DoorTrigger.IsPlayerActor(playerCollider), Is.True,
+                "The player is the one actor a door may transition for.");
+
+            var unitGo = new GameObject("Unit");
+            unitGo.transform.SetParent(_holderGo.transform);
+            var unitCollider = unitGo.AddComponent<BoxCollider2D>();
+            unitGo.AddComponent<PFE.Systems.Physics.TilePhysicsController>();
+
+            Assert.That(DoorTrigger.IsPlayerActor(unitCollider), Is.False,
+                "An NPC bumping a door trigger must NOT transition: doing so re-renders the room and " +
+                "flips landMap.currentRoom while the player stands still in the old room.");
+
+            Assert.That(DoorTrigger.IsPlayerActor(null), Is.False,
+                "A null collider is never an actor.");
         }
 
         [Test]

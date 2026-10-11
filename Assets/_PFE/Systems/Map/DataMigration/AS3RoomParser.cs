@@ -381,7 +381,11 @@ namespace PFE.Systems.Map.DataMigration
                         {
                             act = GetAttr(sNode, "act", ""),
                             targ = GetAttr(sNode, "targ", ""),
-                            val = GetAttr(sNode, "val", "")
+                            val = GetAttr(sNode, "val", ""),
+                            n = GetAttr(sNode, "n", ""),
+                            opt1 = GetAttr(sNode, "opt1", ""),
+                            opt2 = GetAttr(sNode, "opt2", ""),
+                            t = GetAttr(sNode, "t", "")
                         });
                     }
                 }
@@ -394,7 +398,11 @@ namespace PFE.Systems.Map.DataMigration
                         {
                             act = act,
                             targ = GetAttr(scrNode, "targ", ""),
-                            val = GetAttr(scrNode, "val", "")
+                            val = GetAttr(scrNode, "val", ""),
+                            n = GetAttr(scrNode, "n", ""),
+                            opt1 = GetAttr(scrNode, "opt1", ""),
+                            opt2 = GetAttr(scrNode, "opt2", ""),
+                            t = GetAttr(scrNode, "t", "")
                         });
                     }
                 }

@@ -186,9 +186,18 @@ namespace PFE.Entities.Enemies.Archetypes
 
         protected override void TickCombatChase(int tickIndex)
         {
-            if (_blackboard.TargetUnit == null)
+            // The hunt ends on the awareness budget, not on the sighting — see
+            // `EnemyBrain.ChaseBudgetExhausted`. Exiting on `TargetUnit == null` made every archetype
+            // forget the player on the first obscured tick.
+            if (ChaseBudgetExhausted)
             {
                 SetState(EnemyAIState.Alert);
+                return;
+            }
+
+            if (_blackboard.TargetUnit == null)
+            {
+                ChaseLastKnownPosition(tickIndex);
                 return;
             }
 

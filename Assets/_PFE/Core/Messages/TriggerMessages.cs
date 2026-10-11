@@ -55,4 +55,54 @@ namespace PFE.Core.Messages
             TargetCoordinates = targetCoordinates;
         }
     }
+
+    /// <summary>
+    /// Published when travel is granted and the world map should be shown — AS3 <c>pip.onoff(3,3)</c>,
+    /// reached from the camp's wall map (<c>Interact.as:1636-1641</c>) or a <c>travel</c> NPC
+    /// (<c>NPC.as:210-216</c>).
+    ///
+    /// <para>An event rather than a direct call because the map page is a view that does not exist yet
+    /// (L11): publishing it now keeps the campaign side complete and lets the page be added without
+    /// touching <c>CampaignManager</c> again.</para>
+    /// </summary>
+    public struct TravelMapOpenedMessage
+    {
+        /// <summary>The land the player is standing in — the map opens showing that as "here".</summary>
+        public string CurrentLandId;
+
+        public TravelMapOpenedMessage(string currentLandId)
+        {
+            CurrentLandId = currentLandId;
+        }
+    }
+
+    /// <summary>
+    /// The one request that actually rebuilds the world. <c>CampaignManager</c> owns campaign *state* and
+    /// publishes this; the *builder* (<c>MapBridge</c>) subscribes and runs the build.
+    ///
+    /// <para><b>Why a second message.</b> Before this, two unconnected paths existed:
+    /// <c>MapBridge.HandleGotoLand</c> really rebuilt, and <c>CampaignManager.TransitionToLand</c> only
+    /// logged a success and updated two reactive properties nobody read
+    /// (<c>docs/LandGameplayLoop/03_GAP_LEDGER.md</c> §1). One owner has to build; this is the seam that
+    /// makes that explicit.</para>
+    /// </summary>
+    public struct LandBuildRequestMessage
+    {
+        /// <summary>Destination land id.</summary>
+        public string LandId;
+
+        /// <summary>"x:y" entry override, or null to use the land's own entry cell.</summary>
+        public string EntryCoordinates;
+
+        /// <summary>AS3 <c>Game.crea</c> — force a fresh layout even if one is cached
+        /// (<c>Game.as:464-472</c>, the level advance).</summary>
+        public bool ForceRegenerate;
+
+        public LandBuildRequestMessage(string landId, string entryCoordinates = null, bool forceRegenerate = false)
+        {
+            LandId = landId;
+            EntryCoordinates = entryCoordinates;
+            ForceRegenerate = forceRegenerate;
+        }
+    }
 }

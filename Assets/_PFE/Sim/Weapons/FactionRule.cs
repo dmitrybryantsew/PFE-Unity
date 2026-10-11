@@ -28,19 +28,27 @@ namespace PFE.Systems.Weapons
     /// via <see cref="ExplosionMultiplier"/>), and <c>PhisBullet.as:151</c> (thrown contact, the same
     /// direct-hit predicate). The fifth is <c>Spell.as:386</c>, which has no port counterpart.</para>
     ///
-    /// <para><b>Two paths must NOT be filtered, and the oracle says so:</b></para>
-    /// <list type="bullet">
-    /// <item><b>Melee.</b> <c>Unit.udarUnit</c> (<c>Unit.as:4125-4167</c>) applies damage with no
-    /// faction test at all, and neither does its caller <c>Unit.udar</c> (<c>:3277</c>). Melee is
-    /// faction-blind in AS3, so <c>MeleeHitVolume</c> stays unfiltered. Adding a filter there would be
-    /// a silent gameplay change, not a port fix.</item>
-    /// <item><b>Mines and unit self-destructs.</b> <c>Unit.explosion</c> (<c>Unit.as:3328-3349</c>)
-    /// builds its <c>Bullet</c> with <c>weap = null</c> (<c>new Bullet(this, X, Y - 3, null, …)</c>),
-    /// and both explosion gates are guarded by <c>this.weap &amp;&amp; …</c> — so <b>the scaling never
-    /// runs</b> and a mine does full damage to its own faction and to the player. <c>MineObject</c>
-    /// must therefore keep passing no multiplier.</item>
-    /// </list>
-    /// </summary>
+        /// <para><b>One path must NOT be filtered, and the oracle says so:</b></para>
+        /// <list type="bullet">
+        /// <item><b>Mines and unit self-destructs.</b> <c>Unit.explosion</c> (<c>Unit.as:3328-3349</c>)
+        /// builds its <c>Bullet</c> with <c>weap = null</c> (<c>new Bullet(this, X, Y - 3, null, …)</c>),
+        /// and both explosion gates are guarded by <c>this.weap &amp;&amp; …</c> — so <b>the scaling never
+        /// runs</b> and a mine does full damage to its own faction and to the player. <c>MineObject</c>
+        /// must therefore keep passing no multiplier.</item>
+        /// </list>
+        ///
+        /// <para><b>⚠ CORRECTION — melee IS filtered, and this class used to say it was not.</b> An
+        /// earlier revision listed melee as a second exception, reasoning from <c>Unit.udarUnit</c>
+        /// (<c>Unit.as:4125-4167</c>) and its caller <c>Unit.udar</c> (<c>:3277</c>): both apply damage
+        /// with no <c>fraction</c> test, so the conclusion looked safe. It was not. Those are the
+        /// <i>pair-level</i> functions; the loop that decides <b>which pairs are tested at all</b> is
+        /// <c>Bullet.run()</c>, and <c>WClub.as:161-162</c> (<c>checkLine = true; b.checkLine =
+        /// checkLine;</c>) is what routes a swing through it. That loop opens with exactly
+        /// <see cref="CanHitDirectly"/>'s predicate (<c>Bullet.as:515</c>), and a swing carries no
+        /// <c>targetObj</c> — so a same-faction unit is immune to it, as it is to a bullet.
+        /// <c>MeleeHitVolume</c> applies <see cref="CanHitDirectly"/> for that reason; the port's
+        /// melee-friendly-fire behaviour was a bug, not a design.</para>
+        /// </summary>
     public static class FactionRule
     {
         /// <summary>

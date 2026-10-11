@@ -53,12 +53,17 @@ namespace PFE.Systems.Map
                 DoorCarver.ApplyWaterLevel(room, template.environment.waterLevel);
             }
 
-            // Step 4: Populate with entities
-            RoomPopulator.PopulateRoom(room, template, room.difficulty);
-
-            // Step 5: Mark objects as unplaceable on carved tiles
-            // AS3: noHolesPlace prevents objects from spawning where doors carved
+            // Step 4: Mark objects as unplaceable on carved tiles, BEFORE spawning.
+            //
+            // AS3 marks the doorway tiles `place = false` inside setDoor (Location.setNoObj,
+            // Location.as:800-960), which runs while the Location is still being built and therefore
+            // strictly before setObjects(). Running the mark *after* PopulateRoom — as this did — let an
+            // object spawn in the doorway it was supposed to be kept out of, and then marked a tile that
+            // had already been populated. That is one way a carver appears to "break" a room.
             MarkCarvedTilesUnplaceable(room);
+
+            // Step 5: Populate with entities
+            RoomPopulator.PopulateRoom(room, template, room.difficulty);
 
             if (debugSettings != null && debugSettings.LogMapIntegrityDiagnostics)
             {
@@ -179,6 +184,34 @@ namespace PFE.Systems.Map
                     $"[MapIntegrity] FinalizeSpecificRoom: pos={room.landPosition}, template={template.id}, " +
                     $"specificOnly={template.specificMapOnly}, edgeAirBefore={MapIntegrityDiagnostics.Format(before)}, " +
                     $"edgeAirAfter={MapIntegrityDiagnostics.BuildEdgeAirSummary(room)}, activeDoors={CountActiveDoors(room)}");
+            }
+        }
+
+        /// <summary>
+        /// <b>Debug / editor-preview only.</b> Mark every candidate door slot active so the carver opens
+        /// the room's whole door mask.
+        ///
+        /// <para><b>Gameplay must never call this.</b> AS3 carves a <i>draw</i> from the candidate mask —
+        /// three slots with replacement on the right wall, one on the lower side
+        /// (<c>Land.as:471-488</c>) — and activating the mask wholesale is precisely the door-carve bug
+        /// (see <c>docs/LandGameplayLoop/06_DOOR_CARVE_AUDIT.md</c>).</para>
+        ///
+        /// <para>It exists because two tools build <i>one</i> room and never run the neighbour pass:
+        /// <c>RoomVisualController.BuildPreviewRoom</c> (editor-only) and the single-room branch of
+        /// <c>MapBridge.FinalizeOverrideRoom</c>. With no neighbour there is no drawn door, so both would
+        /// otherwise render a room with no openings at all. The multi-room branch of the override goes
+        /// through <c>WorldBuilder.BuildSpecificWorld</c> and does not need this.</para>
+        /// </summary>
+        public static void ActivateAllCandidateDoors(RoomInstance room)
+        {
+            if (room == null || room.doors == null) return;
+
+            foreach (var door in room.doors)
+            {
+                if (door.quality >= DoorQuality.Narrow)
+                {
+                    door.isActive = true;
+                }
             }
         }
 

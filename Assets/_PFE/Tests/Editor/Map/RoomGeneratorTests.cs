@@ -343,6 +343,35 @@ namespace PFE.Tests.Editor.Map
         }
 
         [Test]
+        public void GenerateRoom_DoorConfiguration_CandidatesStartInactive()
+        {
+            // A template's doorQuality is a CANDIDATE MASK, not the door set. AS3 matches the shared wall
+            // (min(a[i], b[i+11]) >= 2, Land.as:426/:443) and then carves a DRAW from that list — three
+            // slots with replacement on the right, one on the lower side (Land.as:471-488).
+            //
+            // So a freshly generated room must have every slot INACTIVE; the draw activates the few.
+            // Pre-activating them here is what made the carver open the entire mask and gave the player a
+            // walk-through trigger on every wall (RoomVisualController.EnsureBoundaryDoorTriggers skips
+            // inactive doors). Measured before the fix: mean 17.4 of 24 slots carved per room in
+            // rooms_plant, against roughly 4-8 in the oracle. See 06_DOOR_CARVE_AUDIT.md.
+            RoomGenerator generator = new RoomGenerator();
+            List<RoomTemplate> templates = CreateTestTemplates();
+
+            templates[0].doorQuality[0] = 2;
+            templates[0].doorQuality[6] = 3;
+
+            generator.Initialize(templates);
+            RoomInstance room = generator.GenerateRoom(templates[0], new Vector3Int(0, 0, 0));
+
+            Assert.AreEqual(2, room.doors.Count, "both candidates must still be created");
+            foreach (DoorInstance door in room.doors)
+            {
+                Assert.IsFalse(door.isActive,
+                    $"slot {door.doorIndex} is only a candidate and must start inactive");
+            }
+        }
+
+        [Test]
         public void GenerateRoom_DoorConfiguration_UsesUnityTileCoordinates()
         {
             RoomGenerator generator = new RoomGenerator();

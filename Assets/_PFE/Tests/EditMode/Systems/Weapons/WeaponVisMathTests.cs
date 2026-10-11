@@ -182,6 +182,136 @@ namespace PFE.Tests.EditMode.Systems.Weapons
             }
         }
 
+        // ── Melee (WClub.animate) ─────────────────────────────────────────────
+
+        /// <summary>
+        /// <b>The identity that lets the ranged rule draw a melee weapon unchanged.</b>
+        ///
+        /// <para>AS3 melee mirrors on <b>Y</b> (<c>vis.scaleY = storona</c>, <c>WClub.as:746</c>) while
+        /// the ranged rule mirrors on <b>X</b> and adds 180° to the rotation. They are the same world
+        /// transform:
+        /// <c>R(θ+180)·S(−1,1) = R(θ)·S(−1,−1)·S(−1,1) = R(θ)·S(1,−1)</c>.</para>
+        ///
+        /// <para>This is why <see cref="WeaponPresenter"/> needs no melee branch for a
+        /// <c>krep == 0</c> weapon — the reported case (raider2/raider4). It is asserted here so that a
+        /// future change to <i>either</i> rule goes red rather than silently breaking the other, which
+        /// is exactly the drift the two presenters were consolidated to prevent.</para>
+        /// </summary>
+        [Test]
+        public void MeleeFacingLeft_RangedFlipRule_IsTheOraclesScaleYMirror()
+        {
+            // Drives the PRODUCTION ranged rule (VisLocalScaleX / VisLocalRotationDeg), composes it
+            // through the parent, and compares against the oracle's melee matrix. A pure-math restatement
+            // could not go red; this goes red the moment either production function changes shape.
+            foreach (float parentSign in new[] { 1f, -1f })
+            foreach (float rotDeg in new[] { -120f, -90f, -30f, 0f, 45f, 179f, 180f, 270f })
+            {
+                var world = Compose(
+                    Scale(parentSign, 1f),
+                    Compose(
+                        Rotation(WeaponVisMath.VisLocalRotationDeg(
+                            rotDeg * Mathf.Deg2Rad, 0f, facingLeft: true, parentSign)),
+                        Scale(WeaponVisMath.VisLocalScaleX(facingLeft: true, parentSign), 1f)));
+
+                // The oracle's melee rule facing left: scaleY = storona = -1, rotation unmodified.
+                var oracle = Compose(Rotation(rotDeg), Scale(1f, -1f));
+
+                AssertMatrix(world, oracle, $"parentSign={parentSign} rot={rotDeg}");
+            }
+        }
+
+        /// <summary>
+        /// The <c>krep &gt; 0</c> melee branch (a rigidly-mounted unit, e.g. <c>slaver1</c>) — the one
+        /// case the ranged rule does <b>not</b> cover.
+        /// </summary>
+        [Test]
+        public void MeleeFixedVisRotationDeg_IsZeroFacingRight_AndMinus180FacingLeft()
+        {
+            // AS3 WClub.as:757 — `90*storona - 90 + owner.weaponR*storona`, with weaponR unported (0).
+            Assert.AreEqual(0f, WeaponVisMath.MeleeFixedVisRotationDeg(facingLeft: false, weaponRDeg: 0f), Tolerance);
+            Assert.AreEqual(-180f, WeaponVisMath.MeleeFixedVisRotationDeg(facingLeft: true, weaponRDeg: 0f), Tolerance);
+
+            // weaponR rides the facing sign, so the same value tilts the opposite way per side — the
+            // assertion that fails if the `* storona` is dropped from the weaponR term.
+            Assert.AreEqual(10f, WeaponVisMath.MeleeFixedVisRotationDeg(facingLeft: false, weaponRDeg: 10f), Tolerance);
+            Assert.AreEqual(-190f, WeaponVisMath.MeleeFixedVisRotationDeg(facingLeft: true, weaponRDeg: 10f), Tolerance);
+        }
+
+        [Test]
+        public void MeleeVisScaleY_IsMinusOneFacingLeft()
+        {
+            Assert.AreEqual(1f, WeaponVisMath.MeleeVisScaleY(facingLeft: false), Tolerance);
+            Assert.AreEqual(-1f, WeaponVisMath.MeleeVisScaleY(facingLeft: true), Tolerance);
+        }
+
+        /// <summary>
+        /// The melee fold reproduces the oracle's world transform for either parent — the invariant, not
+        /// the implementation.
+        ///
+        /// <para><b>This is the test that catches the tempting mistake.</b> The ranged fold multiplies
+        /// the local X by <c>parentSign</c>; copying that onto the melee <b>Y</b> scale would double the
+        /// mirror on every turn-around. The world matrix would then be <c>S(1, ±1)</c> off the oracle's,
+        /// which this assertion reports.</para>
+        /// </summary>
+        [Test]
+        public void MeleeLocalFold_ReproducesTheOracleWorldTransform_ForEitherParent()
+        {
+            foreach (float parentSign in new[] { 1f, -1f })
+            foreach (bool facingLeft in new[] { false, true })
+            foreach (float rotDeg in new[] { -120f, -90f, 0f, 45f, 179f })
+            {
+                float oracleDeg = WeaponVisMath.MeleeFixedVisRotationDeg(facingLeft, 0f);
+
+                // What the presenter writes locally (WeaponPresenter.ApplyRotation's melee branch).
+                float localScaleX = WeaponVisMath.MeleeVisLocalScaleX(parentSign);
+                float localScaleY = WeaponVisMath.MeleeVisLocalScaleY(facingLeft);
+                float localRot    = WeaponVisMath.MeleeVisLocalRotationDeg(oracleDeg, parentSign);
+
+                // World = parent ∘ local.
+                var world = Compose(
+                    Scale(parentSign, 1f),
+                    Compose(Rotation(localRot), Scale(localScaleX, localScaleY)));
+
+                // The oracle: vis.scaleY = storona, vis.scaleX = 1, vis.rotation = oracleDeg.
+                var expected = Compose(
+                    Rotation(oracleDeg),
+                    Scale(1f, WeaponVisMath.MeleeVisScaleY(facingLeft)));
+
+                AssertMatrix(world, expected,
+                    $"parentSign={parentSign} facingLeft={facingLeft} rot={rotDeg}");
+            }
+        }
+
+        // ── 2×2 linear maps, so the assertions are on the transform the player sees ─────────────
+        //
+        // A linear map is carried as its two COLUMNS, and composed by applying the left map to each
+        // column of the right one. Kept as plain Vector2s rather than a Matrix type: the point is to
+        // compare the composed result against the oracle's composed result, not to reimplement Unity.
+
+        private static Vector2 Apply(Vector2 col0, Vector2 col1, Vector2 v) => col0 * v.x + col1 * v.y;
+
+        private static (Vector2, Vector2) Compose((Vector2, Vector2) left, (Vector2, Vector2) right)
+            => (Apply(left.Item1, left.Item2, right.Item1),
+                Apply(left.Item1, left.Item2, right.Item2));
+
+        private static (Vector2, Vector2) Rotation(float deg)
+        {
+            float r = deg * Mathf.Deg2Rad;
+            float c = Mathf.Cos(r), s = Mathf.Sin(r);
+            return (new Vector2(c, s), new Vector2(-s, c));
+        }
+
+        private static (Vector2, Vector2) Scale(float sx, float sy)
+            => (new Vector2(sx, 0f), new Vector2(0f, sy));
+
+        private static void AssertMatrix((Vector2, Vector2) actual, (Vector2, Vector2) expected, string ctx)
+        {
+            Assert.AreEqual(expected.Item1.x, actual.Item1.x, Tolerance, $"{ctx} col0.x");
+            Assert.AreEqual(expected.Item1.y, actual.Item1.y, Tolerance, $"{ctx} col0.y");
+            Assert.AreEqual(expected.Item2.x, actual.Item2.x, Tolerance, $"{ctx} col1.x");
+            Assert.AreEqual(expected.Item2.y, actual.Item2.y, Tolerance, $"{ctx} col1.y");
+        }
+
         // ── The parent chain's mirror (engine-free) ───────────────────────────
 
         [Test]

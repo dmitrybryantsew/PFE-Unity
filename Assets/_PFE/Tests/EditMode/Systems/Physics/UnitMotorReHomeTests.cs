@@ -174,6 +174,41 @@ namespace PFE.Tests.EditMode.Systems.Physics
                 "Marking the motor as a unit's owner must move it out of the player's slot.");
         }
 
+        /// <summary>
+        /// A motor may change rooms at a boundary until it is marked as an NPC's — and then it may not.
+        ///
+        /// <para><b>This is the "map graphics disappear" bug, pinned.</b> Every spawned NPC with
+        /// <c>UnitMotor</c> on carries a <see cref="TilePhysicsController"/>, and that motor used to run
+        /// the player's room-boundary transition for the unit: the room was re-rendered, the LandMap's
+        /// <c>currentRoom</c> flipped and the camera snapped, while the player was left standing in the
+        /// old room's coordinates. AS3 never does this — <c>Unit.outLoc</c> (<c>Unit.as:1882</c>)
+        /// returns <c>false</c> and a regular unit is <i>clamped</i>, and only <c>UnitPlayer.outLoc</c>
+        /// (<c>UnitPlayer.as:540</c>) transitions.</para>
+        ///
+        /// <para>Both directions are asserted, so a motor that reported either value unconditionally
+        /// would fail here rather than by quietly re-enabling the bug — the same shape as
+        /// <see cref="Motor_ReportsThePlayerSlot_UntilItIsMarkedUnitOwned"/>.</para>
+        /// </summary>
+        [Test]
+        public void Motor_MayChangeRoomAtBoundary_UntilItIsMarkedUnitOwned()
+        {
+            var go = new GameObject("motor");
+            go.transform.SetParent(_root.transform, false);
+            var motor = go.AddComponent<TilePhysicsController>();
+
+            Assert.IsTrue(motor.MayChangeRoomAtBoundary,
+                "A motor that was never marked is the PLAYER's, so it must still transition rooms at a " +
+                "boundary. This is the control that keeps the fix from degenerating into 'no motor ever " +
+                "transitions'.");
+
+            motor.MarkUnitOwned();
+
+            Assert.IsFalse(motor.MayChangeRoomAtBoundary,
+                "A unit-owned motor must CLAMP at the room edge, never transition. Handing a unit's " +
+                "GameObject to RoomTransitionManager swapped the rendered room and landMap.currentRoom " +
+                "out from under the player, who was left standing in the old room's coordinates.");
+        }
+
         // ── the re-home, and the order that makes it safe ────────────────────────────────────
 
         [Test]

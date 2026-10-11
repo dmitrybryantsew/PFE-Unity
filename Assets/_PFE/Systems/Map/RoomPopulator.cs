@@ -28,6 +28,16 @@ namespace PFE.Systems.Map
         private static PFE.Core.Rng.IRngService GetSpawnRng(PFE.Core.Rng.IRngService rng) =>
             rng?.GetStream(PFE.Core.Rng.RngStream.Spawn) ?? (s_spawnRng ??= new PFE.Core.Rng.PcgRngService().GetStream(PFE.Core.Rng.RngStream.Spawn));
 
+        /// <summary>The object a prob room's return door is placed as (AS3 <c>doorout</c>).</summary>
+        public const string ProbReturnObjectId = "doorout";
+
+        /// <summary>
+        /// The <c>uid</c> of the return door a prob room is entered by. <c>Probation.doorsOnOff</c>
+        /// keeps exactly this door visible while sealing the room's other exits
+        /// (<c>Probation.as:299-308</c>).
+        /// </summary>
+        public const string ProbReturnBeginUid = "begin";
+
         /// <summary>
         /// Populate a room with all entities from its template data.
         /// Mirrors AS3 Location.setObjects().
@@ -72,9 +82,22 @@ namespace PFE.Systems.Map
             // Phase 2: Place random enemies at spawn points
             PlaceRandomEnemies(room, template, difficulty, r, spawnCounters, unitDefinitions);
 
-            // Phase 3: Place XP bonuses
-            // AS3: createXpBonuses() places collectible XP orbs
-            PlaceXpBonuses(room, 5, r, spawnCounters);
+            // Phase 3: Place XP bonuses — but NOT in a prob room.
+            //
+            // AS3's setObjects() ends at setRandomUnits() (Location.as:1031-1033); createXpBonuses is a
+            // step of the *conf loop*, not of setObjects — `_loc10_ = true` is set per cell at
+            // Land.as:509 and `createXpBonuses(5)` is called at :672-674 (only confs 4 and 7 clear the
+            // flag, and only for the land's begin cell). A prob room never passes through that loop:
+            // buildProb creates it (Land.as:789) and buildProbs then calls setObjects/preStep/prepare on
+            // it (:760-766). So a prob room gets no XP bonuses — and giving it some would hand the player
+            // five free orbs every time they walk through a room that is re-entered on every descent.
+            //
+            // `probId` is the discriminator, the same one ProbTransition.AdmitsGridStep uses: it is
+            // non-empty for exactly the rooms AS3 keeps in `probs`.
+            if (string.IsNullOrEmpty(room.probId))
+            {
+                PlaceXpBonuses(room, 5, r, spawnCounters);
+            }
         }
 
         /// <summary>
@@ -133,7 +156,10 @@ namespace PFE.Systems.Map
                         attributes: spawnData.attributes,
                         turn: spawnData.GetAttribute("turn", null),
                         difficulty: ResolveLocationDifficulty(difficulty),
-                        rng: rng);
+                        rng: rng,
+                        definitionCid: spawnData.definition != null
+                            ? spawnData.definition.GetAttribute("cid", null)
+                            : null);
                     break;
 
                 case "box":
@@ -213,6 +239,12 @@ namespace PFE.Systems.Map
         /// <c>Unit.as:609-613</c>). A pre-resolved direction would force the caller to draw before this
         /// method runs and reverse the two.
         /// </param>
+        /// <param name="definitionCid">
+        /// The <b>definition row's</b> <c>@cid</c> (not the placement's), or null when absent. AS3 reads
+        /// it off <c>AllData.d.obj.(@id == id)[0]</c> inside <c>Unit.create</c>
+        /// (<c>Unit.as:853-862</c>) and the subclass maps it onto its own id — this is how
+        /// <c>trplate</c> spawns <c>trigplate</c> and <c>turret</c> spawns <c>turret0</c>.
+        /// </param>
         /// <param name="difficulty">
         /// AS3 <c>Location.locDifLevel</c>, consumed by <see cref="UnitVariantResolver.RandomCid"/>.
         /// </param>
@@ -227,7 +259,8 @@ namespace PFE.Systems.Map
             List<MapObjectAttributeData> attributes = null,
             string turn = null,
             float difficulty = 0f,
-            PFE.Core.Rng.IRngService rng = null)
+            PFE.Core.Rng.IRngService rng = null,
+            string definitionCid = null)
         {
             // The oracle does NOT spawn the id the room authored — it spawns a VARIANT of it.
             // Location.createUnit() (Location.as:1169/1185) calls randomCid() and hands the result to
@@ -241,12 +274,19 @@ namespace PFE.Systems.Map
             // `NoContext`, not `default` — a defaulted struct has `LandY == 0`, which is a real land
             // index and would make `randomCid("ranger")` pick its `landY == 0` arm. See
             // UnitVariantContext's remarks.
+            //
+            // The definition's `@cid` is the cid *seed* (Unit.as:853-862): a room places `trplate`, the
+            // definition row says `cid='trigplate'`, and the spawned id is `trigplate`. It is read off
+            // the DEFINITION row, not the placement — 0 of the shipped placements carry `@cid`, while 24
+            // definitions do. Without it the alias families (turret/trplate/expl1/…) compose from a null
+            // seed and resolve to nothing.
             string resolvedId = UnitVariantResolver.ResolveSpawnId(
                 unitId,
                 difficulty,
                 rng,
                 UnitVariantResolver.NoContext,
-                MapObjectDataUtility.GetAttribute(attributes, "tr", null));
+                MapObjectDataUtility.GetAttribute(attributes, "tr", null),
+                definitionCid);
 
             float health = ResolveUnitHealth(resolvedId, unitDefinitions);
 
@@ -465,6 +505,327 @@ namespace PFE.Systems.Map
             obj.InitializeDynamicRuntimeState();
             obj.RefreshLegacyParameters();
             room.AddObject(obj);
+        }
+
+        /// <summary>
+        /// AS3 <c>Location.createExit(param)</c> (<c>Location.as:2113-2121</c>): an <c>exit</c> box dropped on
+        /// a spawn point, carrying <c>prob = exitProb + param</c>.
+        ///
+        /// <para>The <c>prob</c> attribute is load-bearing: <c>Interact.allAct</c> tests <c>prob</c> first
+        /// (<c>Interact.as:1558</c>), so the bottom-row exit <em>enters the exit room</em> rather than
+        /// advancing the level. The level advance happens on the exit room's own <c>exit</c> object, which
+        /// carries no <c>prob</c>.</para>
+        /// </summary>
+        /// <param name="exitProb">AS3 <c>LandAct.exitProb</c> — the land's <c>exit</c> attribute prefix.</param>
+        /// <param name="suffix">AS3 <c>param</c>: empty for the shallow exit, <c>"1"</c> for the hand-off.</param>
+        public static ObjectInstance PlaceExit(RoomInstance room, string exitProb, string suffix = "")
+        {
+            if (room == null) return null;
+
+            var spawn = new ObjectSpawnData
+            {
+                id = "exit",
+                type = "exit",
+                definitionId = "exit",
+                attributes = SyntheticPlacementAttributes(new List<MapObjectAttributeData>
+                {
+                    new MapObjectAttributeData { key = "prob", value = (exitProb ?? string.Empty) + (suffix ?? string.Empty) },
+                    new MapObjectAttributeData { key = "inter", value = "8" },
+                }),
+            };
+
+            Vector2 pos = ChooseObjectPixel(room, spawn);
+            CreateObject(room, spawn, pos.x, pos.y);
+            return room.objects.Count > 0 ? room.objects[room.objects.Count - 1] : null;
+        }
+
+        /// <summary>
+        /// Port-only carrier for AS3 <c>createCheck</c>'s <c>param1</c> — whether this is the
+        /// <b>begin</b> checkpoint.
+        ///
+        /// <para><b>Why the port needs a carrier and AS3 does not.</b> AS3 uses <c>param1</c> inside the
+        /// one function that has it — to skip the locked-variant roll and to call
+        /// <c>cp.activate(true)</c> — and then forgets it. The port places the checkpoint in
+        /// <see cref="PlaceCheckpointMarker"/> but decides what an activation <i>does</i> in
+        /// <c>DoorPropPresenter</c>, a different object in a different layer, so the fact has to be
+        /// written down. An attribute is the port's idiom for a placement-level fact (see the
+        /// <c>prob</c>/<c>uid</c> attributes on the synthetic doors) and it survives a rebuild for the
+        /// same reason.</para>
+        ///
+        /// <para><b>This replaced a derivation that had gone stale.</b> The presenter used to read
+        /// begin-ness back off the object id as <c>objectId == "checkpoint1"</c> — written when
+        /// <c>checkpoint1</c> was the begin checkpoint. That was corrected (the begin checkpoint is the
+        /// plain <c>checkpoint</c>), which silently made the test unsatisfiable, so <c>isBegin</c> became
+        /// permanently <c>false</c>. Nothing failed; the flag just stopped being the flag.</para>
+        /// </summary>
+        public const string BeginCheckpointAttribute = "beg";
+
+        /// <summary>
+        /// AS3 <c>Location.createCheck(isBeg)</c> (<c>Location.as:2088-2111</c>): a checkpoint object plus a
+        /// player spawn point. This is the <em>placement</em> half only — making the checkpoint activatable
+        /// (write <c>currentCP</c>, save) is a separate item.
+        ///
+        /// <para><b>The id is the plain, unlocked <c>checkpoint</c> unless the oracle rolls a variant.</b>
+        /// AS3 appends a random <c>1..5</c> only when the checkpoint is <i>not</i> the begin one, the land
+        /// is random and a 50% roll passes (<c>Location.as:2095-2098</c>):
+        /// <c>if(!param1 &amp;&amp; this.land.rnd &amp;&amp; Math.random() &lt; 0.5)</c>. Those suffixed ids are
+        /// the locked/mined variants — <c>AllData.as:5008-5012</c> gives <c>checkpoint1</c> <c>lock='1.4'</c>
+        /// ("КТ с замком", a checkpoint with a lock), <c>checkpoint4</c> <c>mine='1'</c>, and so on — while
+        /// plain <c>checkpoint</c> carries neither. This method previously used <c>checkpoint1</c> for the
+        /// <b>begin</b> checkpoint, which is exactly backwards: it put the locked variant at the one
+        /// checkpoint the oracle guarantees is unlocked, so the checkpoint the player starts at drew with a
+        /// lock on it.</para>
+        ///
+        /// <para><b>The roll is opt-in, and the call site does not opt in yet.</b> It runs only when the
+        /// caller supplies both <paramref name="landIsRandom"/> and <paramref name="rng"/>. The oracle
+        /// rolls; the port deliberately does not, because a locked checkpoint's only way open is
+        /// lockpicking, and the port's lockpicking model
+        /// (<c>PFE.Systems.RPG.LockAttemptSystem</c>, a faithful port of <c>Interact.unlock</c>) currently
+        /// has <b>no interaction surface wired to it</b>. Placing locked checkpoints before that exists
+        /// would turn a working save point into a permanently dead one. The roll is implemented and tested
+        /// here so enabling it is a one-line change at the call site once lockpicking is reachable — not a
+        /// rewrite.</para>
+        /// </summary>
+        /// <param name="isBegin">AS3 <c>param1</c> — the begin checkpoint, which never rolls a variant.</param>
+        /// <param name="landIsRandom">AS3 <c>this.land.rnd</c> — only a procedural land rolls.</param>
+        /// <param name="rng">The stream to draw from. AS3 uses the global <c>Math.random()</c>; the port
+        /// threads a seeded stream so a build is reproducible.</param>
+        public static ObjectInstance PlaceCheckpointMarker(
+            RoomInstance room,
+            bool isBegin,
+            bool landIsRandom = false,
+            PFE.Core.Rng.IRngService rng = null)
+        {
+            if (room == null) return null;
+
+            string id = ResolveCheckpointObjectId(isBegin, landIsRandom, rng);
+
+            var attributes = SyntheticPlacementAttributes();
+            if (isBegin)
+            {
+                attributes.Add(new MapObjectAttributeData
+                {
+                    key = BeginCheckpointAttribute,
+                    value = "1",
+                });
+            }
+
+            var spawn = new ObjectSpawnData
+            {
+                id = id,
+                type = "checkpoint",
+                definitionId = id,
+                attributes = attributes,
+            };
+
+            Vector2 pos = ChooseObjectPixel(room, spawn);
+            CreateCheckpoint(room, spawn, pos.x, pos.y);
+            return room.objects.Count > 0 ? room.objects[room.objects.Count - 1] : null;
+        }
+
+        /// <summary>
+        /// AS3 <c>createCheck</c>'s id roll, drawn in the oracle's order.
+        ///
+        /// <para><b>The second draw is conditional on the first, and that is why this is a statement
+        /// sequence rather than one expression.</b> AS3 evaluates <c>Math.random() &lt; 0.5</c> as the
+        /// <c>if</c> condition and only reaches <c>Math.floor(Math.random() * 5 + 1)</c> when it passed.
+        /// Folding both draws into a single call — <c>rng.NextInt(5)</c> as an argument alongside the
+        /// coin — would consume one extra value from the shared spawn stream on every failed roll, and
+        /// every later placement in the same build would shift.</para>
+        /// </summary>
+        public static string ResolveCheckpointObjectId(
+            bool isBegin, bool landIsRandom, PFE.Core.Rng.IRngService rng)
+        {
+            if (isBegin || !landIsRandom || rng == null)
+            {
+                return PFE.Sim.Campaign.CheckpointRules.PlainCheckpointId;
+            }
+
+            bool variantRollPassed = rng.NextInt(2) == 0;
+            int variantRoll = variantRollPassed
+                ? rng.NextInt(PFE.Sim.Campaign.CheckpointRules.LockedVariantCount) + 1
+                : 0;
+
+            return PFE.Sim.Campaign.CheckpointRules.SelectObjectId(
+                isBegin, landIsRandom, variantRollPassed, variantRoll);
+        }
+
+        /// <summary>
+        /// AS3 <c>Location.createDoorProb(did, pid)</c> (<c>Location.as:2124-2135</c>): the trial/battle
+        /// door that stands in a normal room and opens into a detached prob room.
+        ///
+        /// <para><b>It refuses when the room has no spawn point</b>, and that is not defensive
+        /// programming — the oracle returns <c>false</c> and <c>newRandomProb</c> then places nothing at
+        /// all (<c>Land.as:857-860</c>). Returning <c>null</c> here reproduces that: the caller must not
+        /// invent a position for a door the oracle would have skipped.</para>
+        ///
+        /// <para><b>The instance attributes override the definition's.</b> <c>AllData.as:5018-5019</c>
+        /// gives <c>doorprob</c>/<c>doorboss</c> <c>time='30'</c>, but <c>createDoorProb</c> writes
+        /// <c>time='20'</c> on every placement, so the placed door is the 20-second one. <c>inter='8'</c>
+        /// agrees with the definition and is written for the same reason — the placement is the record
+        /// that the oracle's own attributes were these.</para>
+        ///
+        /// <para><b><c>nazv</c> is <c>Res.txt("m", pid)</c></b> in AS3, and the port has no localisation
+        /// table, so — following the precedent set for effect definitions — the raw id is stored in its
+        /// place rather than an invented display string.</para>
+        ///
+        /// <para><b>Known divergence.</b> AS3 picks a <i>random</i> spawn point
+        /// (<c>Location.as:2130</c>); this picks the first, which is what <see cref="PlaceExit"/> does
+        /// too. Kept consistent deliberately so the two door placements cannot disagree.</para>
+        /// </summary>
+        /// <param name="doorObjectId">AS3 <c>did</c> — <c>doorprob</c> or <c>doorboss</c>.</param>
+        /// <param name="probId">AS3 <c>pid</c> — the prob room this door opens into.</param>
+        /// <param name="displayName">
+        /// AS3 <c>nazv</c>. Defaults to <paramref name="probId"/>, the port's substitute for
+        /// <c>Res.txt("m", pid)</c>.
+        /// </param>
+        /// <returns>The placed object, or <c>null</c> when nothing was placed.</returns>
+        public static ObjectInstance PlaceProbDoor(
+            RoomInstance room,
+            string doorObjectId,
+            string probId,
+            string displayName = null)
+        {
+            if (room == null) return null;
+            if (string.IsNullOrEmpty(doorObjectId)) return null;
+
+            // AS3 guards on `this.spawnPoints.length > 0` and returns false otherwise.
+            if (room.spawnPoints == null || room.spawnPoints.Count == 0) return null;
+
+            var spawn = new ObjectSpawnData
+            {
+                id = doorObjectId,
+                type = "box",
+                definitionId = doorObjectId,
+                attributes = SyntheticPlacementAttributes(new List<MapObjectAttributeData>
+                {
+                    // Read first by Interact.allAct (Interact.as:1558) — this is what makes the door
+                    // enter a prob room rather than fall through to the object's own behaviour.
+                    new MapObjectAttributeData { key = "prob", value = probId ?? string.Empty },
+                    new MapObjectAttributeData { key = "nazv", value = displayName ?? probId ?? string.Empty },
+                    new MapObjectAttributeData { key = "time", value = "20" },
+                    new MapObjectAttributeData { key = "inter", value = "8" },
+                }),
+            };
+
+            Vector2 pos = ChooseObjectPixel(room, spawn);
+            CreateObject(room, spawn, pos.x, pos.y);
+            return room.objects.Count > 0 ? room.objects[room.objects.Count - 1] : null;
+        }
+
+        /// <summary>
+        /// The <c>doorout</c> box a prob room carries so the player can leave
+        /// (AS3 <c>Land.buildProb</c>, <c>Land.as:797-800</c>).
+        ///
+        /// <para><b>Two attributes, and the empty one is load-bearing by being empty.</b> AS3 writes
+        /// <c>&lt;obj prob='' uid='begin'/&gt;</c>. The <c>prob</c> attribute is present but empty, and
+        /// <c>Interact</c> only assigns its <c>prob</c> field when <c>@prob.length()</c> is non-zero
+        /// (<c>Interact.as:386-389</c>) — so an empty <c>prob</c> does <b>not</b> mean "enter the prob
+        /// room named empty". It means the entry branch is skipped and the object's own
+        /// <c>allact='probreturn'</c> (<c>AllData.as:5017</c>) runs instead, which returns the player to
+        /// the land they came from. Writing the empty attribute is what documents that.</para>
+        ///
+        /// <para><c>uid='begin'</c> is what <c>Probation.doorsOnOff</c> keys on to keep the return door
+        /// visible while every other <c>doorout</c> in the room is sealed (<c>Probation.as:299-308</c>).</para>
+        /// </summary>
+        /// <returns>The placed object, or <c>null</c> when the room has no spawn point.</returns>
+        public static ObjectInstance PlaceReturnDoor(RoomInstance room)
+        {
+            if (room == null) return null;
+
+            // AS3 guards the whole call on `if(loc.spawnPoints.length)`.
+            if (room.spawnPoints == null || room.spawnPoints.Count == 0) return null;
+
+            var spawn = new ObjectSpawnData
+            {
+                id = ProbReturnObjectId,
+                type = "box",
+                definitionId = ProbReturnObjectId,
+                uid = ProbReturnBeginUid,
+                attributes = SyntheticPlacementAttributes(new List<MapObjectAttributeData>
+                {
+                    new MapObjectAttributeData { key = "prob", value = string.Empty },
+                }),
+            };
+
+            // AS3 buildProb passes `loc.spawnPoints[0]` — the FIRST spawn point, not a random one
+            // (Land.as:797-800) — and then goes through createObj, so it gets the box anchor.
+            Vector2 pos = ChooseObjectPixel(room, spawn);
+            CreateObject(room, spawn, pos.x, pos.y);
+            return room.objects.Count > 0 ? room.objects[room.objects.Count - 1] : null;
+        }
+
+        /// <summary>
+        /// The pixel anchor a synthetic placement lands on: the room's first spawn point, resolved exactly
+        /// the way an imported object's position is.
+        ///
+        /// <para><b>Why it is not simply the spawn point's tile.</b> AS3 does not place an object at its
+        /// tile's corner. <c>createObj</c> anchors a box at <i>bottom-centre</i> —
+        /// <c>((nx + 0.5 * size) * Tile.tileX, (ny + 1) * Tile.tileY - 1)</c>
+        /// (<c>Location.as:2005</c>) — and a checkpoint at the very same formula (<c>:2040</c>). This used
+        /// to return <c>TileToPixel(spawnPoint.tileCoord)</c>: the tile's <i>top-left</i> corner, in Flash's
+        /// top-down pixels. So a synthetic object was drawn half a tile to the left and mirrored vertically
+        /// about the room — a checkpoint on AS3 row 15 of a 25-row room appeared six tiles too high.
+        /// Imported objects have always gone through <see cref="ResolveLegacyBottomAnchorPixels"/>; this
+        /// makes the synthetic ones agree with them.</para>
+        ///
+        /// <para><b>The footprint attributes are part of the anchor.</b>
+        /// <see cref="ResolveLegacyBottomAnchorPixels"/> offsets X by half the object's width and reads
+        /// that width from the definition, which a synthetic placement does not have — so
+        /// <paramref name="spawnData"/> must already carry
+        /// <see cref="SyntheticPlacementAttributes"/> or the anchor lands half a tile short of the
+        /// oracle's.</para>
+        ///
+        /// <para><b>Known divergence.</b> AS3 picks a <i>random</i> spawn point (<c>Location.as:2094</c>,
+        /// <c>:2118</c>, <c>:2129</c>); this takes the first, which keeps the placements from disagreeing
+        /// with each other. <c>buildProb</c>'s <c>doorout</c> does use the first
+        /// (<c>Land.as:797-800</c>), so this matches the oracle there. Recorded rather than silently
+        /// guessed.</para>
+        /// </summary>
+        private static Vector2 ChooseObjectPixel(RoomInstance room, ObjectSpawnData spawnData)
+        {
+            if (room.spawnPoints != null && room.spawnPoints.Count > 0)
+            {
+                spawnData.tileCoord = room.spawnPoints[0].tileCoord;
+                return ResolveLegacyBottomAnchorPixels(room, spawnData);
+            }
+
+            return RoomSetup.FindPlayerSpawnPixels(room);
+        }
+
+        /// <summary>
+        /// The attributes every synthetic placement carries, taken from the object's AS3 definition row.
+        ///
+        /// <para><b>Why an attribute rather than a definition.</b> AS3 reads both from
+        /// <c>AllData.d.obj.(@id == id)</c> — the definition. <c>ResolvePlacementSizeTiles</c>,
+        /// <c>RoomInstance.GetApproximatePixelSize</c> and <c>DoorPropPresenter.GetCoveredTileRange</c>
+        /// each take the definition first and these attributes second, and none of the synthetic placements
+        /// here has a definition to offer: <c>MapObjectCatalog</c> is a <c>ScriptableObject</c> and these
+        /// helpers are static. Writing the attributes is the port's own stand-in, not a new mechanism.</para>
+        ///
+        /// <para><b>Both keys, never just one.</b> Each of those readers returns as soon as <i>either</i>
+        /// attribute parses, so writing <c>size</c> alone would leave the height at its 1-tile default and
+        /// describe a 2x1 object where AS3 has 2x3.</para>
+        ///
+        /// <para><b>The values.</b> <c>checkpoint</c> is <c>size='2' wid='3'</c>
+        /// (<c>AllData.as:5007</c>), and <c>exit</c>, <c>doorout</c>, <c>doorprob</c> and <c>doorboss</c>
+        /// are all identical (<c>:5016-5019</c>) — which is why one pair serves every placement here.</para>
+        /// </summary>
+        private static List<MapObjectAttributeData> SyntheticPlacementAttributes(
+            List<MapObjectAttributeData> extra = null)
+        {
+            var attributes = new List<MapObjectAttributeData>
+            {
+                new MapObjectAttributeData { key = "size", value = "2" },
+                new MapObjectAttributeData { key = "wid", value = "3" },
+            };
+
+            if (extra != null && extra.Count > 0)
+            {
+                attributes.AddRange(extra);
+            }
+
+            return attributes;
         }
 
         /// <summary>

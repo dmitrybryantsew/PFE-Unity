@@ -38,10 +38,8 @@ namespace PFE.Systems.Map
             if (room != null)
             {
                 int borderOffsetTiles = room.borderOffset;
-                roomWorldPixelX = room.landPosition.x * WorldConstants.ROOM_WIDTH * WorldConstants.TILE_SIZE
-                                  - borderOffsetTiles * WorldConstants.TILE_SIZE;
-                roomWorldPixelY = room.landPosition.y * WorldConstants.ROOM_HEIGHT * WorldConstants.TILE_SIZE
-                                  - borderOffsetTiles * WorldConstants.TILE_SIZE;
+                roomWorldPixelX = WorldCoordinates.RoomOriginPixelX(room.landPosition.x, borderOffsetTiles);
+                roomWorldPixelY = WorldCoordinates.RoomOriginPixelY(room.landPosition.y, borderOffsetTiles);
             }
         }
 

@@ -60,6 +60,17 @@ namespace PFE.Systems.Weapons
         private Vector2                _aimTarget;
 
         /// <summary>
+        /// True when the owner is a <c>krep &gt; 0</c> unit — AS3 <c>Weapon.krep</c>, copied from
+        /// <c>owner.weaponKrep</c> (<c>Weapon.as:499-501</c>). Selects the oracle's rigidly-mounted
+        /// <c>animate()</c> branch instead of the aimed one.
+        ///
+        /// <para>The player is <b>always</b> <c>krep == 0</c> — <c>UnitPlayer.as:368</c> assigns it
+        /// unconditionally — which is why this defaults to false and the player path is unchanged. It is
+        /// set from <c>UnitDefinition.isStable</c> for an NPC.</para>
+        /// </summary>
+        private bool _fixedMeleeMount;
+
+        /// <summary>
         /// The node that carries the flip and the aim rotation — the port's <c>vis</c>.
         /// It is the SpriteRenderer's own transform, not <c>transform</c>: see the class doc.
         /// </summary>
@@ -97,12 +108,20 @@ namespace PFE.Systems.Weapons
         /// Called by PlayerWeaponLoadout when a weapon is equipped.
         /// Wires the presenter to the new controller's state.
         /// </summary>
-        public void SetState(WeaponRuntimeState state, WeaponDefinition def)
+        /// <param name="fixedMeleeMount">
+        /// AS3 <c>owner.weaponKrep &gt; 0</c> — the weapon is rigidly mounted, not aimed. Only a melee
+        /// weapon changes appearance (see <see cref="WeaponVisMath.MeleeFixedVisRotationDeg"/>); a ranged
+        /// weapon's <c>animate()</c> already reads <c>krep</c> the same way in both branches for the
+        /// axis this port draws, so this is passed but only acted on for melee. Defaults to
+        /// <c>false</c>, which is the player's value.
+        /// </param>
+        public void SetState(WeaponRuntimeState state, WeaponDefinition def, bool fixedMeleeMount = false)
         {
-            _state         = state;
-            _def           = def;
-            _visual        = def?.weaponVisual;
-            _frameAccum    = 0f;
+            _state           = state;
+            _def             = def;
+            _visual          = def?.weaponVisual;
+            _fixedMeleeMount = fixedMeleeMount;
+            _frameAccum      = 0f;
             MuzzleWorldPosition = null;   // do not let a stale muzzle outlive the old weapon
 
             UpdateRendererEnabled();
@@ -125,6 +144,7 @@ namespace PFE.Systems.Weapons
             _state  = null;
             _def    = null;
             _visual = null;
+            _fixedMeleeMount = false;
             MuzzleWorldPosition = null;
             if (_spriteRenderer != null)
             {
@@ -211,6 +231,22 @@ namespace PFE.Systems.Weapons
             // That is the reported "turned left and it fires from its back": the barrel was drawn on
             // the far side of the grip, so the round left the gun's rear.
             float parentSign = WeaponVisMath.ParentScaleSign(_vis.parent);
+
+            // AS3 `WClub.animate`'s krep > 0 branch. A melee weapon on a rigidly-mounted unit
+            // (`<comb krep='1'>`) is drawn at a fixed angle instead of the swing arc, and mirrors on
+            // Y rather than X — a genuinely different transform, not a re-parameterisation of the
+            // ranged one. `weaponR` is not ported (it lives in the unported `wPos` bone table), so it
+            // is 0 here; see WeaponVisMath.MeleeFixedVisRotationDeg.
+            if (_fixedMeleeMount && _def != null && _def.weaponType == WeaponType.Melee)
+            {
+                _vis.localScale = new Vector3(
+                    WeaponVisMath.MeleeVisLocalScaleX(parentSign),
+                    WeaponVisMath.MeleeVisLocalScaleY(facingLeft), 1f);
+                _vis.localRotation = Quaternion.Euler(0f, 0f,
+                    WeaponVisMath.MeleeVisLocalRotationDeg(
+                        WeaponVisMath.MeleeFixedVisRotationDeg(facingLeft, 0f), parentSign));
+                return;
+            }
 
             _vis.localScale    = new Vector3(WeaponVisMath.VisLocalScaleX(facingLeft, parentSign), 1f, 1f);
             _vis.localRotation = Quaternion.Euler(0f, 0f,
@@ -393,6 +429,71 @@ namespace PFE.Systems.Weapons
         /// </summary>
         public static float VisRotationDeg(float rotRad, float rotUpDeg, bool facingLeft)
             => rotRad * Mathf.Rad2Deg + (facingLeft ? rotUpDeg + 180f : -rotUpDeg);
+
+        // ── Melee (WClub.animate) ─────────────────────────────────────────────
+
+        /// <summary>
+        /// AS3 melee mirror: <c>WClub.animate</c> writes <c>vis.scaleY = storona</c> (and never
+        /// <c>scaleX</c>), i.e. a <b>vertical</b> mirror — the opposite axis to the ranged rule's
+        /// <c>vis.scaleX</c>.
+        ///
+        /// <para><b>Why the ranged rule is nevertheless correct for a <c>krep == 0</c> melee weapon</b>
+        /// — and why this helper exists only for the <c>krep &gt; 0</c> case. The two are the same
+        /// <i>world</i> transform, exactly:
+        /// <c>R(rot+180)·S(−1,1) = R(rot)·S(−1,−1)·S(−1,1) = R(rot)·S(1,−1)</c>. So a melee weapon
+        /// facing left drawn with the ranged flip (<c>scaleX = −1</c>, <c>rotation + 180</c>) lands on
+        /// the same pixels as the oracle's <c>scaleY = −1</c> at the unmodified rotation. That identity
+        /// is why <see cref="WeaponPresenter"/> needs no second rule for the common case — and it is
+        /// asserted in <c>WeaponVisMathTests</c> so a future "fix" of one rule cannot silently break
+        /// the other.</para>
+        /// </summary>
+        public static float MeleeVisScaleY(bool facingLeft) => facingLeft ? -1f : 1f;
+
+        /// <summary>
+        /// AS3 <c>WClub.animate</c>, <c>krep &gt; 0</c> branch (<c>WClub.as:753-758</c>):
+        /// <c>vis.rotation = 90*storona - 90 + owner.weaponR*storona</c>.
+        ///
+        /// <para><b>This branch is why a "stable" unit (<c>&lt;comb krep='1'&gt;</c>, the port's
+        /// <c>UnitDefinition.isStable</c>) does not visually swing.</b> The weapon is rigidly mounted:
+        /// the rotation is a constant 0° facing right / −180° facing left (the port has no
+        /// <c>weaponR</c> — it lives in the unported <c>wPos</c> bone table), regardless of
+        /// <c>t_attack</c>. A <c>krep == 0</c> unit takes the other branch and sweeps the
+        /// <c>anim</c>-driven arc instead.</para>
+        /// </summary>
+        /// <param name="weaponRDeg">AS3 <c>owner.weaponR</c> in degrees — 0 until the <c>wPos</c>
+        /// table is ported.</param>
+        public static float MeleeFixedVisRotationDeg(bool facingLeft, float weaponRDeg)
+        {
+            float storona = VisScaleX(facingLeft);
+            return 90f * storona - 90f + weaponRDeg * storona;
+        }
+
+        /// <summary>
+        /// AS3 <c>vis.scaleX</c> for a melee weapon, converted to the vis's <b>local</b> scale under a
+        /// parent whose horizontal mirror is <paramref name="parentScaleSign"/>.
+        ///
+        /// <para>Melee is the case where the local X is the parent's sign and <i>not</i> the parent's
+        /// sign times the oracle's — because the oracle's own <c>scaleX</c> is 1 (the mirror is on Y).
+        /// See <see cref="MeleeVisLocalScaleY"/> and the class note on the fold.</para>
+        /// </summary>
+        public static float MeleeVisLocalScaleX(float parentScaleSign) => parentScaleSign;
+
+        /// <summary>
+        /// AS3 melee <c>vis.scaleY</c> converted to local. <b>Deliberately not multiplied by the
+        /// parent's sign</b>: the world Y scale is <c>parentY · localY</c>, and a parent that mirrors on
+        /// X does not touch Y, so the local Y is the oracle's value unchanged. Writing
+        /// <c>parentSign · scaleY</c> here (copying the ranged X rule) would double the mirror on every
+        /// turn-around — the melee twin of the pivot bug the ranged rule's doc records.</para>
+        /// </summary>
+        public static float MeleeVisLocalScaleY(bool facingLeft) => MeleeVisScaleY(facingLeft);
+
+        /// <summary>
+        /// AS3 melee <c>vis.rotation</c> (degrees) converted to local under a mirrored parent — the same
+        /// <c>parentSign · φ</c> fold the ranged rule uses, because a mirror reverses the direction a
+        /// rotation is applied in whatever the child's own scale is.
+        /// </summary>
+        public static float MeleeVisLocalRotationDeg(float oracleDeg, float parentScaleSign)
+            => parentScaleSign * oracleDeg;
 
         /// <summary>
         /// Folds one link of a parent chain into the accumulated mirror sign: a negative local

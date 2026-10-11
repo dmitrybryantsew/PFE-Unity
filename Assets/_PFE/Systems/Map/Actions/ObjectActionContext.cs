@@ -56,6 +56,26 @@ namespace PFE.Systems.Map.Actions
         /// </summary>
         public string ActionId => Object != null ? Object.GetAllAct() : string.Empty;
 
+        /// <summary>
+        /// The object's <c>prob</c> id — the detached room its interaction enters — or empty.
+        ///
+        /// <para><b>This is tested before <see cref="ActionId"/>, not alongside it.</b>
+        /// <c>Interact.allAct</c> opens with <c>if(this.prob != null) …gotoProb…</c> and reaches its
+        /// <c>allact</c> chain only in the <c>else</c> (<c>Interact.as:1558-1565</c>), so an object that
+        /// carries both does <b>not</b> run its <c>allact</c>. And the one that carries both is the one
+        /// the whole descent loop turns on: the bottom-row <c>exit</c> box gets
+        /// <c>prob='exit_&lt;land&gt;'</c> from its placement (<c>Location.as:2119</c>) and
+        /// <c>allact='exit'</c> from its definition row (<c>AllData.as:5016</c>), so the ordering is what
+        /// sends it into the exit room instead of straight to <c>gotoNextLevel</c>. The other two prob
+        /// carriers are single-sided: <c>doorprob</c>/<c>doorboss</c> have no <c>allact</c> at all
+        /// (<c>:5018-5019</c>), and <c>doorout</c>'s <c>prob</c> is authored empty on purpose so its
+        /// <c>allact='probreturn'</c> (<c>:5017</c>) is what runs.</para>
+        ///
+        /// <para>Placement-only and present-and-non-empty: see
+        /// <see cref="ObjectInstance.GetProb"/> for both rules and the oracle lines.</para>
+        /// </summary>
+        public string ProbId => Object != null ? Object.GetProb() : string.Empty;
+
         /// <summary>The object's id, for logging.</summary>
         public string ObjectId => Object != null ? Object.GetResolvedDefinitionId() : string.Empty;
     }

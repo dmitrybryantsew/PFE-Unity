@@ -17,6 +17,7 @@ namespace PFE.Systems.Map.Scripting
         private readonly IPublisher<ObjectiveMarkerMessage> _markerPublisher;
         private readonly IPublisher<LandTransitionMessage> _landTransitionPublisher;
         private readonly LuaTriggerBridge _luaBridge;
+        private readonly ILandScriptHost _landHost;
 
         private readonly Dictionary<string, string> _localizedTextOverrides = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
@@ -25,7 +26,14 @@ namespace PFE.Systems.Map.Scripting
         public event Action<ObjectInstance> OnObjectStateChanged;
         public event Action<string> OnGotoLand;
 
-        public AreaTriggerSystem() : this(null, null, null, null)
+        /// <summary>Raised for every <c>upland</c> the script vocabulary executes, with the result of
+        /// the <c>landStage</c> increment. Lets a test observe the descent without a campaign.</summary>
+        public event Action<bool> OnUpLandLevel;
+
+        /// <summary>Raised for every <c>openland</c> (<c>Script.as:458-468</c>).</summary>
+        public event Action<string> OnOpenLand;
+
+        public AreaTriggerSystem() : this(null, null, null, null, null)
         {
         }
 
@@ -33,12 +41,14 @@ namespace PFE.Systems.Map.Scripting
             IPublisher<TutorialPromptMessage> promptPublisher,
             IPublisher<ObjectiveMarkerMessage> markerPublisher,
             IPublisher<LandTransitionMessage> landTransitionPublisher = null,
-            LuaTriggerBridge luaBridge = null)
+            LuaTriggerBridge luaBridge = null,
+            ILandScriptHost landHost = null)
         {
             _promptPublisher = promptPublisher;
             _markerPublisher = markerPublisher;
             _landTransitionPublisher = landTransitionPublisher;
             _luaBridge = luaBridge;
+            _landHost = landHost;
         }
 
         public void SetTextOverride(string key, string text)
@@ -210,10 +220,25 @@ namespace PFE.Systems.Map.Scripting
 
             if (command == "gotoland")
             {
+                // AS3 branches on @n (Script.as:445-456): 2 = force a regenerate, 1 = enter at the
+                // "x:y" carried by opt1:opt2, anything else = plain. The port used to ignore @n, so a
+                // forced transition silently became a plain one.
+                int n = action.NValue;
+                string coordinates = n == 1
+                    ? string.Format(CultureInfo.InvariantCulture, "{0}:{1}", action.opt1 ?? string.Empty, action.opt2 ?? string.Empty)
+                    : null;
+
                 string targetLand = action.val;
-                Debug.Log($"[AreaTriggerSystem] Executing gotoland: '{targetLand}'");
+                Debug.Log($"[AreaTriggerSystem] Executing gotoland: '{targetLand}' (n={n}, coords='{coordinates ?? "-"}')");
+
+                if (_landHost != null)
+                {
+                    _landHost.GotoLand(targetLand, n, coordinates);
+                    return;
+                }
+
                 OnGotoLand?.Invoke(targetLand);
-                var landMsg = new LandTransitionMessage(targetLand);
+                var landMsg = new LandTransitionMessage(targetLand, coordinates);
                 _landTransitionPublisher?.Publish(landMsg);
                 return;
             }
@@ -223,6 +248,60 @@ namespace PFE.Systems.Map.Scripting
                 _luaBridge?.ExecuteTriggerScript(room, null, action.val);
                 return;
             }
+
+            // ---- Campaign-level actions (no target object) ----
+            // These are the four that matter to the descent loop (03_GAP_LEDGER.md §8) plus `passed`.
+            // They are dispatched before the targ guard because none of them names an object.
+            if (command == "upland")
+            {
+                bool moved = _landHost != null && _landHost.UpLandLevel();
+                OnUpLandLevel?.Invoke(moved);
+                return;
+            }
+
+            if (command == "openland")
+            {
+                bool ok = _landHost != null && _landHost.OpenLand(action.val);
+                if (!ok && _landHost == null)
+                {
+                    Debug.LogWarning($"[AreaTriggerSystem] openland '{action.val}' has no land-script host wired; the unlock was dropped.");
+                }
+                OnOpenLand?.Invoke(action.val);
+                return;
+            }
+
+            if (command == "refill")
+            {
+                _landHost?.RefillVendors();
+                return;
+            }
+
+            if (command == "passed")
+            {
+                _landHost?.MarkPassed();
+                return;
+            }
+
+            if (command == "trigger")
+            {
+                _landHost?.SetTrigger(action.val, action.NValue != 0 ? action.NValue : 1);
+                return;
+            }
+
+            // There is deliberately NO `exit` branch here, and it is worth saying so because one lived
+            // here until it was checked against the oracle.
+            //
+            // `exit` is not part of the room-script vocabulary. Script.run's chain
+            // (Script.as:390-474) is hpbar, refill, upland, locon, locoff, quest, showstage, show, stage,
+            // trigger, goto, gotoland, openland, passed, actprob — and `exit` is not among them. Nor does
+            // any room author one: `grep -rn 'act="exit"' rooms/` finds nothing, and the port's imported
+            // room assets carry zero `act: exit`. The real `exit` is an object's `allact`
+            // (AllData.as:5016 → Interact.as:1646-1649 → Game.gotoNextLevel), and it is handled by
+            // ExitAction through ObjectActionDispatcher.
+            //
+            // So the old branch was an invention with two failures baked in: it could never fire, and it
+            // advertised a script name the oracle does not have — which is how the next reader concludes
+            // that `exit` is a room script and wires the wrong half of the loop.
 
             if (string.IsNullOrEmpty(action.targ)) return;
 
@@ -361,8 +440,8 @@ namespace PFE.Systems.Map.Scripting
             if (player == null) return;
 
             Vector3 playerWorldPos = player.transform.position;
-            float roomOriginPxX = (room.landPosition.x * WorldConstants.ROOM_WIDTH - room.borderOffset) * WorldConstants.TILE_SIZE;
-            float roomOriginPxY = (room.landPosition.y * WorldConstants.ROOM_HEIGHT - room.borderOffset) * WorldConstants.TILE_SIZE;
+            float roomOriginPxX = WorldCoordinates.RoomOriginPixelX(room.landPosition.x, room.borderOffset);
+            float roomOriginPxY = WorldCoordinates.RoomOriginPixelY(room.landPosition.y, room.borderOffset);
 
             float playerPxX = (playerWorldPos.x * 100f) - roomOriginPxX;
             float playerPxY = (playerWorldPos.y * 100f) - roomOriginPxY;

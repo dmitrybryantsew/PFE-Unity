@@ -47,6 +47,31 @@ namespace PFE.Systems.Map.Serialization
         public bool isRandomWorld;
         public int playTime;  // Seconds
 
+        // ---- Campaign state (AS3 Game.save / LandAct.save, Game.as:86-309 / LandAct.as:267-301) ----
+        //
+        // Without these the descent is lost on reload: `landStage` resets to 0, every `openland` and
+        // `passed` is forgotten, and the checkpoint the player reached stops existing. The DTO already
+        // existed on LandRuntimeStateRegistry — it was simply never serialised into a save file.
+        //
+        // `landStates` is the per-land runtime block (stage / upStage / lastCpCode / access / visited /
+        // passed). The trigger table is flattened into parallel arrays because Unity's JsonUtility cannot
+        // serialise a Dictionary.
+        public PFE.Systems.Campaign.LandRuntimeStateSaveData[] landStates;
+        public string[] triggerNames;
+        public int[] triggerValues;
+        public string campaignLandId;
+        public string campaignMissionId;
+
+        // The current checkpoint — AS3 pers.currentCP / currentCPCode. A flat set of fields rather than the
+        // CampaignManager.CheckpointRecord struct so an older save without it reads back as "no checkpoint"
+        // rather than as a struct of zeros that would look like a real checkpoint at (0,0,0).
+        public bool hasCheckpoint;
+        public string checkpointLandId;
+        public int checkpointRoomX;
+        public int checkpointRoomY;
+        public int checkpointRoomZ;
+        public string checkpointCode;
+
         // Mod tracking - records which mods were active when this save was created
         public ModSaveMetadata modMetadata;
 

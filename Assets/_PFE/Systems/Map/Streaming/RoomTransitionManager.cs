@@ -12,7 +12,7 @@ namespace PFE.Systems.Map.Streaming
     /// Handles coordinate conversion, player repositioning, and camera transitions.
     /// From AS3: Room transition system (fe/land/Land.as lines 1800-2100)
     /// </summary>
-    public class RoomTransitionManager : MonoBehaviour, IRoomLayerTransition
+    public class RoomTransitionManager : MonoBehaviour, IRoomLayerTransition, PFE.Systems.Map.Actions.IProbRoomHost
     {
         private static RoomTransitionManager _instance;
         public static RoomTransitionManager Instance
@@ -171,7 +171,7 @@ namespace PFE.Systems.Map.Streaming
             // Find spawn point in target room (center in Unity units)
             Vector2 roomCenterPixels = new Vector2(
                 (roomPosition.x + 0.5f) * WorldConstants.ROOM_SIZE_PIXELS.x,
-                (roomPosition.y + 0.5f) * WorldConstants.ROOM_SIZE_PIXELS.y
+                WorldCoordinates.LandRowToWorldPixelY(roomPosition.y) + 0.5f * WorldConstants.ROOM_SIZE_PIXELS.y
             );
             Vector3 spawnPos = WorldCoordinates.PixelToUnity(roomCenterPixels);
             spawnPos.z = player.transform.position.z;
@@ -191,6 +191,13 @@ namespace PFE.Systems.Map.Streaming
 
             RoomInstance current = landMap.currentRoom;
             if (current == null) return false;
+
+            // AS3 gotoLoc reads a prob room's neighbours from the prob land's grid, which holds only
+            // that one room, so a step off a prob room's edge always refuses (Land.as:1335-1350). The
+            // port has no second grid, so the same rule is the predicate below. It is not optional:
+            // a prob room's coordinate is the origin, so without this a player at the edge of one
+            // would step into the real land's origin cell or its neighbour.
+            if (!PFE.Systems.Map.Generation.ProbTransition.AdmitsGridStep(current)) return false;
 
             Vector3Int targetPos = current.landPosition;
             switch (direction)
@@ -229,6 +236,15 @@ namespace PFE.Systems.Map.Streaming
             get
             {
                 if (isTransitioning || landMap == null || landMap.currentRoom == null)
+                {
+                    return false;
+                }
+
+                // A prob room has no opposite layer to step to: AS3 reads the toggle target from the
+                // prob land's grid, which holds only this room (Land.as:1343-1350). Refusing here also
+                // keeps the "no room occupies (x, y, 1)" warning below from firing for a cell the prob
+                // room never claimed — it would name a real cell and blame a stale import for it.
+                if (!PFE.Systems.Map.Generation.ProbTransition.AdmitsGridStep(landMap.currentRoom))
                 {
                     return false;
                 }
@@ -399,6 +415,168 @@ namespace PFE.Systems.Map.Streaming
             Debug.Log($"[RoomTransitionManager] Applied restored room {room.id} (left: {(previous != null ? previous.id : "None")})");
         }
 
+        // =====================================================================
+        //  IProbRoomHost — the detached-room half of AS3 Land.gotoProb
+        //  (Land.as:1391-1438). The pure decision is ProbTransition; this is the
+        //  engine work it deliberately does not do.
+        // =====================================================================
+
+        /// <summary>
+        /// The prob rooms built for the current land, keyed by prob id — AS3 <c>this.probs</c>
+        /// (<c>Land.as:801-802</c>). Set once per land build, by whoever composed the context.
+        /// </summary>
+        private PFE.Systems.Map.Generation.IProbDoorContext _probContext;
+
+        /// <summary>
+        /// Where to put the player back — AS3 <c>retLocX/retLocY/retLocZ</c> plus <c>retX/retY</c>
+        /// (<c>Land.as:1411-1424</c>). Valid only while <see cref="_savedRoom"/> is non-null.
+        /// </summary>
+        private PFE.Systems.Map.Generation.ProbReturnPoint _savedReturn;
+
+        /// <summary>AS3 <c>retLoc*</c> resolved back to a room — the room the player came from.</summary>
+        private RoomInstance _savedRoom;
+
+        /// <summary>Prob ids already reported as unbuilt, so one bad door says so once.</summary>
+        private readonly HashSet<string> _reportedMissingProbRooms = new HashSet<string>(StringComparer.Ordinal);
+
+        /// <summary>
+        /// Hand over the prob rooms for the land being entered — AS3 builds them with the land
+        /// (<c>Land.buildProbs</c>, <c>Land.as:752-768</c>), so this is set alongside a land build and not
+        /// per door.
+        ///
+        /// <para>Called with the same <c>ProbDoorContext</c> the world builder was given, so the room the
+        /// door opens into is the room the builder built and registered — not a second lookup that could
+        /// disagree. A null argument is a legitimate state (a land with no prob rooms) and turns the prob
+        /// branch into a reported refusal.</para>
+        /// </summary>
+        public void SetProbContext(PFE.Systems.Map.Generation.IProbDoorContext context)
+        {
+            _probContext = context;
+            _reportedMissingProbRooms.Clear();
+        }
+
+        /// <inheritdoc />
+        public bool CanEnterProb
+        {
+            get
+            {
+                if (_probContext == null || landMap == null || landMap.currentRoom == null) return false;
+
+                // A prob room is a detached room, so the player must not already be inside one: entering
+                // from inside would overwrite the only record of where to come back to, and the return
+                // door would then lead into the prob room the player just left.
+                return !IsInProbRoom;
+            }
+        }
+
+        /// <inheritdoc />
+        public bool IsInProbRoom => _savedRoom != null;
+
+        /// <inheritdoc />
+        public bool TryEnterProb(string probId, Vector3 doorWorldPosition)
+        {
+            if (!CanEnterProb)
+            {
+                return false;
+            }
+
+            if (!_probContext.TryGetRoom(probId, out RoomInstance probRoom) || probRoom == null)
+            {
+                // AS3 ativateLoc's `this.probs[this.prob] == null` guard (Land.as:1237-1240). The cause is
+                // always the same: the door was placed but its room never built — see
+                // WorldBuilder.PlaceCellObjects, which has to build the exit room as well as the
+                // trial/battle ones.
+                if (_reportedMissingProbRooms.Add(probId))
+                {
+                    Debug.LogWarning(
+                        $"[RoomTransitionManager] prob '{probId}' has no built room, so the door that opens " +
+                        "into it refuses (AS3 ativateLoc returns false and moves nobody). The door was " +
+                        "placed without its room: check that the prob id is in the land's room collection " +
+                        "and that the builder registered it.");
+                }
+
+                return false;
+            }
+
+            GameObject player = ResolvePlayerObject();
+            if (player == null)
+            {
+                Debug.LogWarning("[RoomTransitionManager] Cannot enter a prob room: no PlayerController in the scene.");
+                return false;
+            }
+
+            RoomInstance from = landMap.currentRoom;
+
+            // The save happens BEFORE the swap starts, because PerformTransition yields a frame — and
+            // because AS3 writes retLoc*/retX/retY before ativateLoc (Land.as:1411-1424), so a failed
+            // activation still has them and rolls the room back with them (:1431-1435).
+            //
+            // Units: the positions are this port's Unity world units, not AS3's source pixels. The oracle
+            // passes gg.X/gg.Y (pixels) and stores them verbatim; the port has one world space and
+            // converts once, at the end, in PerformTransition. Storing what the port actually has keeps a
+            // round trip through PixelToUnity out of the save/restore pair, which is where a units bug
+            // would hide.
+            Vector3 playerPos = player.transform.position;
+            _savedReturn = PFE.Systems.Map.Generation.ProbTransition.SaveReturnPoint(
+                from.landPosition,
+                playerPos.x,
+                playerPos.y,
+                doorWorldPosition.x,
+                doorWorldPosition.y);
+            _savedRoom = from;
+
+            // AS3's entry branch ends with setGGToSpawnPoint() (Land.as:1426), so the player arrives at the
+            // prob room's own spawn point rather than at the door they used.
+            Vector3 arrival = WorldCoordinates.PixelToUnity(probRoom.GetPlayerSpawnPoint());
+            arrival.z = playerPos.z;
+
+            StartCoroutine(PerformTransition(from, probRoom, null, player, arrival));
+            return true;
+        }
+
+        /// <inheritdoc />
+        public bool TryReturnFromProb()
+        {
+            if (_savedRoom == null || landMap == null)
+            {
+                return false;
+            }
+
+            GameObject player = ResolvePlayerObject();
+            if (player == null)
+            {
+                Debug.LogWarning("[RoomTransitionManager] Cannot leave a prob room: no PlayerController in the scene.");
+                return false;
+            }
+
+            PFE.Systems.Map.Generation.ProbArrival arrival =
+                PFE.Systems.Map.Generation.ProbTransition.PlanReturn(_savedReturn);
+
+            Vector3 target = arrival.Kind == PFE.Systems.Map.Generation.ProbArrivalKind.SavedPlayerPosition
+                ? new Vector3(arrival.PlayerX, arrival.PlayerY, player.transform.position.z)
+                // The (0,0) sentinel: AS3 falls back to the room's spawn point (Land.as:1401-1408).
+                : WorldCoordinates.PixelToUnity(_savedRoom.GetPlayerSpawnPoint());
+
+            RoomInstance destination = _savedRoom;
+
+            // Spend the save before starting the swap: the coroutine yields a frame, and leaving the save
+            // live across it would let a second press re-enter the same return.
+            _savedRoom = null;
+
+            StartCoroutine(PerformTransition(landMap.currentRoom, destination, null, player, target));
+            return true;
+        }
+
+        /// <summary>
+        /// The player object, found by type when the caller has no reference. Same lookup
+        /// <see cref="ApplyRestoredRoom"/> uses, so the two cannot drift onto different objects.
+        /// </summary>
+        private GameObject ResolvePlayerObject()
+        {
+            var pc = FindFirstObjectByType<PFE.Entities.Player.PlayerController>();
+            return pc != null ? pc.gameObject : null;
+        }
+
         #endregion
 
         #region Private Methods
@@ -506,8 +684,8 @@ namespace PFE.Systems.Map.Streaming
             if (room == null) return Vector3.zero;
             int borderOffset = Mathf.Max(0, room.borderOffset);
             Vector2 roomPixelPos = new Vector2(
-                room.landPosition.x * WorldConstants.ROOM_WIDTH * WorldConstants.TILE_SIZE - borderOffset * WorldConstants.TILE_SIZE,
-                room.landPosition.y * WorldConstants.ROOM_HEIGHT * WorldConstants.TILE_SIZE - borderOffset * WorldConstants.TILE_SIZE
+                WorldCoordinates.RoomOriginPixelX(room.landPosition.x, borderOffset),
+                WorldCoordinates.RoomOriginPixelY(room.landPosition.y, borderOffset)
             );
             return WorldCoordinates.PixelToUnity(roomPixelPos);
         }
@@ -593,7 +771,7 @@ namespace PFE.Systems.Map.Streaming
                 // No target door, spawn at center of room
                 Vector2 roomCenterPixels = new Vector2(
                     (targetRoom.landPosition.x + 0.5f) * WorldConstants.ROOM_SIZE_PIXELS.x,
-                    (targetRoom.landPosition.y + 0.5f) * WorldConstants.ROOM_SIZE_PIXELS.y
+                    WorldCoordinates.LandRowToWorldPixelY(targetRoom.landPosition.y) + 0.5f * WorldConstants.ROOM_SIZE_PIXELS.y
                 );
                 Vector3 centerUnity = WorldCoordinates.PixelToUnity(roomCenterPixels);
                 centerUnity.z = currentPlayerPos.z;

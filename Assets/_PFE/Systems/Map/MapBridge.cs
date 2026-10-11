@@ -2,8 +2,16 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using VContainer;
+// Required, not decorative: `ISubscriber<T>.Subscribe(Action<T>)` is an extension method declared in
+// this namespace, so without the using the only visible overload is the one taking an
+// IMessageHandler<T> and the handler method group will not convert.
+using MessagePipe;
 using PFE.Core;
+using PFE.Data.Definitions.Campaign;
+using PFE.Sim.Campaign;
+using PFE.Systems.Campaign;
 using PFE.Systems.Map;
+using PFE.Systems.Map.Generation;
 using PFE.Systems.Map.Rendering;
 using PFE.Systems.Map.Streaming;
 
@@ -13,6 +21,20 @@ public class MapBridge : MonoBehaviour
     [SerializeField] private TileAssetDatabase _tileDatabase;
 
     public RoomVisualController VisualController => _visualController;
+
+    /// <summary>
+    /// The live <see cref="LandMap"/> — every room in the land the player is in right now.
+    ///
+    /// <para><b>Why this is a property on the bridge rather than a lookup at the caller.</b> The map is
+    /// owned by <c>GameManager</c> and handed to the bridge by injection; the debug overlay is
+    /// bootstrapped at runtime and has no resolver, so without this it can only reach the single
+    /// <c>RoomStreamingManager.CurrentRoom</c> and has no way to ask "how many rooms does this land have,
+    /// and is every one of them reachable". That question is the whole point of the Land State tab.</para>
+    ///
+    /// <para>Null before the first land transition — the overlay must treat null as "no land built yet"
+    /// rather than as an error.</para>
+    /// </summary>
+    public LandMap CurrentLandMap => _gameManager != null ? _gameManager.GetLandMap() : null;
 
     [Header("Player Spawning")]
     [Tooltip("Tag of the player GameObject to find and spawn")]
@@ -40,6 +62,40 @@ public class MapBridge : MonoBehaviour
     private PFE.Systems.Physics.IPhysicsWorldService _physicsWorldService;
 
     /// <summary>
+    /// The injected <see cref="PFE.Core.Messages.LandBuildRequestMessage"/> source. Stored here and
+    /// subscribed in <see cref="Start"/>, not in <see cref="Construct"/> — see
+    /// <see cref="_landBuildSubscription"/> for why the timing matters.
+    /// </summary>
+    private MessagePipe.ISubscriber<PFE.Core.Messages.LandBuildRequestMessage> _landBuildSubscriber;
+
+    /// <summary>
+    /// The subscription to <see cref="PFE.Core.Messages.LandBuildRequestMessage"/> — the one seam that
+    /// actually rebuilds the world.
+    ///
+    /// <para>Before this, the only thing that rebuilt was <c>RoomVisualController.OnGotoLand</c>, raised
+    /// by a map object's <c>gotoland</c> script action. <c>CampaignManager</c> logged a transition and
+    /// moved two reactive properties nobody read (<c>docs/LandGameplayLoop/03_GAP_LEDGER.md</c> §1, D1),
+    /// so the camp's wall map could not reach the builder at all. Now the campaign publishes a request
+    /// and this component — the one that owns <c>WorldBuilder</c> and the room visuals — consumes it.</para>
+    ///
+    /// <para><b>Why it is created in <c>Start</c> and not in <c>Construct</c>.</b> VContainer runs
+    /// <c>CampaignManager.Initialize</c> during the lifetime scope's <c>Awake</c>, and that call ends in
+    /// <c>TransitionToLand(startingLand)</c> — i.e. it publishes a build request for the land the game
+    /// boots into. But that land is already built by <c>GameManager.BuildWorldAsync</c>
+    /// (<c>GameManager.cs:93/176</c>), and <c>WaitForInitialization</c> only *renders* the result. A
+    /// subscription live during <c>Awake</c> would therefore consume that boot request and rebuild the
+    /// starting land a second time, in the same frame, right after the first build. Subscribing in
+    /// <c>Start</c> — the same place <c>OnGotoLand</c> is wired — skips exactly that one request and
+    /// takes every later one. Collapsing the boot build into this seam is the real fix and is a separate,
+    /// owner-only change (it moves who builds the first room).</para>
+    ///
+    /// <para>Held as <see cref="IDisposable"/> rather than a raw handler reference because MessagePipe's
+    /// <c>Subscribe</c> returns the unsubscribe token; disposing it in <see cref="OnDestroy"/> is what
+    /// stops a destroyed bridge being called by a broker that outlives the scene.</para>
+    /// </summary>
+    private IDisposable _landBuildSubscription;
+
+    /// <summary>
     /// The LowLevelPhysics2D world service, for the debug overlay.
     ///
     /// <para><b>Why this is exposed at all.</b> The chain mirror is Box2D geometry inside a
@@ -61,7 +117,7 @@ public class MapBridge : MonoBehaviour
     // defaults were "deliberately omitted" while the line beneath it carried three — the code is the
     // truth, and it is why a scene cannot opt out of a registration by relying on the default.
     [Inject]
-    public void Construct(GameManager gameManager, RoomGenerator roomGenerator, TileTextureLookup tileTextureLookup, MaterialRenderDatabase materialRenderDatabase, TileMaskLookup tileMaskLookup, RoomBackgroundLookup roomBackgroundLookup, PFE.Core.PfeDebugSettings debugSettings, PFE.Core.SimClock simClock, PFE.Core.SimLoop simLoop, PFE.Systems.Physics.IPhysicsWorldService physicsWorldService, PFE.Systems.Combat.DamageSystem damageSystem, PFE.Data.ContentRegistry registry = null, PFE.Systems.Particles.ParticleWorld particleWorld = null, PFE.Systems.Particles.Rendering.ParticleSpriteCatalog particleCatalog = null, PFE.Systems.Particles.Adapters.TileQueryParticleWater particleTileWater = null, PFE.Systems.Particles.Adapters.RoomParticleEmitter particleEmitter = null, VContainer.IObjectResolver objectResolver = null)
+    public void Construct(GameManager gameManager, RoomGenerator roomGenerator, TileTextureLookup tileTextureLookup, MaterialRenderDatabase materialRenderDatabase, TileMaskLookup tileMaskLookup, RoomBackgroundLookup roomBackgroundLookup, PFE.Core.PfeDebugSettings debugSettings, PFE.Core.SimClock simClock, PFE.Core.SimLoop simLoop, PFE.Systems.Physics.IPhysicsWorldService physicsWorldService, PFE.Systems.Combat.DamageSystem damageSystem, PFE.Data.ContentRegistry registry = null, PFE.Systems.Particles.ParticleWorld particleWorld = null, PFE.Systems.Particles.Rendering.ParticleSpriteCatalog particleCatalog = null, PFE.Systems.Particles.Adapters.TileQueryParticleWater particleTileWater = null, PFE.Systems.Particles.Adapters.RoomParticleEmitter particleEmitter = null, VContainer.IObjectResolver objectResolver = null, MessagePipe.ISubscriber<PFE.Core.Messages.LandBuildRequestMessage> landBuildSubscriber = null)
     {
         _gameManager = gameManager;
         _roomGenerator = roomGenerator;
@@ -73,6 +129,11 @@ public class MapBridge : MonoBehaviour
         _simClock = simClock;
         _simLoop = simLoop;
         _physicsWorldService = physicsWorldService;
+
+        // Kept, not subscribed, until Start — see the field remark. A null here is legal and is what a
+        // test rig or a scene without the broker registration gets: the bridge then rebuilds only on
+        // OnGotoLand, which is the pre-L0 behaviour, rather than throwing at injection time.
+        _landBuildSubscriber = landBuildSubscriber;
 
         // MapBridge is the injected one; RoomVisualController is a scene component with no [Inject] of
         // its own, and RoomUnitSpawner is a plain class built with `new`. So the damage authority has
@@ -203,6 +264,14 @@ public class MapBridge : MonoBehaviour
         }
 
         _visualController.OnGotoLand += HandleGotoLand;
+
+        // L0's consumer half: CampaignManager owns campaign *state* and publishes a build request; this
+        // component owns WorldBuilder and performs the build. Wired here rather than in Construct so the
+        // boot-time request is not consumed twice — see _landBuildSubscription.
+        if (_landBuildSubscriber != null)
+        {
+            _landBuildSubscription = _landBuildSubscriber.Subscribe(HandleLandBuildRequest);
+        }
 
         // Wait for Game Manager to finish generating the world
         StartCoroutine(WaitForInitialization());
@@ -474,6 +543,9 @@ public class MapBridge : MonoBehaviour
             Debug.Log($"[MapBridge] Finalizing override room '{template.GetContentId()}' as random/procedural.");
         }
 
+        // Debug override inspects a single room, so the neighbour pass never runs and there is no drawn
+        // door. Open the whole candidate mask so the tool still shows the room's doorways.
+        RoomSetup.ActivateAllCandidateDoors(room);
         RoomSetup.FinalizeRoom(room, template, debugSettings: _debugSettings);
     }
 
@@ -758,6 +830,12 @@ public class MapBridge : MonoBehaviour
 
     private void OnDestroy()
     {
+        // Before the visual controller is torn down, and unconditionally: the broker is a container-owned
+        // singleton that can outlive this scene, so an undisposed subscription would call into a
+        // destroyed MonoBehaviour on the next publish.
+        _landBuildSubscription?.Dispose();
+        _landBuildSubscription = null;
+
         if (_visualController != null)
         {
             _visualController.OnGotoLand -= HandleGotoLand;
@@ -768,6 +846,48 @@ public class MapBridge : MonoBehaviour
     {
         Debug.Log($"[MapBridge] HandleGotoLand triggered for: '{targetLand}'");
         StartCoroutine(PerformLandTransition(targetLand));
+    }
+
+    /// <summary>
+    /// The <c>LandBuildRequestMessage</c> consumer — the campaign asking for a world.
+    ///
+    /// <para>Both entry points converge on <see cref="PerformLandTransition"/>: this one and the
+    /// <c>gotoland</c> script action. That is deliberate, so a travel through the camp's wall map and a
+    /// travel through a door script cannot drift apart.</para>
+    ///
+    /// <para><b>What <c>ForceRegenerate</c> does today: nothing.</b> <c>PerformLandTransition</c> rebuilds
+    /// the layout on every call — the procedural branch re-plans from scratch and the authored branch
+    /// re-reads the templates — so <c>crea = true</c> and <c>crea = false</c> already agree. The flag is
+    /// carried and logged rather than silently dropped, so the day a layout cache is added it is already
+    /// on the wire. <b>The message's flag is not threaded through yet:</b> both entry points pass
+    /// <c>forceRegenerate: false</c> to <c>WorldBuilder.BuildLand</c>, which is honest while a rebuild is
+    /// unconditional and would be a lie the moment one is not.</para>
+    /// </summary>
+    private void HandleLandBuildRequest(PFE.Core.Messages.LandBuildRequestMessage msg)
+    {
+        if (string.IsNullOrWhiteSpace(msg.LandId))
+        {
+            Debug.LogWarning("[MapBridge] Ignoring a land build request with an empty land id.");
+            return;
+        }
+
+        Vector3Int? entry = EntryCoordinates.Parse(msg.EntryCoordinates);
+
+        if (entry == null && !string.IsNullOrWhiteSpace(msg.EntryCoordinates))
+        {
+            // Reported, not swallowed: a coordinate the parser did not understand falls back to the
+            // land's own entry cell, and silently landing somewhere other than the script asked for is
+            // indistinguishable from the script having no coordinate at all.
+            Debug.LogWarning(
+                $"[MapBridge] Entry coordinates '{msg.EntryCoordinates}' are not a numeric \"x:y\"; " +
+                "using the land's own entry cell instead.");
+        }
+
+        Debug.Log($"[MapBridge] Land build request: land='{msg.LandId}', " +
+                  $"entry='{msg.EntryCoordinates ?? "-"}'{(entry.HasValue ? $" -> {entry.Value}" : string.Empty)}, " +
+                  $"forceRegenerate={msg.ForceRegenerate}.");
+
+        StartCoroutine(PerformLandTransition(msg.LandId, entry));
     }
 
     public System.Collections.IEnumerator PerformLandTransition(string targetLand, Vector3Int? targetPosition = null)
@@ -829,11 +949,144 @@ public class MapBridge : MonoBehaviour
             yield break;
         }
 
-        // Determine starting room position (in Surf, entry is room_0_1 at (0, 1, 0))
-        Vector3Int startPos = targetPosition ?? ResolveEntrancePosition(templates, collectionName);
+        // AS3 Land ctor (Land.as:118): `rnd` picks buildRandomLand, else buildSpecifLand. This is the route
+        // that was missing — every land used to take the authored path, and a procedural land's templates
+        // all sit at fixedPosition (0,0,0), so the grid collapsed to one cell and nothing could transition.
+        //
+        // Read BEFORE the starting room is chosen, because `rnd` and `visited` are exactly what decide
+        // whether this entry resumes at the land's checkpoint (CheckpointRules.IsFirstVisit /
+        // ResumeRoomOnEntry). These three lines used to sit *after* `startPos`, which is why the resume
+        // branch could not be expressed at the point the oracle expresses it.
+        CampaignManager campaign = CampaignManager.Current;
+        CampaignCatalog catalog = campaign != null ? campaign.Catalog : null;
+        LandDefinition land = catalog != null ? catalog.GetLand(targetLand) : null;
+
+        // AS3 Game.as:347-350 computes `_loc1_` — the `param1` enterLand receives — from exactly these
+        // two facts. An unresolved land (`land == null`) takes the authored reading, which is the same
+        // conservative choice the authored fallback below already makes for it.
+        bool landIsRandom = land != null && land.isProcedural;
+        bool landVisited = campaign != null && campaign.LandStates.Get(targetLand).visited;
+        bool firstVisit = CheckpointRules.IsFirstVisit(landIsRandom, landVisited);
+
+        // Determine starting room position (in Surf, entry is room_0_1 at (0, 1, 0)).
+        //
+        // AS3 `Land.enterLand` (Land.as:1143-1186) is a three-way choice, and this is that order:
+        //   1. param2 != null              — the caller named a room ("x:y")        -> use it
+        //   2. land.currentCP && !param1   — a re-visit to a land with a checkpoint -> resume there
+        //   3. otherwise                   — the land's begin cell                  -> ResolveEntrancePosition
+        //
+        // Order is load-bearing: a caller that DID name a room still gets that room on a re-visit, so only
+        // a nameless entry falls through to the checkpoint. The precedence is asserted offline in
+        // CheckpointRules.ResolveEntryRoomSource rather than left to the shape of this expression.
+        Vector3Int? resumeRoom = ResolveCheckpointResumeRoom(campaign, targetLand, firstVisit);
+
+        Vector3Int startPos;
+        switch (CheckpointRules.ResolveEntryRoomSource(targetPosition.HasValue, resumeRoom.HasValue))
+        {
+            case CheckpointRules.EntryRoomSource.Named:
+                startPos = targetPosition.Value;
+                break;
+
+            case CheckpointRules.EntryRoomSource.Checkpoint:
+                startPos = resumeRoom.Value;
+                break;
+
+            default:
+                startPos = ResolveEntrancePosition(templates, collectionName);
+                break;
+        }
 
         var worldBuilder = _gameManager.GetWorldBuilder();
-        bool built = worldBuilder.BuildSpecificWorld(templates, startPos);
+
+        bool built;
+
+        // One context per land, and it must be in the builder's hands BEFORE the build — see the
+        // assignment inside the procedural branch. It is cleared here first so an authored build cannot
+        // keep the previous land's rooms: the builder is a shared instance whose `ProbContext` outlives a
+        // build (`_gameManager.GetWorldBuilder()`), and the room-transition manager is a scene singleton.
+        // Leaving either holding the previous land's rooms would let an exit box from the land you just
+        // left route into the land you just entered — the doors themselves are gone, but the registry
+        // is not.
+        ProbDoorContext probContext = null;
+        worldBuilder.ProbContext = null;
+
+        if (land != null && land.isProcedural)
+        {
+            LandRuntimeState state = CampaignManager.Current.LandStates.Get(targetLand);
+            bool mbaseVisited = CampaignManager.Current.GetTrigger("mbase_visited") > 0;
+
+            Debug.Log($"[MapBridge] Procedural land '{targetLand}' (conf {land.configId}, " +
+                      $"stage {state.landStage}, visited {state.visited}).");
+
+            // The prob / boss door subsystem needs a context before the land is built: the `prob`
+            // land's room templates (content) and the run's `prob_<id>` completion record (run state).
+            // AS3 reads both inside newRandomProb (Land.as:809-863), and the builder cannot reach
+            // either on its own — BuildLand is handed one land's collection. Without a context the
+            // builder places no prob doors and reports once, so this is what makes them appear at all.
+            //
+            // It also carries the exit rooms: AS3 reaches those through the same registry, because
+            // Location.createObj pushes the exit box's `prob` into land.probIds (:2080-2082) and
+            // Land.buildProbs builds every id in it (Land.as:752-768). See WorldBuilder.PlaceCellObjects.
+            probContext = ProbDoorContext.ForLand(
+                _gameManager.GetTemplatesForCollection(ResolveCollectionName("prob")),
+                land.probRooms,
+                CampaignManager.Current);
+
+            // The builder READS `ProbContext` *while it builds*: PlaceCellObjects → BuildAndRegisterProbRoom
+            // builds and registers each exit / trial room through it. This assignment used to live after the
+            // branch, so the builder always saw null, every prob room (the exit room included) was placed
+            // but never built, and the exit box refused with "prob 'exit_plant' has no built room". It must
+            // be set here, before BuildLand.
+            worldBuilder.ProbContext = probContext;
+
+            built = worldBuilder.BuildLand(land, templates, state.landStage, state.visited,
+                forceRegenerate: false, mbaseVisited: mbaseVisited);
+        }
+        else
+        {
+            if (land == null)
+            {
+                // Name the condition that failed. The old message fired identically for a null campaign, a
+                // null catalogue and a missing definition, so a lookup that had gone stale (see
+                // CampaignCatalog.Initialize) was indistinguishable from a land that was never authored —
+                // and the two need different fixes. AllLands is the raw serialized list; GetLand is the
+                // index over it, so printing the list size says which of the two is empty.
+                Debug.LogWarning(
+                    $"[MapBridge] No LandDefinition for '{targetLand}'; building it as an authored land. " +
+                    $"[campaign={(campaign != null ? "ok" : "NULL")}, " +
+                    $"catalog={(catalog != null ? "ok" : "NULL")}, " +
+                    $"catalog.AllLands={(catalog != null ? catalog.AllLands.Count : -1)}]");
+
+                // Refuse to build a land that is guaranteed to be a trap. An authored build places one room
+                // per distinct fixedPosition, and an AS3 procedural room carries no x/y/z, so the importer
+                // gives every procedural template fixedPosition (0,0,0) — the bounds then collapse to a
+                // single cell and the player spawns with no neighbour to walk to and no way out (observed:
+                // entering `random_plant` through this branch dropped the player into
+                // `rooms_plant/арсенал_0_0_0`).
+                //
+                // Only the unresolved case is refused. A land that *did* resolve and is simply not
+                // procedural is authored by definition, and its build is not ours to second-guess.
+                if (TemplatesCollapseToASingleCell(templates))
+                {
+                    Debug.LogError(
+                        $"[MapBridge] Refusing to build '{targetLand}' as an authored land: all " +
+                        $"{templates.Count} of its templates sit on one land coordinate, which would " +
+                        "produce a single room with no exit. The land is procedural but was not resolved " +
+                        "from the catalogue (see the warning above). Staying in the current land.");
+                    if (playerController != null) playerController.enabled = true;
+                    yield break;
+                }
+            }
+
+            built = worldBuilder.BuildSpecificWorld(templates, startPos);
+        }
+
+        // The transition manager reads the context only when a door is used, so it is handed the same
+        // object after the build — the builder registered the prob rooms into it during the build, so the
+        // door and the room it opens into can never disagree. (The builder's own copy was set before
+        // BuildLand, not here.)
+        RoomTransitionManager.Instance?.SetProbContext(probContext);
+
         if (!built)
         {
             Debug.LogError($"[MapBridge] Failed to build world for collection '{collectionName}'!");
@@ -864,6 +1117,23 @@ public class MapBridge : MonoBehaviour
         if (playerController != null)
         {
             playerController.enabled = true;
+        }
+
+        // AS3 Game.as:386-389 — `if(!this.curLand.rnd) { this.curLand.visited = true; }`.
+        //
+        // Deliberately AFTER the entry and not before. `firstVisit` above was computed from the pre-entry
+        // value, and marking the land visited on the way in would make every entry read as a re-visit —
+        // so every authored land would resume at its checkpoint, including the first one.
+        //
+        // Gated on `!landIsRandom` for two reasons that agree: it is literally the oracle's condition, and
+        // `visited` is consumed by LandLayoutPlanner (it gates the `beg*` entry room), which is reached only
+        // from the procedural branch. Writing it for a procedural land would change that land's layout on
+        // its second entry — a behaviour change nothing here asked for. (Land.as:1145 also writes
+        // `act.visited` unconditionally at enterLand's first line; the port leaves that write out, which is
+        // recorded in the open-work list rather than silently reproduced.)
+        if (!landIsRandom && campaign != null)
+        {
+            campaign.LandStates.MarkVisited(targetLand);
         }
 
         Debug.Log($"[MapBridge] Successfully transitioned to land '{targetLand}' ({collectionName}), current room: {currentRoom?.id}");
@@ -945,6 +1215,44 @@ public class MapBridge : MonoBehaviour
         return string.Empty;
     }
 
+    /// <summary>
+    /// AS3 <c>Land.enterLand</c>'s middle branch (<c>Land.as:1171-1176</c>) — the room a re-visit resumes
+    /// in. The rule is <see cref="CheckpointRules.ResumeRoomOnEntry"/>; this is the campaign-state read.
+    ///
+    /// <para><b>Authored lands only, and that is a limit of the port rather than of the rule.</b> The
+    /// chosen <c>startPos</c> reaches the builder only through <c>WorldBuilder.BuildSpecificWorld</c>, and
+    /// <c>MapBridge</c> takes that path for an authored land. A procedural land goes to
+    /// <c>BuildProceduralLand(land, plan)</c>, which takes no start room at all — so for a procedural land
+    /// this value is computed and then <b>unused</b>. AS3 has no such split: <c>ativateLoc()</c> runs
+    /// against whatever land was just built, procedural or not. Recorded rather than silently returning
+    /// null, because the difference is invisible from the outside — the player lands in the entry room
+    /// either way, which is what a broken resume looks like too.</para>
+    /// </summary>
+    private static Vector3Int? ResolveCheckpointResumeRoom(
+        CampaignManager campaign, string targetLand, bool firstVisit)
+    {
+        if (campaign == null) return null;
+
+        CampaignManager.CheckpointRecord? checkpoint = campaign.CurrentCheckpoint;
+        if (checkpoint == null) return null;
+
+        CheckpointRules.CheckpointRoom? room = CheckpointRules.ResumeRoomOnEntry(
+            hasCheckpoint: true,
+            checkpointLandId: checkpoint.Value.landId,
+            targetLand: targetLand,
+            firstVisit: firstVisit,
+            roomX: checkpoint.Value.roomX,
+            roomY: checkpoint.Value.roomY,
+            roomZ: checkpoint.Value.roomZ);
+
+        if (room == null) return null;
+
+        Debug.Log($"[MapBridge] Re-entering '{targetLand}' at its checkpoint " +
+                  $"({room.Value.x},{room.Value.y},{room.Value.z}).");
+
+        return new Vector3Int(room.Value.x, room.Value.y, room.Value.z);
+    }
+
     private static Vector3Int ResolveEntrancePosition(List<RoomTemplate> templates, string collectionName)
     {
         if (string.Equals(collectionName, "rooms_surf", StringComparison.OrdinalIgnoreCase))
@@ -959,5 +1267,42 @@ public class MapBridge : MonoBehaviour
                  ?? templates.Find(t => t.fixedPosition.x >= 0);
 
         return entry != null ? entry.fixedPosition : Vector3Int.zero;
+    }
+
+    /// <summary>
+    /// Whether an authored build of this collection would place every room on one land coordinate.
+    ///
+    /// <para>This is the fingerprint of a procedural land's template collection: AS3 generates those rooms
+    /// rather than placing them, so the importer gives every one of them <c>fixedPosition (0,0,0)</c>
+    /// (<c>WorldBuilder.HasFixedPosition</c> accepts them all, because it only tests <c>z &gt;= 0</c>).
+    /// Building such a collection authored yields a one-cell land with no neighbour to transition to —
+    /// the player is sealed in.</para>
+    ///
+    /// <para>Requires at least two templates that claim a position, so a genuinely single-room authored
+    /// land is not caught. <c>z</c> is the "has a position" axis, matching <c>WorldBuilder</c>.</para>
+    /// </summary>
+    private static bool TemplatesCollapseToASingleCell(List<RoomTemplate> templates)
+    {
+        if (templates == null || templates.Count < 2) return false;
+
+        bool seen = false;
+        Vector3Int first = default;
+
+        for (int i = 0; i < templates.Count; i++)
+        {
+            RoomTemplate template = templates[i];
+            if (template == null || template.fixedPosition.z < 0) continue;
+
+            if (!seen)
+            {
+                seen = true;
+                first = template.fixedPosition;
+                continue;
+            }
+
+            if (template.fixedPosition != first) return false;
+        }
+
+        return seen;
     }
 }

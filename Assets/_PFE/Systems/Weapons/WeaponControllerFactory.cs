@@ -60,9 +60,19 @@ namespace PFE.Systems.Weapons
         /// </summary>
         private readonly IManaSource _manaSource;
 
+        /// <summary>
+        /// Whether the owner is an NPC. AS3 branches on <c>owner.player</c> in
+        /// <c>WThrow.getAmmo()</c> (<c>WThrow.as:268-280</c>) and the two halves are genuinely different
+        /// rules — the player's inventory item versus the NPC's own four-round counter. The factory sees
+        /// only a definition, so the caller that knows whose weapon it is states it here; see
+        /// <c>ThrownWeaponController._npcOwner</c> for the defect the missing flag caused.
+        /// </summary>
+        private readonly bool _npcOwner;
+
         public WeaponControllerFactory(PfeDebugSettings debugSettings = null, IAmmoSource ammoSource = null,
                                        PFE.Core.Rng.IRngService rng = null, IWeaponStatSource statSource = null,
-                                       IAmmoResolver ammoResolver = null, IManaSource manaSource = null)
+                                       IAmmoResolver ammoResolver = null, IManaSource manaSource = null,
+                                       bool npcOwner = false)
         {
             _debugSettings = debugSettings;
             _ammoSource    = ammoSource;
@@ -70,6 +80,7 @@ namespace PFE.Systems.Weapons
             _statSource    = statSource;
             _ammoResolver  = ammoResolver;
             _manaSource    = manaSource;
+            _npcOwner      = npcOwner;
         }
 
         /// <summary>
@@ -132,7 +143,11 @@ namespace PFE.Systems.Weapons
                     // calls setBullet() (so the round's terms must reach the shot), reads
                     // `owner.weaponSkill` / `owner.mazil` for its launch speed and spread, and
                     // getAmmo() consumes a real inventory ITEM for the player (WThrow.as:270-273).
-                    controller = new ThrownWeaponController(state, _statSource, _ammoResolver, _rng, _ammoSource);
+                    //
+                    // `npcOwner` picks which half of getAmmo() runs. See the field's remarks: passing it
+                    // through is what stops an enemy grenade thrower from having unlimited ammunition.
+                    controller = new ThrownWeaponController(
+                        state, _statSource, _ammoResolver, _rng, _ammoSource, _npcOwner);
                     break;
 
                 case WeaponType.Magic:          // tip 5 → WMagic
@@ -156,7 +171,14 @@ namespace PFE.Systems.Weapons
                     break;
             }
 
-            Debug.Log($"[WeaponControllerFactory] Created {controller.GetType().Name} for weapon '{def.weaponId}'.");
+            // Gated, not unconditional. This used to log on every Create, which was one line per equip
+            // while the player was the only caller. Now that every armed NPC builds a mount at spawn, an
+            // unconditional line here is one per enemy per room — the kind of noise that buries the
+            // warnings that matter. The same flag the controllers already use.
+            if (_debugSettings?.LogWeaponControllerDiagnostics == true)
+            {
+                Debug.Log($"[WeaponControllerFactory] Created {controller.GetType().Name} for weapon '{def.weaponId}'.");
+            }
             return controller;
         }
     }

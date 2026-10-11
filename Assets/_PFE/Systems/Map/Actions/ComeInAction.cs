@@ -17,9 +17,17 @@ namespace PFE.Systems.Map.Actions
     /// directions 1–4 move in the plane and only case 5 touches z. Modelling the toggle as a fifth
     /// adjacency would have been an invention.</para>
     ///
-    /// <para>The doors that carry this are <c>indoor1..4</c>, <c>instdoor</c>, <c>inbasedoor</c> and
-    /// <c>inencldoor</c> (<c>AllData.as:4916-4922</c>), all literally named "…Z", plus <c>door_st1</c>,
-    /// <c>door_st2</c> and the <c>doorboss</c> placements.</para>
+    /// <para>The doors that carry this are exactly nine objects: <c>indoor1..4</c>, <c>instdoor</c>,
+    /// <c>inbasedoor</c> and <c>inencldoor</c> (<c>AllData.as:4916-4922</c>, the seven literally named
+    /// "…Z"), plus <c>door_st1</c> and <c>door_st2</c> (<c>AllData.as:5040-5041</c>). Grep
+    /// <c>allact='comein'</c> and those nine are the whole set.</para>
+    ///
+    /// <para><b><c>doorboss</c> is not one of them.</b> It is worth saying outright because the name
+    /// invites the assumption: <c>doorboss</c> carries no <c>allact</c> at all
+    /// (<c>AllData.as:5019</c>, <c>inter='8' tip='box' wall='1'</c>), and it reaches a prob room through
+    /// the <c>prob</c> attribute that <c>Interact.allAct</c> tests <i>before</i> the <c>allact</c> switch
+    /// (<c>Interact.as:1558-1565</c>). An earlier version of this comment listed it here, which would
+    /// send a reader looking for a <c>comein</c> handler on an object that never dispatches one.</para>
     /// </summary>
     public sealed class ComeInAction : IObjectAction
     {

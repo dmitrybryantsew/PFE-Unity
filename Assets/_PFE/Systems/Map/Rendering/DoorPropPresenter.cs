@@ -10,7 +10,9 @@ using PFE.Systems.Interaction;
 using PFE.Systems.Map;
 using PFE.Systems.Map.Actions;
 using PFE.Systems.Map.Scripting;
+using PFE.Systems.Map.Serialization;
 using PFE.Systems.Physics;
+using PFE.Sim.Campaign;
 
 namespace PFE.Systems.Map.Rendering
 {
@@ -57,6 +59,7 @@ namespace PFE.Systems.Map.Rendering
         private BoxCollider2D _triggerCollider;
         private GameObject _debugVisualGo;
         private SpriteRenderer _debugSpriteRenderer;
+        private CheckpointAreaTrigger _checkpointArea;
 
         public static bool ShowDebugVisuals
         {
@@ -141,13 +144,51 @@ namespace PFE.Systems.Map.Rendering
             {
                 if (_objectActions == null)
                 {
-                    _objectActions = ObjectActionDispatcher.CreateDefault(
-                        PFE.Systems.Map.Streaming.RoomTransitionManager.Instance);
+                    _objectActions = CreateSceneDispatcher();
                 }
 
                 return _objectActions;
             }
             set => _objectActions = value;
+        }
+
+        /// <summary>
+        /// The one place the scene's <c>allact</c> dispatcher is composed.
+        ///
+        /// <para>Public and static because two callers need it and they must not disagree:
+        /// <see cref="DoorPropPresenter"/> to run a script, and <see cref="RoomObjectVisualManager"/> to
+        /// decide whether an object <i>has</i> a runnable script at all. Two copies of this wiring is how
+        /// one of them silently stops registering an action — and "registered but unreachable" is exactly
+        /// the failure this seam exists to prevent (see the admission rule in
+        /// <see cref="RoomObjectVisualManager"/>).</para>
+        ///
+        /// <para>Both dependencies are read at call time, so the caller must be past
+        /// <c>CampaignManager.Initialize</c> for <c>map</c> to be registered. Both are tolerated as
+        /// null: the wall map is then reported as unhandled rather than throwing out of an
+        /// interaction.</para>
+        ///
+        /// <para><b>Three of the five capabilities come from two objects.</b>
+        /// <see cref="PFE.Systems.Campaign.CampaignManager"/> is both the travel-map host (<c>map</c>) and
+        /// the land-script host (<c>exit</c>), and
+        /// <see cref="PFE.Systems.Map.Streaming.RoomTransitionManager"/> is both the layer-transition seam
+        /// (<c>comein</c>) and the prob-room host (<c>prob</c> / <c>probreturn</c>). They are passed
+        /// separately rather than as one bag so a test can double exactly the capability under test —
+        /// <c>exit</c> and <c>map</c> have nothing to do with each other, and a test for the descent loop
+        /// must not need a transition manager to exist.</para>
+        /// </summary>
+        public static ObjectActionDispatcher CreateSceneDispatcher()
+        {
+            // `map` needs the campaign state, which is not a MonoBehaviour and so cannot be found with
+            // FindFirstObjectByType; CampaignManager.Current is the accessor for exactly this case.
+            PFE.Systems.Campaign.CampaignManager campaign = PFE.Systems.Campaign.CampaignManager.Current;
+            PFE.Systems.Map.Streaming.RoomTransitionManager transition =
+                PFE.Systems.Map.Streaming.RoomTransitionManager.Instance;
+
+            return ObjectActionDispatcher.CreateDefault(
+                transition,
+                travelMapHost: campaign,
+                exitHost: campaign,
+                probHost: transition);
         }
 
         private int _currentFrameIndex;
@@ -308,6 +349,8 @@ namespace PFE.Systems.Map.Rendering
                 ApplyTileCollision(IsOpen);
             }
 
+            EnsureCheckpointArea();
+
             UpdateVisualFrame();
         }
 
@@ -330,9 +373,18 @@ namespace PFE.Systems.Map.Rendering
         {
             if (_triggerCollider == null) return;
 
-            // If not an interactable door (e.g. septum barricade), disable the trigger collider
-            // so it never captures cursor raycasts or proximity interaction scans.
-            if (!IsInteractableDoor)
+            // If the player cannot work this object at all (a septum barricade, or a prop that only
+            // stamps collision), disable the trigger collider so it never captures cursor raycasts or
+            // proximity interaction scans.
+            //
+            // This test used to be `!IsInteractableDoor` alone, which silently disabled the collider on a
+            // CHECKPOINT — a checkpoint authors no `inter` attribute and its `interactionMode` is empty,
+            // so IsInteractableDoor is false for it. With the collider disabled,
+            // Physics2D.OverlapCircleAll at the cursor could never hit it, so PlayerController's
+            // FindCursorTarget returned null and the checkpoint was untargetable no matter what
+            // CanInteract answered. Two gates had to pass and both were closed; fixing only CanInteract
+            // would have left E still doing nothing.
+            if (!AdmitsPlayerInteraction(IsInteractableDoor, IsCheckpointObject))
             {
                 _triggerCollider.enabled = false;
                 return;
@@ -342,6 +394,55 @@ namespace PFE.Systems.Map.Rendering
             GetDoorBounds(out Vector2 size, out Vector2 offset);
             _triggerCollider.size = size;
             _triggerCollider.offset = offset;
+        }
+
+        /// <summary>
+        /// Builds the checkpoint's walk-into area — AS3 <c>CheckPoint</c>'s own <c>Area</c> with
+        /// <c>over = areaActivate</c> (<c>CheckPoint.as:90-92</c>).
+        ///
+        /// <para><b>A child object with its own collider, deliberately not this component's.</b> The
+        /// presenter's own <see cref="BoxCollider2D"/> is the port's <i>cursor-targeting</i> affordance
+        /// and is sized off the sprite; AS3's area is the <c>size</c>x<code>wid</code> tile box
+        /// (<c>:48-53</c>). Sizing them separately means adding the walk-into path cannot move the
+        /// region the cursor can select. AS3 does use one box for both — <c>onCursor</c> reads the same
+        /// <c>X1/X2/Y1/Y2</c> at <c>:295</c> — so the sprite-sized target box remains a divergence,
+        /// recorded here rather than silently widened into the new code.</para>
+        ///
+        /// <para><b>A main checkpoint gets no area.</b> AS3 sets <c>this.area = null</c> for one
+        /// (<c>:127</c>) — it is teleported from, never walked into. The <c>main</c> normalisation that
+        /// makes its activation refuse would already stop the walk-in from doing anything, but the
+        /// oracle also declines to <i>create</i> the area, so the trigger is not built at all.</para>
+        /// </summary>
+        private void EnsureCheckpointArea()
+        {
+            if (!IsCheckpointObject || _objectInstance == null) return;
+            if (_checkpointArea != null) return;
+
+            if (!string.IsNullOrEmpty(_objectInstance.GetAttribute("main", string.Empty))) return;
+
+            // `size` is the width and `wid` is the height (CheckPoint.as:48-49) — the oracle's names,
+            // which read backwards. GetDoorTileDimensions maps them to (widthTiles, heightTiles) in
+            // that order for every box, checkpoint included.
+            GetDoorTileDimensions(out int widthTiles, out int heightTiles);
+
+            CheckpointRules.CheckpointAreaBox box = CheckpointRules.ResolveAreaBox(
+                widthTiles, heightTiles, WorldConstants.TILE_SIZE / 100f);
+
+            if (box.halfWidth <= 0f || box.height <= 0f) return;
+
+            var areaGo = new GameObject("__CheckpointArea");
+            areaGo.transform.SetParent(transform, false);
+
+            // AS3 `Y1 = Y - scY`, `Y2 = Y`: the box is bottom-anchored on the checkpoint, so its centre
+            // is half its height up. X is already centred — `X1 = X - scX/2`.
+            areaGo.transform.localPosition = new Vector3(0f, box.centreYOffset, 0f);
+
+            var collider = areaGo.AddComponent<BoxCollider2D>();
+            collider.isTrigger = true;
+            collider.size = new Vector2(box.halfWidth * 2f, box.height);
+
+            _checkpointArea = areaGo.AddComponent<CheckpointAreaTrigger>();
+            _checkpointArea.Initialize(() => ActivateCheckpoint(CheckpointEntry.Area));
         }
 
         public void SetOpen(bool open)
@@ -773,8 +874,8 @@ namespace PFE.Systems.Map.Rendering
         {
             if (_room?.tiles == null) return false;
 
-            float roomOriginPixelX = (_room.landPosition.x * WorldConstants.ROOM_WIDTH - _room.borderOffset) * WorldConstants.TILE_SIZE;
-            float roomOriginPixelY = (_room.landPosition.y * WorldConstants.ROOM_HEIGHT - _room.borderOffset) * WorldConstants.TILE_SIZE;
+            float roomOriginPixelX = WorldCoordinates.RoomOriginPixelX(_room.landPosition.x, _room.borderOffset);
+            float roomOriginPixelY = WorldCoordinates.RoomOriginPixelY(_room.landPosition.y, _room.borderOffset);
 
             float localPixelX = (worldX * 100f) - roomOriginPixelX;
             float localPixelY = (worldY * 100f) - roomOriginPixelY;
@@ -802,7 +903,7 @@ namespace PFE.Systems.Map.Rendering
         /// </summary>
         public bool CanInteract(GameObject user)
         {
-            if (!IsInteractableDoor) return false;
+            if (!AdmitsPlayerInteraction(IsInteractableDoor, IsCheckpointObject)) return false;
 
             if (user == null) return false;
 
@@ -810,8 +911,125 @@ namespace PFE.Systems.Map.Rendering
             return dist <= ActionReach;
         }
 
+        /// <summary>
+        /// Whether the player may <b>target</b> this object at all — the guard <see cref="CanInteract"/>
+        /// applies before it measures distance.
+        ///
+        /// <para><b>Why the door rule alone is not enough.</b> <see cref="IsInteractableDoor"/> answers
+        /// "may the player work this <i>door</i>?" — it is derived from the <c>inter</c> attribute and
+        /// <c>interactionMode</c>, and a checkpoint authors neither (the imported <c>checkpoint</c>
+        /// definition has an empty <c>interactionMode</c>), so it answers <b>false</b> for one. AS3 never
+        /// asks that question of a checkpoint: <c>CheckPoint</c>'s constructor builds its own
+        /// <c>Interact</c> with <c>actFun = activate</c> (<c>CheckPoint.as:87</c>) and
+        /// <c>active = true; action = 100</c> (<c>:89-90</c>), so it is workable by construction. Gating it
+        /// on a door attribute is what made pressing E on a checkpoint do nothing: <see cref="Interact"/>
+        /// handled the checkpoint correctly, but this guard refused the target first, so
+        /// <see cref="Interact"/> was never reached.</para>
+        ///
+        /// <para>The two terms are exactly the set <see cref="Interact"/> can act on and nothing more.
+        /// Widening this to "has any script" would re-open the terminal/bench regression documented on
+        /// <see cref="RoomObjectVisualManager.UsesDoorPresenter"/>.</para>
+        /// </summary>
+        public static bool AdmitsPlayerInteraction(bool isInteractableDoor, bool isCheckpointObject)
+        {
+            return isInteractableDoor || isCheckpointObject;
+        }
+
+        /// <summary>
+        /// Whether this object is a checkpoint — AS3 <c>tip='checkpoint'</c>, which
+        /// <c>Location.as:2008</c> turns into a <c>CheckPoint</c> instead of a <c>Box</c>.
+        /// </summary>
+        private bool IsCheckpointObject =>
+            _objectInstance != null &&
+            (string.Equals(_objectInstance.objectType, "checkpoint", StringComparison.OrdinalIgnoreCase) ||
+             (_objectInstance.definition != null &&
+              _objectInstance.definition.family == MapObjectFamily.Checkpoint));
+
+        /// <summary>
+        /// AS3 <c>CheckPoint.activate()</c> (<c>CheckPoint.as:184-248</c>).
+        ///
+        /// <para>The decision and the runtime state live in <c>CampaignManager.ActivateCheckpoint</c>
+        /// (rules in <c>PFE.Sim.Campaign.CheckpointRules</c>); what stays here is the object's own reads
+        /// (<c>code</c>, <c>@tele</c>, <c>@main</c>) and the save that ends the oracle's method.</para>
+        ///
+        /// <para><b>The save is issued only when the activation actually ran.</b> AS3 returns early for an
+        /// already-active or locked checkpoint and never reaches <c>saveGame()</c>
+        /// (<c>CheckPoint.as:186-190</c>), so saving on every touch would be a write per press.</para>
+        ///
+        /// <para><b>Both of AS3's entry points land here.</b> The button arrives with
+        /// <see cref="CheckpointEntry.Activate"/>; the walk-into area with
+        /// <see cref="CheckpointEntry.Area"/>, which the campaign refuses unless the checkpoint is still
+        /// fresh (<c>CheckPoint.as:271</c>). Still unported: the return-teleport interaction
+        /// (<c>teleport</c>, <c>CheckPoint.as:250-267</c>), whose target rule is ported and tested but
+        /// which no interaction surface offers yet.</para>
+        /// </summary>
+        /// <param name="entry">Which of AS3's two entry points is running.</param>
+        private void ActivateCheckpoint(CheckpointEntry entry = CheckpointEntry.Activate)
+        {
+            PFE.Systems.Campaign.CampaignManager campaign = PFE.Systems.Campaign.CampaignManager.Current;
+            if (campaign == null)
+            {
+                Debug.LogWarning("[DoorPropPresenter] checkpoint touched but there is no CampaignManager: " +
+                                 "no checkpoint state was written and nothing was saved.");
+                return;
+            }
+
+            ObjectInstance obj = _objectInstance;
+            Vector3Int room = _room != null ? _room.landPosition : Vector3Int.zero;
+
+            // `@tele` (CheckPoint.as:97-100) and `@main` (:123-126) come off the object's own XML.
+            bool teleOn = !string.IsNullOrEmpty(obj.GetAttribute("tele", string.Empty));
+            bool main = !string.IsNullOrEmpty(obj.GetAttribute("main", string.Empty));
+
+            // createCheck's `param1`. AS3 keeps it in a local; the port writes it onto the placement
+            // because the decision is made here rather than in the placement.
+            bool isBegin = !string.IsNullOrEmpty(
+                obj.GetAttribute(RoomPopulator.BeginCheckpointAttribute, string.Empty));
+
+            // AS3 `inter.lock > 0 || inter.mine > 0` (CheckPoint.as:186-189). Both are read off the
+            // DEFINITION row, which is the row `Interact` reads (`param2`, Interact.as:218-252) — a
+            // placed checkpoint is built with no XML of its own (Location.createCheck passes no fourth
+            // argument), so there is no placement-level override to look for.
+            bool locked = CheckpointRules.IsLocked(
+                ReadDefinitionAttribute(obj, "lock"),
+                ReadDefinitionAttribute(obj, "mine"));
+
+            if (!campaign.ActivateCheckpoint(campaign.CurrentLandId.CurrentValue, room, obj.code,
+                    isBegin, teleOn, main, locked, entry))
+            {
+                return;
+            }
+
+            // AS3 CheckPoint.as:247 — `World.w.saveGame()`, the last line of activate().
+            SaveManager.Instance?.RequestCheckpointSave();
+        }
+
+        /// <summary>
+        /// An attribute off the object's <b>definition</b> row rather than the placement.
+        ///
+        /// <para><see cref="ObjectInstance.GetAttribute"/> reads the placement's own attributes; the
+        /// definition is a separate object with its own <c>GetAttribute</c>. <c>lock</c> and <c>mine</c>
+        /// live on the definition (<c>AllData.as:5008-5012</c>) and AS3 reads them from there, so the
+        /// placement-first order that <c>GetHoldFrames</c>/<c>GetAllAct</c> use does not apply.</para>
+        /// </summary>
+        private static string ReadDefinitionAttribute(ObjectInstance obj, string key)
+        {
+            return obj?.definition != null ? obj.definition.GetAttribute(key, string.Empty) : string.Empty;
+        }
+
         public void Interact(GameObject user)
         {
+            // A checkpoint is not an `allact` in AS3 — CheckPoint builds its own Interact with
+            // `actFun = activate` (CheckPoint.as:86-90) — so it is handled by family here, before the
+            // dispatcher, and never falls through to ToggleOpen().
+            if (IsCheckpointObject)
+            {
+                if (Time.frameCount == _lastInteractFrame) return;
+                _lastInteractFrame = Time.frameCount;
+                ActivateCheckpoint();
+                return;
+            }
+
             if (!IsInteractableDoor) return;
 
             if (Time.frameCount == _lastInteractFrame) return;

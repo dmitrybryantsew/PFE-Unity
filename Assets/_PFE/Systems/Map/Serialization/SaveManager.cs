@@ -47,6 +47,14 @@ namespace PFE.Systems.Map.Serialization
         /// </summary>
         public const string QuickSaveSlotId = QuickSaveSlot;
 
+        /// <summary>
+        /// Slot id the checkpoint save uses. AS3 <c>World.saveGame(-1)</c> resolves <c>-1</c> to
+        /// <c>autoSaveN</c> (<c>World.as:1666-1668</c>), i.e. the autosave slot — that is what a checkpoint
+        /// writes. Public for the same reason <see cref="QuickSaveSlotId"/> is: so no caller retypes the
+        /// literal.
+        /// </summary>
+        public const string AutoSaveSlotId = AutoSaveSlot;
+
         // Events
         public event Action<string> OnGameSaved;
         public event Action<string> OnGameLoaded;
@@ -109,6 +117,11 @@ namespace PFE.Systems.Map.Serialization
                     OnSaveFailed?.Invoke(saveId);
                     return false;
                 }
+
+                // Campaign state (landStage / triggers / checkpoint). AS3's Game.save writes this block
+                // (Game.as:86-309); the port's save used to carry only the current land's rooms and the
+                // player, so a reload silently reset the descent.
+                CaptureCampaignState(saveData);
 
                 // Set save ID
                 saveData.saveId = saveId;
@@ -178,6 +191,10 @@ namespace PFE.Systems.Map.Serialization
                 // Restore save data to map
                 saveData.RestoreToMap(map);
 
+                // Campaign state must come back before the player is placed: the entry cell and the
+                // checkpoint the player returns to are derived from landStage / the checkpoint record.
+                RestoreCampaignState(saveData);
+
                 // Restore player state
                 RestorePlayerState(saveData.player);
 
@@ -217,6 +234,98 @@ namespace PFE.Systems.Map.Serialization
 
             Debug.Log("Performing quick load...");
             return LoadGame(QuickSaveSlot, landMap);
+        }
+
+        /// <summary>
+        /// AS3 <c>World.w.saveGame()</c> as a checkpoint calls it (<c>CheckPoint.as:247</c>): an autosave
+        /// into the autosave slot, not a named slot.
+        ///
+        /// <para><b>Divergence, recorded.</b> AS3 throttles this with
+        /// <c>if(t_save &lt; 100 &amp;&amp; param1 == -1 &amp;&amp; !hardcore) return;</c>
+        /// (<c>World.as:1661-1664</c>) — a frame-counter guard tied to its own tick, and a
+        /// <c>pip.noAct</c> guard. The port has neither counter nor Pip-Boy state, so every activation
+        /// writes. That is more writes than the oracle, never fewer, and a missed save costs a run.</para>
+        /// </summary>
+        public bool RequestCheckpointSave()
+        {
+            bool ok = SaveGame(AutoSaveSlot);
+            Debug.Log(ok
+                ? "[SaveManager] checkpoint save written to the autosave slot."
+                : "[SaveManager] checkpoint save FAILED (no LandMap, or the serializer refused).");
+            return ok;
+        }
+
+        /// <summary>
+        /// Write the campaign block into <paramref name="saveData"/> — AS3's <c>Game.save</c> payload
+        /// (<c>Game.as:86-309</c>) plus the per-land <c>LandAct.save</c> block (<c>LandAct.as:267-301</c>).
+        /// A no-op when there is no campaign (a bare world save, or a test).
+        /// </summary>
+        private static void CaptureCampaignState(WorldSaveData saveData)
+        {
+            if (saveData == null) return;
+
+            PFE.Systems.Campaign.CampaignManager campaign = PFE.Systems.Campaign.CampaignManager.Current;
+            if (campaign == null) return;
+
+            saveData.landStates = campaign.LandStates.ToSaveData();
+            saveData.campaignLandId = campaign.CurrentLandId.CurrentValue ?? string.Empty;
+            saveData.campaignMissionId = campaign.MissionId ?? string.Empty;
+
+            var names = new List<string>();
+            var values = new List<int>();
+            foreach (KeyValuePair<string, int> pair in campaign.Triggers)
+            {
+                names.Add(pair.Key);
+                values.Add(pair.Value);
+            }
+            saveData.triggerNames = names.ToArray();
+            saveData.triggerValues = values.ToArray();
+
+            if (campaign.CurrentCheckpoint.HasValue)
+            {
+                PFE.Systems.Campaign.CampaignManager.CheckpointRecord cp = campaign.CurrentCheckpoint.Value;
+                saveData.hasCheckpoint = true;
+                saveData.checkpointLandId = cp.landId;
+                saveData.checkpointRoomX = cp.roomX;
+                saveData.checkpointRoomY = cp.roomY;
+                saveData.checkpointRoomZ = cp.roomZ;
+                saveData.checkpointCode = cp.code;
+            }
+            else
+            {
+                saveData.hasCheckpoint = false;
+            }
+        }
+
+        /// <summary>Push the campaign block of a loaded save back into the live campaign. The mirror of
+        /// <see cref="CaptureCampaignState"/>; a no-op without a campaign.</summary>
+        private static void RestoreCampaignState(WorldSaveData saveData)
+        {
+            if (saveData == null) return;
+
+            PFE.Systems.Campaign.CampaignManager campaign = PFE.Systems.Campaign.CampaignManager.Current;
+            if (campaign == null) return;
+
+            campaign.LandStates.LoadFromSaveData(saveData.landStates);
+
+            var triggers = new List<KeyValuePair<string, int>>();
+            if (saveData.triggerNames != null && saveData.triggerValues != null)
+            {
+                int count = Math.Min(saveData.triggerNames.Length, saveData.triggerValues.Length);
+                for (int i = 0; i < count; i++)
+                {
+                    triggers.Add(new KeyValuePair<string, int>(saveData.triggerNames[i], saveData.triggerValues[i]));
+                }
+            }
+            campaign.LoadTriggers(triggers);
+
+            campaign.RestoreCheckpoint(
+                saveData.hasCheckpoint,
+                saveData.checkpointLandId,
+                saveData.checkpointRoomX,
+                saveData.checkpointRoomY,
+                saveData.checkpointRoomZ,
+                saveData.checkpointCode);
         }
 
         /// <summary>

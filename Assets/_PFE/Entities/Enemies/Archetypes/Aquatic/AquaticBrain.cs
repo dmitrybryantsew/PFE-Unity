@@ -201,9 +201,20 @@ namespace PFE.Entities.Enemies.Archetypes
 
         protected override void TickCombatChase(int tickIndex)
         {
-            if (_blackboard.TargetUnit == null || _aiSpok <= 0)
+            // The fish keeps its OWN commitment ladder (`_aiSpok`, armed only while the target is in
+            // water — `UnitFish.as:212-219`), so the budget half stays as it was. The SIGHTING half
+            // had to go: `EnemySensors` nulls `TargetUnit` on the first obscured tick, so
+            // `TargetUnit == null` exited the chase immediately and the fish forgot the player the
+            // moment it swam behind anything. See `EnemyBrain.ChaseBudgetExhausted`.
+            if (_aiSpok <= 0)
             {
                 SetState(EnemyAIState.Alert);
+                return;
+            }
+
+            if (_blackboard.TargetUnit == null)
+            {
+                ChaseLastKnownPosition(tickIndex);
                 return;
             }
 

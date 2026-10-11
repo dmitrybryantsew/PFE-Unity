@@ -24,6 +24,15 @@ namespace PFE.Data.Definitions.Campaign
         [Tooltip("Land category tip: 'story', 'base', 'rnd', 'hard', 'prob'")]
         public string tip = "story";
 
+        [Tooltip("True for the detached room collection that exit rooms and boss doors live in " +
+                 "(AS3 the `prob` attribute — Game.as:75-82). Those lands go to game.probs, not " +
+                 "game.lands, and are never offered on the travel map.")]
+        public bool isProbLand = false;
+
+        [Tooltip("True for a developer sandbox land (AS3 the `test` attribute, e.g. `test`/`test2`). " +
+                 "Hidden from the travel map unless test mode is on.")]
+        public bool isTestLand = false;
+
         // IGameContent implementation
         string IGameContent.ContentId => landId;
         ContentType IGameContent.ContentType => ContentType.Campaign;
@@ -123,6 +132,19 @@ namespace PFE.Data.Definitions.Campaign
         [Tooltip("All RoomTemplate assets associated with this land")]
         public List<RoomTemplate> roomTemplates = new List<RoomTemplate>();
 
+        /// <summary>
+        /// AS3 <c>&lt;prob&gt;</c> children of this <c>&lt;land&gt;</c> — the bonus and boss rooms the land
+        /// can open a <c>doorprob</c> / <c>doorboss</c> into.
+        ///
+        /// <para>Selected by <c>Land.newRandomProb</c> (<c>Land.as:809-863</c>) and constructed by
+        /// <c>Land.buildProb</c> (<c>Land.as:771-803</c>). Seven lands declare these — <c>rbl</c> (7) plus
+        /// <c>random_plant</c> (14), <c>random_stable</c> (14), <c>random_mane</c> (10), <c>random_canter</c>
+        /// (9), <c>random_sewer</c> (6) and <c>random_encl</c> (6). The room itself is a room of the
+        /// <c>prob</c> land (<c>rooms_prob</c>, 81 rooms) whose <c>name</c> equals this <c>id</c>.</para>
+        /// </summary>
+        [Tooltip("AS3 <prob> children: the bonus/boss rooms a doorprob/doorboss can open into")]
+        public List<ProbRoomDefinition> probRooms = new List<ProbRoomDefinition>();
+
         protected override bool OnValidateData()
         {
             if (string.IsNullOrEmpty(landId))
@@ -132,5 +154,87 @@ namespace PFE.Data.Definitions.Campaign
             }
             return true;
         }
+    }
+
+    /// <summary>
+    /// One AS3 <c>&lt;prob&gt;</c> child of a <c>&lt;land&gt;</c>: a bonus or boss room that the land can
+    /// open a <c>doorprob</c> / <c>doorboss</c> into.
+    ///
+    /// <para><b>Oracle.</b> <c>GameData.as</c> declares 66 of these across 7 lands
+    /// (<c>rbl</c> 7, <c>random_plant</c> 14, <c>random_sewer</c> 6, <c>random_stable</c> 14,
+    /// <c>random_mane</c> 10, <c>random_canter</c> 9, <c>random_encl</c> 6). The attribute set is
+    /// exactly <c>id</c> (66), <c>tip</c> (66), <c>level</c> (58), <c>prize</c> (24), <c>close</c> (7) and
+    /// <c>imp</c> (2), with 97 <c>&lt;con&gt;</c> children and 24 <c>&lt;wave&gt;</c> children.</para>
+    /// </summary>
+    [Serializable]
+    public class ProbRoomDefinition
+    {
+        [Tooltip("AS3 id. Also the name of the room in the `prob` land's collection that this opens.")]
+        public string id = "";
+
+        /// <summary>
+        /// AS3 <c>level</c>. <b>Absent is not 0.</b> <c>newRandomProb</c> tests
+        /// <c>xml.@level.length == 0</c>, so a room with no <c>level</c> attribute is eligible at every
+        /// stage while one with <c>level='0'</c> is only eligible when <c>maxlevel &gt;= 0</c>. Eight of
+        /// the 66 have no <c>level</c>; 23 carry <c>level='0'</c>.
+        /// </summary>
+        public bool hasLevel;
+        public int level;
+
+        [Tooltip("AS3 imp present. When a caller asks for `imp`, this room is preferred over the roll.")]
+        public bool imp;
+
+        /// <summary>
+        /// AS3 <c>tip</c>. <c>"2"</c> makes the door a <c>doorboss</c>, anything else a <c>doorprob</c>
+        /// (<c>Land.as:843-851</c>). In the data: 34 are <c>"2"</c>, 31 are <c>"1"</c>, 1 is <c>"0"</c>.
+        /// </summary>
+        public string tip = "";
+
+        [Tooltip("AS3 prize — the room holds a reward.")]
+        public bool prize;
+
+        [Tooltip("AS3 close — the room seals behind the player until it is cleared.")]
+        public bool close;
+
+        /// <summary>
+        /// AS3 <c>&lt;con&gt;</c> children: the room's contents.
+        ///
+        /// <para><b>Two sibling elements are still not parsed, and the reason has changed.</b> The 24
+        /// <c>&lt;wave&gt;</c> children (128 <c>&lt;obj&gt;</c> between them) feed
+        /// <c>Probation.maxwave</c> and the wave timer, and the 4 <c>&lt;scr&gt;</c> children are the
+        /// alarm/in/out/close event scripts (<c>Probation.as:105-130</c>). Those <i>rules</i> now exist —
+        /// <see cref="PFE.Systems.Map.Generation.ProbationState"/> ports the whole state machine, including
+        /// <c>SetMaxWave</c>, <c>CreateWave</c> and <c>Step</c> — but what is missing is the adapter that
+        /// would <i>drive</i> them: it is the piece that would read a <c>&lt;wave&gt;</c> payload and hand
+        /// the state machine a <c>ProbWaveView</c>, and it is owner-only play-test work. Parsing the
+        /// payloads before that adapter exists would produce data no code reads, which is
+        /// indistinguishable from a bug.</para>
+        /// </summary>
+        public List<ProbContentData> contents = new List<ProbContentData>();
+    }
+
+    /// <summary>One AS3 <c>&lt;con&gt;</c> child of a <c>&lt;prob&gt;</c>.</summary>
+    [Serializable]
+    public class ProbContentData
+    {
+        /// <summary>
+        /// AS3 <c>tip</c> on the <c>&lt;con&gt;</c>. In the data: <c>box</c> 65, <c>unit</c> 26,
+        /// <c>wave</c> 6. <c>checkAllCon</c> branches on exactly these three (<c>Probation.as:163-192</c>),
+        /// and treats an absent <c>tip</c> as <c>box</c>.
+        /// </summary>
+        public string tip = "";
+
+        /// <summary>
+        /// AS3 <c>uid</c> — the object's unique id within its room. 79 of the 97 contents carry one
+        /// (all 65 <c>box</c> and 14 of the 26 <c>unit</c>).
+        /// </summary>
+        public string uid = "";
+
+        /// <summary>
+        /// AS3 <c>qid</c> — a quest id, on the 12 unit contents that carry one instead of a
+        /// <c>uid</c> (<c>Probation.as:179</c> matches either). The remaining 6 contents — the
+        /// <c>tip='wave'</c> gates — carry neither.
+        /// </summary>
+        public string qid = "";
     }
 }

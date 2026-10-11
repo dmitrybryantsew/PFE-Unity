@@ -10,6 +10,9 @@ namespace PFE.Data.Definitions
     /// <summary>
     /// Weapon chance entry for unit inventory.
     /// Defines which weapons a unit can carry and with what probability.
+    ///
+    /// <para>One row of AS3's <c>&lt;w id='…' ch='…' dif='…' f='…'/&gt;</c> inside a
+    /// <c>&lt;unit&gt;</c> element of <c>AllData.as</c>.</para>
     /// </summary>
     [System.Serializable]
     public struct WeaponChance
@@ -19,11 +22,27 @@ namespace PFE.Data.Definitions
         public float chance;        // Probability (0-1)
         public int difficulty;      // Required difficulty level
 
-        public WeaponChance(string id, float ch, int dif = 0)
+        /// <summary>
+        /// AS3's <c>f</c> attribute — the row is the unit's <b>secondary</b> weapon and is
+        /// <b>excluded from the weapon roll</b> (<c>Unit.getXmlWeapon</c>, <c>Unit.as:1459</c>:
+        /// <c>if(!n.@f.length())</c>). The family constructor grants it by name instead; see
+        /// <see cref="WeaponRowParser"/> for the full account and for why dropping this flag silently
+        /// hands every mercenary a rocket launcher.
+        ///
+        /// <para><b>Named <c>isFixedWeapon</c>, not <c>isFixed</c>, because the flat serialized form
+        /// already has an <c>isFixed</c> and it means something else.</b>
+        /// <see cref="UnitDefinition.isFixed"/> is AS3's <c>&lt;move fixed='1'/&gt;</c> — "pinned in
+        /// place", true for turrets, walls and triggers. Two different AS3 attributes would otherwise
+        /// share one name in the YAML, one nesting level apart.</para>
+        /// </summary>
+        public bool isFixedWeapon;
+
+        public WeaponChance(string id, float ch, int dif = 0, bool fixedWeapon = false)
         {
             weaponId = id;
             chance = ch;
             difficulty = dif;
+            isFixedWeapon = fixedWeapon;
         }
     }
 

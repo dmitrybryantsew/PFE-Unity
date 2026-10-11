@@ -356,9 +356,20 @@ namespace PFE.Entities.Enemies.Archetypes
             _familyState = 3;
             ConsiderTakeOff();
 
-            if (_blackboard.TargetUnit == null)
+            // The hunt ends on the awareness budget, not on the sighting — `EnemySensors` nulls
+            // `TargetUnit` on the first obscured tick, and exiting here made the alicorn forget the
+            // player the instant line of sight broke. See `EnemyBrain.ChaseBudgetExhausted`.
+            if (ChaseBudgetExhausted)
             {
                 SetState(EnemyAIState.Alert);
+                return;
+            }
+
+            if (_blackboard.TargetUnit == null)
+            {
+                // Keep closing on the last place the target was seen; the altitude half is the
+                // `_isFly` branch in `SimTick`, which already steers on `LastKnownTargetPosition`.
+                ChaseLastKnownPosition(tickIndex);
                 return;
             }
 

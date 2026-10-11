@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using UnityEngine;
 using PFE.Core;
 using PFE.Data;
+using PFE.Data.Definitions.Campaign;
+using PFE.Systems.Map.Generation;
 
 namespace PFE.Systems.Map
 {
@@ -27,6 +29,26 @@ namespace PFE.Systems.Map
         // Starting position
         private Vector3Int startPosition;
         private PFE.Core.Rng.IRngService _rng;
+
+        /// <summary>
+        /// Prob rooms already built this run, by id — AS3 <c>this.probs[id] != null</c>
+        /// (<c>Land.as:821</c>). Reset per land build, because AS3's <c>probs</c> map is per
+        /// <c>Land</c> instance and a land is rebuilt on every descent.
+        /// </summary>
+        private readonly HashSet<string> _builtProbRooms = new HashSet<string>(StringComparer.Ordinal);
+
+        private bool _loggedMissingProbContext;
+
+        /// <summary>
+        /// Supplies the detached prob-room collection and the run's completion record — the two things
+        /// <c>Land.newRandomProb</c> needs that a land does not carry. See <see cref="IProbDoorContext"/>.
+        ///
+        /// <para><b>Left null by default, and that is the safe direction.</b> With no context no prob door
+        /// is placed, which is exactly the behaviour before this existed. A caller that has both the
+        /// <c>prob</c> land's rooms and the trigger store sets it; the alternative — a door placed with no
+        /// room behind it — is an interactive object that visibly does nothing.</para>
+        /// </summary>
+        public IProbDoorContext ProbContext { get; set; }
 
         [VContainer.Inject]
         public WorldBuilder(PFE.Core.Rng.IRngService rng = null)
@@ -680,6 +702,485 @@ namespace PFE.Systems.Map
         private static bool HasFixedPosition(RoomTemplate template)
         {
             return template != null && template.fixedPosition.z >= 0;
+        }
+
+        // =====================================================================
+        // PROCEDURAL LAND BUILD — AS3 Land.buildRandomLand (Land.as:163-682)
+        // =====================================================================
+
+        /// <summary>
+        /// Build a land from its definition, taking the procedural or the authored path the way AS3 does
+        /// (<c>Land.as:118</c>: the <c>rnd</c> attribute selects <c>buildRandomLand</c>, else
+        /// <c>buildSpecifLand</c>).
+        /// </summary>
+        /// <remarks>
+        /// <para><b>This is the seam that was missing.</b> Before it existed, every land — procedural or
+        /// authored — went through <see cref="BuildSpecificWorld"/>, and because an AS3 procedural room
+        /// carries no <c>x</c>/<c>y</c>/<c>z</c> the importer gives every procedural template
+        /// <c>fixedPosition == (0,0,0)</c>. <see cref="HasFixedPosition"/> therefore accepts all of them,
+        /// the bounds collapse to a single cell, and every room is stacked on (0,0,0): a one-room land with
+        /// no neighbour to walk to. That is the "a random land builds nothing and its rooms never
+        /// transition" symptom.</para>
+        /// </remarks>
+        /// <param name="land">The land. Its <c>isProcedural</c> flag picks the path.</param>
+        /// <param name="templates">The land's own room collection (see <c>MapBridge.ResolveCollectionName</c>).</param>
+        /// <param name="landStage">AS3 <c>LandAct.landStage</c> — runtime state, never land data.</param>
+        /// <param name="visited">AS3 <c>LandAct.visited</c> — gates the <c>beg*</c> entry room.</param>
+        /// <param name="forceRegenerate">AS3 <c>Game.crea</c>. The plan is rebuilt every call today, so
+        /// this is carried for the wiring's sake rather than consumed.</param>
+        /// <param name="mbaseVisited">AS3 <c>triggers["mbase_visited"] &gt; 0</c> (conf 4's entry room).</param>
+        public bool BuildLand(LandDefinition land, List<RoomTemplate> templates, int landStage,
+            bool visited, bool forceRegenerate = false, bool mbaseVisited = false)
+        {
+            if (land == null)
+            {
+                Debug.LogError("[WorldBuilder] BuildLand: null land definition");
+                return false;
+            }
+
+            if (templates == null || templates.Count == 0)
+            {
+                Debug.LogError($"[WorldBuilder] BuildLand: land '{land.landId}' has no room templates");
+                return false;
+            }
+
+            this.landStage = landStage;
+
+            // Re-point the shared selection pool at THIS land's collection. The generator is injected as a
+            // singleton, and a procedural land must never draw a room out of another land's file.
+            allTemplates = templates;
+            roomGenerator.Initialize(templates);
+
+            if (!land.isProcedural)
+            {
+                // Authored (AS3 buildSpecifLand): x/y/z come from the room XML, so bounds and placement are
+                // the templates' own. The entry cell is the land's declared locx/locy.
+                var entry = new Vector3Int(land.entryCoordinates.x, land.entryCoordinates.y, 0);
+                return BuildSpecificWorld(templates, entry);
+            }
+
+            LandLayoutPlan plan = LandLayoutPlanner.Plan(land, landStage, visited, _rng, mbaseVisited);
+            return BuildProceduralLand(land, plan);
+        }
+
+        /// <summary>
+        /// AS3 <c>Land.buildRandomLand()</c> (<c>Land.as:163-682</c>): fill the grid from the plan, carve the
+        /// doors between neighbours, then finalise every room and place its exit / checkpoint.
+        /// </summary>
+        private bool BuildProceduralLand(LandDefinition land, LandLayoutPlan plan)
+        {
+            minBounds = new Vector3Int(plan.BoundsMin.x, plan.BoundsMin.y, 0);
+            maxBounds = new Vector3Int(plan.BoundsMax.x, plan.BoundsMax.y, 1);
+
+            landMap.Initialize(minBounds, maxBounds);
+            roomGenerator.ResetUsageCounts();
+
+            // AS3's `probs` map is per Land instance and a land is rebuilt on each descent, so a prob
+            // room built during the previous visit is not "already built" this time.
+            _builtProbRooms.Clear();
+            hasRoofTemplates = HasTemplateType("roof");
+            loggedMissingRoofWarning = false;
+            MapIntegrityDiagnostics.LogBuildPath("Procedural", plan.CellCount, minBounds, maxBounds, _debugSettings);
+
+            var rooms = new Dictionary<Vector2Int, RoomInstance>();
+            var cells = new Dictionary<Vector2Int, LandCellPlan>();
+            var templatesByCell = new Dictionary<Vector2Int, RoomTemplate>();
+            var doorSlots = new Dictionary<Vector2Int, int[]>();
+
+            // ---- Pass 1: one room per planned cell (Land.as:184-410) ----
+            //
+            // Column-major, exactly as AS3: `_loc4_` (x) is the OUTER loop and `_loc5_` (y) the inner one
+            // (Land.as:185-190). That is not cosmetic — `newRandomLoc` excludes the LEFT (x-1) and UP (y-1)
+            // neighbour, and the draws come off one shared stream, so a row-major walk would pick a
+            // different room for every cell that has both neighbours.
+            for (int x = 0; x < plan.GridSize.x; x++)
+            {
+                for (int y = 0; y < plan.GridSize.y; y++)
+                {
+                    if (!plan.TryGetCell(x, y, out LandCellPlan cell)) continue;
+
+                    var key = new Vector2Int(x, y);
+                    var pos = new Vector3Int(x, y, 0);
+
+                    RoomTemplate template = SelectTemplateForCell(
+                        cell, ExcludedNeighbourTemplates(templatesByCell, x, y));
+                    if (template == null)
+                    {
+                        Debug.LogWarning($"[WorldBuilder] '{land.landId}': no room for cell ({x},{y}) " +
+                                         $"fill={cell.Fill} tip='{cell.Tip}' stage={cell.SelectionStage}");
+                        continue;
+                    }
+
+                    RoomInstance room = roomGenerator.GenerateRoom(template, pos);
+                    landMap.AddRoom(room, pos);
+
+                    // AS3 mirrors the door array per cell with p = 0.5 (Land.as:192), and never on a beg* cell.
+                    int[] slots = DoorSlotsOf(room);
+                    if (cell.Mirror) DoorMatchMath.MirrorInPlace(slots);
+
+                    rooms[key] = room;
+                    cells[key] = cell;
+                    templatesByCell[key] = template;
+                    doorSlots[key] = slots;
+                }
+            }
+
+            if (rooms.Count == 0)
+            {
+                Debug.LogError($"[WorldBuilder] Procedural land '{land.landId}' produced no rooms");
+                return false;
+            }
+
+            // ---- Pass 2: doors between neighbours (Land.as:411-494) ----
+            int carvedSlots = 0;
+            foreach (var kv in rooms)
+            {
+                int x = kv.Key.x;
+                int y = kv.Key.y;
+
+                if (rooms.TryGetValue(new Vector2Int(x + 1, y), out RoomInstance right))
+                {
+                    carvedSlots += CarveNeighbourPair(
+                        kv.Value, doorSlots[kv.Key], right, doorSlots[new Vector2Int(x + 1, y)],
+                        DoorWall.Right, new Vector3Int(x + 1, y, 0), new Vector3Int(x, y, 0));
+                }
+
+                if (rooms.TryGetValue(new Vector2Int(x, y + 1), out RoomInstance below))
+                {
+                    carvedSlots += CarveNeighbourPair(
+                        kv.Value, doorSlots[kv.Key], below, doorSlots[new Vector2Int(x, y + 1)],
+                        DoorWall.Bottom, new Vector3Int(x, y + 1, 0), new Vector3Int(x, y, 0));
+                }
+            }
+
+            // ---- Pass 3: finalise each room, then place its own objects ----
+            foreach (var kv in rooms)
+            {
+                LandCellPlan cell = cells[kv.Key];
+                RoomInstance room = kv.Value;
+
+                // The conf's ramka must reach ApplyBorder, or the wrong edge cells become walls and the
+                // carved doors land in the wrong place (or against solid rock).
+                RoomSetup.FinalizeRoom(room, templatesByCell[kv.Key],
+                    borderTypeOverride: cell.Ramka > 0 ? cell.Ramka : -1,
+                    debugSettings: _debugSettings);
+
+                // AS3 sets `water` per cell (conf 2 row 1, conf 5 row 2), independent of the template.
+                if (cell.Water >= 0) DoorCarver.ApplyWaterLevel(room, cell.Water);
+
+                PlaceCellObjects(land, room, cell);
+            }
+
+            // ---- Entry (AS3 `Land.as:1180-1181`, `enterLand`: `locX = act.begLocX`, `locY = act.begLocY`) ----
+            //
+            // The entry cell is the land's own declared `locx`/`locy`, NOT the grid origin. Three of the
+            // seven procedural lands do not start at (0,0): `random_mane` (conf 3) starts at (0,4) and
+            // `random_encl` (conf 6) at (0,7) — the bottom row in AS3 space. Starting every land at (0,0)
+            // drops the player into a cell the conf's own rules never meant to be an entrance (conf 3
+            // puts its `passroof` shaft at x==2, conf 6 puts two exits on the top row).
+            startPosition = ResolveProceduralEntry(land.entryCoordinates, plan.GridSize);
+            if (startPosition.x != land.entryCoordinates.x || startPosition.y != land.entryCoordinates.y)
+            {
+                Debug.LogWarning($"[WorldBuilder] '{land.landId}': entry {land.entryCoordinates} is outside " +
+                                 $"the {plan.GridSize.x}x{plan.GridSize.y} grid; clamped to " +
+                                 $"({startPosition.x},{startPosition.y}).");
+            }
+
+            if (!landMap.HasRoom(startPosition))
+            {
+                Debug.LogWarning($"[WorldBuilder] '{land.landId}': entry cell {land.entryCoordinates} " +
+                                 "holds no room; falling back to the first built cell.");
+                foreach (var kv in rooms)
+                {
+                    startPosition = new Vector3Int(kv.Key.x, kv.Key.y, 0);
+                    break;
+                }
+            }
+            landMap.SwitchRoom(startPosition);
+
+            if (_debugSettings?.LogWorldBuilderSummary != false)
+            {
+                Debug.Log($"[WorldBuilder] Built procedural land '{land.landId}' (conf {plan.Conf}, stage " +
+                          $"{plan.LandStage}): {rooms.Count} rooms on {plan.GridSize.x}x{plan.GridSize.y}, " +
+                          $"{carvedSlots} door slots carved, entry {startPosition}");
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// The cell the player lands in: AS3 <c>act.begLocX</c>/<c>act.begLocY</c>, clamped into the grid.
+        ///
+        /// <para><b>Why the clamp exists.</b> <c>begLocX/begLocY</c> is authored land data and the grid size
+        /// is authored land data, and the two are only guaranteed to agree for the land they were written
+        /// for. A <c>locx</c> past <c>mx</c> would otherwise name a cell that was never filled and the
+        /// player would spawn in the void — a silent black screen rather than a build error.</para>
+        ///
+        /// <para><b>Pure, and public, so it is assertable offline.</b> The surrounding build needs a live
+        /// <c>LandMap</c> and therefore the editor; this arithmetic does not, and the seven procedural
+        /// lands disagree about where they start, so it is worth a fixture. The caller reports the clamp.</para>
+        /// </summary>
+        /// <param name="entry">AS3 <c>locx</c>/<c>locy</c> — the land's declared entry cell.</param>
+        /// <param name="gridSize">The planned grid, after any conf-specific clamp.</param>
+        public static Vector3Int ResolveProceduralEntry(Vector2Int entry, Vector2Int gridSize)
+        {
+            int x = Mathf.Clamp(entry.x, 0, Mathf.Max(0, gridSize.x - 1));
+            int y = Mathf.Clamp(entry.y, 0, Mathf.Max(0, gridSize.y - 1));
+            return new Vector3Int(x, y, 0);
+        }
+
+        /// <summary>
+        /// Pick the template for one cell: AS3 <c>newTipLoc</c> when the plan names a tip, else
+        /// <c>newRandomLoc</c> (which also honours a tip when the conf sets one, e.g. conf 3's <c>roof</c>).
+        /// </summary>
+        private RoomTemplate SelectTemplateForCell(LandCellPlan cell, List<RoomTemplate> exclude)
+        {
+            if (cell.Fill == CellFill.Tip && !string.IsNullOrEmpty(cell.Tip))
+            {
+                RoomTemplate byTip = roomGenerator.SelectRoomByType(cell.Tip, exclude);
+                if (byTip != null) return byTip;
+
+                // AS3 newTipLoc traces "нет локации <tip>" and falls back to a random room — a silent art
+                // failure. Reported here rather than swallowed.
+                Debug.LogWarning($"[WorldBuilder] No room of tip '{cell.Tip}'; falling back to a random room.");
+            }
+
+            string requiredType = string.IsNullOrEmpty(cell.Tip) ? null : cell.Tip;
+            return roomGenerator.SelectRandomRoom(cell.SelectionStage, requiredType, exclude);
+        }
+
+        /// <summary>
+        /// AS3 <c>newRandomLoc</c> excludes the LEFT (<c>x-1</c>) and UP (<c>y-1</c>) neighbour's room
+        /// (<c>Land.as:897-903</c>). Both are already placed because the grid fills row-major from the top.
+        /// </summary>
+        private static List<RoomTemplate> ExcludedNeighbourTemplates(
+            Dictionary<Vector2Int, RoomTemplate> templatesByCell, int x, int y)
+        {
+            var exclude = new List<RoomTemplate>(2);
+            if (templatesByCell.TryGetValue(new Vector2Int(x - 1, y), out RoomTemplate left)) exclude.Add(left);
+            if (templatesByCell.TryGetValue(new Vector2Int(x, y - 1), out RoomTemplate up)) exclude.Add(up);
+            return exclude;
+        }
+
+        /// <summary>The room's 22 door slots as a quality array (<c>0</c> where the room declares none).</summary>
+        private static int[] DoorSlotsOf(RoomInstance room)
+        {
+            var slots = new int[DoorMatchMath.DoorSlotCount];
+            if (room.doors == null) return slots;
+
+            foreach (DoorInstance door in room.doors)
+            {
+                if (door.doorIndex >= 0 && door.doorIndex < slots.Length)
+                {
+                    slots[door.doorIndex] = (int)door.quality;
+                }
+            }
+            return slots;
+        }
+
+        /// <summary>
+        /// AS3 pass 3 (<c>Land.as:458-494</c>): match the shared wall, then draw the carves — 3 with
+        /// replacement on the right, 1 on the lower side — and activate the slots on both rooms.
+        /// </summary>
+        private int CarveNeighbourPair(RoomInstance roomA, int[] slotsA, RoomInstance roomB, int[] slotsB,
+            DoorWall wall, Vector3Int posB, Vector3Int posA)
+        {
+            List<DoorMatch> matches = DoorMatchMath.Match(slotsA, slotsB, wall);
+            if (matches.Count == 0) return 0;
+
+            List<DoorMatch> carves = DoorMatchMath.SelectCarves(matches, wall, _rng);
+
+            foreach (DoorMatch m in carves)
+            {
+                ActivateDoor(roomA, m.AIndex, (DoorQuality)m.Quality, posB, m.BIndex);
+                ActivateDoor(roomB, m.BIndex, (DoorQuality)m.Quality, posA, m.AIndex);
+            }
+            return carves.Count;
+        }
+
+        /// <summary>
+        /// Mark one slot active on a room, creating the <see cref="DoorInstance"/> when the mirror moved a
+        /// door onto a slot the room did not originally declare.
+        /// </summary>
+        private void ActivateDoor(RoomInstance room, int index, DoorQuality quality,
+            Vector3Int targetRoom, int targetIndex)
+        {
+            DoorInstance door = GetDoorByIndex(room, index);
+            if (door == null)
+            {
+                door = new DoorInstance
+                {
+                    doorIndex = index,
+                    side = GetDoorSide(index),
+                    tilePosition = GetDoorTilePosition(index),
+                };
+                room.doors.Add(door);
+            }
+
+            door.isActive = true;
+            door.quality = quality;
+            door.targetRoomPosition = targetRoom;
+            door.targetDoorIndex = targetIndex;
+        }
+
+        /// <summary>
+        /// The cell's own objects: the exit box (AS3 <c>createExit</c>), the checkpoint
+        /// (AS3 <c>createCheck</c>) and the trial / battle door (AS3 <c>newRandomProb</c> →
+        /// <c>createDoorProb</c>).
+        /// </summary>
+        private void PlaceCellObjects(LandDefinition land, RoomInstance room, LandCellPlan cell)
+        {
+            if (cell.SuppressPlacement) return;
+
+            if (cell.Exit != ExitKind.None)
+            {
+                string suffix = cell.Exit == ExitKind.Deep ? "1" : string.Empty;
+                RoomPopulator.PlaceExit(room, land.exitLandId, suffix);
+
+                // AS3 does NOT have a special "build the exit room" step, and that is the whole trap here.
+                // The exit box is created with `prob = exitProb + param` (Location.as:2119), and the tail
+                // of Location.createObj pushes every non-empty `prob` it sees into `land.probIds`
+                // (:2080-2082) — which Land.buildProbs then builds like any other prob (Land.as:752-768).
+                // So the exit room is a prob room, reached by the same machinery as a trial door, and the
+                // only reason it needs naming here is that this port has no `probIds` list to push into:
+                // without this call the box points at a room nobody built, and the entry refuses.
+                //
+                // Note the id is `exitLandId + suffix` — the *room* is `exit_plant1` for a Deep exit while
+                // the box's prefix is still `exit_plant`. Both exist in the prob collection.
+                BuildAndRegisterProbRoom(room, (land.exitLandId ?? string.Empty) + suffix);
+            }
+
+            if (cell.Checkpoint != CheckpointKind.None)
+            {
+                RoomPopulator.PlaceCheckpointMarker(room, cell.Checkpoint == CheckpointKind.Begin);
+            }
+
+            if (cell.Prob != ProbKind.None)
+            {
+                PlaceProbDoor(land, room, cell);
+            }
+        }
+
+        /// <summary>
+        /// AS3 <c>Land.newRandomProb(loc, maxlevel, imp)</c> (<c>Land.as:809-863</c>): choose a prob room
+        /// and drop a <c>doorprob</c> / <c>doorboss</c> into the cell.
+        ///
+        /// <para><b>The plan already decided <i>whether</i> this cell gets a prob door</b> — the conf
+        /// branches record <see cref="ProbKind.Forced"/> (the <c>imp</c> call) or
+        /// <see cref="ProbKind.Chance"/> (the plain one) — so all that is left here is <i>which</i> prob,
+        /// which is <see cref="ProbSelection"/>'s job, and the placement, which is
+        /// <see cref="RoomPopulator.PlaceProbDoor"/>'s.</para>
+        ///
+        /// <para><b>Two orderings are copied from the oracle rather than chosen.</b> The roll is only
+        /// spent when <see cref="ProbSelection.NeedsRoll"/> says so (<c>:839-846</c> draws in one branch
+        /// only), and the prob room is only built when the door was actually placed
+        /// (<c>:857-861</c> returns early when <c>createDoorProb</c> fails). Both matter because the draw
+        /// comes off the stream shared by every later placement in the land.</para>
+        /// </summary>
+        private void PlaceProbDoor(LandDefinition land, RoomInstance room, LandCellPlan cell)
+        {
+            if (land == null || land.probRooms == null || land.probRooms.Count == 0)
+            {
+                // A cell that the conf marked for a prob door in a land that declares no <prob> children.
+                // AS3 returns false from newRandomProb and places nothing; there is nothing to build from.
+                return;
+            }
+
+            if (ProbContext == null || ProbContext.ProbRoomTemplates == null ||
+                ProbContext.ProbRoomTemplates.Count == 0)
+            {
+                if (!_loggedMissingProbContext)
+                {
+                    _loggedMissingProbContext = true;
+                    Debug.LogWarning(
+                        $"[WorldBuilder] '{land.landId}' has {land.probRooms.Count} <prob> room(s) and the " +
+                        "plan places prob doors, but no IProbDoorContext is available, so no doorprob / " +
+                        "doorboss is placed. Supply the `prob` land's rooms and the trigger store to " +
+                        "enable them; the doors are withheld rather than placed without a room behind them.");
+                }
+                return;
+            }
+
+            bool wantImp = cell.Prob == ProbKind.Forced;
+
+            List<ProbRoomDefinition> eligible =
+                ProbSelection.Eligible(land.probRooms, landStage, _builtProbRooms, ProbContext.CompletedProbKeys);
+            if (eligible.Count == 0) return;
+
+            int roll = ProbSelection.NeedsRoll(eligible, wantImp) ? _rng.Range(0, eligible.Count) : 0;
+            ProbSelection.Choice choice = ProbSelection.SelectFrom(eligible, wantImp, roll);
+            if (choice == null) return;
+
+            if (RoomPopulator.PlaceProbDoor(room, choice.doorObjectId, choice.probId) == null)
+            {
+                // No spawn point in this room: AS3 returns false and does NOT build the prob room, so the
+                // room is not marked built and a later cell may still open it.
+                return;
+            }
+
+            _builtProbRooms.Add(choice.probId);
+
+            BuildAndRegisterProbRoom(room, choice.probId);
+        }
+
+        /// <summary>
+        /// Build the detached room a prob id names and register it so the door can open into it — the
+        /// second half of AS3's prob pipeline (<c>Land.buildProb</c>, <c>Land.as:771-807</c>), which
+        /// <c>buildProbs</c> runs for every id collected in <c>probIds</c> (<c>:752-768</c>).
+        ///
+        /// <para><b>Shared by the two callers because AS3 shares it.</b> A trial/battle door and the
+        /// bottom-row exit box reach this by the same route in the oracle — both place an object whose
+        /// <c>prob</c> attribute is non-empty, and <c>Location.createObj</c>'s tail collects it
+        /// (<c>:2080-2082</c>). The port has no collection step, so each placement site calls this
+        /// directly; a second copy of the find/build/register sequence is how one of them silently stops
+        /// registering.</para>
+        ///
+        /// <para><b>Idempotent by lookup, not by a flag.</b> <c>ProbDoorContext.TryGetRoom</c> answers
+        /// "already built", which is the port of <c>buildProb</c>'s opening
+        /// <c>if(this.probs[nprob] != null) return false;</c> (<c>:774-777</c>) — and unlike a separate
+        /// set it cannot disagree with the registry the runtime actually reads.</para>
+        /// </summary>
+        /// <param name="room">
+        /// The room the door stands in. Used only to name the failure: a prob room that cannot be built
+        /// leaves a door that leads nowhere, and which door matters.
+        /// </param>
+        /// <param name="probId">AS3 <c>nprob</c>. Empty means the land declared no exit — nothing to do.</param>
+        private void BuildAndRegisterProbRoom(RoomInstance room, string probId)
+        {
+            if (string.IsNullOrEmpty(probId)) return;
+
+            if (ProbContext == null)
+            {
+                if (!_loggedMissingProbContext)
+                {
+                    _loggedMissingProbContext = true;
+                    Debug.LogWarning(
+                        "[WorldBuilder] No IProbDoorContext is available, so no prob room (including a " +
+                        "land's exit room) can be built. Supply the `prob` land's rooms — see " +
+                        "MapBridge, which builds the context before the land is built.");
+                }
+                return;
+            }
+
+            if (ProbContext.TryGetRoom(probId, out _)) return;
+
+            RoomTemplate template = ProbRoomBuilder.FindRoom(ProbContext.ProbRoomTemplates, probId);
+            if (template == null)
+            {
+                // The door exists and its room is missing from the collection. AS3's loop simply finds no
+                // room and leaves `probs[id]` unset, so the door leads nowhere — reported rather than
+                // silent, because the cause is always a data mismatch between the land's <prob> list (or
+                // its `exit` attribute) and the rooms_prob collection.
+                Debug.LogWarning(
+                    $"[WorldBuilder] prob '{probId}' has no room in the prob collection, so the door placed " +
+                    $"for it (in '{room?.id}') opens into nothing.");
+                return;
+            }
+
+            RoomInstance probRoom = ProbRoomBuilder.Build(roomGenerator, template, probId);
+            if (probRoom != null)
+            {
+                ProbContext.RegisterProbRoom(probId, probRoom);
+            }
         }
 
         /// <summary>

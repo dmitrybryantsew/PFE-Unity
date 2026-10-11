@@ -16,9 +16,14 @@ namespace PFE.Systems.Map
         private bool excludeSpecialTypesInRandomSelection;
         private readonly TileFormDatabase _formDatabase;
         // Special-purpose room types that should not appear in generic random fill.
+        // AS3 oracle: `Room.nornd` (Room.as:11) = beg0, back, roof, pass, passroof, roofpass, vert, surf.
+        // The port used to carry beg0, beg1, roof, vert, surf, back, end, end1 — it was missing
+        // pass/passroof/roofpass (which conf 3 and conf 11 request *by tip*, Land.as:239-269, 374-386)
+        // and it excluded beg1/end/end1, which the oracle does NOT exclude.
+        // See docs/LandGameplayLoop/03_GAP_LEDGER.md §10 (D4).
         private static readonly HashSet<string> SpecialRoomTypes = new HashSet<string>(StringComparer.Ordinal)
         {
-            "beg0", "beg1", "roof", "vert", "surf", "back", "end", "end1"
+            "beg0", "back", "roof", "pass", "passroof", "roofpass", "vert", "surf"
         };
 
         private readonly PFE.Core.Rng.IRngService _rng;
@@ -153,7 +158,28 @@ namespace PFE.Systems.Map
         }
 
         /// <summary>
-        /// Create doors from template.
+        /// Build the room's door slots from the template's <c>doorQuality</c> table.
+        ///
+        /// <para><b>These are <i>candidates</i>, not doors, and they start inactive.</b> AS3's
+        /// <c>doors[i]</c> is only a candidate mask — a slot qualifies when
+        /// <c>min(a[i], b[i+11]) &gt;= 2</c> (<c>Land.as:426</c>, <c>:443</c>) and the doors actually
+        /// carved are a <i>draw</i> from that list: three times with replacement on the right wall,
+        /// once on the lower side (<c>Land.as:471-488</c>).</para>
+        ///
+        /// <para>Setting <c>isActive = true</c> here (as this used to) collapsed that distinction: the
+        /// mask became the final answer, so every candidate was carved and every candidate got a
+        /// walk-through trigger. The filter that should have narrowed it —
+        /// <see cref="PFE.Systems.Map.Generation.DoorMatchMath"/> via
+        /// <c>WorldBuilder.CarveNeighbourPair</c> — could only ever set <c>isActive = true</c> as well,
+        /// so it added nothing. Measured before the fix: a mean of <b>17.4 of 24</b> slots carved per
+        /// room in <c>rooms_plant</c>, against roughly 4-8 in the oracle, and four rooms that the oracle
+        /// authors with <i>zero</i> doors carved 2-6 of them.</para>
+        ///
+        /// <para>The reset that used to hide this (<c>WorldBuilder.BuildDoorConnections</c> clearing
+        /// <c>isActive</c>) only runs on the authored path, which <c>BuildProceduralLand</c> never
+        /// calls — so the over-carve was live in every procedural land.</para>
+        ///
+        /// <para>See <c>docs/LandGameplayLoop/06_DOOR_CARVE_AUDIT.md</c>.</para>
         /// </summary>
         private List<DoorInstance> CreateDoors(RoomTemplate template, RoomInstance room, Vector3Int position)
         {
@@ -168,7 +194,10 @@ namespace PFE.Systems.Map
                         doorIndex = i,
                         side = GetDoorSide(i),
                         quality = (DoorQuality)template.doorQuality[i],
-                        isActive = true,
+
+                        // Inactive on purpose: a candidate becomes a door only when
+                        // WorldBuilder.CarveNeighbourPair activates it (AS3's pass_r/pass_d draw).
+                        isActive = false,
                         tilePosition = GetDoorTilePosition(i)
                     };
 

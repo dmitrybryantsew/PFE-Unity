@@ -16,41 +16,6 @@ namespace PFE.Systems.Map
     public static class WorldCoordinates
     {
         /// <summary>
-        /// Convert land grid position to world space (pixels)
-        /// worldX = (landX * roomWidth * tileSize) + localX
-        /// </summary>
-        public static Vector2 LandToWorld(Vector3Int landCoord, Vector2 localPos)
-        {
-            return new Vector2(
-                landCoord.x * WorldConstants.ROOM_SIZE_PIXELS.x + localPos.x,
-                landCoord.y * WorldConstants.ROOM_SIZE_PIXELS.y + localPos.y
-            );
-        }
-
-        /// <summary>
-        /// Convert world position to land grid coordinates
-        /// </summary>
-        public static Vector3Int WorldToLand(Vector2 worldPos)
-        {
-            return new Vector3Int(
-                Mathf.FloorToInt(worldPos.x / WorldConstants.ROOM_SIZE_PIXELS.x),
-                Mathf.FloorToInt(worldPos.y / WorldConstants.ROOM_SIZE_PIXELS.y),
-                0
-            );
-        }
-
-        /// <summary>
-        /// Convert world position to local position within room
-        /// </summary>
-        public static Vector2 WorldToLocal(Vector2 worldPos)
-        {
-            return new Vector2(
-                worldPos.x % WorldConstants.ROOM_SIZE_PIXELS.x,
-                worldPos.y % WorldConstants.ROOM_SIZE_PIXELS.y
-            );
-        }
-
-        /// <summary>
         /// Convert pixel position to tile coordinates
         /// tileX = floor(pixelX / tileSize)
         /// </summary>
@@ -81,6 +46,103 @@ namespace PFE.Systems.Map
         {
             Vector2 pos = TileToPixel(tileCoord);
             return new Rect(pos.x, pos.y, WorldConstants.TILE_SIZE, WorldConstants.TILE_SIZE);
+        }
+
+        // ── The LAND-level Y flip ────────────────────────────────────────────────────────────
+        //
+        // AS3's land grid runs Y DOWNWARD, exactly like its tile grid: the camera target is
+        // `ggY = (landY - minLocY) * cellsY * tileY + ...` (Land.as:1536) and Flash screen Y
+        // grows down, so a larger `landY` is LOWER on screen. Unity's world +Y grows UP.
+        //
+        // The port copied AS3's `landY` straight into `landPosition.y` and then multiplied it by
+        // `ROOM_HEIGHT * TILE_SIZE` with a POSITIVE sign, so every land with more than one row was
+        // rendered vertically MIRRORED against the original: grid row 1 drew above grid row 0.
+        // The 23 single-row authored lands hid it (one cell has no vertical arrangement to mirror);
+        // the 12 multi-row authored lands and all 10 procedural lands did not.
+        //
+        // The flip belongs HERE, at the one place a land row becomes a world Y. The port's grid
+        // keeps AS3's numbering — `landPosition.y + 1` is still "the row below", `DoorSide.Bottom`
+        // is still the neighbour at `y + 1`, and `Land.gotoLoc` case 3 still steps `y + 1` — because
+        // all of that was already transcribed faithfully from the oracle and is only correct once
+        // the rendering agrees with it. Changing the grid instead would have meant renumbering
+        // every one of those against AS3, for no gain.
+        //
+        // Only `landRow` is negated; `borderOffsetTiles` is a WITHIN-cell inset and is not a land
+        // quantity. It is 0 in every path today (`RoomInstance.borderOffset` is only ever assigned
+        // 0, in Doorcarver.cs), so its sign is not observable either way and is left as-is rather
+        // than guessed at.
+
+        /// <summary>
+        /// A land grid row → the world pixel Y of that row's origin (its bottom edge). Row 0 sits at
+        /// 0 and each row below it is one room height more negative, so a larger row is lower.
+        /// </summary>
+        public static float LandRowToWorldPixelY(int landRow)
+        {
+            return -(landRow * WorldConstants.ROOM_SIZE_PIXELS.y);
+        }
+
+        /// <summary>
+        /// The world pixel Y of a room's origin. <paramref name="borderOffsetTiles"/> is the room's
+        /// within-cell inset, passed through unchanged (see the section remarks).
+        /// </summary>
+        public static float RoomOriginPixelY(int landRow, int borderOffsetTiles)
+        {
+            return LandRowToWorldPixelY(landRow) - borderOffsetTiles * WorldConstants.TILE_SIZE;
+        }
+
+        /// <summary>
+        /// The world pixel X of a room's origin. X is not flipped — only the land's Y axis is.
+        /// </summary>
+        public static float RoomOriginPixelX(int landColumn, int borderOffsetTiles)
+        {
+            return landColumn * WorldConstants.ROOM_SIZE_PIXELS.x
+                   - borderOffsetTiles * WorldConstants.TILE_SIZE;
+        }
+
+        /// <summary>
+        /// Convert land grid position to world space (pixels)
+        /// worldX = (landX * roomWidth * tileSize) + localX
+        /// worldY = -(landY * roomHeight * tileSize) + localY   — see the land-Y section above.
+        /// </summary>
+        public static Vector2 LandToWorld(Vector3Int landCoord, Vector2 localPos)
+        {
+            return new Vector2(
+                landCoord.x * WorldConstants.ROOM_SIZE_PIXELS.x + localPos.x,
+                LandRowToWorldPixelY(landCoord.y) + localPos.y
+            );
+        }
+
+        /// <summary>
+        /// Convert world position to land grid coordinates. The Y row is the inverse of
+        /// <see cref="LandRowToWorldPixelY"/>: negate, then floor, so that a row spans
+        /// <c>[-row * H, (1 - row) * H)</c>.
+        /// </summary>
+        public static Vector3Int WorldToLand(Vector2 worldPos)
+        {
+            return new Vector3Int(
+                Mathf.FloorToInt(worldPos.x / WorldConstants.ROOM_SIZE_PIXELS.x),
+                -Mathf.FloorToInt(worldPos.y / WorldConstants.ROOM_SIZE_PIXELS.y),
+                0
+            );
+        }
+
+        /// <summary>
+        /// Convert world position to local position within its room. Both components land in
+        /// <c>[0, size)</c>: the Y flip makes world Y negative below row 0, so a plain `%` would
+        /// return a negative local Y and every consumer would need its own fix-up.
+        /// </summary>
+        public static Vector2 WorldToLocal(Vector2 worldPos)
+        {
+            float sizeX = WorldConstants.ROOM_SIZE_PIXELS.x;
+            float sizeY = WorldConstants.ROOM_SIZE_PIXELS.y;
+
+            float localX = worldPos.x % sizeX;
+            if (localX < 0f) localX += sizeX;
+
+            float localY = worldPos.y % sizeY;
+            if (localY < 0f) localY += sizeY;
+
+            return new Vector2(localX, localY);
         }
 
         // ── AS3 ↔ port Y axis ────────────────────────────────────────────────────────────────

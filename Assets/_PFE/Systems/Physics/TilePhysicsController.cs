@@ -67,6 +67,26 @@ namespace PFE.Systems.Physics
         }
 
         /// <summary>
+        /// Whether this motor may change rooms when it reaches a room boundary.
+        ///
+        /// <para><b>Player-only, matching AS3.</b> <c>Unit.outLoc</c> (<c>Unit.as:1882</c>) — the base
+        /// every regular unit inherits — <b>returns <c>false</c></b> and never calls
+        /// <c>land.gotoLoc</c>, so a unit that walks off the edge is <i>clamped</i> by the caller's
+        /// <c>X = scX / 2</c> branch. Only <c>UnitPlayer.outLoc</c> (<c>UnitPlayer.as:540</c>) overrides
+        /// it and transitions. <see cref="MarkUnitOwned"/> is the port's "this is an NPC, not the
+        /// player" marker, so a unit-owned motor clamps instead of dragging a room swap along with it.</para>
+        ///
+        /// <para><b>Why this is a property rather than an inline test.</b> The bug it fixes was silent
+        /// and severe: a regular unit crossing the edge handed its own GameObject to
+        /// <c>RoomTransitionManager</c>, which re-rendered the room, flipped <c>landMap.currentRoom</c>,
+        /// snapped the camera and moved the unit — while the player was left standing in the old room's
+        /// coordinates (reported as "map graphics fully disappear while I am in the middle of the room").
+        /// Naming the rule makes it assertable in both directions, the same way <see cref="TickOrder"/>
+        /// is. See <c>.workbuddy-ai/memory/2026-10-11.md</c>.</para>
+        /// </summary>
+        public bool MayChangeRoomAtBoundary => !unitOwned;
+
+        /// <summary>
         /// One authoritative simulation step. Identical work to the legacy FixedUpdate body; only the
         /// <i>driver</i> and the per-step scaling change. See <see cref="SimDriven"/>.
         /// </summary>
@@ -477,10 +497,8 @@ namespace PFE.Systems.Physics
                 // Calculate room's world pixel position
                 // This accounts for land position and border offset
                 int borderOffsetTiles = room.borderOffset;
-                roomWorldPixelX = room.landPosition.x * WorldConstants.ROOM_WIDTH * WorldConstants.TILE_SIZE
-                                  - borderOffsetTiles * WorldConstants.TILE_SIZE;
-                roomWorldPixelY = room.landPosition.y * WorldConstants.ROOM_HEIGHT * WorldConstants.TILE_SIZE
-                                  - borderOffsetTiles * WorldConstants.TILE_SIZE;
+                roomWorldPixelX = WorldCoordinates.RoomOriginPixelX(room.landPosition.x, borderOffsetTiles);
+                roomWorldPixelY = WorldCoordinates.RoomOriginPixelY(room.landPosition.y, borderOffsetTiles);
 
                 // UnifiedTileQueryService is the only implementation. A dual-run shadow used to be
                 // selectable here (GridTileQuery behind TileQueryDivergenceLogger); it was removed
@@ -979,7 +997,17 @@ namespace PFE.Systems.Physics
             float roomWidthPixels = currentRoom.width * WorldConstants.TILE_SIZE;
             float roomHeightPixels = currentRoom.height * WorldConstants.TILE_SIZE;
 
-            var transitionManager = PFE.Systems.Map.Streaming.RoomTransitionManager.Instance;
+            // AS3 splits outLoc by owner: the base Unit.outLoc (Unit.as:1882) returns false without
+            // changing rooms — a regular unit is CLAMPED at the edge — and only UnitPlayer.outLoc
+            // (UnitPlayer.as:540) calls land.gotoLoc. So a unit-owned motor must clamp, not transition.
+            // Handing a unit's GameObject to RoomTransitionManager re-rendered the room, flipped
+            // landMap.currentRoom and moved the unit, while the player was left standing in the old
+            // room's coordinates — reported as "map graphics fully disappear while I am in the middle
+            // of the room". See .workbuddy-ai/memory/2026-10-11.md. The `if (!transitioned)` branches
+            // below are the clamp, so they are exactly what a unit must fall into.
+            var transitionManager = MayChangeRoomAtBoundary
+                ? PFE.Systems.Map.Streaming.RoomTransitionManager.Instance
+                : null;
 
             // Right boundary (direction 2)
             if (localPixelX >= roomWidthPixels)

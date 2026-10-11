@@ -88,6 +88,10 @@ public class GameLifetimeScope : LifetimeScope
         builder.RegisterMessageBroker<WeaponDurabilityChangedMessage>(pipe);
         // Map messages
         builder.RegisterMessageBroker<LandTransitionMessage>(pipe);
+        // The one request that actually rebuilds the world: CampaignManager publishes, MapBridge builds.
+        builder.RegisterMessageBroker<LandBuildRequestMessage>(pipe);
+        // The camp's wall map (allact='map') and a `travel` NPC both publish this.
+        builder.RegisterMessageBroker<TravelMapOpenedMessage>(pipe);
         builder.RegisterMessageBroker<TutorialPromptMessage>(pipe);
         builder.RegisterMessageBroker<ObjectiveMarkerMessage>(pipe);
         // RPG messages

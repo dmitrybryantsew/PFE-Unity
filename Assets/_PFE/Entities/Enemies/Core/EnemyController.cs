@@ -45,6 +45,35 @@ namespace PFE.Entities.Enemies
         public bool HasWeaponServices => _projectileFactory != null;
 
         /// <summary>
+        /// AS3 <c>Location.locDifLevel</c> for the room this unit was spawned into — the value
+        /// <c>Unit.getXmlWeapon(param1)</c> compares each candidate's <c>dif</c> against
+        /// (<c>Unit.as:1459</c>), and the value <c>Land.as:983</c> writes.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Why the spawner has to hand it over.</b> The difficulty belongs to the room, not to
+        /// the unit: it is <c>RoomInstance.difficulty.enemyLevel</c>, and the unit's only reference to
+        /// its room is the tile query — which is built <i>after</i> <c>Initialize</c> (see
+        /// <c>RoomUnitSpawner.Spawn</c>: <c>SetTileQuery</c> runs below the weapon handover). Reading it
+        /// through the tile query would therefore arrive too late for a weapon roll that has to happen in
+        /// <c>Initialize</c>, where <c>Stats</c> first exists.</para>
+        ///
+        /// <para><b>0 is a real value, not "unset".</b> It is difficulty 0, which every candidate with
+        /// <c>dif</c> 0 (the overwhelming majority) passes and which the <c>dif='6'</c>/<c>'7'</c> rows
+        /// refuse — so a bare test spawn gets the oracle's low-difficulty loadout rather than a special
+        /// case. AS3's own default for <c>locDifLevel</c> is 0 for the same reason.</para>
+        /// </remarks>
+        public float LocationDifficulty { get; private set; }
+
+        /// <summary>
+        /// Set AS3's <c>locDifLevel</c> for this unit. Called by <c>RoomUnitSpawner</c> before
+        /// <c>Initialize</c>, because the weapon roll reads it there.
+        /// </summary>
+        public void SetLocationDifficulty(float difficulty)
+        {
+            LocationDifficulty = difficulty;
+        }
+
+        /// <summary>
         /// The mount for <paramref name="weaponId"/>, or null when the unit does not carry it.
         /// </summary>
         public EnemyWeaponMount GetWeaponMount(string weaponId)
@@ -120,6 +149,23 @@ namespace PFE.Entities.Enemies
         }
 
         /// <summary>
+        /// The weapon table this unit resolves ids against — the injected provider when there is one,
+        /// otherwise the <c>Resources</c>-backed shared instance.
+        ///
+        /// <para>Exposed <c>protected</c> so an archetype can ask "does this id exist?" <i>before</i>
+        /// deciding what to equip, which is what the oracle's weapon roll needs: <c>Weapon.create</c>
+        /// returns <c>null</c> for an unknown id and <c>Unit.getXmlWeapon</c> then falls through to the
+        /// next candidate (<c>Unit.as:1470-1474</c>). A roll that could not ask would equip a
+        /// non-existent weapon and leave the unit silently unarmed.</para>
+        /// </summary>
+        protected IWeaponDefinitionProvider WeaponDefinitionProvider =>
+            _weaponProvider ?? ResourcesWeaponDefinitionProvider.Shared;
+
+        /// <summary>Resolve a weapon id, or report that it does not exist. See <see cref="WeaponDefinitionProvider"/>.</summary>
+        protected bool TryGetWeaponDefinition(string weaponId, out WeaponDefinition definition)
+            => WeaponDefinitionProvider.TryGetWeapon(weaponId, out definition);
+
+        /// <summary>
         /// Equip a weapon by id and return its mount. Idempotent per id: calling twice returns the same
         /// mount rather than stacking a second controller on the unit.
         ///
@@ -133,8 +179,7 @@ namespace PFE.Entities.Enemies
             if (string.IsNullOrEmpty(weaponId)) return null;
             if (_weaponMounts.TryGetValue(weaponId, out EnemyWeaponMount existing)) return existing;
 
-            IWeaponDefinitionProvider provider = _weaponProvider ?? ResourcesWeaponDefinitionProvider.Shared;
-            if (!provider.TryGetWeapon(weaponId, out WeaponDefinition def) || def == null)
+            if (!TryGetWeaponDefinition(weaponId, out WeaponDefinition def) || def == null)
             {
                 Debug.LogWarning(
                     $"[{GetType().Name}] no WeaponDefinition for id '{weaponId}' on '{name}'. " +

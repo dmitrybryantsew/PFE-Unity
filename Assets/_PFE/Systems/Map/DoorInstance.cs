@@ -35,7 +35,7 @@ namespace PFE.Systems.Map
         {
             Vector2 roomPos = new Vector2(
                 currentRoomPos.x * WorldConstants.ROOM_SIZE_PIXELS.x,
-                currentRoomPos.y * WorldConstants.ROOM_SIZE_PIXELS.y
+                WorldCoordinates.LandRowToWorldPixelY(currentRoomPos.y)
             );
             Vector2 tilePos = WorldCoordinates.TileToPixel(tilePosition);
             return roomPos + tilePos;

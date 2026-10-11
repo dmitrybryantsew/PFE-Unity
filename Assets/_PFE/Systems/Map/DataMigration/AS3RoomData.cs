@@ -277,6 +277,18 @@ namespace PFE.Systems.Map.DataMigration
         /// </summary>
         public string val;
 
+        /// <summary>Branch selector (n attribute). `gotoland` branches on it: 2 = force, 1 = "x:y".</summary>
+        public string n;
+
+        /// <summary>First option (opt1 attribute) — the x of an "x:y" coordinate pair.</summary>
+        public string opt1;
+
+        /// <summary>Second option (opt2 attribute) — the y of an "x:y" coordinate pair.</summary>
+        public string opt2;
+
+        /// <summary>Frame delay (t attribute). Parsed for completeness; nothing consumes it yet.</summary>
+        public string t;
+
         public override string ToString()
         {
             return $"Action({act} -> {targ} = {val})";

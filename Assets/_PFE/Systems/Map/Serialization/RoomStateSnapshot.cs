@@ -847,6 +847,10 @@ namespace PFE.Systems.Map.Serialization
         public string act;
         public string targ;
         public string val;
+        public string n;
+        public string opt1;
+        public string opt2;
+        public string t;
 
         public static MapObjectScriptActionSnapshot[] CreateArray(List<MapObjectScriptActionData> source)
         {
@@ -868,7 +872,11 @@ namespace PFE.Systems.Map.Serialization
                 {
                     act = action.act,
                     targ = action.targ,
-                    val = action.val
+                    val = action.val,
+                    n = action.n,
+                    opt1 = action.opt1,
+                    opt2 = action.opt2,
+                    t = action.t
                 };
             }
 
@@ -895,7 +903,11 @@ namespace PFE.Systems.Map.Serialization
                 {
                     act = action.act,
                     targ = action.targ,
-                    val = action.val
+                    val = action.val,
+                    n = action.n,
+                    opt1 = action.opt1,
+                    opt2 = action.opt2,
+                    t = action.t
                 });
             }
 

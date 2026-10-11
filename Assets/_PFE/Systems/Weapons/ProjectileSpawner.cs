@@ -75,6 +75,40 @@ namespace PFE.Systems.Weapons
         /// <summary>Cache for <see cref="ResolveOwnerUnit"/>, invalidated when <see cref="Owner"/> changes.</summary>
         private UnitController _ownerUnit;
 
+        // ── Scene-wide throwable defaults ─────────────────────────────────────
+        //
+        // The two prefabs above are assigned in the Inspector on the PLAYER's ProjectileSpawner (the
+        // scene's only one), and until this seam existed there was no way for any other spawner to get
+        // them. That was invisible while the player was the only weapon consumer, and became a real gap
+        // the moment an enemy could carry a thrown weapon: an NPC's `grenade`/`molotov`/`hgren` produced
+        // `SpawnThrownObject` → "ThrownObject prefab not assigned" → no grenade, while every ranged
+        // enemy fired normally.
+        //
+        // Publishing them process-wide rather than threading a provider through the container is the
+        // small honest answer here: the prefabs are presentation-only, identical for every wielder, and
+        // already authored exactly once. Nothing registers a service that does not exist yet, and the
+        // failure mode stays loud (the existing warning) if no spawner ever had them assigned.
+
+        /// <summary>
+        /// The scene's <c>Throwable.prefab</c>, published by whichever <see cref="ProjectileSpawner"/>
+        /// had one assigned. Null until then — a bare test rig, or a scene whose player spawner was never
+        /// authored — in which case a thrown weapon still logs the existing "prefab not assigned".
+        /// </summary>
+        public static ThrownObject DefaultThrownObjectPrefab { get; private set; }
+
+        /// <summary>The scene's <c>Mine.prefab</c>, published the same way as the throwable.</summary>
+        public static MineObject DefaultMinePrefab { get; private set; }
+
+        /// <summary>
+        /// Publish this spawner's assigned prefabs as the scene-wide defaults. Guarded on non-null, so a
+        /// spawner that has none (every enemy mount) cannot erase what the player's spawner published.
+        /// </summary>
+        public void PublishThrowablePrefabsAsDefaults()
+        {
+            if (_thrownObjectPrefab != null) DefaultThrownObjectPrefab = _thrownObjectPrefab;
+            if (_minePrefab        != null) DefaultMinePrefab        = _minePrefab;
+        }
+
         // ── Public API ────────────────────────────────────────────────────────
 
         /// <summary>
@@ -91,6 +125,12 @@ namespace PFE.Systems.Weapons
             _factory  = factory;
             _resolver = resolver;
             _debugSettings = debugSettings;
+
+            // The player's spawner is the one the prefabs are authored on; publish them so an enemy
+            // mount's spawner — which is built at runtime and can never carry an Inspector reference —
+            // can reach the same two assets. Read at SPAWN time (see SpawnThrownObject), so the order in
+            // which the two spawners are initialised does not matter.
+            PublishThrowablePrefabsAsDefaults();
 
             // Only for the mine placement retry. A resolver that cannot supply the land (a bare test
             // container) must not take the spawner down with it — the mine path degrades to "no room",
@@ -301,14 +341,18 @@ namespace PFE.Systems.Weapons
 
         private void SpawnThrownObject(ShotPlan plan)
         {
-            if (_thrownObjectPrefab == null)
+            // The scene-wide default is the fallback, not a second source of truth: a spawner that has
+            // its own prefab (the player's) always wins. See DefaultThrownObjectPrefab for why an enemy
+            // mount can only ever reach the published one.
+            ThrownObject prefab = _thrownObjectPrefab != null ? _thrownObjectPrefab : DefaultThrownObjectPrefab;
+            if (prefab == null)
             {
                 Debug.LogWarning("[ProjectileSpawner] ThrownObject prefab not assigned.");
                 return;
             }
 
             Vector3 spawnPos = new Vector3(plan.WorldPosition.x, plan.WorldPosition.y, 0f);
-            ThrownObject obj = Instantiate(_thrownObjectPrefab, spawnPos, Quaternion.identity);
+            ThrownObject obj = Instantiate(prefab, spawnPos, Quaternion.identity);
 
             _resolver?.Inject(obj);
 
@@ -367,15 +411,17 @@ namespace PFE.Systems.Weapons
                 return;
             }
 
-            // New mine placement.
-            if (_minePrefab == null)
+            // New mine placement. Same published-default fallback as the thrown object, and the same
+            // reason: a mine placed by an NPC has no Inspector reference to reach.
+            MineObject prefab = _minePrefab != null ? _minePrefab : DefaultMinePrefab;
+            if (prefab == null)
             {
                 Debug.LogWarning("[ProjectileSpawner] Mine prefab not assigned.");
                 return;
             }
 
             Vector3 spawnPos = new Vector3(plan.WorldPosition.x, plan.WorldPosition.y, 0f);
-            MineObject mine  = Instantiate(_minePrefab, spawnPos, Quaternion.identity);
+            MineObject mine  = Instantiate(prefab, spawnPos, Quaternion.identity);
 
             _resolver?.Inject(mine);
 

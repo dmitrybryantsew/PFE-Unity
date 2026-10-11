@@ -32,6 +32,18 @@ namespace PFE.Systems.Map
         public string act;
         public string targ;
         public string val;
+
+        // AS3 `<s>` parameters that the port used to drop on the floor. `n` alone changes behaviour:
+        // `gotoland` branches on it (`Script.as:445-456`), so a `@n='2'` action used to silently become
+        // a plain one. `opt1`/`opt2` carry the "x:y" pair for `@n='1'`; `t` is the frame delay that
+        // nothing consumes yet.
+        public string n;
+        public string opt1;
+        public string opt2;
+        public string t;
+
+        /// <summary>Parsed <c>n</c>; 0 when absent or unparsable.</summary>
+        public int NValue => int.TryParse(n, out int v) ? v : 0;
     }
 
     [Serializable]
@@ -133,7 +145,11 @@ namespace PFE.Systems.Map
                         {
                             act = action.act,
                             targ = action.targ,
-                            val = action.val
+                            val = action.val,
+                            n = action.n,
+                            opt1 = action.opt1,
+                            opt2 = action.opt2,
+                            t = action.t
                         });
                     }
                 }

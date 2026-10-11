@@ -803,6 +803,63 @@ namespace PFE.Entities.Enemies
             }
         }
 
+        /// <summary>
+        /// <c>true</c> when the awareness budget has drained past the chase band — the oracle's
+        /// <c>aiSpok &lt; maxSpok</c>. See <see cref="EnemyAwarenessMath"/>.
+        ///
+        /// <para><b>Why every archetype needs this and not just the base.</b> Every archetype and boss
+        /// overrides <see cref="TickCombatChase"/> without calling <c>base</c>, and each one re-stated
+        /// the old exit condition — <c>if (TargetUnit == null) → Alert</c>. Because
+        /// <c>EnemySensors.Evaluate</c> nulls <c>TargetUnit</c> on the <i>first</i> obscured tick, that
+        /// exit fires immediately and the unit forgets the player the instant line of sight breaks:
+        /// the "it loses me too quickly" report. <c>ZombieBrain</c> does not override
+        /// <c>TickCombatChase</c>, so it inherited the fixed base version — which is why the fix
+        /// appeared to work for zombies and for nothing else.</para>
+        /// </summary>
+        protected bool ChaseBudgetExhausted => !EnemyAwarenessMath.IsChasing(_blackboard.AlertTimerTicks);
+
+        /// <summary>
+        /// Keep pursuing the last place the target was seen — AS3's <c>celX</c>/<c>celY</c>, which
+        /// survive the sighting that set them.
+        ///
+        /// <para>Called by an archetype's <see cref="TickCombatChase"/> when
+        /// <see cref="ChaseBudgetExhausted"/> is <c>false</c> but <c>TargetUnit</c> is <c>null</c> —
+        /// i.e. the unit is still hunting a target it cannot see. The direction is taken from
+        /// <see cref="EnemyBlackboard.LastKnownTargetPosition"/> (the port's <c>celX</c>/<c>celY</c>),
+        /// which is why a sighting, not a sighting <i>right now</i>, is what keeps the chase alive.</para>
+        ///
+        /// <para><b>The <c>HasLastKnownTargetPosition</c> gate is load-bearing.</b>
+        /// <c>LastKnownTargetPosition</c> is a <c>Vector2</c> and <c>(0,0)</c> is a real place — the
+        /// corner of the map — so reading it ungated walks the unit to the world origin. That bug has
+        /// already shipped once (see <see cref="TickAlert"/>).</para>
+        /// </summary>
+        protected virtual void ChaseLastKnownPosition(int tickIndex)
+        {
+            if (!_blackboard.HasLastKnownTargetPosition)
+            {
+                StopMovement();
+                return;
+            }
+
+            float currentX = transform.position.x * 100f;
+            float diffX = _blackboard.LastKnownTargetPosition.x - currentX;
+            if (Mathf.Abs(diffX) <= 5f)
+            {
+                StopMovement();
+                return;
+            }
+
+            int dir = diffX >= 0 ? 1 : -1;
+            _blackboard.FacingDirection = dir;
+            ApplyFacing(dir);
+
+            // Same placement as the base chase and TickPatrol: decide the edge reaction before the
+            // move, so a turn it performs is the direction this tick's move follows.
+            HandleLedgeAhead(tickIndex);
+
+            MoveHorizontal(dir * _chaseSpeed);
+        }
+
         protected virtual void TickCombatChase(int tickIndex)
         {
             // A DEAD target ends the hunt outright — there is nothing left to search for. This is the
@@ -833,7 +890,7 @@ namespace PFE.Entities.Enemies
             // The direction below already reads `LastKnownTargetPosition`, which is the port's
             // `celX`/`celY`, so nothing else has to change for the unit to keep pursuing a target it can
             // no longer see. EnemyAwarenessMath carries the oracle's numbers.
-            if (!EnemyAwarenessMath.IsChasing(_blackboard.AlertTimerTicks))
+            if (ChaseBudgetExhausted)
             {
                 SetState(EnemyAIState.Alert);
                 return;

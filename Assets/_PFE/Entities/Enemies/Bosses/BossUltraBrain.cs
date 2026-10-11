@@ -73,9 +73,16 @@ namespace PFE.Entities.Enemies.Bosses
 
         protected override void TickCombatChase(int tickIndex)
         {
+            // Budget, not sighting — see `EnemyBrain.ChaseBudgetExhausted`.
+            if (ChaseBudgetExhausted)
+            {
+                SetState(EnemyAIState.Alert);
+                return;
+            }
+
             if (_blackboard.TargetUnit == null)
             {
-                StopMovement();
+                ChaseLastKnownPosition(tickIndex);
                 return;
             }
 

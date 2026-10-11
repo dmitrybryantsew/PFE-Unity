@@ -214,24 +214,40 @@ namespace PFE.Tests.Editor.Campaign
             Assert.IsNotNull(catalog.GetScript("tamePhoenix"));
         }
 
-        [Test]
-        public void RealGameData_ParsesIfAvailable()
+        /// <summary>
+        /// Reads the oracle's <c>GameData.as</c> if any known copy is on this machine, else null.
+        ///
+        /// <para>Split out of the two tests that need it so both probe the same list: a second, drifting
+        /// probe list is how one of them ends up skipping silently while the other runs.</para>
+        /// </summary>
+        private static string TryReadRealGameData()
         {
             string[] probePaths = new[]
             {
+                // The canonical oracle, first. The two below are byte-identical copies (md5
+                // 300844e12816dbcb1bad8b232ad9faa8 at the time of writing), kept so this probe still
+                // resolves on a machine that holds only one of them — but the canonical path is the one
+                // that must survive, so it is probed first.
+                @"E:\Games\UnityGames\pfeToUnity\pfe\scripts\fe\GameData.as",
                 @"C:\Users\User\Documents\rustProjects\pfeToUnity\pfe\scripts\fe\GameData.as",
                 @"E:\Games\UnityGames\backup from ralph\New folder\pfeToUnity\pfe\scripts\fe\GameData.as"
             };
 
-            string realContent = null;
             foreach (var p in probePaths)
             {
                 if (File.Exists(p))
                 {
-                    realContent = File.ReadAllText(p);
-                    break;
+                    return File.ReadAllText(p);
                 }
             }
+
+            return null;
+        }
+
+        [Test]
+        public void RealGameData_ParsesIfAvailable()
+        {
+            string realContent = TryReadRealGameData();
 
             if (string.IsNullOrEmpty(realContent))
             {
@@ -267,6 +283,94 @@ namespace PFE.Tests.Editor.Campaign
             var calamNpc = npcs.Find(n => n.npcId == "calam");
             Assert.IsNotNull(calamNpc, "NPC 'calam' must exist");
             Assert.Greater(calamNpc.dialogues.Count, 0, "Calam must have dialogues");
+        }
+
+        /// <summary>
+        /// The <c>&lt;prob&gt;</c> children that <c>ParseLands</c> used to skip entirely.
+        ///
+        /// <para><b>Every number below is a count of the oracle, not of the parser's output.</b> They were
+        /// taken from <c>GameData.as</c> independently, so a parser that drops an attribute or mis-files a
+        /// child fails here instead of agreeing with itself. <c>CampaignDataParser</c> selected only
+        /// <c>//land</c>, <c>//quest</c>, <c>//npc</c> and <c>//scr</c>, so before this the count was 0 for
+        /// every one of them and no door could be placed.</para>
+        ///
+        /// <para>Editor-only: <c>ParseLands</c> calls <c>ScriptableObject.CreateInstance</c>, which raises
+        /// <c>ECall</c> in a plain shell. The parsing <em>rules</em> are covered offline by
+        /// <c>ProbParsingTests</c>; this case covers the real data.</para>
+        /// </summary>
+        [Test]
+        public void RealGameData_DeclaresTheProbRoomsThatWereNeverRead()
+        {
+            string realContent = TryReadRealGameData();
+            if (string.IsNullOrEmpty(realContent))
+            {
+                Assert.Pass("Skipping: GameData.as was not found on local dev disk.");
+                return;
+            }
+
+            var lands = CampaignDataParser.ParseLands(realContent);
+
+            var probLands = lands.FindAll(l => l.probRooms != null && l.probRooms.Count > 0);
+
+            CollectionAssert.AreEquivalent(
+                new[]
+                {
+                    "rbl", "random_plant", "random_sewer", "random_stable",
+                    "random_mane", "random_canter", "random_encl",
+                },
+                probLands.ConvertAll(l => l.landId),
+                "Seven lands declare <prob> children. A land missing here means its <prob> block was not " +
+                "walked; an extra one means a land picked up another land's children.");
+
+            // Per-land counts, so a land that read the wrong sibling's block is caught.
+            Assert.AreEqual(7, CountProbs(lands, "rbl"));
+            Assert.AreEqual(14, CountProbs(lands, "random_plant"));
+            Assert.AreEqual(6, CountProbs(lands, "random_sewer"));
+            Assert.AreEqual(14, CountProbs(lands, "random_stable"));
+            Assert.AreEqual(10, CountProbs(lands, "random_mane"));
+            Assert.AreEqual(9, CountProbs(lands, "random_canter"));
+            Assert.AreEqual(6, CountProbs(lands, "random_encl"));
+
+            int total = 0, imps = 0, bossTips = 0, probTips = 0, absentLevel = 0, zeroLevel = 0;
+            var impIds = new List<string>();
+            foreach (var land in probLands)
+            {
+                foreach (var prob in land.probRooms)
+                {
+                    total++;
+                    if (prob.imp) { imps++; impIds.Add(prob.id); }
+                    if (prob.tip == "2") bossTips++;
+                    else if (prob.tip == "1") probTips++;
+                    if (!prob.hasLevel) absentLevel++;
+                    else if (prob.level == 0) zeroLevel++;
+                }
+            }
+
+            Assert.AreEqual(66, total, "66 <prob> elements in GameData.as.");
+            Assert.AreEqual(2, imps, "Exactly two carry `imp`.");
+            CollectionAssert.AreEquivalent(new[] { "camp", "griff" }, impIds,
+                "…and they are `camp` (random_sewer) and `griff` (random_mane).");
+            Assert.AreEqual(34, bossTips, "34 are tip='2' — a doorboss.");
+            Assert.AreEqual(31, probTips, "31 are tip='1' — a doorprob.");
+            Assert.AreEqual(8, absentLevel,
+                "8 have no `level` attribute at all. If this reads 0 the parser is collapsing 'absent' " +
+                "into 'level=0' and newRandomProb's `.length == 0` test cannot be reproduced.");
+            Assert.AreEqual(23, zeroLevel, "23 carry level='0' explicitly — a different answer from absent.");
+
+            // The detached collection itself.
+            var probLand = lands.Find(l => l.landId == "prob");
+            Assert.IsNotNull(probLand, "The `prob` land holds every prob room (Land.as:783).");
+            Assert.IsTrue(probLand.isProbLand,
+                "AS3 `prob='1'` sends this land to game.probs rather than game.lands (Game.as:75-82). " +
+                "Before the parser read the attribute this was false.");
+            Assert.AreEqual("rooms_prob", probLand.sourceFileKey);
+            Assert.AreEqual(0, probLand.probRooms.Count, "the `prob` land declares no <prob> of its own");
+        }
+
+        private static int CountProbs(List<LandDefinition> lands, string landId)
+        {
+            var land = lands.Find(l => l.landId == landId);
+            return land?.probRooms?.Count ?? 0;
         }
     }
 }

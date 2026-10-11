@@ -59,16 +59,16 @@ namespace PFE.Systems.Map
                 // Core 2-tile opening
                 CarveTile(room, baseCol + 1, topRow);
                 CarveTile(room, baseCol + 2, topRow);
-                // Clear tiles behind the opening for walkability
-                ClearPhysics(room, baseCol + 1, innerRow);
-                ClearPhysics(room, baseCol + 2, innerRow);
+                // Open the tiles behind the opening too (AS3 holes both the border row and the row inside it)
+                Hole(room, baseCol + 1, innerRow);
+                Hole(room, baseCol + 2, innerRow);
 
                 if (quality > 2) // Wide door
                 {
                     CarveTile(room, baseCol, topRow);
                     CarveTile(room, baseCol + 3, topRow);
-                    ClearPhysics(room, baseCol, innerRow);
-                    ClearPhysics(room, baseCol + 3, innerRow);
+                    Hole(room, baseCol, innerRow);
+                    Hole(room, baseCol + 3, innerRow);
                 }
             }
             else if (doorIndex >= 11) // Left side (indices 11-16, mapped from AS3 indices 11-16)
@@ -82,13 +82,13 @@ namespace PFE.Systems.Map
                 CarveTile(room, leftCol, row0);
                 CarveTile(room, leftCol, row1);
                 // Clear tiles behind the opening
-                ClearPhysics(room, leftCol + 1, row0);
-                ClearPhysics(room, leftCol + 1, row1);
+                Hole(room, leftCol + 1, row0);
+                Hole(room, leftCol + 1, row1);
 
                 if (quality > 2)
                 {
                     CarveTile(room, leftCol, row2);
-                    ClearPhysics(room, leftCol + 1, row2);
+                    Hole(room, leftCol + 1, row2);
                 }
             }
             else if (doorIndex >= 6) // Bottom side (indices 6-10, mapped from AS3 indices 6-10)
@@ -99,15 +99,15 @@ namespace PFE.Systems.Map
                 // Core 2-tile opening
                 CarveTile(room, baseCol + 1, bottomRow);
                 CarveTile(room, baseCol + 2, bottomRow);
-                ClearPhysics(room, baseCol + 1, innerRow);
-                ClearPhysics(room, baseCol + 2, innerRow);
+                Hole(room, baseCol + 1, innerRow);
+                Hole(room, baseCol + 2, innerRow);
 
                 if (quality > 2)
                 {
                     CarveTile(room, baseCol, bottomRow);
                     CarveTile(room, baseCol + 3, bottomRow);
-                    ClearPhysics(room, baseCol, innerRow);
-                    ClearPhysics(room, baseCol + 3, innerRow);
+                    Hole(room, baseCol, innerRow);
+                    Hole(room, baseCol + 3, innerRow);
                 }
             }
             else // Right side (indices 0-5)
@@ -120,13 +120,13 @@ namespace PFE.Systems.Map
                 // Core 2-tile opening
                 CarveTile(room, rightCol, row0);
                 CarveTile(room, rightCol, row1);
-                ClearPhysics(room, rightCol - 1, row0);
-                ClearPhysics(room, rightCol - 1, row1);
+                Hole(room, rightCol - 1, row0);
+                Hole(room, rightCol - 1, row1);
 
                 if (quality > 2)
                 {
                     CarveTile(room, rightCol, row2);
-                    ClearPhysics(room, rightCol - 1, row2);
+                    Hole(room, rightCol - 1, row2);
                 }
             }
         }
@@ -139,7 +139,7 @@ namespace PFE.Systems.Map
         }
 
         /// <summary>
-        /// Carve a tile to air (create door hole).
+        /// Carve a tile to air (create door hole). AS3 <c>Tile.hole()</c> (<c>Tile.as:260-268</c>).
         /// </summary>
         private static void CarveTile(RoomInstance room, int x, int y)
         {
@@ -152,26 +152,23 @@ namespace PFE.Systems.Map
             tile.hitPoints = 0;
             tile.visualId = 0;
             tile.SetFrontGraphic("");
+            // AS3's hole() drops solidity unconditionally, including on a framed (indestructible) border
+            // tile. Leaving the flag set made the tile read as "still a wall" to later passes.
+            tile.indestructible = false;
         }
 
         /// <summary>
-        /// Clear physics on adjacent tile (make walkable behind door).
-        /// Only clears if currently solid.
+        /// Open the tile behind a door — AS3 calls <c>hole()</c> on it too (<c>Location.as:817-818</c>), and
+        /// <c>hole()</c> is unconditional (<c>Tile.as:260-268</c>).
+        ///
+        /// <para><b>This used to be conditional and it broke doors.</b> The old body refused to open a tile
+        /// marked <c>indestructible</c> — and <see cref="ApplyMainFrame"/> marks every framed border tile
+        /// exactly that. A door carved into a framed wall therefore left the tile behind it solid: an
+        /// opening that opens onto a wall. Matching AS3 means opening it whatever its previous state.</para>
         /// </summary>
-        private static void ClearPhysics(RoomInstance room, int x, int y)
+        private static void Hole(RoomInstance room, int x, int y)
         {
-            if (x < 0 || x >= room.width || y < 0 || y >= room.height) return;
-
-            var tile = room.tiles[x, y];
-            if (tile == null) return;
-
-            // Only clear solid wall tiles, preserve platforms and stairs
-            if (tile.physicsType == TilePhysicsType.Wall && !tile.indestructible)
-            {
-                tile.physicsType = TilePhysicsType.Air;
-                tile.visualId = 0;
-                tile.SetFrontGraphic("");
-            }
+            CarveTile(room, x, y);
         }
 
         /// <summary>

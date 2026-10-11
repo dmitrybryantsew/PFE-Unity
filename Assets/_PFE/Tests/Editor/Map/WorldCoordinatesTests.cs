@@ -1,6 +1,7 @@
 using NUnit.Framework;
 using UnityEngine;
 using PFE.Systems.Map;
+using PFE.Systems.Map.Streaming;
 
 namespace PFE.Tests.Editor.Map
 {
@@ -24,18 +25,23 @@ namespace PFE.Tests.Editor.Map
             Assert.AreEqual(1920f, result.x, 0.001f);
             Assert.AreEqual(0f, result.y, 0.001f);
 
-            // Test: Land (0,1,0) + local (0,0) = world (0,1000) - one room down.
+            // Test: Land (0,1,0) + local (0,0) = world (0,-1000) - one room DOWN.
             // Room height is 25 tiles, not 27: AS3 World.as:40/42 cellsX=48, cellsY=25 with
             // World.tileX/tileY = 40 (World.as:36/38), so a room is 1920 x 1000 px. These
             // assertions previously used 1080 (= 27 tiles), which no AS3 source supports.
+            //
+            // The sign is NEGATIVE: AS3's land grid runs Y downward (Land.as:1536, and Flash screen
+            // Y grows down), Unity's +Y grows up, so one land row down is one room height of negative
+            // world Y. This assertion used to read +1000 under the comment "one room down" — the
+            // comment was right and the value was the vertical mirror.
             result = WorldCoordinates.LandToWorld(new Vector3Int(0, 1, 0), new Vector2(0, 0));
             Assert.AreEqual(0f, result.x, 0.001f);
-            Assert.AreEqual(1000f, result.y, 0.001f);
+            Assert.AreEqual(-1000f, result.y, 0.001f);
 
-            // Test: Land (1,1,0) + local (100,50) = world (2020,1050)
+            // Test: Land (1,1,0) + local (100,50) = world (2020,-950)
             result = WorldCoordinates.LandToWorld(new Vector3Int(1, 1, 0), new Vector2(100, 50));
             Assert.AreEqual(2020f, result.x, 0.001f);
-            Assert.AreEqual(1050f, result.y, 0.001f);
+            Assert.AreEqual(-950f, result.y, 0.001f);
         }
 
         [Test]
@@ -57,10 +63,17 @@ namespace PFE.Tests.Editor.Map
             Assert.AreEqual(1, result.x);
             Assert.AreEqual(0, result.y);
 
-            // Test: World (2000,1200) -> Land (1,1,0)
-            result = WorldCoordinates.WorldToLand(new Vector2(2000, 1200));
+            // Test: World (2000,-500) -> Land (1,1,0). Row 1 spans world Y [-1000, 0).
+            result = WorldCoordinates.WorldToLand(new Vector2(2000, -500));
             Assert.AreEqual(1, result.x);
             Assert.AreEqual(1, result.y);
+
+            // Test: World (2000,1200) -> Land (1,-1,0). Row 0 spans [0, 1000), so a world Y ABOVE
+            // 1000 is one row past the top of the land — negative land Y, which is what the flip
+            // means by "above row 0". A positive 1200 here would be the old mirrored reading.
+            result = WorldCoordinates.WorldToLand(new Vector2(2000, 1200));
+            Assert.AreEqual(1, result.x);
+            Assert.AreEqual(-1, result.y);
         }
 
         [Test]
@@ -75,6 +88,65 @@ namespace PFE.Tests.Editor.Map
             result = WorldCoordinates.WorldToLocal(new Vector2(2000, 100));
             Assert.AreEqual(80f, result.x, 0.001f);
             Assert.AreEqual(100f, result.y, 0.001f);
+
+            // Negative world Y is the normal case below land row 0, and local Y must still land in
+            // [0, 1000): world -100 is in row 1 (which spans [-1000, 0)), so its local Y is 900.
+            // A plain `%` would return -100 here, which is why this is an explicit case.
+            result = WorldCoordinates.WorldToLocal(new Vector2(0, -100));
+            Assert.AreEqual(0f, result.x, 0.001f);
+            Assert.AreEqual(900f, result.y, 0.001f);
+        }
+
+        /// <summary>
+        /// The orientation guard. A larger land row must be LOWER in world Y — that is the whole
+        /// content of the land-Y flip, and it is the property whose absence made every multi-row land
+        /// render vertically mirrored (grid row 1 drawn above grid row 0).
+        ///
+        /// <para>Stated as its own case because the two conversion tests above can each be satisfied
+        /// by a self-consistent but mirrored pair of functions.</para>
+        /// </summary>
+        [Test]
+        public void LandRow_MapsToWorldY_LargerRowIsLower()
+        {
+            Assert.Greater(WorldCoordinates.LandRowToWorldPixelY(0),
+                           WorldCoordinates.LandRowToWorldPixelY(1),
+                           "row 1 must be BELOW row 0, i.e. a smaller world Y.");
+
+            Assert.AreEqual(0f, WorldCoordinates.LandRowToWorldPixelY(0), 0.001f,
+                "row 0 sits at world Y 0, so a single-row land is unaffected by the flip.");
+            Assert.AreEqual(-1000f, WorldCoordinates.LandRowToWorldPixelY(1), 0.001f);
+            Assert.AreEqual(-2000f, WorldCoordinates.LandRowToWorldPixelY(2), 0.001f);
+
+            // Consecutive rows are contiguous: row r's top edge is row r+1's bottom edge.
+            float rowOneTop = WorldCoordinates.LandRowToWorldPixelY(1) + WorldConstants.ROOM_SIZE_PIXELS.y;
+            Assert.AreEqual(WorldCoordinates.LandRowToWorldPixelY(0), rowOneTop, 0.001f,
+                "row 1 must sit directly under row 0 with no gap or overlap.");
+        }
+
+        /// <summary>
+        /// The same property at the room level, through the function every renderer and collider
+        /// actually calls. A door carved in a room's floor leads to the grid row below, and that row
+        /// must be RENDERED below — which is what ties <c>DoorSide.Bottom</c>, the grid step and the
+        /// world placement together. This is the assertion the overlay's door readout makes at
+        /// runtime, and the one that fails on a mirrored world.
+        /// </summary>
+        [Test]
+        public void RoomOrigin_GridRowBelow_IsRenderedBelow()
+        {
+            var upper = new RoomInstance { id = "upper", landPosition = new Vector3Int(0, 0, 0) };
+            var lower = new RoomInstance { id = "lower", landPosition = new Vector3Int(0, 1, 0) };
+
+            float upperY = RoomTransitionManager.GetRoomOriginUnity(upper).y;
+            float lowerY = RoomTransitionManager.GetRoomOriginUnity(lower).y;
+
+            Assert.Less(lowerY, upperY,
+                "grid row 1 is 'the room below' (Land.gotoLoc case 3 steps y+1), so it must render at a " +
+                "smaller world Y than row 0. A greater value means the land is vertically mirrored.");
+
+            // One room height apart, in Unity units (PIX_TO_UNIT = 0.01).
+            float expected = WorldConstants.ROOM_SIZE_PIXELS.y / 100f;
+            Assert.AreEqual(expected, upperY - lowerY, 0.001f,
+                "consecutive land rows are exactly one room height apart.");
         }
 
         [Test]

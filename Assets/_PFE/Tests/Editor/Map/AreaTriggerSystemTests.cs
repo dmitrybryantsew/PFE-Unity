@@ -67,6 +67,46 @@ namespace PFE.Tests.Editor.Map
             Assert.IsFalse(overlaps);
         }
 
+        /// <summary>
+        /// Only the player may fire an area trigger — a spawned NPC must not.
+        ///
+        /// <para><b>This pins the removed clause.</b> <c>IsPlayerCollider</c> used to fall through to
+        /// <c>other.GetComponentInParent&lt;UnitController&gt;() != null</c>, and <c>RoomUnitSpawner</c>
+        /// puts a <c>UnitController</c> subclass on <b>every</b> spawned unit
+        /// (<c>RoomUnitSpawner.cs:769</c>), so a wandering enemy stepping on a floor trigger fired
+        /// <c>OnPlayerEnter</c> and ran the trigger's script action — including
+        /// <c>gotoland</c>/<c>exit</c>, a room/land change driven by an NPC. The
+        /// <c>PlayerController</c> clause (<c>PlayerController : UnitController</c>) is the precise
+        /// form and already covers the player.</para>
+        ///
+        /// <para>The negative control carries a real <c>UnitController</c> on purpose: it is the exact
+        /// thing the old clause matched, so this test would fail if the clause came back.</para>
+        /// </summary>
+        [Test]
+        public void AreaTriggerPresenter_OnlyThePlayerIsAnActor()
+        {
+            var playerGo = new GameObject("Player");
+            playerGo.transform.SetParent(_staticParent);
+            playerGo.tag = "Player";
+            var playerCollider = playerGo.AddComponent<BoxCollider2D>();
+
+            Assert.IsTrue(AreaTriggerPresenter.IsPlayerCollider(playerCollider),
+                "The player is the one actor that may fire an area trigger.");
+
+            var unitGo = new GameObject("Unit");
+            unitGo.transform.SetParent(_staticParent);
+            unitGo.AddComponent<BoxCollider2D>();
+            unitGo.AddComponent<PFE.Entities.Units.UnitController>();
+            var unitCollider = unitGo.GetComponent<BoxCollider2D>();
+
+            Assert.IsFalse(AreaTriggerPresenter.IsPlayerCollider(unitCollider),
+                "An NPC standing on a floor area trigger must NOT fire it: the trigger's script can " +
+                "change the room or the land, which is the player's business alone.");
+
+            Assert.IsFalse(AreaTriggerPresenter.IsPlayerCollider(null),
+                "A null collider is never an actor.");
+        }
+
         [Test]
         public void OnPlayerEnter_WithTutorialMessage_DispatchesPrompt()
         {

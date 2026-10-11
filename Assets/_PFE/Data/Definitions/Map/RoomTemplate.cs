@@ -53,13 +53,17 @@ namespace PFE.Systems.Map
         [Tooltip("Background decoration entries from AS3 <back> tags")]
         public List<BackgroundDecorationData> backgroundDecorations = new List<BackgroundDecorationData>();
 
-        // Door configuration - 24 doors total
-        // 0-5: Right side doors (top to bottom)
-        // 6-11: Bottom side doors (left to right)
-        // 12-17: Left side doors (mirrored)
-        // 18-23: Top side doors (mirrored)
+        // Door configuration. The AS3 oracle is a 22-entry array (Location.as:605-641); slots 0..21 are
+        // meaningful and the array is allocated with slack to 24. Partner slot of i is i +/- 11.
+        //   0-5   Right side   (partner 11-16)
+        //   6-10  Bottom side  (partner 17-21)
+        //   11-16 Left side    (partner 0-5)
+        //   17-21 Top side     (partner 6-10)
+        // A previous comment here claimed "12-17 = Left, 18-23 = Top" and 24 meaningful slots. That is
+        // wrong, and the code in WorldBuilder/DoorMatchMath follows the oracle, not the comment.
+        // See docs/LandGameplayLoop/03_GAP_LEDGER.md §10 (D7) and 05_VERIFICATION_AND_QUIRKS.md Q8.
         [Header("Doors")]
-        [Tooltip("Door quality for each of 24 door slots")]
+        [Tooltip("Door quality per slot. AS3: 0-5 right, 6-10 bottom, 11-16 left, 17-21 top")]
         [Range(0, 5)]
         public int[] doorQuality = new int[24];
 

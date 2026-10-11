@@ -271,6 +271,18 @@ namespace PFE.Core.Scripting
         /// </remarks>
         public static int CompareVariants(string a, string b)
         {
+            // Root first — this is the rule the remarks above describe and the tests pin, and it was
+            // missing: the body compared tier before root, so a folded group interleaved every root's
+            // tier 1 together (`msp, dron1, gutsy1, roller2, dron3`) instead of folding by unit
+            // (`dron1, dron3, gutsy1, msp, roller, roller2`). The doc comment and
+            // `Build_OrdersAFoldedFamilyByRootThenTier` both already said root-first; only the code
+            // disagreed, which is why the test was the only thing that noticed.
+            int rootCmp = string.Compare(RootOf(a), RootOf(b), StringComparison.OrdinalIgnoreCase);
+            if (rootCmp != 0)
+            {
+                return rootCmp;
+            }
+
             int tierA = TierOf(a);
             int tierB = TierOf(b);
             if (tierA != tierB)

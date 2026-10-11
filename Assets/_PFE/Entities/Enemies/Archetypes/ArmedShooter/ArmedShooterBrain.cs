@@ -34,14 +34,24 @@ namespace PFE.Entities.Enemies.Archetypes
         protected int _aiSpok;
 
         /// <summary>
-        /// AS3 attackerType classification (UnitRaider.as:257-272):
-        /// 0: Melee contact / club (weaponKrep == 1)
-        /// 1: Point-blank melee (weaponKrep == 0)
-        /// 2: Ranged firearm
-        /// 3: Thrown weapon
+        /// AS3 <c>UnitRaider.attackerType</c> (<c>UnitRaider.as:83</c>, declared <c>0</c>) — how this unit
+        /// attacks:
+        /// <list type="bullet">
+        /// <item><description><b>0</b> — contact: the body hits, no weapon swing (<c>attKorp</c>).</description></item>
+        /// <item><description><b>1</b> — the held <c>tip == 1</c> weapon is swung (<c>currentWeapon.attack()</c>).</description></item>
+        /// <item><description><b>2</b> — ranged: the held weapon is fired.</description></item>
+        /// <item><description><b>3</b> — thrown: the held weapon is thrown.</description></item>
+        /// </list>
+        ///
+        /// <para><b>Read, not computed.</b> The value is derived once, by
+        /// <see cref="ArmedShooterController"/> from the weapon it rolled
+        /// (<c>UnitRaider.as:257-272</c>), and copied here in
+        /// <see cref="ApplyDefinitionTuning"/>. The brain must not re-derive it: the previous
+        /// id-and-substring inference was a second, divergent copy of the oracle's ladder, and it is
+        /// precisely what made a <c>raider1</c> that rolled a gun fight as a contact attacker.</para>
         /// </summary>
         [SerializeField]
-        protected int _attackerType = 2;
+        protected int _attackerType;
 
         /// <summary>Tactical flags from AS3.</summary>
         [SerializeField] protected bool _isWalker;
@@ -97,6 +107,27 @@ namespace PFE.Entities.Enemies.Archetypes
         public int AttackerType { get => _attackerType; set => _attackerType = value; }
         public int FamilyState => _familyState;
 
+        /// <summary>
+        /// This unit as an <see cref="ArmedShooterController"/>, which is where the rolled weapon and its
+        /// mount live. <c>_controller</c> is declared on <see cref="EnemyBrain"/> as the base
+        /// <c>UnitController</c>, so the weapon half needs the cast; null means the brain is attached to
+        /// something that is not an ArmedShooter.
+        /// </summary>
+        protected ArmedShooterController ShooterController => _controller as ArmedShooterController;
+
+        /// <summary>
+        /// Whether the oracle called <c>currentWeapon.attack()</c> on this tick — AS3's "the trigger is
+        /// held right now".
+        ///
+        /// <para><b>Why a per-tick latch rather than a persistent flag.</b> AS3 calls
+        /// <c>currentWeapon.attack()</c> from <c>UnitRaider.attack()</c>, which the state machine runs
+        /// every frame (<c>UnitRaider.as:1483-1553</c>). The weapon's own <c>t_attack</c> is what paces
+        /// the rounds; the caller only decides whether the trigger is down <i>this</i> frame. So the latch
+        /// is cleared at the top of every tick and re-armed by <see cref="ExecuteAttackAction"/>, which is
+        /// exactly one frame of "held".</para>
+        /// </summary>
+        protected bool _weaponTriggerHeld;
+
         protected override bool StopsToAttack => false;
 
         protected override void Awake()
@@ -149,43 +180,24 @@ namespace PFE.Entities.Enemies.Archetypes
             string familyId = !string.IsNullOrEmpty(def.parentId) ? def.parentId : defId;
             _maxSpok = (familyId == "encl" || familyId == "merc") ? 50 : 30;
 
-            // Classify weapon / attackerType (UnitRaider.as:257-272)
-            if (defId.StartsWith("raider"))
-            {
-                if (defId == "raider1" || defId == "raider2" || defId == "raider3" || defId == "raider4")
-                {
-                    _attackerType = 0;
-                }
-                else if (defId == "raider5" || defId == "raider6" || defId == "raider7" || defId == "raider8")
-                {
-                    _attackerType = 2;
-                }
-                else if (defId == "raider9")
-                {
-                    _attackerType = 3;
-                }
-            }
-            else if (def.weapons != null && def.weapons.Length > 0 && !string.IsNullOrEmpty(def.weapons[0].weaponId))
-            {
-                string wid = def.weapons[0].weaponId.ToLowerInvariant();
-                if (wid.Contains("club") || wid.Contains("knife") || wid.Contains("axe") || wid.Contains("bat") || wid.Contains("sword"))
-                {
-                    _attackerType = 0;
-                }
-                else if (wid.Contains("grenade") || wid.Contains("throw") || wid.Contains("bomb") || wid.Contains("molotov"))
-                {
-                    _attackerType = 3;
-                }
-                else
-                {
-                    _attackerType = 2;
-                }
-            }
-            else
-            {
-                // Default to contact if no weapons defined
-                _attackerType = 0;
-            }
+            // ── The attack branch, read off the weapon the controller rolled ──────────────────
+            //
+            // AS3 derives `attackerType` in the CONSTRUCTOR from the weapon it rolled and the unit's own
+            // `krep` (`UnitRaider.as:257-272`), and every attack decision below branches on it. Both
+            // halves live on the controller: the roll needs the weapon table (to skip an id
+            // `Weapon.create` would reject) and the mount (to equip), neither of which a brain has.
+            //
+            // The block this replaces classified the unit from its ID — `raider1..4` melee,
+            // `raider5..8` ranged, `raider9` thrown — and, for every other variant, from substrings of
+            // the FIRST candidate's id (`contains "club"` → melee, `contains "grenade"` → thrown). Both
+            // are inventions. `raider1`'s list is six melee candidates and `raider5`'s is five firearms,
+            // but `raider2` mixes `bat`/`spear` with `mach`, `slaver1` mixes `pipe`/`cknife` with
+            // `hunt`/`lshot`, and `zebra`/`encl`/`merc` are mixed too — the oracle's answer depends on
+            // which candidate the difficulty-gated roll accepted, which is a per-spawn draw.
+            //
+            // 0 when there is no controller at all: the brain is then attached to something that is not
+            // an ArmedShooter and has no weapon, which is AS3's own `!currentWeapon → 0` answer.
+            _attackerType = ShooterController != null ? ShooterController.AttackerType : 0;
         }
 
         public override void SimTick(int tickIndex)
@@ -195,10 +207,52 @@ namespace PFE.Entities.Enemies.Archetypes
             if (_aiTCh > 0) _aiTCh--;
             if (_aiSpok > 0 && tickIndex % 10 == 0) _aiSpok--;
 
+            // Release last tick's trigger before the state machine runs. AS3's `attack()` is called once
+            // per frame and decides from scratch whether `currentWeapon.attack()` happens, so a frame in
+            // which no branch fires is a frame with the trigger up.
+            //
+            // This has to PUSH the release, not merely clear a local flag. `EnemyWeaponMount` latches
+            // `_firing` until told otherwise, and `base.SimTick` ends with `TickWeaponMounts` — so a unit
+            // that stops attacking (target lost, state drops to Alert/Patrol) would otherwise leave the
+            // trigger held forever and keep shooting while it walks away. `ExecuteAttackAction` re-arms
+            // this within the same tick, before the mount is advanced.
+            _weaponTriggerHeld = false;
+            SetWeaponTrigger(false);
+
             base.SimTick(tickIndex);
 
             UpdateDropThrough();
             UpdateJump(tickIndex);
+        }
+
+        /// <summary>
+        /// Hold or release the rolled weapon's trigger, and keep its aim on the target.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Aim is in Unity world units and must not be scaled.</b> The value feeds
+        /// <c>WeaponHoldPointMath.Inputs.AimX</c> and <c>RangedWeaponController</c>'s rotation, both of
+        /// which speak world units — the alicorn's <c>UpdateWeaponFire</c> documents the 45°-off bug a
+        /// <c>* 100f</c> here produces. The <c>TargetDeltaX/Y</c> family really is in pixels; those are
+        /// for the AI's range tests and never for the weapon.</para>
+        ///
+        /// <para><b>Re-read every firing tick</b>, not latched at the decision, so a shot follows a
+        /// moving player — which is what the oracle does, since <c>attack()</c> resolves its direction
+        /// from the unit's current target each frame.</para>
+        /// </remarks>
+        protected virtual void SetWeaponTrigger(bool firing)
+        {
+            ArmedShooterController ctrl = ShooterController;
+            if (ctrl == null) return;
+
+            EnemyWeaponMount mount = ctrl.WeaponMount;
+            if (mount == null) return;
+
+            if (firing && _blackboard.TargetUnit != null)
+            {
+                mount.SetAimTarget(_blackboard.TargetUnit.transform.position);
+            }
+
+            mount.SetFiring(firing);
         }
 
         protected virtual void UpdateDropThrough()
@@ -344,9 +398,22 @@ namespace PFE.Entities.Enemies.Archetypes
 
         protected override void TickCombatChase(int tickIndex)
         {
-            if (_blackboard.TargetUnit == null)
+            // The hunt ends on the awareness budget, not on the sighting. `EnemySensors` nulls
+            // `TargetUnit` on the first obscured tick, so the old `TargetUnit == null → Alert` exit
+            // made every archetype forget the player the instant line of sight broke. See
+            // `EnemyBrain.ChaseBudgetExhausted`.
+            if (ChaseBudgetExhausted)
             {
                 SetState(EnemyAIState.Alert);
+                return;
+            }
+
+            if (_blackboard.TargetUnit == null)
+            {
+                // Still hunting a target it cannot see: keep walking to the last place it was seen,
+                // at chase speed, until the budget drains. AS3 `UnitRaider.control()`'s state-3 arm
+                // steers on `celX`/`celY` exactly like this.
+                ChaseLastKnownPosition(tickIndex);
                 return;
             }
 
@@ -416,62 +483,270 @@ namespace PFE.Entities.Enemies.Archetypes
             if (_blackboard.TargetUnit == null) return false;
             float dist = _blackboard.TargetDistance;
 
+            if (_attackerType == 1)
+            {
+                // AS3 `UnitRaider.attack()`'s melee-weapon gate (`:1496-1499`):
+                // `Math.abs(celDX) < 120 && Math.abs(celDY) < currentWeapon.rapid * 8`.
+                //
+                // The vertical term is the WEAPON's own swing duration times 8 px, not a constant —
+                // which is the whole reason a knife (rapid 12 → 96 px) reaches higher and lower than a
+                // slow club (rapid 24 → 192 px). The port used a flat 60 px for both. 60 is kept as the
+                // fallback for a unit whose mount could not be built (a bare test spawn), so the range
+                // test never depends on weapon services existing.
+                float rapid = ShooterController != null && ShooterController.WeaponMount != null
+                              && ShooterController.WeaponMount.Definition != null
+                    ? ShooterController.WeaponMount.Definition.rapid
+                    : 0f;
+                float yLimit = rapid > 0f ? rapid * 8f : 60f;
+
+                return Mathf.Abs(_blackboard.TargetDeltaX) <= 120f
+                    && Mathf.Abs(_blackboard.TargetDeltaY) <= yLimit;
+            }
+
             if (_attackerType == 0 || _attackerType == 3)
             {
                 return dist <= OptDistAttackPixels && Mathf.Abs(_blackboard.TargetDeltaY) <= 80f;
             }
-            else if (_attackerType == 1)
-            {
-                return Mathf.Abs(_blackboard.TargetDeltaX) <= 120f && Mathf.Abs(_blackboard.TargetDeltaY) <= 60f;
-            }
-            else // Ranged
-            {
-                return dist <= _aiDist && _blackboard.HasLineOfSight;
-            }
+
+            // Ranged. AS3 engages on `aiSpok >= maxSpok + 8 && dist² < aiDist²` (`:756`) — the awareness
+            // budget, not a sighting — plus the `isLaz == 0` groundedness gate on the firing branch. The
+            // port's `HasLineOfSight` here is stricter than the oracle's and is recorded rather than
+            // changed: the ranged branch already requires a target to aim at, and loosening the range
+            // test without the `aiAttackOch` work below would fire at nothing.
+            return dist <= _aiDist && _blackboard.HasLineOfSight;
         }
 
+        /// <summary>
+        /// AS3 <c>UnitRaider.attack()</c> (<c>UnitRaider.as:1483-1553</c>), branch for branch.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Every branch here calls <c>currentWeapon.attack()</c>, and the port's equivalent is
+        /// <see cref="SetWeaponTrigger"/></b> — holding the mount's trigger for this tick and aiming it.
+        /// The weapon controller's own <c>t_attack</c> paces the individual rounds, exactly as in the
+        /// oracle, so nothing here decides when a bullet leaves.</para>
+        ///
+        /// <para><b>What this replaced.</b> The old body called <c>TryContactAttack</c> for attackerType 1
+        /// (so a spear-armed <c>raider2</c> body-slammed instead of swinging) and, for 2 and 3, fabricated
+        /// the damage outright with <c>PendingDamage.Direct</c> — no projectile, no flare, no report, and a
+        /// damage number invented from <c>UnitDefinition.damage</c>. The <c>Direct</c> calls survive only
+        /// as the fallback for a unit with no mount.</para>
+        /// </remarks>
         protected override void ExecuteAttackAction()
         {
             if (_controller == null || !_controller.IsAlive) return;
+            if (_blackboard.TargetUnit == null) return;
 
-            // Stagger blocks attack
+            // AS3 tests `shok <= 0` inside each branch; hoisting it is equivalent for every branch that
+            // exists here, because all four require a live target anyway.
             if (StaggerMath.BlocksAttack(_blackboard.ShockTimerTicks))
             {
                 return;
             }
 
-            if (_attackerType == 0)
+            // `if((attackerType == 0 || aiState == 8) && celUnit && shok <= 0)` — the contact arm, which
+            // also owns the state-8 charge: a charging unit damages with its body whatever it is holding.
+            if (_attackerType == 0 || _familyState == 8)
             {
-                // Contact melee attack
+                // `attKorp(celUnit, Math.abs(dx) > 8 ? 1 : 0.5)` — a body moving faster than 8 px/frame
+                // hits for full scale, a standing one for half. `dx` is the unit's own per-frame x
+                // velocity, which is what the motor's State.Velocity carries.
                 float speed = Mathf.Abs(_motor != null ? _motor.State.Velocity.x : 0f);
-                float scale = speed > 8f ? 1f : 0.5f;
-                _controller.TryContactAttack(_blackboard.TargetUnit, scale);
+                _controller.TryContactAttack(_blackboard.TargetUnit, speed > 8f ? 1f : 0.5f);
+                return;
             }
-            else if (_attackerType == 1)
+
+            switch (_attackerType)
             {
-                // Point blank melee / club
-                _controller.TryContactAttack(_blackboard.TargetUnit, 1f);
+                case 1: AttackWithMeleeWeapon(); break;
+                case 2: AttackWithRangedWeapon(); break;
+                case 3: AttackWithThrownWeapon(); break;
             }
-            else if (_attackerType == 2)
+        }
+
+        /// <summary>
+        /// AS3's <c>attackerType == 1</c> arm (<c>:1496-1506</c>) — swing the held <c>tip == 1</c> weapon,
+        /// then take the independent point-blank body hit.
+        /// </summary>
+        /// <remarks>
+        /// <code>
+        /// if(Math.abs(celDX) &lt; 120 &amp;&amp; Math.abs(celDY) &lt; currentWeapon.rapid * 8 &amp;&amp; shok &lt;= 0 &amp;&amp; isrnd(0.3))
+        ///    currentWeapon.attack();
+        /// if(isrnd(0.1))
+        ///    attKorp(celUnit, 0.5);
+        /// </code>
+        ///
+        /// <para><b>The 0.3 is a per-frame trigger probability, not a fire rate.</b> The oracle calls
+        /// <c>attack()</c> every frame and lets a 30 % roll decide whether the trigger is down; the
+        /// weapon's own <c>rapid_act</c> is what paces the swings. So this must be a per-tick roll — a
+        /// one-shot decision would swing once per approach.</para>
+        /// </remarks>
+        protected virtual void AttackWithMeleeWeapon()
+        {
+            // A unit whose mount could not be built (a bare test spawn, or a missing WeaponDefinition)
+            // keeps the old body hit rather than becoming harmless. Gated on range so it is not a
+            // per-tick damage aura.
+            if (ShooterController == null || ShooterController.WeaponMount == null)
             {
-                // Ranged attack cadence (UnitRaider.as:1525-1536)
+                if (IsTargetInAttackRange())
+                {
+                    _controller.TryContactAttack(_blackboard.TargetUnit, 1f);
+                }
+                return;
+            }
+
+            if (IsTargetInAttackRange() && UnityEngine.Random.value < 0.3f)
+            {
+                _weaponTriggerHeld = true;
+                SetWeaponTrigger(true);
+            }
+
+            // The body hit rides alongside the swing and is not gated on the swing's roll or on range.
+            if (UnityEngine.Random.value < 0.1f)
+            {
+                _controller.TryContactAttack(_blackboard.TargetUnit, 0.5f);
+            }
+        }
+
+        /// <summary>
+        /// AS3's <c>attackerType == 2</c> arm (<c>:1507-1541</c>) — fire the held weapon on an
+        /// <c>aiAttackOch</c> duty cycle.
+        /// </summary>
+        /// <remarks>
+        /// <code>
+        /// if(!this.sniper) mazil = aiState == 4 ? 5 : 16;
+        /// if(this.aiAttackOch == 0 &amp;&amp; shok &lt;= 0 &amp;&amp; (celUnit != null &amp;&amp; isrnd(0.1) || celUnit == null &amp;&amp; isrnd(0.03)))
+        ///    currentWeapon.attack();
+        /// if(this.aiAttackOch &gt; 0 &amp;&amp; (!this.sniper || celUnit)) {
+        ///    if(this.aiAttackT &lt;= 0) this.aiAttackT = Math.round((Math.random() * 0.4 + 0.8) * this.aiAttackOch);
+        ///    if(this.aiAttackT &gt; this.aiAttackOch * 0.25) currentWeapon.attack();
+        ///    --this.aiAttackT;
+        /// }
+        /// if(dist² &lt; 100² &amp;&amp; isrnd(0.1)) attKorp(celUnit, 0.5);
+        /// </code>
+        ///
+        /// <para><b>The <c>aiAttackT &gt; och * 0.25</c> test is a duty cycle, and it is what the port
+        /// was missing.</b> <c>aiAttackT</c> is re-armed to 0.8–1.2 × <c>aiAttackOch</c> and then counts
+        /// down, so the trigger is held for the top ~75 % of each window and released for the bottom
+        /// quarter. The port fired a single fabricated hit at the window's start instead, which is both
+        /// the wrong shape and the wrong delivery.</para>
+        ///
+        /// <para><b><c>mazil</c> is not modelled.</b> The oracle raises the shooter's inaccuracy to 16 px
+        /// (5 while holding position, 25 while levitating). That value reaches the weapon through
+        /// <c>Pers.mazilAdd</c>, and an NPC has no stat source in this port — so the spread is currently
+        /// the weapon's own. Recorded in <c>ThrownWeaponController.Mazil</c> and in the worklog; it needs
+        /// an NPC stat source, not a hard-coded literal here.</para>
+        /// </remarks>
+        protected virtual void AttackWithRangedWeapon()
+        {
+            if (ShooterController == null || ShooterController.WeaponMount == null)
+            {
+                // No mount to fire through. Keep the old direct report, on the window cadence, so a unit
+                // whose weapon could not be equipped is not completely harmless — and so this is visibly
+                // the fallback rather than a second damage path that could double-hit.
                 if (_aiAttackT <= 0)
                 {
-                    _aiAttackT = _isSniper ? 40 : Mathf.RoundToInt((UnityEngine.Random.value * 0.4f + 0.8f) * _aiAttackOch);
+                    _aiAttackT = Mathf.RoundToInt(
+                        (UnityEngine.Random.value * 0.4f + 0.8f) * _aiAttackOch);
                     FireRangedAttack();
                 }
+                return;
             }
-            else if (_attackerType == 3)
+
+            if (_aiAttackOch > 0)
             {
-                // Thrown attack
+                if (_aiAttackT <= 0)
+                {
+                    // AS3's formula, verbatim. The port used to substitute a flat 40 for a sniper; the
+                    // oracle has no such special case — its only sniper test is `(!this.sniper || celUnit)`,
+                    // which is already satisfied here because a target is required to get this far.
+                    _aiAttackT = Mathf.RoundToInt(
+                        (UnityEngine.Random.value * 0.4f + 0.8f) * _aiAttackOch);
+                }
+
+                if (_aiAttackT > _aiAttackOch * 0.25f)
+                {
+                    _weaponTriggerHeld = true;
+                    SetWeaponTrigger(true);
+                }
+            }
+            else if (UnityEngine.Random.value < 0.1f)
+            {
+                // `aiAttackOch == 0` — the constant-free branch, a 10 % per-frame trigger.
+                _weaponTriggerHeld = true;
+                SetWeaponTrigger(true);
+            }
+
+            if (_blackboard.TargetDistance <= 100f && UnityEngine.Random.value < 0.1f)
+            {
+                _controller.TryContactAttack(_blackboard.TargetUnit, 0.5f);
+            }
+        }
+
+        /// <summary>
+        /// AS3's <c>attackerType == 3</c> arm (<c>:1542-1552</c>) — throw, then take the point-blank body
+        /// hit.
+        /// </summary>
+        /// <remarks>
+        /// <code>
+        /// if(Boolean(celUnit) &amp;&amp; isrnd(0.02)) {
+        ///    currentWeapon.attack();
+        ///    if(currentWeapon is WThrow &amp;&amp; (currentWeapon as WThrow).kolAmmo &lt;= 0) this.attackerType = 0;
+        /// }
+        /// if(dist² &lt; 100² &amp;&amp; isrnd(0.1)) attKorp(celUnit, Math.abs(dx) &gt; 8 ? 1 : 0.5);
+        /// </code>
+        ///
+        /// <para><b>The reclassification is ported, and it is why <c>RemainingThrows</c> exists.</b> An NPC
+        /// thrower carries four rounds (<c>WThrow.kolAmmo</c>); once they are gone AS3 demotes it to a
+        /// contact attacker, so it charges instead of standing at range holding nothing. Note the oracle
+        /// checks the counter immediately after <c>attack()</c>, in the same frame — <c>getAmmo()</c> has
+        /// already decremented it by then, so a throw that spends the last round flips the branch on the
+        /// spot.</para>
+        /// </remarks>
+        protected virtual void AttackWithThrownWeapon()
+        {
+            float speed = Mathf.Abs(_motor != null ? _motor.State.Velocity.x : 0f);
+
+            if (ShooterController == null || ShooterController.WeaponMount == null)
+            {
+                // No mount: the old direct report, on the port's own 60–100 tick cadence (there is no
+                // oracle cadence to copy for a throw that has no weapon object to throw).
                 if (_aiAttackT <= 0)
                 {
                     _aiAttackT = UnityEngine.Random.Range(60, 100);
                     FireThrownAttack();
                 }
+                return;
+            }
+
+            if (UnityEngine.Random.value < 0.02f)
+            {
+                _weaponTriggerHeld = true;
+                SetWeaponTrigger(true);
+
+                if (ShooterController.RemainingThrows == 0)
+                {
+                    _attackerType = 0;
+                }
+            }
+
+            if (_blackboard.TargetDistance <= 100f && UnityEngine.Random.value < 0.1f)
+            {
+                _controller.TryContactAttack(_blackboard.TargetUnit, speed > 8f ? 1f : 0.5f);
             }
         }
 
+        /// <summary>
+        /// Fallback ranged report for a unit whose weapon mount could not be built — a bare test spawn, or
+        /// an id with no <see cref="WeaponDefinition"/>.
+        /// </summary>
+        /// <remarks>
+        /// <b>This is no longer the attack.</b> The real path is the rolled weapon's mount, fired through
+        /// <see cref="SetWeaponTrigger"/> — a projectile with its own visual, flare and report. This
+        /// fabricated <c>PendingDamage.Direct</c> used to BE the ranged attack for every ArmedShooter,
+        /// which is why "shooting enemies do not have a weapon" was literally true: nothing was drawn or
+        /// played, only a damage number applied. Kept only so a unit whose weapon failed to equip is not
+        /// harmless, and gated on the weapon window's cadence so it cannot become a per-tick damage aura.
+        /// </remarks>
         protected virtual void FireRangedAttack()
         {
             if (_blackboard.TargetUnit == null || _controller == null) return;
@@ -501,6 +776,10 @@ namespace PFE.Entities.Enemies.Archetypes
             }
         }
 
+        /// <summary>
+        /// Fallback thrown report for a unit whose weapon mount could not be built. See
+        /// <see cref="FireRangedAttack"/> — same status, same reason.
+        /// </summary>
         protected virtual void FireThrownAttack()
         {
             if (_blackboard.TargetUnit == null || _controller == null) return;

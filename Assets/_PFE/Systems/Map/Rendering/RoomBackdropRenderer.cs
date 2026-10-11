@@ -14,6 +14,15 @@ namespace PFE.Systems.Map.Rendering
     {
         private const int TileSizePixels = 40;
         private const int BackdropBaseDarkness = 170;
+
+        /// <summary>
+        /// AS3's hard-coded fallback backdrop wall. <c>Grafon.drawBackWall</c> does
+        /// <c>getObj(param1)</c> and, when that returns null, <c>getObj("tBackWall")</c>
+        /// (<c>Grafon.as:735-739</c>). It covers both an <i>unknown</i> wall name and an <i>empty</i> one,
+        /// because <c>getObj("")</c> is null too.
+        /// </summary>
+        private const string FallbackBackdropWall = "tBackWall";
+
         private const int BackdropSortingOrder = -5000;
         private const int DecorationSortingBase = -1000;
         private const int VisibilityMaskSortingOrder = 5000;
@@ -884,8 +893,8 @@ namespace PFE.Systems.Map.Rendering
         {
             int borderOffset = Mathf.Max(0, _room?.borderOffset ?? 0);
             return new Vector2(
-                _room.landPosition.x * WorldConstants.ROOM_WIDTH * TileSizePixels - borderOffset * TileSizePixels,
-                _room.landPosition.y * WorldConstants.ROOM_HEIGHT * TileSizePixels - borderOffset * TileSizePixels);
+                WorldCoordinates.RoomOriginPixelX(_room.landPosition.x, borderOffset),
+                WorldCoordinates.RoomOriginPixelY(_room.landPosition.y, borderOffset));
         }
 
         private Vector2Int GetRoomPixelSize()
@@ -910,12 +919,22 @@ namespace PFE.Systems.Map.Rendering
         private void CreateRoomBackdrop(Vector2 contentOriginPixels, Vector2Int contentPixelSize, BackdropCompositeData compositeData)
         {
             string backgroundWall = _room.environment.backgroundWall;
-            if (string.IsNullOrWhiteSpace(backgroundWall) ||
-                string.Equals(backgroundWall, "sky", System.StringComparison.OrdinalIgnoreCase))
+
+            // AS3 Grafon.as:730-733 — "sky" draws no wall bitmap at all; the sky is the land's separate
+            // `fon` layer. That layer is still unported (`LandDefinition.backdropId` is parsed and never
+            // rendered), so a sky room shows the camera clear colour. Left alone on purpose: substituting
+            // tBackWall for it would be an invention, not a port.
+            if (string.Equals(backgroundWall, "sky", System.StringComparison.OrdinalIgnoreCase))
             {
                 return;
             }
 
+            // ⚠ There is deliberately NO early return on an empty wall. AS3 does
+            // `getObj(backwall)` and then falls back to `getObj("tBackWall")` (Grafon.as:735-739); an
+            // empty name is `getObj("")` == null, so it takes the SAME fallback. Returning here instead
+            // is what left 43 of 639 rooms — every room with `backwall=""` (RoomsPlant.as:1223) or in a
+            // land with no backwall at all (the `prob` land, GameData.as:663-665) — drawing nothing, with
+            // the camera's solid clear colour showing through where the wall should be.
             Texture2D sourceTexture;
             using (Profiler.Region("backdrop.resolveTexture", "boot: ResolveBackdropTexture — lookup only, expected trivial"))
             {
@@ -924,7 +943,9 @@ namespace PFE.Systems.Map.Rendering
 
             if (sourceTexture == null)
             {
-                WarnMissingBackgroundId(backgroundWall, "room backdrop texture");
+                // Only reachable when the fallback itself is missing from the lookup, so name that —
+                // WarnMissingBackgroundId ignores an empty id, and an empty wall is the common case here.
+                WarnMissingBackgroundId(FallbackBackdropWall, "room backdrop texture");
                 return;
             }
 
@@ -1233,7 +1254,7 @@ namespace PFE.Systems.Map.Rendering
                 return texture;
             }
 
-            return _tileTextureLookup != null ? _tileTextureLookup.GetTexture("tBackWall") : null;
+            return _tileTextureLookup != null ? _tileTextureLookup.GetTexture(FallbackBackdropWall) : null;
         }
 
         private Color ResolveBackdropColor()

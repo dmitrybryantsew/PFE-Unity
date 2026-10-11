@@ -32,6 +32,28 @@ namespace PFE.Tests.Editor.Entities.Enemies
         private const string ZombiePath = "Entities/Enemies/Archetypes/ZombieBrain.cs";
 
         /// <summary>
+        /// An expression-bodied member's text — from <paramref name="marker"/> through its terminating
+        /// <c>;</c>.
+        ///
+        /// <para>Exists because <see cref="SourceLint.MethodBody"/> needs a <c>{</c> to brace-match, and
+        /// the shared budget helper is a <b>property</b> (<c>ChaseBudgetExhausted =&gt; …</c>). Without
+        /// this, "the chase reads the budget" could only be asserted against the inline spelling — which
+        /// is exactly the assumption that made this fixture go stale when the helper was extracted.</para>
+        /// </summary>
+        private static string ExpressionMember(string source, string marker)
+        {
+            int at = source.IndexOf(marker + " =>", System.StringComparison.Ordinal);
+            Assert.That(at, Is.GreaterThanOrEqualTo(0),
+                "Lint target member not found: `" + marker + " =>`. A rename must update this fixture " +
+                "rather than quietly drop the member from coverage.");
+
+            int end = source.IndexOf(';', at);
+            Assert.That(end, Is.GreaterThan(at), "No `;` terminating `" + marker + " =>`");
+
+            return source.Substring(at, end - at + 1);
+        }
+
+        /// <summary>
         /// The two halves of the fix, asserted together: the budget is <i>armed</i> by a sighting, and the
         /// chase <i>reads</i> it instead of the sighting. Either half alone leaves the bug in place —
         /// arming without reading changes nothing, and reading without arming means the budget is always
@@ -81,11 +103,31 @@ namespace PFE.Tests.Editor.Entities.Enemies
             // ── Half two: the exit condition. ─────────────────────────────────────────────────────
             string chase = SourceLint.MethodBody(brain, "protected virtual void TickCombatChase(");
 
-            Assert.That(chase, Does.Contain("AlertTimerTicks"),
+            // The budget is read through one of TWO spellings, and both are correct:
+            //
+            //   * inline — `EnemyAwarenessMath.IsChasing(_blackboard.AlertTimerTicks)`;
+            //   * through the shared helper — `if (ChaseBudgetExhausted)`.
+            //
+            // The helper exists because every archetype and boss overrides TickCombatChase WITHOUT
+            // calling `base`, so each one had to re-state the ladder; `ChaseBudgetExhausted` is defined
+            // once on EnemyBrain and the overrides call it. That extraction is an improvement, and it
+            // made this assertion fail for the wrong reason — the fixture had pinned the inline spelling
+            // only, so it went red the moment the helper appeared. A guard that is permanently red is
+            // one nobody reads, which is worse than no guard at all.
+            //
+            // "Accept either" does not open a hole, because whichever spelling the chase uses is the one
+            // that gets asserted: the helper's own definition is resolved below, so deleting the read
+            // from BOTH places still fails, and redefining the helper to something that is not the
+            // ladder still fails.
+            string budgetRead = chase.Contains("ChaseBudgetExhausted")
+                ? ExpressionMember(brain, "ChaseBudgetExhausted")
+                : chase;
+
+            Assert.That(budgetRead, Does.Contain("AlertTimerTicks"),
                 "TickCombatChase no longer reads the awareness budget. Without it the chase has no exit " +
                 "condition that a sighting cannot override.");
 
-            Assert.That(chase, Does.Contain("EnemyAwarenessMath.IsChasing("),
+            Assert.That(budgetRead, Does.Contain("EnemyAwarenessMath.IsChasing("),
                 "TickCombatChase must exit on the ladder's chase band, not on the sighting. See the method " +
                 "body for why `TargetUnit` is the wrong question to ask here.");
 

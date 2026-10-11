@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using PFE.Core;
 using PFE.Entities.Player;
-using PFE.Entities.Units;
 using PFE.Systems.Map.Scripting;
 using UnityEngine;
 
@@ -349,7 +348,22 @@ namespace PFE.Systems.Map.Rendering
             TriggerSystem?.OnPlayerExit(Room, TriggerObject);
         }
 
-        private static bool IsPlayerCollider(Collider2D other)
+        /// <summary>
+        /// Whether <paramref name="other"/> is the player — and <b>only</b> the player.
+        ///
+        /// <para><b>The dropped clause was <c>GetComponentInParent&lt;UnitController&gt;() != null</c>,
+        /// and it was wrong twice over.</b> <c>PlayerController : UnitController</c>, so it already
+        /// covered the player — the <c>PlayerController</c> test below is the precise form — while
+        /// <c>RoomUnitSpawner</c> puts a <c>UnitController</c> subclass on <b>every</b> spawned unit
+        /// (<c>RoomUnitSpawner.cs:769</c>). So a wandering enemy that stepped on a floor area trigger
+        /// fired <c>OnPlayerEnter</c> and ran the trigger's script action — including
+        /// <c>gotoland</c>/<c>exit</c>, i.e. a room/land change driven by an NPC. Reported as
+        /// "map graphics fully disappear while I am in the middle of the room".
+        /// See <c>.workbuddy-ai/memory/2026-10-11.md</c>.</para>
+        ///
+        /// <para>Public so the rule is assertable without a live physics callback.</para>
+        /// </summary>
+        public static bool IsPlayerCollider(Collider2D other)
         {
             if (other == null) return false;
 
@@ -358,8 +372,7 @@ namespace PFE.Systems.Map.Rendering
                 return true;
             }
 
-            return other.GetComponentInParent<PlayerController>() != null ||
-                   other.GetComponentInParent<UnitController>() != null;
+            return other.GetComponentInParent<PlayerController>() != null;
         }
     }
 }
