@@ -259,10 +259,26 @@ namespace PFE.Editor.Importers
                         SetPrivateField(unit, "parentId", parentMatch.Groups[1].Value);
                     }
 
-                    // Parse controller (cont attribute)
+                    // Parse the loot-table key (`cont`) and the legacy controller write.
+                    //
+                    // `cont` is AS3 `inter.cont` — the table `Unit.dropLoot()` rolls (Unit.as:1005-1009) —
+                    // and it belongs on `lootTableKey`. It has always been written to `controllerId`
+                    // instead, which is the "lookalike" RoomInstance.controllerId documents: the
+                    // controller selector is `cl=` on <obj> rows, a different attribute on a different
+                    // element.
+                    //
+                    // The `controllerId` write is deliberately KEPT. Removing it is not a no-op:
+                    // RoomUnitSpawner resolves the controller as placement.cl -> definition.controllerId
+                    // -> definition.parentId -> unit id, and for the units that have no <obj> row
+                    // (raider5, slaver1, zebra1, merc1, scorp1, turret0, …) the placement carries no `cl`
+                    // at all — so this field is what currently picks their controller. Dropping the write
+                    // would move slaver*/zebra*/merc* off RaiderController and onto their own, which is a
+                    // combat change, not a loot one. Fixing it is its own task; the loot path no longer
+                    // depends on it.
                     var contMatch = Regex.Match(attributesStr, @"cont='([^']+)'");
                     if (contMatch.Success)
                     {
+                        SetPrivateField(unit, "lootTableKey", contMatch.Groups[1].Value);
                         SetPrivateField(unit, "controllerId", contMatch.Groups[1].Value);
                     }
 

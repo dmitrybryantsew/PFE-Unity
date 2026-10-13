@@ -1,3 +1,4 @@
+using PFE.Systems.Campaign;
 using PFE.Systems.Map.Scripting;
 
 namespace PFE.Tests.Editor.Map.Actions
@@ -45,7 +46,7 @@ namespace PFE.Tests.Editor.Map.Actions
             RefillCalls++;
         }
 
-        public void SetTrigger(string triggerName, int value)
+        public void SetTrigger(string triggerName, TriggerValue value)
         {
             SetTriggerCalls++;
         }

@@ -133,7 +133,7 @@ namespace PFE.Tests.Editor.Map
         }
 
         [Test]
-        public void GetPlayerSpawnPoint_WithSpawnPoints_ReturnsFirstPlayerSpawn()
+        public void GetPlayerSpawnPoint_MirrorsTheStoredAs3Row()
         {
             RoomInstance room = CreateTestRoom();
             room.spawnPoints.Add(new SpawnPoint
@@ -144,9 +144,84 @@ namespace PFE.Tests.Editor.Map
 
             Vector2 spawn = room.GetPlayerSpawnPoint();
 
-            Vector2 expected = WorldCoordinates.TileToPixel(new Vector2Int(10, 10));
-            Assert.AreEqual(expected.x, spawn.x, 0.001f);
-            Assert.AreEqual(expected.y, spawn.y, 0.001f);
+            // `tileCoord` is an AS3 row (0 = ceiling), so the port row is 25 - 1 - 10 = 14, and the
+            // anchor is AS3's bottom-centre one evaluated for the `player` definition's size='2':
+            //   x = (10 + 0.5 * 2) * 40      = 440
+            //   y = (25 - 1 - 10) * 40 + 1   = 561
+            //
+            // The raw read this replaced returned TileToPixel((10, 10)) = (400, 400) — the room's
+            // vertical mirror image, 4 rows too high. This assertion fails on that value, so it is a
+            // guard rather than a restatement.
+            Assert.AreEqual(440f, spawn.x, 0.001f);
+            Assert.AreEqual(561f, spawn.y, 0.001f);
+        }
+
+        [Test]
+        public void GetPlayerSpawnPoint_SpawnInsideWall_IsRefusedAndSearched()
+        {
+            RoomInstance room = CreateTestRoom();
+            // The tile the mirrored row names: port row 25 - 1 - 10 = 14, column 10.
+            room.tiles[10, 14].physicsType = TilePhysicsType.Wall;
+            room.spawnPoints.Add(new SpawnPoint
+            {
+                tileCoord = new Vector2Int(10, 10),
+                type = SpawnType.Player
+            });
+
+            Vector2 spawn = room.GetPlayerSpawnPoint();
+
+            // A spawn point that names a wall is refused, so Priority 3's spiral answers instead. The
+            // only air-above-solid tile in the room is (10, 15) — the wall's own top — and the spiral
+            // reaches column 10 at radius 14, so the result is ((10 + 0.5) * 40, 15 * 40) = (420, 600).
+            //
+            // Drop the guard and this returns the refused anchor (440, 561) instead: the test goes red.
+            Assert.AreEqual(420f, spawn.x, 0.001f);
+            Assert.AreEqual(600f, spawn.y, 0.001f);
+            Assert.AreNotEqual(TilePhysicsType.Wall,
+                room.GetTileAtCoord(WorldCoordinates.PixelToTile(spawn)).physicsType,
+                "The resolved spawn must not be inside a solid tile.");
+        }
+
+        [Test]
+        public void GetPlayerSpawnWorldPoint_OffOriginRoom_AddsTheRoomOrigin()
+        {
+            RoomInstance room = CreateTestRoom();
+            room.landPosition = new Vector3Int(0, 1, 0); // one land row BELOW row 0
+            room.spawnPoints.Add(new SpawnPoint
+            {
+                tileCoord = new Vector2Int(10, 10),
+                type = SpawnType.Player
+            });
+
+            Vector2 local = room.GetPlayerSpawnPoint();
+            Vector2 world = room.GetPlayerSpawnWorldPoint();
+
+            // A larger land row is lower on screen, so the origin is a full room height below 0.
+            Assert.AreEqual(local.x, world.x, 0.001f);
+            Assert.AreEqual(local.y - WorldConstants.ROOM_SIZE_PIXELS.y, world.y, 0.001f);
+            Assert.AreNotEqual(local.y, world.y,
+                "A room off land (0,0) must not hand out a room-local value as a world position.");
+        }
+
+        [Test]
+        public void FindPlayerSpawnUnity_OffOriginRoom_IsAWorldPosition()
+        {
+            RoomInstance room = CreateTestRoom();
+            room.landPosition = new Vector3Int(0, 1, 0);
+            room.spawnPoints.Add(new SpawnPoint
+            {
+                tileCoord = new Vector2Int(10, 10),
+                type = SpawnType.Player
+            });
+
+            Vector3 world = RoomSetup.FindPlayerSpawnUnity(room);
+            Vector2 local = room.GetPlayerSpawnPoint();
+
+            // 100 pixels = 1 Unity unit, and the room's origin is one room height below 0. This is the
+            // value MapBridge.SpawnPlayer writes to the transform AND hands to TilePhysicsController,
+            // which collides in world pixels.
+            Assert.AreEqual(local.x / 100f, world.x, 0.0001f);
+            Assert.AreEqual((local.y - WorldConstants.ROOM_SIZE_PIXELS.y) / 100f, world.y, 0.0001f);
         }
 
         [Test]

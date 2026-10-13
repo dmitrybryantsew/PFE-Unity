@@ -569,6 +569,22 @@ namespace PFE.Systems.Map.DataMigration
             if (int.TryParse(ResolveOption(as3Room, inheritedOptions, "dark", "0"), out int dark))
                 env.darkness = dark;
 
+            // ── Enemy-spawn options. AS3 reads all three off `nroom.options` ONLY — there is no
+            //    land-level `entip`/`spawn`/`kolspawn` anywhere in the oracle (`Location.as:466-469`,
+            //    `:498-505`) — so `inheritedOptions` is deliberately passed as null here. Passing the
+            //    land table would let a land's option leak into a room, which is the opposite of what
+            //    the oracle does and would be invisible in the data.
+            //
+            //    Each keeps a sentinel rather than a plausible default, because the two are different
+            //    answers downstream: `-1` for tipEnemy is what `setLocDif`'s `if(tipEnemy < 0)` tests,
+            //    and `-1` for kolEnSpawn distinguishes "not authored" from an authored `0` that
+            //    `if(kolEnSpawn == 0)` still rolls on (`Land.as:1061`).
+            if (int.TryParse(ResolveOption(as3Room, null, "entip", ""), out int entip))
+                env.tipEnemy = entip;
+            if (int.TryParse(ResolveOption(as3Room, null, "kolspawn", ""), out int kolspawn))
+                env.kolEnSpawn = kolspawn;
+            env.spawnGroupId = ResolveOption(as3Room, null, "spawn", "");
+
             return env;
         }
 

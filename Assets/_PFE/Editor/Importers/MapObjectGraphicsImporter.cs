@@ -379,9 +379,19 @@ namespace PFE.Editor.Importers
                     AddCandidate($"vis{definition.objectId}", candidates);
                     break;
                 case VisualImportRoute.Trap:
-                    AddVisualHint(definition.defaultVisualId, candidates);
-                    AddVisualHint(definition.GetAttribute("vis"), candidates);
+                    // AS3 `loc.Trap` (`Trap.as:36`) names its visual `"vistrap" + id`, with the
+                    // class-level `vistrapspikes` as the fallback — and it never consults `ico`/`@vis`.
+                    //
+                    // `defaultVisualId` is the ico-derived hint, and BOTH shipped traps carry
+                    // `ico='mine'` (`AllData.as:5000-5001`): `spikes` and `fspikes`. Trying it before
+                    // the trap name made every spike trap import the MINE art, which is the reported
+                    // "the spike traps are represented as a mine". `TryResolveFolder` takes the first
+                    // candidate that exists, so the oracle's own order is the only one that may be
+                    // used here. `@vis` stays last as an explicit authoring override — which `ico`,
+                    // being a mere icon hint, is not.
                     AddCandidate($"vistrap{definition.objectId}", candidates);
+                    AddCandidate("vistrapspikes", candidates);
+                    AddVisualHint(definition.GetAttribute("vis"), candidates);
                     break;
                 case VisualImportRoute.Checkpoint:
                     AddCandidate("vischeckpoint", candidates);

@@ -597,9 +597,18 @@ MonoBehaviour:
     attributes:
     - key: allid
       value: d4
+    - key: move_present
+      value: 1
+    - key: move_dy
+      value: -19
+    - key: move_tstay
+      value: 30
+    - key: move_tmove
+      value: 120
     items: []
     scripts: []
-    parameters: code="z6slcd0g2VRqesuk" allid="d4"
+    parameters: code="z6slcd0g2VRqesuk" allid="d4" move_present="1" move_dy="-19"
+      move_tstay="30" move_tmove="120"
   - type: unit
     id: trlaser
     definitionId: trlaser
@@ -1260,3 +1269,6 @@ MonoBehaviour:
     radiation: 0
     radiationDamage: 0
     darkness: 0
+    tipEnemy: 2
+    kolEnSpawn: 3
+    spawnGroupId: 

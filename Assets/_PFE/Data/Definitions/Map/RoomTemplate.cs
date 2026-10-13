@@ -392,6 +392,39 @@ namespace PFE.Systems.Map
         public float radiation = 0f;
         public float radiationDamage = 0f;
         public int darkness = 0;
+
+        /// <summary>
+        /// AS3 <c>&lt;options entip="…"&gt;</c> → <c>Location.tipEnemy</c>
+        /// (<c>Location.as:466-469</c>). <c>-1</c> means the room did not author one, which is AS3's own
+        /// default (<c>Location.as:217</c>) and the value <c>Land.setLocDif</c> tests with
+        /// <c>if(param1.tipEnemy &lt; 0)</c> before rolling a biome-appropriate tier.
+        ///
+        /// <para><b>Not inherited from the land.</b> <c>Location.buildLoc</c> reads this off
+        /// <c>nroom.options</c> only — there is no land-level <c>entip</c> anywhere in the oracle — which
+        /// is why the importer passes no inherited-options table for it.</para>
+        ///
+        /// <para>44 of the 640 shipped rooms author one (28× <c>0</c>, 8× <c>1</c>, 4× <c>2</c>, 1× <c>3</c>,
+        /// 3× <c>6</c>). It is the single largest input to <c>randomUnit</c> after the biome, so losing it
+        /// does not just change numbers — it changes <i>which family</i> a room spawns.</para>
+        /// </summary>
+        public int tipEnemy = -1;
+
+        /// <summary>
+        /// AS3 <c>&lt;options kolspawn="…"&gt;</c> → <c>Location.kolEnSpawn</c>
+        /// (<c>Location.as:502-505</c>). <c>-1</c> means "not authored", distinct from an authored
+        /// <c>0</c>: <c>setLocDif</c> only seeds <c>kolEnSpawn</c> when it is <c>0</c>
+        /// (<c>Land.as:1061</c>), so an authored <c>0</c> still takes the roll while "absent" must not
+        /// overwrite the field's default.
+        /// </summary>
+        public int kolEnSpawn = -1;
+
+        /// <summary>
+        /// AS3 <c>&lt;options spawn="…"&gt;</c> → <c>Location.tipSpawn</c>
+        /// (<c>Location.as:498-501</c>), the group id the room's <c>enspawn</c> alarm points use.
+        /// Empty means "not authored"; AS3's own default is <c>"enl2"</c>
+        /// (<c>Location.as:223</c>), which <c>RoomPopulator</c> substitutes.
+        /// </summary>
+        public string spawnGroupId = "";
     }
 
     /// <summary>

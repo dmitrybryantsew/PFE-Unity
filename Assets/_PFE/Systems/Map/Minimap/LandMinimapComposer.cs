@@ -101,6 +101,15 @@ namespace PFE.Systems.Map.Minimap
                     continue;
                 }
 
+                // A cell's z = 1 interior shares its exterior's `x`/`y`, and this composer keys cells on
+                // `x`/`y` alone — so drawing it would overwrite the exterior with the interior. AS3 keeps it
+                // off the map for exactly this reason (`loc.noMap = true`, Land.as:402). See
+                // RoomInstance.noMap.
+                if (room.noMap)
+                {
+                    continue;
+                }
+
                 rooms.Add(room);
                 Vector3Int p = room.landPosition;
                 if (p.x < minX) minX = p.x;

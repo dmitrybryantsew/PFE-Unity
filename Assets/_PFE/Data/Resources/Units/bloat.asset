@@ -17,6 +17,7 @@ MonoBehaviour:
   id: bloat
   parentId: 
   controllerId: 
+  lootTableKey: 
   fraction: 1
   category: 2
   xpReward: 0

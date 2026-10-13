@@ -17,6 +17,7 @@ MonoBehaviour:
   id: raider7
   parentId: raider
   controllerId: raider
+  lootTableKey: raider
   fraction: 2
   category: 3
   xpReward: 220
@@ -368,15 +369,19 @@ MonoBehaviour:
   - weaponId: winchester
     chance: 0.2
     difficulty: 8
+    isFixedWeapon: 0
   - weaponId: assr
     chance: 0.4
     difficulty: 0
+    isFixedWeapon: 0
   - weaponId: oldr
     chance: 0.5
     difficulty: 0
+    isFixedWeapon: 0
   - weaponId: hunt
     chance: 1
     difficulty: 0
+    isFixedWeapon: 0
   animations:
     stay:
       row: 0

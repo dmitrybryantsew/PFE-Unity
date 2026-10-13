@@ -17,6 +17,7 @@ MonoBehaviour:
   id: raider1
   parentId: raider
   controllerId: raider
+  lootTableKey: raider
   fraction: 2
   category: 3
   xpReward: 100
@@ -344,21 +345,27 @@ MonoBehaviour:
   - weaponId: cknife
     chance: 0.2
     difficulty: 6
+    isFixedWeapon: 0
   - weaponId: mach
     chance: 0.1
     difficulty: 0
+    isFixedWeapon: 0
   - weaponId: armature
     chance: 0.3
     difficulty: 0
+    isFixedWeapon: 0
   - weaponId: chopper
     chance: 0.3
     difficulty: 0
+    isFixedWeapon: 0
   - weaponId: zknife
     chance: 0.5
     difficulty: 0
+    isFixedWeapon: 0
   - weaponId: knife
     chance: 1
     difficulty: 0
+    isFixedWeapon: 0
   animations:
     stay:
       row: 0

@@ -77,6 +77,17 @@ namespace PFE.Editor.Importers
         // Node / AllNodes / NodeText stay local: they are not duplicated anywhere and have no
         // colliding-name failure mode.
 
+        /// <summary>
+        /// AS3's class default for a melee weapon's reach — <c>Weapon.dlina = 50</c> /
+        /// <c>mindlina = 50</c> (<c>Weapon.as:138-140</c>), in Flash pixels.
+        ///
+        /// <para>Held here as well as on <see cref="WeaponDefinition"/> because the importer must be
+        /// able to assign it <b>unconditionally</b>: a fallback of <c>def.meleeDlina</c> would keep
+        /// whatever the asset already held, so a weapon whose <c>&lt;phis&gt;</c> block lost its
+        /// <c>long</c> could never come back down to the default.</para>
+        /// </summary>
+        private const float MeleeReachDefault = 50f;
+
         // Extract the raw content of the first XML node that matches tag,
         // searching inside parent. Returns null if not found.
         private static string Node(string parent, string tag)
@@ -247,6 +258,34 @@ namespace PFE.Editor.Importers
             // and autoaxe/bsaw/ripper); until now those six values existed only as hand-edited YAML
             // in the assets, which a reimport preserved by accident rather than by design.
             def.meleeType   = (MeleeType)AttrI(rootAttrs, "mtip", 0);
+
+            // ── Melee REACH — WClub.as:119-130 ───────────────────────────────────────────────
+            //
+            //   if (node.phis[0].@long    > 0) dlina    = node.phis[0].@long;
+            //   if (node.phis[0].@minlong > 0) mindlina = node.phis[0].@minlong;
+            //   else                           mindlina = dlina;
+            //
+            // Read off the FIRST <phis> node — the same tier-1 node the sub-type comes from — and
+            // the class defaults are AS3's own `dlina = 50` / `mindlina = 50` (Weapon.as:138-140),
+            // NOT the 100 the C# fields were initialised to.
+            //
+            // Neither attribute was imported, so every one of the 204 weapon assets carried 100/100.
+            // Two consequences, both live: every melee weapon reached **twice as far as AS3** (sword
+            // 0.8 → 1.0 unit, `a_melee` 1.4 → 1.0), and the Overhead sweep — `bindMove(mindlina,
+            // dlina)` at WClub.as:473 — became a **zero-length move** because the two were equal, so
+            // autoaxe/bsaw/ripper swept a degenerate segment.
+            var phisNodes = AllNodes(body, "phis");
+            string phisT1 = phisNodes.Count > 0 ? phisNodes[0] : "";
+
+            // Assigned unconditionally, both of them, so a reimport can move a stale value BACK to
+            // the default. A `AttrF(..., def.meleeDlina)` fallback would instead freeze whatever the
+            // asset already held — the create-only importer failure mode in miniature.
+            float dlina = AttrF(phisT1, "long", MeleeReachDefault);
+            def.meleeDlina = dlina > 0f ? dlina : MeleeReachDefault;
+
+            float minDlina = AttrF(phisT1, "minlong", 0f);
+            def.meleeMinDlina = minDlina > 0f ? minDlina : def.meleeDlina;
+
             def.skillLevel  = AttrI(rootAttrs, "skill", 0);
             def.weaponLevel = AttrI(rootAttrs, "lvl",   0);
             def.alicornOnly = AttrBool(rootAttrs, "alicorn");
@@ -287,6 +326,26 @@ namespace PFE.Editor.Importers
             def.baseDamage          = AttrF(charT1, "damage",  10f);
             def.rapid               = AttrF(charT1, "rapid",   10f);
 
+            // ── The two melee flags — WClub.as:131-138 ────────────────────────────────────────
+            //
+            //   if (node.char[0].@pow.length())   this.powerfull = true;   // :131-134
+            //   if (node.char[0].@combo.length()) this.combinat  = true;   // :135-138
+            //
+            // Both are AS3 *presence* tests on the tier-1 <char>, never written as '0' — which is
+            // why this uses AttrPresent and not AttrBool. Neither was imported, so both fields sat
+            // at their `false` initialisers on all 204 assets.
+            //
+            // `powerfull` matters even before the charge itself is ported, because `combinat` has a
+            // second assignment that reads it:
+            //
+            //   if (!auto && !this.powerfull) this.combinat = true;        // :177-180
+            //
+            // i.e. every melee weapon that is neither automatic nor power-capable has a combo
+            // counter. Twelve do, and with `meleeCombo` alone the port had combos on exactly one
+            // weapon (`mach`, the only one that authors `combo='1'`).
+            def.meleePowerAttack = AttrPresent(charT1, "pow");
+            def.meleeCombo       = AttrPresent(charT1, "combo");
+
             // char@auto — AS3 tests PRESENCE first, then `!= "0"` (Weapon.as:856-859), so absent
             // and '0' are different answers and a bool cannot carry both. 0 = absent.
             // 14 weapons carry auto='1' on their tier-1 <char> with rapid > 6 (shotgun 12, bfg 15,
@@ -298,7 +357,12 @@ namespace PFE.Editor.Importers
             // against Bullet.dist, which is in pixels. Four weapons carry antiprec='8' (320 px).
             def.antiPrecision       = AttrF(charT1, "antiprec", 0f) * 40f;
             def.knockback           = AttrF(charT1, "knock",   0f);
-            def.destroyTiles        = AttrF(charT1, "destroy", 0f);
+            // The default is AS3's class default, not zero: `Weapon.destroy = 10` (Weapon.as:156),
+            // and Weapon.as:828-830 only overwrites it `if (param1.@destroy.length())`. Ten weapons
+            // author no `destroy` at all (the three scorppunch rows, ttweap1-6 and `paint`), so the
+            // port was reading 0 where the oracle reads 10 — those weapons' rounds could not break a
+            // tile that AS3's could.
+            def.destroyTiles        = AttrF(charT1, "destroy", 10f);
             def.piercing            = AttrF(charT1, "pier",    0f);   // flat armour points, not a chance
             def.projectilesPerShot  = AttrI(charT1, "kol",     1);
             def.burstCount          = AttrI(charT1, "dkol",    0);

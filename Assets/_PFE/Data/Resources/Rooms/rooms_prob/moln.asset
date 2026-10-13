@@ -81,10 +81,21 @@ MonoBehaviour:
     tileCoord: {x: 3, y: 6}
     code: fJ1Ea6Wlb5NDzAQ6
     uid: 
-    attributes: []
+    attributes:
+    - key: move_present
+      value: 1
+    - key: move_dx
+      value: 34
+    - key: move_tstay
+      value: 10
+    - key: move_tmove
+      value: 250
+    - key: move_on
+      value: 1
     items: []
     scripts: []
-    parameters: code="fJ1Ea6Wlb5NDzAQ6"
+    parameters: code="fJ1Ea6Wlb5NDzAQ6" move_present="1" move_dx="34" move_tstay="10"
+      move_tmove="250" move_on="1"
   - type: box
     id: platform2
     definitionId: platform2
@@ -92,10 +103,21 @@ MonoBehaviour:
     tileCoord: {x: 6, y: 6}
     code: HAwdDIcNmOH0K6MG
     uid: 
-    attributes: []
+    attributes:
+    - key: move_present
+      value: 1
+    - key: move_dx
+      value: 34
+    - key: move_tstay
+      value: 10
+    - key: move_tmove
+      value: 250
+    - key: move_on
+      value: 1
     items: []
     scripts: []
-    parameters: code="HAwdDIcNmOH0K6MG"
+    parameters: code="HAwdDIcNmOH0K6MG" move_present="1" move_dx="34" move_tstay="10"
+      move_tmove="250" move_on="1"
   - type: trap
     id: moln1
     definitionId: moln1
@@ -892,3 +914,6 @@ MonoBehaviour:
     radiation: 0
     radiationDamage: 0
     darkness: 0
+    tipEnemy: -1
+    kolEnSpawn: -1
+    spawnGroupId: 

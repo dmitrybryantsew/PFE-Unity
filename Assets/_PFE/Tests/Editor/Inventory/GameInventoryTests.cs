@@ -112,16 +112,39 @@ namespace PFE.Tests.Editor
             Assert.AreEqual(50, inventory.GetItem(_stackableItem.itemId)?.Quantity);
         }
 
+        /// <summary>
+        /// AS3 has no maximum stack — <c>Invent.plus()</c> adds unconditionally
+        /// (<c>Invent.as:1343</c>). This replaces <c>AddItem_WhenStackFull_DoesNotAdd</c>, which pinned
+        /// the port's invented cap: because every one of the 500 shipped item rows carries the default
+        /// <c>stackSize: 1</c>, that cap made "Give 300" bank a single round and refused the next Give
+        /// with "Stack full".
+        /// </summary>
         [Test]
-        public void AddItem_WhenStackFull_DoesNotAdd()
+        public void AddItem_BeyondTheOldStackSizeCap_KeepsAdding()
         {
             var inventory = new GameInventory();
-            inventory.AddItem(_stackableItem, 100); // Fill stack
+            inventory.AddItem(_stackableItem, 100);   // == the item's own stackSize, the old cap
 
             bool result = inventory.AddItem(_stackableItem, 1);
 
-            Assert.IsFalse(result);
-            Assert.AreEqual(100, inventory.GetItem(_stackableItem.itemId)?.Quantity);
+            Assert.IsTrue(result, "a stack must never refuse a merge — AS3 has no ceiling");
+            Assert.AreEqual(101, inventory.GetItem(_stackableItem.itemId)?.Quantity);
+        }
+
+        /// <summary>
+        /// The exact play-test shape reported from the F2 overlay / <c>giveammo</c>: an item whose
+        /// <c>stackSize</c> is the field default of <c>1</c> (which is every shipped item asset) must
+        /// still bank an arbitrary requested quantity.
+        /// </summary>
+        [Test]
+        public void AddItem_ToAnItemWhoseStackSizeIsOne_BanksTheWholeRequest()
+        {
+            var inventory = new GameInventory();
+
+            inventory.AddItem(_nonStackableItem, 3000);
+
+            Assert.AreEqual(3000, inventory.GetItem(_nonStackableItem.itemId)?.Quantity,
+                "the requested quantity must land whole — this is the 'can't get 3000 ammo' report");
         }
 
         [Test]

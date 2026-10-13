@@ -17,6 +17,7 @@ MonoBehaviour:
   id: gutsy
   parentId: 
   controllerId: 
+  lootTableKey: 
   fraction: 4
   category: 3
   xpReward: 450
@@ -212,9 +213,11 @@ MonoBehaviour:
   - weaponId: roboplasma2
     chance: 0.3
     difficulty: 18
+    isFixedWeapon: 0
   - weaponId: roboplasma
     chance: 1
     difficulty: 0
+    isFixedWeapon: 0
   animations:
     stay:
       row: 0

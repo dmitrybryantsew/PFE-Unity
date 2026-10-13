@@ -94,6 +94,8 @@ namespace PFE.Core
         private GameObject _overlayObject;
         private SimDebugOverlay _overlay;
 
+        private InterfacePauseGate _worldGate;
+
         public SimLoop(SimClock clock, PfeDebugSettings debugSettings)
         {
             _clock = clock;
@@ -102,6 +104,25 @@ namespace PFE.Core
 
         /// <summary>Configured simulation clock. Canonical constants live on <see cref="SimClock"/>.</summary>
         public SimClock Clock => _clock;
+
+        /// <summary>
+        /// The interface pause gate — the port of <c>World.allStat</c> (<c>World.as:1385</c>). While a
+        /// holder is present only the <see cref="SimTickOrder.ViewAligned"/> bucket dispatches; see
+        /// <see cref="StepOnce"/> for the Oracle's own split.
+        ///
+        /// <para><b>Pushed, not injected, and that is a deliberate choice rather than laziness.</b> Six
+        /// call sites across five fixtures construct <c>new SimLoop(clock, settings)</c> directly, so a
+        /// third constructor parameter would either break all of them or make the container's
+        /// constructor choice depend on VContainer's resolution order — which is not something a
+        /// behaviour switch should rest on. A settable seam keeps the default a hard <c>null</c>: with
+        /// no gate, nothing is ever paused, which is exactly what every existing test and the pre-I7
+        /// game did. <c>GameLifetimeScope</c> pushes the container's instance at build time.</para>
+        /// </summary>
+        public InterfacePauseGate WorldGate
+        {
+            get => _worldGate;
+            set => _worldGate = value;
+        }
 
         /// <summary>Index of the most recently completed tick, or -1 before the first tick.</summary>
         public int TickIndex => _tickIndex;
@@ -182,9 +203,33 @@ namespace PFE.Core
 
                 _tickIndex++;
 
+                // The interface pause gate — the port of `allStat`.
+                //
+                // World.as:1385 sets `allStat = pip.active || sats.active || stand.active || guiPause
+                // ? 2 : 1`, World.as:1257 gates the ROOM on `allStat == 1`, and World.as:1315-1320
+                // steps gui/pip/sats under the looser `allStat >= 1`. So an open interface freezes the
+                // world and keeps animating itself, and the port expresses that structurally rather
+                // than as a special case: only the ViewAligned bucket dispatches while a holder is
+                // present.
+                //
+                // Read once, outside the loop. IsWorldPaused is a HashSet count, and a tickable that
+                // acquires or releases mid-tick must not change which bucket is gated part-way through
+                // a tick — the Oracle reads allStat once per World.step, not once per subsystem.
+                bool worldPaused = _worldGate != null && _worldGate.IsWorldPaused;
+
                 for (int i = 0; i < _tickables.Count; i++)
                 {
-                    _tickables[i].SimTick(_tickIndex);
+                    ISimTickable tickable = _tickables[i];
+
+                    // `_tickIndex++` above is deliberately NOT gated. The interface's own page
+                    // animation and its live status panel run on this clock, so the index has to keep
+                    // advancing while the world is frozen — that is the whole point of the mode.
+                    if (worldPaused && tickable.TickOrder != SimTickOrder.ViewAligned)
+                    {
+                        continue;
+                    }
+
+                    tickable.SimTick(_tickIndex);
                 }
 
                 return _tickIndex;

@@ -17,6 +17,7 @@ MonoBehaviour:
   id: protect1
   parentId: 
   controllerId: protect
+  lootTableKey: protect
   fraction: 4
   category: 3
   xpReward: 500
@@ -272,12 +273,15 @@ MonoBehaviour:
   - weaponId: robonova
     chance: 0.3
     difficulty: 0
+    isFixedWeapon: 0
   - weaponId: robosparkl
     chance: 0.5
     difficulty: 0
+    isFixedWeapon: 0
   - weaponId: roboplam
     chance: 1
     difficulty: 0
+    isFixedWeapon: 0
   animations:
     stay:
       row: 0

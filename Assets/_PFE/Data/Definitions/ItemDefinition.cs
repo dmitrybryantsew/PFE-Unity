@@ -117,7 +117,21 @@ namespace PFE.Data.Definitions
         [Tooltip("Weight in inventory")]
         public float weight = 1f;
 
-        [Tooltip("Maximum stack size")]
+        /// <summary>
+        /// AS3 <c>@kol</c> — how many units one bundle/pickup of this item carries.
+        ///
+        /// <para>In the oracle this is the quantity a freshly-created <c>Item</c> starts with when the
+        /// caller passes the default <c>kol = -1</c> (<c>Item.as:195-205</c>): the size of the bundle
+        /// you get, not a limit on what you may hold.</para>
+        ///
+        /// <para><b>This is NOT a maximum stack size, and nothing enforces it.</b> AS3 stacks are
+        /// unbounded — <c>Invent.plus()</c> adds with no ceiling (<c>Invent.as:1343</c>). The port
+        /// briefly read this as a cap, which made every item effectively un-stackable because
+        /// <c>SimpleDataImporter</c> never parsed <c>@kol</c> and left all 500 rows at the field
+        /// default of <c>1</c>. The cap is gone; the value stays informational (nothing consumes it
+        /// yet, so it is also still <c>1</c> everywhere).</para>
+        /// </summary>
+        [Tooltip("AS3 @kol — units per bundle/pickup. NOT a maximum (AS3 stacks are unbounded).")]
         public int stackSize = 1;
 
 #if ODIN_INSPECTOR

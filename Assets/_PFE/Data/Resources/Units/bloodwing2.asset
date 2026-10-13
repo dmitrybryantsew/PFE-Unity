@@ -17,6 +17,7 @@ MonoBehaviour:
   id: bloodwing2
   parentId: 
   controllerId: 
+  lootTableKey: 
   fraction: 1
   category: 3
   xpReward: 400

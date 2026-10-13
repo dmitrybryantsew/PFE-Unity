@@ -30,6 +30,6 @@ MonoBehaviour:
   pixelsPerUnit: 100
   pixelSize: {x: 19, y: 120}
   pivot: {x: 0.5, y: 0}
-  localOffset: {x: 0, y: 0}
+  localOffset: {x: -1, y: 0}
   sortingOrder: 1
   wallMounted: 1

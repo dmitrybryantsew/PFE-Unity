@@ -24,8 +24,18 @@ namespace PFE.Systems.Map.Scripting
         /// <summary>AS3 <c>refill</c> → <c>Land.refill()</c> (<c>Land.as:1481-1496</c>).</summary>
         void RefillVendors();
 
-        /// <summary>AS3 <c>trigger</c> (<c>Script.as:424-434</c>).</summary>
-        void SetTrigger(string triggerName, int value);
+        /// <summary>
+        /// AS3 <c>trigger</c> (<c>Script.as:424-434</c>) — <c>World.w.game.setTrigger(val, n)</c>.
+        ///
+        /// <para><b>Why the payload is a <c>TriggerValue</c> and not an <c>int</c>.</b> The oracle stores
+        /// whatever <c>n</c> holds, and <c>analiz</c> types it <c>String</c> (<c>Script.as:71</c>) — so an
+        /// authored <c>@n="wait"</c> lands in the table as the <b>string</b> <c>"wait"</c>, the value the
+        /// <c>refill</c> sweep matches (<c>Game.as:516-522</c>). An <c>int</c> parameter cannot carry that,
+        /// which is the same gap <c>TriggerValue</c> closes for the table itself. Callers building a value
+        /// from authored <c>@n</c> should use <see cref="PFE.Systems.Campaign.TriggerValue.FromScriptCommandN"/>,
+        /// which also reproduces the oracle's <c>"-1"</c> default.</para>
+        /// </summary>
+        void SetTrigger(string triggerName, PFE.Systems.Campaign.TriggerValue value);
 
         /// <summary>AS3 <c>passed</c> (<c>Script.as:469-472</c>).</summary>
         void MarkPassed();

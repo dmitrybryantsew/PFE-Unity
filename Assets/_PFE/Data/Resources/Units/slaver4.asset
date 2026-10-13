@@ -17,6 +17,7 @@ MonoBehaviour:
   id: slaver4
   parentId: slaver
   controllerId: raider
+  lootTableKey: raider
   fraction: 2
   category: 3
   xpReward: 450
@@ -344,18 +345,23 @@ MonoBehaviour:
   - weaponId: pshot
     chance: 0.04
     difficulty: 18
+    isFixedWeapon: 0
   - weaponId: saf9
     chance: 0.3
     difficulty: 12
+    isFixedWeapon: 0
   - weaponId: shotgun
     chance: 0.5
     difficulty: 0
+    isFixedWeapon: 0
   - weaponId: lshot
     chance: 0.5
     difficulty: 0
+    isFixedWeapon: 0
   - weaponId: prism
     chance: 1
     difficulty: 0
+    isFixedWeapon: 0
   animations:
     stay:
       row: 0

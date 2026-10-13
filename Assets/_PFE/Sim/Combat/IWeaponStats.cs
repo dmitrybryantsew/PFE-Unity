@@ -157,8 +157,8 @@ namespace PFE.Systems.Combat
         public bool radio { get; set; } = false;
         public float sens { get; set; } = 100f;
         public MeleeType meleeType { get; set; } = MeleeType.Horizontal;
-        public float meleeDlina { get; set; } = 100f;
-        public float meleeMinDlina { get; set; } = 100f;
+        public float meleeDlina { get; set; } = 50f;
+        public float meleeMinDlina { get; set; } = 50f;
         public bool meleeCombo { get; set; } = false;
         public bool meleePowerAttack { get; set; } = false;
         public ProjectileArchetype projectileArchetype { get; set; } = ProjectileArchetype.Ballistic;

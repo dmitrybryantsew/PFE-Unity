@@ -17,6 +17,7 @@ MonoBehaviour:
   id: scorp1
   parentId: 
   controllerId: scorp
+  lootTableKey: scorp
   fraction: 1
   category: 3
   xpReward: 100

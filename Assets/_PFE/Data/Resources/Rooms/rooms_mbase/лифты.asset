@@ -224,9 +224,18 @@ MonoBehaviour:
     attributes:
     - key: allid
       value: 2
+    - key: move_present
+      value: 1
+    - key: move_dy
+      value: 7
+    - key: move_tstay
+      value: 30
+    - key: move_tmove
+      value: 60
     items: []
     scripts: []
-    parameters: code="N8Sr3ix1hxow1x2q" allid="2"
+    parameters: code="N8Sr3ix1hxow1x2q" allid="2" move_present="1" move_dy="7" move_tstay="30"
+      move_tmove="60"
   - type: box
     id: platform2
     definitionId: platform2
@@ -237,9 +246,18 @@ MonoBehaviour:
     attributes:
     - key: allid
       value: 2
+    - key: move_present
+      value: 1
+    - key: move_dy
+      value: 7
+    - key: move_tstay
+      value: 30
+    - key: move_tmove
+      value: 60
     items: []
     scripts: []
-    parameters: code="de2izDRObGM3R3FV" allid="2"
+    parameters: code="de2izDRObGM3R3FV" allid="2" move_present="1" move_dy="7" move_tstay="30"
+      move_tmove="60"
   - type: box
     id: wallsafe
     definitionId: wallsafe
@@ -788,9 +806,18 @@ MonoBehaviour:
     attributes:
     - key: vis
       value: down
+    - key: move_present
+      value: 1
+    - key: move_dx
+      value: 6
+    - key: move_tstay
+      value: 30
+    - key: move_tmove
+      value: 90
     items: []
     scripts: []
-    parameters: code="hRbbAn5UkUJncBFL" vis="down"
+    parameters: code="hRbbAn5UkUJncBFL" vis="down" move_present="1" move_dx="6" move_tstay="30"
+      move_tmove="90"
   - type: unit
     id: wturret
     definitionId: wturret
@@ -801,9 +828,18 @@ MonoBehaviour:
     attributes:
     - key: vis
       value: down
+    - key: move_present
+      value: 1
+    - key: move_dx
+      value: 6
+    - key: move_tstay
+      value: 30
+    - key: move_tmove
+      value: 90
     items: []
     scripts: []
-    parameters: code="pV8PxS6Mck1SsJ9A" vis="down"
+    parameters: code="pV8PxS6Mck1SsJ9A" vis="down" move_present="1" move_dx="6" move_tstay="30"
+      move_tmove="90"
   - type: unit
     id: wturret
     definitionId: wturret
@@ -814,9 +850,18 @@ MonoBehaviour:
     attributes:
     - key: vis
       value: right
+    - key: move_present
+      value: 1
+    - key: move_dy
+      value: -6
+    - key: move_tstay
+      value: 30
+    - key: move_tmove
+      value: 90
     items: []
     scripts: []
-    parameters: code="j95YchD8iftAg6Pw" vis="right"
+    parameters: code="j95YchD8iftAg6Pw" vis="right" move_present="1" move_dy="-6"
+      move_tstay="30" move_tmove="90"
   - type: unit
     id: wturret
     definitionId: wturret
@@ -827,9 +872,18 @@ MonoBehaviour:
     attributes:
     - key: vis
       value: up
+    - key: move_present
+      value: 1
+    - key: move_dx
+      value: -6
+    - key: move_tstay
+      value: 30
+    - key: move_tmove
+      value: 90
     items: []
     scripts: []
-    parameters: code="blNcTaE4aSJFyKrI" vis="up"
+    parameters: code="blNcTaE4aSJFyKrI" vis="up" move_present="1" move_dx="-6" move_tstay="30"
+      move_tmove="90"
   - type: unit
     id: wturret
     definitionId: wturret
@@ -840,9 +894,18 @@ MonoBehaviour:
     attributes:
     - key: vis
       value: up
+    - key: move_present
+      value: 1
+    - key: move_dx
+      value: -6
+    - key: move_tstay
+      value: 30
+    - key: move_tmove
+      value: 90
     items: []
     scripts: []
-    parameters: code="wh2Bkv7yT9W9d3FJ" vis="up"
+    parameters: code="wh2Bkv7yT9W9d3FJ" vis="up" move_present="1" move_dx="-6" move_tstay="30"
+      move_tmove="90"
   - type: unit
     id: wturret
     definitionId: wturret
@@ -853,9 +916,18 @@ MonoBehaviour:
     attributes:
     - key: vis
       value: left
+    - key: move_present
+      value: 1
+    - key: move_dy
+      value: 6
+    - key: move_tstay
+      value: 30
+    - key: move_tmove
+      value: 90
     items: []
     scripts: []
-    parameters: code="Vb2wDN873khazx9f" vis="left"
+    parameters: code="Vb2wDN873khazx9f" vis="left" move_present="1" move_dy="6" move_tstay="30"
+      move_tmove="90"
   - type: door
     id: basedoor
     definitionId: basedoor
@@ -992,3 +1064,6 @@ MonoBehaviour:
     radiation: 0
     radiationDamage: 0
     darkness: 0
+    tipEnemy: -1
+    kolEnSpawn: -1
+    spawnGroupId: 

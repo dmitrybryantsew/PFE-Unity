@@ -17,6 +17,7 @@ MonoBehaviour:
   id: slaver6
   parentId: slaver
   controllerId: raider
+  lootTableKey: raider
   fraction: 2
   category: 3
   xpReward: 800
@@ -368,21 +369,27 @@ MonoBehaviour:
   - weaponId: rail
     chance: 0.04
     difficulty: 18
+    isFixedWeapon: 0
   - weaponId: nova
     chance: 0.2
     difficulty: 14
+    isFixedWeapon: 0
   - weaponId: lassn
     chance: 0.3
     difficulty: 12
+    isFixedWeapon: 0
   - weaponId: plamg
     chance: 0.1
     difficulty: 14
+    isFixedWeapon: 0
   - weaponId: plam
     chance: 0.3
     difficulty: 0
+    isFixedWeapon: 0
   - weaponId: sparkl
     chance: 1
     difficulty: 0
+    isFixedWeapon: 0
   animations:
     stay:
       row: 0

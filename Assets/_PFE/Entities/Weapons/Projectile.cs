@@ -494,11 +494,25 @@ namespace PFE.Entities.Weapons
                 // side.
             }
 
-            if (unitHit)
-            {
-                _traveledDistancePixels += deltaPx.magnitude - lastUnitDistancePx;
-            }
-            else if (tileHit)
+            // The tile contact is resolved whether or not a unit was struck on the way to it.
+            //
+            // It was `if (unitHit) … else if (tileHit) …`, which meant a round that had flown on
+            // through an evaded, pierced, or same-faction unit finished the *whole* segment —
+            // crossing any wall between that unit and the segment end and landing on the far side
+            // of it. The next tick then started outside the wall, so the round never registered it:
+            // the reported "sometimes flies through geometry".
+            //
+            // AS3 stops on whichever event fires first: its sub-step loop
+            // (`weapon/Bullet.as:199-205`) tests the tile under the tip *and* the units after every
+            // sub-step and acts on the first that fires. Dropping a tile event because a unit event
+            // came earlier is not that, and it is not the "bounded by one tick" trade the old comment
+            // claimed — the round is advanced by the full segment length, and the enter-only latch
+            // below can then hide the surface from the next tick's sweep as well.
+            //
+            // Note this is NOT the "re-run the tile sweep inside one tick" concern the old comment
+            // raised: `contactPx` was computed once, at the head of this tick, from the segment
+            // start. Nothing is re-asked, so the latch cannot suppress it.
+            if (tileHit)
             {
                 // contactPx comes back in world pixels; the sim's own position is in units.
                 _simPosition = contactPx * TileQueryConstants.PixelToUnit;
@@ -506,6 +520,11 @@ namespace PFE.Entities.Weapons
                 _traveledDistancePixels += tileDistancePx;
                 ResolveTileImpact(contactPx);
                 return;
+            }
+
+            if (unitHit)
+            {
+                _traveledDistancePixels += deltaPx.magnitude - lastUnitDistancePx;
             }
             else
             {
@@ -754,8 +773,9 @@ namespace PFE.Entities.Weapons
             if (_debugSettings?.LogProjectileLifecycle == true)
             {
                 Debug.LogWarning(
-                    $"[Projectile] '{name}' chain contact at {contactPx} px identified no tile " +
-                    "collider; stopping without surface sound or tile destruction.");
+                    $"[Projectile] '{name}' chain contact at {contactPx} px identified neither a tile " +
+                    "collider nor any IDestructibleTile; stopping without surface sound or tile " +
+                    "destruction. A closed door produces this if its solid collider is also disabled.");
             }
 
             StartImpactAnimation();
@@ -772,6 +792,37 @@ namespace PFE.Entities.Weapons
         /// one-way platform slab.</para>
         /// </summary>
         private Collider2D FindTileCollider(Vector2 contactPx)
+        {
+            Collider2D realTile = FindTileColliderAt(contactPx, requiresTileCollider: true);
+            if (realTile != null) return realTile;
+
+            // No `TileCollider` owns this contact — the case a door produces. A closed door stamps
+            // `TilePhysicsType.Wall` over the cells it covers, so the chain reports it as solid, but
+            // those cells are air in the shipped room maps and `TileVisualManager.CreateAllTiles`
+            // only adds a `TileCollider` for a non-air cell (TileVisualManager.cs:188-196). The
+            // result was a surface that stops a round and resolves to nothing: `ResolveTileImpact`
+            // fell through to `StartImpactAnimation()` with no `HandleImpact`, so the round neither
+            // exploded nor damaged the door. That is the owner's "grenade launcher doesn't hit some
+            // doors, the grenade just disappears".
+            //
+            // A second probe for ANY `IDestructibleTile` closes it — the same widening
+            // `MeleeHitVolume.DestructibleColliderAtPixel` already makes for the melee sweep. It is
+            // asked second so a real tile resolves exactly as it always did; only the previously-null
+            // case can change behaviour.
+            return FindTileColliderAt(contactPx, requiresTileCollider: false);
+        }
+
+        /// <summary>
+        /// One overlap probe at a chain contact, asking for either a real <see cref="TileCollider"/>
+        /// or any <see cref="IDestructibleTile"/>.
+        /// </summary>
+        /// <param name="requiresTileCollider">
+        /// <c>true</c> answers only for a <see cref="TileCollider"/> — the original, narrow query,
+        /// kept so a wall's identity (its <see cref="TileSurface"/> material for impact sound) cannot
+        /// be resolved to some other object that happens to overlap the probe. <c>false</c> is the
+        /// door fallback.
+        /// </param>
+        private Collider2D FindTileColliderAt(Vector2 contactPx, bool requiresTileCollider)
         {
             Vector2 probePx = _lastContactNormal.sqrMagnitude > 0f
                 ? contactPx - _lastContactNormal * 2f
@@ -790,9 +841,13 @@ namespace PFE.Entities.Weapons
                 // Identified by component rather than by layer number: the tile layers are private
                 // constants inside TileCollider, and a lookup that silently stops matching if those
                 // numbers are ever renumbered would present as "bullets no longer break tiles".
-                if (hit.GetComponent<TileCollider>() == null) continue;
+                if (hit.GetComponent<TileCollider>() != null) return hit;
+                if (requiresTileCollider) continue;
 
-                return hit;
+                // The fallback, for a surface the chain reports but no TileCollider owns — a door's
+                // stamped cell, or the door presenter's own solid collider. Interface, not a second
+                // concrete type, so a future destructible prop needs no edit here.
+                if (hit.GetComponent<PFE.Systems.Combat.IDestructibleTile>() != null) return hit;
             }
 
             return null;

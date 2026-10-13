@@ -1,3 +1,4 @@
+using System;
 using VContainer;
 using VContainer.Unity;
 using MessagePipe;
@@ -11,6 +12,7 @@ using PFE.Data.Definitions;
 using PFE.Data.Definitions.Campaign;
 using PFE.Systems.Map;
 using PFE.Systems.Map.Rendering;
+using PFE.Systems.Map.Scripting;
 using PFE.Systems.Physics;
 using PFE.Systems.Particles;
 using PFE.Systems.Particles.Adapters;
@@ -22,6 +24,8 @@ using PFE.Core.Rng;
 using PFE.Core.Ids;
 using PFE.Core.Scripting;
 using PFE.Systems.Campaign;
+using PFE.UI.Common;
+using PFE.UI.PipBuck;
 using UnityEngine;
 
 public class GameLifetimeScope : LifetimeScope
@@ -94,6 +98,21 @@ public class GameLifetimeScope : LifetimeScope
         builder.RegisterMessageBroker<TravelMapOpenedMessage>(pipe);
         builder.RegisterMessageBroker<TutorialPromptMessage>(pipe);
         builder.RegisterMessageBroker<ObjectiveMarkerMessage>(pipe);
+        // Campaign event surface (CampaignControl C3). The campaign used to mutate its own trigger and
+        // quest collections and tell nobody, so nothing could bind a hook to "a quest advanced". These
+        // four are the equivalent of the LandTransitionMessage seam, for progression rather than travel.
+        builder.RegisterMessageBroker<TriggerChangedMessage>(pipe);
+        builder.RegisterMessageBroker<QuestStateChangedMessage>(pipe);
+        builder.RegisterMessageBroker<LandEnteredMessage>(pipe);
+        builder.RegisterMessageBroker<CheckpointActivatedMessage>(pipe);
+        // Script presentation surface. AS3 routes `dial`/`dialog`/`inform`/`landlevel` through one
+        // function (GUI.dialText), so there is one message; `control off/on` is a second because the
+        // lock is held and released by name; `gui off/on`, `black` and `dblack` are a third because
+        // they drive one overlay. Registered here for the same reason as HealMessage above — a broker
+        // that does not exist accepts the publish and delivers to nobody, silently.
+        builder.RegisterMessageBroker<ScriptDialogueMessage>(pipe);
+        builder.RegisterMessageBroker<ScriptControlLockMessage>(pipe);
+        builder.RegisterMessageBroker<ScriptOverlayMessage>(pipe);
         // RPG messages
         builder.RegisterMessageBroker<LevelUpMessage>(pipe);
         builder.RegisterMessageBroker<SkillLevelChangedMessage>(pipe);
@@ -169,6 +188,57 @@ public class GameLifetimeScope : LifetimeScope
         builder.RegisterBuildCallback(container => container.Resolve<SaveHotkeys>());
         builder.RegisterBuildCallback(container => container.Resolve<HudBootstrapper>());
 
+        // === PipBuck device (Items I7 / I8 / I9) ===
+        //
+        // A second runtime-built canvas, for the same reasons as the HUD: SampleScene has no PipBuck
+        // object, and the device needs data that only exists at runtime (the composition asset, the
+        // player's inventory, the equipped weapon's condition).
+        //
+        // The view model is a plain class, not a MonoBehaviour, so it is constructor-injected rather
+        // than attached to the canvas: the shell subscribes to it and every page writes into it, and
+        // neither needs it to be a component.
+        builder.Register<PipBuckViewModel>(Lifetime.Singleton);
+
+        // World.allStat (World.as:1385). A singleton so that every interface which can freeze the world
+        // shares ONE holder set — the whole reason the gate counts holders instead of holding a bool.
+        // PipBuckManager acquires it; SimLoop reads it.
+        builder.Register<InterfacePauseGate>(Lifetime.Singleton);
+
+        // UiSoundService's constructor takes ISoundService, and SoundService is an OPTIONAL scene
+        // reference (see the Audio System block above). VContainer resolves every constructor parameter
+        // and never consults a `= null` default, so on a scene with no SoundService the container would
+        // throw here — and because EntryPointDispatcher resolves the whole collection eagerly, that
+        // throw escapes Build() and NO entry point starts at all (the same trap CampaignCatalog is
+        // registered to avoid, see the Campaign Progression block). The factory makes the missing
+        // service a null instead, which UiSoundService is explicitly written to tolerate: "silence is a
+        // degraded interface; an exception out of a UI callback is a broken one."
+        builder.Register<UiSoundService>(Lifetime.Singleton)
+            .WithParameter<ISoundService>(resolver =>
+                resolver.TryResolve<ISoundService>(out ISoundService sound) ? sound : null);
+
+        // AsSelf() is REQUIRED, not decoration: PipBuckBootstrapper's [Inject] Construct takes this type
+        // CONCRETELY, and any `As<>` call drops the implicit self-registration (see the note above
+        // SimLoop for the mechanism). As<IAutoRegisteredSimTickable> is what puts it on SimLoop —
+        // SimTickRegistrar reads that marker — so the device's page animation advances on the tick
+        // clock without anyone having to remember a Register call.
+        builder.Register<PipBuckManager>(Lifetime.Singleton)
+            .AsSelf()
+            .As<IAutoRegisteredSimTickable>();
+
+        builder.RegisterComponentOnNewGameObject<PipBuckBootstrapper>(Lifetime.Singleton, "PipBuck");
+
+        // Same laziness trap as the HUD above: nothing injects PipBuckBootstrapper, so without an
+        // explicit resolve no GameObject is created and the device simply never exists.
+        builder.RegisterBuildCallback(container => container.Resolve<PipBuckBootstrapper>());
+
+        // The pause gate reaches SimLoop by PUSH rather than by injection. SimLoop is constructed
+        // directly by six call sites across five fixtures, so a third constructor parameter would
+        // either break them or make the container's constructor choice depend on VContainer's
+        // resolution order — not something a behaviour switch should rest on. See SimLoop.WorldGate.
+        // Pushed at build time, so the loop holds the container's instance before the first tick.
+        builder.RegisterBuildCallback(container =>
+            container.Resolve<SimLoop>().WorldGate = container.Resolve<InterfacePauseGate>());
+
         // Push the seeded combat RNG into CharacterStats. Its two damage rolls (ApplyOrganDamage's
         // head/torso/legs split and ApplyBloodDamage's bleed roll) were drawing from
         // UnityEngine.Random — unseeded and process-global, so the same hit resolved differently every
@@ -209,7 +279,90 @@ public class GameLifetimeScope : LifetimeScope
             builder.RegisterInstance(ScriptableObject.CreateInstance<CampaignCatalog>());
             Debug.LogWarning("[GameLifetimeScope] CampaignCatalog asset is missing from Resources. Created an empty runtime catalog.");
         }
-        builder.RegisterEntryPoint<CampaignManager>().As<ICampaignManager>().AsSelf();
+        // The bus is a plain singleton, not an entry point: it holds no per-frame work, only the
+        // dispatch-depth guard, and constructing it eagerly keeps "the guard exists" independent of
+        // whether a subscriber ever registers.
+        //
+        // The `Action<string> report` parameter is NOT optional just because it has a `= null` default:
+        // VContainer resolves EVERY constructor parameter and never consults a default
+        // (`ReflectionInjector.CreateInstance` -> `ResolveOrParameter` -> `Resolve`, which throws
+        // `No such registration of type: System.Action`1[System.String]`). The four `IPublisher<>`
+        // parameters above resolve because their brokers are registered; this one has no registration to
+        // find, so without the line below the throw escapes `ContainerBuilder.Build()` inside
+        // `EntryPointDispatcher.Dispatch()` and **no entry point starts at all** — which reads as
+        // "CampaignManager was never created", not as "the bus is missing its reporter".
+        builder.Register<CampaignEventBus>(Lifetime.Singleton)
+            .WithParameter<Action<string>>(_ => null);
+
+        // `IQuestRewardHost` and `IQuestScriptHost` (QuestHosts.cs) have no implementation yet — the
+        // reward seam needs a campaign->character-stat path and the script seam needs a "which room does
+        // a quest end script run in" answer. Both are deliberately written to be absent (CampaignManager
+        // warns by name when a payout was owed or an `endscr` did not run), so the correct registration
+        // today is a null factory rather than an invented implementation. Same VContainer trap as above.
+        builder.RegisterEntryPoint<CampaignManager>()
+            .As<ICampaignManager>()
+            .AsSelf()
+            .WithParameter<IQuestRewardHost>(_ => null)
+            .WithParameter<IQuestScriptHost>(_ => null);
+
+        // === Map-script interpreter (CampaignControl C2) ===
+        //
+        // Four registrations, and every one of them needs an explicit parameter for the same reason:
+        // VContainer resolves EVERY constructor parameter and never consults a `= null` default. So a
+        // class written to tolerate a missing collaborator — which these are, deliberately, because the
+        // offline fixtures construct them with a bare `new` — still throws on the container path unless
+        // the parameter is supplied. The CampaignCatalog block above documents the same trap.
+        //
+        // The probe is a singleton because its two latches ARE the seam: the per-frame half writes them
+        // (ScriptSystem.Tick) and the per-tick half reads them (ScriptRunner.Step). Two instances would
+        // be a cutscene that never advances, with nothing red anywhere.
+        builder.Register<ScriptInputProbe>(Lifetime.Singleton)
+            .WithParameter<InputReader>(resolver =>
+                resolver.TryResolve<InputReader>(out InputReader reader) ? reader : null)
+            // `readMouse` is a `bool` with a `= true` default, and VContainer resolves value-type
+            // parameters exactly like reference ones — it does not fall back to the default. Left out,
+            // this registration throws on `bool` after the InputReader line above has already succeeded,
+            // which is a confusing place to fail. `true` is the shipping value: AS3 reads the right
+            // mouse button for `keyPressed2` (Ctr.as:582-588), and only the offline fixtures pass false.
+            .WithParameter<bool>(true);
+
+        // The presentation host is the only writer of `mess`/`dial`/`dialog`/`inform`/`control`/`gui`/
+        // `black`/`dblack`/`landlevel`. The text table is loaded lazily from Resources, so a scene with
+        // no localisation still constructs — it resolves no text and reports each missing id once.
+        builder.Register<ScriptPresentationHost>(Lifetime.Singleton)
+            .As<IScriptPresentationHost>()
+            .WithParameter<PipTextTable>(_ => PFE.UI.Common.PfeTextTableProvider.Shared)
+            .WithParameter<Action<string>>(_ => null);
+
+        // The player-facing half (`perk`, `xp`, `item`, `armor`, `effect`, `weapon`). `stats` is a
+        // factory and not a value: CharacterStats is a scene MonoBehaviour that may not exist yet when
+        // the container is built, and the vocabulary that touches it is rare enough that resolving it
+        // per call is cheaper than making the container depend on scene load order.
+        builder.Register<ScriptPlayerHost>(Lifetime.Singleton)
+            .As<IScriptPlayerHost>()
+            .WithParameter<Func<PFE.Systems.RPG.CharacterStats>>(_ => null)
+            .WithParameter<Action<string>>(_ => null);
+
+        // The clock and the registry. AsSelf() is REQUIRED, not decoration: SimTickRegistrar reads the
+        // IAutoRegisteredSimTickable marker to put it on SimLoop, and AreaTriggerSystem reaches the
+        // system through the static ScriptSystem.Current (it is constructed by RoomVisualController,
+        // which the container never observes). As<IAutoRegisteredSimTickable> is what makes "the
+        // interpreter advances at 30 Hz" a declaration instead of a line someone must remember.
+        builder.RegisterEntryPoint<ScriptSystem>()
+            .AsSelf()
+            .As<IAutoRegisteredSimTickable>()
+            .WithParameter<Action<string>>(_ => null);
+
+        // The consumer for `control off` / `control on`. A separate component rather than a twelfth
+        // parameter on PlayerController.Construct, which is called directly by the offline fixtures —
+        // and it resolves the player lazily, so a respawn that replaces the controller is picked up and
+        // the held lock value is re-applied to the new one.
+        builder.RegisterComponentOnNewGameObject<PlayerScriptControlLock>(Lifetime.Singleton, "ScriptControl");
+
+        // Same laziness trap as HudBootstrapper and PipBuckBootstrapper above: nothing injects this, so
+        // without an explicit resolve no GameObject is created and the lock has no subscriber — which
+        // reads as "the player can walk around during the opening cutscene".
+        builder.RegisterBuildCallback(container => container.Resolve<PlayerScriptControlLock>());
 
         // === LowLevelPhysics2D World (Stage B) ===
         builder.Register<IPhysicsWorldService, PhysicsWorldService>(Lifetime.Singleton).AsSelf();

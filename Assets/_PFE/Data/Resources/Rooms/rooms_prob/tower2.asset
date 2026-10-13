@@ -133,9 +133,18 @@ MonoBehaviour:
     attributes:
     - key: allid
       value: d1
+    - key: move_present
+      value: 1
+    - key: move_dx
+      value: 26
+    - key: move_tstay
+      value: 30
+    - key: move_tmove
+      value: 150
     items: []
     scripts: []
-    parameters: code="RODVqp04D1su0Noo" allid="d1"
+    parameters: code="RODVqp04D1su0Noo" allid="d1" move_present="1" move_dx="26"
+      move_tstay="30" move_tmove="150"
   - type: door
     id: doorout
     definitionId: doorout
@@ -318,3 +327,6 @@ MonoBehaviour:
     radiation: 0
     radiationDamage: 0
     darkness: 0
+    tipEnemy: -1
+    kolEnSpawn: -1
+    spawnGroupId: 

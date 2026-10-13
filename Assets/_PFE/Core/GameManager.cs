@@ -29,7 +29,18 @@ namespace PFE.Core
         // Game configuration
         private bool isInitialized = false;
         private int currentStage = 1;
-        private readonly bool prototypeMapGeneration = true;
+
+        /// <summary>
+        /// AS3 has no "prototype mode": <c>Land.newRandomLoc</c> requires <c>_loc8_.kol &gt; 0</c> at
+        /// <c>Land.as:907</c> and decrements it after every draw (<c>:937</c>), so a room can be drawn
+        /// at most <c>kol</c> times per land. Turning that off made every draw uniform over the whole
+        /// eligible pool, forever — the same handful of rooms filling every cell of the grid.
+        ///
+        /// <para>It is safe to turn off because <c>RoomGenerator</c> now ports AS3's exhaustion
+        /// fallback too (<c>Land.as:926-935</c>): when every eligible room has spent its <c>kol</c>,
+        /// AS3 re-pools on <c>rnd</c> alone rather than leaving a cell empty.</para>
+        /// </summary>
+        private readonly bool prototypeMapGeneration = false;
         private bool skipWorldBuild = false;
 
         [Inject]
@@ -80,10 +91,22 @@ namespace PFE.Core
                 return;
             }
 
-            // Initialize systems
+            // Initialize systems.
+            //
+            // `excludeSpecialTypesInRandom: false` — AS3's only "may this room be drawn at random" test
+            // is `Room.rnd` (Land.as:907: `param5 == null && _loc8_.rnd`), and that is what
+            // `RoomTemplate.allowRandom` already is. The special-type list is AS3's `Room.nornd`
+            // (Room.as:7) — the *input* to `rnd`, not a second gate on top of it, so filtering on it
+            // again is a duplicate rule that only ever removes rooms.
+            //
+            // It stopped being harmless when `AS3ToUnityConverter.GetRoomType` started writing
+            // `type: "pass"` for the 40 of 55 `rooms_plant` rooms whose AS3 `tip` is empty or absent
+            // (AS3 leaves `Room.tip` empty for those and `rnd` stays true — `Room.as:44-74`). Every one
+            // of them is then excluded as "special", collapsing the plant's pool from 16 to 3 at
+            // landStage 0. Measured: 27 of 29 room collections had a pool of **0**.
             roomGenerator.ConfigureGenerationMode(
                 usePrototypeMode: prototypeMapGeneration,
-                excludeSpecialTypesInRandom: true);
+                excludeSpecialTypesInRandom: false);
             roomGenerator.Initialize(roomTemplates);
             worldBuilder.Initialize(landMap, roomGenerator, roomTemplates, debugSettings);
             PfeProfiler.Mark("game.generators.ready");

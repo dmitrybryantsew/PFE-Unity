@@ -28,7 +28,7 @@ namespace PFE.Systems.Inventory
     /// destroyed by a failed take.</para>
     /// </summary>
     [DisallowMultipleComponent]
-    public sealed class WorldItemPickup : MonoBehaviour
+    public sealed class WorldItemPickup : MonoBehaviour, IInteractable
     {
         /// <summary>
         /// Every live pickup. Debug-facing only: AS3 keeps these in the location's object list

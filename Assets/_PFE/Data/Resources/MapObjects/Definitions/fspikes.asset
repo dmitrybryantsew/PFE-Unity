@@ -37,8 +37,8 @@ MonoBehaviour:
   mass: 0
   massMultiplier: 1
   buoyancyFactor: 0
-  defaultVisualId: vismine
-  visual: {fileID: 11400000, guid: b4049e88af2221440af420fc03595519, type: 2}
+  defaultVisualId: vistrapfspikes
+  visual: {fileID: 11400000, guid: 64001a695bfd76b4f84f1e42ec324358, type: 2}
   legacyAttributes:
   - key: ed
     value: 19

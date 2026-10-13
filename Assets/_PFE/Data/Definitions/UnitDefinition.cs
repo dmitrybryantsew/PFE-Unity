@@ -44,8 +44,33 @@ namespace PFE.Data.Definitions
         [Tooltip("Parent template ID (e.g., 'raider' for 'raider1')")]
         public string parentId;
 
-        [Tooltip("AI controller ID")]
+        [Tooltip("AI controller ID — AS3 `cl` on the <obj> row, NOT the `cont` attribute. See the " +
+                 "lookalike warning on `lootTableKey`.")]
         public string controllerId;
+
+        /// <summary>
+        /// AS3 <c>inter.cont</c> — the <b>loot table</b> this unit drops from when it dies, from the
+        /// <c>cont=</c> attribute of its own <c>&lt;unit&gt;</c> row. Empty means "not authored".
+        ///
+        /// <para><b>Resolve it, never read it raw.</b> AS3 assigns <c>inter.cont = mid</c> — the unit's
+        /// <i>id</i> — and only then lets <c>@cont</c> override it (<c>Unit.as:1005-1009</c>). So a
+        /// <c>raider5</c> (which authors <c>cont='raider'</c>) drops from the <c>raider</c> table while a
+        /// <c>rat</c> (which authors nothing) drops from the table keyed <c>"rat"</c>. 40 of the 564 unit
+        /// rows author <c>cont</c>; the other 524 fall back to their own id, which is why
+        /// <c>LootGen.lootDrop</c> has branches keyed on plain ids (<c>rat</c>, <c>slime</c>,
+        /// <c>ant1</c>, <c>bloodwing</c>, <c>necros</c>, <c>ebloat</c>, …).
+        /// <see cref="PFE.Systems.Loot.UnitDeathDrop.ResolveLootTableKey"/> owns that rule.</para>
+        ///
+        /// <para><b>The lookalike this field exists to undo.</b> <c>UnitDataImporter</c> used to write
+        /// <c>cont</c> into <see cref="controllerId"/> — and still does, deliberately, because removing
+        /// that write changes which controller a unit spawns with (see the importer). <c>cont</c> is a
+        /// loot-table key; the controller selector is <c>cl=</c> on <c>&lt;obj&gt;</c> rows. They are
+        /// different attributes on different elements and are not interchangeable — the same warning
+        /// <c>RoomInstance.controllerId</c> already carries.</para>
+        /// </summary>
+        [Tooltip("AS3 `cont` — the loot table this unit drops from on death. Empty = use the unit's own " +
+                 "id (Unit.as:1005-1009). Not the AI controller id.")]
+        public string lootTableKey;
 
         [Tooltip("Faction (AS3 `fraction`). AS3 values: 0=Neutral (the default for a unit with no " +
                  "attribute), 1=Monster, 2=Raider, 3=Zombie, 4=Robot, 100=Player. The player is not " +

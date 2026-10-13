@@ -162,6 +162,25 @@ namespace PFE.Core
         /// <summary>Triggers and doors — after movement has settled.</summary>
         public const int Triggers = 70;
 
+        /// <summary>
+        /// Step the running map scripts (the <c>@scr</c> / area-trigger interpreter).
+        ///
+        /// <para><b>Must be strictly after <see cref="Triggers"/>, and that is the oracle's ordering, not
+        /// a preference.</b> A trigger that fires this tick calls <c>Script.start()</c>, which in AS3
+        /// executes action 0 immediately and then sets <c>tcom = acts[0].t</c>
+        /// (<c>serv/Script.as:123-144</c>). The land then steps every running script in the <b>same</b>
+        /// frame, <b>after</b> the location and its objects have stepped — <c>Land.step</c> runs
+        /// <c>loc.step()</c> first and only then loops <c>this.scripts</c> (<c>loc/Land.as:1568-1595</c>).
+        /// So a script started by a trigger loses one frame of its opening pause in the frame it started,
+        /// and a port that stepped scripts <i>before</i> triggers would make every cutscene start one
+        /// frame late — a difference no single script can reveal, because it is uniform.</para>
+        ///
+        /// <para>Also strictly before <see cref="Destruction"/>: a script action may destroy or rebuild
+        /// map objects (<c>act="rebuild"</c>, <c>act="gwalls"</c>), and destruction is defined as the
+        /// stage that runs once nothing is still writing tile state.</para>
+        /// </summary>
+        public const int Scripts = 75;
+
         /// <summary>Destruction / tile state changes — may invalidate earlier queries.</summary>
         public const int Destruction = 80;
 

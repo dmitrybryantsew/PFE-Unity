@@ -300,9 +300,18 @@ MonoBehaviour:
     attributes:
     - key: allid
       value: d2
+    - key: move_present
+      value: 1
+    - key: move_dx
+      value: 21
+    - key: move_tstay
+      value: 30
+    - key: move_tmove
+      value: 180
     items: []
     scripts: []
-    parameters: code="TFAERLMCSehXRcAt" allid="d2"
+    parameters: code="TFAERLMCSehXRcAt" allid="d2" move_present="1" move_dx="21"
+      move_tstay="30" move_tmove="180"
   - type: box
     id: knop3
     definitionId: knop3
@@ -425,3 +434,6 @@ MonoBehaviour:
     radiation: 0
     radiationDamage: 0
     darkness: 0
+    tipEnemy: -1
+    kolEnSpawn: -1
+    spawnGroupId: 

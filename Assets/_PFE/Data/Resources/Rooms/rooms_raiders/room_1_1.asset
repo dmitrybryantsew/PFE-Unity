@@ -344,3 +344,6 @@ MonoBehaviour:
     radiation: 0
     radiationDamage: 0
     darkness: 0
+    tipEnemy: 3
+    kolEnSpawn: 5
+    spawnGroupId: 

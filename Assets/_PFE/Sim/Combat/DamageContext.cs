@@ -400,11 +400,50 @@ namespace PFE.Systems.Weapons
         }
 
         /// <summary>
+        /// This context with its tile-destroying power replaced, every other field carried over.
+        ///
+        /// <para><b>Why this exists.</b> AS3 sets <c>b.destroy</c> from a different source per weapon
+        /// family: the weapon's own <c>@destroy</c> through <c>setBullet</c> (<c>Weapon.as:1674</c>),
+        /// and — for the kick half of the unarmed family — the <i>owner's</i> <c>Pers.kickDestroy</c>
+        /// (<c>WKick.as:69</c>). <see cref="FromWeapon"/> can only see the first, so the second has to
+        /// be stamped on afterwards. A positional re-construction to do it would be the same
+        /// silent-drop trap <see cref="WithScaledDamage"/> documents.</para>
+        /// </summary>
+        public DamageContext WithDestroyTiles(float destroyTiles)
+        {
+            return new DamageContext(
+                ownerId:           OwnerId,
+                weapon:            Weapon,
+                baseDamage:        BaseDamage,
+                explosionDamage:   ExplosionDamage,
+                armorMultiplier:   ArmorMultiplier,
+                piercing:          Piercing,
+                knockback:         Knockback,
+                knockbackDir:      KnockbackDir,
+                critChance:        CritChance,
+                critMultiplier:    CritMultiplier,
+                damageType:        DamageType,
+                destroyTiles:      destroyTiles,
+                penetrationChance: PenetrationChance,
+                dopEffect:         DopEffect,
+                dopDamage:         DopDamage,
+                dopChance:         DopChance,
+                ownerFaction:      OwnerFaction,
+                missChance:        MissChance,
+                precision:         Precision,
+                antiPrecision:     AntiPrecision,
+                isMelee:           IsMelee,
+                critInvis:         CritInvis,
+                desintegr:         Desintegr,
+                precisionMultiplier: PrecisionMultiplier,
+                ammo:              Ammo);
+        }
+
+        /// <summary>
         /// AS3's <c>Unit.damage(amount, type)</c> reached with <b>no bullet</b> — the shape a prop
         /// impact uses (<c>Unit.udarBox</c>, <c>fe/unit/Unit.as:4237</c>) and a floor trap will
         /// (<c>Trap.as:188</c>).
-        /// </summary>
-        /// <remarks>
+        /// </summary>        /// <remarks>
         /// <para><b>Why this is a separate factory and not <c>FromWeapon(null, …)</c>.</b> AS3's
         /// <c>damage()</c> takes the bullet as an optional third argument and every bullet-derived
         /// term is inside <c>if(param3)</c> (<c>:3638-3642</c> for <c>armorMult</c>/<c>pier</c>,

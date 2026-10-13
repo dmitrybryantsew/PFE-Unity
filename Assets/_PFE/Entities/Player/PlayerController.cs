@@ -56,6 +56,28 @@ namespace PFE.Entities.Player
         /// frame.
         /// </summary>
         private int _lastInteractPressFrame = -1;
+
+        /// <summary>
+        /// AS3 <c>UnitPlayer.ggControl</c> (<c>UnitPlayer.as:65</c>) — the cutscene input lock, set false
+        /// by <c>controlOff()</c> (<c>:2037-2050</c>) and true by <c>controlOn()</c> (<c>:2053-2066</c>),
+        /// both reached from the script commands <c>control off</c> / <c>control on</c>
+        /// (<c>Script.as:239-246</c>).
+        ///
+        /// <para><b>Defaults to true, and that default is the whole safety property.</b> The lock is
+        /// released by a <i>separate</i> authored command, so a session that never runs a script must be
+        /// fully playable; and if a script's release is missed the failure is "the player cannot move",
+        /// which is far worse than "the player could move during a cutscene". Both are why this is a
+        /// plain bool on the controller rather than a counter of outstanding locks.</para>
+        ///
+        /// <para><b>What it does NOT reproduce.</b> The Oracle's <c>controlOff</c> also clears the
+        /// controller, drops the telekinesis target, clears the action target, makes the player
+        /// invulnerable, zeroes the walk counter and hides the weapon
+        /// (<c>UnitPlayer.as:2037-2050</c>). The port gates movement, jump, dash and interact, which is
+        /// what the player can observe; the rest is reported by
+        /// <c>ScriptPresentationHost.ReportUnconsumed</c>'s siblings rather than guessed at here.</para>
+        /// </summary>
+        public bool ScriptControlEnabled { get; set; } = true;
+
         // Dependencies (injected via VContainer)
         private InputReader _input;
         private PFE.Core.PfeDebugSettings _debugSettings;
@@ -560,7 +582,11 @@ namespace PFE.Entities.Player
             bool rightClick = Input.GetMouseButtonDown(1) ||
                 (UnityEngine.InputSystem.Mouse.current != null && UnityEngine.InputSystem.Mouse.current.rightButton.wasPressedThisFrame);
 
-            if (ePressed || rightClick)
+            // Gated on the cutscene lock: `control off` must also stop the player opening a door or
+            // grabbing a terminal while a script is talking. `EndInteract` below is deliberately NOT
+            // gated — if the lock lands while the key is held, the release still has to be delivered or
+            // the interactor stays stuck in its "acting" state for the rest of the session.
+            if (ScriptControlEnabled && (ePressed || rightClick))
             {
                 HandleInteract();
             }
@@ -587,7 +613,11 @@ namespace PFE.Entities.Player
                 return;
             }
 
-            Vector2 input = _input.CurrentMoveInput;
+            // AS3 `ggControl` gates the whole control block at `World.as:1379`. Substituting a zero
+            // vector rather than early-returning keeps the rest of this method running, which matters:
+            // the locomotion controller has to be told "no input" so it decelerates, whereas an early
+            // return would leave it holding the last direction for the whole cutscene.
+            Vector2 input = ScriptControlEnabled ? _input.CurrentMoveInput : Vector2.zero;
 
             // Arm the loot-take window — AS3's `this.isTake = 40`, set while a horizontal direction is
             // HELD (UnitPlayer.as:2551, :2570) or on a jump press (:2685). It is assigned, not
@@ -603,9 +633,12 @@ namespace PFE.Entities.Player
 
             if (_locomotion != null)
             {
-                bool jumpHeld = _input.IsJumpHeld;
-                bool runHeld = _input.IsDashing.Value;
-                bool jumpPressed = _input.Jump != null && _input.Jump.WasPressedThisFrame();
+                // Every edge and level below is gated on the same lock as the move vector: a cutscene
+                // that let the player jump or dash would be worse than one that let them walk, because
+                // it also breaks the animation the script is playing.
+                bool jumpHeld = ScriptControlEnabled && _input.IsJumpHeld;
+                bool runHeld = ScriptControlEnabled && _input.IsDashing.Value;
+                bool jumpPressed = ScriptControlEnabled && _input.Jump != null && _input.Jump.WasPressedThisFrame();
                 bool dashPressed = runHeld && DetectHorizontalDoubleTap(input.x);
                 bool dropThroughPressed = DetectDownDoubleTap(input.y);
                 // Provide mouse cursor world position for teleport targeting (AS3: World.w.celX/celY)
@@ -856,6 +889,13 @@ namespace PFE.Entities.Player
             // and block a later authoritative one.
             if (RaiseDeath()) _characterDeathHandled = true;
         }
+
+        /// <summary>
+        /// The player is never a loot source. See <c>UnitController.DropsLootOnDeath</c> — without this
+        /// the player's own death would run the drop path and log an "unmatched key" warning for
+        /// <c>littlepip</c>, which names no table.
+        /// </summary>
+        protected override bool DropsLootOnDeath => false;
 
         /// <summary>
         /// Override OnDeath to handle player-specific death logic.

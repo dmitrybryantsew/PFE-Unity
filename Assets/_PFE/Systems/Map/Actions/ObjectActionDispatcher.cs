@@ -25,6 +25,27 @@ namespace PFE.Systems.Map.Actions
     }
 
     /// <summary>
+    /// An <see cref="IObjectAction"/> that answers for <b>any</b> id it claims, not just one — the port of
+    /// AS3's <c>else</c> branch.
+    ///
+    /// <para><b>Why this is a separate interface rather than "register it under every id".</b>
+    /// <c>Interact.allAct</c>'s chain is closed: its final <c>else</c> is the tagged broadcast
+    /// (<c>Interact.as:1645-1647</c>), and the eighteen values above it — <c>prob</c>,
+    /// <c>probreturn</c>, <c>hack_robot</c>, <c>hack_lock</c>, <c>prob_help</c>, <c>electro_check</c>,
+    /// <c>comein</c>, <c>bind</c>, <c>work</c>/<c>lab</c>/<c>stove</c>, <c>app</c>, <c>map</c>,
+    /// <c>stand</c>, <c>exit</c>, <c>robocell</c>, <c>alarm</c>, <c>vault</c> — <b>never</b> reach it. So a
+    /// fallback has to be able to say "not mine", and it has to say it without pretending to be a
+    /// handler: if it claimed <c>comein</c>, an unwired Z door would broadcast <c>comein</c> to the room
+    /// instead of falling back to opening — a silent behaviour change to a path that has a deliberate,
+    /// documented degradation.</para>
+    /// </summary>
+    public interface IObjectActionFallback : IObjectAction
+    {
+        /// <summary>Whether this fallback answers for <paramref name="actionId"/>. False means the caller keeps its <see cref="ObjectActionOutcome.Unhandled"/> answer.</summary>
+        bool Handles(string actionId);
+    }
+
+    /// <summary>
     /// The port of AS3's <c>Interact.act()</c> switch — the single place an <c>allact</c> value becomes
     /// behaviour (<c>Interact.as:889</c>) — plus the <c>prob</c> test that precedes it.
     ///
@@ -38,15 +59,15 @@ namespace PFE.Systems.Map.Actions
     /// (<c>hack_robot</c>, <c>hack_lock</c>, <c>bind</c>, <c>map</c>, <c>stand</c>, <c>exit</c>,
     /// <c>vault</c>, <c>electro_check</c>, <c>prob_help</c>, <c>robocell</c>, <c>alarm</c>,
     /// <c>work</c>/<c>lab</c>/<c>stove</c>, <c>app</c>, <c>comein</c>, …). <c>comein</c>, <c>map</c>,
-    /// <c>exit</c> and <c>probreturn</c> are registered by <see cref="CreateDefault"/>; the rest are not
-    /// ported, so an unregistered id is reported <b>once per id</b> and the caller falls back to its own
-    /// behaviour. Without that, a missing branch is indistinguishable from a door that simply does not
-    /// respond — the same failure shape as a parser that silently drops what it cannot match.</para>
+    /// <c>exit</c> and <c>probreturn</c> are registered by <see cref="CreateDefault"/>; the rest are
+    /// registered by <c>TerminalActions</c>, which wires the ones the port has a host for and registers a
+    /// named "not wired yet" action for the ones it does not. An id that matches neither is answered by
+    /// <see cref="Fallback"/> — the broadcast.</para>
     ///
-    /// <para>The fallback is deliberate rather than incidental: several objects that carry an
-    /// unported <c>allact</c> (the <c>term*</c> terminals, for instance) currently open and close
-    /// through the door presenter, and inventing behaviour for them here would change gameplay in a
-    /// pass whose subject is the z axis.</para>
+    /// <para>The fallback is deliberately last rather than a default registration: several objects that
+    /// carry an unported <c>allact</c> (the <c>term*</c> terminals, for instance) used to fall through to
+    /// the door presenter's open/close, and giving them a behaviour they never had would be an invention
+    /// rather than a port.</para>
     /// </summary>
     public sealed class ObjectActionDispatcher
     {
@@ -175,11 +196,84 @@ namespace PFE.Systems.Map.Actions
             return dispatcher;
         }
 
-        /// <summary>The ids this dispatcher can handle.</summary>
-        public IEnumerable<string> RegisteredActionIds => _actions.Keys;
+        /// <summary>
+        /// A dispatcher with <b>everything</b> the port can run wired: the five capabilities
+        /// <see cref="CreateDefault"/> takes, the thirteen terminal branches, and the tagged broadcast as
+        /// the fallback — i.e. AS3's whole <c>Interact.allAct</c>, chain and <c>else</c> alike.
+        ///
+        /// <para><b>The broadcast is built here rather than passed in because it needs the verb command,
+        /// and the verb command needs the room.</b> The dependency runs
+        /// <c>dispatcher → BroadcastAction → ObjectInteractionBroadcast → ObjectVerbCommand</c>, and the
+        /// last one resolves the room's <c>MovingPlatformSystem</c> per call rather than at build time, so
+        /// one dispatcher serves every room a session visits. The single back-edge —
+        /// <c>ObjectVerbCommand.ReenterAllAct</c> — is closed over the dispatcher after it exists, which
+        /// is exactly the recursion the oracle has: <c>command("open")</c> calls <c>this.allAct()</c>.</para>
+        ///
+        /// <para><b>The recursion terminates, and the reason is the areas.</b> An object reached by the
+        /// broadcast is called with <c>"13"</c> and does not re-enter; an area is called without it, but
+        /// <c>Area.command</c> has no <c>open</c>/<c>close</c> arm and never forwards to
+        /// <c>Interact.command</c>, so it does not re-enter either. See
+        /// <see cref="AreaVerbCommand"/>.</para>
+        /// </summary>
+        /// <param name="verbHost">
+        /// Extra capabilities for <see cref="ObjectVerbCommand"/> — the info banner, the visual state, the
+        /// tile stamper. Its <c>Report</c>, <c>Platforms</c> and <c>ReenterAllAct</c> members are filled
+        /// in here if the caller left them null; anything the caller supplied is kept.
+        /// </param>
+        /// <param name="terminalHost">
+        /// Capabilities for the thirteen terminal branches. Null means "none wired", which still registers
+        /// every branch — the nine that need a host report it, and the four gaps report themselves.
+        /// </param>
+        public static ObjectActionDispatcher CreateFull(
+            IRoomLayerTransition transition,
+            Action<string> reportUnhandled = null,
+            PFE.Systems.Campaign.ITravelMapHost travelMapHost = null,
+            PFE.Systems.Map.Scripting.ILandScriptHost exitHost = null,
+            IProbRoomHost probHost = null,
+            ObjectVerbHost verbHost = null,
+            TerminalActionHost terminalHost = null)
+        {
+            ObjectActionDispatcher dispatcher = CreateDefault(
+                transition, reportUnhandled, travelMapHost, exitHost, probHost);
 
-        /// <summary>The ids reported as unhandled so far. Exposed so a test can pin "once".</summary>
+            ObjectVerbHost verbs = verbHost ?? new ObjectVerbHost();
+            verbs.Report ??= reportUnhandled;
+            verbs.Platforms ??= room => room?.MovingPlatforms;
+            verbs.ReenterAllAct ??= (room, obj) =>
+            {
+                var context = new ObjectActionContext(room, obj, null, UnityEngine.Vector3.zero);
+                return dispatcher.Dispatch(in context) == ObjectActionOutcome.Handled;
+            };
+
+            var broadcast = new ObjectInteractionBroadcast(
+                new ObjectVerbCommand(verbs),
+                unitVerbs: null,
+                report: reportUnhandled);
+
+            dispatcher.Fallback = new BroadcastAction(broadcast);
+
+            TerminalActionHost terminals = terminalHost ?? new TerminalActionHost();
+            terminals.Report ??= reportUnhandled;
+            TerminalActions.RegisterAll(dispatcher, terminals);
+
+            return dispatcher;
+        }
+
+        /// <summary>The ids this dispatcher can handle.</summary>
+        public IEnumerable<string> RegisteredActionIds => _actions.Keys;        /// <summary>The ids reported as unhandled so far. Exposed so a test can pin "once".</summary>
         public IEnumerable<string> ReportedUnhandled => _reportedUnhandled;
+
+        /// <summary>
+        /// The action used for an <c>allact</c> value that has no registered handler — AS3's closing
+        /// <c>else</c>. Settable rather than constructor-only so a scene can compose it after the
+        /// capabilities it needs have been resolved, which is how <c>AreaTriggerSystem</c> and
+        /// <c>DoorPropPresenter.CreateSceneDispatcher</c> both end up building one lazily.
+        ///
+        /// <para>Null restores the pre-existing behaviour: the id is reported once as unhandled and the
+        /// caller keeps its own fallback. That is the right answer for a dispatcher built with no
+        /// broadcast, and it is what every fixture written before the broadcast existed relies on.</para>
+        /// </summary>
+        public IObjectActionFallback Fallback { get; set; }
 
         /// <summary>
         /// Register a handler. Registering two handlers for one id is a programming error that would
@@ -277,6 +371,21 @@ namespace PFE.Systems.Map.Actions
 
             if (!_actions.TryGetValue(id, out IObjectAction action))
             {
+                // AS3's `else` branch: the tagged broadcast. A fallback that does not claim this id is
+                // the same as no fallback at all — see IObjectActionFallback for why it must be able to
+                // decline rather than being registered under every id.
+                if (Fallback != null && Fallback.Handles(id))
+                {
+                    if (!Fallback.CanExecute(in context))
+                    {
+                        return ObjectActionOutcome.Refused;
+                    }
+
+                    return Fallback.Execute(in context)
+                        ? ObjectActionOutcome.Handled
+                        : ObjectActionOutcome.Refused;
+                }
+
                 ReportOnce(id, context.ObjectId);
                 return ObjectActionOutcome.Unhandled;
             }

@@ -271,13 +271,13 @@ namespace PFE.Data.Definitions
 
         [Header("Melee Settings")]
         public MeleeType meleeType;          // mtip in AS3
-        [Tooltip("Reach of the weapon in Flash units (dlina in AS3). Club/sword swing radius or spear reach.")]
-        public float meleeDlina = 100f;
-        [Tooltip("Minimum reach for thrust/slash weapons (mindlina in AS3). Only used when mtip=1 or 2.")]
-        public float meleeMinDlina = 100f;
-        [Tooltip("Enables combo counter — every 4th hit deals 2× damage (combinat in AS3).")]
+        [Tooltip("Reach of the weapon in Flash pixels (dlina in AS3, phis@long). Club/sword swing radius or spear reach.")]
+        public float meleeDlina = 50f;
+        [Tooltip("Minimum reach for thrust/slash weapons in Flash pixels (mindlina in AS3, phis@minlong). Defaults to meleeDlina when the row omits minlong; only the Overhead sweep (mtip=2) and the Thrust lunge read it.")]
+        public float meleeMinDlina = 50f;
+        [Tooltip("Enables combo counter — every 4th hit deals 2× damage (combinat in AS3, char@combo OR !auto&&!powerfull).")]
         public bool meleeCombo;
-        [Tooltip("Enables charged power attack when attack held long enough (powerfull in AS3).")]
+        [Tooltip("Weapon can be charged by holding attack (powerfull in AS3, char@pow). The charge itself is not ported — see TOPIC_weapons_dispatch.")]
         public bool meleePowerAttack;
 
         [Header("Projectile — Type")]

@@ -52,6 +52,23 @@ namespace PFE.Core.Input
         public ButtonBinding quickSave = new ButtonBinding("<Keyboard>/f5",  "", "<Gamepad>/select");
         public ButtonBinding quickLoad = new ButtonBinding("<Keyboard>/f11", "", "<Gamepad>/start");
 
+        // ---- PipBuck device (AS3 Ctr.as:32-42) ----
+        //
+        // The Oracle's own defaults, and the odd-looking ones are correct:
+        //   L is `keyMed` and opens the character sheet's SUB-PAGE 5, not a medical page
+        //   (World.as:1353-1359 -> pip.onoff(1,5)); page 6 is the doctor's contextual modal.
+        //   J is `keyQuest` and opens info sub-page 2; M is `keyMap` and opens info sub-page 1.
+        //   O and K both open page 1, at sub-pages 1 and 2.
+        // No gamepad column: the Oracle binds these to the keyboard only.
+        [Header("PipBuck Device (Ctr.as:32-42)")]
+        public ButtonBinding pipToggle    = new ButtonBinding("<Keyboard>/tab", "", "");
+        public ButtonBinding pipInventory = new ButtonBinding("<Keyboard>/i",   "", "");
+        public ButtonBinding pipStatus    = new ButtonBinding("<Keyboard>/o",   "", "");
+        public ButtonBinding pipSkills    = new ButtonBinding("<Keyboard>/k",   "", "");
+        public ButtonBinding pipMedicine  = new ButtonBinding("<Keyboard>/l",   "", "");
+        public ButtonBinding pipMap       = new ButtonBinding("<Keyboard>/m",   "", "");
+        public ButtonBinding pipQuests    = new ButtonBinding("<Keyboard>/j",   "", "");
+
         // ---- Defaults (used by editor Reset buttons) ----
 
         public static MoveBindings DefaultMove => new MoveBindings();
@@ -70,6 +87,13 @@ namespace PFE.Core.Input
         public static ButtonBinding DefaultSpell4   => new ButtonBinding("",                      "",                     "");
         public static ButtonBinding DefaultQuickSave => new ButtonBinding("<Keyboard>/f5",        "",                     "<Gamepad>/select");
         public static ButtonBinding DefaultQuickLoad => new ButtonBinding("<Keyboard>/f11",       "",                     "<Gamepad>/start");
+        public static ButtonBinding DefaultPipToggle    => new ButtonBinding("<Keyboard>/tab", "", "");
+        public static ButtonBinding DefaultPipInventory => new ButtonBinding("<Keyboard>/i",   "", "");
+        public static ButtonBinding DefaultPipStatus    => new ButtonBinding("<Keyboard>/o",   "", "");
+        public static ButtonBinding DefaultPipSkills    => new ButtonBinding("<Keyboard>/k",   "", "");
+        public static ButtonBinding DefaultPipMedicine  => new ButtonBinding("<Keyboard>/l",   "", "");
+        public static ButtonBinding DefaultPipMap       => new ButtonBinding("<Keyboard>/m",   "", "");
+        public static ButtonBinding DefaultPipQuests    => new ButtonBinding("<Keyboard>/j",   "", "");
     }
 
     [Serializable]

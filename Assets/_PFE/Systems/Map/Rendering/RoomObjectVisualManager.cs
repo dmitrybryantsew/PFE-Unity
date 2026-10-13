@@ -128,6 +128,23 @@ namespace PFE.Systems.Map.Rendering
             return !string.IsNullOrEmpty(allAct) && dispatcherHandles != null && dispatcherHandles(allAct);
         }
 
+        /// <summary>
+        /// Whether a prop is a <b>container</b> and so owns a
+        /// <see cref="ContainerPropPresenter"/> — the answer to AS3's one and only container switch,
+        /// <c>cont != null</c> (<c>Interact.as:1285-1288</c>).
+        ///
+        /// <para><b>The resolved <c>cont</c> is the whole test.</b> Family, <c>tip</c> and id are
+        /// indices; <see cref="ContainerRule.IsContainer"/> is the rule. This deliberately does not
+        /// consult <c>MapObjectDefinitionClassifier.ContainerIds</c>, which lists <c>mcrate1</c>…
+        /// <c>mcrate5</c> and <c>box</c> — none of which carry <c>cont</c> in the oracle, so they are
+        /// pushable crates, not containers.</para>
+        ///
+        /// <para>Callers must resolve the value with <see cref="ContainerRule.ResolveCont"/> first
+        /// (placement over definition), so this takes the resolved string rather than the object.</para>
+        /// </summary>
+        public static bool UsesContainerPresenter(string resolvedCont)
+            => ContainerRule.IsContainer(resolvedCont);
+
         sealed class Presenter
         {
             public readonly GameObject gameObject;
@@ -341,7 +358,26 @@ namespace PFE.Systems.Map.Rendering
                 visual != null ? visual.objectId : null,
                 obj.GetAllAct(),
                 allAct => ObjectActions.Handles(allAct));
-            if (usesDoorPresenter)
+
+            // AS3 checks `cont` BEFORE the door branch — Interact.actOsn() runs `cont != null -> loot()`
+            // (Interact.as:1285-1288) and only then falls through to the door/knop toggle (:1294-1314).
+            // So a prop that is both is looted, not opened, and the container branch is asked first.
+            // In the shipped data the two sets do not overlap (no <obj> row with a door id carries
+            // `cont`), so this ordering is faithful without moving any existing door.
+            bool usesContainerPresenter = UsesContainerPresenter(ContainerRule.ResolveCont(
+                obj.GetAttribute("cont", null),
+                obj.definition != null ? obj.definition.containerId : null));
+
+            if (usesContainerPresenter)
+            {
+                ContainerPropPresenter containerPresenter = presenter.gameObject.GetComponent<ContainerPropPresenter>();
+                if (containerPresenter == null)
+                {
+                    containerPresenter = presenter.gameObject.AddComponent<ContainerPropPresenter>();
+                }
+                containerPresenter.Initialize(_room, obj, visual, presenter.renderer);
+            }
+            else if (usesDoorPresenter)
             {
                 DoorPropPresenter doorPresenter = presenter.gameObject.GetComponent<DoorPropPresenter>();
                 if (doorPresenter == null)
@@ -356,7 +392,7 @@ namespace PFE.Systems.Map.Rendering
                 doorPresenter.ObjectActions = ObjectActions;
             }
 
-            if (!isArea && !usesDoorPresenter)
+            if (!isArea && !usesDoorPresenter && !usesContainerPresenter)
             {
                 ObjectColliderDebugPresenter colPresenter = presenter.gameObject.GetComponent<ObjectColliderDebugPresenter>();
                 if (colPresenter == null)

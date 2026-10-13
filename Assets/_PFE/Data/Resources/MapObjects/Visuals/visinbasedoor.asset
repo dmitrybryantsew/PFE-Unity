@@ -42,6 +42,6 @@ MonoBehaviour:
   pixelsPerUnit: 100
   pixelSize: {x: 142, y: 122}
   pivot: {x: 0.5, y: 0}
-  localOffset: {x: 0, y: 0}
+  localOffset: {x: 2, y: 0}
   sortingOrder: 1
   wallMounted: 1

@@ -22,6 +22,47 @@ namespace PFE.Entities.Enemies
     /// </summary>
     public sealed class EnemySensors
     {
+        /// <summary>
+        /// Which half of the plane this unit's vision cone covers.
+        ///
+        /// <para><b>AS3's cone is not one shape.</b> <c>Unit.putLoc</c>-style turret tables pick an aim
+        /// angle per mount kind, and the cone around it is <c>vAngle ± vKonus/2</c>
+        /// (<c>Unit.as:4602-4617</c>). A wall turret authors <c>vKonus = Math.PI / 2</c>
+        /// (<c>UnitTurret.as:204</c>) and then sweeps <c>aRot</c> every <c>period</c>
+        /// (<c>UnitTurret.as:252-253</c>, <c>:606-615</c>), so:</para>
+        /// <list type="bullet">
+        /// <item><description><c>vis='right'</c> sweeps <c>[45,-45]</c> — the whole right half-plane across the sweep.</description></item>
+        /// <item><description><c>vis='left'</c> sweeps <c>[135,-135]</c> — the whole left half-plane.</description></item>
+        /// <item><description><c>vis='up'</c> sweeps <c>[-45,-135]</c> — the whole upper half-plane.</description></item>
+        /// <item><description><c>vis='down'</c> sweeps <c>[45,135]</c> — the whole lower half-plane.</description></item>
+        /// </list>
+        /// <para>The port has no continuous sweep for a stationary trap, so it models the
+        /// <b>sweep's aggregate</b> rather than one frame's quadrant: slightly wider than any single
+        /// AS3 frame, identical in direction. A right-facing turret therefore still acquires a target
+        /// the oracle's current frame would miss — the sweep gets there within <c>period</c> ticks.</para>
+        ///
+        /// <para><b>Only turrets set this.</b> <c>@vis</c> is read off the placement by
+        /// <c>UnitTurret</c> alone (<c>UnitTurret.as:136-139</c>) and only honoured for mount tips 2
+        /// and 5. The default keeps every other enemy — and every horizontal turret placement — on
+        /// the existing <see cref="EnemyBlackboard.FacingDirection"/> hemisphere.</para>
+        /// </summary>
+        public VisionCone Cone = VisionCone.Horizontal;
+
+        /// <summary>
+        /// The shape of a unit's vision half-plane. See <see cref="Cone"/>.
+        /// </summary>
+        public enum VisionCone
+        {
+            /// <summary>A half-plane bounded by a vertical line through the eye — the facing side.</summary>
+            Horizontal = 0,
+
+            /// <summary>The upper half-plane: every point at or above the eye's height.</summary>
+            Up = 1,
+
+            /// <summary>The lower half-plane: every point at or below the eye's height.</summary>
+            Down = 2
+        }
+
         /// <summary>Maximum sight range in world pixels (40px = 1 tile; 480px = 12 tiles).</summary>
         public float VisionRangePixels = 480f;
 
@@ -127,6 +168,16 @@ namespace PFE.Entities.Enemies
             if (distSq <= CloseProximityPixels * CloseProximityPixels)
             {
                 return true;
+            }
+
+            // A vertical cone is the same half-plane turned 90 degrees, rim included: AS3's
+            // ±45 frame around an aim of straight up accepts everything at or above the eye, and
+            // the sweep over the author's aRot pair covers the two adjacent quadrants, i.e. the
+            // whole half. See Cone for the tables.
+            if (Cone != VisionCone.Horizontal)
+            {
+                float dy = targetCenterPx.y - eyePosPx.y;
+                return Cone == VisionCone.Up ? dy >= 0f : dy <= 0f;
             }
 
             // Forward facing check: target must be on the side the unit is facing

@@ -27,11 +27,11 @@ namespace PFE.Systems.Map
         /// <para><b>It is the identity of a prob room, not a coordinate.</b> AS3 keys prob rooms by this
         /// string (<c>this.probs[nprob]</c>) rather than by position, because they are not on the land
         /// grid — <c>loc.noMap = true</c> keeps them off the minimap and out of the land's own lookup
-        /// (<c>:791</c>). The port has no <c>noMap</c> flag, so this field carries the fact instead: a
-        /// prob room is detached by <i>not being registered in the land map</i> and by
-        /// <c>ProbTransition.AdmitsGridStep</c> refusing a grid step out of one. It is also what lets
-        /// the runtime find the room and return the player to the land they came from
-        /// (<c>Land.as:1393-1408</c>).</para>
+        /// (<c>:791</c>). Detaching is carried by <i>not being registered in the land map</i> plus
+        /// <c>ProbTransition.AdmitsGridStep</c> refusing a grid step out of one — <b>not</b> by
+        /// <see cref="noMap"/>, which exists for a different reason (a registered room that must not be
+        /// drawn). It is also what lets the runtime find the room and return the player to the land they
+        /// came from (<c>Land.as:1393-1408</c>).</para>
         ///
         /// <para><b>Off the grid does not mean "no position".</b> A prob room's coordinate is still real
         /// — the origin (<c>ProbTransition.ProbRoomLandPosition</c>) — and every world quantity derived
@@ -60,6 +60,36 @@ namespace PFE.Systems.Map
         public RoomDifficulty difficulty = new RoomDifficulty();
         public RoomEnvironment environment = new RoomEnvironment();
 
+        /// <summary>
+        /// AS3 <c>Location.biom</c> — the land's theme, copied in by <c>Land.newLoc</c>
+        /// (<c>Land.as:948</c> <c>_loc6_.biom = this.act.biom</c>). <c>-1</c> = unknown.
+        ///
+        /// <para>Read by <c>Location.randomUnit</c> and <c>randomCid</c>; it decides which family a
+        /// random enemy point resolves to, so it is not cosmetic. It lives on the room rather than on the
+        /// difficulty record because that is where the oracle keeps it, and because
+        /// <c>randomUnit</c>'s water test (<c>Location.as:1156</c>) reads <c>biom</c> too.</para>
+        /// </summary>
+        public int biome = -1;
+
+        /// <summary>
+        /// AS3 <c>land.act.conf</c> — the land's assembly config. <c>-1</c> = unknown. Read by
+        /// <c>randomCid</c>'s <c>ranger</c> arm (<c>Location.as:1776</c> <c>land.act.conf == 7</c>) and
+        /// by the layout planner.
+        /// </summary>
+        public int landConfig = -1;
+
+        /// <summary>
+        /// AS3 <c>Location.noHolesPlace</c> — the constructor's third argument, which <c>Land.newLoc</c>
+        /// always passes as <c>this.rnd</c> (<c>Land.as:947</c>). True for procedural lands.
+        ///
+        /// <para>Two oracle rules are gated on it: <c>setObjects</c> skips an object whose definition
+        /// carries <c>rem</c> when the tile is not placeable (<c>Location.as:1017</c>), and
+        /// <c>setRandomUnits</c> drops enemy points that landed on unplaceable tiles
+        /// (<c>Location.as:1062-1074</c>). The port applied the first unconditionally — a superset — so
+        /// this field exists to make the second faithful rather than to change the first.</para>
+        /// </summary>
+        public bool noHolesPlace = false;
+
         // Lists of entities
         [NonSerialized]
         public List<UnitInstance> units = new List<UnitInstance>();
@@ -73,6 +103,25 @@ namespace PFE.Systems.Map
 
         // Special features
         public bool hasBackgroundLayer = false;
+
+        /// <summary>
+        /// AS3 <c>Location.noMap</c> (<c>Land.as:402</c>): this room sits on the land grid but must not be
+        /// drawn on the minimap.
+        ///
+        /// <para><b>Set for the <c>z = 1</c> interior of a cell</b> — the room a <c>comein</c> (Z door)
+        /// toggles to. AS3 builds it from the cell's <c>&lt;options back="…"&gt;</c> and stores it at
+        /// <c>locs[x][y][1]</c> with <c>noMap = true</c> (<c>Land.as:392-406</c>), so the interior shares its
+        /// cell's minimap tile with the exterior rather than adding a second one. The port's minimap is keyed
+        /// on <c>x</c>/<c>y</c> only (<c>LandMinimapComposer</c>), so without this flag the two layers would
+        /// draw over each other in the same cell — whichever the dictionary happened to yield last.</para>
+        ///
+        /// <para>It is deliberately a separate flag from <see cref="probId"/>: a prob room is kept off the
+        /// grid by <i>not being registered in the land map at all</i>, whereas this room <b>is</b> registered
+        /// (that registration is exactly what makes the Z-door toggle resolve) and only the drawing is
+        /// suppressed.</para>
+        /// </summary>
+        public bool noMap = false;
+
         [NonSerialized]
         public RoomInstance backgroundRoom;
 
@@ -110,6 +159,45 @@ namespace PFE.Systems.Map
         /// has no physics layer", which is a fact worth reporting rather than papering over.</para>
         /// </remarks>
         public RoomObjectPhysicsLayer ExistingObjectPhysicsLayer => _objectPhysicsLayer;
+
+        // ── Moving platforms ────────────────────────────────────────────────────────────────
+
+        [NonSerialized]
+        private MovingPlatformSystem _movingPlatforms;
+
+        /// <summary>
+        /// This room's moving platforms — the states behind AS3's <c>isMove</c>
+        /// (<c>serv/Interact.as:130-152</c>).
+        ///
+        /// <para><b>Owned by the room because that is where the oracle keeps them.</b> In AS3 the state
+        /// lives on each object's own <c>Interact</c>, which is created by <c>Location.setObjects</c>
+        /// and destroyed with the location — so a room rebuild resets every platform, and nothing
+        /// survives a land transition. Hanging the system off <see cref="RoomInstance"/> reproduces that
+        /// lifecycle for free, and it is the same shape as <see cref="ObjectPhysicsLayer"/> directly
+        /// above.</para>
+        ///
+        /// <para><b>Lazy, and rebuilt rather than replaced.</b> A room with no platforms — which is 542
+        /// of the 639 imported rooms, since only 97 author an <c>allact</c> and only 73 <c>move</c> nodes
+        /// exist in the whole game — should not pay for a dictionary. Once built it is rebuilt in place
+        /// on every object-list change, so a caller holding the reference keeps a live one.</para>
+        /// </summary>
+        public MovingPlatformSystem MovingPlatforms => _movingPlatforms ??= new MovingPlatformSystem(this);
+
+        /// <summary>
+        /// Whether a platform system has already been built. Lets a diagnostic ask without
+        /// manufacturing one — the same reason <see cref="ExistingObjectPhysicsLayer"/> exists.
+        /// </summary>
+        public bool HasMovingPlatforms => _movingPlatforms != null;
+
+        /// <summary>
+        /// Re-scan the object list for platforms, <b>if a system has already been built</b>. Called from
+        /// <see cref="AddObject"/>, <see cref="RemoveObject"/> and <see cref="RebuildRuntimeLayers"/>;
+        /// deliberately a no-op otherwise, so populating a room does not allocate a system per prop.
+        /// </summary>
+        public void RefreshMovingPlatforms()
+        {
+            _movingPlatforms?.Rebuild();
+        }
 
         // ── Tile mutation notification ──────────────────────────────────────────────────────
 
@@ -192,6 +280,7 @@ namespace PFE.Systems.Map
         public void RebuildRuntimeLayers()
         {
             ObjectPhysicsLayer.Rebuild(objects);
+            RefreshMovingPlatforms();
         }
 
         public void AddObject(ObjectInstance obj)
@@ -204,6 +293,7 @@ namespace PFE.Systems.Map
             obj.EnsureStructuredData();
             objects.Add(obj);
             ObjectPhysicsLayer.Register(obj);
+            RefreshMovingPlatforms();
         }
 
         public bool RemoveObject(ObjectInstance obj)
@@ -217,6 +307,7 @@ namespace PFE.Systems.Map
             if (removed)
             {
                 ObjectPhysicsLayer.Unregister(obj);
+                RefreshMovingPlatforms();
             }
 
             return removed;
@@ -586,29 +677,43 @@ namespace PFE.Systems.Map
         }
 
         /// <summary>
-        /// Get a random spawn point for the player.
+        /// The player's spawn position in this room, in <b>room-local</b> pixels.
         /// </summary>
+        /// <remarks>
+        /// <para>Delegates to <see cref="RoomSetup.FindPlayerSpawnPixels"/>, the port's single spawn
+        /// resolver: it mirrors the stored AS3 row, applies AS3's own bottom-centre anchor, refuses a
+        /// spawn point that names a wall, and spirals for a standable tile when it must. This method
+        /// used to re-implement Priority 1/2 with a raw <c>tileCoord * TILE_SIZE</c>, which is the
+        /// duplicated seam that let the two answers disagree in the first place.</para>
+        /// <para>Room-local, not world. For the prob-door and land-entry paths use
+        /// <see cref="GetPlayerSpawnWorldPoint"/> / <see cref="GetPlayerSpawnWorldUnity"/>.</para>
+        /// </remarks>
         public Vector2 GetPlayerSpawnPoint()
         {
-            if (spawnPoints.Count > 0)
-            {
-                // Find first player spawn
-                foreach (var spawn in spawnPoints)
-                {
-                    if (spawn.type == SpawnType.Player)
-                    {
-                        return spawn.GetWorldPosition();
-                    }
-                }
-                // Fallback to any spawn
-                return spawnPoints[0].GetWorldPosition();
-            }
+            return RoomSetup.FindPlayerSpawnPixels(this);
+        }
 
-            // Default: center of room
-            return new Vector2(
-                width * WorldConstants.TILE_SIZE / 2,
-                height * WorldConstants.TILE_SIZE / 2
-            );
+        /// <summary>
+        /// The player's spawn position in <b>world</b> pixels — room-local plus the room's origin.
+        /// </summary>
+        /// <remarks>
+        /// A prob room is off the land grid but still has a real coordinate
+        /// (<c>ProbTransition.ProbRoomLandPosition</c>), and this port's own contract is that every
+        /// world quantity derived from a room comes from that origin — see the <c>probId</c> remarks
+        /// above. It is zero for a room at land (0,0), which is why an omitted origin survives casual
+        /// testing.
+        /// </remarks>
+        public Vector2 GetPlayerSpawnWorldPoint()
+        {
+            return GetPlayerSpawnPoint() + WorldCoordinates.RoomOriginPixel(this);
+        }
+
+        /// <summary>
+        /// The player's spawn position as a Unity <b>world</b> position.
+        /// </summary>
+        public Vector3 GetPlayerSpawnWorldUnity()
+        {
+            return WorldCoordinates.PixelToUnity(GetPlayerSpawnWorldPoint());
         }
 
         /// <summary>
@@ -708,6 +813,28 @@ namespace PFE.Systems.Map
         /// is indistinguishable from the plain one.</para>
         /// </summary>
         public List<MapObjectAttributeData> attributes = new List<MapObjectAttributeData>();
+
+        /// <summary>
+        /// The faction this <i>placement</i> authored, or <c>null</c> when the <c>&lt;obj&gt;</c> row
+        /// said nothing.
+        ///
+        /// <para><b>Nullable on purpose.</b> <c>Neutral = 0</c> is a real AS3 value
+        /// (<c>Unit.as:454</c>), so a non-nullable field could not tell "the placement said
+        /// <c>fraction='0'</c>" from "the placement had no <c>fraction</c> attribute" — and those are
+        /// different answers: the first is an instruction, the second means fall back to the unit
+        /// definition.</para>
+        ///
+        /// <para><b>Why the placement wins.</b> <c>UnitTurret.as:140-142</c> is the canonical case:
+        /// <c>if(param3 &amp;&amp; param3.@fraction.length()) fraction = param3.@fraction;</c> — the placed
+        /// node overrides the unit's own value. The camp turrets depend on it: every one of them is
+        /// authored <c>fraction="100"</c> (<c>RoomsCamp.as:86-90, 127-130, 794</c>) while the
+        /// <c>turret</c> unit row (<c>AllData.as:1758</c> <c>&lt;unit id='turret' cat='2'/&gt;</c>)
+        /// carries <b>no</b> <c>fraction</c> at all, so the placement is the only source. Note that
+        /// <c>UnitTurret</c> does <i>not</i> default to <c>F_PLAYER</c> in its constructor — only
+        /// <c>hack()</c> (<c>:397-410</c>) assigns it, which is the capture-a-turret feature. So a
+        /// silent placement means the unit definition's value, not the player's.</para>
+        /// </summary>
+        public FactionType? fraction = null;
 
         /// <summary>
         /// The facing this placement resolved to: 1 = right, -1 = left.
@@ -976,6 +1103,85 @@ namespace PFE.Systems.Map
         {
             EnsureStructuredData();
             return MapObjectDataUtility.GetAttribute(attributes, "prob", string.Empty);
+        }
+
+        /// <summary>
+        /// The object's <c>allid</c> — the tag the <c>allact</c> broadcast targets by — or empty when it
+        /// has none.
+        ///
+        /// <para><b>Placement first, then definition</b>, the same order as <see cref="GetAllAct"/> and
+        /// the same order AS3 uses: <c>Interact.init</c> copies the definition's value
+        /// (<c>Interact.as:287-289</c>) and the placed node then overrides it
+        /// (<c>:383-389</c>, guarded by <c>.length()</c> so an absent attribute does not erase what the
+        /// definition supplied).</para>
+        ///
+        /// <para><b>The definition half is empty in the shipped data, and that is worth stating.</b> All
+        /// 202 definition assets carry <c>allId:</c> blank — no <c>&lt;obj&gt;</c> row in
+        /// <c>AllData.as</c> authors one. So in practice every <c>allid</c> comes from a placement, and
+        /// the fallback exists to keep the read order identical to <c>allact</c>'s rather than because
+        /// something depends on it today. If a definition ever does carry one, a placement that omits it
+        /// inherits it — which is the oracle's behaviour and would be a silent divergence if this read
+        /// the placement alone.</para>
+        ///
+        /// <para><b>Why it matters at all.</b> It is the targeting key of
+        /// <c>Location.allAct(obj, verb, allid)</c> (<c>Location.as:2835-2860</c>), which is the
+        /// <i>default</i> branch of AS3's <c>Interact.allAct</c> chain (<c>:1645-1647</c>). Every
+        /// placement-level <c>allact</c> in the shipped rooms is carried by a button
+        /// (<c>knop1</c>–<c>knop4</c>, <c>term*</c>, <c>area</c>, <c>trlaser</c>) and every one of them
+        /// except the four <c>comein</c> doors also carries an <c>allid</c> — so without this accessor
+        /// the buttons have no way to name what they act on. The distribution is
+        /// <c>open</c>×94, <c>move3</c>×36, <c>swap</c>×32, <c>spawn</c>×17, <c>unlock</c>×10,
+        /// <c>onoff</c>×9, <c>close</c>×5, <c>comein</c>×4, <c>move</c>×2, <c>pop</c>×2, <c>hack</c>×2,
+        /// <c>activate</c>×1.</para>
+        /// </summary>
+        public string GetAllId()
+        {
+            EnsureStructuredData();
+
+            string placed = MapObjectDataUtility.GetAttribute(attributes, "allid", string.Empty);
+            if (!string.IsNullOrWhiteSpace(placed))
+            {
+                return placed;
+            }
+
+            if (definition == null)
+            {
+                return string.Empty;
+            }
+
+            // The definition's allId is a typed field set by the importer from the row's `allid` attribute
+            // (MapObjectDefinitionImporter), and the same key is skipped out of legacyAttributes — so
+            // reading GetAttribute here would always come back empty. The field is the real answer.
+            if (!string.IsNullOrWhiteSpace(definition.allId))
+            {
+                return definition.allId;
+            }
+
+            return definition.GetAttribute("allid", string.Empty);
+        }
+
+        /// <summary>
+        /// The placement's <c>&lt;move&gt;</c> child node, if it has one. False means "not a moving
+        /// platform" and leaves <paramref name="move"/> meaningless.
+        ///
+        /// <para><b>Placement only, and by construction.</b> AS3 reads <c>this.xml.move</c> — the
+        /// <i>placed</i> node's child element (<c>Interact.as:427</c>) — and the definition half of
+        /// <c>Interact.init</c> never looks for one. The importer flattens the node into
+        /// <c>move_dx</c>/<c>move_dy</c>/<c>move_tstay</c>/<c>move_tmove</c>/<c>move_on</c> plus a
+        /// <c>move_present</c> marker, because a room asset's attribute list is flat and the node is
+        /// not an attribute. See <see cref="MapObjectMoveData"/> for the population and for why the
+        /// existing 639 room assets still answer false.</para>
+        /// </summary>
+        public bool TryGetMoveNode(out MapObjectMoveData move)
+        {
+            EnsureStructuredData();
+
+            move = MapObjectMoveData.FromAttributes(
+                (key, fallback) => MapObjectDataUtility.GetAttribute(attributes, key, fallback),
+                mirror: false,
+                out bool present);
+
+            return present;
         }
 
         /// <summary>

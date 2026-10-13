@@ -326,11 +326,167 @@ namespace PFE.Tests.Editor.Core
             }
         }
 
+        // ── The interface pause gate (World.allStat) ─────────────────────────
+        //
+        // World.as:1385 sets `allStat = pip.active || sats.active || stand.active || guiPause ? 2 : 1`;
+        // World.as:1257 gates the ROOM on `allStat == 1`, and World.as:1315-1320 steps gui/pip/sats
+        // under the looser `allStat >= 1`. So an open interface freezes the world and keeps animating
+        // itself. Four of these pin that split; the fifth pins the no-gate default that every other
+        // fixture in this project depends on.
+        //
+        // These five build their loop through MakeLoopWithoutSettings rather than MakeLoop, and that
+        // is not a style choice. MakeLoop arranges a real PfeDebugSettings via
+        // ScriptableObject.CreateInstance, which is a Unity ECall: outside the editor it throws
+        // SecurityException in the ARRANGE, so every test in this fixture that calls it fails without
+        // ever reaching its assertion — including the seventeen that predate the gate. A test whose
+        // arrange cannot run proves nothing, so the gate tests are arranged out of `null` settings,
+        // which SimLoop already treats as "dispatch enabled" (`_debugSettings == null || …`).
+
+        [Test]
+        public void WorldGate_WithNoGateAssigned_DispatchesEveryBucket()
+        {
+            // The pre-I7 behaviour, and the shape the other `new SimLoop(clock, null)` call sites in
+            // this tree have: a bare loop must never pause anything.
+            SimLoop loop = MakeLoopWithoutSettings();
+            Assert.That(loop.WorldGate, Is.Null, "the helper must not attach a gate");
+
+            var log = new List<string>();
+            loop.Register(new OrderRecorder(log, "world", SimTickOrder.Damage));
+            loop.Register(new OrderRecorder(log, "view", SimTickOrder.ViewAligned));
+
+            loop.StepOnce();
+
+            Assert.That(log, Is.EquivalentTo(new[] { "world", "view" }));
+        }
+
+        [Test]
+        public void WorldGate_WhileAnInterfaceHoldsIt_SkipsEveryBucketButViewAligned()
+        {
+            SimLoop loop = MakeLoopWithoutSettings();
+            var gate = new InterfacePauseGate();
+            loop.WorldGate = gate;
+
+            var log = new List<string>();
+            loop.Register(new OrderRecorder(log, "weapons", SimTickOrder.Weapons));
+            loop.Register(new OrderRecorder(log, "damage", SimTickOrder.Damage));
+            loop.Register(new OrderRecorder(log, "view", SimTickOrder.ViewAligned));
+
+            gate.Acquire(this);
+
+            loop.StepOnce();
+
+            Assert.That(log, Is.EqualTo(new[] { "view" }),
+                "an open interface freezes the world and keeps animating itself");
+        }
+
+        [Test]
+        public void WorldGate_TheTickIndexStillAdvancesWhileTheWorldIsHeld()
+        {
+            // The interface's page animation and its live status panel run on this clock, so the index
+            // has to keep moving. Gating the increment would freeze the page the player is looking at,
+            // which is the failure the Oracle's `allStat >= 1` band exists to avoid.
+            SimLoop loop = MakeLoopWithoutSettings();
+            var gate = new InterfacePauseGate();
+            loop.WorldGate = gate;
+
+            var seen = new List<int>();
+            loop.Register(new IndexRecorder(seen, SimTickOrder.ViewAligned));
+
+            gate.Acquire(this);
+
+            loop.StepOnce();
+            loop.StepOnce();
+            loop.StepOnce();
+
+            Assert.That(loop.TickIndex, Is.EqualTo(2));
+            Assert.That(seen, Is.EqualTo(new[] { 0, 1, 2 }));
+        }
+
+        [Test]
+        public void WorldGate_ReleasingTheLastHolder_ResumesTheWorld()
+        {
+            // The reason InterfacePauseGate holds a SET and not a bool: with two interfaces up, the
+            // first one closing must not un-freeze a world the second still has. A `bool IsPaused`
+            // passes every single-interface test and fails exactly here.
+            SimLoop loop = MakeLoopWithoutSettings();
+            var gate = new InterfacePauseGate();
+            loop.WorldGate = gate;
+
+            var log = new List<string>();
+            loop.Register(new OrderRecorder(log, "damage", SimTickOrder.Damage));
+
+            object first = new object();
+            object second = new object();
+
+            gate.Acquire(first);
+            gate.Acquire(second);
+            loop.StepOnce();
+            Assert.That(log, Is.Empty, "two holders: the world is frozen");
+
+            gate.Release(first);
+            loop.StepOnce();
+            Assert.That(log, Is.Empty, "one holder left, so the world stays frozen");
+
+            gate.Release(second);
+            loop.StepOnce();
+            Assert.That(log, Is.EqualTo(new[] { "damage" }), "the last release resumes the world");
+        }
+
+        [Test]
+        public void WorldGate_IsReadOncePerTick_SoAMidTickAcquireCannotSplitOneTick()
+        {
+            // The Oracle reads allStat once per World.step, not once per subsystem. A tickable that
+            // acquires the gate must therefore not gate the tickables that come AFTER it in the same
+            // tick, or which systems ran would depend on the loop's order rather than on the interface
+            // being open.
+            SimLoop loop = MakeLoopWithoutSettings();
+            var gate = new InterfacePauseGate();
+            loop.WorldGate = gate;
+
+            var log = new List<string>();
+
+            // Input (0) runs before Triggers (70) runs before ViewAligned (100). The acquirer takes the
+            // gate on its own tick.
+            loop.Register(new GateAcquiringRecorder(log, "acquirer", SimTickOrder.Input, gate, this));
+            loop.Register(new OrderRecorder(log, "later", SimTickOrder.Triggers));
+            loop.Register(new OrderRecorder(log, "view", SimTickOrder.ViewAligned));
+
+            loop.StepOnce();
+
+            Assert.That(log, Is.EqualTo(new[] { "acquirer", "later", "view" }),
+                "the acquire must land on the NEXT tick, not on the tick that took it");
+
+            log.Clear();
+            loop.StepOnce();
+
+            Assert.That(log, Is.EqualTo(new[] { "view" }),
+                "from the next tick on the world is frozen and only the view bucket runs");
+        }
+
         // ── Helpers ──────────────────────────────────────────────────────────
 
         private static SimLoop MakeLoop(int ticksPerSecond, bool simTickEnabled = true)
         {
             return new SimLoop(new SimClock(ticksPerSecond), MakeSettings(simTickEnabled));
+        }
+
+        /// <summary>
+        /// A loop with NO debug settings — the shape <c>GoldenTraceHarness</c> and <c>Llp2dSpikeTests</c>
+        /// already use. SimLoop treats null settings as "dispatch enabled"
+        /// (<c>_debugSettings == null || _debugSettings.SimTickEnabled</c>), so a test that drives
+        /// <see cref="SimLoop.StepOnce"/> directly gets the same behaviour without arranging anything.
+        ///
+        /// <para><b>Why this exists, and why it is not just tidier.</b> <see cref="MakeSettings"/> calls
+        /// <c>ScriptableObject.CreateInstance</c>, which is a Unity ECall. Outside the editor that
+        /// throws <c>SecurityException: ECall methods must be packaged into a system module</c> — from
+        /// the ARRANGE, before the assertion is ever reached. Every test arranged through
+        /// <see cref="MakeLoop"/> therefore fails identically whether or not the behaviour under test is
+        /// correct, which makes the whole fixture unable to report a real failure offline. A test whose
+        /// arrange cannot run proves nothing.</para>
+        /// </summary>
+        private static SimLoop MakeLoopWithoutSettings(int ticksPerSecond = 30)
+        {
+            return new SimLoop(new SimClock(ticksPerSecond), null);
         }
 
         /// <summary>
@@ -368,6 +524,36 @@ namespace PFE.Tests.Editor.Core
             public void SimTick(int tickIndex)
             {
                 _log.Add(_name);
+            }
+        }
+
+        /// <summary>
+        /// A tickable that takes a pause gate while it is being ticked, so the "read once per tick"
+        /// rule can be observed from inside a tick rather than asserted about from outside one.
+        /// </summary>
+        private sealed class GateAcquiringRecorder : ISimTickable
+        {
+            private readonly List<string> _log;
+            private readonly string _name;
+            private readonly InterfacePauseGate _gate;
+            private readonly object _holder;
+
+            public GateAcquiringRecorder(List<string> log, string name, int tickOrder,
+                InterfacePauseGate gate, object holder)
+            {
+                _log = log;
+                _name = name;
+                TickOrder = tickOrder;
+                _gate = gate;
+                _holder = holder;
+            }
+
+            public int TickOrder { get; }
+
+            public void SimTick(int tickIndex)
+            {
+                _log.Add(_name);
+                _gate.Acquire(_holder);
             }
         }
 

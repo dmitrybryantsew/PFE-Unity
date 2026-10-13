@@ -21,6 +21,7 @@
   <Project Path="Unity.RenderPipelines.Universal.Editor.csproj" />
   <Project Path="Unity.RenderPipelines.Universal.2D.Runtime.csproj" />
   <Project Path="Unity.PerformanceTesting.Editor.csproj" />
+  <Project Path="PFE.View.csproj" />
   <Project Path="UnityEngine.TestRunner.csproj" />
   <Project Path="PFE.Editor.csproj" />
   <Project Path="Unity.2D.Tilemap.Editor.csproj" />
@@ -36,7 +37,6 @@
   <Project Path="UniTask.csproj" />
   <Project Path="Unity.Searcher.Editor.csproj" />
   <Project Path="Unity.ResourceManager.csproj" />
-  <Project Path="PFE.View.csproj" />
   <Project Path="Unity.2D.SpriteShape.Runtime.csproj" />
   <Project Path="UnityEditor.TestRunner.csproj" />
   <Project Path="Unity.VisualScripting.Core.csproj" />

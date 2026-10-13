@@ -15,13 +15,35 @@ namespace PFE.Systems.Weapons.Controllers
     /// <c>storona, -0.2</c>).</para>
     ///
     /// <para><b>What is still an approximation</b> — each named at its site and tracked in
-    /// <c>TOPIC_weapons_dispatch</c>: the spring position, the power-charge model (unreachable
-    /// anyway: <c>meleePowerAttack</c> is 0 on every asset), the combo default
-    /// (<c>!auto &amp;&amp; !powerfull → combinat</c>, <c>:177-180</c>), the durability <i>wear
-    /// rate</i> (a flat 1 per swing here vs <c>crash()</c>-on-hit there), and the <c>rashod</c> ammo
-    /// spend. The melee <c>resultDamage</c> <i>shape</i> is now complete: <c>param2</c> (the
-    /// weapon-skill multiplier), <c>skillPlusDam</c> and <c>(1 - breaking*0.6)</c> all fold into the
-    /// hit (WClub.as:649).</para>
+    /// <c>TOPIC_weapons_dispatch</c>: the spring position, the durability <i>wear rate</i> (a flat 1
+    /// per swing here vs <c>crash()</c>-on-hit there), the <c>rashod</c> ammo spend, and the
+    /// <c>weaponAttack()</c> <c>else if(t_attack &gt; 10) combo = 0</c> branch (<c>WClub.as:688-691</c>,
+    /// a combo reset when a swing is requested too early).</para>
+    ///
+    /// <para><b>The one behavioural gap left: the <c>isLine</c> gate.</b> Every WClub weapon sets
+    /// <c>checkLine = true</c> on its bullet (<c>WClub.as:161-162</c>), and <c>Bullet.run()</c> then
+    /// refuses a unit hit whose line is blocked (<c>Bullet.as:517</c> →
+    /// <c>Weapon.isLine</c> → <c>Location.isLine</c>, <c>Location.as:2368-2388</c>: sub-step the
+    /// segment from the <b>weapon's</b> position to the <b>blade tip</b>, and if any sample lands in a
+    /// solid tile, the swing is cancelled — <c>this.off = true; return</c>). The port's trigger-volume
+    /// hit path has no equivalent, so a club can currently damage a unit through a wall.</para>
+    ///
+    /// <para>It is <b>not</b> landed here, deliberately, and the blocker is a missing seam rather than
+    /// the arithmetic: the check needs the blade's <i>base</i> as well as its tip, and
+    /// <see cref="IMeleeHitVolume.BindMove"/> carries only the two tips. Landing it means either
+    /// extending the plan/volume seam or moving the gate into the controller, and either way the
+    /// change lands in <c>MeleeHitVolume.OnTriggerEnter2D</c> — a <c>MonoBehaviour</c>, so it has
+    /// <b>zero</b> offline coverage (measured: <c>MeleeHitWindowTests</c> + <c>MeleeOwnerStatTests</c>
+    /// are 0-passed/26-failed in the wall, all <c>ECall</c>). A gate whose wrong answer <i>blocks a
+    /// legitimate hit</i> is worse than the bug it fixes, so it wants a real play-test, not a guess.
+    /// The predicate itself is trivial to extract and test when someone picks this up.</para>
+    ///
+    /// <para>The melee <c>resultDamage</c> <i>shape</i> is complete: <c>param2</c> (the weapon-skill
+    /// multiplier), <c>skillPlusDam</c> and <c>(1 - breaking*0.6)</c> all fold into the hit
+    /// (WClub.as:649); tile destruction happens on the swing (see
+    /// <c>MeleeHitVolume.SweepTilesForImpact</c>); and the power charge is ported in full — the
+    /// <c>t_auto</c>/<c>pow</c> clock, the <c>t_attack</c> freeze and the charged damage — see
+    /// <see cref="IsCharging"/>.</para>
     ///
     /// Key behaviors from AS3:
     ///
@@ -65,7 +87,12 @@ namespace PFE.Systems.Weapons.Controllers
     ///   t_combo window = rapid + 20 frames between hits
     ///
     /// Power attack (meleePowerAttack=true):
-    ///   pow accumulates while attack held; if 2 < pow < rapid*2.15: powerMult scales
+    ///   AS3's debounce branch in Weapon.attack() (:1297-1302) bumps `pow` by one per held frame while
+    ///   `t_auto > 0`, and Weapon.update() zeroes it the moment the window lapses (:1226-1233). Once
+    ///   `t_attack < rapid_act*5/6` and `2 < pow < rapid_act*2.15`, actions() freezes the swing
+    ///   (t_attack, anim and every bindMove) and rewrites the damage as `1 + pow/(rapid_act*2.15)`.
+    ///   Releasing — by letting go or by reaching the cap — resumes the swing at that multiplier.
+    ///   See IsCharging / UpdateHitWindow / RunActions.
     ///
     /// Animation:
     ///   anim drives rot via: rot = -PI/2 + (-PI/6 + anim*PI) * storona
@@ -112,6 +139,14 @@ namespace PFE.Systems.Weapons.Controllers
 
         // Power multiplier applied to this hit's damage.
         private float _powerMult = 1f;
+
+        /// <summary>
+        /// AS3 <c>_loc4_</c> in <c>WClub.actions()</c> (<c>WClub.as:339</c>) — true on a frame the
+        /// power charge is holding the swing frozen. Tracked so the <i>release</i> frame is
+        /// recognisable: that is the one frame on which the damage is re-armed with the multiplier the
+        /// charge built up (<see cref="RefreshChargedDamage"/>).
+        /// </summary>
+        private bool _charging;
 
         // Weapon tip positions for MeleeSweep (previous and current frame).
         private Vector2 _prevTip;
@@ -199,6 +234,37 @@ namespace PFE.Systems.Weapons.Controllers
         /// twice as fast as the oracle allows.</para>
         /// </summary>
         private bool IgnoresSpeedMultiplier => _def.meleeType == MeleeType.Overhead;
+
+        /// <summary>
+        /// AS3's <c>combinat</c> — whether this weapon runs the 4-hit combo counter. It has
+        /// <b>two</b> assignments in the oracle and the port only modelled the first:
+        ///
+        /// <code>
+        /// if (node.char[0].@combo.length()) this.combinat = true;   // WClub.as:135-138
+        /// if (!auto &amp;&amp; !this.powerfull)    this.combinat = true;   // WClub.as:177-180
+        /// </code>
+        ///
+        /// <para>So the attribute is the <i>exception</i>, not the rule: every melee weapon that is
+        /// neither automatic nor power-capable combos, whether or not it says so. Reading
+        /// <c>_def.meleeCombo</c> alone therefore had combos working on exactly one weapon
+        /// (<c>mach</c>, the sole row authoring <c>combo='1'</c>) and silently absent on the other
+        /// <b>twelve</b> the rule covers — <c>sword</c>, <c>lsword</c>, <c>bat</c>, <c>hsword</c>,
+        /// <c>armature</c>, <c>chopper</c>, <c>pipe</c>, <c>zsword</c>, <c>ripper</c>,
+        /// <c>elsword</c>, <c>bsaw</c>, <c>a_melee</c>.</para>
+        ///
+        /// <para><b>Both inputs are the data's, not the port's.</b> <c>auto</c> is
+        /// <see cref="IWeaponStats.IsAuto"/> (AS3 <c>auto = rapid &lt;= 6</c>, overridden by the
+        /// presence of <c>char@auto</c>, <c>Weapon.as:856-859</c>) and <c>powerfull</c> is
+        /// <c>char@pow</c>, which is why the importer has to read <c>pow</c> even though the charge
+        /// itself is not ported: without it, the nine power weapons would wrongly gain a combo
+        /// counter as well.</para>
+        ///
+        /// <para>The counter's own arithmetic — <c>t_combo = rapid_act + 20</c>, <c>++combo</c>,
+        /// <c>combo &gt;= 4 → powerMult = 2</c> — is AS3's verbatim (<c>WClub.as:675-686</c>), and
+        /// the 2× lands on damage <i>and</i> knockback because AS3 writes both <c>b.damage</c> and
+        /// <c>b.otbros</c> (<c>:682-683</c>).</para>
+        /// </summary>
+        private bool HasCombo => _def.meleeCombo || (!_def.IsAuto && !_def.meleePowerAttack);
 
         /// <summary>
         /// The effective swing length for the attack <b>currently in flight</b>: AS3's
@@ -298,14 +364,35 @@ namespace PFE.Systems.Weapons.Controllers
             // AS3 aims the latter from `owner.Y - owner.scY/2`; this controller has no owner
             // offset, so it aims from the weapon's own position like the rest of the class.
             UpdateAnim();
-            State.Rot = _def.meleeType == MeleeType.Horizontal
-                ? -Mathf.PI / 2f + (-Mathf.PI / 6f + _anim * Mathf.PI) * _storona
-                : Mathf.Atan2(aimTarget.y - State.Y, aimTarget.x - State.X);
+            State.Rot = ComputeRot(aimTarget);
             State.Ready = true;
 
-            // ── attack() ─────────────────────────────────────────────────────
-            if (_attackHeld && State.TAttack <= 0)
-                WeaponAttack();
+            // ── attack() — AS3 Weapon.attack() (Weapon.as:1280-1302) ───────────
+            //
+            // The single-shot debounce branch comes FIRST in AS3 and early-returns (:1297-1302):
+            //
+            //   if(!param1 && !alicorn && !auto && t_auto > 0) { t_auto = 3; ++pow; return true; }
+            //
+            // `t_auto` is armed by every shot — `WClub.shoot()` ends with `t_auto = 3` (:643) — so a
+            // button that stays down keeps re-entering this branch: the window is refreshed and `pow`
+            // climbs by one per frame instead of a second swing starting. That accumulation IS the
+            // power charge's clock (see UpdateHitWindow). It also has to sit BEFORE checkAvail(),
+            // which is AS3's order: an under-skilled owner still charges, he just cannot release.
+            //
+            // This is the same rule the ranged, magic and thrown controllers already implement; melee
+            // was the one that read `pow` on a different mechanic entirely. See RunActions.
+            if (_attackHeld)
+            {
+                if (MeleeChargeMath.TakesDebounceBranch(_def.IsAuto, State.TAuto))
+                {
+                    State.TAuto = 3;
+                    State.Pow++;
+                }
+                else if (State.TAttack <= 0)
+                {
+                    WeaponAttack();
+                }
+            }
 
             // ── Hit window (AS3 actions():337-497) ────────────────────────────
             // The order here is load-bearing. AS3 runs the whole anim + strike-window block while
@@ -372,7 +459,7 @@ namespace PFE.Systems.Weapons.Controllers
             // ── Combo (combinat) ──────────────────────────────────────────────
             // AS3 measures both windows off rapid_act, not rapid (WClub.as:676, :340): a speed
             // multiplier shortens the swing AND tightens the combo window with it.
-            if (_def.meleeCombo)
+            if (HasCombo)
             {
                 _tCombo = (int)(_rapidAct + 20f);
                 _combo++;
@@ -383,11 +470,13 @@ namespace PFE.Systems.Weapons.Controllers
                 }
             }
 
-            // ── Power attack (powerfull) ─────────────────────────────────────
-            if (_def.meleePowerAttack && State.Pow > 2 && State.Pow < _rapidAct * 2.15f)
-            {
-                _powerMult = 1f + State.Pow / (_rapidAct * 2.15f);
-            }
+            // ── Power attack (powerfull) — deliberately NOT resolved here ──────
+            //
+            // AS3's weaponAttack() sets `powerMult = 1` (:663) and only the combo raises it (:681).
+            // The power multiplier is written later, once per CHARGING frame, inside actions()
+            // (:351-353). Reading `pow` at this point — as this used to — measured the accumulator at
+            // attack start, where the oracle has already zeroed it, so the charge contributed nothing
+            // and could not contribute anything. It lives in UpdateHitWindow now, where AS3 puts it.
 
             // t_attack = rapid_act (WClub.as:673). rapid_act is a Number there and t_attack an int,
             // so the assignment truncates; the thresholds below keep the fractional value.
@@ -435,6 +524,40 @@ namespace PFE.Systems.Weapons.Controllers
         /// the weapon drift toward the cursor.</para>
         /// </summary>
         private void Shoot()
+        {
+            _prevTip = EmitMeleePlan();
+        }
+
+        /// <summary>
+        /// Re-arm the swing's damage after a power charge, leaving the swept segment alone.
+        ///
+        /// <para><b>Why a second plan is needed at all.</b> AS3 does not compute the charged damage
+        /// when the swing starts — it rewrites the bullet's damage on every charging frame
+        /// (<c>WClub.as:352</c>, <c>b.damage = curDam * powerMult</c>) and never restores it, so the
+        /// value that rides the sweep is whatever the <i>last</i> charging frame wrote. The port has
+        /// no live bullet to rewrite, so the equivalent is one re-emission on the frame the charge
+        /// releases, with <see cref="_powerMult"/> still holding the charged value. Both
+        /// <c>PlayerWeaponLoadout</c> and <c>EnemyWeaponMount</c> take the <i>last</i> MeleeSweep plan
+        /// of a tick, so the refresh supersedes the attack-start plan rather than racing it.</para>
+        ///
+        /// <para><b>It must not touch <see cref="_prevTip"/>.</b> The refresh lands on the same frame
+        /// the strike window reopens, and the sweep's anchor is the previous frame's tip. Advancing it
+        /// here would shorten — or collapse — the segment the swing is about to cover, so the
+        /// charged swing would sweep less than an uncharged one. Only <see cref="Shoot"/> advances
+        /// it.</para>
+        ///
+        /// <para>The tile latch is unaffected by the extra plan: it is cleared on the hit volume's
+        /// enable edge, not on the plan, precisely so a mid-swing re-arm cannot re-open it. See
+        /// <c>MeleeHitVolume.SetDamageContext</c>.</para>
+        /// </summary>
+        private void RefreshChargedDamage() => EmitMeleePlan();
+
+        /// <summary>
+        /// Build the damage context for the swing as it currently stands and publish the plan.
+        /// Returns the blade-tip position the plan was built from; the caller decides whether that
+        /// advances the sweep.
+        /// </summary>
+        private Vector2 EmitMeleePlan()
         {
             Vector2 weaponPos = new Vector2(State.X, State.Y);
             Vector2 tipPos    = weaponPos + new Vector2(Mathf.Cos(State.Rot), Mathf.Sin(State.Rot)) * _dlina;
@@ -505,7 +628,11 @@ namespace PFE.Systems.Weapons.Controllers
                 meleeCurrTip:  tipPos
             ));
 
-            _prevTip = tipPos;
+            // AS3 `WClub.shoot()` ends with `t_auto = 3` (:643) — the debounce window every later
+            // `attack()` re-enters, and therefore the frame the `pow` accumulator starts climbing on.
+            State.TAuto = 3;
+
+            return tipPos;
         }
 
         // ── Actions (timers) ──────────────────────────────────────────────────
@@ -527,11 +654,21 @@ namespace PFE.Systems.Weapons.Controllers
                     _combo = 0;
             }
 
-            // Pow accumulator: increments while attack held but TAttack cooling down.
-            if (_attackHeld && State.TAttack == 0)
-                State.Pow++;
-            else if (State.TAttack == 0)
-                State.Pow = 0;
+            // ── Auto debounce + pow reset — AS3 Weapon.update() (Weapon.as:1226-1233) ──────────
+            //
+            //   if(t_auto > 0) --t_auto;
+            //   else           this.pow = 0;
+            //
+            // The reset is the ELSE of the same test, which is what bounds the power charge: `pow`
+            // dies the moment the debounce window lapses, i.e. three frames after the player stops
+            // pressing, and the frozen swing releases at whatever multiplier it had reached. Same
+            // three lines as the ranged, magic and thrown controllers.
+            //
+            // This replaces "increment `pow` while the button is HELD and t_attack is 0", which is a
+            // different mechanic and one that could not fire at all: a held button with t_attack == 0
+            // re-arms the swing (see the attack() block in TickOneFlashFrame) before this timer block
+            // is reached, so t_attack was never 0 here while the button was down.
+            MeleeChargeMath.AdvanceClock(ref State.TAuto, ref State.Pow);
 
             State.RotUp = 0f;  // Melee weapons don't use recoil lift.
         }
@@ -565,11 +702,52 @@ namespace PFE.Systems.Weapons.Controllers
         /// </summary>
         private void UpdateHitWindow(Vector2 aimTarget)
         {
+            bool wasCharging = _charging;
+            _charging = false;
+
             if (State.TAttack <= 0)
             {
                 EndStrikeWindow();
                 return;
             }
+
+            // ── Power charge — AS3 WClub.actions():339-355 ─────────────────────
+            //
+            //   _loc4_ = false;
+            //   if(powerfull && t_attack < rapid_act*5/6 && pow > 2 && pow < rapid_act*2.15) {
+            //      anim = -1/4;
+            //      powerMult = 1 + pow / (rapid_act*2.15);
+            //      b.damage = curDam * powerMult;
+            //      b.otbros = otbros * otbrosMult * powerMult;
+            //      _loc4_ = true;
+            //   }
+            //   ... every bindMove, in every mtip branch, is guarded by `if(!_loc4_)` ...
+            //   if(!_loc4_) --t_attack;                                    // :493-496
+            //
+            // While the charge holds, the swing is FROZEN: the timer does not advance, the arc does
+            // not animate, and the blade neither moves nor tests anything. It releases when `pow`
+            // leaves the window — either the player stopped pressing (`t_auto` lapsed and RunActions
+            // zeroed `pow`), or the charge reached its cap at `rapid_act * 2.15`, where the multiplier
+            // is ≈2.
+            //
+            // Note the entry condition is `t_attack < rapid_act*5/6`, so a swing can never begin
+            // charging: it has to wind up first. `pow > 2` (three held frames) and the 5/6 threshold
+            // are reached at roughly the same moment, which is what makes a mash feel like a wind-up
+            // rather than an instant freeze.
+            if (IsCharging())
+            {
+                _charging  = true;
+                _anim      = -0.25f;                                                 // AS3 :342
+                _powerMult = MeleeChargeMath.PowerMultiplier(State.Pow, _rapidAct);  // AS3 :351
+                State.Rot  = ComputeRot(aimTarget);                                  // rot from anim
+                EndStrikeWindow();                                                   // AS3 skips bindMove
+                return;
+            }
+
+            // The charge released on this frame. Re-arm the damage with the multiplier it built up —
+            // AS3 wrote that value to the bullet on the last charging frame (:352) and the sweep that
+            // follows is the one that carries it.
+            if (wasCharging) RefreshChargedDamage();
 
             switch (_def.meleeType)
             {
@@ -586,6 +764,15 @@ namespace PFE.Systems.Weapons.Controllers
                     break;
             }
         }
+
+        /// <summary>
+        /// AS3 <c>WClub.actions()</c>'s charge predicate (<c>WClub.as:340</c>) — see
+        /// <see cref="MeleeChargeMath.IsCharging"/>, which owns the arithmetic and the constants so the
+        /// rule can be executed offline (this class cannot: <c>Vector2</c> makes every fixture that
+        /// touches it die with an <c>ECall</c> security exception in the offline wall).
+        /// </summary>
+        private bool IsCharging() =>
+            MeleeChargeMath.IsCharging(_def.meleePowerAttack, State.TAttack, State.Pow, _rapidAct);
 
         /// <summary>
         /// mtip 0 — the swing-arc sweep (WClub.as:378-408).
@@ -686,6 +873,22 @@ namespace PFE.Systems.Weapons.Controllers
             Vector2 d = target - origin;
             return d.sqrMagnitude > 1e-8f ? d.normalized : Vector2.right;
         }
+
+        /// <summary>
+        /// The weapon's drawn angle — AS3's <c>rot</c>, set inside each mtip branch
+        /// (<c>WClub.as:377</c> / <c>:430</c> / <c>:466</c>): the anim-driven swing arc for a
+        /// horizontal swing, straight at the cursor for a thrust or an overhead.
+        ///
+        /// <para>Factored out because the power charge has to re-derive it. AS3 sets <c>anim</c> and
+        /// then <c>rot</c> in the same pass (<c>:342</c> then <c>:377</c>), so the first charging frame
+        /// must show the pinned <c>-1/4</c> pose immediately. This controller computes <c>rot</c> in the
+        /// position phase, before the hit-window phase that decides to charge, so without this the
+        /// charge would display one frame late. Two copies of the formula would let the charge and the
+        /// normal path drift apart.</para>
+        /// </summary>
+        private float ComputeRot(Vector2 aimTarget) => _def.meleeType == MeleeType.Horizontal
+            ? -Mathf.PI / 2f + (-Mathf.PI / 6f + _anim * Mathf.PI) * _storona
+            : Mathf.Atan2(aimTarget.y - State.Y, aimTarget.x - State.X);
 
         // ── Helpers ───────────────────────────────────────────────────────────
 

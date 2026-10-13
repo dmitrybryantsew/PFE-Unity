@@ -921,6 +921,25 @@ namespace PFE.Systems.Map.Rendering
                 return;
             }
 
+            // Moving platforms step BEFORE the presenter sync below, so the frame that advances them is
+            // also the frame that draws them at their new position.
+            //
+            // AS3 reaches this from `Location.step`, which walks the room's object list once per frame and
+            // calls each `Interact.step` — whose `if(this.isMove) this.move()` is the only thing that
+            // writes a platform's X/Y (Interact.as:620-624). So the oracle's cadence is one step per
+            // rendered frame, which is what LateUpdate is; a fixed-rate tick would have been the other
+            // defensible choice and is what `SimLoop` is for, but it would have needed a new
+            // SimTickOrder slot and a container registration for a system whose whole lifetime is one
+            // room's.
+            //
+            // `Count > 0` rather than an unconditional call: `MovingPlatforms` is lazy, and a room with no
+            // `<move>` node — 542 of the 639 imported rooms — should pay a null check, not a list walk.
+            PFE.Systems.Map.MovingPlatformSystem platforms = roomInstance?.MovingPlatforms;
+            if (platforms != null && platforms.Count > 0)
+            {
+                platforms.Step();
+            }
+
             roomObjectVisualManager?.UpdateVisuals(Time.deltaTime);
 
             if (roomBackdropRenderer == null)

@@ -100,6 +100,25 @@ namespace PFE.Systems.Map
         }
 
         /// <summary>
+        /// A room's origin in world pixels — where its room-local pixel space starts.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Room-local is not world, and only a room at land (0,0) hides the difference.</b>
+        /// <c>TilePhysicsController.SetRoom</c> stores this origin and every collision path subtracts
+        /// it, so the motor works in <i>world</i> pixels; <c>RoomTransitionManager.GetRoomOriginUnity</c>
+        /// is the same value in Unity units and the door/edge path adds it. Consumers that skipped it
+        /// were right in every room a quick test visits and wrong in the rest.</para>
+        /// </remarks>
+        public static Vector2 RoomOriginPixel(RoomInstance room)
+        {
+            if (room == null) return Vector2.zero;
+            int borderOffset = Mathf.Max(0, room.borderOffset);
+            return new Vector2(
+                RoomOriginPixelX(room.landPosition.x, borderOffset),
+                RoomOriginPixelY(room.landPosition.y, borderOffset));
+        }
+
+        /// <summary>
         /// Convert land grid position to world space (pixels)
         /// worldX = (landX * roomWidth * tileSize) + localX
         /// worldY = -(landY * roomHeight * tileSize) + localY   — see the land-Y section above.
@@ -206,6 +225,43 @@ namespace PFE.Systems.Map
         public static float As3YToUnityLocalY(float as3Y, int roomHeightTiles)
         {
             return roomHeightTiles * WorldConstants.TILE_SIZE - as3Y;
+        }
+
+        // ── AS3's placement anchor ───────────────────────────────────────────────────────────
+        //
+        // AS3 does not place a thing at its tile's corner. `Location.createObj` anchors a box, a
+        // trap and a checkpoint at the tile's BOTTOM-CENTRE:
+        //
+        //     new Box(this, id, (nx + 0.5 * size) * Tile.tileX, (ny + 1) * Tile.tileY - 1, ...)
+        //                                                       (Location.as:2005, :2038, :2042)
+        //
+        // and the PLAYER is put on that same point. `UnitPlayer.setLocPos` assigns X/Y verbatim
+        // (UnitPlayer.as:692-696) and `Land.setGGToSpawnPoint` calls it with
+        // `((x + 1) * tileX, (y + 1) * tileY - 1)` (Land.as:1229) — which is this anchor evaluated
+        // for `size = 2`, because the `player` definition is `size='2' wid='2'` (AllData.as:4925).
+        //
+        // So one formula serves both, and it is the formula that must mirror the row: `ny` is an AS3
+        // row counted DOWN from the ceiling while the port's pixel space counts UP from the floor.
+        // This arithmetic used to exist only inside `RoomPopulator.ResolveLegacyBottomAnchorPixels`.
+        // That is exactly why the player-spawn reader — which never called it — placed the player at
+        // the room's vertical mirror image: 26.6 % of the shipped rooms spawned inside a wall and
+        // 2.0 % inside the indestructible `A` frame.
+
+        /// <summary>
+        /// AS3's bottom-centre placement anchor (<c>Location.as:2005</c>) expressed in the port's
+        /// Y-up, room-local pixel space. Used for imported objects, synthetic placements and the
+        /// player spawn alike, so the three cannot drift apart again.
+        /// </summary>
+        /// <param name="as3TileCoord">AS3 tile coordinate: <c>x</c> a column, <c>y</c> an AS3 row (0 = ceiling).</param>
+        /// <param name="sizeTiles">AS3 <c>@size</c> of the placed thing's definition; AS3 floors it at 1.</param>
+        /// <param name="roomHeightTiles">The room's height in tiles (<c>RoomInstance.height</c>).</param>
+        /// <param name="borderOffsetTiles">The room's within-cell inset (<c>RoomInstance.borderOffset</c>).</param>
+        public static Vector2 As3BottomCentreAnchorPixels(
+            Vector2Int as3TileCoord, float sizeTiles, int roomHeightTiles, int borderOffsetTiles = 0)
+        {
+            return new Vector2(
+                (as3TileCoord.x + borderOffsetTiles + 0.5f * sizeTiles) * WorldConstants.TILE_SIZE,
+                (roomHeightTiles - borderOffsetTiles - as3TileCoord.y - 1) * WorldConstants.TILE_SIZE + 1f);
         }
 
         /// <summary>

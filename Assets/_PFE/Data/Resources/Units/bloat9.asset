@@ -17,6 +17,7 @@ MonoBehaviour:
   id: bloat9
   parentId: 
   controllerId: 
+  lootTableKey: 
   fraction: 2
   category: 1
   xpReward: 300
@@ -129,6 +130,7 @@ MonoBehaviour:
   - weaponId: zombivenom
     chance: 1
     difficulty: 0
+    isFixedWeapon: 0
   animations:
     stay:
       row: 0

@@ -225,11 +225,17 @@ namespace PFE.Systems.Map.Streaming
         /// <para><b>A missing opposite layer is reported, once per cell.</b> Refusing silently is the
         /// worst available behaviour: <c>ComeInAction</c> turns this into <c>Refused</c>, the door
         /// presenter returns without opening, and the player sees a Z door that does nothing at all —
-        /// indistinguishable from a door whose script was never ported. The one real cause seen so far
-        /// is stale data rather than stale code: <c>room_0_0_1</c> is authored <c>z="1"</c> in
-        /// <c>RoomsCamp.as:239</c>, but an asset imported before <c>AS3ToUnityConverter</c> stopped
-        /// hardcoding z still carries <c>fixedPosition z: 0</c>, so it collides with <c>room_0_0</c> and
-        /// <c>LandMap.AddRoom</c> drops it.</para>
+        /// indistinguishable from a door whose script was never ported.</para>
+        ///
+        /// <para><b>There are two causes and they need different fixes</b>, so
+        /// <see cref="ReportMissingOppositeLayer"/> names which one it is rather than asserting the rarer
+        /// one. The <c>z = 1</c> layer of a cell comes from two different places in AS3: an authored room
+        /// with <c>z="1"</c> (<c>Room.as:42-44</c>, story lands) and the cell's own
+        /// <c>&lt;options back="…"&gt;</c> (<c>Land.as:392-406</c>, procedural lands). A stale import can
+        /// only break the first — <c>room_0_0_1</c> is authored <c>z="1"</c> in <c>RoomsCamp.as:239</c> but
+        /// an asset imported before <c>AS3ToUnityConverter</c> stopped hardcoding z still carries
+        /// <c>fixedPosition z: 0</c>, so it collides with <c>room_0_0</c> and <c>LandMap.AddRoom</c> drops
+        /// it. The second is a build-path bug, and no re-import can touch it.</para>
         /// </summary>
         public bool CanToggleLayer
         {
@@ -255,7 +261,7 @@ namespace PFE.Systems.Map.Streaming
                     return true;
                 }
 
-                ReportMissingOppositeLayer(here);
+                ReportMissingOppositeLayer(landMap.currentRoom);
                 return false;
             }
         }
@@ -263,23 +269,41 @@ namespace PFE.Systems.Map.Streaming
         /// <summary>
         /// Name the cell and the coordinate that was looked for, once per cell.
         ///
-        /// <para>The coordinate is the actionable part: <c>(x, y, 0)</c> with no <c>(x, y, 1)</c> means
-        /// the room exists in the source XML but did not survive the import. Without the pair printed,
-        /// "the door does nothing" is a symptom with no address.</para>
+        /// <para><b>Which of the two causes it is changes the fix, so it says which.</b> The previous
+        /// message asserted the stale-import story unconditionally and told the reader to re-import the
+        /// rooms — which is wrong, and unfixable, for the far commoner cause: a procedural cell whose room
+        /// template declares no interior, or a build path that built one but never registered it as the
+        /// <c>z = 1</c> layer. Re-importing cannot change either. <see cref="RoomInstance.hasBackgroundLayer"/>
+        /// is the discriminator because <c>WorldBuilder.BuildBackgroundLayer</c> sets it in the same breath
+        /// as the registration — so if it is false, no interior was ever built for this cell.</para>
         /// </summary>
-        private void ReportMissingOppositeLayer(Vector3Int here)
+        private void ReportMissingOppositeLayer(RoomInstance room)
         {
+            Vector3Int here = room.landPosition;
             if (!_reportedMissingLayers.Add(here))
             {
                 return;
             }
 
             Vector3Int wanted = new Vector3Int(here.x, here.y, 1 - here.z);
+
+            if (!room.hasBackgroundLayer)
+            {
+                Debug.LogWarning(
+                    $"[RoomTransitionManager] A `comein` (Z door) was refused at land {here}: no room occupies " +
+                    $"{wanted}, and this cell never had an interior built. A cell only gets one when its room " +
+                    "template declares `<options back=\"…\">` (AS3 Land.as:392-406), so a room without that " +
+                    "attribute carries a Z door prop with nowhere to go. Nothing to re-import — check the " +
+                    "room's `<options back>` in the source XML.");
+                return;
+            }
+
+            // hasBackgroundLayer is set by WorldBuilder.BuildBackgroundLayer in the same breath as the
+            // registration, so reaching here means the two disagree — an invariant break, not bad data.
             Debug.LogWarning(
-                $"[RoomTransitionManager] A `comein` (Z door) was refused at land {here}: no room " +
-                $"occupies {wanted}, so the toggle has nowhere to go and the door does nothing. " +
-                "If the source XML authors a room there with z=\"1\", its imported asset predates the " +
-                "z fix and still holds z: 0 — re-import the rooms (PFE/Map/Room Template Importer).");
+                $"[RoomTransitionManager] A `comein` (Z door) was refused at land {here}: no room occupies " +
+                $"{wanted}, but '{room.id}' claims an interior (hasBackgroundLayer = true). The layer was " +
+                "built without being registered in LandMap.rooms — see WorldBuilder.BuildBackgroundLayer.");
         }
 
         /// <summary>
@@ -453,6 +477,23 @@ namespace PFE.Systems.Map.Streaming
         {
             _probContext = context;
             _reportedMissingProbRooms.Clear();
+
+            // A new land means a new AS3 `Land` object, and `prob` / `retLocX` / `retX` are fields of
+            // that object — so they start empty by construction (Land.as:102-105, :1391-1438). The port
+            // keeps them on a scene singleton that outlives the build, so it has to clear them here.
+            //
+            // What this fixes: leaving a prob room through its **exit box** (allact='exit' →
+            // Game.gotoNextLevel, Game.as:464-472) rebuilds the whole land and never calls
+            // `TryReturnFromProb`, which was the only place `_savedRoom` was cleared. The player is
+            // standing in a brand-new land but `IsInProbRoom` still answers true, so `CanEnterProb` is
+            // false and every later prob door answers `Refused` — the interaction animation plays and
+            // nothing happens. That is the "second descent will not let me through" symptom, and it is
+            // permanent for the rest of the run.
+            //
+            // The same clear also covers a land change of any other kind, which is the same AS3 rule:
+            // the fields belong to the land, not to the player.
+            _savedRoom = null;
+            _savedReturn = default(PFE.Systems.Map.Generation.ProbReturnPoint);
         }
 
         /// <inheritdoc />
@@ -527,7 +568,13 @@ namespace PFE.Systems.Map.Streaming
 
             // AS3's entry branch ends with setGGToSpawnPoint() (Land.as:1426), so the player arrives at the
             // prob room's own spawn point rather than at the door they used.
-            Vector3 arrival = WorldCoordinates.PixelToUnity(probRoom.GetPlayerSpawnPoint());
+            //
+            // `GetPlayerSpawnWorldUnity`, not `PixelToUnity(GetPlayerSpawnPoint())`: the latter is
+            // room-LOCAL, so it was a world position only while every prob room sat at land (0,0). A prob
+            // room is off the land grid by construction, and this port's contract is that its origin
+            // (ProbTransition.ProbRoomLandPosition) is a real coordinate that every world quantity
+            // derived from the room comes from — see RoomInstance's probId remarks.
+            Vector3 arrival = probRoom.GetPlayerSpawnWorldUnity();
             arrival.z = playerPos.z;
 
             StartCoroutine(PerformTransition(from, probRoom, null, player, arrival));
@@ -555,7 +602,8 @@ namespace PFE.Systems.Map.Streaming
             Vector3 target = arrival.Kind == PFE.Systems.Map.Generation.ProbArrivalKind.SavedPlayerPosition
                 ? new Vector3(arrival.PlayerX, arrival.PlayerY, player.transform.position.z)
                 // The (0,0) sentinel: AS3 falls back to the room's spawn point (Land.as:1401-1408).
-                : WorldCoordinates.PixelToUnity(_savedRoom.GetPlayerSpawnPoint());
+                // World-space for the same reason as the entry branch above.
+                : _savedRoom.GetPlayerSpawnWorldUnity();
 
             RoomInstance destination = _savedRoom;
 

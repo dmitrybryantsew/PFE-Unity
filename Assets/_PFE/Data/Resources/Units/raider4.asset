@@ -17,6 +17,7 @@ MonoBehaviour:
   id: raider4
   parentId: raider
   controllerId: raider
+  lootTableKey: raider
   fraction: 2
   category: 3
   xpReward: 150
@@ -344,15 +345,19 @@ MonoBehaviour:
   - weaponId: hammer
     chance: 0.5
     difficulty: 10
+    isFixedWeapon: 0
   - weaponId: axe
     chance: 0.5
     difficulty: 5
+    isFixedWeapon: 0
   - weaponId: mace
     chance: 0.5
     difficulty: 0
+    isFixedWeapon: 0
   - weaponId: shovel
     chance: 1
     difficulty: 0
+    isFixedWeapon: 0
   animations:
     stay:
       row: 0

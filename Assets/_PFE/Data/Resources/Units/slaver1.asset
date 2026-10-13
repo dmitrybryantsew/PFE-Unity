@@ -17,6 +17,7 @@ MonoBehaviour:
   id: slaver1
   parentId: slaver
   controllerId: raider
+  lootTableKey: raider
   fraction: 2
   category: 3
   xpReward: 250
@@ -368,21 +369,27 @@ MonoBehaviour:
   - weaponId: cknife
     chance: 0.2
     difficulty: 0
+    isFixedWeapon: 0
   - weaponId: mach
     chance: 0.4
     difficulty: 0
+    isFixedWeapon: 0
   - weaponId: hunt
     chance: 0.3
     difficulty: 0
+    isFixedWeapon: 0
   - weaponId: lshot
     chance: 0.3
     difficulty: 0
+    isFixedWeapon: 0
   - weaponId: zknife
     chance: 0.5
     difficulty: 0
+    isFixedWeapon: 0
   - weaponId: pipe
     chance: 1
     difficulty: 0
+    isFixedWeapon: 0
   animations:
     stay:
       row: 0

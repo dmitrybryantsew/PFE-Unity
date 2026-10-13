@@ -17,6 +17,7 @@ MonoBehaviour:
   id: slime
   parentId: 
   controllerId: 
+  lootTableKey: 
   fraction: 1
   category: 3
   xpReward: 50
@@ -188,6 +189,7 @@ MonoBehaviour:
   - weaponId: slime
     chance: 1
     difficulty: 0
+    isFixedWeapon: 0
   animations:
     stay:
       row: 0

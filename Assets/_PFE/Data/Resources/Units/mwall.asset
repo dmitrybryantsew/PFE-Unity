@@ -17,6 +17,7 @@ MonoBehaviour:
   id: mwall
   parentId: 
   controllerId: 
+  lootTableKey: 
   fraction: 2
   category: 1
   xpReward: 0

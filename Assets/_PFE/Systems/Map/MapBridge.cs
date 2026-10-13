@@ -57,6 +57,12 @@ public class MapBridge : MonoBehaviour
     private TileMaskLookup _tileMaskLookup;
     private RoomBackgroundLookup _roomBackgroundLookup;
     private PFE.Core.PfeDebugSettings _debugSettings;
+
+    /// <summary>
+    /// The land's <c>fon</c> backdrop plane — one GameObject parented to the camera, rebuilt (well,
+    /// re-bound) on every land transition. See <see cref="RefreshLandFon"/>.
+    /// </summary>
+    private LandFonRenderer _landFonRenderer;
     private PFE.Core.SimClock _simClock;
     private PFE.Core.SimLoop _simLoop;
     private PFE.Systems.Physics.IPhysicsWorldService _physicsWorldService;
@@ -476,6 +482,7 @@ public class MapBridge : MonoBehaviour
                     {
                         Debug.Log($"[MapBridge] Debug room override loaded full collection '{template.sourceCollectionId}' ({collectionTemplates.Count} rooms) starting at {landMap.currentRoom.id}.");
                     }
+                    ReportOverrideLand(template.sourceCollectionId);
                     return true;
                 }
             }
@@ -493,29 +500,56 @@ public class MapBridge : MonoBehaviour
 
         FinalizeOverrideRoom(room, template);
 
-        if (!string.IsNullOrEmpty(template.backgroundRoomId))
+        // The cell's z = 1 interior. Routed through the builder so this path cannot drift from the three
+        // build paths again: it used `AddSpecialRoom("background", …, roomPosition)` here too, which
+        // registered the room at the SAME cell in a different dictionary, leaving the Z door with nothing
+        // to toggle to. See WorldBuilder.BuildBackgroundLayer.
+        WorldBuilder overrideWorldBuilder = _gameManager?.GetWorldBuilder();
+        if (overrideWorldBuilder != null)
         {
-            RoomTemplate backgroundTemplate = FindTemplateById(template.backgroundRoomId, template);
-            if (backgroundTemplate != null)
-            {
-                RoomInstance backgroundRoom = _roomGenerator.GenerateRoom(backgroundTemplate, roomPosition);
-                FinalizeOverrideRoom(backgroundRoom, backgroundTemplate);
-                backgroundRoom.roomType = "back";
-                landMap.AddSpecialRoom("background", backgroundRoom, roomPosition);
-                room.backgroundRoom = backgroundRoom;
-                room.hasBackgroundLayer = true;
-            }
-            else
-            {
-                Debug.LogWarning($"[MapBridge] Background room template '{template.backgroundRoomId}' was not found for override room '{template.id}'.");
-            }
+            overrideWorldBuilder.BuildBackgroundLayer(room, template, roomPosition, _debugSettings);
+        }
+        else if (!string.IsNullOrEmpty(template.backgroundRoomId))
+        {
+            Debug.LogWarning(
+                $"[MapBridge] No WorldBuilder is available, so the background layer of override room " +
+                $"'{template.id}' was not registered — its Z door will have nowhere to go.");
         }
 
         landMap.AddRoom(room, roomPosition);
         landMap.SwitchRoom(roomPosition);
         if (_debugSettings?.LogMapBridgeLifecycle == true)
             Debug.Log($"[MapBridge] Debug room override loaded template '{template.id}' ({template.type}).");
+        ReportOverrideLand(template.sourceCollectionId);
         return true;
+    }
+
+    /// <summary>
+    /// Tell the campaign which land the world it just built actually belongs to.
+    ///
+    /// <para>The room override is the one build path the campaign did not ask for: it is driven by
+    /// <c>_useRoomOverride</c> on this component, while <c>CampaignManager</c> sets its current land from
+    /// <c>catalog.startingLandId</c>. Left alone the two disagree for the whole session — and the damage is
+    /// not the label. The F2 Lands tab marks the current land and labels that row's button "Rebuild", so
+    /// the wrong row is marked and that button declines to rebuild anything, because
+    /// <c>CampaignManager.BeginMission</c> treats "you are already in this land" as a no-op. Pressing Go on
+    /// the land you are <i>actually</i> standing in rebuilds it; the row that looks current does nothing.</para>
+    ///
+    /// <para>The collection key is the join: <c>RoomTemplate.sourceCollectionId</c> holds the same value as
+    /// <c>LandDefinition.sourceFileKey</c>, and it is the only key that survives the cases where one
+    /// collection backs two lands (<c>rooms_mbase</c> is both <c>random_mbase</c> and <c>bunker</c>).</para>
+    /// </summary>
+    private void ReportOverrideLand(string collectionId)
+    {
+        CampaignManager campaign = CampaignManager.Current;
+        if (campaign == null)
+        {
+            // Not an error. The override is usable in a scene with no campaign at all, and CampaignManager
+            // is a static accessor over the container's instance rather than something injected here.
+            return;
+        }
+
+        campaign.AdoptBuiltLand(collectionId);
     }
 
     private void FinalizeOverrideRoom(RoomInstance room, RoomTemplate template)
@@ -840,6 +874,15 @@ public class MapBridge : MonoBehaviour
         {
             _visualController.OnGotoLand -= HandleGotoLand;
         }
+
+        // The fon plane is parented to the camera, not to anything this bridge owns, so it is not
+        // collected by the scene teardown — and a camera that survives a scene load would carry the
+        // previous land's sky into the next one. Destroyed by hand for that reason.
+        if (_landFonRenderer != null)
+        {
+            Destroy(_landFonRenderer.gameObject);
+            _landFonRenderer = null;
+        }
     }
 
     private void HandleGotoLand(string targetLand)
@@ -1013,7 +1056,7 @@ public class MapBridge : MonoBehaviour
         if (land != null && land.isProcedural)
         {
             LandRuntimeState state = CampaignManager.Current.LandStates.Get(targetLand);
-            bool mbaseVisited = CampaignManager.Current.GetTrigger("mbase_visited") > 0;
+            bool mbaseVisited = CampaignManager.Current.GetTrigger("mbase_visited").IsGreaterThanZero();
 
             Debug.Log($"[MapBridge] Procedural land '{targetLand}' (conf {land.configId}, " +
                       $"stage {state.landStage}, visited {state.visited}).");
@@ -1094,6 +1137,16 @@ public class MapBridge : MonoBehaviour
             yield break;
         }
 
+        // The land's `fon` backdrop — AS3 `World.ativateLand` (`World.as:1058-1070`), which is the
+        // only caller of `Grafon.drawFon` and the exact counterpart of this point in the transition.
+        //
+        // Land-scoped, not room-scoped, so it is refreshed here rather than by RoomVisualController:
+        // a door inside the same land goes through RoomTransitionManager and never comes back here,
+        // and every room in a land shares one backdrop. `land` is null only for a land that did not
+        // resolve from the catalogue, and that takes AS3's own fallback (`fonDefault`) rather than
+        // skipping the layer — the authored-fallback build below is still a land.
+        RefreshLandFon(land);
+
         yield return null;
 
         var currentRoom = landMap.currentRoom;
@@ -1137,6 +1190,45 @@ public class MapBridge : MonoBehaviour
         }
 
         Debug.Log($"[MapBridge] Successfully transitioned to land '{targetLand}' ({collectionName}), current room: {currentRoom?.id}");
+    }
+
+    /// <summary>
+    /// Point the land's <c>fon</c> plane at <paramref name="land"/>'s backdrop id, creating the plane
+    /// on the first land. AS3 counterpart: <c>World.ativateLand</c> (<c>World.as:1058-1070</c>).
+    ///
+    /// <para><b>Why it is driven from here.</b> This is the one place in the port that holds both the
+    /// resolved <see cref="LandDefinition"/> and the <see cref="RoomBackgroundLookup"/> at the moment a
+    /// land becomes current, which is exactly the pair <c>drawFon</c> needs. <c>RoomVisualController</c>
+    /// is handed a <c>RoomInstance</c> and never sees the land; <c>CampaignManager.CurrentLand</c> is
+    /// reactive but lives on a container singleton the scene's render path does not reach.</para>
+    ///
+    /// <para>Re-binding rather than destroying and recreating is deliberate: two consecutive lands can
+    /// share a backdrop id (nine lands use <c>fonWay</c> alone), and a rebuild would blink the sky for
+    /// a frame on a transition that changes nothing about it.</para>
+    /// </summary>
+    private void RefreshLandFon(LandDefinition land)
+    {
+        Camera mainCamera = Camera.main;
+        if (mainCamera == null)
+        {
+            // Named rather than skipped. A missing backdrop and a missing camera are the same picture
+            // and different bugs, and the camera is found by tag so a scene change is what breaks it.
+            Debug.LogWarning(
+                "[MapBridge] No main camera; the land's fon backdrop cannot be drawn and the sky " +
+                "rooms in this land will show the clear colour.");
+            return;
+        }
+
+        string backdropId = land != null ? land.backdropId : null;
+
+        if (_landFonRenderer == null)
+        {
+            _landFonRenderer = LandFonRenderer.Create(mainCamera, _roomBackgroundLookup, backdropId);
+        }
+        else
+        {
+            _landFonRenderer.Bind(mainCamera, _roomBackgroundLookup, backdropId);
+        }
     }
 
     /// <summary>

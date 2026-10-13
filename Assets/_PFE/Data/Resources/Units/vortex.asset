@@ -17,6 +17,7 @@ MonoBehaviour:
   id: vortex
   parentId: 
   controllerId: 
+  lootTableKey: 
   fraction: 2
   category: 3
   xpReward: 30

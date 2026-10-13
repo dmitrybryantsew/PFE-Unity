@@ -981,6 +981,19 @@ namespace PFE.Systems.Physics
             // A motor-driven unit does not tick the countdown here — that is at the top of this method
             // — so this is the only place in this class that touches the impact path.
             Unit?.SweepPropImpacts();
+
+            // AS3 `Trap.step` (`Trap.as:147-161`) runs from the trap object's own step, which this port
+            // does not have — so the unit sweeps for spike traps itself, exactly as it does for prop
+            // impacts above, and for the same reason: `attKorp` reads `dy`, which this motor is what
+            // settles.
+            //
+            // This call MUST live here as well as in `UnitController.StepUnit`. A motor-driven unit never
+            // runs `StepUnit` — that is the whole point of `_hasTilePhysics` — and
+            // `PfeDebugSettings.UnitMotor` is on, so the player and every spawned unit are motor-driven.
+            // A trap sweep added only to `StepUnit` is therefore dead code on the live path, which is
+            // precisely how "the spike trap deals no damage" shipped. `MotorGroundStateLintTests`
+            // .MotorDriver_RunsEveryImpactSweepTheUnitStepRuns makes that omission fail.
+            Unit?.SweepTrapImpacts();
             }
         }
 

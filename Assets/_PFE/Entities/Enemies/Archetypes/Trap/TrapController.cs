@@ -1,3 +1,8 @@
+using System;
+using PFE.Data.Definitions;
+using PFE.Entities.Units;
+using PFE.Systems.Map;
+using PFE.Systems.Weapons;
 using UnityEngine;
 
 namespace PFE.Entities.Enemies.Archetypes
@@ -20,16 +25,88 @@ namespace PFE.Entities.Enemies.Archetypes
         }
     }
 
+    /// <summary>
+    /// The turret mount — AS3 <c>UnitTurret</c>. Six mounts share one controller and are told apart by
+    /// their definition id, which <c>UnitTurret.as:94</c> stamps as <c>"turret" + turrettip</c>.
+    ///
+    /// <para><b>What this class owns: the weapon.</b> The oracle's constructor builds it directly —
+    /// <c>currentWeapon = new Weapon(this, "turret" + this.tr)</c> (`UnitTurret.as:126-127</c>) — with
+    /// <c>tr</c> taken from the saved object, then the placed <c>&lt;obj&gt;</c> node, then a
+    /// difficulty band (`:46-65</c>): 1-3 below <c>locDifLevel</c> 10, 1-5 below 15, 1-7 at or above
+    /// it. There is no candidate table and no chance roll — the id is <c>"turret" + tr</c>, full stop,
+    /// which is why <see cref="UnitWeaponSelector"/> is deliberately not used here the way
+    /// <see cref="ArmedShooterController"/> uses it.</para>
+    ///
+    /// <para>The brain fires it: <c>TrapBrain.TickTurret</c> aims and holds the trigger, and
+    /// <c>EnemyBrain.TickWeapons</c> advances the mount at the end of the tick.</para>
+    /// </summary>
     [RequireComponent(typeof(TrapBrain))]
     public class TurretController : TrapController
     {
         public new const string ControllerId = "UnitTurret";
         public new const string ControllerAlias = "turret";
 
+        /// <summary>The id this mount resolved to equip, or null when the placement carries no
+        /// <c>tr</c> and no difficulty band was available. Equipped once.</summary>
+        private string _turretWeaponId;
+
+        /// <summary>The live mount for <see cref="_turretWeaponId"/>, or null when nothing was equipped
+        /// (no weapon services, or a definition-less test spawn).</summary>
+        public EnemyWeaponMount TurretWeaponMount =>
+            _turretWeaponId != null ? GetWeaponMount(_turretWeaponId) : null;
+
         protected override void Awake()
         {
             base.Awake();
             if (Brain != null) Brain.Kind = TrapKind.Turret;
+        }
+
+        /// <summary>
+        /// AS3 <c>UnitTurret</c>'s constructor order: the weapon is built inside the constructor,
+        /// which is before <c>putLoc</c> and therefore before the placement's own attributes are read
+        /// for anything else. The port's equivalent moment is <see cref="Initialize"/> (where
+        /// <c>Stats</c> first exists), so the id is resolved from the placement as soon as the
+        /// placement arrives and the mount is built at both seams.
+        /// </summary>
+        public override void Initialize(UnitDefinition definition, UnitStats stats)
+        {
+            base.Initialize(definition, stats);
+            TryEquipTurretWeapon();
+        }
+
+        /// <summary>
+        /// Read the placement — AS3's <c>setPos</c> reaching back for the node the constructor was
+        /// handed. This is the last act of the spawner, so both <c>Stats</c> and the weapon services
+        /// are already in place.
+        /// </summary>
+        public override void ApplyPlacement(UnitInstance placement)
+        {
+            base.ApplyPlacement(placement);
+            if (placement == null) return;
+            _turretWeaponId = ResolveTurretWeaponId(placement, LocationDifficulty);
+            TryEquipTurretWeapon();
+        }
+
+        /// <summary>The late-arrival seam: weapon services handed over after Initialize.</summary>
+        protected override void OnWeaponServicesReady() => TryEquipTurretWeapon();
+
+        private void TryEquipTurretWeapon()
+        {
+            if (string.IsNullOrEmpty(_turretWeaponId)) return;
+            if (Stats == null || !HasWeaponServices) return;
+            EquipWeapon(_turretWeaponId);
+        }
+
+        /// <summary>
+        /// AS3 <c>UnitTurret.as:46-65</c> — the <c>tr</c> that picks the weapon row, then
+        /// <c>:126-127</c>'s <c>new Weapon(this, "turret" + this.tr)</c>. The arithmetic lives in
+        /// <see cref="TurretMountMath"/> so the band roll is assertable offline.
+        /// </summary>
+        internal static string ResolveTurretWeaponId(UnitInstance placement, float locationDifficulty)
+        {
+            string authored = placement != null ? placement.GetAttribute("tr", null) : null;
+            return TurretMountMath.WeaponId(
+                TurretMountMath.Tr(authored, locationDifficulty, () => UnityEngine.Random.value));
         }
     }
 

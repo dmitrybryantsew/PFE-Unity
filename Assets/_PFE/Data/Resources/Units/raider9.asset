@@ -17,6 +17,7 @@ MonoBehaviour:
   id: raider9
   parentId: raider
   controllerId: raider
+  lootTableKey: raider
   fraction: 2
   category: 3
   xpReward: 150
@@ -344,9 +345,11 @@ MonoBehaviour:
   - weaponId: hgren
     chance: 0.7
     difficulty: 0
+    isFixedWeapon: 0
   - weaponId: grenade
     chance: 1
     difficulty: 0
+    isFixedWeapon: 0
   animations:
     stay:
       row: 0

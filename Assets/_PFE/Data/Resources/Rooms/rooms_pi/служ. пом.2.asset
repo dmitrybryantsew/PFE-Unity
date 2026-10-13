@@ -292,9 +292,18 @@ MonoBehaviour:
     attributes:
     - key: vis
       value: down
+    - key: move_present
+      value: 1
+    - key: move_dx
+      value: 23
+    - key: move_tstay
+      value: 30
+    - key: move_tmove
+      value: 90
     items: []
     scripts: []
-    parameters: code="I3zpxcwpsTc1qbyh" vis="down"
+    parameters: code="I3zpxcwpsTc1qbyh" vis="down" move_present="1" move_dx="23"
+      move_tstay="30" move_tmove="90"
   - type: door
     id: hatch2
     definitionId: hatch2
@@ -728,3 +737,6 @@ MonoBehaviour:
     radiation: 0
     radiationDamage: 0
     darkness: 0
+    tipEnemy: -1
+    kolEnSpawn: -1
+    spawnGroupId: 

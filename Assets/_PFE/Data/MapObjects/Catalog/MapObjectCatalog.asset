@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3d7791d5f1e54b75b76a92dab7c6d92a, type: 3}
   m_Name: MapObjectCatalog
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.MapObjectCatalog
-  sourceFilePath:
+  sourceFilePath: 
   definitions:
   - {fileID: 11400000, guid: 1d01145c82c188a45b88da475581a538, type: 2}
   - {fileID: 11400000, guid: 8b57865a1848cf8418d98bc452d9a774, type: 2}

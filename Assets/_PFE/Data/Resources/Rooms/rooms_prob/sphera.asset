@@ -155,9 +155,18 @@ MonoBehaviour:
     attributes:
     - key: allid
       value: a1
+    - key: move_present
+      value: 1
+    - key: move_dx
+      value: 21
+    - key: move_tstay
+      value: 30
+    - key: move_tmove
+      value: 90
     items: []
     scripts: []
-    parameters: code="t97fXnVM6dqvS7tP" allid="a1"
+    parameters: code="t97fXnVM6dqvS7tP" allid="a1" move_present="1" move_dx="21"
+      move_tstay="30" move_tmove="90"
   - type: box
     id: dsph
     definitionId: dsph
@@ -300,3 +309,6 @@ MonoBehaviour:
     radiation: 0
     radiationDamage: 0
     darkness: 0
+    tipEnemy: -1
+    kolEnSpawn: -1
+    spawnGroupId: 

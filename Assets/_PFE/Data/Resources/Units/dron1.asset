@@ -17,6 +17,7 @@ MonoBehaviour:
   id: dron1
   parentId: 
   controllerId: 
+  lootTableKey: 
   fraction: 4
   category: 3
   xpReward: 250
@@ -129,6 +130,7 @@ MonoBehaviour:
   - weaponId: dronlaser
     chance: 1
     difficulty: 0
+    isFixedWeapon: 0
   animations:
     stay:
       row: 0

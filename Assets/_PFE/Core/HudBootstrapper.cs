@@ -1,6 +1,8 @@
 using UnityEngine;
 using UnityEngine.UI;
+using MessagePipe;
 using VContainer;
+using PFE.Core.Messages;
 using PFE.Entities.Player;
 using PFE.Entities.Units;
 using PFE.Systems.Weapons;
@@ -33,11 +35,33 @@ namespace PFE.Core
         private IObjectResolver _resolver;
 
         private HUDViewModel _viewModel;
+        private HudLayoutScaler _layout;
         private HealthBarView _healthBar;
         private AmmoCounterView _ammoCounter;
         private ReloadIndicatorView _reloadIndicator;
         private ArmourBarView _armourBar;
         private ActionProgressBarView _holdBar;
+
+        /// <summary>
+        /// The three script-presentation views — the banner, the dialogue windows and the blackout
+        /// overlay. They are the port's consumers for <c>TutorialPromptMessage</c>,
+        /// <c>ScriptDialogueMessage</c> and <c>ScriptOverlayMessage</c>; before they existed those three
+        /// brokers had <b>no subscriber at all</b>, so every <c>mess</c>, every <c>dial</c> and the
+        /// opening <c>black 1</c> of the begin land were published into nothing.
+        /// </summary>
+        private ScriptToastView _toast;
+        private ScriptDialogueView _dialogue;
+        private ScriptOverlayView _overlay;
+
+        /// <summary>
+        /// The two elements <c>gui off</c> hides, held so the overlay view can be handed the Oracle's
+        /// actual group. <c>hpBarOnOff</c> names <c>vis.hpBar</c>, <c>vis.hp</c>, <c>vis.manaBar</c> and
+        /// <c>vis.xpBar</c> (<c>GUI.as:756-759</c>); the port builds only the first two today — the mana
+        /// bar and the XP bar are slots <see cref="HudLayout"/> has anchors for but nothing constructs,
+        /// which is why they are absent here rather than silently toggling nothing.
+        /// </summary>
+        private GameObject _healthBarRoot;
+        private GameObject _healthTextRoot;
 
         /// <summary>The controller the current bindings point at, so a swap can be detected.</summary>
         private object _boundController;
@@ -128,8 +152,16 @@ namespace PFE.Core
 
             var scaler = canvasGo.GetComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1920f, 1080f);
-            scaler.matchWidthOrHeight = 0.5f;
+
+            // The Oracle's virtual canvas, not a taste call — see HudLayout. It was 1920x1080 here,
+            // which is not a resolution any of the Oracle's offsets are measured against.
+            scaler.referenceResolution = HudLayout.ReferenceSize;
+            scaler.matchWidthOrHeight = HudLayout.MatchWidthOrHeight;
+
+            // Owns placement for every element built below. It re-applies the table whenever the canvas
+            // changes size, which is the port's replacement for GUI.resizeScreen re-running on a stage
+            // resize (GUI.as:310-349).
+            _layout = canvasGo.AddComponent<HudLayoutScaler>();
 
             // The ViewModel lives on the canvas so its lifetime is the HUD's.
             _viewModel = canvasGo.AddComponent<HUDViewModel>();
@@ -139,6 +171,17 @@ namespace PFE.Core
             _reloadIndicator = BuildReloadIndicator(canvasGo.transform);
             _armourBar = BuildArmourBar(canvasGo.transform);
             _holdBar = BuildHoldBar(canvasGo.transform);
+
+            // The script-presentation views. Built after the stat cluster so the blackout image can be
+            // moved to the back of the sibling order: in the Oracle `vblack` lives on the world layer
+            // and the GUI — including `vis.mess` — draws over it, which is what lets `beginBeg` show
+            // "Your journey begins" on a fully black screen and then fade the black away underneath it.
+            _toast = BuildToast(canvasGo.transform);
+            _dialogue = BuildDialogue(canvasGo.transform);
+            _overlay = BuildOverlay(canvasGo.transform);
+            _overlay.SetGuiElements(_healthBarRoot, _healthTextRoot);
+
+            BindScriptViews();
 
             // Hand over the reference but do NOT bind here. Each view binds itself in its own
             // Start(), which removes any dependence on whether this Start() or theirs runs first,
@@ -151,7 +194,9 @@ namespace PFE.Core
             _reloadIndicator.SetViewModel(_viewModel);
             _armourBar.SetViewModel(_viewModel);
 
-            Debug.Log("[HudBootstrapper] HUD built (health bar, armour bar, ammo counter, reload indicator, hold bar).");
+            Debug.Log("[HudBootstrapper] HUD built (health bar, armour bar, ammo counter, reload indicator, " +
+                      "hold bar, script banner, dialogue window, blackout overlay) on a " +
+                      HudLayout.ReferenceWidth + "x" + HudLayout.ReferenceHeight + " canvas.");
         }
 
         /// <summary>
@@ -219,6 +264,30 @@ namespace PFE.Core
             return rect;
         }
 
+        /// <summary>
+        /// Creates a top-level HUD element at a neutral centre anchor, sized but <b>not</b> positioned.
+        /// Placement is <see cref="HudLayoutScaler"/>'s job: it is handed the rect through
+        /// <see cref="HudLayoutScaler.Register"/>, which applies the Oracle anchor for the slot.
+        ///
+        /// <para><b>Why not just pass the anchor here, as <see cref="CreateRect"/> does for children.</b>
+        /// Because a position written at build time is not re-applied on a resize, and the Oracle
+        /// recomputes every one of its offsets against the live <c>screenX</c>/<c>screenY</c>
+        /// (<c>GUI.as:310-349</c>). Two owners for one number is how a HUD ends up correct at 16:9 and
+        /// wrong at 21:9. Children keep using <see cref="CreateRect"/>: they are positioned relative to
+        /// their own parent's rect, which the anchor already handles.</para>
+        /// </summary>
+        private static RectTransform CreateHudElement(string name, Transform parent, Vector2 size)
+        {
+            var go = new GameObject(name, typeof(RectTransform));
+            var rect = go.GetComponent<RectTransform>();
+            rect.SetParent(parent, false);
+            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = Vector2.zero;
+            rect.sizeDelta = size;
+            return rect;
+        }
+
         private static Image CreateImage(string name, Transform parent, Color color)
         {
             var go = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
@@ -231,10 +300,12 @@ namespace PFE.Core
 
         private HealthBarView BuildHealthBar(Transform parent)
         {
-            // Bottom-left, above the ammo line.
-            var barRect = CreateRect("Health Bar", parent,
-                anchor: new Vector2(0f, 0f), pivot: new Vector2(0f, 0f),
-                anchoredPosition: new Vector2(32f, 64f), size: new Vector2(320f, 24f));
+            // Top-left stat column. Placement is HudLayout's (HudSlot.HealthBar) — the Oracle's own
+            // stat cluster is top-left, and the bottom-left now belongs to the weapon block
+            // (`vis.textWeapon.y = screenY - 20`, GUI.as:314).
+            var barRect = CreateHudElement("Health Bar", parent, new Vector2(320f, 24f));
+            _layout.Register(HudSlot.HealthBar, barRect);
+            _healthBarRoot = barRect.gameObject;
 
             // Slider must exist and have fillRect assigned BEFORE HealthBarView is added: its Awake
             // auto-finds GetComponent<Slider>() and _healthSlider.fillRect, so the component order
@@ -265,10 +336,11 @@ namespace PFE.Core
 
             var view = barRect.gameObject.AddComponent<HealthBarView>();
 
-            // Health readout, to the right of the bar.
-            var textRect = CreateRect("Health Text", parent,
-                anchor: new Vector2(0f, 0f), pivot: new Vector2(0f, 0f),
-                anchoredPosition: new Vector2(360f, 66f), size: new Vector2(160f, 24f));
+            // Health readout, to the right of the bar. HudLayout places it at x=348, which clears the
+            // 320-wide bar rather than overlapping it.
+            var textRect = CreateHudElement("Health Text", parent, new Vector2(160f, 24f));
+            _layout.Register(HudSlot.HealthText, textRect);
+            _healthTextRoot = textRect.gameObject;
             var text = textRect.gameObject.AddComponent<Text>();
             text.font = ResolveFont();
             text.fontSize = 18;
@@ -294,9 +366,8 @@ namespace PFE.Core
         /// </summary>
         private ArmourBarView BuildArmourBar(Transform parent)
         {
-            var barRect = CreateRect("Armour Bar", parent,
-                anchor: new Vector2(0f, 0f), pivot: new Vector2(0f, 0f),
-                anchoredPosition: new Vector2(32f, 96f), size: new Vector2(320f, 12f));
+            var barRect = CreateHudElement("Armour Bar", parent, new Vector2(320f, 12f));
+            _layout.Register(HudSlot.ArmourBar, barRect);
 
             // Slider first, with fillRect assigned before the view is added: ArmourBarView.Awake
             // reads GetComponent<Slider>() and the fill's Image, so this order is load-bearing.
@@ -331,9 +402,8 @@ namespace PFE.Core
             view.SetContent(visuals.gameObject);
 
             // Armour readout, aligned with the health readout column.
-            var textRect = CreateRect("Armour Text", parent,
-                anchor: new Vector2(0f, 0f), pivot: new Vector2(0f, 0f),
-                anchoredPosition: new Vector2(360f, 92f), size: new Vector2(160f, 20f));
+            var textRect = CreateHudElement("Armour Text", parent, new Vector2(160f, 20f));
+            _layout.Register(HudSlot.ArmourText, textRect);
             var text = textRect.gameObject.AddComponent<Text>();
             text.font = ResolveFont();
             text.fontSize = 14;
@@ -353,10 +423,16 @@ namespace PFE.Core
         /// <summary>
         /// The hold bar: fills while the action key is held on a timed object.
         ///
-        /// <para><b>Centred at the bottom rather than in the left-hand stat column.</b> The health,
-        /// armour and ammo readouts report the player's <i>persistent</i> state and belong together;
-        /// this bar exists only for the duration of a hold and belongs to a different source. Keeping
-        /// it out of that column is what stops it reading as a fourth stat.</para>
+        /// <para><b>Centred at the bottom rather than in the stat column.</b> The health and armour
+        /// readouts report the player's <i>persistent</i> state and belong together in the top-left; this
+        /// bar exists only for the duration of a hold and belongs to a different source. Keeping it out
+        /// of that column is what stops it reading as a third stat.</para>
+        ///
+        /// <para><b>Its Oracle position is world-anchored, and this is a stand-in.</b> <c>pr_bar</c> is
+        /// re-projected to its target every frame — <c>GUI.as:1463</c> sets
+        /// <c>celobj.y = pr_bar.y = cam.screenY - 40 - celobj.height</c> — so a screen anchor is a
+        /// placeholder until the interaction prompt view exists (Item I5). <see cref="HudLayout"/> marks
+        /// the slot as a port choice for that reason.</para>
         ///
         /// <para><b>Structure follows <see cref="ArmourBarView"/>'s, for the same reason:</b> the
         /// visuals hang off a child so the view can hide itself without deactivating the component that
@@ -365,9 +441,8 @@ namespace PFE.Core
         /// </summary>
         private ActionProgressBarView BuildHoldBar(Transform parent)
         {
-            var barRect = CreateRect("Hold Bar", parent,
-                anchor: new Vector2(0.5f, 0f), pivot: new Vector2(0.5f, 0f),
-                anchoredPosition: new Vector2(0f, 96f), size: new Vector2(240f, 14f));
+            var barRect = CreateHudElement("Hold Bar", parent, new Vector2(240f, 14f));
+            _layout.Register(HudSlot.HoldBar, barRect);
 
             // Slider first, with fillRect assigned before the view is added: ActionProgressBarView.Awake
             // reads GetComponent<Slider>() and the fill's Image, so this order is load-bearing.
@@ -407,18 +482,240 @@ namespace PFE.Core
             return view;
         }
 
+        // ── Script presentation ───────────────────────────────────────────────
+
+        /// <summary>
+        /// The banner — the Oracle's <c>vis.mess</c>, driven by <c>GUI.messText</c>
+        /// (<c>GUI.as:1656-1691</c>).
+        ///
+        /// <para><b>Its width is the scaler's, not this method's.</b> <c>GUI.as:325-335</c> recomputes the
+        /// toast's width as <c>screenX - 550</c> clamped to a 500 minimum, and
+        /// <see cref="HudLayoutScaler"/> re-runs that on every canvas resize through
+        /// <see cref="HudLayoutScaler.ToastBox"/> — so the width set here is only the value before the
+        /// first layout pass.</para>
+        /// </summary>
+        private ScriptToastView BuildToast(Transform parent)
+        {
+            var rect = CreateHudElement("Script Banner", parent,
+                new Vector2(HudLayout.ToastWidth(HudLayout.ReferenceWidth), 64f));
+            _layout.Register(HudSlot.Toast, rect);
+            _layout.ToastBox = rect;
+
+            // Alpha, not SetActive. The Oracle hides the banner by fading `mess.alpha` to 0 and only then
+            // clearing `visible` (GUI.as:2050-2059); and deactivating the GameObject would stop the very
+            // Update that drives the fade — the deadlock ReloadIndicatorView documents from the other
+            // side.
+            var group = rect.gameObject.AddComponent<CanvasGroup>();
+            group.alpha = 0f;
+            group.blocksRaycasts = false;
+            group.interactable = false;
+
+            // A backing plate. `vis.mess` is a symbol with its own background art, so text alone would be
+            // unreadable over a lit world; this is the port's stand-in for that art, not an Oracle value.
+            var plate = CreateImage("Plate", rect, new Color(0f, 0f, 0f, 0.72f));
+            Stretch(plate.rectTransform);
+            plate.raycastTarget = false;
+
+            var textRect = CreateRect("Text", rect,
+                anchor: new Vector2(0.5f, 0.5f), pivot: new Vector2(0.5f, 0.5f),
+                anchoredPosition: Vector2.zero, size: Vector2.zero);
+            Stretch(textRect, 10f);
+
+            var text = textRect.gameObject.AddComponent<Text>();
+            text.font = ResolveFont();
+            text.fontSize = 22;
+            text.color = Color.white;
+            text.alignment = TextAnchor.MiddleCenter;
+            text.horizontalOverflow = HorizontalWrapMode.Wrap;
+            text.verticalOverflow = VerticalWrapMode.Overflow;
+            text.raycastTarget = false;
+            text.text = string.Empty;
+
+            var view = rect.gameObject.AddComponent<ScriptToastView>();
+            view.Construct(text, group, rect, _layout);
+            return view;
+        }
+
+        /// <summary>
+        /// The dialogue window and the terminal reader — the two branches of <c>GUI.dialText</c>
+        /// (<c>GUI.as:1741-1905</c>).
+        ///
+        /// <para><b>Sizes are the Oracle's where it has one.</b> The window is 1200 wide because that is
+        /// <c>HudLayout.DialogueAuthoredWidth</c> and <c>GUI.as:336-345</c> scales it <i>down</i> below a
+        /// 1200 px screen and never up; <see cref="HudLayoutScaler.DialogueWindow"/> re-applies that scale
+        /// on resize. The panel's 760 × 420 is the port's — the Oracle's <c>inform</c> symbol carries its
+        /// own size in the SWF, which the importer flattens, the same gap <see cref="HudLayout"/> marks for
+        /// the stat cluster.</para>
+        /// </summary>
+        private ScriptDialogueView BuildDialogue(Transform parent)
+        {
+            // ── The dialogue window (reg == 0) ──
+            var window = CreateHudElement("Script Dialogue", parent,
+                new Vector2(HudLayout.DialogueAuthoredWidth, 150f));
+            _layout.Register(HudSlot.Dialogue, window);
+            _layout.DialogueWindow = window;
+
+            var windowPlate = CreateImage("Plate", window, new Color(0f, 0f, 0f, 0.78f));
+            Stretch(windowPlate.rectTransform);
+            windowPlate.raycastTarget = false;
+
+            var windowTextRect = CreateRect("Text", window,
+                anchor: new Vector2(0.5f, 0.5f), pivot: new Vector2(0.5f, 0.5f),
+                anchoredPosition: Vector2.zero, size: Vector2.zero);
+            Stretch(windowTextRect, 24f);
+
+            var windowText = windowTextRect.gameObject.AddComponent<Text>();
+            windowText.font = ResolveFont();
+            windowText.fontSize = 24;
+            windowText.color = Color.white;
+            windowText.alignment = TextAnchor.MiddleLeft;
+            windowText.horizontalOverflow = HorizontalWrapMode.Wrap;
+            windowText.verticalOverflow = VerticalWrapMode.Overflow;
+            windowText.raycastTarget = false;
+            windowText.text = string.Empty;
+
+            // The `@p` frame label. Deliberately left unassigned: the Oracle's `@p` selects a portrait
+            // (GUI.as:1829-1846), not a name, so printing "lp1" would be inventing text. The view exposes
+            // Speaker for a portrait binder that does not exist yet.
+            Text speakerLabel = null;
+
+            // ── The terminal reader (reg >= 1) ──
+            var panel = CreateHudElement("Script Panel", parent, new Vector2(760f, 420f));
+            _layout.Register(HudSlot.TerminalReader, panel);
+
+            var panelPlate = CreateImage("Plate", panel, new Color(0f, 0f, 0f, 0.85f));
+            Stretch(panelPlate.rectTransform);
+            panelPlate.raycastTarget = false;
+
+            var panelTextRect = CreateRect("Text", panel,
+                anchor: new Vector2(0.5f, 0.5f), pivot: new Vector2(0.5f, 0.5f),
+                anchoredPosition: Vector2.zero, size: Vector2.zero);
+            Stretch(panelTextRect, 24f);
+
+            var panelText = panelTextRect.gameObject.AddComponent<Text>();
+            panelText.font = ResolveFont();
+            panelText.fontSize = 20;
+            panelText.color = Color.white;
+            panelText.alignment = TextAnchor.UpperLeft;
+            panelText.horizontalOverflow = HorizontalWrapMode.Wrap;
+            panelText.verticalOverflow = VerticalWrapMode.Overflow;
+            panelText.raycastTarget = false;
+            panelText.text = string.Empty;
+
+            // `inform.but0.visible = reg == 2` (GUI.as:1872) — the OK button. Built here so the branch is
+            // expressible; nothing wires a click to it yet, and that is a gap rather than a port choice.
+            var buttonRect = CreateRect("OK Button", panel,
+                anchor: new Vector2(0.5f, 0f), pivot: new Vector2(0.5f, 0f),
+                anchoredPosition: new Vector2(0f, 20f), size: new Vector2(140f, 36f));
+            var buttonImage = buttonRect.gameObject.AddComponent<Image>();
+            buttonImage.color = new Color(0.25f, 0.25f, 0.3f, 0.95f);
+
+            var view = window.gameObject.AddComponent<ScriptDialogueView>();
+            view.Construct(window, windowText, panel, panelText, speakerLabel, buttonRect.gameObject);
+
+            return view;
+        }
+
+        /// <summary>
+        /// The blackout overlay — the Oracle's <c>World.vblack</c> plus the <c>cam.dblack</c> fade
+        /// (<c>Camera.as:291-308</c>).
+        ///
+        /// <para><b>Two GameObjects, and the split is load-bearing.</b> The view lives on an
+        /// always-active root while the black <see cref="Image"/> is a child it switches off at alpha 0.
+        /// Putting the view on the image itself would stop its <c>Update</c> the moment the blackout
+        /// finished — and the fade that brings it back runs in exactly that <c>Update</c>. That is the
+        /// same deadlock <c>ArmourBarView</c> and <c>ReloadIndicatorView</c> each document from their own
+        /// direction.</para>
+        ///
+        /// <para><b>It is moved to the back of the sibling order.</b> <c>vblack</c> is a world-layer
+        /// object and the GUI draws over it, so the banner stays readable on a black screen.</para>
+        /// </summary>
+        private ScriptOverlayView BuildOverlay(Transform parent)
+        {
+            var root = CreateHudElement("Script Overlay", parent, Vector2.zero);
+            Stretch(root);
+            root.SetAsFirstSibling();
+
+            var blackRect = CreateRect("Black", root,
+                anchor: new Vector2(0.5f, 0.5f), pivot: new Vector2(0.5f, 0.5f),
+                anchoredPosition: Vector2.zero, size: Vector2.zero);
+            Stretch(blackRect);
+
+            var image = blackRect.gameObject.AddComponent<Image>();
+            image.color = new Color(0f, 0f, 0f, 0f);
+
+            // A full-screen raycast target would swallow every click in the game — including the
+            // right-click that skips a dialogue. The Oracle's `vblack` is not interactive either.
+            image.raycastTarget = false;
+
+            var view = root.gameObject.AddComponent<ScriptOverlayView>();
+            view.Construct(image);
+            return view;
+        }
+
+        /// <summary>
+        /// Hands the three views their subscribers from the container.
+        ///
+        /// <para><b>Each is reported separately when missing, because each fails differently.</b> A
+        /// missing prompt subscriber is a campaign that opens on a black screen with no text; a missing
+        /// dialogue subscriber is a cutscene whose lines never appear; a missing overlay subscriber is an
+        /// opening that happens on a lit screen. Collapsing them into one warning would hide which.</para>
+        /// </summary>
+        private void BindScriptViews()
+        {
+            if (_resolver == null)
+            {
+                Debug.LogWarning("[HudBootstrapper] No container resolver — the script banner, the dialogue " +
+                                 "window and the blackout overlay are wired to nothing.");
+                return;
+            }
+
+            if (_resolver.TryResolve(out ISubscriber<TutorialPromptMessage> prompts))
+            {
+                _toast?.Bind(prompts);
+            }
+            else
+            {
+                Debug.LogWarning("[HudBootstrapper] No ISubscriber<TutorialPromptMessage> — every script " +
+                                 "`mess` will be published into nothing.");
+            }
+
+            if (_resolver.TryResolve(out ISubscriber<ScriptDialogueMessage> dialogues))
+            {
+                _dialogue?.Bind(dialogues);
+            }
+            else
+            {
+                Debug.LogWarning("[HudBootstrapper] No ISubscriber<ScriptDialogueMessage> — every script " +
+                                 "`dial`/`dialog`/`inform`/`landlevel` will be published into nothing.");
+            }
+
+            if (_resolver.TryResolve(out ISubscriber<ScriptOverlayMessage> overlays))
+            {
+                _overlay?.Bind(overlays);
+            }
+            else
+            {
+                Debug.LogWarning("[HudBootstrapper] No ISubscriber<ScriptOverlayMessage> — `black`, `dblack` " +
+                                 "and `gui off/on` will be published into nothing.");
+            }
+        }
+
         private AmmoCounterView BuildAmmoCounter(Transform parent)
         {
-            var rect = CreateRect("Ammo Counter", parent,
-                anchor: new Vector2(1f, 0f), pivot: new Vector2(1f, 0f),
-                anchoredPosition: new Vector2(-32f, 64f), size: new Vector2(220f, 32f));
+            // Bottom-left, NOT bottom-right: this readout is AS3's `textWeapon.holder` — the magazine
+            // line of the weapon block — and the block is pinned to the bottom-left by
+            // `vis.textWeapon.y = screenY - 20` (GUI.as:314). It sat bottom-right in the port before
+            // Item I4, which was never an Oracle position.
+            var rect = CreateHudElement("Ammo Counter", parent, new Vector2(220f, 32f));
+            _layout.Register(HudSlot.WeaponBlock, rect);
 
             // Text before the view: AmmoCounterView.Awake does GetComponent<Text>().
             var text = rect.gameObject.AddComponent<Text>();
             text.font = ResolveFont();
             text.fontSize = 24;
             text.color = Color.white;
-            text.alignment = TextAnchor.MiddleRight;
+            text.alignment = TextAnchor.MiddleLeft;
             text.text = "-- / --";
 
             return rect.gameObject.AddComponent<AmmoCounterView>();
@@ -426,9 +723,8 @@ namespace PFE.Core
 
         private ReloadIndicatorView BuildReloadIndicator(Transform parent)
         {
-            var rect = CreateRect("Reload Indicator", parent,
-                anchor: new Vector2(0.5f, 0f), pivot: new Vector2(0.5f, 0f),
-                anchoredPosition: new Vector2(0f, 64f), size: new Vector2(96f, 12f));
+            var rect = CreateHudElement("Reload Indicator", parent, new Vector2(96f, 12f));
+            _layout.Register(HudSlot.ReloadIndicator, rect);
 
             // Image before the view: ReloadIndicatorView.Awake does GetComponent<Image>() and caches
             // its colour as the "not reloading" colour — so starting transparent is what makes the

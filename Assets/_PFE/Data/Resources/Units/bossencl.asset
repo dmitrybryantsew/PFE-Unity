@@ -17,6 +17,7 @@ MonoBehaviour:
   id: bossencl
   parentId: 
   controllerId: 
+  lootTableKey: 
   fraction: 4
   category: 3
   xpReward: 7000

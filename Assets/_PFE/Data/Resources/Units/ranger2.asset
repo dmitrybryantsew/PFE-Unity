@@ -17,6 +17,7 @@ MonoBehaviour:
   id: ranger2
   parentId: ranger
   controllerId: 
+  lootTableKey: 
   fraction: 4
   category: 3
   xpReward: 750
@@ -328,12 +329,15 @@ MonoBehaviour:
   - weaponId: cflamer
     chance: 0.3
     difficulty: 0
+    isFixedWeapon: 0
   - weaponId: gatl
     chance: 0.7
     difficulty: 0
+    isFixedWeapon: 0
   - weaponId: gatp
     chance: 1
     difficulty: 0
+    isFixedWeapon: 0
   animations:
     stay:
       row: 0

@@ -173,9 +173,18 @@ MonoBehaviour:
     attributes:
     - key: allid
       value: d1
+    - key: move_present
+      value: 1
+    - key: move_dy
+      value: -16
+    - key: move_tstay
+      value: 30
+    - key: move_tmove
+      value: 120
     items: []
     scripts: []
-    parameters: code="XPPOidOLRXuhdUsm" allid="d1"
+    parameters: code="XPPOidOLRXuhdUsm" allid="d1" move_present="1" move_dy="-16"
+      move_tstay="30" move_tmove="120"
   - type: box
     id: knop3
     definitionId: knop3
@@ -592,3 +601,6 @@ MonoBehaviour:
     radiation: 0
     radiationDamage: 0
     darkness: 20
+    tipEnemy: 2
+    kolEnSpawn: 3
+    spawnGroupId: 

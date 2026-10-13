@@ -17,6 +17,7 @@ MonoBehaviour:
   id: encl2
   parentId: encl
   controllerId: 
+  lootTableKey: 
   fraction: 4
   category: 3
   xpReward: 600
@@ -272,18 +273,23 @@ MonoBehaviour:
   - weaponId: nova
     chance: 0.2
     difficulty: 0
+    isFixedWeapon: 0
   - weaponId: plam
     chance: 0.3
     difficulty: 0
+    isFixedWeapon: 0
   - weaponId: lassn
     chance: 0.5
     difficulty: 0
+    isFixedWeapon: 0
   - weaponId: grom
     chance: 0.1
     difficulty: 0
+    isFixedWeapon: 0
   - weaponId: plamg
     chance: 1
     difficulty: 0
+    isFixedWeapon: 0
   animations:
     stay:
       row: 0

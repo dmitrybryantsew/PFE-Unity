@@ -271,15 +271,16 @@ namespace PFE.Systems.Map.Serialization
             saveData.campaignLandId = campaign.CurrentLandId.CurrentValue ?? string.Empty;
             saveData.campaignMissionId = campaign.MissionId ?? string.Empty;
 
-            var names = new List<string>();
-            var values = new List<int>();
-            foreach (KeyValuePair<string, int> pair in campaign.Triggers)
-            {
-                names.Add(pair.Key);
-                values.Add(pair.Value);
-            }
-            saveData.triggerNames = names.ToArray();
-            saveData.triggerValues = values.ToArray();
+            // The trigger table goes through TriggerTableCodec rather than being flattened here, so the
+            // string arm and the legacy int-only read are exercised by an offline fixture. SaveManager
+            // itself is unreachable offline (JsonUtility is an ECall), which is exactly why the transform
+            // lives in a Unity-free class.
+            PFE.Systems.Campaign.TriggerTableCodec.Flatten(
+                campaign.Triggers,
+                out saveData.triggerNames,
+                out saveData.triggerValues,
+                out saveData.triggerStrings,
+                out saveData.triggerKinds);
 
             if (campaign.CurrentCheckpoint.HasValue)
             {
@@ -308,16 +309,11 @@ namespace PFE.Systems.Map.Serialization
 
             campaign.LandStates.LoadFromSaveData(saveData.landStates);
 
-            var triggers = new List<KeyValuePair<string, int>>();
-            if (saveData.triggerNames != null && saveData.triggerValues != null)
-            {
-                int count = Math.Min(saveData.triggerNames.Length, saveData.triggerValues.Length);
-                for (int i = 0; i < count; i++)
-                {
-                    triggers.Add(new KeyValuePair<string, int>(saveData.triggerNames[i], saveData.triggerValues[i]));
-                }
-            }
-            campaign.LoadTriggers(triggers);
+            campaign.LoadTriggers(PFE.Systems.Campaign.TriggerTableCodec.Rebuild(
+                saveData.triggerNames,
+                saveData.triggerValues,
+                saveData.triggerStrings,
+                saveData.triggerKinds));
 
             campaign.RestoreCheckpoint(
                 saveData.hasCheckpoint,

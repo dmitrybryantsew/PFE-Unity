@@ -157,10 +157,21 @@ MonoBehaviour:
     tileCoord: {x: 36, y: 17}
     code: CM7Nph6cpJDpw9s8
     uid: 
-    attributes: []
+    attributes:
+    - key: move_present
+      value: 1
+    - key: move_dx
+      value: -13
+    - key: move_tstay
+      value: 30
+    - key: move_tmove
+      value: 60
+    - key: move_on
+      value: 1
     items: []
     scripts: []
-    parameters: code="CM7Nph6cpJDpw9s8"
+    parameters: code="CM7Nph6cpJDpw9s8" move_present="1" move_dx="-13" move_tstay="30"
+      move_tmove="60" move_on="1"
   - type: box
     id: elpanel
     definitionId: elpanel
@@ -335,9 +346,18 @@ MonoBehaviour:
     attributes:
     - key: allid
       value: a1
+    - key: move_present
+      value: 1
+    - key: move_dx
+      value: -25
+    - key: move_tstay
+      value: 30
+    - key: move_tmove
+      value: 240
     items: []
     scripts: []
-    parameters: code="ENtSB6eLsCIFwQOj" allid="a1"
+    parameters: code="ENtSB6eLsCIFwQOj" allid="a1" move_present="1" move_dx="-25"
+      move_tstay="30" move_tmove="240"
   - type: checkpoint
     id: checkpoint
     definitionId: checkpoint
@@ -441,3 +461,6 @@ MonoBehaviour:
     radiation: 0
     radiationDamage: 0
     darkness: 0
+    tipEnemy: -1
+    kolEnSpawn: -1
+    spawnGroupId: 

@@ -204,20 +204,20 @@ namespace PFE.Systems.Inventory
             // Get or create item instance
             if (items.TryGetValue(itemDefinition.itemId, out GameItemInstance existingItem))
             {
-                // Stack onto existing
-                int spaceInStack = itemDefinition.stackSize - existingItem.Quantity;
-                int actualQuantity = Mathf.Min(quantity, spaceInStack);
-
-                if (actualQuantity > 0)
-                {
-                    existingItem.Quantity += actualQuantity;
-                    UpdateItemNewStatus(existingItem);
-                }
-                else
-                {
-                    Debug.LogWarning($"[GameInventory] Stack full for {itemDefinition.itemId}");
-                    return false;
-                }
+                // Merge onto the existing stack. **There is no ceiling.**
+                //
+                // AS3 `Invent.plus()` adds unconditionally — `this.items[param1.id].kol += param1.kol`
+                // (Invent.as:1343) — and `plusItem()` the same (:1370). Nothing anywhere in the oracle
+                // caps an item count: `maxkol` exists only on particle emitters/parts (Part.as:59,
+                // Emitter.as:99), never on an item, and the debug grants set `kol = 1000`/`10000`
+                // freely (:1646-1717).
+                //
+                // The port used to cap here at `ItemDefinition.stackSize`, which every one of the 500
+                // shipped item assets left at its default of 1 (SimpleDataImporter never read `@kol`).
+                // So `Give 300` banked exactly one round and a *second* Give was refused with "Stack
+                // full" — the reported "can't get 3000 ammo", and equally "100 eggs → 1".
+                existingItem.Quantity += quantity;
+                UpdateItemNewStatus(existingItem);
             }
             else
             {

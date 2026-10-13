@@ -87,6 +87,71 @@ namespace PFE.Entities.Enemies.Archetypes
             else if (id.Contains("destr")) _kind = TrapKind.Destructible;
         }
 
+        /// <summary>
+        /// AS3 <c>UnitTurret.putLoc</c>'s aim setup (`UnitTurret.as:179-269</c>), applied from the
+        /// placement the way the oracle reads the placed <c>&lt;obj&gt;</c> node: the mount tip's
+        /// <c>aRot</c> table, narrowed by the node's <c>@vis</c>.
+        ///
+        /// <para><b>Only tips 2 and 5 honour <c>@vis</c>.</b> <c>UnitTurret.as:136-139</c> stores the
+        /// attribute for every tip, but the <c>angle</c> cases live inside the
+        /// <c>turrettip == 2 || turrettip == 5</c> branch (`:201-231</c>). The shipped rooms author
+        /// <c>vis</c> on 2 <c>landturret</c> and 3 <c>cturret</c> placements too — values the oracle
+        /// ignores — and honouring them here would aim those turrets differently from the game.</para>
+        ///
+        /// <para><b>An absent <c>@vis</c> is not "face right".</b> The tip-2 table is
+        /// <c>[45,135,-135,-45]</c> and <c>nRot</c> is a random index into it (`:252</c>), so the
+        /// initial aim is random — which is exactly the coin flip
+        /// <see cref="UnitController.ResolveFacing"/> already resolved at population time for the
+        /// facing. Leaving it alone is the faithful arm, and the cone alone is not touched either:
+        /// without an aim the AS3 unit still sweeps all four directions in turn, and the port's
+        /// hemisphere is the aggregate of any two of them.</para>
+        /// </summary>
+        public override void OnPlacementApplied(UnitInstance placement)
+        {
+            base.OnPlacementApplied(placement);
+            if (_kind != TrapKind.Turret || placement == null) return;
+
+            int tip = TurretMountMath.TipOfDefinitionId(
+                _controller != null && _controller.Definition != null ? _controller.Definition.id : null);
+            if (tip != 2 && tip != 5) return;
+
+            string vis = placement.GetAttribute("vis", null);
+            EnemySensors.VisionCone? cone = TurretMountMath.ConeForVis(vis);
+            if (cone == null)
+            {
+                // UnitTurret.as:216-231 has four cases and no else. An unrecognised value is reported
+                // rather than silently treated as "no angle", because the oracle would leave the aim at
+                // the table default and an authored typo would look identical.
+                Debug.LogWarning(
+                    $"[TrapBrain] '{name}': placement vis='{vis}' is not one of "
+                    + "up/down/left/right (UnitTurret.as:216-231); the mount keeps its aRot default.",
+                    this);
+                return;
+            }
+
+            SetAim(cone.Value, TurretMountMath.FacingForVis(vis, _controller.FacingDirection));
+        }
+
+        /// <summary>
+        /// Point this unit's sensors at one of the four half-planes, and turn the unit to match when
+        /// the half has a horizontal side.
+        ///
+        /// <para><b>Both copies are written.</b> <c>ApplyFacing</c> only reaches the controller; the
+        /// blackboard's <c>FacingDirection</c> is what the sensors read and it is written once, in
+        /// <c>AttachController</c>/<c>Initialize</c> — before this runs. Writing only the controller
+        /// would leave the sensor reading the pre-placement side, which is the same "written but never
+        /// read at the right time" shape this project keeps finding.</para>
+        /// </summary>
+        protected void SetAim(EnemySensors.VisionCone cone, int facing)
+        {
+            _sensors.Cone = cone;
+            if (cone == EnemySensors.VisionCone.Horizontal)
+            {
+                _blackboard.FacingDirection = facing;
+                ApplyFacing(facing);
+            }
+        }
+
         public override void SimTick(int tickIndex)
         {
             if (_fireCooldownTicks > 0) _fireCooldownTicks--;
@@ -98,6 +163,18 @@ namespace PFE.Entities.Enemies.Archetypes
             {
                 return;
             }
+
+            // ── Perception, BEFORE the family switch ──────────────────────────────────────────────
+            //
+            // AS3's traps are not exempt from the base perception entry: `UnitTurret.control()` runs
+            // the shared `findCel()` on the same tick as its own branch (`UnitTurret.as:648</c>), and
+            // `UnitTrap`/`UnitTrigger`/`UnitDamager`/`UnitMWall` are all ordinary `Unit`s that call
+            // `super.control()`. This override used to jump straight to its own switch, so
+            // `EnemySensors.Evaluate` — the ONLY writer of `EnemyBlackboard.TargetUnit` in the whole
+            // project — never ran for ANY trap-family unit, and every
+            // `if (_blackboard.TargetUnit == null) return;` below was unconditionally true. That is
+            // the reported "turrets never target the player and never attack": not per unit, per family.
+            UpdatePerception(tickIndex);
 
             switch (_kind)
             {
@@ -122,6 +199,10 @@ namespace PFE.Entities.Enemies.Archetypes
                 case TrapKind.Destructible:
                     break;
             }
+
+            // Advance whatever the controller equipped, last, so the aim this tick published is the
+            // one the weapon consumes — the same order the base ends its own tick with.
+            TickWeapons();
         }
 
         protected virtual void TickMagicWall()
@@ -178,29 +259,80 @@ namespace PFE.Entities.Enemies.Archetypes
             }
         }
 
+        /// <summary>
+        /// AS3 <c>UnitTurret.control()</c>'s attack half (`UnitTurret.as:716-744</c>).
+        ///
+        /// <para><b>The weapon is a real Weapon, not a damage call.</b> The oracle's constructor is
+        /// <c>currentWeapon = new Weapon(this, "turret" + this.tr)</c> (`UnitTurret.as:126-127</c>)
+        /// with <c>auto = true</c> (`:130</c>), and the tick's only attack is
+        /// <c>currentWeapon.attack()</c> when the unit has committed to a target (`:737-740</c>).
+        /// The port's equivalent is the mount the controller equipped: aim it at the target and hold
+        /// the trigger while the target is in reach, and the mount's own cadence decides the shots.
+        /// That is the same controller-equips / brain-fires split
+        /// <see cref="ArmedShooterController"/> uses.</para>
+        ///
+        /// <para><b>The trigger is released before the target test, not in an else.</b> AS3's
+        /// <c>attack()</c> is one call per frame that decides from scratch, so a frame in which no
+        /// branch fires is a frame with the trigger up. <c>EnemyWeaponMount</c> latches
+        /// <c>_firing</c> until told otherwise, and <c>TickWeaponMounts</c> runs at the end of this
+        /// tick — a turret that loses its target would keep shooting at where it was.</para>
+        /// </summary>
         protected virtual void TickTurret(int tickIndex)
         {
-            if (_blackboard.TargetUnit == null) return;
+            EnemyWeaponMount mount = _controller is TurretController turretController
+                ? turretController.TurretWeaponMount
+                : null;
 
-            // Sweep and fire if in LOS and range
+            if (mount != null)
+            {
+                mount.SetFiring(false);
+            }
+
+            UnitController target = _blackboard.TargetUnit;
+            if (target == null) return;
+
+            // aiState == 3 — the oracle's committed state, reached through findCel() and therefore
+            // already gated on the cone and the line of sight. `_range` is the port's stand-in for
+            // `Unit.look()`'s range (400 px), which the shared sensor's 480 px hard cut can only
+            // over-, never under-shoot.
             if (_blackboard.HasLineOfSight && _blackboard.TargetDistance <= _range)
             {
-                // Face target
+                // Face target (AS3 `storona = celDX > 0 ? 1 : -1`, UnitTurret.as:720). Both copies are
+                // written — see SetAim.
                 float dx = _blackboard.TargetDeltaX;
-                if (dx > 5f) ApplyFacing(1);
-                else if (dx < -5f) ApplyFacing(-1);
-
-                if (_fireCooldownTicks <= 0)
+                if (dx > 5f)
                 {
+                    _blackboard.FacingDirection = 1;
+                    ApplyFacing(1);
+                }
+                else if (dx < -5f)
+                {
+                    _blackboard.FacingDirection = -1;
+                    ApplyFacing(-1);
+                }
+
+                if (mount != null)
+                {
+                    // Aim in Unity world units — `TargetDeltaX/Y` are pixels and must not be scaled;
+                    // the target's own transform is the point, exactly as ArmedShooterBrain aims.
+                    mount.SetAimTarget(target.transform.position);
+                    mount.SetFiring(true);
+                }
+                else if (_fireCooldownTicks <= 0)
+                {
+                    // No mount: a bare test spawn, or one whose weapon services never arrived. AS3's
+                    // `currentWeapon.attack()` still happens, so the damage still lands — the direct
+                    // hit is the fallback, not the mechanism.
                     ExecuteAttackAction();
                     _fireCooldownTicks = 30; // ~1 attack per second cadence
                 }
             }
 
-            // Close-range contact attack (UnitTurret.as:741-744)
+            // `attKorp(celUnit, 1)` — UnitTurret.as:741-744, the point-blank contact hit, which is
+            // independent of the weapon and fires on every tick a target is in contact range.
             if (_damage > 0 && _blackboard.TargetDistance <= 50f)
             {
-                _controller.TryContactAttack(_blackboard.TargetUnit, 1f);
+                _controller.TryContactAttack(target, 1f);
             }
         }
 

@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
+using PFE.Data.Definitions.Campaign;
 using PFE.Systems.Map;
 using PFE.Systems.Map.Rendering;
 
@@ -182,9 +183,33 @@ namespace PFE.Editor.Importers
             }
         }
 
+        /// <summary>
+        /// Every id the runtime can ask <see cref="RoomBackgroundLookup"/> for.
+        ///
+        /// <para><b>Three sources, and each one was a separate hole.</b> The room templates give the
+        /// per-room backwall ids and the background decorations. The land definitions give the
+        /// <c>fon</c> — the land-wide painted backdrop, parsed into
+        /// <see cref="LandDefinition.backdropId"/> by <c>CampaignDataParser.cs:74</c>. That third
+        /// source was missing, so every <c>fon</c> id was absent from the lookup and a room with
+        /// <c>backwall="sky"</c> — which draws no backwall bitmap at all, AS3 <c>Grafon.as:730-733</c>
+        /// — had nothing behind it. See <c>docs/AUDIT_surf_calamity_backdrop_camp_2026-10-13.md</c>.</para>
+        ///
+        /// <para>The fallback is added unconditionally and is not an optimisation: <b>no land in the
+        /// shipped data names it</b> (<c>grep backdropId</c> over the 33 land assets returns
+        /// <c>fonWay</c>, <c>fonDarkClouds</c>, <c>fonRuins</c>, <c>fonFinalb</c>, <c>fonEnclave</c>,
+        /// <c>fonCanter</c>, <c>fonFire</c>, <c>fonClear</c> and nine empties — never
+        /// <c>fonDefault</c>). A set built only from what the data names would therefore never import
+        /// the one id that an empty <c>fon</c> row resolves to (<c>Grafon.as:312-315</c>), and the
+        /// nine lands with an empty row would fall back to an id that is not in the table.</para>
+        /// </summary>
         private static HashSet<string> CollectRoomBackgroundIds()
         {
             var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            // AS3 Grafon.drawFon's fallback (Grafon.as:312-315) — see the remarks for why this cannot
+            // be derived from the data.
+            ids.Add(LandFonMath.FallbackFonId);
+
             var guids = AssetDatabase.FindAssets("t:RoomTemplate", new[] { RoomTemplateRoot });
             for (int i = 0; i < guids.Length; i++)
             {
@@ -205,6 +230,18 @@ namespace PFE.Editor.Importers
                             ids.Add(decoration.id);
                     }
                 }
+            }
+
+            // The land's `fon` layer. Unscoped on purpose: the land assets live under
+            // Data/Resources/Campaign/Lands today, but nothing about the id depends on that folder,
+            // and a folder-scoped search would drop a land silently the day one moves.
+            var landGuids = AssetDatabase.FindAssets("t:LandDefinition");
+            for (int i = 0; i < landGuids.Length; i++)
+            {
+                var path = AssetDatabase.GUIDToAssetPath(landGuids[i]);
+                var land = AssetDatabase.LoadAssetAtPath<LandDefinition>(path);
+                if (land != null && !string.IsNullOrWhiteSpace(land.backdropId))
+                    ids.Add(land.backdropId);
             }
 
             return ids;

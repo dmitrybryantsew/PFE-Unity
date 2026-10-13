@@ -300,6 +300,151 @@ namespace PFE.Tests.Editor.Map
             }
         }
 
+        /// <summary>
+        /// A cell whose template declares an interior (<c>&lt;options back="…"&gt;</c>) must end up with that
+        /// interior registered at <b><c>z + 1</c> of the same cell</b>.
+        ///
+        /// <para><b>Why the registry and not just "was it built".</b> <c>LandMap.GetLayerToggleTarget</c> —
+        /// the port of <c>Land.gotoLoc(5)</c>'s <c>locZ = 1 - locZ</c> lookup (<c>Land.as:1333</c>,
+        /// <c>:1351</c>) — reads <b>only</b> <c>LandMap.rooms</c>. <c>ComeInAction.CanExecute</c> is that
+        /// call, so an interior that exists but is registered elsewhere is a Z door that refuses and does
+        /// nothing. Both procedural paths had exactly that bug (<c>BuildRandomWorld</c> and the
+        /// <c>MapBridge</c> override used <c>AddSpecialRoom</c>, and <c>BuildProceduralLand</c> never read
+        /// <c>backgroundRoomId</c> at all), so asserting "a room exists" is not enough — the assertion has to
+        /// be on the lookup the door actually performs.</para>
+        ///
+        /// <para>A 1x1 grid is used deliberately: the single cell <i>is</i> <c>startPosition</c>, so
+        /// <c>SelectRoomForPosition</c> takes the <c>beg0</c> branch (<c>WorldBuilder.cs:306-309</c>) and the
+        /// case is deterministic without reaching into the generator's RNG.</para>
+        /// </summary>
+        [Test]
+        public void BuildRandomWorld_TemplateWithBackgroundRoom_RegistersInteriorAtZPlusOne()
+        {
+            // Arrange
+            List<RoomTemplate> templates = new List<RoomTemplate>
+            {
+                CreateTestTemplate("beg0_1", "beg0"),
+                CreateTestTemplate("beg0_1_back", "back"),
+            };
+            templates[0].backgroundRoomId = "beg0_1_back";
+            templates[1].allowRandom = false;
+
+            var map = new LandMap();
+            var generator = new RoomGenerator();
+            var builder = new WorldBuilder();
+            generator.Initialize(templates);
+            builder.Initialize(map, generator, templates);
+
+            // Act
+            bool built = builder.BuildRandomWorld(
+                stage: 1,
+                customMin: new Vector3Int(0, 0, 0),
+                customMax: new Vector3Int(1, 1, 1));
+
+            // Assert
+            Assert.That(built, Is.True);
+
+            RoomInstance cell = map.GetRoom(new Vector3Int(0, 0, 0));
+            Assert.That(cell, Is.Not.Null, "the single cell room should have been built");
+            Assert.That(cell.templateId, Is.EqualTo("beg0_1"),
+                "the start cell must have taken the beg0 template that declares the interior");
+            Assert.That(cell.hasBackgroundLayer, Is.True,
+                "the cell must know it owns an interior — ReportMissingOppositeLayer keys its message on this");
+
+            Assert.That(map.HasRoom(new Vector3Int(0, 0, 1)), Is.True,
+                "the interior belongs at z + 1 of its cell, in the room grid itself");
+
+            RoomInstance interior = map.GetRoom(new Vector3Int(0, 0, 1));
+            Assert.That(interior.noMap, Is.True,
+                "the interior shares its cell's minimap tile, so it must be flagged noMap");
+
+            Assert.That(map.GetLayerToggleTarget(new Vector3Int(0, 0, 0)),
+                Is.EqualTo(new Vector3Int(0, 0, 1)),
+                "the Z-door toggle must resolve — this is the exact call ComeInAction.CanExecute makes, " +
+                "and a null here is the 'the door does nothing' symptom");
+
+            Assert.That(map.GetLayerToggleTarget(new Vector3Int(0, 0, 1)),
+                Is.EqualTo(new Vector3Int(0, 0, 0)),
+                "…and it must resolve back the other way, or the player is sealed inside");
+        }
+
+        /// <summary>
+        /// The absent control for the case above: a cell whose template declares <b>no</b> interior must get
+        /// no <c>z + 1</c> room, and its toggle must refuse. Without this, an implementation that registered
+        /// a layer for every cell would pass the positive case.
+        /// </summary>
+        [Test]
+        public void BuildRandomWorld_TemplateWithoutBackgroundRoom_RegistersNoInterior()
+        {
+            // Arrange
+            List<RoomTemplate> templates = new List<RoomTemplate>
+            {
+                CreateTestTemplate("beg0_1", "beg0"),
+            };
+
+            var map = new LandMap();
+            var generator = new RoomGenerator();
+            var builder = new WorldBuilder();
+            generator.Initialize(templates);
+            builder.Initialize(map, generator, templates);
+
+            // Act
+            bool built = builder.BuildRandomWorld(
+                stage: 1,
+                customMin: new Vector3Int(0, 0, 0),
+                customMax: new Vector3Int(1, 1, 1));
+
+            // Assert
+            Assert.That(built, Is.True);
+
+            RoomInstance cell = map.GetRoom(new Vector3Int(0, 0, 0));
+            Assert.That(cell, Is.Not.Null);
+            Assert.That(cell.hasBackgroundLayer, Is.False,
+                "a template with no `backgroundRoomId` declares no interior");
+            Assert.That(map.HasRoom(new Vector3Int(0, 0, 1)), Is.False,
+                "nothing may be invented at z + 1");
+            Assert.That(map.GetLayerToggleTarget(new Vector3Int(0, 0, 0)), Is.Null,
+                "with no interior the toggle must refuse rather than resolve to a room that is not there");
+        }
+
+        /// <summary>
+        /// The authored path registers the interior the same way — asserted because the two paths are the
+        /// pair that drifted apart, and this is the half that was already right. If a future change moves
+        /// one and not the other, exactly one of these two tests goes red.
+        /// </summary>
+        [Test]
+        public void BuildSpecificWorld_TemplateWithBackgroundRoom_RegistersInteriorAtZPlusOne()
+        {
+            // Arrange
+            List<RoomTemplate> templates = new List<RoomTemplate>
+            {
+                CreateTestTemplate("room1", "beg0", new Vector3Int(0, 0, 0)),
+                CreateTestTemplate("room2", "pass", new Vector3Int(1, 0, 0)),
+                // Not placeable: `HasFixedPosition` rejects a negative z, so the interior can only arrive
+                // through `backgroundRoomId`.
+                CreateTestTemplate("room1_back", "back"),
+            };
+            templates[0].backgroundRoomId = "room1_back";
+            templates[2].allowRandom = false;
+
+            var map = new LandMap();
+            var generator = new RoomGenerator();
+            var builder = new WorldBuilder();
+            generator.Initialize(templates);
+            builder.Initialize(map, generator, templates);
+
+            // Act
+            bool built = builder.BuildSpecificWorld(templates);
+
+            // Assert
+            Assert.That(built, Is.True);
+            Assert.That(map.HasRoom(new Vector3Int(0, 0, 1)), Is.True);
+            Assert.That(map.GetLayerToggleTarget(new Vector3Int(0, 0, 0)),
+                Is.EqualTo(new Vector3Int(0, 0, 1)));
+            Assert.That(map.GetRoom(new Vector3Int(1, 0, 1)), Is.Null,
+                "only the cell whose template declares an interior gets one");
+        }
+
         #region Test Helpers
 
         private List<RoomTemplate> CreateTestTemplates()

@@ -17,6 +17,7 @@ MonoBehaviour:
   id: zebra5
   parentId: zebra
   controllerId: raider
+  lootTableKey: raider
   fraction: 2
   category: 3
   xpReward: 750
@@ -368,18 +369,23 @@ MonoBehaviour:
   - weaponId: lsword
     chance: 0.15
     difficulty: 0
+    isFixedWeapon: 0
   - weaponId: sword
     chance: 0.1
     difficulty: 0
+    isFixedWeapon: 0
   - weaponId: zsword
     chance: 0.15
     difficulty: 0
+    isFixedWeapon: 0
   - weaponId: lmg
     chance: 0.1
     difficulty: 0
+    isFixedWeapon: 0
   - weaponId: zebr
     chance: 1
     difficulty: 0
+    isFixedWeapon: 0
   animations:
     stay:
       row: 0

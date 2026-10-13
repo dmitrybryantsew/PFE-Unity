@@ -493,31 +493,9 @@ namespace PFE.Entities.Enemies
                 return;
             }
 
-            // Decrement timers
-            if (_blackboard.ShockTimerTicks > 0) _blackboard.ShockTimerTicks--;
-            if (_blackboard.AttackCooldownTicks > 0) _blackboard.AttackCooldownTicks--;
-            if (_blackboard.AlertTimerTicks > 0) _blackboard.AlertTimerTicks--;
-
-            // Mirror the unit's `stay` onto the blackboard, which is where the F3 panel reads it from.
-            //
-            // It has to be written rather than read on demand: `EnemyBlackboard.IsGrounded` was a
-            // declared field with a `true` initialiser that NOTHING ever assigned, so the panel's
-            // `grounded=` readout was the constant `True` for every enemy in every state — a diagnostic
-            // that agreed with a broken build and would have agreed with a fixed one. The value is
-            // `UnitController.IsGrounded`, which is the same flag the archetypes branch on
-            // (`ResolveAnimState`, `HandleLedgeAhead`, `UpdateJump`), so the panel cannot disagree with
-            // the code it is describing.
-            if (_controller != null)
-            {
-                _blackboard.IsGrounded = _controller.IsGrounded;
-            }
-
-            // Update candidate targets (find living players)
-            RefreshTargetCandidates();
-
-            // Evaluate sensory perception
-            Vector2 eyePosPx = GetEyePositionPixels();
-            _sensors.Evaluate(_blackboard, eyePosPx, _blackboard.FacingDirection, _tileQuery, _targetCandidates, tickIndex);
+            // The perception half, hoisted out so a subclass that replaces the state machine can still
+            // acquire a target. See UpdatePerception.
+            UpdatePerception(tickIndex);
 
             // Execute state tick
             switch (_currentState)
@@ -571,11 +549,73 @@ namespace PFE.Entities.Enemies
             // a projectile. Last in the tick on purpose: the state tick above is what sets the facing
             // and the aim point, and the weapon has to consume this tick's values rather than the
             // previous tick's.
+            TickWeapons();
+        }
+
+        /// <summary>
+        /// The perception half of the tick — timers, the grounded mirror, candidate targets and the
+        /// sensory evaluation that writes <see cref="EnemyBlackboard.TargetUnit"/>.
+        ///
+        /// <para><b>Why this is its own virtual and not inlined.</b> <c>EnemySensors.Evaluate</c> is the
+        /// ONLY writer of <c>TargetUnit</c> anywhere in the project, and <c>EnemyBrain.SimTick</c> was
+        /// its only caller. A subclass that overrides <c>SimTick</c> without calling <c>base</c> —
+        /// which is what every brain in the game does, because the base is a state machine it replaces
+        /// — therefore dropped the whole perception step on the floor. That is exactly what
+        /// <see cref="TrapBrain"/> did: every trap-family unit was permanently blind, and every
+        /// `if (_blackboard.TargetUnit == null) return;</c> guard in it was unconditionally true. The
+        /// symptom was "turrets never target the player and never attack", reported per unit and
+        /// actually per family.</para>
+        ///
+        /// <para>The oracle has no such fork. `UnitTurret.control()` runs the shared
+        /// <c>findCel()</c> on the same tick as its own branch (`UnitTurret.as:648</c>), and the trap
+        /// subclasses are ordinary <c>Unit</c>s that override <c>control()</c> and call
+        /// <c>super.control()</c> first.</para>
+        /// </summary>
+        protected virtual void UpdatePerception(int tickIndex)
+        {
+            // Decrement timers
+            if (_blackboard.ShockTimerTicks > 0) _blackboard.ShockTimerTicks--;
+            if (_blackboard.AttackCooldownTicks > 0) _blackboard.AttackCooldownTicks--;
+            if (_blackboard.AlertTimerTicks > 0) _blackboard.AlertTimerTicks--;
+
+            // Mirror the unit's `stay` onto the blackboard, which is where the F3 panel reads it from.
             //
-            // Driven from the brain rather than from `UnitController.StepUnit` because the live settings
-            // run units on the hand-rolled motor (`unitMotor: 1`) and `TilePhysicsController.StepMotor`
-            // bypasses `StepUnit` entirely — see `EnemyController.TickWeaponMounts` for the full note.
-            //
+            // It has to be written rather than read on demand: `EnemyBlackboard.IsGrounded` was a
+            // declared field with a `true` initialiser that NOTHING ever assigned, so the panel's
+            // `grounded=` readout was the constant `True` for every enemy in every state — a diagnostic
+            // that agreed with a broken build and would have agreed with a fixed one. The value is
+            // `UnitController.IsGrounded`, which is the same flag the archetypes branch on
+            // (`ResolveAnimState`, `HandleLedgeAhead`, `UpdateJump`), so the panel cannot disagree with
+            // the code it is describing.
+            if (_controller != null)
+            {
+                _blackboard.IsGrounded = _controller.IsGrounded;
+            }
+
+            // Update candidate targets (find living players)
+            RefreshTargetCandidates();
+
+            // Evaluate sensory perception
+            Vector2 eyePosPx = GetEyePositionPixels();
+            _sensors.Evaluate(_blackboard, eyePosPx, _blackboard.FacingDirection, _tileQuery, _targetCandidates, tickIndex);
+        }
+
+        /// <summary>
+        /// Advance this unit's weapon mounts by one simulation step, so a mount told to fire this tick
+        /// actually produces a projectile.
+        ///
+        /// <para>Split out of <see cref="SimTick"/> for the same reason as
+        /// <see cref="UpdatePerception"/>: a brain that replaces the tick has to be able to run the
+        /// weapon half without inheriting the state machine. See
+        /// <see cref="EnemyController.TickWeaponMounts"/> for why this is driven from the brain rather
+        /// than from <c>UnitController.StepUnit</c> (the live settings run every unit on the hand-rolled
+        /// motor, whose step bypasses <c>StepUnit</c> entirely).</para>
+        ///
+        /// <para><c>_simLoop</c> is the legacy-path guard: a bare test spawn with no clock has no
+        /// <c>SimDt</c> to advance by, and its mounts stay frozen rather than stepping by 0.</para>
+        /// </summary>
+        protected virtual void TickWeapons()
+        {
             // `_controller` is typed `UnitController` here (it is the base the brain drives), so the
             // weapon half needs the enemy cast; a brain on a non-enemy controller has no mounts.
             if (_controller is EnemyController enemy && _simLoop != null)
@@ -1236,19 +1276,71 @@ namespace PFE.Entities.Enemies
             return basePosPx + new Vector2(0f, heightPx * 0.5f);
         }
 
+        /// <summary>
+        /// The rule itself, as a pure function of two factions — so it can be asserted with no
+        /// GameObject, no collider and no running engine. Same move as
+        /// <see cref="PFE.Systems.Weapons.FactionRule.CanHitDirectly"/>, which encodes the identical
+        /// predicate for the damage path: AS3 derives "may I shoot it" and "may I target it" from the
+        /// one <c>fraction</c> field, so the two must agree.
+        /// </summary>
+        public static bool FactionPermitsTargeting(FactionType candidateFaction, FactionType ownFaction)
+        {
+            return candidateFaction != ownFaction;
+        }
+
+        /// <summary>
+        /// AS3's target-admission rule: a unit may never target a unit of its <b>own</b> faction.
+        ///
+        /// <para>This is stated twice in the oracle and both forms reduce to the same test.
+        /// <c>UnitTurret.as:549</c> (and <c>UnitNPC.as:449</c>) walk the room's units skipping
+        /// <c>_loc3_.fraction == fraction</c>; and the base <c>Unit.findCel</c>
+        /// (<c>Unit.as:4643-4655</c>) admits the player only <c>if(this.isMeet(loc.gg) &amp;&amp;
+        /// !loc.gg.invulner &amp;&amp; this.fraction != F_PLAYER)</c>, while admitting a remembered
+        /// opponent only <c>if(this.priorUnit.fraction != this.fraction)</c>. Because the player's own
+        /// faction <i>is</i> <c>F_PLAYER</c> (<c>UnitPlayer.as:385</c>), <c>player.fraction !=
+        /// this.fraction</c> is the same predicate as <c>this.fraction != F_PLAYER</c> — so one
+        /// comparison covers both arms.</para>
+        ///
+        /// <para><b>Why it is a pre-filter and not a check inside the vision loop.</b> In AS3 the
+        /// faction test is reached <i>before</i> <c>listen()</c>/<c>look()</c>: a same-faction unit is
+        /// never heard, never seen and never contributes suspicion. Filtering later, inside
+        /// <see cref="EnemySensors.Evaluate"/>, would still let a friendly unit's gunshot raise the
+        /// alarm and still let a friendly unit accumulate the player's suspicion meter.</para>
+        ///
+        /// <para><b>The bug this closes.</b> <see cref="RefreshTargetCandidates"/> added every live
+        /// <c>PlayerController</c> unconditionally, so faction had no effect on targeting anywhere in
+        /// the game. The camp turrets are authored <c>fraction="100"</c>
+        /// (<c>RoomsCamp.as:86-90, 127-130, 794</c>) — the player's own faction — so they shot the
+        /// player inside the player's own base.</para>
+        /// </summary>
+        public static bool IsValidTarget(UnitController candidate, FactionType ownFaction)
+        {
+            return candidate != null && FactionPermitsTargeting(candidate.Faction, ownFaction);
+        }
+
         protected virtual void RefreshTargetCandidates()
         {
             _targetCandidates.Clear();
+
+            FactionType ownFaction = _controller != null ? _controller.Faction : FactionType.Neutral;
+
             var players = FindObjectsByType<PFE.Entities.Player.PlayerController>(FindObjectsSortMode.None);
             for (int i = 0; i < players.Length; i++)
             {
-                if (players[i] != null && players[i].IsAlive)
+                if (players[i] != null && players[i].IsAlive && IsValidTarget(players[i], ownFaction))
                 {
                     _targetCandidates.Add(players[i]);
                 }
             }
 
-            if (_blackboard.TargetUnit != null && _blackboard.TargetUnit.IsAlive && !_targetCandidates.Contains(_blackboard.TargetUnit))
+            // A remembered target is re-admitted only while it is still a legal one. AS3 clears
+            // `celUnit`/`priorUnit` at the end of `findCel` when no candidate survives
+            // (`UnitTurret.as:557-558`), so a unit whose faction changed under it — the turret
+            // `hack()` path, `UnitTurret.as:397-410`, sets `F_PLAYER` and drops `celUnit` — stops
+            // shooting what it was shooting rather than finishing the engagement.
+            if (_blackboard.TargetUnit != null && _blackboard.TargetUnit.IsAlive &&
+                IsValidTarget(_blackboard.TargetUnit, ownFaction) &&
+                !_targetCandidates.Contains(_blackboard.TargetUnit))
             {
                 _targetCandidates.Add(_blackboard.TargetUnit);
             }

@@ -402,10 +402,19 @@ MonoBehaviour:
     tileCoord: {x: 28, y: 13}
     code: LvEF0rdNbTZG34Mn
     uid: plat2
-    attributes: []
+    attributes:
+    - key: move_present
+      value: 1
+    - key: move_dy
+      value: -9
+    - key: move_tstay
+      value: 30
+    - key: move_tmove
+      value: 90
     items: []
     scripts: []
-    parameters: code="LvEF0rdNbTZG34Mn" uid="plat2"
+    parameters: code="LvEF0rdNbTZG34Mn" uid="plat2" move_present="1" move_dy="-9"
+      move_tstay="30" move_tmove="90"
   - type: area
     id: area
     definitionId: area
@@ -675,10 +684,19 @@ MonoBehaviour:
     tileCoord: {x: 44, y: 23}
     code: XK2MShrggGwPKex0
     uid: plat1
-    attributes: []
+    attributes:
+    - key: move_present
+      value: 1
+    - key: move_dx
+      value: -4
+    - key: move_tstay
+      value: 30
+    - key: move_tmove
+      value: 90
     items: []
     scripts: []
-    parameters: code="XK2MShrggGwPKex0" uid="plat1"
+    parameters: code="XK2MShrggGwPKex0" uid="plat1" move_present="1" move_dx="-4"
+      move_tstay="30" move_tmove="90"
   - type: box
     id: ammobox
     definitionId: ammobox
@@ -716,3 +734,6 @@ MonoBehaviour:
     radiation: 0
     radiationDamage: 0
     darkness: 0
+    tipEnemy: -1
+    kolEnSpawn: -1
+    spawnGroupId: 

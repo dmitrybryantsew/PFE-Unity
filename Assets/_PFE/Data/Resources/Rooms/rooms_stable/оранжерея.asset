@@ -494,9 +494,18 @@ MonoBehaviour:
     attributes:
     - key: allid
       value: a1
+    - key: move_present
+      value: 1
+    - key: move_dy
+      value: -9
+    - key: move_tstay
+      value: 30
+    - key: move_tmove
+      value: 90
     items: []
     scripts: []
-    parameters: code="MGGxZjRKCoKwFKkt" allid="a1"
+    parameters: code="MGGxZjRKCoKwFKkt" allid="a1" move_present="1" move_dy="-9"
+      move_tstay="30" move_tmove="90"
   spawnPoints:
   - tileCoord: {x: 30, y: 6}
     type: 0
@@ -523,3 +532,6 @@ MonoBehaviour:
     radiation: 0
     radiationDamage: 0
     darkness: 0
+    tipEnemy: -1
+    kolEnSpawn: -1
+    spawnGroupId: 

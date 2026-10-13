@@ -17,6 +17,7 @@ MonoBehaviour:
   id: robobrain
   parentId: 
   controllerId: 
+  lootTableKey: 
   fraction: 4
   category: 3
   xpReward: 150
@@ -129,9 +130,11 @@ MonoBehaviour:
   - weaponId: robolaser
     chance: 0.5
     difficulty: 0
+    isFixedWeapon: 0
   - weaponId: robospark
     chance: 1
     difficulty: 0
+    isFixedWeapon: 0
   animations:
     stay:
       row: 0

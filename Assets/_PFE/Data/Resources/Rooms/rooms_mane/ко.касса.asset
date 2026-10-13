@@ -263,9 +263,18 @@ MonoBehaviour:
     attributes:
     - key: allid
       value: 1
+    - key: move_present
+      value: 1
+    - key: move_dy
+      value: 3
+    - key: move_tstay
+      value: 30
+    - key: move_tmove
+      value: 220
     items: []
     scripts: []
-    parameters: code="TN40YGKFwm4mRC4o" allid="1"
+    parameters: code="TN40YGKFwm4mRC4o" allid="1" move_present="1" move_dy="3" move_tstay="30"
+      move_tmove="220"
   - type: box
     id: ammobox
     definitionId: ammobox
@@ -505,3 +514,6 @@ MonoBehaviour:
     radiation: 0
     radiationDamage: 0
     darkness: 0
+    tipEnemy: -1
+    kolEnSpawn: -1
+    spawnGroupId: 

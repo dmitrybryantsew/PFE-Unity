@@ -77,7 +77,7 @@ namespace PFE.Systems.Map.Generation
                 if (prob == null || string.IsNullOrEmpty(prob.id)) continue;
 
                 string key = ProbSelection.TriggerKey(prob.id);
-                if (campaign.GetTrigger(key) > 0) context._completed.Add(key);
+                if (campaign.GetTrigger(key).IsGreaterThanZero()) context._completed.Add(key);
             }
 
             return context;
@@ -93,7 +93,9 @@ namespace PFE.Systems.Map.Generation
             if (string.IsNullOrEmpty(probId)) return;
 
             string key = ProbSelection.TriggerKey(probId);
-            int next = campaign == null ? 1 : campaign.GetTrigger(key) + 1;
+            // `prob_<id>` is only ever written numerically (Probation.as:201-208), so the AsInt default is
+            // unreachable here; it exists so a string value could not silently become 0 and reset the run.
+            int next = campaign == null ? 1 : campaign.GetTrigger(key).AsInt(0) + 1;
             campaign?.SetTrigger(key, next);
 
             _completed.Add(key);

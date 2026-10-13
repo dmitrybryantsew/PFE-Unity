@@ -113,9 +113,18 @@ MonoBehaviour:
     attributes:
     - key: allid
       value: d1
+    - key: move_present
+      value: 1
+    - key: move_dy
+      value: -11
+    - key: move_tstay
+      value: 30
+    - key: move_tmove
+      value: 120
     items: []
     scripts: []
-    parameters: code="SwR8rc5MuVQseXLB" allid="d1"
+    parameters: code="SwR8rc5MuVQseXLB" allid="d1" move_present="1" move_dy="-11"
+      move_tstay="30" move_tmove="120"
   - type: box
     id: platform2
     definitionId: platform2
@@ -126,9 +135,18 @@ MonoBehaviour:
     attributes:
     - key: allid
       value: d1
+    - key: move_present
+      value: 1
+    - key: move_dy
+      value: -12
+    - key: move_tstay
+      value: 45
+    - key: move_tmove
+      value: 55
     items: []
     scripts: []
-    parameters: code="RNnthv1TTdTGSf7F" allid="d1"
+    parameters: code="RNnthv1TTdTGSf7F" allid="d1" move_present="1" move_dy="-12"
+      move_tstay="45" move_tmove="55"
   - type: box
     id: platform2
     definitionId: platform2
@@ -139,9 +157,18 @@ MonoBehaviour:
     attributes:
     - key: allid
       value: d1
+    - key: move_present
+      value: 1
+    - key: move_dy
+      value: -11
+    - key: move_tstay
+      value: 70
+    - key: move_tmove
+      value: 80
     items: []
     scripts: []
-    parameters: code="EnEm3g7tIwFTvES4" allid="d1"
+    parameters: code="EnEm3g7tIwFTvES4" allid="d1" move_present="1" move_dy="-11"
+      move_tstay="70" move_tmove="80"
   - type: box
     id: termh
     definitionId: termh
@@ -230,9 +257,18 @@ MonoBehaviour:
     attributes:
     - key: allid
       value: d1
+    - key: move_present
+      value: 1
+    - key: move_dx
+      value: 26
+    - key: move_tstay
+      value: 30
+    - key: move_tmove
+      value: 120
     items: []
     scripts: []
-    parameters: code="ui737t5h4o1w5xwk" allid="d1"
+    parameters: code="ui737t5h4o1w5xwk" allid="d1" move_present="1" move_dx="26"
+      move_tstay="30" move_tmove="120"
   - type: bonus
     id: xp
     definitionId: xp
@@ -276,9 +312,18 @@ MonoBehaviour:
     attributes:
     - key: allid
       value: d1
+    - key: move_present
+      value: 1
+    - key: move_dy
+      value: -11
+    - key: move_tstay
+      value: 30
+    - key: move_tmove
+      value: 120
     items: []
     scripts: []
-    parameters: code="c6wfs23kKOME7HbK" allid="d1"
+    parameters: code="c6wfs23kKOME7HbK" allid="d1" move_present="1" move_dy="-11"
+      move_tstay="30" move_tmove="120"
   - type: box
     id: platform2
     definitionId: platform2
@@ -289,9 +334,18 @@ MonoBehaviour:
     attributes:
     - key: allid
       value: d1
+    - key: move_present
+      value: 1
+    - key: move_dy
+      value: -11
+    - key: move_tstay
+      value: 60
+    - key: move_tmove
+      value: 72
     items: []
     scripts: []
-    parameters: code="pkFyvqTZdee7MVns" allid="d1"
+    parameters: code="pkFyvqTZdee7MVns" allid="d1" move_present="1" move_dy="-11"
+      move_tstay="60" move_tmove="72"
   - type: box
     id: platform2
     definitionId: platform2
@@ -302,9 +356,18 @@ MonoBehaviour:
     attributes:
     - key: allid
       value: d1
+    - key: move_present
+      value: 1
+    - key: move_dy
+      value: -11
+    - key: move_tstay
+      value: 0
+    - key: move_tmove
+      value: 60
     items: []
     scripts: []
-    parameters: code="U1DEgAx3zoXKrglh" allid="d1"
+    parameters: code="U1DEgAx3zoXKrglh" allid="d1" move_present="1" move_dy="-11"
+      move_tstay="0" move_tmove="60"
   - type: player
     id: player
     definitionId: player
@@ -342,3 +405,6 @@ MonoBehaviour:
     radiation: 0
     radiationDamage: 0
     darkness: 0
+    tipEnemy: -1
+    kolEnSpawn: -1
+    spawnGroupId: 

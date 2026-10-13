@@ -1097,3 +1097,89 @@ MonoBehaviour:
     pixelOffset: {x: 0, y: 0}
     flipX: 0
     flipY: 0
+  - id: fonDefault
+    frames:
+    - {fileID: 21300000, guid: bf98e05108ebc9b4bbfee2f8bd81a785, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: vpipe
+    frames:
+    - {fileID: 21300000, guid: c0e42396988937146ba511b58570e30f, type: 3}
+    - {fileID: 21300000, guid: 3ac411f039a503645afac451b9263f44, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: vpiper
+    frames:
+    - {fileID: 21300000, guid: d95379655b3243a4fabbddd4679509dc, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: qgraff
+    frames:
+    - {fileID: 21300000, guid: d3aa5404574674a46842a18aaedf7294, type: 3}
+    - {fileID: 21300000, guid: 0095968c39ca13d4aa51b0cfa36ce7db, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: bar
+    frames:
+    - {fileID: 21300000, guid: 5b6e027b1d747aa4fa7b6b830c08b3fe, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: orudie
+    frames:
+    - {fileID: 21300000, guid: 61451e4c0de12744a9dcad39d1f697e3, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: fonDarkClouds
+    frames:
+    - {fileID: 21300000, guid: 0b92c0a1f5d856e40ae82473083cd8f9, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: fonEnclave
+    frames:
+    - {fileID: 21300000, guid: 0b1ef6022f2b15242b97cad89a926ad6, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: fonWay
+    frames:
+    - {fileID: 21300000, guid: 1fb678c987143b249816299c91665630, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: fonClear
+    frames:
+    - {fileID: 21300000, guid: a581ad02e0b338a43bfd3a9410d0a77e, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: fonCanter
+    frames:
+    - {fileID: 21300000, guid: 0aab18f7119d6ff41810d67836ac74fb, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: fonRuins
+    frames:
+    - {fileID: 21300000, guid: e87e616bee88a6148b2116659b0429af, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: fonFire
+    frames:
+    - {fileID: 21300000, guid: 73f351fdcaceb9540a50e75c7fe8d3e3, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0
+  - id: fonFinalb
+    frames:
+    - {fileID: 21300000, guid: 0a0aed9f6f46c2344aaa65fbc14b6746, type: 3}
+    pixelOffset: {x: 0, y: 0}
+    flipX: 0
+    flipY: 0

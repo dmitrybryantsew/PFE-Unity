@@ -46,7 +46,7 @@ namespace PFE.Core.Scripting
         public bool IsOpen = false;
 
         private Rect _windowRect = new Rect(60, 40, 920, 660);
-        private int _activeTab = 0; // 0: Pip Stats, 1: Skills, 2: Perks, 3: Weapons, 4: Armor, 5: Vitals & Presets, 6: Effects, 7: Spells, 8: Inventory, 9: Rig, 10: Spawn Unit, 11: Lands, 12: Land State, 13: Land Map
+        private int _activeTab = 0; // 0: Pip Stats, 1: Skills, 2: Perks, 3: Weapons, 4: Armor, 5: Vitals & Presets, 6: Effects, 7: Spells, 8: Inventory, 9: Rig, 10: Spawn Unit, 11: Lands, 12: Land State, 13: Land Map, 14: Save / Load, 15: Campaign Vars
 
         private static readonly string[] TabNames = new string[]
         {
@@ -64,7 +64,8 @@ namespace PFE.Core.Scripting
             "🗺️ Lands",
             "🧭 Land State",
             "📍 Land Map",
-            "💾 Save / Load"
+            "💾 Save / Load",
+            "🏁 Campaign Vars"
         };
 
         /// <summary>How many tabs the strip actually ships. Exposed <b>so the strip test can assert against
@@ -91,6 +92,12 @@ namespace PFE.Core.Scripting
         /// <see cref="LandStateTab"/>: it reads <c>SaveManager</c> and the campaign, not the player, and a
         /// save that will not load is exactly when a scene without a live player is being looked at.</summary>
         private const int SaveLoadTab = 14;
+
+        /// <summary>Index of the "Campaign Vars" tab — the campaign-level story variables (triggers,
+        /// quests, the Game scalars). Exempt from the no-player guard for the same reason as
+        /// <see cref="LandStateTab"/>: everything it lists lives on <c>CampaignManager</c>, and the
+        /// variables most worth setting are the ones you want to set before there is a player at all.</summary>
+        private const int CampaignVarsTab = 15;
 
         // Scroll positions for each tab
         private Vector2 _pipStatsScroll;
@@ -858,7 +865,8 @@ namespace PFE.Core.Scripting
             // came back wrong, and a load that came back wrong is a plausible reason there is no live
             // player to gate on.
             if (player == null && _activeTab != 9 && _activeTab != LandsTab &&
-                _activeTab != LandStateTab && _activeTab != LandMapTab && _activeTab != SaveLoadTab)
+                _activeTab != LandStateTab && _activeTab != LandMapTab && _activeTab != SaveLoadTab &&
+                _activeTab != CampaignVarsTab)
             {
                 GUILayout.Box("PlayerController not found in scene. Please enter a gameplay room/scene.", _cardStyle, GUILayout.ExpandHeight(true));
                 GUI.DragWindow(new Rect(0, 0, _windowRect.width, 30));
@@ -911,6 +919,9 @@ namespace PFE.Core.Scripting
                     break;
                 case SaveLoadTab:
                     DrawSaveLoadTab();
+                    break;
+                case CampaignVarsTab:
+                    DrawCampaignVarsTab();
                     break;
             }
 
@@ -1992,7 +2003,7 @@ namespace PFE.Core.Scripting
                 _landModel = TravelMapModel.FromCatalog(
                     catalog,
                     campaign.LandStates,
-                    campaign.GetTrigger,
+                    name => campaign.GetTrigger(name).AsInt(0),
                     () => campaign.CurrentLandId.CurrentValue,
                     _landTestMode);
                 _landModelStale = false;
@@ -2105,14 +2116,42 @@ namespace PFE.Core.Scripting
         /// </summary>
         private void GoToLand(CampaignManager campaign, LandDefinition land)
         {
-            // Deliberately not a direct TransitionToLand: BeginMission is what the map's confirm button
-            // calls, including its "a base land is not regenerated" rule, and a debug button that skipped
-            // that rule would test a code path nothing ships.
+            // BeginMission is tried first, and deliberately: it is what the map's confirm button calls,
+            // including its "a base land is not regenerated" rule, and a debug button that skipped that rule
+            // would test a code path nothing ships.
             bool started = campaign.BeginMission(land.landId);
-            SetLandStatus(started
-                ? $"beginMission('{land.landId}') — the world rebuilds on the next frame."
-                : $"beginMission('{land.landId}') did nothing: you are already there, or the id is empty.",
-                !started);
+            if (started)
+            {
+                SetLandStatus($"beginMission('{land.landId}') — the world rebuilds on the next frame.", false);
+                return;
+            }
+
+            // BeginMission has a second rule — re-selecting the land you are already in is a no-op — and on
+            // this tab that rule made the button labelled "Rebuild" not rebuild. That is worse than a missing
+            // button: the row is marked as current, the click is accepted, and nothing happens. When the only
+            // reason it declined is that you are already there, force the rebuild and say so.
+            //
+            // This matters most in the case that produced the bug report: the scene's room override builds
+            // the camp while the campaign still names the starting land, so the row marked current is not the
+            // land you are standing in. Until AdoptBuiltLand corrects that, this fallback is what makes the
+            // tab usable at all.
+            string current = campaign.CurrentLandId.CurrentValue ?? string.Empty;
+            bool alreadyThere = !string.IsNullOrEmpty(land.landId) &&
+                string.Equals(land.landId, current, StringComparison.OrdinalIgnoreCase);
+
+            if (alreadyThere)
+            {
+                campaign.TransitionToLand(land.landId, null, forceRegenerate: true);
+                SetLandStatus(
+                    $"beginMission('{land.landId}') declined — you are already there — so this forced a " +
+                    "rebuild instead (TransitionToLand, forceRegenerate: true).",
+                    false);
+                return;
+            }
+
+            SetLandStatus(
+                $"beginMission('{land.landId}') did nothing: the id is empty, or the land is not in the catalog.",
+                true);
         }
 
         /// <summary>
@@ -2390,7 +2429,7 @@ namespace PFE.Core.Scripting
             GUILayout.Label("<b>C. Generator inputs</b> <color=#AAAAAA>(campaign triggers the builder " +
                             "branches on)</color>", GUILayout.ExpandWidth(true));
 
-            int mbase = campaign.GetTrigger("mbase_visited");
+            int mbase = campaign.GetTrigger("mbase_visited").AsInt(0);
             GUILayout.BeginHorizontal();
             GUILayout.Label("mbase_visited:", GUILayout.Width(170));
             GUILayout.Label(
@@ -2422,7 +2461,7 @@ namespace PFE.Core.Scripting
                     LandDefinition l = catalog.AllLands[i];
                     if (l == null || !l.isProcedural || string.IsNullOrEmpty(l.exitLandId)) continue;
 
-                    int v = campaign.GetTrigger("prob_" + l.exitLandId);
+                    int v = campaign.GetTrigger("prob_" + l.exitLandId).AsInt(0);
                     if (v <= 0) continue;
 
                     shown++;
@@ -2498,6 +2537,11 @@ namespace PFE.Core.Scripting
             foreach (RoomInstance room in map.GetAllRooms())
             {
                 if (room == null) continue;
+
+                // A cell's z = 1 interior is reached through its Z door (`comein` → `gotoLoc(5)`), which is
+                // an object script, not a grid step — so the in-plane BFS above can never reach it and it
+                // would be reported as a map bug on every procedural land. Skip it (RoomInstance.noMap).
+                if (room.noMap) continue;
 
                 if (!reachable.Contains(room.landPosition))
                 {
@@ -2734,7 +2778,7 @@ namespace PFE.Core.Scripting
             }
 
             bool visited = false;
-            bool mbaseVisited = campaign.GetTrigger("mbase_visited") > 0;
+            bool mbaseVisited = campaign.GetTrigger("mbase_visited").IsGreaterThanZero();
             if (campaign.LandStates.TryGet(land.landId, out LandRuntimeState previewState))
             {
                 visited = previewState.visited;
@@ -3094,6 +3138,617 @@ namespace PFE.Core.Scripting
         }
 
         // =========================================================================
+        // CAMPAIGN VARS TAB — AS3's campaign state, listed for testing
+        // =========================================================================
+
+        private Vector2 _campaignVarsScroll;
+
+        /// <summary>Filter for the live trigger table (section C of the tab).</summary>
+        private string _campaignVarsTriggerFilter = string.Empty;
+
+        /// <summary>What a queued quest mutation does.</summary>
+        private enum CampaignQuestAction { Start, Advance, Complete }
+
+        /// <summary>
+        /// Deferred trigger writes. A button is clicked INSIDE the loop that drew its row, and the live
+        /// table is a view of the campaign's own dictionary — writing through immediately is the
+        /// collection-modified crash of project lesson #78. Buttons queue; one flush after the loop
+        /// applies them through <see cref="CampaignManager.SetTrigger(string, TriggerValue)"/>.
+        /// </summary>
+        private readonly List<KeyValuePair<string, TriggerValue>> _campaignVarsPendingSets =
+            new List<KeyValuePair<string, TriggerValue>>();
+
+        private readonly List<string> _campaignVarsPendingUnsets = new List<string>();
+
+        private readonly List<KeyValuePair<string, CampaignQuestAction>> _campaignVarsPendingQuests =
+            new List<KeyValuePair<string, CampaignQuestAction>>();
+
+        /// <summary>What the tester typed into each trigger value field, keyed by trigger name. The
+        /// buffer is what is being typed; the live value is what the game uses.</summary>
+        private readonly Dictionary<string, string> _campaignVarsValueBuffers =
+            new Dictionary<string, string>();
+
+        private string _campaignVarsNewName = string.Empty;
+        private string _campaignVarsNewValue = "1";
+        private string _campaignVarsQuestId = string.Empty;
+        private string _campaignVarsStatus = string.Empty;
+
+        /// <summary>
+        /// The F2 panel's campaign surface: AS3's <c>fe.loc.Game</c> scalars, the story-trigger table,
+        /// the quest states and the campaign state the port has not built yet — each with a short note
+        /// on what it is responsible for, and its AS3 line.
+        /// </summary>
+        private void DrawCampaignVarsTab()
+        {
+            _campaignVarsScroll = GUILayout.BeginScrollView(_campaignVarsScroll);
+
+            GUILayout.Label("<b>Campaign Vars</b> — the campaign's story state, for testing.",
+                GUILayout.ExpandWidth(true));
+            GUILayout.Label(
+                "<color=#AAAAAA><size=11>Story triggers, quests and the Game scalars, each with a short " +
+                "note on what it is responsible for.</size></color>",
+                GUILayout.ExpandWidth(true));
+            GUILayout.Label(
+                "<color=#AAAAAA><size=11>Every write goes through CampaignManager's real seams " +
+                "(SetTrigger, RemoveTrigger, StartQuest,</size></color>",
+                GUILayout.ExpandWidth(true));
+            GUILayout.Label(
+                "<color=#AAAAAA><size=11>AdvanceQuestStage, CompleteQuest) — nothing is written into the " +
+                "tables directly. Descriptions and</size></color>",
+                GUILayout.ExpandWidth(true));
+            GUILayout.Label(
+                "<color=#AAAAAA><size=11>oracle lines come from CampaignVariableCatalog, so the wording " +
+                "lives in one testable file.</size></color>",
+                GUILayout.ExpandWidth(true));
+
+            CampaignManager campaign = CampaignManager.Current;
+            if (campaign == null)
+            {
+                GUILayout.Box(
+                    "No CampaignManager. It is created by the game lifetime scope, so this tab needs a " +
+                    "play-mode session with the gameplay scene loaded.",
+                    _cardStyle, GUILayout.ExpandHeight(true));
+                GUILayout.EndScrollView();
+                return;
+            }
+
+            DrawCampaignVarsScalars(campaign);
+            GUILayout.Space(6);
+            DrawCampaignVarsImportantTriggers(campaign);
+            GUILayout.Space(6);
+            DrawCampaignVarsTriggerTable(campaign);
+            GUILayout.Space(6);
+            DrawCampaignVarsQuests(campaign);
+            GUILayout.Space(6);
+            DrawCampaignVarsNotPorted();
+
+            // AFTER every loop that drew rows from a live collection (project lesson #78): the buttons
+            // above only queued; this is the one place the campaign state is actually touched.
+            FlushCampaignVarsActions(campaign);
+
+            if (!string.IsNullOrEmpty(_campaignVarsStatus))
+            {
+                GUILayout.Space(4);
+                GUILayout.Label(_campaignVarsStatus, GUILayout.ExpandWidth(true));
+            }
+
+            GUILayout.EndScrollView();
+        }
+
+        /// <summary>Section A — the Game scalars the port holds live. The values are read-only here (the
+        /// Lands and Land State tabs own transitions); the section exists to say what each one governs,
+        /// with its AS3 line, pulled from the catalogue.</summary>
+        private void DrawCampaignVarsScalars(CampaignManager campaign)
+        {
+            GUILayout.BeginVertical(_cardStyle);
+            GUILayout.Label("<b>A. Campaign state</b> <color=#AAAAAA>(fe.loc.Game — the scalars; the port " +
+                            "holds these live)</color>", GUILayout.ExpandWidth(true));
+
+            DrawCampaignVarsScalarRow("curLandId", campaign.CurrentLandId.CurrentValue ?? "(none)",
+                "(switch with the Lands tab)");
+            DrawCampaignVarsScalarRow("missionId",
+                string.IsNullOrEmpty(campaign.MissionId) ? "(none)" : campaign.MissionId,
+                "(set by BeginMission)");
+            DrawCampaignVarsScalarRow("baseId", campaign.BaseLandId, "(the catalogue's hub land)");
+
+            // mReturn is not stored: AS3 recomputes it from the noreturn trigger on every land entry
+            // (Game.as:390-397), so the tab shows the derived value and names the trigger it came from.
+            TriggerValue noreturn = campaign.GetTrigger("noreturn");
+            DrawCampaignVarsScalarRow("mReturn", (!noreturn.IsGreaterThanZero()) ? "true" : "false",
+                $"(derived: noreturn = {noreturn})");
+
+            int notes = CountTriggersWithPrefix(campaign, "note_");
+            DrawCampaignVarsScalarRow("notes", $"{notes} note(s)", "(derived from the note_* triggers)");
+
+            CampaignManager.CheckpointRecord? cp = campaign.CurrentCheckpoint;
+            // Composed outside the interpolation: a multi-line conditional expression inside an
+            // interpolated string is C# 11+ only, and this project compiles at C# 9 (CS8967).
+            string cpText = cp.HasValue
+                ? $"'{cp.Value.landId}' ({cp.Value.roomX},{cp.Value.roomY},{cp.Value.roomZ}) " +
+                  $"code '{cp.Value.code}'"
+                : "(none)";
+            GUILayout.Label(
+                $"checkpoint: <color=#9AD0FF>{cpText}</color>  " +
+                "<color=#777777><size=10>pers.currentCP — see the Save / Load tab</size></color>",
+                GUILayout.ExpandWidth(true));
+
+            GUILayout.Label(
+                $"travel: <color=#9AD0FF>{campaign.TravelUnlocked}</color>  " +
+                "<color=#777777><size=10>PipBuck.travel — recomputed from the current land's tip; a base " +
+                "land unlocks it</size></color>", GUILayout.ExpandWidth(true));
+
+            GUILayout.EndVertical();
+        }
+
+        /// <summary>One catalogue row: name, live value, the oracle line, then what it is responsible
+        /// for, word-wrapped so nothing is clipped (the overlay's labels do not wrap).</summary>
+        private static void DrawCampaignVarsScalarRow(string id, string liveValue, string note)
+        {
+            if (!CampaignVariableCatalog.TryGetVariable(id, out CampaignVariableInfo info))
+            {
+                GUILayout.Label($"<color=#FF6666>{id}: no catalogue row — a defect in " +
+                                "CampaignVariableCatalog.</color>", GUILayout.ExpandWidth(true));
+                return;
+            }
+
+            GUILayout.Label(
+                $"<b>{info.Id}</b>   <color=#9AD0FF>{liveValue}</color> {note}   " +
+                $"<color=#777777><size=10>{info.Oracle}</size></color>",
+                GUILayout.ExpandWidth(true));
+
+            foreach (string line in CampaignVarsText.Wrap(info.Responsibility, 118))
+            {
+                GUILayout.Label($"  <color=#BBBBBB><size=11>{line}</size></color>", GUILayout.ExpandWidth(true));
+            }
+        }
+
+        private void SetCampaignVarsStatus(string message, bool isError)
+        {
+            _campaignVarsStatus = isError
+                ? "<color=#FF6666>" + message + "</color>"
+                : "<color=#9AD0FF>" + message + "</color>";
+        }
+
+        private static List<string> Sorted(IEnumerable<string> ids)
+        {
+            var list = new List<string>(ids);
+            list.Sort(StringComparer.Ordinal);
+            return list;
+        }
+
+        private static int CountTriggersWithPrefix(CampaignManager campaign, string prefix)
+        {
+            int count = 0;
+            foreach (KeyValuePair<string, TriggerValue> pair in campaign.Triggers)
+            {
+                if (pair.Key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) count++;
+            }
+
+            return count;
+        }
+
+        /// <summary>How many live triggers a curated row names: a literal reads its own value, a
+        /// <c>name_&lt;id&gt;</c> row counts the prefix, a <c>a / b / c</c> row counts how many are set.</summary>
+        private static int CountLiveTriggerRow(CampaignManager campaign, string rowName)
+        {
+            int angle = rowName.IndexOf('<');
+            if (angle >= 0) return CountTriggersWithPrefix(campaign, rowName.Substring(0, angle));
+
+            if (rowName.IndexOf('/') >= 0)
+            {
+                int set = 0;
+                string[] names = rowName.Split('/');
+                foreach (string raw in names)
+                {
+                    string name = raw.Trim();
+                    if (name.Length > 0 && campaign.GetTrigger(name).IsSet) set++;
+                }
+
+                return set;
+            }
+
+            return campaign.GetTrigger(rowName).IsSet ? 1 : 0;
+        }
+
+        /// <summary>Section B — the curated story triggers. Literal names get quick [1]/[0]/[unset]
+        /// buttons; family rows (<c>note_&lt;id&gt;</c>, <c>prob_&lt;id&gt;</c>, …) cannot be set as a
+        /// family, so they show how many are live instead of pretending.</summary>
+        private void DrawCampaignVarsImportantTriggers(CampaignManager campaign)
+        {
+            GUILayout.BeginVertical(_cardStyle);
+            GUILayout.Label("<b>B. Important triggers</b> <color=#AAAAAA>(the story flags the campaign " +
+                            "branches on — set, then re-enter or rebuild to apply)</color>",
+                GUILayout.ExpandWidth(true));
+
+            IReadOnlyList<ImportantTriggerInfo> rows = CampaignVariableCatalog.ImportantTriggers;
+            for (int i = 0; i < rows.Count; i++)
+            {
+                ImportantTriggerInfo t = rows[i];
+                bool isLiteral = t.Name.IndexOf('<') < 0 && t.Name.IndexOf('/') < 0;
+
+                GUILayout.BeginHorizontal();
+                GUILayout.Label($"<b>{t.Name}</b>", GUILayout.Width(250));
+
+                if (isLiteral)
+                {
+                    GUILayout.Label($"<color=#9AD0FF>{campaign.GetTrigger(t.Name)}</color>",
+                        GUILayout.Width(80));
+                    if (GUILayout.Button("1", GUILayout.Width(28)))
+                    {
+                        QueueTriggerSet(t.Name, TriggerValue.FromInt(1));
+                    }
+
+                    if (GUILayout.Button("0", GUILayout.Width(28)))
+                    {
+                        QueueTriggerSet(t.Name, TriggerValue.FromInt(0));
+                    }
+
+                    if (GUILayout.Button("unset", GUILayout.Width(52)))
+                    {
+                        QueueTriggerUnset(t.Name);
+                    }
+                }
+                else
+                {
+                    GUILayout.Label($"<color=#FFD27F>{CountLiveTriggerRow(campaign, t.Name)} set</color>",
+                        GUILayout.Width(90));
+                    GUILayout.Label($"<color=#777777><size=10>{t.Values}</size></color>", GUILayout.Width(80));
+                }
+
+                GUILayout.FlexibleSpace();
+                GUILayout.EndHorizontal();
+
+                foreach (string line in CampaignVarsText.Wrap(t.Responsibility, 118))
+                {
+                    GUILayout.Label($"  <color=#BBBBBB><size=11>{line}</size></color>",
+                        GUILayout.ExpandWidth(true));
+                }
+
+                GUILayout.Label($"  <color=#777777><size=10>{t.Oracle}</size></color>",
+                    GUILayout.ExpandWidth(true));
+            }
+
+            GUILayout.EndVertical();
+        }
+
+        /// <summary>Section C — every trigger currently set, editable in place. Values are typed into a
+        /// buffer and queued; the unset button and the add row queue too. One flush after the loop
+        /// applies them, so the dictionary being drawn is never mutated mid-enumeration.</summary>
+        private void DrawCampaignVarsTriggerTable(CampaignManager campaign)
+        {
+            GUILayout.BeginVertical(_cardStyle);
+            GUILayout.Label("<b>C. All triggers</b> <color=#AAAAAA>(World.w.game.triggers — every story " +
+                            "flag currently set; edit in place, or unset back to absent)</color>",
+                GUILayout.ExpandWidth(true));
+
+            // A sorted copy of the live table: the rows come from a snapshot, so the only writer to the
+            // real dictionary this frame is the flush after the loop.
+            var rows = new List<KeyValuePair<string, TriggerValue>>(campaign.Triggers);
+            rows.Sort((a, b) => string.CompareOrdinal(a.Key, b.Key));
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Label($"<b>{rows.Count}</b> trigger(s)", GUILayout.Width(110));
+            GUILayout.Label("filter:", GUILayout.Width(44));
+            _campaignVarsTriggerFilter = GUILayout.TextField(_campaignVarsTriggerFilter ?? string.Empty,
+                GUILayout.Width(220));
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("new:", GUILayout.Width(40));
+            _campaignVarsNewName = GUILayout.TextField(_campaignVarsNewName ?? string.Empty,
+                GUILayout.Width(220));
+            _campaignVarsNewValue = GUILayout.TextField(_campaignVarsNewValue ?? "1", GUILayout.Width(90));
+            if (GUILayout.Button("Add", GUILayout.Width(60)))
+            {
+                QueueNewTrigger();
+            }
+
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+
+            string filter = _campaignVarsTriggerFilter ?? string.Empty;
+            int matched = 0;
+            int shown = 0;
+            for (int i = 0; i < rows.Count; i++)
+            {
+                string name = rows[i].Key;
+                if (filter.Length > 0 && name.IndexOf(filter, StringComparison.OrdinalIgnoreCase) < 0)
+                {
+                    continue;
+                }
+
+                matched++;
+                if (shown >= 100)
+                {
+                    continue;
+                }
+
+                shown++;
+
+                GUILayout.BeginHorizontal();
+                GUILayout.Label(name, GUILayout.Width(230));
+                DrawTriggerValueField(name, rows[i].Value);
+                if (GUILayout.Button("unset", GUILayout.Width(60)))
+                {
+                    QueueTriggerUnset(name);
+                }
+
+                GUILayout.FlexibleSpace();
+                GUILayout.EndHorizontal();
+            }
+
+            if (matched > shown)
+            {
+                GUILayout.Label(
+                    $"<color=#FFAA33>showing {shown} of {matched} matched rows ({rows.Count} total) — " +
+                    "narrow the filter to see the rest.</color>", GUILayout.ExpandWidth(true));
+            }
+            else if (matched == 0)
+            {
+                GUILayout.Label(
+                    filter.Length > 0
+                        ? $"<color=#FFAA33>no trigger matches '{filter}'.</color>"
+                        : "<color=#FFAA33>no triggers are set yet — the story flags in section B are how a " +
+                          "campaign starts, and scripts set them as it runs.</color>",
+                    GUILayout.ExpandWidth(true));
+            }
+
+            GUILayout.EndVertical();
+        }
+
+        /// <summary>
+        /// The per-trigger value editor. Stores what is typed in a per-key buffer and queues the parsed
+        /// value — it does not write through, because a write inside the row loop would mutate the
+        /// dictionary being enumerated (lesson #78). The buffer re-syncs to the live value only when it
+        /// is non-empty and parses, so clearing the field to retype is not undone, and a trigger changed
+        /// by gameplay while the buffer is idle shows up on the next frame.
+        /// </summary>
+        private void DrawTriggerValueField(string name, TriggerValue live)
+        {
+            string key = "trigval." + name;
+            if (!_campaignVarsValueBuffers.TryGetValue(key, out string buffer) || buffer == null)
+            {
+                buffer = live.ToString();
+                _campaignVarsValueBuffers[key] = buffer;
+            }
+
+            string edited = GUILayout.TextField(buffer, GUILayout.Width(90));
+            if (edited != buffer)
+            {
+                _campaignVarsValueBuffers[key] = edited;
+                if (CampaignVarsText.TryParseTriggerValue(edited, out TriggerValue parsed))
+                {
+                    QueueTriggerSet(name, parsed);
+                }
+            }
+            else if (buffer.Length > 0 &&
+                     CampaignVarsText.TryParseTriggerValue(buffer, out TriggerValue reparsed) &&
+                     !reparsed.Equals(live))
+            {
+                _campaignVarsValueBuffers[key] = live.ToString();
+            }
+        }
+
+        private void QueueNewTrigger()
+        {
+            string name = (_campaignVarsNewName ?? string.Empty).Trim();
+            if (name.Length == 0)
+            {
+                SetCampaignVarsStatus("Add: the trigger name is empty.", true);
+                return;
+            }
+
+            if (CampaignVarsText.TryParseTriggerValue(_campaignVarsNewValue, out TriggerValue parsed))
+            {
+                QueueTriggerSet(name, parsed);
+                _campaignVarsNewName = string.Empty;
+            }
+            else
+            {
+                SetCampaignVarsStatus("Add: the value is empty.", true);
+            }
+        }
+
+        private void QueueTriggerSet(string name, TriggerValue value)
+        {
+            if (string.IsNullOrEmpty(name)) return;
+            _campaignVarsPendingSets.Add(new KeyValuePair<string, TriggerValue>(name, value));
+        }
+
+        private void QueueTriggerUnset(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return;
+            _campaignVarsPendingUnsets.Add(name);
+        }
+
+        /// <summary>Section D — quest states. AS3 keeps 0 = not taken, 1 = in progress, 2 = done
+        /// (Quest.as:71); the port splits that into an active set, a stage number and a completed set, so
+        /// all three transitions go through the real seams — completing a quest also chains its next
+        /// quest in (CampaignManager.CompleteQuest).</summary>
+        private void DrawCampaignVarsQuests(CampaignManager campaign)
+        {
+            GUILayout.BeginVertical(_cardStyle);
+            GUILayout.Label("<b>D. Quests</b> <color=#AAAAAA>(fe.loc.Quest — 0 not taken, 1 in progress, " +
+                            "2 done)</color>", GUILayout.ExpandWidth(true));
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("quest id:", GUILayout.Width(70));
+            _campaignVarsQuestId = GUILayout.TextField(_campaignVarsQuestId ?? string.Empty,
+                GUILayout.Width(200));
+            if (GUILayout.Button("Start", GUILayout.Width(70)))
+            {
+                QueueQuest(CampaignQuestAction.Start);
+            }
+
+            if (GUILayout.Button("Advance", GUILayout.Width(80)))
+            {
+                QueueQuest(CampaignQuestAction.Advance);
+            }
+
+            if (GUILayout.Button("Complete", GUILayout.Width(90)))
+            {
+                QueueQuest(CampaignQuestAction.Complete);
+            }
+
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+
+            string active = string.Join(", ", Sorted(campaign.ActiveQuestIds));
+            string done = string.Join(", ", Sorted(campaign.CompletedQuestIds));
+            GUILayout.Label($"active: <color=#9AD0FF>{(active.Length == 0 ? "(none)" : active)}</color>",
+                GUILayout.ExpandWidth(true));
+            GUILayout.Label($"completed: <color=#9AD0FF>{(done.Length == 0 ? "(none)" : done)}</color>",
+                GUILayout.ExpandWidth(true));
+
+            CampaignCatalog catalog = campaign.Catalog;
+            int count = catalog?.AllQuests?.Count ?? 0;
+            if (count == 0)
+            {
+                // Named rather than left as an empty box: "the catalogue has no quests" and "no quest is
+                // active" are different findings with different fixes.
+                GUILayout.Label(
+                    "<color=#FFAA33>The campaign catalogue holds no quests yet " +
+                    "(Resources/CampaignCatalog) — run PFE/Data/Import Campaign. The id field above still " +
+                    "works against the live quest tables.</color>", GUILayout.ExpandWidth(true));
+            }
+            else
+            {
+                for (int i = 0; i < catalog.AllQuests.Count; i++)
+                {
+                    QuestDefinition quest = catalog.AllQuests[i];
+                    if (quest == null || string.IsNullOrEmpty(quest.questId)) continue;
+
+                    string state = campaign.IsQuestCompleted(quest.questId)
+                        ? "<color=#9AD0FF>done</color>"
+                        : (campaign.IsQuestActive(quest.questId)
+                            ? $"<color=#FFD27F>stage {campaign.GetQuestStage(quest.questId)}</color>"
+                            : "<color=#777777>not taken</color>");
+
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Label($"<b>{quest.questId}</b>  <color=#AAAAAA>{quest.DisplayName}</color>",
+                        GUILayout.Width(330));
+                    GUILayout.Label(state, GUILayout.Width(110));
+                    if (GUILayout.Button("Start", GUILayout.Width(70)))
+                    {
+                        QueueQuestFor(quest.questId, CampaignQuestAction.Start);
+                    }
+
+                    if (GUILayout.Button("Advance", GUILayout.Width(80)))
+                    {
+                        QueueQuestFor(quest.questId, CampaignQuestAction.Advance);
+                    }
+
+                    if (GUILayout.Button("Complete", GUILayout.Width(90)))
+                    {
+                        QueueQuestFor(quest.questId, CampaignQuestAction.Complete);
+                    }
+
+                    GUILayout.FlexibleSpace();
+                    GUILayout.EndHorizontal();
+                }
+            }
+
+            GUILayout.EndVertical();
+        }
+
+        /// <summary>Section E — the campaign state AS3 keeps that the port has not built. Shown rather
+        /// than hidden: a tester who cannot find globalDif here is told plainly that it is not ported
+        /// instead of assuming the tab is broken.</summary>
+        private void DrawCampaignVarsNotPorted()
+        {
+            GUILayout.BeginVertical(_cardStyle);
+            GUILayout.Label("<b>E. AS3 campaign state the port has not built</b> " +
+                            "<color=#AAAAAA>(so a tester knows which knobs do nothing yet)</color>",
+                GUILayout.ExpandWidth(true));
+
+            foreach (CampaignVariableInfo info in CampaignVariableCatalog.Variables)
+            {
+                if (info.Availability != CampaignVariableAvailability.NotPorted) continue;
+
+                GUILayout.Label($"<b>{info.Id}</b> — {info.Summary} " +
+                                $"<color=#777777><size=10>{info.Oracle}</size></color>",
+                    GUILayout.ExpandWidth(true));
+
+                foreach (string line in CampaignVarsText.Wrap(info.Responsibility, 118))
+                {
+                    GUILayout.Label($"  <color=#BBBBBB><size=11>{line}</size></color>",
+                        GUILayout.ExpandWidth(true));
+                }
+            }
+
+            GUILayout.EndVertical();
+        }
+
+        private void QueueQuest(CampaignQuestAction action)
+        {
+            string id = (_campaignVarsQuestId ?? string.Empty).Trim();
+            if (id.Length == 0)
+            {
+                SetCampaignVarsStatus($"Quest {action}: the quest id is empty.", true);
+                return;
+            }
+
+            _campaignVarsPendingQuests.Add(new KeyValuePair<string, CampaignQuestAction>(id, action));
+        }
+
+        private void QueueQuestFor(string questId, CampaignQuestAction action)
+        {
+            if (string.IsNullOrEmpty(questId)) return;
+            _campaignVarsPendingQuests.Add(new KeyValuePair<string, CampaignQuestAction>(questId, action));
+        }
+
+        /// <summary>
+        /// Apply everything the tab queued while drawing, through CampaignManager's real seams — the
+        /// one place campaign state is touched, and it runs after every row loop so no collection is
+        /// mutated mid-enumeration (lesson #78). The status reports from what the seams actually did:
+        /// <see cref="CampaignManager.RemoveTrigger"/> returns whether a key was really there.
+        /// </summary>
+        private void FlushCampaignVarsActions(CampaignManager campaign)
+        {
+            int sets = _campaignVarsPendingSets.Count;
+            int quests = _campaignVarsPendingQuests.Count;
+
+            foreach (KeyValuePair<string, TriggerValue> set in _campaignVarsPendingSets)
+            {
+                campaign.SetTrigger(set.Key, set.Value);
+            }
+
+            int unset = 0;
+            foreach (string name in _campaignVarsPendingUnsets)
+            {
+                if (campaign.RemoveTrigger(name)) unset++;
+            }
+
+            foreach (KeyValuePair<string, CampaignQuestAction> q in _campaignVarsPendingQuests)
+            {
+                switch (q.Value)
+                {
+                    case CampaignQuestAction.Start:
+                        campaign.StartQuest(q.Key);
+                        break;
+                    case CampaignQuestAction.Advance:
+                        campaign.AdvanceQuestStage(q.Key, campaign.GetQuestStage(q.Key) + 1);
+                        break;
+                    case CampaignQuestAction.Complete:
+                        campaign.CompleteQuest(q.Key);
+                        break;
+                }
+            }
+
+            _campaignVarsPendingSets.Clear();
+            _campaignVarsPendingUnsets.Clear();
+            _campaignVarsPendingQuests.Clear();
+
+            if (sets + unset + quests > 0)
+            {
+                SetCampaignVarsStatus(
+                    $"Applied {sets} trigger set(s), {unset} unset(s), {quests} quest action(s) through " +
+                    "CampaignManager's seams.", false);
+            }
+        }
+
+        // =========================================================================
         // SAVE / LOAD TAB
         // =========================================================================
 
@@ -3401,6 +4056,14 @@ namespace PFE.Core.Scripting
             foreach (RoomInstance room in map.GetAllRooms())
             {
                 if (room == null)
+                {
+                    continue;
+                }
+
+                // Must skip exactly what LandMinimapComposer skips, or the cache key stops describing the
+                // drawn set — a cell's z = 1 interior shares its exterior's `x`/`y` and is never drawn
+                // (RoomInstance.noMap).
+                if (room.noMap)
                 {
                     continue;
                 }

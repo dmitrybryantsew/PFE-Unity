@@ -57,8 +57,28 @@ namespace PFE.Systems.Map.Serialization
         // passed). The trigger table is flattened into parallel arrays because Unity's JsonUtility cannot
         // serialise a Dictionary.
         public PFE.Systems.Campaign.LandRuntimeStateSaveData[] landStates;
+
+        /// <summary>Trigger keys. Parallel to <see cref="triggerValues"/> / <see cref="triggerStrings"/> /
+        /// <see cref="triggerKinds"/>.</summary>
         public string[] triggerNames;
+
+        /// <summary>The numeric payload of each trigger. Retained for the legacy format (a save written
+        /// before <see cref="triggerKinds"/> existed has only names + values) and for the int arm.</summary>
         public int[] triggerValues;
+
+        /// <summary>
+        /// Per-trigger kind: <c>0</c> unset, <c>1</c> int, <c>2</c> string. <b>Null means a legacy save</b>
+        /// written when the table was int-only, in which case every entry reads as
+        /// <c>TriggerValue.FromInt(triggerValues[i])</c>. This is the <see cref="hasCheckpoint"/> pattern:
+        /// an older save must read as a coherent old state, not as a new state full of zeroes.
+        /// </summary>
+        public int[] triggerKinds;
+
+        /// <summary>The string payload of each trigger (<c>""</c> for a non-string entry). Added because
+        /// the oracle's table stores <c>"wait"</c> and quest <c>@set</c> values
+        /// (<c>NPC.as:591</c>, <c>Quest.as:332</c>) that an <c>int[]</c> cannot carry.</summary>
+        public string[] triggerStrings;
+
         public string campaignLandId;
         public string campaignMissionId;
 

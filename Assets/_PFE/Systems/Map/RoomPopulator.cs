@@ -46,20 +46,42 @@ namespace PFE.Systems.Map
         /// Where unit stat blocks come from. Defaults to the <c>Resources/Units</c> lookup; injectable so
         /// tests do not depend on which unit assets happen to be on disk.
         /// </param>
+        /// <param name="objectDefinitions">
+        /// Where map-object definition rows come from. Defaults to the <c>Resources/MapObjects/Definitions</c>
+        /// lookup. Used for exactly one thing on this path: the random-enemy pass has no authored
+        /// definition row for the family <c>Location.randomUnit()</c> picks, so the row's <c>@cid</c>
+        /// alias seed has to be looked up by family id — see <see cref="CreateUnit"/>'s
+        /// <c>definitionCid</c>.
+        /// </param>
         public static void PopulateRoom(
             RoomInstance room,
             RoomTemplate template,
             RoomDifficulty difficulty,
             PFE.Core.Rng.IRngService rng = null,
-            IUnitDefinitionProvider unitDefinitions = null)
+            IUnitDefinitionProvider unitDefinitions = null,
+            IObjectDefinitionProvider objectDefinitions = null)
         {
             if (room == null || template == null) return;
 
             var r = GetSpawnRng(rng);
             var spawnCounters = new Dictionary<string, int>();
 
+            // Phase 0: split the authored object table exactly the way AS3 Location.buildLoc() does.
+            //
+            // This step is the whole reason random rooms were empty. Location.as:656-701 does NOT put
+            // every `<obj>` child into one list: it looks the row up in AllData and branches on the
+            // row's `tip`, sending `spawnpoint` rows to `spawnPoints`, `enspawn` rows to `addEnSpawn`,
+            // `up` rows into `ups[tipn]`, and only the remainder into `objsT` (which `setObjects` then
+            // turns into units and props).
+            //
+            // The port skipped the branch and imported every one of those rows as a plain object, so the
+            // 2 722 `up` markers and 625 `player` markers in the shipped rooms were being instantiated
+            // as generic props AND the enemy points they represent were never collected — `ups[]` was
+            // empty, so `setRandomUnits` had nothing to place on even once the counts existed.
+            ObjectTablePartition table = PartitionObjectTable(template);
+
             // Phase 1: Process template objects (from XML obj elements) sorted deterministically
-            var sortedObjects = new List<ObjectSpawnData>(template.objects);
+            var sortedObjects = new List<ObjectSpawnData>(table.Spawnable);
             sortedObjects.Sort((a, b) =>
             {
                 int coordA = a.tileCoord.y * room.width + a.tileCoord.x;
@@ -79,8 +101,9 @@ namespace PFE.Systems.Map
                 ProcessObjectSpawn(room, objData, difficulty, entityId, unitDefinitions, r);
             }
 
-            // Phase 2: Place random enemies at spawn points
-            PlaceRandomEnemies(room, template, difficulty, r, spawnCounters, unitDefinitions);
+            // Phase 2: Place random enemies at the `up` points, per group. Mirrors setRandomUnits().
+            PlaceRandomEnemies(room, table, difficulty, ResolveEnemyContext(room), r, spawnCounters,
+                unitDefinitions, objectDefinitions ?? ResourcesObjectDefinitionProvider.Shared);
 
             // Phase 3: Place XP bonuses — but NOT in a prob room.
             //
@@ -159,7 +182,18 @@ namespace PFE.Systems.Map
                         rng: rng,
                         definitionCid: spawnData.definition != null
                             ? spawnData.definition.GetAttribute("cid", null)
-                            : null);
+                            : null,
+                        // AS3's createUnit() runs randomUnit() on EVERY requested id, authored or not
+                        // (Location.as:1160), so the context is handed over here too. For an ordinary
+                        // authored id it returns "" without drawing, which is why this cannot change the
+                        // existing placements.
+                        //
+                        // `as3PlacementTile` is deliberately left null: the authored path keeps its own
+                        // anchor (ResolveLegacyBottomAnchorPixels, which uses the DEFINITION's `size`).
+                        // AS3 would instead use the created unit's sprite width — see the findings doc
+                        // for that half-tile divergence; it is pre-existing and out of scope here.
+                        enemyContext: ResolveEnemyContext(room),
+                        water: ResolveAs3Water(room, ResolveEnemyContext(room), placementTileCoord));
                     break;
 
                 case "box":
@@ -260,8 +294,32 @@ namespace PFE.Systems.Map
             string turn = null,
             float difficulty = 0f,
             PFE.Core.Rng.IRngService rng = null,
-            string definitionCid = null)
+            string definitionCid = null,
+            LocationEnemyContext? enemyContext = null,
+            bool water = false,
+            Vector2Int? as3PlacementTile = null,
+            IObjectDefinitionProvider objectDefinitions = null)
         {
+            // ── Step 1 of the oracle's createUnit: which FAMILY is this really?
+            //
+            // Location.as:1160 `var _loc13_:String = this.randomUnit(param1, _loc12_);`. `param1` is the
+            // requested id, which for the random-enemy pass is one of the five *point groups*
+            // (enl1/enl2/enf1/enc1/lov) and for an authored placement is a unit id. randomUnit has a
+            // case for the five groups and returns "" for everything else — with NO draw, which is why
+            // calling it on the authored path is free.
+            //
+            // This step was missing entirely, and it is why the group ids could never work: without it
+            // `enl2` went straight to randomCid(), which has no case for it, so the port would have
+            // spawned a unit literally called `enl2`.
+            LocationEnemyContext context = enemyContext ?? LocationEnemyContext.NoContext;
+            string family = LocationEnemySelector.RandomUnit(unitId, context, water, rng);
+
+            // Location.as:1161-1188. Two arms, and the second is a genuine fallback rather than an
+            // error path: it fires when randomUnit declines (`""`), and it creates the REQUESTED id.
+            // The oracle's guard is `if(_loc13_ == "" && !this.homeStable || _loc9_ == null)`; the port
+            // has no `homeStable` (the `home` option) and `_loc9_` can never be null here, so the guard
+            // reduces to `family == ""`.
+            //
             // The oracle does NOT spawn the id the room authored — it spawns a VARIANT of it.
             // Location.createUnit() (Location.as:1169/1185) calls randomCid() and hands the result to
             // Unit.create(), whose subclass joins the two (`UnitZombie.as:104 id = "zombie" + tr`).
@@ -271,24 +329,64 @@ namespace PFE.Systems.Map
             //
             // `tr` wins over the rolled cid, matching UnitZombie.as:83-101's precedence (saved object,
             // then placement node, then cid). The placement node is the only layer the port has.
-            // `NoContext`, not `default` — a defaulted struct has `LandY == 0`, which is a real land
-            // index and would make `randomCid("ranger")` pick its `landY == 0` arm. See
-            // UnitVariantContext's remarks.
+            // `NoContext` is no longer passed here: `context` carries biome/tipEnemy/landConfig/landY,
+            // and `default(UnitVariantContext)` would have `LandY == 0` — a real land index — which made
+            // `randomCid("ranger")` pick its `landY == 0` arm instead of rolling.
             //
             // The definition's `@cid` is the cid *seed* (Unit.as:853-862): a room places `trplate`, the
             // definition row says `cid='trigplate'`, and the spawned id is `trigplate`. It is read off
             // the DEFINITION row, not the placement — 0 of the shipped placements carry `@cid`, while 24
             // definitions do. Without it the alias families (turret/trplate/expl1/…) compose from a null
             // seed and resolve to nothing.
+            string requestedId = string.IsNullOrEmpty(family) ? unitId : family;
+            string placementTr = MapObjectDataUtility.GetAttribute(attributes, "tr", null);
+
+            // The definition row's `@cid` is read off the row for the id being created — which, on this
+            // path, is the FAMILY randomUnit() just chose, not the group marker the room authored. The
+            // authored path already supplies it (ProcessObjectSpawn reads `spawnData.definition`); here
+            // there is no authored row, so resolve the family's row by id.
+            //
+            // Without this the alias families composed from a null seed: `trridge`/`trplate`/`trcans`/
+            // `trlaser` fell back to an id with no `Resources/Units/*.asset` at all (the rows say
+            // cid='trigridge'/'trigplate'/'trigcans'/'triglaser', and those assets DO exist), and
+            // `landturret` resolved to the floor turret `turret0` instead of the land turret `turret1` —
+            // a wrong variant that draws, so it reads as "working". `trridge` and friends come from the
+            // `lov` group, which 285 of the shipped rooms author, so this was a live hole, not a corner.
+            //
+            // The lookup draws nothing, so it cannot disturb the shared spawn stream; it is placed here
+            // only because it must precede ResolveSpawnId, which consumes the seed.
+            string effectiveCid = definitionCid;
+            if (string.IsNullOrEmpty(effectiveCid) &&
+                objectDefinitions != null &&
+                objectDefinitions.TryGetObject(requestedId, out MapObjectDefinition familyDefinition))
+            {
+                effectiveCid = familyDefinition.GetAttribute("cid", null);
+            }
+
             string resolvedId = UnitVariantResolver.ResolveSpawnId(
-                unitId,
+                requestedId,
                 difficulty,
                 rng,
-                UnitVariantResolver.NoContext,
-                MapObjectDataUtility.GetAttribute(attributes, "tr", null),
-                definitionCid);
+                context.ToVariantContext(),
+                placementTr,
+                effectiveCid);
 
             float health = ResolveUnitHealth(resolvedId, unitDefinitions);
+
+            // Location.as:1211-1212 — the oracle creates the unit first and then reads its sprite width
+            // to centre it: `_loc15_ = floor((_loc9_.scX - 1) / 40) + 1` and
+            // `putLoc((param2 + 0.5*_loc15_)*Tile.tileX, (param3 + 1)*Tile.tileY - 1)`.
+            //
+            // This runs AFTER ResolveFacing/ResolveDiggerTier below in draw order terms? No — it draws
+            // nothing, so its position in the sequence is free; it is placed here only because it needs
+            // `resolvedId`. The two draws above and below it keep the oracle's order.
+            if (as3PlacementTile.HasValue)
+            {
+                Vector2 anchored = As3UnitAnchorPixels(
+                    room, as3PlacementTile.Value, ResolveAs3AnchorWidthTiles(resolvedId, unitDefinitions));
+                x = anchored.x;
+                y = anchored.y;
+            }
 
             // Hoisted out of the initializer below because the digger roll has to come AFTER it.
             //
@@ -311,6 +409,7 @@ namespace PFE.Systems.Map
                 currentHealth = health,
                 controllerId = controllerId ?? string.Empty,
                 attributes = MapObjectDataUtility.CloneAttributes(attributes),
+                fraction = ResolvePlacementFaction(attributes),
                 facingDirection = facing,
                 digger = digger
             };
@@ -337,6 +436,38 @@ namespace PFE.Systems.Map
             unit.ambushArmed = digger != 0 && groundSolid;
 
             room.units.Add(unit);
+        }
+
+        /// <summary>
+        /// The faction this placement authored — AS3 <c>UnitTurret.as:140-142</c>
+        /// <c>if(param3 &amp;&amp; param3.@fraction.length()) fraction = param3.@fraction;</c>.
+        ///
+        /// <para><b>Returns null when the row is silent, and that is the point.</b> The three
+        /// consumers of a faction are the damage rules, the AI target filter and the turret's own
+        /// <c>warn = 0</c> gate, and each of them distinguishes "the placement overrode this" from
+        /// "the unit definition decides". Collapsing the silent case to <c>Neutral</c> would make
+        /// <c>fraction='0'</c> — which <c>Unit.as:454</c> does define — indistinguishable from an
+        /// absent attribute, and the camp turrets sit exactly on that boundary: their placement says
+        /// <c>fraction="100"</c> while their unit row (<c>AllData.as:1758</c>) says nothing at all.</para>
+        ///
+        /// <para><b>Non-numeric is treated as absent, not as zero.</b> AS3's <c>@fraction.length()</c>
+        /// only tests that the attribute is present, and then assigns a String into an <c>int</c>
+        /// field — so a garbage value coerces to <c>NaN</c>, and <c>fraction == F_PLAYER</c> is then
+        /// false for every comparison. The port has no <c>NaN</c> in an enum, and inventing
+        /// <c>Neutral</c> for it would hand a garbage value the meaning of a deliberate one, so it
+        /// falls back to the definition instead. The oracle has no such placement in its data.</para>
+        /// </summary>
+        public static FactionType? ResolvePlacementFaction(List<MapObjectAttributeData> attributes)
+        {
+            string raw = MapObjectDataUtility.GetAttribute(attributes, "fraction", null);
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                return null;
+            }
+
+            return int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out int value)
+                ? (FactionType)value
+                : null;
         }
 
         /// <summary>
@@ -859,12 +990,46 @@ namespace PFE.Systems.Map
             obj.RefreshLegacyParameters();
             room.AddObject(obj);
 
-            // Add as spawn point for player
+            // Add as spawn point for player.
+            //
+            // `SpawnPoint.tileCoord` is an AS3 row everywhere on the field — that is the importers'
+            // convention and what SpawnPoint.GetRoomLocalPixel mirrors. This used to store
+            // `PixelToTile` of the anchor just computed, i.e. a PORT row, putting a second convention
+            // on the same field: a landmine that only stayed quiet because this point is appended
+            // after the room's imported one and is therefore never the first SpawnType.Player entry.
+            //
+            // `spawnData.tileCoord` is the checkpoint's own AS3 tile — the very value the anchor above
+            // was derived from, in both call paths (ProcessObjectSpawn hands over the imported object's
+            // data; PlaceCheckpointMarker's ChooseObjectPixel has already overwritten it with the
+            // room's first spawn point). So this is the exact inverse of the anchor, not an approximation.
+            Vector2Int markerTile = spawnData != null
+                ? spawnData.tileCoord
+                : As3TileOfAnchorPixel(room, new Vector2(x, y));
+
             room.spawnPoints.Add(new SpawnPoint
             {
-                tileCoord = WorldCoordinates.PixelToTile(new Vector2(x, y)),
+                tileCoord = markerTile,
                 type = SpawnType.Player
             });
+        }
+
+        /// <summary>
+        /// The AS3 tile a port-space anchor pixel was placed from — the inverse of
+        /// <see cref="WorldCoordinates.As3BottomCentreAnchorPixels"/> for the anchor size a
+        /// checkpoint carries.
+        /// </summary>
+        /// <remarks>
+        /// Only reachable when <c>CreateCheckpoint</c> is handed no spawn data, which neither call site
+        /// does. It exists so that path still writes the field's one convention rather than a port row.
+        /// </remarks>
+        private static Vector2Int As3TileOfAnchorPixel(RoomInstance room, Vector2 anchorPixel)
+        {
+            Vector2Int portTile = WorldCoordinates.PixelToTile(anchorPixel);
+            int roomHeight = room != null ? room.height : WorldConstants.ROOM_HEIGHT;
+
+            return new Vector2Int(
+                portTile.x - (int)SpawnPoint.AnchorSizeTiles + 1,
+                WorldCoordinates.UnityRowToAs3Row(portTile.y, roomHeight));
         }
 
         /// <summary>
@@ -971,53 +1136,207 @@ namespace PFE.Systems.Map
         }
 
         /// <summary>
-        /// Place random enemies from spawn point data.
-        /// Mirrors AS3 Location.setRandomUnits().
+        /// Place the room's random enemies: one draw per enemy point, per group.
+        /// Port of AS3 <c>Location.setRandomUnits()</c> (<c>Location.as:1053-1109</c>).
+        ///
+        /// <para><b>What this replaced, and why the old shape could not work.</b> The previous version
+        /// looked for <see cref="SpawnType.Enemy"/> entries on <c>room.spawnPoints</c>. Nothing has ever
+        /// produced one: <c>AS3ToUnityConverter.FindSpawnPoints</c> emits exactly one point, the
+        /// <see cref="SpawnType.Player"/> one, and no importer writes <c>SpawnType.Enemy</c> anywhere.
+        /// So the method returned at its first guard in every room, always. The count it would have used
+        /// was zero as well, because <c>RoomDifficulty.SetEnemyCount</c> had no production caller.</para>
+        ///
+        /// <para><b>The oracle's shape is per group, not per total.</b> <c>kolEn[i]</c> is a count for
+        /// <i>group i</i>, and the points for group <c>i</c> live in <c>ups[i]</c>; there is no
+        /// "total enemies" quantity anywhere in <c>setRandomUnits</c>. Each draw picks an index into the
+        /// surviving points of that group, creates one unit, and then retires that point.</para>
+        ///
+        /// <para><b>The retirement rule is unusual and is transcribed as written.</b>
+        /// <c>if(ups[i].length &lt;= 1) { ups[i] = []; break; } ups[i].splice(_loc3_,1);</c>
+        /// (<c>Location.as:1082-1087</c>) — the length test happens <i>after</i> the create and clears
+        /// the whole list rather than removing the used point. So the last point is consumed without
+        /// being spliced, and a group whose <c>kolEn[i]</c> exceeds its point count simply stops early.
+        /// "Fixing" this to a plain remove would let one extra enemy per group spawn.</para>
         /// </summary>
         private static void PlaceRandomEnemies(
             RoomInstance room,
-            RoomTemplate template,
+            ObjectTablePartition table,
             RoomDifficulty difficulty,
+            in LocationEnemyContext context,
             PFE.Core.Rng.IRngService rng,
             Dictionary<string, int> spawnCounters = null,
-            IUnitDefinitionProvider unitDefinitions = null)
+            IUnitDefinitionProvider unitDefinitions = null,
+            IObjectDefinitionProvider objectDefinitions = null)
         {
-            // Use spawn points marked as enemy spawns
-            var enemySpawns = new List<SpawnPoint>();
-            foreach (var sp in room.spawnPoints)
+            if (room == null || difficulty == null || table.UpGroups == null || rng == null) return;
+
+            // Location.as:1058-1093. Index 0 is skipped: `tipEn[0]` is the empty string and `ups[0]`
+            // is where AS3 parks markers whose `tipn` it could not parse, and `setRandomUnits` never
+            // reads it.
+            for (int group = 1; group < LocationEnemySelector.GroupCount; group++)
             {
-                if (sp.type == SpawnType.Enemy || sp.type == SpawnType.Boss)
+                int wanted = difficulty.GetEnemyCount(group);
+                if (wanted <= 0) continue;
+
+                List<ObjectSpawnData> points = table.UpGroups[group];
+                if (points == null || points.Count == 0) continue;
+
+                // Location.as:1062-1074 — `if(this.noHolesPlace)` drops the points that landed on a
+                // tile that cannot take an object. This mutates `ups[i]` itself, so a dropped point also
+                // stops counting toward the `length <= 1` test below.
+                if (room.noHolesPlace)
                 {
-                    enemySpawns.Add(sp);
+                    for (int i = points.Count - 1; i >= 0; i--)
+                    {
+                        TileData tile = room.GetTileAtCoord(points[i].tileCoord);
+                        if (tile != null && !tile.canPlaceObjects)
+                        {
+                            points.RemoveAt(i);
+                        }
+                    }
+                }
+
+                if (points.Count == 0) continue;
+
+                for (int placed = 0; placed < wanted; placed++)
+                {
+                    int pick = rng.Range(0, points.Count);
+                    ObjectSpawnData point = points[pick];
+
+                    CreateGroupUnit(room, LocationEnemySelector.GroupIds[group], point,
+                        context, difficulty, rng, spawnCounters, unitDefinitions, objectDefinitions);
+
+                    if (points.Count <= 1)
+                    {
+                        points.Clear();
+                        break;
+                    }
+
+                    points.RemoveAt(pick);
                 }
             }
 
-            if (enemySpawns.Count == 0) return;
-
-            // Sort deterministically before shuffling
-            enemySpawns.Sort((a, b) =>
+            // Location.as:1094-1108 — hidden enemies are drawn from the same `ups[2]` pool, after the
+            // main pass, and share its retirement rule. `ups[2]` may already be empty by now.
+            if (difficulty.hiddenEnemyCount > 0)
             {
-                int coordA = a.tileCoord.y * room.width + a.tileCoord.x;
-                int coordB = b.tileCoord.y * room.width + b.tileCoord.x;
-                return coordA.CompareTo(coordB);
-            });
+                List<ObjectSpawnData> hiddenPoints = table.UpGroups[2];
+                if (hiddenPoints == null || hiddenPoints.Count == 0) return;
 
-            // Determine enemy count based on difficulty
-            int totalDesired = difficulty.GetTotalEnemyCount();
-            if (totalDesired <= 0) totalDesired = 3; // Fallback default
-            int enemyCount = Mathf.Min(totalDesired, enemySpawns.Count);
+                for (int placed = 0; placed < difficulty.hiddenEnemyCount; placed++)
+                {
+                    int pick = rng.Range(0, hiddenPoints.Count);
+                    ObjectSpawnData point = hiddenPoints[pick];
 
-            // Shuffle spawn points deterministically
-            rng.Shuffle(enemySpawns);
+                    CreateHidden(room, point, context, difficulty, rng, spawnCounters, unitDefinitions,
+                        objectDefinitions);
 
-            for (int i = 0; i < enemyCount && i < enemySpawns.Count; i++)
+                    if (hiddenPoints.Count <= 1)
+                    {
+                        break;
+                    }
+
+                    hiddenPoints.RemoveAt(pick);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Create one unit at an authored enemy point. The oracle's <c>setRandomUnits</c> hands
+        /// <c>createUnit</c> the point's tile coordinates and its own <c>&lt;obj&gt;</c> node
+        /// (<c>Location.as:1081</c> <c>this.ups[_loc1_][_loc3_].xml</c>), which is what makes the
+        /// placement's <c>turn</c>/<c>tr</c>/<c>dig</c> attributes reach the unit's constructor.
+        /// </summary>
+        private static void CreateGroupUnit(
+            RoomInstance room,
+            string groupId,
+            ObjectSpawnData point,
+            in LocationEnemyContext context,
+            RoomDifficulty difficulty,
+            PFE.Core.Rng.IRngService rng,
+            Dictionary<string, int> spawnCounters,
+            IUnitDefinitionProvider unitDefinitions,
+            IObjectDefinitionProvider objectDefinitions)
+        {
+            string unitId = groupId;
+
+            EntityId entityId = default;
+            if (spawnCounters != null)
             {
-                var spawn = enemySpawns[i];
-                string unitId = !string.IsNullOrEmpty(spawn.unitId) ? spawn.unitId : "raider";
+                if (!spawnCounters.TryGetValue(unitId, out int count)) count = 0;
+                spawnCounters[unitId] = count + 1;
+                entityId = EntityId.CreateForRoomSpawn(room.id, unitId, count);
+            }
 
-                float px = (spawn.tileCoord.x + 0.5f) * WorldConstants.TILE_SIZE;
-                float py = (spawn.tileCoord.y + 1f) * WorldConstants.TILE_SIZE - 1;
+            // No authored `cl` on this path — the group markers carry none — so the base controller,
+            // and RoomUnitSpawner resolves the real one from the spawned unit's definition.
+            //
+            // `turn` is passed RAW (null when the marker has none), because the facing coin flip and the
+            // variant roll draw from the same stream in that order (Location.as:1185 randomCid, then
+            // Unit.as:609-613 facing).
+            CreateUnit(
+                room,
+                unitId: unitId,
+                x: 0f,
+                y: 0f,
+                entityId: entityId,
+                unitDefinitions: unitDefinitions,
+                attributes: point.attributes,
+                turn: point.GetAttribute("turn", null),
+                difficulty: ResolveLocationDifficulty(difficulty),
+                rng: rng,
+                enemyContext: context,
+                water: ResolveAs3Water(room, context, point.tileCoord),
+                as3PlacementTile: point.tileCoord,
+                // AS3 has no authored definition row for a group marker either — `createUnit` is handed
+                // the GROUP id and looks the row up by the *resolved* family. Handing the provider over
+                // is what lets CreateUnit fill the alias seed (`trridge` -> `trigridge`,
+                // `landturret` -> `land`). Note this is deliberately NOT `point.definition`: the marker's
+                // own row is `enl2`, which carries no `cid`.
+                objectDefinitions: objectDefinitions);
+        }
 
+        /// <summary>
+        /// Port of AS3 <c>Location.createHidden(param1, param2)</c> (<c>Location.as:1333-1355</c>): the
+        /// buried/silent occupants of a room, drawn from the <c>enl2</c> point pool after the visible
+        /// enemies.
+        ///
+        /// <para><b>What it creates depends on the room's enemy tier, and two of the four arms create a
+        /// prop rather than a unit.</b> <c>tipEnemy == 2</c> drops a <c>robocell</c> box and
+        /// <c>tipEnemy == 1 || 3</c> an <c>alarm</c> box; only tiers 0 and 6 create units
+        /// (<c>zombie</c> with an authored <c>dig='2'</c>, and the <c>lov</c> group respectively). Biomes
+        /// 10 and 11 return without doing anything at all.</para>
+        ///
+        /// <para><b>The <c>dig='2'</c> is load-bearing.</b> It is the only authored <c>dig</c> in the
+        /// game: the hidden zombies are always tier 2 (buried with a sharp ear), never rolled, and the
+        /// attribute is supplied by the oracle's own inline node
+        /// (<c>&lt;unit dig='2'/&gt;</c>) rather than by room data.</para>
+        /// </summary>
+        private static void CreateHidden(
+            RoomInstance room,
+            ObjectSpawnData point,
+            in LocationEnemyContext context,
+            RoomDifficulty difficulty,
+            PFE.Core.Rng.IRngService rng,
+            Dictionary<string, int> spawnCounters,
+            IUnitDefinitionProvider unitDefinitions,
+            IObjectDefinitionProvider objectDefinitions)
+        {
+            // Location.as:1335-1338
+            if (context.Biome == 10 || context.Biome == 11) return;
+
+            int tipEnemy = difficulty.tipEnemy;
+            Vector2Int tile = point.tileCoord;
+
+            if (tipEnemy == 0)
+            {
+                // The oracle's own node, not the marker's: `createUnit("zombie", x, y, false, <unit dig='2'/>)`.
+                var dig = new List<MapObjectAttributeData>
+                {
+                    new MapObjectAttributeData { key = "dig", value = "2" }
+                };
+
+                string unitId = "zombie";
                 EntityId entityId = default;
                 if (spawnCounters != null)
                 {
@@ -1026,27 +1345,301 @@ namespace PFE.Systems.Map
                     entityId = EntityId.CreateForRoomSpawn(room.id, unitId, count);
                 }
 
-                // No authored `cl` and no per-placement flags on this path: the base controller.
-                //
-                // AS3 reaches this same conclusion differently. setRandomUnits() passes the spawn point's
-                // own <obj> node to createUnit() (Location.as:1081 `this.ups[...].xml`), so the Unit
-                // constructor's `if(param3)` is TRUE and, when that node carries no `turn`, it coin-flips
-                // (Unit.as:609-613). Passing `turn: null` here reproduces that.
-                //
-                // It must NOT read SpawnPoint.facingDirection: that field is a constant 1 in this port —
-                // no importer writes it and AS3ToUnityConverter.FindSpawnPoints only ever emits the
-                // player spawn — so using it would silently pin every random enemy to facing right.
                 CreateUnit(
                     room,
                     unitId: unitId,
-                    x: px,
-                    y: py,
+                    x: 0f,
+                    y: 0f,
+                    entityId: entityId,
+                    unitDefinitions: unitDefinitions,
+                    attributes: dig,
+                    turn: null,
+                    difficulty: ResolveLocationDifficulty(difficulty),
+                    rng: rng,
+                    enemyContext: context,
+                    water: ResolveAs3Water(room, context, tile),
+                    as3PlacementTile: tile,
+                    objectDefinitions: objectDefinitions);
+                return;
+            }
+
+            if (tipEnemy == 2 || tipEnemy == 1 || tipEnemy == 3)
+            {
+                // `createObj("robocell", "box", …)` / `createObj("alarm", "box", …)`. The oracle builds
+                // these from a bare id with no placed node, so there is no ObjectSpawnData to reuse;
+                // CreateHiddenObject builds the minimal record the same way PlaceXpBonuses does.
+                string objectId = tipEnemy == 2 ? "robocell" : "alarm";
+                CreateHiddenObject(room, objectId, tile);
+                return;
+            }
+
+            if (tipEnemy == 6)
+            {
+                // `createUnit("lov", …)` — note this is a GROUP id, so it goes through randomUnit like
+                // any other, and on this arm the marker's own attributes are NOT passed.
+                string unitId = "lov";
+                EntityId entityId = default;
+                if (spawnCounters != null)
+                {
+                    if (!spawnCounters.TryGetValue(unitId, out int count)) count = 0;
+                    spawnCounters[unitId] = count + 1;
+                    entityId = EntityId.CreateForRoomSpawn(room.id, unitId, count);
+                }
+
+                CreateUnit(
+                    room,
+                    unitId: unitId,
+                    x: 0f,
+                    y: 0f,
                     entityId: entityId,
                     unitDefinitions: unitDefinitions,
                     turn: null,
                     difficulty: ResolveLocationDifficulty(difficulty),
-                    rng: rng);
+                    rng: rng,
+                    enemyContext: context,
+                    water: ResolveAs3Water(room, context, tile),
+                    as3PlacementTile: tile,
+                    objectDefinitions: objectDefinitions);
             }
+        }
+
+        /// <summary>
+        /// The <c>createObj</c> half of <c>createHidden</c>: a box built from an id and a tile, with no
+        /// authored placement node behind it. Placed through the same pixel anchor a unit would use, so
+        /// the cell it lands in matches AS3's <c>createObj(id, tip, x, y)</c>.
+        /// </summary>
+        private static void CreateHiddenObject(RoomInstance room, string objectId, Vector2Int tile)
+        {
+            Vector2 pixels = As3UnitAnchorPixels(room, tile, 1f);
+
+            var obj = new ObjectInstance
+            {
+                entityId = string.Empty,
+                objectId = objectId,
+                objectType = "box",
+                definitionId = objectId,
+                definition = null,
+                code = string.Empty,
+                uid = string.Empty,
+                attributes = new List<MapObjectAttributeData>(),
+                items = new List<MapObjectItemData>(),
+                scripts = new List<MapObjectScriptData>(),
+                parameters = string.Empty,
+                position = pixels,
+                isActive = true,
+                runtimeState = new MapObjectRuntimeStateData()
+            };
+
+            obj.InitializeDynamicRuntimeState();
+            room.AddObject(obj);
+        }
+
+        /// <summary>
+        /// The room's AS3 <c>Location</c> context, assembled from the fields <c>RoomGenerator</c> wrote
+        /// at build time. <c>landX</c>/<c>landY</c> are the room's grid coordinates, which is what AS3
+        /// stores in <c>newLoc</c> (<c>Land.as:950-951</c>) and what <c>randomUnit</c>'s parity tests
+        /// read.
+        /// </summary>
+        private static LocationEnemyContext ResolveEnemyContext(RoomInstance room)
+        {
+            if (room == null) return LocationEnemyContext.NoContext;
+
+            RoomDifficulty difficulty = room.difficulty;
+
+            return new LocationEnemyContext(
+                biome: room.biome,
+                tipEnemy: difficulty != null ? difficulty.tipEnemy : -1,
+                // AS3 randomCid/randomUnit read `locDifLevel`, and `setLocDif` writes it to BOTH
+                // `baseDifficulty` and `enemyLevel` (Land.as:983/987). `baseDifficulty` is the one that
+                // stays equal to `locDifLevel` once the unported `globalDif` term lands, so it is the
+                // right source.
+                difficulty: difficulty != null ? difficulty.baseDifficulty : 0f,
+                landX: room.landPosition.x,
+                landY: room.landPosition.y,
+                landConfig: room.landConfig);
+        }
+
+        /// <summary>
+        /// AS3 <c>createUnit</c>'s water test: <c>(biom == 1 || biom == 5) &amp;&amp; param4 == false &amp;&amp;
+        /// getTile(x, y).water &gt; 0</c> (<c>Location.as:1156-1159</c>). <c>param4</c> is the
+        /// "position is already pixels" flag and is <c>false</c> on both the authored and the
+        /// random-enemy paths, so it drops out.
+        ///
+        /// <para>It matters: in biomes 1 (sewer) and 5 (canter) an <c>enl1</c>/<c>enc1</c>/<c>enf1</c>
+        /// point standing in water resolves to <c>fish</c> instead of the dry-land family.</para>
+        /// </summary>
+        private static bool ResolveAs3Water(RoomInstance room, in LocationEnemyContext context, Vector2Int as3Tile)
+        {
+            if (room == null) return false;
+            if (context.Biome != 1 && context.Biome != 5) return false;
+
+            TileData tile = room.GetTileAtCoord(ResolveLegacyPlacementTileCoord(room, as3Tile));
+            return tile != null && tile.hasWater;
+        }
+
+        /// <summary>
+        /// AS3 <c>createUnit</c>'s pixel anchor for an authored tile:
+        /// <c>((x + 0.5 * w) * Tile.tileX, (y + 1) * Tile.tileY - 1)</c>
+        /// (<c>Location.as:1211-1212</c>), mirrored into the port's up-growing Y.
+        ///
+        /// <para><c>w</c> is <see cref="ResolveAs3AnchorWidthTiles"/>. The Y half is the same mirror
+        /// <c>ResolveLegacyBottomAnchorPixels</c> applies, which is why the two agree on Y and differ
+        /// only on X — the authored path uses the definition's <c>size</c> for X, AS3 uses the created
+        /// unit's sprite width.</para>
+        /// </summary>
+        private static Vector2 As3UnitAnchorPixels(RoomInstance room, Vector2Int as3Tile, float unitWidthTiles)
+        {
+            int borderOffset = room != null ? Mathf.Max(0, room.borderOffset) : 0;
+            int roomHeight = room != null ? room.height : WorldConstants.ROOM_HEIGHT;
+
+            return new Vector2(
+                (as3Tile.x + borderOffset + 0.5f * unitWidthTiles) * WorldConstants.TILE_SIZE,
+                (roomHeight - borderOffset - as3Tile.y - 1) * WorldConstants.TILE_SIZE + 1f);
+        }
+
+        /// <summary>
+        /// AS3 <c>_loc15_ = floor((_loc9_.scX - 1) / 40) + 1</c> (<c>Location.as:1211</c>) — the created
+        /// unit's own width in tiles, which is what the oracle centres the sprite on.
+        ///
+        /// <para><b>Not the marker's <c>size</c>.</b> The five enemy markers are
+        /// <c>enl1 size=1</c>, <c>enl2 size=2</c>, <c>enf1 size=1</c>, <c>enc1 size=1</c>,
+        /// <c>lov size=1</c> (<c>AllData.as:4931-4935</c>), but AS3 never reads that here: it reads the
+        /// sprite it just created. Using the marker's size would push every <c>enl2</c> enemy half a
+        /// tile to the right of where the oracle puts it.</para>
+        ///
+        /// <para>Measured: every unit in <c>Resources/Units</c> is 0.2–1.0 tiles wide except four
+        /// (<c>destr1</c> 1.6, <c>dront</c> 1.2, <c>sentinel</c> 1.1, <c>thunderhead</c> 60), and none of
+        /// those four is reachable from <c>randomUnit</c> — so in practice this returns 1 for every
+        /// random enemy, and the port's X anchor matches the old hard-coded
+        /// <c>(tile.x + 0.5) * TILE_SIZE</c>. It is computed rather than assumed so a future wide enemy
+        /// is placed correctly instead of silently half a tile off.</para>
+        /// </summary>
+        private static float ResolveAs3AnchorWidthTiles(string unitId, IUnitDefinitionProvider unitDefinitions)
+        {
+            IUnitDefinitionProvider provider = unitDefinitions ?? ResourcesUnitDefinitionProvider.Shared;
+
+            if (provider.TryGetUnit(unitId, out UnitDefinition definition) && definition != null)
+            {
+                float widthPixels = definition.Width * WorldConstants.TILE_SIZE;
+                return Mathf.Floor((widthPixels - 1f) / WorldConstants.TILE_SIZE) + 1f;
+            }
+
+            return 1f;
+        }
+
+        /// <summary>
+        /// AS3 <c>Location.buildLoc()</c>'s dispatch of a room's <c>&lt;obj&gt;</c> children
+        /// (<c>Location.as:656-701</c>).
+        /// </summary>
+        private struct ObjectTablePartition
+        {
+            /// <summary>The rows that fall through to <c>objsT</c> — what <c>setObjects</c> instantiates.</summary>
+            public List<ObjectSpawnData> Spawnable;
+
+            /// <summary>
+            /// AS3 <c>ups[]</c>, indexed by <c>tipn</c>. Index 0 is never read by
+            /// <c>setRandomUnits</c> (its loop starts at 1) — AS3 parks unparseable markers there, and
+            /// so does this port, which is why an unrecognised marker id is dropped rather than placed.
+            /// </summary>
+            public List<ObjectSpawnData>[] UpGroups;
+
+            /// <summary>How many <c>enspawn</c> rows the room authored. See the remarks on
+            /// <see cref="PartitionObjectTable"/> — the consumer is unported.</summary>
+            public int EnSpawnRows;
+
+            /// <summary>How many <c>spawnpoint</c> rows were skipped. The player point is already on
+            /// <c>room.spawnPoints</c> via <c>RoomGenerator</c>; AS3 never instantiates the marker.</summary>
+            public int SpawnPointRows;
+        }
+
+        /// <summary>
+        /// Split the room's authored object table the way AS3 <c>Location.buildLoc()</c> does
+        /// (<c>Location.as:656-701</c>).
+        ///
+        /// <code>
+        /// xmll = AllData.d.obj.(@id == obj.@id)[0];
+        /// if(xmll.@tip == "spawnpoint") spawnPoints.push({x, y});
+        /// else if(xmll.@tip == "enspawn") addEnSpawn(nx, ny, xmll);
+        /// else if(xmll.@tip == "up")     ups[int(xmll.@tipn)].push({x, y, xml: obj});
+        /// else                           objsT.push({id, tip, rem, x, y, xml: obj});
+        /// </code>
+        ///
+        /// <para><b>The tip comes off the AllData row, not off the placed node</b>
+        /// (<c>Location.as:658</c> looks the row up by id). The port's <c>MapObjectDefinition</c> is that
+        /// row, and <c>legacyTip</c> is the <c>tip</c> attribute copied verbatim — see
+        /// <c>MapObjectDefinition.GetResolvedPlacementType</c>, which reads the same field for the same
+        /// reason.</para>
+        ///
+        /// <para><b><c>enspawn</c> rows are collected but not consumed.</b> The oracle sends them to
+        /// <c>addEnSpawn</c>, which fills <c>Location.enspawn</c> and <c>kolEnSpawn</c>; that list is read
+        /// by <c>Location.enemySpawn()</c> and <c>waveSpawn()</c> (<c>Location.as:2977-3030</c>), the
+        /// alarm/wave spawner. Neither is ported, so there is no consumer. They are still removed from the
+        /// spawnable set, because AS3 never instantiates them — leaving them in is what produced 89 junk
+        /// props per import.</para>
+        /// </summary>
+        private static ObjectTablePartition PartitionObjectTable(RoomTemplate template)
+        {
+            var partition = new ObjectTablePartition
+            {
+                Spawnable = new List<ObjectSpawnData>(),
+                UpGroups = new List<ObjectSpawnData>[LocationEnemySelector.GroupCount]
+            };
+
+            for (int i = 0; i < partition.UpGroups.Length; i++)
+            {
+                partition.UpGroups[i] = new List<ObjectSpawnData>();
+            }
+
+            if (template?.objects == null) return partition;
+
+            foreach (ObjectSpawnData objData in template.objects)
+            {
+                if (objData == null) continue;
+                objData.EnsureStructuredData();
+
+                switch (DefinitionTip(objData))
+                {
+                    case "spawnpoint":
+                        partition.SpawnPointRows++;
+                        continue;
+
+                    case "enspawn":
+                        partition.EnSpawnRows++;
+                        continue;
+
+                    case "up":
+                        int group = LocationEnemySelector.GroupIndexForId(objData.id);
+                        if (group == 0)
+                        {
+                            Debug.LogWarning(
+                                $"[RoomPopulator] Room '{template.id}': object '{objData.id}' has " +
+                                $"definition tip='up' but is not one of the five enemy point groups " +
+                                $"(enl1, enl2, enf1, enc1, lov), so its tipn is unknown. AS3 would push " +
+                                $"it onto ups[0], which setRandomUnits never reads — dropped.");
+                            continue;
+                        }
+
+                        partition.UpGroups[group].Add(objData);
+                        continue;
+                }
+
+                partition.Spawnable.Add(objData);
+            }
+
+            return partition;
+        }
+
+        /// <summary>
+        /// AS3 <c>xmll.@tip</c> — the classification read off the AllData definition row
+        /// (<c>Location.as:658</c>), lower-cased so the three comparisons above match the oracle's exact
+        /// string literals regardless of import casing. An object with no resolvable definition yields
+        /// <c>""</c>, which is what AS3 does when the id is not in AllData at all: <c>xmll</c> is null,
+        /// every <c>@tip</c> test is false, and the row lands in <c>objsT</c>.
+        /// </summary>
+        private static string DefinitionTip(ObjectSpawnData spawnData)
+        {
+            string tip = spawnData?.definition?.legacyTip;
+            return string.IsNullOrWhiteSpace(tip) ? string.Empty : tip.Trim().ToLowerInvariant();
         }
 
         /// <summary>
@@ -1126,9 +1719,10 @@ namespace PFE.Systems.Map
             int roomHeight = room != null ? room.height : WorldConstants.ROOM_HEIGHT;
             float sizeTiles = Mathf.Max(1f, ResolvePlacementSizeTiles(spawnData));
 
-            return new Vector2(
-                (spawnData.tileCoord.x + borderOffset + 0.5f * sizeTiles) * WorldConstants.TILE_SIZE,
-                (roomHeight - borderOffset - spawnData.tileCoord.y - 1) * WorldConstants.TILE_SIZE + 1f);
+            // The arithmetic lives in WorldCoordinates so the player-spawn reader can share it rather
+            // than re-derive the mirror — which is how the two came to disagree.
+            return WorldCoordinates.As3BottomCentreAnchorPixels(
+                spawnData.tileCoord, sizeTiles, roomHeight, borderOffset);
         }
 
         private static int ResolvePlacementSizeTiles(ObjectSpawnData spawnData)

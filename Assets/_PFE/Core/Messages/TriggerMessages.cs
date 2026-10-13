@@ -11,14 +11,30 @@ namespace PFE.Core.Messages
         public string MessageKey;
         public string Text;
         public bool Show;
+
+        /// <summary>
+        /// AS3 <c>messText</c>'s <c>param3</c>: <c>mess.y = screenY - 50 - mess.height</c> instead of
+        /// <c>mess.y = 50</c> (<c>GUI.as:1682-1689</c>) — the banner drops to the bottom of the screen.
+        /// </summary>
         public bool BottomPosition;
 
-        public TutorialPromptMessage(string messageKey, string text, bool show, bool bottomPosition = false)
+        /// <summary>
+        /// AS3 <c>messText</c>'s <c>param4</c>: append with <c>&lt;br&gt;</c> rather than replace
+        /// (<c>GUI.as:1675-1680</c>). Carried because the script vocabulary sets it from
+        /// <c>opt2</c> — <c>mess val opt1 opt2</c> (<c>Script.as:247-250</c>) — and a banner that
+        /// silently replaces where the oracle appends is a wrong transcript, not a cosmetic
+        /// difference.
+        /// </summary>
+        public bool Push;
+
+        public TutorialPromptMessage(string messageKey, string text, bool show, bool bottomPosition = false,
+                                     bool push = false)
         {
             MessageKey = messageKey;
             Text = text;
             Show = show;
             BottomPosition = bottomPosition;
+            Push = push;
         }
     }
 

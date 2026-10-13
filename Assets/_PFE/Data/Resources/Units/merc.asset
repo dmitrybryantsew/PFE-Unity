@@ -17,6 +17,7 @@ MonoBehaviour:
   id: merc
   parentId: 
   controllerId: 
+  lootTableKey: 
   fraction: 2
   category: 2
   xpReward: 0

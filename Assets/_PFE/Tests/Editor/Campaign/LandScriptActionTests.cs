@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEngine;
+using PFE.Systems.Campaign;
 using PFE.Systems.Map;
 using PFE.Systems.Map.Scripting;
 
@@ -35,7 +36,8 @@ namespace PFE.Tests.Editor.Campaign
             public int GotoNextLevelCalls;
 
             public string LastTriggerName;
-            public int LastTriggerValue = int.MinValue;
+            public TriggerValue LastTriggerValue = TriggerValue.Unset;
+            public int TriggerCalls;
 
             public string LastGotoLandId;
             public int LastGotoLandN = int.MinValue;
@@ -48,7 +50,12 @@ namespace PFE.Tests.Editor.Campaign
 
             public void RefillVendors() { RefillCalls++; }
 
-            public void SetTrigger(string triggerName, int value) { LastTriggerName = triggerName; LastTriggerValue = value; }
+            public void SetTrigger(string triggerName, TriggerValue value)
+            {
+                TriggerCalls++;
+                LastTriggerName = triggerName;
+                LastTriggerValue = value;
+            }
 
             public void MarkPassed() { PassedCalls++; }
 
@@ -154,17 +161,44 @@ namespace PFE.Tests.Editor.Campaign
         }
 
         [Test]
-        public void Trigger_DefaultsToOneAndHonoursN()
+        public void Trigger_StoresTheStringNWithTheOracleMinusOneDefault()
         {
+            // Script.as:71 declares `var _loc6_:String = "-1"` and overwrites it only when `@n` is
+            // present and non-empty (:97-99). So `param1.n` is NEVER null, `com`'s
+            // `if(param1.n != null)` guard (:426) is unconditionally true, and the
+            // `else { setTrigger(param1.val) }` arm (:432 — the int 1) is DEAD CODE.
+            //
+            // This test used to assert `Is.EqualTo(1)` with the note "no @n means setTrigger(val)".
+            // That note was a reading of the dead branch, and it passed — because the port's
+            // `NValue != 0 ? NValue : 1` substituted 1 on its own authority and nothing had checked
+            // the oracle. A test that agrees with the bug is worse than no test: it makes the bug
+            // look deliberate.
             var host = new FakeHost();
             var system = new AreaTriggerSystem(null, null, null, null, host);
 
             system.ExecuteAction(MakeRoom(), Action("trigger", val: "dial_calam2"));
+            Assert.That(host.TriggerCalls, Is.EqualTo(1));
             Assert.That(host.LastTriggerName, Is.EqualTo("dial_calam2"));
-            Assert.That(host.LastTriggerValue, Is.EqualTo(1), "Script.as:424-434 — no @n means setTrigger(val).");
+            Assert.That(host.LastTriggerValue.Kind, Is.EqualTo(TriggerValue.TriggerKind.String),
+                "analiz types `n` as String (Script.as:71), so the payload is a string, not an int.");
+            Assert.That(host.LastTriggerValue.RawString, Is.EqualTo("-1"),
+                "The oracle's own default — NOT a substituted 1.");
+            Assert.That(host.LastTriggerValue.IsGreaterThanZero(), Is.False,
+                "`\"-1\" > 0` is false, so a bare `trigger` does not open a `> 0` gate.");
 
             system.ExecuteAction(MakeRoom(), Action("trigger", val: "storm", n: "4"));
-            Assert.That(host.LastTriggerValue, Is.EqualTo(4), "…and @n overrides it.");
+            Assert.That(host.LastTriggerValue.RawString, Is.EqualTo("4"), "…and @n is stored verbatim.");
+            Assert.That(host.LastTriggerValue.EqualsInt(4), Is.True,
+                "AS3 coerces, so a numeric gate still opens.");
+
+            // The case the old int mapping actually got wrong. `@n="wait"` is the value `refill`
+            // sweeps for (Game.as:516-522); int.TryParse failed on it and the port wrote the int 1,
+            // so the sweep could never match.
+            system.ExecuteAction(MakeRoom(), Action("trigger", val: "patient_tr2", n: "wait"));
+            Assert.That(host.LastTriggerValue.RawString, Is.EqualTo("wait"),
+                "A non-numeric @n survives as the string it is.");
+            Assert.That(host.LastTriggerValue.EqualsString("wait"), Is.True,
+                "…and is therefore findable by the refill sweep.");
         }
 
         [Test]

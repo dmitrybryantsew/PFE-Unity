@@ -37,11 +37,10 @@ namespace PFE.Systems.Weapons.Controllers
     ///   BLOCKED   punchDamMult → the stun proc (dopCh = punchDamMult - 1, dopDamage = 30/60).
     ///             DamageContext.DopChance / DopDamage have no reader anywhere in the port, so
     ///             writing them here would change nothing observable.
-    ///   BLOCKED   kickDestroy → b.destroy. DamageContext.DestroyTiles is read only by the
-    ///             projectile path (ProjectileFactory.cs:81); a MeleeSweep plan never becomes a
-    ///             projectile, so no melee or unarmed hit destroys tiles today.
-    ///   Those two are exposed on IWeaponStatSource so the fix is a one-liner once their consumers
-    ///   land, but they must not be counted as closed divergences. See TOPIC_weapons_dispatch.
+    ///   WIRED     kickDestroy → b.destroy, on the back-hit (zadok) branch only — WPunch.as:54.
+    ///             Its consumer is MeleeHitVolume's tile sweep; see Shoot().
+    ///   The remaining one is exposed on IWeaponStatSource so the fix is a one-liner once its
+    ///   consumer lands, but it must not be counted as a closed divergence. See TOPIC_weapons_dispatch.
     /// </summary>
     public sealed class UnarmedWeaponController : IWeaponController
     {
@@ -86,11 +85,16 @@ namespace PFE.Systems.Weapons.Controllers
         /// <summary><c>Pers.punchDamMult</c> (<c>WKick.as:47-48</c>), 1 when there is no owner.</summary>
         private float PunchDamMult => _statSource != null ? _statSource.PunchDamMult : 1f;
 
-        // NOTE: `Pers.kickDestroy` (WKick.as:69, b.destroy) is deliberately NOT read here even
-        // though IWeaponStatSource exposes it. Its consumer is DamageContext.DestroyTiles, which only
-        // the projectile path reads (ProjectileFactory.cs:81) — a MeleeSweep plan never becomes a
-        // projectile, so any value written here would be inert. The seam carries it so the fix is a
-        // one-liner once melee tile destruction lands; wire it then, not now.
+        /// <summary>
+        /// <c>Pers.kickDestroy</c> (<c>WPunch.as:54</c>, <c>WKick.as:69</c>) — the tile damage a
+        /// <b>back-hit</b> carries, in place of the weapon's own <c>destroy</c>. Only read when there
+        /// is an owner with a <c>Pers</c>, which is AS3's own gate (<c>if(owner.player)</c>).
+        ///
+        /// <para>Wired once <c>MeleeHitVolume</c> learned to resolve tiles. Before that its only
+        /// possible consumer was <c>DamageContext.DestroyTiles</c>, which nothing on a
+        /// <c>MeleeSweep</c> plan read — so writing it here would have been inert.</para>
+        /// </summary>
+        private float KickDestroy => _statSource != null ? _statSource.KickDestroy : 0f;
 
         // ── Constructor ───────────────────────────────────────────────────────
 
@@ -264,6 +268,17 @@ namespace PFE.Systems.Weapons.Controllers
                 damageScale,
                 knockbackScale,
                 new Vector2(Mathf.Cos(punchAngle), Mathf.Sin(punchAngle)));
+
+            // AS3 WPunch.as:54 — a BACK-HIT is the "kick", and it takes the owner's
+            // `Pers.kickDestroy` in place of the weapon's own `destroy` (which `setBullet` had copied
+            // on at Weapon.as:1674). Gated on `owner.player` in the oracle, which is "there is a
+            // Pers" here — an enemy's punch keeps the weapon's value.
+            //
+            // This is what makes a bare kick smash tiles: the three `punch` weapons author no
+            // `<char destroy>` at all, so without it a back-hit would break a tile with the class
+            // default 10 where AS3 uses kickDestroy (30, Pers.as:335).
+            if (zadok && _statSource != null)
+                dmgCtx = dmgCtx.WithDestroyTiles(KickDestroy);
 
             // ── Emit ShotPlan ─────────────────────────────────────────────────
             // MeleeSweep — MeleeHitVolume handles the actual hit detection.

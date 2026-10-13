@@ -497,9 +497,18 @@ MonoBehaviour:
     attributes:
     - key: vis
       value: right
+    - key: move_present
+      value: 1
+    - key: move_dy
+      value: 7
+    - key: move_tstay
+      value: 30
+    - key: move_tmove
+      value: 90
     items: []
     scripts: []
-    parameters: code="r2pRH565bua7zsTq" vis="right"
+    parameters: code="r2pRH565bua7zsTq" vis="right" move_present="1" move_dy="7"
+      move_tstay="30" move_tmove="90"
   - type: unit
     id: wturret
     definitionId: wturret
@@ -510,9 +519,18 @@ MonoBehaviour:
     attributes:
     - key: vis
       value: right
+    - key: move_present
+      value: 1
+    - key: move_dy
+      value: 7
+    - key: move_tstay
+      value: 30
+    - key: move_tmove
+      value: 90
     items: []
     scripts: []
-    parameters: code="GA9QgRrdpTmMAxOm" vis="right"
+    parameters: code="GA9QgRrdpTmMAxOm" vis="right" move_present="1" move_dy="7"
+      move_tstay="30" move_tmove="90"
   - type: door
     id: door2
     definitionId: door2
@@ -572,3 +590,6 @@ MonoBehaviour:
     radiation: 0
     radiationDamage: 0
     darkness: 0
+    tipEnemy: -1
+    kolEnSpawn: -1
+    spawnGroupId: 

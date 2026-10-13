@@ -62,6 +62,46 @@ namespace PFE.Core.Input
         /// <summary>Number of favourite-spell slots — AS3 <c>World.kolQS</c> (<c>World.as:62</c>).</summary>
         public const int SpellHotkeySlots = 4;
 
+        // ---- PipBuck device hotkeys (AS3 Ctr.as:32-42) ----
+        //
+        // Seven actions, polled rather than published as messages. The PipBuck is interface state,
+        // not simulation state: it has no business on the sim's message bus, and it must be readable
+        // while the world is suspended — which is exactly when a published message would already have
+        // been dropped. Same reasoning as QuickSave/QuickLoad above.
+        //
+        // The defaults are the Oracle's own keys, and three of the seven are NOT what a player would
+        // guess:
+        //   * `PipMedicine` is L and opens the character sheet's sub-page 5 (self-treatment), NOT a
+        //     medical page — `World.as:1353-1359` maps it to `pip.onoff(1,5)`. There is no hotkey for
+        //     page 6; that page is the doctor NPC's contextual modal.
+        //   * `PipQuests` is J and opens info sub-page 2, and `PipMap` is M opening sub-page 1
+        //     (`World.as:1361-1376`).
+        //   * `PipStatus` (O) and `PipSkills` (K) both open page 1, at sub-pages 1 and 2.
+
+        /// <summary><c>Tab</c> — AS3 <c>keyPip</c>: toggle the device (<c>World.as:1321-1329</c>).</summary>
+        public InputAction PipToggle { get; private set; }
+
+        /// <summary><c>I</c> — AS3 <c>keyInvent</c>: inventory, page 2 (<c>World.as:1331-1339</c>).</summary>
+        public InputAction PipInventory { get; private set; }
+
+        /// <summary><c>O</c> — AS3 <c>keyStatus</c>: character sheet, page 1 sub-page 1.</summary>
+        public InputAction PipStatus { get; private set; }
+
+        /// <summary><c>K</c> — AS3 <c>keySkills</c>: character sheet, page 1 sub-page 2 (skills).</summary>
+        public InputAction PipSkills { get; private set; }
+
+        /// <summary>
+        /// <c>L</c> — AS3 <c>keyMed</c>: character sheet, page 1 <b>sub-page 5</b> (self-treatment).
+        /// <b>Not</b> page 6 — see the block comment above.
+        /// </summary>
+        public InputAction PipMedicine { get; private set; }
+
+        /// <summary><c>M</c> — AS3 <c>keyMap</c>: info page 3 sub-page 1 (local map).</summary>
+        public InputAction PipMap { get; private set; }
+
+        /// <summary><c>J</c> — AS3 <c>keyQuest</c>: info page 3 <b>sub-page 2</b> (quest log).</summary>
+        public InputAction PipQuests { get; private set; }
+
         // Reactive Properties (for UI binding with R3)
         public readonly ReactiveProperty<Vector2> MoveInput = new(Vector2.zero);
         public readonly ReactiveProperty<bool> IsJumping = new(false);
@@ -203,6 +243,19 @@ namespace PFE.Core.Input
             // door-collider debug overlay, which reads it through the legacy Input class.
             QuickLoad = BuildButtonAction("QuickLoad", s?.quickLoad,
                 "<Keyboard>/f11", "", "<Gamepad>/start");
+
+            // ---- PipBuck device (AS3 Ctr.as:32-42) ----
+            //
+            // No gamepad bindings: the Oracle binds these to the keyboard only, and inventing a
+            // pad mapping would make a controller able to open a page the original cannot reach.
+            // The device is keyboard-driven in this game by design.
+            PipToggle = BuildButtonAction("PipToggle", s?.pipToggle, "<Keyboard>/tab", "", "");
+            PipInventory = BuildButtonAction("PipInventory", s?.pipInventory, "<Keyboard>/i", "", "");
+            PipStatus = BuildButtonAction("PipStatus", s?.pipStatus, "<Keyboard>/o", "", "");
+            PipSkills = BuildButtonAction("PipSkills", s?.pipSkills, "<Keyboard>/k", "", "");
+            PipMedicine = BuildButtonAction("PipMedicine", s?.pipMedicine, "<Keyboard>/l", "", "");
+            PipMap = BuildButtonAction("PipMap", s?.pipMap, "<Keyboard>/m", "", "");
+            PipQuests = BuildButtonAction("PipQuests", s?.pipQuests, "<Keyboard>/j", "", "");
         }
 
         private InputAction BuildButtonAction(string name, ButtonBinding b,

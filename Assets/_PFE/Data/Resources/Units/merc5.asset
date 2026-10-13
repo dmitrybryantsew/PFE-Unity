@@ -17,6 +17,7 @@ MonoBehaviour:
   id: merc5
   parentId: merc
   controllerId: raider
+  lootTableKey: raider
   fraction: 2
   category: 3
   xpReward: 800
@@ -232,21 +233,27 @@ MonoBehaviour:
   - weaponId: anti
     chance: 0.25
     difficulty: 19
+    isFixedWeapon: 0
   - weaponId: lmg
     chance: 0.5
     difficulty: 0
+    isFixedWeapon: 0
   - weaponId: hmg
     chance: 0.2
     difficulty: 0
+    isFixedWeapon: 0
   - weaponId: gatl
     chance: 0.3
     difficulty: 0
+    isFixedWeapon: 0
   - weaponId: gatp
     chance: 0.2
     difficulty: 0
+    isFixedWeapon: 0
   - weaponId: pshot
     chance: 1
     difficulty: 0
+    isFixedWeapon: 0
   animations:
     stay:
       row: 0

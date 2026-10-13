@@ -6,6 +6,7 @@ using PFE.Core;
 using PFE.Core.Messages;
 using PFE.Data.Definitions;
 using PFE.Entities.Units;
+using PFE.Systems.Combat;
 using PFE.Systems.Interaction;
 using PFE.Systems.Map;
 using PFE.Systems.Map.Actions;
@@ -30,7 +31,7 @@ namespace PFE.Systems.Map.Rendering
     /// <c>gotoAndPlay("comein")</c> for the one Z-door clip (<c>Box.as:508-532</c>).</para>
     /// </summary>
     [RequireComponent(typeof(BoxCollider2D))]
-    public class DoorPropPresenter : MonoBehaviour, IInteractable, IHoldInteractable
+    public class DoorPropPresenter : MonoBehaviour, IInteractable, IHoldInteractable, IDestructibleTile
     {
         /// <summary>
         /// Seconds per frame of a played clip. The map-object sprites ship in
@@ -60,6 +61,44 @@ namespace PFE.Systems.Map.Rendering
         private GameObject _debugVisualGo;
         private SpriteRenderer _debugSpriteRenderer;
         private CheckpointAreaTrigger _checkpointArea;
+
+        /// <summary>
+        /// The door's <b>solid</b> collider — the thing a weapon actually hits.
+        ///
+        /// <para><b>Why the door needs one of its own.</b> The component's required
+        /// <see cref="BoxCollider2D"/> is the <i>cursor-targeting</i> affordance and is forced to
+        /// <c>isTrigger = true</c> by <see cref="Initialize"/>, so both projectile paths skip it:
+        /// <c>Projectile.OnTriggerEnter2D</c> returns on <c>other.isTrigger</c>, and
+        /// <c>GatherUnitBoxes</c> filters <c>useTriggers = false</c>. The door's <i>tiles</i> cannot
+        /// stand in either, because AS3's <c>initDoor</c> stamps them at run time: their cells are
+        /// <c>_</c> (air) in the shipped room maps — measured on <c>RoomsCanter.as</c>
+        /// "проходы3" — so <c>TileVisualManager.CreateAllTiles</c> built them no collider and
+        /// <c>ApplyTileCollision</c> can only change the <c>TileData</c>. The result was a closed
+        /// door that stopped the <i>player</i> (whose collision is the tile grid) and let every
+        /// round pass straight through. This collider is that missing surface.</para>
+        ///
+        /// <para><b>It is on this GameObject, not a child, on purpose.</b> Both the projectile and
+        /// the melee sweep resolve the impact by <c>GetComponent&lt;IDestructibleTile&gt;()</c> on the
+        /// collider's own GameObject; a child would resolve to nothing and the round would stop on an
+        /// invulnerable slab.</para>
+        ///
+        /// <para>Enabled only while the box is closed and alive — see
+        /// <see cref="RefreshSolidCollider"/> — which is AS3's <c>phis</c> toggle
+        /// (<c>Box.setDoor</c>, <c>Box.as:684</c>): an open door is not a target.</para>
+        /// </summary>
+        private BoxCollider2D _solidCollider;
+
+        /// <summary>Remaining hit points, AS3 <c>Box.hp</c>.</summary>
+        private float _doorHitPoints;
+
+        /// <summary>Minimum destroy value that does anything at all, AS3 <c>Box.thre</c>.</summary>
+        private float _doorThreshold;
+
+        /// <summary>AS3 <c>Box.as:285-289</c> — a placed <c>indestruct</c> pins hp and thre at 10000.</summary>
+        private bool _doorIndestructible;
+
+        /// <summary>Whether <see cref="_doorHitPoints"/> has been resolved from the definition yet.</summary>
+        private bool _durabilityResolved;
 
         public static bool ShowDebugVisuals
         {
@@ -184,11 +223,21 @@ namespace PFE.Systems.Map.Rendering
             PFE.Systems.Map.Streaming.RoomTransitionManager transition =
                 PFE.Systems.Map.Streaming.RoomTransitionManager.Instance;
 
-            return ObjectActionDispatcher.CreateDefault(
+            // CreateFull rather than CreateDefault: it adds the tagged broadcast as the fallback and the
+            // thirteen terminal branches. Without the broadcast, 210 of the 214 placement-level `allact`
+            // attributes in the shipped rooms — every button in the game — answer Unhandled and fall
+            // through to opening the button itself.
+            return ObjectActionDispatcher.CreateFull(
                 transition,
                 travelMapHost: campaign,
                 exitHost: campaign,
-                probHost: transition);
+                probHost: transition,
+                verbHost: new ObjectVerbHost
+                {
+                    // AS3 setAct("open", n) → setDoor(): restamp the tiles the object covers.
+                    StampDoorTiles = (room, obj, isOpen) =>
+                        PFE.Systems.Map.Scripting.AreaTriggerSystem.UpdateDoorTileCollision(room, obj, isOpen),
+                });
         }
 
         private int _currentFrameIndex;
@@ -339,6 +388,8 @@ namespace PFE.Systems.Map.Rendering
                 ConfigureCollider();
             }
 
+            ResolveDurability();
+
             // In AS3 (Box.as:653), initDoor stamps solid collision if closed — but initDoor is only
             // reached when the definition authors `door=` (Box.as:290-297). A `comein` Z door does not,
             // and it stands on open ground (RoomsCamp.as places indoor2 at 16,15 and 16,7; both are `_`
@@ -346,8 +397,20 @@ namespace PFE.Systems.Map.Rendering
             // supposed to walk into, so the stamping follows IsDoorBox, not IsInteractableDoor.
             if (IsDoorBox)
             {
-                ApplyTileCollision(IsOpen);
+                // A door restored from a save in its wrecked state must not be re-stamped solid. The
+                // flag round-trips through RoomStateSnapshot, so without this a re-Initialize after a
+                // load would rebuild the wall the player had already shot out.
+                if (IsDestroyed)
+                {
+                    ApplyDestroyedTiles();
+                }
+                else
+                {
+                    ApplyTileCollision(IsOpen);
+                }
             }
+
+            RefreshSolidCollider();
 
             EnsureCheckpointArea();
 
@@ -450,6 +513,11 @@ namespace PFE.Systems.Map.Rendering
             if (_objectInstance == null) return;
             if (!IsInteractableDoor && open) return;
 
+            // A wrecked door has no state left to toggle. Without this, closing one would re-stamp the
+            // solid tiles the player had already shot out (ApplyTileCollision(false) writes Wall) and
+            // hand back a barricade that renders as rubble.
+            if (IsDestroyed) return;
+
             _objectInstance.runtimeState.isOpen = open;
 
             if (!open)
@@ -458,6 +526,7 @@ namespace PFE.Systems.Map.Rendering
             }
 
             ApplyTileCollision(open);
+            RefreshSolidCollider();
 
             // AS3 `Box.setDoor()` force-relights the room when the door is *opened*, and only then:
             // `if(param1) { loc.isRelight = true; loc.isRebuild = true; }` (Box.as:688-692, where
@@ -473,6 +542,23 @@ namespace PFE.Systems.Map.Rendering
             if (open && _room != null)
             {
                 _room.RequestRelight();
+            }
+
+            // The chain mirror is built when the room activates and refreshed ONLY from
+            // `RoomInstance.TilesMutated` — see PhysicsWorldService.OnRoomActivated / RebuildRegion.
+            // `ApplyTileCollision` rewrote the grid above without saying so, so until this call the
+            // mirror still described the door's OPPOSITE state: an opened door kept a wall (rounds
+            // stopped at a phantom surface in the doorway) and a closed one gained none. This is the
+            // staleness recorded against this path in TOPIC_open_work.md; `Die()` has always
+            // notified, and SetOpen now does too, in both directions.
+            //
+            // Both directions, not just open: `setDoor` writes `phis` on every covered cell either way
+            // (Box.as:683-685), so the derived geometry is stale either way. Cost is bounded — a door
+            // toggle is a player action, and RebuildRegion is a full rebuild, which is the same
+            // work `Die()` has always paid.
+            if (_room != null)
+            {
+                _room.NotifyTilesMutated(CoveredTileRegion());
             }
 
             UpdateVisualFrame();
@@ -574,6 +660,195 @@ namespace PFE.Systems.Map.Rendering
                 }
             }
         }
+
+        // ── Durability and destruction (AS3 Box.hp / Box.thre / Box.die) ──────────────────────
+
+        /// <summary>
+        /// Reads this door's durability off its definition — AS3 <c>Box</c>'s constructor, which takes
+        /// <c>hp</c> and <c>thre</c> from the <c>&lt;obj&gt;</c> row (<c>Box.as:176-183</c>) and then
+        /// lets a placed <c>indestruct</c> override both to 10000 (<c>:285-289</c>).
+        ///
+        /// <para><b>Definition only, not the placement.</b> AS3 reads these two off <c>node</c>, which
+        /// is <c>AllData.d.obj.(@id == id)[0]</c> (<c>Box.as:155</c>) — the definition row. The
+        /// placement XML (<c>param5</c>) is consulted for <c>indestruct</c> and for scripts, never for
+        /// <c>hp</c>/<c>thre</c>. The shipped data agrees: every <c>door=</c> row authors them on the
+        /// definition (<c>AllData.as:4858-4876</c>) and no placement overrides them.</para>
+        /// </summary>
+        private void ResolveDurability()
+        {
+            bool indestructible = false;
+            float authoredHitPoints = 0f;
+            float authoredThreshold = 0f;
+
+            if (_objectInstance != null)
+            {
+                // AS3 `xml.@indestruct.length()` (Box.as:285) is a `.length()` guard, so a
+                // present-but-empty attribute does not count. GetAttribute answers "" for both.
+                indestructible = !string.IsNullOrEmpty(
+                    _objectInstance.GetAttribute("indestruct", string.Empty));
+
+                if (_objectInstance.definition != null)
+                {
+                    authoredHitPoints = _objectInstance.definition.hitPoints;
+                    authoredThreshold = _objectInstance.definition.threshold;
+                }
+            }
+
+            _doorIndestructible = indestructible;
+            _doorHitPoints = DoorDestructionMath.ResolveHitPoints(authoredHitPoints, indestructible);
+            _doorThreshold = DoorDestructionMath.ResolveThreshold(authoredThreshold, indestructible);
+            _durabilityResolved = true;
+        }
+
+        /// <summary>
+        /// Turns <see cref="_solidCollider"/> on or off to match the door's current state: a closed,
+        /// living door box is solid; an open one, a wrecked one, and anything that is not a door box
+        /// at all are not.
+        ///
+        /// <para>Size and offset come from <see cref="GetDoorBounds"/> — the same source
+        /// <see cref="ConfigureCollider"/> uses for the targeting trigger — so the surface a weapon
+        /// hits and the surface the cursor selects cannot drift apart.</para>
+        /// </summary>
+        private void RefreshSolidCollider()
+        {
+            bool wantsSolid = IsDoorBox && !IsOpen && !IsDestroyed;
+
+            if (!wantsSolid)
+            {
+                if (_solidCollider != null) _solidCollider.enabled = false;
+                return;
+            }
+
+            if (_solidCollider == null)
+            {
+                _solidCollider = gameObject.AddComponent<BoxCollider2D>();
+                _solidCollider.isTrigger = false;
+                GetDoorBounds(out Vector2 size, out Vector2 offset);
+                _solidCollider.size = size;
+                _solidCollider.offset = offset;
+            }
+
+            _solidCollider.enabled = true;
+        }
+
+        /// <summary>
+        /// The tile region this door covers, for <see cref="RoomInstance.NotifyTilesMutated"/>.
+        /// </summary>
+        private RectInt CoveredTileRegion()
+        {
+            GetCoveredTileRange(out int txMin, out int txMax, out int tyMin, out int tyMax);
+            return new RectInt(txMin, tyMin, txMax - txMin + 1, tyMax - tyMin + 1);
+        }
+
+        /// <summary>
+        /// Clears every tile the door covers — the port of the <c>if(this.door &gt; 0)</c> block at the
+        /// head of AS3 <c>Box.die()</c> (<c>Box.as:802-810</c>), which zeroes <c>opac</c>, <c>phis</c>
+        /// and <c>hp</c> on all of them before switching the sprite to its <c>die</c> state.
+        ///
+        /// <para><c>ApplyTileCollision(true)</c> is exactly the first two: it writes
+        /// <c>physicsType = Air</c> and <c>doorOcclusion = 0</c>. Only <c>hp</c> is left, and it is set
+        /// here. Reusing the open path rather than repeating the loop is what keeps "an open door" and
+        /// "a destroyed door" from disagreeing about the tiles.</para>
+        /// </summary>
+        private void ApplyDestroyedTiles()
+        {
+            if (_room?.tiles == null || _objectInstance == null) return;
+
+            ApplyTileCollision(true);
+
+            GetCoveredTileRange(out int txMin, out int txMax, out int tyMin, out int tyMax);
+            for (int x = txMin; x <= txMax; x++)
+            {
+                for (int y = tyMin; y <= tyMax; y++)
+                {
+                    TileData tile = _room.GetTileAtCoord(new Vector2Int(x, y));
+                    if (tile != null) tile.hitPoints = 0;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Applies a weapon's destroy value to the door — the port of <c>Tile.udar()</c> as
+        /// <c>Location.hitTile()</c> calls it, including the <c>hp &lt;= 0 -&gt; door.die()</c> arm
+        /// (<c>Location.as:2523-2537</c>).
+        ///
+        /// <para><b>Gated on the door's own state, matching the oracle's tile gate.</b> <c>hitTile</c>
+        /// guards every destruction branch on <c>phis &gt;= 1</c>, and an open door's tiles are
+        /// <c>phis == 0</c> (<c>Box.setDoor</c>, <c>Box.as:684</c>), so an open door cannot be shot —
+        /// it is scenery. The same three facts are checked here: the object is a door box, it is not
+        /// open, and it is not already wrecked.</para>
+        /// </summary>
+        private void DamageDoor(float destroyAmount)
+        {
+            if (!_durabilityResolved) ResolveDurability();
+            if (!IsDoorBox || IsOpen || IsDestroyed) return;
+
+            // AS3 `Tile.udar()`'s own head: `if (indestruct || thre > param1) return false`. Both
+            // terms are kept, in the oracle's order, rather than relying on the 10000 sentinel alone.
+            if (_doorIndestructible) return;
+            if (DoorDestructionMath.IgnoresDamage(_doorThreshold, destroyAmount)) return;
+
+            _doorHitPoints = DoorDestructionMath.ApplyDamage(_doorHitPoints, destroyAmount);
+            if (DoorDestructionMath.IsDestroyed(_doorHitPoints))
+            {
+                Die();
+            }
+        }
+
+        /// <summary>
+        /// Wrecks the door — AS3 <c>Box.die()</c> (<c>Box.as:789-880</c>). Sets the flag the renderer
+        /// reads for its <c>die</c> frame, clears the covered tiles, drops the solid surface, and tells
+        /// the room the grid changed so the derived geometry and the light pass follow.
+        ///
+        /// <para><b>The notification is not optional.</b> The chain mirror the projectile sweep reads is
+        /// built when the room activates (<c>PhysicsWorldService.OnRoomActivated</c>) and refreshed only
+        /// from <c>RoomInstance.TilesMutated</c>. A door that dies without raising it leaves a solid
+        /// chain across the doorway — the same staleness already recorded against the open/close path
+        /// in <c>TOPIC_open_work.md</c>.</para>
+        /// </summary>
+        private void Die()
+        {
+            if (_objectInstance?.runtimeState == null) return;
+            if (IsDestroyed) return;
+
+            _objectInstance.runtimeState.isDestroyed = true;
+
+            ApplyDestroyedTiles();
+            RefreshSolidCollider();
+            UpdateVisualFrame();
+
+            if (_room != null)
+            {
+                _room.NotifyTilesMutated(CoveredTileRegion());
+            }
+        }
+
+        #region IDestructibleTile
+
+        /// <summary>
+        /// A weapon's direct hit. AS3 reaches a door through the tile it stands on
+        /// (<c>weapon/Bullet.as:489</c> → <c>Location.hitTile</c> → <c>Tile.udar</c>), and the port
+        /// routes the same hit here because the door box owns the surface a round can actually reach —
+        /// see <see cref="_solidCollider"/>.
+        /// </summary>
+        public void ApplyDestruction(Vector3 worldPosition, float destroyAmount, DamageType damageType)
+        {
+            DamageDoor(destroyAmount);
+        }
+
+        /// <summary>
+        /// A blast's hit. Deliberately does not iterate a radius: <c>Projectile.Detonate</c> already
+        /// enumerates every collider inside the blast and calls this once per collider, so applying an
+        /// area here would multiply the damage by the number of overlaps. Same contract as
+        /// <c>TileCollider.ApplyDestructionRadius</c>.
+        /// </summary>
+        public void ApplyDestructionRadius(Vector3 worldPosition, float radius,
+                                           float destroyAmount, DamageType damageType)
+        {
+            DamageDoor(destroyAmount);
+        }
+
+        #endregion
 
         /// <summary>
         /// AS3 <c>Box.door_opac</c> for this door — its <c>@opac</c>, defaulting to 1 exactly as

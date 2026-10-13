@@ -17,6 +17,7 @@ MonoBehaviour:
   id: turret5
   parentId: 
   controllerId: turret
+  lootTableKey: turret
   fraction: 4
   category: 3
   xpReward: 180

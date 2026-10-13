@@ -432,6 +432,14 @@ MonoBehaviour:
     attributes:
     - key: prize
       value: 1
+    - key: move_present
+      value: 1
+    - key: move_dy
+      value: 7
+    - key: move_tmove
+      value: 60
+    - key: move_tstay
+      value: 10
     items: []
     scripts:
     - eventName: touch
@@ -471,7 +479,8 @@ MonoBehaviour:
         opt1: 
         opt2: 
         t: 
-    parameters: code="oyy18u99zSTU8YZk" uid="awayF1" prize="1"
+    parameters: code="oyy18u99zSTU8YZk" uid="awayF1" prize="1" move_present="1" move_dy="7"
+      move_tmove="60" move_tstay="10"
   - type: door
     id: platform1
     definitionId: platform1
@@ -509,3 +518,6 @@ MonoBehaviour:
     radiation: 0
     radiationDamage: 0
     darkness: 0
+    tipEnemy: -1
+    kolEnSpawn: 1
+    spawnGroupId: alicorn

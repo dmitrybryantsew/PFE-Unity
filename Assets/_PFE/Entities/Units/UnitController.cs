@@ -5,12 +5,15 @@ using VContainer;
 using PFE.Data.Definitions;
 using PFE.Systems.Combat;
 using PFE.Systems.Effects;
+using PFE.Systems.Inventory;
+using PFE.Systems.Loot;
 using PFE.Systems.Map;
 using PFE.Systems.Map.TileQuery;
 using PFE.Systems.Physics;
 using PFE.Systems.Particles;
 using PFE.Systems.Particles.Adapters;
 using PFE.Systems.Weapons;
+using PFE.Core.Rng;
 namespace PFE.Entities.Units
 {
     /// <summary>
@@ -188,6 +191,45 @@ namespace PFE.Entities.Units
 
         // Stats (optional - subclasses like PlayerController will provide their own)
         protected UnitStats _unitStats;
+
+        /// <summary>
+        /// AS3 <c>Unit.lootIsDrop</c> (<c>Unit.as:4381-4383</c>) — the once-only guard on the death drop.
+        ///
+        /// <para>It is not decoration. <see cref="OnDeath"/> is reachable more than once for one unit:
+        /// AS3 reaches its own drop block from the death handler, and a resurrected zombie
+        /// (<c>UnitZombie</c>) or a re-entered death branch would otherwise roll the table twice and
+        /// double the loot. AS3 gates on this flag and so does the port.</para>
+        /// </summary>
+        protected bool _lootDropped;
+
+        /// <summary>
+        /// Whether this unit leaves loot when it dies. <c>true</c> for every unit in the world; the
+        /// player overrides it to <c>false</c>.
+        ///
+        /// <para><b>Why it is a seam and not a special case inside <see cref="DropLootOnDeath"/>.</b> The
+        /// player is a <see cref="UnitController"/> and its <c>OnDeath</c> calls <c>base</c>, so without
+        /// this the player's own death would run the drop path: its id (<c>littlepip</c>) names no table,
+        /// so it would roll nothing and log an "unmatched key" warning on every death — noise that reads
+        /// like a content bug. AS3 never reaches here either: <c>UnitPlayer</c> does not drop loot, and a
+        /// table keyed <c>littlepip</c> does not exist.</para>
+        /// </summary>
+        protected virtual bool DropsLootOnDeath => true;
+
+        /// <summary>
+        /// AS3 <c>Unit.hero</c> — the boss tier, read off the <b>placement</b> (<c>Unit.as:645</c>,
+        /// <c>this.hero = param3.@hero</c>). <c>0</c> = an ordinary unit.
+        ///
+        /// <para>No row in <c>AllData.as</c> authors <c>hero</c>; it is a per-placement fact, which is why
+        /// it arrives through <see cref="ApplyPlacement"/> and not through the definition. 33 room assets
+        /// under <c>Resources/Rooms</c> author it (<c>hero="3"</c>, <c>hero="4"</c>).</para>
+        /// </summary>
+        protected int _heroTier;
+
+        /// <summary>
+        /// The faction this <b>placement</b> overrode, or <c>null</c> to fall back to the unit
+        /// definition. Written by <see cref="ApplyPlacement"/>; see <see cref="Faction"/>.
+        /// </summary>
+        private FactionType? _instanceFaction;
 
         /// <summary>
         /// The port's damage authority, used by <see cref="ReportPropImpact"/>.
@@ -1687,7 +1729,34 @@ namespace PFE.Entities.Units
 
             _facingDirection = placement.facingDirection;
             ApplyFacingToTransform();
+
+            // AS3 `this.hero = param3.@hero` (Unit.as:645). The placement carries it, the definition
+            // never does — see _heroTier. Absent or unparseable leaves the tier at 0, which is AS3's
+            // field default and therefore an ordinary, non-hero unit.
+            if (int.TryParse(placement.GetAttribute("hero", string.Empty), NumberStyles.Integer,
+                             CultureInfo.InvariantCulture, out int hero))
+            {
+                _heroTier = hero;
+            }
+
+            // AS3 `if(param3 && param3.@fraction.length()) fraction = param3.@fraction;`
+            // (UnitTurret.as:140-142, and the same read on every other placed unit). Assigned only
+            // when the placement actually authored one — `fraction = null` on the placement means
+            // "the row was silent", which must leave the definition's value standing. Writing the
+            // nullable straight through would be wrong in the other direction: a second
+            // ApplyPlacement call with a silent placement would erase an earlier override.
+            if (placement.fraction.HasValue)
+            {
+                _instanceFaction = placement.fraction;
+            }
         }
+
+        /// <summary>
+        /// AS3 <c>Unit.hero</c> — the boss tier this unit was placed with (<c>Unit.as:645</c>). <c>0</c>
+        /// for an ordinary unit. Read by the death drop's essence gate
+        /// (<see cref="UnitDeathDrop.ShouldDropEssence"/>).
+        /// </summary>
+        public int HeroTier => _heroTier;
 
         /// <summary>
         /// AS3's <c>@turn</c> resolution (<c>Unit.as:596-611</c>), as a pure function so the only
@@ -1924,13 +1993,29 @@ namespace PFE.Entities.Units
         /// ScriptableObject shared by every instance of the unit — mutating it at runtime would leak
         /// a value into the project asset.</para>
         ///
-        /// <para><b>Data caveat, read before relying on this for NPC-vs-NPC.</b> The imported unit
-        /// assets predate the parent-chain resolution added to <c>UnitDataImporter</c>, so a spawnable
-        /// that inherits its faction currently reads as <c>Raider</c> whatever its template says —
-        /// monsters and robots included. Player-versus-everyone is unaffected, because the player's
-        /// value comes from the override; the finer distinctions need a re-import.</para>
+        /// <para><b>Three layers, in AS3's order.</b> <c>Unit.as:454</c> defaults the field to
+        /// <c>0</c>; the unit's own <c>&lt;unit&gt;</c> row or its <c>parent</c> chain supplies the
+        /// value (<c>UnitDataImporter</c> resolves that chain); and the <b>placed</b> <c>&lt;obj&gt;</c>
+        /// row overrides both — <c>UnitTurret.as:140-142</c> <c>if(param3 &amp;&amp;
+        /// param3.@fraction.length()) fraction = param3.@fraction;</c>. The placement layer is
+        /// <see cref="_instanceFaction"/>, written by <see cref="ApplyPlacement"/>, and it is why the
+        /// camp turrets are the player's: every one is authored <c>fraction="100"</c>
+        /// (<c>RoomsCamp.as:86-90, 127-130, 794</c>) while the <c>turret</c> row
+        /// (<c>AllData.as:1758</c>) carries no <c>fraction</c> at all, so the definition cannot supply
+        /// it. <c>UnitTurret</c> does not default to <c>F_PLAYER</c> in its constructor either —
+        /// only <c>hack()</c> (<c>:397-410</c>) assigns it.</para>
+        ///
+        /// <para><b>Read as the definition's value when the placement is silent.</b>
+        /// <c>_instanceFaction ?? _stats.fraction</c> — not <c>?? Neutral</c>. A silent placement means
+        /// "no override", and the definition is a real answer for the 132 units whose rows carry one.
+        /// </para>
+        ///
+        /// <para><b>Not written back to <c>_stats</c>.</b> <c>UnitDefinition</c> is a ScriptableObject
+        /// shared by every instance of the unit, so a runtime write would leak one placement's
+        /// override into the project asset and into every other room that spawns the same id.</para>
         /// </summary>
-        public virtual FactionType Faction => _stats != null ? _stats.fraction : FactionType.Neutral;
+        public virtual FactionType Faction =>
+            _instanceFaction ?? (_stats != null ? _stats.fraction : FactionType.Neutral);
 
         /// <summary>
         /// Whether this unit is player-controlled.
@@ -2943,6 +3028,11 @@ namespace PFE.Entities.Units
         {
             Debug.Log($"[{GetType().Name}] has died!");
 
+            // AS3 Unit.as:4392-4394 — runScript(), dropLoot(), incStat(). The drop comes BEFORE the XP
+            // award (:4397), and that order is observable: the gem chance reads `this.xp`, which the
+            // award path does not clear until after it has run.
+            DropLootOnDeath();
+
             // Reward XP to player (AS3 Unit.as:4397 loc.takeXP(this.xp, X, Y, true))
             if (_stats != null && _stats.xpReward > 0)
             {
@@ -2956,5 +3046,162 @@ namespace PFE.Entities.Units
             // Base class doesn't destroy the GameObject.
             // Subclasses can override to play death animations, drop loot, etc.
         }
+
+        /// <summary>
+        /// AS3 <c>Unit.dropLoot()</c> (<c>Unit.as:4450-4467</c>) — the death drop. Split out of
+        /// <see cref="OnDeath"/> so a subclass that overrides the reaction can still call it, and so the
+        /// once-only guard has one home.
+        ///
+        /// <para><b>Three parts, in oracle order.</b></para>
+        /// <list type="number">
+        ///   <item><description>the <b>table</b> roll — <c>inter.loot()</c> → <c>LootGen.lootDrop</c>
+        ///     (<c>Interact.as:2007-2010</c>), keyed by <see cref="UnitDeathDrop.ResolveLootTableKey"/>.
+        ///     This is the substantive half: 47 unit tables.</description></item>
+        ///   <item><description><c>essence</c> when <c>hero &gt; 0</c>, the unit is not a robot, and the
+        ///     0.75 roll passes.</description></item>
+        ///   <item><description><c>gem1..3</c> on the treasure-perk chance
+        ///     <c>dropTre * xp / 4000</c>.</description></item>
+        /// </list>
+        ///
+        /// <para><b>What is deliberately not wired.</b> The <b>table</b> roll still runs with no perk
+        /// flags (<c>ctx.Pers == null</c>), so <c>freel</c>/<c>barahlo</c> do not add their extra rolls and
+        /// money stacks do not scale by <c>capsMult</c> — that is the perk-flags seam (D10), which has no
+        /// shipping implementation yet. The gem gate is the exception: <c>dropTre</c> is read straight off
+        /// the player's <c>CharacterStats</c>, because it is the one perk flag <c>dropLoot</c> itself
+        /// reads. A <c>LootContext</c> whose pools failed to load returns <c>null</c> and the drop is
+        /// skipped loudly rather than silently.</para>
+        ///
+        /// <para><b>The outer gate is reduced, and here is why.</b> AS3's guard is
+        /// <c>!lootIsDrop &amp;&amp; (!isRes || sost == 4 || burn)</c> (<c>Unit.as:4381</c>). The second
+        /// half exists for <b>resurrecting</b> zombies: a unit with <c>&lt;un res='…'/&gt;</c> is buried
+        /// rather than killed, so it must not drop until it is <i>finally</i> gone (<c>sost == 4</c>) or
+        /// burnt. <b>The port has no resurrection</b> — <c>UnitZombie.as:495-524</c>'s 300-tick countdown
+        /// is not ported, so <c>zombie7/8/9</c> (<c>UnitDefinition.canResurrect</c>, written by the
+        /// importer and read by nothing) die once and are removed. This death <i>is</i> the final one, so
+        /// the disjunction reduces to <c>true</c> and the gate is <c>!lootDropped</c> alone. Gating on
+        /// <c>canResurrect</c> instead would be worse than the reduction: those three units would drop
+        /// nothing for the whole game. Owner-verifiable: if resurrection is ever ported, this gate must
+        /// grow its second half back.</para>
+        /// </summary>
+        protected virtual void DropLootOnDeath()
+        {
+            if (!DropsLootOnDeath) return;
+            if (_lootDropped) return;                       // AS3 lootIsDrop (:4381-4383)
+            _lootDropped = true;
+
+            if (_stats == null) return;
+
+            string key = UnitDeathDrop.ResolveLootTableKey(_stats.lootTableKey, _stats.controllerId, _stats.id);
+            if (string.IsNullOrEmpty(key)) return;
+
+            LootContext ctx = LootRuntime.CreateContext(key);
+            if (ctx == null)
+            {
+                // LootRuntime has already logged why (the AllData resource failed to parse).
+                return;
+            }
+
+            PFE.Entities.Player.PlayerController player = FindFirstObjectByType<PFE.Entities.Player.PlayerController>();
+
+            ctx.Hero = _heroTier;
+            RoomDifficulty difficulty = _tileQuery?.Room?.difficulty;
+            ctx.LocDifLevel = difficulty != null ? Mathf.RoundToInt(difficulty.baseDifficulty) : 0;
+            ctx.WeaponLevel = difficulty != null ? difficulty.weaponLevel : 1f;
+            ctx.AllDif = 50f;      // lootDrop forces lootBroken = false (LootGen.as:789)
+            ctx.LootBroken = false;
+
+            float centreY = transform.position.y + (_stats.Height * 0.5f);   // AS3 `Y - scY/2`
+            LootRoller.RollUnitDrop(key, ctx, transform.position.x, centreY);
+
+            IRngService rng = ctx.Rng;
+
+            // AS3 :4456 — hero > 0 && opt.robot != true && isrnd(0.75).
+            // IsMechanical is the port's `opt.robot` (UnitController.IsMechanical).
+            if (UnitDeathDrop.ShouldDropEssence(_heroTier, IsMechanical, rng.NextFloat()))
+            {
+                LootRoller.RollPlacedItem(UnitDeathDrop.EssenceItemId, ctx, nx: transform.position.x, ny: centreY);
+            }
+
+            // AS3 :4460-4466 — pers.dropTre > 0 && xp > 0 && rnd < dropTre * xp / 4000.
+            float dropTre = player != null && player.CharacterStats != null ? player.CharacterStats.dropTre : 0f;
+            if (UnitDeathDrop.ShouldDropGem(dropTre, _stats.xpReward, rng.NextFloat()))
+            {
+                LootRoller.RollPlacedItem(UnitDeathDrop.RollGemId(rng.NextFloat()), ctx,
+                                          nx: transform.position.x, ny: centreY);
+            }
+
+            SpillDrops(ctx, player, centreY);
+        }
+
+        /// <summary>
+        /// Put the rolled items into the world around the corpse — the port's stand-in for AS3's
+        /// <c>Loot</c> props falling out (<c>LootGen.as:287-294</c>).
+        ///
+        /// <para><b>Walk-over collection, like the oracle.</b> AS3's <c>LootGen</c> call site omits the
+        /// <c>nauto</c> argument, so the constructor default <c>true</c> applies (<c>Loot.as:33,238</c>) —
+        /// a kill's loot is magnetic, unlike a player's own drop. <c>autoCollect: true</c> reproduces
+        /// that.</para>
+        ///
+        /// <para>An id that resolves to no <c>ItemDefinition</c> is <b>named in a warning</b>, never
+        /// dropped silently — a weapon or armour roll lands there today because those content types have
+        /// no world-pickup path yet, and a silent skip would read as "the table is thinner than it is".</para>
+        /// </summary>
+        private void SpillDrops(LootContext ctx, PFE.Entities.Player.PlayerController player, float centreY)
+        {
+            PlayerInventory inventory = player != null ? player.GetComponent<PlayerInventory>() : null;
+            if (inventory == null)
+            {
+                if (ctx.Results.Count > 0)
+                {
+                    Debug.LogWarning($"[{GetType().Name}] '{ctx.TableKey}' rolled {ctx.Results.Count} " +
+                                     "item(s) but there is no PlayerInventory to resolve them, so nothing " +
+                                     "was spawned.");
+                }
+                return;
+            }
+
+            IRngService rng = ctx.Rng;
+            int spawned = 0;
+
+            for (int i = 0; i < ctx.Results.Count; i++)
+            {
+                LootRoll roll = ctx.Results[i];
+                ItemDefinition definition = inventory.ResolveItem(roll.ItemId);
+                if (definition == null)
+                {
+                    Debug.LogWarning($"[{GetType().Name}] '{ctx.TableKey}' rolled '{roll.ItemId}' (tip '" +
+                                     roll.Tip + "') but no ItemDefinition resolves it — it was not spawned. " +
+                                     "Weapons/armour have no world-pickup path yet.");
+                    continue;
+                }
+
+                // A small deterministic scatter, reusing the loot stream so a seeded test can predict it.
+                var where = new Vector3(
+                    transform.position.x + (rng.NextFloat() * 2f - 1f) * DropScatterRadius,
+                    centreY + (rng.NextFloat() * 2f - 1f) * DropScatterRadius,
+                    transform.position.z);
+
+                if (WorldItemPickup.Spawn(definition, roll.Quantity, where, autoCollect: true) != null)
+                {
+                    spawned++;
+                }
+            }
+
+            for (int i = 0; i < ctx.UnmatchedKeys.Count; i++)
+            {
+                Debug.LogWarning($"[{GetType().Name}] drop key '{ctx.UnmatchedKeys[i]}' matched no loot " +
+                                 "table — nothing was rolled. (AS3 is silent here; see Q1.)");
+            }
+
+            if (spawned == 0 && ctx.Results.Count == 0)
+            {
+                Debug.Log($"[{GetType().Name}] '{ctx.TableKey}' yielded nothing (AS3's dropLoot returned false).");
+            }
+        }
+
+        /// <summary>Half-extent of the eject scatter, in world units — the corpse-drop twin of
+        /// <c>ContainerPropPresenter</c>'s. See that constant for why a scatter stands in for the
+        /// oracle's fall.</summary>
+        private const float DropScatterRadius = 0.3f;
     }
 }

@@ -80,13 +80,30 @@ namespace PFE.Systems.Map
         /// Build random world (procedural generation).
         /// From AS3: Land.buildRandomLand()
         /// </summary>
-        public bool BuildRandomWorld(int stage = 1, Vector3Int? customMin = null, Vector3Int? customMax = null)
+        /// <param name="locationContext">
+        /// The land these rooms belong to, or <c>null</c> for "no land known".
+        ///
+        /// <para><b>Reset, not inherited, and that matters.</b> <c>roomGenerator</c> is a shared instance,
+        /// so a context left over from a previous <c>BuildLand</c> would be picked up here — the rooms
+        /// would be given the biome and difficulty of a land they are not part of. Passing <c>null</c>
+        /// therefore actively clears it. This method is the boot-time builder reached from
+        /// <c>GameManager.BuildWorldAsync</c>, which has no <c>LandDefinition</c> at all (it draws from
+        /// every loaded template), so <c>null</c> is the normal case here — see
+        /// <see cref="LocationBuildContext.None"/>.</para>
+        /// </param>
+        public bool BuildRandomWorld(
+            int stage = 1,
+            Vector3Int? customMin = null,
+            Vector3Int? customMax = null,
+            LocationBuildContext? locationContext = null)
         {
             if (allTemplates == null || allTemplates.Count == 0)
             {
                 Debug.LogError("[WorldBuilder] No room templates available");
                 return false;
             }
+
+            roomGenerator.ConfigureLocation(locationContext ?? LocationBuildContext.None);
 
             // Apply custom bounds if provided
             minBounds = customMin ?? minBounds;
@@ -131,23 +148,10 @@ namespace PFE.Systems.Map
                     landMap.AddRoom(room, position);
                     MapIntegrityDiagnostics.LogRoomSnapshot("GeneratedRandomRoom", room, template, _debugSettings);
 
-                    // Create background room if specified
-                    if (!string.IsNullOrEmpty(template.backgroundRoomId))
-                    {
-                        RoomTemplate backTemplate = FindTemplateById(template.backgroundRoomId, template);
-                        if (backTemplate != null)
-                        {
-                            RoomInstance backRoom = roomGenerator.GenerateRoom(backTemplate, position);
-                            backRoom.roomType = "back";
-                            landMap.AddSpecialRoom("background", backRoom, position);
-                            room.backgroundRoom = backRoom;
-                            room.hasBackgroundLayer = true;
-                        }
-                        else
-                        {
-                            Debug.LogWarning($"[WorldBuilder] Background room template '{template.backgroundRoomId}' was not found for room template '{template.id}'.");
-                        }
-                    }
+                    // The cell's z = 1 interior, when the template declares one. It MUST land in the room
+                    // grid, not the special-room bucket, or the Z door has nothing to toggle to — see
+                    // BuildBackgroundLayer.
+                    BuildBackgroundLayer(room, template, position, _debugSettings);
                 }
                 
             }
@@ -175,13 +179,23 @@ namespace PFE.Systems.Map
         /// Build specific world (hand-crafted level).
         /// From AS3: Land.buildSpecifLand()
         /// </summary>
-        public bool BuildSpecificWorld(List<RoomTemplate> levelTemplates, Vector3Int? preferredStartPosition = null)
+        /// <param name="locationContext">
+        /// The land these rooms belong to, or <c>null</c> for "no land known" — which also clears any
+        /// context left on the shared generator by a previous build. See
+        /// <see cref="BuildRandomWorld"/>'s parameter of the same name for why the reset matters.
+        /// </param>
+        public bool BuildSpecificWorld(
+            List<RoomTemplate> levelTemplates,
+            Vector3Int? preferredStartPosition = null,
+            LocationBuildContext? locationContext = null)
         {
             if (levelTemplates == null || levelTemplates.Count == 0)
             {
                 Debug.LogError("[WorldBuilder] No level templates provided");
                 return false;
             }
+
+            roomGenerator.ConfigureLocation(locationContext ?? LocationBuildContext.None);
 
             // Calculate bounds from template positions
             Vector3Int calcMin = new Vector3Int(int.MaxValue, int.MaxValue, int.MaxValue);
@@ -223,24 +237,9 @@ namespace PFE.Systems.Map
                     landMap.AddRoom(room, template.fixedPosition);
                     MapIntegrityDiagnostics.LogRoomSnapshot("GeneratedSpecificRoom", room, template, _debugSettings);
 
-                    // Create background room if specified
-                    if (!string.IsNullOrEmpty(template.backgroundRoomId))
-                    {
-                        RoomTemplate backTemplate = FindTemplateById(template.backgroundRoomId, template);
-                        if (backTemplate != null)
-                        {
-                            RoomInstance backRoom = roomGenerator.GenerateRoom(backTemplate, template.fixedPosition);
-                            backRoom.roomType = "back";
-                            Vector3Int backPos = new Vector3Int(template.fixedPosition.x, template.fixedPosition.y, template.fixedPosition.z + 1);
-                            landMap.AddRoom(backRoom, backPos);
-                            room.backgroundRoom = backRoom;
-                            room.hasBackgroundLayer = true;
-                        }
-                        else
-                        {
-                            Debug.LogWarning($"[WorldBuilder] Background room template '{template.backgroundRoomId}' was not found for room template '{template.id}'.");
-                        }
-                    }
+                    // The cell's z = 1 interior. Same registration as every other path — see
+                    // BuildBackgroundLayer.
+                    BuildBackgroundLayer(room, template, template.fixedPosition, _debugSettings);
 
                     // Track starting position
                     if (template.type == "beg0" || template.type == "beg1")
@@ -546,6 +545,87 @@ namespace PFE.Systems.Map
         }
 
         /// <summary>
+        /// Build, register and finish a cell's <c>z = 1</c> interior — the room a <c>comein</c> (Z door)
+        /// toggles to — when <paramref name="template"/> declares one via <c>&lt;options back="…"&gt;</c>.
+        ///
+        /// <para><b>Registering it in <see cref="LandMap.rooms"/> at <c>z + 1</c> is the whole point.</b>
+        /// AS3 stores the interior at <c>locs[x][y][1]</c> (<c>Land.as:392-406</c>), and
+        /// <c>Land.gotoLoc(5)</c> flips <c>locZ</c> and looks it up there (<c>:1333</c>, <c>:1351</c>).
+        /// <c>LandMap.GetLayerToggleTarget</c> is the port of that lookup and reads <b>only</b> <c>rooms</c>,
+        /// so an interior that is built but registered anywhere else is invisible to the toggle and every Z
+        /// door in the cell is refused. That was the bug: the authored path
+        /// (<see cref="BuildSpecificWorld"/>) registered it correctly while the two procedural paths did not —
+        /// <see cref="BuildRandomWorld"/> and the <c>MapBridge</c> override put it in the
+        /// <c>specialRooms</c> bucket at the <i>same</i> cell via <c>AddSpecialRoom("background", …)</c>, and
+        /// <see cref="BuildProceduralLand"/> — the live campaign path — never read
+        /// <c>backgroundRoomId</c> at all. Every build path now goes through this one method so the four
+        /// copies cannot drift apart again.</para>
+        ///
+        /// <para><b>What the interior does and does not get.</b> AS3 runs <c>mainFrame()</c>,
+        /// <c>setObjects()</c> and <c>preStep()</c> on <c>locs[x][y][1]</c> (<c>Land.as:667-670</c>) but never
+        /// <c>setDoor()</c> — the door pass reads <c>[0]</c> only (<c>:417-494</c>). So it is populated here
+        /// and its border is left alone, which is exactly <see cref="RoomSetup.FinalizeSpecificRoom"/>; the
+        /// two whole-map finalisers skip it via <see cref="RoomInstance.noMap"/>, so it is never populated
+        /// twice and never carved.</para>
+        ///
+        /// <para><see cref="RoomInstance.noMap"/> is also set because the port's minimap is keyed on
+        /// <c>x</c>/<c>y</c> alone and would otherwise draw both layers into one cell
+        /// (<c>Land.as:402</c>).</para>
+        /// </summary>
+        /// <returns>The interior room, or <c>null</c> when the template declares none or the layer is taken.</returns>
+        public RoomInstance BuildBackgroundLayer(
+            RoomInstance room,
+            RoomTemplate template,
+            Vector3Int roomPos,
+            PfeDebugSettings debugSettings = null)
+        {
+            if (room == null || template == null) return null;
+            if (string.IsNullOrEmpty(template.backgroundRoomId)) return null;
+
+            RoomTemplate backTemplate = FindTemplateById(template.backgroundRoomId, template);
+            if (backTemplate == null)
+            {
+                Debug.LogWarning(
+                    $"[WorldBuilder] Background room template '{template.backgroundRoomId}' was not found for " +
+                    $"room template '{template.id}' — the Z door in this cell will have nowhere to go.");
+                return null;
+            }
+
+            Vector3Int backPos = new Vector3Int(roomPos.x, roomPos.y, roomPos.z + 1);
+
+            // One room per coordinate. Keep the incumbent and name the room that lost, the same shape as
+            // AddRoom's own duplicate warning, so a clash is visible instead of a load-order coin flip.
+            if (landMap.HasRoom(backPos))
+            {
+                Debug.LogWarning(
+                    $"[WorldBuilder] {backPos} already holds '{landMap.GetRoom(backPos).id}'; keeping it and " +
+                    $"dropping the background layer of '{room.id}'.");
+                return null;
+            }
+
+            RoomInstance backRoom = roomGenerator.GenerateRoom(backTemplate, backPos);
+            if (backRoom == null) return null;
+
+            backRoom.roomType = "back";
+            backRoom.noMap = true;
+            landMap.AddRoom(backRoom, backPos);
+
+            // The layer is real, so the land's declared bounds have to contain it. AS3's own `maxLocZ`
+            // default is 2 and `saveObjs` walks `z < maxLocZ` (Land.as:55, :1203) — an exclusive max over
+            // z = 0 and z = 1 — so a `z` bound of 1 would leave the interior outside the land it belongs to
+            // (`LandMap.IsInBounds` is exclusive too).
+            if (backPos.z + 1 > maxBounds.z) maxBounds.z = backPos.z + 1;
+            if (backPos.z + 1 > landMap.maxBounds.z) landMap.maxBounds.z = backPos.z + 1;
+
+            // AS3's setObjects()/mainFrame() on the z = 1 layer — and nothing that carves.
+            RoomSetup.FinalizeSpecificRoom(backRoom, backTemplate, debugSettings);
+
+            room.backgroundRoom = backRoom;
+            room.hasBackgroundLayer = true;
+            return backRoom;
+        }
+
+        /// <summary>
         /// Find template by ID.
         /// </summary>
         private RoomTemplate FindTemplateById(string id, RoomTemplate context = null)
@@ -751,12 +831,30 @@ namespace PFE.Systems.Map
             allTemplates = templates;
             roomGenerator.Initialize(templates);
 
+            // AS3 `Land.newLoc` stamps the land onto every Location it builds: `_loc6_.biom = this.act.biom`
+            // (:948), `landX/landY` from the grid coordinates (:950-951), and the difficulty from
+            // `landDifLevel` (:982). The port's analogue is this context, and it has to be set BEFORE any
+            // room is generated — including the prob rooms, which AS3 also builds through the *current*
+            // land (`buildProb` runs on `this`, Land.as:789).
+            //
+            // `landDifLevel` is `max(runDifficulty, act.dif)`. The port has no run difficulty, so the
+            // authored floor is what is available; see LocationBuildContext.
+            var landContext = new LocationBuildContext(
+                biome: land.biomeId,
+                landConfig: land.configId,
+                landDifLevel: land.baseDifficulty,
+                // AS3's depth bonus is non-zero only for a procedural land (`if(this.rnd)` guards the
+                // conf 0/1/2 offsets, Land.as:960-974), so the authored branch takes 0.
+                difficultyOffset: 0f,
+                noHolesPlace: land.isProcedural);
+            roomGenerator.ConfigureLocation(landContext);
+
             if (!land.isProcedural)
             {
                 // Authored (AS3 buildSpecifLand): x/y/z come from the room XML, so bounds and placement are
                 // the templates' own. The entry cell is the land's declared locx/locy.
                 var entry = new Vector3Int(land.entryCoordinates.x, land.entryCoordinates.y, 0);
-                return BuildSpecificWorld(templates, entry);
+                return BuildSpecificWorld(templates, entry, landContext);
             }
 
             LandLayoutPlan plan = LandLayoutPlanner.Plan(land, landStage, visited, _rng, mbaseVisited);
@@ -811,8 +909,26 @@ namespace PFE.Systems.Map
                         continue;
                     }
 
-                    RoomInstance room = roomGenerator.GenerateRoom(template, pos);
+                    // The only per-cell input to setLocDif is the depth bonus
+                    // (`LandLayoutPlanner.DifficultyOffsetFor`, Land.as:958-975); everything else is
+                    // land-scoped and already on the generator. Passing it here rather than mutating the
+                    // generator per cell keeps the land-scoped half from being written 30 times a build.
+                    RoomInstance room = roomGenerator.GenerateRoom(template, pos, new LocationBuildContext(
+                        biome: land.biomeId,
+                        landConfig: plan.Conf,
+                        landDifLevel: land.baseDifficulty,
+                        difficultyOffset: cell.DifficultyOffset,
+                        noHolesPlace: true));
+
                     landMap.AddRoom(room, pos);
+
+                    // The cell's z = 1 interior. AS3 fills `locs[x][y][1]` from the cell's own
+                    // `<options back="…">` in the same pass that places the room (Land.as:391-406), so this
+                    // belongs here and not in a later pass. Without it every Z door in a procedural land is
+                    // refused — the live campaign path (MapBridge → BuildLand) had no `backgroundRoomId`
+                    // reader at all, while the authored path registered the layer correctly. See
+                    // BuildBackgroundLayer.
+                    BuildBackgroundLayer(room, template, pos, _debugSettings);
 
                     // AS3 mirrors the door array per cell with p = 0.5 (Land.as:192), and never on a beg* cell.
                     int[] slots = DoorSlotsOf(room);

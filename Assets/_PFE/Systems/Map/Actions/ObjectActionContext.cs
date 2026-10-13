@@ -31,16 +31,48 @@ namespace PFE.Systems.Map.Actions
         /// </summary>
         public readonly Vector3 WorldPosition;
 
+        /// <summary>
+        /// An explicit <c>allact</c> value, overriding the object's own — or null to read the object.
+        ///
+        /// <para><b>Needed by exactly one caller, and it needs it badly.</b> AS3's <c>allact</c> script
+        /// command is <c>World.w.loc.allAct(null, val, n)</c> (<c>Script.as:296-299</c>): the sender is
+        /// <b>null</b> and the verb comes from the script, not from any object. With no object there is
+        /// nothing to read <c>ActionId</c> from, so the dispatcher used to see an empty id and answer
+        /// <c>NotApplicable</c> — the whole <c>allact</c> script command was inert. This field is how the
+        /// value gets in without inventing a second dispatch path.</para>
+        /// </summary>
+        private readonly string _actionIdOverride;
+
+        /// <summary>An explicit <c>allid</c>, overriding the object's own. See <see cref="_actionIdOverride"/>.</summary>
+        private readonly string _allIdOverride;
+
         public ObjectActionContext(
             RoomInstance room,
             ObjectInstance obj,
             GameObject user,
             Vector3 worldPosition)
+            : this(room, obj, user, worldPosition, null, null)
+        {
+        }
+
+        /// <summary>
+        /// The same context with the script-supplied <c>allact</c>/<c>allid</c> substituted for the
+        /// object's own. Used by the <c>allact</c> script command, which has no sender.
+        /// </summary>
+        public ObjectActionContext(
+            RoomInstance room,
+            ObjectInstance obj,
+            GameObject user,
+            Vector3 worldPosition,
+            string actionIdOverride,
+            string allIdOverride)
         {
             Room = room;
             Object = obj;
             User = user;
             WorldPosition = worldPosition;
+            _actionIdOverride = actionIdOverride;
+            _allIdOverride = allIdOverride;
         }
 
         /// <summary>
@@ -54,7 +86,7 @@ namespace PFE.Systems.Map.Actions
         /// placement, so a placement-only read reports "no script" for the very doors this action
         /// exists to serve.</para>
         /// </summary>
-        public string ActionId => Object != null ? Object.GetAllAct() : string.Empty;
+        public string ActionId => _actionIdOverride ?? (Object != null ? Object.GetAllAct() : string.Empty);
 
         /// <summary>
         /// The object's <c>prob</c> id — the detached room its interaction enters — or empty.
@@ -78,6 +110,18 @@ namespace PFE.Systems.Map.Actions
 
         /// <summary>The object's id, for logging.</summary>
         public string ObjectId => Object != null ? Object.GetResolvedDefinitionId() : string.Empty;
+
+        /// <summary>
+        /// The object's <c>allid</c> — the tag its <c>allact</c> broadcast targets by, or empty.
+        ///
+        /// <para><b>This is the second half of the broadcast and it cannot be derived from
+        /// <see cref="ActionId"/>.</b> AS3's closing <c>else</c> is
+        /// <c>loc.allAct(this.owner, this.allact, this.allid)</c> — the verb is the object's own
+        /// <c>allact</c> and the target set is everything else tagged with the object's own
+        /// <c>allid</c>. Resolved by <see cref="ObjectInstance.GetAllId"/>, placement first then
+        /// definition, the same order the oracle uses.</para>
+        /// </summary>
+        public string AllId => _allIdOverride ?? (Object != null ? Object.GetAllId() : string.Empty);
     }
 
     /// <summary>

@@ -17,6 +17,7 @@ MonoBehaviour:
   id: dront
   parentId: 
   controllerId: 
+  lootTableKey: 
   fraction: 4
   category: 1
   xpReward: 0

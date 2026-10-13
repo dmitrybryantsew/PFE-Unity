@@ -57,6 +57,14 @@ namespace PFE.Systems.Map.Serialization
         public string roomType;
 
         /// <summary>
+        /// AS3 <c>Location.noMap</c> — round-tripped so a reloaded <c>z = 1</c> interior stays off the
+        /// minimap. Without it a save/load would resurrect the interior into the cell it shares with its
+        /// exterior, because the minimap keys rooms on <c>x</c>/<c>y</c> only. See
+        /// <see cref="RoomInstance.noMap"/>.
+        /// </summary>
+        public bool noMap;
+
+        /// <summary>
         /// Create snapshot from a RoomInstance.
         /// </summary>
         public static RoomStateSnapshot CreateFromRoom(RoomInstance room)
@@ -79,7 +87,8 @@ namespace PFE.Systems.Map.Serialization
                 difficulty = RoomDifficultySnapshot.CreateFrom(room.difficulty),
                 environment = RoomEnvironmentSnapshot.CreateFrom(room.environment),
                 hasBackgroundLayer = room.hasBackgroundLayer,
-                roomType = room.roomType
+                roomType = room.roomType,
+                noMap = room.noMap
             };
 
             // Serialize tiles
@@ -192,6 +201,7 @@ namespace PFE.Systems.Map.Serialization
             room.isVisited = isVisited;
             room.hasBackgroundLayer = hasBackgroundLayer;
             room.roomType = roomType;
+            room.noMap = noMap;
 
             // Restore difficulty
             if (difficulty != null)
@@ -1045,6 +1055,12 @@ namespace PFE.Systems.Map.Serialization
         public int[] enemyCounts;
         public int hiddenEnemyCount;
 
+        /// <summary>AS3 <c>Location.kolEnSpawn</c> — see <see cref="RoomDifficulty.spawnEnemyCount"/>.</summary>
+        public int spawnEnemyCount;
+
+        /// <summary>AS3 <c>Location.tipEnemy</c> — see <see cref="RoomDifficulty.tipEnemy"/>.</summary>
+        public int tipEnemy = -1;
+
         public static RoomDifficultySnapshot CreateFrom(RoomDifficulty difficulty)
         {
             if (difficulty == null) return new RoomDifficultySnapshot();
@@ -1057,7 +1073,9 @@ namespace PFE.Systems.Map.Serialization
                 mechLevel = difficulty.mechLevel,
                 weaponLevel = difficulty.weaponLevel,
                 enemyCounts = (int[])difficulty.enemyCounts.Clone(),
-                hiddenEnemyCount = difficulty.hiddenEnemyCount
+                hiddenEnemyCount = difficulty.hiddenEnemyCount,
+                spawnEnemyCount = difficulty.spawnEnemyCount,
+                tipEnemy = difficulty.tipEnemy
             };
         }
 
@@ -1070,8 +1088,18 @@ namespace PFE.Systems.Map.Serialization
             difficulty.lockLevel = lockLevel;
             difficulty.mechLevel = mechLevel;
             difficulty.weaponLevel = weaponLevel;
-            difficulty.enemyCounts = (int[])enemyCounts.Clone();
+
+            // A save written before `enemyCounts` existed deserialises the field to null (Unity leaves
+            // it unset rather than running the field initialiser). Cloning null threw inside RestoreTo,
+            // i.e. loading an old save crashed the room rebuild. Keep the live array in that case.
+            if (enemyCounts != null)
+            {
+                difficulty.enemyCounts = (int[])enemyCounts.Clone();
+            }
+
             difficulty.hiddenEnemyCount = hiddenEnemyCount;
+            difficulty.spawnEnemyCount = spawnEnemyCount;
+            difficulty.tipEnemy = tipEnemy;
         }
     }
 

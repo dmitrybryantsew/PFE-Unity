@@ -64,15 +64,44 @@ namespace PFE.Systems.Map
         public bool IsPrototypeMode => prototypeMode;
 
         /// <summary>
+        /// The land this generator is currently building for. Set by <c>WorldBuilder.BuildLand</c> before
+        /// it starts generating; <see cref="LocationBuildContext.None"/> when no land is known.
+        ///
+        /// <para><b>Why a property and not just a parameter.</b> <c>GenerateRoom</c> is called from four
+        /// places — the procedural pass, the authored pass, the prob-room builder and the editor preview —
+        /// and only the first two have a land in hand. A property lets the land-scoped callers configure
+        /// the generator once, the way <c>BuildLand</c> already re-points its template pool
+        /// (<c>roomGenerator.Initialize(templates)</c>), instead of threading a land through every call
+        /// site including the ones that have none.</para>
+        /// </summary>
+        public LocationBuildContext BuildContext { get; private set; } = LocationBuildContext.None;
+
+        /// <summary>
+        /// Point the generator at a land. AS3's equivalent is the <c>Land</c> instance that
+        /// <c>newLoc</c> is a method of.
+        /// </summary>
+        public void ConfigureLocation(in LocationBuildContext context) => BuildContext = context;
+
+        /// <summary>
         /// Generate room from template.
         /// </summary>
-        public RoomInstance GenerateRoom(RoomTemplate template, Vector3Int position)
+        /// <param name="locationContext">
+        /// The land to build this room for. <c>null</c> falls back to <see cref="BuildContext"/>, which is
+        /// what the per-cell procedural pass relies on — it varies only the depth offset, and passes that
+        /// explicitly.
+        /// </param>
+        public RoomInstance GenerateRoom(
+            RoomTemplate template,
+            Vector3Int position,
+            LocationBuildContext? locationContext = null)
         {
             if (template == null)
             {
                 Debug.LogError("Attempted to generate room from null template");
                 return null;
             }
+
+            LocationBuildContext context = locationContext ?? BuildContext;
 
             RoomInstance room = new RoomInstance
             {
@@ -122,12 +151,40 @@ namespace PFE.Systems.Map
             // Copy door configuration
             room.doors = CreateDoors(template, room, position);
 
-            // Set difficulty
-            room.difficulty = new RoomDifficulty
-            {
-                baseDifficulty = template.difficultyLevel,
-                enemyLevel = template.difficultyLevel
-            };
+            // Set difficulty — the port's Land.newLoc + Land.setLocDif.
+            //
+            // AS3 does NOT derive a room's difficulty from the room's own `lvl`. `lvl` is only a
+            // *selection* gate (`Land.newRandomLoc` skips a room whose `lvl > maxlevel`, Land.as:918);
+            // the difficulty comes from the LAND: `locDifLevel = landDifLevel + depthOffset`
+            // (Land.as:982) and `enemyLevel = locDifLevel` (:987). Filling these from
+            // `template.difficultyLevel` was wrong twice over — wrong source, and it left `enemyCounts`
+            // all zero because nothing called `setKolEn`.
+            room.biome = context.Biome;
+            room.landConfig = context.LandConfig;
+            room.noHolesPlace = context.NoHolesPlace;
+
+            room.difficulty = new RoomDifficulty();
+
+            // AS3's order matters here. `Location`'s constructor runs buildLoc() — which reads
+            // `<options kolspawn>` into `kolEnSpawn` (Location.as:502-505) — and only afterwards does
+            // newLoc() call setLocDif() (Land.as:975), which reads `if(param1.kolEnSpawn == 0)` to decide
+            // whether to seed it. Applying the option after the planner would make the guard see 0 and
+            // overwrite an authored value.
+            //
+            // An unauthored `kolspawn` is 0 in AS3 (`Location.as:225`), so the port's `-1` sentinel is
+            // clamped to 0 here rather than skipped — absent and an authored `0` behave identically in the
+            // oracle, and only the value matters to the guard.
+            room.difficulty.spawnEnemyCount = Mathf.Max(0, template.environment.kolEnSpawn);
+
+            LocationDifficultyPlanner.Apply(
+                room.difficulty,
+                new LocationDifficultyInput(
+                    biome: context.Biome,
+                    landDifLevel: context.LandDifLevel,
+                    difficultyOffset: context.DifficultyOffset,
+                    tipEnemy: template.environment.tipEnemy,
+                    landConfig: context.LandConfig),
+                _rng);
 
             // Set environment
             room.environment = new RoomEnvironment
@@ -312,7 +369,7 @@ namespace PFE.Systems.Map
 
                 // Calculate weight (quadratic - kol * kol in AS3)
                 int remaining = prototypeMode ? Mathf.Max(1, template.maxInstances) : (template.maxInstances - currentUsage);
-                int weight = remaining * remaining;
+                int weight = DrawWeight(remaining, template.difficultyLevel, maxDifficulty, prototypeMode);
 
                 candidates.Add(template);
                 weights.Add(weight);
@@ -327,6 +384,21 @@ namespace PFE.Systems.Map
                         $"No valid room templates found with exclusion list (maxDifficulty: {maxDifficulty}, type: {requiredType}). " +
                         "Prototype mode retrying without exclusion.");
                     return SelectRandomRoomInternal(maxDifficulty, requiredType, null, allowExcludeFallbackRetry: false);
+                }
+
+                // AS3's exhaustion fallback (Land.as:926-935). When no room survives `kol > 0` — every
+                // eligible room has been drawn its maximum number of times — AS3 does NOT leave the cell
+                // empty: it re-pools on `rnd` alone, ignoring `kol`, `lvl` and the neighbour exclusions,
+                // and draws from that.
+                //
+                // Without this the grid would develop holes once `maxInstances` is honoured, because a
+                // null template makes WorldBuilder skip the cell (WorldBuilder.cs:808-813) and a land can
+                // then be missing the room its own exit lives in.
+                RoomTemplate exhausted = SelectFromExhaustedPool(maxDifficulty, requiredType);
+                if (exhausted != null)
+                {
+                    CountUsage(exhausted);
+                    return exhausted;
                 }
 
                 Debug.LogWarning($"No valid room templates found (maxDifficulty: {maxDifficulty}, type: {requiredType})");
@@ -344,18 +416,88 @@ namespace PFE.Systems.Map
                 cumulative += weights[i];
                 if (random < cumulative)
                 {
-                    // Increment usage count
-                    string selectedKey = candidates[i].GetContentId();
-                    if (!templateUsageCount.ContainsKey(selectedKey))
-                        templateUsageCount[selectedKey] = 0;
-                    templateUsageCount[selectedKey]++;
-
+                    CountUsage(candidates[i]);
                     return candidates[i];
                 }
             }
 
             // Fallback (shouldn't reach here)
             return candidates[candidates.Count - 1];
+        }
+
+        /// <summary>
+        /// AS3's draw weight for one room: <c>kol * kol</c> (<c>Land.as:909</c>), with the oracle's one
+        /// exception (<c>Land.as:910-913</c>).
+        ///
+        /// <para>That exception: <c>if(_loc9_ == 4 &amp;&amp; _loc8_.lvl == 0 &amp;&amp; param1 &gt; 1)
+        /// _loc9_ = 2;</c> — a stage-0 room with exactly two draws left keeps weight 4 on the shallow
+        /// levels but drops to 2 once the land is deeper than 1, so the easy pool stops crowding out the
+        /// rooms that only unlock below. <c>_loc9_ == 4</c> is <c>kol == 2</c>, i.e. "two draws left".</para>
+        /// </summary>
+        public static int DrawWeight(int remaining, int difficultyLevel, int stage, bool prototypeMode)
+        {
+            int weight = remaining * remaining;
+            if (prototypeMode) return weight;
+
+            if (weight == 4 && difficultyLevel == 0 && stage > 1)
+            {
+                return 2;
+            }
+
+            return weight;
+        }
+
+        /// <summary>
+        /// AS3's exhaustion pool (<c>Land.as:926-935</c>): re-pool on <c>rnd</c> alone, so a land whose
+        /// eligible rooms have all spent their <c>kol</c> still gets a room instead of a hole.
+        ///
+        /// <para><b>The gate is <c>rnd</c> and nothing else.</b> The oracle's <c>else</c> branch tests
+        /// <c>if(_loc8_.rnd)</c> — not <c>lvl</c>, not <c>kol</c>, and the neighbour exclusions are gone
+        /// with the first pool. Reproducing that exactly means a deeper room can appear here; that is the
+        /// oracle's behaviour, not a bug to smooth over.</para>
+        ///
+        /// <para><c>null</c> when no room at all is <c>rnd</c>, which is the one case where AS3 would
+        /// index an empty array and throw. Returning <c>null</c> lets the caller log and skip the cell
+        /// instead.</para>
+        /// </summary>
+        private RoomTemplate SelectFromExhaustedPool(int maxDifficulty, string requiredType)
+        {
+            if (allTemplates == null) return null;
+
+            List<RoomTemplate> pool = new List<RoomTemplate>();
+            foreach (var template in allTemplates)
+            {
+                if (template == null || string.IsNullOrEmpty(template.id)) continue;
+                if (template.specificMapOnly) continue;
+
+                // A `tip`-driven draw keeps its tip: AS3's newRandomLoc(param5) only ever re-pools on
+                // `rnd`, and the caller asked for a shape, so widening it here would answer with a room
+                // the cell cannot use.
+                if (!string.IsNullOrEmpty(requiredType))
+                {
+                    if (!string.Equals(template.type, requiredType, StringComparison.Ordinal)) continue;
+                }
+                else if (!template.allowRandom)
+                {
+                    continue;
+                }
+
+                pool.Add(template);
+            }
+
+            if (pool.Count == 0) return null;
+            return pool[_rng.Range(0, pool.Count)];
+        }
+
+        /// <summary>
+        /// Spend one of a template's <c>kol</c> (<c>Land.as:937</c>: <c>--_loc8_.kol</c>).
+        /// </summary>
+        private void CountUsage(RoomTemplate template)
+        {
+            string key = template.GetContentId();
+            if (string.IsNullOrEmpty(key)) return;
+            if (!templateUsageCount.ContainsKey(key)) templateUsageCount[key] = 0;
+            templateUsageCount[key]++;
         }
 
         /// <summary>

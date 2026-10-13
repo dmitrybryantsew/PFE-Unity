@@ -86,5 +86,52 @@ namespace PFE.Tests.Editor.Entities.Units
                 "assembly, so a `protected` or `private` receiver compiles in neither direction and the " +
                 "motor silently has nothing to call.");
         }
+
+        /// <summary>
+        /// The <i>impact sweeps</i> — the per-frame work that reads the step's settled velocity and
+        /// applies contact damage — and the invariant that makes the pair load-bearing: the motor must
+        /// run every one the shared step body runs, because a motor-driven unit never reaches
+        /// <c>StepUnit</c>.
+        ///
+        /// <para><b>The bug this exists to make unrepeatable.</b> <c>SweepTrapImpacts</c> — the unit's
+        /// side of AS3 <c>Trap.step</c>/<c>Trap.attKorp</c> (<c>Trap.as:147-197</c>), the whole of "a
+        /// spike trap deals damage" — was added to <c>UnitController.StepUnit</c> only. With
+        /// <c>PfeDebugSettings.UnitMotor</c> on (it is), the player and every spawned unit are
+        /// motor-driven, <c>StepUnit</c> never runs for them, and the sweep was dead code: a placed
+        /// <c>spikes</c> object drew its sprite and did nothing. <c>SweepPropImpacts</c> had been added
+        /// to <b>both</b> drivers, so the file looked complete and the build was green — the same shape
+        /// as the ground-state bug above, one seam over.</para>
+        ///
+        /// <para><b>Why the list is here and not derived.</b> Deriving "the sweeps" from the source would
+        /// have to guess which calls are per-frame impact work; naming them is the honest form, and the
+        /// unit-side assertion below is the positive control — it fails if a sweep is renamed or moved
+        /// out of <c>StepUnit</c>, so the motor-side assertion can never pass against a stale name.</para>
+        /// </summary>
+        [Test]
+        public void MotorDriver_RunsEveryImpactSweepTheUnitStepRuns()
+        {
+            string unit = SourceLint.ReadStripped(UnitControllerPath);
+            string motor = SourceLint.ReadStripped(MotorPath);
+
+            string stepUnit = SourceLint.MethodBody(unit, "protected virtual void StepUnit()");
+            string stepMotor = SourceLint.MethodBody(motor, "private void StepMotor()");
+
+            foreach (string sweep in new[] { "SweepPropImpacts", "SweepTrapImpacts" })
+            {
+                // Positive control: the shared step body is the definition of the set. If it stops
+                // calling a sweep, this fixture must be updated rather than left asserting a name that
+                // no longer exists anywhere.
+                Assert.That(stepUnit, Does.Contain(sweep),
+                    $"UnitController.StepUnit no longer runs {sweep}. If the sweep moved, move this " +
+                    "guard with it — otherwise the motor-side assertion below is checking a dead name.");
+
+                Assert.That(stepMotor, Does.Contain(sweep),
+                    $"TilePhysicsController.StepMotor does not run {sweep}, but UnitController.StepUnit " +
+                    "does. A motor-driven unit never reaches StepUnit (that is what _hasTilePhysics " +
+                    "means), and PfeDebugSettings.UnitMotor is on, so the sweep is dead code on the live " +
+                    "path — that is exactly how a spike trap came to deal no damage while every fixture " +
+                    "stayed green.");
+            }
+        }
     }
 }

@@ -352,6 +352,33 @@ namespace PFE.Systems.Map.DataMigration
                     obj.attributes[attr.Name] = attr.Value;
             }
 
+            // Parse the `<move>` child element.
+            //
+            // This is the one thing on a placed `<obj>` that is a CHILD ELEMENT rather than an attribute,
+            // and dropping it is why no ported room has a moving platform: `Interact.init` reads
+            // `this.xml.move.@dx` / `@dy` / `@tstay` / `@tmove` / `@on` (serv/Interact.as:427-468) to set
+            // `isMove`, the travel endpoints and the cycle timings, and `this.xml` is the placed node.
+            //
+            // 73 such nodes exist across the shipped rooms — 35 on `platform2`, 25 on the rail-mounted
+            // `wturret`, 6 on `knop2`, 5 on `platform3`, one each on `p_luna` and `wallsafe`. They are
+            // flattened into attributes because a room asset's placement carries a flat attribute list and
+            // `MapObjectDataUtility.BuildAttributes` copies every key it is given, so this is the whole of
+            // the change on the data side.
+            //
+            // `move_present` is written even for a `<move/>` with no attributes, because AS3 distinguishes
+            // "no node" (not a platform) from "a node with nothing in it" (a platform whose endpoints
+            // coincide). The marker is what carries that distinction through a flat string map.
+            XmlNode moveNode = objNode.SelectSingleNode("./move");
+            if (moveNode != null)
+            {
+                obj.attributes["move_present"] = "1";
+
+                foreach (XmlAttribute attr in moveNode.Attributes)
+                {
+                    obj.attributes["move_" + attr.Name] = attr.Value;
+                }
+            }
+
             // Parse items
             XmlNodeList itemNodes = objNode.SelectNodes("./item");
             foreach (XmlNode itemNode in itemNodes)

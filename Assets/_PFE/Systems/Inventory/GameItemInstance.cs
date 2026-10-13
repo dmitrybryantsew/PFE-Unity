@@ -112,22 +112,29 @@ namespace PFE.Systems.Inventory
         public float TotalWeight => definition != null ? definition.weight * quantity : 0f;
 
         /// <summary>
-        /// Whether this item can stack
+        /// Whether a second acquisition of the same id merges into this instance.
+        ///
+        /// <para><b>True for every real item, because AS3 stacks are unbounded.</b>
+        /// <c>Invent.plus()</c> merges unconditionally (<c>Invent.as:1343</c>); the oracle has no
+        /// "max stack" concept to consult, so the only instance that cannot merge is one built with no
+        /// definition at all (the save-load fallback). This used to read
+        /// <c>definition.stackSize &gt; 1</c>, which the old per-item cap made meaningful — that cap is
+        /// gone (see <see cref="GameInventory.AddItem"/>).</para>
         /// </summary>
-        public bool IsStackable => definition != null && definition.stackSize > 1;
+        public bool IsStackable => definition != null;
 
         /// <summary>
-        /// Whether this can stack with another instance
+        /// Whether this instance merges with another — same id and same variant, the two keys AS3's
+        /// <c>items[id]</c> table and its <c>variant</c> field use. There is no count condition: AS3
+        /// merges regardless of how full a stack already is.
         /// </summary>
         public bool CanStackWith(GameItemInstance other)
         {
             if (other == null || definition == null || other.definition == null)
                 return false;
 
-            return IsStackable &&
-                   definition.itemId == other.definition.itemId &&
-                   variant == other.variant &&
-                   quantity < definition.stackSize;
+            return definition.itemId == other.definition.itemId &&
+                   variant == other.variant;
         }
 
         // ===== Constructors =====
@@ -141,7 +148,10 @@ namespace PFE.Systems.Inventory
             }
 
             definition = itemDefinition;
-            quantity = Mathf.Clamp(count, 1, definition.stackSize);
+            // No upper clamp. AS3 item stacks are unbounded — `Invent.plus()` adds with no ceiling
+            // (Invent.as:1343). Clamping to `stackSize` here is what made every shipped item
+            // (stackSize default 1) hold at most one unit. See GameInventory.AddItem.
+            quantity = Mathf.Max(1, count);
             condition = 1f;
             variant = 0;
             healthMultiplier = 1f;

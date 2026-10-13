@@ -17,6 +17,7 @@ MonoBehaviour:
   id: merc3
   parentId: merc
   controllerId: raider
+  lootTableKey: raider
   fraction: 2
   category: 3
   xpReward: 500
@@ -232,27 +233,35 @@ MonoBehaviour:
   - weaponId: cflamer
     chance: 0.01
     difficulty: 19
+    isFixedWeapon: 0
   - weaponId: autor
     chance: 0.1
     difficulty: 18
+    isFixedWeapon: 0
   - weaponId: gatp
     chance: 0.1
     difficulty: 20
+    isFixedWeapon: 0
   - weaponId: quick
     chance: 0.1
     difficulty: 19
+    isFixedWeapon: 0
   - weaponId: gatl
     chance: 0.1
     difficulty: 15
+    isFixedWeapon: 0
   - weaponId: plamg
     chance: 0.2
     difficulty: 0
+    isFixedWeapon: 0
   - weaponId: lmg
     chance: 0.5
     difficulty: 0
+    isFixedWeapon: 0
   - weaponId: minigun
     chance: 1
     difficulty: 0
+    isFixedWeapon: 0
   animations:
     stay:
       row: 0

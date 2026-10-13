@@ -17,6 +17,7 @@ MonoBehaviour:
   id: turret2
   parentId: 
   controllerId: turret
+  lootTableKey: turret
   fraction: 4
   category: 3
   xpReward: 120
@@ -129,24 +130,31 @@ MonoBehaviour:
   - weaponId: turret1
     chance: 1
     difficulty: 0
+    isFixedWeapon: 0
   - weaponId: turret2
     chance: 1
     difficulty: 0
+    isFixedWeapon: 0
   - weaponId: turret3
     chance: 1
     difficulty: 0
+    isFixedWeapon: 0
   - weaponId: turret4
     chance: 1
     difficulty: 0
+    isFixedWeapon: 0
   - weaponId: turret5
     chance: 1
     difficulty: 0
+    isFixedWeapon: 0
   - weaponId: turret6
     chance: 1
     difficulty: 0
+    isFixedWeapon: 0
   - weaponId: turret7
     chance: 1
     difficulty: 0
+    isFixedWeapon: 0
   animations:
     stay:
       row: 0

@@ -21,7 +21,7 @@ namespace PFE.Systems.Campaign
     /// place that publishes a <see cref="LandBuildRequestMessage"/> — the build itself belongs to
     /// <c>MapBridge</c>. See <c>docs/LandGameplayLoop/03_GAP_LEDGER.md</c> §1.</para>
     /// </summary>
-    public class CampaignManager : ICampaignManager, ILandScriptHost, ITravelMapHost, IInitializable, IDisposable
+    public class CampaignManager : ICampaignManager, ILandScriptHost, IScriptQuestHost, ITravelMapHost, IInitializable, IDisposable
     {
         /// <summary>
         /// The live instance, for the scene components that cannot be injected.
@@ -120,24 +120,62 @@ namespace PFE.Systems.Campaign
         }
 
         // Story triggers (World.w.game.triggers)
-        private readonly Dictionary<string, int> _triggers = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        //
+        // AS3's table is untyped and holds strings as well as ints (`"wait"` from NPC.as:591, a quest
+        // `@set` value from Quest.as:332), so the value is a TriggerValue and not an int. See
+        // TriggerValue's own docs for why the two oracle readers do NOT disagree about a string "1".
+        private readonly Dictionary<string, TriggerValue> _triggers = new Dictionary<string, TriggerValue>(StringComparer.OrdinalIgnoreCase);
 
-        // Quest progress
-        private readonly Dictionary<string, int> _questStages = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-        private readonly HashSet<string> _completedQuests = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        private readonly HashSet<string> _activeQuests = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        // Quest progress.
+        //
+        // AS3 keeps a Quest object per quest — a *tree*: the parent carries `state` and an ordered list
+        // of sub-objectives, each with its own state, collect counter and visibility (Quest.as:9-83).
+        // The port used to keep three flat collections (`Dictionary<string,int>` for a stage index plus
+        // two HashSets), which cannot express "sub 3 done while 1 and 2 stay open" and cannot complete a
+        // parent at all. See QuestRules for what each operation really is.
+        //
+        // The immutable half (the authored definition, projected) is cached per quest id; the mutable
+        // half is the runtime state. The projection is cached because QuestFacts is derived purely from
+        // the asset, and rebuilding it per call would allocate on a hot path.
+        private readonly Dictionary<string, QuestFacts> _questFacts = new Dictionary<string, QuestFacts>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, QuestRuntimeState> _questRuntime = new Dictionary<string, QuestRuntimeState>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// The campaign event surface — see <see cref="CampaignEventBus"/>. Optional so a headless
+        /// construction keeps working; a null bus drops events rather than throwing.
+        /// </summary>
+        private readonly CampaignEventBus _events;
+
+        /// <summary>
+        /// Where a quest's XP / skill points / reputation go on close. AS3 pays these from
+        /// <c>Quest.close</c> straight into <c>World.w.pers</c> (<c>Quest.as:645-656</c>); the port has no
+        /// campaign→character-stat seam, so the payout is delegated and <b>reported when unwired</b>.
+        /// </summary>
+        private readonly IQuestRewardHost _questRewards;
+
+        /// <summary>
+        /// Runs an authored script by id — AS3 <c>Game.runScript(id)</c> (<c>Game.as:722-737</c>), which a
+        /// quest's <c>endscr</c> needs (<c>Quest.as:704-707</c>). Optional and reported when absent.
+        /// </summary>
+        private readonly IQuestScriptHost _questHooks;
 
         public CampaignManager(
             ISubscriber<LandTransitionMessage> transitionSubscriber = null,
             IPublisher<LandTransitionMessage> transitionPublisher = null,
             CampaignCatalog catalog = null,
             IPublisher<LandBuildRequestMessage> buildPublisher = null,
-            IPublisher<TravelMapOpenedMessage> travelMapPublisher = null)
+            IPublisher<TravelMapOpenedMessage> travelMapPublisher = null,
+            CampaignEventBus events = null,
+            IQuestRewardHost questRewards = null,
+            IQuestScriptHost questHooks = null)
         {
             _transitionSubscriber = transitionSubscriber;
             _transitionPublisher = transitionPublisher;
             _buildPublisher = buildPublisher;
             _travelMapPublisher = travelMapPublisher;
+            _events = events;
+            _questRewards = questRewards;
+            _questHooks = questHooks;
 
             // No engine call here. A null catalogue is a legitimate state (headless, tests, a host with
             // no authored content) and every reader guards for it; the Resources fallback happens on the
@@ -186,6 +224,7 @@ namespace PFE.Systems.Campaign
                 return;
             }
 
+            string previousLandId = _currentLandId.Value;
             string resolvedId = targetLandId;
 
             CampaignCatalog catalog = Catalog;
@@ -220,7 +259,112 @@ namespace PFE.Systems.Campaign
             // (PipBuck.as:271-273 / :342-345).
             RefreshTravelUnlockedForCurrentLand();
 
+            // AS3 `Game.enterToCurLand` runs once per entry (Game.as:396-400); this is that moment,
+            // named. Published before the build request so a hook that reacts to the entry sees the
+            // campaign's state already consistent with the new land.
+            _events?.PublishLandEntered(resolvedId, previousLandId, _landStates.Get(resolvedId).landStage);
+
             _buildPublisher?.Publish(new LandBuildRequestMessage(resolvedId, spawnPoint, forceRegenerate));
+        }
+
+        /// <summary>
+        /// Adopt the land whose room collection the world was just built from, <b>without</b> publishing a
+        /// build request. For the one caller that builds a world the campaign did not ask for: the scene's
+        /// debug room override (<c>MapBridge._useRoomOverride</c>).
+        /// </summary>
+        /// <remarks>
+        /// <para><b>The defect this closes.</b> <see cref="Initialize"/> sets <c>_currentLandId</c> to
+        /// <c>catalog.startingLandId</c> and <i>then</i> publishes a build request. Two things can happen
+        /// to that request and, in the shipped scene, the second one does: <c>MapBridge</c> subscribes in
+        /// <c>Start</c> while the campaign publishes during its own initialization, so the request is
+        /// dropped — and the scene's room override then builds a different collection entirely
+        /// (<c>rooms_rbl</c> where the campaign named <c>begin</c>). Measured in <c>Editor.log</c>: the only
+        /// room in the world is <c>rooms_rbl/room_0_0_0_0_0</c> while <c>[CampaignManager]</c> prints
+        /// <c>in 'begin'</c>, and <c>rbl</c> is never a build target anywhere in the session.</para>
+        ///
+        /// <para><b>Why that is worse than a cosmetic label.</b> The F2 Lands tab marks the current land
+        /// with a marker and labels its button "Rebuild", so the wrong row was marked and that button
+        /// declined to do anything at all (<c>BeginMission</c> no-ops on an id match). Pressing Go on the
+        /// land you were <i>actually</i> standing in rebuilt it; the row that looked current did nothing.</para>
+        ///
+        /// <para><b>Why not <see cref="TransitionToLand"/>.</b> That publishes a build request, and this
+        /// caller's world is already built — re-publishing would rebuild it and race the override. Only the
+        /// identity and the state derived from it are set here.</para>
+        ///
+        /// <para><b><c>upStage</c> is deliberately not reset.</b> AS3 clears it in <c>enterToCurLand</c>
+        /// (<c>Game.as:396-399</c>), but this is a debug boot and not an entry: silently clearing per-entry
+        /// stage state from here would make a later <c>upland</c> bug unattributable.</para>
+        /// </remarks>
+        /// <param name="collectionId">A room collection key, i.e. <c>RoomTemplate.sourceCollectionId</c>.</param>
+        /// <returns>True when a land was adopted, or when the current land already matched it.</returns>
+        public bool AdoptBuiltLand(string collectionId)
+        {
+            string previous = string.IsNullOrEmpty(_currentLandId.Value) ? "(none)" : _currentLandId.Value;
+
+            if (string.IsNullOrWhiteSpace(collectionId))
+            {
+                Debug.LogWarning(
+                    "[CampaignManager] AdoptBuiltLand was given no room collection, so the world that was " +
+                    $"just built cannot be attributed to a land. The current land stays '{previous}'.");
+                return false;
+            }
+
+            CampaignCatalog catalog = Catalog;
+            if (catalog == null || catalog.AllLands == null)
+            {
+                Debug.LogWarning(
+                    $"[CampaignManager] No catalogue, so collection '{collectionId}' cannot be resolved to " +
+                    $"a land. The current land stays '{previous}'.");
+                return false;
+            }
+
+            LandDefinition match = null;
+            for (int i = 0; i < catalog.AllLands.Count; i++)
+            {
+                LandDefinition land = catalog.AllLands[i];
+                if (land == null || string.IsNullOrEmpty(land.landId)) continue;
+                if (!string.Equals(land.sourceFileKey, collectionId, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                // A collection can back more than one land — `rooms_mbase` is both `random_mbase` and
+                // `bunker`. The override builds authored templates, so the authored land is the better
+                // answer; a tie keeps the first, which is deterministic rather than catalogue-order luck.
+                if (match == null || (match.isProcedural && !land.isProcedural))
+                {
+                    match = land;
+                }
+            }
+
+            if (match == null)
+            {
+                Debug.LogWarning(
+                    $"[CampaignManager] No land declares sourceFileKey '{collectionId}', so the world that " +
+                    $"was just built cannot be attributed to a land. The current land stays '{previous}' — " +
+                    "which is a different land from the one you are standing in, so the Lands tab will mark " +
+                    "the wrong row as current. Add the land to CampaignCatalog, or turn the room override " +
+                    "off in the scene.");
+                return false;
+            }
+
+            if (string.Equals(match.landId, _currentLandId.Value, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            Debug.Log(
+                $"[CampaignManager] Adopting land '{match.landId}' for the world built from collection " +
+                $"'{collectionId}' (was '{previous}').");
+
+            _currentLandId.Value = match.landId;
+            _currentLand.Value = match;
+
+            // Arriving somewhere re-derives the travel grant (PipBuck.as:271-273 / :342-345) and the camp is
+            // the land that unlocks it. Read through the same helper as TransitionToLand so the two cannot
+            // drift apart.
+            RefreshTravelUnlockedForCurrentLand();
+            return true;
         }
 
         // =====================================================================
@@ -293,6 +437,17 @@ namespace PFE.Systems.Campaign
             // — currently a documented no-op.
             CurrentCheckpoint = null;
             RefillVendors();
+
+            // AS3 reaches the next level through `gotoLand(missionId)` (Game.as:471), and `gotoLand`
+            // calls `enterToCurLand`, which ends with `if(curLand.upStage) curLand.upStage = false;`
+            // (Game.as:398-400). That clear is what lets the NEXT run's `upland` increment again.
+            //
+            // This is the half the port was missing: `TransitionToLand` clears `upStage` (:217) but
+            // `GotoNextLevel` publishes a build request directly and never went through it, so after the
+            // first descent `upStage` stayed set and every later `upland` was the "already raised this
+            // entry" no-op — the land rebuilt for ever at landStage 1. Nothing went red: a rebuild
+            // looks exactly like progress.
+            _landStates.ResetUpStage(landId);
 
             Debug.Log($"[CampaignManager] gotoNextLevel: regenerating '{landId}' at landStage " +
                       $"{_landStates.Get(landId).landStage}.");
@@ -599,6 +754,8 @@ namespace PFE.Systems.Campaign
             Debug.Log($"[CampaignManager] checkpoint activated in '{resolved}' at ({room.x},{room.y})" +
                       (result.writesCode ? $", code '{code}'" : ", no code") +
                       (result.offersTeleport ? ", teleport offered" : string.Empty) + ".");
+
+            _events?.PublishCheckpointActivated(resolved, room.x, room.y, room.z, code);
             return true;
         }
 
@@ -647,24 +804,151 @@ namespace PFE.Systems.Campaign
         }
 
         /// <summary>The story trigger table, for the save payload. AS3 <c>World.w.game.triggers</c>
-        /// (<c>Game.as:25</c>).</summary>
-        public IReadOnlyDictionary<string, int> Triggers => _triggers;
+        /// (<c>Game.as:25</c>). Values are <see cref="TriggerValue"/> because the oracle stores strings
+        /// as well as ints — see that type's docs.</summary>
+        public IReadOnlyDictionary<string, TriggerValue> Triggers => _triggers;
 
         /// <summary>
         /// Restore the trigger table from a save. Deliberately not a loop over
-        /// <see cref="SetTrigger"/>: that logs one line per trigger, which is a wall of noise on load and
-        /// would read as gameplay activity in the editor log.
+        /// <see cref="SetTrigger(string,int)"/>: that logs one line per trigger, which is a wall of noise
+        /// on load and would read as gameplay activity in the editor log. Nor does it raise the
+        /// <c>TriggerChanged</c> event — a load is not gameplay progress.
         /// </summary>
-        public void LoadTriggers(IEnumerable<KeyValuePair<string, int>> pairs)
+        public void LoadTriggers(IEnumerable<KeyValuePair<string, TriggerValue>> pairs)
         {
             _triggers.Clear();
             if (pairs == null) return;
 
-            foreach (KeyValuePair<string, int> pair in pairs)
+            foreach (KeyValuePair<string, TriggerValue> pair in pairs)
             {
                 if (string.IsNullOrEmpty(pair.Key)) continue;
                 _triggers[pair.Key] = pair.Value;
             }
+        }
+
+        /// <summary>
+        /// The quests currently in progress (AS3 <c>state == 1</c>). Read-only: the overlay's Campaign
+        /// Vars tab needs the list to draw states, and writing to it from outside would bypass the
+        /// chain-on-complete rule <see cref="CompleteQuest"/> owns.
+        /// </summary>
+        public IReadOnlyCollection<string> ActiveQuestIds => QuestIdsInState(QuestState.Active);
+
+        /// <summary>Quests that are done (AS3 <c>state == 2</c>). Read-only, as
+        /// <see cref="ActiveQuestIds"/>.</summary>
+        public IReadOnlyCollection<string> CompletedQuestIds => QuestIdsInState(QuestState.Done);
+
+        /// <summary>
+        /// Every quest the campaign knows about, in any state. The overlay needs the whole set to show a
+        /// quest parked at state 0 — <c>addQuest(noVis:true)</c> puts one there deliberately
+        /// (<c>Game.as:562-565</c>), and a list of only the active ones would hide it.
+        /// </summary>
+        public IReadOnlyCollection<string> KnownQuestIds
+        {
+            get
+            {
+                var ids = new List<string>();
+                foreach (KeyValuePair<string, QuestRuntimeState> pair in _questRuntime) ids.Add(pair.Key);
+                return ids;
+            }
+        }
+
+        /// <summary>
+        /// Project a quest's runtime state for a reader. Returns <c>false</c> for a quest the campaign has
+        /// never been told about — a different answer from "known but not started".
+        /// </summary>
+        public bool TryGetQuestState(string questId, out int state, out int doneSubs, out int totalSubs)
+        {
+            state = 0;
+            doneSubs = 0;
+            totalSubs = 0;
+
+            if (string.IsNullOrEmpty(questId) || !_questRuntime.TryGetValue(questId, out QuestRuntimeState runtime))
+            {
+                return false;
+            }
+
+            state = runtime.State;
+            for (int i = 0; i < runtime.Subs.Count; i++)
+            {
+                if (runtime.Subs[i] == null) continue;
+                totalSubs++;
+                if (runtime.Subs[i].State >= (int)QuestState.Done) doneSubs++;
+            }
+
+            return true;
+        }
+
+        private List<string> QuestIdsInState(QuestState state)
+        {
+            var ids = new List<string>();
+            foreach (KeyValuePair<string, QuestRuntimeState> pair in _questRuntime)
+            {
+                if (pair.Value != null && pair.Value.State == (int)state) ids.Add(pair.Key);
+            }
+
+            return ids;
+        }
+
+        /// <summary>
+        /// Read a trigger. An absent key reads as <see cref="TriggerValue.Unset"/> — which the oracle
+        /// distinguishes from a stored zero (<c>Land.as:821</c> tests <c>== null</c>;
+        /// <c>Area.as:360</c> tests <c>!= 1</c>). Numeric callers use
+        /// <c>.AsInt(0)</c> / <c>.IsGreaterThanZero()</c>, which implement AS3's coercing comparison.
+        /// </summary>
+        public TriggerValue GetTrigger(string triggerName)
+        {
+            if (string.IsNullOrEmpty(triggerName)) return TriggerValue.Unset;
+            return _triggers.TryGetValue(triggerName, out TriggerValue value) ? value : TriggerValue.Unset;
+        }
+
+        /// <summary>AS3 <c>setTrigger(name, value = 1)</c> (<c>Game.as:676-679</c>) — the numeric arm.</summary>
+        public void SetTrigger(string triggerName, int value = 1)
+        {
+            SetTrigger(triggerName, TriggerValue.FromInt(value));
+        }
+
+        /// <summary>
+        /// Drop a trigger entirely, so a later read returns <see cref="TriggerValue.Unset">unset</see>
+        /// rather than a stored zero.
+        ///
+        /// <para><b>Debug-only, and deliberately so.</b> The oracle has no unset — <c>setTrigger</c>
+        /// writes verbatim (<c>Game.as:676-679</c>) and no AS3 code path deletes a key — so gameplay must
+        /// never need this. It exists for the F2 Campaign Vars tab, where removing a trigger written by a
+        /// test run is the only way to get back to the "never happened" state an absent key means.</para>
+        /// </summary>
+        /// <returns><c>true</c> when a key was actually there, so a caller can report from what the
+        /// seam really did rather than from the intent.</returns>
+        public bool RemoveTrigger(string triggerName)
+        {
+            if (string.IsNullOrEmpty(triggerName)) return false;
+            if (_triggers.Remove(triggerName))
+            {
+                Debug.Log($"[CampaignManager] Trigger '{triggerName}' removed (unset).");
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Set a trigger to any value, including a string. AS3 writes the value <b>verbatim</b>
+        /// (<c>Game.as:678</c>), so this is the overload that makes <c>"wait"</c>
+        /// (<c>NPC.as:591</c>) and a quest <c>@set</c> value (<c>Quest.as:332</c>) storable.
+        /// </summary>
+        public void SetTrigger(string triggerName, TriggerValue value)
+        {
+            if (string.IsNullOrEmpty(triggerName)) return;
+
+            // The old value is read before the write so the event can carry both. The oracle has no
+            // "was" notion — it reads the table — but a hook that fires on "the trigger became set"
+            // cannot be written without it.
+            TriggerValue previous = GetTrigger(triggerName);
+            _triggers[triggerName] = value;
+            Debug.Log($"[CampaignManager] Trigger '{triggerName}' set to {value}.");
+
+            // `LoadTriggers` deliberately does not raise this: a load is not gameplay progress, and a
+            // save with 200 triggers would fire 200 events through a hook that expects a story beat.
+            _events?.PublishTriggerChanged(triggerName, previous, value);
         }
 
         /// <summary>
@@ -690,72 +974,410 @@ namespace PFE.Systems.Campaign
             return string.Equals(interactionType, "travel", StringComparison.OrdinalIgnoreCase);
         }
 
-        public int GetTrigger(string triggerName)
-        {
-            if (string.IsNullOrEmpty(triggerName)) return 0;
-            return _triggers.TryGetValue(triggerName, out int val) ? val : 0;
-        }
-
-        public void SetTrigger(string triggerName, int value = 1)
-        {
-            if (string.IsNullOrEmpty(triggerName)) return;
-            _triggers[triggerName] = value;
-            Debug.Log($"[CampaignManager] Trigger '{triggerName}' set to {value}.");
-        }
-
         public bool IsQuestActive(string questId)
         {
-            return !string.IsNullOrEmpty(questId) && _activeQuests.Contains(questId);
+            return !string.IsNullOrEmpty(questId)
+                && _questRuntime.TryGetValue(questId, out QuestRuntimeState runtime)
+                && runtime.State == (int)QuestState.Active;
         }
 
         public bool IsQuestCompleted(string questId)
         {
-            return !string.IsNullOrEmpty(questId) && _completedQuests.Contains(questId);
+            return !string.IsNullOrEmpty(questId)
+                && _questRuntime.TryGetValue(questId, out QuestRuntimeState runtime)
+                && runtime.State == (int)QuestState.Done;
         }
 
+        /// <summary>
+        /// How many of a quest's sub-objectives are done. This is the honest reading of the field the old
+        /// <c>GetQuestStage</c> exposed: the oracle has no stage cursor, only a set of finished subs.
+        /// </summary>
         public int GetQuestStage(string questId)
         {
-            if (string.IsNullOrEmpty(questId)) return 0;
-            return _questStages.TryGetValue(questId, out int stage) ? stage : 0;
+            if (string.IsNullOrEmpty(questId) || !_questRuntime.TryGetValue(questId, out QuestRuntimeState runtime))
+            {
+                return 0;
+            }
+
+            int done = 0;
+            for (int i = 0; i < runtime.Subs.Count; i++)
+            {
+                if (runtime.Subs[i] != null && runtime.Subs[i].State >= (int)QuestState.Done) done++;
+            }
+
+            return done;
         }
 
+        /// <summary>
+        /// AS3 <c>Game.addQuest(id)</c> — the quest's own name for what the old API called "start".
+        /// Kept as a named alias because the interface and the F2 overlay both speak it.
+        /// </summary>
         public void StartQuest(string questId)
         {
-            if (string.IsNullOrEmpty(questId)) return;
-            _activeQuests.Add(questId);
-            if (!_questStages.ContainsKey(questId))
-            {
-                _questStages[questId] = 1;
-            }
-            Debug.Log($"[CampaignManager] Started quest '{questId}'.");
+            AddQuest(questId);
         }
 
+        /// <summary>
+        /// <b>A shim, and it does not mean what it says.</b> The old model stored a monotonic index and
+        /// this wrote it. The oracle has no index: <c>stage val n</c> means "mark sub <c>n</c> complete"
+        /// (<c>Game.closeQuest</c> → <c>Quest.closeSub</c>). So this forwards to
+        /// <see cref="CloseQuest"/> with <paramref name="nextStage"/> rendered as the sub id — which is
+        /// what every caller actually wanted, including the F2 tab's "advance" button.
+        ///
+        /// <para>Passing 0 or a negative value completes the <b>whole</b> quest, matching
+        /// <c>Game.as:624-627</c>. That is the honest reading, and the reason this is documented rather
+        /// than quietly reimplemented.</para>
+        /// </summary>
         public void AdvanceQuestStage(string questId, int nextStage)
         {
-            if (string.IsNullOrEmpty(questId)) return;
-            _activeQuests.Add(questId);
-            _questStages[questId] = nextStage;
-            Debug.Log($"[CampaignManager] Quest '{questId}' advanced to stage {nextStage}.");
+            CloseQuest(questId, nextStage.ToString(System.Globalization.CultureInfo.InvariantCulture));
         }
 
+        /// <summary>AS3 <c>Quest.close()</c> by way of <c>Game.closeQuest(id)</c> with no <c>n</c>.</summary>
         public void CompleteQuest(string questId)
         {
-            if (string.IsNullOrEmpty(questId)) return;
-            _activeQuests.Remove(questId);
-            _completedQuests.Add(questId);
+            CloseQuest(questId, null);
+        }
 
-            Debug.Log($"[CampaignManager] Quest '{questId}' completed.");
+        // =====================================================================
+        //  Quests — fe.loc.Quest (Quest.as) and Game.addQuest / showQuest / closeQuest
+        //  (Game.as:527-632). The rules live in QuestRules (Unity-free, offline-tested);
+        //  this is the state they operate on and the seams the side effects go through.
+        // =====================================================================
 
-            // Check if there is a chained next quest
-            CampaignCatalog catalog = Catalog;
-            if (catalog != null)
+        /// <summary>
+        /// The scripting seam's <c>quest</c> command (AS3 <c>Script.as:408-423</c>).
+        ///
+        /// <para><b>Explicit, because the two signatures genuinely differ.</b> The public
+        /// <see cref="AddQuest"/> returns the runtime state and takes the <c>noVis</c> park flag, both of
+        /// which the script vocabulary has no use for — a script says <c>quest val</c> and nothing else.
+        /// Narrowing the seam here rather than widening the public method keeps "what a script can do" a
+        /// separate, smaller question from "what the campaign can do", which is the whole point of
+        /// <see cref="IScriptQuestHost"/>.</para>
+        /// </summary>
+        void IScriptQuestHost.AddQuest(string questId) => AddQuest(questId);
+
+        /// <summary>
+        /// AS3 <c>Game.addQuest(id, loadObj, noVis, snd, showDial)</c> (<c>Game.as:527-581</c>).
+        ///
+        /// <para>Three cases, and the port previously had only one of them: a quest the campaign already
+        /// knows is returned (promoting it from state 0 to 1 if it was parked); a quest it does not know
+        /// is looked up in the catalogue and instantiated; an unknown id is reported and returns
+        /// <c>null</c> — AS3 traces <c>"не найден квест"</c> (<c>:556</c>).</para>
+        /// </summary>
+        /// <param name="noVis">AS3 <c>noVis</c> — park the quest at state 0 when it is not <c>auto</c>.
+        /// Used by <c>showQuest</c>/<c>closeQuest</c>, which grant a quest in order to act on it without
+        /// announcing it.</param>
+        /// <returns>The quest's runtime state, or <c>null</c> when the id is not in the catalogue.</returns>
+        public QuestRuntimeState AddQuest(string questId, bool noVis = false)
+        {
+            if (string.IsNullOrEmpty(questId)) return null;
+            QuestFacts facts = GetQuestFacts(questId);
+
+            if (_questRuntime.TryGetValue(questId, out QuestRuntimeState existing))
             {
-                var questDef = catalog.GetQuest(questId);
-                if (questDef != null && !string.IsNullOrEmpty(questDef.nextQuestId))
+                // `if(this.quests[id].state == 0) { state = 1; … isClosed(); deposit(); }` (:539-550)
+                if (QuestRules.Activate(existing))
                 {
-                    StartQuest(questDef.nextQuestId);
+                    Debug.Log($"[CampaignManager] Quest '{questId}' is now in progress.");
+                    PublishQuestStateChanged(existing, (int)QuestState.NotStarted, (int)QuestState.Active);
+
+                    // A quest whose subs are already satisfied closes the moment it is granted — that is
+                    // how a "collect 3" objective completed before the quest was given resolves at once.
+                    if (QuestRules.IsClosed(existing)) CloseQuest(questId, null);
+                }
+
+                return existing;
+            }
+
+            if (facts == null)
+            {
+                Debug.LogWarning($"[CampaignManager] addQuest: '{questId}' is not in the catalogue, so no " +
+                                 "quest was granted. (AS3 traces 'не найден квест' here.)");
+                return null;
+            }
+
+            // AS3 constructs the Quest at state 1 (:109) and only parks it when `noVis && !auto`
+            // (:562-565).
+            QuestState initial = noVis && !facts.Auto ? QuestState.NotStarted : QuestState.Active;
+            QuestRuntimeState runtime = QuestRuntimeState.CreateFrom(facts, initial);
+            _questRuntime[questId] = runtime;
+
+            Debug.Log($"[CampaignManager] Quest '{questId}' granted (state {runtime.State}, " +
+                      $"{runtime.Subs.Count} sub-objective(s)).");
+
+            if (runtime.State == (int)QuestState.Active)
+            {
+                PublishQuestStateChanged(runtime, (int)QuestState.NotStarted, (int)QuestState.Active);
+                if (QuestRules.IsClosed(runtime)) CloseQuest(questId, null);
+            }
+
+            return runtime;
+        }
+
+        /// <summary>
+        /// AS3 <c>Game.showQuest(id, n)</c> (<c>Game.as:583-611</c>) — the <c>showstage</c> script command.
+        /// Grants the quest if it is unknown, then un-hides sub <paramref name="n"/>.
+        /// </summary>
+        public void ShowQuest(string questId, string n)
+        {
+            if (string.IsNullOrEmpty(questId)) return;
+
+            QuestRuntimeState runtime = _questRuntime.TryGetValue(questId, out QuestRuntimeState found)
+                ? found
+                : AddQuest(questId, noVis: true);
+
+            if (runtime == null)
+            {
+                Debug.LogWarning($"[CampaignManager] showQuest: '{questId}' could not be granted, so sub " +
+                                 $"'{n}' was not revealed.");
+                return;
+            }
+
+            QuestFacts facts = GetQuestFacts(questId);
+            if (QuestRules.ShowQuest(facts, runtime, n))
+            {
+                Debug.Log($"[CampaignManager] Quest '{questId}' revealed sub-objective '{n}'.");
+            }
+        }
+
+        /// <summary>
+        /// AS3 <c>Game.closeQuest(id, n)</c> (<c>Game.as:613-632</c>) — the <c>stage</c> script command.
+        ///
+        /// <para><b><paramref name="n"/> absent, empty or negative completes the WHOLE quest</b>
+        /// (<c>:624-627</c>). That is not an edge case: an authored <c>&lt;s act="stage" val="x"/&gt;</c>
+        /// carries the string <c>"-1"</c> because <c>analiz</c> declares it so (<c>Script.as:71</c>), so a
+        /// bare <c>stage</c> means "finish it".</para>
+        /// </summary>
+        public void CloseQuest(string questId, string n)
+        {
+            if (string.IsNullOrEmpty(questId)) return;
+
+            QuestRuntimeState runtime = _questRuntime.TryGetValue(questId, out QuestRuntimeState found)
+                ? found
+                : AddQuest(questId, noVis: true);
+
+            if (runtime == null)
+            {
+                Debug.LogWarning($"[CampaignManager] closeQuest: '{questId}' could not be granted, so " +
+                                 $"nothing closed (n='{n ?? "-"}').");
+                return;
+            }
+
+            QuestFacts facts = GetQuestFacts(questId);
+            int previousState = runtime.State;
+
+            QuestCloseOutcome outcome = QuestRules.CloseQuest(facts, runtime, n);
+            if (!outcome.Closed)
+            {
+                return;
+            }
+
+            ApplyQuestClose(outcome, previousState);
+        }
+
+        /// <summary>
+        /// AS3 <c>Game.incQuests(itemId, delta)</c> (<c>Game.as:653-664</c>) — every in-progress quest that
+        /// counts items gets the delta, then re-checks.
+        /// </summary>
+        /// <param name="countOf">How many of an item the inventory holds, for the re-check.</param>
+        public void IncQuests(string itemId, int delta, Func<string, int> countOf = null)
+        {
+            if (string.IsNullOrEmpty(itemId)) return;
+
+            foreach (KeyValuePair<string, QuestRuntimeState> pair in SnapshotQuestsInState(QuestState.Active))
+            {
+                QuestFacts facts = GetQuestFacts(pair.Key);
+                if (facts == null || !facts.IsCheck) continue;
+
+                QuestRules.Inc(facts, pair.Value, itemId, delta);
+                QuestRules.Check(facts, pair.Value, countOf, itemId);
+
+                if (pair.Value.State == (int)QuestState.Done) ApplyQuestClose(
+                    new QuestCloseOutcome { Closed = true, IsParent = true, QuestId = pair.Key,
+                                            Xp = facts.Xp, Sp = facts.Sp, Rep = facts.Rep,
+                                            Trigger = facts.Trigger, TriggerSet = facts.TriggerSet,
+                                            EndDial = facts.EndDial, EndScript = facts.EndScript,
+                                            NextQuestId = facts.NextQuestId },
+                    (int)QuestState.Active);
+            }
+        }
+
+        /// <summary>
+        /// AS3 <c>Game.checkQuests(itemId)</c> (<c>Game.as:634-651</c>) — recompute every item-counting
+        /// quest from the inventory.
+        /// </summary>
+        public void CheckQuests(Func<string, int> countOf, string changedItem = null)
+        {
+            foreach (KeyValuePair<string, QuestRuntimeState> pair in SnapshotQuestsInState(QuestState.Active))
+            {
+                QuestFacts facts = GetQuestFacts(pair.Key);
+                if (facts == null || !facts.IsCheck) continue;
+
+                int before = pair.Value.State;
+                QuestRules.Check(facts, pair.Value, countOf, changedItem);
+                if (before != (int)QuestState.Done && pair.Value.State == (int)QuestState.Done)
+                {
+                    ApplyQuestClose(
+                        new QuestCloseOutcome { Closed = true, IsParent = true, QuestId = pair.Key,
+                                                Xp = facts.Xp, Sp = facts.Sp, Rep = facts.Rep,
+                                                Trigger = facts.Trigger, TriggerSet = facts.TriggerSet,
+                                                EndDial = facts.EndDial, EndScript = facts.EndScript,
+                                                NextQuestId = facts.NextQuestId },
+                        before);
                 }
             }
+        }
+
+        /// <summary>
+        /// The side effects of a close, through the campaign's own seams.
+        ///
+        /// <para><b>What is applied and what is not.</b> XP/SP/reputation go to <c>IQuestRewardHost</c>
+        /// when one is wired; the trigger goes through <see cref="SetTrigger(string, TriggerValue)"/>; the
+        /// chained quest through <see cref="AddQuest"/>. The inventory halves — the <c>del</c> withdrawal
+        /// (<c>Quest.as:613-643</c>) and the <c>&lt;reward&gt;</c> grants (<c>:661-689</c>) — are
+        /// <b>reported, not skipped silently</b>, because the port has no "an item changed" notification
+        /// for them to hang off. That is the one external dependency of this item, and a silent no-op here
+        /// would read as "the quest paid nothing".</para>
+        /// </summary>
+        private void ApplyQuestClose(QuestCloseOutcome outcome, int previousState)
+        {
+            QuestRuntimeState runtime = outcome.QuestId != null
+                && _questRuntime.TryGetValue(outcome.QuestId, out QuestRuntimeState found)
+                ? found
+                : null;
+
+            if (outcome.IsParent)
+            {
+                Debug.Log($"[CampaignManager] Quest '{outcome.QuestId}' completed " +
+                          $"(xp {outcome.Xp}, sp {outcome.Sp}, rep {outcome.Rep}).");
+            }
+            else
+            {
+                Debug.Log($"[CampaignManager] Quest '{outcome.QuestId}' closed sub-objective " +
+                          $"'{outcome.SubId}'.");
+            }
+
+            if (outcome.Xp != 0 || outcome.Sp != 0 || outcome.Rep != 0)
+            {
+                if (_questRewards != null)
+                {
+                    _questRewards.GrantQuestRewards(outcome.QuestId, outcome.Xp, outcome.Sp, outcome.Rep);
+                }
+                else
+                {
+                    Debug.LogWarning(
+                        $"[CampaignManager] Quest '{outcome.QuestId}' owes {outcome.Xp} xp, " +
+                        $"{outcome.Sp} sp and {outcome.Rep} reputation, but no IQuestRewardHost is wired, " +
+                        "so the payout was dropped. AS3 pays it from Quest.close (Quest.as:645-656).");
+                }
+            }
+
+            if (!string.IsNullOrEmpty(outcome.Trigger))
+            {
+                SetTrigger(outcome.Trigger, TriggerValue.FromString(outcome.TriggerSet ?? "1"));
+            }
+
+            PublishQuestStateChanged(runtime, previousState,
+                runtime?.State ?? previousState, outcome.IsParent ? null : outcome.SubId);
+
+            // AS3 `if(this.endScript != null) World.w.game.runScript(this.endScript);` (:704-707).
+            if (!string.IsNullOrEmpty(outcome.EndScript))
+            {
+                _questHooks?.RunAuthoredScript(outcome.EndScript);
+            }
+
+            if (!string.IsNullOrEmpty(outcome.NextQuestId))
+            {
+                AddQuest(outcome.NextQuestId);
+            }
+        }
+
+        /// <summary>A copy of the quests in one state, so a close during the walk cannot mutate the
+        /// collection being enumerated (the failure shape lesson #78 records for the overlay).</summary>
+        private List<KeyValuePair<string, QuestRuntimeState>> SnapshotQuestsInState(QuestState state)
+        {
+            var snapshot = new List<KeyValuePair<string, QuestRuntimeState>>();
+            foreach (KeyValuePair<string, QuestRuntimeState> pair in _questRuntime)
+            {
+                if (pair.Value != null && pair.Value.State == (int)state) snapshot.Add(pair);
+            }
+
+            return snapshot;
+        }
+
+        private void PublishQuestStateChanged(QuestRuntimeState runtime, int oldState, int newState, string stage = null)
+        {
+            if (runtime == null) return;
+            _events?.PublishQuestStateChanged(runtime.QuestId, oldState, newState, stage);
+        }
+
+        /// <summary>
+        /// The authored definition, projected into the Unity-free facts the rules run on, cached per id.
+        /// A quest that is not in the catalogue reads as <c>null</c> — reported by the caller, never
+        /// invented.
+        /// </summary>
+        public QuestFacts GetQuestFacts(string questId)
+        {
+            if (string.IsNullOrEmpty(questId)) return null;
+            if (_questFacts.TryGetValue(questId, out QuestFacts cached)) return cached;
+
+            QuestDefinition definition = Catalog?.GetQuest(questId);
+            if (definition == null) return null;
+
+            QuestFacts facts = ProjectQuest(definition);
+            _questFacts[questId] = facts;
+            return facts;
+        }
+
+        /// <summary>
+        /// Project a <see cref="QuestDefinition"/> onto <see cref="QuestFacts"/>.
+        ///
+        /// <para><b>The sub id is the stage index rendered as a string, and that is not a liberty.</b> The
+        /// oracle's <c>&lt;q id="…"&gt;</c> is a string and <c>closeSub</c> keys on it verbatim
+        /// (<c>Quest.as:579</c>); the importer mapped that id onto <c>stageIndex</c> (an <c>int</c>). Every
+        /// shipped quest uses 1-based sequential ids — verified against the 58 imported assets, where
+        /// <c>toExit</c> has exactly one stage at index 1 and an authored <c>&lt;s act="stage" val="toExit"
+        /// n="1"/&gt;</c> closes it. A quest whose authored ids were not sequential would need the importer
+        /// to carry the raw id; that is recorded rather than papered over here.</para>
+        /// </summary>
+        public static QuestFacts ProjectQuest(QuestDefinition definition)
+        {
+            if (definition == null) return null;
+
+            var facts = new QuestFacts
+            {
+                QuestId = definition.questId ?? "",
+                Title = string.IsNullOrEmpty(definition.questTitle) ? definition.questId : definition.questTitle,
+                Xp = definition.rewardXp,
+                Sp = definition.rewardSp,
+                Rep = definition.rewardReputation,
+                IsMain = definition.isMainQuest,
+                NextQuestId = definition.nextQuestId ?? "",
+            };
+
+            if (definition.stages != null)
+            {
+                for (int i = 0; i < definition.stages.Count; i++)
+                {
+                    QuestStageDefinition stage = definition.stages[i];
+                    if (stage == null) continue;
+
+                    facts.Subs.Add(new QuestSubFacts
+                    {
+                        SubId = stage.stageIndex.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                        Optional = stage.isOptional,
+                        Hidden = stage.isHidden,
+                        Collect = stage.requiredItemId ?? "",
+                        Kol = stage.requiredItemCount <= 0 ? 1 : stage.requiredItemCount,
+                        Give = stage.turnInItemId ?? "",
+                    });
+
+                    if (!string.IsNullOrEmpty(stage.requiredItemId)) facts.IsCheck = true;
+                }
+            }
+
+            return facts;
         }
     }
 }

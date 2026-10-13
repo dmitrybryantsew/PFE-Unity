@@ -17,6 +17,7 @@ MonoBehaviour:
   id: doctor
   parentId: 
   controllerId: 
+  lootTableKey: 
   fraction: 100
   category: 1
   xpReward: 0

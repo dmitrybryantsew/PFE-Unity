@@ -542,9 +542,18 @@ MonoBehaviour:
     attributes:
     - key: allid
       value: a1
+    - key: move_present
+      value: 1
+    - key: move_dy
+      value: -19
+    - key: move_tstay
+      value: 30
+    - key: move_tmove
+      value: 140
     items: []
     scripts: []
-    parameters: code="Z1xIrBZbfcrgo1xI" allid="a1"
+    parameters: code="Z1xIrBZbfcrgo1xI" allid="a1" move_present="1" move_dy="-19"
+      move_tstay="30" move_tmove="140"
   - type: checkpoint
     id: checkpoint
     definitionId: checkpoint
@@ -689,9 +698,18 @@ MonoBehaviour:
     attributes:
     - key: allid
       value: a3
+    - key: move_present
+      value: 1
+    - key: move_dx
+      value: 30
+    - key: move_tstay
+      value: 30
+    - key: move_tmove
+      value: 350
     items: []
     scripts: []
-    parameters: code="ts0gpaB4dpWoUKTm" allid="a3"
+    parameters: code="ts0gpaB4dpWoUKTm" allid="a3" move_present="1" move_dx="30"
+      move_tstay="30" move_tmove="350"
   - type: box
     id: platform3
     definitionId: platform3
@@ -702,9 +720,18 @@ MonoBehaviour:
     attributes:
     - key: allid
       value: a3
+    - key: move_present
+      value: 1
+    - key: move_dx
+      value: 30
+    - key: move_tstay
+      value: 30
+    - key: move_tmove
+      value: 350
     items: []
     scripts: []
-    parameters: code="JfxSlPIcm4PWiwlF" allid="a3"
+    parameters: code="JfxSlPIcm4PWiwlF" allid="a3" move_present="1" move_dx="30"
+      move_tstay="30" move_tmove="350"
   - type: door
     id: door3
     definitionId: door3
@@ -787,3 +814,6 @@ MonoBehaviour:
     radiation: 0
     radiationDamage: 0
     darkness: 0
+    tipEnemy: -1
+    kolEnSpawn: -1
+    spawnGroupId: 

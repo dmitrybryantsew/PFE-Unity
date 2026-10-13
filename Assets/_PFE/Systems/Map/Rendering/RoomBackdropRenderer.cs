@@ -921,9 +921,14 @@ namespace PFE.Systems.Map.Rendering
             string backgroundWall = _room.environment.backgroundWall;
 
             // AS3 Grafon.as:730-733 — "sky" draws no wall bitmap at all; the sky is the land's separate
-            // `fon` layer. That layer is still unported (`LandDefinition.backdropId` is parsed and never
-            // rendered), so a sky room shows the camera clear colour. Left alone on purpose: substituting
-            // tBackWall for it would be an invention, not a port.
+            // `fon` layer. That layer is drawn by LandFonRenderer, as a screen-fixed plane behind this
+            // one, so returning here is what lets it show through.
+            //
+            // Do NOT "fix" this by substituting tBackWall. The two are different layers in AS3 and
+            // different pictures: the backwall is a per-room bitmap tiled over the room rect, the fon
+            // is the land's painted backdrop covering the whole stage and not scrolling with it
+            // (Camera.as:285-286 writes `visual.x/y`, `main.x/y` is never written). Substituting one
+            // for the other is the invention this early return used to be guarding against.
             if (string.Equals(backgroundWall, "sky", System.StringComparison.OrdinalIgnoreCase))
             {
                 return;

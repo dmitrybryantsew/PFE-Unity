@@ -17,6 +17,7 @@ MonoBehaviour:
   id: zombie0
   parentId: zombie
   controllerId: zombie
+  lootTableKey: zombie
   fraction: 1
   category: 3
   xpReward: 100

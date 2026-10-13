@@ -91,10 +91,35 @@ namespace PFE.Systems.Map
         public static readonly UnitVariantContext NoContext = new UnitVariantContext(NoBiome);
 
         /// <summary>
-        /// The variant-number rule for one family: how a cid string becomes a <c>tr</c>, and how
+        /// The variant-number rule for one family: how a selector becomes a <c>tr</c>, and how
         /// <c>tr</c> becomes the final id. Mirrors the constructor of the family's AS3 subclass.
+        ///
+        /// <para><b>Two parameters, because AS3 has two inputs and they are not the same input.</b>
+        /// <c>Unit.create(id, dif, xml, loadObj, ncid)</c> hands every constructor the rolled cid as
+        /// <c>param1</c> and the placed <c>&lt;obj&gt;</c> node as <c>param3</c>, and each subclass
+        /// decides for itself which one composes its id:</para>
+        /// <list type="bullet">
+        /// <item><description><b>tr-composed families</b> — <c>UnitZombie.as:84-104</c> reads
+        /// <c>param4.tr</c>, then <c>param3.@tr</c>, then <c>int(param1)</c> into <c>this.tr</c> and
+        /// stamps <c>id = "zombie" + this.tr</c>. The placement's <c>@tr</c> is a genuine override
+        /// here, so these rules read <paramref name="selector"/>.</description></item>
+        /// <item><description><b>cid-composed families</b> — <c>UnitTurret.as:66-94</c> reads
+        /// <c>param3.@tr</c> into <c>this.tr</c> (its <i>weapon</i> tier, :46-53) and takes
+        /// <c>turrettip</c> — the thing that picks the row — from <c>param1</c> alone. These rules read
+        /// <paramref name="cid"/> and ignore the placement's <c>tr</c>.</description></item>
+        /// </list>
+        /// <para>Collapsing the two into one selector — which is what this delegate used to do — is
+        /// what made every turret placement that authors <c>tr</c> lose its mount: a
+        /// <c>&lt;obj id='wturret' tr='2'&gt;</c> row selects <c>"2"</c>, and the wall mount's
+        /// <c>TurretId("2")</c> falls through to the floor turret. 5 wturret, 22 armturret, 14 cturret
+        /// and 3 bossturret placements in the shipped rooms author <c>tr</c> and were spawning
+        /// <c>turret0</c>.</para>
         /// </summary>
-        private delegate string Compose(string cid);
+        /// <param name="selector">The placement node's <c>@tr</c> when it authors one, else the
+        /// seed cid. AS3's precedence for the tr-composed families.</param>
+        /// <param name="cid">The seed cid from the definition row or the randomCid draw, never
+        /// overridden. AS3's <c>param1</c>.</param>
+        private delegate string Compose(string selector, string cid);
 
         /// <summary>
         /// Families whose AS3 subclass builds its id as <c>family + tr</c> where
@@ -117,18 +142,18 @@ namespace PFE.Systems.Map
             new Dictionary<string, Compose>
             {
                 // UnitZombie.as:92-104 — `tr = int(param1)`; `if(tr < 0) tr = 0`; `id = "zombie" + tr`.
-                ["zombie"] = cid =>
+                ["zombie"] = (selector, _) =>
                 {
-                    int tr = ParseTr(cid);
+                    int tr = ParseTr(selector);
                     if (tr < 0) tr = 0;
                     return "zombie" + tr;
                 },
 
                 // UnitRaider.as:132-150 — `tr = int(param1)`; `if(tr <= 0) tr = 1`;
                 // `id = parentId + tr` (parentId is "raider" for this family).
-                ["raider"] = cid =>
+                ["raider"] = (selector, _) =>
                 {
-                    int tr = ParseTr(cid);
+                    int tr = ParseTr(selector);
                     if (tr <= 0) tr = 1;
                     return "raider" + tr;
                 },
@@ -137,43 +162,43 @@ namespace PFE.Systems.Map
                 // The clamp is modelled as 1 rather than as that roll, because it needs a second RNG
                 // draw this signature does not carry; randomCid never returns a negative cid for
                 // "alicorn", so the arm is unreachable from ResolveSpawnId anyway.
-                ["alicorn"] = cid =>
+                ["alicorn"] = (selector, _) =>
                 {
-                    int tr = ParseTr(cid);
+                    int tr = ParseTr(selector);
                     if (tr < 0) tr = 1;
                     return "alicorn" + tr;
                 },
 
                 // UnitAnt.as:43-49 — `tr = int(param1)`; `id = "ant" + tr`. No clamp.
-                ["ant"] = cid => "ant" + ParseTr(cid),
+                ["ant"] = (selector, _) => "ant" + ParseTr(selector),
 
                 // UnitBloat.as:44-52 — `tr = int(param1)`; `if(tr < 0) tr = 0`.
-                ["bloat"] = cid =>
+                ["bloat"] = (selector, _) =>
                 {
-                    int tr = ParseTr(cid);
+                    int tr = ParseTr(selector);
                     if (tr < 0) tr = 0;
                     return "bloat" + tr;
                 },
 
                 // UnitDron.as:47-56 — `tr = int(param1)`; `id = "dron" + tr`; `if(tr == 100) id = "dront"`.
-                ["dron"] = cid =>
+                ["dron"] = (selector, _) =>
                 {
-                    int tr = ParseTr(cid);
+                    int tr = ParseTr(selector);
                     return tr == 100 ? "dront" : "dron" + tr;
                 },
 
                 // UnitFish.as:29-35 — `tr = int(param1)`; `id = "fish" + tr`. No clamp.
-                ["fish"] = cid => "fish" + ParseTr(cid),
+                ["fish"] = (selector, _) => "fish" + ParseTr(selector),
 
                 // UnitHellhound.as:26-42 — `tr = int(param1)`; `id = "hellhound" + tr`. No clamp.
-                ["hellhound"] = cid => "hellhound" + ParseTr(cid),
+                ["hellhound"] = (selector, _) => "hellhound" + ParseTr(selector),
 
                 // UnitRoller.as:24-45 — `tr = int(param1)`; `if(tr <= 0) tr = 1`;
                 // `id = "roller"`, then `if(tr >= 2) id += tr`. So tr==1 yields the bare "roller", which
                 // is why the asset directory has "roller" and "roller2" but no "roller1".
-                ["roller"] = cid =>
+                ["roller"] = (selector, _) =>
                 {
-                    int tr = ParseTr(cid);
+                    int tr = ParseTr(selector);
                     if (tr <= 0) tr = 1;
                     return tr >= 2 ? "roller" + tr : "roller";
                 },
@@ -187,19 +212,19 @@ namespace PFE.Systems.Map
                 // `raider` itself is above; these are its five siblings.
 
                 // UnitSlaver.as:8-14 — `parentId = "slaver"`, `kolTrs = 6`.
-                ["slaver"] = cid => "slaver" + AtLeastOne(ParseTr(cid)),
+                ["slaver"] = (selector, _) => "slaver" + AtLeastOne(ParseTr(selector)),
 
                 // UnitZebra.as:19 — `parentId = "zebra"`, `kolTrs = 5`.
-                ["zebra"] = cid => "zebra" + AtLeastOne(ParseTr(cid)),
+                ["zebra"] = (selector, _) => "zebra" + AtLeastOne(ParseTr(selector)),
 
                 // UnitRanger.as:18 — `parentId = "ranger"`, `kolTrs = 3`.
-                ["ranger"] = cid => "ranger" + AtLeastOne(ParseTr(cid)),
+                ["ranger"] = (selector, _) => "ranger" + AtLeastOne(ParseTr(selector)),
 
                 // UnitMerc.as:21 — `parentId = "merc"`, `kolTrs = 1`.
-                ["merc"] = cid => "merc" + AtLeastOne(ParseTr(cid)),
+                ["merc"] = (selector, _) => "merc" + AtLeastOne(ParseTr(selector)),
 
                 // UnitEncl.as:17 — `parentId = "encl"`, `kolTrs = 1`.
-                ["encl"] = cid => "encl" + AtLeastOne(ParseTr(cid)),
+                ["encl"] = (selector, _) => "encl" + AtLeastOne(ParseTr(selector)),
 
                 // ── Families that ignore the cid and stamp a constant id ────────────────────────
                 // Their randomCid case still exists, so the stream must be drawn from; the value it
@@ -208,10 +233,10 @@ namespace PFE.Systems.Map
                 // shifting every later placement in the room.
 
                 // UnitProtect.as:15 — `id = "protect"`. randomCid returns "1"/"0".
-                ["protect"] = _ => "protect",
+                ["protect"] = (_, __) => "protect",
 
                 // UnitGutsy.as:17 — `id = "gutsy"`. randomCid returns "1"/"0".
-                ["gutsy"] = _ => "gutsy",
+                ["gutsy"] = (_, __) => "gutsy",
 
                 // ── The slime family ────────────────────────────────────────────────────────────
                 // UnitSlime.as:21-51 — `tr = int(cid)`; `if(tr >= 10) { isMine = true; tr -= 10; }`;
@@ -230,9 +255,9 @@ namespace PFE.Systems.Map
                 // UnitBat.as:29-33 — `id = "bloodwing"`; `if(tr >= 2) id += tr`. The same shape as
                 // roller, and for the same reason: the directory has `bloodwing` and `bloodwing2` but
                 // no `bloodwing1`.
-                ["bloodwing"] = cid =>
+                ["bloodwing"] = (selector, _) =>
                 {
-                    int tr = ParseTr(cid);
+                    int tr = ParseTr(selector);
                     return tr >= 2 ? "bloodwing" + tr : "bloodwing";
                 },
 
@@ -247,7 +272,7 @@ namespace PFE.Systems.Map
                 // entry the rule gate returned the requested id before RandomCid was consulted, so a
                 // room that placed `scorp` spawned the id `scorp` — for which there is no
                 // `Resources/Units/scorp.asset`. 45 of the 639 shipped rooms place one.</para>
-                ["scorp"] = cid => string.IsNullOrEmpty(cid) ? "scorp" : cid,
+                ["scorp"] = (_, cid) => string.IsNullOrEmpty(cid) ? "scorp" : cid,
 
                 // ── The mine family ─────────────────────────────────────────────────────────────
                 // Mine.as:40-95 — `id = cid` when the cid is present and `tr` is 0, which it is for a
@@ -255,7 +280,7 @@ namespace PFE.Systems.Map
                 // ("mine"/"hmine"/"plamine"), so composition is the identity — the same shape as scorp.
                 // <b>Resolution only:</b> no `Resources/Units/{mine,hmine,plamine}.asset` exists, so a
                 // placed mine still has no art; that is an importer-side gap, recorded not fixed here.
-                ["mine"] = cid => string.IsNullOrEmpty(cid) ? "mine" : cid,
+                ["mine"] = (_, cid) => string.IsNullOrEmpty(cid) ? "mine" : cid,
 
                 // ── Alias families: the placed id is NOT the spawned id ─────────────────────────
                 // This is the `Unit.create` half of the oracle (Unit.as:853-862): when randomCid has no
@@ -275,12 +300,19 @@ namespace PFE.Systems.Map
                 // AllData: expl1->damexpl1, damgren->damgren, damshot->damshot.
                 ["expl1"] = VerbatimCid,
                 ["damgren"] = VerbatimCid,
-                ["damshot"] = cid => string.IsNullOrEmpty(cid) ? "damshot" : cid,
+                ["damshot"] = (_, cid) => string.IsNullOrEmpty(cid) ? "damshot" : cid,
 
                 // UnitTurret.as:56-95 — the cid picks a *mount kind* and the id is `"turret" + turrettip`
-                // (0 floor, 1 land, 2 wall, 3 arm). AllData cids: turret->floor(0), landturret->land(1),
-                // wturret->wall(2), armturret->arm(3), hturret->hidden(0), hturret2->hidden2(0),
-                // cturret->combat(0), bossturret->boss(0).
+                // (0 floor, 1 land, 2 wall, 3 arm, 4 combat, 5 boss). AllData cids: turret->floor(0),
+                // landturret->land(1), wturret->wall(2), armturret->arm(3), hturret->hidden(0),
+                // hturret2->hidden2(0), cturret->combat(4), bossturret->boss(5).
+                //
+                // cturret and bossturret are NOT floor turrets: `if(param1 == "combat") turrettip = 4`
+                // and `if(param1 == "boss") turrettip = 5` (`UnitTurret.as:86-93`) both come before
+                // `id = "turret" + turrettip` (`:94`). 19 rooms place a cturret and 3 place a
+                // bossturret, so resolving them to turret0 gives those 22 placements the ceiling
+                // turret's art, stats and weapon table — a wrong variant that still draws, which is
+                // the kind of defect that reads as "working".
                 ["turret"] = TurretId,
                 ["landturret"] = TurretId,
                 ["wturret"] = TurretId,
@@ -294,18 +326,18 @@ namespace PFE.Systems.Map
                 // No cid is involved; the subclass simply stamps its own id.
 
                 // UnitTrap.as:6 — `id = "mtrap"` (the placed row is `trap`).
-                ["trap"] = _ => "mtrap",
+                ["trap"] = (_, __) => "mtrap",
 
                 // UnitTransmitter.as:4 — `id = "transmitter"` (the placed row is `transm`).
-                ["transm"] = _ => "transmitter",
+                ["transm"] = (_, __) => "transmitter",
 
                 // UnitPonPon.as:4 — `id = "ponpon"` (the placed rows are `zebpon` and `stabpon`).
-                ["zebpon"] = _ => "ponpon",
-                ["stabpon"] = _ => "ponpon",
+                ["zebpon"] = (_, __) => "ponpon",
+                ["stabpon"] = (_, __) => "ponpon",
 
                 // UnitBossUltra.as:4 / UnitBossDron.as:4 — placed rows `ultra` / `megadron`.
-                ["ultra"] = _ => "bossultra",
-                ["megadron"] = _ => "bossdron"
+                ["ultra"] = (_, __) => "bossultra",
+                ["megadron"] = (_, __) => "bossdron"
             };
 
         /// <summary>UnitRaider.as:146-148 — `if(tr &lt;= 0) tr = 1`.</summary>
@@ -313,10 +345,14 @@ namespace PFE.Systems.Map
 
         /// <summary>
         /// UnitSlime.as:21-51 — the mine bit is the tens digit, then 1/2 select a themed slime.
+        ///
+        /// <para><b>Reads the selector, not the cid.</b> <c>UnitSlime.as:24-26</c> overrides
+        /// <c>this.tr</c> with <c>param3.@tr</c> after seeding it from <c>int(param1)</c>, so a
+        /// placement that authors <c>tr</c> genuinely changes the slime.</para>
         /// </summary>
-        static string SlimeId(string cid)
+        static string SlimeId(string selector, string cid)
         {
-            int tr = ParseTr(cid);
+            int tr = ParseTr(selector);
             if (tr >= 10)
             {
                 tr -= 10;
@@ -340,13 +376,18 @@ namespace PFE.Systems.Map
         /// <c>@cid</c>. Returns null for an absent cid so <see cref="ResolveSpawnId"/> can fall back to
         /// the requested id rather than inventing one.
         /// </summary>
-        static string VerbatimCid(string cid) => string.IsNullOrEmpty(cid) ? null : cid;
+        static string VerbatimCid(string selector, string cid) => string.IsNullOrEmpty(cid) ? null : cid;
 
         /// <summary>
-        /// UnitTurret.as:56-95 — the cid names a mount, and the id is <c>"turret" + turrettip</c>.
-        /// An unknown cid is the floor turret, exactly as the oracle's fall-through is.
+        /// UnitTurret.as:56-95 — the cid names a mount, and the id is <c>"turret" + turrettip</c>:
+        /// land=1, wall=2, arm=3, combat=4, boss=5, everything else (floor, hidden, hidden2, an
+        /// unknown cid) 0, exactly as the oracle's chain of ifs with no else leaves it.
+        ///
+        /// <para><c>hidden</c> and <c>hidden2</c> set <c>this.hidden</c>, not <c>turrettip</c>
+        /// (`:78-85</c>), so <c>hturret</c>/<c>hturret2</c> keep tip 0 and still resolve to
+        /// <c>turret0</c> — the same row, with the port not yet modelling the hidden flag.</para>
         /// </summary>
-        static string TurretId(string cid)
+        static string TurretId(string selector, string cid)
         {
             int tip = 0;
             if (cid == "land")
@@ -360,6 +401,14 @@ namespace PFE.Systems.Map
             else if (cid == "arm")
             {
                 tip = 3;
+            }
+            else if (cid == "combat")
+            {
+                tip = 4;
+            }
+            else if (cid == "boss")
+            {
+                tip = 5;
             }
 
             return "turret" + tip;
@@ -432,7 +481,7 @@ namespace PFE.Systems.Map
             // A rule may decline (VerbatimCid with an absent cid). Falling back to the requested id
             // keeps the caller on the pre-fix behaviour instead of handing a null to a dictionary
             // lookup — a silent "the unit exists but has no definition" rather than a crash.
-            string composed = compose(selector);
+            string composed = compose(selector, cid);
             return string.IsNullOrEmpty(composed) ? requestedId : composed;
         }
 

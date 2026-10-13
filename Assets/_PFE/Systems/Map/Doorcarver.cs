@@ -14,10 +14,15 @@ namespace PFE.Systems.Map
     ///   17-21: Top side    (5 horizontal door positions, each at row 0)
     ///
     /// AS3 setDoor() calculates tile positions using:
-    ///   Right side:  column = spaceX-1, row = doorIndex * 4 + 3
-    ///   Bottom side: row = spaceY-1, column = (doorIndex-6) * 9 + 5
-    ///   Left side:   column = 0, row = (doorIndex-11) * 4 + 3
-    ///   Top side:    row = 0, column = (doorIndex-17) * 9 + 5
+    ///   Right side:  column = spaceX-1, row = doorIndex * 4 + 3          (Location.as:884)
+    ///   Bottom side: row = spaceY-1, column = (doorIndex-6) * 9 + 4      (Location.as:857)
+    ///   Left side:   column = 0, row = (doorIndex-11) * 4 + 3            (Location.as:837)
+    ///   Top side:    row = 0, column = (doorIndex-17) * 9 + 4            (Location.as:814)
+    ///
+    /// The horizontal sides were documented here as `+ 5` until 2026-10-11; the oracle says `+ 4`
+    /// and the code below has always used `+ 4`, so this comment — not the carve — was the thing
+    /// that was wrong. The two-tile opening is `[+1, +2]` on the border row and `+0, +3` when the
+    /// door is wide, which is the oracle's own `space[_loc3_ + 1]` / `space[_loc3_ + 2]` pair.
     /// </summary>
     public static class DoorCarver
     {

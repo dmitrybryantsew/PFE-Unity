@@ -164,6 +164,148 @@ namespace PFE.Systems.Inventory
                 ? _commands.Submit(command)
                 : InventoryCommandResult.Fail("the inventory has no command sink (no content registry was injected)");
 
+        // ── The starting inventory ────────────────────────────────────────────
+
+        /// <summary>
+        /// How many frames <see cref="SeedStartingLoadout"/> keeps retrying before it gives up.
+        /// Ten seconds at 60 Hz is long enough for <c>GameManager.Start</c> to run
+        /// <c>GameDatabase.Initialize()</c> (profiled at 3.5 s, the largest single boot item) and short
+        /// enough that a broken grant reports itself instead of leaving an empty PipBuck that looks
+        /// like a broken inventory page.
+        /// </summary>
+        private const int SeedRetryLimit = 600;
+
+        private bool _loadoutSeeded;
+        private int _seedFrames;
+
+        /// <summary>
+        /// Grants the <c>addMin</c> starting kit — <c>Invent.as:1600-1615</c>. Called from
+        /// <see cref="Update"/> until it succeeds, and safe to call from a test or from the console.
+        ///
+        /// <para><b>Why it is deferred and not done in <see cref="Construct"/>.</b> The grant resolves
+        /// every id through the content registry, which <c>GameDatabase.Initialize()</c> fills — from
+        /// <c>GameManager.Start</c>. Unity does not order that call against this component's own
+        /// <c>Awake</c>, and a seed that ran first would resolve nothing and report a data bug that is
+        /// really an ordering bug. Retrying costs one registry enumerator per frame for at most a
+        /// second.</para>
+        ///
+        /// <para><b>It goes through <see cref="Submit"/>.</b> Items and armour are real mutations, so
+        /// they take the seam the rest of the port takes; only favourites have no
+        /// <see cref="InventoryCommandKind"/> and are set directly, which is noted where they are
+        /// granted.</para>
+        /// </summary>
+        public void SeedStartingLoadout()
+        {
+            if (_loadoutSeeded) return;
+
+            if (_inventory == null || _commands == null || _itemResolver == null || !RegistryPopulated())
+            {
+                if (++_seedFrames > SeedRetryLimit)
+                {
+                    // Latched, so the error is one line rather than one per frame forever.
+                    _loadoutSeeded = true;
+                    Debug.LogError("[PlayerInventory] The starting inventory was never granted: the " +
+                                   "content registry was still empty at frame " + _seedFrames + ". An " +
+                                   "empty PipBuck inventory at boot is normally this, not a broken " +
+                                   "inventory page — see StartingLoadout for what should have been " +
+                                   "granted (Invent.as:1600-1615).");
+                }
+
+                return;
+            }
+
+            // Latched before the grants: a retry after a partial failure would double-grant the rows
+            // that already landed, and each failure below already says which row and why.
+            _loadoutSeeded = true;
+
+            foreach (string id in StartingLoadout.ArmorIds) GrantArmour(id);
+            foreach (StartingLoadout.Stack stack in StartingLoadout.Items) GrantItem(stack);
+            foreach (StartingLoadout.Favourite favourite in StartingLoadout.Favourites) GrantFavourite(favourite);
+
+            foreach (string id in StartingLoadout.WeaponIds)
+            {
+                Debug.LogWarning("[PlayerInventory] Starting weapon '" + id + "' was not granted. " +
+                                 "GameInventory.AddWeapon builds a GameWeaponInstance from an " +
+                                 "ItemDefinition, but the port's weapons are WeaponDefinition assets " +
+                                 "with no item row (there is no Resources/Items/" + id + ".asset), so " +
+                                 "no definition can be resolved. The Weapons sub-page stays empty " +
+                                 "until that model gap closes; the other four are fully granted.");
+            }
+        }
+
+        private void GrantItem(StartingLoadout.Stack stack)
+        {
+            InventoryCommandResult result = Submit(InventoryCommand.AddItem(stack.ItemId, stack.Quantity));
+            if (result.Applied) return;
+
+            Debug.LogError("[PlayerInventory] Starting item '" + stack.ItemId + "' x" + stack.Quantity +
+                           " was refused: " + result.Reason + " (Invent.as:1600-1615).");
+        }
+
+        private void GrantArmour(string id)
+        {
+            InventoryCommandResult result = Submit(InventoryCommand.AddArmor(id));
+            if (result.Applied) return;
+
+            Debug.LogError("[PlayerInventory] Starting armour '" + id + "' was refused: " +
+                           result.Reason + " (Invent.as:1600-1615).");
+        }
+
+        /// <summary>
+        /// Binds a favourite. There is no <see cref="InventoryCommandKind"/> for this, so it is the
+        /// one starting-grant step that does not take the seam — recorded rather than worked around
+        /// by stretching an existing kind to mean something new.
+        ///
+        /// <para><b>Both of addMin's favourites are weapons, so both are skipped today.</b>
+        /// <c>GameInventory.SetFavorite</c> resolves through the <i>item</i> dictionary and returns
+        /// false for anything else — its own TODO names weapons
+        /// (<c>GameInventory.cs:477-483</c>) — and the port cannot put a weapon in that dictionary
+        /// (see <see cref="StartingLoadout"/>). Skipping with a stated reason keeps the console
+        /// honest; an error would be read as "the favourite code is broken" rather than "the
+        /// favourite names a weapon the inventory cannot hold". The same code binds them the moment
+        /// that gap closes.</para>
+        /// </summary>
+        private void GrantFavourite(StartingLoadout.Favourite favourite)
+        {
+            if (!_inventory.HasItem(favourite.ItemId))
+            {
+                Debug.Log("[PlayerInventory] Favourite '" + favourite.ItemId + "' (slot " +
+                          favourite.Slot + ") was not bound: it names a weapon, and " +
+                          "GameInventory.SetFavorite resolves through the item dictionary " +
+                          "(GameInventory.cs:477-483). It binds as soon as the port can hold a " +
+                          "weapon (Invent.as:1613-1614).");
+                return;
+            }
+
+            if (_inventory.SetFavorite(favourite.ItemId, favourite.Slot)) return;
+
+            Debug.LogError("[PlayerInventory] Could not bind favourite '" + favourite.ItemId +
+                           "' to slot " + favourite.Slot + " (Invent.as:1613-1614).");
+        }
+
+        /// <summary>
+        /// Whether the content registry has been filled yet. Probing for <b>any</b> item id rather
+        /// than for one of the starting ids keeps "not initialised yet" and "that row is missing"
+        /// as different answers — the first retries, the second is a data bug worth an error.
+        /// </summary>
+        private bool RegistryPopulated()
+        {
+            if (_registry == null) return false;
+
+            System.Collections.Generic.IEnumerable<string> ids = _registry.GetAllBareIds(ContentType.Item);
+            if (ids == null) return false;
+
+            using (System.Collections.Generic.IEnumerator<string> cursor = ids.GetEnumerator())
+            {
+                return cursor.MoveNext();
+            }
+        }
+
+        private void Update()
+        {
+            SeedStartingLoadout();
+        }
+
         // ── Reads for the debug overlay ───────────────────────────────────────
 
         /// <summary>
