@@ -58,5 +58,31 @@ namespace PFE.Systems.Loot
         /// </summary>
         public const string Tip2Eda = "eda";
         public const string Tip2Co = "co";
+
+        /// <summary>
+        /// Whether a pool key's ids live in the <b>weapon</b> table (<c>AllData.d.weapon</c>) rather than
+        /// the item one — i.e. whether a roll with this tip has to be resolved through
+        /// <c>PlayerInventory.ResolveWeapon</c> rather than <c>ResolveItem</c>.
+        ///
+        /// <para><b>Why one place has to answer this.</b> The two tables are disjoint, so asking the item
+        /// resolver about a weapon id returns <c>null</c> — permanently, for every weapon — and a caller
+        /// that only asks the item side silently drops the roll. That is exactly the play-test failure
+        /// this exists to prevent:
+        /// <i><c>'wbattle' rolled 'r32' (tip 'weapon') but no ItemDefinition resolves it — it was not
+        /// spawned.</c></i> A drop site that asks the wrong table loses the weapon without losing any
+        /// visible inventory, which is the hardest kind of gap to notice.</para>
+        ///
+        /// <para><b>The three keys, and why each is here.</b> AS3 <c>Item.as:206-218</c> resolves both
+        /// <c>L_WEAPON</c> and <c>L_EXPL</c> names through <c>Res.txt("w", id)</c> — the <i>weapon</i> text
+        /// table — and <c>:278-288</c> gives an <c>L_WEAPON</c> row the weapon mass model. <c>spell</c> is
+        /// here for the same reason: a spell is a <c>&lt;weapon&gt;</c> row with <c>tip='5'</c>, and the
+        /// port imports it as a <see cref="PFE.Data.Definitions.WeaponDefinition"/> like any other.</para>
+        ///
+        /// <para><c>uniq</c> is deliberately absent: the roller rewrites it to <c>weapon</c> before the
+        /// roll is published (<c>LootRoller.BuildItem</c>, per <c>Item.as:147-150</c>), so it never reaches
+        /// a caller as a <see cref="LootRoll.Tip"/> and a branch for it would be dead code.</para>
+        /// </summary>
+        public static bool IsWeaponTip(string tip)
+            => tip == Weapon || tip == Expl || tip == Spell;
     }
 }

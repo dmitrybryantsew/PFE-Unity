@@ -3,6 +3,7 @@ using UnityEngine;
 using PFE.Data.Definitions;
 using PFE.Systems.Interaction;
 using PFE.Systems.Map.Rendering;
+using PFE.UI.Common;
 
 namespace PFE.Systems.Inventory
 {
@@ -60,14 +61,46 @@ namespace PFE.Systems.Inventory
         /// <summary>World units the icon is drawn across — a little under one tile.</summary>
         private const float IconSize = 0.36f;
 
+        /// <summary>
+        /// The colour of the square a weapon with no visual falls back to (34 of the 213 weapon assets
+        /// reference no <see cref="WeaponVisualDefinition"/>, and <see cref="WeaponDefinition"/> carries no
+        /// <c>fallbackColor</c> of its own — the item row does, the weapon row does not).
+        ///
+        /// <para><b>A deliberate placeholder, and it is not a colour the Oracle has.</b> AS3's <c>Loot</c>
+        /// always had a symbol to draw, so there is nothing to copy here. The value is chosen only so an
+        /// icon-less weapon is distinguishable from an icon-less item on screen during a play-test —
+        /// <see cref="ItemDefinition.fallbackColor"/> defaults to white, and two identical white squares
+        /// would make a dropped weapon look like a dropped pebble. If a weapon ever needs a real fallback
+        /// sprite, this constant is the thing to delete.</para>
+        /// </summary>
+        private static readonly Color WeaponFallbackColor = new Color(0.85f, 0.70f, 0.35f);
+
         /// <summary>The AS3 item id this pickup holds.</summary>
         public string ItemId { get; private set; }
 
         /// <summary>How many are lying here.</summary>
         public int Quantity { get; private set; }
 
-        /// <summary>The definition, for the icon, the display name and the pickup sound.</summary>
+        /// <summary>
+        /// The item row, for the icon, the display name and the pickup sound — <b>or <c>null</c> when this
+        /// pickup holds a weapon</b> (see <see cref="WeaponDefinition"/>).
+        /// </summary>
         public ItemDefinition Definition { get; private set; }
+
+        /// <summary>
+        /// The weapon row, or <c>null</c> when this pickup holds an item.
+        ///
+        /// <para><b>Why this had to exist.</b> The port's weapon ids live in <c>ContentType.Weapon</c> and
+        /// resolve to a <see cref="WeaponDefinition"/>; the item table holds no weapon id at all. Before
+        /// this field, a rolled weapon had nowhere to go: <c>Spawn</c> took an <c>ItemDefinition</c>, the
+        /// resolver returned <c>null</c> for the id, and the container logged
+        /// <i>"no ItemDefinition resolves it — it was not spawned"</i> and dropped the roll. That is the
+        /// exact line in the play-test log this closes.</para>
+        ///
+        /// <para>At most one of the two is set, and <see cref="ItemId"/> is the accessor that does not care
+        /// which.</para>
+        /// </summary>
+        public WeaponDefinition WeaponDefinition { get; private set; }
 
         /// <summary>
         /// Whether walking over this pickup collects it — AS3 <c>Loot.auto</c> (<c>Loot.as:33</c>,
@@ -105,10 +138,39 @@ namespace PFE.Systems.Inventory
         {
             get
             {
-                string name = !string.IsNullOrEmpty(Definition?.displayName)
-                    ? Definition.displayName
-                    : ItemId;
+                string name = DisplayName;
                 return Quantity > 1 ? $"Take {Quantity} × {name}" : $"Take {name}";
+            }
+        }
+
+        /// <summary>
+        /// What to call this thing on screen — the port's counterpart to AS3 <c>Item.nazv</c>, which
+        /// <c>Item.as:206-218</c> fills from <c>Res.txt("w", id)</c> for a weapon and <c>Res.txt("i", id)</c>
+        /// for an item.
+        ///
+        /// <para><b>A weapon's name comes from the localisation document, not from the asset.</b> All 213
+        /// shipped <c>WeaponDefinition</c> assets predate the <c>displayName</c> field and so load it as
+        /// <c>""</c>; the names themselves already ship in
+        /// <c>Resources/Localisation/text_en.xml</c> as <c>&lt;weapon id="r32"&gt;&lt;n&gt;.32 pistol&lt;/n&gt;</c>,
+        /// and <c>PfeTextTableProvider.WeaponNameOrId</c> reads them. A pickup labelled with a bare
+        /// <c>r32</c> would be a worse prompt than one labelled ".32 pistol", and inventing a name table
+        /// here would duplicate the one the Oracle already ships.</para>
+        ///
+        /// <para>The <c>displayName</c> field still wins when it is set, so an importer that later freezes
+        /// the names into the assets takes precedence without touching this method.</para>
+        /// </summary>
+        private string DisplayName
+        {
+            get
+            {
+                if (WeaponDefinition != null)
+                {
+                    return !string.IsNullOrEmpty(WeaponDefinition.displayName)
+                        ? WeaponDefinition.displayName
+                        : PfeTextTableProvider.WeaponNameOrId(WeaponDefinition.weaponId);
+                }
+
+                return !string.IsNullOrEmpty(Definition?.displayName) ? Definition.displayName : ItemId;
             }
         }
 
@@ -134,13 +196,24 @@ namespace PFE.Systems.Inventory
                 return;
             }
 
-            InventoryCommandResult result = inventory.Submit(InventoryCommand.AddItem(ItemId, Quantity));
+            // Two commands, because the port's weapons and items are different content types behind
+            // different tables — the same line AS3 draws between `Invent.take()` (which indexes
+            // `AllData.d.item`) and `Invent.addWeapon()` (which indexes `AllData.d.weapon`). Sending a
+            // weapon id through AddItem is rejected with "no item row" 100 % of the time, for every
+            // weapon, which is precisely why weapons never reached the inventory.
+            InventoryCommandResult result = WeaponDefinition != null
+                ? inventory.Submit(InventoryCommand.AddWeapon(WeaponDefinition.weaponId))
+                : inventory.Submit(InventoryCommand.AddItem(ItemId, Quantity));
+
             if (!result.Applied)
             {
                 Debug.LogWarning($"[WorldItemPickup] Could not take '{ItemId}' ×{Quantity}: {result.Reason}");
                 return;
             }
 
+            // Item rows carry a take sound; weapon rows do not. AS3's `Loot` has no take sound either —
+            // only `sndFall` (Loot.as:45), which this path cannot use because the pickup is spawned
+            // already at rest — so a weapon is collected silently rather than given an invented clip.
             if (Definition != null && Definition.pickupSound != null)
             {
                 // AudioSource is added on demand: a pickup is spawned by code, not authored in a prefab,
@@ -164,12 +237,15 @@ namespace PFE.Systems.Inventory
         /// Put <paramref name="quantity"/> of <paramref name="definition"/> into the world at
         /// <paramref name="position"/> and return the pickup, or <c>null</c> if it could not be made.
         ///
-        /// <para><b>The caller must already have removed the items from the inventory.</b> This mirrors
-        /// AS3's order — <c>Invent.drop()</c> builds the <c>Item</c> and the <c>Loot</c> first and calls
-        /// <c>minusItem</c> last (<c>:1544-1548</c>) — but the port splits the two so the inventory half
-        /// stays inside the command seam. <c>PlayerInventory.DropItem</c> is the one caller and it
+        /// <para><b>Only the drop caller has an inventory half, and it must have removed the items
+        /// first.</b> This mirrors AS3's order — <c>Invent.drop()</c> builds the <c>Item</c> and the
+        /// <c>Loot</c> first and calls <c>minusItem</c> last (<c>:1544-1548</c>) — but the port splits the
+        /// two so the inventory half stays inside the command seam. <c>PlayerInventory.DropItem</c>
         /// destroys the pickup again if the removal is rejected, so the two halves cannot drift into
-        /// "spawned but not removed" (a duplication bug) or "removed but not spawned" (a loss).</para>
+        /// "spawned but not removed" (a duplication bug) or "removed but not spawned" (a loss). The other
+        /// three callers — the F2 overlay's <c>SpawnInWorld</c>, <c>ContainerPropPresenter.SpillRolls</c>
+        /// and <c>UnitController.SpillDrops</c> — are <i>sources</i> rather than moves: a rolled or
+        /// conjured pickup was never in the bag, so there is no removal to pair with it.</para>
         ///
         /// <para><b>No landing sound.</b> AS3's <c>Loot.sndFall</c> (default <c>"fall_item"</c>,
         /// <c>Loot.as:45</c>) plays as the object falls and lands (<c>Loot.as:481</c>). This spawns the
@@ -195,13 +271,69 @@ namespace PFE.Systems.Inventory
                 return null;
             }
 
-            var go = new GameObject($"Loot_{definition.itemId}_{quantity}");
+            return SpawnCore(definition.itemId, quantity, position, autoCollect,
+                             icon: definition.icon, fallbackColor: definition.fallbackColor,
+                             itemDefinition: definition, weaponDefinition: null);
+        }
+
+        /// <summary>
+        /// The weapon half — same world object, same take path, but carrying a <see cref="WeaponDefinition"/>
+        /// so the roll is not thrown away.
+        ///
+        /// <para><b>Why a separate overload and not a widened parameter.</b> The two content types share
+        /// nothing but "an id and a picture": a weapon has no <c>pickupSound</c>, no <c>fallbackColor</c>,
+        /// no <c>weight</c> and no <c>icon</c>, and an item has no <c>maxDurability</c> or <c>ammoType</c>.
+        /// A single <c>object</c>-typed parameter would move every one of those differences to a cast at
+        /// the point of use; two overloads keep each caller's type checked, and
+        /// <see cref="SpawnCore"/> holds the part that really is common.</para>
+        ///
+        /// <para><b>The icon is the weapon's own held sprite</b> —
+        /// <see cref="WeaponVisualDefinition.IdleSprite"/>, the frame a unit draws with the weapon out. That
+        /// is the port's counterpart to AS3's <c>Loot</c> drawing the symbol named by <c>vis.@vweap</c>, and
+        /// it is real data rather than a placeholder: 179 of the 213 shipped weapon assets reference a
+        /// visual and all 174 visuals carry frames (<c>visr32</c> has 40, <c>idleFrame 0</c>). The 34
+        /// without one fall back to the shared square — see <see cref="WeaponFallbackColor"/>.</para>
+        /// </summary>
+        public static WorldItemPickup Spawn(WeaponDefinition weaponDefinition, int quantity, Vector3 position,
+                                            bool autoCollect = false)
+        {
+            if (weaponDefinition == null)
+            {
+                Debug.LogWarning("[WorldItemPickup] Refusing to spawn a weapon pickup with no definition.");
+                return null;
+            }
+            if (quantity <= 0)
+            {
+                Debug.LogWarning($"[WorldItemPickup] Refusing to spawn '{weaponDefinition.weaponId}' with quantity {quantity}.");
+                return null;
+            }
+
+            Sprite icon = weaponDefinition.weaponVisual != null
+                ? weaponDefinition.weaponVisual.IdleSprite
+                : null;
+
+            return SpawnCore(weaponDefinition.weaponId, quantity, position, autoCollect,
+                             icon: icon, fallbackColor: WeaponFallbackColor,
+                             itemDefinition: null, weaponDefinition: weaponDefinition);
+        }
+
+        /// <summary>
+        /// The part of spawning that is the same for both content types: the GameObject, the trigger
+        /// collider, the renderer, the sorting and the debug list.
+        /// </summary>
+        private static WorldItemPickup SpawnCore(string id, int quantity, Vector3 position, bool autoCollect,
+                                                 Sprite icon, Color fallbackColor,
+                                                 ItemDefinition itemDefinition,
+                                                 WeaponDefinition weaponDefinition)
+        {
+            var go = new GameObject($"Loot_{id}_{quantity}");
             go.transform.position = position;
 
             var pickup = go.AddComponent<WorldItemPickup>();
-            pickup.ItemId = definition.itemId;
+            pickup.ItemId = id;
             pickup.Quantity = quantity;
-            pickup.Definition = definition;
+            pickup.Definition = itemDefinition;
+            pickup.WeaponDefinition = weaponDefinition;
             pickup.AutoCollect = autoCollect;
 
             // A trigger, so loot never blocks movement. AS3's Loot is a world object with no collision
@@ -211,8 +343,8 @@ namespace PFE.Systems.Inventory
             collider.isTrigger = true;
 
             var renderer = go.AddComponent<SpriteRenderer>();
-            renderer.sprite = definition.icon != null ? definition.icon : MakeFallbackSprite();
-            renderer.color = definition.icon != null ? Color.white : definition.fallbackColor;
+            renderer.sprite = icon != null ? icon : MakeFallbackSprite();
+            renderer.color = icon != null ? Color.white : fallbackColor;
 
             // A sorting LAYER, not just an order — and the omission was a real, invisible-in-play bug.
             // `sortingOrder` is only compared WITHIN a sorting layer, and a sorting layer outranks the

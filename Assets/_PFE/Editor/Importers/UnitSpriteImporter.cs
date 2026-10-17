@@ -4,6 +4,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using PFE.Data.Definitions;
+using PFE.Data.Definitions.Campaign;
+using PFE.Editor.Importers.SWF;
+using PFE.Systems.Particles;
 using UnityEditor;
 using UnityEditor.U2D.Sprites;
 using UnityEngine;
@@ -52,6 +55,14 @@ namespace PFE.Editor.Importers
         const string UnitAssetRoot = "Assets/_PFE/Data/Resources/Units";
 
         /// <summary>
+        /// The NPC persona assets. Every NPC in the game shares the one <c>npc</c> unit row and carries
+        /// its own <c>vis</c> (<c>GameData.as:669</c> <c>&lt;npc id='calam' vis='Calam'&gt;</c> →
+        /// <c>UnitNPC.as:101-108</c> <c>visualCalam</c>), so the persona — not the unit id — is what
+        /// names the art. <see cref="ImportNpcVisuals"/> is the pass that follows that indirection.
+        /// </summary>
+        const string NpcAssetRoot = "Assets/_PFE/Data/Resources/Campaign/NPCs";
+
+        /// <summary>
         /// Unity's ceiling for a single texture on the target platforms. The widest sheet in the data is
         /// 5200px (<c>sprGutsy</c>), so the importer must raise <c>maxTextureSize</c> above its 2048
         /// default — leaving it at the default silently downscales the sheet and every cell rect then
@@ -94,6 +105,21 @@ namespace PFE.Editor.Importers
             public int UnitsWired;
             public int UnitsWithNoVisual;
 
+            /// <summary>NPC personas whose <c>visual&lt;vis&gt;</c> art was found and copied.</summary>
+            public int NpcVisualsImported;
+
+            /// <summary>NPC personas wired to a sprite.</summary>
+            public int NpcsWired;
+
+            /// <summary>NPC personas whose <c>vis</c> names no importable symbol.</summary>
+            public int NpcsWithNoVisual;
+
+            /// <summary>NPC personas whose <c>osn</c> animation clip was found and imported.</summary>
+            public int NpcClipsImported;
+
+            /// <summary>Total frames copied across those clips.</summary>
+            public int NpcClipFrames;
+
             /// <summary>States whose row or frame count falls outside the sheet they are drawn from.</summary>
             public readonly List<string> OutOfRange = new List<string>();
 
@@ -109,6 +135,10 @@ namespace PFE.Editor.Importers
                 sb.AppendLine($"visuals imported   : {VisualsImported} symbols, {VisualFramesCopied} frames");
                 sb.AppendLine($"units wired        : {UnitsWired}");
                 sb.AppendLine($"units with no visual: {UnitsWithNoVisual}");
+                sb.AppendLine($"npc personas wired : {NpcsWired} ({NpcVisualsImported} visuals), " +
+                              $"{NpcsWithNoVisual} with no visual");
+                sb.AppendLine($"npc persona clips  : {NpcClipsImported} personas, {NpcClipFrames} frames " +
+                              "(the `osn` MovieClip `UnitNPC.animate()` drives)");
                 sb.AppendLine($"states out of range : {OutOfRange.Count}");
                 sb.AppendLine($"warnings           : {Warnings.Count}");
                 return sb.ToString();
@@ -227,10 +257,499 @@ namespace PFE.Editor.Importers
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
 
+            // ── Pass 3: NPC persona visuals ──────────────────────────────────
+            //
+            // A separate pass because the art is keyed on the PERSONA, not the unit: every NPC in the
+            // game is the one `npc` unit row with a different `vis`. Pass 2 can only ever resolve
+            // `npc` itself (there is no `visualNpc` symbol), so without this every NPC — Calamity
+            // included — would spawn as a collider with no art however complete the rest of the port is.
+            try
+            {
+                ImportNpcVisuals(result);
+            }
+            catch (Exception e)
+            {
+                // Same reason passes 1 and 2 catch per item: an unhandled throw here unwinds out of Run
+                // and the summary never prints, which reads as "the import did nothing".
+                result.Warnings.Add($"npc visuals: pass threw {e.GetType().Name}: {e.Message}");
+            }
+
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+
             // Report the states the sheet cannot satisfy, after the sheets are known.
             ReportOutOfRangeStates(units, result);
 
             return result;
+        }
+
+        // ── NPC persona pass ─────────────────────────────────────────────────
+
+        /// <summary>
+        /// Import the body art for every NPC persona — the port of <c>UnitNPC</c>'s
+        /// <c>Res.getClass("visual" + npcXML.@vis, …)</c> (<c>UnitNPC.as:101-108</c>) — <b>and the
+        /// persona's own animation clip inside it</b>.
+        ///
+        /// <para><b>Why the unit pass cannot cover this.</b> <c>AllData.as:4926</c> declares one row,
+        /// <c>&lt;obj id='npc' cl='UnitNPC'&gt;</c>, and 108 personas place it. The art lives on the
+        /// persona (<c>GameData.as:669</c> <c>vis='Calam'</c> → <c>visualCalam</c>), so a pass keyed on
+        /// unit ids resolves <c>visualNpc</c> — which does not exist — and reports <c>npc</c> as a unit
+        /// with no visual. That is the state the port was in.</para>
+        ///
+        /// <para><b>A persona is a container, and the animation is its child.</b> <c>visualCalam</c>
+        /// (symbol 3622) has <b>one</b> frame whose entire content is a single child MovieClip named
+        /// <c>osn</c> (symbol 3621), and <i>that</i> clip is where the 12 frames live. The same shape
+        /// holds for all nine animating NPC personas: <c>visualDoctor</c>, <c>visualVendor</c>,
+        /// <c>visualVendorArmor</c>, <c>visualVendorExpl</c>, <c>visualVendorWeapon</c> (96 frames each),
+        /// <c>visualCalamEncl</c> (5), <c>visualCalam</c> (12), <c>visualPatient</c> and
+        /// <c>visualSpriteBot</c> (2 each). Importing the outer symbol alone — which is what this pass
+        /// did — yields exactly one picture per persona, so <c>vis.osn.gotoAndStop("fly")</c> has nothing
+        /// to stop on and Calamity stands in his walking pose for the whole cutscene.</para>
+        ///
+        /// <para><b>The clip's frames are the same pictures, at a different scale.</b> The <c>osn</c>
+        /// placement carries a matrix — identity for none of the personas that matter: Calam's is
+        /// <c>1.769</c>, the doctor's and every vendor's is <c>(-0.316, 0.316)</c>, i.e. <b>mirrored</b>
+        /// as well as shrunk. The scale is stored on the definition
+        /// (<see cref="NpcDefinition.visualScaleX"/>) and applied at draw time rather than resampled into
+        /// the PNGs, so the texture stays at the SWF's native resolution. The placement's
+        /// <i>translation</i> needs no handling at all: both exports are trimmed to their own content
+        /// box, and translating the whole of a symbol's content before trimming is a no-op.</para>
+        ///
+        /// <para><b>114 of the 175 <c>visual*</c> symbols have no <c>osn</c> child.</b> Those are
+        /// genuinely static props and effects, and a persona using one is genuinely static — so a missing
+        /// clip is not reported as a failure. The outer symbol's own frames are imported instead, exactly
+        /// as before.</para>
+        /// </summary>
+        static void ImportNpcVisuals(Result result)
+        {
+            List<NpcDefinition> npcs = LoadNpcs();
+            if (npcs.Count == 0)
+            {
+                result.Warnings.Add($"No NpcDefinition assets under {NpcAssetRoot}. " +
+                                    "Run PFE/Data/Import Campaign first.");
+                return;
+            }
+
+            // Resolved once for the whole pass. The symbol table and the SWF timeline are the same for
+            // all 54 personas, and re-parsing an 11 MB SWF per persona would turn a minute into an hour.
+            Dictionary<string, int> symbols = ReadPfeSymbolTable(result);
+            SWFFile swf = ParseAssetsSwf(result);
+
+            foreach (NpcDefinition npc in npcs)
+            {
+                if (string.IsNullOrWhiteSpace(npc.visualId))
+                {
+                    // `vis` is optional in the oracle: with no `@vis` the constructor falls back to
+                    // `visualVendor` (UnitNPC.as:107). That is a real fallback, not a gap, so it is not
+                    // reported as a missing visual.
+                    continue;
+                }
+
+                string visualName = VisualClassName(npc.visualId);
+
+                try
+                {
+                    if (ImportNpcVisual(npc, visualName, symbols, swf, result))
+                    {
+                        result.NpcsWired++;
+                    }
+                    else
+                    {
+                        result.NpcsWithNoVisual++;
+                    }
+                }
+                catch (Exception e)
+                {
+                    result.Warnings.Add($"{npc.npcId}: npc visual import threw {e.GetType().Name}: " +
+                                        $"{e.Message}");
+                }
+            }
+        }
+
+        /// <summary>
+        /// AS3's <c>"visual" + npcXML.@vis</c> (<c>UnitNPC.as:101</c>) — capitalising the first letter,
+        /// because the data is mixed-case (<c>vis='calam'</c> is not used; <c>vis='Calam'</c> is) and a
+        /// bare concatenation would miss every lower-case one.
+        /// </summary>
+        static string VisualClassName(string visualId)
+        {
+            return visualId.StartsWith("visual", StringComparison.Ordinal)
+                ? visualId
+                : "visual" + char.ToUpperInvariant(visualId[0]) + visualId.Substring(1);
+        }
+
+        /// <summary>
+        /// One persona's frames, resolved from the export <b>before any file is touched</b>.
+        ///
+        /// <para>Split out so the "where do this persona's pictures come from" question has one answer
+        /// that a fixture can reason about, instead of being interleaved with the copying.</para>
+        /// </summary>
+        sealed class PersonaClip
+        {
+            /// <summary>The source PNGs, ordered by frame number. Index <c>i</c> is timeline frame
+            /// <c>i + 1</c>, which is what makes <c>gotoAndPlay</c> a list walk.</summary>
+            public string[] FrameFiles;
+
+            /// <summary>Frame number → label, for the frames that carry one.</summary>
+            public readonly Dictionary<int, string> Labels = new Dictionary<int, string>();
+
+            /// <summary>The <c>osn</c> placement's scale, applied at draw time. <c>1</c> when the frames
+            /// are the outer symbol's own.</summary>
+            public float ScaleX = 1f;
+            public float ScaleY = 1f;
+
+            /// <summary>True when these frames came from the persona's <c>osn</c> child.</summary>
+            public bool HasOsn;
+        }
+
+        /// <summary>
+        /// Find the frames a persona animates with — the <c>osn</c> child's timeline when it has one,
+        /// the outer symbol's own frames otherwise.
+        /// </summary>
+        static PersonaClip ResolvePersonaClip(NpcDefinition npc, string visualName,
+                                              Dictionary<string, int> symbols, SWFFile swf,
+                                              Result result)
+        {
+            string visualFolder = FindVisualFolder(visualName);
+            if (visualFolder == null)
+            {
+                result.Warnings.Add($"{npc.npcId}: no DefineSprite_*_{visualName} folder in pfe/sprites " +
+                                    $"(vis='{npc.visualId}') — the persona spawns with no art.");
+                return null;
+            }
+
+            PersonaClip clip = TryResolveOsnClip(npc, visualName, symbols, swf, result);
+            if (clip != null)
+            {
+                return clip;
+            }
+
+            // No clip: the outer symbol's own frames. For the 114 personas with no `osn` child this is
+            // the whole visual and the frame count is 1.
+            string[] files = Directory.GetFiles(visualFolder, "*.png")
+                .OrderBy(UnitSheetLayout.FrameNumberOf)
+                .ToArray();
+
+            if (files.Length == 0)
+            {
+                result.Warnings.Add($"{npc.npcId}: {visualName} has no PNG frames");
+                return null;
+            }
+
+            return new PersonaClip { FrameFiles = files, HasOsn = false };
+        }
+
+        /// <summary>
+        /// The persona's <c>osn</c> clip, or <c>null</c> when it has none — which is the common case and
+        /// not a warning.
+        /// </summary>
+        static PersonaClip TryResolveOsnClip(NpcDefinition npc, string visualName,
+                                             Dictionary<string, int> symbols, SWFFile swf,
+                                             Result result)
+        {
+            if (symbols == null || swf == null)
+            {
+                // The table or the SWF could not be read. Already reported once by the readers; falling
+                // back to the outer symbol keeps every persona's art present.
+                return null;
+            }
+
+            if (!symbols.TryGetValue(visualName, out int visualSymbolId))
+            {
+                result.Warnings.Add($"{npc.npcId}: '{visualName}' is not in the symbol table, so its " +
+                                    "`osn` clip cannot be located. Only the resting frame is imported.");
+                return null;
+            }
+
+            if (!swf.Symbols.TryGetValue(visualSymbolId, out SWFSymbol visualSymbol))
+            {
+                result.Warnings.Add($"{npc.npcId}: '{visualName}' ({visualSymbolId}) is not a DefineSprite " +
+                                    "in assets.swf, so its `osn` clip cannot be located.");
+                return null;
+            }
+
+            SWFPlacement osn = FindPlacement(visualSymbol, "osn");
+            if (osn == null)
+            {
+                // 114 of 175 `visual*` symbols are like this. Not a gap — see the pass summary.
+                return null;
+            }
+
+            if (osn.CharacterId <= 0)
+            {
+                result.Warnings.Add($"{npc.npcId}: {visualName}'s `osn` placement names no character " +
+                                    "(characterId " + osn.CharacterId + "), so it has no timeline.");
+                return null;
+            }
+
+            string[] folders = SourceImportPaths.PfeSpriteFoldersById(osn.CharacterId);
+            if (folders.Length != 1)
+            {
+                // 0 means the export is incomplete; >1 means the id is ambiguous. Both are reported
+                // rather than guessed at, because picking the wrong folder silently animates the
+                // persona with another character's frames.
+                result.Warnings.Add($"{npc.npcId}: {visualName}'s `osn` is symbol {osn.CharacterId}, but " +
+                                    $"pfe/sprites holds {folders.Length} folder(s) matching " +
+                                    $"DefineSprite_{osn.CharacterId}*. Only the resting frame is imported.");
+                return null;
+            }
+
+            string[] files = Directory.GetFiles(folders[0], "*.png")
+                .OrderBy(UnitSheetLayout.FrameNumberOf)
+                .ToArray();
+
+            if (files.Length == 0)
+            {
+                result.Warnings.Add($"{npc.npcId}: {visualName}'s `osn` folder {folders[0]} holds no PNGs.");
+                return null;
+            }
+
+            var clip = new PersonaClip
+            {
+                FrameFiles = files,
+                ScaleX = osn.Scale.x,
+                ScaleY = osn.Scale.y,
+                HasOsn = true,
+            };
+
+            if (swf.Symbols.TryGetValue(osn.CharacterId, out SWFSymbol osnSymbol))
+            {
+                foreach (SWFFrame frame in osnSymbol.Frames)
+                {
+                    if (!string.IsNullOrEmpty(frame.Label))
+                    {
+                        clip.Labels[frame.FrameNumber] = frame.Label;
+                    }
+                }
+
+                if (osnSymbol.FrameCount != files.Length)
+                {
+                    result.Warnings.Add($"{npc.npcId}: {visualName}'s `osn` ({osn.CharacterId}) declares " +
+                                        $"{osnSymbol.FrameCount} frame(s) but the export holds " +
+                                        $"{files.Length} PNG(s). The clip is imported as exported.");
+                }
+            }
+            else
+            {
+                result.Warnings.Add($"{npc.npcId}: {visualName}'s `osn` ({osn.CharacterId}) has no PNG " +
+                                    "export, so the clip's frames carry no labels.");
+            }
+
+            return clip;
+        }
+
+        /// <summary>
+        /// The first placement named <paramref name="instanceName"/> across a symbol's frames.
+        ///
+        /// <para><b>Why every frame and not just frame 1.</b> A child can be placed on a later frame —
+        /// <c>visualUltraSentinel2</c> places its <c>osn</c> alongside two shapes, and the placement tag
+        /// may be a <c>move</c> that the parser resolves by cloning the depth's existing entry. Walking
+        /// the frames finds it wherever it was first placed.</para>
+        /// </summary>
+        static SWFPlacement FindPlacement(SWFSymbol symbol, string instanceName)
+        {
+            if (symbol?.Frames == null)
+            {
+                return null;
+            }
+
+            foreach (SWFFrame frame in symbol.Frames)
+            {
+                foreach (SWFPlacement placement in frame.Placements)
+                {
+                    if (placement != null && string.Equals(placement.InstanceName, instanceName,
+                                                            StringComparison.Ordinal))
+                    {
+                        return placement;
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>Reads <c>pfe/symbolClass/symbols.csv</c> → symbol name → symbol id.</summary>
+        static Dictionary<string, int> ReadPfeSymbolTable(Result result)
+        {
+            string path = SourceImportPaths.PfeSymbolTablePath;
+            if (!File.Exists(path))
+            {
+                result.Warnings.Add(SourceImportPaths.MissingSourceMessage(path, "symbols.csv") +
+                                    " Persona `osn` clips cannot be located without it; only the " +
+                                    "resting frames will be imported.");
+                return null;
+            }
+
+            Dictionary<string, int> table = ParticleSpriteSource.ParseSymbolCsv(
+                File.ReadAllText(path), out int skipped);
+
+            if (skipped > 0)
+            {
+                result.Warnings.Add($"{path}: {skipped} row(s) did not parse.");
+            }
+
+            if (table.Count == 0)
+            {
+                result.Warnings.Add($"{path} parsed to an empty symbol table.");
+                return null;
+            }
+
+            return table;
+        }
+
+        /// <summary>Parses <c>pfe/scripts/_assets/assets.swf</c> once, for the persona clip pass.</summary>
+        static SWFFile ParseAssetsSwf(Result result)
+        {
+            string path = SourceImportPaths.AssetsSwfPath;
+            if (!File.Exists(path))
+            {
+                result.Warnings.Add(SourceImportPaths.MissingSourceMessage(path, "assets.swf") +
+                                    " Persona `osn` clips cannot be located without it.");
+                return null;
+            }
+
+            try
+            {
+                return new SWFParser().Parse(path);
+            }
+            catch (Exception e)
+            {
+                result.Warnings.Add($"Could not parse {path}: {e.GetType().Name}: {e.Message}. " +
+                                    "Persona clips fall back to the resting frame.");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Copy one persona's frames and wire the clip and the resting frame onto the definition.
+        /// </summary>
+        /// <returns>True when a sprite was assigned.</returns>
+        static bool ImportNpcVisual(NpcDefinition npc, string visualName,
+                                    Dictionary<string, int> symbols, SWFFile swf, Result result)
+        {
+            PersonaClip clip = ResolvePersonaClip(npc, visualName, symbols, swf, result);
+            if (clip == null)
+            {
+                return false;
+            }
+
+            string targetFolder = $"{VisualArtRoot}/{visualName}";
+            EnsureDirectory(targetFolder);
+
+            int copied = 0;
+            foreach (string png in clip.FrameFiles)
+            {
+                int frame = UnitSheetLayout.FrameNumberOf(png);
+                if (frame <= 0)
+                {
+                    // FrameNumberOf yields 0 for a name that is not a frame number. Copying it would
+                    // write f000.png and then be dropped from the clip for having no number, i.e. a
+                    // file on disk that nothing can ever address. Report instead.
+                    result.Warnings.Add($"{npc.npcId}: {Path.GetFileName(png)} is not named after a frame " +
+                                        "number and was skipped.");
+                    continue;
+                }
+
+                string dest = $"{targetFolder}/f{frame:D3}.png";
+                try
+                {
+                    CopyIfNewer(png, dest);
+                    copied++;
+                }
+                catch (Exception e)
+                {
+                    result.Warnings.Add($"{npc.npcId}: could not copy {Path.GetFileName(png)}: {e.Message}");
+                }
+            }
+
+            if (copied == 0)
+            {
+                return false;
+            }
+
+            AssetDatabase.ImportAsset(targetFolder, ImportAssetOptions.ImportRecursive);
+            result.NpcVisualsImported++;
+
+            // The frame list is built from the SOURCE files, not from an asset scan: a folder that still
+            // holds a longer clip's leftovers would otherwise contribute frames this persona's timeline
+            // does not have. Each expected asset is looked up by the name the copy above just wrote.
+            var frames = new List<NpcVisualFrame>();
+            foreach (string png in clip.FrameFiles)
+            {
+                int frameNumber = UnitSheetLayout.FrameNumberOf(png);
+                string assetPath = $"{targetFolder}/f{frameNumber:D3}.png";
+
+                var importer = AssetImporter.GetAtPath(assetPath) as TextureImporter;
+                if (importer == null)
+                {
+                    result.Warnings.Add($"{npc.npcId}: no TextureImporter at {assetPath}");
+                    continue;
+                }
+
+                ConfigureBase(importer, MaxTextureSize);
+                importer.spriteImportMode = SpriteImportMode.Single;
+
+                var settings = new TextureImporterSettings();
+                importer.ReadTextureSettings(settings);
+                settings.spriteAlignment = (int)SpriteAlignment.Center;
+                importer.SetTextureSettings(settings);
+
+                Reimport(importer, assetPath, npc.npcId, result);
+
+                var sprite = AssetDatabase.LoadAssetAtPath<Sprite>(assetPath);
+                if (sprite == null)
+                {
+                    result.Warnings.Add($"{npc.npcId}: frame {frameNumber} did not load as a Sprite");
+                    continue;
+                }
+
+                clip.Labels.TryGetValue(frameNumber, out string label);
+
+                frames.Add(new NpcVisualFrame
+                {
+                    frameNumber = frameNumber,
+                    label = label ?? string.Empty,
+                    sprite = sprite,
+                });
+            }
+
+            if (frames.Count == 0)
+            {
+                return false;
+            }
+
+            // Assigned directly (the fields are public) and then marked dirty, because the import this
+            // pass is running triggers a domain reload and an unmarked asset would lose the references.
+            npc.visualFrames = frames;
+            npc.visualScaleX = clip.ScaleX;
+            npc.visualScaleY = clip.ScaleY;
+            npc.visualSprite = npc.RestingVisualFrame;
+            EditorUtility.SetDirty(npc);
+
+            result.VisualFramesCopied += copied;
+
+            if (clip.HasOsn)
+            {
+                result.NpcClipsImported++;
+                result.NpcClipFrames += frames.Count;
+            }
+
+            return true;
+        }
+
+        static List<NpcDefinition> LoadNpcs()
+        {
+            if (!Directory.Exists(NpcAssetRoot))
+            {
+                return new List<NpcDefinition>();
+            }
+
+            return AssetDatabase.FindAssets("t:NpcDefinition", new[] { NpcAssetRoot })
+                .Select(AssetDatabase.GUIDToAssetPath)
+                .OrderBy(p => p)
+                .Select(AssetDatabase.LoadAssetAtPath<NpcDefinition>)
+                .Where(n => n != null)
+                .ToList();
         }
 
         // ── Sheet pass ───────────────────────────────────────────────────────
@@ -490,6 +1009,14 @@ namespace PFE.Editor.Importers
         /// a half-imported project that claims nothing happened is the worst of the available outcomes.</para>
         /// </summary>
         static bool Reimport(TextureImporter importer, string assetPath, UnitDefinition unit, Result result)
+            => Reimport(importer, assetPath, unit.id, result);
+
+        /// <summary>
+        /// The same retry, addressed by a label rather than a unit — the NPC pass has an
+        /// <see cref="NpcDefinition"/>, not a <see cref="UnitDefinition"/>, and the only thing the
+        /// warning needs is a name to blame.
+        /// </summary>
+        static bool Reimport(TextureImporter importer, string assetPath, string label, Result result)
         {
             for (int attempt = 1; attempt <= ReimportAttempts; attempt++)
             {
@@ -502,7 +1029,7 @@ namespace PFE.Editor.Importers
                 {
                     if (attempt == ReimportAttempts)
                     {
-                        result.Warnings.Add($"{unit.id}: could not reimport {assetPath} after " +
+                        result.Warnings.Add($"{label}: could not reimport {assetPath} after " +
                                             $"{ReimportAttempts} attempts: {e.Message}");
                         return false;
                     }
@@ -903,15 +1430,92 @@ namespace PFE.Editor.Importers
                 .ToList();
         }
 
+        /// <summary>
+        /// Copy a source frame over its imported copy, unless the two already hold the same bytes.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>This used to compare timestamps, and that silently kept a WRONG frame.</b> The test
+        /// was <c>source.mtime &gt; dest.mtime</c>, which answers "is the source newer", not "is the
+        /// destination right". A destination written by an earlier, different import can easily be
+        /// newer than the source it should be replaced from — both come out of the same export, so
+        /// their timestamps are within seconds of each other.</para>
+        ///
+        /// <para><b>What it cost.</b> Before the persona clip pass existed, <c>f001.png</c> was written
+        /// from the persona's <i>outer</i> symbol (<c>DefineSprite_3622_visualCalam</c>), which renders
+        /// its <c>osn</c> child through the placement matrix — so the frame arrived with the persona's
+        /// own <c>1.769</c> scale already baked into the pixels: 153×151 instead of the inner sprite's
+        /// 86×85. The clip pass then wrote frames 2..12 from the inner symbol
+        /// (<c>DefineSprite_3621</c>) at native size, and left frame 1 alone because its destination
+        /// was not older. At runtime <see cref="PFE.Data.Definitions.Campaign.NpcDefinition.visualScaleX"/>
+        /// is applied on top, so the resting frame was drawn at <c>1.769²</c> — <b>3.13× too big</b>,
+        /// and visibly so the instant an NPC landed out of its <c>fly</c> pose into <c>stay</c>.
+        /// The same shape affected <c>visualCalamEncl</c>, <c>visualDoctor</c> and the four vendors,
+        /// whose composed frame 1 is scaled <i>down</i> by 0.316 and therefore drawn 10× too small.</para>
+        ///
+        /// <para>Comparing bytes is the honest test and it is cheap here: ~230 small PNGs, and a size
+        /// mismatch short-circuits before any read. It also makes the pass idempotent in the way the
+        /// old one claimed to be — re-running it now <i>repairs</i> a stale frame instead of preserving
+        /// it, which is the only reason a fix to this importer reaches the folders that already
+        /// exist.</para>
+        /// </remarks>
         static void CopyIfNewer(string source, string destAssetPath)
         {
             string destFullPath = Path.GetFullPath(destAssetPath);
             EnsureDirectory(Path.GetDirectoryName(destFullPath).Replace('\\', '/'));
 
-            if (!File.Exists(destFullPath) ||
-                File.GetLastWriteTimeUtc(source) > File.GetLastWriteTimeUtc(destFullPath))
+            if (File.Exists(destFullPath) && !Differs(source, destFullPath))
             {
-                File.Copy(source, destFullPath, true);
+                return;
+            }
+
+            File.Copy(source, destFullPath, true);
+        }
+
+        /// <summary>
+        /// Whether two files hold different bytes. Size first, then a chunked compare — the size test
+        /// alone would miss a same-length edit, and it is the size test that catches the frame-1 case
+        /// before reading anything.
+        /// </summary>
+        static bool Differs(string a, string b)
+        {
+            var left = new FileInfo(a);
+            var right = new FileInfo(b);
+
+            if (left.Length != right.Length)
+            {
+                return true;
+            }
+
+            const int chunk = 8192;
+            var bufferA = new byte[chunk];
+            var bufferB = new byte[chunk];
+
+            using (FileStream streamA = File.OpenRead(a))
+            using (FileStream streamB = File.OpenRead(b))
+            {
+                while (true)
+                {
+                    int readA = streamA.Read(bufferA, 0, chunk);
+                    int readB = streamB.Read(bufferB, 0, chunk);
+
+                    if (readA != readB)
+                    {
+                        return true;
+                    }
+
+                    if (readA == 0)
+                    {
+                        return false;
+                    }
+
+                    for (int i = 0; i < readA; i++)
+                    {
+                        if (bufferA[i] != bufferB[i])
+                        {
+                            return true;
+                        }
+                    }
+                }
             }
         }
 

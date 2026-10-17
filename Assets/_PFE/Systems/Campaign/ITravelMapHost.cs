@@ -47,6 +47,15 @@ namespace PFE.Systems.Campaign
         /// flag from the current land, so the middle call <i>clears</i> the grant whenever the player is
         /// not standing in a <c>base</c> land — and the third line puts it back. Collapsing the three
         /// steps into one would make a wall map outside the camp silently do nothing.</para>
+        ///
+        /// <para><b>The one place the order differs from the Oracle, and why.</b> The Oracle's middle
+        /// line <c>onoff(3,3)</c> both recomputes the flag and shows the page; here the show is deferred
+        /// until after the third write. It has to be: the port shows the page by publishing a message
+        /// whose subscriber runs synchronously and re-reads the flag into the page's snapshot, so a
+        /// publish in the Oracle's position would hand the page the <i>disarmed</i> value and the map
+        /// would draw but refuse every click. AS3 reads <c>pip.travel</c> live at click time and so never
+        /// sees the window. The postcondition is unchanged — the flag is unlocked when this returns, and
+        /// it is unlocked while the page is shown.</para>
         /// </summary>
         void GrantTravelAndOpenMap();
     }

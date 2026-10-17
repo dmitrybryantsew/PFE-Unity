@@ -150,7 +150,8 @@ namespace PFE.Editor.Importers
             List<LandDefinition> lands = null,
             List<QuestDefinition> quests = null,
             List<NpcDefinition> npcs = null,
-            List<CampaignScriptDefinition> scripts = null)
+            List<CampaignScriptDefinition> scripts = null,
+            List<VendorDefinition> vendors = null)
         {
             var catalog = AssetDatabase.LoadAssetAtPath<CampaignCatalog>(CatalogPath);
             if (catalog == null)
@@ -163,8 +164,9 @@ namespace PFE.Editor.Importers
             List<QuestDefinition> currentQuests = quests != null ? quests : catalog.AllQuests.ToList();
             List<NpcDefinition> currentNpcs = npcs != null ? npcs : catalog.AllNpcs.ToList();
             List<CampaignScriptDefinition> currentScripts = scripts != null ? scripts : catalog.AllScripts.ToList();
+            List<VendorDefinition> currentVendors = vendors != null ? vendors : catalog.AllVendors.ToList();
 
-            catalog.SetEntries(currentLands, currentQuests, currentNpcs, currentScripts);
+            catalog.SetEntries(currentLands, currentQuests, currentNpcs, currentScripts, currentVendors);
             catalog.startingLandId = "begin";
             catalog.playerHubLandId = "rbl";
 

@@ -26,12 +26,13 @@ namespace PFE.Tests.Editor.Campaign
         private const string SampleQuestXml = @"
 <game>
     <quest id='toExit' main='1' empl='guide' xp='500' sp='1' pay='100' rep='5'>
-        <q id='1' invis='0' nn='0' collect='key_card' kol='2' give='terminal'/>
+        <q id='1' collect='key_card' kol='2' give='terminal'/>
         <q id='2' invis='1' nn='1'/>
+        <q id='3' hidden='1'/>
         <next id='storyContact'/>
     </quest>
     <quest id='sideBounty' main='0' empl='sheriff' xp='200' sp='0' pay='50' rep='1'>
-        <q id='1' invis='0' nn='0' collect='badge' kol='1'/>
+        <q id='1' collect='badge' kol='1'/>
     </quest>
 </game>";
 
@@ -113,19 +114,30 @@ namespace PFE.Tests.Editor.Campaign
             Assert.AreEqual(5, mainQuest.rewardReputation);
             Assert.AreEqual("storyContact", mainQuest.nextQuestId);
 
-            Assert.AreEqual(2, mainQuest.stages.Count);
+            Assert.AreEqual(3, mainQuest.stages.Count);
             var stage1 = mainQuest.stages[0];
             Assert.AreEqual(1, stage1.stageIndex);
             Assert.IsFalse(stage1.isHidden);
+            Assert.IsFalse(stage1.isInvisible);
             Assert.IsFalse(stage1.isOptional);
             Assert.AreEqual("key_card", stage1.requiredItemId);
             Assert.AreEqual(2, stage1.requiredItemCount);
             Assert.AreEqual("terminal", stage1.turnInItemId);
 
+            // `invis` and `hidden` are two attributes (GameData.as:1713-1722) and each stage below
+            // isolates exactly one of them, so a regression that merges them again fails here in both
+            // directions instead of passing on one of them.
             var stage2 = mainQuest.stages[1];
             Assert.AreEqual(2, stage2.stageIndex);
-            Assert.IsTrue(stage2.isHidden);
+            Assert.IsTrue(stage2.isInvisible, "invis='1' must set isInvisible");
+            Assert.IsFalse(stage2.isHidden, "invis='1' must NOT set isHidden");
             Assert.IsTrue(stage2.isOptional);
+
+            var stage3 = mainQuest.stages[2];
+            Assert.AreEqual(3, stage3.stageIndex);
+            Assert.IsTrue(stage3.isHidden, "hidden='1' must set isHidden");
+            Assert.IsFalse(stage3.isInvisible, "hidden='1' must NOT set isInvisible");
+            Assert.IsFalse(stage3.isOptional);
 
             var sideQuest = quests[1];
             Assert.AreEqual("sideBounty", sideQuest.questId);

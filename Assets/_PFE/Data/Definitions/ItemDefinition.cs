@@ -46,6 +46,26 @@ namespace PFE.Data.Definitions
         [Tooltip("Modifier type for ammo variants")]
         public int modifierType = 0;
 
+        /// <summary>
+        /// AS3 <c>@work</c> — the station a schematic is made at, verbatim (<c>work</c>, <c>lab</c>,
+        /// <c>stove</c>, <c>expl</c>).
+        ///
+        /// <para><b>Why this is stored raw rather than as an enum.</b> The Oracle reads the attribute
+        /// three ways, and only one of them is a station: <c>Item.as:262-266</c> tests
+        /// <c>@work == "work"</c> to choose between the words <c>scheme1</c> and <c>recipe</c> for a
+        /// schematic's <i>name</i>, <c>PipPageWork.as</c> uses the rest to decide which page can build
+        /// it, and the crafting tables key on it. An enum would collapse the four values to what this
+        /// one caller needs and lose the other two answers — the same reasoning as
+        /// <see cref="legacyTip"/>.</para>
+        ///
+        /// <para>Measured on the shipped file: all 75 <c>tip='scheme'</c> rows carry it —
+        /// 20 <c>work</c>, 23 <c>lab</c>, 21 <c>stove</c>, 11 <c>expl</c> — and no other row does.
+        /// Empty on an asset imported before this field was read, which is what the importer's repair
+        /// pass fills.</para>
+        /// </summary>
+        [Tooltip("Raw AS3 @work — the crafting station for a schematic ('' on every other row).")]
+        public string workStation;
+
         [Tooltip("Inventory category for UI filtering")]
         public InventoryCategory inventoryCategory = InventoryCategory.General;
 
@@ -231,6 +251,43 @@ namespace PFE.Data.Definitions
         /// </summary>
         [Tooltip("Cannot be repaired (AS3 @norep). Only 'tre' relies on it.")]
         public bool armorNoRepair;
+
+        // ── Per-item armour multipliers (AS3 Armor.as:131-143) ────────────────────────────────────
+        //
+        // These four are read from the <armor> ROOT element, not from an <upd> child — the one place in
+        // Armor.as where a stat is per-item rather than per-level. Armor.as assigns them in the
+        // constructor (before the getXmlParam(upd[lvl]) call at :187), so unlike armor/marmor/qual they
+        // do NOT change on upgrade. They live on the definition rather than in EquipmentData for exactly
+        // that reason: putting them in the per-level table would imply 35×3 copies of one value.
+        //
+        // Measured 2026-10-14 against AllData.as: melee 3, guns 3, magic 3, crit 2 of the 35 <armor>
+        // elements. All four were on ArmourDataParser's omission list as "applied by
+        // Pers.armorParameters(), which the port has no equivalent of" — true of the combat aggregator,
+        // but PipPage.infoStr reads them straight off the Armour instance (:625-640), so the info pane
+        // is a real consumer and the values are now carried.
+
+        /// <summary>
+        /// Melee damage multiplier — AS3 <c>Armor.meleeMult</c> (<c>Armor.as:131-134</c>), applied by
+        /// <c>Pers.armorParameters()</c>. <b>Neutral is 1.</b> The PipBuck prints
+        /// <c>+Math.round((meleeMult - 1) * 100)%</c> (<c>PipPage.as:625-628</c>).
+        /// </summary>
+        [Tooltip("Melee damage multiplier (AS3 @melee). Neutral is 1.")]
+        public float armorMeleeMult = 1f;
+
+        /// <summary>Guns damage multiplier — AS3 <c>Armor.gunsMult</c> (<c>Armor.as:135-138</c>). Neutral is 1.</summary>
+        [Tooltip("Guns damage multiplier (AS3 @guns). Neutral is 1.")]
+        public float armorGunsMult = 1f;
+
+        /// <summary>Spell damage multiplier — AS3 <c>Armor.magicMult</c> (<c>Armor.as:139-142</c>). Neutral is 1.</summary>
+        [Tooltip("Spell damage multiplier (AS3 @magic). Neutral is 1.")]
+        public float armorMagicMult = 1f;
+
+        /// <summary>
+        /// Crit chance bonus — AS3 <c>Armor.crit</c> (<c>Armor.as:143</c>). <b>Neutral is 0</b>, and the
+        /// pane's gate is <c>crit != 0</c> (<c>PipPage.as:637-640</c>), so 0 means "no line".
+        /// </summary>
+        [Tooltip("Crit chance bonus (AS3 @crit). Neutral is 0.")]
+        public float armorCrit;
 
         /// <summary>
         /// Per-upgrade-level equipment stats for armour — AS3's <c>&lt;upd&gt;</c> children, where

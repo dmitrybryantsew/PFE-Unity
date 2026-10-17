@@ -573,15 +573,44 @@ namespace PFE.Editor.Importers
         /// four units — exactly the kind of decision that needs a test. Same split, and the same reason,
         /// as <see cref="UnitVulnerabilityParser"/>.</para>
         ///
-        /// <para>Only <c>res</c> is read. The node carries about nineteen attributes; closing it is its
-        /// own workstream, and giving the others writers before anything reads them is the trap
-        /// <see cref="UnitDefinition.canResurrect"/> was already in.</para>
+        /// <para><b>Four of the node's twenty-two attributes are read.</b> <c>res</c>,
+        /// <c>walker</c>, <c>sniper</c> and <c>stay</c> each have a ported reader, so leaving them
+        /// unimported was a live divergence rather than a dormant one — <c>zebra3</c> alone authors
+        /// <c>walker='1' sniper='1' stay='1'</c> and the port dropped all three. The remaining eighteen
+        /// (<c>ss</c> 9, <c>och</c> 11, <c>skill</c> 7, <c>stalk</c> 6, <c>dist</c> 6, <c>grenader</c> 4,
+        /// <c>attr</c> 4, <c>attch</c> 4, <c>tip</c> 3, <c>enclweap</c> 3, <c>chootch</c> 3, <c>robot</c>,
+        /// <c>plate</c>, <c>one</c>, <c>gryz</c>, <c>gren</c>, <c>glow</c>, <c>drop</c>, <c>bulb</c>) are
+        /// still unwritten: closing the node is its own workstream, and giving an attribute a writer
+        /// before anything reads it is the trap <see cref="UnitDefinition.canResurrect"/> was already
+        /// in. <c>stalk</c> and <c>dist</c> are the two that look closest to ready and are not —
+        /// <see cref="UnitDefinition.stalkDistance"/> exists but is read by nothing, and
+        /// <c>dist</c> would collide with the <c>&lt;vis observ&gt;</c> path that already writes
+        /// <see cref="UnitDefinition.detectionDistance"/>.</para>
         /// </summary>
         private static void ParseUnitExtras(UnitDefinition unit, string content)
         {
             if (UnitExtrasParser.ParseCanResurrect(content, unit.parentId))
             {
                 SetPrivateField(unit, "canResurrect", true);
+            }
+
+            // AS3 `UnitRaider.as:331-338` and `:351-354` — three presence reads on the same node, all
+            // three consumed by the raider family (which is the base of the whole ArmedShooter family).
+            // Unconditional on `parentId`, unlike `res`: none of the three has a second owner in AS3, so
+            // there is no second meaning to guard against.
+            if (UnitExtrasParser.ParseWalker(content))
+            {
+                SetPrivateField(unit, "isWalker", true);
+            }
+
+            if (UnitExtrasParser.ParseSniper(content))
+            {
+                SetPrivateField(unit, "isSniper", true);
+            }
+
+            if (UnitExtrasParser.ParseStaysPut(content))
+            {
+                SetPrivateField(unit, "willStayInPlace", true);
             }
         }
 
@@ -670,6 +699,29 @@ namespace PFE.Editor.Importers
             {
                 float accel = ParseFloat(accelMatch.Groups[1].Value);
                 SetPrivateField(unit, "acceleration", accel);
+            }
+
+            // Brake. AS3 reads it from the SAME <move> node — `Unit.as:1091-1094` tests
+            // `node.@brake.length()` and assigns `this.brake = node.@brake`. It was dropped here, so
+            // every unit in the port carried SetUnitDefaults' 0.5 regardless of what the data said.
+            //
+            // The `\b` mirrors the `accel` read above: without it a hypothetical `handbrake='…'`
+            // would also match. No such attribute exists today, and the guard costs nothing.
+            //
+            // Decimals are real data: the authored set is 0.3, 0.4, 0.5, 0.8, 0.91, 0.92, 0.95,
+            // 0.98, 1, 2, 3, 10 — an integer-only pattern would import 0.3 as nothing and leave the
+            // default behind for 28 of the 80 rows that author it (the whole levitating family).
+            //
+            // BLAST RADIUS, because it is much smaller than it looks: `UnitDefinition.braking` has
+            // exactly two consumers in the tree — `UnitController.ApplyFlightBrake` and
+            // `TilePhysicsController`'s flyer branch — and both are reached only when a unit is
+            // flying. Ground friction does NOT read it (`UnitFallPhysics` carries its own hardcoded
+            // AS3 brake of 1). So this attribute governs the flying deadzone and nothing else.
+            var brakeMatch = Regex.Match(attrs, @"\bbrake='(-?\d+\.?\d*)'");
+            if (brakeMatch.Success)
+            {
+                float brake = ParseFloat(brakeMatch.Groups[1].Value);
+                SetPrivateField(unit, "braking", brake);
             }
         }
 
@@ -1116,7 +1168,20 @@ namespace PFE.Editor.Importers
             // player's sprint already uses. Writing AS3's 10 here would silently give every silent row
             // a 10 px/frame run and change the player's sprint. 0 is the honest "absent".
             SetPrivateField(unit, "runSpeed", 0f);
-            SetPrivateField(unit, "braking", 0.5f);
+            // AS3 `public var brake:Number = 1` (`Unit.as:230`), overwritten from `<move brake='…'>`
+            // at `:1091-1094` only when the row authors it. 53 of the 133 `<move>` rows do not — so
+            // AS3 gives those 1 and this used to give them 0.5.
+            //
+            // 1 is AS3's value, and it is written rather than left to `UnitDefinition`'s field
+            // initialiser for the same reason `runSpeed` is written: the field initialiser is not
+            // visible to a reader of this function, and the two must agree.
+            //
+            // The one place this is observable is the flying deadzone — `braking` has no other
+            // consumer (see the brake read in ParseMovement). `<unit id='npc'>` is one of the 53
+            // silent rows, and it is the flying unit this matters for: AS3's deadzone is `|dy| < 1`
+            // while the hover bob is `cos(t_float) * 0.5`, so AS3 absorbs the bob; a brake of 0.5
+            // would leave it alive, because the comparison is strict.
+            SetPrivateField(unit, "braking", 1f);
             SetPrivateField(unit, "canSwim", true);
             SetPrivateField(unit, "canLevitate", false);
             SetPrivateField(unit, "canBeKnockedDown", true);

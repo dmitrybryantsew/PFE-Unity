@@ -304,6 +304,22 @@ namespace PFE.Tests.EditMode.Systems.Items
             // could still pass on a call that does nothing, so pin that both fields are assigned.
             Assert.That(body, Does.Contain("ApplyLegacyTips"),
                 "ImportItems must call ApplyLegacyTips, which is what assigns the two fields.");
+
+            // **`||`, not `&&`.** The two conditions answer disjoint questions — `NeedsTipRepair` asks
+            // "is the derived enum or block stale", `NeedsLegacyTipRepair` asks "does a raw attribute
+            // differ from the source row" — and only the shape where EITHER one opens the branch
+            // backfills anything: `NeedsTipRepair` returns false for every tip the importer already
+            // understands, which is all 500 of them. An `&&` would satisfy the two assertions above
+            // and still write nothing, which is the exact trap the summary of this class describes.
+            // Both the positive and the negative form are pinned, because a substring test alone
+            // cannot tell the operators apart.
+            Assert.That(body, Does.Contain(
+                "NeedsTipRepair(existing, tipCode) || NeedsLegacyTipRepair(existing, row)"),
+                "The repair branch must open on EITHER condition. `&&` repairs the enum and leaves " +
+                "every raw attribute empty, and the assertions above would still pass.");
+            Assert.That(body, Does.Not.Contain(
+                "NeedsTipRepair(existing, tipCode) && NeedsLegacyTipRepair(existing, row)"),
+                "The repair branch must not require BOTH conditions — see the assertion above.");
         }
 
         [Test]
@@ -323,6 +339,34 @@ namespace PFE.Tests.EditMode.Systems.Items
                 "legacyTip must come from the parsed row.");
             Assert.That(body, Does.Contain("row.Tip2"),
                 "tip2 must come from the parsed row.");
+
+            // ── The five raw attributes, not two ──────────────────────────────────────────────────
+            //
+            // `legacyTip` and `tip2` are the classification strings. `@base` / `@mod` / `@work` are the
+            // variant and crafting-station attributes that the NAME rule reads (Item.as:206-267):
+            // without them 26 ammo variants cannot be named after their base and 52 schematics cannot
+            // be named after the thing they build. `baseItemId` and `modifierType` existed as fields on
+            // ItemDefinition and were never written; `workStation` is new. Nothing else in the tree
+            // writes any of the three, so this method is the only place the value can come from.
+            Assert.That(body, Does.Contain("baseItemId"),
+                "ApplyLegacyTips must write baseItemId — without it PipItemNames cannot name the 26 " +
+                "ammo variants, whose own ids have no row in the localisation document.");
+            Assert.That(body, Does.Contain("modifierType"),
+                "ApplyLegacyTips must write modifierType — it is the '(ap)' / '(exp)' suffix on an " +
+                "ammo variant's name.");
+            Assert.That(body, Does.Contain("workStation"),
+                "ApplyLegacyTips must write workStation — it is what decides a schematic reads " +
+                "\"Scheme\" (workbench) rather than \"Recipe\" (lab, stove, expl).");
+
+            // And the three must be READ from the row's attributes, through the same helper the rest of
+            // the importer uses, not defaulted or re-parsed. A second reader for the same attribute is
+            // how two importers come to disagree about one row.
+            Assert.That(body, Does.Contain("legacy.Base"),
+                "baseItemId must come from the row's @base.");
+            Assert.That(body, Does.Contain("legacy.Modifier"),
+                "modifierType must come from the row's @mod.");
+            Assert.That(body, Does.Contain("legacy.Work"),
+                "workStation must come from the row's @work.");
         }
 
         [Test]

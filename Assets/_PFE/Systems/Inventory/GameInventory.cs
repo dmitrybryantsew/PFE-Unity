@@ -103,6 +103,76 @@ namespace PFE.Systems.Inventory
         /// </summary>
         public string CurrentArmorId { get; set; } = "";
 
+        // ===== Caps =====
+
+        /// <summary>
+        /// The player's caps — AS3 <c>Invent.money.kol</c> (<c>Invent.as:43, 96</c>), granted at
+        /// <b>50</b> by <c>addMin</c> (<c>Invent.as:1610</c>).
+        ///
+        /// <para><b>This is a deliberate divergence, and it is the one place the oracle is not
+        /// followed.</b> The oracle holds caps as an ordinary item — <c>Invent.money</c> <i>is</i>
+        /// <c>this.items["money"]</c> — so every <c>Item</c>-shaped operation applies to them. The port
+        /// keeps them as a plain count here instead, for one reason: <c>GameInventory.AddItem</c> needs an
+        /// <see cref="ItemDefinition"/> for every mutation, and there is no item resolver on this class
+        /// (only <see cref="ArmorDefinitionResolver"/>), so an item-shaped money would have to be passed
+        /// in at every call site. Money is also <i>not</i> item-shaped anywhere the port actually uses it:
+        /// category 0 is deliberately untracked for mass (see <c>categoryMass</c>), and nothing else in
+        /// the port reads an item's <c>kol</c> for money.</para>
+        ///
+        /// <para><b>What this costs.</b> The oracle's <c>money</c> row appears in the bag and is subject
+        /// to weight/limit rules that a count is not. Nothing in the port asks for either. The research's
+        /// T0 named this option "(b) pragmatic" and required it to be written down; this is that
+        /// record.</para>
+        ///
+        /// <para><b>What reads it.</b> The trade page's affordability test and its debit/credit, and the
+        /// status monitor's caps row through <c>PlayerPipStatusSource.CapsProvider</c>. Both go through
+        /// this property, so there is exactly one place caps can change.</para>
+        /// </summary>
+        public int Money
+        {
+            get => money;
+            set
+            {
+                if (value == money) return;
+                money = value;
+                MoneyChanged?.Invoke(money);
+            }
+        }
+
+        [SerializeField]
+        private int money;
+
+        /// <summary>Raised after <see cref="Money"/> changes, with the new value. The monitor and the
+        /// trade page both redraw from this rather than polling.</summary>
+        public event Action<int> MoneyChanged;
+
+        /// <summary>Whether the player can pay <paramref name="amount"/> caps.</summary>
+        public bool CanAfford(int amount) => amount <= money;
+
+        /// <summary>
+        /// Credit caps. The caller is the sale path (AS3 <c>inv.money.kol += floor(kolSell)</c>,
+        /// <c>PipPageVend.as:990</c>) and the loot path.
+        /// </summary>
+        public void AddMoney(int amount)
+        {
+            if (amount <= 0) return;
+            Money = money + amount;
+        }
+
+        /// <summary>
+        /// Debit caps if the player can afford it. Returns false and changes nothing otherwise — the
+        /// caller reports the shortfall. The caller is the purchase path (AS3
+        /// <c>inv.money.kol -= ceil(kolBou)</c>, <c>PipPageVend.as:948</c>).
+        /// </summary>
+        public bool TrySpendMoney(int amount)
+        {
+            if (amount <= 0) return true;
+            if (amount > money) return false;
+
+            Money = money - amount;
+            return true;
+        }
+
         // ===== Reactive Properties =====
 
         public ReactiveProperty<int> TotalItemCount { get; private set; }
@@ -136,6 +206,27 @@ namespace PFE.Systems.Inventory
         /// makes <see cref="AddArmor"/> testable now and correct the moment the inventory is stood up.</para>
         /// </summary>
         public Func<string, ItemDefinition> ArmorDefinitionResolver { get; set; }
+
+        /// <summary>
+        /// Resolves a weapon definition by id. The analogue of AS3's <c>AllData.d.weapon</c> table, which
+        /// <c>Invent.addWeapon()</c> indexes — a <b>weapon-only</b> lookup, not the item one.
+        ///
+        /// <para><b>This is the field that closes the weapon gap.</b> <see cref="AddWeapon"/> used to
+        /// hard-code <c>ItemDefinition weaponDef = null; // TODO: Lookup from GameDatabase</c> and return
+        /// <c>null</c> with an error for every id, because the port's weapons are
+        /// <see cref="WeaponDefinition"/> assets registered under <c>ContentType.Weapon</c> while the item
+        /// registry holds no weapon id at all — so no lookup that existed could ever succeed. The two
+        /// tables are disjoint in the Oracle too (<c>d.weapon</c> vs <c>d.item</c>), which is why this is
+        /// a second resolver rather than a wider item one: an item resolver handed a weapon id answers
+        /// <c>null</c>, correctly and permanently.</para>
+        ///
+        /// <para><b>Null by default, so behaviour is unchanged until someone sets it.</b> That is also
+        /// what keeps the two <c>GameInventoryTests</c> weapon fixtures honest: they build a bare
+        /// <c>new GameInventory()</c>, set no resolver, and assert the same
+        /// <c>"Weapon definition not found"</c> error and <c>null</c> return as before. An unwired
+        /// inventory still refuses; a wired one works. <c>PlayerInventory.Construct</c> is the wiring.</para>
+        /// </summary>
+        public Func<string, WeaponDefinition> WeaponDefinitionResolver { get; set; }
 
         /// <summary>
         /// Weight limits for each category [maxm0, maxm1, maxm2, maxm3]
@@ -324,9 +415,11 @@ namespace PFE.Systems.Inventory
                 return existingWeapon;
             }
 
-            // TODO: Get weapon definition from database
-            // For now, create placeholder
-            ItemDefinition weaponDef = null; // TODO: Lookup from GameDatabase
+            // Resolve through the weapon table. AS3: Invent.addWeapon() indexes AllData.d.weapon — a
+            // DIFFERENT table from the one take() reads, which is the whole reason a weapon id never
+            // resolved here. A null resolver (a bare `new GameInventory()`, as the fixtures build) fails
+            // the same way it always did, with the same message.
+            WeaponDefinition weaponDef = WeaponDefinitionResolver?.Invoke(weaponId);
             if (weaponDef == null)
             {
                 Debug.LogError($"[GameInventory] Weapon definition not found: {weaponId}");
@@ -536,12 +629,30 @@ namespace PFE.Systems.Inventory
                 GameWeaponInstance weapon = kvp.Value;
                 if (weapon == null) continue;
 
-                // Physical weapons (tip 1-3)
-                if (weapon.Definition != null && weapon.Respect == WeaponRespect.Active || weapon.Respect == WeaponRespect.Favorited)
+                // AS3 Invent.as:1450-1456 charges the two sums by type:
+                //   if(tip > 0 && tip < 4 && (respect == 0 || respect == 2)) massW += mass;
+                //   if(tip == 5         && (respect == 0 || respect == 2) && …) massM += mass;
+                // The respect half of both conditions is already applied by GameWeaponInstance.Mass
+                // (which returns 0 unless the weapon is Active or Favorited), so this only has to split
+                // the type. tip 0 — the base `Weapon` class, i.e. every turret and drone laser — and
+                // tip 4 (thrown) charge NEITHER sum, which is what `tip > 0 && tip < 4` says.
+                switch (weapon.WeaponDefinition != null ? weapon.WeaponDefinition.weaponType : WeaponType.Guns)
                 {
-                    // TODO: Check weapon type from definition
-                    // For now, add to weapon mass
-                    WeaponMass += weapon.Mass;
+                    case WeaponType.Melee:      // AS3 tip 1
+                    case WeaponType.Guns:       // tip 2
+                    case WeaponType.BigGun:     // tip 3
+                        WeaponMass += weapon.Mass;
+                        break;
+
+                    case WeaponType.Magic:      // tip 5
+                        MagicMass += weapon.Mass;
+                        break;
+
+                    default:
+                        // tip 0 (ranged base class) and tip 4 (thrown) — no contribution, as above. A
+                        // weapon with no row at all is bucketed as a physical weapon by the switch
+                        // selector, so the `default` is only the two zero-mass tips.
+                        break;
                 }
             }
 

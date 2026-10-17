@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using MessagePipe;
 using NUnit.Framework;
@@ -41,11 +42,33 @@ namespace PFE.Tests.Editor.Campaign
         }
 
         /// <summary>
+        /// A publisher that can look back at the host from <i>inside</i> <c>Publish</c>.
+        ///
+        /// <para><b>Why the plain recording publisher is not enough.</b> The travel page's click gate
+        /// (<c>PipPageInfo.as:724</c>) is evaluated against a snapshot the page takes when it is shown,
+        /// and showing it is what this publish does — the subscriber runs synchronously and calls back
+        /// into the device. So "the flag is unlocked when this method returns" and "the flag is unlocked
+        /// when the message goes out" are different claims, and only the second one is the one the page
+        /// can see. Only a probe can tell them apart.</para>
+        /// </summary>
+        private sealed class ProbingPublisher : IPublisher<TravelMapOpenedMessage>
+        {
+            public Action<TravelMapOpenedMessage> OnPublish;
+            public int Count;
+
+            public void Publish(TravelMapOpenedMessage message)
+            {
+                Count++;
+                OnPublish?.Invoke(message);
+            }
+        }
+
+        /// <summary>
         /// A host with no catalogue. Deliberate: no <c>Resources.Load</c>, no engine — and it is what
         /// makes <c>CurrentLandTip()</c> answer "not a base", which is the interesting direction for the
         /// recompute tests below.
         /// </summary>
-        private static CampaignManager Host(RecordingPublisher<TravelMapOpenedMessage> opened = null)
+        private static CampaignManager Host(IPublisher<TravelMapOpenedMessage> opened = null)
         {
             return new CampaignManager(
                 transitionSubscriber: null,
@@ -105,6 +128,44 @@ namespace PFE.Tests.Editor.Campaign
             Assert.IsFalse(host.TravelUnlocked,
                 "OpenTravelMap re-derives the flag, so two single calls lose the grant — which is exactly "
                 + "why Interact.as writes it a third time.");
+        }
+
+        [Test]
+        public void GrantTravelAndOpenMap_HasAlreadyUnlockedTravelWhenTheOpenIsPublished()
+        {
+            // The regression this pins: the opened message is delivered SYNCHRONOUSLY, and its subscriber
+            // is what shows the page — and showing the page is what makes it re-read `pip.travel` into
+            // the snapshot its click gate consults. Publishing in the Oracle's position (between the
+            // recompute and the third write) therefore handed the page `false`, and the symptom was a
+            // travel map that drew, hovered its nodes and refused every click.
+            //
+            // "Unlocked when the method returns" does NOT imply this: the third write lands after the
+            // publish either way. Only a probe taken inside Publish can tell the two apart.
+            var probe = new ProbingPublisher();
+            CampaignManager host = Host(probe);
+            host.TransitionToLand("surf");
+
+            bool? unlockedWhenPublished = null;
+            probe.OnPublish = _ => unlockedWhenPublished = host.TravelUnlocked;
+
+            host.GrantTravelAndOpenMap();
+
+            Assert.AreEqual(1, probe.Count, "Exactly one open per grant.");
+            Assert.IsTrue(unlockedWhenPublished,
+                "The page re-reads the flag while this message is being delivered, so it must already be "
+                + "unlocked by then — not merely by the time GrantTravelAndOpenMap returns.");
+            Assert.IsTrue(host.TravelUnlocked);
+        }
+
+        [Test]
+        public void IsCurrentLandBase_WithoutACatalogue_IsFalse()
+        {
+            // The predicate `PipBuckManager.OnOff` consults for `World.w.loc.base`. Same safe direction as
+            // the recompute: a host that cannot tell whether the land is a hub must not arm travel.
+            CampaignManager host = Host();
+            host.TransitionToLand("surf");
+
+            Assert.IsFalse(host.IsCurrentLandBase);
         }
 
         [Test]

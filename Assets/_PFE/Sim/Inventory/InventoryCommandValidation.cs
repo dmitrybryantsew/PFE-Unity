@@ -36,6 +36,7 @@ namespace PFE.Systems.Inventory
                 case InventoryCommandKind.AddItem:
                 case InventoryCommandKind.RemoveItem:
                 case InventoryCommandKind.AddArmor:
+                case InventoryCommandKind.AddWeapon:
                 case InventoryCommandKind.ConsumeAmmo:
                 case InventoryCommandKind.DropItem:
                     return true;

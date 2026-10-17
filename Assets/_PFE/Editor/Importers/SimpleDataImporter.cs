@@ -135,11 +135,19 @@ namespace PFE.Editor
                     // would report success and change nothing — the same "reported success, wrote
                     // nothing" shape as the self-closing-`<weapon>` bug in `WeaponXmlBlocks`.
                     //
-                    // **It is also the path that fills `legacyTip`/`tip2` on the ~500 rows that
-                    // already exist.** Those two fields are new, so every pre-existing asset has them
-                    // empty — and because `existing` is non-null for all of them, the create branch
+                    // **It is also the path that backfills the five raw attributes on the ~500 rows
+                    // that already exist** — `legacyTip`, `tip2`, `baseItemId`, `modifierType` and
+                    // `workStation`. All five are new, so every pre-existing asset has them empty,
+                    // and because `existing` is non-null for all of them the create branch above
                     // cannot reach them. Gating this branch on `NeedsTipRepair` alone would report a
-                    // successful import while writing neither field: the same trap, twice.
+                    // successful import while writing none of the five: the same trap, twice.
+                    //
+                    // The two `Needs*` calls are deliberately `||`, not `&&`: they ask about disjoint
+                    // sets. `NeedsTipRepair` answers "the derived enum or block is stale", which is
+                    // false for a row whose tip the importer already understands; `NeedsLegacyTipRepair`
+                    // answers "a raw attribute differs from the source", which is true for all 500 on
+                    // the first run after these fields were added. Either one alone must open the
+                    // branch, or a re-import fixes the enum and leaves the name rule starved.
                     ApplyLegacyTips(existing, row);
                     ApplyTipDefaults(existing, tipCode, row.Attrs);
                     EditorUtility.SetDirty(existing);
@@ -150,18 +158,58 @@ namespace PFE.Editor
         }
 
         /// <summary>
-        /// Copy the row's raw <c>@tip</c> / <c>@tip2</c> onto the definition.
+        /// Copy the row's raw AS3 attributes onto the definition: <c>@tip</c> / <c>@tip2</c> (the
+        /// classification strings) and <c>@base</c> / <c>@mod</c> / <c>@work</c> (the variant and
+        /// crafting-station attributes).
         ///
         /// <para>Separate from <see cref="ApplyTipDefaults"/> because the two answer different
         /// questions: this records <b>what the source row said</b>, unconditionally, for every tip;
         /// that one stamps the derived enum and the type-specific block, and deliberately handles only
         /// the tips it understands. Folding them together would make the raw attributes as narrow as
         /// the enum mapping — the exact loss this field exists to prevent.</para>
+        ///
+        /// <para><b>Why <c>@base</c>/<c>@mod</c>/<c>@work</c> are here and not in
+        /// <see cref="ApplyTipDefaults"/>.</b> They are read by the <i>name</i> rule
+        /// (<c>Item.as:240-266</c>), which applies to every tip: a variant is named after its base and
+        /// a schematic after the station that builds it. They are also unconditional — 26 rows carry
+        /// <c>@base</c>, 75 carry <c>@work</c>, and neither correlates with a tip this importer
+        /// switches on. <c>baseItemId</c> and <c>modifierType</c> existed as fields and were never
+        /// written, so a variant could not be named and the PipBuck printed its raw id; that is what
+        /// this closes.</para>
         /// </summary>
         private static void ApplyLegacyTips(ItemDefinition item, ItemXmlRow row)
         {
+            var legacy = new LegacyAttributes(row);
+
             item.legacyTip = row.Tip;
             item.tip2 = row.Tip2;
+            item.baseItemId = legacy.Base;
+            item.modifierType = legacy.Modifier;
+            item.workStation = legacy.Work;
+        }
+
+        /// <summary>
+        /// The raw AS3 attributes <see cref="ApplyLegacyTips"/> copies, read once out of the row's own
+        /// attribute run.
+        ///
+        /// <para><b>One reader, so the write and the "does it need writing" test cannot disagree.</b>
+        /// The repair predicate below compares these values against what the asset holds; a second
+        /// regex for the same attribute is how a repair pass reports success and changes nothing —
+        /// the failure this importer has already been bitten by twice (see
+        /// <c>NeedsLegacyTipRepair</c>).</para>
+        /// </summary>
+        private readonly struct LegacyAttributes
+        {
+            public readonly string Base;
+            public readonly int Modifier;
+            public readonly string Work;
+
+            public LegacyAttributes(ItemXmlRow row)
+            {
+                Base = WeaponXmlAttrs.Attr(row.Attrs, "base");
+                Modifier = WeaponXmlAttrs.AttrI(row.Attrs, "mod", 0);
+                Work = WeaponXmlAttrs.Attr(row.Attrs, "work");
+            }
         }
 
         /// <summary>
@@ -175,7 +223,14 @@ namespace PFE.Editor
         /// no-op.</para>
         /// </summary>
         private static bool NeedsLegacyTipRepair(ItemDefinition item, ItemXmlRow row)
-            => item.legacyTip != row.Tip || item.tip2 != row.Tip2;
+        {
+            var legacy = new LegacyAttributes(row);
+
+            return item.legacyTip != row.Tip || item.tip2 != row.Tip2
+                || item.baseItemId != legacy.Base
+                || item.modifierType != legacy.Modifier
+                || item.workStation != legacy.Work;
+        }
 
         /// <summary>
         /// Whether an <b>existing</b> row is missing what its <c>tip</c> implies, so the import can

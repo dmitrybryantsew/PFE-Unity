@@ -7,6 +7,7 @@ using VContainer.Unity;
 using PFE.Core.Messages;
 using PFE.Data.Definitions.Campaign;
 using PFE.Systems.Map.Scripting;
+using PFE.Systems.Trade;
 using PFE.Sim.Campaign;
 
 namespace PFE.Systems.Campaign
@@ -76,6 +77,29 @@ namespace PFE.Systems.Campaign
         private readonly LandRuntimeStateRegistry _landStates = new LandRuntimeStateRegistry();
 
         public LandRuntimeStateRegistry LandStates => _landStates;
+
+        /// <summary>
+        /// AS3 <c>Game.vendors</c> (<c>Game.as:61</c>) — one live <c>VendorRuntime</c> per imported
+        /// <c>&lt;vendor&gt;</c> block, keyed by id. Populated by <see cref="InitializeVendors"/>;
+        /// empty (and harmless) until then, so a headless host that never calls it still works.
+        /// </summary>
+        private readonly VendorRegistry _vendors = new VendorRegistry();
+
+        public VendorRegistry Vendors => _vendors;
+
+        /// <summary>
+        /// AS3 <c>World.w.pers.limitBuys</c>, read by the refill sweep (<c>Vendor.as:304</c>). A
+        /// <see cref="Func{TResult}"/> for the same reason every status provider is one: the player does
+        /// not exist when this manager is constructed. Null reads as the field's own default, 1
+        /// (<c>Pers.as:317</c>).
+        /// </summary>
+        public Func<float> VendorLimitBuysProvider { get; set; }
+
+        /// <summary>
+        /// AS3 <c>World.w.pers.barterLvl</c>, read by <c>setRndBuys</c>'s count
+        /// (<c>Vendor.as:142/146</c>). Null reads as 0, the field's default.
+        /// </summary>
+        public Func<int> VendorBarterLevelProvider { get; set; }
 
         // Reactive State
         private readonly ReactiveProperty<string> _currentLandId = new ReactiveProperty<string>("");
@@ -255,6 +279,14 @@ namespace PFE.Systems.Campaign
             // run's `upland` increment again.
             _landStates.ResetUpStage(resolvedId);
 
+            // AS3 builds every room's Location up front at land load (Land.as:947) and swaps them on a
+            // room change (:1263), so a land entry discards the whole previous set — and with it every
+            // re-pointed button. Only `act`/`used` come back on the next build (CheckPoint.as:110-122),
+            // which is why a checkpoint that offered the return before the trip does not offer it on
+            // arrival: its restored `active == 2` makes `activate()` return at :190 before it can
+            // re-point anything.
+            ReturnCheckpoint = null;
+
             // Arriving somewhere re-derives the travel grant: the camp unlocks it, anywhere else locks it
             // (PipBuck.as:271-273 / :342-345).
             RefreshTravelUnlockedForCurrentLand();
@@ -401,11 +433,83 @@ namespace PFE.Systems.Campaign
             return true;
         }
 
-        /// <summary>AS3 <c>refill</c> → <c>Land.refill()</c> (<c>Land.as:1481-1496</c>).</summary>
+        /// <summary>
+        /// AS3 <c>refill</c> → <c>Land.refill()</c> (<c>Land.as:1481-1496</c>) → <c>Game.refillVendors</c>
+        /// (<c>Game.as:508-525</c>).
+        ///
+        /// <para><b>What the oracle does, in order</b> (<c>Game.as:508-525</c>): refill every vendor;
+        /// flip every trigger whose value is the string <c>"wait"</c> to <c>1</c>; set
+        /// <c>invent.good.kol = pers.goodHp</c>; show the <c>"refill"</c> info text.</para>
+        ///
+        /// <para><b>What is ported and what is not.</b> The vendor sweep and the trigger flip are here —
+        /// the flip is how <c>patient_tr2</c> and similar "come back later" beats advance
+        /// (<c>02_USER_MODEL_RECHECK.md</c> §7). The <c>good.kol</c> line belongs to the inventory, which
+        /// the campaign manager has no reference to, and the info text is presentation; both are
+        /// <b>reported</b> below rather than silently dropped.</para>
+        /// </summary>
         public void RefillVendors()
         {
-            // Blocked on a vendor runtime: VendorInventory exists but nothing instantiates one per land
-            // (03_GAP_LEDGER.md §2, `refillVendors`). Deliberately a no-op rather than a silent half-fix.
+            float limitBuys = VendorLimitBuysProvider?.Invoke() ?? 1f;   // Pers.as:317
+            int barterLevel = VendorBarterLevelProvider?.Invoke() ?? 0;  // Pers.as:315
+
+            _vendors.RefillAll(limitBuys, barterLevel);
+
+            // Game.as:514-520 — `if(this.triggers[k] == "wait") this.triggers[k] = 1;`. TriggerValue's
+            // own EqualsString doc names this sweep as its reason for existing, and it answers false for
+            // an int entry, which is what keeps a numeric 1 from being rewritten.
+            List<string> waiting = null;
+            foreach (KeyValuePair<string, TriggerValue> pair in _triggers)
+            {
+                if (pair.Value.EqualsString("wait"))
+                {
+                    (waiting ??= new List<string>()).Add(pair.Key);
+                }
+            }
+
+            if (waiting != null)
+            {
+                for (int i = 0; i < waiting.Count; i++)
+                {
+                    _triggers[waiting[i]] = TriggerValue.FromInt(1);
+                }
+            }
+
+            Debug.Log($"[CampaignManager] refill: {_vendors.Count} vendors restocked, " +
+                      $"{waiting?.Count ?? 0} 'wait' trigger(s) advanced. " +
+                      "invent.good.kol and the 'refill' info text are not wired " +
+                      "(Game.as:522-524) — the campaign manager has no inventory or GUI seam.");
+        }
+
+        /// <summary>
+        /// Builds the live vendors from the catalogue — AS3 <c>Game.init</c>'s
+        /// <c>for each(GameData.d.vendor) new Vendor(0, xml, saved)</c> (<c>Game.as:220-229</c>).
+        ///
+        /// <para>Separate from <see cref="Initialize"/> because it needs two things the constructor must
+        /// not require: the item-table seam (an ECall-bearing adapter in production) and the loot RNG.
+        /// The composition root calls it once the game database is up.</para>
+        /// </summary>
+        public void InitializeVendors(IVendorItemSource items, PFE.Core.Rng.IRngService rng,
+            IReadOnlyDictionary<string, List<VendorStockSave>> saved = null)
+        {
+            if (items == null || rng == null)
+            {
+                Debug.LogWarning("[CampaignManager] InitializeVendors called without an item source or RNG; " +
+                                 "the vendors stay unbuilt and every trade page would show an empty shelf.");
+                return;
+            }
+
+            CampaignCatalog catalog = Catalog;
+            IReadOnlyList<VendorDefinition> definitions = catalog?.AllVendors;
+
+            _vendors.Initialize(definitions, rng, items, saved);
+
+            if (definitions == null || definitions.Count == 0)
+            {
+                Debug.LogWarning("[CampaignManager] No <vendor> definitions are in the catalogue, so no " +
+                                 "vendors were built. Run PFE ▸ Campaign ▸ Import Vendor Stock from " +
+                                 "GameData.as — a page over an empty shelf looks exactly like a working " +
+                                 "page with no stock.");
+            }
         }
 
         /// <summary>AS3 <c>passed</c> (<c>Script.as:469-472</c>).</summary>
@@ -436,6 +540,11 @@ namespace PFE.Systems.Campaign
             // the rebuilt land starts with no current checkpoint. It does refill the vendors (Game.as:470)
             // — currently a documented no-op.
             CurrentCheckpoint = null;
+
+            // ...and the rebuilt rooms take the re-pointed buttons with them, exactly as
+            // TransitionToLand does for a fresh land: `gotoNextLevel` ends in `gotoLand(missionId)`
+            // (Game.as:471), which builds a new Location set.
+            ReturnCheckpoint = null;
             RefillVendors();
 
             // AS3 reaches the next level through `gotoLand(missionId)` (Game.as:471), and `gotoLand`
@@ -479,19 +588,31 @@ namespace PFE.Systems.Campaign
 
         /// <summary>
         /// How many times the travel map has been asked to open. Incremented by
-        /// <see cref="OpenTravelMap"/>.
+        /// <see cref="PublishTravelMapOpened"/>.
         ///
-        /// <para><b>Telemetry, not gameplay — and it exists because the wall map's effect is otherwise
-        /// invisible.</b> Opening the map publishes <see cref="TravelMapOpenedMessage"/>, and that
-        /// message has <b>no subscriber</b>: the travel-map page is the one piece of the loop that has
-        /// not been built. So pressing E on the camp's wall map produces no pixel anywhere, which is
-        /// indistinguishable from an object whose interaction surface was never created — and that
-        /// ambiguity is exactly what made the wall map read as "not interactable" after its
-        /// <c>allact='map'</c> handler had already been wired. The debug overlay prints this, so a play
-        /// test can tell "the interaction never fired" (count stays 0) from "it fired and drew
-        /// nothing" (count rises).</para>
+        /// <para><b>Telemetry, not gameplay — and it exists because the wall map's effect was otherwise
+        /// invisible.</b> Opening the map publishes <see cref="TravelMapOpenedMessage"/>. While that
+        /// message had <b>no subscriber</b>, pressing E on the camp's wall map produced no pixel
+        /// anywhere, which is indistinguishable from an object whose interaction surface was never
+        /// created — and that ambiguity is exactly what made the wall map read as "not interactable"
+        /// after its <c>allact='map'</c> handler had already been wired. The subscriber landed
+        /// 2026-10-16 (<c>PipBuckBootstrapper.BindTravelMap</c>), so the count is no longer the only
+        /// evidence, but the debug overlay still prints it: a play test can tell "the interaction never
+        /// fired" (count stays 0) from "it fired and the page did not open" (count rises).</para>
         /// </summary>
         public int TravelMapOpenCount { get; private set; }
+
+        /// <summary>
+        /// <c>World.w.loc.base</c> (<c>PipBuck.as:271</c>, <c>:342</c>) — the player is standing in a
+        /// hub. The room half of the Oracle's condition is the room's own <c>options.base</c>
+        /// (<c>Location.as:439-442</c>); the port carries it as the <i>land's</i>
+        /// <c>tip == "base"</c>, which is the granularity the imported data has.
+        ///
+        /// <para>Public because the PipBuck device has to answer the same question when it opens
+        /// (<see cref="UI.PipBuck.PipBuckManager"/>), and a second derivation of it there is exactly
+        /// how the two answers drift apart.</para>
+        /// </summary>
+        public bool IsCurrentLandBase => IsBaseLandTip(CurrentLandTip());
 
         public void UnlockTravel()
         {
@@ -506,21 +627,59 @@ namespace PFE.Systems.Campaign
         public void OpenTravelMap()
         {
             RefreshTravelUnlockedForCurrentLand();
+            PublishTravelMapOpened();
+        }
+
+        /// <summary>
+        /// AS3 <c>Interact.as:1638-1640</c> / <c>NPC.as:213-215</c> — the three writes
+        /// <c>pip.travel = true; pip.onoff(3,3); pip.travel = true;</c>.
+        ///
+        /// <para><b>Why the display is deferred to the end, which is the one place the port does not
+        /// mirror the Oracle line for line.</b> The middle line's effect is
+        /// <see cref="RefreshTravelUnlockedForCurrentLand"/> — <c>onoff</c> ends in <c>setButtons()</c>
+        /// and that is where the <c>base</c>-tip recompute lives, so it <i>clears</i> the grant outside a
+        /// hub — and the third line puts it back. But the middle line is also what <i>shows</i> the page,
+        /// and in the port showing the page means publishing
+        /// <see cref="TravelMapOpenedMessage"/>, whose subscriber runs <b>synchronously</b>:
+        /// <c>PipBuckBootstrapper.BindTravelMap</c> calls <c>PipBuckManager.OnOff(3,3)</c>, which calls
+        /// <c>SetPage</c>, which calls the page's <c>SetStatus</c>, which re-reads the source and
+        /// <b>captures <c>pip.travel</c> into the page's snapshot</b>. Publishing where the Oracle's
+        /// <c>onoff</c> sits therefore froze the page on the <i>disarmed</i> value, and the page's click
+        /// gate (<c>PipPageInfo.as:724</c>) then refused every node — the map opened, hovered, drew its
+        /// detail pane, and did nothing at all on a click.</para>
+        ///
+        /// <para>AS3 has the same three writes but no such window: <c>PipPageInfo.itemClick</c> reads
+        /// <c>pip.travel</c> <i>live</i> at click time, so it sees the final <c>true</c>. The port's page
+        /// reads a snapshot taken while the publish is in flight, so the only way to give it the same
+        /// answer is to publish after the last grant. The flag is left unlocked either way, which is what
+        /// <see cref="ITravelMapHost.GrantTravelAndOpenMap"/> promises.</para>
+        /// </summary>
+        public void GrantTravelAndOpenMap()
+        {
+            UnlockTravel();
+
+            // The middle line's recompute, without its display half.
+            RefreshTravelUnlockedForCurrentLand();
+
+            // The third line, which is the one that survives.
+            UnlockTravel();
+
+            // ...and only now show the page, so the snapshot it takes is the final value.
+            PublishTravelMapOpened();
+        }
+
+        /// <summary>
+        /// The display half of <c>onoff(3,3)</c>, split out so <see cref="GrantTravelAndOpenMap"/> can
+        /// run it <i>after</i> its final grant. See that method for why the order matters.
+        /// </summary>
+        private void PublishTravelMapOpened()
+        {
             TravelMapOpenCount++;
 
             string landId = _currentLandId.Value;
             Debug.Log($"[CampaignManager] Opening the travel map (in '{landId}', travel unlocked: " +
                       $"{_travelUnlocked}).");
             _travelMapPublisher?.Publish(new TravelMapOpenedMessage(landId));
-        }
-
-        public void GrantTravelAndOpenMap()
-        {
-            // Interact.as:1638-1640 / NPC.as:213-215, all three lines, in order. The trailing grant is
-            // load-bearing: OpenTravelMap recomputes from the current land and clears it outside a base.
-            UnlockTravel();
-            OpenTravelMap();
-            UnlockTravel();
         }
 
         /// <summary>
@@ -650,17 +809,80 @@ namespace PFE.Systems.Campaign
         /// </summary>
         public bool IsCurrentCheckpoint(string landId, Vector3Int room, string code)
         {
-            if (CurrentCheckpoint == null) return false;
+            return CurrentCheckpoint != null && MatchesCheckpoint(CurrentCheckpoint.Value, landId, room, code);
+        }
 
-            CheckpointRecord current = CurrentCheckpoint.Value;
-            if (!string.Equals(current.landId, landId, StringComparison.OrdinalIgnoreCase)) return false;
+        /// <summary>
+        /// AS3's re-pointed button (<c>CheckPoint.as:236-238</c>): the checkpoint whose interaction
+        /// currently offers the return, or <c>null</c>. Set by <see cref="ActivateCheckpoint"/> when the
+        /// activation armed it, and cleared whenever a land's rooms are (re)built.
+        ///
+        /// <para><b>Why this is campaign state and not a field on the presenter.</b> The oracle's button
+        /// lives on the <c>CheckPoint</c> object, and AS3 builds <b>every</b> room's <c>Location</c> up
+        /// front at land load (<c>Land.as:947</c>, indexed <c>locs[x][y][z]</c>, swapped at
+        /// <c>:1263</c>), so the object — and its re-pointed <c>inter.actFun</c> — survives a room change
+        /// and dies only with the land. The port builds one <c>RoomObjectVisualManager</c> per room and
+        /// destroys its presenters on every room change, so a field there would lose the offer by walking
+        /// out of the room and back. <c>CampaignManager</c> is the port's stand-in for "the land is
+        /// loaded".</para>
+        ///
+        /// <para><b>Deliberately not persisted, and not derived from <c>active</c>.</b> Only
+        /// <c>act</c>/<c>used</c> are restored on re-entry (<c>CheckPoint.as:110-122</c>), so the oracle
+        /// loses the re-pointing too: a checkpoint restored as <c>active == 2</c> has a dead
+        /// <c>activate</c> button, not a return. Re-deriving the offer from "is this the current
+        /// checkpoint" would hand the player a return the oracle refuses.</para>
+        /// </summary>
+        public CheckpointRecord? ReturnCheckpoint { get; private set; }
 
-            if (!string.IsNullOrEmpty(code) || !string.IsNullOrEmpty(current.code))
+        /// <summary>
+        /// Whether the checkpoint at (<paramref name="room"/>) in <paramref name="landId"/> is the one
+        /// whose button currently offers the return — the read behind <c>DoorPropPresenter</c>'s press
+        /// routing. See <see cref="ReturnCheckpoint"/>.
+        /// </summary>
+        public bool OffersReturn(string landId, Vector3Int room, string code)
+        {
+            return ReturnCheckpoint != null && MatchesCheckpoint(ReturnCheckpoint.Value, landId, room, code);
+        }
+
+        /// <summary>
+        /// Whether a stored checkpoint record names the checkpoint at (<paramref name="room"/>) in
+        /// <paramref name="landId"/>.
+        ///
+        /// <para><b>A code is the identity when either side has one; otherwise the room cell is.</b>
+        /// This is the port of <c>Location.as:2065-2067</c>, where a rebuilt land re-finds its checkpoint
+        /// by <c>code</c>. The empty-code case must not read as "matches everything": the exit room's
+        /// checkpoint carries no code (<c>RoomsProb.as:4724</c>), so a wildcard reading would let one
+        /// code-less checkpoint answer for every other one in the land.</para>
+        /// </summary>
+        private static bool MatchesCheckpoint(CheckpointRecord record, string landId, Vector3Int room, string code)
+        {
+            if (!string.Equals(record.landId, landId, StringComparison.OrdinalIgnoreCase)) return false;
+
+            if (!string.IsNullOrEmpty(code) || !string.IsNullOrEmpty(record.code))
             {
-                return string.Equals(current.code, code, StringComparison.Ordinal);
+                return string.Equals(record.code, code, StringComparison.Ordinal);
             }
 
-            return current.roomX == room.x && current.roomY == room.y && current.roomZ == room.z;
+            return record.roomX == room.x && record.roomY == room.y && record.roomZ == room.z;
+        }
+
+        /// <summary>
+        /// AS3 <c>CheckPoint.step()</c>'s <c>main</c> branch (<c>CheckPoint.as:300-310</c>) — whether a
+        /// <c>main</c> checkpoint's button is live right now, i.e. whether the player is away on a
+        /// mission. The rule is <see cref="CheckpointRules.MainIsLive"/>; this is the two catalogue reads
+        /// it takes.
+        ///
+        /// <para>The two reads are kept separate on purpose: <c>missionId</c> naming a land the catalogue
+        /// does not have is <b>not</b> the same answer as naming the hub, and only the first one means
+        /// "the world is inconsistent". Both take the oracle's <c>else</c>, but collapsing them here
+        /// would hide the difference from the rule's own tests.</para>
+        /// </summary>
+        public bool MainReturnIsLive()
+        {
+            LandDefinition mission = Catalog?.GetLand(_missionId);
+            return CheckpointRules.MainIsLive(
+                mission != null,
+                mission != null && IsBaseLandTip(mission.tip));
         }
 
         /// <summary>
@@ -716,8 +938,17 @@ namespace PFE.Systems.Campaign
                 main = main,
                 locked = locked,
                 code = code,
-                // used / mReturn are not modelled yet: the port has no hardcore one-shot and no
-                // `mReturn` toggle, so both stay false rather than being invented.
+                // AS3 `Game.as:390-397` — `mReturn` is recomputed from the `noreturn` trigger on every
+                // land entry and is never stored, so it is derived here the same way rather than read
+                // from a field. Note the oracle's field initialiser is `true` (`Game.as:49`), and the
+                // trigger only ever turns it OFF: leaving this false by default (as it was) inverts the
+                // oracle's default and makes `offersTeleport` permanently false, so no checkpoint ever
+                // offers the return-to-camp interaction that sends the player to `baseId`.
+                mReturn = !GetTrigger("noreturn").IsGreaterThanZero(),
+                // `used` is still not modelled: it is AS3's hardcore one-shot
+                // (`World.w.hardInv && World.w.land.rnd`, CheckPoint.as:251-256), which the port has no
+                // equivalent of. It stays false rather than being invented — meaning a checkpoint is
+                // never consumed by teleporting, which is the permissive direction.
             });
 
             // AS3 areaActivate() is not activate() — it first requires `active == 0`
@@ -747,6 +978,13 @@ namespace PFE.Systems.Campaign
                 roomZ = room.z,
                 code = code ?? string.Empty,
             };
+
+            // AS3's `inter.actFun = this.teleport` (CheckPoint.as:236-238) — recorded here, from the
+            // same `offersTeleport` the log line below reads, so the button and the report cannot
+            // disagree. The `else` branch is `inter.active = false` (:243): a checkpoint that did not arm
+            // a return has a dead button, and writing null is what clears an offer left standing by an
+            // earlier checkpoint — the port of `deactivate()` when `pers.currentCP` moves on (:321-324).
+            ReturnCheckpoint = result.offersTeleport ? CurrentCheckpoint : null;
 
             // AS3 `if(code)` (CheckPoint.as:210-212) — an empty code leaves lastCpCode untouched.
             if (result.writesCode) state.lastCpCode = code;
@@ -786,6 +1024,16 @@ namespace PFE.Systems.Campaign
         /// <summary>
         /// AS3 <c>CheckPoint.teleport()</c> (<c>CheckPoint.as:250-267</c>). The target rule is
         /// <see cref="CheckpointRules.TeleportTarget"/>; this is the travel.
+        ///
+        /// <para><b>The caller is the checkpoint's own press</b> — <c>DoorPropPresenter</c> routes a press
+        /// here when <see cref="ReturnCheckpoint"/> (or a live <c>main</c> button) says the button is the
+        /// return. That routing is what made this method reachable from gameplay; before it, the only
+        /// caller was the debug overlay, so a correct target rule produced no travel anywhere.</para>
+        ///
+        /// <para><b>Not modelled:</b> the hardcore one-shot (<c>:257-261</c>), which spends the checkpoint
+        /// and deadens its button when <c>hardInv &amp;&amp; land.rnd</c>. The port has no <c>hardInv</c>, so
+        /// <c>used</c> stays false and a return never consumes the checkpoint — the permissive
+        /// direction.</para>
         /// </summary>
         /// <returns><c>true</c> when a transition was started.</returns>
         public bool TeleportToCheckpoint(bool main)
@@ -799,6 +1047,8 @@ namespace PFE.Systems.Campaign
             }
 
             Debug.Log($"[CampaignManager] checkpoint teleport -> '{target}' ({(main ? "main" : "hub")}).");
+            // GotoLand -> TransitionToLand, which drops the return offer: the destination builds its own
+            // rooms, and the oracle's re-pointed button does not survive that.
             GotoLand(target, 0, null);
             return true;
         }
@@ -972,6 +1222,23 @@ namespace PFE.Systems.Campaign
         public static bool IsTravelNpcInteraction(string interactionType)
         {
             return string.Equals(interactionType, "travel", StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// The mutable runtime state of a quest — AS3's <c>game.quests[id]</c>.
+        ///
+        /// <para><b>Why a live reference rather than a projection.</b> The quest journal needs per-sub
+        /// <c>est</c>, <c>gived</c> and <c>invis</c> (<c>PipPage.as:1324-1367</c>), and
+        /// <see cref="TryGetQuestState"/> only counts. Reading the object is safe because every writer
+        /// goes through <see cref="AddQuest"/> / <see cref="CloseQuest"/> / <see cref="CompleteQuest"/>,
+        /// which are the rules that keep <c>isClosed</c> and <c>check</c> apart. A caller that mutated
+        /// this directly would bypass all of them.</para>
+        /// </summary>
+        public bool TryGetQuestRuntime(string questId, out QuestRuntimeState runtime)
+        {
+            runtime = null;
+            if (string.IsNullOrEmpty(questId)) return false;
+            return _questRuntime.TryGetValue(questId, out runtime) && runtime != null;
         }
 
         public bool IsQuestActive(string questId)
@@ -1193,13 +1460,15 @@ namespace PFE.Systems.Campaign
                 QuestRules.Inc(facts, pair.Value, itemId, delta);
                 QuestRules.Check(facts, pair.Value, countOf, itemId);
 
-                if (pair.Value.State == (int)QuestState.Done) ApplyQuestClose(
-                    new QuestCloseOutcome { Closed = true, IsParent = true, QuestId = pair.Key,
-                                            Xp = facts.Xp, Sp = facts.Sp, Rep = facts.Rep,
-                                            Trigger = facts.Trigger, TriggerSet = facts.TriggerSet,
-                                            EndDial = facts.EndDial, EndScript = facts.EndScript,
-                                            NextQuestId = facts.NextQuestId },
-                    (int)QuestState.Active);
+                // `Check` closes the parent from inside itself when every required sub is done
+                // (Quest.as:426), so this must NOT call CloseParent again — the quest is already at
+                // state 2 and that would early-return an empty outcome, dropping the payout. The
+                // literal that used to stand here did drop the `<reward>` and `del` halves for exactly
+                // that reason; ParentPayout is the same projection CloseParent uses.
+                if (pair.Value.State == (int)QuestState.Done)
+                {
+                    ApplyQuestClose(QuestRules.ParentPayout(facts), (int)QuestState.Active);
+                }
             }
         }
 
@@ -1218,13 +1487,9 @@ namespace PFE.Systems.Campaign
                 QuestRules.Check(facts, pair.Value, countOf, changedItem);
                 if (before != (int)QuestState.Done && pair.Value.State == (int)QuestState.Done)
                 {
-                    ApplyQuestClose(
-                        new QuestCloseOutcome { Closed = true, IsParent = true, QuestId = pair.Key,
-                                                Xp = facts.Xp, Sp = facts.Sp, Rep = facts.Rep,
-                                                Trigger = facts.Trigger, TriggerSet = facts.TriggerSet,
-                                                EndDial = facts.EndDial, EndScript = facts.EndScript,
-                                                NextQuestId = facts.NextQuestId },
-                        before);
+                    // Same reasoning as IncQuests above: `Check` already closed the parent, so the
+                    // payout has to be projected rather than produced by a second CloseParent.
+                    ApplyQuestClose(QuestRules.ParentPayout(facts), before);
                 }
             }
         }
@@ -1258,6 +1523,30 @@ namespace PFE.Systems.Campaign
                           $"'{outcome.SubId}'.");
             }
 
+            // ── AS3 close() order, reproduced ────────────────────────────────────────────────────
+            // del withdrawals (:613-643) → xp/sp/rep (:645-656) → trigger (:657-660) →
+            // <reward> items and triggers (:661-689). The order is observable when a `del` stage
+            // collects the very item a `<reward>` row grants, and when a reward's trigger is read by
+            // a dialogue the same close starts — so it is copied rather than tidied.
+
+            // The `del` withdrawal. Only a parent close produces these (Quest.as:613 `if(!this.sub)`),
+            // which is why the list is empty on a sub-only outcome.
+            if (outcome.Withdrawals != null && outcome.Withdrawals.Count > 0)
+            {
+                if (_questRewards != null)
+                {
+                    _questRewards.WithdrawQuestItems(outcome.QuestId, outcome.Withdrawals);
+                }
+                else
+                {
+                    Debug.LogWarning(
+                        $"[CampaignManager] Quest '{outcome.QuestId}' withdraws " +
+                        $"{outcome.Withdrawals.Count} collected item stack(s) on close, but no " +
+                        "IQuestRewardHost is wired, so they were left in the inventory. AS3 removes " +
+                        "them from Quest.close (Quest.as:613-643).");
+                }
+            }
+
             if (outcome.Xp != 0 || outcome.Sp != 0 || outcome.Rep != 0)
             {
                 if (_questRewards != null)
@@ -1278,6 +1567,11 @@ namespace PFE.Systems.Campaign
                 SetTrigger(outcome.Trigger, TriggerValue.FromString(outcome.TriggerSet ?? "1"));
             }
 
+            // The `<reward>` children (Quest.as:661-689). A row can carry an item id, a trigger, or
+            // both — the Oracle's loop is two consecutive `if(@x.length())` tests, so each half is
+            // applied independently and a trigger-only row must not be mistaken for an empty one.
+            ApplyQuestRewards(outcome.QuestId, outcome.Rewards);
+
             PublishQuestStateChanged(runtime, previousState,
                 runtime?.State ?? previousState, outcome.IsParent ? null : outcome.SubId);
 
@@ -1290,6 +1584,51 @@ namespace PFE.Systems.Campaign
             if (!string.IsNullOrEmpty(outcome.NextQuestId))
             {
                 AddQuest(outcome.NextQuestId);
+            }
+        }
+
+        /// <summary>
+        /// Applies the <c>&lt;reward&gt;</c> rows of a close (<c>Quest.as:661-689</c>).
+        ///
+        /// <para><b>The two halves are split by owner, not by row.</b> The trigger half is written here
+        /// because the trigger table is this class's; the item half is handed to
+        /// <see cref="IQuestRewardHost"/> because the inventory is not. Splitting <i>within</i> a row is
+        /// what the Oracle does — two consecutive independent <c>if</c>s — so a row carrying both does
+        /// both and a row carrying neither is inert.</para>
+        /// </summary>
+        private void ApplyQuestRewards(string questId, List<QuestReward> rewards)
+        {
+            if (rewards == null || rewards.Count == 0) return;
+
+            List<QuestReward> itemRows = null;
+
+            for (int i = 0; i < rewards.Count; i++)
+            {
+                QuestReward reward = rewards[i];
+
+                // `if(_loc2_.@trigger.length())` (:677-687) — `@set` absent means the literal 1.
+                if (!string.IsNullOrEmpty(reward.Trigger))
+                {
+                    SetTrigger(reward.Trigger, TriggerValue.FromString(
+                        string.IsNullOrEmpty(reward.Set) ? "1" : reward.Set));
+                }
+
+                if (string.IsNullOrEmpty(reward.ItemId)) continue;
+                (itemRows ??= new List<QuestReward>()).Add(reward);
+            }
+
+            if (itemRows == null) return;
+
+            if (_questRewards != null)
+            {
+                _questRewards.GrantQuestItems(questId, itemRows);
+            }
+            else
+            {
+                Debug.LogWarning(
+                    $"[CampaignManager] Quest '{questId}' grants {itemRows.Count} reward item row(s), " +
+                    "but no IQuestRewardHost is wired, so they were dropped. AS3 hands them to " +
+                    "World.w.invent.take (Quest.as:661-676).");
             }
         }
 
@@ -1349,12 +1688,38 @@ namespace PFE.Systems.Campaign
             {
                 QuestId = definition.questId ?? "",
                 Title = string.IsNullOrEmpty(definition.questTitle) ? definition.questId : definition.questTitle,
+                Empl = definition.employer ?? "",
                 Xp = definition.rewardXp,
                 Sp = definition.rewardSp,
                 Rep = definition.rewardReputation,
                 IsMain = definition.isMainQuest,
                 NextQuestId = definition.nextQuestId ?? "",
+                // The four close-side scalars. `TriggerSet` keeps its "1" default when the authored
+                // `@triggerset` is absent — the Oracle writes that literal at Quest.as:214, and an
+                // empty string here would make SetTrigger write a trigger with no value.
+                Trigger = definition.trigger ?? "",
+                TriggerSet = string.IsNullOrEmpty(definition.triggerSet) ? "1" : definition.triggerSet,
+                EndDial = definition.endDialogueId ?? "",
+                BegDial = definition.beginDialogueId ?? "",
             };
+
+            if (definition.rewards != null)
+            {
+                for (int i = 0; i < definition.rewards.Count; i++)
+                {
+                    QuestRewardDefinition reward = definition.rewards[i];
+                    if (reward == null) continue;
+
+                    facts.Rewards.Add(new QuestReward
+                    {
+                        ItemId = reward.itemId ?? "",
+                        Count = reward.count <= 0 ? 1 : reward.count,
+                        Trigger = reward.trigger ?? "",
+                        // `if(_loc2_.@set.length()) … else triggers[…] = 1` (Quest.as:679-686).
+                        Set = string.IsNullOrEmpty(reward.set) ? "1" : reward.set,
+                    });
+                }
+            }
 
             if (definition.stages != null)
             {
@@ -1368,9 +1733,17 @@ namespace PFE.Systems.Campaign
                         SubId = stage.stageIndex.ToString(System.Globalization.CultureInfo.InvariantCulture),
                         Optional = stage.isOptional,
                         Hidden = stage.isHidden,
+                        Invis = stage.isInvisible,
                         Collect = stage.requiredItemId ?? "",
                         Kol = stage.requiredItemCount <= 0 ? 1 : stage.requiredItemCount,
                         Give = stage.turnInItemId ?? "",
+                        // `del` / `coltip` / `result` — the three sub attributes that had fields on
+                        // QuestSubFacts and no writer, so the close-side withdrawal and the whole
+                        // result-reveal pass were unreachable. `isResult` on the PARENT is re-derived
+                        // below, matching `this.par.result = true` (Quest.as:188-191).
+                        DeleteOnClose = stage.deleteOnClose,
+                        ColTip = stage.collectTip,
+                        IsResult = stage.isResult,
                     });
 
                     if (!string.IsNullOrEmpty(stage.requiredItemId)) facts.IsCheck = true;

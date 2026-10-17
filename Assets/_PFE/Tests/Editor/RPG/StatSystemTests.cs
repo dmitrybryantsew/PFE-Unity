@@ -425,19 +425,43 @@ namespace PFE.Tests.Editor.RPG
         }
 
         [Test]
-        [Description("Perk_Fails_WhenRequirementsNotMet")]
-        public void AddPerk_ReturnsFalse_WhenRequirementsNotMet()
+        [Description("Eligibility belongs to the picker's check, not to AddPerk")]
+        public void PerkEligibility_IsRefusedByCanUnlock_NotByAddPerk()
         {
-            // Arrange - Oak perk requires Melee 1
-            characterStats.GrantPerkPoints(1);
-            characterStats.SetSkillLevel("melee", 0); // Doesn't meet requirement
+            // AS3 `Pers.addPerk` contains no requirement test at all (Pers.as:1292-1322); its only
+            // refusal is the rank ceiling. Eligibility is applied by the picker, which dims an
+            // ineligible row to alpha 0.4 (PipPageStat.as:550-553) so the click cannot reach a commit.
+            //
+            // This used to be asserted as `AddPerk("oak") == false`, which was only ever true because
+            // AddPerk kept a second copy of CanUnlock. That second copy is exactly what refused the
+            // begin land's scripted `perk levitation` grant (GameData.as:1225) and left the player
+            // without the tutorial's double jump.
+            var database = Resources.Load<SkillDefinitionDatabase>("SkillDefinitionDatabase");
+            Assert.IsNotNull(database, "The perk database must load or this fixture tests nothing");
 
-            // Act
+            var oak = database.GetPerk("oak");
+            Assert.IsNotNull(oak, "oak must exist in the database");
+
+            // Arrange - Oak perk requires Melee TIER 1 (AllData.as:5376), i.e. raw 2
+            // (AS3 getSkLevel, Pers.as:995-1018: raw 1 -> tier 0, raw 2 -> tier 1).
+            characterStats.SetSkillLevel("melee", 0);
+
+            Assert.IsFalse(oak.CanUnlock(characterStats, 0),
+                "An ineligible perk must be refused by the picker's own check");
+
+            characterStats.SetSkillLevel("melee", 2);
+
+            Assert.IsTrue(oak.CanUnlock(characterStats, 0),
+                "…and must become eligible once the requirement is met");
+
+            // Act — and the grant path is deliberately indifferent to it, because the Oracle's
+            // `addPerk` never consults a requirement: a script that grants a perk grants it.
             bool result = characterStats.AddPerk("oak");
 
             // Assert
-            Assert.IsFalse(result, "Should fail without meeting requirements");
-            Assert.AreEqual(0, characterStats.GetPerkRank("oak"), "Oak perk should remain 0");
+            Assert.IsTrue(result,
+                "AddPerk must not re-impose a requirement the Oracle keeps in the picker");
+            Assert.AreEqual(1, characterStats.GetPerkRank("oak"), "…and the perk must land");
         }
 
         [Test]
@@ -571,9 +595,11 @@ namespace PFE.Tests.Editor.RPG
             Assert.AreEqual(2, characterStats.GetSkillTier("melee"), "Melee should be tier 2");
             Assert.AreEqual(0, characterStats.SkillPoints, "Should have 0 skill points remaining");
 
-            // Allocate perk point
+            // Allocate perk point — through the PICKER's form, because allocating is what the picker
+            // does. `AddPerk(id)` is the Oracle's own default and is FREE (Pers.as:1292
+            // `param2 = false`), so a one-argument call here would leave the point unspent.
             characterStats.SetSkillLevel("melee", 2); // Oak requires melee tier 1 (raw 2)
-            characterStats.AddPerk("oak");
+            characterStats.AddPerk("oak", true);
             Assert.AreEqual(1, characterStats.GetPerkRank("oak"), "Should have oak perk");
             Assert.AreEqual(0, characterStats.PerkPoints, "Should have 0 perk points remaining");
         }

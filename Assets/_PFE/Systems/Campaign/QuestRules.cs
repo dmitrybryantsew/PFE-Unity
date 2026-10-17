@@ -45,7 +45,21 @@ namespace PFE.Systems.Campaign
         /// (<c>isResult</c>, <c>Quest.as:549-575</c>).</summary>
         public bool IsResult;
 
-        /// <summary>AS3 <c>invis</c> — hidden from the journal until <c>showSub</c>.</summary>
+        /// <summary>AS3 <c>invis</c> — the objective is <b>not listed</b> in the journal at all until
+        /// something opens it (<c>Quest.showSub</c>, <c>Quest.as:594-601</c>; the journal skips it at
+        /// <c>PipPage.as:1326</c>).</summary>
+        public bool Invis;
+
+        /// <summary>AS3 <c>hidden</c> — the objective <b>is</b> listed, but its text is replaced by
+        /// <c>?????</c> until it is either revealed or counted (<c>PipPage.as:1334-1341</c>).
+        ///
+        /// <para><b>Not the same flag as <see cref="Invis"/>, and the two were merged until
+        /// 2026-10-14.</b> <c>GameData.as:1713-1722</c> documents them on consecutive lines and the
+        /// shipped data uses both: 45 objectives carry <c>invis='1'</c> and 13 carry <c>hidden='1'</c>,
+        /// with no overlap in intent. The importer read <c>invis</c> into this field, which would have
+        /// put <c>?????</c> on the invisible rows and the real text on the hidden ones — wrong in both
+        /// directions at once.</para>
+        /// </summary>
         public bool Hidden;
 
         /// <summary>AS3 <c>collect</c> — the item id this sub counts.</summary>
@@ -67,6 +81,47 @@ namespace PFE.Systems.Campaign
     }
 
     /// <summary>
+    /// One <c>&lt;reward&gt;</c> row, projected off the authored quest
+    /// (<c>Quest.as:661-689</c>).
+    ///
+    /// <para><b>Both halves can be present on the same row and each is independently optional.</b> The
+    /// Oracle's loop is two consecutive <c>if(@x.length())</c> tests, so a row with neither is inert and
+    /// a row with both does both. Keeping it one record rather than two lists preserves the authored
+    /// order, which is the only thing that makes the two halves observable together.</para>
+    /// </summary>
+    public struct QuestReward
+    {
+        /// <summary>AS3 <c>@id</c> — the item (or weapon) granted. Empty on a trigger-only row.</summary>
+        public string ItemId;
+
+        /// <summary>AS3 <c>@kol</c>, defaulting to <c>1</c> when absent (<c>Quest.as:667-674</c>).</summary>
+        public int Count;
+
+        /// <summary>AS3 <c>@trigger</c> — written instead of, or as well as, granting an item.</summary>
+        public string Trigger;
+
+        /// <summary>AS3 <c>@set</c>, defaulting to <c>"1"</c> when absent (<c>Quest.as:679-686</c>).</summary>
+        public string Set;
+    }
+
+    /// <summary>
+    /// One withdrawal performed by <c>Quest.close</c> — AS3 <c>Quest.as:613-643</c>, gated on the
+    /// parent (<c>!this.sub</c>) and on <c>isDel</c>.
+    /// </summary>
+    public struct QuestWithdrawal
+    {
+        /// <summary>AS3 <c>@collect</c> — the id to remove.</summary>
+        public string Id;
+
+        /// <summary>AS3 <c>@kol</c> — how many to remove.</summary>
+        public int Count;
+
+        /// <summary>AS3 <c>@coltip</c> — <c>1</c> means the id names a weapon, so the removal goes
+        /// through <c>remWeapon</c> rather than <c>minusItem</c> (<c>Quest.as:631-641</c>).</summary>
+        public int ColTip;
+    }
+
+    /// <summary>
     /// The immutable half of one quest — the projection the rules run on. See
     /// <see cref="QuestSubFacts"/> for why the asset itself cannot be used.</summary>
     public sealed class QuestFacts
@@ -74,6 +129,15 @@ namespace PFE.Systems.Campaign
         public string QuestId = "";
         public string Title = "";
         public List<QuestSubFacts> Subs = new List<QuestSubFacts>();
+
+        /// <summary>
+        /// AS3 <c>Quest.empl</c> — the unit id of whoever gives the quest
+        /// (<c>&lt;quest empl="guide"&gt;</c>, <c>Quest.as:120-123</c>).
+        ///
+        /// <para>The journal renders it as <c>Res.txt("u", empl)</c> under the synopsis
+        /// (<c>PipPage.as:1318-1321</c>), so it is a <b>unit id</b>, not a display name.</para>
+        /// </summary>
+        public string Empl = "";
 
         /// <summary>AS3 <c>xp</c> / <c>sp</c> / <c>rep</c> — paid on close (<c>Quest.as:645-656</c>).</summary>
         public int Xp;
@@ -108,6 +172,13 @@ namespace PFE.Systems.Campaign
 
         /// <summary>AS3 <c>@next</c> — the quest granted when this one closes.</summary>
         public string NextQuestId = "";
+
+        /// <summary>
+        /// AS3 <c>this.xml.reward</c> — the parent's <c>&lt;reward&gt;</c> children, paid on close
+        /// (<c>Quest.as:661-689</c>). Only the parent's own rows are read: <c>close()</c> runs on the
+        /// parent instance, so a <c>&lt;reward&gt;</c> authored inside a <c>&lt;q&gt;</c> is never paid.
+        /// </summary>
+        public List<QuestReward> Rewards = new List<QuestReward>();
 
         public QuestSubFacts FindSub(string subId)
         {
@@ -186,7 +257,7 @@ namespace PFE.Systems.Campaign
                         // AS3's Quest constructor sets `state = 1` on every node, parent and sub alike
                         // (Quest.as:109), and `invis` comes from the authored `@invis` (Quest.as:177-184).
                         State = (int)QuestState.Active,
-                        Invis = sub.Hidden,
+                        Invis = sub.Invis,
                     });
                 }
             }
@@ -223,7 +294,6 @@ namespace PFE.Systems.Campaign
         public int Xp;
         public int Sp;
         public int Rep;
-
         /// <summary>Trigger to write — AS3 <c>Quest.as:657-660</c>.</summary>
         public string Trigger;
         public string TriggerSet;
@@ -236,6 +306,20 @@ namespace PFE.Systems.Campaign
 
         /// <summary>The chained quest to grant — AS3 <c>@next</c>.</summary>
         public string NextQuestId;
+
+        /// <summary>
+        /// The <c>&lt;reward&gt;</c> rows to pay — AS3 <c>Quest.as:661-689</c>. Applied by the caller
+        /// through <c>IQuestRewardHost</c> (items) and <c>SetTrigger</c> (trigger rows), because neither
+        /// the inventory nor the trigger table exists at this layer.
+        /// </summary>
+        public List<QuestReward> Rewards;
+
+        /// <summary>
+        /// The <c>del</c> withdrawals to perform — AS3 <c>Quest.as:613-643</c>. Only a parent close ever
+        /// produces these (<c>if(!this.sub)</c>), which is why they are computed in
+        /// <see cref="QuestRules.CloseParent"/> and not in <c>CloseSub</c>.
+        /// </summary>
+        public List<QuestWithdrawal> Withdrawals;
     }
 
     /// <summary>
@@ -386,6 +470,8 @@ namespace PFE.Systems.Campaign
                 outcome.EndDial = parent.EndDial;
                 outcome.EndScript = parent.EndScript;
                 outcome.NextQuestId = parent.NextQuestId;
+                outcome.Rewards = parent.Rewards;
+                outcome.Withdrawals = parent.Withdrawals;
             }
 
             return outcome;
@@ -404,11 +490,14 @@ namespace PFE.Systems.Campaign
         /// <summary>
         /// AS3 <c>Quest.close()</c> (<c>Quest.as:603-708</c>) — mark done and compute the payout.
         ///
-        /// <para><b>What is deliberately not computed here.</b> The <c>isDel</c> item withdrawal and the
-        /// <c>&lt;reward&gt;</c> item grants both need the inventory (<c>Quest.as:613-643</c>,
-        /// <c>:661-689</c>), and the port has no "an item changed" notification to hang them off. They are
-        /// the one part of this file with an external dependency, and they are reported by the caller
-        /// rather than silently skipped — see <c>CampaignManager.ApplyQuestClose</c>.</para>
+        /// <para><b>The item halves are computed here; they are applied elsewhere.</b> The <c>isDel</c>
+        /// withdrawal (<c>:613-643</c>) and the <c>&lt;reward&gt;</c> grants (<c>:661-689</c>) are
+        /// <i>decided</i> on the outcome — as <see cref="QuestCloseOutcome.Withdrawals"/> and
+        /// <see cref="QuestCloseOutcome.Rewards"/> — and <i>performed</i> by
+        /// <c>CampaignManager.ApplyQuestClose</c>, which is the layer that has the inventory and the
+        /// trigger table. Deciding them here is what keeps this file Unity-free and offline-testable;
+        /// leaving them out entirely, which is what this method used to do, made the two halves
+        /// indistinguishable from a quest that pays nothing.</para>
         /// </summary>
         public static QuestCloseOutcome CloseParent(QuestFacts facts, QuestRuntimeState runtime)
         {
@@ -419,6 +508,25 @@ namespace PFE.Systems.Campaign
             if (runtime.State == (int)QuestState.Done) return outcome;
 
             runtime.State = (int)QuestState.Done;
+            return ParentPayout(facts);
+        }
+
+        /// <summary>
+        /// The parent's payout — every field <c>close()</c> reads — <b>without</b> touching state.
+        ///
+        /// <para><b>Why this is separate from <see cref="CloseParent"/>.</b> <c>Quest.check</c> closes the
+        /// parent from inside itself (<c>Quest.as:426</c> → <c>close()</c>) and returns only the changed
+        /// sub id, so the callers that need the payout — <c>CampaignManager.IncQuests</c> and
+        /// <c>CheckQuests</c> — cannot call <see cref="CloseParent"/> again: the quest is already at
+        /// state 2 and it would early-return an empty outcome. They used to build the struct literal by
+        /// hand instead, in two places, and adding a field to <see cref="QuestCloseOutcome"/> left both
+        /// of them silently dropping it — which is precisely the shape of the <c>&lt;reward&gt;</c> and
+        /// <c>del</c> halves before this existed. One projection, three callers.</para>
+        /// </summary>
+        public static QuestCloseOutcome ParentPayout(QuestFacts facts)
+        {
+            var outcome = new QuestCloseOutcome();
+            if (facts == null) return outcome;
 
             outcome.Closed = true;
             outcome.IsParent = true;
@@ -431,7 +539,46 @@ namespace PFE.Systems.Campaign
             outcome.EndDial = facts.EndDial;
             outcome.EndScript = facts.EndScript;
             outcome.NextQuestId = facts.NextQuestId;
+            outcome.Rewards = facts.Rewards ?? new List<QuestReward>();
+            outcome.Withdrawals = CollectWithdrawals(facts);
             return outcome;
+        }
+
+        /// <summary>
+        /// AS3 <c>close()</c>'s first loop — the <c>del</c> withdrawals (<c>Quest.as:613-643</c>).
+        ///
+        /// <para><b>Three gates, all of them the Oracle's.</b> The loop only runs for a parent
+        /// (<c>if(!this.sub)</c>), only for a sub with <c>isDel</c>, and <c>isDel</c> itself is only ever
+        /// set inside <c>if(this.xml.@collect.length())</c> (<c>:140-156</c>) — so a <c>del</c> without a
+        /// <c>collect</c> is unreachable data, which is why the <c>Collect</c> test below is a faithful
+        /// restatement rather than defensive padding.</para>
+        ///
+        /// <para><b>What is deliberately not decided here.</b> Whether <c>colTip</c> means
+        /// <c>minusItem</c> or <c>remWeapon</c> is the inventory's business; the value is carried through
+        /// so the host can branch on it. The Oracle's <c>try/catch</c> around the <c>infoText</c> call
+        /// (<c>:622-628</c>) exists only to swallow a missing display name, and the withdrawal itself is
+        /// outside it.</para>
+        /// </summary>
+        private static List<QuestWithdrawal> CollectWithdrawals(QuestFacts facts)
+        {
+            var withdrawals = new List<QuestWithdrawal>();
+            if (facts?.Subs == null) return withdrawals;
+
+            for (int i = 0; i < facts.Subs.Count; i++)
+            {
+                QuestSubFacts sub = facts.Subs[i];
+                if (sub == null || !sub.DeleteOnClose) continue;
+                if (string.IsNullOrEmpty(sub.Collect)) continue;
+
+                withdrawals.Add(new QuestWithdrawal
+                {
+                    Id = sub.Collect,
+                    Count = sub.Kol,
+                    ColTip = sub.ColTip,
+                });
+            }
+
+            return withdrawals;
         }
 
         /// <summary>

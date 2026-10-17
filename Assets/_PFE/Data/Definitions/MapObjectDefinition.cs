@@ -182,6 +182,34 @@ namespace PFE.Data.Definitions
         }
 
         /// <summary>
+        /// AS3 <c>rem</c> — the row's <c>@rem</c>, which decides whether this object is subject to the
+        /// doorway test at all.
+        ///
+        /// <para><b>It is read off the DEFINITION row, not the placement.</b>
+        /// <c>Location.buildLoc()</c> copies it onto the object-table record
+        /// (<c>Location.as:695</c> <c>"rem":xmll.@rem</c>, where <c>xmll</c> is
+        /// <c>AllData.d.obj.(@id == obj.@id)[0]</c>), and the only consumer is the placement guard
+        /// <c>Location.as:1017</c>: an authored object is skipped when
+        /// <c>noHolesPlace &amp;&amp; rem &gt; 0 &amp;&amp; !space[x][y].place</c>.</para>
+        ///
+        /// <para><b>Absence means 0, and 0 means "not gated".</b> Only <b>24</b> of the 202 shipped
+        /// definitions carry <c>rem='1'</c> — the containers (<c>ammobox</c>, <c>case</c>, <c>chest</c>,
+        /// <c>explbox</c>, <c>table</c>, …) and the five enemy-point markers (<c>enl1</c>, <c>enl2</c>,
+        /// <c>enf1</c>, <c>enc1</c>, <c>lov</c>). Every unit, trap and spike has none, so AS3 places
+        /// those <i>regardless</i> of the tile's <c>place</c> flag. Treating a missing attribute as
+        /// "gated" is what let the doorway mark delete whole rooms — see
+        /// <c>RoomPopulator.SkipsAuthoredPlacement</c>.</para>
+        ///
+        /// <para>This is a <i>reader</i>, not a new stored field: the importer already preserves
+        /// <c>rem</c> verbatim in <see cref="legacyAttributes"/> (it is present on all 24 assets), so
+        /// deriving it here needs no re-import and cannot go stale the way a cached field can.</para>
+        /// </summary>
+        public int GetRem()
+        {
+            return ParseIntAttribute("rem", 0);
+        }
+
+        /// <summary>
         /// AS3 <c>Box.door_opac</c> — the <c>@opac</c> a door stamps onto every tile it covers.
         ///
         /// <para><c>Box.as:72</c> declares it as <c>1</c>, <c>:293-295</c> parses <c>@opac</c> into it,

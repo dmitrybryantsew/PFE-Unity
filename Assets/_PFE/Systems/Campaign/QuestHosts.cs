@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace PFE.Systems.Campaign
 {
     /// <summary>
@@ -12,6 +14,13 @@ namespace PFE.Systems.Campaign
     /// <para><b>An unwired host is reported, not silent.</b> A quest that pays nothing looks exactly like
     /// a quest whose rewards are zero, which is why <c>CampaignManager.ApplyQuestClose</c> warns by name
     /// when this is null and a payout was owed.</para>
+    ///
+    /// <para><b>Three methods, because <c>close()</c> has three payout shapes.</b> The scalars
+    /// (<c>xp</c>/<c>sp</c>/<c>rep</c>, <c>:645-656</c>), the <c>&lt;reward&gt;</c> grants
+    /// (<c>:661-689</c>) and the <c>del</c> withdrawals (<c>:613-643</c>) all land in the same two
+    /// places — the character stats and the inventory — so splitting them across three interfaces would
+    /// be three seams with one implementation. They are separate <i>methods</i> rather than one, because
+    /// each has a different reason to fail and a different thing to report.</para>
     /// </summary>
     public interface IQuestRewardHost
     {
@@ -20,6 +29,19 @@ namespace PFE.Systems.Campaign
         /// <param name="sp">AS3 <c>@sp</c> — skill points.</param>
         /// <param name="reputation">AS3 <c>@rep</c>.</param>
         void GrantQuestRewards(string questId, int xp, int sp, int reputation);
+
+        /// <summary>
+        /// Grants the quest's <c>&lt;reward&gt;</c> items — AS3 <c>World.w.invent.take(item, 2)</c>
+        /// (<c>Quest.as:661-676</c>). Rows carrying only a trigger are skipped here; the trigger half is
+        /// applied by <c>CampaignManager</c>, which owns the trigger table.
+        /// </summary>
+        void GrantQuestItems(string questId, IReadOnlyList<QuestReward> rewards);
+
+        /// <summary>
+        /// Removes the collected items of every <c>del</c> stage — AS3 <c>minusItem</c> / <c>remWeapon</c>
+        /// (<c>Quest.as:613-643</c>). <see cref="QuestWithdrawal.ColTip"/> selects which of the two.
+        /// </summary>
+        void WithdrawQuestItems(string questId, IReadOnlyList<QuestWithdrawal> withdrawals);
     }
 
     /// <summary>
@@ -28,8 +50,17 @@ namespace PFE.Systems.Campaign
     ///
     /// <para>A quest's <c>endscr</c> is the caller that matters (<c>Quest.as:704-707</c>), and the same
     /// seam is what an event hook (a script that runs because a trigger changed) will use. Kept separate
-    /// from <see cref="QuestRewardHost"/> because the two have different implementers: rewards need the
+    /// from <see cref="IQuestRewardHost"/> because the two have different implementers: rewards need the
     /// player, a script needs the script runner.</para>
+    ///
+    /// <para><b>It has no quest-side caller, and that is a measured fact rather than an assumption.</b>
+    /// <c>endscr</c> occurs <b>zero</b> times across every <c>&lt;quest&gt;</c> in <c>GameData.as</c> —
+    /// the attribute vocabulary of the shipped quests is <c>id</c>, <c>rep</c>, <c>empl</c>, <c>xp</c>,
+    /// <c>main</c>, <c>enddial</c>, <c>begdial</c>, <c>trigger</c>, <c>triggerset</c>, <c>sp</c> and
+    /// <c>cid</c>, and <c>endscr</c> is not among them. So the null registration is correct today, and a
+    /// future authored one cannot go silent: <c>CampaignManager.ApplyQuestClose</c> reports by name when
+    /// this is null and an <c>endscr</c> was owed. (Compare <c>Quest.as:132-135</c>, which does read it —
+    /// the field is live in the Oracle, it is simply unused by the data.)</para>
     /// </summary>
     public interface IQuestScriptHost
     {

@@ -39,6 +39,8 @@ namespace PFE.Editor.Importers
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
 
+            WarnAboutMissingPersonaArt(npcs);
+
             Debug.Log($"[DialogueDataImporter] Successfully imported {npcs.Count} NPCs and {scripts.Count} Scripts into Campaign resources.");
 
             if (interactive)
@@ -89,7 +91,26 @@ namespace PFE.Editor.Importers
                     AssetDatabase.CreateAsset(npcDef, assetPath);
                 }
 
+                // `CopySerialized` overwrites EVERY serialised field on the target, and the parser is
+                // only a source for the fields GameData.as carries. `visualSprite` is not one of them:
+                // it is written by UnitSpriteImporter's NPC pass from the SWF sprite export, so it is
+                // *asset* state, not *data* state. Copying over it nulls it silently.
+                //
+                // That is not hypothetical — it is how Calamity lost his body. `PFE/Art/Import Unit
+                // Sprites` writes the sprite, `PFE/Campaign/Import NPCs and Scripts` (and therefore
+                // `Import Entire Campaign`) erases it, and neither step reports anything, so "I
+                // imported everything" ends with every persona pointing at no art. Measured in the
+                // asset mtimes of the run that produced it: art at 12:37, NPCs at 12:38, lands at
+                // 12:41.
+                Sprite importedVisual = npcDef.visualSprite;
+
                 EditorUtility.CopySerialized(parsed, npcDef);
+
+                // Restored rather than merged: the parser has no opinion about this field, so the value
+                // already on the asset is the only correct one. Re-running the art import is still what
+                // *creates* it the first time.
+                npcDef.visualSprite = importedVisual;
+
                 EditorUtility.SetDirty(npcDef);
                 npcResults.Add(npcDef);
             }
@@ -114,6 +135,50 @@ namespace PFE.Editor.Importers
             }
 
             return (npcResults, scriptResults);
+        }
+
+        /// <summary>
+        /// Say so when a persona names a <c>vis</c> but has no body sprite — the one failure mode this
+        /// import can neither create nor detect from its own inputs.
+        ///
+        /// <para><b>Why it is worth a warning rather than silence.</b> <c>vis</c> and <c>visualSprite</c>
+        /// come from two different importers (<c>GameData.as</c> and the SWF sprite export), so a run
+        /// order that ends with this one leaves every persona artless while both importers report
+        /// success. The symptom is a single NPC drawn as a floating weapon — which reads as "the model
+        /// is broken", not as "an asset field is null", and cost a debugging session to place. The
+        /// sprite is preserved above, so this warning fires only when it was never imported (or when the
+        /// persona's <c>vis</c> names a symbol with no frames, which
+        /// <c>UnitSpriteImporter</c> reports as <c>npc personas … with no visual</c>).</para>
+        ///
+        /// <para>An absent <c>vis</c> is <b>not</b> reported: it is optional in the Oracle and falls back
+        /// to <c>visualVendor</c> (<c>UnitNPC.as:107</c>).</para>
+        /// </summary>
+        private static void WarnAboutMissingPersonaArt(List<NpcDefinition> npcs)
+        {
+            var missing = new List<string>();
+
+            for (int i = 0; i < npcs.Count; i++)
+            {
+                NpcDefinition npc = npcs[i];
+                if (npc == null) continue;
+                if (string.IsNullOrWhiteSpace(npc.visualId)) continue;
+                if (npc.visualSprite != null) continue;
+                missing.Add(npc.npcId);
+            }
+
+            if (missing.Count == 0) return;
+
+            // Capped, because this is a summary and the full list belongs in the art importer's report.
+            const int shown = 12;
+            string ids = string.Join(", ", missing.GetRange(0, Math.Min(shown, missing.Count)));
+            if (missing.Count > shown) ids += ", …";
+
+            Debug.LogWarning(
+                $"[DialogueDataImporter] {missing.Count} of {npcs.Count} NPC personas name a `vis` but " +
+                "carry no body sprite, so they will spawn as colliders with no art. This import neither " +
+                "creates that sprite nor overwrites it — run PFE/Art/Import Unit Sprites. If it has " +
+                $"already been run, those personas name a symbol the sprite export does not have. " +
+                $"Affected: {ids}");
         }
     }
 }

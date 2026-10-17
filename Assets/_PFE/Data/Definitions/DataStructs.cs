@@ -834,6 +834,23 @@ namespace PFE.Data.Definitions
         public float dexterity;              // Signed dexterity modifier  AS3 @dexter
 
         /// <summary>
+        /// Stealth modifier — AS3 <c>Armor.sneak</c>, from the <c>&lt;upd sneak='…'&gt;</c> attribute
+        /// (<c>Armor.as:262-266</c>). Scales <c>Pers.visiMult</c> (<c>Pers.as:2025-2029</c>) and is the
+        /// reason a suit of armour can make you harder to see.
+        ///
+        /// <para><b>Neutral is 0</b> (<c>Armor.as:38</c>), and the sign is negative-for-better: the
+        /// <c>&lt;upd&gt;</c> values in the shipped data are <c>-0.1</c>…<c>-0.3</c>, i.e. a
+        /// <i>reduction</i> in visibility. The PipBuck prints it as <c>Math.round(sneak * 100)%</c>
+        /// (<c>PipPage.as:621-624</c>), so <c>-0.2</c> reads as <c>-20%</c>.</para>
+        ///
+        /// <para>Measured 2026-10-14: 9 of the 55 <c>&lt;upd&gt;</c> elements carry <c>sneak</c>. It was
+        /// previously on <see cref="ArmourDataParser"/>'s omission list as "the port has no sneak
+        /// channel" — true of the <i>combat</i> aggregator, but the info pane reads it directly from the
+        /// instance, so the value is now carried rather than lost.</para>
+        /// </summary>
+        public float sneak;                  // Stealth modifier, negative is better  AS3 @sneak
+
+        /// <summary>
         /// Chance (0..1) that the flat rating applies to a hit — AS3 <c>Armor.armor_qual</c>, parsed
         /// from an armour item's <c>&lt;upd qual='…'&gt;</c> (<c>Armor.as:205-207</c>). Consumed as
         /// <c>isrnd(qual)</c> = <c>Math.random() &lt; qual</c> (<c>Unit.as:4855</c>).
@@ -860,6 +877,23 @@ namespace PFE.Data.Definitions
         /// <see cref="VulnerabilityData"/>.
         /// </summary>
         public ResistTable resists;
+
+        /// <summary>
+        /// Radiation vulnerability — AS3 <c>Armor.radVul</c>, from the <c>&lt;upd radx='…'&gt;</c>
+        /// attribute as <c>radVul = 1 - radx</c> (<c>Armor.as:250-253</c>). Consumed by
+        /// <c>Pers.armorParameters()</c> (<c>Pers.as:2031-2035</c>) and printed by the PipBuck as
+        /// <c>Math.round((1 - radVul) * 100)%</c> (<c>PipPage.as:641-644</c>) — i.e. the pane shows
+        /// <c>radx</c> back, which is the number the content author wrote.
+        ///
+        /// <para><b>Neutral is 1, not 0.</b> The AS3 field default is <c>1</c> (<c>Armor.as:36</c>) and
+        /// the pane's gate is <c>radVul &lt; 1</c>, so 0 would print "radx: 100%" on every armour that
+        /// never declared one. <see cref="ArmourDataParser"/> therefore seeds every
+        /// <see cref="EquipmentData"/> with <c>1</c> before reading the attributes — the one field here
+        /// that cannot rely on <c>default</c>.</para>
+        ///
+        /// <para>Measured 2026-10-14: 6 of the 55 <c>&lt;upd&gt;</c> elements carry <c>radx</c>.</para>
+        /// </summary>
+        public float radVul;
     }
 
     /// <summary>

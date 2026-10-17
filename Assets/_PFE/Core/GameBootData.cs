@@ -29,6 +29,21 @@ namespace PFE.Core
             return _pendingNewGame?.Clone();
         }
 
+        /// <summary>
+        /// The pending new game's difficulty as the Oracle's <c>globalDif</c> index (0..4), or
+        /// <paramref name="fallback"/> when no new game is pending.
+        ///
+        /// <para><b>The two numbering schemes already agree, so there is no translation to get
+        /// wrong.</b> <c>NewGameDifficulty</c> runs 0..4 with <c>Normal = 2</c>; the Oracle's
+        /// <c>globalDif</c> runs 0..4 with a default of 2 (<c>Game.as:41</c>). This exists so the boot
+        /// seed (<c>GameManager</c>) and the Pip-Buck readout can both go through one place without either
+        /// of them depending on <c>NewGameSettings</c>' type.</para>
+        /// </summary>
+        public static int PendingDifficultyIndex(int fallback = 2)
+        {
+            return _pendingNewGame != null ? (int)_pendingNewGame.difficulty : fallback;
+        }
+
         public static NewGameSettings ConsumePendingNewGame()
         {
             NewGameSettings settings = _pendingNewGame?.Clone();

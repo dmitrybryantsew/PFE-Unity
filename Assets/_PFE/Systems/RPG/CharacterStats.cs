@@ -5,8 +5,10 @@ using PFE.Core.Messages;
 using PFE.Core.Rng;
 using PFE.Data.Definitions;
 using PFE.Entities.Units;
+using PFE.Systems.Campaign;
 using PFE.Systems.Combat;
 using PFE.Systems.Effects;
+using PFE.Systems.Loot;
 using PFE.Systems.RPG.Data;
 using PFE.Systems.Weapons;
 
@@ -24,7 +26,7 @@ namespace PFE.Systems.RPG
     /// - Direct reactive bridge to UnitStats
     /// - Universal AS3 <sk> modifier evaluation via StatModifierApplier
     /// </summary>
-    public class CharacterStats : MonoBehaviour, Data.ICharacterStats, IWeaponStatSource, IManaSource
+    public class CharacterStats : MonoBehaviour, Data.ICharacterStats, IWeaponStatSource, IManaSource, ILootPersFlags
     {
         [Header("Base Stats")]
         [SerializeField] private int level = 1;
@@ -61,6 +63,19 @@ namespace PFE.Systems.RPG
 
         // Perk ranks: perkId -> rank
         private readonly Dictionary<string, int> perkRanks = new Dictionary<string, int>();
+
+        /// <summary>
+        /// AS3 <c>Pers.addictions</c> (<c>Pers.as:29</c>) — chem id -> accumulated severity, in the same
+        /// units as <see cref="ad2"/>/<see cref="ad3"/>.
+        ///
+        /// <para><b>Empty, and that is the oracle's starting state too</b> — <c>Pers.as:515</c> assigns a
+        /// fresh empty array in the constructor and only <c>Invent.usePotion</c> (<c>Invent.as:496-504</c>)
+        /// ever writes into it. The port has no chem-use path yet (see
+        /// <c>ActiveEffect</c>'s note that the addiction model is unported), so nothing populates this;
+        /// the accessor exists so <c>effStr</c> reads the real table rather than a hardcoded 0, and so
+        /// the chem path has a destination when it lands.</para>
+        /// </summary>
+        private readonly Dictionary<string, float> addictions = new Dictionary<string, float>();
 
         // Weapon skills multipliers: the numeric weapon-skill code (AS3 `<sk tip='weap' id='N'>`,
         // 1..7 = melee/smallguns/repair/energy/explosives/magic/tele) -> multiplier (default 1.0).
@@ -215,6 +230,125 @@ namespace PFE.Systems.RPG
         [HideInInspector] public float allVulnerMult = 1.0f;
         [HideInInspector] public float critCh = 0.05f;
         [HideInInspector] public float critDamMult = 2.0f;
+
+        /// <summary>
+        /// AS3 <c>Pers.satsMult</c> (<c>Pers.as:301</c>, 1) — the <b>S.A.T.S. action-point cost</b>
+        /// multiplier. <c>Weapon.setPers</c> does <i>not</i> copy it onto the weapon; the cost is
+        /// computed at read time as <c>satsCons * consMult / skillConf * satsMult</c>
+        /// (<c>PipPage.as:568</c>, <c>Sats.as:241</c>). The <c>mathlogic</c> perk lowers it to
+        /// 0.85 / 0.75 (<c>AllData.as:5626</c>, <c>v0='1' v1='0.85' v2='0.75'</c>).
+        ///
+        /// <para>Resetting it to 1 is faithful: <c>defaultParams()</c> has no line for it, but it is a
+        /// pure <c>&lt;sk&gt;</c> target and the recompute re-applies whatever the held perks give, so a
+        /// dropped <c>mathlogic</c> must not leave 0.75 behind — the same reasoning as
+        /// <c>reloadMult</c>/<c>recoilMult</c>.</para>
+        /// </summary>
+        [HideInInspector] public float satsMult = 1f;
+
+        // ── Perk-derived weapon stats (AS3 Pers dynamic members) ───────────────
+        //
+        // AS3's Pers is a dynamic object: `setSkillParam` writes ANY <sk id='X'> as `pers.X`
+        // (Pers.as:1522-1525). Weapon.setPers then reads the ones named `<perk><Suffix>` for each
+        // perk family the weapon opts into (Weapon.as:1000-1041):
+        //
+        //     for each perk in weaponPerks:
+        //         if(this.opt[perk])                      // the weapon's own root @perk
+        //             precMult  *= pers[perk + "Prec"]
+        //             consMult  *= pers[perk + "Cons"]
+        //             damMult   *= pers[perk + "Dam"]
+        //             speedMult *= pers[perk + "Speed"]
+        //             damAdd    += pers[perk + "Det"]
+        //             pierAdd   += pers[perk + "Pier"]
+        //             critchAdd += pers[perk + "Critch"]
+        //             otbrosMult*= pers[perk + "Knock"]
+        //             devMult   *= pers[perk + "Dev"]
+        //             dopDamage += pers[perk + "Stun"]    (and dopEffect = "stun", dopCh = 1)
+        //
+        // The port models a fixed field set, so these live in one dictionary keyed by the full statId
+        // ("pistolPrec"). Before this existed, every one of them hit ApplyNamedStat's `default:` and
+        // was dropped with a warning, so the values were in the perk assets and had no reader.
+
+        /// <summary>
+        /// The ten perk families <c>Weapon.setPers</c> loops over (<c>Weapon.as:16</c>). A weapon opts
+        /// into exactly one through its root <c>perk</c> attribute — <c>opt</c> is written in exactly
+        /// one place, <c>opt[node.@perk] = true</c> (<c>Weapon.as:427</c>), so the loop's
+        /// <c>if(this.opt[perk])</c> can only ever be true for that single family.
+        /// </summary>
+        public static readonly string[] WeaponPerkIds =
+        {
+            "pistol", "shot", "commando", "rifle", "perf", "laser", "plasma", "pyro", "acute", "stunning",
+        };
+
+        /// <summary>
+        /// The ten suffixes <c>Weapon.setPers</c> reads off Pers for a perk family
+        /// (<c>Weapon.as:1000-1041</c>), in the order the oracle reads them.
+        /// </summary>
+        public static readonly string[] WeaponPerkSuffixes =
+        {
+            "Prec", "Cons", "Dam", "Speed", "Det", "Pier", "Critch", "Knock", "Dev", "Stun",
+        };
+
+        /// <summary>
+        /// AS3 <c>pers[perkId + suffix]</c> — the per-perk weapon stats. Not serialised: it is
+        /// rebuilt from the held perks on every <see cref="RecalculateStats"/>.
+        /// </summary>
+        private readonly Dictionary<string, float> weaponPerkStats = new Dictionary<string, float>();
+
+        /// <summary>
+        /// The owner's <c>pers[perkId + suffix]</c>, or <paramref name="fallback"/> when absent —
+        /// AS3's <c>hasOwnProperty</c> test folded into one call. <paramref name="fallback"/> is the
+        /// AS3 declaration default for the member the caller is computing: <b>1</b> for the
+        /// multipliers (<c>precMult</c>/<c>consMult</c>/<c>damMult</c>/<c>speedMult</c>/
+        /// <c>otbrosMult</c>/<c>devMult</c>) and <b>0</b> for the adders (<c>damAdd</c>/<c>pierAdd</c>/
+        /// <c>critchAdd</c>/<c>dopDamage</c>).
+        /// </summary>
+        public float WeaponPerkStat(string perkId, string suffix, float fallback)
+        {
+            if (perkId == null || suffix == null) return fallback;
+            return weaponPerkStats.TryGetValue(perkId + suffix, out float v) ? v : fallback;
+        }
+
+        /// <summary>Whether the owner carries <c>pers[perkId + suffix]</c> at all (AS3 <c>hasOwnProperty</c>).</summary>
+        public bool HasWeaponPerkStat(string perkId, string suffix)
+        {
+            return perkId != null && suffix != null && weaponPerkStats.ContainsKey(perkId + suffix);
+        }
+
+        /// <summary>Whether <paramref name="perkId"/> is one of the ten weapon families (<c>Weapon.weaponPerks</c>).</summary>
+        public static bool IsWeaponPerkId(string perkId)
+        {
+            if (string.IsNullOrEmpty(perkId)) return false;
+            foreach (string p in WeaponPerkIds)
+                if (p == perkId) return true;
+            return false;
+        }
+
+        /// <summary>
+        /// True when <paramref name="statId"/> is <c>&lt;weaponPerk&gt;&lt;Suffix&gt;</c> for one of the
+        /// ten families and ten suffixes above.
+        ///
+        /// <para><b>The match is prefix-exact, and that is load-bearing.</b> A suffix-only test would
+        /// swallow <c>owlDam</c>, <c>petDam</c> and <c>teleSpeed</c> — real AllData statIds that end in
+        /// a weapon-perk suffix but whose prefix is not a weapon family — so the prefix must be one of
+        /// <see cref="WeaponPerkIds"/> and the remainder must be one of
+        /// <see cref="WeaponPerkSuffixes"/> with nothing between them.</para>
+        /// </summary>
+        private static bool IsWeaponPerkStatId(string statId)
+        {
+            if (string.IsNullOrEmpty(statId)) return false;
+
+            foreach (string perk in WeaponPerkIds)
+            {
+                if (statId.Length <= perk.Length || !statId.StartsWith(perk, System.StringComparison.Ordinal))
+                    continue;
+
+                string suffix = statId.Substring(perk.Length);
+                foreach (string s in WeaponPerkSuffixes)
+                    if (s == suffix) return true;
+            }
+
+            return false;
+        }
 
         /// <summary>
         /// AS3 <c>Unit.critInvis</c> (<c>Unit.as:322</c>, 0) — the <b>stealth-crit</b> probability,
@@ -497,8 +631,64 @@ namespace PFE.Systems.RPG
         /// statIds land in this one field (see <c>ApplyNamedStat</c>).
         /// </summary>
         [HideInInspector] public float capsMult = 1.0f;
+
+        /// <summary>
+        /// AS3 <c>Pers.difCapsMult</c> (<c>Pers.as:773,787,802,817,834</c>) — the <b>difficulty</b> term on
+        /// loot money and bits (<c>LootGen.as:245-252</c>), written by
+        /// <c>Pers.setGlobalDif</c> through <see cref="SetGlobalDifficulty"/>.
+        ///
+        /// <para><b>It is 1 at every difficulty except Super-hard, where it is 0.5.</b> That is Axis A's
+        /// only loot effect, and it <i>halves</i> money — the setting does not scale loot quality (that is
+        /// <c>locDifLevel</c>/<c>weaponLevel</c>, Axis B). A port that made the setting scale loot quality
+        /// would be inventing a feature.</para>
+        ///
+        /// <para>The field starts at 1 (the oracle's declaration value, <c>Pers.as:773</c>), so a player
+        /// who has never had a difficulty applied reads the oracle's own pre-application value rather than
+        /// a wrong multiplier.</para>
+        /// </summary>
+        [HideInInspector] public float difCapsMult = 1.0f;
         [HideInInspector] public float healMult = 0.4f;
+
+        /// <summary>
+        /// AS3 <c>Pers.healManaMult</c> (<c>Pers.as:321</c>, default <b>1</b>) — scales a healing item's
+        /// mana restore. <c>PipPage.as:794</c> reads it for the <c>healmana</c> line
+        /// (<c>Math.round(@hmana * healManaMult)</c>).
+        ///
+        /// <para><b>Why it is separate from <see cref="healMult"/>.</b> <c>healMult</c> is 0.4 — the
+        /// difficulty scalar for <i>health</i> restored — and is applied to <c>@hhp</c>/<c>@hhplong</c>/
+        /// <c>@hrad</c>. <c>healManaMult</c> starts at 1 and is applied to <c>@hmana</c> only, and
+        /// <c>Pers.resetParams()</c> resets <c>healMult</c> to 0.4 (<c>Pers.as:915</c>) while never
+        /// touching <c>healManaMult</c> at all. Reusing one for the other would print every mana potion
+        /// at 40% of its declared restore.</para>
+        /// </summary>
+        [HideInInspector] public float healManaMult = 1.0f;
+
         [HideInInspector] public float bonusHeal = 0f;
+
+        /// <summary>
+        /// AS3 <c>Pers.himLevel</c> (<c>Pers.as:267</c>, default <b>1</b>) — the "chem intensity" stage.
+        /// <c>effStr</c> reads it for any effect row carrying <c>him='1'</c>
+        /// (<c>PipPage.as:297-300</c>), and <c>Invent</c> stamps it onto an applied effect
+        /// (<c>Invent.as:474-476</c>).
+        ///
+        /// <para><b>Perk-fed, not constant.</b> <c>AllData.as:5679</c> carries
+        /// <c>&lt;sk id='himLevel' v0='1' v1='2'/&gt;</c>, so it arrives through
+        /// <see cref="ApplyNamedStat"/> like every other named stat; 1 is the declaration value that
+        /// applies before any perk.</para>
+        /// </summary>
+        [HideInInspector] public int himLevel = 1;
+
+        /// <summary>
+        /// AS3 <c>Pers.ad2</c> (<c>Pers.as:491</c>, default <b>250</b>) — the addiction severity at which
+        /// a chem's effect steps up to stage 2 (<c>PipPage.as:288</c>, <c>Effect.as:326</c>).
+        /// </summary>
+        [HideInInspector] public int ad2 = 250;
+
+        /// <summary>
+        /// AS3 <c>Pers.ad3</c> (<c>Pers.as:493</c>, default <b>500</b>) — the stage-3 threshold
+        /// (<c>PipPage.as:292</c>, <c>Effect.as:330</c>).
+        /// </summary>
+        [HideInInspector] public int ad3 = 500;
         [HideInInspector] public float reanimHp = 0f;
         [HideInInspector] public float regenFew = 0f;
         [HideInInspector] public float regenMax = 0f;
@@ -1130,24 +1320,73 @@ namespace PFE.Systems.RPG
         }
 
         /// <summary>
-        /// Add a perk by ID (AS3 Pers.as:1300 addPerk).
+        /// Add a perk by ID, the Oracle's one-argument call — <b>free</b>, because that is the
+        /// Oracle's own default (<c>param2 = false</c>).
         /// </summary>
-        public bool AddPerk(string perkId)
+        /// <remarks>
+        /// Use this for every <b>grant</b>: a script's <c>perk</c> action, a consumable that confers a
+        /// perk, the debug console, a starting bonus. Only the Pip-Boy picker charges, and it says so
+        /// explicitly — see <see cref="AddPerk(string, bool)"/>.
+        /// </remarks>
+        public bool AddPerk(string perkId) => AddPerk(perkId, false);
+
+        /// <summary>
+        /// Add a perk by ID — AS3 <c>Pers.addPerk(param1:String, param2:Boolean = false)</c>
+        /// (<c>Pers.as:1292-1322</c>).
+        /// </summary>
+        /// <param name="spendPoint">
+        /// The Oracle's <c>minus</c>: when true, deduct one <see cref="PerkPoints"/>. Only
+        /// <c>PipPageStat.as:1017</c> passes it — <c>addPerk(this.selectedPerk,true)</c> — and that
+        /// call site guards itself with <c>pers.perkPoint &gt; 0</c> on the line above.
+        /// </param>
+        /// <remarks>
+        /// <para><b>What the Oracle does <i>not</i> check, and the bug that came of adding it.</b> This
+        /// method used to open with <c>if (perkPoints &lt;= 0) return false;</c> and always decrement,
+        /// and it also refused any perk whose <c>CanUnlock</c> was false. Neither is in
+        /// <c>Pers.addPerk</c>. The Oracle's only refusal is the rank ceiling —
+        /// <c>if(this.perks[id] &gt;= maxlvl) return;</c> (<c>:1297-1302</c>) — and eligibility is the
+        /// <b>picker's</b> job, applied by dimming an ineligible row to <c>alpha = 0.4</c>
+        /// (<c>PipPageStat.as:550-553</c>) before the click can reach a commit.</para>
+        ///
+        /// <para><b>The visible consequence was the begin land's double jump.</b>
+        /// <c>&lt;s act="perk" val="levitation"/&gt;</c> (<c>GameData.as:1225</c>, inside the
+        /// <c>beginLevit</c> script) is the <b>only</b> grant of <c>isDJ</c> in the whole game — the
+        /// perk's payload is <c>&lt;sk id='isDJ' v1='1'/&gt;</c> (<c>AllData.as:5327-5330</c>), and
+        /// <c>isDJ</c> is what <c>UnitPlayer.as:2655/2672/2770</c> counts air jumps against. The player
+        /// has no perk points at level 1, so the old guard refused the grant on every run: the tutorial
+        /// announced a perk that never arrived, and the player could not double-jump.</para>
+        ///
+        /// <para><b>Eligibility is still enforced — where the Oracle enforces it.</b> The four UI paths
+        /// call <see cref="Data.PerkDefinition.CanUnlock"/> themselves for display and for the commit
+        /// guard (<c>PerkSelectionView</c>, <c>CharacterStatsViewModel.CanUnlockPerk</c>,
+        /// <c>PlayerPipStatSource</c>, <c>SkillDefinitionDatabase.GetSelectablePerks</c>). Keeping a
+        /// second copy here meant a script could be refused by a rule no script is subject to.</para>
+        ///
+        /// <para><b>Unknown perks are still accepted.</b> <c>perkDef == null</c> skips the ceiling
+        /// entirely, which is what lets a mod or a test grant an id the database has never heard of —
+        /// the same latitude the old body had, and the behaviour
+        /// <c>AddPerk_UnknownPerk_Succeeds</c> pins.</para>
+        /// </remarks>
+        public bool AddPerk(string perkId, bool spendPoint)
         {
-            if (perkPoints <= 0) return false;
+            if (string.IsNullOrEmpty(perkId)) return false;
+
+            // The picker's own guard, mirrored — `PipPageStat.as:1016` refuses the commit when
+            // `perkPoint <= 0`, and a caller that reached here without checking must not mint a perk.
+            if (spendPoint && perkPoints <= 0) return false;
 
             EnsureResources();
             Data.PerkDefinition perkDef = skillDatabase != null ? skillDatabase.GetPerk(perkId) : null;
-            if (perkDef != null)
-            {
-                int currentRank = GetPerkRank(perkId);
-                if (!perkDef.CanUnlock(this, currentRank))
-                    return false;
-            }
 
             int oldRank = GetPerkRank(perkId);
+
+            // The Oracle's ONE refusal: the `<perk lvl='N'>` ceiling, defaulted to 1 when absent
+            // (`Pers.as:1294-1299`). This is what used to arrive second-hand through CanUnlock, so it
+            // has to be stated here now that CanUnlock is gone from this path.
+            if (perkDef != null && oldRank >= Mathf.Max(1, perkDef.MaxRank)) return false;
+
             perkRanks[perkId] = oldRank + 1;
-            perkPoints--;
+            if (spendPoint) perkPoints--;
 
             onPerkAdded?.Invoke(perkId, perkRanks[perkId]);
             _perkPublisher?.Publish(new PFE.Core.Messages.PerkAddedMessage
@@ -1159,6 +1398,13 @@ namespace PFE.Systems.RPG
             return true;
         }
 
+        /// <summary>
+        /// Add a perk from its definition — the one-argument grant, so <b>free</b>.
+        /// </summary>
+        /// <remarks>
+        /// Nothing calls this yet. It delegates to the free form on purpose: a caller holding a
+        /// <c>PerkDefinition</c> has resolved the perk from a catalogue, which is a grant, not a pick.
+        /// </remarks>
         public bool AddPerk(Data.PerkDefinition perk)
         {
             if (perk == null) return false;
@@ -1168,6 +1414,34 @@ namespace PFE.Systems.RPG
         public int GetPerkRank(string perkId)
         {
             return perkRanks.TryGetValue(perkId, out int rank) ? rank : 0;
+        }
+
+        /// <summary>
+        /// AS3 <c>Pers.addictions[id]</c> (<c>Pers.as:29</c>) — accumulated severity for one chem, or
+        /// <b>0</b> when the chem is not in the table.
+        ///
+        /// <para>0 is the right absence value rather than a sentinel: AS3 reads the raw
+        /// <c>Array</c> slot and compares it against <see cref="ad2"/>/<see cref="ad3"/>, and an absent
+        /// slot is <c>undefined</c>, for which both comparisons are false — the same outcome as 0. The
+        /// one place AS3 branches on presence instead (<c>PipPageStat.as:271</c>, <c>&gt; 0</c>) also
+        /// treats absent and 0 identically.</para>
+        /// </summary>
+        public float Addiction(string chemId)
+        {
+            if (string.IsNullOrEmpty(chemId)) return 0f;
+            return addictions.TryGetValue(chemId, out float value) ? value : 0f;
+        }
+
+        /// <summary>
+        /// Record chem severity — the write half of <see cref="Addiction"/>, matching
+        /// <c>Invent.as:496-504</c>'s accumulate-and-clamp. Nothing calls it yet: the chem-use path is
+        /// unported, so the table stays empty. It exists so <see cref="Addiction"/> reads a real table
+        /// and the consumer has a seam to write through.
+        /// </summary>
+        public void SetAddiction(string chemId, float severity)
+        {
+            if (string.IsNullOrEmpty(chemId)) return;
+            addictions[chemId] = severity;
         }
 
         public IReadOnlyList<string> GetAllSkillIds() => AllSkillIds;
@@ -1339,6 +1613,16 @@ namespace PFE.Systems.RPG
             allVulnerMult = 1.0f;
             critCh = 0.05f;
             critDamMult = 2.0f;
+            // satsMult is a pure <sk> target (Pers.as:301, written by the mathlogic perk); resetting
+            // it is what stops a dropped mathlogic from leaving 0.75 on the AP cost. The perk-suffix
+            // table is the same shape one level down — cleared here, refilled by the perk pass below.
+            satsMult = 1f;
+            weaponPerkStats.Clear();
+            // himLevel is the same shape as satsMult one line up: a pure <sk> target (the `fightstim`
+            // perk, AllData.as:5677-5679, `<sk id='himLevel' v0='1' v1='2'/>`) whose declaration value
+            // is its neutral. AS3's defaultParams() has no line for it, but the recompute re-applies
+            // whatever the held perks give — so dropping `fightstim` must not leave the chem stage at 2.
+            himLevel = 1;
             // critInvis / isDJ / portPoss / shtrManaRes are reset here even though the oracle's
             // defaultParams() does not name them, and that is deliberate: each is a *modifier target*
             // (a `case` in ApplyNamedStat, driven by a <sk>/<p> modifier or the isDJ perk at
@@ -1419,6 +1703,10 @@ namespace PFE.Systems.RPG
             //   repairMult / remine / signal
             //   barterLvl / limitBuys / capsMult
             //   healMult / bonusHeal / reanimHp / regenFew / regenMax / eco
+            //   healManaMult / ad2 / ad3   (added 2026-10-14 — none is a <sk> target, so nothing in the
+            //                               modifier engine can ever raise one; the declaration value is
+            //                               the default and re-zeroing would only corrupt it. healManaMult
+            //                               in particular is 1, not 0.4 like its healMult sibling.)
             //   stealthMult / noiseRun / sneak / maxTeleMassa
             //
             // Three deserve a specific note:
@@ -1475,6 +1763,92 @@ namespace PFE.Systems.RPG
             bloodHp = procBlood * inMaxHP;
             manaHp = procMana * inMaxMana;
         }
+
+        // =====================================================================
+        //  The difficulty setting — AXIS A (Pers.setGlobalDif, Pers.as:759-839)
+        // =====================================================================
+
+        /// <summary>
+        /// AS3 <c>Pers.setGlobalDif(param1)</c> (<c>Pers.as:759-839</c>) — apply the difficulty
+        /// <b>parameter table</b> to this character.
+        ///
+        /// <para><b>The table lives in <see cref="DifficultyRules.PersTable"/>, not here</b>, so the five
+        /// rows are executed by an offline fixture rather than only by a play-test; this method is the
+        /// applier. It writes the cells whose destinations exist and are read in this port —
+        /// <see cref="organMult"/>, <see cref="dieDamage"/>, <see cref="teleMana"/> and
+        /// <see cref="difCapsMult"/> — and deliberately does not invent fields for the rest. See
+        /// <see cref="PersDifficultyTable"/> for which cells are spec-only and why
+        /// <c>petRes</c> is never applied.</para>
+        ///
+        /// <para><b>The oracle does not re-derive the derived block here</b> — it calls
+        /// <c>setParameters()</c> as a separate statement (<c>Game.as:327</c>). Use
+        /// <see cref="ApplyGlobalDifficulty"/> for the pair, which is what a difficulty change does.</para>
+        /// </summary>
+        public void SetGlobalDifficulty(int globalDif)
+        {
+            PersDifficultyTable table = DifficultyRules.PersTable(globalDif);
+
+            organMult = table.OrganMult;
+            dieDamage = table.DieDamage;
+            teleMana = table.TeleMana;
+            difCapsMult = table.DifCapsMult;
+
+            // petRes is deliberately NOT assigned: the oracle's defaultParams() overwrites it with the
+            // literal 30 on every setParameters() (Pers.as:861), so the table's per-difficulty value is a
+            // dead write. The field already defaults to 30.
+        }
+
+        /// <summary>
+        /// The oracle's full difficulty change: <c>setGlobalDif(n)</c> then <c>setParameters()</c>
+        /// (<c>Game.as:326-327</c>). Safe to call at any time — <c>ResetToDefaults</c> touches none of the
+        /// four fields <see cref="SetGlobalDifficulty"/> writes, so the table is not clobbered by the
+        /// recompute that follows it.
+        /// </summary>
+        public void ApplyGlobalDifficulty(int globalDif)
+        {
+            SetGlobalDifficulty(globalDif);
+            RecalculateStats();
+        }
+
+        // ── ILootPersFlags — the player's perk/parameter view for the loot tables ─────────────────
+        //
+        // The roller already asked for this interface (LootContext.cs:51-70) and no type implemented it,
+        // so ctx.Pers was null at both sinks: freel/barahlo never added their extra rolls, and money never
+        // scaled by capsMult x difCapsMult. Implementing it here rather than in an adapter keeps one
+        // storage location per value.
+
+        /// <summary>AS3 <c>pers.freel</c> (<c>Pers.as:257</c>) — the free-loader perk's extra ammo roll.</summary>
+        bool ILootPersFlags.Freel => freel != 0;
+
+        /// <summary>
+        /// AS3 <c>pers.barahlo</c> — extra component rolls in <c>wbattle</c>.
+        ///
+        /// <para><b>Always false, and that is a recorded gap rather than a guess.</b> The port has no
+        /// <c>barahlo</c> field: no statId writes it, so there is nothing to read. Returning false keeps
+        /// the oracle's "perk not taken" behaviour instead of handing out extra loot nobody earned.</para>
+        /// </summary>
+        bool ILootPersFlags.Barahlo => false;
+
+        /// <summary>AS3 <c>pers.capsMult</c> (<c>Pers.as:283</c>) — scales <c>money</c> stacks.</summary>
+        float ILootPersFlags.CapsMult => capsMult;
+
+        /// <summary>
+        /// AS3 <c>pers.bitsMult</c> (<c>Pers.as:285</c>) — scales <c>bit</c> stacks.
+        ///
+        /// <para><b>Always 1, and that is a recorded gap.</b> The port has no <c>bitsMult</c> field — the
+        /// oracle sets it from perks, and no ported perk writes it. Returning 1 leaves bit stacks at their
+        /// rolled size rather than inventing a multiplier.</para>
+        /// </summary>
+        float ILootPersFlags.BitsMult => 1f;
+
+        /// <summary>
+        /// AS3 <c>pers.difCapsMult</c> — the difficulty term on money and bits, written by
+        /// <see cref="SetGlobalDifficulty"/>.
+        /// </summary>
+        float ILootPersFlags.DifCapsMult => difCapsMult;
+
+        /// <summary>AS3 <c>pers.dropTre</c> — the treasure perk's gem chance (<c>Unit.as:4460-4466</c>).</summary>
+        float ILootPersFlags.DropTre => dropTre;
 
         /// <summary>
         /// Recalculate all derived stats from skills, perks, and level (AS3 Pers.as:2152 setParameters).
@@ -1897,6 +2271,12 @@ namespace PFE.Systems.RPG
                     critDamMult = ApplyFloatOp(critDamMult, refType, val);
                     TrackFactor("critDamMult", sourceId ?? "stat", sourceType, val, critDamMult);
                     break;
+                case "satsMult":
+                    // AS3 Pers.as:301 / AllData.as:5626 (the mathlogic perk). A pure multiplier the
+                    // weapon pane and the S.A.T.S. cost read at use time, never copied onto the weapon.
+                    satsMult = ApplyFloatOp(satsMult, refType, val);
+                    TrackFactor("satsMult", sourceId ?? "stat", sourceType, val, satsMult);
+                    break;
                 case "dexter":
                     dexter = ApplyFloatOp(dexter, refType, val);
                     TrackFactor("dexter", sourceId ?? "stat", sourceType, val, dexter);
@@ -2124,6 +2504,16 @@ namespace PFE.Systems.RPG
                     healMult = ApplyFloatOp(healMult, refType, val);
                     TrackFactor("healMult", sourceId ?? "stat", sourceType, val, healMult);
                     break;
+                // Pers.as:321, neutral 1. Distinct from healMult (0.4) — see the field's own note.
+                case "healManaMult":
+                    healManaMult = ApplyFloatOp(healManaMult, refType, val);
+                    TrackFactor("healManaMult", sourceId ?? "stat", sourceType, val, healManaMult);
+                    break;
+                // Pers.as:267, neutral 1. Fed by AllData.as:5679 <sk id='himLevel' v0='1' v1='2'/>.
+                case "himLevel":
+                    himLevel = Mathf.RoundToInt(ApplyFloatOp(himLevel, refType, val));
+                    TrackFactor("himLevel", sourceId ?? "stat", sourceType, val, himLevel);
+                    break;
                 case "bonusHeal":
                     bonusHeal = ApplyFloatOp(bonusHeal, refType, val);
                     TrackFactor("bonusHeal", sourceId ?? "stat", sourceType, val, bonusHeal);
@@ -2323,6 +2713,21 @@ namespace PFE.Systems.RPG
                     TrackFactor("maxmM", sourceId ?? "stat", sourceType, val, maxmM);
                     break;
                 default:
+                    // AS3 Pers is dynamic: a perk's <sk id='pistolPrec'> becomes pers.pistolPrec, which
+                    // Weapon.setPers reads back through `pers[perk + "Prec"]` (Weapon.as:1002-1040).
+                    // Those have a real consumer, so they are STORED rather than warned about. The
+                    // whitelist is prefix-exact on the ten weapon families — see IsWeaponPerkStatId —
+                    // which is what keeps the lookalikes out (owlDam / petDam / teleSpeed end in a
+                    // suffix but their prefix is not a weapon family, and each has its own case).
+                    if (IsWeaponPerkStatId(statId))
+                    {
+                        float cur = weaponPerkStats.TryGetValue(statId, out float prev) ? prev : 0f;
+                        float updated = ApplyFloatOp(cur, refType, val);
+                        weaponPerkStats[statId] = updated;
+                        TrackFactor(statId, sourceId ?? "perk", sourceType, val, updated);
+                        break;
+                    }
+
                     // A stat the content authors reference but this class has no destination for.
                     // AS3 would have applied it (`this[id] = _loc5_` on the Pers object); here it is
                     // recorded for the UI only. Logged once per id so the gap is visible rather than

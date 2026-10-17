@@ -200,33 +200,53 @@ namespace PFE.Tests.Editor.RPG
         }
 
         [Test]
-        [Description("Should fail when not enough perk points")]
-        public void AddPerk_NotEnoughPoints_ReturnsFalse()
+        [Description("Only the picker's form charges — AS3 Pers.addPerk's `minus` (Pers.as:1292)")]
+        public void AddPerk_PickerForm_RequiresAndConsumesAPoint()
         {
             // Arrange
             var stats = CreateTestCharacter();
+            stats.SetSkillLevel("melee", 2); // oak's requirement, so the perk itself is eligible
+
+            // A pick with no points is refused — the guard PipPageStat.as:1016 applies one line
+            // above its commit.
+            Assert.IsFalse(stats.AddPerk("oak", true), "A pick without a point must be refused");
+            Assert.AreEqual(0, stats.GetPerkRank("oak"), "…and must not unlock the perk");
+
+            stats.GrantPerkPoints(1);
 
             // Act
-            bool success = stats.AddPerk("oak");
+            bool success = stats.AddPerk("oak", true);
 
             // Assert
-            Assert.IsFalse(success, "Should fail without perk points");
+            Assert.IsTrue(success, "A pick with a point must succeed");
+            Assert.AreEqual(1, stats.GetPerkRank("oak"), "Oak should be rank 1");
+            Assert.AreEqual(0, stats.PerkPoints, "…and the point must be spent");
         }
 
         [Test]
-        [Description("Should fail when perk prerequisites not met")]
-        public void AddPerk_PrerequisitesNotMet_ReturnsFalse()
+        [Description("A grant is free and needs no point — what the begin land's double jump runs on")]
+        public void AddPerk_GrantForm_IsFreeAndNeedsNoPoint()
         {
-            // Arrange
+            // `beginLevit` is the begin land's levitation tutorial and its entire payload is one
+            // `perk levitation` action (GameData.as:1219-1229) that reaches Pers.addPerk(val) with the
+            // Oracle's default `minus = false` (Script.as:327). The player has no perk points at
+            // level 1 — so the old body, which opened with `if (perkPoints <= 0) return false;` and
+            // always decremented, refused this grant on every single run: the tutorial announced a
+            // perk that never arrived, and the player could not double-jump.
             var stats = CreateTestCharacter();
-            stats.GrantPerkPoints(1);
-            // Melee skill is 0, but oak requires melee 1
+
+            Assert.AreEqual(0, stats.PerkPoints, "Precondition: no perk points at the start");
 
             // Act
-            bool success = stats.AddPerk("oak");
+            bool success = stats.AddPerk("levitation");
 
             // Assert
-            Assert.IsFalse(success, "Should fail when prerequisites not met");
+            Assert.IsTrue(success, "The grant must succeed with no points available");
+            Assert.AreEqual(1, stats.GetPerkRank("levitation"), "Levitation should be rank 1");
+            Assert.AreEqual(0, stats.PerkPoints, "…and it must not consume a point");
+            Assert.AreEqual(1, stats.isDJ,
+                "…and its payload must land: <sk id='isDJ' v1='1'/> (AllData.as:5327-5330) is the " +
+                "flag UnitPlayer.as:2655/2672/2770 counts air jumps against.");
         }
 
         [Test]

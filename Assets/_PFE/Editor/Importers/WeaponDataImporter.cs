@@ -177,6 +177,11 @@ namespace PFE.Editor.Importers
             string all = File.ReadAllText(AllDataPath);
             int imported = 0, updated = 0, skipped = 0;
 
+            // Variant-override attributes that no port field reads, tallied across the whole run and
+            // reported once at the end. Non-empty today (five phis attributes) — see
+            // WeaponVariantXml.UnreadAttributeNames, which documents which and why.
+            var unreadTally = new Dictionary<string, int>();
+
             // Every <weapon …> block, self-closing ones included. The matching lives in
             // WeaponXmlBlocks rather than here so the offline wall can exercise it — this file is
             // in PFE.Editor, which PFE.Tests does not reference, and a bug in exactly this pattern
@@ -213,7 +218,7 @@ namespace PFE.Editor.Importers
 
                 try
                 {
-                    ApplyWeaponData(def, id, rootAttrs, body);
+                    ApplyWeaponData(def, id, rootAttrs, body, unreadTally);
 
                     if (exists)
                     {
@@ -236,12 +241,37 @@ namespace PFE.Editor.Importers
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
             Debug.Log($"[WeaponDataImporter] Done. Imported: {imported}  Updated: {updated}  Skipped: {skipped}");
+
+            // The variant-override drop report. Printed even when empty, so "no line at all" can never
+            // be mistaken for "nothing was dropped" — the whole point of constraint 12 is that the
+            // silent case is the dangerous one.
+            if (unreadTally.Count == 0)
+            {
+                Debug.Log("[WeaponDataImporter] Variant overrides: every attribute is read by the port.");
+                return;
+            }
+
+            var names = new List<string>(unreadTally.Keys);
+            names.Sort(System.StringComparer.Ordinal);
+
+            var parts = new List<string>(names.Count);
+            int total = 0;
+            foreach (string name in names)
+            {
+                total += unreadTally[name];
+                parts.Add($"{name} x{unreadTally[name]}");
+            }
+
+            Debug.LogWarning(
+                $"[WeaponDataImporter] Variant overrides carry {total} attribute(s) the port has no reader " +
+                $"for, across {names.Count} distinct name(s): {string.Join(", ", parts)}. " +
+                "These are dropped from the variant tier; see WeaponVariantXml.UnreadAttributeNames.");
         }
 
         // ── Per-weapon population ───────────────────────────────────────────────
 
         private static void ApplyWeaponData(WeaponDefinition def,
-            string id, string rootAttrs, string body)
+            string id, string rootAttrs, string body, Dictionary<string, int> unreadTally)
         {
             // ── Root tag attributes ──────────────────────────────────────────
             def.weaponId    = id;
@@ -288,6 +318,11 @@ namespace PFE.Editor.Importers
 
             def.skillLevel  = AttrI(rootAttrs, "skill", 0);
             def.weaponLevel = AttrI(rootAttrs, "lvl",   0);
+            // AS3 Weapon.as:430 `this.perslvl = node.@perslvl`. Read with the same boundary-anchored
+            // AttrI as `lvl` above — which is the whole point: `lvl` is a substring of `perslvl`, so a
+            // name-search reader would have made every one of the 23 magic weapons report lvl=0..28
+            // from the wrong attribute. 23 rows carry it, all tip='5'.
+            def.perslvl     = AttrI(rootAttrs, "perslvl", 0);
             def.alicornOnly = AttrBool(rootAttrs, "alicorn");
 
             // AS3 weapon@spell (Weapon.as:118) — the flag that separates the two unrelated things
@@ -539,6 +574,48 @@ namespace PFE.Editor.Importers
             def.dopEffect  = Attr(dop, "effect");
             def.dopDamage  = AttrF(dop, "damage", 0f);
             def.dopChance  = AttrF(dop, "ch", 1f);
+
+            // ── <com> — the trader / quality block ───────────────────────────
+            //
+            // AS3 reads six attributes off the FIRST <com> child (Weapon.as:454-472). None were parsed
+            // before, so `uniq` — the unique variant's drop weight — existed only on the loot side
+            // (LootItemRow.UniqChance) and nowhere on the weapon itself.
+            var comNodes = AllNodes(body, "com");
+            string comT1 = comNodes.Count > 0 ? comNodes[0] : "";
+
+            // uniq: `if(node.com[0].@uniq.length()) this.uniq = …` — a PRESENCE test, and the field's
+            // AS3 default is -1 (Weapon.as:100), not 0. So the fallback here is -1 and the two values
+            // stay distinct: -1 = "no unique variant, upgrading is refused" (updVariant guards on
+            // `this.uniq < 0`, Weapon.as:895-900); 0 = "has one, never random loot". A `0` fallback
+            // would silently make all 93 <com>-less weapons upgradable.
+            def.uniq      = AttrF(comT1, "uniq", -1f);
+            def.comPrice  = AttrF(comT1, "price",  0f);
+            def.comWorth  = AttrF(comT1, "worth",  0f);
+            def.comChance = AttrF(comT1, "chance", 0f);
+            def.comStage  = AttrI(comT1, "stage",  0);
+            // rep_eff is declared `= 1` in AS3 (Weapon.as:122) and assigned only on presence, so an
+            // absent attribute keeps 1 rather than meaning "no repair".
+            def.comRep    = AttrF(comT1, "rep",    1f);
+
+            // ── The unique ("II") variant — the index-1 override ─────────────
+            //
+            // A weapon HAS a variant when its block carries a second <char> (Stand.as:212,
+            // `weap.char.length() > 1`) — not when any single node repeats. The reading and the merge
+            // rule live in WeaponVariantXml (runtime assembly) so the offline wall can exercise them:
+            // this file is in PFE.Editor, which PFE.Tests does not reference, so a merge written here
+            // would be untestable, and a wrong merge is silent by construction (an inherited stat
+            // reading 0 instead of the base value).
+            def.variant = WeaponVariantXml.Read(body, WeaponVariantXml.FirstVariant);
+
+            // Report — never swallow — an override attribute the port has no reader for. Constraint 12:
+            // an attribute with no matching field is dropped with no trace at all, which is how a whole
+            // subsystem went missing before. Tallied rather than logged per weapon, because a full
+            // import touches 71 variants and one line each would bury the count that matters.
+            foreach (string name in WeaponVariantXml.UnreadAttributeNames(def.variant))
+            {
+                unreadTally.TryGetValue(name, out int seen);
+                unreadTally[name] = seen + 1;
+            }
 
             // ── Derive archetype ─────────────────────────────────────────────
             def.projectileArchetype = DeriveArchetype(

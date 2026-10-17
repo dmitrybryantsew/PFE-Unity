@@ -66,6 +66,26 @@ namespace PFE.Data.Definitions
         /// </summary>
         public bool noRepair;
 
+        // ── Per-item multipliers (Armor.as:131-143) ──────────────────────────────────────────────
+        //
+        // Read from the <armor> ROOT element, so — unlike everything in levels[] — they do not vary by
+        // upgrade. Armor.as assigns them in the constructor at :131-143, which runs BEFORE the
+        // getXmlParam(xml.upd[lvl]) call at :187; that ordering is the whole reason they are separate
+        // fields here. Each was on ArmourDataParser's omission list until the PipBuck's armour pane
+        // became a consumer (PipPage.as:625-640).
+
+        /// <summary>AS3 <c>@melee</c> → <c>Armor.meleeMult</c>. Neutral 1; 3 rows set it.</summary>
+        public float meleeMult = 1f;
+
+        /// <summary>AS3 <c>@guns</c> → <c>Armor.gunsMult</c>. Neutral 1; 3 rows set it.</summary>
+        public float gunsMult = 1f;
+
+        /// <summary>AS3 <c>@magic</c> → <c>Armor.magicMult</c>. Neutral 1; 3 rows set it.</summary>
+        public float magicMult = 1f;
+
+        /// <summary>AS3 <c>@crit</c> → <c>Armor.crit</c>. Neutral 0; 2 rows set it.</summary>
+        public float crit;
+
         /// <summary>
         /// Per-upgrade-level stats, <b>index == level</b>, from the <c>&lt;upd&gt;</c> children. Never
         /// null and never empty: an <c>&lt;armor&gt;</c> with no <c>&lt;upd&gt;</c> gets a single
@@ -85,11 +105,28 @@ namespace PFE.Data.Definitions
         /// </summary>
         public List<string> warnings = new List<string>();
 
+        /// <summary>
+        /// An <see cref="EquipmentData"/> with every AS3 field default — which is <b>not</b>
+        /// <c>default(EquipmentData)</c>, because <c>radVul</c> starts at 1 (<c>Armor.as:36</c>) while a
+        /// C# struct default is 0. Used for the no-<c>&lt;upd&gt;</c> fallback and for
+        /// <see cref="Level0"/>'s empty case, so both agree with <see cref="ArmourDataParser"/>'s own
+        /// seed.
+        /// </summary>
+        public static EquipmentData NeutralLevel
+        {
+            get
+            {
+                var level = default(EquipmentData);
+                level.radVul = 1f;
+                return level;
+            }
+        }
+
         /// <summary>Highest index in <see cref="levels"/> — AS3 <c>Armor.maxlvl</c>, derived.</summary>
         public int MaxLevel => levels != null && levels.Length > 0 ? levels.Length - 1 : 0;
 
         /// <summary>The level-0 stats. Always valid.</summary>
-        public EquipmentData Level0 => levels != null && levels.Length > 0 ? levels[0] : default;
+        public EquipmentData Level0 => levels != null && levels.Length > 0 ? levels[0] : NeutralLevel;
 
         /// <summary>
         /// Write this parse into an <see cref="ItemDefinition"/>.
@@ -119,6 +156,14 @@ namespace PFE.Data.Definitions
             target.armorHideMane = hideMane;
             target.armorIndestructible = indestructible;
             target.armorNoRepair = noRepair;
+
+            // Per-item multipliers (Armor.as:131-143). Written unconditionally, including at their
+            // neutral values, so re-importing an asset that previously carried a stale multiplier
+            // clears it rather than keeping it — the same idempotence rule as the rest of this method.
+            target.armorMeleeMult = meleeMult;
+            target.armorGunsMult = gunsMult;
+            target.armorMagicMult = magicMult;
+            target.armorCrit = crit;
 
             // Per-level half (Armor.as:186-193).
             target.armourLevels = (EquipmentData[])levels.Clone();
@@ -166,12 +211,14 @@ namespace PFE.Data.Definitions
         private static readonly HashSet<string> HandledArmourAttributes = new HashSet<string>
         {
             "id", "price", "sort", "hp", "tip", "hide", "und", "norep",
+            // Per-item multipliers, read by Armor.as:131-143 in the constructor.
+            "melee", "guns", "magic", "crit",
         };
 
         /// <summary>Attributes of <c>&lt;upd&gt;</c> this parser reads into the level stats.</summary>
         private static readonly HashSet<string> HandledUpdAttributes = new HashSet<string>
         {
-            "armor", "marmor", "qual", "dexter",
+            "armor", "marmor", "qual", "dexter", "sneak", "radx",
         };
 
         /// <summary>
@@ -190,11 +237,6 @@ namespace PFE.Data.Definitions
             { "comp", "component id used for the upgrade — crafting subsystem" },
             { "h2o", "Armor.h2oMult, water-drain multiplier — no consumer in the port" },
             { "tre", "Armor.tre — no consumer in the port" },
-            { "melee", "Armor.meleeMult, a damage multiplier applied by Pers.armorParameters() — the port has " +
-                       "no equivalent aggregator" },
-            { "guns", "Armor.gunsMult — as melee" },
-            { "magic", "Armor.magicMult — as melee" },
-            { "crit", "Armor.crit, crit chance — same aggregator" },
             { "abil", "armour ability id — the ability subsystem is not ported" },
             { "fly", "Armor.ableFly, flight permission — only 'ali' sets it" },
         };
@@ -204,9 +246,6 @@ namespace PFE.Data.Definitions
         {
             { "kol", "the *component quantity* needed for this upgrade level, read by PipPage.as:429-431 " +
                      "(crafting UI), never by Armor.getXmlParam" },
-            { "radx", "Armor.radVul = 1 - radx, consumed by Pers.armorParameters():2031-2035 — the port has " +
-                      "no radiation channel" },
-            { "sneak", "Armor.sneak, scales Pers.visiMult at :2025-2029 — the port has no sneak channel" },
             { "mana", "Armor.maxmana, the armour's own mana pool" },
             { "act", "Armor.dmana_act, armour-ability mana cost" },
             { "used", "Armor.dmana_use, armour-ability mana cost" },
@@ -263,6 +302,14 @@ namespace PFE.Data.Definitions
             data.indestructible = attributes.ContainsKey("und");   // presence, not value
             data.noRepair = attributes.ContainsKey("norep");        // presence, not value
 
+            // Per-item multipliers (Armor.as:131-143). Read with a neutral fallback so an armour that
+            // does not declare one keeps the AS3 field default rather than becoming 0 — for the three
+            // multipliers a 0 would mean "no melee damage at all", which is the opposite of neutral.
+            data.meleeMult = ReadFloat(attributes, "melee", 1f);
+            data.gunsMult = ReadFloat(attributes, "guns", 1f);
+            data.magicMult = ReadFloat(attributes, "magic", 1f);
+            data.crit = ReadFloat(attributes, "crit", 0f);
+
             foreach (var attribute in attributes)
             {
                 if (HandledArmourAttributes.Contains(attribute.Key))
@@ -283,7 +330,7 @@ namespace PFE.Data.Definitions
             {
                 data.warnings.Add($"{id}: <armor> has no <upd> child — every rating reads as 0, *including* " +
                                   "qual, so this armour would absorb nothing. AS3 would fault on xml.upd[0] here.");
-                levels.Add(default);
+                levels.Add(ArmourDefinitionData.NeutralLevel);
             }
 
             data.levels = levels.ToArray();
@@ -307,7 +354,12 @@ namespace PFE.Data.Definitions
         /// <summary>Parse one <c>&lt;upd&gt;</c> element's attributes into a level's stats.</summary>
         private static EquipmentData ParseUpd(ArmourDefinitionData owner, string updAttributes)
         {
+            // radVul is the one field whose AS3 default is not zero (Armor.as:36, `= 1`), so it has to be
+            // seeded before the attribute loop — `default(EquipmentData)` would leave 0, which reads as
+            // "100% extra radiation damage" on every armour that never declared @radx. The pane's gate is
+            // `radVul < 1`, so 0 would print the line for all 35 armours instead of the 6 that set it.
             var equipment = default(EquipmentData);
+            equipment.radVul = 1f;
             var attributes = ReadAttributes(updAttributes);
 
             foreach (var attribute in attributes)
@@ -332,6 +384,18 @@ namespace PFE.Data.Definitions
                     case "dexter":
                         if (TryFloat(attribute.Value, out float dexterity)) equipment.dexterity = dexterity;
                         else owner.warnings.Add($"{owner.id}: <upd @dexter='{attribute.Value}'> is not a number.");
+                        continue;
+
+                    case "sneak":
+                        if (TryFloat(attribute.Value, out float sneak)) equipment.sneak = sneak;
+                        else owner.warnings.Add($"{owner.id}: <upd @sneak='{attribute.Value}'> is not a number.");
+                        continue;
+
+                    // Armor.as:250-253 — the attribute is @radx and the field is its COMPLEMENT. Reading
+                    // it straight into radVul would invert the sign of every armour that declares one.
+                    case "radx":
+                        if (TryFloat(attribute.Value, out float radx)) equipment.radVul = 1f - radx;
+                        else owner.warnings.Add($"{owner.id}: <upd @radx='{attribute.Value}'> is not a number.");
                         continue;
                 }
 
@@ -370,6 +434,9 @@ namespace PFE.Data.Definitions
 
         private static int ReadInt(Dictionary<string, string> attributes, string name, int fallback)
             => attributes.TryGetValue(name, out string raw) && TryInt(raw, out int value) ? value : fallback;
+
+        private static float ReadFloat(Dictionary<string, string> attributes, string name, float fallback)
+            => attributes.TryGetValue(name, out string raw) && TryFloat(raw, out float value) ? value : fallback;
 
         /// <summary>Invariant-culture integer parse — see the culture note on the class.</summary>
         private static bool TryInt(string raw, out int value)

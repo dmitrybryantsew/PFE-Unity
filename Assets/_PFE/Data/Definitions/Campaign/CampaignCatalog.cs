@@ -34,11 +34,17 @@ namespace PFE.Data.Definitions.Campaign
         [SerializeField]
         private List<CampaignScriptDefinition> scripts = new List<CampaignScriptDefinition>();
 
+        [Header("Vendors")]
+        [Tooltip("One asset per <vendor> block of GameData.d.vendor (13 blocks). Read by VendorRuntime.")]
+        [SerializeField]
+        private List<VendorDefinition> vendors = new List<VendorDefinition>();
+
         // Runtime lookups
         private readonly Dictionary<string, LandDefinition> _landsById = new Dictionary<string, LandDefinition>(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, QuestDefinition> _questsById = new Dictionary<string, QuestDefinition>(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, NpcDefinition> _npcsById = new Dictionary<string, NpcDefinition>(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, CampaignScriptDefinition> _scriptsById = new Dictionary<string, CampaignScriptDefinition>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, VendorDefinition> _vendorsById = new Dictionary<string, VendorDefinition>(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
         /// The list instances — and their sizes — that the four indexes above were built from.
@@ -72,6 +78,8 @@ namespace PFE.Data.Definitions.Campaign
         private int _npcsIndexSize = -1;
         private List<CampaignScriptDefinition> _scriptsIndexSource;
         private int _scriptsIndexSize = -1;
+        private List<VendorDefinition> _vendorsIndexSource;
+        private int _vendorsIndexSize = -1;
 
         private bool _isInitialized = false;
 
@@ -79,6 +87,7 @@ namespace PFE.Data.Definitions.Campaign
         public IReadOnlyList<QuestDefinition> AllQuests => quests;
         public IReadOnlyList<NpcDefinition> AllNpcs => npcs;
         public IReadOnlyList<CampaignScriptDefinition> AllScripts => scripts;
+        public IReadOnlyList<VendorDefinition> AllVendors => vendors;
 
         public void Initialize()
         {
@@ -150,6 +159,20 @@ namespace PFE.Data.Definitions.Campaign
             _scriptsIndexSource = scripts;
             _scriptsIndexSize = SizeOf(scripts);
 
+            _vendorsById.Clear();
+            if (vendors != null)
+            {
+                foreach (var vendor in vendors)
+                {
+                    if (vendor != null && !string.IsNullOrEmpty(vendor.vendorId))
+                    {
+                        _vendorsById[vendor.vendorId] = vendor;
+                    }
+                }
+            }
+            _vendorsIndexSource = vendors;
+            _vendorsIndexSize = SizeOf(vendors);
+
             _isInitialized = true;
         }
 
@@ -163,7 +186,8 @@ namespace PFE.Data.Definitions.Campaign
             return ReferenceEquals(_landsIndexSource, lands) && _landsIndexSize == SizeOf(lands)
                 && ReferenceEquals(_questsIndexSource, quests) && _questsIndexSize == SizeOf(quests)
                 && ReferenceEquals(_npcsIndexSource, npcs) && _npcsIndexSize == SizeOf(npcs)
-                && ReferenceEquals(_scriptsIndexSource, scripts) && _scriptsIndexSize == SizeOf(scripts);
+                && ReferenceEquals(_scriptsIndexSource, scripts) && _scriptsIndexSize == SizeOf(scripts)
+                && ReferenceEquals(_vendorsIndexSource, vendors) && _vendorsIndexSize == SizeOf(vendors);
         }
 
         private static int SizeOf<T>(List<T> list) => list == null ? -1 : list.Count;
@@ -204,6 +228,19 @@ namespace PFE.Data.Definitions.Campaign
             return _scriptsById.TryGetValue(id ?? string.Empty, out script) ? script : null;
         }
 
+        /// <summary>
+        /// The <c>&lt;vendor&gt;</c> block with this id, or null. Same rebuild-on-miss contract as the
+        /// other four lookups — see the note on <see cref="Initialize"/>.
+        /// </summary>
+        public VendorDefinition GetVendor(string id)
+        {
+            Initialize();
+            if (_vendorsById.TryGetValue(id ?? string.Empty, out var vendor)) return vendor;
+
+            RebuildIndexes();
+            return _vendorsById.TryGetValue(id ?? string.Empty, out vendor) ? vendor : null;
+        }
+
         public bool HasLand(string id)
         {
             return !string.IsNullOrEmpty(id) && GetLand(id) != null;
@@ -224,16 +261,23 @@ namespace PFE.Data.Definitions.Campaign
             return !string.IsNullOrEmpty(id) && GetScript(id) != null;
         }
 
+        public bool HasVendor(string id)
+        {
+            return !string.IsNullOrEmpty(id) && GetVendor(id) != null;
+        }
+
         public void SetEntries(
             List<LandDefinition> newLands,
             List<QuestDefinition> newQuests,
             List<NpcDefinition> newNpcs = null,
-            List<CampaignScriptDefinition> newScripts = null)
+            List<CampaignScriptDefinition> newScripts = null,
+            List<VendorDefinition> newVendors = null)
         {
             if (newLands != null) lands = new List<LandDefinition>(newLands);
             if (newQuests != null) quests = new List<QuestDefinition>(newQuests);
             if (newNpcs != null) npcs = new List<NpcDefinition>(newNpcs);
             if (newScripts != null) scripts = new List<CampaignScriptDefinition>(newScripts);
+            if (newVendors != null) vendors = new List<VendorDefinition>(newVendors);
 
             _isInitialized = false;
             Initialize();

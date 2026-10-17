@@ -29,19 +29,31 @@ namespace PFE.Systems.Inventory
         private readonly GameInventory _inventory;
         private readonly Func<string, ItemDefinition> _itemResolver;
         private readonly Func<string, ItemDefinition> _armorResolver;
+        private readonly Func<string, WeaponDefinition> _weaponResolver;
 
         /// <param name="inventory">The inventory this sink owns. Must not be null.</param>
         /// <param name="itemResolver">Id → item row (AS3 <c>AllData.d.item</c>). May be null, in which
         /// case every item command is rejected with a reason rather than throwing.</param>
         /// <param name="armorResolver">Id → armour row (AS3 <c>AllData.d.armor</c>). May be null.</param>
+        /// <param name="weaponResolver">Id → weapon row (AS3 <c>AllData.d.weapon</c>). May be null, in
+        /// which case an <see cref="InventoryCommandKind.AddWeapon"/> is rejected with a reason.
+        ///
+        /// <para><b>Optional, and deliberately so.</b> The three existing construction sites — the
+        /// production one in <c>PlayerInventory.Construct</c> and the two in
+        /// <c>LocalInventoryCommandSinkTests</c> — all pass three arguments, and a required fourth would
+        /// have made the test file stop compiling, which moves the whole fixture's result rather than one
+        /// test's. A null resolver is a stated rejection, not a crash, so the default costs nothing.</para>
+        /// </param>
         public LocalInventoryCommandSink(
             GameInventory inventory,
             Func<string, ItemDefinition> itemResolver,
-            Func<string, ItemDefinition> armorResolver)
+            Func<string, ItemDefinition> armorResolver,
+            Func<string, WeaponDefinition> weaponResolver = null)
         {
             _inventory = inventory ?? throw new ArgumentNullException(nameof(inventory));
             _itemResolver = itemResolver;
             _armorResolver = armorResolver;
+            _weaponResolver = weaponResolver;
         }
 
         /// <inheritdoc/>
@@ -64,6 +76,9 @@ namespace PFE.Systems.Inventory
 
                 case InventoryCommandKind.AddArmor:
                     return ApplyAddArmor(command);
+
+                case InventoryCommandKind.AddWeapon:
+                    return ApplyAddWeapon(command);
 
                 case InventoryCommandKind.DropItem:
                     return ApplyDropItem(command);
@@ -121,6 +136,32 @@ namespace PFE.Systems.Inventory
             return _inventory.AddArmor(command.Id) != null
                 ? InventoryCommandResult.Ok(1)
                 : InventoryCommandResult.Fail($"the inventory refused armour '{command.Id}'");
+        }
+
+        /// <summary>
+        /// Add the weapon whose id is <see cref="InventoryCommand.Id"/>.
+        ///
+        /// <para><b>Checked against the weapon table before calling
+        /// <see cref="GameInventory.AddWeapon"/>, for the same reason <see cref="ApplyAddArmor"/> checks
+        /// the armour one:</b> an unknown id should be a readable rejection here, not a
+        /// <c>Debug.LogError</c> out of the inventory. The check is also what turns a typo into
+        /// <i>"no weapon row for 'xyz'"</i> instead of a message that reads like a broken inventory.</para>
+        ///
+        /// <para><b>The amount is always 1.</b> A weapon is an instance with its own condition, magazine
+        /// and respect state, not a stack of identical things — <see cref="GameInventory.AddWeapon"/>
+        /// creates exactly one, and AS3's <c>weapons[id]</c> likewise holds one <c>Weapon</c> per id. So a
+        /// second add of an id already held <i>repairs</i> that weapon rather than producing a second, and
+        /// reporting 1 is the honest count of what changed.</para>
+        /// </summary>
+        private InventoryCommandResult ApplyAddWeapon(InventoryCommand command)
+        {
+            WeaponDefinition weapon = _weaponResolver?.Invoke(command.Id);
+            if (weapon == null)
+                return InventoryCommandResult.Fail($"no weapon row for '{command.Id}'");
+
+            return _inventory.AddWeapon(command.Id) != null
+                ? InventoryCommandResult.Ok(1)
+                : InventoryCommandResult.Fail($"the inventory refused weapon '{command.Id}'");
         }
 
         /// <summary>

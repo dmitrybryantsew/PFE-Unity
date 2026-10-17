@@ -134,6 +134,54 @@ namespace PFE.Editor.Importers
             => Combine("pfe", "sprites", $"DefineSprite_{symbolId}_{symbolName}");
 
         /// <summary>
+        /// Every <c>pfe/sprites/DefineSprite_{symbolId}*</c> folder, sorted, for a symbol that has
+        /// <b>no class name of its own</b>.
+        ///
+        /// <para><b>Why an id is not enough to name a folder.</b> JPEXS appends the symbol's class name
+        /// only when the SWF's <c>SymbolClass</c> tag gives it one. The <c>osn</c> clips have none, so
+        /// they land as a bare <c>DefineSprite_3621</c> — but a symbol whose class name is
+        /// <i>auto-generated</i> lands as <c>DefineSprite_3294_pfe_fla.T01_ALL_1_600</c>. Both shapes
+        /// exist side by side in this export (54 bare, 7 suffixed among the 61 persona clips), so a
+        /// caller that hard-codes either form silently finds nothing for half the personas.</para>
+        ///
+        /// <para><b>A list, not "the" folder.</b> <c>DefineSprite_362</c> is a prefix of
+        /// <c>DefineSprite_3621</c>, and the suffix form makes a second collision possible, so this
+        /// matches on <c>DefineSprite_{id}</c> followed by end-of-name or <c>'_'</c> and returns
+        /// <i>all</i> hits. The caller reports a count other than one rather than importing whichever
+        /// the filesystem happened to enumerate first.</para>
+        /// </summary>
+        public static string[] PfeSpriteFoldersById(int symbolId)
+        {
+            string root = PfeSpritesRoot;
+            if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root))
+            {
+                return Array.Empty<string>();
+            }
+
+            string bare = $"DefineSprite_{symbolId}";
+            var matches = new List<string>();
+
+            foreach (string dir in Directory.GetDirectories(root))
+            {
+                string name = Path.GetFileName(dir);
+                if (name.Length < bare.Length || !name.StartsWith(bare, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                if (name.Length > bare.Length && name[bare.Length] != '_')
+                {
+                    continue;
+                }
+
+                matches.Add(dir);
+            }
+
+            matches.Sort(StringComparer.Ordinal);
+            return matches.ToArray();
+        }
+
+        /// <summary>
         /// ⚠ <b>Do not use this as an import default.</b> <c>&lt;root&gt;/pfe.swf</c> is not in the
         /// repository — the only game SWF is <see cref="AssetsSwfPath"/>, and the root-level
         /// <c>sprite.swf</c>/<c>sprite1.swf</c>/<c>texture.swf</c> are 0 bytes. This constant was the

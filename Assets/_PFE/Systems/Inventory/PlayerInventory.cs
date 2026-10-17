@@ -57,6 +57,17 @@ namespace PFE.Systems.Inventory
         private Func<string, ItemDefinition> _itemResolver;
 
         /// <summary>
+        /// Id → weapon row, kept from <see cref="Construct"/> for <see cref="ResolveWeapon"/> — the same
+        /// reason <see cref="_itemResolver"/> is kept for <see cref="ResolveItem"/>. Null until a registry
+        /// arrives.
+        ///
+        /// <para>Kept separately rather than derived, because the two tables are disjoint: a weapon id
+        /// answered by the item resolver is <c>null</c>, always, and the weapon gap existed for as long as
+        /// nothing held the other half of that fact.</para>
+        /// </summary>
+        private Func<string, WeaponDefinition> _weaponResolver;
+
+        /// <summary>
         /// The content registry, kept so the F2 pickers can <i>enumerate</i> items rather than only
         /// resolve an id they were already given. Null until a registry arrives.
         /// </summary>
@@ -118,8 +129,17 @@ namespace PFE.Systems.Inventory
             };
 
             _inventory.ArmorDefinitionResolver = armorResolver;
-            _commands = new LocalInventoryCommandSink(_inventory, itemResolver, armorResolver);
+
+            // The weapon resolver is AS3's AllData.d.weapon — a separate table from the item one, and
+            // separate here for the same reason. Without it GameInventory.AddWeapon had no lookup that
+            // could ever succeed, which is the model gap the whole weapon path was stuck behind.
+            Func<string, WeaponDefinition> weaponResolver =
+                id => string.IsNullOrEmpty(id) ? null : registry.Get<WeaponDefinition>(ContentType.Weapon, id);
+
+            _inventory.WeaponDefinitionResolver = weaponResolver;
+            _commands = new LocalInventoryCommandSink(_inventory, itemResolver, armorResolver, weaponResolver);
             _itemResolver = itemResolver;
+            _weaponResolver = weaponResolver;
 
             if (_caster != null)
             {
@@ -189,8 +209,8 @@ namespace PFE.Systems.Inventory
         /// really an ordering bug. Retrying costs one registry enumerator per frame for at most a
         /// second.</para>
         ///
-        /// <para><b>It goes through <see cref="Submit"/>.</b> Items and armour are real mutations, so
-        /// they take the seam the rest of the port takes; only favourites have no
+        /// <para><b>It goes through <see cref="Submit"/>.</b> Items, armour and weapons are real
+        /// mutations, so they take the seam the rest of the port takes; only favourites have no
         /// <see cref="InventoryCommandKind"/> and are set directly, which is noted where they are
         /// granted.</para>
         /// </summary>
@@ -218,19 +238,20 @@ namespace PFE.Systems.Inventory
             // that already landed, and each failure below already says which row and why.
             _loadoutSeeded = true;
 
+            // Caps first, so a page opened on the very next frame already has a balance. AS3
+            // `items["money"].kol = 50` is the last line of addMin (Invent.as:1610); the order is
+            // immaterial here because nothing reads caps until an interaction, and the value is a
+            // constant.
+            _inventory.Money = StartingLoadout.Money;
+
+            // AS3's order, verbatim (Invent.as:1602-1615): weapons first, then armour, then the item
+            // rows, then the two favourites — which are weapons, so they can only be bound after the
+            // weapons exist. Keeping the oracle's order rather than a convenient one is what makes the
+            // favourites step meaningful.
+            foreach (string id in StartingLoadout.WeaponIds) GrantWeapon(id);
             foreach (string id in StartingLoadout.ArmorIds) GrantArmour(id);
             foreach (StartingLoadout.Stack stack in StartingLoadout.Items) GrantItem(stack);
             foreach (StartingLoadout.Favourite favourite in StartingLoadout.Favourites) GrantFavourite(favourite);
-
-            foreach (string id in StartingLoadout.WeaponIds)
-            {
-                Debug.LogWarning("[PlayerInventory] Starting weapon '" + id + "' was not granted. " +
-                                 "GameInventory.AddWeapon builds a GameWeaponInstance from an " +
-                                 "ItemDefinition, but the port's weapons are WeaponDefinition assets " +
-                                 "with no item row (there is no Resources/Items/" + id + ".asset), so " +
-                                 "no definition can be resolved. The Weapons sub-page stays empty " +
-                                 "until that model gap closes; the other four are fully granted.");
-            }
         }
 
         private void GrantItem(StartingLoadout.Stack stack)
@@ -252,18 +273,44 @@ namespace PFE.Systems.Inventory
         }
 
         /// <summary>
+        /// <c>addWeapon(id)</c> — <c>Invent.as:1602-1605</c>. The four ids are <c>r32</c>, <c>rech</c>,
+        /// <c>mont</c> and <c>bat</c>, and this used to be a warning loop instead of a grant: the port's
+        /// weapons are <c>WeaponDefinition</c> assets with no item row, <c>GameInventory.AddWeapon</c>
+        /// resolved through the item table and so could never succeed, and the Weapons sub-page stayed
+        /// empty. It now resolves through <c>ContentType.Weapon</c> like the Oracle's <c>d.weapon</c>, so
+        /// this is the same three-line grant the other two types use.
+        ///
+        /// <para><b>An error here means the registry, not this loop.</b> <see cref="SeedStartingLoadout"/>
+        /// only runs once <see cref="RegistryPopulated"/> sees a non-empty <c>ContentType.Item</c> table,
+        /// and <c>ContentRegistry.Initialize</c> fills every content type in one pass
+        /// (<c>GameDatabase.Initialize</c> → eleven <c>Resources.LoadAll</c> calls), so there is no window
+        /// in which items exist and weapons do not. A refusal therefore names a genuinely absent weapon
+        /// asset, which is what <c>StartingLoadoutTests</c> pins.</para>
+        /// </summary>
+        private void GrantWeapon(string id)
+        {
+            InventoryCommandResult result = Submit(InventoryCommand.AddWeapon(id));
+            if (result.Applied) return;
+
+            Debug.LogError("[PlayerInventory] Starting weapon '" + id + "' was refused: " +
+                           result.Reason + " (Invent.as:1600-1615).");
+        }
+
+        /// <summary>
         /// Binds a favourite. There is no <see cref="InventoryCommandKind"/> for this, so it is the
         /// one starting-grant step that does not take the seam — recorded rather than worked around
         /// by stretching an existing kind to mean something new.
         ///
-        /// <para><b>Both of addMin's favourites are weapons, so both are skipped today.</b>
-        /// <c>GameInventory.SetFavorite</c> resolves through the <i>item</i> dictionary and returns
-        /// false for anything else — its own TODO names weapons
-        /// (<c>GameInventory.cs:477-483</c>) — and the port cannot put a weapon in that dictionary
-        /// (see <see cref="StartingLoadout"/>). Skipping with a stated reason keeps the console
-        /// honest; an error would be read as "the favourite code is broken" rather than "the
-        /// favourite names a weapon the inventory cannot hold". The same code binds them the moment
-        /// that gap closes.</para>
+        /// <para><b>Both of addMin's favourites are weapons, and both are still skipped — but for a
+        /// narrower reason than before.</b> Weapons now <i>are</i> in the inventory
+        /// (<see cref="GrantWeapon"/> runs first, as the Oracle's order has it), so "the inventory cannot
+        /// hold a weapon" is no longer true. What is still true is that
+        /// <c>GameInventory.SetFavorite</c> resolves through the <i>item</i> dictionary and its storage is
+        /// a <c>GameItemInstance[]</c> — an item-typed slot cannot hold a <c>GameWeaponInstance</c>
+        /// without the union the Oracle gets for free by keeping one <c>Item</c> class. So the remaining
+        /// gap is the favourites array's element type, not the weapon path. Skipping with a stated reason
+        /// keeps the console honest; an error would read as "the favourite code is broken". The same code
+        /// binds them the moment the slot type is widened.</para>
         /// </summary>
         private void GrantFavourite(StartingLoadout.Favourite favourite)
         {
@@ -320,6 +367,20 @@ namespace PFE.Systems.Inventory
             => string.IsNullOrEmpty(itemId) ? null : _itemResolver?.Invoke(itemId);
 
         /// <summary>
+        /// Id → weapon row, or null when the id is unknown or is not a weapon — the counterpart to
+        /// <see cref="ResolveItem"/> for the other content type.
+        ///
+        /// <para><b>Why a caller has to be able to ask this at all.</b> A loot roll carries an id and a
+        /// tip, and the container presenters used to ask only <c>ResolveItem</c>, so every weapon roll
+        /// came back <c>null</c> and was dropped with a warning. <c>ResolveItem</c> cannot answer for a
+        /// weapon id — not "cannot yet", but <i>cannot</i>: <c>ContentType.Weapon</c> and
+        /// <c>ContentType.Item</c> are disjoint tables in the Oracle too (<c>d.weapon</c> vs
+        /// <c>d.item</c>), so no widening of the item resolver would ever help.</para>
+        /// </summary>
+        public WeaponDefinition ResolveWeapon(string weaponId)
+            => string.IsNullOrEmpty(weaponId) ? null : _weaponResolver?.Invoke(weaponId);
+
+        /// <summary>
         /// Every item id the content registry knows, ordinal-sorted so the debug list has a stable order
         /// between repaints. Empty (never null) before <see cref="Construct"/>.
         ///
@@ -328,11 +389,12 @@ namespace PFE.Systems.Inventory
         /// overlay needed the second one to stop making the user type ids from memory. It is read-only
         /// and cached: the overlay must still mutate through <see cref="Submit"/>.</para>
         ///
-        /// <para>Weapons and armour are <b>not</b> here. Weapons are a separate content type with a
-        /// separate dictionary (<c>GameInventory.AddWeapon</c> is still a stub), so a weapon id would
-        /// resolve to null and could not be spawned as a world pickup. Armour rows <i>are</i> item rows
-        /// (they carry <c>ItemType.Equipment</c>), so they appear — on the Misc page, which is where the
-        /// page partition puts <c>Equipment</c>.</para>
+        /// <para>Weapons are <b>not</b> here, and that is a content-type fact rather than a gap: this
+        /// enumerates <c>ContentType.Item</c>, and a weapon id lives in <c>ContentType.Weapon</c>. It is
+        /// still spawnable — <see cref="ResolveWeapon"/> answers for it and <c>WorldItemPickup.Spawn</c>
+        /// takes a weapon row — it simply is not offered by a picker built from this list. Armour rows
+        /// <i>are</i> item rows (they carry <c>ItemType.Equipment</c>), so they appear — on the Misc page,
+        /// which is where the page partition puts <c>Equipment</c>.</para>
         /// </summary>
         public IReadOnlyList<string> AvailableItemIds
         {

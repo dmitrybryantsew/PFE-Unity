@@ -18,9 +18,9 @@ namespace PFE.Tests.EditMode.Systems.Inventory
     /// <para><b>The last two tests are lints, and they are the ones that earn the fixture.</b> A
     /// transcription can be right and still grant nothing, if the row it names has no asset behind
     /// it. One checks that every grantable row has a file on disk; the other that the four weapons
-    /// — which <see cref="PlayerInventory"/> must refuse — have weapon assets, so the refusal stays
-    /// a stated model gap rather than a missing-data problem someone would chase into the content
-    /// pipeline.</para>
+    /// resolve through <c>ContentType.Weapon</c> and <i>not</i> through a row in the item table, so
+    /// the weapon grant keeps working the way the Oracle's disjoint <c>d.weapon</c>/<c>d.item</c>
+    /// tables work rather than being "fixed" by making weapons into items.</para>
     /// </summary>
     [TestFixture]
     public sealed class StartingLoadoutTests
@@ -148,24 +148,29 @@ namespace PFE.Tests.EditMode.Systems.Inventory
         }
 
         [Test]
-        public void TheFourWeaponsHaveWeaponAssets_SoTheRefusalIsAModelGapNotAMissingRow()
+        public void TheFourStartingWeaponsResolveThroughTheWeaponTable_AndNotThroughAnItemRow()
         {
-            // This is the load-bearing distinction in PlayerInventory.SeedStartingLoadout's report:
-            // GameInventory.AddWeapon builds a GameWeaponInstance from an ItemDefinition, while the
-            // port's weapons are WeaponDefinition assets with no row in the item table. If the weapon
-            // assets were ALSO missing, the gap would be data rather than model, and that log line
-            // would be lying about what to fix.
+            // The four `addWeapon` grants in SeedStartingLoadout resolve through ContentType.Weapon, so
+            // each id needs a Resources/Weapons asset or the grant is refused at boot. Without the asset
+            // the failure would be DATA rather than model, and the error log would be naming the wrong
+            // thing to fix.
+            //
+            // The second assertion guards the tempting wrong fix. Adding a Resources/Items/r32.asset would
+            // make ResolveItem answer for the id — but it would produce an item-shaped weapon: a stackable
+            // row with a weight and no condition, magazine or respect state. The Oracle keeps the two
+            // tables disjoint (AllData.d.weapon vs AllData.d.item) and so must the port.
             string root = SourceLint.ProjectRoot();
 
             foreach (string id in StartingLoadout.WeaponIds)
             {
                 Assert.That(File.Exists(WeaponAsset(root, id)), Is.True,
-                    $"no weapon definition for '{id}': the starting-loadout refusal would then be a " +
-                    $"missing asset, not a model gap.");
+                    $"no weapon definition for '{id}': GameInventory.AddWeapon resolves through " +
+                    $"ContentType.Weapon, so the starting grant would be refused for a missing asset.");
 
                 Assert.That(File.Exists(ItemAsset(root, id)), Is.False,
-                    $"'{id}' now has an item row, so GameInventory.AddWeapon can resolve it and " +
-                    $"PlayerInventory no longer needs to refuse it. Remove the refusal.");
+                    $"'{id}' has an item row. A weapon must resolve through ContentType.Weapon — an item " +
+                    $"row would make it a stackable item with a weight and no condition or magazine. " +
+                    $"Delete Resources/Items/{id}.asset.");
             }
         }
 
@@ -179,7 +184,8 @@ namespace PFE.Tests.EditMode.Systems.Inventory
         private static string ArmorAsset(string root, string armorId)
             => Path.Combine(root, "Assets", "_PFE", "Data", "Resources", "Armor", armorId + ".asset");
 
-        /// <summary>Where weapon definitions live — the table the weapon half cannot read from.</summary>
+        /// <summary>Where weapon definitions live — the table <c>GameInventory.AddWeapon</c> resolves
+        /// through, and the table a weapon id must NOT also appear in as an item row.</summary>
         private static string WeaponAsset(string root, string weaponId)
             => Path.Combine(root, "Assets", "_PFE", "Data", "Resources", "Weapons", weaponId + ".asset");
     }

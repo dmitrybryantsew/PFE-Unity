@@ -294,15 +294,42 @@ public class GameLifetimeScope : LifetimeScope
         builder.Register<CampaignEventBus>(Lifetime.Singleton)
             .WithParameter<Action<string>>(_ => null);
 
-        // `IQuestRewardHost` and `IQuestScriptHost` (QuestHosts.cs) have no implementation yet — the
-        // reward seam needs a campaign->character-stat path and the script seam needs a "which room does
-        // a quest end script run in" answer. Both are deliberately written to be absent (CampaignManager
-        // warns by name when a payout was owed or an `endscr` did not run), so the correct registration
-        // today is a null factory rather than an invented implementation. Same VContainer trap as above.
+        // The quest payout. `IQuestRewardHost` used to be a null factory here, which made every
+        // completed quest log "owes N xp, but no IQuestRewardHost is wired, so the payout was dropped" —
+        // 19 quests carry @xp, 3 carry @sp, 40 carry @rep and 77 `<reward>` rows exist in the shipped
+        // data, so a whole progression axis was reading as "these quests pay nothing".
+        //
+        // Both lookups are `Func<>`s and not values, for the reason the ScriptPlayerHost block above
+        // gives: CharacterStats/PlayerInventory are components on a scene object that a respawn, a room
+        // rebuild or a scene reload replaces. Resolving once would leave quests paying a destroyed
+        // object, which throws nothing and changes nothing. The lookup body mirrors
+        // PlayerScriptControlLock.cs:96 and the rest of the codebase — a lazy FindFirstObjectByType.
+        //
+        // `IQuestScriptHost` stays a null factory, and that is now a measured answer rather than an
+        // assumption: `endscr` occurs ZERO times across every `<quest>` in GameData.as, so the seam has
+        // no quest-side caller to serve. CampaignManager already reports by name when an `endscr` does
+        // not run, so a future authored one cannot go silent.
+        builder.Register<QuestRewardHost>(Lifetime.Singleton)
+            .As<IQuestRewardHost>()
+            .WithParameter<Func<PFE.Systems.RPG.CharacterStats>>(_ => () =>
+            {
+                PlayerController player = UnityEngine.Object.FindFirstObjectByType<PlayerController>(
+                    FindObjectsInactive.Include);
+                return player != null ? player.CharacterStats : null;
+            })
+            .WithParameter<Func<PFE.Systems.Inventory.PlayerInventory>>(_ => () =>
+            {
+                PlayerController player = UnityEngine.Object.FindFirstObjectByType<PlayerController>(
+                    FindObjectsInactive.Include);
+                return player != null ? player.GetComponent<PFE.Systems.Inventory.PlayerInventory>() : null;
+            })
+            .WithParameter<Action<string>>(_ => null);
+
         builder.RegisterEntryPoint<CampaignManager>()
             .As<ICampaignManager>()
             .AsSelf()
-            .WithParameter<IQuestRewardHost>(_ => null)
+            .WithParameter<IQuestRewardHost>(resolver =>
+                resolver.TryResolve<IQuestRewardHost>(out IQuestRewardHost rewards) ? rewards : null)
             .WithParameter<IQuestScriptHost>(_ => null);
 
         // === Map-script interpreter (CampaignControl C2) ===
@@ -338,9 +365,24 @@ public class GameLifetimeScope : LifetimeScope
         // factory and not a value: CharacterStats is a scene MonoBehaviour that may not exist yet when
         // the container is built, and the vocabulary that touches it is rare enough that resolving it
         // per call is cheaper than making the container depend on scene load order.
+        //
+        // **It was a null factory, and that silently disabled every perk grant in the game.** The
+        // comment above describes the intent; the line below passed `_ => null`, so
+        // `ScriptPlayerHost._stats` was null and `AddPerk` took its "no CharacterStats is reachable"
+        // branch — reported once as a LogWarning and then dropped. The visible consequence was the
+        // begin land's double jump: `beginLevit` runs `<s act="perk" val="levitation"/>`
+        // (GameData.as:1225), the only grant of `isDJ` in the whole game, and the player got the
+        // dialogue line, the `perkLevit` toast, and no perk. `AddPerk` itself was correct — it was
+        // simply never reached. Same shape as the `IQuestRewardHost` null factory fixed above, and the
+        // reason the lookup below is written out rather than left as `_ => null`.
         builder.Register<ScriptPlayerHost>(Lifetime.Singleton)
             .As<IScriptPlayerHost>()
-            .WithParameter<Func<PFE.Systems.RPG.CharacterStats>>(_ => null)
+            .WithParameter<Func<PFE.Systems.RPG.CharacterStats>>(_ => () =>
+            {
+                PlayerController player = UnityEngine.Object.FindFirstObjectByType<PlayerController>(
+                    FindObjectsInactive.Include);
+                return player != null ? player.CharacterStats : null;
+            })
             .WithParameter<Action<string>>(_ => null);
 
         // The clock and the registry. AsSelf() is REQUIRED, not decoration: SimTickRegistrar reads the

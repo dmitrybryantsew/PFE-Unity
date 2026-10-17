@@ -128,6 +128,18 @@ namespace PFE.Entities.Player
         /// </summary>
         private PlayerInventory _inventoryComponent;
 
+        /// <summary>
+        /// The land's first-acquisition item scripts — AS3 <c>Land.itemScripts</c> +
+        /// <c>Invent.takeScript</c> (<c>Land.as:141-149</c>, <c>Invent.as:1554-1560</c>). Created in
+        /// <c>Awake</c> alongside the inventory, because it subscribes to the inventory's
+        /// <c>OnItemAdded</c>/<c>OnWeaponAdded</c> and must therefore be built after it exists.
+        ///
+        /// <para>Without this, taking the Cogwheel opened no quest: <c>collectHS</c> is granted from
+        /// exactly one place in the game, and that place is a <c>&lt;scr eve='take' item='col1'&gt;</c>
+        /// block (<c>GameData.as:44-46</c>).</para>
+        /// </summary>
+        private PFE.Systems.Map.Scripting.LandItemScriptRunner _itemTakeScripts;
+
         // The three spell input subscribers, held between Construct and Awake because Unity does not
         // order the two. Same reason and same shape as _pendingEffectResolver above.
         private ISubscriber<SpellCastMessage> _pendingSpellCastSubscriber;
@@ -459,6 +471,14 @@ namespace PFE.Entities.Player
             _characterStats = GetComponent<CharacterStats>() ?? gameObject.AddComponent<CharacterStats>();
             _characterStats.BindUnitStats(base._unitStats);
 
+            // AS3 `new Pers()` applies `setGlobalDif(globalDif)` at construction (Pers.as:517-528), and
+            // `Game.changeDif` re-applies it plus `setParameters()` on every change (Game.as:326-327).
+            // Both halves land here: the setting is read once now, and the event covers a mid-run change
+            // (the dev-console `dif` verb). Applied on the PLAYER only — the oracle's table is
+            // `World.w.pers`, and an NPC has no Pers.
+            _characterStats.ApplyGlobalDifficulty(PFE.Systems.Campaign.GlobalDifficulty.Value);
+            PFE.Systems.Campaign.GlobalDifficulty.Changed += OnGlobalDifficultyChanged;
+
             // The player builds its own stats rather than receiving them from RoomUnitSpawner, so it
             // does not pass through UnitController.Initialize — and without this the player's effect
             // payload damage (a burn tick, an acid tick) would fall back to the raw HP subtraction:
@@ -488,6 +508,14 @@ namespace PFE.Entities.Player
             // AttachSimulation's job below.
             _autoPickup = GetComponent<PlayerAutoPickup>() ?? gameObject.AddComponent<PlayerAutoPickup>();
             _autoPickup.Construct(_inventoryComponent, this);
+
+            // The land's `eve='take'` item scripts. Built after the inventory for the same reason
+            // `_autoPickup` is: it subscribes to that inventory's OnItemAdded/OnWeaponAdded. The
+            // LandMap is passed as a factory because the injection that fills `_pendingLandMap` is not
+            // ordered against this Awake.
+            _itemTakeScripts = GetComponent<PFE.Systems.Map.Scripting.LandItemScriptRunner>()
+                ?? gameObject.AddComponent<PFE.Systems.Map.Scripting.LandItemScriptRunner>();
+            _itemTakeScripts.Construct(_inventoryComponent, () => _pendingLandMap);
 
             // AS3 Pers.die() fires from inside damage() / bloodDamage() / manaDamage() when an organ
             // reaches zero (Pers.as:1693-1697, :1793-1797, :1739-1743). CharacterStats raises the
@@ -552,6 +580,8 @@ namespace PFE.Entities.Player
 
         protected override void OnDestroy()
         {
+            PFE.Systems.Campaign.GlobalDifficulty.Changed -= OnGlobalDifficultyChanged;
+
             if (_characterStats != null)
             {
                 _characterStats.onDeath -= OnCharacterDeath;
@@ -567,10 +597,34 @@ namespace PFE.Entities.Player
             base.OnDestroy();
         }
 
+        /// <summary>
+        /// AS3 <c>Game.changeDif</c>'s tail (<c>Game.as:326-327</c>): re-apply the parameter table and
+        /// recompute the derived block. Subscribed in <c>Awake</c>, dropped in <c>OnDestroy</c>.
+        /// </summary>
+        private void OnGlobalDifficultyChanged(int globalDif)
+        {
+            if (_characterStats == null) return;
+
+            _characterStats.ApplyGlobalDifficulty(globalDif);
+            Debug.Log($"[PlayerController] globalDif changed to {globalDif}; the Pers parameter table was " +
+                      "re-applied (organMult/dieDamage/teleMana/difCapsMult).");
+        }
+
         private void Update()
         {
             HandleAiming();
             HandleMovementInput();
+
+            // Refreshed every frame, before anything reads it: this is the port of AS3's
+            // `World.w.loc.celObj`, which `Location.step` recomputes on every frame
+            // (Location.as:3371-3394) and `GUI.setCelObj` then draws the floating prompt from
+            // (GUI.as:1244-1467). Gated on the same cutscene lock the interact key uses — a script
+            // that has taken control must not leave a prompt hanging over an object the player
+            // cannot work.
+            //
+            // The cost is one `Physics2D.OverlapCircleAll` at the cursor per frame, which is what
+            // the Oracle's own per-frame object scan costs; it is not a scene walk.
+            CurrentInteractTarget = ScriptControlEnabled ? FindCursorTarget() : null;
 
             // Direct interact check (E key or Right-Click). Both edges are read, because acting is a
             // hold: AS3 keeps keyAction as a held boolean (set at Ctr.as:699, cleared at :797) and
@@ -843,6 +897,21 @@ namespace PFE.Entities.Player
         public override PFE.Data.Definitions.FactionType Faction => PFE.Data.Definitions.FactionType.Player;
 
         /// <summary>
+        /// AS3 <c>UnitPlayer.levit &gt; 0</c> (<c>unit/UnitPlayer.as:1113-1116</c>) — levitation is one of
+        /// the two per-tick <c>demask</c> writers, so it reaches perception the same way the fast-move
+        /// raise does. Read from the locomotion controller, which owns the state; null is legal before
+        /// <c>Awake</c> wires it and means "not levitating".
+        /// </summary>
+        protected override bool StealthLevitatingSource => _locomotion != null && _locomotion.IsLevitating;
+
+        /// <summary>
+        /// AS3 <c>UnitPlayer.teleObj</c> (<c>unit/UnitPlayer.as:1239-1242</c>) — the other per-tick
+        /// <c>demask</c> writer. Held telekinetically, the player is revealed as plainly as a levitating
+        /// one; the state ends when the object is dropped or thrown.
+        /// </summary>
+        protected override bool StealthTelekinesisSource => _telekinesis != null && _telekinesis.IsHoldingObject;
+
+        /// <summary>
         /// Apply damage to the player.
         /// Overrides base implementation to add player-specific death handling.
         /// </summary>
@@ -925,6 +994,18 @@ namespace PFE.Entities.Player
         // There is deliberately no serialized interaction radius any more. The reach is AS3's
         // World.w.actionDist, read from WorldConstants.ACTION_REACH by both this class and every
         // IInteractable, so a scene cannot widen it by accident and the two cannot drift apart.
+
+        /// <summary>
+        /// The interactable under the cursor, within reach, as of this frame — the port of AS3's
+        /// <c>World.w.loc.celObj</c>. <c>Location.step</c> refreshes that every frame
+        /// (<c>Location.as:3371-3394</c>) and <c>GUI.setCelObj</c> reads it to draw the world-anchored
+        /// interaction prompt (<c>GUI.as:1244-1467</c>); <c>Update</c> refreshes this one the same way.
+        ///
+        /// <para>Null when nothing is under the cursor, when the target is out of reach, or while a
+        /// script holds control. Read-only: the prompt view consumes it, nothing writes it but
+        /// <see cref="Update"/>.</para>
+        /// </summary>
+        public IInteractable CurrentInteractTarget { get; private set; }
 
         /// <summary>
         /// Resolves what the player is trying to act on, <b>without acting</b>: the interactable

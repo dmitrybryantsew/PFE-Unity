@@ -145,6 +145,35 @@ namespace PFE.Data.Definitions.Campaign
         [Tooltip("AS3 <prob> children: the bonus/boss rooms a doorprob/doorboss can open into")]
         public List<ProbRoomDefinition> probRooms = new List<ProbRoomDefinition>();
 
+        /// <summary>
+        /// AS3 <c>&lt;scr eve='take' item='…'&gt;</c> children of this <c>&lt;land&gt;</c> — the
+        /// <b>first-acquisition item scripts</b>.
+        ///
+        /// <para><b>Oracle.</b> <c>Land.as:141-149</c> builds <c>land.itemScripts</c> by walking the
+        /// land's own <c>&lt;scr&gt;</c> children and keeping every one whose <c>@eve == "take"</c> and
+        /// whose <c>@item</c> is non-empty, keyed by <c>@item</c>. <c>Invent.takeScript(id)</c>
+        /// (<c>Invent.as:1554-1560</c>) then starts that script, and <c>Invent.take()</c> calls it from
+        /// five places — each guarded by <c>this.items[l.id].kol == 0</c>, i.e. <b>only the first time
+        /// the player ever holds that item</b> (<c>:1102</c>, <c>:1132</c>, <c>:1192</c>, <c>:1213</c>,
+        /// <c>:1227</c>).</para>
+        ///
+        /// <para><b>Why this is not a curiosity.</b> <c>collectHS</c> — the campaign's first quest, the
+        /// one that sends the player after the Cogwheel — is granted from <b>exactly one place in the
+        /// entire game</b>: <c>&lt;scr eve='take' item='col1'&gt;&lt;s act="quest"
+        /// val="collectHS"/&gt;</c> (<c>GameData.as:44-46</c>). The <c>begin</c> land declares six of
+        /// these scripts in total (<c>mont</c>, <c>screwdriver</c>, <c>rech</c>, <c>r32</c>,
+        /// <c>s_arson</c>, <c>col1</c>), <c>test</c> one (<c>captive</c>) and <c>test2</c> one
+        /// (<c>diary</c>). With the table unparsed, taking the Cogwheel opened no quest and taking the
+        /// screwdriver left <c>trDoor</c> shut.</para>
+        ///
+        /// <para><b>Only <c>&lt;s&gt;</c> children are actions.</b> <c>Script.as:47-53</c> iterates
+        /// <c>param1.s</c>, which in E4X is the children named exactly <c>s</c> — so the one
+        /// <c>&lt;s1 act="mess" val="trMont" opt1="1"/&gt;</c> in <c>GameData.as:27</c> is <b>dead data
+        /// the oracle never runs</b>, and this parser must drop it too.</para>
+        /// </summary>
+        [Tooltip("AS3 <scr eve='take' item='…'> children: scripts that run on first acquisition of an item")]
+        public List<LandItemScript> itemScripts = new List<LandItemScript>();
+
         protected override bool OnValidateData()
         {
             if (string.IsNullOrEmpty(landId))
@@ -154,6 +183,35 @@ namespace PFE.Data.Definitions.Campaign
             }
             return true;
         }
+    }
+
+    /// <summary>
+    /// One AS3 <c>&lt;scr eve='take' item='…'&gt;</c> child of a <c>&lt;land&gt;</c> — a script that runs
+    /// the first time the player ever acquires the named item, while that land is the loaded one.
+    ///
+    /// <para>Held as a plain serializable row rather than a <see cref="CampaignScriptDefinition"/>
+    /// because the oracle keys these by item and never gives them an <c>id</c>: they are looked up by
+    /// <c>land.itemScripts[itemId]</c> (<c>Land.as:147</c>), not by a script id. A
+    /// <c>ScriptableObject</c> per row would also make the whole table unbuildable in the offline
+    /// fixtures, which is where the import is actually verified.</para>
+    /// </summary>
+    [Serializable]
+    public class LandItemScript
+    {
+        /// <summary>AS3 <c>@item</c> — the item id whose first acquisition fires this script.</summary>
+        [Tooltip("AS3 @item: the item id whose first acquisition runs these actions")]
+        public string itemId = "";
+
+        /// <summary>
+        /// AS3 the <c>&lt;s&gt;</c> children, in document order.
+        ///
+        /// <para><b>Not <c>&lt;s1&gt;</c>.</b> <c>Script.as:47-53</c> reads <c>param1.s</c>, which is
+        /// E4X for the children named exactly <c>s</c>; the single <c>&lt;s1&gt;</c> in the data
+        /// (<c>GameData.as:27</c>, in the <c>mont</c> script) is never executed by the oracle and is
+        /// therefore not parsed here.</para>
+        /// </summary>
+        [Tooltip("AS3 <s> children, in document order (never <s1> — Script.as:47 reads .s only)")]
+        public List<CampaignScriptAction> actions = new List<CampaignScriptAction>();
     }
 
     /// <summary>
@@ -199,18 +257,57 @@ namespace PFE.Data.Definitions.Campaign
         /// <summary>
         /// AS3 <c>&lt;con&gt;</c> children: the room's contents.
         ///
-        /// <para><b>Two sibling elements are still not parsed, and the reason has changed.</b> The 24
-        /// <c>&lt;wave&gt;</c> children (128 <c>&lt;obj&gt;</c> between them) feed
-        /// <c>Probation.maxwave</c> and the wave timer, and the 4 <c>&lt;scr&gt;</c> children are the
-        /// alarm/in/out/close event scripts (<c>Probation.as:105-130</c>). Those <i>rules</i> now exist —
-        /// <see cref="PFE.Systems.Map.Generation.ProbationState"/> ports the whole state machine, including
-        /// <c>SetMaxWave</c>, <c>CreateWave</c> and <c>Step</c> — but what is missing is the adapter that
-        /// would <i>drive</i> them: it is the piece that would read a <c>&lt;wave&gt;</c> payload and hand
-        /// the state machine a <c>ProbWaveView</c>, and it is owner-only play-test work. Parsing the
-        /// payloads before that adapter exists would produce data no code reads, which is
-        /// indistinguishable from a bug.</para>
+        /// <para><b>The adapter now exists, so this gap is closed.</b> The rules were ported first
+        /// (<see cref="PFE.Systems.Map.Generation.ProbationState"/> is the whole state machine), then
+        /// the driver — <see cref="PFE.Systems.Map.Generation.ProbRoomSessions"/> owns one state per
+        /// prob room, reads a live room into a <see cref="PFE.Systems.Map.Generation.ProbRoomView"/>,
+        /// applies the resulting <see cref="PFE.Systems.Map.Generation.ProbEffects"/> and raises the
+        /// room-cleared event. It is wired from the interaction path, the unit-death path and the
+        /// enter/leave paths, and it is built and registered by
+        /// <c>RoomTransitionManager.BuildProbSessions</c>.</para>
+        ///
+        /// <para><b>What is still not parsed: the four <c>&lt;scr&gt;</c> children</b> (alarm / in /
+        /// out / close, <c>Probation.as:105-130</c>) — the event scripts. Nothing runs them. The
+        /// <c>&lt;wave&gt;</c> payload question is separate and answered on
+        /// <see cref="waves"/>: the metadata is parsed, the <c>&lt;obj&gt;</c>s are not, because there
+        /// is no spawner to hand them to.</para>
         /// </summary>
         public List<ProbContentData> contents = new List<ProbContentData>();
+
+        /// <summary>
+        /// AS3 <c>&lt;wave&gt;</c> children: the timed spawn groups behind
+        /// <see cref="ProbationState.maxwave"/>. Metadata only — the <c>&lt;obj&gt;</c> payloads are not
+        /// carried, because <see cref="PFE.Systems.Map.Generation.ProbRoomSessions"/> has no spawner to
+        /// hand them to. What <b>is</b> carried is what the state machine needs to be honest: the count,
+        /// each delay, and each wave's size, so <c>nwave &lt; maxwave</c> is a real gate rather than
+        /// always-false.
+        ///
+        /// <para><b>The consequence is stated, not hidden.</b> Because the payloads are not spawned,
+        /// <c>nwave</c> never advances and the six wave-only probs (<c>w_raiders</c>, <c>w_zombie</c>,
+        /// <c>w_robots</c>, <c>w_grif</c>, <c>w_necros</c>, <c>w_encl</c>) never close. Their gate is
+        /// <c>nwave &lt; maxwave</c>, which is true whenever the waves have not run — see the class
+        /// summary on <see cref="ProbRoomSessions"/>.</para>
+        /// </summary>
+        public List<ProbWaveData> waves = new List<ProbWaveData>();
+    }
+
+    /// <summary>
+    /// One AS3 <c>&lt;wave t='…'&gt;</c> child of a <c>&lt;prob&gt;</c>, metadata only — see
+    /// <see cref="ProbRoomDefinition.waves"/> for why the payload is not parsed.
+    /// </summary>
+    [Serializable]
+    public class ProbWaveData
+    {
+        /// <summary>AS3 <c>@t.length()</c> — a wave with no <c>t</c> leaves the timer untouched
+        /// (<c>Probation.as:341-344</c>), which is a different outcome from a delay of 0.</summary>
+        public bool hasDelay;
+
+        /// <summary>AS3 <c>@t</c>, in seconds.</summary>
+        public int delaySeconds;
+
+        /// <summary>The number of <c>&lt;obj&gt;</c> children — what <c>kolEn</c> gains
+        /// (<c>Probation.as:337-340</c>).</summary>
+        public int spawnCount;
     }
 
     /// <summary>One AS3 <c>&lt;con&gt;</c> child of a <c>&lt;prob&gt;</c>.</summary>

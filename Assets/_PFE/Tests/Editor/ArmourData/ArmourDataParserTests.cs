@@ -200,7 +200,74 @@ namespace PFE.Tests.Editor.ArmourData
             Assert.AreEqual(0, adept.levels[0].armor, "The amulet's bonus is magic, not armour.");
             Assert.AreEqual(0, adept.levels[0].magicArmor,
                 "…and @magic is a *damage multiplier* (Armor.magicMult), not @marmor — so magicArmor " +
-                "stays 0 and the multiplier is recorded as a deliberate omission.");
+                "stays 0 and the multiplier lands in its own field.");
+            Assert.AreEqual(1.16f, adept.magicMult, 1e-4f,
+                "Armor.as:139-142 reads @magic off the ROOT element into magicMult. This used to be a " +
+                "recorded omission; it is now carried because PipPage.as:633-636 prints it.");
+        }
+
+        // === The per-item multipliers and the two <upd> stats that were omissions until 2026-10-14 ===
+
+        [Test]
+        public void ReadsThePerItemMultipliersOffTheRootElement()
+        {
+            // Armor.as:131-143 — read in the CONSTRUCTOR, before getXmlParam(xml.upd[lvl]) at :187, so
+            // unlike armour/marmor/qual they do not vary by upgrade level. That ordering is why these
+            // are fields on ArmourDefinitionData rather than members of each EquipmentData.
+            ArmourDefinitionData data = ParseFirst(
+                "<armor id='x' melee='1.15' guns='1.2' magic='1.16' crit='0.05'>" +
+                "<upd armor='1'/><upd armor='2'/></armor>");
+
+            Assert.AreEqual(1.15f, data.meleeMult, 1e-4f);
+            Assert.AreEqual(1.20f, data.gunsMult, 1e-4f);
+            Assert.AreEqual(1.16f, data.magicMult, 1e-4f);
+            Assert.AreEqual(0.05f, data.crit, 1e-4f);
+
+            CollectionAssert.IsEmpty(
+                data.warnings.FindAll(w => w.Contains("@melee=") || w.Contains("@guns=") ||
+                                           w.Contains("@magic=") || w.Contains("@crit=")),
+                "None of the four is a drop any more — a warning here means the omission list drifted " +
+                "out of step with the parser.");
+        }
+
+        [Test]
+        public void ThePerItemMultipliersDefaultToTheirNeutralValues()
+        {
+            // The sharp edge: a struct default is 0, and for a *multiplier* 0 means "no damage at all" —
+            // the exact opposite of neutral. Every armour that declares no @melee must read 1, not 0.
+            ArmourDefinitionData data = ParseFirst("<armor id='x'><upd armor='1'/></armor>");
+
+            Assert.AreEqual(1f, data.meleeMult, 1e-4f);
+            Assert.AreEqual(1f, data.gunsMult, 1e-4f);
+            Assert.AreEqual(1f, data.magicMult, 1e-4f);
+            Assert.AreEqual(0f, data.crit, 1e-4f, "…but crit is neutral at 0, not 1.");
+        }
+
+        [Test]
+        public void ReadsSneakAndInvertsRadxIntoRadVul()
+        {
+            // Armor.as:262-266 reads @sneak straight; :250-253 reads @radx as its COMPLEMENT into radVul.
+            // Reading radx into radVul unmodified would invert the sign of every armour that sets one.
+            ArmourDefinitionData data = ParseFirst(
+                "<armor id='x'><upd armor='1' sneak='-0.2' radx='0.3'/></armor>");
+
+            Assert.AreEqual(-0.2f, data.levels[0].sneak, 1e-4f);
+            Assert.AreEqual(0.7f, data.levels[0].radVul, 1e-4f, "radVul = 1 - radx = 1 - 0.3.");
+
+            CollectionAssert.IsEmpty(
+                data.warnings.FindAll(w => w.Contains("@sneak=") || w.Contains("@radx=")),
+                "@sneak/@radx are read now, not dropped.");
+        }
+
+        [Test]
+        public void RadVulIsNeutralAtOneNotZero()
+        {
+            // The one EquipmentData field whose AS3 default is not 0 (Armor.as:36). The pane's gate is
+            // `radVul < 1` (PipPage.as:641), so 0 would print "radx: 100%" on all 35 armours instead of
+            // the 6 that declare @radx. Both paths are checked: a real <upd> and the no-<upd> fallback.
+            Assert.AreEqual(1f, ParseFirst("<armor id='x'><upd armor='1'/></armor>").levels[0].radVul, 1e-4f);
+            Assert.AreEqual(1f, ParseFirst("<armor id='x'></armor>").levels[0].radVul, 1e-4f,
+                "The no-<upd> fallback level is seeded too, not default(EquipmentData).");
         }
 
         // === The warnings: every drop is named ===
@@ -223,18 +290,24 @@ namespace PFE.Tests.Editor.ArmourData
         {
             // One synthetic block carrying every attribute the port knowingly does not model. Each must
             // produce a "dropped —" warning: a decision, visibly made.
+            //
+            // @melee/@guns/@magic/@crit and @radx/@sneak were in this list until 2026-10-14, when the
+            // PipBuck's armour pane became a consumer of all six (PipPage.as:621-644). They are asserted
+            // as READS by ReadsThePerItemMultipliersOffTheRootElement / ReadsSneakAndInvertsRadxIntoRadVul
+            // above; leaving them here would have made this test demand a warning for a value the port
+            // now uses.
             const string block =
-                "<armor id='x' clo='1' tre='3' h2o='0.25' melee='1.1' guns='1.1' magic='1.1' crit='0.05' " +
+                "<armor id='x' clo='1' tre='3' h2o='0.25' " +
                 "comp='metal_comp' kolcomp='4' abil='stealth_armor' fly='1' lvl='1'>" +
-                "<upd armor='1' kol='10' radx='0.5' sneak='0.2' mana='1000' act='100' used='1' res='1'/>" +
+                "<upd armor='1' kol='10' mana='1000' act='100' used='1' res='1'/>" +
                 "</armor>";
 
             ArmourDefinitionData data = ParseFirst(block);
 
             foreach (string attribute in new[]
                      {
-                         "clo", "tre", "h2o", "melee", "guns", "magic", "crit", "comp", "kolcomp",
-                         "abil", "fly", "kol", "radx", "sneak", "mana", "act", "used", "res",
+                         "clo", "tre", "h2o", "comp", "kolcomp",
+                         "abil", "fly", "kol", "mana", "act", "used", "res",
                      })
                 Assert.IsNotNull(WarningsFor(data, $"@{attribute}='"),
                     $"@{attribute} is a known omission and must say so — otherwise it looks like a bug.");
@@ -280,6 +353,8 @@ namespace PFE.Tests.Editor.ArmourData
             Assert.AreEqual(0, data.levels[0].armor);
             Assert.AreEqual(0f, data.levels[0].reliability, 1e-4f,
                 "qual 0 means isrnd(0), which is never true — so this armour absorbs nothing.");
+            Assert.AreEqual(1f, data.levels[0].radVul, 1e-4f,
+                "…but radVul is 1, not 0: it is the one field whose AS3 default is not zero.");
             Assert.IsNotNull(WarningsFor(data, "no <upd> child"));
         }
 
@@ -459,6 +534,24 @@ namespace PFE.Tests.Editor.ArmourData
 
             Assert.AreEqual(3, target.armourLevels.Length, "The per-level half.");
             Assert.AreEqual(6, target.armourLevels[2].armor);
+
+            // kombu declares none of the four per-item multipliers, so ApplyTo must write their NEUTRAL
+            // values — 1 for the three multipliers. Writing 0 here would make a re-import silently zero
+            // out melee/guns/spell damage for every armour that never declared one.
+            Assert.AreEqual(1f, target.armorMeleeMult, 1e-4f);
+            Assert.AreEqual(1f, target.armorGunsMult, 1e-4f);
+            Assert.AreEqual(1f, target.armorMagicMult, 1e-4f);
+            Assert.AreEqual(0f, target.armorCrit, 1e-4f);
+        }
+
+        [Test]
+        public void ApplyToCarriesThePerItemMultipliersFromTheRoot()
+        {
+            ItemDefinition target = NewItemDefinition();
+            ParseFirst(AdeptAmuletBlock).ApplyTo(target);
+
+            Assert.AreEqual(1.16f, target.armorMagicMult, 1e-4f,
+                "amul_adept's magic='1.16' is on the <armor> root, so it reaches the asset.");
         }
 
         [Test]
@@ -545,6 +638,30 @@ namespace PFE.Tests.Editor.ArmourData
             Assert.AreEqual(3, adept.tip);
             Assert.IsNotNull(WarningsFor(adept, "dark"), "amul_adept's dark='0.2' is the only carrier.");
 
+            // The 2026-10-14 additions, measured against the real file. The counts are the point: they
+            // pin that the six attributes are rare enough that a reader who never saw one would not miss
+            // them, which is exactly how they stayed unmodelled for so long.
+            int melee = 0, guns = 0, magic = 0, crit = 0, sneak = 0, radx = 0;
+            foreach (ArmourDefinitionData data in parsed)
+            {
+                if (data.meleeMult != 1f) melee++;
+                if (data.gunsMult != 1f) guns++;
+                if (data.magicMult != 1f) magic++;
+                if (data.crit != 0f) crit++;
+                foreach (EquipmentData level in data.levels)
+                {
+                    if (level.sneak != 0f) sneak++;
+                    if (level.radVul != 1f) radx++;
+                }
+            }
+
+            Assert.AreEqual(3, melee, "@melee carriers");
+            Assert.AreEqual(3, guns, "@guns carriers");
+            Assert.AreEqual(3, magic, "@magic carriers");
+            Assert.AreEqual(2, crit, "@crit carriers");
+            Assert.AreEqual(9, sneak, "<upd @sneak> occurrences");
+            Assert.AreEqual(6, radx, "<upd @radx> occurrences");
+
             // Every item must be applyable and keep the invariant — this is the sweep that would catch a
             // malformed block the shape tests never saw.
             foreach (ArmourDefinitionData data in parsed)
@@ -553,6 +670,8 @@ namespace PFE.Tests.Editor.ArmourData
                 Assert.DoesNotThrow(() => data.ApplyTo(asset), $"{data.id} failed to apply.");
                 Assert.GreaterOrEqual(asset.armourLevels.Length, 1, data.id);
                 Assert.AreEqual(asset.armourLevels[0].armor, asset.equipment.armor, data.id);
+                Assert.AreEqual(asset.armourLevels[0].radVul, asset.equipment.radVul, data.id,
+                    "radVul is part of the equipment/armourLevels[0] invariant too.");
             }
         }
 
@@ -567,22 +686,54 @@ namespace PFE.Tests.Editor.ArmourData
         /// Looks for <c>AllData.as</c> beside the project. Returns <c>null</c> when it is not there —
         /// the caller then ignores rather than fails, because its absence is an environment fact.
         /// </summary>
+        /// <remarks>
+        /// <b>The project root is searched without Unity first.</b> This used to begin at
+        /// <c>Application.dataPath</c>, which is an <c>ECall</c> — so the whole census failed offline with
+        /// <c>SecurityException: ECall methods must be packaged into a system module</c>, and the one test
+        /// that measures a rule against the real 7 047-line file never ran outside the editor. Moving the
+        /// ECall into <see cref="UnityProjectRoot"/> and catching the call is enough: the working directory
+        /// is the project root in both venues (Unity's editor and the offline wall runner), so the fallback
+        /// is not a degraded mode — it finds the same file.
+        /// </remarks>
         private static string FindAllDataAs()
         {
-            string projectRoot = Directory.GetParent(Application.dataPath).FullName;
-
-            string[] candidates =
+            foreach (string root in CandidateProjectRoots())
             {
-                Path.Combine(projectRoot, "AllData.as"),
-                Path.Combine(projectRoot, "pfe", "scripts", "fe", "AllData.as"),
-                Path.Combine(projectRoot, "..", "pfe", "scripts", "fe", "AllData.as"),
-            };
+                string[] candidates =
+                {
+                    Path.Combine(root, "AllData.as"),
+                    Path.Combine(root, "pfe", "scripts", "fe", "AllData.as"),
+                    Path.Combine(root, "..", "pfe", "scripts", "fe", "AllData.as"),
+                };
 
-            foreach (string candidate in candidates)
-                if (File.Exists(candidate))
-                    return Path.GetFullPath(candidate);
+                foreach (string candidate in candidates)
+                    if (File.Exists(candidate))
+                        return Path.GetFullPath(candidate);
+            }
 
             return null;
         }
+
+        /// <summary>
+        /// The roots to look under, nearest first. JITs offline because it mentions no engine type.
+        /// </summary>
+        private static IEnumerable<string> CandidateProjectRoots()
+        {
+            yield return Directory.GetCurrentDirectory();
+
+            string unityRoot = null;
+            try { unityRoot = UnityProjectRoot(); }
+            catch (System.Exception) { /* no Unity runtime; the CWD candidate is the whole search */ }
+
+            if (!string.IsNullOrEmpty(unityRoot)) yield return unityRoot;
+        }
+
+        /// <summary>
+        /// The only method here that mentions an engine <c>ECall</c> — kept alone so its caller can catch
+        /// it. A <c>try</c> in the <i>same</i> method cannot help: that method fails to JIT before it can
+        /// catch anything.
+        /// </summary>
+        private static string UnityProjectRoot()
+            => Directory.GetParent(Application.dataPath).FullName;
     }
 }

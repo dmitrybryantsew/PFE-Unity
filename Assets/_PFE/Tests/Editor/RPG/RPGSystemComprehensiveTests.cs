@@ -587,30 +587,51 @@ namespace PFE.Tests.Editor.RPG
         [Description("Perk_Requirements_LevelDelta")]
         public void AddPerk_LevelDelta_RequirementsUpdatePerRank()
         {
-            // Test perk with level delta (additional requirements per rank)
             // selflevit: `<req id='tele' lvl='2' dlvl='3'/>` -- `lvl` is a TIER (Pers.as:1458
-            // compares getSkLevel), so tier 2 = raw 5. Rank 2 would need tier 5 = raw 20.
-            characterStats.GrantPerkPoints(2);
-            characterStats.SetSkillLevel("tele", 5);
+            // compares getSkLevel), so tier 2 = raw 5, and `dlvl` adds 3 tiers per rank HELD, so
+            // rank 2 needs tier 2 + 3 = tier 5 = raw 20.
+            //
+            // Asserted through CanUnlock, which is where the Oracle applies requirements (the picker,
+            // PipPageStat.as:550-553). AddPerk no longer keeps a second copy of the rule — see
+            // PerkEligibility_IsRefusedByCanUnlock_NotByAddPerk in StatSystemTests — so asserting it
+            // through AddPerk would now be a test that cannot go red.
+            var database = Resources.Load<SkillDefinitionDatabase>("SkillDefinitionDatabase");
+            Assert.IsNotNull(database, "The perk database must load or this fixture tests nothing");
 
-            // First rank
-            bool result1 = characterStats.AddPerk("selflevit");
-            Assert.IsTrue(result1, "First rank should succeed with Tele tier 2 (raw 5)");
+            var selflevit = database.GetPerk("selflevit");
+            Assert.IsNotNull(selflevit, "selflevit must exist in the database");
+
+            // Rank 1 is reachable at tele tier 2 (raw 5) ...
+            characterStats.SetSkillLevel("tele", 5);
+            Assert.IsTrue(selflevit.CanUnlock(characterStats, 0), "Rank 1 must be eligible at raw 5");
+            Assert.IsFalse(selflevit.CanUnlock(characterStats, 1),
+                "Rank 2 must be refused at raw 5 -- dlvl 3 puts it at tier 5, i.e. raw 20");
+
+            // ... and one point lower it is not: the tier-2 boundary is raw 5, so raw 4 is tier 1.
+            characterStats.SetSkillLevel("tele", 4);
+            Assert.IsFalse(selflevit.CanUnlock(characterStats, 0),
+                "Raw 4 is tier 1, one tier below selflevit's lvl=2");
+
+            // Rank 2 opens at tier 5.
+            characterStats.SetSkillLevel("tele", 20);
+            Assert.IsTrue(selflevit.CanUnlock(characterStats, 1), "Rank 2 must be eligible at raw 20");
         }
 
         [Test]
-        [Description("Perk_NoPerkPoints_Fails")]
-        public void AddPerk_NoPerkPoints_ReturnsFalse()
+        [Description("Perk_PickerWithoutPoints_Fails")]
+        public void AddPerk_PickerForm_WithNoPoints_ReturnsFalse()
         {
-            // Deliberately left at raw 1 (melee tier 0), i.e. the oak requirement is NOT met. The
-            // rejection must come from perkPoints == 0 alone (CharacterStats.AddPerk, the
-            // `if (perkPoints <= 0) return false;` guard) — do not raise this to 2, or the test
-            // stops isolating the point it exists to pin.
+            // The Oracle's `minus` (Pers.as:1292) is what makes a pick cost a point, and only the
+            // Pip-Boy picker passes it (PipPageStat.as:1017). The one-argument form is a GRANT and is
+            // free — see AddPerk_GrantForm_IsFreeAndNeedsNoPoint in CharacterStatsTests.
+            //
+            // The rejection must come from the point guard alone, so the skill is left at raw 1
+            // (melee tier 0) and oak's requirement is deliberately unmet as well.
             characterStats.SetSkillLevel("melee", 1);
 
-            bool result = characterStats.AddPerk("oak");
+            bool result = characterStats.AddPerk("oak", true);
 
-            Assert.IsFalse(result, "Should fail without perk points");
+            Assert.IsFalse(result, "A pick must fail without perk points");
             Assert.AreEqual(0, characterStats.GetPerkRank("oak"), "Should not unlock perk");
         }
 

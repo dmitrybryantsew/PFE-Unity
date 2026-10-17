@@ -192,7 +192,23 @@ namespace PFE.Data.Definitions
         [Range(0.1f, 10f)]
         public float acceleration = 2f;
 
-        [Tooltip("Braking/friction")]
+        /// <summary>
+        /// AS3 <c>brake</c> (<c>Unit.as:230</c>, default <c>1</c>), read from <c>&lt;move brake='…'&gt;</c>
+        /// at <c>:1091-1094</c>.
+        ///
+        /// <para><b>Its only consumer is the flying deadzone.</b> <c>UnitController.ApplyFlightBrake</c>
+        /// and <c>TilePhysicsController</c>'s flyer branch are the two readers, and both run only while
+        /// a unit is airborne under <c>isFly</c>. Ground friction does not read this field — see
+        /// <c>UnitFallPhysics</c>, which carries the AS3 brake constant itself. So a value here changes
+        /// how a flyer settles and nothing about how a walker walks.</para>
+        ///
+        /// <para>The <c>0.5</c> initialiser is a prefab-only fallback: <c>UnitDataImporter</c> writes
+        /// the field for every imported unit (AS3's <c>1</c> when the row is silent, the authored value
+        /// otherwise), so it does not survive an import. Left as-is rather than changed to <c>1</c>,
+        /// because a hand-made asset that never goes through the importer is the only thing it governs
+        /// and silently moving it would be a change with no oracle citation.</para>
+        /// </summary>
+        [Tooltip("AS3 'brake' — the flying deadzone, in px/frame. AS3's default is 1.")]
         [Range(0.1f, 2f)]
         public float braking = 0.5f;
 
@@ -602,10 +618,34 @@ namespace PFE.Data.Definitions
         [Range(0, 1000)]
         public int attractRange = 0;
 
-        [Tooltip("Is walker (patrols)")]
+        /// <summary>
+        /// AS3 <c>UnitRaider.walker</c>, set from the <b>presence</b> of <c>&lt;un walker='1'/&gt;</c>
+        /// (<c>UnitRaider.as:331-334</c>; the value is ignored, exactly as <c>res</c>). 23 unit rows
+        /// author it.
+        ///
+        /// <para><b>Its two consumers are ported and its writer was not.</b>
+        /// <c>ArmedShooterBrain.ApplyDefinitionTuning</c> reads this into <c>_isWalker</c>, which pins the
+        /// walk speed to a literal 2.5 px/frame (<c>UnitRaider.as:151-155</c>) and selects the
+        /// <c>walk</c> rather than <c>trot</c> animation while patrolling or holding
+        /// (<c>:434</c>). Until <c>UnitDataImporter.ParseUnitExtras</c> read the attribute, every one of
+        /// those 23 units ran at its own <c>moveSpeed</c> and played <c>trot</c>.</para>
+        /// </summary>
+        [Tooltip("Is walker — AS3 UnitRaider.walker (presence of <un walker=.../>). Pins walk speed " +
+                 "to 2.5 px/frame and selects the walk animation.")]
         public bool isWalker = false;
 
-        [Tooltip("Is sniper")]
+        /// <summary>
+        /// AS3 <c>UnitRaider.sniper</c>, set from the <b>presence</b> of <c>&lt;un sniper='1'/&gt;</c>
+        /// (<c>UnitRaider.as:335-338</c>). 17 unit rows author it.
+        ///
+        /// <para><b>Not the placement's <c>ai="sniper"</c>.</b> They are two switches that share a word:
+        /// this one is the unit row's own and only suppresses the ranged arm's aim jitter
+        /// (<c>UnitRaider.as:1509</c> — <c>if(!this.sniper) mazil = aiState == 4 ? 5 : 16;</c>); the
+        /// placement one is the room's (<c>:236-241</c>) and also clears <c>stroll</c> and <c>moving</c>
+        /// and raises <c>weaponSkill</c> to 2. <c>zebra3</c> authors this one.</para>
+        /// </summary>
+        [Tooltip("Is sniper — AS3 UnitRaider.sniper (presence of <un sniper=.../>). Suppresses the " +
+                 "ranged arm's aim jitter. NOT the placement's ai=\"sniper\".")]
         public bool isSniper = false;
 
         [Tooltip("Has grenades")]
@@ -614,7 +654,31 @@ namespace PFE.Data.Definitions
         [Tooltip("Uses enclave weapons")]
         public bool usesEnclaveWeapons = false;
 
-        [Tooltip("Will stay in place")]
+        /// <summary>
+        /// AS3 <c>UnitRaider.stroll</c>'s <b>unit-row</b> writer — the presence of
+        /// <c>&lt;un stay='1'/&gt;</c> (<c>UnitRaider.as:351-354</c>:
+        /// <c>if(node0.un.@stay.length()) this.stroll = false;</c>).
+        ///
+        /// <para><b>Exactly one unit row authors it — <c>zebra3</c></b> (<c>AllData.as:361</c>, the
+        /// "Зебра-ассасин" row, which also carries <c>walker='1' sniper='1'</c>). The other four writers
+        /// of <c>stroll</c> are the <i>placement's</i> <c>ai</c> spellings (<c>:227-241</c>), which the
+        /// port reads through <c>UnitController.PlacementStaysPut</c>; this field is the row's own half,
+        /// and <c>UnitController.PlacementStaysPut</c> ORs it in for the raider family only — the family
+        /// whose constructor owns the read.</para>
+        ///
+        /// <para><b>This is the unit row's <c>stay</c>, not the room's.</b> <c>RoomsSerial2.as:3061</c>
+        /// authors <c>stay="1"</c> on an <c>&lt;obj&gt;</c> placement, and nothing in AS3 reads
+        /// <c>param3.@stay</c> — the only read anywhere in the oracle is <c>node0.un.@stay</c>. That
+        /// placement attribute is dead data in the original, and the port must not "fix" it by reading it.
+        /// </para>
+        ///
+        /// <para><b>Presence, not value.</b> The single author writes <c>'1'</c>, and AS3 never compares
+        /// it, so the value is ignored — the same call as <see cref="canResurrect"/> and
+        /// <see cref="isWalker"/>.</para>
+        /// </summary>
+        [Tooltip("Will stay in place — AS3 UnitRaider.stroll=false from the unit row's own " +
+                 "<un stay=.../> (presence). Only zebra3 authors it; distinct from the placement's " +
+                 "ai=\"stay\", which is read separately.")]
         public bool willStayInPlace = false;
 
         /// <summary>

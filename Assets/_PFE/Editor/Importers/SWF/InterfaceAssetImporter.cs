@@ -133,6 +133,31 @@ namespace PFE.Editor.Importers.SWF
             new(4168, "SATS_Reticle.png",        "satsRadius — S.A.T.S. targeting circle"),
             new(4162, "SATS_Cell.png",           "satsCel — S.A.T.S. per-unit target cell"),
             new(1129, "PipBuck_MonitorRow.png",  "visPipRItem — right-side monitor row template"),
+            new(990,  "PipBuck_InfoMap.png",     "visPipMap — information page map window (page 3)"),
+            new(834,  "PipBuck_InfoWorldMap.png","visPipWMap — information page travel map (page 3)"),
+            new(833,  "PipBuck_InfoLandNode.png","sim_wmap — travel node backdrop (page 3)"),
+            new(508,  "PipBuck_InfoConfirm.png", "butOk — information page confirm button (page 3)"),
+        };
+
+        // ── Hand-authored inventory-page chrome ───────────────────────────────
+        //
+        // These four PNGs are NOT exported by Import(). They exist only because the exported art for
+        // their symbols is unusable (see the long comment in GenerateComposition). They are named as
+        // consts so GenerateComposition (which must ASSIGN them, or a re-import nulls the composition
+        // fields) and Verify (which must CHECK them, or a re-import that loses them goes unnoticed)
+        // cannot drift apart.
+        public const string InventoryRowBackFile  = "PipBuck_InvRowBack.png";
+        public const string InventoryRowFrameFile = "PipBuck_InvRowFrame.png";
+        public const string ScrollBarTrackFile    = "PipBuck_ScrollBarTrack.png";
+        public const string ScrollBarThumbFile    = "PipBuck_ScrollBarThumb.png";
+
+        /// <summary>The four hand-authored inventory-page sprites, in composition-field order.</summary>
+        public static readonly (string FileName, string What)[] HandAuthoredSprites =
+        {
+            (InventoryRowBackFile,  "inventoryRowBack — visPipInvItem.back (498)"),
+            (InventoryRowFrameFile, "inventoryRowFrame — visPipInvItem.ramka (897)"),
+            (ScrollBarTrackFile,    "scrollBarTrack — UIScrollBar (492) track"),
+            (ScrollBarThumbFile,    "scrollBarThumb — UIScrollBar (492) thumb"),
         };
 
         /// <summary>
@@ -183,17 +208,34 @@ namespace PFE.Editor.Importers.SWF
         /// tree from the Steam <c>pfe.swf</c> on 2026-10-12, after verifying that frames 1..16 are
         /// <b>byte-identical</b> between the two builds (so the skills are the same art, not a
         /// replacement) and that all 95 render on one uniform 254x200 canvas.</para>
+        ///
+        /// <para><b>The dialogue portrait is <c>portret</c> (4638), not <c>visNPCIco</c> (4844).</b> The
+        /// <c>Icons/Portraits</c> row was described as the "dialogue speaker portraits" but points at
+        /// <c>visNPCIco</c>, which is the speech-bubble icon <c>UnitNPC</c> hangs above an NPC's head
+        /// (<c>UnitNPC.as:157</c> — <c>this.ico = new visNPCIco()</c>); its two labels are <c>dial1</c>
+        /// and <c>dial2</c>. The clip the Oracle actually drives with the localisation table's
+        /// <c>@p</c> is <c>dial.portret</c> — sprite <b>4638</b>, 70 frames, 60 of them labelled
+        /// (<c>lp1</c>…<c>men2</c>), and every one of the 41 distinct <c>@p</c> values in
+        /// <c>text_en.xml</c> names one of those labels. The two catalogs are kept apart rather than
+        /// merged: <c>visNPCIco</c> is still the NPC's overhead icon, and a future <c>UnitNPC</c> port
+        /// needs it. The 70 frames land in a folder of their own so the two id spaces cannot be confused
+        /// — which is the same reasoning <see cref="SequenceSpec.SkipFrames"/> exists for.</para>
         /// </summary>
         public static readonly SequenceSpec[] Sequences =
         {
             new(1112, "Icons/Items",      47,  0, "itemIco — item category icons (positional id contract)"),
             new(4453, "Icons/Effects",    56,  0, "_effectIco_174 — status effect icons"),
-            new(4844, "Icons/Portraits",  31,  0, "visNPCIco — dialogue speaker portraits"),
+            new(4844, "Icons/Portraits",  31,  0, "visNPCIco — the NPC overhead dialogue indicator, NOT the dialogue portrait"),
+            new(4638, "Icons/DialoguePortraits", 70, 0, "portret — the dialogue speaker portraits (60 named frame labels)"),
             new(876,  "Icons/Monitor",    15, 15, "trol — right-side monitor row icons (first 15 of 39)"),
             new(383,  "Icons/Skills",     16, 16, "vskill frames 1..16 — the 16 skill icons", skipFrames: 0),
             new(383,  "Icons/Perks",      79,  0, "vskill frames 17..95 — the 79 perk icons", skipFrames: 16),
             new(4166, "Interface/ReloadBar", 12, 0, "reloadBar — weapon reload / charge indicator"),
             new(4172, "Interface/PetBar",    20, 0, "hp_bar4 — pet / companion health bar"),
+            new(997,  "Interface/InfoMarkers",     4,  0, "mainQuest — information page row marker (mq)"),
+            new(803,  "Interface/InfoLandSelection", 2, 0, "zad — travel node selection frame"),
+            new(829,  "Interface/InfoLandIcons",  26,  0, "sim — travel map per-land icons"),
+            new(832,  "Interface/InfoSign",       40,  0, "visualSign1 — travel node 'new land' marker"),
         };
 
         /// <summary>
@@ -365,10 +407,39 @@ namespace PFE.Editor.Importers.SWF
             def.satsRadius = Load($"{InterfaceRoot}/SATS_Reticle.png", "satsRadius");
             def.satsCell = Load($"{InterfaceRoot}/SATS_Cell.png", "satsCell");
 
+            // Inventory-page chrome. These four PNGs are HAND-AUTHORED, not exported: they are loaded
+            // here so a re-import of this composition does not null them out, but the Import() half of
+            // this class never writes them and must not start. The reasons are per-asset and specific:
+            //   * `back`  (symbol 498) and `ramka` (symbol 897) are DefineSpriteTag frameCount=1 with NO
+            //     pre-rendered export folder and no shapes/ or images/ entries — FFDec emitted nothing
+            //     to copy, so a copy step would delete the only copy that exists.
+            //   * `UIScrollBar` (symbol 492) DOES export, but as whole-component 300x168 composites of
+            //     track+thumb+arrows. The game needs a 17x149 track and a 17x54 thumb as separate,
+            //     9-sliced sprites, so the exported frames are the wrong shape and the wrong count.
+            // The sizes are the on-disk truth (560x25, 559x26, 17x149, 17x54); the GUIDs in
+            // PipBuckComposition.asset already point at exactly these four files.
+            def.inventoryRowBack  = Load($"{InterfaceRoot}/{InventoryRowBackFile}",  "inventoryRowBack");
+            def.inventoryRowFrame = Load($"{InterfaceRoot}/{InventoryRowFrameFile}", "inventoryRowFrame");
+            def.scrollBarTrack    = Load($"{InterfaceRoot}/{ScrollBarTrackFile}",    "scrollBarTrack");
+            def.scrollBarThumb    = Load($"{InterfaceRoot}/{ScrollBarThumbFile}",    "scrollBarThumb");
+
+            // Information page (page 3). The four sequences land under Interface/ next to the two the
+            // HUD already owns; the frame counts are the symbols' own and are re-checked in
+            // PipBuckCompositionDefinition.Validate.
+            def.infoMapWindow      = Load($"{InterfaceRoot}/PipBuck_InfoMap.png",      "infoMapWindow");
+            def.infoWorldWindow    = Load($"{InterfaceRoot}/PipBuck_InfoWorldMap.png", "infoWorldWindow");
+            def.infoLandNodeBack   = Load($"{InterfaceRoot}/PipBuck_InfoLandNode.png", "infoLandNodeBack");
+            def.infoConfirmButton  = Load($"{InterfaceRoot}/PipBuck_InfoConfirm.png",  "infoConfirmButton");
+            def.infoMarkerFrames        = LoadSequence($"{InterfaceRoot}/InfoMarkers",       PipBuckCompositionDefinition.InfoMarkerFrameCount,        "infoMarkerFrames");
+            def.infoLandSelectionFrames = LoadSequence($"{InterfaceRoot}/InfoLandSelection", PipBuckCompositionDefinition.InfoLandSelectionFrameCount, "infoLandSelectionFrames");
+            def.infoLandIcons           = LoadSequence($"{InterfaceRoot}/InfoLandIcons",     PipBuckCompositionDefinition.InfoLandIconCount,           "infoLandIcons");
+            def.infoSignFrames          = LoadSequence($"{InterfaceRoot}/InfoSign",          PipBuckCompositionDefinition.InfoSignFrameCount,          "infoSignFrames");
+
             def.monitorIcons = LoadSequence($"{IconsRoot}/Monitor", PipBuckCompositionDefinition.MonitorIconCount, "monitorIcons");
             def.itemCategoryIcons = LoadSequence($"{IconsRoot}/Items", PipBuckCompositionDefinition.ItemIconCount, "itemCategoryIcons");
             def.statusEffectIcons = LoadSequence($"{IconsRoot}/Effects", PipBuckCompositionDefinition.StatusEffectIconCount, "statusEffectIcons");
             def.npcPortraits = LoadSequence($"{IconsRoot}/Portraits", PipBuckCompositionDefinition.NpcPortraitCount, "npcPortraits");
+            def.dialoguePortraits = LoadSequence($"{IconsRoot}/DialoguePortraits", PipBuckCompositionDefinition.DialoguePortraitCount, "dialoguePortraits");
             def.skillIcons = LoadSequence($"{IconsRoot}/Skills", PipBuckCompositionDefinition.SkillIconCount, "skillIcons");
             def.perkIcons = LoadSequence($"{IconsRoot}/Perks", PipBuckCompositionDefinition.PerkIconCount, "perkIcons");
             def.reloadBarFrames = LoadSequence($"{InterfaceRoot}/ReloadBar", PipBuckCompositionDefinition.ReloadBarFrameCount, "reloadBarFrames");
@@ -408,6 +479,13 @@ namespace PFE.Editor.Importers.SWF
             foreach (var spec in SingleSprites)
                 if (!File.Exists(FullPath($"{InterfaceRoot}/{spec.DestFileName}")))
                     problems.Add($"missing single sprite: {InterfaceRoot}/{spec.DestFileName} ({spec.Description})");
+
+            // Hand-authored chrome: nothing in this class writes these, so a re-import that does not
+            // touch them is the only acceptable outcome. Checking them here is what turns "the
+            // composition fields silently went null" into a red report.
+            foreach ((string fileName, string what) in HandAuthoredSprites)
+                if (!File.Exists(FullPath($"{InterfaceRoot}/{fileName}")))
+                    problems.Add($"missing hand-authored sprite: {InterfaceRoot}/{fileName} ({what})");
 
             foreach (var spec in TwoStateSprites)
             {

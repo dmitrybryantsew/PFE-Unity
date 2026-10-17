@@ -54,6 +54,86 @@ namespace PFE.Data.Definitions
                  "per-row icon is a child clip (trol, symbol 876), not a frame of this timeline.")]
         public Sprite monitorRowTemplate;
 
+        // ── Inventory page — the row clip the Oracle builds 19 of ─────────────
+        //
+        // `PipPageInv` sets `itemClass = visPipInvItem` (PipPageInv.as:30) and `PipPage`'s constructor
+        // builds `maxrows + 1` clips from it (PipPage.as:108-142), the -1 iteration becoming the
+        // header. Symbol 975 was never imported, so until now the inventory had no row panel, no
+        // selection frame, no row icon and no scrollbar — a list with nothing to say whether it
+        // scrolls. Every coordinate below is SWF 975 / 1113 frame 1; see PipPageInvView.
+        //
+        // Both row symbols are registered at their CENTRE, so their exported PNG's top-left is the
+        // bounds minimum: `back` (560x25) lands at row-local (-1.4, -0.5) and `ramka` (559x26) at
+        // (-1.6, -1.0), for the placement (278.6, 12.0) / (277.9, 12.0) the SWF records.
+
+        [Header("Inventory Page (vanilla only)")]
+        [Tooltip("visPipInvItem.back (symbol 498) — the inventory ROW panel, 560x25, black with a 1px " +
+                 "#00ff99 outline. Registered at its centre: place at row-local (-1.4, -0.5).")]
+        public Sprite inventoryRowBack;
+
+        [Tooltip("visPipInvItem.ramka (symbol 897) — the SELECTION frame, 559x26, a brighter green " +
+                 "outline over an otherwise transparent body. The Oracle shows it for the equipped " +
+                 "weapon/armour (PipPageInv.as:391, :435). Registered at its centre: (-1.6, -1.0).")]
+        public Sprite inventoryRowFrame;
+
+        [Tooltip("fl.controls.UIScrollBar (symbol 492) up skin — the track, with the thumb patched out. " +
+                 "9-sliced 1/15/1/14: sprite 1113 places `scBar` at (600, 100) with scaleY 5.360 over a " +
+                 "100px authored height, i.e. 536px tall, and the arrow caps must keep their own height.")]
+        public Sprite scrollBarTrack;
+
+        [Tooltip("fl.controls.UIScrollBar (symbol 492) — the thumb block, 17x54, dark green with three " +
+                 "grip ticks. 9-sliced 1/15/1/14 so a tall thumb stretches the same way the track does.")]
+        public Sprite scrollBarThumb;
+
+        // ── Information page (page 3) ─────────────────────────────────────────
+        //
+        // The page's own container (visPipInfo, 1012) is deliberately NOT here: it exports 1218x975 —
+        // larger than the device — and the device's `fon` already paints the screen the pages sit on.
+        // The three map-window clips that are empty at author time (`vmap` 982, `plTag` 980 and the
+        // mode backdrop `modeFon` 981) are absent for the same reason: 982 and 980 export as 198x198
+        // clip canvases whose registration point cannot be verified, and a marker placed by assumption
+        // is a bug that looks like a working feature. The row's `back` (498) and `ramka` (897) are the
+        // INVENTORY's row art and are read from inventoryRowBack / inventoryRowFrame above — sprite
+        // 999 composes the same two symbols (PipInfoFrame rows 209-218), so the information page needs
+        // no row art of its own.
+
+        [Header("Information Page (page 3)")]
+        [Tooltip("visPipMap (symbol 990) — sub-tab 1's window, 843x676, with the three zoom buttons' " +
+                 "own art baked in at their authored placements (the port's buttons are transparent " +
+                 "hit areas over it, exactly as the device tabs sit on the bezel).")]
+        public Sprite infoMapWindow;
+
+        [Tooltip("visPipWMap (symbol 834) — sub-tab 3's travel map, 571x597: the continent art the " +
+                 "27 land nodes sit on (PipTravelMapLayout.Nodes).")]
+        public Sprite infoWorldWindow;
+
+        [Tooltip("pfe_fla.sim_wmap_1593 (symbol 833) — a travel node's backdrop, 118x118, the box " +
+                 "the land icon and the selection frame sit inside.")]
+        public Sprite infoLandNodeBack;
+
+        [Tooltip("pfe_fla.zad_1594 (symbol 803), 2 frames — the node's selection outline, 42x42. " +
+                 "Frame 1 is the resting state every visible node shows; frame 2 is the picked one " +
+                 "(PipPageInfo.as:163 / :725).")]
+        public Sprite[] infoLandSelectionFrames = Array.Empty<Sprite>();
+
+        [Tooltip("sim (symbol 829), 26 frames — the per-land icons, 40x40. Index = frame - 1 and the " +
+                 "join key is the frame LABEL: PipTravelMapLayout.IconFrameIndexFor(landId) resolves it, " +
+                 "falling back to index 0 (the blank frame) exactly as the Oracle's try/catch does.")]
+        public Sprite[] infoLandIcons = Array.Empty<Sprite>();
+
+        [Tooltip("visualSign1 (symbol 832), 40 frames — the node's 'new land' marker, 118x118. The " +
+                 "Oracle plays the clip (sign.play()); the port draws frame 1 statically.")]
+        public Sprite[] infoSignFrames = Array.Empty<Sprite>();
+
+        [Tooltip("pfe_fla.mainQuest_1555 (symbol 997), 4 frames — the row's `mq` marker, 31x31 at " +
+                 "scale 0.626. Frame 1 is a main quest; 2/3/4 are note importance 1/2/3.")]
+        public Sprite[] infoMarkerFrames = Array.Empty<Sprite>();
+
+        [Tooltip("symbol 508 — the page's confirm button (butOk), 187x28. The Oracle keeps its own " +
+                 "`text` child on top, so the port draws the caption over the art rather than instead " +
+                 "of it.")]
+        public Sprite infoConfirmButton;
+
         // ── Right-side status monitor ─────────────────────────────────────────
         // 15 rows, PipBuck.kolRItems = 15 (PipBuck.as:79). The icons are frames 1..15 of the child
         // clip `trol` (symbol 876, 39 frames) — NOT frames of DefineSprite_1129, which has only one.
@@ -96,11 +176,26 @@ namespace PFE.Data.Definitions
         [Tooltip("itemIco (symbol 1112), 47 frames. Index = the Oracle's icon id.")]
         public Sprite[] itemCategoryIcons = Array.Empty<Sprite>();
 
+        [Tooltip("trol (symbol 876) frames 1..39 — the inventory ROW's per-item icon, driven by " +
+                 "`item.trol.gotoAndStop(obj.trol)` (PipPageInv.as:383). Index = frame - 1, so frame 1 " +
+                 "(empty) is index 0. Shares the symbol with monitorIcons but NOT the index space: the " +
+                 "monitor uses frames 1..15 of it and this uses 1..39, so the two catalogs must not be " +
+                 "confused for one another.")]
+        public Sprite[] inventoryRowIcons = Array.Empty<Sprite>();
+
         [Tooltip("pfe_fla._effectIco_174 (symbol 4453), 56 frames. Index = status-effect icon id.")]
         public Sprite[] statusEffectIcons = Array.Empty<Sprite>();
 
         [Tooltip("visNPCIco (symbol 4844), 31 frames. Index = the dialogue node's portrait id.")]
         public Sprite[] npcPortraits = Array.Empty<Sprite>();
+
+        [Tooltip("portret (symbol 4638), 70 frames — the DIALOGUE speaker portrait, driven by " +
+                 "`dial.portret.gotoAndStop(@p)` (GUI.as:1834-1849). Index = frame - 1; frame 1 (index 0) " +
+                 "is the clip's blank default. The label -> index map is " +
+                 "PFE.UI.HUD.DialoguePortraitFrames. Do not confuse this with npcPortraits above: that " +
+                 "one is `visNPCIco` (4844), the speech-bubble icon UnitNPC hangs above its head " +
+                 "(UnitNPC.as:157), which has two frames, not seventy.")]
+        public Sprite[] dialoguePortraits = Array.Empty<Sprite>();
 
         // ── Skill / perk icons ────────────────────────────────────────────────
         // ONE SWF symbol (`vskill`) split into its two id spaces. The Oracle's export of this symbol
@@ -167,13 +262,107 @@ namespace PFE.Data.Definitions
         public const int ItemIconCount = 47;
         public const int StatusEffectIconCount = 56;
         public const int NpcPortraitCount = 31;
+
+        /// <summary>
+        /// <c>portret</c> (4638) — 70 frames. Counted in the SWF's tag stream: the clip has 70
+        /// <c>ShowFrame</c>s, of which 60 carry a <c>FrameLabel</c>
+        /// (<c>DefineSprite_4638</c>: frame 2 = <c>lp1</c> … frame 62 = <c>men2</c>).
+        /// </summary>
+        public const int DialoguePortraitCount = 70;
         public const int MonitorIconCount = 15;   // PipBuck.kolRItems = 15
+        public const int InventoryRowIconCount = 39;  // trol (876) — the full clip, not the monitor's 15
         public const int ReloadBarFrameCount = 12;
         public const int PetBarFrameCount = 20;
 
         // vskill: 95 frames, of which the Oracle has the first 16. Counted on disk 2026-10-12.
         public const int SkillIconCount = 16;
         public const int PerkIconCount = 79;
+
+        // Information page (page 3). Each count is the symbol's own on-disk frame count, read
+        // 2026-10-14; the land-icon count additionally agrees with PipTravelMapLayout.IconFrameCount,
+        // which is the table the view resolves frames through.
+        public const int InfoMarkerFrameCount = 4;          // mainQuest (997)
+        public const int InfoLandIconCount = 26;            // sim (829)
+        public const int InfoLandSelectionFrameCount = 2;   // zad (803)
+        public const int InfoSignFrameCount = 40;           // visualSign1 (832)
+
+        /// <summary>
+        /// The <c>trol</c> frame labels for <see cref="inventoryRowIcons"/>, in frame order — i.e.
+        /// <c>inventoryRowIcons[n]</c> is the icon for the row whose Oracle <c>trol</c> value is
+        /// <c>InventoryRowIconLabels[n]</c>.
+        ///
+        /// <para>Read out of the SWF's own <c>FrameLabel</c> tags (39 frames, 36 of them labelled;
+        /// frames 1, 8 and 29 carry no label and are empty art). The label IS the join key: the
+        /// Oracle's weapon rows use <c>"w" + skill</c> (PipPageInv.as:118-121, with <c>w7</c> falling
+        /// back to <c>w6</c>), armour rows use <c>"armor" + tip</c> (<c>:201</c>) and item rows use the
+        /// raw <c>@tip</c> (<c>:271</c>). An entry that cannot be found here draws frame 1, the empty
+        /// one, rather than a wrong icon.</para>
+        /// </summary>
+        public static readonly string[] InventoryRowIconLabels =
+        {
+            "",        //  1 — no label: empty art, the no-icon frame
+            "w1",      //  2
+            "w2",      //  3
+            "w3",      //  4
+            "w4",      //  5
+            "w5",      //  6
+            "e",       //  7
+            "",        //  8 — no label
+            "w6",      //  9
+            "spell",   // 10
+            "w7",      // 11  (the Oracle never asks for it: `w7` is rewritten to `w6`, :119-121)
+            "a",       // 12
+            "armor1",  // 13
+            "armor3",  // 14
+            "med",     // 15
+            "him",     // 16
+            "pot",     // 17
+            "book",    // 18
+            "note",    // 19
+            "valuables", // 20
+            "stuff",   // 21
+            "compa",   // 22
+            "compw",   // 23
+            "compe",   // 24
+            "compm",   // 25
+            "compp",   // 26
+            "food",    // 27
+            "drink",   // 28
+            "",        // 29 — no label
+            "scheme",  // 30
+            "equip",   // 31
+            "instr",   // 32
+            "sphera",  // 33
+            "spec",    // 34
+            "art",     // 35
+            "impl",    // 36
+            "key",     // 37
+            "paint",   // 38
+            "weapon",  // 39
+        };
+
+        /// <summary>
+        /// The frame index for an Oracle <c>trol</c> label, or 0 when the clip has no such label —
+        /// which is frame 1, the deliberately empty one.
+        ///
+        /// <para><b>Why a lookup and not a number on the row.</b> The label is what the Oracle's data
+        /// actually carries (<c>obj.trol</c> is a string), so the icon id is the <i>index of that
+        /// string</i> in the clip. Storing an int on the entry would silently freeze the mapping at
+        /// whatever the frame order was on the day it was written.</para>
+        /// </summary>
+        public static int InventoryRowIconIndexFor(string trolLabel)
+        {
+            if (string.IsNullOrEmpty(trolLabel)) return 0;
+            for (int i = 0; i < InventoryRowIconLabels.Length; i++)
+            {
+                if (string.Equals(InventoryRowIconLabels[i], trolLabel, StringComparison.Ordinal))
+                {
+                    return i;
+                }
+            }
+
+            return 0;
+        }
 
         /// <summary>
         /// The <c>vskill</c> frame labels for <see cref="skillIcons"/>, in frame order — i.e.
@@ -247,6 +436,14 @@ namespace PFE.Data.Definitions
             Required(tabButtonActive, "tabButtonActive (ButPage 1143 frame 2)");
             Required(subCategoryButton, "subCategoryButton (butCatFon 1019)");
             Required(monitorRowTemplate, "monitorRowTemplate (visPipRItem 1129)");
+            Required(inventoryRowBack, "inventoryRowBack (visPipInvItem.back 498)");
+            Required(inventoryRowFrame, "inventoryRowFrame (visPipInvItem.ramka 897)");
+            Required(scrollBarTrack, "scrollBarTrack (UIScrollBar 492 up skin, track)");
+            Required(scrollBarThumb, "scrollBarThumb (UIScrollBar 492 up skin, thumb)");
+            Required(infoMapWindow, "infoMapWindow (visPipMap 990)");
+            Required(infoWorldWindow, "infoWorldWindow (visPipWMap 834)");
+            Required(infoLandNodeBack, "infoLandNodeBack (sim_wmap 833)");
+            Required(infoConfirmButton, "infoConfirmButton (butOk 508)");
             Required(hudMasterLayout, "hudMasterLayout (visualGUI 4651)");
             Required(healthBar, "healthBar (hpBar 4180)");
             Required(bossBar, "bossBar (hpBarBoss 4360)");
@@ -259,13 +456,19 @@ namespace PFE.Data.Definitions
             Required(terminalFont, "terminalFont (Lucida Console)");
 
             Sized(monitorIcons, MonitorIconCount, "monitorIcons (trol 876 frames 1..15)");
+            Sized(inventoryRowIcons, InventoryRowIconCount, "inventoryRowIcons (trol 876 frames 1..39)");
             Sized(itemCategoryIcons, ItemIconCount, "itemCategoryIcons (itemIco 1112)");
             Sized(statusEffectIcons, StatusEffectIconCount, "statusEffectIcons (_effectIco_174 4453)");
             Sized(npcPortraits, NpcPortraitCount, "npcPortraits (visNPCIco 4844)");
+            Sized(dialoguePortraits, DialoguePortraitCount, "dialoguePortraits (portret 4638)");
             Sized(reloadBarFrames, ReloadBarFrameCount, "reloadBarFrames (reloadBar 4166)");
             Sized(petBarFrames, PetBarFrameCount, "petBarFrames (hp_bar4 4172)");
             Sized(skillIcons, SkillIconCount, "skillIcons (vskill 383 frames 1..16)");
             Sized(perkIcons, PerkIconCount, "perkIcons (vskill 383 frames 17..95)");
+            Sized(infoMarkerFrames, InfoMarkerFrameCount, "infoMarkerFrames (mainQuest 997)");
+            Sized(infoLandIcons, InfoLandIconCount, "infoLandIcons (sim 829)");
+            Sized(infoLandSelectionFrames, InfoLandSelectionFrameCount, "infoLandSelectionFrames (zad 803)");
+            Sized(infoSignFrames, InfoSignFrameCount, "infoSignFrames (visualSign1 832)");
 
             // The label tables ARE the id contract, so a count that disagrees with them means one of
             // the two was updated without the other — every icon past the disagreement is then wrong.
@@ -273,6 +476,9 @@ namespace PFE.Data.Definitions
                 problems.Add($"WRONG SIZE: SkillLabels — expected {SkillIconCount}, got {SkillLabels.Length}");
             if (PerkLabels.Length != PerkIconCount)
                 problems.Add($"WRONG SIZE: PerkLabels — expected {PerkIconCount}, got {PerkLabels.Length}");
+            if (InventoryRowIconLabels.Length != InventoryRowIconCount)
+                problems.Add($"WRONG SIZE: InventoryRowIconLabels — expected {InventoryRowIconCount}, " +
+                             $"got {InventoryRowIconLabels.Length}");
 
             if (problems.Count == 0)
             {

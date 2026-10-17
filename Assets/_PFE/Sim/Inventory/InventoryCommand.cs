@@ -44,7 +44,24 @@ namespace PFE.Systems.Inventory
         /// instantiated prefabs could not be exercised offline and would not be the piece the netcode
         /// replaces.</para>
         /// </summary>
-        DropItem
+        DropItem,
+
+        /// <summary>
+        /// Add the weapon whose id is <see cref="InventoryCommand.Id"/> (quantity is always 1).
+        ///
+        /// <para><b>Why this is not <see cref="AddItem"/>.</b> The port's weapons are
+        /// <c>WeaponDefinition</c> assets registered under <c>ContentType.Weapon</c>; the item registry
+        /// holds no weapon id, so an <see cref="AddItem"/> carrying one is rejected with "no item row" —
+        /// 100 % of the time, for every weapon. AS3 draws the same line: <c>Invent.addWeapon()</c> indexes
+        /// <c>AllData.d.weapon</c>, a different table from the one <c>take()</c> reads. Collapsing the two
+        /// would put the resolution of a weapon id into the item resolver, which is exactly the confusion
+        /// that kept weapons out of the inventory.</para>
+        ///
+        /// <para><b>Quantity is fixed at 1</b> because a weapon is an instance with its own condition,
+        /// magazine and respect state (<c>GameWeaponInstance</c>), not a stack of identical things. AS3's
+        /// <c>weapons[id]</c> is likewise one entry per weapon id.</para>
+        /// </summary>
+        AddWeapon
     }
 
     /// <summary>
@@ -104,6 +121,14 @@ namespace PFE.Systems.Inventory
         /// </summary>
         public static InventoryCommand DropItem(string itemId, int quantity = 1)
             => new InventoryCommand(InventoryCommandKind.DropItem, itemId, quantity, PickupType.Loot);
+
+        /// <summary>
+        /// Add the weapon <paramref name="weaponId"/> to the inventory. Quantity is always 1 — a weapon
+        /// carries its own condition and magazine, so it is not a stack. See
+        /// <see cref="InventoryCommandKind.AddWeapon"/>.
+        /// </summary>
+        public static InventoryCommand AddWeapon(string weaponId)
+            => new InventoryCommand(InventoryCommandKind.AddWeapon, weaponId, 1, PickupType.Loot);
 
         public override string ToString() => $"{Kind}('{Id}' x{Quantity})";
     }

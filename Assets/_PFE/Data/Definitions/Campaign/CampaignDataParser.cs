@@ -97,6 +97,43 @@ namespace PFE.Data.Definitions.Campaign
                     }
                 }
 
+                // AS3 `land.itemScripts` (Land.as:141-149) — the first-acquisition item scripts. The
+                // selection is `./scr` (direct children only) and it matters: the four `<scr>` children
+                // that live inside `<prob>` blocks carry eve='alarm'/'close'/'out' and belong to
+                // Probation's event machine, not to this table. Filtering on the attribute value rather
+                // than on position is what keeps those out.
+                //
+                // The oracle registers these by `@item` into an Array, so a duplicate item id within one
+                // land would silently keep the last. No land in the shipped data has one (14 scripts
+                // across 8 lands, all distinct), so the list is faithful; if that ever changes, the
+                // overwrite has to be reproduced here rather than appended.
+                XmlNodeList itemScriptNodes = node.SelectNodes("./scr[@eve='take']");
+                if (itemScriptNodes != null)
+                {
+                    foreach (XmlNode scrNode in itemScriptNodes)
+                    {
+                        // `Boolean(_loc4_.@item.length())` — a `take` script with no item is skipped.
+                        string itemId = scrNode.Attributes?["item"]?.Value?.Trim() ?? string.Empty;
+                        if (string.IsNullOrEmpty(itemId)) continue;
+
+                        var itemScript = new LandItemScript { itemId = itemId };
+
+                        // `Script.as:47-53` reads `param1.s` — the children named exactly `s`. The one
+                        // `<s1>` in GameData.as (:27, the `mont` script) is therefore dead data and is
+                        // dropped here for the same reason `ParseNpcsAndScripts` uses `./s`.
+                        XmlNodeList actionNodes = scrNode.SelectNodes("./s");
+                        if (actionNodes != null)
+                        {
+                            foreach (XmlNode actNode in actionNodes)
+                            {
+                                itemScript.actions.Add(ParseAction(actNode));
+                            }
+                        }
+
+                        landDef.itemScripts.Add(itemScript);
+                    }
+                }
+
                 results.Add(landDef);
             }
 
@@ -130,6 +167,36 @@ namespace PFE.Data.Definitions.Campaign
                 questDef.rewardPay = ParseInt(node.Attributes?["pay"]?.Value, 0);
                 questDef.rewardReputation = ParseInt(node.Attributes?["rep"]?.Value, 0);
 
+                // The four close-side scalars Quest.close reads off the parent node
+                // (Quest.as:124-135, :205-220). QuestFacts has carried Trigger/TriggerSet/EndDial/
+                // BegDial fields since it was written, but nothing ever populated them — so the
+                // trigger write and the closing dialogue were dead on the parent path.
+                questDef.trigger = node.Attributes?["trigger"]?.Value?.Trim() ?? string.Empty;
+                questDef.triggerSet = node.Attributes?["triggerset"]?.Value?.Trim() ?? string.Empty;
+                questDef.endDialogueId = node.Attributes?["enddial"]?.Value?.Trim() ?? string.Empty;
+                questDef.beginDialogueId = node.Attributes?["begdial"]?.Value?.Trim() ?? string.Empty;
+
+                // `<reward>` children — the payout half of close() (Quest.as:661-689). Two payloads
+                // share the element: an item grant (`@id` + optional `@kol`) and a trigger write
+                // (`@trigger` + optional `@set`). `money` is an ordinary item row, so it needs no
+                // special case. A row carrying neither is kept but is inert, which is what the
+                // Oracle does too (both branches are `if(@x.length())`).
+                questDef.rewards.Clear();
+                XmlNodeList rewardNodes = node.SelectNodes("./reward");
+                if (rewardNodes != null)
+                {
+                    foreach (XmlNode rewardNode in rewardNodes)
+                    {
+                        questDef.rewards.Add(new QuestRewardDefinition
+                        {
+                            itemId = rewardNode.Attributes?["id"]?.Value?.Trim() ?? string.Empty,
+                            count = ParseInt(rewardNode.Attributes?["kol"]?.Value, 1),
+                            trigger = rewardNode.Attributes?["trigger"]?.Value?.Trim() ?? string.Empty,
+                            set = rewardNode.Attributes?["set"]?.Value?.Trim() ?? string.Empty,
+                        });
+                    }
+                }
+
                 questDef.stages.Clear();
                 XmlNodeList stageNodes = node.SelectNodes("./q");
                 if (stageNodes != null)
@@ -140,11 +207,25 @@ namespace PFE.Data.Definitions.Campaign
                         {
                             stageIndex = ParseInt(stageNode.Attributes?["id"]?.Value, questDef.stages.Count + 1),
                             descriptionKey = $"{id}_stage_{stageNode.Attributes?["id"]?.Value}",
-                            isHidden = stageNode.Attributes?["invis"]?.Value == "1",
+                            // `hidden` and `invis` are two attributes, not one — see
+                            // QuestStageDefinition's remarks. `invis` keeps the row out of the journal
+                            // entirely; `hidden` lists it as `?????`.
+                            isHidden = stageNode.Attributes?["hidden"]?.Value == "1",
+                            isInvisible = stageNode.Attributes?["invis"]?.Value == "1",
                             isOptional = stageNode.Attributes?["nn"]?.Value == "1",
                             requiredItemId = stageNode.Attributes?["collect"]?.Value?.Trim() ?? string.Empty,
                             requiredItemCount = ParseInt(stageNode.Attributes?["kol"]?.Value, 1),
-                            turnInItemId = stageNode.Attributes?["give"]?.Value?.Trim() ?? string.Empty
+                            turnInItemId = stageNode.Attributes?["give"]?.Value?.Trim() ?? string.Empty,
+                            // `@del` is read only inside the `if(@collect.length())` block
+                            // (Quest.as:140-156), so a `del` on a stage with no `collect` is dead data.
+                            // Recorded as authored rather than pre-filtered — the rules read it only
+                            // through the same collect-gated path.
+                            deleteOnClose = stageNode.Attributes?["del"] != null,
+                            collectTip = ParseInt(stageNode.Attributes?["coltip"]?.Value, 0),
+                            // `result` is a presence test too (Quest.as:185-192), and it also flags the
+                            // PARENT (`this.par.result = true`) — that parent half is what makes
+                            // `Quest.isResult` run at all, and it is re-derived in ProjectQuest.
+                            isResult = stageNode.Attributes?["result"] != null
                         };
                         questDef.stages.Add(stage);
                     }
@@ -189,6 +270,23 @@ namespace PFE.Data.Definitions.Campaign
                     npcDef.defaultWeapon = node.Attributes?["weap"]?.Value?.Trim() ?? string.Empty;
                     npcDef.isSilent = node.Attributes?["silent"]?.Value == "1";
 
+                    // Seven more attributes the oracle reads and the port used to drop silently
+                    // (rule #12). Each has a named read site, so none of them is speculative:
+                    //   ndial    NPC.as:58-60          — the legacy dialogue id
+                    //   noturn   UnitNPC.as:109-111    — suppress the facing update
+                    //   replic   UnitNPC.as:125-127    — dialogue replica id
+                    //   sloy     UnitNPC.as:141-143    — layer override
+                    //   weap2    UnitNPC.as:137-139    — secondary weapon
+                    //   needskill NPC.as:503/565       — skill gate on repair()/patient()
+                    //   needitem NPC.as:586-588        — item consumed by patient()
+                    npcDef.legacyDialogueId = node.Attributes?["ndial"]?.Value?.Trim() ?? string.Empty;
+                    npcDef.noTurn = node.Attributes?["noturn"] != null;
+                    npcDef.replicaId = node.Attributes?["replic"]?.Value?.Trim() ?? string.Empty;
+                    npcDef.layer = node.Attributes?["sloy"]?.Value?.Trim() ?? string.Empty;
+                    npcDef.secondaryWeapon = node.Attributes?["weap2"]?.Value?.Trim() ?? string.Empty;
+                    npcDef.requiredSkill = node.Attributes?["needskill"]?.Value?.Trim() ?? string.Empty;
+                    npcDef.requiredItemId = node.Attributes?["needitem"]?.Value?.Trim() ?? string.Empty;
+
                     npcDef.dialogues.Clear();
                     XmlNodeList dialNodes = node.SelectNodes("./dial");
                     if (dialNodes != null)
@@ -203,6 +301,14 @@ namespace PFE.Data.Definitions.Campaign
                                 dialogueId = dialId,
                                 isImportant = dialNode.Attributes?["imp"]?.Value == "1",
                                 requiredTrigger = dialNode.Attributes?["trigger"]?.Value?.Trim() ?? string.Empty,
+                                // :284-290 — `@n` is the required trigger VALUE; absent means the gate is
+                                // `trig(name) == 1`. Both were dropped before: the parser had no field, so
+                                // two authored rows silently lost their condition (rule #12).
+                                requiredTriggerValue = dialNode.Attributes?["n"]?.Value?.Trim() ?? string.Empty,
+                                // :278-282 — the gate is the barter SKILL, not pers.barterLvl.
+                                requiredBarter = ParseInt(dialNode.Attributes?["barter"]?.Value, 0),
+                                // :307-310 — the equipped pet must match.
+                                requiredPet = dialNode.Attributes?["pet"]?.Value?.Trim() ?? string.Empty,
                                 requiredLand = dialNode.Attributes?["land"]?.Value?.Trim() ?? string.Empty,
                                 requiredQuest = dialNode.Attributes?["quest"]?.Value?.Trim() ?? string.Empty,
                                 requiredQuestStage = ParseInt(dialNode.Attributes?["sub"]?.Value, 0),
@@ -257,6 +363,195 @@ namespace PFE.Data.Definitions.Campaign
             }
 
             return (npcResults, scriptResults);
+        }
+
+        /// <summary>
+        /// Parses the <c>&lt;vendor&gt;</c> blocks of <c>GameData.as</c> — the 13 blocks of
+        /// <c>GameData.d.vendor</c> under the <c>ТОРГОВЛЯ</c> banner (<c>GameData.as:2143-2700</c>),
+        /// read by <c>fe.serv.Vendor</c> (<c>Vendor.as:24-123</c>).
+        ///
+        /// <para><b>Why it returns plain data and not <see cref="VendorDefinition"/>.</b> This parser is
+        /// shared by the editor importer and the offline fixtures; <c>ScriptableObject.CreateInstance</c>
+        /// is an <c>ECall</c> and throws outside the engine, so a parser that built the asset itself
+        /// could never be verified in the offline wall — which is exactly where the import's acceptance
+        /// checks (13 blocks, 83 weapon rows, the <c>^N</c> split) have to run. The importer maps
+        /// <see cref="VendorParseResult"/> onto the asset.</para>
+        ///
+        /// <para><b>Presence vs value.</b> <c>noref</c>, <c>nocheap</c>, <c>hardinv</c> and <c>pmult</c>
+        /// are tested by the oracle as <c>@x.length()</c>, not as a value (<c>Vendor.as:69-84</c>) — so
+        /// <c>noref='0'</c> still means "never restocked" and <c>pmult='0'</c> really is a zero price.
+        /// <c>hasPriceMultiplier</c> records which one this row is.</para>
+        ///
+        /// <para><b>Unrecognised attributes are reported, not dropped.</b> Any attribute on a row that no
+        /// field claims is appended to <see cref="VendorParseResult.unrecognisedAttributes"/>, so a new
+        /// oracle attribute surfaces as a log line instead of silence (rule #12).</para>
+        /// </summary>
+        public static List<VendorParseResult> ParseVendors(string content)
+        {
+            var results = new List<VendorParseResult>();
+            if (string.IsNullOrEmpty(content)) return results;
+
+            XmlDocument doc = ExtractGameXmlDocument(content);
+            if (doc == null) return results;
+
+            XmlNodeList vendorNodes = doc.SelectNodes("//vendor");
+            if (vendorNodes == null) return results;
+
+            foreach (XmlNode node in vendorNodes)
+            {
+                string id = node.Attributes?["id"]?.Value?.Trim() ?? string.Empty;
+                if (string.IsNullOrEmpty(id)) continue;
+
+                var result = new VendorParseResult { vendorId = id };
+                var unrecognised = new HashSet<string>(StringComparer.Ordinal);
+
+                XmlNodeList buyNodes = node.SelectNodes("./buy");
+                if (buyNodes != null)
+                {
+                    foreach (XmlNode buy in buyNodes)
+                    {
+                        var entry = new VendorStockEntry();
+
+                        // AS3 Item's constructor splits "^N" (Item.as:132-140); the vendor row's id is
+                        // therefore stored split, and StockKey rebuilds it.
+                        SplitVariant(buy.Attributes?["id"]?.Value, out string baseId, out int variant);
+                        entry.itemId = baseId;
+                        entry.variant = variant;
+
+                        // `@n` absent converts to 0 in AS3, and `kol < 0` is then false — so the row keeps
+                        // a zero stock and the page's `b.kol > 0` guard hides it. Faithful, not a default.
+                        entry.stockCount = ParseInt(buy.Attributes?["n"]?.Value, 0);
+                        entry.barter = ParseInt(buy.Attributes?["barter"]?.Value, 0);
+                        entry.level = ParseInt(buy.Attributes?["lvl"]?.Value, 0);
+                        entry.trigger = buy.Attributes?["trigger"]?.Value?.Trim() ?? string.Empty;
+
+                        // Presence tests — Vendor.as:69-84 tests `.length()`, so "0" is still "on".
+                        entry.noRefill = buy.Attributes?["noref"] != null;
+                        entry.noCheap = buy.Attributes?["nocheap"] != null;
+                        entry.hardInventory = buy.Attributes?["hardinv"] != null;
+                        entry.hasPriceMultiplier = buy.Attributes?["pmult"] != null;
+                        entry.priceMultiplier = ParseFloat(buy.Attributes?["pmult"]?.Value, 0f);
+
+                        CollectUnrecognised(buy, KnownBuyAttributes, unrecognised);
+                        result.stock.Add(entry);
+                    }
+                }
+
+                XmlNodeList taskNodes = node.SelectNodes("./task");
+                if (taskNodes != null)
+                {
+                    foreach (XmlNode task in taskNodes)
+                    {
+                        var entry = new VendorTaskEntry
+                        {
+                            taskId = task.Attributes?["id"]?.Value?.Trim() ?? string.Empty,
+                            skill = task.Attributes?["skill"]?.Value?.Trim() ?? string.Empty,
+                            skillLevel = ParseInt(task.Attributes?["skilln"]?.Value, 0),
+                            land = task.Attributes?["land"]?.Value?.Trim() ?? string.Empty,
+                            trigger = task.Attributes?["trigger"]?.Value?.Trim() ?? string.Empty,
+                            manual = task.Attributes?["man"]?.Value?.Trim() ?? string.Empty
+                        };
+
+                        if (string.IsNullOrEmpty(entry.taskId)) continue;
+
+                        CollectUnrecognised(task, KnownTaskAttributes, unrecognised);
+                        result.tasks.Add(entry);
+                    }
+                }
+
+                result.unrecognisedAttributes.AddRange(unrecognised);
+                results.Add(result);
+            }
+
+            return results;
+        }
+
+        /// <summary>
+        /// The attribute names present on <c>&lt;npc&gt;</c> tags that no <see cref="NpcDefinition"/>
+        /// field claims, as <c>"&lt;npcId&gt;.&lt;attribute&gt;"</c>.
+        ///
+        /// <para><b>Why this exists as its own entry point.</b> <c>ParseNpcsAndScripts</c> builds a
+        /// <c>ScriptableObject</c>, which is an <c>ECall</c> and cannot run outside the engine — so the
+        /// only place the NPC field set could be checked was inside Unity. This walk reads the same
+        /// attribute list without constructing anything, which makes "does the port model every
+        /// attribute the shipped data uses?" an offline assertion. It is the check that would have
+        /// caught <c>ndial</c>, <c>noturn</c>, <c>replic</c>, <c>sloy</c>, <c>weap2</c>,
+        /// <c>needskill</c> and <c>needitem</c> — seven attributes that were dropped in silence.</para>
+        /// </summary>
+        public static List<string> ParseNpcUnrecognisedAttributes(string content)
+        {
+            var unknown = new List<string>();
+            if (string.IsNullOrEmpty(content)) return unknown;
+
+            XmlDocument doc = ExtractGameXmlDocument(content);
+            if (doc == null) return unknown;
+
+            XmlNodeList npcNodes = doc.SelectNodes("//npc");
+            if (npcNodes == null) return unknown;
+
+            foreach (XmlNode node in npcNodes)
+            {
+                string id = node.Attributes?["id"]?.Value?.Trim() ?? string.Empty;
+                if (string.IsNullOrEmpty(id) || node.Attributes == null) continue;
+
+                foreach (XmlAttribute attribute in node.Attributes)
+                {
+                    if (!KnownNpcAttributes.Contains(attribute.Name)) unknown.Add(id + "." + attribute.Name);
+                }
+            }
+
+            return unknown;
+        }
+
+        private static readonly HashSet<string> KnownNpcAttributes =
+            new HashSet<string>(StringComparer.Ordinal)
+            {
+                "id", "vis", "name", "vendor", "inter", "ico", "ua1", "ua2", "weap", "silent",
+                "ndial", "noturn", "replic", "sloy", "weap2", "needskill", "needitem"
+            };
+
+        private static readonly HashSet<string> KnownBuyAttributes =
+            new HashSet<string>(StringComparer.Ordinal)
+            {
+                "id", "n", "barter", "lvl", "trigger", "noref", "nocheap", "hardinv", "pmult"
+            };
+
+        private static readonly HashSet<string> KnownTaskAttributes =
+            new HashSet<string>(StringComparer.Ordinal)
+            {
+                "id", "skill", "skilln", "land", "trigger", "man"
+            };
+
+        private static void CollectUnrecognised(XmlNode node, HashSet<string> known, HashSet<string> sink)
+        {
+            if (node.Attributes == null) return;
+
+            foreach (XmlAttribute attribute in node.Attributes)
+            {
+                if (!known.Contains(attribute.Name)) sink.Add(attribute.Name);
+            }
+        }
+
+        /// <summary>
+        /// AS3 <c>Item</c>'s variant split (<c>Item.as:132-140</c>): when the second-to-last character of
+        /// the id is <c>'^'</c>, the last character is the variant and the id is truncated by two. Note
+        /// this only ever reads a <b>single digit</b> — the oracle's own limitation, reproduced rather
+        /// than "improved", because <c>buys2</c>'s key and the page's <c>rid</c> are both built from it.
+        /// </summary>
+        public static void SplitVariant(string rawId, out string baseId, out int variant)
+        {
+            baseId = rawId?.Trim() ?? string.Empty;
+            variant = 0;
+
+            if (baseId.Length >= 2 && baseId[baseId.Length - 2] == '^')
+            {
+                char digit = baseId[baseId.Length - 1];
+                if (digit >= '0' && digit <= '9')
+                {
+                    variant = digit - '0';
+                    baseId = baseId.Substring(0, baseId.Length - 2);
+                }
+            }
         }
 
         public static CampaignScriptAction ParseAction(XmlNode actNode)
@@ -319,6 +614,28 @@ namespace PFE.Data.Definitions.Campaign
                         tip = conNode.Attributes?["tip"]?.Value?.Trim() ?? string.Empty,
                         uid = conNode.Attributes?["uid"]?.Value?.Trim() ?? string.Empty,
                         qid = conNode.Attributes?["qid"]?.Value?.Trim() ?? string.Empty
+                    });
+                }
+            }
+
+            // AS3 `maxwave = xml.wave.length()` (Probation.as:127-130), and each wave's `@t`
+            // (:341-344) and `<obj>` count (:337-340). The payloads are NOT read — see
+            // ProbRoomDefinition.waves for why — but without the count `maxwave` is 0, and a wave-only
+            // prob's gate `nwave < maxwave` would read as already satisfied, closing a room that has
+            // spawned nothing. The count alone is what keeps those six rooms closed until a spawner
+            // exists.
+            XmlNodeList waveNodes = probNode.SelectNodes("./wave");
+            if (waveNodes != null)
+            {
+                foreach (XmlNode waveNode in waveNodes)
+                {
+                    prob.waves.Add(new ProbWaveData
+                    {
+                        // `@t.length()`, not `@t` — a present wave with no delay must be told apart
+                        // from one with `t='0'`, exactly as `level` is above.
+                        hasDelay = waveNode.Attributes?["t"] != null,
+                        delaySeconds = ParseInt(waveNode.Attributes?["t"]?.Value, 0),
+                        spawnCount = waveNode.SelectNodes("./obj")?.Count ?? 0,
                     });
                 }
             }

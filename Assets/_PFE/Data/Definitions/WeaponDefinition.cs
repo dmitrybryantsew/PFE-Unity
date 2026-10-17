@@ -18,6 +18,24 @@ namespace PFE.Data.Definitions
         [Header("Identification")]
         public string weaponId;
 
+        /// <summary>
+        /// The name the Oracle shows for this weapon — its <c>Res.txt("w", id)</c> entry, the
+        /// <c>&lt;weapon id="…"&gt;&lt;n&gt;</c> row in <c>text_en.xml</c>.
+        ///
+        /// <para><b>Empty is the safe default, and empty is what every shipped asset has.</b> This field
+        /// is new, so all existing <c>WeaponDefinition</c> assets load it as <c>""</c> from the engine's
+        /// zero-fill rather than from any initializer here — which is why every reader falls back to
+        /// <see cref="weaponId"/>. A sentinel meaning "unset" must never be a value that reads as a real
+        /// name, or a stale asset shows the wrong weapon instead of a usable one.</para>
+        ///
+        /// <para><b>Nothing needs this filled in to show a correct name.</b> The names already ship in
+        /// <c>Resources/Localisation/text_en.xml</c>, and
+        /// <c>PFE.UI.Common.PfeTextTableProvider.WeaponNameOrId</c> resolves them at runtime. This field
+        /// is the frozen/offline alternative — what an importer would write — and it wins when set.</para>
+        /// </summary>
+        [Tooltip("Display name (the Oracle's <weapon><n> row). Empty = fall back to the weapon id.")]
+        public string displayName = "";
+
         // Legacy property for compatibility
         public string ID => weaponId;
 
@@ -58,8 +76,55 @@ namespace PFE.Data.Definitions
         // Legacy property for compatibility
         public WeaponType Type => weaponType;
 
+        /// <summary>
+        /// The weight one of these adds to the carrier — AS3 <c>Item.mass</c> for a weapon row
+        /// (<c>fe/serv/Item.as:278-288</c>):
+        ///
+        /// <code>
+        /// if(this.tip == L_WEAPON &amp;&amp; this.xml) {
+        ///    if(this.xml.@tip != 4) this.mass = 1;                        // :280-282
+        ///    if(this.xml.phis.length() &amp;&amp; this.xml.phis.@m.length())
+        ///       this.mass = this.xml.phis.@m;                             // :284-286
+        /// }
+        /// </code>
+        ///
+        /// <para><b>So the Oracle's value is 1 for every weapon except a thrown one, which stays 0.</b>
+        /// <see cref="WeaponType.Thrown"/> is <c>xml.@tip == 4</c> — the two enums are the same numbering,
+        /// so the rule translates directly. This is a derived property rather than a stored field
+        /// precisely because the default is a <i>function of the type</i>: a stored
+        /// <c>public int mass = 1;</c> would be silently wrong for all 4-ish thrown rows, and Unity's
+        /// zero-fill for a field absent from an existing asset would make it wrong for all of them.</para>
+        ///
+        /// <para><b>The one part of the Oracle's rule this does not reproduce: the <c>&lt;phis m&gt;</c>
+        /// override.</b> 74 weapon rows in <c>AllData.txt</c> carry an explicit <c>m</c> on their
+        /// <c>&lt;phis&gt;</c> child and the importer does not read it, so those 74 report the default
+        /// instead of their authored weight. Recorded rather than papered over: inventing a field nobody
+        /// fills would look like the value was real. r32 — the weapon in the play-test log — has
+        /// <c>massa='2'</c> but no <c>m</c>, so 1 is its correct value and this rule is exact for it.</para>
+        /// </summary>
+        public float Mass => weaponType == WeaponType.Thrown ? 0f : 1f;
+
         public int skillLevel;              // Required skill level
         public int weaponLevel;              // Weapon level
+
+        /// <summary>
+        /// AS3 <c>Weapon.perslvl</c> (<c>Weapon.as:116</c>, default 0) — the <b>character level</b>
+        /// a weapon additionally requires, read off the weapon root (<c>Weapon.as:430</c>
+        /// <c>this.perslvl = node.@perslvl</c>).
+        ///
+        /// <para><b>A different gate from <see cref="weaponLevel"/>.</b> <c>weaponLevel</c> is
+        /// compared against the owner's <i>skill tier</i> (<c>gap = lvl - getWeapLevel(skill)</c>);
+        /// <c>perslvl</c> is compared against the owner's <i>character level</i>
+        /// (<c>Weapon.as:1382</c>, <c>:1866</c>). The info pane shows both as separate lines
+        /// (<c>PipPage.as:478-486</c>), so one field cannot stand in for the other.</para>
+        ///
+        /// <para>23 rows carry it, every one a <c>tip='5'</c> spell weapon, and all but one write a
+        /// non-zero value (0 for <c>telebul</c> … 28 for <c>a_magic</c>). AS3 never writes it to a
+        /// non-magic weapon, so a 0 here means "no character-level requirement", which is also the
+        /// attribute-absent default — the two are indistinguishable in the oracle too, because the
+        /// gate is written as <c>if(w.perslvl > 0)</c>.</para>
+        /// </summary>
+        public int perslvl;                  // Character-level requirement (AS3 @perslvl)
 
         [Header("Combat Stats")]
         public float baseDamage = 10f;       // Base damage from XML
@@ -196,8 +261,13 @@ namespace PFE.Data.Definitions
     //   char.@massafix   — read by Unit.setLevel for the HP formula, not by the explosion path.
     //   char.@combo / @pow / @critdam — melee-combo and crit channels with no port consumer yet.
     //   char.@rashod / @recharg (on <ammo>) — ammo consumption; the port fires one round per shot.
-    //   <sats> @cons / @no / @noperc / @que — AS3's skill-investment gate; the port has no skill tree.
-    //   <com>  @chance / @price / @rep / @stage / @uniq / @worth — trader/quality metadata.
+    //   <sats> @noperc — AS3's "ignore the perk's per-shot S.A.T.S. cost" (Weapon.as:451); no port
+    //          consumer yet. @cons / @no / @que ARE read now — by WeaponXmlExtrasReader, because the
+    //          info pane's AP line and the S.A.T.S. cost both need them.
+    //   <com>  @chance / @price / @rep / @stage / @uniq / @worth — IMPORTED NOW (see the <com> block
+    //          below): all six, because the unique-variant feature needs @uniq and @price and the rest
+    //          come free once the node is read. The second <com> node, which carries a variant's own
+    //          price, is held on `variant.ComAttrs`.
     //   <dop>  @shoot / @vision — the on-hit "make the target shoot/see" effects, unimplemented.
     //   <phis> @drot / @drot2 / @distexpl / @grav2 / @long / @m / @minlong / @volna / @recoil /
     //          @massa — AS3's rotation/gravity/range variants; the port's ballistic model reads
@@ -205,8 +275,9 @@ namespace PFE.Data.Definitions
     //   <vis>  @flare / @grav / @icomult / @lasm / @loot / @vweap — presentation metadata the port
     //          derives elsewhere (icomult is folded into the sprite, flare is a muzzle effect).
     //   <snd>  @dem / @t11 / @t21 — see the note on soundFall/soundSens below.
-    //   root   @crack / @mess / @nostand / @perk / @perslvl / @sX / @sY — perk and sprite offsets;
-    //          @sX/@sY are read by the mine placement path only (see MineObject).
+    //   root   @crack / @mess / @nostand / @sX / @sY — stand-offsets and sprite data; @sX/@sY are
+    //          read by the mine placement path only (see MineObject). @perk is read by
+    //          WeaponXmlExtras (the info pane's Perk line), and @perslvl is now a field above.
     // Everything in that list was checked against the oracle, not against the port: each one is either
     // absent from the data, or read by an AS3 subsystem the port does not have. The list is here so the
     // next audit does not have to re-derive it — see docs/AUDIT_throwable_and_explosive_2026-10-03.md.
@@ -474,6 +545,99 @@ namespace PFE.Data.Definitions
         // Legacy properties for compatibility
         public string SoundShoot => soundShoot;
         public string SoundReload => soundReload;
+
+        // ── The <com> block — trader / quality metadata ───────────────────────────────────────────────
+        //
+        // AS3 reads six attributes off the weapon's FIRST <com> child (Weapon.as:454-472). Until now the
+        // port parsed none of them, which the "Still NOT IMPORTED" list below used to record. The block
+        // is imported now because the unique-variant feature needs two of these and the rest are free
+        // once the node is being read at all.
+
+        /// <summary>
+        /// AS3 <c>com@uniq</c> — <b>the chance to find this weapon's unique ("II") variant</b>, as the
+        /// data file itself documents it: <i>"uniq — шанс найти уникальный вариант (если он есть)"</i>
+        /// (<c>AllData.as:2089</c>). Read at <c>Weapon.as:464-467</c> into <c>Weapon.uniq</c>, and
+        /// consumed by the loot generator (<c>LootGen.as:53</c>) to build the <c>arr["uniq"]</c> pool.
+        ///
+        /// <para><b>-1 is the absent value, and it is NOT the same as 0.</b> AS3 declares
+        /// <c>public var uniq:Number = -1;</c> (<c>Weapon.as:100</c>) and assigns it only
+        /// <c>if(node.com[0].@uniq.length())</c>, so a weapon with no <c>&lt;com&gt;</c> — or one whose
+        /// <c>&lt;com&gt;</c> omits <c>uniq</c> — keeps <b>-1</b>. The distinction is load-bearing:
+        /// <c>Weapon.updVariant</c> refuses outright when <c>this.uniq &lt; 0</c>
+        /// (<c>Weapon.as:895-900</c>), so <b>-1 means "this weapon has no unique variant and cannot be
+        /// upgraded"</b>, while <c>uniq='0'</c> means "it has one, it just never drops as random loot".
+        /// Collapsing the two would let an upgrade land on a weapon that has no tier 1 to upgrade to.</para>
+        ///
+        /// <para>Measured on the shipped <c>AllData.as</c>: 120 weapons carry a <c>&lt;com&gt;</c> and
+        /// <b>26</b> have <c>uniq &gt; 0</c> — <c>spear mach zknife zsword sledge p10mm p127mm lasp
+        /// pp127mm assr carbine sparkl nova oldshot saf9 prism oldr winchester brushgun lasr pulser rail
+        /// gatl gatp flamer glau</c>. The other 45 of the 71 variants are shop, quest, room or enemy
+        /// loadouts only.</para>
+        ///
+        /// <para><b>Duplicated on purpose, and worth knowing.</b> The loot side already carries this
+        /// number as <c>LootItemRow.UniqChance</c> (a <c>float?</c> whose <c>null</c> is the same "absent"
+        /// the <c>-1</c> encodes here). Both are read from the same oracle attribute and both are
+        /// correct; they answer different questions — the loot catalog asks "is there a pool entry", this
+        /// asks "can this weapon be upgraded". Unifying them is a later refactor, not a bug to fix
+        /// quietly here.</para>
+        /// </summary>
+        [Tooltip("AS3 com@uniq — drop weight of the unique variant. -1 = absent = this weapon has NO " +
+                 "unique variant (AS3 refuses to upgrade it). 0 = has one, never random loot.")]
+        public float uniq = -1f;
+
+        /// <summary>
+        /// AS3 <c>com@price</c> — the base trader price, before <c>sost</c>/condition multipliers
+        /// (<c>Item.getPrice</c>, <c>Item.as:350-374</c>). <c>0</c> when the weapon has no <c>&lt;com&gt;</c>.
+        ///
+        /// <para>The variant's price rule hangs off this: <c>getPrice</c> uses <c>com[variant].@price</c>
+        /// when that node exists and otherwise multiplies by <b>3</b>. No weapon in <c>AllData.as</c>
+        /// carries a second <c>&lt;com&gt;</c> <i>without</i> a price, so in practice a unique costs 3× the
+        /// base — but the node <b>does</b> repeat on 9 weapons, which is why the override is stored rather
+        /// than assumed.</para>
+        /// </summary>
+        [Tooltip("AS3 com@price — base trader price. 0 = no <com> row.")]
+        public float comPrice;
+
+        /// <summary>AS3 <c>com@worth</c> — quality tier, the <c>worth</c> a loot entry carries
+        /// (<c>LootGen.as:53</c>). <c>0</c> when absent.</summary>
+        [Tooltip("AS3 com@worth — quality tier. 0 = absent.")]
+        public float comWorth;
+
+        /// <summary>AS3 <c>com@chance</c> — the chance this weapon appears in the random <c>weapon</c>
+        /// loot pool at all (<c>LootGen.as:53</c>). Distinct from <see cref="uniq"/>, which weights the
+        /// <i>variant</i> pool. <c>0</c> when absent.</summary>
+        [Tooltip("AS3 com@chance — chance to appear in the weapon loot pool. 0 = absent.")]
+        public float comChance;
+
+        /// <summary>AS3 <c>com@stage</c> — the story stage gate on the loot entry
+        /// (<c>LootGen.as:53</c>). <c>0</c> when absent.</summary>
+        [Tooltip("AS3 com@stage — story-stage gate. 0 = absent.")]
+        public int comStage;
+
+        /// <summary>AS3 <c>com@rep</c> — repair efficiency with tools, i.e. how much of the weapon's
+        /// durability a repair kit restores (<c>Weapon.as:456-459</c>). AS3 declares the field default as
+        /// <c>rep_eff = 1</c> (<c>Weapon.as:122</c>), but assigns it only on presence, so an absent
+        /// attribute keeps <b>1</b>; this field therefore defaults to 1 as well rather than 0.</summary>
+        [Tooltip("AS3 com@rep — repair efficiency. Absent keeps AS3's default of 1.")]
+        public float comRep = 1f;
+
+        /// <summary>
+        /// The weapon's unique ("II") variant — AS3's <c>Weapon.variant</c>, held as the index-1 override
+        /// of the seven repeated child nodes.
+        ///
+        /// <para><b>Presence, not a bool.</b> <see cref="WeaponVariantData.Variant"/> is <c>0</c> when the
+        /// block has no second <c>&lt;char&gt;</c> — the answer for 142 of the 213 weapons, and the state
+        /// every pre-existing asset loads as. Do not read this as "has a variant"; read
+        /// <see cref="WeaponVariantData.IsPresent"/>.</para>
+        ///
+        /// <para><b>Consuming this needs the merge, not a field copy.</b> The override is a
+        /// <i>partial</i> delta: <c>oldshot</c> tier 1 raises damage 6→7 and hp 150→250 and says nothing
+        /// about <c>kol</c> or <c>knock</c>, which stay 5 and 3. The port must therefore fold it over the
+        /// base node's run — <c>WeaponVariantXml.MergeRuns</c> — and read the result, rather than reading
+        /// the override's fields directly. Reading it directly turns every unmentioned stat into 0.</para>
+        /// </summary>
+        [Tooltip("The unique (\"II\") variant override. Variant == 0 means this weapon has no variant.")]
+        public WeaponVariantData variant;
 
         #region IWeaponStats
         string IWeaponStats.weaponId => weaponId;

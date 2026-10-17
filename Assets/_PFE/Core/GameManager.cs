@@ -5,6 +5,7 @@ using UnityEngine;
 using PFE.Systems.Map;
 using PFE.Systems.Map.Serialization;
 using PFE.Systems.Map.Streaming;
+using PFE.Systems.Campaign;
 using PFE.Data;
 using PFE.Core.Profiling;
 using System;
@@ -75,6 +76,23 @@ namespace PFE.Core
                 gameDatabase.Initialize();
             }
             PfeProfiler.Mark("game.db.init.done");
+
+            // AS3 Game.globalDif (Game.as:41) — the difficulty SETTING, seeded once from the new-game
+            // choice before any land is built, because `Land.setLocDif` reads it per room
+            // (Land.as:988-995). Seeding here rather than at the read site means the value is fixed for
+            // the whole run and the readers stay pure reads.
+            //
+            // `Seed` (not `Change`) because a new game at Normal must still apply Normal's parameter
+            // table — the oracle applies `setGlobalDif` unconditionally at Pers construction
+            // (Pers.as:517-528), whereas `changeDif`'s no-change early return would skip it.
+            GlobalDifficulty.Seed(GameBootData.PendingDifficultyIndex(GlobalDifficulty.Default));
+            if (debugSettings.LogGameManagerLifecycle)
+                Debug.Log($"[GameManager] globalDif = {GlobalDifficulty.Value} (0..4, Normal = 2).");
+
+            // AS3 World.w.enemyAct (World.as:170) — a fresh `World` per run starts at 3, but a C# static
+            // outlives the run, so a console freeze from the previous session would otherwise carry
+            // over. Reset here, at the same point the other run-wide knobs are seeded.
+            EnemyActivity.Reset();
 
             // Load room templates
             List<RoomTemplate> roomTemplates;
