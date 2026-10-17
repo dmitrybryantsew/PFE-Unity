@@ -200,23 +200,23 @@ namespace PFE.Tests.Editor.RPG
         }
 
         [Test]
-        [Description("Sell price should follow capsMult")]
-        public void CalculateSellPrice_FollowsCapsMult()
+        [Description("Sell price is the item's own @sell, with no multiplier applied at all")]
+        public void CalculateSellPrice_IsTheItemsOwnSellAttribute()
         {
             // Arrange
             var stats = CreateTestCharacter();
             var vendor = CreateTestVendor(stats);
 
-            // Act
+            // Act / Assert — AS3 PipPageVend.as:259, 576 shows node.@sell verbatim.
             stats.capsMult = 1.0f;
-            int sell0 = vendor.CalculateSellPrice(1000);
+            Assert.AreEqual(1000, vendor.CalculateSellPrice(1000),
+                "The sell row shows @sell unchanged at capsMult 1.0");
 
+            // The regression this guards: the port used to return basePrice * 0.5 * capsMult, i.e. 500
+            // and then 350 — a 50% haircut and a barter discount that the oracle applies to neither.
             stats.capsMult = 0.70f;
-            int sell10 = vendor.CalculateSellPrice(1000);
-
-            // Assert — base sell is 50% of price, times capsMult
-            Assert.AreEqual(500, sell0, "capsMult 1.0 should sell at 50% of price");
-            Assert.AreEqual(350, sell10, "capsMult 0.70 should sell at 35% of price (50% * 0.7)");
+            Assert.AreEqual(1000, vendor.CalculateSellPrice(1000),
+                "barterMult/capsMult must NOT scale the sell price (PipPageVend.as:259, 576)");
         }
 
         [Test]

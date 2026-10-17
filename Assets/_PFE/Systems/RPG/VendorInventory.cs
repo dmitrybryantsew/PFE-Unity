@@ -145,13 +145,22 @@ namespace PFE.Systems.RPG
         }
 
         /// <summary>
-        /// Calculate sell price to vendor (player sells item).
-        /// Typically 50% of base price, modified by barter.
+        /// The price a sell row shows — <b>the item's own <c>@sell</c> attribute, unmodified</b>.
+        ///
+        /// <para>The Oracle reads <c>node.@sell</c> straight off the row and does <b>not</b> run it
+        /// through <c>getPrice()</c> or through any multiplier (<c>PipPageVend.as:259, 576</c>). So there
+        /// is no sell-side multiplier at all — <c>Pers.barterMult</c> moves the <i>buy</i> price only
+        /// (<c>PipBuck.as:414</c> → <c>PipPageVend.as:154-158</c>).</para>
+        ///
+        /// <para>This method used to return <c>basePrice * 0.5 * GetPriceMultiplier()</c>. The <c>0.5</c>
+        /// existed nowhere in the Oracle and the multiplier was applied to the wrong side of the
+        /// trade — a plausible-looking derivation of "sell is half of buy", which is not the Oracle's
+        /// model (<c>02_USER_MODEL_RECHECK.md</c> §4, <c>03_GAP_LEDGER.md</c> §1). Corrected here.</para>
         /// </summary>
-        public int CalculateSellPrice(int basePrice)
+        /// <param name="sellAttribute">The item's <c>&lt;item sell='…'&gt;</c> value.</param>
+        public int CalculateSellPrice(int sellAttribute)
         {
-            float sellRatio = 0.5f * GetPriceMultiplier();
-            return Mathf.RoundToInt(basePrice * sellRatio);
+            return sellAttribute;
         }
 
         /// <summary>
