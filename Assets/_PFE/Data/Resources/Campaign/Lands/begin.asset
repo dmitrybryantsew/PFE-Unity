@@ -69,3 +69,72 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 9320d29133174c44d9a1ae9066e687cf, type: 2}
   - {fileID: 11400000, guid: c03f5f0b94584a84eb33e6cafb625768, type: 2}
   probRooms: []
+  itemScripts:
+  - itemId: mont
+    actions:
+    - action: on
+      target: trDestroy
+      value: 
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: on
+      target: trDoor
+      value: 
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+  - itemId: screwdriver
+    actions:
+    - action: on
+      target: trDoor
+      value: 
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: sign
+      target: trSign5
+      value: 1
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+  - itemId: rech
+    actions:
+    - action: weapch
+      target: 
+      value: rech
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+  - itemId: r32
+    actions:
+    - action: weapch
+      target: 
+      value: r32
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+  - itemId: s_arson
+    actions:
+    - action: mess
+      target: 
+      value: trScheme
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 1
+      opt2: 0
+  - itemId: col1
+    actions:
+    - action: quest
+      target: 
+      value: collectHS
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0

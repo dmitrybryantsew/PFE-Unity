@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: autoaxe
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: autoaxe
+  displayName: 
   weaponType: 1
   punch: 0
   skillLevel: 1
@@ -50,8 +51,8 @@ MonoBehaviour:
   radio: 0
   sens: 100
   meleeType: 2
-  meleeDlina: 100
-  meleeMinDlina: 100
+  meleeDlina: 70
+  meleeMinDlina: 30
   meleeCombo: 0
   meleePowerAttack: 0
   projectileArchetype: 0
@@ -91,3 +92,18 @@ MonoBehaviour:
   noiseRadius: 800
   soundFall: fall_hammer
   soundSens: 
+  uniq: -1
+  comPrice: 1100
+  comWorth: 2
+  comChance: 0.1
+  comStage: 5
+  comRep: 0.25
+  variant:
+    Variant: 0
+    CharAttrs: 
+    PhisAttrs: 
+    VisAttrs: 
+    SndAttrs: 
+    AmmoAttrs: 
+    DopAttrs: 
+    ComAttrs: 

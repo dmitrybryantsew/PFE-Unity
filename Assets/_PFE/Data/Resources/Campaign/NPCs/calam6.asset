@@ -16,6 +16,25 @@ MonoBehaviour:
   gameVersion: 0.1.0
   npcId: calam6
   visualId: CalamEncl
+  visualSprite: {fileID: 21300000, guid: 3d3b3489fc0b1694e801cac860170836, type: 3}
+  visualFrames:
+  - frameNumber: 1
+    label: stay
+    sprite: {fileID: 21300000, guid: 3d3b3489fc0b1694e801cac860170836, type: 3}
+  - frameNumber: 2
+    label: trot
+    sprite: {fileID: 21300000, guid: 8f58caab9cdbb3e4b90ab427b854083c, type: 3}
+  - frameNumber: 3
+    label: walk
+    sprite: {fileID: 21300000, guid: 206c2823c1e46924eb6c54484513f28c, type: 3}
+  - frameNumber: 4
+    label: fly
+    sprite: {fileID: 21300000, guid: 91352c7cd23abbd4987c5fec57ccdb7b, type: 3}
+  - frameNumber: 5
+    label: die
+    sprite: {fileID: 21300000, guid: 0051515cb9f40e742a085ab04974a760, type: 3}
+  visualScaleX: 1.6160278
+  visualScaleY: 1.6159973
   aliasName: calam2
   vendorId: 
   interactionType: 
@@ -24,10 +43,20 @@ MonoBehaviour:
   userAction2: dial
   defaultWeapon: anti^1
   isSilent: 0
+  legacyDialogueId: 
+  noTurn: 0
+  replicaId: 
+  layer: 
+  secondaryWeapon: 
+  requiredSkill: 
+  requiredItemId: 
   dialogues:
   - dialogueId: dialFB3
     isImportant: 1
     requiredTrigger: 
+    requiredTriggerValue: 
+    requiredBarter: 0
+    requiredPet: 
     requiredLand: 
     requiredQuest: 
     requiredQuestStage: 0
@@ -54,6 +83,9 @@ MonoBehaviour:
   - dialogueId: dialFB4
     isImportant: 1
     requiredTrigger: 
+    requiredTriggerValue: 
+    requiredBarter: 0
+    requiredPet: 
     requiredLand: 
     requiredQuest: 
     requiredQuestStage: 0

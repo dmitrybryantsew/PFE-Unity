@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: rech
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: rech
+  displayName: 
   weaponType: 2
   punch: 0
   skillLevel: 4
@@ -50,8 +51,8 @@ MonoBehaviour:
   radio: 0
   sens: 100
   meleeType: 0
-  meleeDlina: 100
-  meleeMinDlina: 100
+  meleeDlina: 50
+  meleeMinDlina: 50
   meleeCombo: 0
   meleePowerAttack: 0
   projectileArchetype: 2
@@ -91,3 +92,18 @@ MonoBehaviour:
   noiseRadius: 300
   soundFall: 
   soundSens: 
+  uniq: -1
+  comPrice: 250
+  comWorth: 3
+  comChance: 0.25
+  comStage: 1
+  comRep: 2
+  variant:
+    Variant: 0
+    CharAttrs: 
+    PhisAttrs: 
+    VisAttrs: 
+    SndAttrs: 
+    AmmoAttrs: 
+    DopAttrs: 
+    ComAttrs: 

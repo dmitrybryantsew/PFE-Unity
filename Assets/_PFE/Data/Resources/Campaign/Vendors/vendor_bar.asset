@@ -1,0 +1,135 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f2e6ae248a01437091e1bba30868c81f, type: 3}
+  m_Name: vendor_bar
+  m_EditorClassIdentifier: PFE.Data::PFE.Data.Definitions.Campaign.VendorDefinition
+  dataVersion: 1
+  gameVersion: 0.1.0
+  vendorId: vendor_bar
+  stock:
+  - itemId: sparklecola
+    variant: 0
+    stockCount: 20
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: radcola
+    variant: 0
+    stockCount: 5
+    barter: 3
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: sars
+    variant: 0
+    stockCount: 20
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: coffee
+    variant: 0
+    stockCount: 5
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: beer
+    variant: 0
+    stockCount: 20
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: braga
+    variant: 0
+    stockCount: 20
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: cordial
+    variant: 0
+    stockCount: 10
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: schnapps
+    variant: 0
+    stockCount: 10
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: hooch
+    variant: 0
+    stockCount: 10
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: spirt
+    variant: 0
+    stockCount: 5
+    barter: 2
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  tasks:
+  - taskId: collectAlc
+    skill: 
+    skillLevel: 0
+    land: 
+    trigger: 
+    manual: 

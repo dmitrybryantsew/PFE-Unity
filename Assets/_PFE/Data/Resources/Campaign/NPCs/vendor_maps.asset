@@ -16,6 +16,13 @@ MonoBehaviour:
   gameVersion: 0.1.0
   npcId: vendor_maps
   visualId: VendorMaps
+  visualSprite: {fileID: 21300000, guid: 3838b72cde303cf4e81098fc9d2161e9, type: 3}
+  visualFrames:
+  - frameNumber: 1
+    label: 
+    sprite: {fileID: 21300000, guid: 3838b72cde303cf4e81098fc9d2161e9, type: 3}
+  visualScaleX: 1
+  visualScaleY: 1
   aliasName: 
   vendorId: vendor_maps
   interactionType: v
@@ -24,10 +31,20 @@ MonoBehaviour:
   userAction2: 
   defaultWeapon: 
   isSilent: 1
+  legacyDialogueId: 
+  noTurn: 0
+  replicaId: 
+  layer: 
+  secondaryWeapon: 
+  requiredSkill: 
+  requiredItemId: 
   dialogues:
   - dialogueId: vendor_maps_key
     isImportant: 0
     requiredTrigger: 
+    requiredTriggerValue: 
+    requiredBarter: 4
+    requiredPet: 
     requiredLand: 
     requiredQuest: 
     requiredQuestStage: 0

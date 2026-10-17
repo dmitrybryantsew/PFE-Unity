@@ -16,6 +16,298 @@ MonoBehaviour:
   gameVersion: 0.1.0
   npcId: vendor_weapon
   visualId: VendorWeapon
+  visualSprite: {fileID: 21300000, guid: 4415e1d132dd1ed4780b3f5f3f61bc78, type: 3}
+  visualFrames:
+  - frameNumber: 1
+    label: stay
+    sprite: {fileID: 21300000, guid: 4415e1d132dd1ed4780b3f5f3f61bc78, type: 3}
+  - frameNumber: 2
+    label: move1
+    sprite: {fileID: 21300000, guid: 7e71483d2b210b84fb9e3731d889df35, type: 3}
+  - frameNumber: 3
+    label: 
+    sprite: {fileID: 21300000, guid: 7a85c2b7cbbd18a478144f53c5730ff7, type: 3}
+  - frameNumber: 4
+    label: 
+    sprite: {fileID: 21300000, guid: 90beec805a78b4841aaa223a32a763ba, type: 3}
+  - frameNumber: 5
+    label: 
+    sprite: {fileID: 21300000, guid: 2bf6e186c521756419286f5214abd3e9, type: 3}
+  - frameNumber: 6
+    label: 
+    sprite: {fileID: 21300000, guid: a28cdfe73676b7249b3e57a78d825e33, type: 3}
+  - frameNumber: 7
+    label: 
+    sprite: {fileID: 21300000, guid: dc3f0f3710874da4eb7c7384d55509bf, type: 3}
+  - frameNumber: 8
+    label: 
+    sprite: {fileID: 21300000, guid: dd234a5f366d9074d9fd6b18c05de8d2, type: 3}
+  - frameNumber: 9
+    label: 
+    sprite: {fileID: 21300000, guid: d237de7d0bb173a459a0a64e720b6134, type: 3}
+  - frameNumber: 10
+    label: 
+    sprite: {fileID: 21300000, guid: 3fbd64c3fa12db745ab297e6c1a295dc, type: 3}
+  - frameNumber: 11
+    label: 
+    sprite: {fileID: 21300000, guid: 5ead4ad861380424d9b785afbefca11d, type: 3}
+  - frameNumber: 12
+    label: 
+    sprite: {fileID: 21300000, guid: bdc2b45f3fb280c45bfd8fec55d27a75, type: 3}
+  - frameNumber: 13
+    label: 
+    sprite: {fileID: 21300000, guid: d3d0a79d83d641849b42a1ef994e6f7c, type: 3}
+  - frameNumber: 14
+    label: 
+    sprite: {fileID: 21300000, guid: 879ecf4cdb8f8af49960bdca19c79a37, type: 3}
+  - frameNumber: 15
+    label: 
+    sprite: {fileID: 21300000, guid: f5f0c9b953ad1ea4a9f7820b68608403, type: 3}
+  - frameNumber: 16
+    label: 
+    sprite: {fileID: 21300000, guid: 7574b49c01f0f8f4b91b008327d50cc7, type: 3}
+  - frameNumber: 17
+    label: 
+    sprite: {fileID: 21300000, guid: 7336f4ceea7f27841aefee6e96845cb2, type: 3}
+  - frameNumber: 18
+    label: 
+    sprite: {fileID: 21300000, guid: 30cfcc2439ba7ac459eb384490364d92, type: 3}
+  - frameNumber: 19
+    label: 
+    sprite: {fileID: 21300000, guid: ad79104434803754d8e07ee2ed464cf1, type: 3}
+  - frameNumber: 20
+    label: 
+    sprite: {fileID: 21300000, guid: 66f935a3f70382f41add8e84db68448d, type: 3}
+  - frameNumber: 21
+    label: 
+    sprite: {fileID: 21300000, guid: db224eb4d4ce21e4591cd8a13943bfab, type: 3}
+  - frameNumber: 22
+    label: 
+    sprite: {fileID: 21300000, guid: bb08084d698aa294b9ee23ecccaca4e0, type: 3}
+  - frameNumber: 23
+    label: 
+    sprite: {fileID: 21300000, guid: 5ef194df081b43a49be71549b21bc091, type: 3}
+  - frameNumber: 24
+    label: 
+    sprite: {fileID: 21300000, guid: a7018da20ba13684ca912094513c56a1, type: 3}
+  - frameNumber: 25
+    label: 
+    sprite: {fileID: 21300000, guid: b1e1c7a124cf5234c88a33c83a0e3157, type: 3}
+  - frameNumber: 26
+    label: 
+    sprite: {fileID: 21300000, guid: 57f7185a09c43dc4cbb4ca321679f166, type: 3}
+  - frameNumber: 27
+    label: 
+    sprite: {fileID: 21300000, guid: e64e055c006f27245bf0296c6caae520, type: 3}
+  - frameNumber: 28
+    label: 
+    sprite: {fileID: 21300000, guid: 8748b4a6e0bc47c4da6eeca04d79af38, type: 3}
+  - frameNumber: 29
+    label: 
+    sprite: {fileID: 21300000, guid: 9a3e8cf80eeab87448e2a456485456c2, type: 3}
+  - frameNumber: 30
+    label: 
+    sprite: {fileID: 21300000, guid: 5e0082336fdabf5429db08be29d47500, type: 3}
+  - frameNumber: 31
+    label: 
+    sprite: {fileID: 21300000, guid: 3f318a24e93c32142885b16eef43ef39, type: 3}
+  - frameNumber: 32
+    label: 
+    sprite: {fileID: 21300000, guid: fa116ab2ea0ab984e9d6b48ddb6f3a3c, type: 3}
+  - frameNumber: 33
+    label: 
+    sprite: {fileID: 21300000, guid: b02ad0fa02f752245907744ca5fe37de, type: 3}
+  - frameNumber: 34
+    label: 
+    sprite: {fileID: 21300000, guid: 114fb0e9590bc354388bb9aa4f49354f, type: 3}
+  - frameNumber: 35
+    label: 
+    sprite: {fileID: 21300000, guid: fbc8a0e217422264f86814e3da91f475, type: 3}
+  - frameNumber: 36
+    label: 
+    sprite: {fileID: 21300000, guid: f758cab8038ac7242864456e64bafee9, type: 3}
+  - frameNumber: 37
+    label: 
+    sprite: {fileID: 21300000, guid: 6560159f5ddfbc941b770763b89f600a, type: 3}
+  - frameNumber: 38
+    label: 
+    sprite: {fileID: 21300000, guid: f79cfcda132e7f84eb7949f3db9272b9, type: 3}
+  - frameNumber: 39
+    label: 
+    sprite: {fileID: 21300000, guid: c2bc96be5b421384d8d3984a8e0fd98f, type: 3}
+  - frameNumber: 40
+    label: 
+    sprite: {fileID: 21300000, guid: 63792ed366305c249b5074a7430254b2, type: 3}
+  - frameNumber: 41
+    label: 
+    sprite: {fileID: 21300000, guid: a44937df76720c2449b6b63b8d7a9903, type: 3}
+  - frameNumber: 42
+    label: 
+    sprite: {fileID: 21300000, guid: fe2f09b20ca0747448bd6d26d6003f59, type: 3}
+  - frameNumber: 43
+    label: 
+    sprite: {fileID: 21300000, guid: 8734a3f87b034994eba270ee3d9b441c, type: 3}
+  - frameNumber: 44
+    label: 
+    sprite: {fileID: 21300000, guid: 11a67bbcf3a747a44a62c2f6159fa51e, type: 3}
+  - frameNumber: 45
+    label: 
+    sprite: {fileID: 21300000, guid: 7c5a45abd706e384cb45be6435b2d72b, type: 3}
+  - frameNumber: 46
+    label: 
+    sprite: {fileID: 21300000, guid: 27a59edc285a0314d94472246b516353, type: 3}
+  - frameNumber: 47
+    label: 
+    sprite: {fileID: 21300000, guid: ffc99f027236f4b419c5d48f7a5df5f2, type: 3}
+  - frameNumber: 48
+    label: 
+    sprite: {fileID: 21300000, guid: d050893eb4e0e0747bb531d2f2d56bdd, type: 3}
+  - frameNumber: 49
+    label: 
+    sprite: {fileID: 21300000, guid: 8301e3a44f3ab994b980c673b9cdae48, type: 3}
+  - frameNumber: 50
+    label: 
+    sprite: {fileID: 21300000, guid: d288fb2b510de2343a29fdfc0250fd79, type: 3}
+  - frameNumber: 51
+    label: move2
+    sprite: {fileID: 21300000, guid: fead9726261e6734aa36b6871b34dae1, type: 3}
+  - frameNumber: 52
+    label: 
+    sprite: {fileID: 21300000, guid: e7a793c1069ed9843a29b832e0e65a8b, type: 3}
+  - frameNumber: 53
+    label: 
+    sprite: {fileID: 21300000, guid: bfa030b8ba9d4c14b8c57c1936f8065a, type: 3}
+  - frameNumber: 54
+    label: 
+    sprite: {fileID: 21300000, guid: 0206ae64ce3132848be9142b3339064e, type: 3}
+  - frameNumber: 55
+    label: 
+    sprite: {fileID: 21300000, guid: 095a67cb2d9b80242b27ff2ab31bb1f8, type: 3}
+  - frameNumber: 56
+    label: 
+    sprite: {fileID: 21300000, guid: 9c1d9d680bae21e43a909331b40fcbe7, type: 3}
+  - frameNumber: 57
+    label: 
+    sprite: {fileID: 21300000, guid: d1b186c018c62864c8287e0ce8357714, type: 3}
+  - frameNumber: 58
+    label: 
+    sprite: {fileID: 21300000, guid: b256546112d603e49a311aeabf0251db, type: 3}
+  - frameNumber: 59
+    label: 
+    sprite: {fileID: 21300000, guid: d930bb9f01b7e6344b94b9333be10984, type: 3}
+  - frameNumber: 60
+    label: 
+    sprite: {fileID: 21300000, guid: 6e30e69007d1b43499a9e590d7740b5c, type: 3}
+  - frameNumber: 61
+    label: 
+    sprite: {fileID: 21300000, guid: 2dbda5ab91793404ca2306fc740c9e56, type: 3}
+  - frameNumber: 62
+    label: 
+    sprite: {fileID: 21300000, guid: 4bf74d44c0f07e1409705133dff9882a, type: 3}
+  - frameNumber: 63
+    label: 
+    sprite: {fileID: 21300000, guid: 114efaf4818c2804b83cfb0a0b7853d0, type: 3}
+  - frameNumber: 64
+    label: 
+    sprite: {fileID: 21300000, guid: 72991dbd56f187e4891fae0e5f02de9c, type: 3}
+  - frameNumber: 65
+    label: 
+    sprite: {fileID: 21300000, guid: 1b2351bc91b8c534f8ea4ede044cbedf, type: 3}
+  - frameNumber: 66
+    label: 
+    sprite: {fileID: 21300000, guid: fc6ec6e1569f3d44f96814bad6dfbf23, type: 3}
+  - frameNumber: 67
+    label: 
+    sprite: {fileID: 21300000, guid: 9c72f9a84b292e44e9fa1c134e7fc347, type: 3}
+  - frameNumber: 68
+    label: 
+    sprite: {fileID: 21300000, guid: 0c81de0d062f3ac4eb02644ee5b79b89, type: 3}
+  - frameNumber: 69
+    label: 
+    sprite: {fileID: 21300000, guid: b7e023c2d416e204f824e57c21ca6eea, type: 3}
+  - frameNumber: 70
+    label: 
+    sprite: {fileID: 21300000, guid: 4cee1db94caee6945b8bd5d338e872d8, type: 3}
+  - frameNumber: 71
+    label: 
+    sprite: {fileID: 21300000, guid: 9fa1bfaeb1b94d547a4c1b7d3645104a, type: 3}
+  - frameNumber: 72
+    label: 
+    sprite: {fileID: 21300000, guid: b3f498028dc8b81428313398e481ca8b, type: 3}
+  - frameNumber: 73
+    label: 
+    sprite: {fileID: 21300000, guid: 623985c4655301e428f59e6f5a7ceeb9, type: 3}
+  - frameNumber: 74
+    label: 
+    sprite: {fileID: 21300000, guid: 03b3b46ba57f1854583b1c2b8b037d21, type: 3}
+  - frameNumber: 75
+    label: 
+    sprite: {fileID: 21300000, guid: 1f241e8eda6d7ff47a0d7f6f8db16fff, type: 3}
+  - frameNumber: 76
+    label: 
+    sprite: {fileID: 21300000, guid: 4b95a632ce663d24b8b7b2fdab5dd592, type: 3}
+  - frameNumber: 77
+    label: 
+    sprite: {fileID: 21300000, guid: e04c0c520dbdc134989d703f05e55dd5, type: 3}
+  - frameNumber: 78
+    label: 
+    sprite: {fileID: 21300000, guid: ca387bc873abe7940879a926daec61e9, type: 3}
+  - frameNumber: 79
+    label: 
+    sprite: {fileID: 21300000, guid: ec7e766b480b7594ebd3c914724682ec, type: 3}
+  - frameNumber: 80
+    label: 
+    sprite: {fileID: 21300000, guid: 3bca2401a2c94474daa3ec7c20b6e297, type: 3}
+  - frameNumber: 81
+    label: 
+    sprite: {fileID: 21300000, guid: ca356edc2c8c5504faa63da840fb1968, type: 3}
+  - frameNumber: 82
+    label: 
+    sprite: {fileID: 21300000, guid: 7fe7d0dc3b9b7ed49b0ab2a2a794c593, type: 3}
+  - frameNumber: 83
+    label: 
+    sprite: {fileID: 21300000, guid: c5d945705f11bb240a0b413d7bf5b532, type: 3}
+  - frameNumber: 84
+    label: 
+    sprite: {fileID: 21300000, guid: 48a935859b065c94cbb2e385ea9a1f19, type: 3}
+  - frameNumber: 85
+    label: 
+    sprite: {fileID: 21300000, guid: f5f5f0d6e8560dc4d8aff648d70ca8e6, type: 3}
+  - frameNumber: 86
+    label: 
+    sprite: {fileID: 21300000, guid: dca9a0d084c80b44fbcb7780a82726e8, type: 3}
+  - frameNumber: 87
+    label: 
+    sprite: {fileID: 21300000, guid: f5ca7dc8d8834bb49914594942fa169c, type: 3}
+  - frameNumber: 88
+    label: 
+    sprite: {fileID: 21300000, guid: f1be2452091626046959c965586cecaf, type: 3}
+  - frameNumber: 89
+    label: 
+    sprite: {fileID: 21300000, guid: 8d8a69f9c5f0fa24ba4f20b3954c5d6d, type: 3}
+  - frameNumber: 90
+    label: 
+    sprite: {fileID: 21300000, guid: 8dcc9f6781b7c4b4ca0cf056259adf39, type: 3}
+  - frameNumber: 91
+    label: 
+    sprite: {fileID: 21300000, guid: 21c6845d262a0b2439dd6273d5258279, type: 3}
+  - frameNumber: 92
+    label: 
+    sprite: {fileID: 21300000, guid: 2cd14879705682d4db0d42a63cc1079e, type: 3}
+  - frameNumber: 93
+    label: 
+    sprite: {fileID: 21300000, guid: e28af28621042f147b6f7ae328eb3732, type: 3}
+  - frameNumber: 94
+    label: 
+    sprite: {fileID: 21300000, guid: 75e018ad936f7d74f93ae550fe911b67, type: 3}
+  - frameNumber: 95
+    label: 
+    sprite: {fileID: 21300000, guid: 4557e7a1b65f0e841888daaba0932d14, type: 3}
+  - frameNumber: 96
+    label: 
+    sprite: {fileID: 21300000, guid: 11e36e84f98c50d4aa93f26f535057c8, type: 3}
+  visualScaleX: -0.31556702
+  visualScaleY: 0.31582642
   aliasName: 
   vendorId: vendor_weapon
   interactionType: vr
@@ -24,10 +316,20 @@ MonoBehaviour:
   userAction2: 
   defaultWeapon: 
   isSilent: 0
+  legacyDialogueId: 
+  noTurn: 0
+  replicaId: 
+  layer: 
+  secondaryWeapon: 
+  requiredSkill: 
+  requiredItemId: 
   dialogues:
   - dialogueId: vendor_weap_hi
     isImportant: 0
     requiredTrigger: 
+    requiredTriggerValue: 
+    requiredBarter: 0
+    requiredPet: 
     requiredLand: 
     requiredQuest: 
     requiredQuestStage: 0
@@ -40,6 +342,9 @@ MonoBehaviour:
   - dialogueId: vendor_weap_new1
     isImportant: 0
     requiredTrigger: 
+    requiredTriggerValue: 
+    requiredBarter: 0
+    requiredPet: 
     requiredLand: 
     requiredQuest: 
     requiredQuestStage: 0

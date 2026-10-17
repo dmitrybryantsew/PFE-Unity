@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: sledge
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: sledge
+  displayName: 
   weaponType: 1
   punch: 0
   skillLevel: 1
@@ -50,10 +51,10 @@ MonoBehaviour:
   radio: 0
   sens: 100
   meleeType: 0
-  meleeDlina: 100
-  meleeMinDlina: 100
+  meleeDlina: 70
+  meleeMinDlina: 60
   meleeCombo: 0
-  meleePowerAttack: 0
+  meleePowerAttack: 1
   projectileArchetype: 0
   damageType: 2
   bulletGravity: 0
@@ -91,3 +92,18 @@ MonoBehaviour:
   noiseRadius: 500
   soundFall: fall_hammer
   soundSens: 
+  uniq: 0.3
+  comPrice: 5800
+  comWorth: 5
+  comChance: 0.3
+  comStage: 7
+  comRep: 0.15
+  variant:
+    Variant: 1
+    CharAttrs: ' maxhp=''500'' damage=''85'' knock=''28'''
+    PhisAttrs: 
+    VisAttrs: 
+    SndAttrs: 
+    AmmoAttrs: 
+    DopAttrs: 
+    ComAttrs: 

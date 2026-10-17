@@ -61,3 +61,69 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 71f08f7f61959b04082345d748b1223e, type: 2}
   - {fileID: 11400000, guid: f3ae3e1f95bee1648a8f996706cb176e, type: 2}
   probRooms: []
+  itemScripts:
+  - itemId: amul_al
+    actions:
+    - action: control off
+      target: 
+      value: 
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: stage
+      target: 
+      value: storyMane
+      numericParam: 5
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: stage
+      target: 
+      value: storyMane
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: dialog
+      target: 
+      value: maneDialAmul
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: trigger
+      target: 
+      value: story_canter
+      numericParam: 1
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: quest
+      target: 
+      value: storyCanter
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: passed
+      target: 
+      value: 
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: refill
+      target: 
+      value: 
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: control on
+      target: 
+      value: 
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0

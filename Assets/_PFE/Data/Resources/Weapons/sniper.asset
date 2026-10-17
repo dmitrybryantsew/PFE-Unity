@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: sniper
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: sniper
+  displayName: 
   weaponType: 3
   punch: 0
   skillLevel: 2
@@ -50,8 +51,8 @@ MonoBehaviour:
   radio: 0
   sens: 100
   meleeType: 0
-  meleeDlina: 100
-  meleeMinDlina: 100
+  meleeDlina: 50
+  meleeMinDlina: 50
   meleeCombo: 0
   meleePowerAttack: 0
   projectileArchetype: 0
@@ -91,3 +92,18 @@ MonoBehaviour:
   noiseRadius: 1000
   soundFall: 
   soundSens: 
+  uniq: 0
+  comPrice: 2200
+  comWorth: 4
+  comChance: 0.3
+  comStage: 2
+  comRep: 0.5
+  variant:
+    Variant: 1
+    CharAttrs: ' maxhp=''400'' rapid=''20'' prec=''28'''
+    PhisAttrs: 
+    VisAttrs: 
+    SndAttrs: 
+    AmmoAttrs: ' holder=''8'' reload=''45'''
+    DopAttrs: 
+    ComAttrs: 

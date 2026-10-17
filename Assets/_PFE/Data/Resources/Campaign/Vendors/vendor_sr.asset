@@ -1,0 +1,649 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f2e6ae248a01437091e1bba30868c81f, type: 3}
+  m_Name: vendor_sr
+  m_EditorClassIdentifier: PFE.Data::PFE.Data.Definitions.Campaign.VendorDefinition
+  dataVersion: 1
+  gameVersion: 0.1.0
+  vendorId: vendor_sr
+  stock:
+  - itemId: minigun
+    variant: 1
+    stockCount: 2
+    barter: 0
+    level: 18
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: plamg
+    variant: 1
+    stockCount: 2
+    barter: 0
+    level: 20
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: plam
+    variant: 1
+    stockCount: 2
+    barter: 0
+    level: 18
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: psc
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 13
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: cflamer
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 14
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: pshot
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 15
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: rail
+    variant: 0
+    stockCount: 2
+    barter: 0
+    level: 16
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: lmg
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 13
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: grom
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 16
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: anti
+    variant: 0
+    stockCount: 2
+    barter: 0
+    level: 16
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: gatl
+    variant: 0
+    stockCount: 2
+    barter: 0
+    level: 16
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: gatp
+    variant: 0
+    stockCount: 2
+    barter: 0
+    level: 18
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: autor
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 17
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: hmg
+    variant: 0
+    stockCount: 2
+    barter: 0
+    level: 17
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: quick
+    variant: 0
+    stockCount: 2
+    barter: 0
+    level: 18
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: grom
+    variant: 1
+    stockCount: 2
+    barter: 0
+    level: 23
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: cflamer
+    variant: 1
+    stockCount: 2
+    barter: 4
+    level: 20
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: anti
+    variant: 1
+    stockCount: 2
+    barter: 0
+    level: 20
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: mlau
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 10
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: aglau
+    variant: 0
+    stockCount: 2
+    barter: 0
+    level: 14
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: bel
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 20
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: sword
+    variant: 1
+    stockCount: 2
+    barter: 0
+    level: 20
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: p12
+    variant: 0
+    stockCount: 50
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: p12_3
+    variant: 0
+    stockCount: 30
+    barter: 4
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: p12_4
+    variant: 0
+    stockCount: 30
+    barter: 5
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: p12_5
+    variant: 0
+    stockCount: 30
+    barter: 5
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: p127
+    variant: 0
+    stockCount: 140
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: p127_2
+    variant: 0
+    stockCount: 30
+    barter: 4
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: p308
+    variant: 0
+    stockCount: 50
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: p308_1
+    variant: 0
+    stockCount: 20
+    barter: 3
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: p308_2
+    variant: 0
+    stockCount: 30
+    barter: 4
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: p50mg
+    variant: 0
+    stockCount: 60
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: p50mg_1
+    variant: 0
+    stockCount: 15
+    barter: 4
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: p50mg_4
+    variant: 0
+    stockCount: 15
+    barter: 5
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: p556
+    variant: 0
+    stockCount: 400
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: p556_1
+    variant: 0
+    stockCount: 100
+    barter: 3
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: p556_2
+    variant: 0
+    stockCount: 80
+    barter: 3
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: p556_5
+    variant: 0
+    stockCount: 50
+    barter: 4
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: p5
+    variant: 0
+    stockCount: 2500
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: p5_1
+    variant: 0
+    stockCount: 400
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: energ
+    variant: 0
+    stockCount: 500
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: energ_6
+    variant: 0
+    stockCount: 200
+    barter: 3
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: crystal
+    variant: 0
+    stockCount: 1500
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: crystal_6
+    variant: 0
+    stockCount: 500
+    barter: 4
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: fuel
+    variant: 0
+    stockCount: 2500
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: fuel_7
+    variant: 0
+    stockCount: 400
+    barter: 4
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: p145
+    variant: 0
+    stockCount: 40
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: gren40
+    variant: 0
+    stockCount: 40
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: gren40_8
+    variant: 0
+    stockCount: 20
+    barter: 2
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: gren40_9
+    variant: 0
+    stockCount: 10
+    barter: 4
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: rocket
+    variant: 0
+    stockCount: 30
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: empbomb
+    variant: 0
+    stockCount: 5
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: s_empbomb
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: bag2
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 12
+    trigger: 
+    noRefill: 1
+    noCheap: 0
+    hardInventory: 1
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  tasks:
+  - taskId: hydroPon
+    skill: 
+    skillLevel: 0
+    land: 
+    trigger: 
+    manual: 1
+  - taskId: collectDatast
+    skill: 
+    skillLevel: 0
+    land: 
+    trigger: 
+    manual: 1
+  - taskId: collectMotiv
+    skill: 
+    skillLevel: 0
+    land: 
+    trigger: 
+    manual: 1
+  - taskId: collectBbatt
+    skill: 
+    skillLevel: 0
+    land: bunker
+    trigger: 
+    manual: 1
+  - taskId: enclArmor
+    skill: 
+    skillLevel: 0
+    land: bunker
+    trigger: 
+    manual: 1
+  - taskId: collectTech
+    skill: 
+    skillLevel: 0
+    land: bunker
+    trigger: 
+    manual: 1

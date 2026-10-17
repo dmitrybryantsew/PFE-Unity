@@ -1,0 +1,526 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f2e6ae248a01437091e1bba30868c81f, type: 3}
+  m_Name: vendor_zebr
+  m_EditorClassIdentifier: PFE.Data::PFE.Data.Definitions.Campaign.VendorDefinition
+  dataVersion: 1
+  gameVersion: 0.1.0
+  vendorId: vendor_zebr
+  stock:
+  - itemId: elsword
+    variant: 1
+    stockCount: 2
+    barter: 3
+    level: 10
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: amul_sneak
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 13
+    trigger: 
+    noRefill: 1
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: amul_adept
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 22
+    trigger: 
+    noRefill: 1
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: potion_purif
+    variant: 0
+    stockCount: 10
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: herbs
+    variant: 0
+    stockCount: 200
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: taintextract
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 1
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: hydrablood
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 1
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: rainbow
+    variant: 0
+    stockCount: 1
+    barter: 1
+    level: 0
+    trigger: 
+    noRefill: 1
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: stardust
+    variant: 0
+    stockCount: 1
+    barter: 2
+    level: 0
+    trigger: 
+    noRefill: 1
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: moonstone
+    variant: 0
+    stockCount: 1
+    barter: 3
+    level: 0
+    trigger: 
+    noRefill: 1
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: firecrystal
+    variant: 0
+    stockCount: 1
+    barter: 4
+    level: 0
+    trigger: 
+    noRefill: 1
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: essence
+    variant: 0
+    stockCount: 1
+    barter: 5
+    level: 0
+    trigger: 
+    noRefill: 1
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: spirt
+    variant: 0
+    stockCount: 5
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: firegland
+    variant: 0
+    stockCount: 3
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: mdust
+    variant: 0
+    stockCount: 4
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: vampfang
+    variant: 0
+    stockCount: 2
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: ghoulblood
+    variant: 0
+    stockCount: 5
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: wingmembrane
+    variant: 0
+    stockCount: 3
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: mint
+    variant: 0
+    stockCount: 5
+    barter: 1
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: stampede
+    variant: 0
+    stockCount: 5
+    barter: 2
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: pmint
+    variant: 0
+    stockCount: 5
+    barter: 3
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: potm1
+    variant: 0
+    stockCount: 10
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: potm2
+    variant: 0
+    stockCount: 20
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: potm3
+    variant: 0
+    stockCount: 25
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: zebmine
+    variant: 0
+    stockCount: 20
+    barter: 0
+    level: 0
+    trigger: encounter_post
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: s_potion_mage
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 4
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: s_potion_swim
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 6
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: s_potion_stim
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 7
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: s_potion_infra
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 10
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: s_potion_shadow
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 12
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: s_potion_fly
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 13
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: s_potion_immun
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 6
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: s_potion_speed
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 9
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: s_potion_dskel
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 10
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: s_potion_might
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 12
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: s_potion_purif
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 15
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: s_potion_prec
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 15
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: s_potion_dexter
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 26
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: s_potion_crit
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 20
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: s_apie
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 12
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: s_mpie
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 14
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: s_ppie
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 16
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: s_spie
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 18
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: s_borsch
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 20
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: potion_consc
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 12
+    trigger: 
+    noRefill: 1
+    noCheap: 0
+    hardInventory: 1
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  tasks:
+  - taskId: collectCanter
+    skill: 
+    skillLevel: 0
+    land: 
+    trigger: 
+    manual: 1
+  - taskId: collectTalisman
+    skill: 
+    skillLevel: 0
+    land: 
+    trigger: 
+    manual: 1

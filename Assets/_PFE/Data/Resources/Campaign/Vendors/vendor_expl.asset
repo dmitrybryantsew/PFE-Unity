@@ -1,0 +1,522 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f2e6ae248a01437091e1bba30868c81f, type: 3}
+  m_Name: vendor_expl
+  m_EditorClassIdentifier: PFE.Data::PFE.Data.Definitions.Campaign.VendorDefinition
+  dataVersion: 1
+  gameVersion: 0.1.0
+  vendorId: vendor_expl
+  stock:
+  - itemId: glau1
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: glau
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 8
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: mlau
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 12
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: aglau
+    variant: 0
+    stockCount: 2
+    barter: 0
+    level: 15
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: bel
+    variant: 0
+    stockCount: 1
+    barter: 5
+    level: 15
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: dinamit
+    variant: 0
+    stockCount: 25
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: grenade
+    variant: 0
+    stockCount: 25
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: gasgr
+    variant: 0
+    stockCount: 25
+    barter: 2
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: plagr
+    variant: 0
+    stockCount: 20
+    barter: 0
+    level: 5
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: impgr
+    variant: 0
+    stockCount: 10
+    barter: 0
+    level: 5
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: molotov
+    variant: 0
+    stockCount: 20
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: fgren
+    variant: 0
+    stockCount: 25
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: hmine
+    variant: 0
+    stockCount: 25
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: mine
+    variant: 0
+    stockCount: 10
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: plamine
+    variant: 0
+    stockCount: 10
+    barter: 1
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: impmine
+    variant: 0
+    stockCount: 10
+    barter: 2
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: dbomb
+    variant: 0
+    stockCount: 10
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: bomb
+    variant: 0
+    stockCount: 5
+    barter: 0
+    level: 8
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: x37
+    variant: 0
+    stockCount: 5
+    barter: 2
+    level: 10
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: exc4
+    variant: 0
+    stockCount: 3
+    barter: 0
+    level: 12
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: s_molotov
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: s_hmine
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: s_hgren
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: s_acidgr
+    variant: 0
+    stockCount: 1
+    barter: 1
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: s_dbomb
+    variant: 0
+    stockCount: 1
+    barter: 2
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: s_bomb
+    variant: 0
+    stockCount: 1
+    barter: 3
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: gren40
+    variant: 0
+    stockCount: 35
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: gren40_8
+    variant: 0
+    stockCount: 10
+    barter: 0
+    level: 7
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: gren40_9
+    variant: 0
+    stockCount: 7
+    barter: 2
+    level: 7
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: rocket
+    variant: 0
+    stockCount: 10
+    barter: 0
+    level: 8
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: egg
+    variant: 0
+    stockCount: 5
+    barter: 5
+    level: 12
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: balemine
+    variant: 0
+    stockCount: 4
+    barter: 5
+    level: 18
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: detonat
+    variant: 0
+    stockCount: 10
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: sensor
+    variant: 0
+    stockCount: 10
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: powder
+    variant: 0
+    stockCount: 15
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: timer
+    variant: 0
+    stockCount: 5
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: turp
+    variant: 0
+    stockCount: 5
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: tnt
+    variant: 0
+    stockCount: 5
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: glau
+    variant: 1
+    stockCount: 2
+    barter: 4
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: mworkexpl
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 5
+    trigger: 
+    noRefill: 1
+    noCheap: 1
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: pcryo
+    variant: 0
+    stockCount: 50
+    barter: 0
+    level: 0
+    trigger: test_cryo
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: cryogr
+    variant: 0
+    stockCount: 10
+    barter: 0
+    level: 12
+    trigger: test_cryo
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: cryomine
+    variant: 0
+    stockCount: 10
+    barter: 0
+    level: 12
+    trigger: test_cryo
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  tasks:
+  - taskId: collectNitro
+    skill: 
+    skillLevel: 0
+    land: 
+    trigger: 
+    manual: 
+  - taskId: collectSmoke
+    skill: 
+    skillLevel: 0
+    land: 
+    trigger: 
+    manual: 
+  - taskId: killAnthills
+    skill: 
+    skillLevel: 0
+    land: 
+    trigger: 
+    manual: 
+  - taskId: testCryo
+    skill: explosives
+    skillLevel: 9
+    land: random_stable
+    trigger: 
+    manual: 
+  - taskId: collectSpgren
+    skill: explosives
+    skillLevel: 14
+    land: random_mane
+    trigger: 
+    manual: 

@@ -1,0 +1,352 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f2e6ae248a01437091e1bba30868c81f, type: 3}
+  m_Name: vendor_armor
+  m_EditorClassIdentifier: PFE.Data::PFE.Data.Definitions.Campaign.VendorDefinition
+  dataVersion: 1
+  gameVersion: 0.1.0
+  vendorId: vendor_armor
+  stock:
+  - itemId: kombu
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: antirad
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: antihim
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: tre
+    variant: 0
+    stockCount: 2
+    barter: 5
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: skin
+    variant: 0
+    stockCount: 2
+    barter: 0
+    level: 5
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: metal
+    variant: 0
+    stockCount: 2
+    barter: 0
+    level: 5
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: intel
+    variant: 0
+    stockCount: 2
+    barter: 0
+    level: 8
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: sapper
+    variant: 0
+    stockCount: 2
+    barter: 0
+    level: 10
+    trigger: pro_armor
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: battle
+    variant: 0
+    stockCount: 2
+    barter: 0
+    level: 12
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: polic
+    variant: 0
+    stockCount: 2
+    barter: 0
+    level: 12
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: magus
+    variant: 0
+    stockCount: 2
+    barter: 0
+    level: 12
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: astealth
+    variant: 0
+    stockCount: 2
+    barter: 0
+    level: 15
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: assault
+    variant: 0
+    stockCount: 2
+    barter: 0
+    level: 18
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: spec
+    variant: 0
+    stockCount: 2
+    barter: 0
+    level: 18
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: moon
+    variant: 0
+    stockCount: 2
+    barter: 0
+    level: 18
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: power
+    variant: 0
+    stockCount: 2
+    barter: 0
+    level: 20
+    trigger: power_armor
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0.4
+    hasPriceMultiplier: 1
+  - itemId: amul_war
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 22
+    trigger: 
+    noRefill: 1
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: s_chitin
+    variant: 0
+    stockCount: 1
+    barter: 1
+    level: 5
+    trigger: 
+    noRefill: 0
+    noCheap: 1
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: kombu_comp
+    variant: 0
+    stockCount: 6
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: antirad_comp
+    variant: 0
+    stockCount: 3
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: antihim_comp
+    variant: 0
+    stockCount: 3
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: skin_comp
+    variant: 0
+    stockCount: 4
+    barter: 0
+    level: 5
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: metal_comp
+    variant: 0
+    stockCount: 3
+    barter: 0
+    level: 5
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: intel_comp
+    variant: 0
+    stockCount: 3
+    barter: 0
+    level: 8
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: battle_comp
+    variant: 0
+    stockCount: 5
+    barter: 0
+    level: 11
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: polic_comp
+    variant: 0
+    stockCount: 5
+    barter: 0
+    level: 8
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: magus_comp
+    variant: 0
+    stockCount: 5
+    barter: 0
+    level: 11
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  tasks:
+  - taskId: findProArmor
+    skill: 
+    skillLevel: 0
+    land: 
+    trigger: 
+    manual: 
+  - taskId: killMadfox
+    skill: 
+    skillLevel: 0
+    land: 
+    trigger: 
+    manual: 
+  - taskId: collectPaintsA
+    skill: 
+    skillLevel: 0
+    land: 
+    trigger: 
+    manual: 
+  - taskId: collectPaintsB
+    skill: 
+    skillLevel: 0
+    land: random_stable
+    trigger: colors1
+    manual: 
+  - taskId: collectPaintsC
+    skill: 
+    skillLevel: 0
+    land: random_mane
+    trigger: colors2
+    manual: 
+  - taskId: collectPowerArmor
+    skill: 
+    skillLevel: 0
+    land: random_mbase
+    trigger: 
+    manual: 

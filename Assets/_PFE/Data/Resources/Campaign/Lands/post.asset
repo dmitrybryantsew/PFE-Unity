@@ -52,3 +52,4 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 9d65a6505d78637488121e6bbb08f3fd, type: 2}
   - {fileID: 11400000, guid: 542aeb446fbe12a449597b7e70b00aa4, type: 2}
   probRooms: []
+  itemScripts: []

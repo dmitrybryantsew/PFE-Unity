@@ -16,6 +16,13 @@ MonoBehaviour:
   gameVersion: 0.1.0
   npcId: vendor_sr
   visualId: VendorSR
+  visualSprite: {fileID: 21300000, guid: 285fd57dd75906d4c9e3b910160458f7, type: 3}
+  visualFrames:
+  - frameNumber: 1
+    label: 
+    sprite: {fileID: 21300000, guid: 285fd57dd75906d4c9e3b910160458f7, type: 3}
+  visualScaleX: 1
+  visualScaleY: 1
   aliasName: 
   vendorId: vendor_sr
   interactionType: vr
@@ -24,10 +31,20 @@ MonoBehaviour:
   userAction2: 
   defaultWeapon: 
   isSilent: 1
+  legacyDialogueId: 
+  noTurn: 0
+  replicaId: 
+  layer: 
+  secondaryWeapon: 
+  requiredSkill: 
+  requiredItemId: 
   dialogues:
   - dialogueId: vendor_sr_hi
     isImportant: 0
     requiredTrigger: 
+    requiredTriggerValue: 
+    requiredBarter: 0
+    requiredPet: 
     requiredLand: 
     requiredQuest: 
     requiredQuestStage: 0
@@ -40,6 +57,9 @@ MonoBehaviour:
   - dialogueId: vendor_sr_quest3
     isImportant: 0
     requiredTrigger: encl_armor
+    requiredTriggerValue: 
+    requiredBarter: 0
+    requiredPet: 
     requiredLand: 
     requiredQuest: 
     requiredQuestStage: 0
@@ -66,6 +86,9 @@ MonoBehaviour:
   - dialogueId: vendor_sr_bunker
     isImportant: 0
     requiredTrigger: 
+    requiredTriggerValue: 
+    requiredBarter: 0
+    requiredPet: 
     requiredLand: bunker
     requiredQuest: 
     requiredQuestStage: 0
@@ -78,6 +101,9 @@ MonoBehaviour:
   - dialogueId: vendor_sr_power_armor
     isImportant: 0
     requiredTrigger: 
+    requiredTriggerValue: 
+    requiredBarter: 0
+    requiredPet: 
     requiredLand: 
     requiredQuest: 
     requiredQuestStage: 0

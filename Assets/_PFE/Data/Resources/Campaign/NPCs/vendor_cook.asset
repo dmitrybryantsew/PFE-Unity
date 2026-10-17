@@ -16,6 +16,13 @@ MonoBehaviour:
   gameVersion: 0.1.0
   npcId: vendor_cook
   visualId: VendorCook
+  visualSprite: {fileID: 21300000, guid: 5694d69ef5591b54cbc347ef1ac70865, type: 3}
+  visualFrames:
+  - frameNumber: 1
+    label: 
+    sprite: {fileID: 21300000, guid: 5694d69ef5591b54cbc347ef1ac70865, type: 3}
+  visualScaleX: 1
+  visualScaleY: 1
   aliasName: 
   vendorId: vendor_cook
   interactionType: v
@@ -24,10 +31,20 @@ MonoBehaviour:
   userAction2: 
   defaultWeapon: 
   isSilent: 1
+  legacyDialogueId: 
+  noTurn: 0
+  replicaId: 
+  layer: 
+  secondaryWeapon: 
+  requiredSkill: 
+  requiredItemId: 
   dialogues:
   - dialogueId: vendor_cook_hi
     isImportant: 0
     requiredTrigger: 
+    requiredTriggerValue: 
+    requiredBarter: 0
+    requiredPet: 
     requiredLand: 
     requiredQuest: 
     requiredQuestStage: 0

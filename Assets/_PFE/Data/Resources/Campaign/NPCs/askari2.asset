@@ -16,6 +16,13 @@ MonoBehaviour:
   gameVersion: 0.1.0
   npcId: askari2
   visualId: Askari
+  visualSprite: {fileID: 21300000, guid: 54c060d46fac2be4f8fc59562d74996b, type: 3}
+  visualFrames:
+  - frameNumber: 1
+    label: 
+    sprite: {fileID: 21300000, guid: 54c060d46fac2be4f8fc59562d74996b, type: 3}
+  visualScaleX: 1
+  visualScaleY: 1
   aliasName: askari
   vendorId: 
   interactionType: 
@@ -24,10 +31,20 @@ MonoBehaviour:
   userAction2: dial
   defaultWeapon: 
   isSilent: 0
+  legacyDialogueId: askariDial2
+  noTurn: 0
+  replicaId: 
+  layer: 
+  secondaryWeapon: 
+  requiredSkill: 
+  requiredItemId: 
   dialogues:
   - dialogueId: dialRanger9
     isImportant: 1
     requiredTrigger: ranger_q1
+    requiredTriggerValue: 
+    requiredBarter: 0
+    requiredPet: 
     requiredLand: 
     requiredQuest: 
     requiredQuestStage: 0
@@ -61,6 +78,9 @@ MonoBehaviour:
   - dialogueId: dialHelpCovert1
     isImportant: 1
     requiredTrigger: soviet
+    requiredTriggerValue: 
+    requiredBarter: 0
+    requiredPet: 
     requiredLand: 
     requiredQuest: 
     requiredQuestStage: 0
@@ -87,6 +107,9 @@ MonoBehaviour:
   - dialogueId: dialHelpCovert3
     isImportant: 1
     requiredTrigger: 
+    requiredTriggerValue: 
+    requiredBarter: 0
+    requiredPet: 
     requiredLand: 
     requiredQuest: storyHelpCovert
     requiredQuestStage: 7

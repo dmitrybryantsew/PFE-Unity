@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: grom
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: grom
+  displayName: 
   weaponType: 3
   punch: 0
   skillLevel: 4
@@ -50,8 +51,8 @@ MonoBehaviour:
   radio: 0
   sens: 100
   meleeType: 0
-  meleeDlina: 100
-  meleeMinDlina: 100
+  meleeDlina: 50
+  meleeMinDlina: 50
   meleeCombo: 0
   meleePowerAttack: 0
   projectileArchetype: 1
@@ -91,3 +92,18 @@ MonoBehaviour:
   noiseRadius: 1000
   soundFall: 
   soundSens: 
+  uniq: 0
+  comPrice: 5200
+  comWorth: 5
+  comChance: 0.3
+  comStage: 6
+  comRep: 0.12
+  variant:
+    Variant: 1
+    CharAttrs: ' maxhp=''250'' damage=''85'' pier=''20'''
+    PhisAttrs: 
+    VisAttrs: 
+    SndAttrs: 
+    AmmoAttrs: 
+    DopAttrs: 
+    ComAttrs: 

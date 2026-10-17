@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: lasp
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: lasp
+  displayName: 
   weaponType: 2
   punch: 0
   skillLevel: 4
@@ -50,8 +51,8 @@ MonoBehaviour:
   radio: 0
   sens: 100
   meleeType: 0
-  meleeDlina: 100
-  meleeMinDlina: 100
+  meleeDlina: 50
+  meleeMinDlina: 50
   meleeCombo: 0
   meleePowerAttack: 0
   projectileArchetype: 1
@@ -91,3 +92,18 @@ MonoBehaviour:
   noiseRadius: 300
   soundFall: 
   soundSens: 
+  uniq: 1
+  comPrice: 450
+  comWorth: 3
+  comChance: 0.5
+  comStage: 1
+  comRep: 2
+  variant:
+    Variant: 1
+    CharAttrs: ' maxhp=''275'' damage=''10'' auto=''1'''
+    PhisAttrs: 
+    VisAttrs: 
+    SndAttrs: 
+    AmmoAttrs: ' holder=''30'''
+    DopAttrs: 
+    ComAttrs: 

@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: plar
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: plar
+  displayName: 
   weaponType: 3
   punch: 0
   skillLevel: 4
@@ -50,8 +51,8 @@ MonoBehaviour:
   radio: 0
   sens: 100
   meleeType: 0
-  meleeDlina: 100
-  meleeMinDlina: 100
+  meleeDlina: 50
+  meleeMinDlina: 50
   meleeCombo: 0
   meleePowerAttack: 0
   projectileArchetype: 2
@@ -91,3 +92,18 @@ MonoBehaviour:
   noiseRadius: 400
   soundFall: 
   soundSens: 
+  uniq: 0
+  comPrice: 1550
+  comWorth: 4
+  comChance: 0.35
+  comStage: 4
+  comRep: 0.5
+  variant:
+    Variant: 1
+    CharAttrs: ' maxhp=''400'' rapid=''18'''
+    PhisAttrs: ' speed=''120'''
+    VisAttrs: 
+    SndAttrs: 
+    AmmoAttrs: ' holder=''120'' rashod=''8'''
+    DopAttrs: 
+    ComAttrs: 

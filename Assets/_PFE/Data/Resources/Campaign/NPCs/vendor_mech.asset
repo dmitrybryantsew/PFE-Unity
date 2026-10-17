@@ -16,6 +16,13 @@ MonoBehaviour:
   gameVersion: 0.1.0
   npcId: vendor_mech
   visualId: VendorMech
+  visualSprite: {fileID: 21300000, guid: 98e3e03fac223da429092c8b18a58b1b, type: 3}
+  visualFrames:
+  - frameNumber: 1
+    label: 
+    sprite: {fileID: 21300000, guid: 98e3e03fac223da429092c8b18a58b1b, type: 3}
+  visualScaleX: 1
+  visualScaleY: 1
   aliasName: 
   vendorId: vendor_mech
   interactionType: vr
@@ -24,10 +31,20 @@ MonoBehaviour:
   userAction2: 
   defaultWeapon: 
   isSilent: 0
+  legacyDialogueId: 
+  noTurn: 0
+  replicaId: 
+  layer: 
+  secondaryWeapon: 
+  requiredSkill: 
+  requiredItemId: 
   dialogues:
   - dialogueId: vendor_mech_hi
     isImportant: 0
     requiredTrigger: 
+    requiredTriggerValue: 
+    requiredBarter: 0
+    requiredPet: 
     requiredLand: 
     requiredQuest: 
     requiredQuestStage: 0
@@ -40,6 +57,9 @@ MonoBehaviour:
   - dialogueId: vendor_mech_autodoc_rep
     isImportant: 0
     requiredTrigger: autodoc_rep
+    requiredTriggerValue: 
+    requiredBarter: 0
+    requiredPet: 
     requiredLand: 
     requiredQuest: 
     requiredQuestStage: 0

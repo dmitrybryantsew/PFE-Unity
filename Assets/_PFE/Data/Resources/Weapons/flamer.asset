@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: flamer
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: flamer
+  displayName: 
   weaponType: 3
   punch: 0
   skillLevel: 4
@@ -50,8 +51,8 @@ MonoBehaviour:
   radio: 0
   sens: 100
   meleeType: 0
-  meleeDlina: 100
-  meleeMinDlina: 100
+  meleeDlina: 50
+  meleeMinDlina: 50
   meleeCombo: 0
   meleePowerAttack: 0
   projectileArchetype: 3
@@ -91,3 +92,18 @@ MonoBehaviour:
   noiseRadius: 400
   soundFall: 
   soundSens: 
+  uniq: 0.8
+  comPrice: 600
+  comWorth: 5
+  comChance: 1
+  comStage: 1
+  comRep: 1
+  variant:
+    Variant: 1
+    CharAttrs: ' maxhp=''3500'' damage=''3'' prec=''8'' pier=''12'''
+    PhisAttrs: ' speed=''45'''
+    VisAttrs: 
+    SndAttrs: 
+    AmmoAttrs: 
+    DopAttrs: 
+    ComAttrs: 

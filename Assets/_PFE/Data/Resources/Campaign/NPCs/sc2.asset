@@ -16,6 +16,13 @@ MonoBehaviour:
   gameVersion: 0.1.0
   npcId: sc2
   visualId: Sc2
+  visualSprite: {fileID: 21300000, guid: 4ea3890eb9c673341a5501a0d0447615, type: 3}
+  visualFrames:
+  - frameNumber: 1
+    label: 
+    sprite: {fileID: 21300000, guid: 4ea3890eb9c673341a5501a0d0447615, type: 3}
+  visualScaleX: 1
+  visualScaleY: 1
   aliasName: 
   vendorId: 
   interactionType: 
@@ -24,10 +31,20 @@ MonoBehaviour:
   userAction2: 
   defaultWeapon: 
   isSilent: 0
+  legacyDialogueId: 
+  noTurn: 0
+  replicaId: 
+  layer: 
+  secondaryWeapon: 
+  requiredSkill: 
+  requiredItemId: 
   dialogues:
   - dialogueId: dialEnd_sc2
     isImportant: 0
     requiredTrigger: theend
+    requiredTriggerValue: 
+    requiredBarter: 0
+    requiredPet: 
     requiredLand: 
     requiredQuest: 
     requiredQuestStage: 0
@@ -40,6 +57,9 @@ MonoBehaviour:
   - dialogueId: dialSc2
     isImportant: 0
     requiredTrigger: 
+    requiredTriggerValue: 
+    requiredBarter: 0
+    requiredPet: 
     requiredLand: 
     requiredQuest: 
     requiredQuestStage: 0

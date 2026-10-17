@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: eclipse
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: eclipse
+  displayName: 
   weaponType: 5
   punch: 0
   skillLevel: 6
@@ -50,8 +51,8 @@ MonoBehaviour:
   radio: 0
   sens: 100
   meleeType: 0
-  meleeDlina: 100
-  meleeMinDlina: 100
+  meleeDlina: 50
+  meleeMinDlina: 50
   meleeCombo: 0
   meleePowerAttack: 0
   projectileArchetype: 8
@@ -91,3 +92,18 @@ MonoBehaviour:
   noiseRadius: 800
   soundFall: 
   soundSens: 
+  uniq: 0
+  comPrice: 4000
+  comWorth: 0
+  comChance: 0
+  comStage: 3
+  comRep: 1
+  variant:
+    Variant: 1
+    CharAttrs: ' damexpl=''200'''
+    PhisAttrs: 
+    VisAttrs: 
+    SndAttrs: 
+    AmmoAttrs: ' mana=''160'''
+    DopAttrs: 
+    ComAttrs: ' price=''7500'''

@@ -49,3 +49,13 @@ MonoBehaviour:
   xpReward: 0
   roomTemplates: []
   probRooms: []
+  itemScripts:
+  - itemId: captive
+    actions:
+    - action: quest
+      target: 
+      value: freeCaptive
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0

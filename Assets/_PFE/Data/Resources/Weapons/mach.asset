@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: mach
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: mach
+  displayName: 
   weaponType: 1
   punch: 0
   skillLevel: 1
@@ -50,9 +51,9 @@ MonoBehaviour:
   radio: 0
   sens: 100
   meleeType: 0
-  meleeDlina: 100
-  meleeMinDlina: 100
-  meleeCombo: 0
+  meleeDlina: 60
+  meleeMinDlina: 20
+  meleeCombo: 1
   meleePowerAttack: 0
   projectileArchetype: 0
   damageType: 1
@@ -91,3 +92,18 @@ MonoBehaviour:
   noiseRadius: 400
   soundFall: fall_metal_item
   soundSens: 
+  uniq: 1
+  comPrice: 400
+  comWorth: 2
+  comChance: 0.6
+  comStage: 1
+  comRep: 1
+  variant:
+    Variant: 1
+    CharAttrs: ' maxhp=''300'' damage=''18'' knock=''10'''
+    PhisAttrs: 
+    VisAttrs: 
+    SndAttrs: 
+    AmmoAttrs: 
+    DopAttrs: 
+    ComAttrs: 

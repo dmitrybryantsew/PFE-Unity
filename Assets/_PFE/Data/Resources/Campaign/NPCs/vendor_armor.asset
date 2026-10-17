@@ -16,6 +16,298 @@ MonoBehaviour:
   gameVersion: 0.1.0
   npcId: vendor_armor
   visualId: VendorArmor
+  visualSprite: {fileID: 21300000, guid: cb24c98076791c847b9c1bac6d39b5e5, type: 3}
+  visualFrames:
+  - frameNumber: 1
+    label: stay
+    sprite: {fileID: 21300000, guid: cb24c98076791c847b9c1bac6d39b5e5, type: 3}
+  - frameNumber: 2
+    label: move1
+    sprite: {fileID: 21300000, guid: 8c21bd89a77defe4abea62ad2dde944a, type: 3}
+  - frameNumber: 3
+    label: 
+    sprite: {fileID: 21300000, guid: 83cc7c10d4c7657488b0ba820b2a82ed, type: 3}
+  - frameNumber: 4
+    label: 
+    sprite: {fileID: 21300000, guid: 887634965975448478000c163da14a8d, type: 3}
+  - frameNumber: 5
+    label: 
+    sprite: {fileID: 21300000, guid: fd75f8cb588bd40408d62ecbd3bf8bb1, type: 3}
+  - frameNumber: 6
+    label: 
+    sprite: {fileID: 21300000, guid: e5e55329e3ab8d54c930b74b4b969f7d, type: 3}
+  - frameNumber: 7
+    label: 
+    sprite: {fileID: 21300000, guid: 9f700db9da0ba714aa74a759f8f9c3d4, type: 3}
+  - frameNumber: 8
+    label: 
+    sprite: {fileID: 21300000, guid: 3712c7784b69a774186300a765ebb4cf, type: 3}
+  - frameNumber: 9
+    label: 
+    sprite: {fileID: 21300000, guid: e5cfddcd93bbf1c44ae544f16ed493ca, type: 3}
+  - frameNumber: 10
+    label: 
+    sprite: {fileID: 21300000, guid: 53200103f19c89943bed1d494941fe67, type: 3}
+  - frameNumber: 11
+    label: 
+    sprite: {fileID: 21300000, guid: e9e1240242b131847b9a245a41284479, type: 3}
+  - frameNumber: 12
+    label: 
+    sprite: {fileID: 21300000, guid: 3cdb4ecc283d8ec46ad1adbddbb18d56, type: 3}
+  - frameNumber: 13
+    label: 
+    sprite: {fileID: 21300000, guid: 3bd2e8c8fa8d4b44ea4902e59d8f739d, type: 3}
+  - frameNumber: 14
+    label: 
+    sprite: {fileID: 21300000, guid: e54ae76641546fd44bf179754971efc3, type: 3}
+  - frameNumber: 15
+    label: 
+    sprite: {fileID: 21300000, guid: 7a4e44cef4d09864bb61178b647843fc, type: 3}
+  - frameNumber: 16
+    label: 
+    sprite: {fileID: 21300000, guid: e49b93af9bf24f34b871c6766c6104e4, type: 3}
+  - frameNumber: 17
+    label: 
+    sprite: {fileID: 21300000, guid: 44b0783ba5671a74cb4c594efd39d341, type: 3}
+  - frameNumber: 18
+    label: 
+    sprite: {fileID: 21300000, guid: 253264034ed869f4f9d59d5c003f762c, type: 3}
+  - frameNumber: 19
+    label: 
+    sprite: {fileID: 21300000, guid: 27dcc7a4d479d7f4c84433e5ca54d10b, type: 3}
+  - frameNumber: 20
+    label: 
+    sprite: {fileID: 21300000, guid: 713b4028229bb6f46bf5879e95dacd8d, type: 3}
+  - frameNumber: 21
+    label: 
+    sprite: {fileID: 21300000, guid: e3cb512008e2d49478a5dea7893aadf7, type: 3}
+  - frameNumber: 22
+    label: 
+    sprite: {fileID: 21300000, guid: 826e17fa8448ce544bf84f47adfd35b5, type: 3}
+  - frameNumber: 23
+    label: 
+    sprite: {fileID: 21300000, guid: abbec83892a05564d9f52fb9e98e0be3, type: 3}
+  - frameNumber: 24
+    label: 
+    sprite: {fileID: 21300000, guid: bbb52a487764452428983509ea8eeee1, type: 3}
+  - frameNumber: 25
+    label: 
+    sprite: {fileID: 21300000, guid: 418e614a63c2dbf49ba346b4a78fe989, type: 3}
+  - frameNumber: 26
+    label: 
+    sprite: {fileID: 21300000, guid: 8c29a76be3faad046a887118f1c7df87, type: 3}
+  - frameNumber: 27
+    label: 
+    sprite: {fileID: 21300000, guid: 4f723f140e9972a4fb77c91f18ba3869, type: 3}
+  - frameNumber: 28
+    label: 
+    sprite: {fileID: 21300000, guid: 95b0a95dab409ee4aa4966838752d317, type: 3}
+  - frameNumber: 29
+    label: 
+    sprite: {fileID: 21300000, guid: 801dd27701e29af49b1cd59ad99d6af4, type: 3}
+  - frameNumber: 30
+    label: 
+    sprite: {fileID: 21300000, guid: 3cc6426262c1dff4893c038abe8c8c44, type: 3}
+  - frameNumber: 31
+    label: 
+    sprite: {fileID: 21300000, guid: 20450626d114889479794c4751aed909, type: 3}
+  - frameNumber: 32
+    label: 
+    sprite: {fileID: 21300000, guid: ee17a30bc59f7364282a539cd8af4418, type: 3}
+  - frameNumber: 33
+    label: 
+    sprite: {fileID: 21300000, guid: 9a006bb999278894ab489188892ab024, type: 3}
+  - frameNumber: 34
+    label: 
+    sprite: {fileID: 21300000, guid: caeb8bfba4f580a4a861c09b913a98d1, type: 3}
+  - frameNumber: 35
+    label: 
+    sprite: {fileID: 21300000, guid: d7d8b3eb40ae9e941a5a170e54ba7702, type: 3}
+  - frameNumber: 36
+    label: 
+    sprite: {fileID: 21300000, guid: a9cd3e10df6739b41af9e050d3b823ae, type: 3}
+  - frameNumber: 37
+    label: 
+    sprite: {fileID: 21300000, guid: 6137ca296292c514fbb0f4cd8b70d0ab, type: 3}
+  - frameNumber: 38
+    label: 
+    sprite: {fileID: 21300000, guid: 660a4e7575b21054eaff1c4fc7d0f538, type: 3}
+  - frameNumber: 39
+    label: 
+    sprite: {fileID: 21300000, guid: 1b8b7747c445b55468e63e1c93cd7860, type: 3}
+  - frameNumber: 40
+    label: 
+    sprite: {fileID: 21300000, guid: 52a3a1134fd9c2642908688eb5f156fb, type: 3}
+  - frameNumber: 41
+    label: 
+    sprite: {fileID: 21300000, guid: f290dc76f6bf19f4790e413395e7b4c2, type: 3}
+  - frameNumber: 42
+    label: 
+    sprite: {fileID: 21300000, guid: 82f2e28bd799dd842b326853d4f6784e, type: 3}
+  - frameNumber: 43
+    label: 
+    sprite: {fileID: 21300000, guid: 49f448fd6d5cccd4689d91c1c2c6c1f3, type: 3}
+  - frameNumber: 44
+    label: 
+    sprite: {fileID: 21300000, guid: a4077ad415df303418a536f876774cb0, type: 3}
+  - frameNumber: 45
+    label: 
+    sprite: {fileID: 21300000, guid: 5ba2de61ff27df1428b14fa94e487cff, type: 3}
+  - frameNumber: 46
+    label: 
+    sprite: {fileID: 21300000, guid: 300ba2cbfe18fde40892961c85a9d744, type: 3}
+  - frameNumber: 47
+    label: 
+    sprite: {fileID: 21300000, guid: 75a27334b1fe51a4d85972eccf2677ea, type: 3}
+  - frameNumber: 48
+    label: 
+    sprite: {fileID: 21300000, guid: 696051165cc72ed4a8b77b6dd4a38d22, type: 3}
+  - frameNumber: 49
+    label: 
+    sprite: {fileID: 21300000, guid: 2ac27bf61109e5049be7010665360382, type: 3}
+  - frameNumber: 50
+    label: 
+    sprite: {fileID: 21300000, guid: 08634b34d829b094482d746518227cac, type: 3}
+  - frameNumber: 51
+    label: move2
+    sprite: {fileID: 21300000, guid: 0d19bd060c924c74596f21066161a9b2, type: 3}
+  - frameNumber: 52
+    label: 
+    sprite: {fileID: 21300000, guid: 61199d38fdc12c94cb84544eb3007e38, type: 3}
+  - frameNumber: 53
+    label: 
+    sprite: {fileID: 21300000, guid: c4711351794be964bbc0213343ad6e7e, type: 3}
+  - frameNumber: 54
+    label: 
+    sprite: {fileID: 21300000, guid: e9643c7c30b02244d8ee9aa3b9c7a1e8, type: 3}
+  - frameNumber: 55
+    label: 
+    sprite: {fileID: 21300000, guid: 96c939ab11e7cd648a7b0d5239472d19, type: 3}
+  - frameNumber: 56
+    label: 
+    sprite: {fileID: 21300000, guid: 27e72a1a2259ea949820e4049d52c33a, type: 3}
+  - frameNumber: 57
+    label: 
+    sprite: {fileID: 21300000, guid: e5d27eef9ab674248a25d840165d7ee8, type: 3}
+  - frameNumber: 58
+    label: 
+    sprite: {fileID: 21300000, guid: 923a77708a3fbb840999e5b095fd69c1, type: 3}
+  - frameNumber: 59
+    label: 
+    sprite: {fileID: 21300000, guid: a437a8ab680aeb94ca58b87e3990fb81, type: 3}
+  - frameNumber: 60
+    label: 
+    sprite: {fileID: 21300000, guid: 4ac3bb197b4da7b43b7b2f73a32a1f96, type: 3}
+  - frameNumber: 61
+    label: 
+    sprite: {fileID: 21300000, guid: 28a70b26bab8ec44cb0cfa0d2322c072, type: 3}
+  - frameNumber: 62
+    label: 
+    sprite: {fileID: 21300000, guid: 2f16718693174a14b9653ebfc295632f, type: 3}
+  - frameNumber: 63
+    label: 
+    sprite: {fileID: 21300000, guid: 0e1d5e66bbcbcbc41a6946aa1952fac6, type: 3}
+  - frameNumber: 64
+    label: 
+    sprite: {fileID: 21300000, guid: e6eb26c7e7f23ec4ca8845bcfbf92eb1, type: 3}
+  - frameNumber: 65
+    label: 
+    sprite: {fileID: 21300000, guid: ef57aa0b80cec414d8b050ef9b38dca3, type: 3}
+  - frameNumber: 66
+    label: 
+    sprite: {fileID: 21300000, guid: 5362b41e74cdb694a82cd97e49c64ceb, type: 3}
+  - frameNumber: 67
+    label: 
+    sprite: {fileID: 21300000, guid: 016cfa5440308a946b584cfdf0691fc5, type: 3}
+  - frameNumber: 68
+    label: 
+    sprite: {fileID: 21300000, guid: 2976b546f3659b345b70d923d15cedec, type: 3}
+  - frameNumber: 69
+    label: 
+    sprite: {fileID: 21300000, guid: 2c7fd5392d123164292189d4a3cd7ea1, type: 3}
+  - frameNumber: 70
+    label: 
+    sprite: {fileID: 21300000, guid: af23e4c566feb2f4f9cac048a704904d, type: 3}
+  - frameNumber: 71
+    label: 
+    sprite: {fileID: 21300000, guid: 5d44e3f8189080c489b1dda58727beb5, type: 3}
+  - frameNumber: 72
+    label: 
+    sprite: {fileID: 21300000, guid: 01085a6714b3b924dae830d4aaae943b, type: 3}
+  - frameNumber: 73
+    label: 
+    sprite: {fileID: 21300000, guid: 3c9af9e491037954182bdd25aaf05b51, type: 3}
+  - frameNumber: 74
+    label: 
+    sprite: {fileID: 21300000, guid: d209473865a6e4f40a4bd81f58d79199, type: 3}
+  - frameNumber: 75
+    label: 
+    sprite: {fileID: 21300000, guid: 4a15f8d973331384facd4dbb65374303, type: 3}
+  - frameNumber: 76
+    label: 
+    sprite: {fileID: 21300000, guid: 2685f6b579aa58a4dbbe4c8bacfc6d7f, type: 3}
+  - frameNumber: 77
+    label: 
+    sprite: {fileID: 21300000, guid: 264919be5a7017f48a65d4f1c3690086, type: 3}
+  - frameNumber: 78
+    label: 
+    sprite: {fileID: 21300000, guid: f13fb21b886360746b7a5dae522646b4, type: 3}
+  - frameNumber: 79
+    label: 
+    sprite: {fileID: 21300000, guid: 7c586120c26534d46bd6e665a6f9448d, type: 3}
+  - frameNumber: 80
+    label: 
+    sprite: {fileID: 21300000, guid: f08c6d4e44154354ca51dd18fe7211e0, type: 3}
+  - frameNumber: 81
+    label: 
+    sprite: {fileID: 21300000, guid: 1e8e77695fb115e4e8d50de8fbff8239, type: 3}
+  - frameNumber: 82
+    label: 
+    sprite: {fileID: 21300000, guid: dfab1d8882a548c4e8624a8c0f325a67, type: 3}
+  - frameNumber: 83
+    label: 
+    sprite: {fileID: 21300000, guid: 190d17de2472c5a4d9b76348c088e678, type: 3}
+  - frameNumber: 84
+    label: 
+    sprite: {fileID: 21300000, guid: 28aac87a089cb934687657237e1842e2, type: 3}
+  - frameNumber: 85
+    label: 
+    sprite: {fileID: 21300000, guid: 0ab66695c053cbf43bd95bf943045ed0, type: 3}
+  - frameNumber: 86
+    label: 
+    sprite: {fileID: 21300000, guid: 505751f5ea8c52b4dbf6bd26f4f083b7, type: 3}
+  - frameNumber: 87
+    label: 
+    sprite: {fileID: 21300000, guid: 3843b937a598c0e43a5e1e2c8fd4d9ca, type: 3}
+  - frameNumber: 88
+    label: 
+    sprite: {fileID: 21300000, guid: 7c4aef97aae44fc44a88bb08d7613ea5, type: 3}
+  - frameNumber: 89
+    label: 
+    sprite: {fileID: 21300000, guid: 4b9e11528d6053344b430de812fa34cf, type: 3}
+  - frameNumber: 90
+    label: 
+    sprite: {fileID: 21300000, guid: f6ec28db56fabb2488f37506bddce41c, type: 3}
+  - frameNumber: 91
+    label: 
+    sprite: {fileID: 21300000, guid: 2ca0fa40a2afab04994bf4fc7c3f8b00, type: 3}
+  - frameNumber: 92
+    label: 
+    sprite: {fileID: 21300000, guid: 6e729b35c9be67c42812e949a445c6f0, type: 3}
+  - frameNumber: 93
+    label: 
+    sprite: {fileID: 21300000, guid: 52d1e68350239bd48bb14a95b19ed27a, type: 3}
+  - frameNumber: 94
+    label: 
+    sprite: {fileID: 21300000, guid: e74953aa651de7b47be3f36853004b4c, type: 3}
+  - frameNumber: 95
+    label: 
+    sprite: {fileID: 21300000, guid: a79a3d9d1d116924ab03a1324985e043, type: 3}
+  - frameNumber: 96
+    label: 
+    sprite: {fileID: 21300000, guid: bec3eb78aeb52254581e8d0e4aab8944, type: 3}
+  visualScaleX: -0.31556702
+  visualScaleY: 0.31582642
   aliasName: 
   vendorId: vendor_armor
   interactionType: vr
@@ -24,10 +316,20 @@ MonoBehaviour:
   userAction2: 
   defaultWeapon: 
   isSilent: 0
+  legacyDialogueId: 
+  noTurn: 0
+  replicaId: 
+  layer: 
+  secondaryWeapon: 
+  requiredSkill: 
+  requiredItemId: 
   dialogues:
   - dialogueId: vendor_armor_hi
     isImportant: 0
     requiredTrigger: 
+    requiredTriggerValue: 
+    requiredBarter: 0
+    requiredPet: 
     requiredLand: 
     requiredQuest: 
     requiredQuestStage: 0
@@ -40,6 +342,9 @@ MonoBehaviour:
   - dialogueId: dialRanger8
     isImportant: 1
     requiredTrigger: ranger_q2
+    requiredTriggerValue: 
+    requiredBarter: 0
+    requiredPet: 
     requiredLand: 
     requiredQuest: 
     requiredQuestStage: 0
@@ -66,6 +371,9 @@ MonoBehaviour:
   - dialogueId: vendor_armor_help1
     isImportant: 1
     requiredTrigger: 
+    requiredTriggerValue: 
+    requiredBarter: 0
+    requiredPet: 
     requiredLand: 
     requiredQuest: storyHelpCamp
     requiredQuestStage: 0
@@ -99,6 +407,9 @@ MonoBehaviour:
   - dialogueId: vendor_armor_help2
     isImportant: 1
     requiredTrigger: 
+    requiredTriggerValue: 
+    requiredBarter: 0
+    requiredPet: 
     requiredLand: 
     requiredQuest: storyHelpCamp
     requiredQuestStage: 3
@@ -153,6 +464,9 @@ MonoBehaviour:
   - dialogueId: vendor_armor_new1
     isImportant: 0
     requiredTrigger: 
+    requiredTriggerValue: 
+    requiredBarter: 0
+    requiredPet: 
     requiredLand: 
     requiredQuest: 
     requiredQuestStage: 0
@@ -165,6 +479,9 @@ MonoBehaviour:
   - dialogueId: vendor_armor_chitin
     isImportant: 0
     requiredTrigger: 
+    requiredTriggerValue: 
+    requiredBarter: 1
+    requiredPet: 
     requiredLand: 
     requiredQuest: 
     requiredQuestStage: 0
@@ -177,6 +494,9 @@ MonoBehaviour:
   - dialogueId: vendor_armor_new2
     isImportant: 0
     requiredTrigger: 
+    requiredTriggerValue: 
+    requiredBarter: 0
+    requiredPet: 
     requiredLand: 
     requiredQuest: 
     requiredQuestStage: 0
@@ -189,6 +509,9 @@ MonoBehaviour:
   - dialogueId: vendor_armor_expl
     isImportant: 0
     requiredTrigger: pro_armor
+    requiredTriggerValue: 
+    requiredBarter: 0
+    requiredPet: 
     requiredLand: 
     requiredQuest: 
     requiredQuestStage: 0
@@ -201,6 +524,9 @@ MonoBehaviour:
   - dialogueId: vendor_armor_paint
     isImportant: 0
     requiredTrigger: colors3
+    requiredTriggerValue: 
+    requiredBarter: 0
+    requiredPet: 
     requiredLand: 
     requiredQuest: 
     requiredQuestStage: 0
@@ -213,6 +539,9 @@ MonoBehaviour:
   - dialogueId: vendor_armor_power
     isImportant: 0
     requiredTrigger: power_armor
+    requiredTriggerValue: 
+    requiredBarter: 0
+    requiredPet: 
     requiredLand: 
     requiredQuest: 
     requiredQuestStage: 0
@@ -225,6 +554,9 @@ MonoBehaviour:
   - dialogueId: vendor_armor_quest3
     isImportant: 1
     requiredTrigger: ranger_q3
+    requiredTriggerValue: 
+    requiredBarter: 0
+    requiredPet: 
     requiredLand: 
     requiredQuest: 
     requiredQuestStage: 0
@@ -258,6 +590,9 @@ MonoBehaviour:
   - dialogueId: dialEnd_vendor_armor
     isImportant: 0
     requiredTrigger: 
+    requiredTriggerValue: 
+    requiredBarter: 0
+    requiredPet: 
     requiredLand: 
     requiredQuest: 
     requiredQuestStage: 0

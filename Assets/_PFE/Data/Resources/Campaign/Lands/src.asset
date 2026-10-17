@@ -50,3 +50,4 @@ MonoBehaviour:
   roomTemplates:
   - {fileID: 11400000, guid: 6633e4d4484e6cf4aa68572b43f123a4, type: 2}
   probRooms: []
+  itemScripts: []

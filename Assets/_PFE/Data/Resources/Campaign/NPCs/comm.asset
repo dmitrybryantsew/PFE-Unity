@@ -16,6 +16,13 @@ MonoBehaviour:
   gameVersion: 0.1.0
   npcId: comm
   visualId: Comm
+  visualSprite: {fileID: 21300000, guid: dbdf0c4b779e1d844a815cc4286c5a53, type: 3}
+  visualFrames:
+  - frameNumber: 1
+    label: 
+    sprite: {fileID: 21300000, guid: dbdf0c4b779e1d844a815cc4286c5a53, type: 3}
+  visualScaleX: 1
+  visualScaleY: 1
   aliasName: 
   vendorId: 
   interactionType: 
@@ -24,10 +31,20 @@ MonoBehaviour:
   userAction2: use
   defaultWeapon: 
   isSilent: 0
+  legacyDialogueId: 
+  noTurn: 1
+  replicaId: 
+  layer: 1
+  secondaryWeapon: 
+  requiredSkill: 
+  requiredItemId: 
   dialogues:
   - dialogueId: dialMinst3
     isImportant: 1
     requiredTrigger: story_book
+    requiredTriggerValue: 
+    requiredBarter: 0
+    requiredPet: 
     requiredLand: 
     requiredQuest: 
     requiredQuestStage: 0

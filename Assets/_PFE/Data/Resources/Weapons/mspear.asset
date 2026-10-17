@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: mspear
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: mspear
+  displayName: 
   weaponType: 1
   punch: 0
   skillLevel: 1
@@ -50,10 +51,10 @@ MonoBehaviour:
   radio: 0
   sens: 100
   meleeType: 1
-  meleeDlina: 100
-  meleeMinDlina: 100
+  meleeDlina: 50
+  meleeMinDlina: 50
   meleeCombo: 0
-  meleePowerAttack: 0
+  meleePowerAttack: 1
   projectileArchetype: 0
   damageType: 6
   bulletGravity: 0
@@ -91,3 +92,18 @@ MonoBehaviour:
   noiseRadius: 400
   soundFall: fall_metal_item
   soundSens: 
+  uniq: 0
+  comPrice: 4500
+  comWorth: 5
+  comChance: 0.1
+  comStage: 3
+  comRep: 0.12
+  variant:
+    Variant: 1
+    CharAttrs: ' maxhp=''400'' damage=''74'' rapid=''20'' destroy=''500'''
+    PhisAttrs: 
+    VisAttrs: ' tipdec=''16'' flare=''plasma1'''
+    SndAttrs: 
+    AmmoAttrs: 
+    DopAttrs: 
+    ComAttrs: 

@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: antidrak
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: antidrak
+  displayName: 
   weaponType: 3
   punch: 0
   skillLevel: 2
@@ -50,8 +51,8 @@ MonoBehaviour:
   radio: 0
   sens: 100
   meleeType: 0
-  meleeDlina: 100
-  meleeMinDlina: 100
+  meleeDlina: 50
+  meleeMinDlina: 50
   meleeCombo: 0
   meleePowerAttack: 0
   projectileArchetype: 0
@@ -91,3 +92,18 @@ MonoBehaviour:
   noiseRadius: 1500
   soundFall: 
   soundSens: 
+  uniq: 0
+  comPrice: 6000
+  comWorth: 5
+  comChance: 0.05
+  comStage: 7
+  comRep: 0.12
+  variant:
+    Variant: 1
+    CharAttrs: ' maxhp=''750'' damage=''50'' prec=''15'' knock=''9'''
+    PhisAttrs: 
+    VisAttrs: 
+    SndAttrs: 
+    AmmoAttrs: 
+    DopAttrs: 
+    ComAttrs: 

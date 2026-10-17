@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: ripper
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: ripper
+  displayName: 
   weaponType: 1
   punch: 0
   skillLevel: 1
@@ -50,8 +51,8 @@ MonoBehaviour:
   radio: 0
   sens: 100
   meleeType: 2
-  meleeDlina: 100
-  meleeMinDlina: 100
+  meleeDlina: 80
+  meleeMinDlina: 30
   meleeCombo: 0
   meleePowerAttack: 0
   projectileArchetype: 0
@@ -91,3 +92,18 @@ MonoBehaviour:
   noiseRadius: 800
   soundFall: fall_metal_item
   soundSens: 
+  uniq: 0
+  comPrice: 1200
+  comWorth: 2
+  comChance: 0.1
+  comStage: 2
+  comRep: 0.5
+  variant:
+    Variant: 1
+    CharAttrs: ' maxhp=''1500'' damage=''11'' pier=''15'''
+    PhisAttrs: 
+    VisAttrs: 
+    SndAttrs: 
+    AmmoAttrs: 
+    DopAttrs: 
+    ComAttrs: 

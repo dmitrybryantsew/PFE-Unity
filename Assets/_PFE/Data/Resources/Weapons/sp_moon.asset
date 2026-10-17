@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: sp_moon
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: sp_moon
+  displayName: 
   weaponType: 5
   punch: 0
   skillLevel: 6
@@ -50,8 +51,8 @@ MonoBehaviour:
   radio: 0
   sens: 100
   meleeType: 0
-  meleeDlina: 100
-  meleeMinDlina: 100
+  meleeDlina: 50
+  meleeMinDlina: 50
   meleeCombo: 0
   meleePowerAttack: 0
   projectileArchetype: 8
@@ -70,7 +71,7 @@ MonoBehaviour:
   hasShell: 0
   shineRadius: 500
   decalType: 0
-  destroyTiles: 0
+  destroyTiles: 10
   piercing: 0
   penetration: 0
   dopEffect: 
@@ -91,3 +92,18 @@ MonoBehaviour:
   noiseRadius: 600
   soundFall: 
   soundSens: 
+  uniq: -1
+  comPrice: 0
+  comWorth: 0
+  comChance: 0
+  comStage: 0
+  comRep: 1
+  variant:
+    Variant: 0
+    CharAttrs: 
+    PhisAttrs: 
+    VisAttrs: 
+    SndAttrs: 
+    AmmoAttrs: 
+    DopAttrs: 
+    ComAttrs: 

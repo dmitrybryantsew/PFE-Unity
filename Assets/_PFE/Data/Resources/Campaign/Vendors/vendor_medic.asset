@@ -1,0 +1,340 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f2e6ae248a01437091e1bba30868c81f, type: 3}
+  m_Name: vendor_medic
+  m_EditorClassIdentifier: PFE.Data::PFE.Data.Definitions.Campaign.VendorDefinition
+  dataVersion: 1
+  gameVersion: 0.1.0
+  vendorId: vendor_medic
+  stock:
+  - itemId: pot1
+    variant: 0
+    stockCount: 25
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: pot2
+    variant: 0
+    stockCount: 15
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: pot3
+    variant: 0
+    stockCount: 10
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: antiradin
+    variant: 0
+    stockCount: 15
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: pot0
+    variant: 0
+    stockCount: 20
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: antidote
+    variant: 0
+    stockCount: 10
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: radx
+    variant: 0
+    stockCount: 5
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: firstaid
+    variant: 0
+    stockCount: 5
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: doctor
+    variant: 0
+    stockCount: 3
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: surgeon
+    variant: 0
+    stockCount: 2
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: bloodpak
+    variant: 0
+    stockCount: 5
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: dash
+    variant: 0
+    stockCount: 5
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: rage
+    variant: 0
+    stockCount: 6
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: buck
+    variant: 0
+    stockCount: 8
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: medx
+    variant: 0
+    stockCount: 10
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: hydra
+    variant: 0
+    stockCount: 5
+    barter: 4
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: mint
+    variant: 0
+    stockCount: 5
+    barter: 2
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: stampede
+    variant: 0
+    stockCount: 5
+    barter: 3
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: pmint
+    variant: 0
+    stockCount: 5
+    barter: 5
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: detoxin
+    variant: 0
+    stockCount: 5
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: stethoscope
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 10
+    trigger: 
+    noRefill: 1
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: impl_skin
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 9
+    trigger: 
+    noRefill: 1
+    noCheap: 1
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: impl_regen
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 15
+    trigger: 
+    noRefill: 1
+    noCheap: 1
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: impl_mrech
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 12
+    trigger: 
+    noRefill: 1
+    noCheap: 1
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: impl_intel
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 20
+    trigger: 
+    noRefill: 1
+    noCheap: 1
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: potHP
+    variant: 0
+    stockCount: 1
+    barter: 5
+    level: 0
+    trigger: 
+    noRefill: 1
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: vaccine
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 0
+    trigger: patient_tr1
+    noRefill: 1
+    noCheap: 1
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  tasks:
+  - taskId: repairAutoDoc
+    skill: 
+    skillLevel: 0
+    land: 
+    trigger: 
+    manual: 
+  - taskId: collectFishfat
+    skill: 
+    skillLevel: 0
+    land: raiders
+    trigger: 
+    manual: 
+  - taskId: collectTmed
+    skill: 
+    skillLevel: 0
+    land: random_stable
+    trigger: 
+    manual: 
+  - taskId: collectRecipes
+    skill: 
+    skillLevel: 0
+    land: 
+    trigger: 
+    manual: 

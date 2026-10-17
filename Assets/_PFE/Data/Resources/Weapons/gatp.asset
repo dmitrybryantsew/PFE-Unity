@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: gatp
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: gatp
+  displayName: 
   weaponType: 3
   punch: 0
   skillLevel: 4
@@ -50,8 +51,8 @@ MonoBehaviour:
   radio: 0
   sens: 100
   meleeType: 0
-  meleeDlina: 100
-  meleeMinDlina: 100
+  meleeDlina: 50
+  meleeMinDlina: 50
   meleeCombo: 0
   meleePowerAttack: 0
   projectileArchetype: 2
@@ -91,3 +92,18 @@ MonoBehaviour:
   noiseRadius: 400
   soundFall: 
   soundSens: 
+  uniq: 0.2
+  comPrice: 6500
+  comWorth: 4
+  comChance: 0.2
+  comStage: 5
+  comRep: 0.15
+  variant:
+    Variant: 1
+    CharAttrs: ' maxhp=''2500'' damage=''28'' prec=''10'' destroy=''150'''
+    PhisAttrs: ' speed=''110'' deviation=''5'''
+    VisAttrs: 
+    SndAttrs: 
+    AmmoAttrs: 
+    DopAttrs: 
+    ComAttrs: 

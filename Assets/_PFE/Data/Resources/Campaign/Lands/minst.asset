@@ -64,3 +64,62 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 37fbeeb8014f8a14a92087fd287c24aa, type: 2}
   - {fileID: 11400000, guid: 13db52b2136e5f64fbab5933e4d006fd, type: 2}
   probRooms: []
+  itemScripts:
+  - itemId: blackbook
+    actions:
+    - action: control off
+      target: 
+      value: 
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: stage
+      target: 
+      value: storyCanter
+      numericParam: 4
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: stage
+      target: 
+      value: storyCanter
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: dialog
+      target: 
+      value: dialMinst2
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: quest
+      target: 
+      value: storyHome
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: trigger
+      target: 
+      value: story_book
+      numericParam: 1
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: check
+      target: minstComm
+      value: 
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: control on
+      target: 
+      value: 
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0

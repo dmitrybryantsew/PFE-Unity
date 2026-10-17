@@ -58,3 +58,148 @@ MonoBehaviour:
   - {fileID: 11400000, guid: ea5d4130cabd4324ebae40d1ed5c4fbb, type: 2}
   - {fileID: 11400000, guid: c1d094913cfe8c14f8a6deb4d2dea115, type: 2}
   probRooms: []
+  itemScripts:
+  - itemId: sl_note2
+    actions:
+    - action: control off
+      target: 
+      value: 
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: dial
+      target: 
+      value: stableDialNote2
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: dial
+      target: 
+      value: stableDialNote2
+      numericParam: 1
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: dial
+      target: 
+      value: slNote2
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: dial
+      target: 
+      value: slNote2
+      numericParam: 1
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: dial
+      target: 
+      value: stableDialNote2
+      numericParam: 2
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: dial
+      target: 
+      value: slNote2
+      numericParam: 2
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: dial
+      target: 
+      value: slNote2
+      numericParam: 3
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: dial
+      target: 
+      value: stableDialNote2
+      numericParam: 3
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: dial
+      target: 
+      value: slNote2
+      numericParam: 4
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: dial
+      target: 
+      value: slNote2
+      numericParam: 5
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: dial
+      target: 
+      value: stableDialNote2
+      numericParam: 4
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: stage
+      target: 
+      value: storyFind
+      numericParam: 3
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: control on
+      target: 
+      value: 
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: xp
+      target: 
+      value: 5000
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+  - itemId: kogit
+    actions:
+    - action: control off
+      target: 
+      value: 
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: stage
+      target: 
+      value: storyStable
+      numericParam: 3
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: open
+      target: coreD5
+      value: 
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: dialog
+      target: 
+      value: stableDialKogit
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: control on
+      target: 
+      value: 
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0

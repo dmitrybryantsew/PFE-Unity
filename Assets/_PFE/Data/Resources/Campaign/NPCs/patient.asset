@@ -16,6 +16,16 @@ MonoBehaviour:
   gameVersion: 0.1.0
   npcId: patient
   visualId: Patient
+  visualSprite: {fileID: 21300000, guid: 39269cbc533b23044bd74a14787501af, type: 3}
+  visualFrames:
+  - frameNumber: 1
+    label: stay
+    sprite: {fileID: 21300000, guid: 39269cbc533b23044bd74a14787501af, type: 3}
+  - frameNumber: 2
+    label: 
+    sprite: {fileID: 21300000, guid: c82573906877f7b4996e645ec4461c34, type: 3}
+  visualScaleX: 1
+  visualScaleY: 1
   aliasName: 
   vendorId: 
   interactionType: patient
@@ -24,10 +34,20 @@ MonoBehaviour:
   userAction2: 
   defaultWeapon: 
   isSilent: 0
+  legacyDialogueId: 
+  noTurn: 1
+  replicaId: 
+  layer: 
+  secondaryWeapon: 
+  requiredSkill: medic
+  requiredItemId: vaccine
   dialogues:
   - dialogueId: dialPatient9
     isImportant: 0
     requiredTrigger: patient_tr2
+    requiredTriggerValue: 
+    requiredBarter: 0
+    requiredPet: 
     requiredLand: 
     requiredQuest: 
     requiredQuestStage: 0

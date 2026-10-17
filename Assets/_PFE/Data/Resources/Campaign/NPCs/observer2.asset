@@ -16,6 +16,16 @@ MonoBehaviour:
   gameVersion: 0.1.0
   npcId: observer2
   visualId: SpriteBot
+  visualSprite: {fileID: 21300000, guid: 111a5e29e43b4dc458b53040c275c05e, type: 3}
+  visualFrames:
+  - frameNumber: 1
+    label: 
+    sprite: {fileID: 21300000, guid: 111a5e29e43b4dc458b53040c275c05e, type: 3}
+  - frameNumber: 2
+    label: 
+    sprite: {fileID: 21300000, guid: 26b98ea8e2259de428062f82c9fd42c3, type: 3}
+  visualScaleX: 0.90582275
+  visualScaleY: 0.90582275
   aliasName: spritebot
   vendorId: 
   interactionType: 
@@ -24,4 +34,11 @@ MonoBehaviour:
   userAction2: 
   defaultWeapon: 
   isSilent: 0
+  legacyDialogueId: 
+  noTurn: 0
+  replicaId: 
+  layer: 
+  secondaryWeapon: 
+  requiredSkill: 
+  requiredItemId: 
   dialogues: []

@@ -16,6 +16,13 @@ MonoBehaviour:
   gameVersion: 0.1.0
   npcId: askari3
   visualId: Askari
+  visualSprite: {fileID: 21300000, guid: 54c060d46fac2be4f8fc59562d74996b, type: 3}
+  visualFrames:
+  - frameNumber: 1
+    label: 
+    sprite: {fileID: 21300000, guid: 54c060d46fac2be4f8fc59562d74996b, type: 3}
+  visualScaleX: 1
+  visualScaleY: 1
   aliasName: askari
   vendorId: 
   interactionType: 
@@ -24,4 +31,11 @@ MonoBehaviour:
   userAction2: 
   defaultWeapon: 
   isSilent: 0
+  legacyDialogueId: 
+  noTurn: 0
+  replicaId: 
+  layer: 
+  secondaryWeapon: 
+  requiredSkill: 
+  requiredItemId: 
   dialogues: []

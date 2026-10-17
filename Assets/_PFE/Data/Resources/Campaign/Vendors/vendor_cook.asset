@@ -1,0 +1,580 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f2e6ae248a01437091e1bba30868c81f, type: 3}
+  m_Name: vendor_cook
+  m_EditorClassIdentifier: PFE.Data::PFE.Data.Definitions.Campaign.VendorDefinition
+  dataVersion: 1
+  gameVersion: 0.1.0
+  vendorId: vendor_cook
+  stock:
+  - itemId: meat
+    variant: 0
+    stockCount: 5
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: bread
+    variant: 0
+    stockCount: 12
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: oats
+    variant: 0
+    stockCount: 10
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: milk
+    variant: 0
+    stockCount: 5
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: butter
+    variant: 0
+    stockCount: 3
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: potato
+    variant: 0
+    stockCount: 10
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: cucumber
+    variant: 0
+    stockCount: 10
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: tomato
+    variant: 0
+    stockCount: 10
+    barter: 0
+    level: 3
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: cabbage
+    variant: 0
+    stockCount: 10
+    barter: 0
+    level: 3
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: mushroom
+    variant: 0
+    stockCount: 5
+    barter: 0
+    level: 5
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: cheese
+    variant: 0
+    stockCount: 3
+    barter: 0
+    level: 5
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: flour
+    variant: 0
+    stockCount: 3
+    barter: 0
+    level: 8
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: tegg
+    variant: 0
+    stockCount: 10
+    barter: 0
+    level: 8
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: carrot
+    variant: 0
+    stockCount: 3
+    barter: 0
+    level: 8
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: onion
+    variant: 0
+    stockCount: 3
+    barter: 0
+    level: 8
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: apple
+    variant: 0
+    stockCount: 3
+    barter: 0
+    level: 12
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: sugar
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 12
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: garlic
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 15
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: chips
+    variant: 0
+    stockCount: 3
+    barter: 3
+    level: 15
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: bananas
+    variant: 0
+    stockCount: 2
+    barter: 4
+    level: 15
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: honey
+    variant: 0
+    stockCount: 1
+    barter: 4
+    level: 15
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: frpot
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: oatmeal
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: cucsand
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: salad
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 7
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: chpasta
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 7
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: omelet
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 7
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: butterbr
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 7
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: soup
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 11
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: casser
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 11
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: pizza
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 14
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: ragu
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 17
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: spsalad
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 18
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: patty
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 19
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: maffin
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 20
+    trigger: 
+    noRefill: 0
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: s_frmeat
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 0
+    trigger: 
+    noRefill: 1
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: s_cucsand
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 3
+    trigger: 
+    noRefill: 1
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: s_frpot
+    variant: 0
+    stockCount: 1
+    barter: 0
+    level: 3
+    trigger: 
+    noRefill: 1
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: s_oatmeal
+    variant: 0
+    stockCount: 1
+    barter: 1
+    level: 3
+    trigger: 
+    noRefill: 1
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: s_salad
+    variant: 0
+    stockCount: 1
+    barter: 1
+    level: 3
+    trigger: 
+    noRefill: 1
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: s_chpasta
+    variant: 0
+    stockCount: 1
+    barter: 2
+    level: 5
+    trigger: 
+    noRefill: 1
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: s_omelet
+    variant: 0
+    stockCount: 1
+    barter: 2
+    level: 6
+    trigger: 
+    noRefill: 1
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: s_butterbr
+    variant: 0
+    stockCount: 1
+    barter: 2
+    level: 7
+    trigger: 
+    noRefill: 1
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: s_breakfast
+    variant: 0
+    stockCount: 1
+    barter: 1
+    level: 8
+    trigger: 
+    noRefill: 1
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: s_soup
+    variant: 0
+    stockCount: 1
+    barter: 1
+    level: 8
+    trigger: 
+    noRefill: 1
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: s_pizza
+    variant: 0
+    stockCount: 1
+    barter: 3
+    level: 12
+    trigger: 
+    noRefill: 1
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: s_casser
+    variant: 0
+    stockCount: 1
+    barter: 2
+    level: 10
+    trigger: 
+    noRefill: 1
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: s_ragu
+    variant: 0
+    stockCount: 1
+    barter: 2
+    level: 11
+    trigger: 
+    noRefill: 1
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: s_spsalad
+    variant: 0
+    stockCount: 1
+    barter: 2
+    level: 14
+    trigger: 
+    noRefill: 1
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: s_patty
+    variant: 0
+    stockCount: 1
+    barter: 3
+    level: 13
+    trigger: 
+    noRefill: 1
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  - itemId: s_maffin
+    variant: 0
+    stockCount: 1
+    barter: 4
+    level: 15
+    trigger: 
+    noRefill: 1
+    noCheap: 0
+    hardInventory: 0
+    priceMultiplier: 0
+    hasPriceMultiplier: 0
+  tasks: []

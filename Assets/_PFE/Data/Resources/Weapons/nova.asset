@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: nova
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: nova
+  displayName: 
   weaponType: 3
   punch: 0
   skillLevel: 4
@@ -50,8 +51,8 @@ MonoBehaviour:
   radio: 0
   sens: 100
   meleeType: 0
-  meleeDlina: 100
-  meleeMinDlina: 100
+  meleeDlina: 50
+  meleeMinDlina: 50
   meleeCombo: 0
   meleePowerAttack: 0
   projectileArchetype: 1
@@ -91,3 +92,18 @@ MonoBehaviour:
   noiseRadius: 500
   soundFall: 
   soundSens: 
+  uniq: 0.25
+  comPrice: 2850
+  comWorth: 4
+  comChance: 0.25
+  comStage: 7
+  comRep: 0.25
+  variant:
+    Variant: 1
+    CharAttrs: ' maxhp=''1500'' damage=''28'''
+    PhisAttrs: 
+    VisAttrs: 
+    SndAttrs: 
+    AmmoAttrs: ' holder=''320'''
+    DopAttrs: 
+    ComAttrs: 

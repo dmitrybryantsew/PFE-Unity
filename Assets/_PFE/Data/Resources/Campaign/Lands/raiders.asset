@@ -72,3 +72,55 @@ MonoBehaviour:
   - {fileID: 11400000, guid: ff8534d78ec3cca4dab022cad93c78e4, type: 2}
   - {fileID: 11400000, guid: 6328a97c0b7da1b488a0dc682b52ba39, type: 2}
   probRooms: []
+  itemScripts:
+  - itemId: sl_note1
+    actions:
+    - action: control off
+      target: 
+      value: 
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: dial
+      target: 
+      value: surfDialNote
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: dialog
+      target: 
+      value: slNote1
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: dial
+      target: 
+      value: surfDialNote
+      numericParam: 1
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: showstage
+      target: 
+      value: storyFind
+      numericParam: 3
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: control on
+      target: 
+      value: 
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: xp
+      target: 
+      value: 5000
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0

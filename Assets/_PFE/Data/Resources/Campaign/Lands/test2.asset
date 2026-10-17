@@ -49,3 +49,27 @@ MonoBehaviour:
   xpReward: 500
   roomTemplates: []
   probRooms: []
+  itemScripts:
+  - itemId: diary
+    actions:
+    - action: dialog
+      target: 
+      value: velvetDial6
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: stage
+      target: 
+      value: storyFind
+      numericParam: 2
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0
+    - action: xp
+      target: 
+      value: 5000
+      numericParam: 0
+      delaySeconds: 0
+      opt1: 0
+      opt2: 0

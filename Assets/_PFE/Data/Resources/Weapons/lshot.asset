@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: lshot
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: lshot
+  displayName: 
   weaponType: 2
   punch: 0
   skillLevel: 2
@@ -50,8 +51,8 @@ MonoBehaviour:
   radio: 0
   sens: 100
   meleeType: 0
-  meleeDlina: 100
-  meleeMinDlina: 100
+  meleeDlina: 50
+  meleeMinDlina: 50
   meleeCombo: 0
   meleePowerAttack: 0
   projectileArchetype: 0
@@ -91,3 +92,18 @@ MonoBehaviour:
   noiseRadius: 1200
   soundFall: 
   soundSens: 
+  uniq: -1
+  comPrice: 950
+  comWorth: 4
+  comChance: 1
+  comStage: 1
+  comRep: 1
+  variant:
+    Variant: 0
+    CharAttrs: 
+    PhisAttrs: 
+    VisAttrs: 
+    SndAttrs: 
+    AmmoAttrs: 
+    DopAttrs: 
+    ComAttrs: 

@@ -16,6 +16,13 @@ MonoBehaviour:
   gameVersion: 0.1.0
   npcId: vendor_bar
   visualId: VendorBar
+  visualSprite: {fileID: 21300000, guid: 006c4bbb9e3fef54c9656b95a89f6516, type: 3}
+  visualFrames:
+  - frameNumber: 1
+    label: 
+    sprite: {fileID: 21300000, guid: 006c4bbb9e3fef54c9656b95a89f6516, type: 3}
+  visualScaleX: 1
+  visualScaleY: 1
   aliasName: 
   vendorId: vendor_bar
   interactionType: v
@@ -24,10 +31,20 @@ MonoBehaviour:
   userAction2: 
   defaultWeapon: 
   isSilent: 1
+  legacyDialogueId: 
+  noTurn: 0
+  replicaId: 
+  layer: 
+  secondaryWeapon: 
+  requiredSkill: 
+  requiredItemId: 
   dialogues:
   - dialogueId: dialEnd_vendor_bar
     isImportant: 0
     requiredTrigger: theend
+    requiredTriggerValue: 
+    requiredBarter: 0
+    requiredPet: 
     requiredLand: 
     requiredQuest: 
     requiredQuestStage: 0
@@ -40,6 +57,9 @@ MonoBehaviour:
   - dialogueId: vendor_bar_hi
     isImportant: 1
     requiredTrigger: 
+    requiredTriggerValue: 
+    requiredBarter: 0
+    requiredPet: 
     requiredLand: 
     requiredQuest: 
     requiredQuestStage: 0
@@ -66,6 +86,9 @@ MonoBehaviour:
   - dialogueId: vendor_bar_task
     isImportant: 1
     requiredTrigger: 
+    requiredTriggerValue: 
+    requiredBarter: 0
+    requiredPet: 
     requiredLand: 
     requiredQuest: 
     requiredQuestStage: 0
@@ -99,6 +122,9 @@ MonoBehaviour:
   - dialogueId: vendor_bar_stable
     isImportant: 1
     requiredTrigger: story_stable
+    requiredTriggerValue: 
+    requiredBarter: 0
+    requiredPet: 
     requiredLand: 
     requiredQuest: 
     requiredQuestStage: 0
@@ -132,6 +158,9 @@ MonoBehaviour:
   - dialogueId: vendor_bar_mane
     isImportant: 1
     requiredTrigger: story_mane
+    requiredTriggerValue: 
+    requiredBarter: 0
+    requiredPet: 
     requiredLand: 
     requiredQuest: 
     requiredQuestStage: 0
@@ -186,6 +215,9 @@ MonoBehaviour:
   - dialogueId: dialRanger7
     isImportant: 1
     requiredTrigger: ranger_q1
+    requiredTriggerValue: 
+    requiredBarter: 0
+    requiredPet: 
     requiredLand: 
     requiredQuest: 
     requiredQuestStage: 0

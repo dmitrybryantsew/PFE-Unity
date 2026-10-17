@@ -16,6 +16,13 @@ MonoBehaviour:
   gameVersion: 0.1.0
   npcId: sc42
   visualId: Sc4
+  visualSprite: {fileID: 21300000, guid: c0262da60027fd04893469b9cc1e9537, type: 3}
+  visualFrames:
+  - frameNumber: 1
+    label: 
+    sprite: {fileID: 21300000, guid: c0262da60027fd04893469b9cc1e9537, type: 3}
+  visualScaleX: 1
+  visualScaleY: 1
   aliasName: sc4
   vendorId: 
   interactionType: 
@@ -24,4 +31,11 @@ MonoBehaviour:
   userAction2: 
   defaultWeapon: 
   isSilent: 0
+  legacyDialogueId: 
+  noTurn: 1
+  replicaId: 
+  layer: 
+  secondaryWeapon: 
+  requiredSkill: 
+  requiredItemId: 
   dialogues: []

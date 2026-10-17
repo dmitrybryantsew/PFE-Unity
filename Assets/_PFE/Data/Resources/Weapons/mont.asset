@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: mont
   m_EditorClassIdentifier: PFE.Core::PFE.Data.Definitions.WeaponDefinition
   weaponId: mont
+  displayName: 
   weaponType: 1
   punch: 0
   skillLevel: 1
@@ -50,8 +51,8 @@ MonoBehaviour:
   radio: 0
   sens: 100
   meleeType: 0
-  meleeDlina: 100
-  meleeMinDlina: 100
+  meleeDlina: 30
+  meleeMinDlina: 20
   meleeCombo: 0
   meleePowerAttack: 0
   projectileArchetype: 0
@@ -91,3 +92,18 @@ MonoBehaviour:
   noiseRadius: 400
   soundFall: fall_metal_item
   soundSens: 
+  uniq: 0
+  comPrice: 500
+  comWorth: 2
+  comChance: 0.3
+  comStage: 1
+  comRep: 0
+  variant:
+    Variant: 1
+    CharAttrs: ' maxhp=''800'' rapid=''12'' destroy=''150'' auto=''1'''
+    PhisAttrs: 
+    VisAttrs: 
+    SndAttrs: 
+    AmmoAttrs: 
+    DopAttrs: 
+    ComAttrs: 

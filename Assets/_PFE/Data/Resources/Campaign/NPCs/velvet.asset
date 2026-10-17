@@ -16,6 +16,13 @@ MonoBehaviour:
   gameVersion: 0.1.0
   npcId: velvet
   visualId: Velvet
+  visualSprite: {fileID: 21300000, guid: e2d80e4aae8d4914b80bc306846145ee, type: 3}
+  visualFrames:
+  - frameNumber: 1
+    label: 
+    sprite: {fileID: 21300000, guid: e2d80e4aae8d4914b80bc306846145ee, type: 3}
+  visualScaleX: 1
+  visualScaleY: 1
   aliasName: 
   vendorId: nope
   interactionType: vdoc
@@ -24,10 +31,20 @@ MonoBehaviour:
   userAction2: 
   defaultWeapon: 
   isSilent: 0
+  legacyDialogueId: 
+  noTurn: 0
+  replicaId: 
+  layer: 
+  secondaryWeapon: 
+  requiredSkill: 
+  requiredItemId: 
   dialogues:
   - dialogueId: dialVelvet2
     isImportant: 0
     requiredTrigger: 
+    requiredTriggerValue: 
+    requiredBarter: 0
+    requiredPet: 
     requiredLand: 
     requiredQuest: 
     requiredQuestStage: 0
@@ -40,6 +57,9 @@ MonoBehaviour:
   - dialogueId: dialHelpCovert4
     isImportant: 1
     requiredTrigger: 
+    requiredTriggerValue: 
+    requiredBarter: 0
+    requiredPet: 
     requiredLand: 
     requiredQuest: storyHelpCovert
     requiredQuestStage: 8
@@ -108,6 +128,9 @@ MonoBehaviour:
   - dialogueId: dialEncl6
     isImportant: 1
     requiredTrigger: 
+    requiredTriggerValue: 
+    requiredBarter: 0
+    requiredPet: 
     requiredLand: 
     requiredQuest: storyHome
     requiredQuestStage: 4
@@ -141,6 +164,9 @@ MonoBehaviour:
   - dialogueId: dialStorm1
     isImportant: 1
     requiredTrigger: 
+    requiredTriggerValue: 
+    requiredBarter: 0
+    requiredPet: 
     requiredLand: 
     requiredQuest: storyStorm
     requiredQuestStage: 1
@@ -174,6 +200,9 @@ MonoBehaviour:
   - dialogueId: dialVelvet5
     isImportant: 0
     requiredTrigger: colonel_show
+    requiredTriggerValue: 2
+    requiredBarter: 0
+    requiredPet: 
     requiredLand: 
     requiredQuest: 
     requiredQuestStage: 0
@@ -186,6 +215,9 @@ MonoBehaviour:
   - dialogueId: dialVelvet6
     isImportant: 0
     requiredTrigger: colonel_show
+    requiredTriggerValue: 3
+    requiredBarter: 0
+    requiredPet: 
     requiredLand: 
     requiredQuest: 
     requiredQuestStage: 0
@@ -198,6 +230,9 @@ MonoBehaviour:
   - dialogueId: dialPatient6
     isImportant: 0
     requiredTrigger: patient_tr2
+    requiredTriggerValue: 
+    requiredBarter: 0
+    requiredPet: 
     requiredLand: 
     requiredQuest: 
     requiredQuestStage: 0
@@ -224,6 +259,9 @@ MonoBehaviour:
   - dialogueId: dialVelvet4
     isImportant: 0
     requiredTrigger: 
+    requiredTriggerValue: 
+    requiredBarter: 0
+    requiredPet: 
     requiredLand: 
     requiredQuest: 
     requiredQuestStage: 0
@@ -236,6 +274,9 @@ MonoBehaviour:
   - dialogueId: dialVelvet3
     isImportant: 0
     requiredTrigger: 
+    requiredTriggerValue: 
+    requiredBarter: 0
+    requiredPet: phoenix
     requiredLand: 
     requiredQuest: 
     requiredQuestStage: 0
