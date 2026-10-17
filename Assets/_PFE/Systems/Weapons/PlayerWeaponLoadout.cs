@@ -332,6 +332,23 @@ namespace PFE.Systems.Weapons
                 ownerUnit.UnitStats.weaponSkillLevel = charStats.GetSkillTierForWeapon(def.skillLevel);
             }
 
+            // ── Record the equipped weapon on the inventory ────────────────────────────────────────
+            //
+            // The port's counterpart to AS3's `gg.newWeapon`: PipPageInv reads its id for the selection
+            // frame (`ramka`, :391) and its `ammoBase` for the ammo page's "the loaded round sorts first"
+            // nudge (:286). Both were dead because `GameInventory.CurrentWeaponId` — the field that means
+            // exactly this — was read in three places (the PipBuck source, the save snapshot, and
+            // ToggleWeaponRespect's unequip) and written by none. It was only ever restored from a save,
+            // so a weapon equipped in play was never the current one: no selection frame, and the ammo
+            // page sorted a loaded round as if the weapon were empty.
+            //
+            // Written here, after `_current` is known non-null, so the guarded "no controller for this
+            // definition" branch above cannot leave the inventory claiming a weapon that is not in hand.
+            if (_ammoSource is PlayerInventory ownerInventory && ownerInventory.Inventory != null)
+            {
+                ownerInventory.Inventory.CurrentWeaponId = def.weaponId;
+            }
+
             Debug.Log($"[PlayerWeaponLoadout] Equipped '{def.weaponId}'.");
         }
 

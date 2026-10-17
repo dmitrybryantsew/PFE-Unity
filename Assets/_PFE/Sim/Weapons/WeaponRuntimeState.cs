@@ -85,6 +85,42 @@ namespace PFE.Systems.Weapons
         public int   Pow;        // power-charge accumulator (held frames while t_auto>0)
         public float RotUp;      // angular barrel lift (degrees); decays each frame — rotUp in AS3
 
+        /// <summary>
+        /// This weapon's trigger has no <b>click edge</b> — it is fired by a system that holds it, so
+        /// the single-shot debounce must not apply. AS3 spells the same thing as <c>attack(true)</c>.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>What the debounce is for, and the case it breaks.</b> <c>Weapon.attack()</c>
+        /// (<c>Weapon.as:1297-1302</c>) is
+        /// <c>if(!param1 &amp;&amp; !World.w.alicorn &amp;&amp; !this.auto &amp;&amp; this.t_auto &gt; 0) { this.t_auto = 3;
+        /// ++this.pow; return true; }</c> — a semi-auto weapon fires once per <i>press</i>, because
+        /// <c>t_auto</c> is only allowed to expire while nobody is calling <c>attack()</c>. The player
+        /// supplies that gap by releasing the key; the <c>sats</c> turret sidesteps it entirely by
+        /// calling <c>attack(true)</c> (<c>UnitPlayer.as:1161</c>), which skips the branch.</para>
+        ///
+        /// <para><b><c>UnitNPC.control()</c> does neither.</b> It calls <c>currentWeapon.attack()</c>
+        /// with no argument on <b>every frame</b> while a live <c>celUnit</c> is in sight
+        /// (<c>UnitNPC.as:570-577</c>), and <c>Weapon.step()</c> — the only place <c>t_auto</c> decays
+        /// (<c>:1226</c>) — runs <i>after</i> <c>control()</c> in the same frame
+        /// (<c>Unit.as:1806-1852</c>). So <c>t_auto</c> is refreshed to 3 and decayed to 2 forever, the
+        /// branch is taken on every frame after the first shot, and the NPC fires <b>exactly once per
+        /// engagement</b> and is locked out until its target leaves <c>sost == 1</c>.</para>
+        ///
+        /// <para>Raiders do not hit this because their call is intermittent — <c>isrnd(0.1)</c>
+        /// (<c>UnitRaider.as:1521</c>) — which is the gap the debounce needs. An NPC's is
+        /// unconditional, which is what turns a debounce into a permanent lockout.</para>
+        ///
+        /// <para><b>Recorded divergence, not a transcription.</b> Setting this does not reproduce the
+        /// oracle: it makes a held NPC trigger fire at the weapon's authored <c>rapid</c> cadence, which
+        /// is what <c>attack(true)</c> means for <c>sats</c>. Set by
+        /// <c>UnitNPCController.EquipPersonaWeapons</c> only — every other owner keeps the debounce, so
+        /// the player's semi-autos and the raiders' <c>isrnd</c> cadence are untouched. Deliberately
+        /// NOT honoured by <c>MeleeWeaponController</c>, whose same branch also accumulates
+        /// <c>Pow</c> for the power attack (<c>WClub.as:340-351</c>) — its lockout and its charge are
+        /// one code path and need their own decision.</para>
+        /// </remarks>
+        public bool AutomaticTrigger;
+
         // ── Magazine / durability ──────────────────────────────────────────────
         public int CurrentAmmo;         // hold in AS3 — bullets in current magazine
         public int CurrentDurability;   // hp in AS3

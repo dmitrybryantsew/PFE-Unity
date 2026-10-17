@@ -240,10 +240,11 @@ namespace PFE.Systems.Weapons.Controllers
             State.IsAttack = true;
 
             // Single-shot debounce (non-auto thrown weapons). AS3: `!param1 && !auto && t_auto > 0`
-            // → t_auto = 3, no shot. The `param1` half is the "called from a scripted path" flag,
-            // which the port has no equivalent of.
+            // → t_auto = 3, no shot. The `param1` half is the "fired by a system, not by a click" flag;
+            // its port equivalent is `State.AutomaticTrigger`, set for an NPC's weapon so a held
+            // trigger is not locked out after one throw. See WeaponRuntimeState.AutomaticTrigger.
             bool isAuto = _def.IsAuto;
-            if (!isAuto && State.TAuto > 0)
+            if (!isAuto && State.TAuto > 0 && !State.AutomaticTrigger)
             {
                 State.TAuto = 3;
                 return;

@@ -172,9 +172,10 @@ namespace PFE.Systems.Weapons.Controllers
         /// </summary>
         private void RunAttack()
         {
-            // Single-shot debounce (non-auto fists — tap timing).
+            // Single-shot debounce (non-auto fists — tap timing). `AutomaticTrigger` is AS3's
+            // `attack(true)`; see WeaponRuntimeState.AutomaticTrigger.
             bool isAuto = _def.IsAuto;
-            if (!isAuto && State.TAuto > 0)
+            if (!isAuto && State.TAuto > 0 && !State.AutomaticTrigger)
             {
                 State.TAuto = 3;
                 return;

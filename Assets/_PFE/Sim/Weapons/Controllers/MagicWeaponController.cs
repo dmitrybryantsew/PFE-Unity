@@ -226,11 +226,11 @@ namespace PFE.Systems.Weapons.Controllers
         {
             // ── t_auto tap debounce (WMagic.as:23-27) ─────────────────────────
             //   if(!param1 && !World.w.alicorn && !auto && t_auto > 0) { t_auto = 3; return false; }
-            // The port has no `param1` force flag (that is the AI/auto-attack path) and no alicorn
-            // state, so both are false. Same gate shape as the ranged / thrown / unarmed controllers;
-            // it was simply absent here, so a non-auto magic weapon could fire every frame the
-            // trigger was held instead of once per tap.
-            if (!_def.IsAuto && State.TAuto > 0)
+            // The port has no alicorn state, so that term is false. `param1` — the "called by a system,
+            // not by a click" flag — now HAS a port equivalent: `State.AutomaticTrigger`, set for an
+            // NPC's weapon, where `attack()` is called every frame and the debounce would otherwise
+            // become a permanent lockout after one shot. See WeaponRuntimeState.AutomaticTrigger.
+            if (!_def.IsAuto && State.TAuto > 0 && !State.AutomaticTrigger)
             {
                 State.TAuto = 3;
                 return;

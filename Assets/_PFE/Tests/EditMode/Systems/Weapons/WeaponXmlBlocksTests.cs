@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using NUnit.Framework;
+using PFE.Systems.Items;
 using PFE.Systems.Weapons;
 
 namespace PFE.Tests.EditMode.Systems.Weapons
@@ -281,6 +282,15 @@ namespace PFE.Tests.EditMode.Systems.Weapons
             " damexpl='85' damage='0' rapid='24' prec='10' crit='0' tipdam='3' knock='25' " +
             "destroy='120' expl='100'";
 
+        /// <summary>
+        /// The <c>.32 round</c> <c>&lt;item&gt;</c> row, verbatim from <c>AllData.as:3763</c> — the row
+        /// whose hover threw out of the Ammunition tab. It carries <b>fractional</b> <c>sell</c>,
+        /// <c>chance</c> and <c>price</c> next to an integral <c>kol</c>, so one fixture exercises both
+        /// the fractional and the integral read.
+        /// </summary>
+        private const string P32AmmoRow =
+            "<item base='p32' id='p32' tip='a' kol='5' chance='1.2' stage='1' lvl='0' price='2.5' sell='0.5' m='1'/>";
+
         // ── The three real collisions ─────────────────────────────────────────
 
         [Test]
@@ -378,6 +388,70 @@ namespace PFE.Tests.EditMode.Systems.Weapons
             Assert.AreEqual("", WeaponXmlAttrs.Attr(" tip='5'", "absent"), "absent with no fallback");
             Assert.AreEqual("X", WeaponXmlAttrs.Attr("", "tip", "X"), "empty source -> fallback");
             Assert.AreEqual("X", WeaponXmlAttrs.Attr(null, "tip", "X"), "null source -> fallback");
+        }
+
+        /// <summary>
+        /// <b>The Ammunition tab's crash.</b> <c>AttrI</c> used to be a bare
+        /// <c>int.Parse</c>, so a <i>fractional</i> attribute value threw
+        /// <c>FormatException: Input string was not in a correct format</c> straight out of
+        /// <c>PipPageInvView.BuildAmmoInfoText</c> — measured live on <c>p32</c>, the <c>.32 round</c>,
+        /// whose row carries <c>sell='0.5'</c>. The exception escaped the pane's builder, so the
+        /// Ammunition tab's info pane never filled at all.
+        ///
+        /// <para><b>Why fractional <c>sell</c> is not an edge case.</b> All 44 ammunition rows lead
+        /// with <c>base=</c>, and 26 of them carry a fractional <c>sell</c> (<c>0.1</c>…<c>1.8</c>).
+        /// The reader that must survive them is the same one the whole ammo page uses.</para>
+        ///
+        /// <para><b>Both halves are load bearing, and this is the whole reason the fixture pairs the
+        /// two readers.</b> AS3's <c>int(x)</c> coerces through <c>Number</c> and truncates toward
+        /// zero, so <c>int('0.5')</c> is <c>0</c> and is <i>not</i> an error — that is
+        /// <see cref="WeaponXmlAttrs.AttrI"/>. But the pane's own <c>sell</c> line is gated on an AS3
+        /// <c>@sell &gt; 0</c>, which is a <b>Number</b> comparison
+        /// (<c>PipPage.as:744-747</c>) — that is <see cref="WeaponXmlAttrs.AttrF"/>, and it must still
+        /// see <c>0.5</c>. A guard that only asserted "does not throw" would pass with <c>AttrI</c>
+        /// answering its fallback for every value, and a guard that used <c>AttrI</c> for the gate
+        /// would silently drop the sell line from every ammo row.</para>
+        ///
+        /// <para><b>The attributes are extracted the way the caller extracts them.</b> The string under
+        /// test is <c>ItemXmlRow.Attrs</c> off <see cref="ItemXmlRows.Parse"/> — the very string
+        /// <c>PipPageInvView.ItemRowAttrs</c> hands to these readers — rather than a hand-written
+        /// convenience string, so a change in the extraction shape cannot leave this fixture passing
+        /// against a shape the view never sees.</para>
+        /// </summary>
+        [Test]
+        public void AttrI_DoesNotThrowOnAFractionalValue_AndAttrFKeepsItPositive()
+        {
+            List<ItemXmlRow> rows = ItemXmlRows.Parse(P32AmmoRow);
+            Assert.AreEqual(1, rows.Count, "one <item> row in, one out");
+            string attrs = rows[0].Attrs;
+
+            // The integral read is the positive control: the truncating fallback must not have turned
+            // every read into the fallback.
+            Assert.AreEqual(5, WeaponXmlAttrs.AttrI(attrs, "kol", 0),
+                "kol='5' is integral and must read as 5");
+
+            Assert.AreEqual(0, WeaponXmlAttrs.AttrI(attrs, "sell", 0),
+                "sell='0.5' truncates to 0 — it must not throw");
+            Assert.AreEqual(1, WeaponXmlAttrs.AttrI(attrs, "chance", 0), "chance='1.2' truncates to 1");
+            Assert.AreEqual(2, WeaponXmlAttrs.AttrI(attrs, "price", 0), "price='2.5' truncates to 2");
+
+            // The discriminating pair: the same attribute, two readers, two different answers — and
+            // it is AttrF's that the pane's `@sell > 0` line needs.
+            Assert.AreEqual(0.5f, WeaponXmlAttrs.AttrF(attrs, "sell", 0f), 0.0001f,
+                "the ammo pane's sell line is a NUMBER comparison, so it must still see 0.5");
+            Assert.AreNotEqual(0f, WeaponXmlAttrs.AttrF(attrs, "sell", 0f),
+                "the two readers must DISAGREE on '0.5' — AttrI truncates to 0 and AttrF keeps it " +
+                "positive. If they ever agree, one of them is answering the other's question");
+
+            // Truncation is toward zero, which is what AS3's int() does — not floor.
+            Assert.AreEqual(-1, WeaponXmlAttrs.AttrI(" v='-1.7'", "v", 0), "int(-1.7) is -1, not -2");
+
+            // A value that is not a number at all answers the fallback rather than throwing: the real
+            // `<mat>` rows carry `m='А'`, a Cyrillic index letter.
+            Assert.AreEqual(0, WeaponXmlAttrs.AttrI(" m='А'", "m", 0),
+                "a Cyrillic index letter is not a number");
+            Assert.AreEqual(7, WeaponXmlAttrs.AttrI(" m='А'", "m", 7),
+                "and the caller's own fallback is what comes back");
         }
 
         /// <summary>
@@ -615,6 +689,279 @@ namespace PFE.Tests.EditMode.Systems.Weapons
             {
                 Assert.IsTrue(SpellItemXml.Read(row).IsPopulated, row);
             }
+        }
+    }
+
+    /// <summary>
+    /// Pins <see cref="WeaponVariantXml"/> — how the unique ("II") variant's index-1 override is read
+    /// and folded over the base node.
+    ///
+    /// <para><b>Why this fixture exists.</b> The merge is presence-gated (<c>Weapon.as:777-861</c>), so
+    /// getting it wrong is <i>silent</i>: an override that should have inherited <c>kol</c> from the base
+    /// node instead reads 0, the weapon still fires, and nothing goes red. The rule is also the one part
+    /// of the feature that must not be duplicated, so it lives in the runtime assembly precisely so this
+    /// fixture can reach it — <c>PFE.Tests</c> does not reference <c>PFE.Editor</c>.</para>
+    ///
+    /// <para><b>Every positive is paired with an absent control.</b> "The override wins" is asserted
+    /// beside "an omitted attribute is kept" and "an explicit <c>'0'</c> is an override, not an
+    /// inheritance", because a merge that simply returned the override would satisfy the first alone.</para>
+    /// </summary>
+    [TestFixture]
+    public class WeaponVariantXmlTests
+    {
+        // ── MergeRuns: the load-bearing partial merge ────────────────────────
+
+        [Test]
+        public void MergeRuns_PartialOverride_KeepsEveryAttributeTheOverrideOmits()
+        {
+            // The real `oldshot` pair, verbatim from AllData.as:2796-2797. Tier 1 raises hp 150->250 and
+            // damage 6->7 and says NOTHING about kol, knock or destroy — which is exactly why the merge
+            // has to exist: reading the override node directly would report kol 0 and knock 0 for a
+            // shotgun that fires five pellets with knockback 3.
+            const string tier0 = " maxhp='150' damage='6' kol='5' rapid='10' prec='6' knock='3' destroy='10'";
+            const string tier1 = " maxhp='250' damage='7' rapid='10' prec='7'";
+
+            string merged = WeaponVariantXml.MergeRuns(tier0, tier1);
+
+            Assert.That(WeaponXmlAttrs.AttrF(merged, "maxhp",   0f), Is.EqualTo(250f).Within(0.001f), "hp");
+            Assert.That(WeaponXmlAttrs.AttrF(merged, "damage",  0f), Is.EqualTo(7f).Within(0.001f),   "damage");
+            Assert.That(WeaponXmlAttrs.AttrF(merged, "prec",    0f), Is.EqualTo(7f).Within(0.001f),   "prec");
+
+            // The inherited three — the half a naive "take the override" merge loses.
+            Assert.That(WeaponXmlAttrs.AttrI(merged, "kol",     0),  Is.EqualTo(5),  "kol inherited");
+            Assert.That(WeaponXmlAttrs.AttrF(merged, "knock",   0f), Is.EqualTo(3f).Within(0.001f),
+                        "knock inherited");
+            Assert.That(WeaponXmlAttrs.AttrF(merged, "destroy", 0f), Is.EqualTo(10f).Within(0.001f),
+                        "destroy inherited");
+        }
+
+        [Test]
+        public void MergeRuns_ExplicitZero_IsAnOverrideAndNotAnInheritance()
+        {
+            // The whole reason "absent" and "'0'" cannot share a representation. AS3 assigns only when
+            // `@attr.length()` — a present `knock='0'` DOES assign, and means "no knockback".
+            string merged = WeaponVariantXml.MergeRuns(" knock='3' rapid='10'", " knock='0'");
+
+            Assert.That(WeaponXmlAttrs.AttrF(merged, "knock", -1f), Is.EqualTo(0f).Within(0.001f),
+                        "an explicit 0 must win, not fall back to the base 3");
+            Assert.That(WeaponXmlAttrs.AttrF(merged, "rapid", -1f), Is.EqualTo(10f).Within(0.001f),
+                        "and the omitted attribute still inherits");
+        }
+
+        [Test]
+        public void MergeRuns_AttributeOnlyInTheOverride_IsAppended()
+        {
+            // `flamer`'s tier 1 is the case in the data: it introduces phis attributes the base lacks.
+            string merged = WeaponVariantXml.MergeRuns(" speed='150'", " flame='2'");
+
+            Assert.That(WeaponXmlAttrs.AttrF(merged, "speed", 0f), Is.EqualTo(150f).Within(0.001f), "base kept");
+            Assert.That(WeaponXmlAttrs.AttrF(merged, "flame", 0f), Is.EqualTo(2f).Within(0.001f),   "added");
+        }
+
+        [Test]
+        public void MergeRuns_EmptyOverride_ReturnsTheBaseUnchanged()
+        {
+            const string tier0 = " maxhp='150' damage='6'";
+
+            Assert.AreEqual(tier0, WeaponVariantXml.MergeRuns(tier0, ""),
+                            "a weapon whose node does not repeat must not be perturbed");
+            Assert.AreEqual(tier0, WeaponVariantXml.MergeRuns(tier0, null));
+        }
+
+        [Test]
+        public void MergeRuns_ResultSatisfiesTheReaderBoundary()
+        {
+            // WeaponXmlAttrs' pattern is `(?:^|\s)name=…`, and its own remarks require every run to begin
+            // with whitespace. A merge that dropped the leading space would make the FIRST attribute of
+            // every merged run unreadable — silently, and only for that one attribute.
+            string merged = WeaponVariantXml.MergeRuns("", " damage='7'");
+
+            Assert.AreEqual(' ', merged[0], "merged runs must keep the leading whitespace the reader needs");
+            Assert.That(WeaponXmlAttrs.AttrF(merged, "damage", -1f), Is.EqualTo(7f).Within(0.001f));
+        }
+
+        [Test]
+        public void MergeRuns_DoesNotCollideOnSuffixedAttributeNames()
+        {
+            // The `expl` ⊂ `damexpl` family, re-checked through the merge rather than the single reader:
+            // a merge implemented as string concatenation with a name search would resurrect the bug the
+            // boundary fix removed.
+            string merged = WeaponVariantXml.MergeRuns(" damexpl='750' expl='300'", " expl='400'");
+
+            Assert.That(WeaponXmlAttrs.AttrF(merged, "expl",    0f), Is.EqualTo(400f).Within(0.001f), "expl");
+            Assert.That(WeaponXmlAttrs.AttrF(merged, "damexpl", 0f), Is.EqualTo(750f).Within(0.001f),
+                        "damexpl must survive an `expl` override");
+        }
+
+        // ── Runs ─────────────────────────────────────────────────────────────
+
+        [Test]
+        public void Runs_MatchesSelfClosingAndOpenForms_AndStopsAtTheTagBoundary()
+        {
+            var runs = WeaponVariantXml.Runs("<char a='1'/><char b='2'></char>", "char");
+
+            Assert.AreEqual(2, runs.Count);
+            Assert.AreEqual(" a='1'", runs[0]);
+            Assert.AreEqual(" b='2'", runs[1]);
+        }
+
+        [Test]
+        public void Runs_DoesNotLeakANestedChildIntoItsParentRun()
+        {
+            // The run must stop at the parent's own '>', or `<phis speed='150'/>` inside a <char> body
+            // would be read as a char attribute.
+            var runs = WeaponVariantXml.Runs("<char a='1'><phis speed='150'/></char>", "char");
+
+            Assert.AreEqual(1, runs.Count);
+            Assert.AreEqual(" a='1'", runs[0]);
+            Assert.That(WeaponXmlAttrs.AttrF(runs[0], "speed", -1f), Is.EqualTo(-1f).Within(0.001f),
+                        "the child's attribute must not be visible on the parent");
+        }
+
+        // ── Read ─────────────────────────────────────────────────────────────
+
+        [Test]
+        public void Read_NoSecondChar_IsNotAVariant()
+        {
+            // 142 of the 213 weapons. `Stand.as:212` decides existence on `char.length() > 1` alone.
+            var data = WeaponVariantXml.Read("<char maxhp='150'/><phis speed='150'/>", 1);
+
+            Assert.AreEqual(0, data.Variant);
+            Assert.IsFalse(data.IsPresent);
+            Assert.AreEqual("", data.CharAttrs);
+        }
+
+        [Test]
+        public void Read_SecondChar_CapturesEveryRepeatedKindAtTheSameIndex()
+        {
+            // The measured shape: <char> repeats on 71 weapons, <ammo> on 27, <phis> on 11. All three
+            // must be captured at index 1 in one pass — reading only <char> drops the other two.
+            const string body =
+                "<char maxhp='150' damage='6'/>" +
+                "<char maxhp='250' damage='7'/>" +
+                "<phis speed='150' m='2'/>" +
+                "<phis speed='2000'/>" +
+                "<ammo holder='2' reload='45'/>" +
+                "<ammo holder='320' reload='30'/>";
+
+            var data = WeaponVariantXml.Read(body, 1);
+
+            Assert.AreEqual(1, data.Variant);
+            Assert.IsTrue(data.IsPresent);
+            Assert.That(WeaponXmlAttrs.AttrI(data.CharAttrs, "maxhp", 0), Is.EqualTo(250));
+            Assert.That(WeaponXmlAttrs.AttrF(data.PhisAttrs, "speed", 0f), Is.EqualTo(2000f).Within(0.001f));
+            Assert.That(WeaponXmlAttrs.AttrI(data.AmmoAttrs, "holder", 0), Is.EqualTo(320));
+        }
+
+        [Test]
+        public void Read_AKindThatDoesNotRepeat_LeavesItsRunEmpty()
+        {
+            // `lasr` repeats <char> and <ammo> but not <vis>; the empty run is what tells the merge to
+            // leave the base <vis> alone.
+            var data = WeaponVariantXml.Read("<char a='1'/><char b='2'/><vis vbul='laser'/>", 1);
+
+            Assert.IsTrue(data.IsPresent);
+            Assert.AreEqual("", data.VisAttrs, "a single <vis> is not an override");
+            Assert.AreEqual("", data.ComAttrs);
+        }
+
+        [Test]
+        public void Read_IndexWithNoSuchNode_IsNotAVariant()
+        {
+            var data = WeaponVariantXml.Read("<char a='1'/><char b='2'/>", 2);
+
+            Assert.AreEqual(0, data.Variant, "only two <char> nodes exist, so tier 2 does not");
+            Assert.IsFalse(data.IsPresent);
+        }
+
+        [Test]
+        public void AttrsFor_UnknownKind_IsEmptyRatherThanAThrow()
+        {
+            var data = WeaponVariantXml.Read("<char a='1'/><char b='2'/>", 1);
+
+            Assert.AreEqual("", data.AttrsFor("nonsense"));
+            Assert.AreEqual(data.CharAttrs, data.AttrsFor("char"));
+        }
+
+        // ── UnreadAttributeNames: the constraint-12 report ──────────────────
+
+        [Test]
+        public void UnreadAttributeNames_NamesWhatThePortCannotRead()
+        {
+            // A phis override mixing a read attribute with two the port has no field for. `speed` must
+            // NOT be reported; `drot` and `m` must be. Note the SECOND <phis> is what makes it an
+            // override at all — a lone <phis> is the base node and yields no override run.
+            var data = WeaponVariantXml.Read(
+                "<char damage='6'/><char damage='7'/>" +
+                "<phis speed='150'/><phis speed='150' drot='13' m='2'/>", 1);
+
+            var unread = WeaponVariantXml.UnreadAttributeNames(data);
+
+            CollectionAssert.Contains(unread, "phis.drot");
+            CollectionAssert.Contains(unread, "phis.m");
+            CollectionAssert.DoesNotContain(unread, "phis.speed");
+        }
+
+        [Test]
+        public void UnreadAttributeNames_IsEmptyWhenEveryAttributeIsUnderstood()
+        {
+            // `oldshot`'s real tier-1 pair: every attribute on it has a port field.
+            var data = WeaponVariantXml.Read(
+                "<char maxhp='150' damage='6' kol='5' knock='3'/>" +
+                "<char maxhp='250' damage='7' prec='7'/>", 1);
+
+            CollectionAssert.IsEmpty(WeaponVariantXml.UnreadAttributeNames(data));
+        }
+
+        [Test]
+        public void UnreadAttributeNames_NoVariant_ReportsNothing()
+        {
+            var data = WeaponVariantXml.Read("<char maxhp='150'/>", 1);
+
+            CollectionAssert.IsEmpty(WeaponVariantXml.UnreadAttributeNames(data));
+        }
+
+        [Test]
+        public void UnreadAttributeNames_IsSorted_SoTheImportLogIsStable()
+        {
+            // The five names the shipped file actually produces on a <phis> override, in the order the
+            // import log will print them. See WeaponVariantXml.UnreadAttributeNames for why each is here
+            // — four are attributes the port reads nowhere, and `recoil` is a field that exists on
+            // WeaponDefinition and that the importer never fills.
+            var data = WeaponVariantXml.Read(
+                "<char damage='6'/><char damage='7'/>" +
+                "<phis speed='1'/><phis speed='1' drot='1' m='1' massa='1' drot2='1' recoil='1'/>", 1);
+
+            var unread = WeaponVariantXml.UnreadAttributeNames(data);
+
+            CollectionAssert.AreEqual(
+                new[] { "phis.drot", "phis.drot2", "phis.m", "phis.massa", "phis.recoil" }, unread);
+        }
+
+        // ── The whole path, end to end, on a real weapon body ───────────────
+
+        [Test]
+        public void Oldshot_TierOne_FoldsOverTierZeroAndYieldsTheOracleValues()
+        {
+            // The complete read -> merge -> read path for AllData.as:2795-2806, which is the weapon the
+            // research report used as its worked example. Asserts the merged tier-1 numbers the oracle
+            // produces (250 hp, 7 dmg, prec 7) AND that the three inherited ones survive.
+            const string body =
+                "<char maxhp='150' damage='6' kol='5' rapid='10' prec='6' knock='3' destroy='10'/>" +
+                "<char maxhp='250' damage='7' rapid='10' prec='7'/>";
+
+            var data = WeaponVariantXml.Read(body, 1);
+            Assert.IsTrue(data.IsPresent, "oldshot has a second <char>");
+
+            string merged = WeaponVariantXml.MergeRuns(
+                WeaponVariantXml.Runs(body, "char")[0], data.CharAttrs);
+
+            Assert.That(WeaponXmlAttrs.AttrI(merged, "maxhp",   0),  Is.EqualTo(250));
+            Assert.That(WeaponXmlAttrs.AttrF(merged, "damage",  0f), Is.EqualTo(7f).Within(0.001f));
+            Assert.That(WeaponXmlAttrs.AttrF(merged, "prec",    0f), Is.EqualTo(7f).Within(0.001f));
+            Assert.That(WeaponXmlAttrs.AttrI(merged, "kol",     0),  Is.EqualTo(5));
+            Assert.That(WeaponXmlAttrs.AttrF(merged, "knock",   0f), Is.EqualTo(3f).Within(0.001f));
+            Assert.That(WeaponXmlAttrs.AttrF(merged, "destroy", 0f), Is.EqualTo(10f).Within(0.001f));
         }
     }
 }

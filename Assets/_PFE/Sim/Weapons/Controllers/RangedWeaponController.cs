@@ -247,8 +247,13 @@ namespace PFE.Systems.Weapons.Controllers
             if (State.IsBroken) return;
 
             // Single-shot debounce (auto=false && t_auto > 0 → increment pow, skip fire).
+            //
+            // `AutomaticTrigger` is AS3's `attack(true)` — a trigger with no click edge, which is what
+            // an NPC's is (`UnitNPC.control()` calls `attack()` every frame). Without it the branch is
+            // taken on every frame after the first shot and the weapon fires once per engagement; see
+            // WeaponRuntimeState.AutomaticTrigger for the full trace and the divergence it records.
             bool isAuto = _def.IsAuto;
-            if (!isAuto && State.TAuto > 0)
+            if (!isAuto && State.TAuto > 0 && !State.AutomaticTrigger)
             {
                 State.TAuto = 3; // refresh debounce window
                 State.Pow++;

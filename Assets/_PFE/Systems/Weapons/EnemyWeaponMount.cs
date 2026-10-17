@@ -98,6 +98,31 @@ namespace PFE.Systems.Weapons
         /// <summary>True when a controller was built and the weapon can actually fire.</summary>
         public bool IsArmed => _controller != null;
 
+        /// <summary>
+        /// The trigger as of the last <see cref="SetFiring"/> call — AS3's <c>attack()</c> having been
+        /// called this frame.
+        /// </summary>
+        /// <remarks>
+        /// Exposed for one reason: "he has a target, he is agro, and nothing comes out" is a chain of
+        /// six links (brain → trigger → mount → controller → plan → spawner) and every one of them is
+        /// invisible from the player's chair. A reader that can see the trigger was held narrows it to
+        /// the controller or the spawner without a second play-test. Nothing in the project branches on
+        /// this.
+        /// </remarks>
+        public bool IsFiring => _firing;
+
+        /// <summary>
+        /// How many shot batches this mount has produced since it was built — the proof that a trigger
+        /// held for a second actually reached <see cref="ProjectileSpawner"/>.
+        /// </summary>
+        /// <remarks>
+        /// A counter rather than a flag on purpose: one is "it fired once and stopped" (an empty
+        /// magazine, a jam) and a climbing one is "it is firing and you cannot see it" (a spawn point
+        /// inside geometry, a missing visual). Those two have nothing in common and both read as
+        /// "does not shoot" from outside.
+        /// </remarks>
+        public int ShotsFired { get; private set; }
+
         /// <summary>The equipped definition, or null when unarmed.</summary>
         public WeaponDefinition Definition => _def;
 
@@ -309,23 +334,53 @@ namespace PFE.Systems.Weapons
         }
 
         /// <summary>
+        /// Mark this weapon's trigger as having no click edge — AS3's <c>attack(true)</c>.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Called by <c>UnitNPCController</c> and by nothing else.</b> An NPC's trigger is
+        /// pushed on every frame (`UnitNPC.as:570-577`), and a semi-auto weapon's <c>t_auto</c>
+        /// debounce is refreshed by every push — so without this the NPC fires once per engagement and
+        /// then holds a trigger that can never re-arm. See
+        /// <see cref="WeaponRuntimeState.AutomaticTrigger"/> for the frame-by-frame trace.</para>
+        ///
+        /// <para><b>Not set for raiders, deliberately.</b> Their <c>attack()</c> call is gated on
+        /// <c>isrnd(0.1)</c> (<c>UnitRaider.as:1521</c>), which leaves <c>t_auto</c> the gap it needs to
+        /// expire; giving them automatic fire would replace an authored cadence with the weapon's.</para>
+        /// </remarks>
+        public void MarkAutomaticTrigger()
+        {
+            if (_controller != null)
+            {
+                _controller.State.AutomaticTrigger = true;
+            }
+        }
+
+        /// <summary>
         /// The world point the weapon should point at while the unit is <b>not</b> firing.
         ///
-        /// <para><b>Why the idle case needs an explicit answer.</b> The brain only publishes an aim
-        /// target on a tick it is firing (<c>ArmedShooterBrain.SetWeaponTrigger</c>), so between shots
-        /// the mount would otherwise have nothing to face and the weapon would hang pointing at the
-        /// last target — or at the world origin before the first shot. AS3 has no such gap: an NPC's
-        /// <c>celX</c> is maintained by the AI every frame. Pointing along the unit's own facing is the
-        /// faithful idle answer and keeps the weapon on the side the character is looking.</para>
+        /// <para><b>Why the idle case needs an explicit answer.</b> A brain that only publishes an aim
+        /// target on a tick it is firing (<c>ArmedShooterBrain.SetWeaponTrigger</c>) would otherwise have
+        /// nothing to face between shots, and the weapon would hang pointing at the last target — or at
+        /// the world origin before the first shot. Pointing along the unit's own facing is a faithful
+        /// idle answer and keeps the weapon on the side the character is looking.</para>
+        ///
+        /// <para><b>This is a last resort, not the oracle's rule.</b> AS3 has no such gap: every unit's
+        /// <c>control()</c> rewrites <c>celX</c>/<c>celY</c> on every frame — a raider aims a body height
+        /// above its feet (<c>UnitRaider.as:682</c>, <c>celY = Y - scY</c>), an NPC ten pixels above them
+        /// (<c>UnitNPC.as:531</c>) — and the weapon reads that. A unit whose controller publishes a
+        /// per-frame point (see <c>UnitNPCController.TickCel</c>) therefore never reaches this method,
+        /// because <see cref="SetAimTarget"/> has already been called for this tick. The answer below is
+        /// what remains for a brain that does not maintain one, and the per-archetype value it would need
+        /// is that archetype's <c>celY</c>, not a generic constant.</para>
         /// </summary>
         private Vector2 ResolveIdleAimTarget()
         {
             if (_owner == null) _owner = GetComponentInParent<UnitController>();
             if (_owner == null) return (Vector2)transform.position + Vector2.right;
 
-            // The presenter only reads the aim target's X against the weapon's own X, so anchoring this
-            // on the unit's feet (rather than the hold point) is enough — and it avoids reading the
-            // weapon's own state before it has ever been stepped.
+            // Facing only — the horizontal sign is what the presenter and the controller both read, and
+            // anchoring on the feet keeps this independent of the weapon's own state before it has ever
+            // been stepped.
             return new Vector2(_owner.transform.position.x, _owner.FeetWorldY)
                  + new Vector2(_owner.FacingDirection, 0f);
         }
@@ -377,10 +432,17 @@ namespace PFE.Systems.Weapons
 
             Vector2 hold = ResolveHoldPoint();
 
-            // The presenter draws from the same one flip decision the controller aims with. While the
-            // unit is not firing the brain publishes no aim target, so fall back to the unit's facing —
-            // otherwise the held weapon would keep pointing at wherever the last shot went.
-            _presenter?.SetAimTarget(_firing && _hasAimTarget ? _aimTarget : ResolveIdleAimTarget());
+            // One aim point for both consumers. The presenter draws from the same flip decision the
+            // controller aims with, so resolving them separately is how the drawn barrel and the fired
+            // round come to disagree.
+            //
+            // `_hasAimTarget` alone — NOT `_firing && _hasAimTarget`. The old form threw away a
+            // per-frame aim point on every non-firing tick, which silently reverted an NPC to the
+            // facing-only fallback between shots and made the oracle's `celX` maintenance invisible in
+            // the picture. A brain that never calls SetAimTarget still gets the fallback, so the raider
+            // path is unchanged.
+            Vector2 aim = _hasAimTarget ? _aimTarget : ResolveIdleAimTarget();
+            _presenter?.SetAimTarget(aim);
 
             if (_controller is RangedWeaponController ranged)
             {
@@ -390,11 +452,15 @@ namespace PFE.Systems.Weapons
             if (_firing) _controller.BeginAttack();
             else         _controller.EndAttack();
 
-            _controller.Tick(dt, hold, hold, _aimTarget);
+            _controller.Tick(dt, hold, hold, aim);
 
             _plans.Clear();
             _plans.AddRange(_controller.FlushShotPlans());
             if (_plans.Count == 0) return;
+
+            // Counted here rather than at the spawner call: a plan batch IS the shot, and a spawner
+            // that drops it is a different failure with its own report. See ShotsFired.
+            ShotsFired++;
 
             // The melee plan's only job is to carry the swing's DamageContext to the volume — the
             // spawner ignores `MeleeSweep` outright. Same loop, and the same "take the last plan"

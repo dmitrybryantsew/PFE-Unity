@@ -178,6 +178,7 @@ namespace PFE.Systems.Weapons
             foreach (var plan in plans)
             {
                 AnnounceShot(plan);
+                RevealShot(plan);
                 SpawnMuzzleFlare(plan);
                 SpawnOne(plan);
             }
@@ -249,6 +250,57 @@ namespace PFE.Systems.Weapons
             {
                 shooter.MakeNoise(noisePixels, isEvent: true);
             }
+        }
+
+        /// <summary>
+        /// Stamp the shot's reveal — AS3 <c>Weapon.as:1575-1578</c>, the line immediately above the
+        /// <c>makeNoise</c> call <see cref="AnnounceShot"/> ports:
+        /// <c>if(this.owner.demask &lt; this.shine) this.owner.demask = this.shine;</c>.
+        ///
+        /// <para><b>The data was already wired; only the reader was missing.</b> Every ranged and magic
+        /// controller has filled <see cref="ShotCues.ShineRadius"/> from the weapon's own
+        /// <c>&lt;vis shine='…'/&gt;</c> since the cue struct was written
+        /// (<c>RangedWeaponController</c>, <c>MagicWeaponController</c>), and nothing read it — the same
+        /// shape as <see cref="ShotCues.SpawnMuzzleFlash"/> and <see cref="ShotCues.MakeNoise"/> before
+        /// their readers existed. The value defaults to the oracle's own <c>500</c>
+        /// (<c>Weapon.as:216</c>), so even an un-authored weapon reveals: a shot is the loudest thing in
+        /// the game, and the whole stealth design is that you can run past a guard but not shoot past
+        /// one.</para>
+        ///
+        /// <para><b>The value is already in AS3 pixels — do NOT divide by <c>PpuScale</c>.</b> This is
+        /// the one cue that differs from <see cref="ShotCues.NoiseRadius"/>, and the difference is not an
+        /// oversight: <c>demask</c> lives in the oracle's pixel domain
+        /// (<c>DemaskMax = 200</c>, <c>shine = 500</c>), and the controllers pass
+        /// <c>_def.shineRadius</c> raw where they pass <c>_def.noiseRadius / PpuScale</c>. A "helpful"
+        /// conversion here would silently shrink the reveal by 100×.</para>
+        ///
+        /// <para><b>Melee, thrown and unarmed plans carry <c>shineRadius = 0</c>, and that is the
+        /// oracle's behaviour, not a gap.</b> <c>WClub.shoot()</c>, <c>WThrow.shoot()</c> and the unarmed
+        /// overrides replace <c>Weapon.shoot()</c> wholesale <i>without</i> calling <c>super</c>, so the
+        /// <c>shine</c> write is never reached on those paths — only the base ranged path and
+        /// <c>WMagic.shoot()</c> (which does call <c>super.shoot()</c>) run it. A swing is silent in this
+        /// channel, which is why a <c>shine &lt;= 0</c> plan is a no-op rather than a bug.</para>
+        ///
+        /// <para><b>Raise-only.</b> <see cref="UnitController.RaiseDemask"/> keeps the maximum, so a
+        /// second shot in the same tick cannot lower the first, and a pellet plan
+        /// (<see cref="ShotCues.None"/>, <c>shineRadius = 0</c>) cannot erase the first pellet's
+        /// reveal.</para>
+        /// </summary>
+        private void RevealShot(ShotPlan plan)
+        {
+            int shine = plan.Cues.ShineRadius;
+            if (shine <= 0)
+            {
+                return;
+            }
+
+            UnitController shooter = ResolveOwnerUnit();
+            if (shooter == null)
+            {
+                return;
+            }
+
+            shooter.RaiseDemask(shine);
         }
 
         /// <summary>
