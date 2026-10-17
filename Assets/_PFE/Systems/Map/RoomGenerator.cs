@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using PFE.Systems.Campaign;
 using UnityEngine;
 using VContainer;
 namespace PFE.Systems.Map
@@ -183,7 +184,13 @@ namespace PFE.Systems.Map
                     landDifLevel: context.LandDifLevel,
                     difficultyOffset: context.DifficultyOffset,
                     tipEnemy: template.environment.tipEnemy,
-                    landConfig: context.LandConfig),
+                    landConfig: context.LandConfig,
+                    // AS3 `setLocDif` reads `World.w.game.globalDif` directly (`Land.as:988`), and the
+                    // difficulty SETTING is run state rather than room or land data — so it is read from
+                    // the run here, not threaded through the land context. Read per room, like the
+                    // oracle, so a mid-run `changeDif` affects every room built after it and no room
+                    // built before it. See GlobalDifficulty for why the static is the right owner.
+                    globalDifficulty: GlobalDifficulty.Value),
                 _rng);
 
             // Set environment

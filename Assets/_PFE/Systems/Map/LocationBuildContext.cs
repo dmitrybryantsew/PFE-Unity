@@ -31,11 +31,13 @@ namespace PFE.Systems.Map
         /// <summary>
         /// AS3 <c>Land.landDifLevel</c> — <c>max(runDifficulty, act.dif)</c> (<c>Land.as:120-124</c>).
         ///
-        /// <para>The port has no run-difficulty setting (<c>Game.triggers["firstroom"]</c>-derived
-        /// <c>param3</c>, <c>Game.as:353-361</c>), so callers pass the land's authored
-        /// <see cref="PFE.Data.Definitions.Campaign.LandDefinition.baseDifficulty"/>, which is the
-        /// <c>act.dif</c> floor the oracle also applies. Consequence: on a long run the port's rooms are
-        /// easier than AS3's by the unmodelled <c>max(param3, act.dif) - act.dif</c>.</para>
+        /// <para><b>Supplied by <c>WorldBuilder.BuildLand</c>, which is the port's <c>Land</c>
+        /// constructor.</b> The run-difficulty term (<c>param3</c>, <c>Game.as:353-361</c>) is computed by
+        /// <c>MapBridge.PerformLandTransition</c> from the <c>firstroom</c> trigger and the player's
+        /// level, and the branch that combines it with <c>act.dif</c> lives in
+        /// <see cref="PFE.Systems.Campaign.DifficultyRules.LandDifficulty"/> so it is assertable offline.
+        /// An <c>autoLevel</c> authored land takes the run difficulty <i>instead of</i> its authored
+        /// value, so this can sit below <c>act.dif</c>.</para>
         /// </summary>
         public readonly float LandDifLevel;
 

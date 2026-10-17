@@ -232,11 +232,25 @@ namespace PFE.Systems.Map
                 // that a future "optimisation" which dropped the draw fails a test instead of silently
                 // shifting every later placement in the room.
 
-                // UnitProtect.as:15 — `id = "protect"`. randomCid returns "1"/"0".
-                ["protect"] = (_, __) => "protect",
+                // UnitProtect.as:15-19 — `id = "protect"; if(tr > 0) id += tr;`. The `if` is NOT dead:
+                // randomCid returns "1" when tipEnemy == 7, and **15 shipped placements author
+                // `tr="1"` outright** (9 protect + 6 gutsy), so `protect1` is a live variant
+                // (xp 500, `sprProtect1` 24x6) that the previous constant rule could never produce.
+                // No clamp on the upper end — the oracle has none, and every authored value is 1.
+                ["protect"] = (selector, _) =>
+                {
+                    int tr = ParseTr(selector);
+                    return tr > 0 ? "protect" + tr : "protect";
+                },
 
-                // UnitGutsy.as:17 — `id = "gutsy"`. randomCid returns "1"/"0".
-                ["gutsy"] = (_, __) => "gutsy",
+                // UnitGutsy.as:17-21 — `id = "gutsy"; if(tr > 0) id += tr;`. Same shape and the same
+                // trigger: 6 shipped `gutsy` placements author `tr="1"`; `gutsy1` is xp 750 with
+                // `sprGutsy1` (40x2, and the 40-frame looping `stay`).
+                ["gutsy"] = (selector, _) =>
+                {
+                    int tr = ParseTr(selector);
+                    return tr > 0 ? "gutsy" + tr : "gutsy";
+                },
 
                 // ── The slime family ────────────────────────────────────────────────────────────
                 // UnitSlime.as:21-51 — `tr = int(cid)`; `if(tr >= 10) { isMine = true; tr -= 10; }`;
@@ -337,7 +351,18 @@ namespace PFE.Systems.Map
 
                 // UnitBossUltra.as:4 / UnitBossDron.as:4 — placed rows `ultra` / `megadron`.
                 ["ultra"] = (_, __) => "bossultra",
-                ["megadron"] = (_, __) => "bossdron"
+                ["megadron"] = (_, __) => "bossdron",
+
+                // UnitRobobrain.as:11 — `id = "robobrain"`. The placed id is `robot`
+                // (`AllData.as:4973` `cl='UnitRobobrain'`) and `<unit id='robot'/>` (`:1349`) is an
+                // **empty** `cat='1'` marker, so the id the spawn path must produce is `robobrain`.
+                // This is not only an identity nicety: it is the difference between a robot that draws
+                // and one that does not. `robot.asset` has `spriteSheetId` empty, `visualClassName`
+                // empty, a 0x0 sheet and `weapons: []`; `robobrain.asset` carries `visualRobobrain`,
+                // a 1x1 sheet and robolaser+robospark. The spawn path returns `robot` for the whole
+                // enl2/tipEnemy==2 fall-through and 11 shipped rooms place it, so before this rule the
+                // commonest robot in the game was an invisible, unarmed collider.
+                ["robot"] = (_, __) => "robobrain"
             };
 
         /// <summary>UnitRaider.as:146-148 — `if(tr &lt;= 0) tr = 1`.</summary>

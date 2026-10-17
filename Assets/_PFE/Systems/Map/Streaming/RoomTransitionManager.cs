@@ -452,6 +452,24 @@ namespace PFE.Systems.Map.Streaming
         private PFE.Systems.Map.Generation.IProbDoorContext _probContext;
 
         /// <summary>
+        /// The room-cleared decision for every prob room this land built — one
+        /// <see cref="PFE.Systems.Map.Generation.ProbationState"/> per detached room, built here because
+        /// this is the one object that is handed both the registry and the rooms and outlives the build.
+        /// Rebuilt wholesale by <see cref="SetProbContext"/>, which is AS3's own <c>Land</c> replacement
+        /// rule: a new land means new <c>Location</c>s and a fresh <c>Probation</c> for each.
+        ///
+        /// <para><b>Read per call, not cached, by the two consumers.</b> <c>AreaTriggerSystem</c> and
+        /// <c>RoomUnitSpawner</c> resolve it through <see cref="ProbSessions"/> at the moment of the check
+        /// rather than holding the reference, for the same reason <c>LandHost</c> is a per-call read: a
+        /// land swap replaces the object and a stale reference would answer about rooms that no longer
+        /// exist.</para>
+        /// </summary>
+        private PFE.Systems.Map.Generation.ProbRoomSessions _probSessions;
+
+        /// <summary>The live sessions, or null between lands. See <see cref="_probSessions"/>.</summary>
+        public PFE.Systems.Map.Generation.ProbRoomSessions ProbSessions => _probSessions;
+
+        /// <summary>
         /// Where to put the player back — AS3 <c>retLocX/retLocY/retLocZ</c> plus <c>retX/retY</c>
         /// (<c>Land.as:1411-1424</c>). Valid only while <see cref="_savedRoom"/> is non-null.
         /// </summary>
@@ -477,6 +495,7 @@ namespace PFE.Systems.Map.Streaming
         {
             _probContext = context;
             _reportedMissingProbRooms.Clear();
+            BuildProbSessions();
 
             // A new land means a new AS3 `Land` object, and `prob` / `retLocX` / `retX` are fields of
             // that object — so they start empty by construction (Land.as:102-105, :1391-1438). The port
@@ -494,6 +513,66 @@ namespace PFE.Systems.Map.Streaming
             // the fields belong to the land, not to the player.
             _savedRoom = null;
             _savedReturn = default(PFE.Systems.Map.Generation.ProbReturnPoint);
+        }
+
+        /// <summary>
+        /// Materialises the room-cleared state for every prob room the context registered.
+        ///
+        /// <para><b>Only registered rooms get a session.</b> AS3 builds a <c>Probation</c> for a prob when
+        /// it builds the prob's <c>Location</c> (<c>Land.as:790-803</c>), which happens exactly where
+        /// this port's <c>WorldBuilder.BuildAndRegisterProbRoom</c> runs. A door placed without its room
+        /// is a reported refusal, and it must not silently acquire an inert state machine.</para>
+        ///
+        /// <para><b>An exit room gets a session with no definition.</b> <c>Land.buildProbs</c> builds it
+        /// from the <c>prob</c> land's collection with no <c>&lt;prob&gt;</c> child behind it, so its
+        /// <c>con</c> list is empty — and an empty list is satisfied (<c>Probation.as:194</c>), so the
+        /// exit room would close on its first check. AS3 never checks it, because nothing in an exit room
+        /// calls <c>prob.check()</c>: the checks come from opening a box (<c>Interact.as:880</c>,
+        /// <c>:1321</c>, <c>:1753</c>) or killing a unit (<c>Unit.as:4400</c>). That is why the empty
+        /// definition is safe here rather than a bug.</para>
+        /// </summary>
+        private void BuildProbSessions()
+        {
+            _probSessions?.Clear();
+
+            if (_probContext == null)
+            {
+                _probSessions = null;
+                return;
+            }
+
+            var sessions = new PFE.Systems.Map.Generation.ProbRoomSessions
+            {
+                // AS3 `gui.messText` / `gui.infoText` have no port, so the banner is a log line until a
+                // subscriber takes it. Raising the event as well keeps the message and the observable
+                // consequence available to a view.
+                Notify = message => Debug.Log($"[RoomTransitionManager] Prob room: {message}"),
+            };
+
+            // AS3 `World.w.game.triggers` — the run-state store `closeProb` increments. Null until a
+            // campaign manager exists, and a registry with no store still closes rooms (it just cannot
+            // persist the count), so this is the one place the seam is optional.
+            PFE.Systems.Campaign.ICampaignManager campaign = PFE.Systems.Campaign.CampaignManager.Current;
+            sessions.TriggerStore = campaign == null
+                ? null
+                : new PFE.Systems.Map.Generation.CampaignTriggerStore(campaign);
+
+            foreach (string probId in _probContext.RegisteredProbIds)
+            {
+                if (!_probContext.TryGetRoom(probId, out RoomInstance probRoom) || probRoom == null) continue;
+
+                _probContext.TryGetProbDefinition(probId, out PFE.Data.Definitions.Campaign.ProbRoomDefinition def);
+
+                PFE.Systems.Map.Generation.ProbRoomSession session =
+                    sessions.Register(probRoom, def, def != null ? def.waves : null);
+
+                if (session == null) continue;
+
+                // AS3 `prepare()` runs at build time (Land.as:764-766), not on entry.
+                sessions.Prepare(probRoom);
+            }
+
+            _probSessions = sessions;
         }
 
         /// <inheritdoc />
@@ -578,6 +657,16 @@ namespace PFE.Systems.Map.Streaming
             arrival.z = playerPos.z;
 
             StartCoroutine(PerformTransition(from, probRoom, null, player, arrival));
+
+            // AS3 `Location.reactivate` ends with `if(this.prob) this.prob.over()` (Location.as:2236), and
+            // reactivate runs on EVERY entry, so a cleared room re-runs it — with both branches then
+            // no-ops, which is what keeps a cleared room's doors open (Probation.as:242-244).
+            //
+            // Fired after the coroutine starts rather than before the swap, because `over()` reads
+            // `loc.active` (`activateProb`'s guard, Probation.as:275) and the room is not active until the
+            // transition has begun. The one-visual-frame difference is invisible next to a coroutine that
+            // already yields a frame.
+            _probSessions?.Enter(probRoom, IsPlayerAboveTopThreshold(player, from));
             return true;
         }
 
@@ -607,12 +696,40 @@ namespace PFE.Systems.Map.Streaming
 
             RoomInstance destination = _savedRoom;
 
+            // AS3 `Location.out()` ends with `if(this.prob) this.prob.out()` (Location.as:2269), and the
+            // prob it refers to is the room the player is LEAVING — the detached one — not the
+            // destination. So it is read before the save is spent, and it is the current room, which is
+            // exactly `landMap.currentRoom` at this point.
+            RoomInstance leaving = landMap.currentRoom;
+
             // Spend the save before starting the swap: the coroutine yields a frame, and leaving the save
             // live across it would let a second press re-enter the same return.
             _savedRoom = null;
 
+            // `out()` BEFORE the swap, unlike `over()`. AS3's `ativateLoc` calls `out()` on the old loc as
+            // it deactivates it, and `out()` is the branch that loots the prizes of a CLEARED room
+            // (Probation.as:247-251) — so it must observe the prob room still being the current one.
+            _probSessions?.Leave(leaving);
+
             StartCoroutine(PerformTransition(landMap.currentRoom, destination, null, player, target));
             return true;
+        }
+
+        /// <summary>
+        /// AS3 <c>World.w.gg.Y &lt; 300</c> — where the room-name banner lands
+        /// (<c>Probation.as:230</c>). <c>gg.Y</c> is in the oracle's source pixels, so the port converts
+        /// the room-local height of the player back into those units rather than comparing Unity world
+        /// units against 300, which would be a units bug hidden inside a cosmetic flag.
+        /// </summary>
+        bool IsPlayerAboveTopThreshold(GameObject player, RoomInstance room)
+        {
+            if (player == null || room == null) return false;
+
+            Vector3 roomOrigin = GetRoomOriginUnity(room);
+            Vector2 roomLocalPixels = PFE.Systems.Map.WorldCoordinates.UnityToPixel(
+                player.transform.position - roomOrigin);
+
+            return roomLocalPixels.y < 300f;
         }
 
         /// <summary>

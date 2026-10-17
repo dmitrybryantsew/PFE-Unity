@@ -101,6 +101,36 @@ namespace PFE.Systems.Map
         public List<SpawnPoint> spawnPoints = new List<SpawnPoint>();
         public List<BackgroundDecorationInstance> backgroundDecorations = new List<BackgroundDecorationInstance>();
 
+        /// <summary>
+        /// AS3 <c>Location.ups</c> (<c>Location.as:333-336</c>), as a count per <c>kolEn</c> slot: how
+        /// many authored enemy points the room's template holds for each of the five point groups.
+        ///
+        /// <para><b>This is a capacity, and it is the other half of the enemy budget.</b>
+        /// <c>RoomDifficulty.enemyCounts</c> is the <c>kolEn</c> budget that <c>Land.setLocDif</c> draws
+        /// from the land's difficulty, and it is computed <i>without looking at the room at all</i>. The
+        /// points are the room's own authoring. AS3 places
+        /// <c>min(kolEn[i], ups[i].length)</c> enemies per group — the guard is
+        /// <c>if(this.kolEn[_loc1_] &gt; 0 &amp;&amp; Boolean(this.ups[_loc1_].length))</c>
+        /// (<c>Location.as:1060</c>) — so a room with a large budget and no points places nothing, and
+        /// that is the oracle's behaviour rather than a fault. Recording the capacity is what lets a
+        /// reader tell those two cases apart.</para>
+        ///
+        /// <para><b>It is the authored count, captured before the pass consumes it.</b>
+        /// <c>setRandomUnits</c> splices points out of <c>ups[i]</c> as it places them (and clears the
+        /// list outright once one remains), so by the end of the pass the array is empty and cannot be
+        /// read back. The port captures it at partition time, which is the only point where the authored
+        /// figure still exists. It is therefore an upper bound on what the pass can place, not a
+        /// guarantee: <c>noHolesPlace</c> rooms additionally drop points that landed on a tile which
+        /// cannot take an object (<c>Location.as:1062-1074</c>).</para>
+        ///
+        /// <para><b><c>[NonSerialized]</c>, deliberately.</b> It is derived from the template every time
+        /// the room is populated, exactly like <c>units</c> and <c>objects</c>. Serialising it would let a
+        /// stale capacity outlive the run that wrote it — the failure mode where scene-serialised output
+        /// survives a domain reload while the lists that produced it do not.</para>
+        /// </summary>
+        [NonSerialized]
+        public int[] upPointCounts = new int[LocationEnemySelector.GroupCount];
+
         // Special features
         public bool hasBackgroundLayer = false;
 
@@ -771,6 +801,32 @@ namespace PFE.Systems.Map
         public string unitId;
         public string entityId = "";
         public string unitType = "";
+
+        /// <summary>
+        /// The <c>uid</c> the room authored on this placement, or <c>""</c>.
+        ///
+        /// <para><b>Why a unit needs one at all.</b> AS3 keeps <i>one</i> lookup table per land —
+        /// <c>Script.as:218-236</c> resolves every <c>@targ</c> through
+        /// <c>this.land.uidObjs[param1.targ]</c>, and units are registered into it at spawn alongside
+        /// objects. The port's script lookup read <c>room.objects</c> only, so a <c>@targ</c> naming a
+        /// <i>unit</i> could never match — <c>surfStory</c>'s <c>surfCalam</c> is exactly that, and every
+        /// one of its five actions was dropped with "no object in the room matches that uid or code".
+        /// This field is the unit half of that table.</para>
+        ///
+        /// <para><b>It is a placement property, not an attribute.</b> The room assets carry
+        /// <c>uid</c>/<c>code</c> as their own YAML keys, and
+        /// <see cref="MapObjectDataUtility.ParseLegacyParameters"/> routes those two names to out-params
+        /// rather than into the attribute list — so unlike <c>npc</c> or <c>turn</c> they are <b>not</b>
+        /// reachable through <see cref="GetAttribute"/>.</para>
+        /// </summary>
+        public string uid = "";
+
+        /// <summary>
+        /// The generated <c>code</c> on this placement, or <c>""</c>. The second key the oracle's table
+        /// is addressable by — see <see cref="uid"/>.
+        /// </summary>
+        public string code = "";
+
         public Vector2 position;
         public bool isDead = false;
         public bool IsDead => isDead;

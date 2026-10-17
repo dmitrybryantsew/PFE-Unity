@@ -304,11 +304,50 @@ namespace PFE.Systems.Map.Actions
             _actions[id] = action;
         }
 
-        /// <summary>Whether <paramref name="actionId"/> has a handler.</summary>
+        /// <summary>
+        /// Whether <paramref name="actionId"/> has a handler.
+        ///
+        /// <para><b>The fallback counts, and leaving it out is what made every button in the game
+        /// inert.</b> This method answers "can this dispatcher <i>run</i> this <c>allact</c>", and for
+        /// 210 of the 214 placement-level <c>allact</c> attributes in the shipped rooms the answer is
+        /// "yes, through <see cref="Fallback"/>" — <c>open</c>, <c>swap</c>, <c>move3</c>, <c>pop</c>,
+        /// <c>unlock</c>, <c>onoff</c>, <c>spawn</c>, <c>hack</c>, <c>activate</c>. AS3's chain reaches
+        /// its closing <c>else</c> for all of them (<c>Interact.as:1645-1647</c>), so a dispatcher
+        /// built by <see cref="CreateFull"/> genuinely runs them.</para>
+        ///
+        /// <para><b>The consumer is <c>RoomObjectVisualManager.UsesDoorPresenter</c>.</b> Its last
+        /// clause is <c>dispatcherHandles(allAct)</c> — "this object carries a script the dispatcher can
+        /// actually run" — and it is the <i>only</i> clause that can admit a <c>knop1</c>: the button
+        /// imports as <c>type: box</c>, its definition family is <c>Furniture</c>
+        /// (<c>AllData.as:4907</c> <c>ico='but'</c>), and its visual id starts with neither
+        /// <c>door</c> nor a door family name. With <c>Handles</c> consulting only <c>_actions</c> the
+        /// clause answered <b>false</b> for <c>swap</c>/<c>open</c>/<c>move3</c>, so every button fell
+        /// to <c>ObjectColliderDebugPresenter</c> — placed, drawn, and with no collider and no
+        /// <c>IInteractable</c>, i.e. unreachable. That is the reported "buttons do nothing: create or
+        /// remove platforms, open doors, move platforms".</para>
+        ///
+        /// <para><b>Nothing else changes.</b> The fallback declines the oracle's explicit branches
+        /// (<see cref="BroadcastAction.Handles"/> and its <c>OracleBranches</c> set), so
+        /// <c>hack_robot</c>, <c>comein</c>, <c>exit</c>, <c>map</c>, <c>vault</c> and friends still
+        /// answer false and still fall to the object's own behaviour — which is the degradation
+        /// <see cref="IObjectActionFallback"/> exists to preserve. A dispatcher with no fallback is
+        /// unchanged, which is what every fixture built with a bare
+        /// <c>new ObjectActionDispatcher(...)</c> relies on.</para>
+        /// </summary>
         public bool Handles(string actionId)
         {
             string id = Normalize(actionId);
-            return id.Length > 0 && _actions.ContainsKey(id);
+            if (id.Length == 0)
+            {
+                return false;
+            }
+
+            if (_actions.ContainsKey(id))
+            {
+                return true;
+            }
+
+            return Fallback != null && Fallback.Handles(id);
         }
 
         /// <summary>

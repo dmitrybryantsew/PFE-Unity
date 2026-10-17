@@ -53,16 +53,16 @@ namespace PFE.Systems.Map
                 DoorCarver.ApplyWaterLevel(room, template.environment.waterLevel);
             }
 
-            // Step 4: Mark objects as unplaceable on carved tiles, BEFORE spawning.
+            // Step 4: Populate with entities.
             //
-            // AS3 marks the doorway tiles `place = false` inside setDoor (Location.setNoObj,
-            // Location.as:800-960), which runs while the Location is still being built and therefore
-            // strictly before setObjects(). Running the mark *after* PopulateRoom — as this did — let an
-            // object spawn in the doorway it was supposed to be kept out of, and then marked a tile that
-            // had already been populated. That is one way a carver appears to "break" a room.
-            MarkCarvedTilesUnplaceable(room);
-
-            // Step 5: Populate with entities
+            // There is deliberately NO "mark the room's edge tiles unplaceable" step here. AS3's only
+            // writer of `place = false` is `Location.setNoObj`, reached only from `setDoor` — a few tiles
+            // per door, marked while the Location is still being built. The port used to mark the whole
+            // two-tile border ring instead, and when that mark was moved ahead of this call it began
+            // gating authored placements: `rooms_plant/яма` lost 38 of its 44 objects (every unit, every
+            // trap, most of the loot), and 1515 placements across 335 of the 550 shipped rooms went the
+            // same way. The marking now lives in DoorCarver.CarveDoor, fused to the geometry that defines
+            // it, so a door cannot be carved without its slot being marked.
             RoomPopulator.PopulateRoom(room, template, room.difficulty);
 
             if (debugSettings != null && debugSettings.LogMapIntegrityDiagnostics)
@@ -243,31 +243,6 @@ namespace PFE.Systems.Map
             }
 
             return count;
-        }
-
-        /// <summary>
-        /// Mark tiles adjacent to carved doors as unplaceable for objects.
-        /// Prevents enemies/boxes from spawning inside doorways.
-        /// </summary>
-        private static void MarkCarvedTilesUnplaceable(RoomInstance room)
-        {
-            if (room == null || room.tiles == null) return;
-
-            // Mark border tiles as unplaceable (objects shouldn't spawn on edges)
-            for (int x = 0; x < room.width; x++)
-            {
-                for (int y = 0; y < room.height; y++)
-                {
-                    if (x <= 1 || x >= room.width - 2 || y <= 1 || y >= room.height - 2)
-                    {
-                        var tile = room.tiles[x, y];
-                        if (tile != null && tile.physicsType == TilePhysicsType.Air)
-                        {
-                            tile.canPlaceObjects = false;
-                        }
-                    }
-                }
-            }
         }
 
         /// <summary>

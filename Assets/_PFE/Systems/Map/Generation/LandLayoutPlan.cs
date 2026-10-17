@@ -30,7 +30,16 @@ namespace PFE.Systems.Map.Generation
         None = 0,
         /// <summary><c>createCheck(false)</c> — a plain checkpoint.</summary>
         Normal = 1,
-        /// <summary><c>createCheck(true)</c> — the entry checkpoint; <c>teleOn = true</c> at <c>landStage == 0</c>.</summary>
+        /// <summary><c>createCheck(true)</c> — the entry checkpoint, which never rolls a locked variant.</summary>
+        /// <remarks>
+        /// <para><b>This used to claim <c>teleOn = true</c> at <c>landStage == 0</c>, and that was a
+        /// port-invented rule.</b> The oracle has exactly one writer of <c>teleOn</c>
+        /// (<c>Location.as:2040-2046</c>) and it is a <i>difficulty</i> rule, not a land-stage one:
+        /// <c>globalDif &lt;= 1 || (land.rnd &amp;&amp; globalDif == 2 &amp;&amp; Math.random() &lt; 0.33)</c>.
+        /// <c>landStage</c> appears nowhere in it — so on Normal difficulty an entry checkpoint was
+        /// tele-enabled only on the first descent and never after, which is a rule the game does not
+        /// have. Replaced by <c>RoomPopulator.ApplyCheckpointTeleOn</c>.</para>
+        /// </remarks>
         Begin = 2,
     }
 

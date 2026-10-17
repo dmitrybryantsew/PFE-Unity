@@ -56,6 +56,27 @@ namespace PFE.Systems.Map.Scripting
         /// </summary>
         private readonly List<ScriptRunner> _runners = new List<ScriptRunner>();
 
+        /// <summary>
+        /// The <c>@targ</c> object host for each live room — populated by <c>RoomVisualController</c>,
+        /// which is the only thing that constructs an <see cref="AreaTriggerSystem"/>.
+        ///
+        /// <para><b>Why the system has to hold this and the rooms cannot hand it over themselves.</b>
+        /// A script that is <i>not</i> owned by a room still has to resolve <c>@targ</c> against one:
+        /// the land-level <c>&lt;scr eve='take' item='…'&gt;</c> scripts start from an inventory event,
+        /// which happens on the player and knows only which room the player is standing in. The room it
+        /// names does know its own host, but <c>RoomInstance</c> is a plain data object with no
+        /// back-reference to the controller that renders it, and giving it one would make the map data
+        /// depend on the rendering layer. This dictionary is that lookup held at the level that already
+        /// owns both.</para>
+        ///
+        /// <para><b>Keyed by reference identity, deliberately.</b> <c>RoomInstance</c> does not override
+        /// <c>Equals</c>/<c>GetHashCode</c>, so the default reference equality is what this wants: two
+        /// rooms that happen to share an id are still two rooms, and a stale entry for a torn-down room
+        /// must not answer for a rebuilt one.</para>
+        /// </summary>
+        private readonly Dictionary<RoomInstance, IScriptObjectHost> _objectHosts =
+            new Dictionary<RoomInstance, IScriptObjectHost>();
+
         /// <summary>Runners registered minus runners disposed. The readback for "the system exists and
         /// is ticking something".</summary>
         public int RegisteredRunnerCount => _runners.Count;
@@ -118,6 +139,37 @@ namespace PFE.Systems.Map.Scripting
         {
             if (ReferenceEquals(Current, this)) Current = null;
             _runners.Clear();
+            _objectHosts.Clear();
+        }
+
+        /// <summary>
+        /// Records which object host serves <paramref name="room"/>, so a script that is not owned by a
+        /// room can still resolve its <c>@targ</c> against one. Called by
+        /// <c>RoomVisualController.Initialize</c> for every room it builds.
+        /// </summary>
+        public void RegisterObjectHost(RoomInstance room, IScriptObjectHost host)
+        {
+            if (room == null || host == null) return;
+            _objectHosts[room] = host;
+        }
+
+        /// <summary>Forgets <paramref name="room"/>'s host. Called when its visuals are torn down, so a
+        /// streamed-out room cannot answer for a rebuilt one.</summary>
+        public void UnregisterObjectHost(RoomInstance room)
+        {
+            if (room == null) return;
+            _objectHosts.Remove(room);
+        }
+
+        /// <summary>
+        /// The object host for <paramref name="room"/>, or <c>null</c> when that room has none — a room
+        /// whose visuals were never built, or one already torn down. Null is a legal answer and the
+        /// caller must treat it as "no <c>@targ</c> can be resolved here" rather than retrying.
+        /// </summary>
+        public IScriptObjectHost ObjectHostFor(RoomInstance room)
+        {
+            if (room == null) return null;
+            return _objectHosts.TryGetValue(room, out IScriptObjectHost host) ? host : null;
         }
 
         /// <summary>
@@ -135,7 +187,13 @@ namespace PFE.Systems.Map.Scripting
         /// fixture with a fake, or a scene component with an injected one — must win over
         /// <c>CampaignManager.Current</c>, which is a process-wide static that may belong to another test.
         /// </param>
-        public ScriptRunner CreateRunner(IScriptObjectHost objects, Func<ILandScriptHost> campaign = null)
+        /// <param name="units">
+        /// The per-room unit host — the other half of the oracle's single <c>uidObjs</c> table. Optional:
+        /// a caller that has no unit host (or none yet) passes nothing, and a <c>@targ</c> naming a unit
+        /// then resolves to nothing rather than to the wrong thing.
+        /// </param>
+        public ScriptRunner CreateRunner(IScriptObjectHost objects, Func<ILandScriptHost> campaign = null,
+            IUnitCommandHost units = null)
         {
             return new ScriptRunner(
                 campaign: campaign ?? (() => CampaignManager.Current),
@@ -145,7 +203,8 @@ namespace PFE.Systems.Map.Scripting
                 player: _player,
                 input: _input,
                 catalog: Catalog,
-                report: _report);
+                report: _report,
+                units: units);
         }
 
         /// <summary>

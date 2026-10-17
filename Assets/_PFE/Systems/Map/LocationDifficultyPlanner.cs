@@ -31,18 +31,31 @@ namespace PFE.Systems.Map
         /// <summary>AS3 <c>LandAct.conf</c>.</summary>
         public readonly int LandConfig;
 
+        /// <summary>
+        /// AS3 <c>World.w.game.globalDif</c> — the run-wide difficulty SETTING (<c>Game.as:41</c>), read
+        /// by <c>setLocDif</c> at <c>Land.as:988-995</c>.
+        ///
+        /// <para><b>Defaults to 2, and the default is load-bearing.</b> 2 is the oracle's own default and
+        /// the identity for both of the adjustments, so a caller that does not pass it gets the behaviour
+        /// every pre-existing fixture was written against. A default of 0 would silently halve
+        /// <c>earMult</c> in every room.</para>
+        /// </summary>
+        public readonly int GlobalDifficulty;
+
         public LocationDifficultyInput(
             int biome,
             float landDifLevel,
             float difficultyOffset,
             int tipEnemy = -1,
-            int landConfig = -1)
+            int landConfig = -1,
+            int globalDifficulty = 2)
         {
             Biome = biome;
             LandDifLevel = landDifLevel;
             DifficultyOffset = difficultyOffset;
             TipEnemy = tipEnemy;
             LandConfig = landConfig;
+            GlobalDifficulty = globalDifficulty;
         }
     }
 
@@ -57,22 +70,21 @@ namespace PFE.Systems.Map
     /// <c>room.difficulty.enemyLevel</c> was being filled from the room's authored <c>lvl</c> instead of
     /// the land's difficulty. Both symptoms are the same missing function.</para>
     ///
-    /// <para><b>What is faithfully modelled.</b> The level derivation, all seven biome arms of the
-    /// <c>tipEnemy</c> selection, the three difficulty bands of <c>setKolEn</c> calls, the
-    /// <c>kolEnSpawn</c> guard, <c>kolEnHid</c>, and the two trailing <c>setKolEn</c> corrections. Draw
-    /// counts match the oracle arm-for-arm, because <c>setKolEn</c>'s own <c>param4</c> bonus and the
-    /// <c>0.15</c> band roll both consume the shared spawn stream.</para>
+    /// <para><b>What is faithfully modelled.</b> The level derivation, the difficulty setting's two
+    /// adjustments (<c>Land.as:988-995</c> — <c>earMult</c> below 2, <c>enemyLevel</c> above 2), all seven
+    /// biome arms of the <c>tipEnemy</c> selection, the three difficulty bands of <c>setKolEn</c> calls,
+    /// the <c>kolEnSpawn</c> guard, <c>kolEnHid</c>, and the two trailing <c>setKolEn</c> corrections.
+    /// Draw counts match the oracle arm-for-arm, because <c>setKolEn</c>'s own <c>param4</c> bonus and the
+    /// <c>0.15</c> band roll both consume the shared spawn stream. The two <c>globalDif</c> statements
+    /// draw nothing, so adding them could not shift the stream.</para>
     ///
-    /// <para><b>What is deliberately not modelled, and why.</b></para>
-    /// <list type="bullet">
-    /// <item><c>World.w.game.globalDif</c> (<c>Land.as:988-995</c>) — the port has no run-wide difficulty
-    /// setting. AS3 uses it twice: to halve <c>earMult</c> below 2, and to add
-    /// <c>(globalDif - 2) * 2</c> to <c>enemyLevel</c> <i>only</i>. The port has no <c>earMult</c> either.
-    /// Consequence: on a run with <c>globalDif &gt; 2</c> the port's <c>enemyLevel</c> is lower than the
-    /// oracle's by that term, so enemy levels run slightly easy at high global difficulty. Recorded, not
-    /// papered over — adding a constant here would hide it.</item>
-    /// <item><c>Location.earMult</c> — no port field, no reader.</item>
-    /// </list>
+    /// <para><b>What is deliberately not modelled, and why.</b> The oracle's <c>Location.budilo</c>
+    /// (<c>Location.as:2867</c>) folds <c>earMult</c> into the ALARM radius, squared. The port does not
+    /// implement <c>Location.budilo</c> at all — the alarm path it does have is <c>Unit.budilo</c>
+    /// (<c>Unit.as</c>), which carries <b>no</b> <c>earMult</c> term. So <c>earMult</c> reaches the
+    /// hearing path (<c>Unit.noise</c>, linear) and not the alarm path, which is exactly the oracle's
+    /// split. Recorded rather than papered over: adding the term at the alarm site would apply a
+    /// difficulty modifier twice over.</para>
     ///
     /// <para><b>Call it once per room, at build time.</b> AS3 calls <c>setLocDif</c> from <c>newLoc</c>
     /// (<c>Land.as:975</c>), i.e. once per constructed room, never per tick — the counts are baked into
@@ -104,7 +116,18 @@ namespace PFE.Systems.Map
             difficulty.mechLevel = locDifLevel / 4f;
             difficulty.weaponLevel = 1f + locDifLevel / 4f;
             difficulty.enemyLevel = locDifLevel;
-            // Land.as:988-995 (`globalDif`) — not modelled; see the class remarks.
+
+            // ── Land.as:988-995 — the difficulty SETTING's two adjustments, in oracle order and position.
+            //    Both statements are draw-free, so they cannot shift the shared spawn stream; the fixture
+            //    that pins the draw counts stays valid (T6).
+            //
+            //    The guard on `enemyLevel` is `> 2`, not `>= 2`, and the step is 2 per level above Normal:
+            //    levels 0 and 1 change `earMult` only, level 2 is the identity for both, and 3/4 raise
+            //    `enemyLevel` by 2 and 4 respectively. Note `earMult` is a MULTIPLY on the Location's own
+            //    default of 1, so a second call would halve it again — which is why this runs once per
+            //    room, at build time.
+            if (input.GlobalDifficulty < 2) difficulty.earMult *= 0.5f;
+            if (input.GlobalDifficulty > 2) difficulty.enemyLevel += (input.GlobalDifficulty - 2) * 2;
 
             int tipEnemy = input.TipEnemy;
 

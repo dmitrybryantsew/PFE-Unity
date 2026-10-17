@@ -28,6 +28,14 @@ namespace PFE.Systems.Map.Generation
         readonly HashSet<string> _completed = new HashSet<string>(StringComparer.Ordinal);
         readonly Dictionary<string, RoomInstance> _rooms = new Dictionary<string, RoomInstance>(StringComparer.Ordinal);
 
+        /// <summary>
+        /// The land's <c>&lt;prob&gt;</c> children by id, for the room-cleared decision. Keyed off the
+        /// <paramref name="landProbs"/> the caller already hands <see cref="ForLand"/> for the completion
+        /// snapshot — the same list, held rather than re-derived from the campaign.
+        /// </summary>
+        readonly Dictionary<string, ProbRoomDefinition> _definitions =
+            new Dictionary<string, ProbRoomDefinition>(StringComparer.Ordinal);
+
         /// <summary>A context with no prob rooms — the builder will place nothing.</summary>
         public ProbDoorContext()
             : this(NoTemplates)
@@ -76,6 +84,10 @@ namespace PFE.Systems.Map.Generation
                 ProbRoomDefinition prob = landProbs[i];
                 if (prob == null || string.IsNullOrEmpty(prob.id)) continue;
 
+                // Only the first child wins: two `<prob id='x'>` in one land would be two answers to
+                // "what does this prob require", and the door is placed for one of them.
+                if (!context._definitions.ContainsKey(prob.id)) context._definitions.Add(prob.id, prob);
+
                 string key = ProbSelection.TriggerKey(prob.id);
                 if (campaign.GetTrigger(key).IsGreaterThanZero()) context._completed.Add(key);
             }
@@ -113,6 +125,18 @@ namespace PFE.Systems.Map.Generation
             room = null;
             return !string.IsNullOrEmpty(probId) && _rooms.TryGetValue(probId, out room) && room != null;
         }
+
+        /// <inheritdoc />
+        public bool TryGetProbDefinition(string probId, out ProbRoomDefinition definition)
+        {
+            definition = null;
+            return !string.IsNullOrEmpty(probId) &&
+                   _definitions.TryGetValue(probId, out definition) && definition != null;
+        }
+
+        /// <summary>How many prob definitions this context holds — the rooms-side counterpart of
+        /// <see cref="RegisteredRoomCount"/>, so a context with definitions and no rooms is visible.</summary>
+        public int DefinitionCount => _definitions.Count;
 
         /// <summary>How many prob rooms have been built and registered.</summary>
         public int RegisteredRoomCount => _rooms.Count;

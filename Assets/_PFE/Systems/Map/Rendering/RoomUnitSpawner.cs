@@ -2,12 +2,15 @@ using System;
 using System.Collections.Generic;
 using PFE.Core;
 using PFE.Data.Definitions;
+using PFE.Data.Definitions.Campaign;
 using PFE.Entities.Enemies;
 using PFE.Entities.Enemies.Archetypes;
 using PFE.Entities.Enemies.Bosses;
 using PFE.Entities.Units;
 using PFE.Systems.Audio;
+using PFE.Systems.Campaign;
 using PFE.Systems.Combat;
+using PFE.Systems.Map.Scripting;
 using PFE.Systems.Map.TileQuery;
 using PFE.Systems.Physics;
 using PFE.Systems.Weapons;
@@ -30,7 +33,7 @@ namespace PFE.Systems.Map.Rendering
     /// <para>It follows <see cref="RoomObjectVisualManager"/>: one presenter GameObject per record,
     /// parented under the room, positioned in room-local pixel space, destroyed with the room.</para>
     /// </summary>
-    public sealed class RoomUnitSpawner
+    public sealed class RoomUnitSpawner : IUnitCommandHost
     {
         /// <summary>
         /// The AS3 controller class → port type map. Keyed on the <c>cl=</c> attribute of the
@@ -48,6 +51,15 @@ namespace PFE.Systems.Map.Rendering
             {
                 // Training
                 [TrainingDummyController.ControllerId] = typeof(TrainingDummyController),
+
+                // NPCs — the one row that is not a family. `<obj id='npc' cl='UnitNPC'/>`
+                // (AllData.as:4926) is what every authored NPC placement resolves to, and `vendor` and
+                // `doctor` are the same class with a different persona (AllData.as:4927-4928). Until
+                // this entry existed, `npc` fell through to the bare UnitController — so Calamity was
+                // spawned as a collider with no art, no persona and no script verbs.
+                [UnitNPCController.ControllerId] = typeof(UnitNPCController),
+                ["vendor"] = typeof(UnitNPCController),
+                ["doctor"] = typeof(UnitNPCController),
 
                 // Family 10 — ArmedShooter
                 [ArmedShooterController.ControllerId] = typeof(ArmedShooterController),
@@ -87,6 +99,11 @@ namespace PFE.Systems.Map.Rendering
                 [RobobrainController.ControllerId] = typeof(RobobrainController),
                 [RobobrainController.ControllerAlias] = typeof(RobobrainController),
                 ["robot"] = typeof(RobobrainController),
+                // UnitEqd extends UnitAIRobot (UnitEqd.as:5) — the same brain as robobrain. Registered
+                // because `eqd.asset` has empty controllerId/parentId, so the chain lands on unitId
+                // "eqd" and would otherwise fall through to the brain-less base UnitController (F2).
+                [EqdController.ControllerId] = typeof(EqdController),
+                [EqdController.ControllerAlias] = typeof(EqdController),
                 [DronController.ControllerId] = typeof(DronController),
                 [DronController.ControllerAlias] = typeof(DronController),
                 ["dront"] = typeof(DronController),
@@ -325,6 +342,49 @@ namespace PFE.Systems.Map.Rendering
         PFE.Systems.Particles.Adapters.RoomParticleEmitter _particleEmitter;
 
         /// <summary>
+        /// The NPC catalogue, handed to every <see cref="UnitNPCController"/> this spawner builds.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Why an NPC unit needs a second catalogue at all.</b> Every NPC placement in the game
+        /// shares one <c>&lt;unit id='npc'&gt;</c> row, so the unit definition cannot say which persona
+        /// the instance is. That comes from the placement's <c>npc="calam"</c> attribute, and the persona
+        /// row in <c>GameData.as:669</c> is what carries the art, the interaction type, the weapon and
+        /// the dialogue table. <c>UnitNPC</c>'s constructor joins the two
+        /// (<c>UnitNPC.as:79-91</c>); this is the port's half of that join.</para>
+        ///
+        /// <para><b>Same handover shape as <see cref="_damageSystem"/>, and the same reason.</b> A unit is
+        /// built with <c>AddComponent</c>, which VContainer never observes, so <c>[Inject]</c> cannot
+        /// reach it. Null is legal and falls back to the <c>Resources</c>-backed shared provider, so a
+        /// spawner constructed directly by a test gets a provider that misses every id rather than a
+        /// <c>NullReferenceException</c>.</para>
+        /// </remarks>
+        INpcDefinitionProvider _npcDefinitions;
+
+        /// <summary>
+        /// The room's object half of AS3's <c>land.uidObjs</c> table, forwarded to every
+        /// <see cref="UnitNPCController"/> so a <b>dialogue</b> script's <c>@targ</c> resolves.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>A second handover, not the same one.</b> <see cref="UnitCommand"/> is this class's
+        /// half of the table for the scripts the <i>room</i> runs (<c>surfStory</c>'s
+        /// <c>@targ="surfCalam"</c>). A dialogue is a different script with a different context — AS3
+        /// builds it as <c>new Script(node, World.w.land, owner, true)</c> (<c>NPC.as:322</c>) and it
+        /// runs later, on an interaction — and it needs <i>both</i> halves, because its actions can name
+        /// an object (<c>unlock targ="doorRBL1"</c>) as easily as a unit
+        /// (<c>check targ="rblCalam"</c>).</para>
+        ///
+        /// <para><b>Retroactive, for the same reason <see cref="SetNpcDefinitions"/> is.</b> The live
+        /// order is <c>RefreshAll()</c> first and <c>AreaTriggerSystem.SetUnitHost</c> after, because the
+        /// host answers against spawned GameObjects — so by the time the hosts exist, every NPC in the
+        /// room has already been built. A setter that only affected future spawns would leave the whole
+        /// first room's dialogues target-less, which is silent from the outside.</para>
+        /// </remarks>
+        IScriptObjectHost _scriptObjects;
+
+        /// <summary>The unit half of the same handover. See <see cref="_scriptObjects"/>.</summary>
+        IUnitCommandHost _scriptUnits;
+
+        /// <summary>
         /// Whether each spawned unit is also given a <see cref="TilePhysicsController"/> — its home on
         /// the hand-rolled AS3 motor (Stage C, path 6), gated by <c>PfeDebugSettings.UnitMotor</c>.
         /// </summary>
@@ -388,7 +448,8 @@ namespace PFE.Systems.Map.Rendering
             PFE.Systems.Effects.IEffectDefinitionResolver effectResolver = null,
             PFE.Systems.Particles.Adapters.RoomParticleEmitter particleEmitter = null,
             bool useTileMotor = false,
-            IObjectResolver resolver = null)
+            IObjectResolver resolver = null,
+            INpcDefinitionProvider npcDefinitions = null)
         {
             _room = room;
             _parent = parent;
@@ -400,6 +461,138 @@ namespace PFE.Systems.Map.Rendering
             _particleEmitter = particleEmitter;
             _useTileMotor = useTileMotor;
             _resolver = resolver;
+            _npcDefinitions = npcDefinitions;
+        }
+
+        /// <summary>
+        /// Hand the NPC catalogue to this spawner, including any NPCs it has already built.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Retroactive, for the same reason <see cref="SetDamageSystem"/> is.</b> The normal
+        /// order is a handover before the room exists, so the constructor argument covers it and this
+        /// setter never fires. It exists for the other order, because a spawner that only affected
+        /// future spawns would leave the first room's NPCs persona-less — no art, no interaction — while
+        /// every later room worked, and that state is silent from the outside.</para>
+        ///
+        /// <para><b>Re-running <c>SetPlacement</c> is safe and deliberate.</b> It is idempotent: it
+        /// re-reads the same placement and re-applies the same persona state, and the visibility and
+        /// weapon ids it derives are the same ones. Re-doing it is what turns a provider-less NPC into a
+        /// real one, which is the whole point of a retroactive setter.</para>
+        /// </remarks>
+        public void SetNpcDefinitions(INpcDefinitionProvider npcDefinitions)
+        {
+            _npcDefinitions = npcDefinitions;
+
+            foreach (KeyValuePair<UnitInstance, GameObject> pair in _spawned)
+            {
+                if (pair.Value != null && pair.Value.TryGetComponent(out UnitNPCController npc))
+                {
+                    npc.SetNpcProvider(npcDefinitions);
+                    npc.SetPlacement(_room != null && pair.Key != null ? pair.Key : null);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Hand the room's two script-lookup hosts to this spawner, including any NPCs it has already
+        /// built — AS3's single <c>land.uidObjs</c> table, split by ownership in the port.
+        /// </summary>
+        /// <remarks>
+        /// Both arguments are normally the room's <c>AreaTriggerSystem</c>, which implements
+        /// <see cref="IScriptObjectHost"/>, <see cref="IUnitCommandHost"/> and
+        /// <see cref="ILandScriptHost"/> — the same object <c>AreaTriggerSystem.Runner</c> passes to its
+        /// own <c>CreateRunner</c>, so a room script and a dialogue script resolve <c>@targ</c>
+        /// identically. Null is tolerated and is exactly the pre-change behaviour: a target-bearing
+        /// dialogue action is reported once and skipped.
+        /// </remarks>
+        public void SetScriptHosts(IScriptObjectHost objects, IUnitCommandHost units)
+        {
+            _scriptObjects = objects;
+            _scriptUnits = units;
+
+            foreach (KeyValuePair<UnitInstance, GameObject> pair in _spawned)
+            {
+                if (pair.Value != null && pair.Value.TryGetComponent(out UnitNPCController npc))
+                {
+                    npc.SetScriptHosts(_scriptObjects, _scriptUnits);
+                }
+            }
+        }
+
+        /// <summary>
+        /// The unit half of AS3's single <c>land.uidObjs</c> lookup — <c>Script.as:218-236</c> resolves
+        /// every <c>@targ</c> through one table that holds objects <i>and</i> units.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Why the unit half lives here and the object half on <c>AreaTriggerSystem</c>.</b> The
+        /// two vocabularies are owned by different layers: an object is a record on <c>room.objects</c>
+        /// and a unit is a record on <c>room.units</c> whose <i>live</i> controller only this class
+        /// holds. The caller (<c>ScriptRunner</c>) still tries both in one place, so the oracle's
+        /// single-lookup behaviour stays observable from the script's side.</para>
+        ///
+        /// <para><b>A unit that is in the room but has no live GameObject is a miss, not a silent
+        /// success.</b> Returning <c>true</c> for it would make the runner believe the command ran and
+        /// suppress its "no object or unit matches" warning — which is precisely how the original
+        /// <c>surfCalam</c> divergence stayed invisible.</para>
+        ///
+        /// <para><b>The room argument is checked, not ignored.</b> This spawner owns exactly one room's
+        /// units, so a call for a different room must miss rather than answer with this room's units —
+        /// two rooms are alive at once during any land transition.</para>
+        /// </remarks>
+        public bool UnitCommand(RoomInstance room, string uidOrCode, string command, string value)
+        {
+            if (room == null || !ReferenceEquals(room, _room) || string.IsNullOrEmpty(uidOrCode))
+            {
+                return false;
+            }
+
+            if (room.units == null)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < room.units.Count; i++)
+            {
+                UnitInstance unit = room.units[i];
+                if (unit == null || !IsNamed(unit, uidOrCode))
+                {
+                    continue;
+                }
+
+                if (!_spawned.TryGetValue(unit, out GameObject unitObject) || unitObject == null)
+                {
+                    return false;
+                }
+
+                if (!unitObject.TryGetComponent(out UnitController controller))
+                {
+                    return false;
+                }
+
+                return controller.Command(command, value);
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Whether a placement answers to this uid or code — the two keys AS3's table is addressable by.
+        /// </summary>
+        /// <remarks>
+        /// A blank key never matches: every unit placed by the random-enemy pass has an empty
+        /// <c>uid</c>, and a <c>uid ?? code</c> chain that fell through on <c>""</c> would resolve a
+        /// script's <c>@targ</c> to the first such unit in the room.
+        /// </remarks>
+        static bool IsNamed(UnitInstance unit, string uidOrCode)
+        {
+            if (!string.IsNullOrEmpty(unit.uid) &&
+                string.Equals(unit.uid, uidOrCode, StringComparison.Ordinal))
+            {
+                return true;
+            }
+
+            return !string.IsNullOrEmpty(unit.code) &&
+                   string.Equals(unit.code, uidOrCode, StringComparison.Ordinal);
         }
 
         /// <summary>
@@ -460,6 +653,74 @@ namespace PFE.Systems.Map.Rendering
         }
 
         public int SpawnedCount => _spawned.Count;
+
+        /// <summary>
+        /// The room-cleared decision for this room's prob, resolved per call by the caller —
+        /// <c>RoomTransitionManager.ProbSessions</c>, which a land build replaces wholesale.
+        ///
+        /// <para><b>Why a provider and not the registry itself.</b> Holding the object would age: the
+        /// next <c>SetProbContext</c> builds a new one and this spawner would keep answering about rooms
+        /// that no longer exist. This is the same per-call read <c>AreaTriggerSystem.LandHost</c> makes
+        /// for the same reason.</para>
+        /// </summary>
+        public Func<PFE.Systems.Map.Generation.ProbRoomSessions> ProbSessionsProvider { get; set; }
+
+        /// <summary>
+        /// The units already reported dead, so a death is counted once.
+        ///
+        /// <para><b>AS3's <c>die()</c> fires once per unit</b> (<c>Unit.as:4395-4402</c> is inside it),
+        /// and the port's <c>UnitController.OnDeath</c> is reachable more than once for one unit — the
+        /// class's own docs say so. A diff-based scan therefore needs its own latch, or one death would
+        /// increment <c>killEn</c> twice and clear a room the player has not finished.</para>
+        /// </summary>
+        private readonly HashSet<UnitInstance> _reportedDeaths =
+            new HashSet<UnitInstance>();
+
+        /// <summary>
+        /// AS3 <c>if(loc.prob) loc.prob.check()</c> inside <c>die()</c> (<c>Unit.as:4395-4402</c>) and
+        /// <c>loc.prob.checkWave(true)</c> (<c>:4499</c>) — "a required unit just died".
+        ///
+        /// <para><b>Why a scan and not a death callback.</b> A unit is built with <c>AddComponent</c>, so
+        /// VContainer never injects it and nothing in this port gives a spawned unit a reference back to
+        /// its room — the spawner is the one place that holds both halves. The scan is the inverse of
+        /// <see cref="RefreshAll"/>'s model: it reads the live controllers rather than the records, so a
+        /// death is visible without a record being removed from <c>room.units</c>.</para>
+        ///
+        /// <para><b>Only for prob rooms.</b> A non-prob room has no session and costs one dictionary
+        /// miss, which is the same cheap answer AS3's <c>if(loc.prob)</c> gives.</para>
+        /// </summary>
+        public void CheckDeaths()
+        {
+            if (_room == null || string.IsNullOrEmpty(_room.probId)) return;
+
+            PFE.Systems.Map.Generation.ProbRoomSessions sessions = ProbSessionsProvider?.Invoke();
+            if (sessions == null) return;
+
+            PFE.Systems.Map.Generation.ProbRoomSession session = sessions.For(_room);
+            if (session == null || session.State.closed) return;
+
+            foreach (KeyValuePair<UnitInstance, GameObject> pair in _spawned)
+            {
+                UnitInstance record = pair.Key;
+                if (record == null || _reportedDeaths.Contains(record)) continue;
+
+                if (pair.Value == null || !pair.Value.TryGetComponent(out UnitController controller))
+                {
+                    continue;
+                }
+
+                if (controller.IsAlive) continue;
+
+                _reportedDeaths.Add(record);
+
+                // The oracle's order (Unit.as:4497-4501): scrDie fires, then the wave counter, then the
+                // check. The port has no scrDie driver, so this is the two steps that are ported.
+                sessions.CheckWave(_room, true);
+                sessions.Check(_room);
+
+                if (session.State.closed) return;
+            }
+        }
 
         /// <summary>
         /// Hand the damage authority to this spawner, including any units it has already built.
@@ -768,6 +1029,41 @@ namespace PFE.Systems.Map.Rendering
             Type controllerType = ResolveControllerType(effectiveControllerId);
             var controller = (UnitController)unitObject.AddComponent(controllerType);
 
+            // ...and the seam that turns an `npc` placement into a PERSONA. It has to run before the
+            // weapon handover below, because the persona is what carries the weapon id
+            // (`<npc id='calam' weap='sniper'/>`, GameData.as:669) and UnitNPC's own constructor
+            // creates it on the line after it reads `xml.@npc` (UnitNPC.as:79-91 then :175-185).
+            //
+            // This is the join the port was missing entirely. An NPC's identity is split across two
+            // documents — the unit row says the class is UnitNPC, the placement says which persona
+            // (`npc="calam"`), and the persona carries the art, the interaction type, the weapon and the
+            // dialogue table. Without it the unit has no sprite, cannot be talked to, and every one of
+            // surfStory's five `@targ="surfCalam"` actions lands on a controller that does not
+            // understand a single one of them.
+            //
+            // Same handover shape and the same reason as SetDamageSystem: AddComponent never goes
+            // through VContainer, so `[Inject]` cannot reach a spawned unit and the spawner is the only
+            // path. `SetRoom` travels with it because the `fly` verb's target is an AS3 tile and the
+            // port's room-local Y is mirrored — the room's height is the anchor.
+            if (controller is UnitNPCController npcController)
+            {
+                npcController.SetNpcProvider(_npcDefinitions);
+                npcController.SetRoom(_room);
+
+                // The land context a dialogue script is built with — AS3 `new Script(scr, World.w.land,
+                // owner, true)`. Usually still null here (the hosts are handed over after RefreshAll, see
+                // SetScriptHosts) and filled in retroactively; set here too so the order does not matter.
+                npcController.SetScriptHosts(_scriptObjects, _scriptUnits);
+
+                npcController.SetPlacement(unit);
+
+                // The renderer, so the persona's own art can replace the shared `npc` row's (which is
+                // null) and so `hide`/`show` have something to act on. Set after SetPlacement, so the
+                // persona's initial hidden state is already resolved and the visibility it pushes lands
+                // on a renderer that exists.
+                npcController.SetVisualRenderer(renderer);
+            }
+
             // ...and the seam that lets an NPC HOLD A WEAPON and MAKE A SOUND. Handed over here, before
             // Initialize, because an archetype equips its weapon in Initialize/OnDefinitionAssigned —
             // the first moment `Stats` is real. Same handover shape and the same reason as
@@ -797,12 +1093,72 @@ namespace PFE.Systems.Map.Rendering
                 if (_room != null && _room.difficulty != null)
                 {
                     enemyController.SetLocationDifficulty(_room.difficulty.enemyLevel);
+
+                    // ...and AS3's `Location.earMult`, which setLocDif halves on easy difficulty
+                    // (`Location.as:32526`). The port derives it in LocationDifficultyPlanner from the
+                    // same `globalDif` term the oracle uses, and this is the seam that hands the room's
+                    // value to the listener — without it every enemy hears at the neutral 1 and the
+                    // difficulty halving is a field nothing reads. See
+                    // EnemyController.SetLocationEarMultiplier for why it reaches hearing but not the
+                    // alarm radius.
+                    enemyController.SetLocationEarMultiplier(_room.difficulty.earMult);
+                }
+
+                // ...and AS3's `Location.visMult` — the sight twin of the earMult above, and the term
+                // that was missing entirely. `EnemySensors.LocationVisiMult` was declared, multiplied
+                // into `EffectiveSightRangePixels`, and assigned nowhere, so every observer in the game
+                // saw at the neutral 1 while the oracle multiplied by the room's own value. The surf
+                // rooms author `vis='10'`, so their sight range was a tenth of the original's — which is
+                // exactly why `surfCalam`, perched at tile (40,7) with the nearest raider at (37,21),
+                // never acquired a target. See EnemyController.SetLocationVisibilityMultiplier.
+                if (_room != null)
+                {
+                    enemyController.SetLocationVisibilityMultiplier(
+                        _room.environment != null ? _room.environment.visibilityMultiplier : 1f);
                 }
             }
 
             // The seam UnitController.Initialize documents as the missing one: without it the unit has
             // no health, no <vulner> table, and logs "no UnitStats assigned" on every hit.
-            UnitStats stats = definition != null ? new UnitStats(definition.health, 100f) : null;
+            //
+            // ── The difficulty SETTING's HP cut (AS3 Unit.as:1130-1141) ───────────────────────────
+            //
+            // The oracle writes `this.hp = this.maxhp = node.@hp * this.hpmult` and then, for a
+            // NON-PLAYER unit on easy, scales maxhp down and re-syncs hp:
+            //
+            //     if(this.fraction != F_PLAYER && World.w.game.globalDif <= 1) {
+            //        if(globalDif == 0) this.maxhp *= 0.4;
+            //        if(globalDif == 1) this.maxhp *= 0.7;
+            //        this.hp = this.maxhp;
+            //     }
+            //
+            // This is the only non-player HP construction site in the port, which is why the multiplier
+            // belongs here rather than in the damage pipeline: scaling at the sink would make every
+            // subsequent hit recompute a number the oracle froze at construction, and a heal would
+            // restore to the wrong ceiling.
+            //
+            // `this.fraction` at :1130 is the DEFINITION's fraction — `node0 = AllData.d.unit.(@id ==
+            // mid)[0]` at :997, read at :1001-1003 — not the placement's. The two differ for the camp
+            // turrets: their `<unit>` row carries no `fraction` at all, so the oracle's `this.fraction`
+            // is 0 and a camp turret IS scaled, even though its `<obj>` placement says
+            // `fraction="100"`. Reading the placement here (which is applied later, at ApplyPlacement
+            // below) would quietly exempt them.
+            //
+            // The port does not model AS3's per-unit `hpmult`, so the multiplier is applied to
+            // `definition.health` directly; the oracle's two-step (`*= 0.4` then `hp = maxhp`) and this
+            // one-step are the same number, and UnitStats' constructor already seeds hp from maxhp.
+            float maxHp = definition != null ? definition.health : 0f;
+            if (definition != null)
+            {
+                int globalDif = GlobalDifficulty.Value;
+                bool isPlayerFaction = definition.fraction == FactionType.Player;
+                if (DifficultyRules.ScalesUnitHp(globalDif, isPlayerFaction))
+                {
+                    maxHp *= DifficultyRules.EnemyHpMultiplier(globalDif);
+                }
+            }
+
+            UnitStats stats = definition != null ? new UnitStats(maxHp, 100f) : null;
             controller.Initialize(definition, stats);
 
             // ...and the seam that lets a unit SHOW ITS SHIELD. The pool became real when the damage

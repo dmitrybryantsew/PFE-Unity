@@ -5,6 +5,7 @@ using System.Globalization;
 using PFE.Core.Ids;
 using PFE.Data.Definitions;
 using PFE.Entities.Units;
+using PFE.Systems.Campaign;
 using EntityId = PFE.Core.Ids.EntityId;
 
 namespace PFE.Systems.Map
@@ -80,6 +81,14 @@ namespace PFE.Systems.Map
             // empty, so `setRandomUnits` had nothing to place on even once the counts existed.
             ObjectTablePartition table = PartitionObjectTable(template);
 
+            // Record the authored capacity BEFORE Phase 2 spends it. `setRandomUnits` splices points out
+            // of `ups[i]` as it places them, so after the pass the array is empty and the authored figure
+            // is unrecoverable — see RoomInstance.upPointCounts. Captured here, the readout can tell "the
+            // generator asked for 17 and the room authored 0 points" (by design) apart from "the
+            // generator asked for 17 and the room authored 22 points but placed none" (a real fault),
+            // which is the question the F2 Room tab exists to answer.
+            RecordUpPointCounts(room, table.UpGroups);
+
             // Phase 1: Process template objects (from XML obj elements) sorted deterministically
             var sortedObjects = new List<ObjectSpawnData>(table.Spawnable);
             sortedObjects.Sort((a, b) =>
@@ -124,6 +133,35 @@ namespace PFE.Systems.Map
         }
 
         /// <summary>
+        /// AS3 <c>Location.as:1017</c>, in full: <b>would the oracle skip this authored placement?</b>
+        ///
+        /// <code>
+        /// if(!(this.noHolesPlace &amp;&amp; _loc1_.rem &gt; 0 &amp;&amp; !this.space[_loc1_.x][_loc1_.y].place))
+        /// </code>
+        ///
+        /// <para><b>All three terms are required, and each one is a divergence the port used to have.</b>
+        /// <paramref name="noHolesPlace"/> is the room-level gate (<c>Land.newLoc</c> passes
+        /// <c>this.rnd</c>); <paramref name="rem"/> is the definition's own flag, and only 24 of the 202
+        /// definitions carry it — so an authored <i>unit</i> or <i>trap</i> is placed even when it stands
+        /// in a doorway; and the tile flag is the door-slot marking
+        /// (<see cref="DoorCarver.MarkNoObj"/>). Testing the tile flag alone deleted 1515 authored
+        /// placements across 335 of the 550 shipped rooms.</para>
+        ///
+        /// <para><b>A missing tile means "place".</b> AS3 indexes <c>space[x][y]</c> unguarded and would
+        /// fault on an out-of-room coordinate, so there is no oracle behaviour to copy; the port's
+        /// existing reading — a placement parked outside the grid is not a doorway collision — is kept,
+        /// because inventing "skip" here would silently drop a placement on a data error.</para>
+        /// </summary>
+        /// <param name="noHolesPlace">The room's <c>noHolesPlace</c>.</param>
+        /// <param name="rem">The <b>definition</b> row's <c>rem</c> (not the placement's) — see
+        /// <see cref="PFE.Data.Definitions.MapObjectDefinition.GetRem"/>.</param>
+        /// <param name="tile">The tile the placement resolves to, or null when it is off the grid.</param>
+        public static bool SkipsAuthoredPlacement(bool noHolesPlace, int rem, TileData tile)
+        {
+            return noHolesPlace && rem > 0 && tile != null && !tile.canPlaceObjects;
+        }
+
+        /// <summary>
         /// Process a single object spawn from template data.
         /// Mirrors AS3 Location.setObjects() inner loop + createObj() + createUnit().
         /// </summary>
@@ -143,10 +181,22 @@ namespace PFE.Systems.Map
             int nx = placementTileCoord.x;
             int ny = placementTileCoord.y;
 
-            // Check if placement is valid (AS3: noHolesPlace check)
-            var tile = room.GetTileAtCoord(new Vector2Int(nx, ny));
-            if (tile != null && !tile.canPlaceObjects)
+            // AS3 Location.as:1017 — the doorway test, which is a THREE-term condition:
+            //
+            //   if(!(this.noHolesPlace && _loc1_.rem > 0 && !this.space[_loc1_.x][_loc1_.y].place))
+            //
+            // The port tested `!canPlaceObjects` alone, which is neither of the first two terms. Both
+            // omissions were load-bearing and they compounded with the marking bug on the other side of
+            // this seam (see DoorCarver.MarkNoObj): a unit or a trap carries no `rem`, so AS3 places it
+            // whatever the tile says, while the port dropped it.
+            TileData tile = room.GetTileAtCoord(new Vector2Int(nx, ny));
+            if (SkipsAuthoredPlacement(
+                    room.noHolesPlace,
+                    spawnData.definition != null ? spawnData.definition.GetRem() : 0,
+                    tile))
+            {
                 return;
+            }
 
             // Imported room objects currently preserve Flash's top-down tile coordinates.
             // Convert them into the room's bottom-up pixel space here so existing imports stay valid.
@@ -193,7 +243,11 @@ namespace PFE.Systems.Map
                         // AS3 would instead use the created unit's sprite width — see the findings doc
                         // for that half-tile divergence; it is pre-existing and out of scope here.
                         enemyContext: ResolveEnemyContext(room),
-                        water: ResolveAs3Water(room, ResolveEnemyContext(room), placementTileCoord));
+                        water: ResolveAs3Water(room, ResolveEnemyContext(room), placementTileCoord),
+                        // The two `uidObjs` keys. They live on the placement record, not in the attribute
+                        // list — see UnitInstance.uid.
+                        uid: spawnData.uid,
+                        code: spawnData.code);
                     break;
 
                 case "box":
@@ -298,7 +352,9 @@ namespace PFE.Systems.Map
             LocationEnemyContext? enemyContext = null,
             bool water = false,
             Vector2Int? as3PlacementTile = null,
-            IObjectDefinitionProvider objectDefinitions = null)
+            IObjectDefinitionProvider objectDefinitions = null,
+            string uid = null,
+            string code = null)
         {
             // ── Step 1 of the oracle's createUnit: which FAMILY is this really?
             //
@@ -403,6 +459,13 @@ namespace PFE.Systems.Map
                 entityId = entityId.IsValid ? entityId.ToString() : string.Empty,
                 unitId = resolvedId,
                 unitType = resolvedId,
+                // The oracle's `uidObjs` entry for a unit. AS3 registers the unit under BOTH the authored
+                // uid and its generated code (`Location.createUnit` -> `Unit.create` stores both on the
+                // unit, and `uidObjs` is keyed by whichever the script names), so both travel. A blank
+                // uid is the common case — only ~1 placement in 20 authors one — and an empty string is
+                // the honest value for "the room named nothing".
+                uid = uid ?? string.Empty,
+                code = code ?? string.Empty,
                 position = new Vector2(x, y),
                 isDead = false,
                 maxHealth = health,
@@ -752,6 +815,91 @@ namespace PFE.Systems.Map
             Vector2 pos = ChooseObjectPixel(room, spawn);
             CreateCheckpoint(room, spawn, pos.x, pos.y);
             return room.objects.Count > 0 ? room.objects[room.objects.Count - 1] : null;
+        }
+
+        /// <summary>The placement attribute the port writes for AS3's <c>CheckPoint.teleOn</c>.</summary>
+        public const string TeleCheckpointAttribute = "tele";
+
+        /// <summary>
+        /// AS3 <c>Location.createObj</c>'s checkpoint branch, <b>second statement</b>
+        /// (<c>Location.as:2040-2046</c>) — the difficulty override that turns a checkpoint's return
+        /// teleport on:
+        /// <code>
+        /// if(World.w.game.globalDif &lt;= 1 || this.land.rnd &amp;&amp; World.w.game.globalDif == 2
+        ///    &amp;&amp; Math.random() &lt; 0.33) { (obj as CheckPoint).teleOn = true; }
+        /// </code>
+        /// <para><b>Why this is its own method and not part of <see cref="PlaceCheckpointMarker"/>.</b>
+        /// The oracle applies it <i>after</i> the <c>CheckPoint</c> constructor, as a separate statement —
+        /// it is an override of the object, not one of its constructor arguments. Keeping it separate also
+        /// leaves <see cref="PlaceCheckpointMarker"/>'s existing contract untouched, so the id roll's own
+        /// fixtures keep describing the id roll.</para>
+        ///
+        /// <para><b>The random draw and which stream it comes from.</b> The oracle spends a global
+        /// <c>Math.random()</c> here — a stream separate from the one <c>setLocDif</c> draws. The port
+        /// draws from an <b>ephemeral salted sub-stream</b>
+        /// (<c>IRngService.GetStream(stream, salt)</c>), which seeds a fresh generator from the parent's
+        /// state and the salt <i>without advancing the parent</i>. That is the choice the plan asks to be
+        /// made explicit: drawing from the shared spawn stream instead would consume a value and shift
+        /// every later placement in the land build, which the oracle's separate global stream does not do.</para>
+        ///
+        /// <para><b>Honest limit, recorded not hidden.</b> <c>teleOn</c> only becomes observable through
+        /// <c>CheckpointRules.Resolve</c>'s <c>offersTeleport = mReturn &amp;&amp; teleOn &amp;&amp; !used</c>.
+        /// <c>mReturn</c> is now derived from the <c>noreturn</c> trigger the way AS3 derives it
+        /// (<c>Game.as:390-397</c>, ported in <c>CampaignManager.ActivateCheckpoint</c>) — it was left
+        /// permanently false before, which inverted the oracle's <c>true</c> initialiser
+        /// (<c>Game.as:49</c>) and made the offer impossible. What is still missing is the <i>surface</i>:
+        /// no checkpoint object is an <c>IInteractable</c>, so the offered return has nowhere to be
+        /// pressed — the same deferred shape as the locked-variant roll above.</para>
+        /// </summary>
+        /// <param name="checkpoint">The placement to write onto. <c>null</c> is tolerated.</param>
+        /// <param name="landRnd">AS3 <c>this.land.rnd</c> — only a procedural land rolls.</param>
+        /// <param name="rng">The land build stream. <c>null</c> disables the 33 % arm only.</param>
+        /// <returns>The oracle's <c>teleOn</c>.</returns>
+        public static bool ApplyCheckpointTeleOn(
+            ObjectInstance checkpoint,
+            bool landRnd,
+            PFE.Core.Rng.IRngService rng = null)
+        {
+            if (checkpoint == null) return false;
+
+            int globalDif = GlobalDifficulty.Value;
+
+            // The draw sits at the END of an `&&` chain, so it is reached only when the difficulty is
+            // Normal and the land is procedural. Testing that BEFORE drawing is what keeps an authored
+            // land, or any difficulty other than 2, from spending a value the oracle does not.
+            //
+            // `1f` is the "no draw happened" sentinel: `1f < 0.33f` is false, so a caller with no stream
+            // gets the deterministic answer rather than a coin flip that was never tossed.
+            float roll = 1f;
+            if (rng != null && DifficultyRules.CheckpointRollsForTeleOn(globalDif, landRnd))
+            {
+                roll = rng.GetStream(PFE.Core.Rng.RngStream.Spawn, salt: TeleOnSalt(checkpoint)).NextFloat();
+            }
+
+            bool teleOn = DifficultyRules.CheckpointTeleOn(globalDif, landRnd, roll);
+            if (teleOn)
+            {
+                checkpoint.attributes ??= new List<MapObjectAttributeData>();
+                checkpoint.attributes.Add(new MapObjectAttributeData
+                {
+                    key = TeleCheckpointAttribute,
+                    value = "1",
+                });
+            }
+
+            return teleOn;
+        }
+
+        /// <summary>
+        /// The salt for <see cref="ApplyCheckpointTeleOn"/>'s sub-stream: the checkpoint's own pixel
+        /// position, so two checkpoints in one land do not share a draw and the same land re-built gets the
+        /// same answer. AS3 has no equivalent because its global stream is one sequence for the whole run.
+        /// </summary>
+        private static int TeleOnSalt(ObjectInstance checkpoint)
+        {
+            int x = (int)checkpoint.position.x;
+            int y = (int)checkpoint.position.y;
+            return unchecked(x * 397 ^ y * 31);
         }
 
         /// <summary>
@@ -1627,6 +1775,46 @@ namespace PFE.Systems.Map
             }
 
             return partition;
+        }
+
+        /// <summary>
+        /// Copy the partition's per-group point counts onto the room, mirroring the fact that AS3's
+        /// <c>ups</c> is a member of <c>Location</c> rather than a local of <c>buildLoc</c>
+        /// (<c>Location.as:333-336</c> allocates it once, and <c>:684</c> pushes into it from the object
+        /// loop).
+        ///
+        /// <para><b>It takes the groups array rather than the partition struct, and it is public, so the
+        /// offline wall can call it.</b> Every other test of this seam builds a <c>ScriptableObject</c>
+        /// template, which the wall cannot construct (<c>SecurityException: ECall</c>) — so the property
+        /// that has to hold here would otherwise be unpinned outside the editor. The array is all this
+        /// needs, and a hand-built one is enough to reproduce the drain below.</para>
+        ///
+        /// <para><b>The counts are a snapshot, taken before the pass spends the pool.</b>
+        /// <c>setRandomUnits</c> splices points out of <c>ups[i]</c> as it places them and clears the list
+        /// outright once one remains (<c>Location.as:1082-1087</c>), so afterwards the authored figure
+        /// exists nowhere but <c>RoomInstance.upPointCounts</c>. That is why the call site sits
+        /// immediately after <c>PartitionObjectTable</c> and <b>must stay above Phase 2</b>: moving it
+        /// below would make every room in the game report that it authored no enemy points.</para>
+        ///
+        /// <para>The array is re-allocated when the room's own is the wrong shape, because
+        /// <c>[NonSerialized]</c> fields arrive as <c>null</c> on a room that was deserialised, and a
+        /// zero-length array would silently report every group as having no points — the exact reading
+        /// this field exists to make trustworthy.</para>
+        /// </summary>
+        public static void RecordUpPointCounts(RoomInstance room, List<ObjectSpawnData>[] upGroups)
+        {
+            if (room == null || upGroups == null) return;
+
+            if (room.upPointCounts == null || room.upPointCounts.Length != upGroups.Length)
+            {
+                room.upPointCounts = new int[upGroups.Length];
+            }
+
+            for (int i = 0; i < upGroups.Length; i++)
+            {
+                List<ObjectSpawnData> points = upGroups[i];
+                room.upPointCounts[i] = points != null ? points.Count : 0;
+            }
         }
 
         /// <summary>

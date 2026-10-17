@@ -4,6 +4,8 @@ using UnityEngine;
 using PFE.Core;
 using PFE.Data;
 using PFE.Data.Definitions.Campaign;
+using PFE.Systems.Campaign;
+using PFE.Systems.Loot;
 using PFE.Systems.Map.Generation;
 
 namespace PFE.Systems.Map
@@ -789,6 +791,76 @@ namespace PFE.Systems.Map
         // =====================================================================
 
         /// <summary>
+        /// AS3 <c>Land</c>'s constructor fields (<c>Land.as:118-140</c>) for the land about to be built:
+        /// the difficulty, plus the two land-scoped loot fields. Returns the
+        /// <see cref="LocationBuildContext"/> the land's rooms are generated with.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Why this is one method and not lines inside <see cref="BuildLand"/>.</b> The port has
+        /// two build entry points that are both a land entry: <see cref="BuildLand"/> (procedural, and
+        /// the authored sub-branch it dispatches to) and a direct <see cref="BuildSpecificWorld"/> call
+        /// from <c>MapBridge.PerformLandTransition</c> for an authored land, which must keep the caller's
+        /// resolved entry room and therefore cannot go through <see cref="BuildLand"/>'s own entry-cell
+        /// choice. Both owe the oracle's constructor fields; computing them in only one place would leave
+        /// every authored land's rooms at <c>landDifLevel 0</c> (the <c>None</c> context) and the loot
+        /// runtime holding the <i>previous</i> land's <c>gameStage</c>/<c>lootLimit</c>.</para>
+        ///
+        /// <para><b>The difficulty branches differ in an easy-to-flatten way</b> (<c>Land.as:120-124</c>
+        /// vs <c>:131-135</c>): a procedural land takes <c>max(run, act.dif)</c> — the authored
+        /// difficulty is a FLOOR — while an authored land takes <c>act.dif</c> and <c>autoLevel</c> makes
+        /// it take <c>run</c> <b>instead</b>, so an <c>autoLevel</c> land can be built <i>below</i> its
+        /// authored difficulty. Two lands author <c>autolevel='1'</c> (<c>test</c>, <c>rbl</c>,
+        /// <c>GameData.as:9,53</c>) and <c>rbl</c> is the fallback land, so that arm is live. The
+        /// expression itself lives in <see cref="DifficultyRules.LandDifficulty"/> so it is assertable
+        /// offline.</para>
+        ///
+        /// <para><b><c>lootLimit</c> uses the RAW <c>param3</c>, not the floored <c>landDifLevel</c></b>
+        /// — on a procedural land with <c>act.dif</c> 8 and run 2 the cap is 5 while the difficulty is 8.
+        /// That is the oracle's own arithmetic (<c>Land.as:139</c>), reproduced deliberately; see
+        /// <see cref="DifficultyRules.LootLimit"/>.</para>
+        ///
+        /// <para><b>Why the loot fields go to a static.</b> The oracle reads them through the globals
+        /// <c>World.w.land.lootLimit</c> / <c>.gameStage</c> / <c>.rnd</c> and <c>loc.land.act.id</c> inside
+        /// <c>LootGen</c> (<c>:264</c>, <c>:131</c>, <c>:698</c>, <c>:652</c>) — a room does not carry
+        /// them, the CURRENT land does. The port streams one land at a time, so <c>LootRuntime</c> holding
+        /// the live land's values is the same shape, and it means the two loot sinks need no new plumbing
+        /// to see them. Four fields, all land-scoped: <c>LandGameStage</c>, <c>LandLootLimit</c>,
+        /// <c>LandActId</c>, <c>LandRnd</c>.</para>
+        /// </remarks>
+        /// <param name="land">
+        /// The land being entered, or <c>null</c> for a land that did not resolve from the catalogue.
+        /// The loot fields are still published in that case — they depend on the run, not on the land's
+        /// authored row, and leaving the previous land's stage in place would gate this land's loot on a
+        /// stage it does not have. The returned context is <see cref="LocationBuildContext.None"/>.
+        /// </param>
+        /// <param name="runDifficulty">AS3 <c>param3</c>; see <see cref="BuildLand"/>.</param>
+        public LocationBuildContext EnterLand(LandDefinition land, int runDifficulty)
+        {
+            LootRuntime.LandGameStage = land != null ? land.stage : 0;
+            LootRuntime.LandLootLimit = DifficultyRules.LootLimit(runDifficulty);
+            LootRuntime.LandActId = land != null ? land.landId ?? string.Empty : string.Empty;
+            LootRuntime.LandRnd = land != null && land.isProcedural;
+
+            if (land == null) return LocationBuildContext.None;
+
+            float landDifLevel = DifficultyRules.LandDifficulty(
+                procedural: land.isProcedural,
+                actDif: land.baseDifficulty,
+                runDifficulty: runDifficulty,
+                autoLevel: land.autoLevel);
+
+            return new LocationBuildContext(
+                biome: land.biomeId,
+                landConfig: land.configId,
+                landDifLevel: landDifLevel,
+                // AS3's depth bonus is non-zero only for a procedural land (`if(this.rnd)` guards the
+                // conf 0/1/2 offsets, Land.as:960-974), so the land-scoped value is 0 and the per-cell
+                // offset is added by BuildRandomWorld.
+                difficultyOffset: 0f,
+                noHolesPlace: land.isProcedural);
+        }
+
+        /// <summary>
         /// Build a land from its definition, taking the procedural or the authored path the way AS3 does
         /// (<c>Land.as:118</c>: the <c>rnd</c> attribute selects <c>buildRandomLand</c>, else
         /// <c>buildSpecifLand</c>).
@@ -809,8 +881,15 @@ namespace PFE.Systems.Map
         /// <param name="forceRegenerate">AS3 <c>Game.crea</c>. The plan is rebuilt every call today, so
         /// this is carried for the wiring's sake rather than consumed.</param>
         /// <param name="mbaseVisited">AS3 <c>triggers["mbase_visited"] &gt; 0</c> (conf 4's entry room).</param>
+        /// <param name="runDifficulty">
+        /// AS3 <c>Land</c>'s <c>param3</c> — the <b>run</b> difficulty the land is built at
+        /// (<c>Game.as:353-361</c>). The default <c>0</c> is the oracle's own value for a first land
+        /// entry, not a sentinel: <c>firstroom</c> is 0 until a land has been entered, so <c>param3</c>
+        /// really is 0 there. See <see cref="DifficultyRules.RunDifficulty"/> for the rule and
+        /// <c>MapBridge.PerformLandTransition</c> for the caller that computes it.
+        /// </param>
         public bool BuildLand(LandDefinition land, List<RoomTemplate> templates, int landStage,
-            bool visited, bool forceRegenerate = false, bool mbaseVisited = false)
+            bool visited, bool forceRegenerate = false, bool mbaseVisited = false, int runDifficulty = 0)
         {
             if (land == null)
             {
@@ -824,6 +903,10 @@ namespace PFE.Systems.Map
                 return false;
             }
 
+            // AS3 `Land`'s constructor fields (Land.as:118-140) — the difficulty and the two land-scoped
+            // loot fields. See EnterLand for why this is one shared method rather than lines here.
+            LocationBuildContext landContext = EnterLand(land, runDifficulty);
+
             this.landStage = landStage;
 
             // Re-point the shared selection pool at THIS land's collection. The generator is injected as a
@@ -836,17 +919,6 @@ namespace PFE.Systems.Map
             // `landDifLevel` (:982). The port's analogue is this context, and it has to be set BEFORE any
             // room is generated — including the prob rooms, which AS3 also builds through the *current*
             // land (`buildProb` runs on `this`, Land.as:789).
-            //
-            // `landDifLevel` is `max(runDifficulty, act.dif)`. The port has no run difficulty, so the
-            // authored floor is what is available; see LocationBuildContext.
-            var landContext = new LocationBuildContext(
-                biome: land.biomeId,
-                landConfig: land.configId,
-                landDifLevel: land.baseDifficulty,
-                // AS3's depth bonus is non-zero only for a procedural land (`if(this.rnd)` guards the
-                // conf 0/1/2 offsets, Land.as:960-974), so the authored branch takes 0.
-                difficultyOffset: 0f,
-                noHolesPlace: land.isProcedural);
             roomGenerator.ConfigureLocation(landContext);
 
             if (!land.isProcedural)
@@ -858,14 +930,20 @@ namespace PFE.Systems.Map
             }
 
             LandLayoutPlan plan = LandLayoutPlanner.Plan(land, landStage, visited, _rng, mbaseVisited);
-            return BuildProceduralLand(land, plan);
+            return BuildProceduralLand(land, plan, landContext);
         }
 
         /// <summary>
         /// AS3 <c>Land.buildRandomLand()</c> (<c>Land.as:163-682</c>): fill the grid from the plan, carve the
         /// doors between neighbours, then finalise every room and place its exit / checkpoint.
         /// </summary>
-        private bool BuildProceduralLand(LandDefinition land, LandLayoutPlan plan)
+        /// <param name="landContext">
+        /// The land-scoped context from <see cref="EnterLand"/> — biome, land config and the land's
+        /// difficulty. Passed rather than recomputed because the difficulty must be the SAME number for
+        /// every cell: recomputing it per cell would be a second source of truth, and a per-cell
+        /// <c>runDifficulty</c> could drift the moment the caller's inputs changed mid-build.
+        /// </param>
+        private bool BuildProceduralLand(LandDefinition land, LandLayoutPlan plan, in LocationBuildContext landContext)
         {
             minBounds = new Vector3Int(plan.BoundsMin.x, plan.BoundsMin.y, 0);
             maxBounds = new Vector3Int(plan.BoundsMax.x, plan.BoundsMax.y, 1);
@@ -911,12 +989,13 @@ namespace PFE.Systems.Map
 
                     // The only per-cell input to setLocDif is the depth bonus
                     // (`LandLayoutPlanner.DifficultyOffsetFor`, Land.as:958-975); everything else is
-                    // land-scoped and already on the generator. Passing it here rather than mutating the
-                    // generator per cell keeps the land-scoped half from being written 30 times a build.
+                    // land-scoped and comes from the context EnterLand built. Passing it here rather than
+                    // mutating the generator per cell keeps the land-scoped half from being written 30
+                    // times a build.
                     RoomInstance room = roomGenerator.GenerateRoom(template, pos, new LocationBuildContext(
-                        biome: land.biomeId,
+                        biome: landContext.Biome,
                         landConfig: plan.Conf,
-                        landDifLevel: land.baseDifficulty,
+                        landDifLevel: landContext.LandDifLevel,
                         difficultyOffset: cell.DifficultyOffset,
                         noHolesPlace: true));
 
@@ -1167,7 +1246,18 @@ namespace PFE.Systems.Map
 
             if (cell.Checkpoint != CheckpointKind.None)
             {
-                RoomPopulator.PlaceCheckpointMarker(room, cell.Checkpoint == CheckpointKind.Begin);
+                ObjectInstance checkpoint =
+                    RoomPopulator.PlaceCheckpointMarker(room, cell.Checkpoint == CheckpointKind.Begin);
+
+                // AS3's second statement at the same branch (Location.as:2040-2046): the difficulty
+                // override that turns the return teleport on. Applied AFTER the placement, as the oracle
+                // does, rather than as one of its arguments — and the locked-variant id roll above stays
+                // opt-in and off, because that one's consumer (lockpicking) still has no surface.
+                //
+                // `land.isProcedural` is AS3's `this.land.rnd`, and this branch only runs for a
+                // procedural land anyway (checkpoints are planned by LandLayoutPlanner), so passing it
+                // keeps the rule honest rather than hard-coding true.
+                RoomPopulator.ApplyCheckpointTeleOn(checkpoint, land.isProcedural, _rng);
             }
 
             if (cell.Prob != ProbKind.None)

@@ -1131,9 +1131,9 @@ namespace PFE.Tests.Editor.Map
             rows.Add(Case("zombie", null, "zombie0"));        // randomCid(level 0) -> "0"
             rows.Add(Case("eqd", null, "eqd"));               // no composition rule: the id is the id
             rows.Add(Case("landturret", "land", "turret1"));  // THE FIX: cid 'land' -> turret1
-            rows.Add(Case("gutsy", null, "gutsy"));
-            rows.Add(Case("protect", null, "protect"));
-            rows.Add(Case("robot", null, "robot"));
+            rows.Add(Case("gutsy", null, "gutsy"));           // cid "0" -> no tr appended
+            rows.Add(Case("protect", null, "protect"));       // cid "0" -> no tr appended
+            rows.Add(Case("robot", null, "robobrain"));       // UnitRobobrain.as:11 renames the id
             rows.Add(Case("slaver", null, "slaver1"));
             rows.Add(Case("merc", null, "merc1"));
             rows.Add(Case("alicorn", null, "alicorn1"));

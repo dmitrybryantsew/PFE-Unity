@@ -4,6 +4,8 @@ using System.Globalization;
 using MessagePipe;
 using PFE.Core.Messages;
 using PFE.Systems.Map.Actions;
+using PFE.Systems.Map.Generation;
+using PFE.Systems.Map.Streaming;
 using UnityEngine;
 
 namespace PFE.Systems.Map.Scripting
@@ -12,13 +14,29 @@ namespace PFE.Systems.Map.Scripting
     /// Evaluates area trigger overlaps, dispatches tutorial messages, and executes map object scripts.
     /// Bridges ActionScript 3 Area.as and Script.as functionality into Unity.
     /// </summary>
-    public sealed class AreaTriggerSystem : IScriptObjectHost, ILandScriptHost
+    public sealed class AreaTriggerSystem : IScriptObjectHost, IUnitCommandHost, ILandScriptHost
     {
         private readonly IPublisher<TutorialPromptMessage> _promptPublisher;
         private readonly IPublisher<ObjectiveMarkerMessage> _markerPublisher;
         private readonly IPublisher<LandTransitionMessage> _landTransitionPublisher;
         private readonly LuaTriggerBridge _luaBridge;
         private readonly ILandScriptHost _landHost;
+
+        /// <summary>
+        /// The live-unit half of the <c>@targ</c> table, pushed in by <c>RoomVisualController</c>.
+        ///
+        /// <para><b>Why a pushed field and not a constructor argument.</b> This type is built
+        /// <i>before</i> the room's unit spawner (the trigger layer is deliberately created ahead of the
+        /// render-asset guards — see <c>RoomVisualController.Initialize</c>), so at construction there is
+        /// nothing to hand it. The controller owns both and is therefore the one place that can pair
+        /// them, which is the same shape as <c>RegisterObjectHost</c>.</para>
+        ///
+        /// <para><b>Null is a legal state and it is the pre-change behaviour.</b> An offline fixture that
+        /// constructs this type directly has no spawner, and a <c>@targ</c> naming a unit must then
+        /// resolve to nothing — reported as an unmatched uid — rather than throw. That is exactly what
+        /// happened before <see cref="IUnitCommandHost"/> existed, so no fixture changes meaning.</para>
+        /// </summary>
+        private IUnitCommandHost _unitHost;
 
         /// <summary>
         /// The stepwise interpreter, created on first use from <see cref="ScriptSystem.Current"/> and
@@ -175,7 +193,11 @@ namespace PFE.Systems.Map.Scripting
 
                     if (string.IsNullOrEmpty(script.eventName) || string.Equals(script.eventName, "enter", StringComparison.OrdinalIgnoreCase))
                     {
-                        ExecuteScript(room, script);
+                        // `trigger` is the owner: AS3 builds an area's inline script as
+                        // `new Script(_loc5_, loc.land, this)` (Area.as:140) and an object's as
+                        // `scr.owner = this` (Box.as:338). Without it a `@targ="this"` action has no
+                        // `this` to resolve and the command is dropped.
+                        ExecuteScript(room, script, trigger);
                     }
                 }
             }
@@ -245,7 +267,8 @@ namespace PFE.Systems.Map.Scripting
 
                     if (string.Equals(script.eventName, "exit", StringComparison.OrdinalIgnoreCase))
                     {
-                        ExecuteScript(room, script);
+                        // Owner passed for the same reason as the enter path above.
+                        ExecuteScript(room, script, trigger);
                     }
                 }
             }
@@ -296,11 +319,16 @@ namespace PFE.Systems.Map.Scripting
 
                 ScriptSystem system = ScriptSystem.Current;
                 _runner = system != null
-                    ? system.CreateRunner(this, () => this)
+                    ? system.CreateRunner(this, () => this, this)
                     : new ScriptRunner(
                         campaign: () => this,
                         quests: () => PFE.Systems.Campaign.CampaignManager.Current,
-                        objects: this);
+                        objects: this,
+                        // The unit half is forwarded through THIS type rather than handed the spawner
+                        // directly, so the off-clock fallback and the clocked path resolve `@targ`
+                        // identically. `this` is safe even when `_unitHost` is still null: UnitCommand
+                        // answers false, which is the pre-change behaviour.
+                        units: this);
 
                 RunnerHasNoClock = system == null;
 
@@ -354,7 +382,9 @@ namespace PFE.Systems.Map.Scripting
                 if (string.IsNullOrEmpty(script.eventName) ||
                     string.Equals(script.eventName, "interact", StringComparison.OrdinalIgnoreCase))
                 {
-                    ExecuteScript(room, script);
+                    // `obj` is the owner — this is the path a container's own `<scr>` takes, and the
+                    // Oracle's `act="off" targ="this"` on a looted crate is exactly this shape.
+                    ExecuteScript(room, script, obj);
                 }
             }
         }
@@ -374,7 +404,8 @@ namespace PFE.Systems.Map.Scripting
                 if (string.Equals(script.eventName, "die", StringComparison.OrdinalIgnoreCase) ||
                     string.Equals(script.eventName, "destroy", StringComparison.OrdinalIgnoreCase))
                 {
-                    ExecuteScript(room, script);
+                    // `obj` is the owner, for the same reason as the interact path above.
+                    ExecuteScript(room, script, obj);
                 }
             }
         }
@@ -460,6 +491,44 @@ namespace PFE.Systems.Map.Scripting
             List<ObjectInstance> targets = FindObjectsByUidOrCode(room, uidOrCode);
             if (targets.Count == 0) return false;
 
+            return DispatchObjectCommand(room, targets, uidOrCode, command, value);
+        }
+
+        /// <summary>
+        /// The <c>@targ="this"</c> half — the caller already holds the object, so nothing is looked up.
+        ///
+        /// <para><b>Why this exists at all</b> (the long version is on
+        /// <see cref="IScriptObjectHost.ObjectCommand(RoomInstance, ObjectInstance, string, string)"/>):
+        /// the oracle passes the script's owner <i>by reference</i>, and the port's string round trip
+        /// silently dropped every <c>this</c> whose object had a blank <c>uid</c>. There is deliberately
+        /// no room-membership test — the oracle commands the owner unconditionally.</para>
+        /// </summary>
+        public bool ObjectCommand(RoomInstance room, ObjectInstance target, string command, string value)
+        {
+            if (room == null || target == null || string.IsNullOrEmpty(command)) return false;
+
+            // The label is read only by `sign`, which publishes the id a HUD marker keys on. The
+            // object's own identity is the honest value: the oracle hands over the object, never a
+            // name, and for a `this` target the uid is usually blank while the code is not.
+            string label = !string.IsNullOrEmpty(target.uid) ? target.uid
+                         : !string.IsNullOrEmpty(target.code) ? target.code
+                         : target.objectId;
+
+            // A fresh one-element list rather than a reused field: the dispatch below raises
+            // OnObjectStateChanged, and a handler that ran another script would clobber a shared list.
+            var single = new List<ObjectInstance>(1) { target };
+            return DispatchObjectCommand(room, single, label, command, value);
+        }
+
+        /// <summary>
+        /// The shared body of both <c>@targ</c> overloads: the <c>Obj.command</c> / <c>Box.command</c>
+        /// vocabulary (<c>Area.as:253-278</c>, <c>Box.as:446</c>).
+        /// </summary>
+        /// <param name="label">The id the command was addressed by. Read only by <c>sign</c>, which
+        /// publishes it as the marker's key.</param>
+        private bool DispatchObjectCommand(RoomInstance room, List<ObjectInstance> targets, string label,
+                                           string command, string value)
+        {
             string verb = command.Trim().ToLowerInvariant();
 
             switch (verb)
@@ -469,7 +538,7 @@ namespace PFE.Systems.Map.Scripting
                     bool show = value != "0" &&
                                 !string.Equals(value, "false", StringComparison.OrdinalIgnoreCase);
                     Vector2 position = targets[0].position;
-                    var markerMsg = new ObjectiveMarkerMessage(uidOrCode, position, show);
+                    var markerMsg = new ObjectiveMarkerMessage(label, position, show);
                     _markerPublisher?.Publish(markerMsg);
                     OnMarkerChanged?.Invoke(markerMsg);
                     return true;
@@ -560,10 +629,50 @@ namespace PFE.Systems.Map.Scripting
                     return true;
             }
 
-            Debug.LogWarning($"[AreaTriggerSystem] `{command}` on '{uidOrCode}' is not an object command " +
+            Debug.LogWarning($"[AreaTriggerSystem] `{command}` on '{label}' is not an object command " +
                              "(Obj.command / Box.command). It was not run; see ScriptVocabulary.ObjectCommands " +
                              "for the set the oracle has.");
             return true;
+        }
+
+        // =====================================================================
+        //  IUnitCommandHost — the other half of the oracle's single uidObjs table
+        // =====================================================================
+
+        /// <summary>
+        /// Hands this room's live-unit host over. Called by <c>RoomVisualController</c>, which owns both
+        /// this type and the <c>RoomUnitSpawner</c> and is therefore the only place that can pair them.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Pushed after construction on purpose.</b> See <see cref="_unitHost"/>: this type is
+        /// built before the spawner exists, so a constructor argument could only ever be null. A second
+        /// call simply replaces the host, which is what a room rebuild does.</para>
+        /// </remarks>
+        public void SetUnitHost(IUnitCommandHost unitHost)
+        {
+            _unitHost = unitHost;
+        }
+
+        /// <summary>
+        /// AS3 <c>_loc2_.command(param1.act, param1.val)</c> for a target that turns out to be a
+        /// <b>unit</b> rather than a map object.
+        ///
+        /// <para><b>This type owns no units and never will.</b> The live controllers belong to
+        /// <see cref="PFE.Systems.Map.Rendering.RoomUnitSpawner"/>, which is the only thing that knows
+        /// which record produced which GameObject. This method is a forwarder so that
+        /// <see cref="ScriptRunner"/> can ask one host, exactly as the oracle does, and so that the
+        /// off-clock runner built in <see cref="Runner"/> resolves units identically to the clocked
+        /// one.</para>
+        ///
+        /// <para><b>A miss is answered <c>false</c>, never swallowed.</b> The runner reports an
+        /// unmatched uid only when <i>both</i> hosts decline, so answering <c>true</c> here for an
+        /// unknown id would turn "no unit named surfCalam" into a silent success — the failure mode
+        /// this whole change exists to remove.</para>
+        /// </summary>
+        public bool UnitCommand(RoomInstance room, string uidOrCode, string command, string value)
+        {
+            if (_unitHost == null) return false;
+            return _unitHost.UnitCommand(room, uidOrCode, command, value);
         }
 
         /// <summary>
@@ -719,18 +828,42 @@ namespace PFE.Systems.Map.Scripting
                 reportUnhandled: message => Debug.LogWarning(message),
                 travelMapHost: PFE.Systems.Campaign.CampaignManager.Current,
                 exitHost: LandHost,
-                probHost: null,
+                // AS3 `loc.prob` — the detached-room half of `Land.gotoProb` (Land.as:1391-1438), which
+                // lives on the scene singleton that owns the room registry. Null before the first land is
+                // built, which is the reported refusal AS3 takes for an unbuilt prob.
+                probHost: RoomTransitionManager.Instance,
                 verbHost: new ObjectVerbHost
                 {
                     // AS3 setAct("open", n) → setDoor(): restamp the object's tiles.
                     StampDoorTiles = (room, obj, isOpen) => UpdateDoorTileCollision(room, obj, isOpen),
-                    // AS3 `loc.prob.check()`. No prob host here, so this stays null and the verb
-                    // reports it rather than silently skipping.
-                    CheckProbRoom = null,
+                    // AS3 `loc.prob.check()` (Probation.as:146-156), reached from Interact.as:880
+                    // (looting a container), :1321 (a knob with action 0) and :1753 (the `dam` verb's
+                    // non-explosive arm). Resolved per call rather than held, because the registry is
+                    // replaced wholesale on every land build — see RoomTransitionManager.ProbSessions.
+                    CheckProbRoom = CheckProbRoomFor,
                 });
         }
 
         private ObjectActionDispatcher _allActDispatcher;
+
+        /// <summary>
+        /// The room-cleared decision for a room, if it is a prob room at all.
+        ///
+        /// <para><b>Resolved per call.</b> A room that is not a prob has no session and costs one
+        /// dictionary miss; a prob whose registry has not been built yet returns without touching the
+        /// state machine, which is the same "no prob host" refusal AS3 takes for a land with no
+        /// probs.</para>
+        /// </summary>
+        private void CheckProbRoomFor(RoomInstance room)
+        {
+            PFE.Systems.Map.Generation.ProbRoomSessions sessions =
+                RoomTransitionManager.Instance?.ProbSessions;
+
+            if (sessions == null) return;
+            if (room == null || string.IsNullOrEmpty(room.probId)) return;
+
+            sessions.Check(room);
+        }
 
         /// <summary>
         /// Stamps or clears solid wall physics on tiles occupied by a door object.

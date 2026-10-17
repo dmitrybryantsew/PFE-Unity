@@ -31,7 +31,7 @@ namespace PFE.Systems.Map.Rendering
     /// <c>gotoAndPlay("comein")</c> for the one Z-door clip (<c>Box.as:508-532</c>).</para>
     /// </summary>
     [RequireComponent(typeof(BoxCollider2D))]
-    public class DoorPropPresenter : MonoBehaviour, IInteractable, IHoldInteractable, IDestructibleTile
+    public class DoorPropPresenter : MonoBehaviour, IInteractable, IHoldInteractable, IInteractableName, IDestructibleTile
     {
         /// <summary>
         /// Seconds per frame of a played clip. The map-object sprites ship in
@@ -345,6 +345,25 @@ namespace PFE.Systems.Map.Rendering
         public string ActionText => IsInteractableDoor ? (IsOpen ? "Close" : "Open") : string.Empty;
 
         /// <summary>
+        /// The door's display name — AS3 <c>celObj.nazv</c>, the first line of the world-anchored
+        /// interaction prompt (<c>GUI.as:1286</c>). Read from the object's definition, which
+        /// <c>MapObjectDefinitionImporter</c> fills from the <c>AllData</c> row's own name; falls back to
+        /// the object id so an unnamed door still labels something rather than rendering a blank line.
+        /// </summary>
+        public string DisplayName
+        {
+            get
+            {
+                string named = _objectInstance != null && _objectInstance.definition != null
+                    ? _objectInstance.definition.displayName
+                    : null;
+
+                if (!string.IsNullOrEmpty(named)) return named;
+                return _objectInstance != null ? _objectInstance.objectId : string.Empty;
+            }
+        }
+
+        /// <summary>
         /// Frames the action key must be held before this door opens or closes — AS3
         /// <c>Interact.t_action</c>, authored as <c>time</c> on the object.
         ///
@@ -481,7 +500,7 @@ namespace PFE.Systems.Map.Rendering
             if (!IsCheckpointObject || _objectInstance == null) return;
             if (_checkpointArea != null) return;
 
-            if (!string.IsNullOrEmpty(_objectInstance.GetAttribute("main", string.Empty))) return;
+            if (IsMainCheckpoint) return;
 
             // `size` is the width and `wid` is the height (CheckPoint.as:48-49) — the oracle's names,
             // which read backwards. GetDoorTileDimensions maps them to (widthTiles, heightTiles) in
@@ -1221,6 +1240,108 @@ namespace PFE.Systems.Map.Rendering
               _objectInstance.definition.family == MapObjectFamily.Checkpoint));
 
         /// <summary>
+        /// Whether this checkpoint is AS3's <c>main</c> one — <c>xml.@main</c>
+        /// (<c>CheckPoint.as:95-98</c>), which re-points the button at <c>teleport</c> and clears the
+        /// walk-into area before any player touches it (<c>:126-137</c>).
+        ///
+        /// <para>One read, used by both the press routing and <see cref="ActivateCheckpoint"/>'s
+        /// <c>main</c> term, so the two cannot drift apart.</para>
+        /// </summary>
+        private bool IsMainCheckpoint =>
+            _objectInstance != null &&
+            !string.IsNullOrEmpty(_objectInstance.GetAttribute("main", string.Empty));
+
+        /// <summary>
+        /// AS3's checkpoint press: run whichever function <c>inter.actFun</c> currently names.
+        ///
+        /// <para><b>The button is not always <c>activate</c>.</b> <c>CheckPoint</c> builds it as
+        /// <c>activate</c> (<c>:86</c>), but re-points it at <c>teleport</c> for a <c>main</c> checkpoint
+        /// (<c>:132</c>) and again after a successful activation that armed a return (<c>:236</c>). This
+        /// method is the port of that one <c>Interact</c> object; <see cref="ResolveCheckpointAction"/>
+        /// is what it reads to decide.</para>
+        ///
+        /// <para><b><see cref="CheckpointAction.None"/> really is "do nothing", including no log.</b>
+        /// AS3 sets <c>inter.active = false</c> for a hidden checkpoint and for one whose activation did
+        /// not arm a return, and an inactive <c>Interact</c> is never delivered a press. Falling through
+        /// to <see cref="ActivateCheckpoint"/> instead would be harmless for the outcome but wrong about
+        /// the mechanism, and it would print "already active, nothing to do" for a checkpoint the oracle
+        /// has no button on at all.</para>
+        /// </summary>
+        private void InteractWithCheckpoint()
+        {
+            PFE.Systems.Campaign.CampaignManager campaign = PFE.Systems.Campaign.CampaignManager.Current;
+            if (campaign == null)
+            {
+                // No campaign: there is no button state to read, and ActivateCheckpoint is the method
+                // that reports the missing manager. Keeping that report is the point of this branch.
+                ActivateCheckpoint();
+                return;
+            }
+
+            switch (ResolveCheckpointAction(campaign))
+            {
+                case CheckpointAction.Teleport:
+                    TeleportFromCheckpoint(campaign);
+                    break;
+
+                case CheckpointAction.Activate:
+                    ActivateCheckpoint();
+                    break;
+
+                default:
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Which action this checkpoint's button currently runs — AS3's <c>inter.actFun</c>, read from
+        /// the three places that write it.
+        ///
+        /// <list type="number">
+        /// <item><b><c>main</c></b> — <c>teleport</c> from construction (<c>CheckPoint.as:132</c>), but
+        /// only while the player is away on a mission (<c>step()</c>, <c>:300-310</c>): in the hub the
+        /// button is dead, because teleporting to the hub you are standing in is not a thing.</item>
+        /// <item><b>a recorded return offer</b> — <c>teleport</c> with <c>userAction = "returnb"</c>
+        /// (<c>:236-238</c>), which is <c>CampaignManager.ReturnCheckpoint</c>. Read from the campaign
+        /// rather than from a field here, because the oracle's <c>CheckPoint</c> outlives a room change
+        /// (all rooms are built at land load, <c>Land.as:947</c>) while this presenter does not.</item>
+        /// <item><b>otherwise</b> — <c>activate</c>. This covers both the untouched checkpoint and the
+        /// restored <c>active == 2</c> one; for the second the press is refused at
+        /// <c>CheckPoint.as:190</c>, which is the oracle's own behaviour and not a state this method has
+        /// to model separately.</item>
+        /// </list>
+        /// </summary>
+        private CheckpointAction ResolveCheckpointAction(PFE.Systems.Campaign.CampaignManager campaign)
+        {
+            if (IsMainCheckpoint)
+            {
+                return campaign.MainReturnIsLive() ? CheckpointAction.Teleport : CheckpointAction.None;
+            }
+
+            Vector3Int room = _room != null ? _room.landPosition : Vector3Int.zero;
+            string code = _objectInstance != null ? _objectInstance.code : null;
+
+            return campaign.OffersReturn(campaign.CurrentLandId.CurrentValue, room, code)
+                ? CheckpointAction.Teleport
+                : CheckpointAction.Activate;
+        }
+
+        /// <summary>
+        /// AS3 <c>CheckPoint.teleport()</c> (<c>CheckPoint.as:250-267</c>) — the travel itself lives in
+        /// <c>CampaignManager.TeleportToCheckpoint</c>; what stays here is the object's own read of
+        /// <c>@main</c>, which is what picks the destination.
+        ///
+        /// <para>The no-op case is real and silent on purpose: a <c>main</c> checkpoint whose mission is
+        /// the hub answers <c>""</c> from <see cref="CheckpointRules.TeleportTarget"/> and the campaign
+        /// logs it. Nothing else is required — the offer is dropped by the destination's own land entry,
+        /// so a second press cannot repeat a travel that never happened.</para>
+        /// </summary>
+        private void TeleportFromCheckpoint(PFE.Systems.Campaign.CampaignManager campaign)
+        {
+            campaign.TeleportToCheckpoint(IsMainCheckpoint);
+        }
+
+        /// <summary>
         /// AS3 <c>CheckPoint.activate()</c> (<c>CheckPoint.as:184-248</c>).
         ///
         /// <para>The decision and the runtime state live in <c>CampaignManager.ActivateCheckpoint</c>
@@ -1234,9 +1355,14 @@ namespace PFE.Systems.Map.Rendering
         /// <para><b>Both of AS3's entry points land here.</b> The button arrives with
         /// <see cref="CheckpointEntry.Activate"/>; the walk-into area with
         /// <see cref="CheckpointEntry.Area"/>, which the campaign refuses unless the checkpoint is still
-        /// fresh (<c>CheckPoint.as:271</c>). Still unported: the return-teleport interaction
-        /// (<c>teleport</c>, <c>CheckPoint.as:250-267</c>), whose target rule is ported and tested but
-        /// which no interaction surface offers yet.</para>
+        /// fresh (<c>CheckPoint.as:271</c>).</para>
+        ///
+        /// <para><b>This is one of the two functions the button can name.</b> The other is
+        /// <c>teleport</c>, reached through <see cref="InteractWithCheckpoint"/>'s routing; AS3 re-points
+        /// the button between the two (<c>CheckPoint.as:236-238</c>), so a checkpoint press does not
+        /// always come here. What that re-pointing *writes* — <c>CampaignManager.ReturnCheckpoint</c> —
+        /// is set inside the campaign's activation, from the same <c>offersTeleport</c> this method's
+        /// return value keys the save off.</para>
         /// </summary>
         /// <param name="entry">Which of AS3's two entry points is running.</param>
         private void ActivateCheckpoint(CheckpointEntry entry = CheckpointEntry.Activate)
@@ -1253,8 +1379,15 @@ namespace PFE.Systems.Map.Rendering
             Vector3Int room = _room != null ? _room.landPosition : Vector3Int.zero;
 
             // `@tele` (CheckPoint.as:97-100) and `@main` (:123-126) come off the object's own XML.
+            //
+            // For a placement the generator produced, `tele` is NOT authored: it is written by
+            // `RoomPopulator.ApplyCheckpointTeleOn`, which ports the oracle's only other writer
+            // (Location.as:2040-2046) — the difficulty rule
+            // `globalDif <= 1 || (land.rnd && globalDif == 2 && rand < 0.33)`. So this one read is the
+            // merge of the authored attribute and the difficulty override, which is exactly what the
+            // oracle's constructor-plus-statement pair produces.
             bool teleOn = !string.IsNullOrEmpty(obj.GetAttribute("tele", string.Empty));
-            bool main = !string.IsNullOrEmpty(obj.GetAttribute("main", string.Empty));
+            bool main = IsMainCheckpoint;
 
             // createCheck's `param1`. AS3 keeps it in a local; the port writes it onto the placement
             // because the decision is made here rather than in the placement.
@@ -1301,7 +1434,7 @@ namespace PFE.Systems.Map.Rendering
             {
                 if (Time.frameCount == _lastInteractFrame) return;
                 _lastInteractFrame = Time.frameCount;
-                ActivateCheckpoint();
+                InteractWithCheckpoint();
                 return;
             }
 

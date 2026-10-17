@@ -52,6 +52,20 @@ namespace PFE.Systems.Map.Scripting
         private readonly Func<IScriptQuestHost> _quests;
         private readonly IScriptPresentationHost _presentation;
         private readonly IScriptObjectHost _objects;
+
+        /// <summary>
+        /// The unit half of the <c>@targ</c> table, or <c>null</c> when the caller wired none.
+        ///
+        /// <para><b>Why a second host rather than one widened <see cref="IScriptObjectHost"/>.</b> The
+        /// oracle keeps a single <c>land.uidObjs</c> holding objects and units alike
+        /// (<c>Script.as:218-236</c>), but the port's two halves have different owners:
+        /// <c>AreaTriggerSystem</c> owns the object records and <c>RoomUnitSpawner</c> owns the live
+        /// unit controllers. Null is a legitimate state — a fixture that exercises only object verbs
+        /// passes none — and it degrades to exactly the pre-change behaviour: a unit <c>@targ</c>
+        /// resolves to nothing and is reported as an unmatched uid.</para>
+        /// </summary>
+        private readonly IUnitCommandHost _units;
+
         private readonly IScriptPlayerHost _player;
         private readonly IScriptInputProbe _input;
         private readonly IScriptCatalogHost _catalog;
@@ -80,12 +94,14 @@ namespace PFE.Systems.Map.Scripting
             IScriptPlayerHost player = null,
             IScriptInputProbe input = null,
             IScriptCatalogHost catalog = null,
-            Action<string> report = null)
+            Action<string> report = null,
+            IUnitCommandHost units = null)
         {
             _campaign = campaign;
             _quests = quests;
             _presentation = presentation;
             _objects = objects;
+            _units = units;
             _player = player;
             _input = input;
             _catalog = catalog;
@@ -383,19 +399,54 @@ namespace PFE.Systems.Map.Scripting
 
             if (!string.IsNullOrEmpty(action.targ))
             {
-                string target = string.Equals(action.targ, "this", StringComparison.OrdinalIgnoreCase)
-                    ? owner?.uid ?? owner?.code
-                    : action.targ;
+                // AS3 Script.as:218-236 — two different resolutions, and they must not be merged:
+                //
+                //   if(param1.targ == "this") _loc2_ = this.owner;              // a REFERENCE
+                //   else                      _loc2_ = land.uidObjs[param1.targ]; // an id LOOKUP
+                //
+                // The port used to collapse both into one string and look it up. That silently broke
+                // `this` for every object with a blank `uid` (the common case — a room object carries a
+                // generated `code` and an empty `uid`, and `uid ?? code` does not fall through on ""),
+                // which is why 57 authored `act="off" targ="this"` actions were dropped with a
+                // "no object matches that uid or code" warning. See the overload's remarks.
+                if (string.Equals(action.targ, "this", StringComparison.OrdinalIgnoreCase))
+                {
+                    CommandOwner(room, owner, command, action.val);
+                    return;
+                }
 
-                if (_objects == null)
+                string target = action.targ;
+
+                // AS3 has ONE table here (`land.uidObjs[param1.targ]`, Script.as:225) holding objects
+                // and units alike, so a `@targ` naming either resolves. The port splits the lookup
+                // because the two halves have different owners, and this is the one place that keeps
+                // the oracle's behaviour observable: ask the object host, then the unit host.
+                //
+                // Object first, deliberately. `sign` exists on both (`Obj.command` sets a marker;
+                // `UnitNPC.command` shows the NPC's objective icon), and an id can only name one thing
+                // in AS3 — so the order is unobservable there and the object host is the one that
+                // existed before this change. A miss from both is what the warning below reports.
+                bool handled = false;
+
+                if (_objects != null)
+                {
+                    handled = _objects.ObjectCommand(room, target, command, action.val);
+                }
+
+                if (!handled && _units != null)
+                {
+                    handled = _units.UnitCommand(room, target, command, action.val);
+                }
+
+                if (!handled && _objects == null && _units == null)
                 {
                     ReportOnce("(object host)", $"a `@targ` command ('{command}' on '{target}') has no " +
                                                 "object host wired, so the object was not touched.");
                 }
-                else if (!_objects.ObjectCommand(room, target, command, action.val))
+                else if (!handled)
                 {
                     Debug.LogWarning($"[ScriptRunner] `{command}` names target '{target}', but no object " +
-                                     "in the room matches that uid or code.");
+                                     "or unit in the room matches that uid or code.");
                 }
 
                 return;
@@ -606,6 +657,41 @@ namespace PFE.Systems.Map.Scripting
                 default:
                     ReportCommand(command);
                     break;
+            }
+        }
+
+        /// <summary>
+        /// The <c>@targ="this"</c> arm — AS3 <c>_loc2_ = this.owner; _loc2_.command(act, val)</c>
+        /// (<c>Script.as:222-236</c>). The owner is passed by reference, never by id.
+        ///
+        /// <para><b>The oracle is silent when the owner is null</b> — <c>if(_loc2_)</c> guards the call,
+        /// so a script with no owner simply does nothing. The port reports it instead, because "a script
+        /// commanded 'this' and there was no 'this'" is a <i>wiring</i> fault (a caller that dropped the
+        /// owner) rather than authored data, and the silent form is what let it go unnoticed while 57
+        /// room scripts quietly did nothing.</para>
+        /// </summary>
+        private void CommandOwner(RoomInstance room, ObjectInstance owner, string command, string value)
+        {
+            if (owner == null)
+            {
+                ReportOnce("(no owner)",
+                    $"[ScriptRunner] `{command}` targets 'this', but the script was started with no owner " +
+                    "object, so nothing was commanded. Whoever started the script must pass the object " +
+                    "the script hangs off.");
+                return;
+            }
+
+            if (_objects == null)
+            {
+                ReportOnce("(object host)", $"a `@targ=\"this\"` command ('{command}') has no object host " +
+                                            "wired, so the object was not touched.");
+                return;
+            }
+
+            if (!_objects.ObjectCommand(room, owner, command, value))
+            {
+                Debug.LogWarning($"[ScriptRunner] `{command}` on 'this' was refused by the object host. " +
+                                 "The owner exists but the command is not one the object understands.");
             }
         }
 

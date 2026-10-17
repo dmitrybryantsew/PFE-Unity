@@ -387,6 +387,30 @@ public class MapBridge : MonoBehaviour
                 if (_debugSettings?.LogMapBridgeLifecycle == true)
                     Debug.Log($"[MapBridge] Using TileAssetDatabase '{_tileDatabase.name}' with {_tileDatabase.GetCount()} overlay sprites.");
 
+                // Setup RoomTransitionManager BEFORE the visuals initialize — the order is load-bearing.
+                //
+                // RoomObjectVisualManager composes the `allact` dispatcher while it presents the room's
+                // objects: its admission test asks the dispatcher whether a script has a handler, and
+                // ApplyPresenterVisual then hands that same dispatcher to every DoorPropPresenter. But
+                // DoorPropPresenter.CreateSceneDispatcher registers `comein` — the Z door's action — off
+                // RoomTransitionManager.Instance, so if the manager does not exist yet the dispatcher is
+                // built WITHOUT `comein` and cached for the room's whole lifetime. Every Z door then
+                // dispatches `comein`, gets Unhandled, and falls back to ToggleOpen() — which a Z door
+                // cannot do (IsDoorBox is false), so the door does nothing at all.
+                //
+                // Creating this block AFTER `_visualController.Initialize` is exactly that bug; the boot
+                // log read "[ObjectAction] No IRoomLayerTransition is available, so `comein` is not
+                // registered". PerformLandTransition already had the manager alive before its own
+                // Initialize, which is why only the boot land lost its Z doors.
+                var transitionManager = RoomTransitionManager.Instance;
+                if (transitionManager == null)
+                {
+                    var rtmGo = new GameObject("RoomTransitionManager");
+                    transitionManager = rtmGo.AddComponent<RoomTransitionManager>();
+                }
+                transitionManager.SetLandMap(landMap);
+                transitionManager.SetVisualController(_visualController, _tileDatabase);
+
                 // Initialize the visual controller with the logical room data
                 using (PFE.Core.Profiling.PfeProfiler.Region("room.init.visuals", "boot: MEASURED 4007ms (2026-09-25) — still the dominant phase: tiles.createAll 2518 + backdrop.createVisuals 1453"))
                 {
@@ -399,16 +423,8 @@ public class MapBridge : MonoBehaviour
                     SpawnPlayer(currentRoom);
                 }
 
-                // Setup RoomTransitionManager & RoomStreamingManager
-                var transitionManager = RoomTransitionManager.Instance;
-                if (transitionManager == null)
-                {
-                    var rtmGo = new GameObject("RoomTransitionManager");
-                    transitionManager = rtmGo.AddComponent<RoomTransitionManager>();
-                }
-                transitionManager.SetLandMap(landMap);
-                transitionManager.SetVisualController(_visualController, _tileDatabase);
-
+                // The streaming manager is only read when a transition actually runs, so it can be built
+                // after the visuals and then handed to the transition manager.
                 var streamingManager = FindFirstObjectByType<RoomStreamingManager>();
                 if (streamingManager == null)
                 {
@@ -1011,6 +1027,22 @@ public class MapBridge : MonoBehaviour
         bool landVisited = campaign != null && campaign.LandStates.Get(targetLand).visited;
         bool firstVisit = CheckpointRules.IsFirstVisit(landIsRandom, landVisited);
 
+        // AS3 `Game.enterToCurLand` (Game.as:353-361) — `param3`, the RUN difficulty this land is built
+        // at. It is a function of the player's LEVEL and a persistent trigger, NOT of the difficulty
+        // setting: `param3 = 0` until a land has been entered, then `max(1, pers.level - 1)`.
+        //
+        // Read here and not inside `WorldBuilder`, because this is the one place in the port that holds
+        // the campaign (the trigger table) and the player (the level) at the moment a land becomes
+        // current. `WorldBuilder` is constructed outside the container and can reach neither.
+        //
+        // `pers.level` defaults to 1 in the oracle, so a transition with no player resolves to 1 — which
+        // makes `param3` 1 rather than a special case, exactly as a level-1 player does.
+        int runDifficulty = DifficultyRules.RunDifficulty(
+            firstRoomSeen: campaign != null && campaign.GetTrigger("firstroom").IsGreaterThanZero(),
+            playerLevel: playerController != null && playerController.CharacterStats != null
+                ? playerController.CharacterStats.Level
+                : 1);
+
         // Determine starting room position (in Surf, entry is room_0_1 at (0, 1, 0)).
         //
         // AS3 `Land.enterLand` (Land.as:1143-1186) is a three-way choice, and this is that order:
@@ -1083,7 +1115,7 @@ public class MapBridge : MonoBehaviour
             worldBuilder.ProbContext = probContext;
 
             built = worldBuilder.BuildLand(land, templates, state.landStage, state.visited,
-                forceRegenerate: false, mbaseVisited: mbaseVisited);
+                forceRegenerate: false, mbaseVisited: mbaseVisited, runDifficulty: runDifficulty);
         }
         else
         {
@@ -1121,7 +1153,17 @@ public class MapBridge : MonoBehaviour
                 }
             }
 
-            built = worldBuilder.BuildSpecificWorld(templates, startPos);
+            // An authored land is still a LAND ENTRY, so it owes the oracle's `Land` constructor fields —
+            // the difficulty, and the two land-scoped loot fields. It cannot go through `BuildLand`,
+            // because that method chooses its own entry cell from the land's authored `locx/locy`, while
+            // this branch must keep `startPos` (the checkpoint / named-room / entrance resolution above).
+            // So the context is built here and handed in as the third argument.
+            //
+            // Without this the authored path passed `LocationBuildContext.None`, so EVERY authored land's
+            // rooms were generated at `landDifLevel 0` / biome -1 — the port's room difficulty was the
+            // sentinel rather than the land's, which is the largest single divergence on this axis
+            // (authored lands are the bulk of the campaign).
+            built = worldBuilder.BuildSpecificWorld(templates, startPos, worldBuilder.EnterLand(land, runDifficulty));
         }
 
         // The transition manager reads the context only when a door is used, so it is handed the same
@@ -1187,6 +1229,27 @@ public class MapBridge : MonoBehaviour
         if (!landIsRandom && campaign != null)
         {
             campaign.LandStates.MarkVisited(targetLand);
+        }
+
+        // AS3 Game.as:365-368 — `if(!_loc1_) this.triggers["firstroom"] = 1;`.
+        //
+        // The other half of `runDifficulty` above, and it must come AFTER the build for the same reason
+        // the `visited` write does: `firstroom` was READ to compute this land's `param3`, and setting it
+        // first would make the very first land build at `max(1, level-1)` instead of 0.
+        //
+        // The oracle's condition is `!_loc1_`, i.e. NOT a first visit to an authored land — so a
+        // procedural land and a re-visited authored one both arm the level scaling for every land built
+        // afterwards. Note it is outside the oracle's `new Land(...)` block: the trigger is armed even
+        // when the land itself was not rebuilt.
+        //
+        // Known divergence, recorded rather than hidden: the oracle caches `curLand.land` and only runs
+        // the constructor when it is null (or `Game.crea`), so a re-visit keeps the FIRST visit's
+        // `landDifLevel`/`lootLimit`. The port rebuilds on every entry, so a re-visit recomputes them
+        // from the player's level at that moment. That is arguably more correct and is certainly
+        // different; it is a consequence of the port having no land cache, which is its own work item.
+        if (campaign != null && !firstVisit)
+        {
+            campaign.SetTrigger("firstroom", 1);
         }
 
         Debug.Log($"[MapBridge] Successfully transitioned to land '{targetLand}' ({collectionName}), current room: {currentRoom?.id}");

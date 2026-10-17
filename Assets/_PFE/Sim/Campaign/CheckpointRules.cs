@@ -73,11 +73,42 @@ namespace PFE.Sim.Campaign
         /// <summary>AS3 <c>if(code)</c> — write <c>prevCPCode</c> and <c>land.act.lastCpCode</c>.</summary>
         public bool writesCode;
 
-        /// <summary>AS3 <c>mReturn &amp;&amp; teleOn &amp;&amp; !used</c> — offer the return interaction.</summary>
+        /// <summary>AS3 <c>mReturn &amp;&amp; teleOn &amp;&amp; !used</c> — offer the return interaction.
+        /// This is the same expression as <see cref="CheckpointAction.Teleport"/> being
+        /// <see cref="CheckpointRules.ActionAfterActivate"/>'s answer, and <see cref="CheckpointRules.Activate"/>
+        /// derives it from there rather than spelling it twice.</summary>
         public bool offersTeleport;
 
         /// <summary>AS3 <c>active == 0 &amp;&amp; !param1</c> — heal the mana pool and grant the XP bonus.</summary>
         public bool grantsRestoreBonus;
+    }
+
+    /// <summary>
+    /// Which function a checkpoint's interaction button currently runs — AS3's <c>inter.actFun</c>.
+    ///
+    /// <para><b>A third question, not a restatement of <c>active</c>.</b> <c>active</c> says whether the
+    /// checkpoint <i>has been</i> activated; the button says what a press <i>does now</i>. They are
+    /// written by different statements and they genuinely diverge: a checkpoint activated earlier in
+    /// this land visit is <c>active == 2</c> with a <see cref="Teleport"/> button, while one restored as
+    /// <c>active == 2</c> from <c>game.objs</c> on a later entry is <c>active == 2</c> with an
+    /// <see cref="Activate"/> button whose press <c>CheckPoint.as:190</c> refuses outright. Deriving the
+    /// button from <c>active</c> would therefore offer a return the oracle does not.</para>
+    /// </summary>
+    public enum CheckpointAction
+    {
+        /// <summary>AS3 <c>inter.actFun = this.activate</c> (<c>CheckPoint.as:86</c>) — the
+        /// constructor's default: a press activates (heals, saves) and then re-points the button.</summary>
+        Activate,
+
+        /// <summary>AS3 <c>inter.actFun = this.teleport</c> — set at <c>:132</c> for a <c>main</c>
+        /// checkpoint and at <c>:236</c> after a successful activation. A press travels.</summary>
+        Teleport,
+
+        /// <summary>AS3 <c>inter.active = false</c> (<c>:142</c> for <c>hide</c>, <c>:243</c> when the
+        /// activation did not arm a return) — the button is <b>removed</b>: no prompt and no press.
+        /// That is a different state from a live button whose press happens to be refused, and the
+        /// oracle's own two branches keep them apart.</summary>
+        None,
     }
 
     /// <summary>
@@ -164,6 +195,11 @@ namespace PFE.Sim.Campaign
                 };
             }
 
+            // AS3 writes the same condition twice — once to arm the visual (`CheckPoint.as:218`) and
+            // once to re-point the button (`:234`). Evaluating it once and reading it twice is what
+            // keeps "the return was offered" and "the button became the return" from ever disagreeing.
+            CheckpointAction button = ActionAfterActivate(in facts);
+
             return new CheckpointActivation
             {
                 refused = false,
@@ -172,10 +208,87 @@ namespace PFE.Sim.Campaign
                 // cleared. Writing "" would erase the land's record of its last checkpoint.
                 writesCode = !string.IsNullOrEmpty(facts.code),
                 // AS3 `World.w.game.mReturn && this.teleOn && !this.used`.
-                offersTeleport = facts.mReturn && facts.teleOn && !facts.used,
+                offersTeleport = button == CheckpointAction.Teleport,
                 // AS3 `if(this.active == 0 && param1 == false)`.
                 grantsRestoreBonus = facts.active == Fresh && !facts.isBegin,
             };
+        }
+
+        // ─────────────────────────────────────────────────────────────────────────────
+        // The interaction button — which function a press runs
+        // ─────────────────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// The button a checkpoint is <b>built</b> with — AS3's constructor (<c>CheckPoint.as:85-88</c>),
+        /// then the <c>main</c> block at <c>:126-137</c> and the <c>hide</c> block at <c>:139-143</c>.
+        ///
+        /// <para><b>A <c>main</c> checkpoint's button is <c>teleport</c> from construction.</b> It is
+        /// never activated — its constructor forces <c>active = 2</c> (<c>:128</c>) — and never walked
+        /// into (<c>this.area = null</c>, <c>:127</c>): it exists only to send the player back to the
+        /// mission. That is why the camp's three checkpoints are <c>main</c> (<c>RoomsCamp.as:44</c>,
+        /// <c>:699</c>, <c>:801</c>): they are the way out of the hub.</para>
+        ///
+        /// <para><b><c>hide</c> wins over <c>main</c>.</b> AS3 sets <c>inter.active = false</c> in the
+        /// <c>hide</c> block, which runs <i>after</i> the <c>main</c> block, so a hidden main checkpoint
+        /// has no button at all. The two terms are not interchangeable and the order is the oracle's.
+        /// <c>hide</c> is not hypothetical data: seven checkpoints author it
+        /// (<c>RoomsSerial2.as:6078</c>, <c>:6287</c>, <c>:6341</c>, <c>:6774</c>, <c>:7293</c>,
+        /// <c>:7322</c>, <c>:7558</c> — the <c>pis</c>/<c>grave</c>/<c>thunder</c> rooms), and they are
+        /// the invisible checkpoints a script moves the player to.</para>
+        /// </summary>
+        public static CheckpointAction InitialAction(bool main, bool hide)
+        {
+            if (hide) return CheckpointAction.None;
+            return main ? CheckpointAction.Teleport : CheckpointAction.Activate;
+        }
+
+        /// <summary>
+        /// The button after a successful <c>activate()</c> — AS3's tail (<c>CheckPoint.as:234-245</c>).
+        ///
+        /// <para><b>Both branches change the button, and the <c>else</c> is not "leave it alone".</b>
+        /// <c>if(World.w.game.mReturn &amp;&amp; this.teleOn &amp;&amp; !this.used)</c> re-points it at
+        /// <c>teleport</c> with <c>userAction = "returnb"</c> and <c>t_action = 30</c> (<c>:236-238</c>);
+        /// every other case runs <c>inter.active = false; inter.actionText = ""</c> (<c>:243-244</c>),
+        /// i.e. the button is <b>removed</b>. A checkpoint that authors no <c>tele</c> therefore offers
+        /// exactly one press — the save — and a second press does nothing. A "keep the button live"
+        /// reading gets that wrong in the permissive direction: it would leave the player able to
+        /// re-activate a checkpoint the oracle has just deadened.</para>
+        /// </summary>
+        public static CheckpointAction ActionAfterActivate(in CheckpointFacts facts)
+        {
+            return facts.mReturn && facts.teleOn && !facts.used
+                ? CheckpointAction.Teleport
+                : CheckpointAction.None;
+        }
+
+        /// <summary>
+        /// Whether a <c>main</c> checkpoint's button is live — AS3 <c>step()</c>'s <c>main</c> branch
+        /// (<c>CheckPoint.as:300-310</c>):
+        /// <code>
+        /// if(World.w.game.missionId &amp;&amp; World.w.game.lands[missionId] &amp;&amp;
+        ///    World.w.game.lands[missionId].tip != "base") inter.active = true;
+        /// else inter.active = false;
+        /// </code>
+        ///
+        /// <para><b>The condition is "am I away on a mission", re-read every frame.</b> A <c>main</c>
+        /// checkpoint is the way <i>out of the hub</i>, so while the player is standing in the hub it
+        /// must not offer to take them there. It goes live exactly when <c>missionId</c> names a land
+        /// that is not a base — which is the state a checkpoint teleport produces, because
+        /// <c>gotoLand</c> never touches <c>missionId</c>: the player lands in the camp with
+        /// <c>missionId</c> still pointing at the mission, and the camp's main checkpoint becomes the
+        /// way back.</para>
+        ///
+        /// <para><b>An unknown land reads as dead, not as live.</b> AS3's second term indexes
+        /// <c>lands[missionId]</c>; an id the catalogue does not have makes that term falsy and takes the
+        /// <c>else</c>. The port has no dictionary to index, so the caller reports "known" separately and
+        /// this answers the same way — the permissive direction would teleport the player to a land that
+        /// does not exist.</para>
+        /// </summary>
+        /// <param name="missionLandKnown">AS3 <c>Boolean(World.w.game.lands[missionId])</c>.</param>
+        /// <param name="missionLandIsBase">AS3 <c>lands[missionId].tip == "base"</c>.</param>
+        public static bool MainIsLive(bool missionLandKnown, bool missionLandIsBase)
+        {
+            return missionLandKnown && !missionLandIsBase;
         }
 
         /// <summary>

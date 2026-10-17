@@ -56,6 +56,23 @@ namespace PFE.Systems.Map
         /// </summary>
         public int tipEnemy = -1;
 
+        /// <summary>
+        /// AS3 <c>Location.earMult:Number = 1</c> (<c>Location.as:259</c>) — the room's hearing/alarm
+        /// multiplier, halved by <c>Land.setLocDif</c> when <c>globalDif &lt; 2</c>
+        /// (<c>Land.as:988-991</c>).
+        ///
+        /// <para><b>It is a difficulty scalar, not authored data.</b> The oracle mentions <c>earMult</c>
+        /// four times: the declaration, the one halving, and the two reads (<c>Location.as:2867</c> for the
+        /// alarm radius — squared — and <c>Unit.as:4538</c> for hearing — linear). There is no XML
+        /// attribute for it anywhere, and its only writer runs once per constructed room, so it is
+        /// <b>1 on normal/hard and 0.5 on easy</b> and nothing else can move it. Do not expose it as
+        /// per-room authoring.</para>
+        ///
+        /// <para>The default is 1 (the oracle's declared value), which is what a room that never runs
+        /// <c>setLocDif</c> behaves as.</para>
+        /// </summary>
+        public float earMult = 1f;
+
         private static PFE.Core.Rng.IRngService s_spawnRng;
 
         /// <summary>

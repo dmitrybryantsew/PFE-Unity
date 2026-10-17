@@ -4,6 +4,7 @@ using PFE.Core;
 using PFE.Entities.Enemies;
 using PFE.Entities.Units;
 using PFE.Systems.Map;
+using PFE.Systems.Weapons;
 using UnityEngine;
 
 namespace PFE.Systems.Map.Rendering
@@ -579,23 +580,45 @@ namespace PFE.Systems.Map.Rendering
 
             if (wantsVision)
             {
-                // The cone is a half-disc: the sensor culls at VisionRangePixels and then rejects
-                // anything behind the facing direction, so the shape is the arc over the facing
-                // hemisphere, plus the eye point the ray is cast from.
-                float fromDeg = brain.Blackboard.FacingDirection >= 0 ? -90f : 90f;
-                float toDeg = fromDeg + 180f;
+                // ── The radius drawn is the radius TESTED, not the neutral base ──────────────────────
+                //
+                // This used to pass `sensors.VisionRangePixels`, which is the observer's range against
+                // a neutral target — 480 px for every unit in the game. The sensor, however, culls each
+                // candidate at `EffectiveSightRangePixels(candidate)`, which multiplies in the room's
+                // `loc.visMult`. So in `room_12_1` (vis='10') Calamity's real range is 4800 px while the
+                // arc on screen was 480 — and because the arc is the picture people reason from, a room
+                // with the multiplier wired looked identical to one without it. The panel said
+                // `vision=480` too, so the one instrument that could have confirmed the fix reported
+                // the pre-fix number and read as "the change did not land".
+                float rangePx = EffectiveSightRangePixels(brain);
 
-                EmitArcPixels(eyePx, sensors.VisionRangePixels, fromDeg, toDeg,
-                    isSelected ? LineThickness : ThinLineThickness,
-                    isSelected ? VisionColor : VisionColorDim,
-                    ArcSegments);
-
-                if (isSelected)
+                // An NPC acquires 360° (`UnitNPC.findCel` passes `look(unit, true)`), so drawing it as
+                // a half-disc would understate what it can see by exactly the half it is not facing.
+                if (sensors.Omnidirectional)
                 {
-                    // Close the half-disc so the range boundary reads as a shape, not as a stray curve.
-                    Vector2 a = PolarPixels(eyePx, sensors.VisionRangePixels, fromDeg);
-                    Vector2 b = PolarPixels(eyePx, sensors.VisionRangePixels, toDeg);
-                    EmitSegmentPixels(a, b, ThinLineThickness, VisionColorDim);
+                    EmitCirclePixels(eyePx, rangePx, isSelected ? LineThickness : ThinLineThickness,
+                        isSelected ? VisionColor : VisionColorDim, CircleSegments);
+                }
+                else
+                {
+                    // The cone is a half-disc: the sensor culls at the effective range and then rejects
+                    // anything behind the facing direction, so the shape is the arc over the facing
+                    // hemisphere, plus the eye point the ray is cast from.
+                    float fromDeg = brain.Blackboard.FacingDirection >= 0 ? -90f : 90f;
+                    float toDeg = fromDeg + 180f;
+
+                    EmitArcPixels(eyePx, rangePx, fromDeg, toDeg,
+                        isSelected ? LineThickness : ThinLineThickness,
+                        isSelected ? VisionColor : VisionColorDim,
+                        ArcSegments);
+
+                    if (isSelected)
+                    {
+                        // Close the half-disc so the range boundary reads as a shape, not as a stray curve.
+                        Vector2 a = PolarPixels(eyePx, rangePx, fromDeg);
+                        Vector2 b = PolarPixels(eyePx, rangePx, toDeg);
+                        EmitSegmentPixels(a, b, ThinLineThickness, VisionColorDim);
+                    }
                 }
             }
 
@@ -665,6 +688,72 @@ namespace PFE.Systems.Map.Rendering
 
             // The selection itself, so it is findable in a room full of identical zombies.
             DrawHighlight(enemy, SelectedColor, LineThickness * 0.8f);
+        }
+
+        /// <summary>
+        /// The nearest live candidate this brain was offered — the one the range is drawn and printed
+        /// against.
+        /// </summary>
+        /// <remarks>
+        /// <b>Nearest, not first.</b> <c>Evaluate</c> commits to the closest candidate that survives
+        /// every gate, so the closest one is the number that decides the picture. Reading
+        /// <see cref="EnemyBrain.TargetCandidates"/> rather than searching the scene keeps this
+        /// derived from the exact list the sensor evaluated.
+        /// </remarks>
+        private static UnitController NearestCandidate(EnemyBrain brain)
+        {
+            IReadOnlyList<UnitController> candidates = brain.TargetCandidates;
+            if (candidates == null)
+            {
+                return null;
+            }
+
+            Vector2 eyePx = brain.EyePositionPixels;
+            UnitController nearest = null;
+            float bestSq = float.MaxValue;
+
+            for (int i = 0; i < candidates.Count; i++)
+            {
+                UnitController candidate = candidates[i];
+                if (candidate == null || !candidate.IsAlive)
+                {
+                    continue;
+                }
+
+                float distSq = (EnemySensors.GetUnitCenterPixels(candidate) - eyePx).sqrMagnitude;
+                if (distSq < bestSq)
+                {
+                    bestSq = distSq;
+                    nearest = candidate;
+                }
+            }
+
+            return nearest;
+        }
+
+        /// <summary>
+        /// The range this brain is actually culling at — <see cref="EnemySensors.EffectiveSightRangePixels"/>
+        /// against the nearest candidate, or the neutral-target range when it has none.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>This is the number the overlay owes the reader.</b> <c>VisionRangePixels</c> is the
+        /// observer's range against a neutral target and is the same 480 for every unit in the game, so
+        /// printing it made a room with <c>vis='10'</c> — where the real range is 4800 — look exactly
+        /// like a room where the multiplier is missing. The distinction is printed next to it rather
+        /// than replacing it, because "480 base, 4800 here" is the fact that proves the wiring.</para>
+        /// </remarks>
+        private static float EffectiveSightRangePixels(EnemyBrain brain)
+        {
+            EnemySensors sensors = brain != null ? brain.Sensors : null;
+            if (sensors == null)
+            {
+                return 0f;
+            }
+
+            UnitController nearest = NearestCandidate(brain);
+            return nearest != null
+                ? sensors.EffectiveSightRangePixels(nearest)
+                : sensors.NeutralSightRangePixels;
         }
 
         /// <summary>
@@ -1435,9 +1524,84 @@ namespace PFE.Systems.Map.Rendering
             int loudestNoise = LoudestCandidateNoise(brain);
             float hearingRadiusPx = sensors.HearingRadiusPixels(loudestNoise);
 
+            // The range row prints BOTH numbers, and the second one is the one that matters.
+            //
+            // `base` is `EnemySensors.VisionRangePixels` — the observer's range against a neutral
+            // target, and the same 480 for every unit in the game. `vision` is what the sensor actually
+            // culls at, which is that base multiplied by the room's `loc.visMult` (`vis='10'` in the
+            // surf rooms → 4800). Printing only the base is what made a wired multiplier look like a
+            // missing one; printing only the product hides which term moved. The cone is named too,
+            // because `360` and `180` are different pictures of the same range.
             sb.Append("\n  ranges      ");
-            sb.Append($"vision={sensors.VisionRangePixels:0}  close={sensors.CloseProximityPixels:0}");
+            sb.Append($"vision={EffectiveSightRangePixels(brain):0}");
+            sb.Append($"  (base {sensors.VisionRangePixels:0} x visiMult {sensors.LocationVisiMult:0.##}");
+            sb.Append($" x vision {sensors.VisionPower:0.##})");
+            sb.Append($"\n              ");
+            sb.Append($"cone={(sensors.Omnidirectional ? "360" : "180")}");
+            sb.Append($"  close={sensors.CloseProximityPixels:0}");
             sb.Append($"  rayEvery={sensors.RaycastThrottleInterval}t");
+
+            // Where the unit IS, in the same pixels the tile grid is addressed in. A unit standing on
+            // nothing is a position question, and there was no way to answer it from the panel: the
+            // eye point is a derived point above the feet and reads as plausible whether the feet are
+            // on the floor or fifteen tiles above it.
+            Vector2 feetPx = (Vector2)selected.transform.position * 100f;
+            float tilePx = WorldConstants.TILE_SIZE;
+            sb.Append("\n  pos (px)    ").Append(Fmt(feetPx));
+            sb.Append($"  tile ({Mathf.FloorToInt(feetPx.x / tilePx)},{Mathf.FloorToInt(feetPx.y / tilePx)})");
+
+            // The NPC half of the state — `aiTip` is the ONLY AI switch `UnitNPC` has, and `isFly`
+            // decides both the pose and whether the landing block is armed. Neither was visible
+            // anywhere, so "he stopped shooting" and "he is still flying" could not be told apart.
+            if (selected is UnitNPCController npc)
+            {
+                sb.Append("\n  npc         ");
+                sb.Append($"aiTip='{npc.AiTip}'");
+                sb.Append($"  isFly={npc.IsFlyingNow}");
+                sb.Append($"  animFly={npc.CanFly}");
+
+                // `aiTip` alone is not the AI switch — `IsAgro` is, and it is set by `ai agro` from the
+                // queue, not by the placement. A Calamity mid-flight carries `aiTip='fly'` with the agro
+                // verb still queued, which reads as "he is flying" rather than "the fight has not
+                // started". The queue depth and its clock are the two numbers that separate those.
+                sb.Append("\n  ai          agro={(brain is UnitNpcBrain npcBrain && npcBrain.IsAgro)}");
+                sb.Append($"  queue={npc.PendingQueuedVerbCount}  wait={npc.QueueWaitFrames}");
+
+                // …and the firing chain, because "he has a target and does not shoot" is six silent
+                // links and the panel reported none of them. `shots` is cumulative, so a number that
+                // climbs while nothing is drawn means the shot exists and its visual does not.
+                EnemyWeaponMount mount = npc.PrimaryWeaponMount;
+                sb.Append("\n  weapon      ");
+                if (mount == null)
+                {
+                    sb.Append(npc.EquippedWeaponCount == 0
+                        ? "none (persona authored no weap)"
+                        : $"NO MOUNT for '{npc.PrimaryWeaponId}'");
+                }
+                else if (!mount.IsArmed)
+                {
+                    sb.Append($"'{mount.Definition?.weaponId}' UNARMED");
+                }
+                else
+                {
+                    WeaponRuntimeState weaponState = mount.Controller.State;
+                    sb.Append($"'{mount.Definition?.weaponId}'");
+                    sb.Append($"  ammo={weaponState.CurrentAmmo}");
+                    sb.Append($"  tAtk={weaponState.TAttack}  tRel={weaponState.TReload}");
+                    sb.Append($"  jam={weaponState.Jammed}  firing={mount.IsFiring}");
+                    sb.Append($"  shots={mount.ShotsFired}");
+                }
+            }
+
+            // Which gate refused the last candidate. The overlay reported the OUTCOME (`T` present or
+            // absent) and never the reason, so range/cone/occlusion/meter were indistinguishable here
+            // and cost a play-test each to separate.
+            sb.Append("\n  lastRefusal ");
+            sb.Append(sensors.LastRejection);
+            if (sensors.LastRejection != EnemySensors.RejectionReason.NoCandidates)
+            {
+                sb.Append($"  at {sensors.LastRejectionDistancePixels:0}px");
+            }
 
             // The hearing row is its own line because it is now three numbers that mean something
             // together: the listener's `ear`, the radius that product produces, and the source noise it
@@ -1506,7 +1670,13 @@ namespace PFE.Systems.Map.Rendering
             Vector2 eyePx = brain.EyePositionPixels;
             Vector2 targetCentrePx = EnemySensors.GetUnitCenterPixels(board.TargetUnit);
 
-            bool inCone = sensors.CheckVisionAngle(eyePx, board.FacingDirection, targetCentrePx);
+            // An omnidirectional observer skips the cone outright (`UnitNPC.findCel` passes
+            // `look(unit, true)`), so calling `CheckVisionAngle` for it would report "behind him — no
+            // sight" about a unit that has already acquired the target. The verdict has to answer
+            // "would the SENSOR accept this", not "what would the base rule say".
+            bool inCone = sensors.Omnidirectional ||
+                          sensors.CheckVisionAngle(eyePx, board.FacingDirection, targetCentrePx);
+            float rangePx = sensors.EffectiveSightRangePixels(board.TargetUnit);
 
             // The TARGET's own noise decides audibility, and it is 0 for a stationary player — the
             // exact case that produced the reported bug. `HearIntensity` returns 0 both when the source
@@ -1522,7 +1692,9 @@ namespace PFE.Systems.Map.Rendering
             sb.Append("\n\n<b>verdict</b>  <i>the shipped sensor methods, called with the values above</i>");
 
             sb.Append("\n  vision cone  ").Append(YesNo(inCone));
-            sb.Append($"   (<= {sensors.VisionRangePixels:0}px AND on the facing side, or inside close)");
+            sb.Append($"   (<= {rangePx:0}px");
+            sb.Append(sensors.Omnidirectional ? ", 360 deg" : " AND on the facing side");
+            sb.Append(", or inside close)");
 
             sb.Append("\n  hearing      ").Append(YesNo(audible));
             sb.Append($"   (noise {targetNoise} → r={hearRadiusPx:0}px, facing ignored)");
@@ -1684,7 +1856,8 @@ namespace PFE.Systems.Map.Rendering
             int loudestNoise = LoudestCandidateNoise(brain);
 
             sb.Append($"\n  eye={Fmt(brain.EyePositionPixels)}");
-            sb.Append($" vision={sensors.VisionRangePixels:0}");
+            sb.Append($" vision={EffectiveSightRangePixels(brain):0}");
+            sb.Append($" (base {sensors.VisionRangePixels:0} x visiMult {sensors.LocationVisiMult:0.##})");
             sb.Append($" ear={sensors.Ear:0.##}x{sensors.EarMultiplier:0.##}");
             sb.Append($" hearing={sensors.HearingRadiusPixels(loudestNoise):0}px@n{loudestNoise}");
             sb.Append($" close={sensors.CloseProximityPixels:0}");

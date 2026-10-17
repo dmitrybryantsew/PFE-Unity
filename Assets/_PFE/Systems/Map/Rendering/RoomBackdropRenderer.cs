@@ -51,6 +51,30 @@ namespace PFE.Systems.Map.Rendering
         private const float LightOcclusionStepPixels = 40f;
         private static readonly Vector3 BackgroundScale = new Vector3(1f, 1f, 1f);
 
+        /// <summary>
+        /// The name prefixes of the per-room GameObjects this renderer creates under
+        /// <see cref="_backgroundParent"/>: <c>Backdrop_&lt;wall&gt;_&lt;i&gt;</c> and
+        /// <c>Background_&lt;id&gt;_&lt;x&gt;_&lt;y&gt;</c>.
+        ///
+        /// <para><b>They exist so a rebuild can sweep its predecessor's objects.</b> What this renderer
+        /// creates is recorded only in this instance's lists, and an instance does not survive a domain
+        /// reload — so anything an earlier instance left under the parent (including objects Unity has
+        /// already saved into the scene) is invisible to <see cref="DestroyVisuals"/>. That is how
+        /// <c>Backdrop__0</c> accumulated in <c>SampleScene</c>: one more per editor session. See
+        /// <see cref="DestroyStaleBackdropChildren"/>.</para>
+        ///
+        /// <para><b>A new object created under <see cref="_backgroundParent"/> must be added here</b>, or
+        /// the next rebuild will leave it behind — the same silent shape this list was added to fix.</para>
+        /// </summary>
+        private static readonly string[] OwnedChildPrefixes = { "Backdrop_", "Background_" };
+
+        /// <summary>
+        /// Exact names of the singleton children. <c>BackgroundTiles</c> is deliberately <b>not</b> here:
+        /// it is a sibling under the same parent and belongs to <c>RoomVisualController</c>, so sweeping
+        /// it would destroy the background tile layer.
+        /// </summary>
+        private static readonly string[] OwnedChildNames = { "VisibilityMask", "BackgroundTileShadow", "WaterOverlay" };
+
         private readonly RoomInstance _room;
         private readonly TileTextureLookup _tileTextureLookup;
         private readonly RoomBackgroundLookup _backgroundLookup;
@@ -310,6 +334,11 @@ namespace PFE.Systems.Map.Rendering
         {
             DestroyVisuals();
 
+            // Our own objects are gone; anything else under the parent that carries our naming belongs to
+            // a previous instance (a domain reload, or the editor preview's rebuild) and would otherwise
+            // be joined by a second copy. See DestroyStaleBackdropChildren.
+            DestroyStaleBackdropChildren();
+
             if (_room == null || _backgroundParent == null)
             {
                 return;
@@ -383,6 +412,87 @@ namespace PFE.Systems.Map.Rendering
             _visibilityMaskUploadPending = true;
             _lastPlayerSampleValid = false;
             _lastPlayerSample = new Vector2Int(int.MinValue, int.MinValue);
+        }
+
+        /// <summary>
+        /// Destroy every backdrop GameObject left under <see cref="_backgroundParent"/> by an <b>earlier</b>
+        /// renderer instance — i.e. the objects this renderer would have created, other than the ones it is
+        /// currently tracking (those are <see cref="DestroyVisuals"/>'s job).
+        ///
+        /// <para><b>Why the parent is swept rather than the instance's own lists.</b> The lists are the only
+        /// record of what this instance made, and an instance does not survive a domain reload. The editor
+        /// preview (<c>RoomVisualController.RefreshBackdropVisuals</c>) rebuilds the backdrop on every
+        /// <c>OnValidate</c> with a <i>fresh</i> instance, so its <c>DestroyVisuals()</c> destroys nothing
+        /// while the previous session's objects — which Unity has already saved into the scene — stay put
+        /// and a new set is added beside them. One <c>Backdrop__0</c> per session, for ever. The parent is
+        /// the only record that outlives the instance, so the parent is what gets swept.</para>
+        ///
+        /// <para><b>Matched by name, not by clearing the parent.</b> <c>BackgroundTiles</c> is a sibling
+        /// under the same parent and belongs to <c>RoomVisualController</c>; clearing the parent would
+        /// destroy the background tile layer. The list that decides this lives in
+        /// <see cref="OwnedChildPrefixes"/> / <see cref="OwnedChildNames"/>.</para>
+        /// </summary>
+        private void DestroyStaleBackdropChildren()
+        {
+            if (_backgroundParent == null)
+            {
+                return;
+            }
+
+            for (int i = _backgroundParent.childCount - 1; i >= 0; i--)
+            {
+                Transform child = _backgroundParent.GetChild(i);
+                if (child == null || !IsOwnedBackdropChild(child.name))
+                {
+                    continue;
+                }
+
+                if (Application.isPlaying)
+                {
+                    UnityEngine.Object.Destroy(child.gameObject);
+                }
+                else
+                {
+                    UnityEngine.Object.DestroyImmediate(child.gameObject);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Whether <paramref name="name"/> is one this renderer gives its own GameObjects — i.e. whether
+        /// <see cref="DestroyStaleBackdropChildren"/> is allowed to sweep it.
+        ///
+        /// <para><b>Public for the same reason <c>RoomObjectVisualManager.UsesDoorPresenter</c> is:</b>
+        /// the rule is a pure function of a string, and the half that matters — that it must <b>not</b>
+        /// match <c>BackgroundTiles</c>, whose destruction would take the background tile layer with it —
+        /// is exactly the kind of thing that has to be pinned by a test that can run without an engine.
+        /// Widening this to <c>public</c> is what makes that guard possible; the alternative is a lint on
+        /// the source, which asserts the list's text rather than the rule.</para>
+        /// </summary>
+        public static bool IsOwnedBackdropChild(string name)
+        {
+            if (string.IsNullOrEmpty(name))
+            {
+                return false;
+            }
+
+            for (int i = 0; i < OwnedChildNames.Length; i++)
+            {
+                if (string.Equals(name, OwnedChildNames[i], StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+
+            for (int i = 0; i < OwnedChildPrefixes.Length; i++)
+            {
+                if (name.StartsWith(OwnedChildPrefixes[i], StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         public void UpdateVisibilityMask(Vector3? playerWorldPosition = null)

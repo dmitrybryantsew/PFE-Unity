@@ -383,6 +383,51 @@ namespace PFE.Tests.Editor.Map.Actions
             Assert.IsTrue(door.runtimeState.isOpen);
         }
 
+        /// <summary>
+        /// The dispatcher's own <c>Handles</c> must agree with <see cref="BroadcastAction.Handles"/>
+        /// about the broadcast ids, because <c>RoomObjectVisualManager.UsesDoorPresenter</c> asks it —
+        /// and that question is the <b>only</b> clause that can admit a <c>knop</c> button.
+        ///
+        /// <para>The button imports as <c>type: box</c>, its definition family is <c>Furniture</c>
+        /// (<c>AllData.as:4907</c> <c>ico='but'</c>) and its visual id starts with neither <c>door</c>
+        /// nor a door family name, so with <c>Handles</c> consulting only the registered actions every
+        /// button in the game answered false and fell to <c>ObjectColliderDebugPresenter</c>: no
+        /// collider, no <c>IInteractable</c>, unreachable. That is "buttons do nothing — create or
+        /// remove platforms, open doors, move platforms".</para>
+        ///
+        /// <para>The negative half matters as much: an oracle branch the fallback declines must still
+        /// answer false, or an unported <c>hack_robot</c> terminal would start toggling open.</para>
+        /// </summary>
+        [Test]
+        public void Handles_ConsultsTheFallback_SoAButtonWithABroadcastAllactIsAdmitted()
+        {
+            ObjectInteractionBroadcast broadcast = MakeBroadcast(out _, out _);
+            var dispatcher = new ObjectActionDispatcher(_ => { })
+            {
+                Fallback = new BroadcastAction(broadcast)
+            };
+
+            foreach (string id in new[] { "open", "swap", "move3", "pop", "unlock", "onoff", "spawn" })
+            {
+                Assert.IsTrue(dispatcher.Handles(id),
+                    "'" + id + "' is run by the broadcast, so the dispatcher does handle it");
+            }
+
+            foreach (string id in new[] { "hack_robot", "comein", "exit", "map", "vault", "stand" })
+            {
+                Assert.IsFalse(dispatcher.Handles(id),
+                    "'" + id + "' is an oracle branch the fallback declines, so it must not be claimed");
+            }
+
+            Assert.IsFalse(dispatcher.Handles(null));
+            Assert.IsFalse(dispatcher.Handles(""));
+
+            // A dispatcher with no fallback is unchanged — every fixture built with a bare
+            // `new ObjectActionDispatcher(...)` depends on that.
+            var bare = new ObjectActionDispatcher(_ => { });
+            Assert.IsFalse(bare.Handles("swap"));
+        }
+
         // ── terminal actions ─────────────────────────────────────────────────────────────
 
         [Test]

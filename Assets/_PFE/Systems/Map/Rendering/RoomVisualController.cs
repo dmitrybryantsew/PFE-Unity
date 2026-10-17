@@ -527,6 +527,15 @@ namespace PFE.Systems.Map.Rendering
             areaTriggerSystem = new PFE.Systems.Map.Scripting.AreaTriggerSystem();
             areaTriggerSystem.OnGotoLand += land => OnGotoLand?.Invoke(land);
 
+            // Publish this room's `@targ` host so a script that is NOT owned by a room can still
+            // resolve a target against one. The caller that needs it is the land-level
+            // `<scr eve='take' item='…'>` path: it starts from an inventory event on the player, which
+            // knows the room it is standing in but has no way to reach the object host that serves it
+            // (`RoomInstance` is plain map data with no back-reference to its renderer, deliberately).
+            // This controller is the only thing that constructs an AreaTriggerSystem, so it is the only
+            // place that can publish the pair.
+            PFE.Systems.Map.Scripting.ScriptSystem.Current?.RegisterObjectHost(roomInstance, areaTriggerSystem);
+
             if (room == null)
             {
                 Debug.LogError("[RoomVisualController] Cannot initialize with null room!");
@@ -683,6 +692,34 @@ namespace PFE.Systems.Map.Rendering
             roomUnitSpawner.RefreshAll();
             Profiler.Mark("room.units.refreshAll");
 
+            // ...and this is the line that makes a script's `@targ` able to name a UNIT.
+            //
+            // AS3 keeps ONE lookup table per land — `Script.as:218-236` resolves every `@targ` through
+            // `this.land.uidObjs[param1.targ]`, and units register into it at spawn alongside objects.
+            // The port split that table by ownership (objects on AreaTriggerSystem, live units on this
+            // spawner), so the runner has to be able to reach both halves. Without this call the unit
+            // half exists but is unreachable, and `surfStory`'s five `@targ="surfCalam"` actions are
+            // dropped with "no object in the room matches that uid or code" — the exact symptom that
+            // started the Calamity work.
+            //
+            // AFTER RefreshAll, because the host answers against the spawned GameObjects: a handover
+            // before the units exist would resolve `surfCalam` to a record with no controller behind it.
+            areaTriggerSystem.SetUnitHost(roomUnitSpawner);
+
+            // ...and the same table, handed the other way, so a DIALOGUE script can resolve `@targ`.
+            //
+            // AS3 builds a dialogue's script with the land as its context (`NPC.as:322`,
+            // `new Script(node, World.w.land, owner, true)`), and `Script.com` resolves every `@targ`
+            // through `land.uidObjs` — objects and units in one table. The port splits that table by
+            // ownership, so an NPC needs BOTH halves; `RoomUnitSpawner.UnitCommand` alone would let a
+            // dialogue name a unit but not an object, and the shipped data does both
+            // (`unlock targ="doorRBL1"`, `sign targ="worldMap"`, `check targ="rblCalam"`).
+            //
+            // `AreaTriggerSystem` implements all three host interfaces, so the same instance serves the
+            // room's own runner and every NPC's dialogue runner — one lookup, two callers, which is what
+            // the oracle has.
+            roomUnitSpawner.SetScriptHosts(areaTriggerSystem, areaTriggerSystem);
+
             EnsureBoundaryDoorTriggers(room);
 
             // Set world position
@@ -821,6 +858,34 @@ namespace PFE.Systems.Map.Rendering
             backgroundTileVisualManager?.UpdateAllTiles();
             roomObjectVisualManager?.RefreshAll();
             roomUnitSpawner?.RefreshAll();
+
+            // AS3 `if(loc.prob) loc.prob.check()` from inside a unit's `die()` (Unit.as:4395-4402). The
+            // scan is the port's inverse of that: the spawned controllers hold the live aliveness and
+            // nothing gives a unit a reference back to its room, so the room asks them.
+            //
+            // Here rather than in a tick of its own because this method is already the per-frame room
+            // refresh — adding a second driver for the one call would be a second schedule to drift.
+            ReportProbRoomDeaths();
+        }
+
+        /// <summary>
+        /// Hands the prob-room death scan to this room's spawner and runs it once.
+        ///
+        /// <para><b>The provider is resolved per call by the spawner.</b> A land build replaces
+        /// <c>RoomTransitionManager.ProbSessions</c>, so the reference handed over here must be a
+        /// getter rather than the object — see <see cref="RoomUnitSpawner.CheckDeaths"/>.</para>
+        /// </summary>
+        private void ReportProbRoomDeaths()
+        {
+            if (roomUnitSpawner == null) return;
+
+            if (roomUnitSpawner.ProbSessionsProvider == null)
+            {
+                roomUnitSpawner.ProbSessionsProvider = () =>
+                    PFE.Systems.Map.Streaming.RoomTransitionManager.Instance?.ProbSessions;
+            }
+
+            roomUnitSpawner.CheckDeaths();
         }
 
         /// <summary>
@@ -1581,6 +1646,13 @@ namespace PFE.Systems.Map.Rendering
             roomUnitSpawner = null;
             visibilityRevealTargetPlayer = null;
             isInitialized = false;
+
+            // Drop this room's published `@targ` host. Done here rather than in the area trigger system
+            // itself because that object has no idea which room it was built for; this controller is
+            // what made the pairing, so it is what unpairs it. `roomInstance` is still the OLD room at
+            // this point (Initialize reassigns it after calling ClearVisuals), which is exactly the one
+            // whose entry must go.
+            PFE.Systems.Map.Scripting.ScriptSystem.Current?.UnregisterObjectHost(roomInstance);
 
             // The room's tile query goes with it. An adapter still holding the old room would convert
             // every later particle against a stale origin — and a stale origin is ZERO in the first

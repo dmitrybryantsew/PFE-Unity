@@ -75,6 +75,18 @@ namespace PFE.Systems.Map
                     Hole(room, baseCol, innerRow);
                     Hole(room, baseCol + 3, innerRow);
                 }
+
+                // AS3 Location.as:819-820 (+ :827-828 when wide) — `setNoObj(_loc3_+1, 0, 0, 2)`.
+                // The span runs from AS3 row 0 DOWN to row 2, so the port starts on the third row and
+                // walks UP: AS3 rows grow downward, port rows grow upward.
+                int noObjTopRow = As3RowToUnityY(room, borderOffset + 2);
+                MarkNoObj(room, baseCol + 1, noObjTopRow, 0, 2);
+                MarkNoObj(room, baseCol + 2, noObjTopRow, 0, 2);
+                if (quality > 2)
+                {
+                    MarkNoObj(room, baseCol, noObjTopRow, 0, 2);
+                    MarkNoObj(room, baseCol + 3, noObjTopRow, 0, 2);
+                }
             }
             else if (doorIndex >= 11) // Left side (indices 11-16, mapped from AS3 indices 11-16)
             {
@@ -95,6 +107,12 @@ namespace PFE.Systems.Map
                     CarveTile(room, leftCol, row2);
                     Hole(room, leftCol + 1, row2);
                 }
+
+                // AS3 Location.as:842-843 — `setNoObj(0, _loc3_, 5, 0)` / `(0, _loc3_-1, 5, 0)`: the wall
+                // column plus five columns inward, on the two carved rows. The wide branch adds NO
+                // marking here (its third row is only holed), so neither does this one.
+                MarkNoObj(room, leftCol, row0, 5, 0);
+                MarkNoObj(room, leftCol, row1, 5, 0);
             }
             else if (doorIndex >= 6) // Bottom side (indices 6-10, mapped from AS3 indices 6-10)
             {
@@ -113,6 +131,17 @@ namespace PFE.Systems.Map
                     CarveTile(room, baseCol + 3, bottomRow);
                     Hole(room, baseCol, innerRow);
                     Hole(room, baseCol + 3, innerRow);
+                }
+
+                // AS3 Location.as:862-863 (+ :870-871 when wide) — `setNoObj(_loc3_+1, spaceY-1, 0, -2)`.
+                // AS3 rows spaceY-1 .. spaceY-3; `bottomRow` is the largest of the three, so the port
+                // walks up from it. This is the row `rooms_plant/яма` stands its whole garrison on.
+                MarkNoObj(room, baseCol + 1, bottomRow, 0, 2);
+                MarkNoObj(room, baseCol + 2, bottomRow, 0, 2);
+                if (quality > 2)
+                {
+                    MarkNoObj(room, baseCol, bottomRow, 0, 2);
+                    MarkNoObj(room, baseCol + 3, bottomRow, 0, 2);
                 }
             }
             else // Right side (indices 0-5)
@@ -133,6 +162,88 @@ namespace PFE.Systems.Map
                     CarveTile(room, rightCol, row2);
                     Hole(room, rightCol - 1, row2);
                 }
+
+                // AS3 Location.as:889-890 — `setNoObj(spaceX-1, _loc3_, -5, 0)` / `(spaceX-1, _loc3_-1,
+                // -5, 0)`: the wall column plus five columns inward. As on the left, the wide branch
+                // adds no marking.
+                MarkNoObj(room, rightCol, row0, -5, 0);
+                MarkNoObj(room, rightCol, row1, -5, 0);
+            }
+        }
+
+        /// <summary>
+        /// AS3 <c>Location.setNoObj(param1, param2, param3, param4)</c> (<c>Location.as:936-975</c>) —
+        /// mark a span of tiles <c>place = false</c>, in <b>port</b> tile coordinates.
+        ///
+        /// <para><b>This is the oracle's ONLY writer of <c>place = false</c>.</b> A grep over
+        /// <c>Location.as</c> finds the four assignments (<c>:944</c>, <c>:953</c>, <c>:962</c>,
+        /// <c>:971</c>) and nothing else, and every one is reached from <c>setDoor()</c>. There is no
+        /// border ring, no "objects should not spawn on the edges" rule and no other caller. That is why
+        /// <c>RoomSetup</c>'s former whole-ring version had to go: it marked roughly forty times the
+        /// tiles the oracle does, and once <c>RoomSetup</c> began running it <i>before</i>
+        /// <c>PopulateRoom</c> it silently emptied 335 of the 550 shipped rooms.</para>
+        ///
+        /// <para><b>The oracle's span arithmetic, transcribed.</b> A positive
+        /// <paramref name="spanX"/> walks right from <paramref name="x"/> and <i>includes</i> it
+        /// (<c>while(_loc5_ &lt;= param1 + param3)</c>), so <c>spanX = 5</c> marks six columns; a negative
+        /// one starts at <c>x + spanX</c> and walks back up to <c>x</c>, so <c>spanX = -5</c> also marks
+        /// six. The vertical pair is identical and independent, and a 0 marks nothing — the oracle's own
+        /// <c>if(param3 &gt; 0)</c> / <c>if(param4 &gt; 0)</c> guards skip it.</para>
+        ///
+        /// <para><b>Why the marking belongs here rather than in a later pass.</b> AS3 does it inside
+        /// <c>setDoor</c>, while the Location is still being built, so it is final before
+        /// <c>setObjects</c> runs. Fusing it into the carve keeps the door geometry in one place — the
+        /// carve and the mark are the same four <c>_loc3_</c> expressions — and makes it impossible for a
+        /// caller to carve a door without also marking its slot.</para>
+        /// </summary>
+        private static void MarkNoObj(RoomInstance room, int x, int y, int spanX, int spanY)
+        {
+            if (spanX > 0)
+            {
+                for (int i = x; i <= x + spanX; i++)
+                {
+                    MarkNoObjTile(room, i, y);
+                }
+            }
+            else if (spanX < 0)
+            {
+                for (int i = x + spanX; i <= x; i++)
+                {
+                    MarkNoObjTile(room, i, y);
+                }
+            }
+
+            if (spanY > 0)
+            {
+                for (int j = y; j <= y + spanY; j++)
+                {
+                    MarkNoObjTile(room, x, j);
+                }
+            }
+            else if (spanY < 0)
+            {
+                for (int j = y + spanY; j <= y; j++)
+                {
+                    MarkNoObjTile(room, x, j);
+                }
+            }
+        }
+
+        /// <summary>
+        /// <c>space[x][y].place = false</c>, bounds-checked.
+        ///
+        /// <para>An off-grid coordinate is <i>ignored</i>, not clamped: AS3's arrays would fault there, so
+        /// there is no behaviour to copy, and clamping would mark a tile the oracle never touched.</para>
+        /// </summary>
+        private static void MarkNoObjTile(RoomInstance room, int x, int y)
+        {
+            if (room == null || room.tiles == null) return;
+            if (x < 0 || x >= room.width || y < 0 || y >= room.height) return;
+
+            TileData tile = room.tiles[x, y];
+            if (tile != null)
+            {
+                tile.canPlaceObjects = false;
             }
         }
 

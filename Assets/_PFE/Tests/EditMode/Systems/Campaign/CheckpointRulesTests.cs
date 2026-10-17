@@ -262,6 +262,154 @@ namespace PFE.Tests.EditMode.Systems.Campaign
             Assert.AreEqual(string.Empty, CheckpointRules.TeleportTarget(main: true, missionId: null, baseId: "rbl"));
         }
 
+        // ---- the interaction button (CheckPoint.as:86, :132, :236, :243) ----
+
+        /// <summary>
+        /// A <c>main</c> checkpoint's button is <c>teleport</c> before the player ever touches it —
+        /// its constructor re-points it (<c>CheckPoint.as:132</c>), which is why the camp's three
+        /// checkpoints are the way out of the hub.
+        /// </summary>
+        [Test]
+        public void InitialAction_MainIsTheReturnFromConstruction()
+        {
+            Assert.AreEqual(CheckpointAction.Teleport, CheckpointRules.InitialAction(main: true, hide: false),
+                "CheckPoint.as:132 — `inter.actFun = this.teleport;` inside the `if(this.main)` block");
+        }
+
+        [Test]
+        public void InitialAction_APlainCheckpointIsActivate()
+        {
+            Assert.AreEqual(CheckpointAction.Activate, CheckpointRules.InitialAction(main: false, hide: false),
+                "CheckPoint.as:86 — `inter.actFun = this.activate;` is the constructor's default");
+        }
+
+        /// <summary>
+        /// <c>hide</c> wins over <c>main</c>: AS3's <c>hide</c> block runs <i>after</i> the <c>main</c>
+        /// block and sets <c>inter.active = false</c> (<c>CheckPoint.as:139-143</c>), so a hidden main
+        /// checkpoint has no button at all. Seven checkpoints author <c>hide="1"</c>
+        /// (<c>RoomsSerial2.as:6078</c> and six more), so this is data, not a hypothetical.
+        /// </summary>
+        [Test]
+        public void InitialAction_HideRemovesTheButtonEvenForMain()
+        {
+            Assert.AreEqual(CheckpointAction.None, CheckpointRules.InitialAction(main: true, hide: true),
+                "the hide block runs last and takes the button away");
+            Assert.AreEqual(CheckpointAction.None, CheckpointRules.InitialAction(main: false, hide: true));
+        }
+
+        [Test]
+        public void InitialAction_IsNotAConstant()
+        {
+            // A rule that always answered the same thing would satisfy every case above that shares its
+            // answer, so this asserts the predicate is genuinely conditional.
+            Assert.AreNotEqual(CheckpointRules.InitialAction(main: true, hide: false),
+                CheckpointRules.InitialAction(main: false, hide: false));
+            Assert.AreNotEqual(CheckpointRules.InitialAction(main: true, hide: true),
+                CheckpointRules.InitialAction(main: true, hide: false));
+        }
+
+        /// <summary>
+        /// After a successful activation the button becomes the return — and only under the same three
+        /// conditions, because AS3 writes the same expression at <c>:218</c> and <c>:234</c>.
+        /// </summary>
+        [Test]
+        public void ActionAfterActivate_ArmedActivationMakesTheButtonTheReturn()
+        {
+            Assert.AreEqual(CheckpointAction.Teleport,
+                CheckpointRules.ActionAfterActivate(Facts(teleOn: true, mReturn: true, used: false)),
+                "CheckPoint.as:236-238 — `inter.actFun = this.teleport; userAction = \"returnb\";`");
+        }
+
+        /// <summary>
+        /// The <c>else</c> branch is not "leave it alone" — AS3 sets <c>inter.active = false</c> and
+        /// blanks the prompt (<c>CheckPoint.as:243-244</c>). A checkpoint that authors no <c>tele</c>
+        /// therefore offers exactly one press, and the second press does nothing.
+        /// </summary>
+        [Test]
+        public void ActionAfterActivate_UnarmedActivationRemovesTheButton()
+        {
+            Assert.AreEqual(CheckpointAction.None,
+                CheckpointRules.ActionAfterActivate(Facts(teleOn: false, mReturn: true, used: false)),
+                "no `tele` — CheckPoint.as:243 takes the button away");
+            Assert.AreEqual(CheckpointAction.None,
+                CheckpointRules.ActionAfterActivate(Facts(teleOn: true, mReturn: false, used: false)),
+                "no mReturn (the `noreturn` trigger) — same branch");
+            Assert.AreEqual(CheckpointAction.None,
+                CheckpointRules.ActionAfterActivate(Facts(teleOn: true, mReturn: true, used: true)),
+                "a spent one-shot — same branch");
+        }
+
+        /// <summary>
+        /// The button's state and the activation's own report must be one expression, not two. AS3
+        /// writes the condition twice (<c>:218</c> arms the visual, <c>:234</c> re-points the button);
+        /// the port evaluates it once in <see cref="CheckpointRules.ActionAfterActivate"/> and derives
+        /// <c>offersTeleport</c> from it, so a caller cannot read one answer and act on the other.
+        /// </summary>
+        [Test]
+        public void ActionAfterActivate_AndOffersTeleport_AreTheSameCondition()
+        {
+            foreach (bool teleOn in new[] { false, true })
+            {
+                foreach (bool mReturn in new[] { false, true })
+                {
+                    foreach (bool used in new[] { false, true })
+                    {
+                        CheckpointFacts facts = Facts(teleOn: teleOn, mReturn: mReturn, used: used);
+                        CheckpointActivation result = CheckpointRules.Activate(facts);
+
+                        Assert.AreEqual(
+                            CheckpointRules.ActionAfterActivate(facts) == CheckpointAction.Teleport,
+                            result.offersTeleport,
+                            $"teleOn={teleOn} mReturn={mReturn} used={used}: the button and the report " +
+                            "must not be able to disagree");
+                    }
+                }
+            }
+        }
+
+        [Test]
+        public void ActionAfterActivate_IsNotAConstant()
+        {
+            Assert.AreNotEqual(
+                CheckpointRules.ActionAfterActivate(Facts(teleOn: true, mReturn: true, used: false)),
+                CheckpointRules.ActionAfterActivate(Facts(teleOn: false, mReturn: true, used: false)));
+        }
+
+        /// <summary>
+        /// <c>CheckPoint.as:300-310</c> — a <c>main</c> checkpoint's button is live only while
+        /// <c>missionId</c> names a land that is not a base. That is the state a checkpoint teleport
+        /// produces, because <c>gotoLand</c> leaves <c>missionId</c> pointing at the mission.
+        /// </summary>
+        [Test]
+        public void MainIsLive_OnlyWhileAwayOnAMission()
+        {
+            Assert.IsTrue(CheckpointRules.MainIsLive(missionLandKnown: true, missionLandIsBase: false),
+                "away on a mission — the camp's main checkpoint is the way back");
+
+            Assert.IsFalse(CheckpointRules.MainIsLive(missionLandKnown: true, missionLandIsBase: true),
+                "standing in the hub — offering to teleport to the hub you are in is not a thing");
+        }
+
+        /// <summary>
+        /// AS3 indexes <c>lands[missionId]</c>; an id the catalogue does not have takes the <c>else</c>.
+        /// Answering <c>true</c> here would travel to a land that does not exist, so the unknown case is
+        /// pinned in the refusing direction.
+        /// </summary>
+        [Test]
+        public void MainIsLive_RefusesAnUnknownMissionLand()
+        {
+            Assert.IsFalse(CheckpointRules.MainIsLive(missionLandKnown: false, missionLandIsBase: false),
+                "no such land in the catalogue — the oracle's `else`, i.e. no button");
+        }
+
+        [Test]
+        public void MainIsLive_IsNotAConstant()
+        {
+            Assert.AreNotEqual(
+                CheckpointRules.MainIsLive(missionLandKnown: true, missionLandIsBase: false),
+                CheckpointRules.MainIsLive(missionLandKnown: true, missionLandIsBase: true));
+        }
+
         // ---- the locked-variant id roll (Location.as:2094-2098) ----
 
         /// <summary>

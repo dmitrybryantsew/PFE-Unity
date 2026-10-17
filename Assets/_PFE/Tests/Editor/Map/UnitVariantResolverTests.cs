@@ -261,6 +261,88 @@ namespace PFE.Tests.Editor.Map
         }
 
         /// <summary>
+        /// <c>UnitProtect.as:15-19</c> / <c>UnitGutsy.as:17-21</c> — <c>id = "protect"; if(tr &gt; 0)
+        /// id += tr;</c>. The port quoted only the first line and dropped the <c>if</c>, so the rule was
+        /// a constant and <c>protect1</c>/<c>gutsy1</c> could never be produced by any input.
+        ///
+        /// <para><b>This is live, not latent.</b> 15 shipped placements author <c>tr="1"</c> outright
+        /// (9 <c>protect</c> + 6 <c>gutsy</c>), and both were resolving to the family row:
+        /// <c>protect1.asset</c> is xp 500 with a 24x6 sheet, <c>gutsy1.asset</c> xp 750 with 40x2.
+        /// The second trigger is <c>randomCid</c>, which returns <c>"1"</c> for both families when
+        /// <c>tipEnemy == 7</c> (<c>Location.as:1806-1817</c>).</para>
+        /// </summary>
+        [Test]
+        public void ProtectAndGutsy_AppendTheTr_WhenOneIsPresent()
+        {
+            // ── The authored-trigger: a placement row that writes tr="1". ──────────────────────
+            Assert.AreEqual("protect1", UnitVariantResolver.ResolveSpawnId(
+                "protect", 0f, new ScriptedRng(), UnitVariantResolver.NoContext, placementTr: "1"));
+            Assert.AreEqual("gutsy1", UnitVariantResolver.ResolveSpawnId(
+                "gutsy", 0f, new ScriptedRng(), UnitVariantResolver.NoContext, placementTr: "1"));
+
+            // ── The rolled trigger: tipEnemy 7 makes randomCid return "1". ─────────────────────
+            UnitVariantContext tipSeven = new UnitVariantContext(UnitVariantResolver.NoBiome, tipEnemy: 7);
+            Assert.AreEqual("protect1", UnitVariantResolver.ResolveSpawnId(
+                "protect", 0f, new ScriptedRng(), tipSeven));
+            Assert.AreEqual("gutsy1", UnitVariantResolver.ResolveSpawnId(
+                "gutsy", 0f, new ScriptedRng(), tipSeven));
+
+            // ── Absent tr: the bare family id, which is what the old constant always returned. ──
+            Assert.AreEqual("protect", UnitVariantResolver.ResolveSpawnId(
+                "protect", 0f, new ScriptedRng(), UnitVariantResolver.NoContext));
+            Assert.AreEqual("gutsy", UnitVariantResolver.ResolveSpawnId(
+                "gutsy", 0f, new ScriptedRng(), UnitVariantResolver.NoContext));
+
+            // Control for the `> 0` guard specifically: tr 0 must NOT append, or every placement
+            // that resolves through randomCid's "0" becomes an id with no asset.
+            Assert.AreEqual("protect", UnitVariantResolver.ResolveSpawnId(
+                "protect", 0f, new ScriptedRng(), UnitVariantResolver.NoContext, placementTr: "0"),
+                "UnitProtect.as:19 is `if(tr > 0)`, not `if(tr >= 0)` — protect0 does not exist.");
+        }
+
+        /// <summary>
+        /// The <c>tipEnemy == 7</c> arm is a comparison, not a roll, so it must take <b>no</b> draw —
+        /// the shared spawn stream stays in step. Pinning this is what stops a future "make the variant
+        /// random like the other families" from silently shifting every later placement in those rooms.
+        /// </summary>
+        [Test]
+        public void ProtectAndGutsy_TipEnemySeven_TakesNoDraw()
+        {
+            UnitVariantContext tipSeven = new UnitVariantContext(UnitVariantResolver.NoBiome, tipEnemy: 7);
+
+            var protectRng = new ScriptedRng();
+            Assert.AreEqual("1", UnitVariantResolver.RandomCid("protect", 0f, protectRng, tipSeven));
+            Assert.AreEqual(0, protectRng.TotalDraws);
+
+            var gutsyRng = new ScriptedRng();
+            Assert.AreEqual("0", UnitVariantResolver.RandomCid("gutsy", 0f, gutsyRng, UnitVariantResolver.NoContext));
+            Assert.AreEqual(0, gutsyRng.TotalDraws);
+        }
+
+        /// <summary>
+        /// <c>UnitRobobrain.as:11</c> — <c>id = "robobrain"</c>, so the placed id <c>robot</c> is an
+        /// <b>alias</b>, not a variant. <c>&lt;unit id='robot'/&gt;</c> (<c>AllData.as:1349</c>) is an
+        /// empty <c>cat='1'</c> marker: no art, no stats, <c>weapons: []</c>. It is the id the
+        /// <c>enl2</c>/<c>tipEnemy == 2</c> fall-through returns and 11 shipped rooms place it, so
+        /// resolving it to itself gave the commonest robot in the game a blank sprite and no weapon.
+        /// </summary>
+        [Test]
+        public void Robot_ResolvesToRobobrain_NotTheEmptyFamilyRow()
+        {
+            var rng = new ScriptedRng();
+
+            string resolved = UnitVariantResolver.ResolveSpawnId(
+                "robot", 0f, rng, UnitVariantResolver.NoContext);
+
+            Assert.AreEqual("robobrain", resolved,
+                "UnitRobobrain.as:11 — the subclass stamps its own id; `robot` is the placed alias.");
+            Assert.AreNotEqual("robot", resolved,
+                "Units/robot.asset has an empty spriteSheetId, a 0x0 sheet and weapons: [].");
+            Assert.AreEqual(0, rng.TotalDraws,
+                "randomCid has no `case \"robot\"`, so `default:` returns null and nothing is drawn.");
+        }
+
+        /// <summary>
         /// A family with no composition rule passes through untouched — correct for the subclasses that
         /// ignore the cid outright (<c>UnitTrain.as:13</c> <c>id = "training"</c>), and the documented
         /// boundary of what has been read against the oracle.

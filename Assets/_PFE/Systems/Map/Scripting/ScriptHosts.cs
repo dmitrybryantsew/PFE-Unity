@@ -170,6 +170,28 @@ namespace PFE.Systems.Map.Scripting
         /// let it read as a command that ran.</returns>
         bool ObjectCommand(RoomInstance room, string uidOrCode, string command, string value);
 
+        /// <summary>
+        /// The same dispatch for an object the caller <b>already holds</b> — the <c>@targ="this"</c>
+        /// half (<c>Script.as:222</c>).
+        ///
+        /// <para><b>Why a separate overload and not a string round trip.</b> The oracle writes
+        /// <c>if(param1.targ == "this") _loc2_ = this.owner;</c> and calls <c>command()</c> on that
+        /// reference. It never converts the owner to an id and looks it up. The port did, and the
+        /// indirection is not merely wasteful — it is <i>wrong</i> for every object whose <c>uid</c> is
+        /// empty, which is the common case here: a room object carries a generated <c>code</c> and a
+        /// blank <c>uid</c>. A <c>uid ?? code</c> chain falls through only on <c>null</c>, never on
+        /// <c>""</c>, so <c>"this"</c> resolved to the empty string, the lookup found nothing, and 57
+        /// authored <c>act="off" targ="this"</c> actions across 49 rooms were dropped with a
+        /// "no object matches that uid or code" warning.</para>
+        ///
+        /// <para><b>There is deliberately no room-membership test.</b> The oracle commands whatever the
+        /// owner is; it does not first check that the owner is in <c>land.uidObjs</c>. A script's owner
+        /// is by construction the object the script hangs off, so a membership check could only ever
+        /// reject a legitimate owner.</para>
+        /// </summary>
+        /// <returns><c>false</c> when <paramref name="target"/> is null or the command is unknown.</returns>
+        bool ObjectCommand(RoomInstance room, ObjectInstance target, string command, string value);
+
         /// <summary>AS3 <c>allact val</c> (<c>Script.as:296-299</c>) → <c>loc.allAct(null, val, n)</c> —
         /// run an interaction by id, which is the bridge between the two vocabularies. The oracle passes
         /// a <b>null</b> object here, so an action that needs the object it came from is not reachable
@@ -179,6 +201,41 @@ namespace PFE.Systems.Map.Scripting
         /// <summary>AS3 <c>goto val</c> (<c>Script.as:435-442</c>) — move the player to a room cell
         /// (<c>val</c> is <c>"x y"</c>).</summary>
         void GotoXY(string x, string y);
+    }
+
+    /// <summary>
+    /// The <b>unit</b> half of the <c>@targ</c> vocabulary — the commands that land on a live
+    /// <c>Unit</c> rather than on a map object.
+    ///
+    /// <para><b>Why this is a second interface and not more methods on
+    /// <see cref="IScriptObjectHost"/>.</b> AS3 has one table (<c>land.uidObjs</c>) holding objects
+    /// <i>and</i> units, but the port does not: objects are records on <c>room.objects</c> resolved by
+    /// <c>AreaTriggerSystem</c>, and units are records on <c>room.units</c> whose live controllers are
+    /// owned by <c>RoomUnitSpawner</c>. Those are different owners in different layers, so the seam
+    /// splits where the ownership does. The <i>caller</i> still tries both in one place, which is what
+    /// keeps the oracle's single-lookup behaviour observable.</para>
+    ///
+    /// <para><b>The verbs are the unit's own.</b> <c>show</c>, <c>fly</c>, <c>sign</c>, <c>ai</c>,
+    /// <c>rep</c>, <c>hide</c>, <c>rem</c>, <c>turn</c>, <c>tell</c> and <c>activate</c> are
+    /// <c>UnitNPC.command</c> / <c>UnitNPC.analiz</c> (<c>UnitNPC.as:321-442</c>) and
+    /// <c>Unit.command</c> (<c>Unit.as:4784-4811</c>). They overlap in spelling with the object verbs
+    /// (<c>sign</c> is on both) and mean different things, which is why the object host is asked first
+    /// and a unit is only reached when it declines — the same precedence the oracle's single table gets
+    /// for free from the fact that one id names one object.</para>
+    /// </summary>
+    public interface IUnitCommandHost
+    {
+        /// <summary>
+        /// Forward a command to one <i>live</i> unit, found by the uid or code the room authored.
+        ///
+        /// <para><b>The lookup is over <c>room.units</c> and the write is on the spawned controller.</b>
+        /// A unit record with no live GameObject (one that died this frame, or a room whose spawner has
+        /// not run) is a miss, not an error: the caller reports an unmatched uid only when <i>both</i>
+        /// hosts decline.</para>
+        /// </summary>
+        /// <returns><c>false</c> when no unit matched, so the caller can report a bad uid rather than
+        /// let it read as a command that ran.</returns>
+        bool UnitCommand(RoomInstance room, string uidOrCode, string command, string value);
     }
 
     /// <summary>

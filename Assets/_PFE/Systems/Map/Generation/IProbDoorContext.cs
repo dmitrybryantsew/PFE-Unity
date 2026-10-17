@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using PFE.Data.Definitions.Campaign;
 
 namespace PFE.Systems.Map.Generation
 {
@@ -57,5 +58,22 @@ namespace PFE.Systems.Map.Generation
         /// unkeepable without a downcast.</para>
         /// </summary>
         bool TryGetRoom(string probId, out RoomInstance room);
+
+        /// <summary>
+        /// Every prob id that has a registered room — AS3's <c>this.probs</c> key set
+        /// (<c>Land.as:801-802</c>), which is what the room-cleared driver iterates to build one
+        /// <c>Probation</c> per room. A room that was never registered must not acquire a session, so
+        /// this is "rooms", not "ids the land declares".
+        /// </summary>
+        IEnumerable<string> RegisteredProbIds { get; }
+
+        /// <summary>
+        /// The land's <c>&lt;prob&gt;</c> child for this id — the parsed definition the room-cleared
+        /// decision needs (<c>ProbRoomSessions.Register</c>). False for a prob the land does not declare
+        /// as a child, which is every <c>exit</c> room: AS3 builds those from the <c>prob</c> land's
+        /// collection with no <c>xml</c>, so their <c>Probation</c> has no <c>con</c> and no
+        /// <c>wave</c> either.
+        /// </summary>
+        bool TryGetProbDefinition(string probId, out ProbRoomDefinition definition);
     }
 }

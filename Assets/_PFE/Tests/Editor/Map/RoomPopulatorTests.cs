@@ -181,6 +181,74 @@ namespace PFE.Tests.Editor.Map
             room.GetTileAtCoord(new Vector2Int(4, 0)).physicsType = TilePhysicsType.Wall;
         }
 
+        /// <summary>
+        /// The authored enemy-point capacity is captured as a <b>snapshot</b>, so the pass that spends the
+        /// pool cannot take the authored figure with it.
+        ///
+        /// <para><b>Why this is asserted here rather than through <c>PopulateRoom</c>.</b> Every other test
+        /// in this fixture builds a <c>ScriptableObject</c> template, which the offline wall cannot
+        /// construct (<c>SecurityException: ECall</c>) — so a test driven through <c>PopulateRoom</c>
+        /// would be unverifiable outside the editor, which is the one thing this property must not be.
+        /// <c>setRandomUnits</c> splices points out of <c>ups[i]</c> as it places them and clears the list
+        /// outright once one remains (<c>Location.as:1082-1087</c>), so afterwards the authored count
+        /// exists nowhere but <c>RoomInstance.upPointCounts</c>. The drain below reproduces that, and the
+        /// assertion is on the count that survived it.</para>
+        /// </summary>
+        [Test]
+        public void RecordUpPointCounts_SurvivesThePassDrainingThePool()
+        {
+            var room = new RoomInstance { id = "capacity_room" };
+
+            var groups = new List<ObjectSpawnData>[LocationEnemySelector.GroupCount];
+            for (int i = 0; i < groups.Length; i++)
+            {
+                groups[i] = new List<ObjectSpawnData>();
+            }
+
+            groups[1].Add(new ObjectSpawnData { id = "enl1" });
+            groups[1].Add(new ObjectSpawnData { id = "enl1" });
+            groups[1].Add(new ObjectSpawnData { id = "enl1" });
+            groups[3].Add(new ObjectSpawnData { id = "enf1" });
+
+            RoomPopulator.RecordUpPointCounts(room, groups);
+
+            // Location.as:1082-1087 — the pass empties the pool it draws from, and a reader looking at the
+            // room afterwards must still see what the author wrote.
+            groups[1].Clear();
+
+            Assert.That(room.upPointCounts[1], Is.EqualTo(3), "enl1 authored three points");
+            Assert.That(room.upPointCounts[3], Is.EqualTo(1), "enf1 authored one");
+            Assert.That(room.upPointCounts[2], Is.EqualTo(0),
+                "a group the room does not author must read zero, not inherit a neighbour's count");
+        }
+
+        /// <summary>
+        /// A null or short group array must not throw and must not claim capacity.
+        ///
+        /// <para><c>upPointCounts</c> is <c>[NonSerialized]</c>, so a deserialised room arrives with null
+        /// on its side of the call; a debug overlay that threw there would take the whole F2 window with
+        /// it. The array deliberately takes the shape it is handed — normalising to the fixed five-slot
+        /// <c>kolEn</c> table is <c>RoomDebugSummary.GroupCapacities</c>' job, and that padding is pinned
+        /// in <c>RoomDebugSummaryTests</c>.</para>
+        /// </summary>
+        [Test]
+        public void RecordUpPointCounts_NullOrShortGroupsLeaveTheRoomReadable()
+        {
+            var room = new RoomInstance { id = "capacity_room_null" };
+
+            Assert.DoesNotThrow(() => RoomPopulator.RecordUpPointCounts(room, null));
+            Assert.That(room.upPointCounts, Is.Not.Null);
+            Assert.That(room.upPointCounts.Length, Is.EqualTo(LocationEnemySelector.GroupCount));
+
+            var shortGroups = new List<ObjectSpawnData>[2];
+            shortGroups[1] = new List<ObjectSpawnData> { new ObjectSpawnData { id = "enl1" } };
+
+            RoomPopulator.RecordUpPointCounts(room, shortGroups);
+
+            Assert.That(room.upPointCounts.Length, Is.EqualTo(2));
+            Assert.That(room.upPointCounts[1], Is.EqualTo(1));
+        }
+
         [Test]
         public void PopulateRoom_ConvertsLegacyAs3ObjectCoordinatesIntoUnityRoomSpace()
         {

@@ -76,7 +76,22 @@ namespace PFE.Systems.Map.Scripting
         public static MapObjectScriptData Convert(CampaignScriptDefinition definition)
         {
             if (definition == null) return null;
+            return Convert(definition.actions);
+        }
 
+        /// <summary>
+        /// The same mapping for an action list that has no <c>id</c> — the land-level
+        /// <c>&lt;scr eve='take' item='…'&gt;</c> scripts (<see cref="LandItemScript"/>).
+        ///
+        /// <para><b>Why the overload rather than a second converter.</b> The oracle builds a
+        /// <c>fe.serv.Script</c> from the node in both cases — <c>new Script(node, land)</c> for an item
+        /// script (<c>Land.as:146</c>) and <c>new Script(node, land, area)</c> for an authored one
+        /// (<c>Area.as:151</c>) — and the interpreter never learns which it was. Two converters would be
+        /// two places for the <c>n</c>/<c>opt1</c> mapping to drift, which is the exact failure this
+        /// class was written to make impossible.</para>
+        /// </summary>
+        public static MapObjectScriptData Convert(IList<CampaignScriptAction> actions)
+        {
             var script = new MapObjectScriptData
             {
                 // The event name is not part of the authored-script vocabulary — `getScript` returns a
@@ -86,12 +101,11 @@ namespace PFE.Systems.Map.Scripting
                 actions = new List<MapObjectScriptActionData>(),
             };
 
-            List<CampaignScriptAction> source = definition.actions;
-            if (source == null) return script;
+            if (actions == null) return script;
 
-            for (int i = 0; i < source.Count; i++)
+            for (int i = 0; i < actions.Count; i++)
             {
-                CampaignScriptAction action = source[i];
+                CampaignScriptAction action = actions[i];
                 if (action == null) continue;
 
                 script.actions.Add(new MapObjectScriptActionData
