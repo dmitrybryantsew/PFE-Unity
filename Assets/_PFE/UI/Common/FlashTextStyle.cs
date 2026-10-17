@@ -226,6 +226,28 @@ namespace PFE.UI.Common
         }
 
         /// <summary>
+        /// Resolves the Flash spans in <paramref name="flashText"/> to Unity colour tags and does
+        /// <b>nothing else</b>.
+        ///
+        /// <para><b>Why this is separate from <see cref="Format"/>.</b> <see cref="Format"/> is the
+        /// <c>GUI.as</c> pipeline: it also substitutes <c>@1..@5</c> and rewrites every <c>[</c>/<c>]</c>
+        /// into the <c>yel</c> class. The PipBuck pages use a <i>different</i> pipeline — they assign
+        /// <c>htmlText</c> and let the page style sheet do the work, and the bracket rewrite is done by
+        /// the caller that wants it (<c>PipPageInfo.as:429-430</c> for a note body, and nowhere at all
+        /// for a quest body or the <c>helpWorld</c> tooltip, whose brackets are literal prose). Running
+        /// <see cref="Format"/> on those strings would colour brackets the Oracle leaves plain.</para>
+        /// </summary>
+        /// <param name="flashText">Raw Oracle string, possibly containing <c>&lt;span&gt;</c> runs.</param>
+        /// <param name="sheet">Which style sheet the string is written against.</param>
+        /// <param name="unrecognisedClasses">Optional sink for class names this formatter does not know.</param>
+        public static string FormatSpans(
+            string flashText, FlashStyleSheet sheet, ICollection<string> unrecognisedClasses)
+        {
+            if (string.IsNullOrEmpty(flashText)) return string.Empty;
+            return ConvertSpans(flashText, sheet, unrecognisedClasses);
+        }
+
+        /// <summary>
         /// Converts <c>&lt;span class='x'&gt;…&lt;/span&gt;</c> runs to Unity colour tags, using a stack
         /// so nesting closes in the right order.
         ///

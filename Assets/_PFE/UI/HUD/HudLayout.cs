@@ -40,9 +40,9 @@ namespace PFE.UI.HUD
         /// <summary>
         /// The weapon reload progress bar. <b>Not a HUD element in the Oracle</b>: it is
         /// <c>reloadBar</c> attached to the player's world sprite and positioned above the head
-        /// (<c>UnitPlayer.as:338-340</c>, <c>:367</c> <c>reloadbar.y = -scY - 10</c>). The port has it on
-        /// the canvas; moving it to the player is an open item — see
-        /// <c>docs/GameInterface/08_IMPLEMENTATION_LOG.md</c>.
+        /// (<c>UnitPlayer.as:338-340</c>, <c>:367</c> <c>reloadbar.y = -scY - 10</c>). The port projects
+        /// it onto the player the same way — see <see cref="HudAnchorSource.WorldAnchored"/> and
+        /// <c>WorldAnchoredHudElement</c>. The table row is a fallback only.
         /// </summary>
         ReloadIndicator,
 
@@ -116,6 +116,20 @@ namespace PFE.UI.HUD
         /// <c>docs/GameInterface/06_IMPLEMENTATION_PLAN.md</c> Item I4.
         /// </summary>
         PortChoice,
+
+        /// <summary>
+        /// The element is <b>not placed on the screen at all</b>: it is projected from a world point
+        /// every frame, so its position is a property of the thing it describes rather than a corner of
+        /// the canvas. The Oracle does this by re-projecting the element onto its target
+        /// (<c>celobj</c> and <c>pr_bar</c>, <c>GUI.as:1461-1463</c>) or by parenting it to the object's
+        /// own sprite (<c>reloadBar</c>, <c>UnitPlayer.as:338-340</c>).
+        ///
+        /// <para>The table row still exists — and is still the value the scaler would apply — so a
+        /// missing <see cref="WorldAnchoredHudElement"/> degrades to a fixed position rather than to an
+        /// unplaced element. But that row is a <b>fallback, not a ported position</b>: nothing should
+        /// quote it as a citation, and the scaler is not asked to register these slots.</para>
+        /// </summary>
+        WorldAnchored,
     }
 
     /// <summary>
@@ -225,6 +239,16 @@ namespace PFE.UI.HUD
         public const float DialogueAuthoredWidth = 1200f;
 
         /// <summary>
+        /// The dialogue window's vertical offset from the top edge — <b>zero</b>, because
+        /// <c>resizeScreen</c> never writes <c>dial.y</c> (<c>GUI.as:336-345</c>) and the SWF places
+        /// <c>dial</c> (4639) at <c>(0, 0)</c> inside <c>visualGUI</c> (4651). Named rather than inlined
+        /// so the two places that write it — the anchor table and
+        /// <see cref="HudLayoutScaler.ApplyScaledSpecials"/> — cannot drift, and so the zero reads as
+        /// "authored, not unset".
+        /// </summary>
+        public const float DialogueTopOffset = 0f;
+
+        /// <summary>
         /// Oracle: <c>dial.scaleX = dial.scaleY = screenX &lt; 1200 ? screenX / 1200 : 1</c>
         /// (<c>GUI.as:336-345</c>). The window <b>shrinks</b> below 1200 and never grows — it is
         /// centred at 1:1 on anything wider.
@@ -242,6 +266,138 @@ namespace PFE.UI.HUD
         {
             return screenX < DialogueAuthoredWidth ? 0f : (screenX - DialogueAuthoredWidth) / 2f;
         }
+
+        // ── The dialogue plate's own geometry ─────────────────────────────────
+        //
+        // Every number below is read off the SWF, not eyeballed. The Oracle's dialogue is sprite 4639
+        // (`dial`, GUI.as:242) and its four children are placed by explicit matrices
+        // (assets.swf, DefineSpriteTag spriteId=4639):
+        //
+        //   child 4520  (the plate)   translateX=0      translateY=0
+        //   child 4521  (`txt`)       translateX=4360   translateY=600
+        //   child 4638  (`portret`)   translateX=640    translateY=640
+        //   child 390   (`lmb`)       translateX=22891  translateY=3631  scaleX/Y=1.7427979
+        //
+        // Twips are 1/20 px, so those are (0,0), (218,30), (32,32) and (1144.55,181.55).
+        //
+        // The port drew a 1200x150 flat black plate with no border and a 24 px white, 24 px-inset
+        // text — so it was 75 px short, had none of the authored frame, and set the body in a colour
+        // and size the Oracle never uses. The constants below are what the SWF actually says.
+
+        /// <summary>
+        /// The dialogue plate's authored height.
+        ///
+        /// <para><b>225, not the 150 the port drew.</b> Plate shape <c>4520</c>'s <c>edgeBounds</c> are
+        /// <c>24000 x 4480</c> twips = 1200 x 224 px of fill; its <c>shapeBounds</c> add the 1 px stroke
+        /// on each side, giving <c>1201 x 225</c>. The port's plate was 75 px short, so a three-line
+        /// dialogue overflowed it and the bottom edge sat in the wrong place.</para>
+        /// </summary>
+        public const float DialogueAuthoredHeight = 225f;
+
+        /// <summary>Plate shape <c>4520</c>'s fill: <c>fillStyleType="0"</c>, RGBA(0, 0, 0, 255) —
+        /// solid black, not the port's 0.78-alpha wash.</summary>
+        public static readonly Color DialoguePlateFill = new Color(0f, 0f, 0f, 1f);
+
+        /// <summary>
+        /// The plate's border, <c>#33CC99</c> — the first <c>LINESTYLE2</c> on shape <c>4520</c>,
+        /// RGBA(51, 204, 153, 255). This is the "specific border" the port never drew.
+        /// </summary>
+        public static readonly Color DialogueBorderColor = new Color(51f / 255f, 204f / 255f, 153f / 255f, 1f);
+
+        /// <summary>The border's stroke width: <c>LINESTYLE2 width="20"</c> twips = 1 px.</summary>
+        public const float DialogueBorderThickness = 1f;
+
+        /// <summary>Child <c>txt</c> (4521) offset inside the plate — <c>translateX="4360"</c> twips.</summary>
+        public const float DialogueTextLeft = 218f;
+
+        /// <summary>Child <c>txt</c> (4521) offset — <c>translateY="600"</c> twips.</summary>
+        public const float DialogueTextTop = 30f;
+
+        /// <summary>Field 4521's <c>bounds</c> width: Xmin <c>-40</c> … Xmax <c>18839</c> = 18879 twips.</summary>
+        public const float DialogueTextWidth = 943.95f;
+
+        /// <summary>Field 4521's <c>bounds</c> height: Ymin <c>-40</c> … Ymax <c>3399</c> = 3439 twips.</summary>
+        public const float DialogueTextHeight = 171.95f;
+
+        /// <summary>The dialogue body's size — field 4521's <c>fontHeight="320"</c> twips = 16 px.
+        /// The port used 24.</summary>
+        public const int DialogueFontSize = 16;
+
+        /// <summary>
+        /// The dialogue body's colour, <c>#00FF99</c> — field 4521's <c>textColor</c>
+        /// RGBA(0, 255, 153, 255), which its own <c>initialText</c> repeats as
+        /// <c>color="#00ff99"</c>. The port used white.
+        /// </summary>
+        public static readonly Color DialogueTextColor = new Color(0f, 1f, 153f / 255f, 1f);
+
+        /// <summary>
+        /// Child <c>portret</c> (4638) offset — <c>translateX="640"</c> twips = 32 px. This is where the
+        /// portrait <b>artwork</b> starts, not where the sprite's texture starts; see
+        /// <see cref="DialoguePortraitCanvasLeft"/> for the difference.
+        /// </summary>
+        public const float DialoguePortraitLeft = 32f;
+
+        /// <summary>Child <c>portret</c> (4638) offset — <c>translateY="640"</c> twips = 32 px.</summary>
+        public const float DialoguePortraitTop = 32f;
+
+        // ── The portrait frame's exported canvas ──────────────────────────────
+        //
+        // The importer writes sprite 4638's frames at the clip's OVERALL bounds, so every one of the 70
+        // PNGs is 389 x 325 regardless of how much of it the frame actually uses. Measured, not guessed:
+        // the union of all 70 frames' shape bounds is 389.65 x 325.44 px, and the opaque pixels of every
+        // frame land in exactly one place — canvas x[115,275], y[20,180] (a 161 x 161 box).
+        //
+        // So canvas pixel (115, 20) is the sprite's own origin (0, 0). Placing the texture's top-left at
+        // (32, 32) would therefore put the artwork 115 px right and 20 px below where the Oracle draws
+        // it, which is why the placement subtracts the art offset instead.
+
+        /// <summary>The exported portrait frame's texture size — 389 px wide. See the block above.</summary>
+        public const float DialoguePortraitCanvasWidth = 389f;
+
+        /// <summary>The exported portrait frame's texture size — 325 px tall.</summary>
+        public const float DialoguePortraitCanvasHeight = 325f;
+
+        /// <summary>
+        /// Where the 161 x 161 portrait artwork sits inside the 389 x 325 exported canvas —
+        /// canvas pixel 115 is the sprite's origin, so the art starts 115 px into the texture.
+        /// </summary>
+        public const float DialoguePortraitArtOffsetX = 115f;
+
+        /// <summary>Canvas pixel 20 is the sprite's origin — the art starts 20 px down.</summary>
+        public const float DialoguePortraitArtOffsetY = 20f;
+
+        /// <summary>
+        /// The portrait texture's top-left, in the dialogue plate's own coordinates.
+        ///
+        /// <para>Negative on x, which is correct and not a sign error: the Oracle's artwork sits at
+        /// (32, 32) but its texture carries 115 px of transparent margin to the left of that, so the
+        /// <i>texture</i> starts 83 px outside the plate. Nothing is clipped — the dialogue window has no
+        /// mask, and the overhang is fully transparent.</para>
+        /// </summary>
+        public static Vector2 DialoguePortraitCanvasPosition()
+        {
+            return new Vector2(DialoguePortraitLeft - DialoguePortraitArtOffsetX,
+                               DialoguePortraitTop - DialoguePortraitArtOffsetY);
+        }
+
+        /// <summary>As <see cref="DialoguePortraitCanvasPosition"/>, already flipped for uGUI's
+        /// downward-negative Y.</summary>
+        public static Vector2 DialoguePortraitCanvasLeftTopOffset()
+        {
+            Vector2 p = DialoguePortraitCanvasPosition();
+            return new Vector2(p.x, -p.y);
+        }
+
+        /// <summary>Child <c>lmb</c> (390) offset — <c>translateX="22891"</c> twips = 1144.55 px.</summary>
+        public const float DialogueKeyLeft = 1144.55f;
+
+        /// <summary>Child <c>lmb</c> (390) offset — <c>translateY="3631"</c> twips = 181.55 px.</summary>
+        public const float DialogueKeyTop = 181.55f;
+
+        /// <summary>Child <c>lmb</c>'s placement scale — <c>scaleX="1.7427979"</c>, the only scaled
+        /// child of the sprite. <c>GUI.as:1860-1867</c> plays/stops it as the "press to continue"
+        /// indicator.</summary>
+        public const float DialogueKeyScale = 1.7427979f;
 
         // ── Notification toast (GUI.as:325-335) ───────────────────────────────
 
@@ -328,7 +484,20 @@ namespace PFE.UI.HUD
                 { HudSlot.Toast, new HudAnchor(TopCentre, new Vector2(0f, -20f)) },
 
                 // GUI.as:339,344 `dial.x = (screenX - 1200) / 2` — centred on a 1200-wide sheet.
-                { HudSlot.Dialogue, new HudAnchor(Centre, Vector2.zero) },
+                //
+                // **Its Y is not set by resizeScreen, and that is the whole point.** `resizeScreen`
+                // writes `dial.x` and the scale and never touches `dial.y` (GUI.as:336-345), so the
+                // vertical position is the SWF's own placement — and `visualGUI` (sprite 4651) places
+                // `dial` (4639) at exactly (0, 0) (read out of assets.swf: depth 424, translateX=0,
+                // translateY=0). The window's top edge is the screen's top edge.
+                //
+                // This row used to be `Centre`, which put the plate at the vertical middle of the
+                // canvas — the reported "text in the middle rather than in the top". Measured against
+                // the owner's screenshots: the real game has the plate top at y≈16 of an 808-tall
+                // capture of a 1280x800 window (i.e. y=0 in canvas space, with the window frame), and
+                // the port had it at y 231..464 of 729, i.e. centred. The authored (218, 30) text
+                // offset inside the plate was already right — only the plate itself was misplaced.
+                { HudSlot.Dialogue, new HudAnchor(TopCentre, new Vector2(0f, DialogueTopOffset)) },
 
                 // GUI.as:346 `inform.x = round(screenX / 2)` — centred.
                 { HudSlot.TerminalReader, new HudAnchor(Centre, Vector2.zero) },
@@ -374,15 +543,18 @@ namespace PFE.UI.HUD
                 { HudSlot.StatusEffectsStrip, new HudAnchor(TopRight, new Vector2(-20f, -20f)) },
                 { HudSlot.PetHealthBar, new HudAnchor(TopLeft, new Vector2(20f, -80f)) },
 
-                // Above the weapon block, at the bottom-left. In the Oracle this bar is on the player's
-                // sprite, not the HUD — see HudSlot.ReloadIndicator.
+                // FALLBACK ONLY. In the Oracle this bar is a child of the player's own world sprite,
+                // not a HUD element at all (`UnitPlayer.as:338-340`, `reloadbar.y = -scY - 10` at
+                // `:367`), and the port now projects it the same way — see HudSlot.ReloadIndicator and
+                // WorldAnchoredHudElement. The scaler does not register this slot; the value below is
+                // what an element with no world anchor would fall back to.
                 { HudSlot.ReloadIndicator, new HudAnchor(BottomLeft, new Vector2(20f, 56f)) },
 
-                // World-anchored in the Oracle, not screen-anchored: `celObj` is re-projected every
-                // frame by GUI.step (GUI.as:1949), and pr_bar rides with it (GUI.as:1463
-                // `celobj.y = pr_bar.y = cam.screenY - 40 - celobj.height`). The resting anchors below
-                // are the port's — deliberately kept where the port already had them so Item I4 changes
-                // no more than it must, and both slots are consumed by Item I5.
+                // FALLBACK ONLY, both rows. In the Oracle these two are re-projected onto the target
+                // every frame — `cam.setKoord(this.celobj, …)` (GUI.as:1461) and
+                // `cam.setKoord(this.pr_bar, …)` (GUI.as:1302), with `pr_bar` then riding the prompt
+                // (`celobj.y = pr_bar.y = cam.screenY - 40 - celobj.height`, :1463). The port projects
+                // them the same way (WorldAnchoredHudElement); the scaler does not register either slot.
                 { HudSlot.InteractionPrompt, new HudAnchor(Centre, Vector2.zero) },
                 { HudSlot.HoldBar, new HudAnchor(BottomCentre, new Vector2(0f, 96f)) },
             };
@@ -409,6 +581,14 @@ namespace PFE.UI.HUD
                 case HudSlot.ItemIcon:
                 case HudSlot.ManaText:
                     return HudAnchorSource.OracleRelative;
+
+                // These three are not screen elements at all — they are projected from a world point
+                // every frame (see HudAnchorSource.WorldAnchored). Their table rows still exist as a
+                // fallback, but the scaler is not asked to register them.
+                case HudSlot.ReloadIndicator:
+                case HudSlot.HoldBar:
+                case HudSlot.InteractionPrompt:
+                    return HudAnchorSource.WorldAnchored;
 
                 // Horizontally centred by the Oracle, vertically not set. Classified as a port choice
                 // rather than as Oracle-set because half the anchor is invented and half is not, and a

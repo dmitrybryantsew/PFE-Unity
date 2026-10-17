@@ -39,6 +39,36 @@ namespace PFE.UI.PipBuck
         }
 
         /// <summary>
+        /// The port of <c>Res.numb()</c> (<c>Res.as:348-360</c>) — the character sheet's number
+        /// formatter: <b>at most one decimal</b>, and a trailing <c>.0</c> dropped.
+        ///
+        /// <para><b>It is not a rounding of the value.</b> The Oracle scales by ten, rounds
+        /// <i>that</i>, and then splits the integer and the tenth: <c>50.04</c> renders <c>"50"</c>
+        /// (500 % 10 == 0) while <c>50.05</c> renders <c>"50.1"</c> (<c>Math.round(500.5) == 501</c>).
+        /// Rendering it as <c>value.ToString("0.#")</c> would agree on almost every input and differ
+        /// on exactly the half-tenths — the same class of trap <see cref="As3Round"/> exists for.</para>
+        ///
+        /// <para><b>The negative branch is the Oracle's, including its oddity.</b> AS3 writes
+        /// <c>Math.ceil(t / 10) + "." + Math.abs(t % 10)</c>, and <c>Math.ceil(-0.5)</c> is
+        /// <c>-0</c>, which prints <c>"0"</c> — so <c>numb(-0.05)</c> is <c>"0.5"</c>, not
+        /// <c>"-0.5"</c>. C# integer division truncates toward zero, which is exactly AS3's
+        /// <c>floor</c> for positives and <c>ceil</c> for negatives, so <c>t / 10</c> reproduces both
+        /// branches without a sign test. Ported as-is rather than corrected: this formatter is the
+        /// game's, and a reader comparing a screenshot to the port is comparing numbers.</para>
+        /// </summary>
+        public static string Numb(float value)
+        {
+            int scaled = As3Round(value * 10f);
+            if (scaled % 10 == 0) return (scaled / 10).ToString();
+
+            // `t / 10` == Math.floor(t/10) for t >= 0 and Math.ceil(t/10) for t < 0, which is
+            // precisely the pair of branches AS3 writes out separately. `System.Math` is spelled out
+            // because this file imports `UnityEngine` and `PFE.UI.Common` only — adding `using System;`
+            // for one call would put `Random` and `Object` in scope alongside Unity's.
+            return (scaled / 10) + "." + System.Math.Abs(scaled % 10);
+        }
+
+        /// <summary>
         /// The port of <c>PipBuck.med()</c> (<c>PipBuck.as:586-597</c>) — returns the style-sheet
         /// <b>class name</b>, not a colour: <c>"red"</c> below 25 %, <c>"or"</c> below 50 %, else
         /// <c>""</c> (which means the sheet's default, the terminal green).

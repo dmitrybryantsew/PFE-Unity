@@ -180,6 +180,7 @@ namespace PFE.Core.Scripting
                               "  status          - Report position, health and equipped weapon\n" +
                               "  -- simulation --\n" +
                               "  tick <n>        - Set the sim tick rate (30/60/90/120)\n" +
+                              "  dif [n]         - Read, or set, the run difficulty setting (0-4)\n" +
                               "  -- overlays (col; hotkeys F5 tiles / F6 units / F8 areas / F9 doors / F10 objects) --\n" +
                               "  col             - List every overlay and whether it is on\n" +
                               "  col on [list]   - Turn overlays on (no list = all incl. legend). Independent.\n" +
@@ -518,6 +519,28 @@ namespace PFE.Core.Scripting
                     if (!TryParseIntArg(parts, 1, out int rate))
                         { result = "Usage: tick <30|60|90|120>"; return true; }
                     result = _simCommands.SetTickRate(rate);
+                    return true;
+
+                case "dif":
+                case "difficulty":
+                    if (_simCommands == null) return false;
+
+                    // Bare `dif` reports; `dif <n>` sets. That is the port's convention for a bare
+                    // verb (`col`, `prof`, `tele` all report), and it is the oracle's own split for the
+                    // trigger commands (`trigger X` reads, `triggers` dumps). The oracle's `dif` with no
+                    // argument assigns `undefined` and silently applies no table — a status read is the
+                    // strictly more useful behaviour for a debug verb.
+                    if (parts.Length < 2)
+                    {
+                        // SetDifficulty is also the report: it re-applies the table (a no-op when the
+                        // value is unchanged) and returns the same "[dif] ..." line.
+                        result = _simCommands.SetDifficulty(_simCommands.GetDifficulty());
+                        return true;
+                    }
+
+                    if (!TryParseIntArg(parts, 1, out int globalDif))
+                        { result = "Usage: dif <0-4>"; return true; }
+                    result = _simCommands.SetDifficulty(globalDif);
                     return true;
 
                 case "col":

@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using R3;
 using PFE.Data.Definitions;
@@ -44,6 +45,10 @@ namespace PFE.UI.PipBuck
         private Text _notice;
         private RectTransform _pageRoot;
         private RectTransform _statusPanel;
+
+        private Image _helpButton;
+        private Image _massButton;
+        private PipHelpPopup _helpPopup;
 
         private readonly Image[] _tabImages = new Image[TabSlotCount];
         private readonly Text[] _tabTexts = new Text[TabSlotCount];
@@ -97,6 +102,12 @@ namespace PFE.UI.PipBuck
             Place(_pageRoot, PipElement.PageRoot);
 
             BuildNotice();
+
+            // The "?" and weight buttons and their shared hover tooltip. Built AFTER the page root so
+            // they are later siblings of it — the Oracle creates `vishelp` after the pages array
+            // (PipBuck.as:111-117), and the tooltip must draw over page content.
+            BuildHelpButtons();
+            BuildHelpPopup();
 
             // Start hidden — the device is closed at boot, exactly as `this.vis.visible = false`
             // (PipBuck.as:93) makes it in the Oracle's constructor.
@@ -231,6 +242,61 @@ namespace PFE.UI.PipBuck
             _notice.text = string.Empty;
         }
 
+        /// <summary>
+        /// The "?" and weight buttons — <c>butHelp</c> / <c>butMass</c>
+        /// (<c>PipBuck.as:125-128</c> attaches their four hover handlers).
+        ///
+        /// <para><b>They are hit areas over the bezel's own baked art</b>, exactly as the page tabs are:
+        /// the composite already paints a "?" and a weight icon at these placements. What makes them
+        /// buttons is the hover relay, not any art of their own. <c>butHelp</c> starts hidden — the
+        /// Oracle's pages set <c>pip.vis.butHelp.visible</c> per sub-page, and the view-model's
+        /// <see cref="PipBuckViewModel.HelpVisible"/> drives it from here on.</para>
+        /// </summary>
+        private void BuildHelpButtons()
+        {
+            _helpButton = BuildHoverButton("butHelp", PipElement.HelpButton,
+                onEnter: () => _helpPopup?.Show(_manager.ViewModel.HelpText.Value),
+                onExit: () => _helpPopup?.Hide());
+
+            // `massText` is declared (PipBuck.as:55) and never assigned in the Oracle either, so the
+            // weight button shows an empty tooltip there too — this reproduces that, rather than
+            // inventing a string for it.
+            _massButton = BuildHoverButton("butMass", PipElement.MassButton,
+                onEnter: () => _helpPopup?.Show(_manager.ViewModel.MassText.Value),
+                onExit: () => _helpPopup?.Hide());
+        }
+
+        private Image BuildHoverButton(string name, PipElement element, Action onEnter, Action onExit)
+        {
+            var go = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            var rect = (RectTransform)go.transform;
+            rect.SetParent(_deviceRoot, false);
+            rect.anchorMin = rect.anchorMax = new Vector2(0f, 1f);
+            rect.pivot = new Vector2(0f, 1f);
+            rect.sizeDelta = PipBuckLayout.HelpButtonSize;
+            Place(rect, element);
+
+            // Transparent, still a raycast target — the art is under it in the bezel composite.
+            Image image = go.GetComponent<Image>();
+            image.color = new Color(1f, 1f, 1f, 0f);
+
+            var relay = go.AddComponent<HoverRelay>();
+            relay.OnEnter = onEnter;
+            relay.OnExit = onExit;
+
+            return image;
+        }
+
+        /// <summary>
+        /// The shared hover tooltip — <c>PipBuck.vishelp</c>, built once on the device
+        /// (<c>PipBuck.as:114-127</c>) and pointed at by both buttons.
+        /// </summary>
+        private void BuildHelpPopup()
+        {
+            _helpPopup = new PipHelpPopup();
+            _helpPopup.Build(_deviceRoot, _font);
+        }
+
         private void Subscribe()
         {
             PipBuckViewModel vm = _manager.ViewModel;
@@ -244,12 +310,21 @@ namespace PFE.UI.PipBuck
             // Tab 4's label and visibility. PipBuck.as:275-281.
             vm.ContextualTab.Subscribe(_ => RefreshTabFrames()).AddTo(_subscriptions);
 
-            // The page changed: re-render the tabs (page 6..9 lights tab 4 without owning it) and
-            // decide whether the notice is needed.
+            // The page changed: re-render the tabs (page 6..9 lights tab 4 without owning it), decide
+            // whether the notice is needed, and hide the hover tooltip — `setPage` ends with
+            // `vishelp.visible = false` (PipBuck.as:437), so a tooltip cannot survive a tab press.
             vm.Page.Subscribe(_ =>
             {
                 RefreshTabFrames();
                 RefreshNotice();
+                if (_helpPopup != null) _helpPopup.Hide();
+            }).AddTo(_subscriptions);
+
+            // The "?" button is the page's to show and hide (PipPageInfo.as:89/:204 set it per
+            // sub-page); the shell only owns the drawing of it.
+            vm.HelpVisible.Subscribe(visible =>
+            {
+                if (_helpButton != null) _helpButton.gameObject.SetActive(visible);
             }).AddTo(_subscriptions);
 
             vm.TopText.Subscribe(text =>
@@ -505,6 +580,22 @@ namespace PFE.UI.PipBuck
             rect.sizeDelta = size;
             rect.anchoredPosition = anchored;
             return rect;
+        }
+
+        /// <summary>
+        /// The pointer-enter/exit relay for the two hover buttons. Unity delivers the callbacks to a
+        /// COMPONENT and the view is a MonoBehaviour that must not implement per-button interfaces, so
+        /// this thin relay holds two actions and decides nothing — the same arrangement the pages'
+        /// row relays use.
+        /// </summary>
+        private sealed class HoverRelay : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
+        {
+            public Action OnEnter;
+            public Action OnExit;
+
+            public void OnPointerEnter(PointerEventData eventData) => OnEnter?.Invoke();
+
+            public void OnPointerExit(PointerEventData eventData) => OnExit?.Invoke();
         }
     }
 }

@@ -3,8 +3,10 @@ using UnityEngine.UI;
 using MessagePipe;
 using VContainer;
 using PFE.Core.Messages;
+using PFE.Data.Definitions;
 using PFE.Entities.Player;
 using PFE.Entities.Units;
+using PFE.Systems.Interaction;
 using PFE.Systems.Weapons;
 using PFE.UI.HUD;
 
@@ -43,6 +45,17 @@ namespace PFE.Core
         private ActionProgressBarView _holdBar;
 
         /// <summary>
+        /// The three elements that are <b>not placed on the screen</b> but projected from a world
+        /// point every frame — the reload bar (onto the player), the hold bar and the interaction
+        /// prompt (onto the target). See <see cref="WorldAnchoredHudElement"/> for why, and
+        /// <see cref="HudAnchorSource.WorldAnchored"/> for the provenance tag.
+        /// </summary>
+        private WorldAnchoredHudElement _reloadAnchor;
+        private WorldAnchoredHudElement _holdAnchor;
+        private WorldAnchoredHudElement _promptAnchor;
+        private InteractionPromptView _prompt;
+
+        /// <summary>
         /// The three script-presentation views — the banner, the dialogue windows and the blackout
         /// overlay. They are the port's consumers for <c>TutorialPromptMessage</c>,
         /// <c>ScriptDialogueMessage</c> and <c>ScriptOverlayMessage</c>; before they existed those three
@@ -52,6 +65,19 @@ namespace PFE.Core
         private ScriptToastView _toast;
         private ScriptDialogueView _dialogue;
         private ScriptOverlayView _overlay;
+
+        /// <summary>
+        /// The interface composition — held for the one catalog the HUD itself draws from, the dialogue
+        /// speaker portraits (<c>portret</c>, symbol 4638).
+        ///
+        /// <para>Loaded rather than injected because it is not registered in the container: it is the same
+        /// <c>Resources</c> asset <c>PipBuckBootstrapper</c> loads by path
+        /// (<c>Resources.Load&lt;PipBuckCompositionDefinition&gt;("UI/PipBuckComposition")</c>,
+        /// <c>PipBuckBootstrapper.cs:124</c>). A missing asset is survivable and must not abort the HUD —
+        /// the dialogue then draws with an empty portrait slot, which is exactly what it did before the
+        /// catalog existed.</para>
+        /// </summary>
+        private PipBuckCompositionDefinition _composition;
 
         /// <summary>
         /// The two elements <c>gui off</c> hides, held so the overlay view can be handed the Oracle's
@@ -99,6 +125,17 @@ namespace PFE.Core
         private void Update()
         {
             if (_viewModel == null) return;
+
+            // Refreshed every frame, and deliberately ABOVE the early-outs below: the steady state
+            // returns as soon as the weapon and the stats are bound, so a prompt driven from the
+            // rebind path would freeze over the first object the player ever pointed at.
+            UpdateInteractionPrompt();
+
+            // The reload bar hangs over the player, so its anchor is the player. Set here, above the
+            // early-outs, so it does not depend on a weapon having equipped or on the throttled
+            // re-scan window: a player with no loadout yet still has its bar attached to the right
+            // object. One reference write per frame; SetTarget is idempotent.
+            BindReloadAnchor();
 
             // Steady state: both sources cached and alive. No lookups, no allocations.
             if (_player == null || _loadout == null)
@@ -163,6 +200,10 @@ namespace PFE.Core
             // resize (GUI.as:310-349).
             _layout = canvasGo.AddComponent<HudLayoutScaler>();
 
+            // The dialogue speaker portraits live in the interface composition, not in the HUD. Loaded
+            // once here; a null result is tolerated (see the field's note) rather than thrown on.
+            _composition = Resources.Load<PipBuckCompositionDefinition>("UI/PipBuckComposition");
+
             // The ViewModel lives on the canvas so its lifetime is the HUD's.
             _viewModel = canvasGo.AddComponent<HUDViewModel>();
 
@@ -171,6 +212,7 @@ namespace PFE.Core
             _reloadIndicator = BuildReloadIndicator(canvasGo.transform);
             _armourBar = BuildArmourBar(canvasGo.transform);
             _holdBar = BuildHoldBar(canvasGo.transform);
+            _prompt = BuildInteractionPrompt(canvasGo.transform);
 
             // The script-presentation views. Built after the stat cluster so the blackout image can be
             // moved to the back of the sibling order: in the Oracle `vblack` lives on the world layer
@@ -194,8 +236,9 @@ namespace PFE.Core
             _reloadIndicator.SetViewModel(_viewModel);
             _armourBar.SetViewModel(_viewModel);
 
-            Debug.Log("[HudBootstrapper] HUD built (health bar, armour bar, ammo counter, reload indicator, " +
-                      "hold bar, script banner, dialogue window, blackout overlay) on a " +
+            Debug.Log("[HudBootstrapper] HUD built (health bar, armour bar, ammo counter, " +
+                      "world-anchored reload bar, world-anchored hold bar, world-anchored interaction " +
+                      "prompt, script banner, dialogue window, blackout overlay) on a " +
                       HudLayout.ReferenceWidth + "x" + HudLayout.ReferenceHeight + " canvas.");
         }
 
@@ -297,6 +340,63 @@ namespace PFE.Core
             image.color = color;
             return image;
         }
+
+        /// <summary>
+        /// <see cref="CreateImage"/> plus a full rect spec, for children whose position comes from the
+        /// Oracle rather than from a stretch.
+        /// </summary>
+        private static Image CreateRectImage(string name, Transform parent, Color color, Vector2 anchor,
+            Vector2 pivot, Vector2 anchoredPosition, Vector2 size)
+        {
+            Image image = CreateImage(name, parent, color);
+            RectTransform rect = image.rectTransform;
+            rect.anchorMin = rect.anchorMax = anchor;
+            rect.pivot = pivot;
+            rect.anchoredPosition = anchoredPosition;
+            rect.sizeDelta = size;
+            image.raycastTarget = false;
+            return image;
+        }
+
+        /// <summary>
+        /// A one-pixel rectangle outline, drawn as four strips.
+        ///
+        /// <para><b>Four strips rather than a sprite, because the port has no plate art.</b> The Oracle's
+        /// dialogue border is a 1 px <c>#33CC99</c> stroke on shape <c>4520</c>
+        /// (<see cref="HudLayout.DialogueBorderColor"/>, <see cref="HudLayout.DialogueBorderThickness"/>),
+        /// and the port's whole HUD is built from flat <see cref="Image"/> colours — no SWF shape has ever
+        /// been imported for it. Four strips reproduce that stroke at its authored thickness without
+        /// inventing a texture, and the two numbers that describe it are the ones read off the SWF.</para>
+        /// </summary>
+        private static void CreateBorder(Transform parent, Color color, float width, float height,
+            float thickness)
+        {
+            // Top and bottom span the full width; left and right span the full height. Anchored at the
+            // two corners so the strips sit exactly on the rect's edge rather than one pixel inside it.
+            CreateRectImage("Border Top", parent, color,
+                anchor: new Vector2(0f, 1f), pivot: new Vector2(0f, 1f),
+                anchoredPosition: Vector2.zero, size: new Vector2(width, thickness));
+            CreateRectImage("Border Bottom", parent, color,
+                anchor: new Vector2(0f, 0f), pivot: new Vector2(0f, 0f),
+                anchoredPosition: Vector2.zero, size: new Vector2(width, thickness));
+            CreateRectImage("Border Left", parent, color,
+                anchor: new Vector2(0f, 0f), pivot: new Vector2(0f, 0f),
+                anchoredPosition: Vector2.zero, size: new Vector2(thickness, height));
+            CreateRectImage("Border Right", parent, color,
+                anchor: new Vector2(1f, 0f), pivot: new Vector2(1f, 0f),
+                anchoredPosition: Vector2.zero, size: new Vector2(thickness, height));
+        }
+
+        /// <summary>
+        /// Converts an Oracle sprite-local offset to a Unity <c>anchoredPosition</c>.
+        ///
+        /// <para><b>The two conventions differ on both axes and this is the only place that is
+        /// reconciled.</b> A SWF child is placed by a matrix whose origin is the sprite's top-left and
+        /// whose Y runs <b>down</b>; a Unity <c>RectTransform</c> anchored to (0,1) has its origin at the
+        /// parent's top-left with Y running <b>up</b>. So <c>x</c> passes through and <c>y</c> is
+        /// negated — the same mirror rule <c>WorldY</c> documents for world space.</para>
+        /// </summary>
+        private static Vector2 OracleChildPosition(float left, float top) => new Vector2(left, -top);
 
         private HealthBarView BuildHealthBar(Transform parent)
         {
@@ -423,16 +523,17 @@ namespace PFE.Core
         /// <summary>
         /// The hold bar: fills while the action key is held on a timed object.
         ///
-        /// <para><b>Centred at the bottom rather than in the stat column.</b> The health and armour
-        /// readouts report the player's <i>persistent</i> state and belong together in the top-left; this
-        /// bar exists only for the duration of a hold and belongs to a different source. Keeping it out
-        /// of that column is what stops it reading as a third stat.</para>
+        /// <para><b>World-anchored onto the target, not placed on the screen.</b> The Oracle's
+        /// <c>pr_bar</c> is re-projected to the object being acted on every frame —
+        /// <c>cam.setKoord(this.pr_bar, this.gg.actionObj.owner.X, this.gg.actionObj.owner.Y)</c>
+        /// (<c>GUI.as:1302</c>) — and then rides with the interaction prompt
+        /// (<c>celobj.y = pr_bar.y = …</c>, <c>GUI.as:1463</c>). The target's world position arrives
+        /// through <see cref="IWorldAnchorSink"/> when the hold arms; see
+        /// <see cref="ActionProgressBarView.SetWorldAnchor"/>.</para>
         ///
-        /// <para><b>Its Oracle position is world-anchored, and this is a stand-in.</b> <c>pr_bar</c> is
-        /// re-projected to its target every frame — <c>GUI.as:1463</c> sets
-        /// <c>celobj.y = pr_bar.y = cam.screenY - 40 - celobj.height</c> — so a screen anchor is a
-        /// placeholder until the interaction prompt view exists (Item I5). <see cref="HudLayout"/> marks
-        /// the slot as a port choice for that reason.</para>
+        /// <para><b>Why the slot is no longer registered with <see cref="HudLayoutScaler"/>.</b> Same
+        /// reason as the reload bar: a screen anchor would be a second owner of a position that is a
+        /// property of the object, not of the screen.</para>
         ///
         /// <para><b>Structure follows <see cref="ArmourBarView"/>'s, for the same reason:</b> the
         /// visuals hang off a child so the view can hide itself without deactivating the component that
@@ -442,7 +543,10 @@ namespace PFE.Core
         private ActionProgressBarView BuildHoldBar(Transform parent)
         {
             var barRect = CreateHudElement("Hold Bar", parent, new Vector2(240f, 14f));
-            _layout.Register(HudSlot.HoldBar, barRect);
+
+            // Deliberately NOT _layout.Register(HudSlot.HoldBar, barRect) — see the remarks.
+            _holdAnchor = barRect.gameObject.AddComponent<WorldAnchoredHudElement>();
+            _holdAnchor.WorldOffset = new Vector3(0f, HoldBarOffsetY, 0f);
 
             // Slider first, with fillRect assigned before the view is added: ActionProgressBarView.Awake
             // reads GetComponent<Slider>() and the fill's Image, so this order is load-bearing.
@@ -475,10 +579,64 @@ namespace PFE.Core
 
             var view = barRect.gameObject.AddComponent<ActionProgressBarView>();
             view.SetContent(visuals.gameObject);
+            view.SetAnchor(_holdAnchor);
 
             // Nothing is being held at boot.
             visuals.gameObject.SetActive(false);
 
+            return view;
+        }
+
+        /// <summary>
+        /// The interaction prompt — the Oracle's <c>celobj</c> text (<c>GUI.as:1244-1467</c>).
+        ///
+        /// <para><b>World-anchored onto whatever the cursor is over.</b> The Oracle re-projects it every
+        /// frame (<c>cam.setKoord(this.celobj, this.celObj.X, this.celObj.Y)</c>, <c>GUI.as:1461</c>), so
+        /// this is not a "Press E" banner at the bottom of the screen. The target comes from
+        /// <c>PlayerController.CurrentInteractTarget</c>, refreshed per frame in its <c>Update</c>; this
+        /// method only builds the view.</para>
+        ///
+        /// <para><b>Visibility is a <see cref="CanvasGroup"/> alpha.</b> Same reason
+        /// <see cref="BuildToast"/> documents: a deactivated GameObject runs no <c>LateUpdate</c>, and the
+        /// component that places this element needs one to move it onto the new target. The group also
+        /// turns raycasts off, so the prompt can never swallow a click meant for the world.</para>
+        /// </summary>
+        private InteractionPromptView BuildInteractionPrompt(Transform parent)
+        {
+            var rect = CreateHudElement("Interaction Prompt", parent, new Vector2(360f, 48f));
+
+            // Deliberately NOT _layout.Register(HudSlot.InteractionPrompt, rect) — see the remarks.
+            _promptAnchor = rect.gameObject.AddComponent<WorldAnchoredHudElement>();
+            _promptAnchor.WorldOffset = new Vector3(0f, PromptOffsetY, 0f);
+
+            var group = rect.gameObject.AddComponent<CanvasGroup>();
+            group.alpha = 0f;
+            group.blocksRaycasts = false;
+            group.interactable = false;
+
+            // A backing plate: the prompt is drawn over a lit world, and `celobj` is a symbol with its
+            // own backing art in the SWF. This is the port's stand-in for that art, not an Oracle value.
+            var plate = CreateImage("Plate", rect, new Color(0f, 0f, 0f, 0.62f));
+            Stretch(plate.rectTransform);
+            plate.raycastTarget = false;
+
+            var textRect = CreateRect("Text", rect,
+                anchor: new Vector2(0.5f, 0.5f), pivot: new Vector2(0.5f, 0.5f),
+                anchoredPosition: Vector2.zero, size: Vector2.zero);
+            Stretch(textRect, 6f);
+
+            var text = textRect.gameObject.AddComponent<Text>();
+            text.font = ResolveFont();
+            text.fontSize = 18;
+            text.color = PFE.UI.Common.PfeUiColors.Green;
+            text.alignment = TextAnchor.MiddleCenter;
+            text.horizontalOverflow = HorizontalWrapMode.Overflow;
+            text.verticalOverflow = VerticalWrapMode.Overflow;
+            text.raycastTarget = false;
+            text.text = string.Empty;
+
+            var view = rect.gameObject.AddComponent<InteractionPromptView>();
+            view.Construct(text, group, _promptAnchor);
             return view;
         }
 
@@ -550,34 +708,68 @@ namespace PFE.Core
         private ScriptDialogueView BuildDialogue(Transform parent)
         {
             // ── The dialogue window (reg == 0) ──
+            //
+            // The size, the plate fill, the border and the text rect are all the SWF's own numbers —
+            // see the geometry block on HudLayout. The port previously drew a 1200x150 flat black plate
+            // with no border and a 24 px white body, which is neither the Oracle's frame nor its type.
             var window = CreateHudElement("Script Dialogue", parent,
-                new Vector2(HudLayout.DialogueAuthoredWidth, 150f));
+                new Vector2(HudLayout.DialogueAuthoredWidth, HudLayout.DialogueAuthoredHeight));
             _layout.Register(HudSlot.Dialogue, window);
             _layout.DialogueWindow = window;
 
-            var windowPlate = CreateImage("Plate", window, new Color(0f, 0f, 0f, 0.78f));
+            var windowPlate = CreateImage("Plate", window, HudLayout.DialoguePlateFill);
             Stretch(windowPlate.rectTransform);
             windowPlate.raycastTarget = false;
 
+            // The 1 px #33CC99 frame (shape 4520's LINESTYLE2). Drawn over the plate, and built before
+            // the text so the text sits on top of it in the sibling order.
+            CreateBorder(window, HudLayout.DialogueBorderColor,
+                HudLayout.DialogueAuthoredWidth, HudLayout.DialogueAuthoredHeight,
+                HudLayout.DialogueBorderThickness);
+
+            // Child `txt` (4521): a 944x172 field at (218,30) inside the 1200x225 plate, 16 px
+            // `_sans` in #00FF99, left-aligned, multiline, word-wrapped.
             var windowTextRect = CreateRect("Text", window,
-                anchor: new Vector2(0.5f, 0.5f), pivot: new Vector2(0.5f, 0.5f),
-                anchoredPosition: Vector2.zero, size: Vector2.zero);
-            Stretch(windowTextRect, 24f);
+                anchor: new Vector2(0f, 1f), pivot: new Vector2(0f, 1f),
+                anchoredPosition: OracleChildPosition(HudLayout.DialogueTextLeft, HudLayout.DialogueTextTop),
+                size: new Vector2(HudLayout.DialogueTextWidth, HudLayout.DialogueTextHeight));
 
             var windowText = windowTextRect.gameObject.AddComponent<Text>();
             windowText.font = ResolveFont();
-            windowText.fontSize = 24;
-            windowText.color = Color.white;
-            windowText.alignment = TextAnchor.MiddleLeft;
+            windowText.fontSize = HudLayout.DialogueFontSize;
+            windowText.color = HudLayout.DialogueTextColor;
+            // AS3 `align="0"` — left, with the field's own top-left origin. The port used MiddleLeft,
+            // which centres a single short line against a field sized for several.
+            windowText.alignment = TextAnchor.UpperLeft;
             windowText.horizontalOverflow = HorizontalWrapMode.Wrap;
             windowText.verticalOverflow = VerticalWrapMode.Overflow;
             windowText.raycastTarget = false;
             windowText.text = string.Empty;
 
             // The `@p` frame label. Deliberately left unassigned: the Oracle's `@p` selects a portrait
-            // (GUI.as:1829-1846), not a name, so printing "lp1" would be inventing text. The view exposes
-            // Speaker for a portrait binder that does not exist yet.
+            // (GUI.as:1831-1851), not a name, so printing "lp1" would be inventing text. The view resolves
+            // it to a sprite through DialoguePortraitFrames instead.
             Text speakerLabel = null;
+
+            // Child `portret` (4638) at (32,32) — the speaker portrait, on depth 3 so it draws over `txt`.
+            // The two do not overlap (the art is 161 px wide at x=32 and the text field starts at x=218),
+            // so the ordering is fidelity rather than a fix for an occlusion.
+            //
+            // The rect is the TEXTURE's size, not the art's: every exported frame is 389x325 with the
+            // 161x161 artwork at canvas (115,20), so the placement subtracts that offset. See the canvas
+            // block on HudLayout for the measurement.
+            var portraitRect = CreateRect("Portrait", window,
+                anchor: new Vector2(0f, 1f), pivot: new Vector2(0f, 1f),
+                anchoredPosition: HudLayout.DialoguePortraitCanvasLeftTopOffset(),
+                size: new Vector2(HudLayout.DialoguePortraitCanvasWidth,
+                                  HudLayout.DialoguePortraitCanvasHeight));
+
+            var portrait = portraitRect.gameObject.AddComponent<Image>();
+            portrait.raycastTarget = false;
+            portrait.preserveAspect = false;
+            // Starts on the Oracle's blank frame 1, i.e. nothing drawn until a line names a speaker.
+            portrait.enabled = false;
+            portrait.sprite = null;
 
             // ── The terminal reader (reg >= 1) ──
             var panel = CreateHudElement("Script Panel", parent, new Vector2(760f, 420f));
@@ -611,7 +803,8 @@ namespace PFE.Core
             buttonImage.color = new Color(0.25f, 0.25f, 0.3f, 0.95f);
 
             var view = window.gameObject.AddComponent<ScriptDialogueView>();
-            view.Construct(window, windowText, panel, panelText, speakerLabel, buttonRect.gameObject);
+            view.Construct(window, windowText, panel, panelText, speakerLabel, buttonRect.gameObject,
+                portrait, _composition != null ? _composition.dialoguePortraits : null);
 
             return view;
         }
@@ -721,18 +914,37 @@ namespace PFE.Core
             return rect.gameObject.AddComponent<AmmoCounterView>();
         }
 
+        /// <summary>
+        /// The reload bar. <b>World-anchored onto the player, not placed on the screen.</b> In the
+        /// Oracle this is not a HUD element at all: <c>reloadBar</c> is added to the player's own world
+        /// sprite (<c>UnitPlayer.as:338-340</c>) at <c>y = -scY - 10</c> (<c>:367</c>) — 10 source pixels
+        /// above the top of the player's collision box. For <c>littlepip</c> that box is
+        /// <c>sY='70'</c> (<c>AllData.as:21</c>), so the bar rests 80 source pixels above the player's
+        /// feet, which at this project's 100 px per world unit (<c>WorldConstants.ACTION_REACH_PIXELS</c>)
+        /// is exactly <b>0.8 world units up</b>. Hence <see cref="ReloadBarOffsetY"/>.
+        ///
+        /// <para><b>Why the slot is no longer registered with <see cref="HudLayoutScaler"/>.</b> That
+        /// scaler exists to re-apply the Oracle's <c>resizeScreen</c> anchors, which are properties of
+        /// the <i>screen</i>. A world-anchored element is re-placed every frame by
+        /// <see cref="WorldAnchoredHudElement"/> instead, and two owners for one position is how a HUD
+        /// ends up correct at 16:9 and wrong at 21:9.</para>
+        ///
+        /// <para><b>Why the GameObject stays ACTIVE and the image starts transparent.</b> Deactivating it
+        /// would stop <c>Start</c> from ever running, and <c>Start</c> is where the view binds the very
+        /// subscription that would re-activate it — a deadlock. Transparency, not deactivation, is the
+        /// initial hide.</para>
+        /// </summary>
         private ReloadIndicatorView BuildReloadIndicator(Transform parent)
         {
             var rect = CreateHudElement("Reload Indicator", parent, new Vector2(96f, 12f));
-            _layout.Register(HudSlot.ReloadIndicator, rect);
+
+            // Deliberately NOT _layout.Register(HudSlot.ReloadIndicator, rect) — see the remarks.
+            _reloadAnchor = rect.gameObject.AddComponent<WorldAnchoredHudElement>();
+            _reloadAnchor.WorldOffset = new Vector3(0f, ReloadBarOffsetY, 0f);
 
             // Image before the view: ReloadIndicatorView.Awake does GetComponent<Image>() and caches
             // its colour as the "not reloading" colour — so starting transparent is what makes the
             // idle state invisible.
-            //
-            // The GameObject deliberately stays ACTIVE. Deactivating it would stop its Start() from
-            // ever running, and Start() is where the view binds the very subscription that would
-            // re-activate it — a deadlock. Transparency, not deactivation, is the initial hide.
             var image = rect.gameObject.AddComponent<Image>();
             image.color = new Color(1f, 0.5f, 0f, 0f);
             image.type = Image.Type.Filled;
@@ -741,6 +953,32 @@ namespace PFE.Core
 
             return rect.gameObject.AddComponent<ReloadIndicatorView>();
         }
+
+        /// <summary>
+        /// <c>reloadBar.y = -scY - 10</c> (<c>UnitPlayer.as:367</c>) for <c>littlepip</c>, in world units:
+        /// <c>(70 + 10) / 100</c>. See <see cref="BuildReloadIndicator"/>.
+        /// </summary>
+        private const float ReloadBarOffsetY = 0.8f;
+
+        /// <summary>
+        /// The hold bar's resting lift above the target's origin, in world units.
+        ///
+        /// <para><b>A port choice, and labelled as one.</b> The Oracle projects <c>pr_bar</c> to the
+        /// target's own coordinates with no extra offset —
+        /// <c>cam.setKoord(this.pr_bar, this.gg.actionObj.owner.X, this.gg.actionObj.owner.Y)</c>
+        /// (<c>GUI.as:1302</c>) — but <c>pr_bar</c> is a SWF symbol whose <i>internal</i> geometry this
+        /// pipeline never imported, so "at the origin" is not a number the port can copy. Half a world
+        /// unit lifts it clear of the object's feet without floating it into the prompt's text. The
+        /// world-anchoring is the ported behaviour; this number is the port's.</para>
+        /// </summary>
+        private const float HoldBarOffsetY = 0.5f;
+
+        /// <summary>
+        /// The interaction prompt's resting lift above the target's origin, in world units. Same
+        /// caveat as <see cref="HoldBarOffsetY"/> — and the same value, because the Oracle ties the two
+        /// together: <c>celobj.y = pr_bar.y = …</c> (<c>GUI.as:1463</c>).
+        /// </summary>
+        private const float PromptOffsetY = 0.5f;
 
         private static void Stretch(RectTransform rect, float inset = 0f)
         {
@@ -801,6 +1039,81 @@ namespace PFE.Core
             {
                 interactor.View = _holdBar;
             }
+        }
+
+        /// <summary>
+        /// Points the reload bar at the player, whose head it hangs over — the port's replacement for
+        /// the Oracle adding <c>reloadBar</c> to the player's own sprite
+        /// (<c>UnitPlayer.as:338-340</c>). Re-run on the same rare rebinds as <see cref="BindHoldBar"/>;
+        /// <see cref="WorldAnchoredHudElement.SetTarget"/> is idempotent, so a repeated call costs one
+        /// reference write rather than anything worth guarding.
+        /// </summary>
+        private void BindReloadAnchor()
+        {
+            if (_reloadAnchor == null || _player == null)
+            {
+                return;
+            }
+
+            _reloadAnchor.SetTarget(_player.transform);
+        }
+
+        /// <summary>
+        /// Drives the world-anchored interaction prompt from the player's current cursor target — the
+        /// port of <c>GUI.setCelObj</c> (<c>GUI.as:1244-1467</c>), which runs off
+        /// <c>World.w.loc.celObj</c> once per frame from <c>GUI.step</c> (<c>:1949</c>).
+        ///
+        /// <para><b>Push from here rather than from the player.</b> The player owns <i>what</i> is
+        /// targeted; the HUD owns <i>how</i> it is drawn. Keeping the view out of the player keeps
+        /// <c>PlayerController</c> free of a HUD reference, which is the same split every other element
+        /// in this class uses.</para>
+        /// </summary>
+        private void UpdateInteractionPrompt()
+        {
+            if (_prompt == null)
+            {
+                return;
+            }
+
+            if (_player == null)
+            {
+                _prompt.Hide();
+                return;
+            }
+
+            IInteractable target = _player.CurrentInteractTarget;
+
+            // `target == null` alone is NOT enough, and the gap cost a MissingReferenceException out of
+            // this method. Two separate reasons, both about C# not doing what Unity's `==` does:
+            //
+            //   * `IInteractable` is an interface, so `target == null` is plain reference equality. It
+            //     does NOT go through UnityEngine.Object's overloaded `==`, so a DESTROYED component is
+            //     not null here.
+            //   * `target is Component` below is a plain C# type test, and it is TRUE for a destroyed
+            //     object — the managed wrapper outlives the native object.
+            //
+            // So a destroyed pickup reached `component.transform` and threw. The player recomputes this
+            // reference once per frame in its own Update, but a pickup can die earlier in the same frame:
+            // PlayerAutoPickup collects a container drop from FixedUpdate and Despawn()s it
+            // (WorldItemPickup.Interact), which runs before every Update. If this HUD's Update is
+            // ordered before PlayerController's, the reference is one frame stale and already dead.
+            // Hence the explicit Unity-null test, which DOES use the overloaded operator.
+            if (target == null || (target is UnityEngine.Object unityTarget && unityTarget == null))
+            {
+                _prompt.Hide();
+                return;
+            }
+
+            // The anchor is the object's own position — AS3 passes celObj.X/Y, not the cursor hit
+            // point. Every shipped implementor is a MonoBehaviour, so the transform is the object's;
+            // a non-Component implementor falls back to the player, which is visibly wrong but is not
+            // reachable from any shipped type.
+            Vector3 world = target is Component component
+                ? component.transform.position
+                : _player.transform.position;
+
+            string name = target is IInteractableName named ? named.DisplayName : null;
+            _prompt.Show(name, target.ActionText, world);
         }
 
         private PlayerController ResolvePlayer()

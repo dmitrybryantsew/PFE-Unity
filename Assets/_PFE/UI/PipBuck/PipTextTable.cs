@@ -199,7 +199,20 @@ namespace PFE.UI.PipBuck
 
             /// <summary>The <c>n</c> child's <c>&lt;r&gt;</c> rows, in document order. Empty when the
             /// entry's body is plain text rather than a list of spoken lines.</summary>
-            public List<RawRow> Rows;
+            public List<RawLine> Rows;
+
+            /// <summary>
+            /// The <c>&lt;n&gt;</c> child's <b>own</b> children, by element name, in document order —
+            /// <c>&lt;t&gt;</c> titles above all.
+            ///
+            /// <para><b>Why the flattened <see cref="Children"/> entry is not enough.</b>
+            /// <c>Children["n"]</c> is <c>InnerText</c>, which concatenates a note's <c>&lt;t&gt;</c>
+            /// title and every <c>&lt;r&gt;</c> row into one run with no separator. A note's <i>title</i>
+            /// is specifically <c>xml.n.t[0]</c> (<c>PipPageInfo.as:216</c>), and a help note's title is
+            /// <c>ADVANCED CONTROLS</c> — a string that cannot be recovered from the flattened form
+            /// without guessing where it ends.</para>
+            /// </summary>
+            public Dictionary<string, List<string>> NChildren;
         }
 
         /// <summary>
@@ -209,22 +222,49 @@ namespace PFE.UI.PipBuck
         /// run during <c>ParseDocument</c> without recursing into a half-built index. Keeping the raw
         /// form and resolving on read also means a caller that wants the key <i>ids</i> rather than their
         /// captions can still get them.</para>
+        ///
+        /// <para><b>Public because <c>Res.messText</c> needs the raw form too.</b>
+        /// <c>TryGetDialogueRow</c> resolves the keys through <see cref="ApplyKeys"/>, which substitutes
+        /// the bare key <i>name</i>; the Oracle's message body wraps that name in
+        /// <c>&lt;span class='yel'&gt;</c> instead (<c>Res.as:202-213</c>), so a caller porting
+        /// <c>messText</c> has to see the placeholder to place the markup. See
+        /// <see cref="TryGetRawRow"/>.</para>
         /// </summary>
-        private readonly struct RawRow
+        public readonly struct RawLine
         {
+            /// <summary>The row's <c>@p</c> — a speaker id, empty for narration.</summary>
             public readonly string Speaker;
+
+            /// <summary>The row's text, with <c>@1</c>…<c>@5</c> still in place and <c>[br]</c>
+            /// already turned into a newline by <see cref="CleanText"/>.</summary>
             public readonly string Text;
+
+            /// <summary>The row's own <c>s1</c>…<c>s5</c> key names, or <c>null</c>.</summary>
             public readonly string[] Keys;
+
+            /// <summary>The row's <c>@mod</c>.</summary>
             public readonly int Mod;
+
+            /// <summary>The row's <c>@push</c>.</summary>
             public readonly bool Push;
 
-            public RawRow(string speaker, string text, string[] keys, int mod, bool push)
+            /// <summary>
+            /// The row's <c>@m</c> — the text after a <c>|</c> is the mature variant
+            /// (<c>Res.messText</c>, <c>Res.as:187-201</c>).
+            ///
+            /// <para>23 of the 1930 <c>&lt;r&gt;</c> rows in the shipped document carry it, so the
+            /// branch is live and not decorative.</para>
+            /// </summary>
+            public readonly bool Mature;
+
+            public RawLine(string speaker, string text, string[] keys, int mod, bool push, bool mature)
             {
                 Speaker = speaker;
                 Text = text;
                 Keys = keys;
                 Mod = mod;
                 Push = push;
+                Mature = mature;
             }
         }
 
@@ -328,6 +368,7 @@ namespace PFE.UI.PipBuck
                     if (child.Name == "n")
                     {
                         entry.Rows = ReadRows(child);
+                        entry.NChildren = ReadGrandchildren(child);
                     }
                 }
 
@@ -359,22 +400,25 @@ namespace PFE.UI.PipBuck
 
         /// <summary>Reads an <c>&lt;n&gt;</c> child's <c>&lt;r&gt;</c> rows, or <c>null</c> when the
         /// body is plain text.</summary>
-        private static List<RawRow> ReadRows(XmlNode nNode)
+        private static List<RawLine> ReadRows(XmlNode nNode)
         {
-            List<RawRow> rows = null;
+            List<RawLine> rows = null;
 
             foreach (XmlNode child in nNode.ChildNodes)
             {
                 if (child.NodeType != XmlNodeType.Element || child.Name != "r") continue;
 
                 var row = (XmlElement)child;
-                rows ??= new List<RawRow>();
-                rows.Add(new RawRow(
+                rows ??= new List<RawLine>();
+                rows.Add(new RawLine(
                     speaker: row.GetAttribute("p"),
                     text: CleanText(row.InnerText),
                     keys: ReadKeys(row),
                     mod: ReadInt(row.GetAttribute("mod")),
-                    push: ReadInt(row.GetAttribute("push")) > 0));
+                    push: ReadInt(row.GetAttribute("push")) > 0,
+                    // `if(node.@m.length())` — Res.as:187. A presence test on the attribute, not on
+                    // its value: `<r m='1'>` and `<r m='0'>` both take the `|` split.
+                    mature: row.HasAttribute("m")));
             }
 
             return rows;
@@ -385,6 +429,38 @@ namespace PFE.UI.PipBuck
                          System.Globalization.CultureInfo.InvariantCulture, out int value)
                 ? value
                 : 0;
+
+        /// <summary>
+        /// The <c>&lt;n&gt;</c> node's own children, grouped by element name and kept in document order
+        /// — the <c>xml.n.t</c> / <c>xml.n.r</c> lists the Oracle indexes into
+        /// (<c>PipPageInfo.as:216-223</c>). <c>null</c> when <c>&lt;n&gt;</c> has no element children.
+        ///
+        /// <para>Text is run through <see cref="CleanText"/>, the same pass the rows get, so a title
+        /// arrives with its indentation collapsed rather than with the source file's pretty-printing
+        /// baked in. Note that this is a port decision: the Oracle's <c>node.toString()</c> would keep
+        /// the raw whitespace, and Flash's text field then folds it during layout. A Unity label does
+        /// not fold, which is the same reason <see cref="CleanText"/> exists for rows.</para>
+        /// </summary>
+        private static Dictionary<string, List<string>> ReadGrandchildren(XmlNode nNode)
+        {
+            Dictionary<string, List<string>> children = null;
+
+            foreach (XmlNode child in nNode.ChildNodes)
+            {
+                if (child.NodeType != XmlNodeType.Element) continue;
+
+                children ??= new Dictionary<string, List<string>>(StringComparer.Ordinal);
+                if (!children.TryGetValue(child.Name, out List<string> texts))
+                {
+                    texts = new List<string>();
+                    children[child.Name] = texts;
+                }
+
+                texts.Add(CleanText(child.InnerText));
+            }
+
+            return children;
+        }
 
         /// <summary>
         /// The Oracle's <c>s.replace(/[\b\r\t]/g,"")</c> plus its <c>[br]</c> → line break
@@ -582,15 +658,39 @@ namespace PFE.UI.PipBuck
             row = default;
             if (index < 0) return false;
 
-            List<RawRow> rows = FindEntry(table, id)?.Rows;
+            List<RawLine> rows = FindEntry(table, id)?.Rows;
             if (rows == null || index >= rows.Count) return false;
 
-            RawRow raw = rows[index];
+            RawLine raw = rows[index];
             row = new DialogueRow(
                 speaker: raw.Speaker,
                 text: ApplyKeys(raw.Text, raw.Keys, Key),
                 mod: raw.Mod,
                 push: raw.Push);
+            return true;
+        }
+
+        /// <summary>
+        /// Row <paramref name="index"/> exactly as the document holds it — the <c>@n</c> placeholders
+        /// still in place, along with the speaker, the row's own key names and its <c>@m</c>.
+        ///
+        /// <para><b>Why a caller would want this instead of <see cref="TryGetDialogueRow"/>.</b> The
+        /// resolved form substitutes the bare key <i>name</i> for <c>@n</c>; <c>Res.messText</c> wraps
+        /// that name in <c>&lt;span class='yel'&gt;</c> (<c>Res.as:202-213</c>) and additionally picks a
+        /// different wrapper for an <c>imp == 1</c> entry (<c>:215-233</c>). Reconstructing either from
+        /// the resolved string is impossible, because the placeholder is gone by then. This is the same
+        /// "raw form, resolve on read" split <see cref="ApplyKeys"/> already documents.</para>
+        /// </summary>
+        /// <returns><c>false</c> when there is no such row.</returns>
+        public bool TryGetRawRow(string table, string id, int index, out RawLine line)
+        {
+            line = default;
+            if (index < 0) return false;
+
+            List<RawLine> rows = FindEntry(table, id)?.Rows;
+            if (rows == null || index >= rows.Count) return false;
+
+            line = rows[index];
             return true;
         }
 
@@ -630,6 +730,47 @@ namespace PFE.UI.PipBuck
 
         /// <summary>The entry's <c>@imp</c> — 0 when absent or unparsable.</summary>
         public int ImportanceOf(string table, string id) => FindEntry(table, id)?.Importance ?? 0;
+
+        /// <summary>
+        /// The <c>&lt;n&gt;</c> child's own children with this element name, in document order — the
+        /// Oracle's <c>xml.n.t</c> / <c>xml.n.r</c> XMLList. Empty when the entry has no
+        /// <c>&lt;n&gt;</c>, or the node has no child with that name.
+        ///
+        /// <para><b>The one caller is a note's title</b>, which is <c>xml.n.t[0]</c> with
+        /// <c>xml.n.r[0]</c> as the fallback (<c>PipPageInfo.as:216-223</c>). Both are needed: the
+        /// three seeded help notes author a <c>&lt;t&gt;</c>, and several terminal notes author only
+        /// rows.</para>
+        /// </summary>
+        /// <param name="table">The table name — <c>"txt"</c> for the two script-facing readers.</param>
+        /// <param name="childName">The element name under <c>&lt;n&gt;</c> — <c>"t"</c> or <c>"r"</c>.</param>
+        public IReadOnlyList<string> NChildTexts(string table, string id, string childName)
+        {
+            Entry entry = FindEntry(table, id);
+            if (entry?.NChildren == null || string.IsNullOrEmpty(childName)) return Array.Empty<string>();
+
+            return entry.NChildren.TryGetValue(childName, out List<string> texts)
+                ? (IReadOnlyList<string>)texts
+                : Array.Empty<string>();
+        }
+
+        /// <summary>
+        /// Whether an entry with this id exists in the table, in either document.
+        ///
+        /// <para><b>A question distinct from "does it have a child".</b> <c>Res.messText</c> asks it
+        /// first and returns the empty string for a miss (<c>Res.as:169-172</c>) — before it ever looks
+        /// at <c>@imp</c> or at <c>n</c>. A caller that instead tested the <c>n</c> child would treat
+        /// "entry present but bodyless" and "entry absent" as the same answer, and they are not: the
+        /// first still has an <c>@imp</c> and an <c>&lt;info&gt;</c>.</para>
+        /// </summary>
+        public bool HasEntry(string table, string id)
+        {
+            if (FindEntry(table, id) != null) return true;
+
+            // Res.as:165-171 — the default language is the fallback for a missing key.
+            if (ReferenceEquals(_active, _fallback)) return false;
+            return _fallback.TryGetValue(table ?? "", out Dictionary<string, Entry> entries)
+                && entries.ContainsKey(id ?? "");
+        }
 
         private Entry FindEntry(string table, string id)
         {

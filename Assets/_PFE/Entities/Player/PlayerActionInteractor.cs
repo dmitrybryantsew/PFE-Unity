@@ -158,6 +158,17 @@ namespace PFE.Entities.Player
 
             if (result == TimedActionBeginResult.Begun)
             {
+                // Tell the view where in the world the hold is happening, if it cares. AS3 re-projects
+                // the bar onto the target every frame —
+                // `cam.setKoord(this.pr_bar, this.gg.actionObj.owner.X, this.gg.actionObj.owner.Y)`
+                // (GUI.as:1302) — and the port pushes it once, here, because the target cannot change
+                // while a hold is in flight (the single-actionObj rule this class already enforces).
+                // A view that is genuinely screen-anchored simply does not implement the interface.
+                if (_view is IWorldAnchorSink anchored)
+                {
+                    anchored.SetWorldAnchor(worldPosition);
+                }
+
                 return true;
             }
 

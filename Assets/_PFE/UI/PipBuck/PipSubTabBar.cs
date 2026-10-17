@@ -34,25 +34,39 @@ namespace PFE.UI.PipBuck
     {
         // ── Geometry ──────────────────────────────────────────────────────────
         //
-        // PORT CHOICE. The Oracle positions these inside each page's own `vis`, whose symbol was not
-        // imported, so there is no attested offset to read. What IS attested is that the row sits
-        // above the page's list, and the page's own origin and row pitch (PipBuckLayout.PageRowX /
-        // PageRowY0) — the row is placed just above the header row so the two do not overlap.
+        // ATTESTED, corrected 2026-10-13. The four numbers below used to be a PORT CHOICE, recorded
+        // as such with the reason "each page's own `vis` was not imported, so there is no offset to
+        // read". That reason was wrong: `visPipInv` (symbol 1113) is the DEFAULT pageClass
+        // (PipPage.as:84-87) and it WAS in the export tree, so its frame-1 display list answers the
+        // question directly. Dumped with .workbuddy-ai/tmp/swf_sprite_frame1.py:
+        //
+        //   depth 135  1011  but1  1.000,1.000  (  0.0, 26.4)
+        //   depth 140  1011  but2  1.000,1.000  (140.0, 26.4)
+        //   depth 145  1011  but3  1.000,1.000  (280.0, 26.4)
+        //   depth 150  1011  but4  1.000,1.000  (420.0, 26.4)
+        //   depth 155  1011  but5  1.000,1.000  (560.0, 26.4)
+        //
+        // and symbol 1011 exports at 138x32. The button is registered at its TOP-LEFT (a placement of
+        // x=0 with a centre registration would put half of it off the page's left edge, and the row
+        // is the leftmost thing on the page).
+        //
+        // The old numbers drew the row 16 px too high and 30 px too far right, with a 124 px pitch
+        // against the Oracle's 140 — so the five tabs did not line up with the columns under them.
         //
         // These four are the single owner of the numbers: PipPageInvView aliases them rather than
         // keeping a second copy, so the inventory's row and every stub's row cannot drift apart.
 
-        /// <summary>Top edge of the row, inside the page root.</summary>
-        public const float TabY = 10f;
+        /// <summary>Top edge of the row, inside the page root — SWF sprite 1113 depth 135.</summary>
+        public const float TabY = 26.4f;
 
-        /// <summary>Left edge of the first sub-tab.</summary>
-        public const float TabX0 = 30f;
+        /// <summary>Left edge of the first sub-tab — SWF sprite 1113 depth 135, x=0.</summary>
+        public const float TabX0 = 0f;
 
-        /// <summary>Horizontal distance between sub-tab origins.</summary>
-        public const float TabPitch = 124f;
+        /// <summary>Horizontal distance between sub-tab origins — SWF sprite 1113, 140.</summary>
+        public const float TabPitch = 140f;
 
-        /// <summary>The button's own size.</summary>
-        public static readonly Vector2 TabSize = new Vector2(118f, 40f);
+        /// <summary>The button's own size — symbol 1011, exported 138x32.</summary>
+        public static readonly Vector2 TabSize = new Vector2(138f, 32f);
 
         // ── Wiring ────────────────────────────────────────────────────────────
 

@@ -46,7 +46,7 @@ namespace PFE.Core.Scripting
         public bool IsOpen = false;
 
         private Rect _windowRect = new Rect(60, 40, 920, 660);
-        private int _activeTab = 0; // 0: Pip Stats, 1: Skills, 2: Perks, 3: Weapons, 4: Armor, 5: Vitals & Presets, 6: Effects, 7: Spells, 8: Inventory, 9: Rig, 10: Spawn Unit, 11: Lands, 12: Land State, 13: Land Map, 14: Save / Load, 15: Campaign Vars
+        private int _activeTab = 0; // 0: Pip Stats, 1: Skills, 2: Perks, 3: Weapons, 4: Armor, 5: Vitals & Presets, 6: Effects, 7: Spells, 8: Inventory, 9: Rig, 10: Spawn Unit, 11: Lands, 12: Land State, 13: Land Map, 14: Save / Load, 15: Campaign Vars, 16: Room, 17: Cheats
 
         private static readonly string[] TabNames = new string[]
         {
@@ -65,7 +65,9 @@ namespace PFE.Core.Scripting
             "🧭 Land State",
             "📍 Land Map",
             "💾 Save / Load",
-            "🏁 Campaign Vars"
+            "🏁 Campaign Vars",
+            "🏠 Room",
+            "🎮 Cheats"
         };
 
         /// <summary>How many tabs the strip actually ships. Exposed <b>so the strip test can assert against
@@ -99,6 +101,29 @@ namespace PFE.Core.Scripting
         /// variables most worth setting are the ones you want to set before there is a player at all.</summary>
         private const int CampaignVarsTab = 15;
 
+        /// <summary>Index of the "Room" tab — the live readout of the room the player is standing in:
+        /// its identity, its difficulty record, the enemies actually placed in it, and its objects/doors.
+        /// Exempt from the no-player guard for the same reason as <see cref="LandStateTab"/>: it reads the
+        /// built <c>RoomInstance</c>, not the player, and "the room came out wrong" is exactly the case
+        /// where there may be no live player to gate on.</summary>
+        private const int RoomTab = 16;
+
+        /// <summary>Index of the "Cheats" tab — every runtime cheat in one place, and the <b>only</b>
+        /// place the locomotion cheats are meant to be flipped.</summary>
+        /// <remarks>
+        /// <para><b>Why the cheats moved here.</b> <c>infiniteMana</c>, <c>canLevitate</c>,
+        /// <c>canDoubleJump</c> and the movement multipliers are <c>[SerializeField]</c> fields on
+        /// <see cref="PFE.Entities.Player.PlayerLocomotionAbilities"/> — reachable only by selecting a
+        /// scene object and editing the Inspector, which means they cannot be flipped while playing and
+        /// are silently baked into whatever the scene was saved with. This tab reads and writes the same
+        /// fields on the live component, so the toggle is immediate and visible.</para>
+        ///
+        /// <para><b>Not exempt from the no-player guard.</b> Every cheat on this tab is either a field on
+        /// a component of the player or a stat on <c>CharacterStats</c>, so with no player there is
+        /// nothing to flip and the guard's message is the right answer.</para>
+        /// </remarks>
+        private const int CheatsTab = 17;
+
         // Scroll positions for each tab
         private Vector2 _pipStatsScroll;
         private Vector2 _skillsScroll;
@@ -108,6 +133,7 @@ namespace PFE.Core.Scripting
         private Vector2 _presetsScroll;
         private Vector2 _effectsScroll;
         private Vector2 _spellsScroll;
+        private Vector2 _cheatsScroll;
 
         // Pip stats inspector state
         private string _inspectedStatFactor = "allDamMult";
@@ -864,9 +890,14 @@ namespace PFE.Core.Scripting
             // checkpoint record, neither of which is the player. It is also the tab you want when a load
             // came back wrong, and a load that came back wrong is a plausible reason there is no live
             // player to gate on.
+            //
+            // The Room tab (16) is exempt for the Land State tab's reason once more: it reads the built
+            // RoomInstance through the LandMap / room controller, and a room whose population came out
+            // empty is exactly the thing you opened the tab to see — gating it on a player would hide it
+            // in the very scene where the room is the problem.
             if (player == null && _activeTab != 9 && _activeTab != LandsTab &&
                 _activeTab != LandStateTab && _activeTab != LandMapTab && _activeTab != SaveLoadTab &&
-                _activeTab != CampaignVarsTab)
+                _activeTab != CampaignVarsTab && _activeTab != RoomTab)
             {
                 GUILayout.Box("PlayerController not found in scene. Please enter a gameplay room/scene.", _cardStyle, GUILayout.ExpandHeight(true));
                 GUI.DragWindow(new Rect(0, 0, _windowRect.width, 30));
@@ -923,6 +954,12 @@ namespace PFE.Core.Scripting
                 case CampaignVarsTab:
                     DrawCampaignVarsTab();
                     break;
+                case RoomTab:
+                    DrawRoomTab();
+                    break;
+                case CheatsTab:
+                    DrawCheatsTab(player);
+                    break;
             }
 
             GUI.DragWindow(new Rect(0, 0, _windowRect.width, 24));
@@ -931,6 +968,188 @@ namespace PFE.Core.Scripting
         // =========================================================================
         // TAB BAR (wrapping)
         // =========================================================================
+
+        // =========================================================================
+        // CHEATS
+        // =========================================================================
+
+        /// <summary>
+        /// The live <see cref="PlayerLocomotionAbilities"/> the Cheats tab edits. Cached because the
+        /// overlay repaints every frame and the component does not move; re-resolved when the player
+        /// object changes, because a room rebuild can hand the game a different one.
+        /// </summary>
+        private PlayerLocomotionAbilities _cheatAbilities;
+
+        /// <summary>
+        /// The Cheats tab — every runtime cheat in one place, and the only place the locomotion cheats
+        /// are meant to be flipped.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Why the cheats moved here.</b> <c>infiniteMana</c>, <c>canLevitate</c>,
+        /// <c>canDoubleJump</c> and the movement multipliers are <c>[SerializeField]</c> fields on
+        /// <see cref="PlayerLocomotionAbilities"/>, reachable only by selecting a scene object and
+        /// editing the Inspector. That means they cannot be flipped while playing, and whatever they
+        /// were left at is silently baked into the saved scene. This tab reads and writes the same
+        /// fields on the live component, so a toggle takes effect on the next tick and is visible in
+        /// the same panel.</para>
+        ///
+        /// <para><b>Two ways to grant each ability, and they are shown as two things.</b>
+        /// <c>CanDoubleJump</c> is <c>canDoubleJump || CharacterStats.isDJ &gt; 0</c> and
+        /// <c>CanLevitate</c> is <c>canLevitate || CharacterStats.levitOn &gt; 0</c>. The checkbox is
+        /// the field, which <b>bypasses the perk system</b>; the read-only number beside it is the
+        /// stat, which is what the perks actually write. Keeping them separate matters because a cheat
+        /// that silently wrote <c>isDJ</c> would be indistinguishable from the <c>levitation</c> perk,
+        /// and the begin land's tutorial depends on that perk being the only thing that grants it
+        /// (<c>GameData.as:1225</c>).</para>
+        ///
+        /// <para><b>The tuning block is here because those fields have no script at all.</b>
+        /// <c>jumpForceMultiplier</c>, <c>airJumpForceRatio</c>, <c>levitationMaxHeight</c> and the
+        /// teleport timings are Inspector-only numbers that no console command and no perk writes.
+        /// Rather than invent a cheat script for each, this tab edits them directly — a debug-only
+        /// site, which is what was asked for.</para>
+        /// </remarks>
+        private void DrawCheatsTab(PlayerController player)
+        {
+            if (player == null) return;
+
+            if (_cheatAbilities == null || _cheatAbilities.gameObject != player.gameObject)
+                _cheatAbilities = player.GetComponent<PlayerLocomotionAbilities>();
+
+            PlayerLocomotionAbilities abil = _cheatAbilities;
+            if (abil == null)
+            {
+                GUILayout.Box(
+                    "PlayerController has no PlayerLocomotionAbilities component, so there are no " +
+                    "locomotion cheats to drive.",
+                    _cardStyle, GUILayout.ExpandWidth(true));
+                return;
+            }
+
+            CharacterStats stats = player.CharacterStats;
+            bool hasStats = stats != null;
+
+            _cheatsScroll = GUILayout.BeginScrollView(_cheatsScroll);
+
+            // ── The named cheats ────────────────────────────────────────────────────────────────────
+            GUILayout.Label("<b>Locomotion cheats</b>  <color=#AAAAAA>PlayerLocomotionAbilities — the " +
+                            "Inspector fields, edited live</color>");
+            GUILayout.BeginVertical(_cardStyle);
+
+            abil.infiniteMana = CheatToggle(abil.infiniteMana, "♾️ Infinite Mana",
+                "infiniteMana — every magic-mana drain is skipped: levitation upkeep, telekinesis, teleport.");
+
+            abil.canLevitate = CheatToggle(abil.canLevitate, "🕊️ Infinite Levitation",
+                "canLevitate — fly with no perk. The perk route is `selflevit`; levitOn = " +
+                (hasStats ? stats.levitOn.ToString() : "n/a") + ".");
+
+            abil.canDoubleJump = CheatToggle(abil.canDoubleJump, "🦘 Double Jump",
+                "canDoubleJump — the extra air jump with no perk. The perk route is `levitation`; " +
+                "isDJ = " + (hasStats ? stats.isDJ.ToString() : "n/a") + ".");
+
+            abil.canAirDash = CheatToggle(abil.canAirDash, "💨 Air Dash", "canAirDash.");
+            abil.canWallJump = CheatToggle(abil.canWallJump, "🧗 Wall Jump", "canWallJump.");
+            abil.canTeleport = CheatToggle(abil.canTeleport, "✨ Teleport", "canTeleport.");
+
+            abil.maxJumpCount = CheatIntSlider(abil.maxJumpCount, 1, 3, "Max jumps",
+                "maxJumpCount — raised to at least 2 whenever CanDoubleJump is true.");
+
+            GUILayout.EndVertical();
+
+            // ── The perk route, which is the one the campaign actually uses ─────────────────────────
+            GUILayout.Space(6);
+            GUILayout.Label("<b>The begin land's double jump</b>  <color=#AAAAAA>the real path, not the " +
+                            "cheat flag</color>");
+            GUILayout.BeginVertical(_cardStyle);
+
+            GUILayout.Label(
+                "<color=#AAAAAA>`beginLevit` grants `levitation` as a script action (GameData.as:1225 → " +
+                "Script.as:327), and that perk's payload is `isDJ = 1`. `CanDoubleJump` reads the flag " +
+                "second, so granting the perk here exercises the campaign's own route.</color>",
+                GUILayout.ExpandWidth(true));
+
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("🌟 Grant perk `levitation` (free — the script's own form)", GUILayout.Height(24)))
+            {
+                if (hasStats)
+                {
+                    bool granted = stats.AddPerk("levitation");
+                    Debug.Log($"[Cheats] AddPerk(\"levitation\") -> {granted}; isDJ = {stats.isDJ}, " +
+                              $"levitOn = {stats.levitOn}.");
+                }
+            }
+            if (GUILayout.Button("🚫 Revoke `levitation`", GUILayout.Height(24), GUILayout.Width(190)))
+            {
+                if (hasStats) stats.RemovePerk("levitation");
+            }
+            GUILayout.EndHorizontal();
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Label($"<b>Perk points:</b> {(hasStats ? stats.PerkPoints : 0)}", GUILayout.Width(150));
+            if (GUILayout.Button("+1", GUILayout.Width(50)) && hasStats) stats.GrantPerkPoints(1);
+            if (GUILayout.Button("+5", GUILayout.Width(50)) && hasStats) stats.GrantPerkPoints(5);
+            GUILayout.Label("<color=#AAAAAA>the picker spends one per perk; a grant does not</color>",
+                GUILayout.ExpandWidth(true));
+            GUILayout.EndHorizontal();
+
+            GUILayout.EndVertical();
+
+            // ── Debug-only tuning ──────────────────────────────────────────────────────────────────
+            GUILayout.Space(6);
+            GUILayout.Label("<b>Tuning</b>  <color=#AAAAAA>no script and no perk writes these — " +
+                            "Inspector-only numbers, edited here instead</color>");
+            GUILayout.BeginVertical(_cardStyle);
+
+            abil.jumpForceMultiplier = CheatFloatSlider(abil.jumpForceMultiplier, 0.5f, 2f, "Jump force ×");
+            abil.airJumpForceRatio = CheatFloatSlider(abil.airJumpForceRatio, 0.5f, 1f, "Air jump force ×");
+            abil.moveSpeedMultiplier = CheatFloatSlider(abil.moveSpeedMultiplier, 0.5f, 3f, "Move speed ×");
+            abil.levitationMaxHeight = CheatFloatSlider(abil.levitationMaxHeight, 0f, 200f, "Levitation height");
+            abil.levitationAcceleration = CheatFloatSlider(abil.levitationAcceleration, 0f, 10f, "Levitation accel");
+            abil.levitationManaCostPerTick = CheatFloatSlider(abil.levitationManaCostPerTick, 0f, 10f, "Levitation mana/tick");
+            abil.levitationManaCostUpward = CheatFloatSlider(abil.levitationManaCostUpward, 0f, 10f, "Levitation mana up/tick");
+            abil.teleportChargeTimeSeconds = CheatFloatSlider(abil.teleportChargeTimeSeconds, 0f, 2f, "Teleport charge (s)");
+            abil.teleportManaCost = CheatFloatSlider(abil.teleportManaCost, 0f, 100f, "Teleport mana");
+            abil.teleportCooldownSeconds = CheatFloatSlider(abil.teleportCooldownSeconds, 0f, 10f, "Teleport cooldown (s)");
+
+            GUILayout.EndVertical();
+
+            GUILayout.EndScrollView();
+        }
+
+        /// <summary>
+        /// One labelled cheat checkbox. <b>Returns</b> the new value instead of writing a field, so the
+        /// caller names the field it owns and this helper cannot write the wrong one.
+        /// </summary>
+        private static bool CheatToggle(bool value, string label, string explanation)
+        {
+            GUILayout.BeginHorizontal();
+            bool next = GUILayout.Toggle(value, " " + label, GUILayout.Width(210));
+            GUILayout.Label($"<color=#AAAAAA>{explanation}</color>", GUILayout.ExpandWidth(true));
+            GUILayout.EndHorizontal();
+            return next;
+        }
+
+        /// <summary>One labelled integer slider. Returns the new value.</summary>
+        private static int CheatIntSlider(int value, int min, int max, string label, string explanation)
+        {
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(label, GUILayout.Width(210));
+            int next = Mathf.RoundToInt(GUILayout.HorizontalSlider(value, min, max, GUILayout.Width(160)));
+            GUILayout.Label(next.ToString(), GUILayout.Width(30));
+            GUILayout.Label($"<color=#AAAAAA>{explanation}</color>", GUILayout.ExpandWidth(true));
+            GUILayout.EndHorizontal();
+            return next;
+        }
+
+        /// <summary>One labelled float slider. Returns the new value.</summary>
+        private static float CheatFloatSlider(float value, float min, float max, string label)
+        {
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(label, GUILayout.Width(210));
+            float next = GUILayout.HorizontalSlider(value, min, max, GUILayout.Width(160));
+            GUILayout.Label(next.ToString("0.###"), GUILayout.Width(50));
+            GUILayout.EndHorizontal();
+            return next;
+        }
 
         /// <summary>
         /// The tab strip, wrapped into as many rows as the window width needs.
@@ -3767,6 +3986,29 @@ namespace PFE.Core.Scripting
         private string _saveLoadStatus = string.Empty;
 
         /// <summary>
+        /// The cached "All saves" list, and the stamp of the directory it was built from.
+        ///
+        /// <para><b>Why a cache is not optional here.</b> <c>SaveManager.GetAllSaves</c> decompresses
+        /// every save in full and deserialises the whole world to read six scalars — measured at ~20 MB
+        /// of JSON and 24,000 tiles per save, ~150 ms each. This panel draws from <c>OnGUI</c>, which
+        /// IMGUI runs at least twice per frame (Layout and Repaint) plus once per mouse-move, so an
+        /// un-cached call is several hundred milliseconds <i>per frame</i>: the reported 3 fps, on this
+        /// tab only. The stamp is one <c>FileInfo</c> per file instead, so a frame that serves the cache
+        /// costs microseconds.</para>
+        ///
+        /// <para><b>Why invalidate explicitly after a write too.</b> The stamp keys on count, total size
+        /// and newest write time. A rewrite that lands inside the filesystem's timestamp granularity and
+        /// keeps the same size would not move it, so every button on this tab that changes the directory
+        /// calls <see cref="InvalidateSaveList"/> rather than relying on the stamp alone.</para>
+        /// </summary>
+        private List<SaveMetadata> _saveLoadSaves;
+        private SaveDirectoryStamp _saveLoadStamp = SaveDirectoryStamp.None;
+
+        /// <summary>How long the last real scan took, in milliseconds — shown on the tab so the cost is
+        /// visible instead of inferred.</summary>
+        private double _saveLoadScanMs;
+
+        /// <summary>
         /// The F2 panel's save/load surface. <c>DevConsoleSaveCommands</c> already exposes the same three
         /// operations to the Lua console; this tab exists because a console verb reports into a log the
         /// developer has to go and read, while a save/load round-trip is something you want to <i>do</i>
@@ -3815,6 +4057,7 @@ namespace PFE.Core.Scripting
                 _saveLoadStatus = save.QuickSave(ResolveLandMap())
                     ? "Quick save written."
                     : "Quick save FAILED — see the Unity console (a null LandMap is the usual cause).";
+                InvalidateSaveList();
             }
 
             if (GUILayout.Button("Quick Load", GUILayout.Width(110)))
@@ -3826,6 +4069,7 @@ namespace PFE.Core.Scripting
                     : save.QuickLoad(ResolveLandMap())
                         ? "Quick load applied."
                         : "Quick load FAILED — see the Unity console.";
+                InvalidateSaveList();
             }
 
             if (GUILayout.Button("Checkpoint Save", GUILayout.Width(140)))
@@ -3833,6 +4077,7 @@ namespace PFE.Core.Scripting
                 _saveLoadStatus = save.RequestCheckpointSave()
                     ? "Checkpoint save written to the autosave slot."
                     : "Checkpoint save FAILED — see the Unity console.";
+                InvalidateSaveList();
             }
 
             GUILayout.FlexibleSpace();
@@ -3974,6 +4219,7 @@ namespace PFE.Core.Scripting
                 _saveLoadStatus = save.TriggerAutoSave()
                     ? "Autosave written."
                     : "Autosave refused (disabled, or the world is not ready).";
+                InvalidateSaveList();
             }
 
             GUILayout.FlexibleSpace();
@@ -3985,10 +4231,82 @@ namespace PFE.Core.Scripting
                 GUILayout.ExpandWidth(true));
         }
 
+        /// <summary>
+        /// Drops the cached save list so the next draw rescans the directory.
+        ///
+        /// <para><b>Why both fields.</b> Clearing only the stamp would be enough for every case except
+        /// "the last save in the directory was just deleted" — there the new stamp is
+        /// <see cref="SaveDirectoryStamp.None"/>, which is identical to the stamp of a directory that
+        /// never had any saves, so the cache would look current and keep showing a row that no longer
+        /// exists on disk. Clearing the list makes the next frame rebuild whatever finds.</para>
+        /// </summary>
+        private void InvalidateSaveList()
+        {
+            _saveLoadSaves = null;
+            _saveLoadStamp = SaveDirectoryStamp.None;
+        }
+
+        /// <summary>
+        /// The save list for this draw — from the cache when the directory has not changed.
+        ///
+        /// <para><b>The whole fix for the 3 fps.</b> The body that actually reads disk
+        /// (<c>SaveManager.GetAllSaves</c>) is behind a stamp comparison, so the expensive path runs
+        /// once per real change instead of once per IMGUI pass. Same shape as the Land Map tab's
+        /// signature/Refresh pair, for the same reason: the cost is one pass when something moves,
+        /// microseconds when nothing does.</para>
+        /// </summary>
+        /// <param name="save">The manager. Passed in so this stays callable before
+        /// <see cref="SaveManager.Instance"/> is checked for null.</param>
+        /// <param name="force">Ignore the stamp — the Refresh button.</param>
+        private List<SaveMetadata> GetSaveList(SaveManager save, bool force = false)
+        {
+            SaveDirectoryStamp current = SaveListScan.ReadCurrent();
+
+            if (!force && _saveLoadSaves != null && !SaveListScan.IsStale(_saveLoadStamp, current))
+            {
+                return _saveLoadSaves;
+            }
+
+            var timing = System.Diagnostics.Stopwatch.StartNew();
+            List<SaveMetadata> fresh = save != null
+                ? save.GetAllSaves() ?? new List<SaveMetadata>()
+                : new List<SaveMetadata>();
+            timing.Stop();
+
+            _saveLoadScanMs = timing.Elapsed.TotalMilliseconds;
+            _saveLoadSaves = fresh;
+            _saveLoadStamp = current;
+
+            return fresh;
+        }
+
         private void DrawSaveLoadAllSaves(SaveManager save)
         {
-            List<SaveMetadata> all = save.GetAllSaves();
-            GUILayout.Label($"<b>All saves</b> ({(all != null ? all.Count : 0)})", GUILayout.ExpandWidth(true));
+            List<SaveMetadata> all = GetSaveList(save);
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Label($"<b>All saves</b> ({(all != null ? all.Count : 0)})", GUILayout.Width(130));
+
+            if (GUILayout.Button("Refresh", GUILayout.Width(90)))
+            {
+                int before = all != null ? all.Count : 0;
+                all = GetSaveList(save, force: true);
+                _saveLoadStatus = $"Rescanned {before} → {all.Count} save(s) in {_saveLoadScanMs:0} ms.";
+            }
+
+            // Shown, not hidden: the number that used to be paid once per IMGUI pass is now paid once
+            // per change, and a tester reading it sees both that the fix is in and how expensive a
+            // save directory can actually get.
+            GUILayout.Label($"<size=11>cached · last scan {_saveLoadScanMs:0} ms</size>",
+                GUILayout.Width(190));
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+
+            GUILayout.Label(
+                "<color=#AAAAAA><size=11>Reading this list decompresses every save and deserialises the " +
+                "whole world for six scalars, so it is scanned once per change and cached between " +
+                "frames — IMGUI runs OnGUI more than once per frame.</size></color>",
+                GUILayout.ExpandWidth(true));
 
             if (all == null || all.Count == 0)
             {
@@ -4018,6 +4336,7 @@ namespace PFE.Core.Scripting
                     _saveLoadStatus = save.LoadGame(meta.saveId, ResolveLandMap())
                         ? $"Loaded '{meta.saveId}'."
                         : $"Load of '{meta.saveId}' FAILED — see the Unity console.";
+                    InvalidateSaveList();
                 }
 
                 if (GUILayout.Button("Delete", GUILayout.Width(70)))
@@ -4025,6 +4344,7 @@ namespace PFE.Core.Scripting
                     _saveLoadStatus = save.DeleteSave(meta.saveId)
                         ? $"Deleted '{meta.saveId}'."
                         : $"Delete of '{meta.saveId}' FAILED.";
+                    InvalidateSaveList();
                 }
 
                 GUILayout.EndHorizontal();
@@ -4932,6 +5252,12 @@ namespace PFE.Core.Scripting
                 return;
             }
 
+            // The rows below now grant into the bag as well as equip, so the bag has to be resolved
+            // before the first row draws. Idempotent — the Inventory tab calls the same method — and it
+            // is what makes "Give" write to the player's own PlayerInventory rather than a second bag
+            // (see EnsureInventory's adopt-before-create note).
+            EnsureInventory();
+
             // Current Weapon Header
             var curController = loadout.Current;
             var curDef = curController?.State?.Def;
@@ -5441,6 +5767,8 @@ namespace PFE.Core.Scripting
             GUIStyle card = isEquipped ? _cardActiveStyle : _cardStyle;
             GUILayout.BeginHorizontal(card);
 
+            string wid = weapon.weaponId ?? weapon.name;
+
             string title = isEquipped ? $"<color=#55FF55><b>▶ {weapon.weaponId}</b></color>" : $"<b>{weapon.weaponId}</b>";
             GUILayout.Label(title, GUILayout.Width(170));
             GUILayout.Label(weapon.weaponType.ToString(), _badgeStyle, GUILayout.Width(75));
@@ -5463,12 +5791,27 @@ namespace PFE.Core.Scripting
             }
             else
             {
-                if (GUILayout.Button("Equip", GUILayout.Width(90), GUILayout.Height(22)))
+                // ── Give, not Equip ──────────────────────────────────────────────────────────────
+                //
+                // This button used to call loadout.Equip and nothing else, which is the bug a play-test
+                // reported verbatim: "the inventory has no weapon while I have a minigun equipped". The
+                // weapon was in hand and in no bag, so the Pip-Buck's Weapons page was empty and
+                // GameInventory had never heard of the id.
+                //
+                // It now puts the weapon into the bag through the same PlayerInventory.Submit seam the
+                // Inventory tab uses. Equipping is still one click away — but only offered once the
+                // weapon is actually held, because "in hand but not in the bag" is precisely the state
+                // this change exists to remove, and offering Equip first is how it was reached.
+                if (GUILayout.Button("Give", GUILayout.Width(60), GUILayout.Height(22)))
+                {
+                    GiveWeaponToInventory(weapon);
+                }
+
+                if (HoldsWeapon(wid) && GUILayout.Button("Equip", GUILayout.Width(60), GUILayout.Height(22)))
                 {
                     loadout.Equip(weapon);
                 }
             }
-
             GUILayout.EndHorizontal();
         }
 
@@ -5480,6 +5823,10 @@ namespace PFE.Core.Scripting
         {
             var unitStats = player.Stats;
             if (unitStats == null) return;
+
+            // The rows now grant into the bag before equipping — see EquipArmorById — so the bag has to
+            // be resolved before the first row draws. Same call the Inventory and Weapons tabs make.
+            EnsureInventory();
 
             string curArmorId = unitStats.ArmourId?.Value ?? string.Empty;
             bool hasArmor = !string.IsNullOrEmpty(curArmorId);
@@ -5597,6 +5944,10 @@ namespace PFE.Core.Scripting
             }
             else
             {
+                // Same shape as the weapon row: give first, equip second. EquipArmorById grants the
+                // plate into the bag when the bag does not already hold it, so this one button does both
+                // and the Pip-Buck's Armor page lists what was equipped. The label says "Give" because
+                // that is the half that was missing.
                 if (GUILayout.Button("Equip Armor", GUILayout.Width(95), GUILayout.Height(22)))
                 {
                     EquipArmorById(player, armorId, def);
@@ -5648,9 +5999,141 @@ namespace PFE.Core.Scripting
                 itemDef.armorTip = 1;
             }
 
+            // ── Grant before equipping ──────────────────────────────────────────────────────────
+            //
+            // Equipping and owning used to be the same act here, and they are not: Stats.EquipArmour
+            // writes the unit's armour slot and the paper doll, while the bag is a separate dictionary
+            // that the Pip-Buck's Armor page reads. So a plate put on from this tab was worn and not
+            // owned, and the page stayed empty — the armour half of "the inventory has no weapon while I
+            // have a minigun equipped". Granting here rather than at each of the six call sites (the
+            // rows, Repair 100%, and the four presets) keeps one place that can be wrong.
+            //
+            // Guarded on membership because AddArmor refuses a duplicate with a warning, and the Repair
+            // button re-equips a plate the player already holds — that would print a warning per click
+            // for a state that is correct. A refusal for any *other* reason is reported rather than
+            // swallowed, and the equip still proceeds: a plate you can wear but not own is worse than one
+            // you can wear and the console explains.
+            if (!HoldsArmor(armorId))
+            {
+                GrantArmorToInventory(armorId);
+            }
+
             var armorInstance = new GameArmorInstance(itemDef);
             player.Stats.EquipArmour(armorInstance);
             Debug.Log($"[PlayerDebugEditor] Equipped armor '{armorId}' — paper-doll sprite updated.");
+        }
+
+        // ── Giving, as opposed to equipping ───────────────────────────────────────────────────────
+        //
+        // Both helpers below take the same seam the Inventory tab takes (PlayerInventory.Submit), so a
+        // debug grant and a gameplay grant cannot diverge. They report through Debug.Log rather than the
+        // Inventory tab's status line, because that line is drawn only on the Inventory tab — a message
+        // written from the Weapons or Armor tab would be set and never shown.
+
+        /// <summary>
+        /// Whether the player's bag already holds this weapon id.
+        ///
+        /// <para>Reads the resolved bag rather than asking the seam, because "is it already there" has no
+        /// <see cref="InventoryCommandKind"/> — the seam answers it by refusing a duplicate, which costs a
+        /// warning log per frame the button is drawn. Membership is a read; a refusal is a write.</para>
+        /// </summary>
+        private bool HoldsWeapon(string weaponId)
+        {
+            EnsureInventory();
+            return _debugInventory != null
+                && !string.IsNullOrEmpty(weaponId)
+                && _debugInventory.Weapons.ContainsKey(weaponId);
+        }
+
+        /// <summary>Whether the player's bag already holds this armour id. See <see cref="HoldsWeapon"/>.</summary>
+        private bool HoldsArmor(string armorId)
+        {
+            EnsureInventory();
+            return _debugInventory != null
+                && !string.IsNullOrEmpty(armorId)
+                && _debugInventory.Armors.ContainsKey(armorId);
+        }
+
+        /// <summary>
+        /// Put a weapon into the player's bag — AS3 <c>Invent.addWeapon(id)</c>.
+        ///
+        /// <para><b>This is the fix for "the inventory has no weapon while I have a minigun equipped".</b>
+        /// The weapon id resolves through <c>ContentType.Weapon</c> inside the sink (the weapon and item
+        /// tables are disjoint), which is the same path <c>PlayerInventory.GrantWeapon</c> takes for the
+        /// starting kit — so a weapon given here is indistinguishable from one the game gave, which is
+        /// what makes it a useful test of the seam rather than a bypass of it.</para>
+        /// </summary>
+        /// <returns>True when the bag took it.</returns>
+        private bool GiveWeaponToInventory(WeaponDefinition weapon)
+        {
+            if (weapon == null) return false;
+
+            EnsureInventory();
+
+            string wid = weapon.weaponId ?? weapon.name;
+            if (string.IsNullOrEmpty(wid))
+            {
+                Debug.LogWarning("[PlayerDebugEditor] That weapon row has no id — nothing to give.");
+                return false;
+            }
+
+            if (_liveInventory != null)
+            {
+                InventoryCommandResult result = _liveInventory.Submit(InventoryCommand.AddWeapon(wid));
+                Debug.Log(result.Applied
+                    ? $"[PlayerDebugEditor] Gave weapon '{wid}' — it is on the Pip-Buck's Weapons page now."
+                    : $"[PlayerDebugEditor] Weapon '{wid}' was not given: {result.Reason}");
+                return result.Applied;
+            }
+
+            // No PlayerInventory: a scene with no player, or one whose Construct has not run. The bag
+            // still exists — EnsureInventory built one — so the click is honoured rather than dropped.
+            // Recorded because this arm does not take the seam.
+            if (_debugInventory == null)
+            {
+                Debug.LogWarning("[PlayerDebugEditor] No inventory resolved — the weapon cannot be given.");
+                return false;
+            }
+
+            GameWeaponInstance added = _debugInventory.AddWeapon(wid);
+            Debug.Log(added != null
+                ? $"[PlayerDebugEditor] Gave weapon '{wid}' to the fallback bag (no PlayerInventory in the scene)."
+                : $"[PlayerDebugEditor] Weapon '{wid}' was not given — see the Console above.");
+            return added != null;
+        }
+
+        /// <summary>
+        /// Put a plate into the player's bag — AS3 <c>Invent.addArmor(id)</c>. The armour counterpart of
+        /// <see cref="GiveWeaponToInventory"/>; called from <see cref="EquipArmorById"/> so every armour
+        /// action on this tab grants before it equips.
+        /// </summary>
+        /// <returns>True when the bag took it.</returns>
+        private bool GrantArmorToInventory(string armorId)
+        {
+            if (string.IsNullOrEmpty(armorId)) return false;
+
+            EnsureInventory();
+
+            if (_liveInventory != null)
+            {
+                InventoryCommandResult result = _liveInventory.Submit(InventoryCommand.AddArmor(armorId));
+                Debug.Log(result.Applied
+                    ? $"[PlayerDebugEditor] Gave armour '{armorId}' — it is on the Pip-Buck's Armor page now."
+                    : $"[PlayerDebugEditor] Armour '{armorId}' was not given: {result.Reason}");
+                return result.Applied;
+            }
+
+            if (_debugInventory == null)
+            {
+                Debug.LogWarning("[PlayerDebugEditor] No inventory resolved — the armour cannot be given.");
+                return false;
+            }
+
+            GameArmorInstance added = _debugInventory.AddArmor(armorId);
+            Debug.Log(added != null
+                ? $"[PlayerDebugEditor] Gave armour '{armorId}' to the fallback bag (no PlayerInventory in the scene)."
+                : $"[PlayerDebugEditor] Armour '{armorId}' was not given — see the Console above.");
+            return added != null;
         }
 
         // =========================================================================
@@ -5778,7 +6261,13 @@ namespace PFE.Core.Scripting
             EquipArmorById(player, "assault");
 
             var rifle = _allWeapons?.FirstOrDefault(w => w.weaponId.Contains("rifle") || w.weaponId.Contains("10"));
-            if (rifle != null && loadout != null) loadout.Equip(rifle);
+            if (rifle != null && loadout != null)
+            {
+                // A preset means "give me this loadout", so it grants before it equips. The armour half
+                // already does this inside EquipArmorById; the weapon half has to say so here.
+                GiveWeaponToInventory(rifle);
+                loadout.Equip(rifle);
+            }
 
             player.Stats.Heal(999);
             Debug.Log("[PlayerDebugEditor] Applied Gunslinger preset.");
@@ -5799,7 +6288,11 @@ namespace PFE.Core.Scripting
             EquipArmorById(player, "power");
 
             var heavy = _allWeapons?.FirstOrDefault(w => w.weaponType == WeaponType.BigGun || w.weaponId.Contains("mini") || w.weaponId.Contains("shot"));
-            if (heavy != null && loadout != null) loadout.Equip(heavy);
+            if (heavy != null && loadout != null)
+            {
+                GiveWeaponToInventory(heavy);
+                loadout.Equip(heavy);
+            }
 
             player.Stats.Heal(999);
             Debug.Log("[PlayerDebugEditor] Applied Heavy Tank preset.");
@@ -5819,7 +6312,11 @@ namespace PFE.Core.Scripting
             EquipArmorById(player, "magus");
 
             var magicWp = _allWeapons?.FirstOrDefault(w => w.weaponType == WeaponType.Magic || w.damageType == DamageType.Laser);
-            if (magicWp != null && loadout != null) loadout.Equip(magicWp);
+            if (magicWp != null && loadout != null)
+            {
+                GiveWeaponToInventory(magicWp);
+                loadout.Equip(magicWp);
+            }
 
             player.Stats.Heal(999);
             charStats.manaHp = charStats.MaxMana;
@@ -5839,7 +6336,11 @@ namespace PFE.Core.Scripting
             EquipArmorById(player, "metal");
 
             var meleeWp = _allWeapons?.FirstOrDefault(w => w.weaponType == WeaponType.Melee);
-            if (meleeWp != null && loadout != null) loadout.Equip(meleeWp);
+            if (meleeWp != null && loadout != null)
+            {
+                GiveWeaponToInventory(meleeWp);
+                loadout.Equip(meleeWp);
+            }
 
             player.Stats.Heal(999);
             Debug.Log("[PlayerDebugEditor] Applied Melee Brawler preset.");
@@ -6649,11 +7150,26 @@ namespace PFE.Core.Scripting
                 {
                     SetInventoryStatus("type an item id first", true);
                 }
-                else if (inventory.ResolveItem(_invAddId) == null)
+                else if (inventory.ResolveItem(_invAddId) == null && inventory.ResolveWeapon(_invAddId) == null)
                 {
                     // Named rather than passed through: the seam would reject it too, but with the same
-                    // wording for every unknown id and no hint that the id is simply misspelled.
-                    SetInventoryStatus($"no item row for '{_invAddId}' — the id must match a Resources/Items asset", true);
+                    // wording for every unknown id and no hint that the id is simply misspelled. Both
+                    // tables are checked, because a weapon id is a legitimate answer here now.
+                    SetInventoryStatus($"no item or weapon row for '{_invAddId}' — the id must match a " +
+                                       "Resources/Items or Resources/Weapons asset", true);
+                }
+                else if (inventory.ResolveItem(_invAddId) == null)
+                {
+                    // A weapon id. It is not an item row and never will be — the two tables are disjoint in
+                    // the Oracle too — so AddItem would be rejected with "no item row" every time. This is
+                    // the weapon command, and it takes no quantity: a weapon is one instance with its own
+                    // condition, magazine and respect state, so `qty` is deliberately not passed.
+                    InventoryCommandResult weaponResult =
+                        inventory.Submit(InventoryCommand.AddWeapon(_invAddId));
+
+                    SetInventoryStatus(weaponResult.Applied
+                        ? $"added weapon '{_invAddId}' (a weapon is one instance — quantity ignored)"
+                        : $"rejected: {weaponResult.Reason}", !weaponResult.Applied);
                 }
                 else
                 {
@@ -7431,6 +7947,454 @@ namespace PFE.Core.Scripting
             {
                 _dropSelectedId = string.Empty;
             }
+        }
+
+        // =========================================================================
+        // TAB 16: CURRENT ROOM
+        // =========================================================================
+        //
+        // The room the player is standing in, read straight off the built RoomInstance. The question this
+        // tab exists to answer is "did this room come out the way the generator intended?" — so it leads
+        // with the two things that answer it: the enemies that were actually PLACED, and the objects. The
+        // intended composition (the difficulty record) is printed right above the placed one, because the
+        // interesting failure is the two disagreeing — a room authored for six raiders that placed none.
+        //
+        // It is a READER. Nothing here mutates the room: `units`, `objects` and `doors` are the live lists
+        // the simulation ticks, and a debug readout that changed them would be filing a bug report about
+        // itself. Every count below is computed by walking those lists, and the only arithmetic the tab
+        // owns is the grouping, which lives in the engine-free RoomDebugSummary so it can be tested
+        // offline.
+
+        private Vector2 _roomScroll;
+
+        /// <summary>How many per-unit rows to print before truncating. A room can hold dozens and the
+        /// window is 660 px tall, so the list is capped and the cap is stated on screen — a silently
+        /// truncated list reads as "that is all of them", which is a wrong answer, not a missing one.</summary>
+        private const int RoomEnemyRowCap = 40;
+
+        private void DrawRoomTab()
+        {
+            _roomScroll = GUILayout.BeginScrollView(_roomScroll);
+
+            GUILayout.Label("<b>Current Room</b> — the room you are standing in, as built.",
+                GUILayout.ExpandWidth(true));
+            // Split into short lines on purpose: the F2 window is 920 px and a label does NOT wrap, so a
+            // long line is CLIPPED silently and the tail simply vanishes. Every line here is kept well
+            // inside the budget.
+            GUILayout.Label("<color=#AAAAAA><size=11>Read-only view of the live RoomInstance.</size></color>",
+                GUILayout.ExpandWidth(true));
+            GUILayout.Label("<color=#AAAAAA><size=11>Identity, the difficulty the generator resolved,</size></color>",
+                GUILayout.ExpandWidth(true));
+            GUILayout.Label("<color=#AAAAAA><size=11>the enemies actually placed, and its objects/doors.</size></color>",
+                GUILayout.ExpandWidth(true));
+
+            GUILayout.Space(6);
+
+            RoomInstance room = ResolveCurrentRoom(out string source);
+            if (room == null)
+            {
+                GUILayout.Box(
+                    "No current room. A RoomInstance exists only once a land has been built " +
+                    "and a room entered — start a run (or use the Lands tab's Go) first.",
+                    _cardStyle, GUILayout.ExpandWidth(true));
+                GUILayout.EndScrollView();
+                return;
+            }
+
+            DrawRoomIdentity(room, source);
+            GUILayout.Space(6);
+            DrawRoomDifficulty(room);
+            GUILayout.Space(6);
+            DrawRoomEnemies(room);
+            GUILayout.Space(6);
+            DrawRoomObjects(room);
+            GUILayout.Space(6);
+            DrawRoomDoorsAndSpawns(room);
+
+            GUILayout.EndScrollView();
+        }
+
+        /// <summary>
+        /// The room the player is in, and which seam answered.
+        ///
+        /// <para><c>LandMap.currentRoom</c> first — it is the logical current room, the one door
+        /// transitions and saves key off. The live room controller is the fallback, for the reason the
+        /// Spawn Unit tab uses it: it is what the renderer is actually showing, so it is the room whose
+        /// population the tester can see. The source string is printed because the two can disagree for a
+        /// frame during a transition, and "which one am I looking at" should not have to be guessed.</para>
+        /// </summary>
+        private static RoomInstance ResolveCurrentRoom(out string source)
+        {
+            LandMap map = ResolveLandMap();
+            if (map != null && map.currentRoom != null)
+            {
+                source = "LandMap.currentRoom";
+                return map.currentRoom;
+            }
+
+            RoomVisualController controller = ResolveRoomVisualController();
+            if (controller != null && controller.RoomInstance != null)
+            {
+                source = "RoomVisualController (LandMap has no current room)";
+                return controller.RoomInstance;
+            }
+
+            source = string.Empty;
+            return null;
+        }
+
+        /// <summary>Section A — what room this is and how the world placed it.</summary>
+        private void DrawRoomIdentity(RoomInstance room, string source)
+        {
+            GUILayout.BeginVertical(_cardStyle);
+            GUILayout.Label("<b>A. Identity &amp; placement</b> <color=#AAAAAA>(RoomInstance)</color>",
+                GUILayout.ExpandWidth(true));
+
+            GUILayout.Label(
+                $"<b>{room.id}</b>   template=<b>{room.templateId}</b>   type=<b>{room.roomType}</b>",
+                GUILayout.ExpandWidth(true));
+
+            GUILayout.Label(
+                $"land pos=<b>({room.landPosition.x},{room.landPosition.y},{room.landPosition.z})</b>   " +
+                $"size=<b>{room.width}\u00d7{room.height}</b>   border=<b>{room.borderOffset}</b>",
+                GUILayout.ExpandWidth(true));
+
+            GUILayout.Label(
+                $"biome=<b>{room.biome}</b>   landConfig=<b>{room.landConfig}</b>   " +
+                $"noHolesPlace={(room.noHolesPlace ? "1" : "0")}   " +
+                $"prob={(string.IsNullOrEmpty(room.probId) ? "(grid room)" : room.probId)}",
+                GUILayout.ExpandWidth(true));
+
+            GUILayout.Label(
+                $"state: active={(room.isActive ? "1" : "0")}  visited={(room.isVisited ? "1" : "0")}  " +
+                $"noMap={(room.noMap ? "1" : "0")}  bgLayer={(room.hasBackgroundLayer ? "1" : "0")}  " +
+                $"bgRoom={(room.backgroundRoom != null ? room.backgroundRoom.id : "-")}",
+                GUILayout.ExpandWidth(true));
+
+            GUILayout.Label(
+                $"tiles={(room.tiles != null ? room.width * room.height + " cells" : "(not initialized)")}   " +
+                $"<color=#AAAAAA>source: {source}</color>",
+                GUILayout.ExpandWidth(true));
+
+            GUILayout.EndVertical();
+        }
+
+        /// <summary>
+        /// Section B — the difficulty record the generator resolved for this room, and the room's own
+        /// authored enemy-point capacity, shown together.
+        ///
+        /// <para><b>Both halves are required, because neither alone answers the question.</b> The record's
+        /// <c>kolEn</c> counts come from <c>Land.setLocDif</c>, which draws them from the LAND's
+        /// difficulty and never consults the room; the points are the room's own authoring. AS3 places
+        /// <c>min(budget, points)</c> per group, so a budget on its own is not a garrison. This section
+        /// used to print the budget under the heading "total intended enemies", which reads as a fault
+        /// report when the number is high and nothing was placed — see the per-group line.</para>
+        /// </summary>
+        private void DrawRoomDifficulty(RoomInstance room)
+        {
+            GUILayout.BeginVertical(_cardStyle);
+            GUILayout.Label("<b>B. Difficulty record</b> <color=#AAAAAA>(what the generator resolved — " +
+                            "the placed enemies are in C)</color>", GUILayout.ExpandWidth(true));
+
+            RoomDifficulty d = room.difficulty;
+            if (d == null)
+            {
+                GUILayout.Label("<color=#FFAA33>No difficulty record on this room.</color>",
+                    GUILayout.ExpandWidth(true));
+                GUILayout.EndVertical();
+                return;
+            }
+
+            GUILayout.Label(
+                $"base=<b>{d.baseDifficulty}</b>   enemyLevel=<b>{d.enemyLevel}</b>   " +
+                $"weaponLevel=<b>{d.weaponLevel}</b>",
+                GUILayout.ExpandWidth(true));
+
+            GUILayout.Label(
+                $"lock=<b>{d.lockLevel}</b>   mech=<b>{d.mechLevel}</b>   " +
+                $"hidden=<b>{d.hiddenEnemyCount}</b>   alarmSpawn(kolEnSpawn)=<b>{d.spawnEnemyCount}</b>",
+                GUILayout.ExpandWidth(true));
+
+            GUILayout.Label(
+                $"tipEnemy=<b>{d.tipEnemy}</b> {DescribeTipEnemy(d.tipEnemy)}",
+                GUILayout.ExpandWidth(true));
+
+            // The five point groups, in kolEn index order, as budget/points.
+            //
+            // The budget is NOT the room's garrison and printing it as "intended enemies" was actively
+            // misleading. `Land.setLocDif` draws kolEn from the LAND's difficulty and never looks at the
+            // room (LocationDifficultyPlanner), while the points are the room's own authoring. AS3 places
+            // min(budget, points) per group — the guard is
+            // `if(kolEn[i] > 0 && ups[i].length)` at Location.as:1060 — so a room the generator asked for
+            // 17 enemies in, which authors no enemy points, places none, and that is the oracle's
+            // behaviour rather than a fault. `rooms_plant/яма` is exactly that room: a budget of 17
+            // against zero authored points. The old line said "total intended enemies = 17" for it and
+            // sent a reader hunting a population bug that did not exist.
+            List<RoomDebugSummary.GroupCapacity> capacity =
+                RoomDebugSummary.GroupCapacities(d.enemyCounts, room.upPointCounts);
+            int placeable = RoomDebugSummary.PlaceableTotal(capacity);
+            int starved = RoomDebugSummary.CountBudgetWithoutPoints(capacity);
+
+            GUILayout.Label(
+                $"enemy budget=<b>{d.GetTotalEnemyCount()}</b>   " +
+                $"points authored=<b>{RoomDebugSummary.CapacityTotal(capacity)}</b>   " +
+                $"<color=#AAAAAA>placeable (min) = <b>{placeable}</b></color>",
+                GUILayout.ExpandWidth(true));
+
+            GUILayout.Label(
+                $"per group budget/points: {RoomDebugSummary.FormatCapacity(capacity)}",
+                GUILayout.ExpandWidth(true));
+
+            if (starved > 0)
+            {
+                GUILayout.Label(
+                    $"<color=#FFAA33>{starved} group(s) have a budget but no points — the</color>",
+                    GUILayout.ExpandWidth(true));
+                GUILayout.Label(
+                    "<color=#FFAA33>generator asked for enemies this room has nowhere to put.</color>",
+                    GUILayout.ExpandWidth(true));
+                GUILayout.Label(
+                    "<color=#AAAAAA>Authored data, not a failed population pass.</color>",
+                    GUILayout.ExpandWidth(true));
+            }
+
+            GUILayout.EndVertical();
+        }
+
+        /// <summary>The AS3 meaning of a <c>tipEnemy</c> value, for the one number in this record that is
+        /// otherwise unreadable. <c>-1</c> is AS3's own "not set" sentinel, not a tier — the
+        /// <c>if(tipEnemy &lt; 0)</c> guard tests it, so it must not read as "tier -1".</summary>
+        private static string DescribeTipEnemy(int tipEnemy)
+        {
+            switch (tipEnemy)
+            {
+                case -1: return "<color=#AAAAAA>(unset — AS3 default)</color>";
+                case 1: return "<color=#AAAAAA>(alarm / box arm)</color>";
+                case 3: return "<color=#AAAAAA>(alarm / box arm)</color>";
+                case 6: return "<color=#AAAAAA>(lov arm)</color>";
+                default: return $"<color=#AAAAAA>(tier {tipEnemy})</color>";
+            }
+        }
+
+        /// <summary>Section C — the enemies actually placed in the room. The tab's headline section.</summary>
+        private void DrawRoomEnemies(RoomInstance room)
+        {
+            List<UnitInstance> units = room.units;
+            int total = units != null ? units.Count : 0;
+            int alive = 0;
+            int dead = 0;
+            if (units != null)
+            {
+                for (int i = 0; i < units.Count; i++)
+                {
+                    UnitInstance u = units[i];
+                    if (u == null) continue;
+                    if (u.isDead) dead++;
+                    else alive++;
+                }
+            }
+
+            // `alive + dead` is not derived from `total` on purpose: a null slot would otherwise be
+            // counted as alive, and the header would over-report the room's garrison. When the two do not
+            // add up the difference is printed rather than folded into a number that looks complete.
+            int nullSlots = total - alive - dead;
+
+            GUILayout.BeginVertical(_cardStyle);
+            GUILayout.Label(
+                $"<b>C. Enemies placed</b>   total=<b>{total}</b>   alive=<b>{alive}</b>   " +
+                $"dead=<b>{dead}</b>" +
+                (nullSlots != 0 ? $"   <color=#FFAA33>null slots=<b>{nullSlots}</b></color>" : string.Empty),
+                GUILayout.ExpandWidth(true));
+
+            if (total == 0)
+            {
+                // An empty enemy list is the most common "this room is broken" report, and its two causes
+                // have different fixes: a room that authors no enemy points at all, versus a population
+                // pass that never ran. The discriminator is the authored POINT CAPACITY, not the budget —
+                // the budget is non-zero for most rooms whatever they author, so the old advice here ("a
+                // zero 'intended per group' line means there was nothing to place") named the wrong
+                // signal, and in the case that actually bit it pointed away from the answer.
+                List<RoomDebugSummary.GroupCapacity> capacity =
+                    RoomDebugSummary.GroupCapacities(room.difficulty?.enemyCounts, room.upPointCounts);
+                int authored = RoomDebugSummary.CapacityTotal(capacity);
+
+                GUILayout.Label("<color=#FFAA33>No enemy records in this room.</color>",
+                    GUILayout.ExpandWidth(true));
+
+                if (authored == 0)
+                {
+                    GUILayout.Label("This room authors no enemy points at all, so the generator's",
+                        GUILayout.ExpandWidth(true));
+                    GUILayout.Label("enemy budget had nothing to place on — that is the authored",
+                        GUILayout.ExpandWidth(true));
+                    GUILayout.Label("data, not a fault. See the per-group line in section B.",
+                        GUILayout.ExpandWidth(true));
+                }
+                else
+                {
+                    GUILayout.Label($"The room authors <b>{authored}</b> enemy point(s) but placed none,",
+                        GUILayout.ExpandWidth(true));
+                    GUILayout.Label("so the population pass did not run or every point was dropped.",
+                        GUILayout.ExpandWidth(true));
+                }
+
+                GUILayout.EndVertical();
+                return;
+            }
+
+            // Grouped by the RESOLVED family id (e.g. "raider"), not by the authored point group
+            // ("enl1") — LocationEnemySelector.RandomUnit has already turned the group into a family by
+            // the time a UnitInstance exists, and the family is what is actually standing in the room.
+            var ids = new List<string>(total);
+            for (int i = 0; i < units.Count; i++)
+            {
+                ids.Add(units[i] != null ? units[i].unitId : null);
+            }
+
+            List<RoomDebugSummary.IdCount> rows = RoomDebugSummary.GroupCounts(ids);
+            GUILayout.Label($"by family: {RoomDebugSummary.Format(rows, 8)}", GUILayout.ExpandWidth(true));
+
+            GUILayout.Space(2);
+            GUILayout.Label("<color=#AAAAAA>per unit (id / type / hp / state / pos / faction):</color>",
+                GUILayout.ExpandWidth(true));
+
+            int shown = 0;
+            for (int i = 0; i < units.Count && shown < RoomEnemyRowCap; i++)
+            {
+                UnitInstance u = units[i];
+                if (u == null) continue;
+
+                string state = u.isDead ? "<color=#FF8888>dead</color>" : "alive";
+                string type = string.IsNullOrEmpty(u.unitType) || u.unitType == u.unitId
+                    ? string.Empty
+                    : $" type=<b>{u.unitType}</b>";
+                string faction = u.fraction.HasValue ? $" f=<b>{u.fraction.Value}</b>" : string.Empty;
+                string flags = (u.digger != 0 ? $" dig={u.digger}" : string.Empty) +
+                               (u.ambushArmed ? " ambush" : string.Empty);
+
+                GUILayout.Label(
+                    $"<b>{u.unitId}</b>{type}  hp=<b>{u.currentHealth:0}/{u.maxHealth:0}</b>  {state}  " +
+                    $"@({u.position.x:0},{u.position.y:0}){faction}{flags}",
+                    GUILayout.ExpandWidth(true));
+                shown++;
+            }
+
+            if (shown < total)
+            {
+                GUILayout.Label(
+                    $"<color=#FFAA33>showing first {shown} of {total} units (cap {RoomEnemyRowCap})</color>",
+                    GUILayout.ExpandWidth(true));
+            }
+
+            GUILayout.EndVertical();
+        }
+
+        /// <summary>Section D — the room's objects: props, boxes, barricades, containers.</summary>
+        private void DrawRoomObjects(RoomInstance room)
+        {
+            List<ObjectInstance> objects = room.objects;
+            int total = objects != null ? objects.Count : 0;
+            int active = 0;
+            int inactive = 0;
+            if (objects != null)
+            {
+                for (int i = 0; i < objects.Count; i++)
+                {
+                    ObjectInstance o = objects[i];
+                    if (o == null) continue;
+                    if (o.isActive) active++;
+                    else inactive++;
+                }
+            }
+
+            // Counted separately rather than as `total - active`, so a null slot cannot be reported as an
+            // inactive object — the same honesty rule as the enemy split in section C.
+            int nullSlots = total - active - inactive;
+
+            GUILayout.BeginVertical(_cardStyle);
+            GUILayout.Label(
+                $"<b>D. Objects</b>   total=<b>{total}</b>   active=<b>{active}</b>   " +
+                $"inactive=<b>{inactive}</b>" +
+                (nullSlots != 0 ? $"   <color=#FFAA33>null slots=<b>{nullSlots}</b></color>" : string.Empty),
+                GUILayout.ExpandWidth(true));
+
+            if (total == 0)
+            {
+                GUILayout.Label("<color=#AAAAAA>No objects in this room.</color>",
+                    GUILayout.ExpandWidth(true));
+                GUILayout.EndVertical();
+                return;
+            }
+
+            var ids = new List<string>(total);
+            for (int i = 0; i < objects.Count; i++)
+            {
+                ids.Add(objects[i] != null ? objects[i].GetResolvedDefinitionId() : null);
+            }
+
+            List<RoomDebugSummary.IdCount> rows = RoomDebugSummary.GroupCounts(ids);
+            GUILayout.Label($"by id: {RoomDebugSummary.Format(rows, 12)}", GUILayout.ExpandWidth(true));
+
+            GUILayout.EndVertical();
+        }
+
+        /// <summary>Section E — doors, spawn points and background decorations: the room's other lists.</summary>
+        private void DrawRoomDoorsAndSpawns(RoomInstance room)
+        {
+            GUILayout.BeginVertical(_cardStyle);
+            GUILayout.Label("<b>E. Doors, spawns &amp; decorations</b>", GUILayout.ExpandWidth(true));
+
+            List<DoorInstance> doors = room.doors;
+            int doorTotal = doors != null ? doors.Count : 0;
+            int doorActive = 0;
+            int doorLocked = 0;
+            var sideCounts = new int[4];
+            if (doors != null)
+            {
+                for (int i = 0; i < doors.Count; i++)
+                {
+                    DoorInstance door = doors[i];
+                    if (door == null) continue;
+                    if (door.isActive) doorActive++;
+                    if (door.isLocked) doorLocked++;
+                    int side = (int)door.side;
+                    if (side >= 0 && side < sideCounts.Length) sideCounts[side]++;
+                }
+            }
+
+            GUILayout.Label(
+                $"doors: total=<b>{doorTotal}</b>  active=<b>{doorActive}</b>  locked=<b>{doorLocked}</b>  " +
+                $"bySide R/B/L/T=<b>{sideCounts[0]}/{sideCounts[1]}/{sideCounts[2]}/{sideCounts[3]}</b>",
+                GUILayout.ExpandWidth(true));
+
+            List<SpawnPoint> spawns = room.spawnPoints;
+            int spawnTotal = spawns != null ? spawns.Count : 0;
+            int playerSpawns = 0, enemySpawns = 0, bossSpawns = 0, npcSpawns = 0;
+            if (spawns != null)
+            {
+                for (int i = 0; i < spawns.Count; i++)
+                {
+                    SpawnPoint sp = spawns[i];
+                    if (sp == null) continue;
+                    switch (sp.type)
+                    {
+                        case SpawnType.Player: playerSpawns++; break;
+                        case SpawnType.Enemy: enemySpawns++; break;
+                        case SpawnType.Boss: bossSpawns++; break;
+                        case SpawnType.NPC: npcSpawns++; break;
+                    }
+                }
+            }
+
+            GUILayout.Label(
+                $"spawn points: total=<b>{spawnTotal}</b>  player=<b>{playerSpawns}</b>  " +
+                $"enemy=<b>{enemySpawns}</b>  boss=<b>{bossSpawns}</b>  npc=<b>{npcSpawns}</b>",
+                GUILayout.ExpandWidth(true));
+
+            int decor = room.backgroundDecorations != null ? room.backgroundDecorations.Count : 0;
+            GUILayout.Label($"background decorations: <b>{decor}</b>", GUILayout.ExpandWidth(true));
+
+            GUILayout.EndVertical();
         }
 
         /// <summary>

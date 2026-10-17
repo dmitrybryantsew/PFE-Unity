@@ -430,14 +430,24 @@ namespace PFE.UI.Menus.RPG
         }
 
         /// <summary>
-        /// Add a perk to the character.
-        /// Returns true if successful.
+        /// Spend a perk point on <paramref name="perkId"/> — the <b>picker</b> path.
         /// </summary>
+        /// <remarks>
+        /// <para><b>This is the one caller that charges, and it says so.</b>
+        /// <c>CharacterStats.AddPerk(id)</c> is the Oracle's default and is <b>free</b>
+        /// (<c>Pers.as:1292</c>, <c>param2 = false</c>); only <c>PipPageStat.as:1017</c> passes
+        /// <c>minus = true</c>. This method exists for that call site, so it passes <c>true</c>
+        /// explicitly rather than relying on a default that would silently make every grant cost a
+        /// point.</para>
+        ///
+        /// <para>Callers must have established eligibility first — see
+        /// <see cref="CanUnlockPerk"/>, which is what dims an ineligible row.</para>
+        /// </remarks>
         public bool AddPerk(string perkId)
         {
             if (characterStats == null) return false;
 
-            bool success = characterStats.AddPerk(perkId);
+            bool success = characterStats.AddPerk(perkId, true);
 
             if (success)
             {

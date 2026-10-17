@@ -145,7 +145,12 @@ namespace PFE.UI.HUD
             {
                 float scale = HudLayout.DialogueScale(width);
                 DialogueWindow.localScale = new Vector3(scale, scale, 1f);
-                DialogueWindow.anchoredPosition = new Vector2(HudLayout.DialogueCentreOffset(width), 0f);
+
+                // The element's pivot is TopCentre (see HudLayout's table row for HudSlot.Dialogue), so
+                // an anchoredPosition of (dx, 0) puts its top edge on the screen's top edge. The Oracle
+                // only ever writes `dial.x`; `dial.y` stays at the SWF's authored 0 (GUI.as:336-345).
+                DialogueWindow.anchoredPosition =
+                    new Vector2(HudLayout.DialogueCentreOffset(width), HudLayout.DialogueTopOffset);
             }
         }
 

@@ -6,11 +6,13 @@ using PFE.Data;
 using PFE.Data.Definitions;
 using PFE.Entities.Player;
 using PFE.Entities.Units;
+using PFE.Systems.Campaign;
 using PFE.Systems.Combat;
 using PFE.Systems.Inventory;
 using PFE.Systems.Map;
 using PFE.Systems.Map.Streaming;
 using PFE.Systems.Weapons;
+using PFE.UI.MainMenu;
 using UnityEngine;
 
 namespace PFE.Core.Scripting
@@ -181,7 +183,17 @@ namespace PFE.Core.Scripting
 
         // ── Weapons ───────────────────────────────────────────────────────────
 
-        /// <summary>Equip a weapon by its content id, e.g. <c>player:GiveWeapon("10mm")</c>.</summary>
+        /// <summary>
+        /// Give a weapon by its content id, e.g. <c>player:GiveWeapon("10mm")</c> — AS3
+        /// <c>Invent.addWeapon(id)</c> followed by the equip, which is the order the Oracle's
+        /// <c>addMin</c> uses.
+        ///
+        /// <para><b>It grants into the bag, not only into the hand.</b> This used to call
+        /// <c>_loadout.Equip(def)</c> and nothing else, so the weapon existed in the player's hand and in
+        /// no inventory — the Pip-Buck's Weapons page stayed empty and <c>GameInventory</c> had never
+        /// heard of the id. The command is named "Give", and giving means the bag; the equip is kept
+        /// because a debug command that hands you a weapon should also put it in your hand.</para>
+        /// </summary>
         public string GiveWeapon(string weaponId)
         {
             if (string.IsNullOrWhiteSpace(weaponId))
@@ -197,8 +209,25 @@ namespace PFE.Core.Scripting
             if (def == null)
                 return $"[player] No weapon with id '{weaponId}'. Check the id in the weapon assets.";
 
+            // Grant through the same seam gameplay uses, so the console cannot produce a state the game
+            // cannot (PlayerInventory.Submit → ContentType.Weapon, the path GrantWeapon takes for the
+            // starting kit). A refusal is reported rather than swallowed: an id that resolves to a
+            // WeaponDefinition but that the inventory's own resolver cannot see is a registry mismatch,
+            // and "equipped it anyway" would hide that.
+            var inventory = Player()?.GetComponent<PlayerInventory>();
+            if (inventory != null)
+            {
+                InventoryCommandResult given = inventory.Submit(InventoryCommand.AddWeapon(def.weaponId));
+                if (!given.Applied)
+                {
+                    return $"[player] Weapon '{def.weaponId}' was not added to the inventory: {given.Reason}";
+                }
+            }
+
             _loadout.Equip(def);
-            return $"[player] Equipped '{def.weaponId}'.";
+            return inventory != null
+                ? $"[player] Gave '{def.weaponId}' to the inventory and equipped it."
+                : $"[player] Equipped '{def.weaponId}' — no PlayerInventory in scene, so nothing was added to a bag.";
         }
 
         /// <summary>Refill the equipped weapon's magazine to full.</summary>
@@ -594,6 +623,94 @@ namespace PFE.Core.Scripting
 
             return $"[sim] ticksPerSecond={_clock.TicksPerSecond} simDt={_clock.SimDt:0.#####} " +
                    $"stepScale={_clock.StepScale:0.###} canonical={_clock.IsCanonical}";
+        }
+
+        /// <summary>
+        /// AS3's console verb <c>dif X</c> (<c>Consol.as:237-247</c>) — set the run's difficulty
+        /// SETTING and re-apply the parameter table.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Why this sits in the "sim" bucket rather than a campaign one.</b> It is not a clock
+        /// command, but this group is the run-wide runtime knobs, and <see cref="SetTickRate"/> is the
+        /// other one. A dedicated <c>DevConsoleCampaignCommands</c> would be one method and four
+        /// registration edits (the service's parameter list, the controller's
+        /// <c>SyncCommandObjects</c>, the Lua <c>RegisterType</c> and the <c>SetGlobal</c>); the verb is
+        /// a debug tool, not a subsystem.</para>
+        ///
+        /// <para><b>It re-applies the table even when the value does not move</b>, which is the oracle's
+        /// behaviour for this verb and not for <c>changeDif</c> — see
+        /// <see cref="GlobalDifficulty.SetFromConsole"/>. The reader is the player's
+        /// <c>CharacterStats</c>, which subscribes to <see cref="GlobalDifficulty.Changed"/> and re-runs
+        /// <c>Pers.setGlobalDif</c> + <c>setParameters</c> on each notification.</para>
+        /// </remarks>
+        public string SetDifficulty(int globalDif)
+        {
+            GlobalDifficulty.SetFromConsole(globalDif);
+            return $"[dif] global difficulty = {GlobalDifficulty.Value} " +
+                   $"({DescribeDifficulty(GlobalDifficulty.Value)}).";
+        }
+
+        /// <summary>Report the current difficulty setting, 0..4.</summary>
+        public int GetDifficulty() => GlobalDifficulty.Value;
+
+        /// <summary>
+        /// AS3's console verb <c>enemy</c> (<c>Consol.as:478-486</c>) — flip
+        /// <see cref="EnemyActivity"/> between 3 (thinking) and 0 (frozen).
+        ///
+        /// <para><b>Why it lives in the <c>sim</c> bucket.</b> Same reason <c>dif</c> does: it is not a
+        /// clock command, but this group is the run-wide runtime knobs, and a second one-method
+        /// <c>DevConsole*</c> class would cost four registration edits for one verb. Note it is a
+        /// <i>different</i> thing from the <c>ai</c> table (<see cref="DevConsoleEnemyAICommands"/>),
+        /// which is the perception overlay — <c>ai</c> draws, <c>sim:Enemy()</c> stops the brains.</para>
+        ///
+        /// <para><b>One deliberate divergence.</b> AS3's console takes a bare word; this port's console
+        /// is a Lua table, so the verb is <c>sim:Enemy()</c> rather than <c>enemy</c>. The reply states
+        /// the new level and what it means, because a toggle whose effect is "every enemy in the room
+        /// stops" is worth confirming before you walk into it.</para>
+        /// </summary>
+        public string Enemy()
+        {
+            int level = EnemyActivity.Toggle();
+            return $"[enemy] enemyAct = {level} — " +
+                   (level == EnemyActivity.Frozen
+                        ? "FROZEN: no enemy perceives, decides or attacks; they still fall and animate."
+                        : "active: full AI.")
+                   + $" (cadence threshold > {EnemyActivity.CadenceFloor}: {(EnemyActivity.RunsCadence ? "on" : "off")})";
+        }
+
+        /// <summary>
+        /// AS3's <c>enemyAct</c> level as a number, 0 or 3 through the console.
+        /// </summary>
+        public int GetEnemyActivity() => EnemyActivity.Value;
+
+        /// <summary>
+        /// Write <see cref="EnemyActivity"/> directly. Exposed so a scripted scenario can pin a level
+        /// the console's toggle cannot produce; the oracle has no equivalent, and nothing in AS3
+        /// validates the field either.
+        /// </summary>
+        public string SetEnemyActivity(int level)
+        {
+            EnemyActivity.Set(level);
+            return $"[enemy] enemyAct = {EnemyActivity.Value}" +
+                   (level != EnemyActivity.Frozen && level != EnemyActivity.Full
+                        ? " (unreachable through the console, which only writes 0 and 3)"
+                        : string.Empty) +
+                   ".";
+        }
+
+        /// <summary>
+        /// The label for a difficulty index. The oracle's console prints <c>Res.guiText("dif" + n)</c>
+        /// (<c>Invent.as:718</c>) — a localised string with no port equivalent — so the port prints the
+        /// same names the main menu shows rather than inventing new ones.
+        /// </summary>
+        private static string DescribeDifficulty(int globalDif)
+        {
+            if (globalDif < GlobalDifficulty.MinIndex || globalDif > GlobalDifficulty.MaxIndex)
+            {
+                return "unknown";
+            }
+
+            return ((NewGameDifficulty)globalDif).ToString();
         }
     }
 }

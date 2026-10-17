@@ -41,6 +41,33 @@ namespace PFE.UI.Common
         public static void Reset() => _shared = null;
 
         /// <summary>
+        /// The Oracle's weapon name — <c>Res.txt("w", id)</c>, i.e. the
+        /// <c>&lt;weapon id="r32"&gt;&lt;n&gt;.32 pistol&lt;/n&gt;</c> row — or <paramref name="weaponId"/>
+        /// itself when the document has no such entry.
+        ///
+        /// <para><b>Why not <see cref="PipTextTable.Text"/>.</b> That method reproduces the Oracle's
+        /// missing-key marker (<c>*weapon_r32</c>) on purpose, because a debug surface must be able to
+        /// tell "no table" from "no such key" from "the key has no description". A pickup prompt and an
+        /// inventory row are not debug surfaces: they want the id, which is at least identifiable, and
+        /// never an asterisk-marked internal key. So this uses <see cref="PipTextTable.TryGet"/>, which
+        /// reports the miss instead of synthesising a marker.</para>
+        ///
+        /// <para><b>Why it lives here rather than on the weapon.</b> The names are in the localisation
+        /// document, not on <c>WeaponDefinition</c> — which is why <c>WeaponDefinition.displayName</c>
+        /// defaults to empty and readers need a fallback that actually resolves. Two callers need it (the
+        /// world pickup's prompt and the PipBuck's weapons page), and one shared resolver is what keeps
+        /// them from disagreeing.</para>
+        /// </summary>
+        public static string WeaponNameOrId(string weaponId)
+        {
+            if (string.IsNullOrEmpty(weaponId)) return string.Empty;
+
+            return Shared.TryGet("w", weaponId, 0, out string name) && !string.IsNullOrEmpty(name)
+                ? name
+                : weaponId;
+        }
+
+        /// <summary>
         /// Reads and parses the document.
         ///
         /// <para><b>Why a missing document is a warning and not an error.</b> Every caption has a

@@ -73,13 +73,33 @@ namespace PFE.UI.PipBuck
         /// </summary>
         public readonly ReactiveProperty<int> ActiveTab = new(1);
 
-        /// <summary>Oracle <c>travel</c> — set while the device is open in a non-base land.</summary>
+        /// <summary>
+        /// Oracle <c>travel</c> — armed while the device is open and the player is standing in a
+        /// <c>base</c> land, disarmed otherwise (<c>PipBuck.as:271-273</c>, <c>:342-345</c>).
+        ///
+        /// <para><b>The Oracle's flag has one writer, and in the port that writer is the campaign.</b>
+        /// <c>CampaignManager.TravelUnlocked</c> is the copy the travel-map page gates its clicks on, and
+        /// <c>RefreshTravelUnlockedForCurrentLand</c> is where the rule lives. This field mirrors it for
+        /// the device's own shape; it is deliberately <i>not</i> read anywhere, so a caller that wants
+        /// "can the player travel" must ask the campaign rather than this.</para>
+        /// </summary>
         public readonly ReactiveProperty<bool> Travel = new(false);
 
         // ── Panel text ────────────────────────────────────────────────────────
 
         /// <summary>Oracle <c>helpText</c> — shown by the "?" button.</summary>
         public readonly ReactiveProperty<string> HelpText = new(string.Empty);
+
+        /// <summary>
+        /// Oracle <c>vis.butHelp.visible</c> — whether the "?" button is on screen at all.
+        ///
+        /// <para><b>It is not the same as "the tooltip is showing".</b> The Oracle sets this per page:
+        /// <c>PipPage.setSubPages</c> hides it on entry to every page and only page 3's travel sub-page
+        /// re-shows it (<c>PipPageInfo.as:89</c>, <c>:204</c>), because <c>helpWorld</c> is the only help
+        /// string page 3 owns. The <i>tooltip</i> is a separate state, driven by the pointer being over
+        /// the button.</para>
+        /// </summary>
+        public readonly ReactiveProperty<bool> HelpVisible = new(false);
 
         /// <summary>Oracle <c>massText</c> — shown by the weight button.</summary>
         public readonly ReactiveProperty<string> MassText = new(string.Empty);
@@ -130,6 +150,7 @@ namespace PFE.UI.PipBuck
             ActiveTab.Dispose();
             Travel.Dispose();
             HelpText.Dispose();
+            HelpVisible.Dispose();
             MassText.Dispose();
             TopText.Dispose();
             SupplyError.Dispose();

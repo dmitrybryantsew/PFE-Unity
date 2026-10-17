@@ -243,6 +243,15 @@ namespace PFE.UI.PipBuck
         public const int TopTabCount = 5;
 
         /// <summary>
+        /// The "?" (<c>butHelp</c>) and weight (<c>butMass</c>) buttons' hit box. A port choice with one
+        /// constraint the Oracle itself supplies: the two placements are 59 px apart (x 17 and x 76), so
+        /// neither button can be wider than that without overlapping the other — 52 leaves a 7 px gutter.
+        /// Both buttons' art is baked into the bezel composite, so these are hit areas over it, the same
+        /// arrangement the page tabs use, not art of their own.
+        /// </summary>
+        public static readonly Vector2 HelpButtonSize = new Vector2(52f, 52f);
+
+        /// <summary>
         /// The resting positions, in the Oracle's 1200x800 device space. Every row cites its source;
         /// see <see cref="PipProvenance"/> for why that is a field and not a comment.
         /// </summary>

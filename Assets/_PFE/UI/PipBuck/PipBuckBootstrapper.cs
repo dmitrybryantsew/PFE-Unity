@@ -1,10 +1,16 @@
+using System;
 using UnityEngine;
+using MessagePipe;
 using VContainer;
 using PFE.Core;
 using PFE.Core.Input;
+using PFE.Core.Messages;
 using PFE.Data.Definitions;
 using PFE.Entities.Player;
+using PFE.Systems.Campaign;
 using PFE.Systems.Inventory;
+using PFE.Systems.Map;
+using PFE.UI.MainMenu;
 using PFE.UI.PipBuck.Pages;
 
 namespace PFE.UI.PipBuck
@@ -76,6 +82,20 @@ namespace PFE.UI.PipBuck
         private float _nextRescanTime;
 
         /// <summary>
+        /// The character sheet's name row, read once from <c>GameBootData</c>.
+        /// <see cref="ResolvePlayerName"/> explains the cache.
+        /// </summary>
+        private string _playerName = string.Empty;
+        private bool _nameResolved;
+
+        /// <summary>
+        /// The Oracle's <c>globalDif</c> as last read. Kept only so the row has a value before the
+        /// provider is first polled; <see cref="ResolveDifficulty"/> re-reads the live setting every
+        /// time, because the oracle's <c>globalDif</c> is mutable for the whole run.
+        /// </summary>
+        private int _difficulty = PlayerPipStatSource.DefaultDifficulty;
+
+        /// <summary>
         /// How long to wait before re-searching the scene for the player. The same interval and the
         /// same reasoning as <c>HudBootstrapper.RescanInterval</c>: a respawn or a late-spawned
         /// player is picked up within half a second, whereas searching every read would be a full
@@ -83,11 +103,23 @@ namespace PFE.UI.PipBuck
         /// </summary>
         private const float RescanInterval = 0.5f;
 
+        /// <summary>
+        /// The container, for the one subscription this bootstrapper owns. Resolved lazily through
+        /// <see cref="IObjectResolver.TryResolve"/> rather than injected as a constructor argument for
+        /// the reason <c>HudBootstrapper</c> does the same: a missing broker should degrade to "the wall
+        /// map draws nothing", which is a report, not a device that never builds at all.
+        /// </summary>
+        private IObjectResolver _resolver;
+
+        /// <summary>The travel-map subscription, released in <see cref="OnDestroy"/>.</summary>
+        private IDisposable _travelMapSubscription;
+
         [Inject]
-        public void Construct(InputReader input, PipBuckManager manager)
+        public void Construct(InputReader input, PipBuckManager manager, IObjectResolver resolver)
         {
             _input = input;
             _manager = manager;
+            _resolver = resolver;
         }
 
         private void Start()
@@ -155,6 +187,10 @@ namespace PFE.UI.PipBuck
                 _manager.ViewModel);
 
             RegisterPages();
+
+            // The wall map's page. This is the subscriber `TravelMapOpenedMessage` has never had — see
+            // BindTravelMap for what was dead and why it mattered.
+            BindTravelMap();
 
             // The tab captions. PipBuckPages.TabLabelFor resolves the Oracle's own string-table key
             // (Res.pipText("main" + n), PipBuck.as:172) against the localisation document, which is
@@ -241,15 +277,78 @@ namespace PFE.UI.PipBuck
         /// </summary>
         private void RegisterPages()
         {
+            // ── Page 1: the character sheet (Item I10) ────────────────────────
+            //
+            // The source resolves the player lazily, like the inventory's, and for the same reason —
+            // see ResolveInventory. The page therefore shows an empty sheet until the player exists,
+            // which is honest, rather than binding null once and staying empty forever.
+            var statPage = new PipPageStatView(BuildStatSource())
+            {
+                // The Oracle's captions for the five sub-tabs (stat1..stat5), the 41 param labels, the
+                // three list headings (is1..is5), the skill and perk names (the `e` table), the three
+                // empty-list notices and the bottom strip's keys.
+                TextTable = _text,
+
+                // The Oracle's row actions. Left unset: every one of them needs an RPG command the port
+                // does not have, and the page reports what the Oracle would have done instead of
+                // silently doing nothing. The perk picker is the exception and is handled by the page
+                // itself, because a pick is page state rather than an RPG command — SelectPerk records
+                // it and CommitSelectedPerk spends the point (PipPageStat.as:1007-1018).
+                RowActivated = null,
+
+                // The Oracle ends the accept branch with `pip.setRPanel(); World.w.saveGame();`
+                // (PipPageStat.as:1019-1021). Neither has a seam here yet — the device owns both — so
+                // this stays unset rather than pretending. See PerkCommitted.
+                PerkCommitted = null,
+            };
+
+            statPage.Configure(_composition, _font);
+
+            // The handler belongs to the device, not the page: PipPage.page2Click plays a device sound
+            // and, on the doctor and the vendor, opens a different page entirely. See
+            // PipBuckManager.SubPageClick.
+            //
+            // **Claimed on the PAGE, not on its sub-tab bar.** The bar's own `SubPageClicked` is written
+            // by PipPageStatView.Build, which forwards to this property — and Build runs at the end of
+            // this method, so the previous version of this line, which wrote the bar's slot directly, was
+            // overwritten a few statements later. Every sub-tab then raised a null action: the buttons
+            // were built, laid out and lit, and did nothing. That is the reported "skills, perks, effects,
+            // health is not clickable", and it was silent in the only way that matters — nothing logged,
+            // nothing threw.
+            statPage.SubPageClicked = subPage => _manager.SubPageClick(subPage);
+
+            _manager.RegisterPage(statPage);
+
             // ── Page 2: the inventory (Item I9) ───────────────────────────────
             //
             // The source is built from a lazy resolver rather than an injected GameInventory, because
             // the inventory lives on the player and the player is assembled in PlayerController.Awake
             // — see ResolveInventory. The page therefore shows an empty list until the player exists,
             // which is honest, rather than binding null once and staying empty forever.
-            var inventoryPage = new PipPageInvView(
-                _manager.ViewModel,
-                new PlayerPipInventorySource(ResolveInventory))
+            // The source needs the localisation document and three live readers — see each property on
+            // PlayerPipInventorySource. Every one resolves per read, for the reason the source's own
+            // remarks give: the player is assembled in PlayerController.Awake, which Unity does not order
+            // against this bootstrapper's Start, so a captured instance would bind null once.
+            var inventorySource = new PlayerPipInventorySource(ResolveInventory)
+            {
+                // Item.as:206-267 — what each row is called. Without this the page prints the
+                // definition's placeholder, the literal "Item Name", on all 500 item rows: the play-test's
+                // "items have no name". The Oracle has no name field at all and assigns `nazv` from this
+                // document, which is why the source needs it rather than a better display name on the asset.
+                TextTable = _text,
+
+                // gg.newWeapon.id — the selection frame, PipPageInv.as:391. Non-empty because
+                // PlayerWeaponLoadout.Equip writes GameInventory.CurrentWeaponId.
+                CurrentWeaponIdProvider = ResolveEquippedWeaponId,
+
+                // gg.currentWeapon.ammoBase — the ammo page's "the loaded round sorts first" nudge, :286.
+                LoadedAmmoBaseProvider = ResolveLoadedAmmoBase,
+
+                // World.w.hardInv — gates the mass column (:462-465).
+                HardInventoryProvider = ResolveHardInventory,
+            };
+
+            var inventoryPage = new PipPageInvView(_manager.ViewModel, inventorySource)
             {
                 FooterProvider = BuildInventoryFooter,
 
@@ -260,17 +359,102 @@ namespace PFE.UI.PipBuck
                 // The Oracle's left-click action, for the one kind of row the port can act on.
                 // See ActivateInventoryRow.
                 RowActivated = ActivateInventoryRow,
+
+                // ── The info pane's three inputs (PipPage.infoItem → infoStr) ──
+                //
+                // pip.arrWeapon[id] (PipPage.as:423) — the hovered weapon's definition, which carries
+                // both the stat block's numbers and weaponVisual, the held art setIco draws.
+                WeaponDefinitionProvider = ResolveWeaponDefinition,
+
+                // inv.armors[id] (PipPage.as:600) — the armour INSTANCE, not its definition: the stat
+                // block's ratings come from `xml.upd[lvl]` and the level is per-instance. Resolved
+                // lazily for the same reason as the two below.
+                ArmorInstanceProvider = ResolveArmorInstance,
+
+                // gg.pers (Weapon.setPers:963) — the skill tier and the damage multipliers the stat
+                // block reads. Resolved lazily for the same reason the inventory source is.
+                PlayerStatsProvider = () => ResolvePlayer()?.CharacterStats,
+
+                // World.w.hardInv — gates the mass2 line (PipPage.as:588-591), same flag as the list's.
+                HardInventoryProvider = ResolveHardInventory,
             };
 
             inventoryPage.Configure(_composition, _font);
             _manager.RegisterPage(inventoryPage);
 
-            // ── The other nine: sub-tab rows only (see RegisterStub) ──────────
+            // ── Page 3: world info (Item I11) ─────────────────────────────────
+            //
+            // Map, quests, travel, notes and bestiary. The source resolves the campaign and the player
+            // lazily for the same reason the other two do — CampaignManager.Current is assigned in its
+            // own Awake order and the player is assembled in PlayerController.Awake — so every provider
+            // below re-reads through to the live object rather than capturing one.
+            var infoSource = new PlayerPipInfoSource(
+                () => CampaignManager.Current,
+                () => ResolvePlayer())
+            {
+                // MapBridge.CurrentLandMap — the same resolution path the F2 debug overlay uses, so the
+                // page's minimap and the overlay's cannot disagree about which map is live. Re-searched
+                // per read rather than cached: the bridge appears with the land, and a reference captured
+                // before it exists would stay null for the whole session.
+                LandMapProvider = ResolveLandMap,
+
+                PlayerNameProvider = ResolvePlayerName,
+
+                // World.w.game.triggers — the vendor gate and the travel ladder. Absent reads 0 here;
+                // the bestiary's kill count gets its own provider below, whose absent reads negative.
+                TriggerProvider = ResolveTriggerAsInt,
+
+                // The bestiary's frag counter. The Oracle's guard `triggers["frag_"+id] >= 0` makes
+                // "absent" and "stored 0" different answers, so the default differs from the one above.
+                FragCountProvider = name => ResolveTriggerAsInt(name, -1),
+
+                SkillProvider = ResolveSkillLevel,
+
+                // Deliberately left null, each for a reason recorded on the provider itself:
+                // RevealAllMapProvider (the console's drawAllMap — no port path can set it), TestModeProvider
+                // (World.w.testMode — the shipped game's value is false and nothing in the port turns it
+                // on), HelpMessProvider (the options screen owns it and page 5 is still a stub), and
+                // SpeedShooterProvider (CharacterStats records speedShtr as unported — a row that
+                // guessed would be worse than a row that is absent).
+            };
+
+            var infoPage = new PipPageInfoView(infoSource)
+            {
+                // The Oracle's captions: the five sub-tabs, `emptymap`, `alltask`, `trans`, `frag` and
+                // the bestiary's unit names (`Res.txt("u", …)`).
+                TextTable = _text,
+
+                // PipPage.page2Click — the device's, for the same reason the character sheet's is. See
+                // PipBuckManager.SubPageClick. Claimed on the page before Build, like statPage's.
+                SubPageClicked = subPage => _manager.SubPageClick(subPage),
+
+                // `pip.helpText` plus `pip.vis.butHelp.visible` (PipPageInfo.as:89, :203-204) — the
+                // tooltip and the "?" button are the device's, so the page publishes and the shell draws.
+                HelpChanged = (text, buttonVisible) =>
+                {
+                    _manager.ViewModel.HelpText.Value = text ?? string.Empty;
+                    _manager.ViewModel.HelpVisible.Value = buttonVisible;
+                },
+
+                // `game.beginMission(targetLand)` (PipPageInfo.as:762) and `pip.onoff(-1)` (:764).
+                TravelConfirmed = BeginMission,
+                CloseRequested = () => _manager.Close(),
+
+                // `game.addQuest(id, null, false, false, false)` (:781) for the alltask button.
+                QuestsGranted = GrantQuests,
+
+                // `pip.noAct` (:719) — nothing in the port opens the device during a cutscene yet, so
+                // the gate reads false; landing one changes this line and nothing else.
+                ActionsBlocked = () => false,
+            };
+
+            infoPage.Configure(_composition, _font, _text);
+            _manager.RegisterPage(infoPage);
+
+            // ── The other seven: sub-tab rows only (see RegisterStub) ─────────
             //
             // Named individually rather than looped so the log states which work item each one
             // belongs to, instead of a count.
-            RegisterStub(1, "PipPageStat — Item I10 (character sheet, skills, perks, effects, health)");
-            RegisterStub(3, "PipPageInfo — Item I11 (map, quests, world, notes, enemies)");
             RegisterStub(4, "PipPageVend — Item I12 (merchant)");
             RegisterStub(5, "PipPageOpt — options / save / load");
             RegisterStub(6, "PipPageMed — Item I12 (doctor)");
@@ -280,6 +464,57 @@ namespace PFE.UI.PipBuck
 
             // Built after every page is registered, so the device's first open can reveal any of them.
             inventoryPage.Build(_view.PageRoot);
+            statPage.Build(_view.PageRoot);
+            infoPage.Build(_view.PageRoot);
+        }
+
+        /// <summary>
+        /// Subscribes the device to <see cref="TravelMapOpenedMessage"/> and opens page 3 on its World
+        /// sub-tab — the port of <c>pip.onoff(3, 3)</c> (<c>Interact.as:1636-1641</c>,
+        /// <c>NPC.as:210-216</c>).
+        ///
+        /// <para><b>What was dead.</b> Both travel grants — the camp's wall map (<c>wmap</c>, an object
+        /// with <c>allact='map'</c>) and an NPC whose <c>inter</c> is <c>travel</c> — were already wired
+        /// end to end on the campaign side: <c>CampaignManager.GrantTravelAndOpenMap</c> unlocks the flag
+        /// and publishes this message. Nothing consumed it, so pressing <c>E</c> on the wall map set a
+        /// bool and drew no pixel anywhere. The page itself was already built
+        /// (<see cref="PipPageInfoView"/>, registered above, with its <c>PipInfoWorldPanel</c> and the 27
+        /// travel nodes); the message was the only missing edge.</para>
+        ///
+        /// <para><b>Why the sub-page is 3 and not 0.</b> <c>page2 = 0</c> means "leave the sub-page where
+        /// it was" (<c>PipBuck.as:427-430</c>), which is what pressing <c>M</c> twice relies on. The
+        /// Oracle's wall map names the tab explicitly, so a player who had been reading the bestiary must
+        /// land on the world map, not back on the bestiary.</para>
+        ///
+        /// <para><b>Why it opens rather than toggles.</b> <c>page &gt; 0</c> is the "open" arm
+        /// (<c>PipBuck.as:251-262</c>); <c>onoff(0)</c> would close the device if it happened to be open,
+        /// and the interaction that publishes this is a world interaction, which cannot fire while the
+        /// device is up.</para>
+        /// </summary>
+        private void BindTravelMap()
+        {
+            if (_resolver == null)
+            {
+                Debug.LogWarning("[PipBuckBootstrapper] No container resolver — TravelMapOpenedMessage is " +
+                                 "wired to nothing, so the camp's wall map and every `travel` NPC will " +
+                                 "grant travel and open no page.");
+                return;
+            }
+
+            if (!_resolver.TryResolve(out ISubscriber<TravelMapOpenedMessage> subscriber))
+            {
+                Debug.LogWarning("[PipBuckBootstrapper] No ISubscriber<TravelMapOpenedMessage> — the wall " +
+                                 "map will grant travel and draw nothing. Check that " +
+                                 "RegisterMessageBroker<TravelMapOpenedMessage> is still in the installer.");
+                return;
+            }
+
+            _travelMapSubscription = subscriber.Subscribe(message =>
+            {
+                Debug.Log($"[PipBuckBootstrapper] Travel map opened from '{message.CurrentLandId}' — " +
+                          "showing PipBuck page 3, World sub-tab (pip.onoff(3,3)).");
+                _manager?.OnOff(PipInfoFrame.InfoPageId, PipInfoFrame.WorldSubPage);
+            });
         }
 
         /// <summary>
@@ -344,6 +579,230 @@ namespace PFE.UI.PipBuck
             return owner != null ? owner.Inventory : null;
         }
 
+        /// <summary>
+        /// The equipped weapon's id — AS3 <c>gg.newWeapon.id</c> (<c>PipPageInv.as:391</c>, the selection
+        /// frame <c>ramka</c>).
+        ///
+        /// <para>Read from the inventory rather than the loadout because the inventory owns the field
+        /// (<c>GameInventory.CurrentWeaponId</c>) and <c>PlayerWeaponLoadout.Equip</c> is its one writer —
+        /// so this is the same value the save format persists, and there is no second place to keep in
+        /// step. Empty becomes null, which is the source's documented "no frame" input.</para>
+        /// </summary>
+        private string ResolveEquippedWeaponId()
+        {
+            string id = ResolveInventory()?.CurrentWeaponId;
+            return string.IsNullOrEmpty(id) ? null : id;
+        }
+
+        /// <summary>
+        /// The equipped weapon's loaded ammo base — AS3 <c>gg.currentWeapon.ammoBase</c>
+        /// (<c>PipPageInv.as:286</c>, the ammo page's "the loaded round sorts first" nudge).
+        ///
+        /// <para><b>The port keeps one id for a loaded round where AS3 splits a base from a per-round
+        /// type</b> (<c>GameWeaponInstance.LoadedAmmoType</c>), so that id is what is returned. The
+        /// consumer compares it against both an item's own id and its <c>@base</c> — the same two-way test
+        /// the Oracle makes (<c>ammoBase == @base || ammoBase == @id</c>) — so a round that is listed under
+        /// its base still matches. Returning null (no weapon, or a weapon with no loaded round) disables
+        /// the nudge, which is the property's documented behaviour.</para>
+        /// </summary>
+        private string ResolveLoadedAmmoBase()
+        {
+            GameInventory inventory = ResolveInventory();
+            if (inventory == null) return null;
+
+            string equipped = inventory.CurrentWeaponId;
+            if (string.IsNullOrEmpty(equipped)) return null;
+
+            string loaded = inventory.GetWeapon(equipped)?.LoadedAmmoType;
+            return string.IsNullOrEmpty(loaded) ? null : loaded;
+        }
+
+        /// <summary>
+        /// <c>World.w.hardInv</c> — gates the mass column (<c>PipPageInv.as:462-465</c>). False when there
+        /// is no inventory yet, which is also the field's own default.
+        /// </summary>
+        private bool ResolveHardInventory() => ResolveInventory()?.HardInventory ?? false;
+
+        // ── The character sheet's source (Item I10) ────────────────────────────
+
+        /// <summary>
+        /// The character sheet's data, wired to the live player.
+        ///
+        /// <para><b>Every owner is resolved per read.</b> The sheet reads three objects — the player's
+        /// <c>CharacterStats</c>, its <c>UnitStats</c> and its <c>GameInventory</c> — and none of them
+        /// exists when this runs; see <c>PlayerPipStatSource</c> for why a constructor-captured instance
+        /// would show an empty sheet forever.</para>
+        ///
+        /// <para><b>What is deliberately left unwired, and what that costs.</b> Three providers stay
+        /// null, each for a reason recorded on the provider itself:
+        /// <c>ReputationProvider</c> (no reputation system — the row reads the Oracle's own starting 0),
+        /// <c>GameTimeProvider</c> (the Oracle's clock is accumulated wall time, which the port does not
+        /// track; a tick count is a different quantity), and <c>MedicineDisabledProvider</c> (no trigger
+        /// table — the medical module is treated as intact, which is also what the status monitor
+        /// assumes for the same five organs).</para>
+        /// </summary>
+        private IPipStatSource BuildStatSource()
+        {
+            return new PlayerPipStatSource(
+                () => ResolvePlayer()?.CharacterStats,
+                () => ResolvePlayer()?.Stats,
+                ResolveInventory)
+            {
+                PlayerNameProvider = ResolvePlayerName,
+                GlobalDifficultyProvider = ResolveDifficulty,
+                ReputationProvider = null,
+                GameTimeProvider = null,
+                MedicineDisabledProvider = null,
+            };
+        }
+
+        /// <summary>
+        /// The name given at new-game time, from <c>GameBootData</c>.
+        ///
+        /// <para><b>Read once and cached, because the getter clones.</b>
+        /// <c>GameBootData.PeekPendingNewGame()</c> returns a fresh <c>Clone()</c> of the whole settings
+        /// object — appearance included — on every call, and the sheet rebuilds on every sub-tab press
+        /// and every scroll step. The settings are written in the main menu before the game scene loads
+        /// and never change afterwards, so one read is enough.</para>
+        ///
+        /// <para>The cache latches only once settings actually appear, so a boot order that puts this
+        /// bootstrapper first is not fatal — it just leaves the row empty until they do, which is what
+        /// the Oracle shows before a name has been given.</para>
+        /// </summary>
+        private string ResolvePlayerName()
+        {
+            if (_nameResolved) return _playerName;
+
+            NewGameSettings settings = GameBootData.PeekPendingNewGame();
+            if (settings == null) return _playerName;
+
+            _playerName = settings.playerName ?? string.Empty;
+            _nameResolved = true;
+            return _playerName;
+        }
+
+        // ── The information page's source (Item I11) ──────────────────────────
+
+        /// <summary>
+        /// The live <see cref="LandMap"/>, through the bridge that owns the reference to it.
+        ///
+        /// <para><b>The same path the F2 debug overlay uses</b> (<c>PlayerDebugEditorOverlay.ResolveLandMap</c>),
+        /// so the page's minimap and the overlay's cannot disagree about which map is live. Re-searched
+        /// per read rather than cached: the bridge appears with the land, and a reference captured before
+        /// it exists would stay null for the whole session — the same trap the player resolver's
+        /// <see cref="RescanInterval"/> exists to avoid, without the player's "a respawn moves it"
+        /// justification for a cheaper interval.</para>
+        /// </summary>
+        private LandMap ResolveLandMap()
+        {
+            MapBridge bridge = FindFirstObjectByType<MapBridge>();
+            return bridge != null ? bridge.CurrentLandMap : null;
+        }
+
+        /// <summary>
+        /// A trigger coerced to a number, with the travel ladder's absent-answer: 0. The bestiary's kill
+        /// count calls the two-argument overload with -1 instead, because the Oracle's
+        /// <c>triggers["frag_"+id] &gt;= 0</c> makes "absent" and "stored 0" different answers there.
+        /// </summary>
+        private int ResolveTriggerAsInt(string name) => ResolveTriggerAsInt(name, 0);
+
+        private int ResolveTriggerAsInt(string name, int absent)
+        {
+            CampaignManager campaign = CampaignManager.Current;
+            return campaign != null ? campaign.GetTrigger(name).AsInt(absent) : absent;
+        }
+
+        /// <summary>
+        /// <c>Pers.skill[id]</c> — a skill gate's left-hand side. 0 while there is no player, which
+        /// refuses every skill-gated vendor task rather than passing it.
+        /// </summary>
+        private int ResolveSkillLevel(string skillId)
+        {
+            var stats = ResolvePlayer()?.CharacterStats;
+            return stats != null ? stats.GetSkillLevel(skillId) : 0;
+        }
+
+        /// <summary>
+        /// <c>game.beginMission(targetLand)</c> (<c>PipPageInfo.as:762</c>) — the travel confirm's write
+        /// half. True when the mission actually began, which is what lets the page raise
+        /// <c>pip.onoff(-1)</c>; a refused travel (a land the mission system will not start) leaves the
+        /// device open, which is the Oracle's own outcome for the same refusal.
+        /// </summary>
+        private bool BeginMission(string landId)
+        {
+            CampaignManager campaign = CampaignManager.Current;
+            if (campaign == null)
+            {
+                Debug.LogWarning("[PipBuckBootstrapper] Cannot travel to '" + landId +
+                                 "': there is no campaign to begin the mission in.");
+                return false;
+            }
+
+            bool began = campaign.BeginMission(landId);
+            if (began)
+            {
+                Debug.Log("[PipBuckBootstrapper] Began mission '" + landId +
+                          "' from the PipBuck travel map (PipPageInfo.as:762).");
+            }
+
+            return began;
+        }
+
+        /// <summary>
+        /// <c>game.addQuest(id, null, false, false, false)</c> (<c>PipPageInfo.as:781</c>) — the alltask
+        /// button's grant. The page has already computed WHICH ids (see
+        /// <see cref="PipQuestJournal.TasksToGrant"/>); this is the campaign write, so it lives with the
+        /// other campaign writes rather than in the view.
+        /// </summary>
+        private void GrantQuests(System.Collections.Generic.IReadOnlyList<string> questIds)
+        {
+            CampaignManager campaign = CampaignManager.Current;
+            if (campaign == null)
+            {
+                Debug.LogWarning("[PipBuckBootstrapper] Cannot grant " + questIds.Count +
+                                 " vendor task(s): there is no campaign to grant them into.");
+                return;
+            }
+
+            for (int i = 0; i < questIds.Count; i++)
+            {
+                string questId = questIds[i];
+                if (string.IsNullOrEmpty(questId)) continue;
+
+                campaign.AddQuest(questId);
+                Debug.Log("[PipBuckBootstrapper] Granted vendor task '" + questId +
+                          "' from the PipBuck quest list (PipPageInfo.as:781).");
+            }
+        }
+
+        /// <summary>
+        /// The run's difficulty as the Oracle's <c>globalDif</c> index.
+        ///
+        /// <para><b>The two numbering schemes already agree, so there is no translation to get wrong.</b>
+        /// <c>NewGameDifficulty</c> runs 0..4 with <c>Normal = 2</c>; the Oracle's <c>globalDif</c> runs
+        /// 0..4 with a default of 2 (<c>Game.as:41</c>), and the <c>gui</c> table's <c>dif0</c>..<c>dif4</c>
+        /// — the very keys the row resolves against — are indexed by it directly.</para>
+        ///
+        /// <para><b>Read live from <c>GlobalDifficulty</c> rather than latched from the new-game
+        /// settings.</b> The settings are only the value's <i>source at boot</i>; the oracle's
+        /// <c>Game.globalDif</c> is mutable for the whole run — <c>changeDif</c> is called by items that
+        /// author a <c>chdif</c> attribute (<c>Invent.as:714</c>) and by the console's <c>dif</c> verb
+        /// (<c>Consol.as:237</c>). A latch taken here would keep showing the difficulty the run started
+        /// at after either of those moved it, and the row is the only place the player can see the
+        /// change. This is cheap to read (no clone, unlike <c>PeekPendingNewGame</c>) and the sheet
+        /// already rebuilds on every sub-tab press and scroll step, so the row updates without a
+        /// change-notification hook.</para>
+        ///
+        /// <para>The fields <c>_difficulty</c>/<c>_difficultyResolved</c> remain as the fallback the
+        /// provider reads before the boot value has ever been resolved — <c>GlobalDifficulty.Value</c>
+        /// itself resolves from <c>GameBootData</c>, so the two agree.</para>
+        /// </summary>
+        private int ResolveDifficulty()
+        {
+            _difficulty = PFE.Systems.Campaign.GlobalDifficulty.Value;
+            return _difficulty;
+        }
+
         // ── The status monitor's source ────────────────────────────────────────
 
         /// <summary>
@@ -372,10 +831,13 @@ namespace PFE.UI.PipBuck
             {
                 ArmourConditionProvider = ResolveArmourCondition,
 
-                // Left unset on purpose: the port does not track money, and the Oracle's caps row
-                // reads its own starting value of 0 (PipBuck.as:51) rather than a made-up number.
-                // See GameInventory.cs:71-73 for what the category means.
-                CapsProvider = null,
+                // Caps, read through the live inventory each refresh. AS3 reads `inv.money.kol`
+                // (PipBuck.as:411 mirrors it into `pip.money`; :539 draws ritems[9]). The port keeps
+                // caps as a count on GameInventory rather than as an item — the divergence is recorded
+                // on GameInventory.Money — and PlayerInventory grants the oracle's starting 50
+                // (Invent.as:1610). Reading through a Func means the row shows 0 only while there is no
+                // player at all, which is PipBuck.as:51's own starting value rather than a guess.
+                CapsProvider = ResolveCaps,
 
                 // No trigger table wired yet; the default is "organs shown", which is what a fresh
                 // game is.
@@ -410,11 +872,26 @@ namespace PFE.UI.PipBuck
             return (false, 0f, 0f);
         }
 
+        /// <summary>
+        /// The player's caps for the monitor's row 9 — AS3 <c>inv.money.kol</c>, which
+        /// <c>PipBuck.setPage</c> mirrors into <c>pip.money</c> (<c>PipBuck.as:411</c>) and
+        /// <c>setRPanel</c> draws (<c>:539</c>).
+        ///
+        /// <para>Reads through the live inventory each refresh rather than capturing a balance at boot,
+        /// for the same reason every other provider here is a <see cref="Func{TResult}"/>: the player —
+        /// and therefore the inventory — does not exist yet when this source is built.</para>
+        /// </summary>
+        private int ResolveCaps()
+        {
+            GameInventory inventory = ResolveInventory();
+            return inventory != null ? inventory.Money : 0;
+        }
+
         // ── Inventory row activation ─────────────────────────────────────────
         //
         // PipPageInv.itemClick (PipPageInv.as:532-617): a weapon row equips it, an armour row wears
-        // it, and everything else uses it. Only the armour branch has a port it can actually reach,
-        // so the other two return false and let the page report what the Oracle would have done.
+        // it, and everything else uses it. The weapon and armour branches are ported; "use" is not,
+        // so it returns false and lets the page report what the Oracle would have done.
 
         /// <summary>
         /// Performs the Oracle's left-click action for a row, or reports that it could not.
@@ -422,6 +899,7 @@ namespace PFE.UI.PipBuck
         /// </summary>
         private bool ActivateInventoryRow(PipInventoryRow row)
         {
+            if (row.Kind == PipInventoryKind.Weapon) return EquipWeaponRow(row);
             if (row.Kind != PipInventoryKind.Armor) return false;
 
             GameInventory inventory = ResolveInventory();
@@ -467,11 +945,111 @@ namespace PFE.UI.PipBuck
         }
 
         /// <summary>
+        /// <c>PipPageInv.itemClick</c>'s weapon branch — <c>PipPageInv.as:545-551</c>:
+        /// <c>World.w.gg.changeWeapon(id)</c>, the same call the favourite hotkeys and the number keys
+        /// make. The port's counterpart is <c>PlayerWeaponLoadout.Equip</c>, reached with the row's
+        /// <c>WeaponDefinition</c>.
+        ///
+        /// <para><b>This is the other half of "F2 gives, the PipBuck equips".</b> The F2 Weapons tab now
+        /// puts a weapon into the bag instead of only putting it in the hand, and this is where the hand
+        /// half is reached from — through the row, which is the Oracle's own path, rather than through a
+        /// debug button that would leave the bag and the hand disagreeing again.</para>
+        ///
+        /// <para><b>Why the row's id is enough.</b> It resolves through the same <c>ContentType.Weapon</c>
+        /// table the inventory's own sink resolves against, so a row that is listed can always be
+        /// equipped: there is one table and both read it, and the two cannot disagree about which weapons
+        /// exist.</para>
+        /// </summary>
+        private bool EquipWeaponRow(PipInventoryRow row)
+        {
+            PlayerController player = ResolvePlayer();
+            if (player == null)
+            {
+                Debug.LogWarning("[PipBuckBootstrapper] Cannot equip '" + row.Id + "': there is no " +
+                                 "player (PipPageInv.as:545-551).");
+                return false;
+            }
+
+            var loadout = player.GetComponent<PFE.Systems.Weapons.PlayerWeaponLoadout>();
+            if (loadout == null)
+            {
+                Debug.LogWarning("[PipBuckBootstrapper] Cannot equip '" + row.Id + "': the player has " +
+                                 "no PlayerWeaponLoadout to equip onto (PipPageInv.as:545-551).");
+                return false;
+            }
+
+            // Resolved through the inventory's own registry wrapper rather than ContentRegistry directly,
+            // so the weapon table has one reader here as well as one writer there.
+            WeaponDefinition definition = player.GetComponent<PlayerInventory>()?.ResolveWeapon(row.Id);
+            if (definition == null)
+            {
+                Debug.LogWarning("[PipBuckBootstrapper] Cannot equip '" + row.Id + "': no weapon row " +
+                                 "resolves for that id (PipPageInv.as:545-551).");
+                return false;
+            }
+
+            loadout.Equip(definition);
+
+            // PipPageInv.as:547 — `setStatus(false)`, a repaint that keeps the scroll. 0 is the Oracle's
+            // "leave the sub-page where it is" (see PipPageInvView.SetStatus), and the selection frame
+            // follows because PlayerWeaponLoadout.Equip writes GameInventory.CurrentWeaponId.
+            ResolveInventoryPage()?.SetStatus(0);
+
+            Debug.Log("[PipBuckBootstrapper] Equipped '" + row.Id + "' (" + row.Name + ") from the " +
+                      "PipBuck inventory page (PipPageInv.as:545-551).");
+
+            return true;
+        }
+
+        /// <summary>
         /// The registered inventory page, for the repaint after an action. Null only if the page was
         /// never registered, which <see cref="Build"/> cannot get past.
         /// </summary>
         private PipPageInvView ResolveInventoryPage() => _manager.PageFor(PipPageInvView.InventoryPageId)
             as PipPageInvView;
+
+        /// <summary>
+        /// The info pane's definition lookup — <c>pip.arrWeapon[id]</c> (<c>PipPage.as:423</c>).
+        /// Resolved through the same <c>PlayerInventory.ResolveWeapon</c> table the equip path uses,
+        /// so the pane and the click cannot disagree about which weapons exist.
+        ///
+        /// <para><b>Why this is a method and not an inline lambda.</b> The row id may carry a variant
+        /// suffix (<c>id^2</c>); the registry is keyed on the base id, so the suffix is stripped here —
+        /// one place, documented, rather than inside a lambda where it would be invisible.</para>
+        /// </summary>
+        private WeaponDefinition ResolveWeaponDefinition(string weaponId)
+        {
+            if (string.IsNullOrEmpty(weaponId)) return null;
+
+            string id = weaponId;
+            int caret = id.IndexOf('^');
+            if (caret >= 0) id = id.Substring(0, caret);
+
+            PlayerController player = ResolvePlayer();
+            return player != null
+                ? player.GetComponent<PlayerInventory>()?.ResolveWeapon(id)
+                : null;
+        }
+
+        /// <summary>
+        /// Resolves an armour id to its live instance — AS3 <c>inv.armors[id]</c>
+        /// (<c>PipPage.as:600</c>).
+        ///
+        /// <para><b>An instance, not a definition</b>, because the armour stat block reads the ratings
+        /// at the item's upgrade level (<c>Armor.getXmlParam(xml.upd[lvl])</c>) and only the instance
+        /// knows its level. <c>GameInventory.GetArmor</c> is the one reader.</para>
+        ///
+        /// <para><b>One sub-gap named.</b> The Oracle falls back to <c>pip.arrArmor[id]</c>
+        /// (<c>PipPage.as:602-604</c>) — the repair screen's list of every armour in the world,
+        /// including ones the player does not carry. The port has no such list, so a miss here returns
+        /// null and the pane falls through to the item block. That is reachable only for an armour row
+        /// the player does not own, which the inventory page cannot list anyway.</para>
+        /// </summary>
+        private GameArmorInstance ResolveArmorInstance(string armorId)
+        {
+            if (string.IsNullOrEmpty(armorId)) return null;
+            return ResolveInventory()?.GetArmor(armorId);
+        }
 
         /// <summary>
         /// The inventory page's bottom strip — the Oracle's <c>PipPageInv.showBottext</c>
@@ -486,14 +1064,19 @@ namespace PFE.UI.PipBuck
             {
                 // PipPageInv.as:323 — `Res.pipText("caps") + ": " + yel(pip.money)`.
                 //
-                // Money is 0 because the port does not track it anywhere: GameInventory's category
-                // table documents index 0 as "Not tracked (money, special)"
-                // (GameInventory.cs:71-73), and PlayerPipStatusSource records the same gap for the
-                // status monitor's caps row. Zero is also the Oracle's own starting value
-                // (PipBuck.as:51), so this is not a fabricated reading.
-                Money = 0,
+                // **Money is read, not zeroed.** This used to be a literal 0 with the note that the port
+                // did not track caps anywhere; that stopped being true when GameInventory gained Money —
+                // PlayerInventory seeds it with the Oracle's starting 50 (Invent.as:1610) and the status
+                // monitor's row 9 already reads it through ResolveCaps. The play-test showed the
+                // disagreement directly: the right-hand panel read `Caps 50` while this strip read `0`.
+                // Read through the same accessor, so the two cannot drift apart again.
+                Money = ResolveCaps(),
 
                 HardInventory = inventory.HardInventory,
+
+                // The word before the total. showBottext writes it as part of the same assignment, so
+                // omitting it is a different line, not a shorter one.
+                CapsLabel = _text.Pip("caps"),
 
                 // inv.retMass(cat) — GameInventory.GetCategoryMass is the port of it, and it already
                 // clamps an out-of-range category rather than throwing.
@@ -569,6 +1152,11 @@ namespace PFE.UI.PipBuck
             // with the device open would otherwise leave the simulation frozen with nothing to explain
             // it, so the hold is released explicitly as well as in the manager's own Dispose.
             _manager?.PauseGate?.Release(_manager);
+
+            // The broker outlives this object, so an un-disposed subscription would keep a delegate
+            // pointing at a destroyed bootstrapper alive for the rest of the session.
+            _travelMapSubscription?.Dispose();
+            _travelMapSubscription = null;
         }
     }
 }

@@ -263,6 +263,141 @@ namespace PFE.Tests.EditMode.UI
         }
 
         [Test]
+        public void DialogueWindow_IsPinnedToTheTopEdge_NotCentred()
+        {
+            // `resizeScreen` writes `dial.x` and the scale and never `dial.y` (GUI.as:336-345), so the
+            // vertical position is the SWF's own placement: `visualGUI` (sprite 4651) places `dial`
+            // (4639) at exactly (0, 0) — depth 424, translateX=0, translateY=0 in assets.swf.
+            //
+            // This slot was `Centre`, which put the plate at the vertical middle of the canvas. That is
+            // the owner's report ("text in the middle rather than in the top"), and it is measurable:
+            // the plate's green border sat at y 231..464 of a 729-tall capture, i.e. centred, while the
+            // real game has the text at y≈46 of an 808-tall capture of a 1280x800 window — the authored
+            // 30 px text inset plus a plate top of 0.
+            HudAnchor anchor = HudLayout.AnchorFor(HudSlot.Dialogue);
+
+            Assert.AreEqual(new Vector2(0.5f, 1f), anchor.Point,
+                "top edge, horizontally centred — the Oracle only ever writes dial.x");
+            Assert.AreEqual(anchor.Point, anchor.Pivot,
+                "pivot == anchor point, so Offset.y is measured from the screen's top edge");
+            Assert.AreEqual(0f, anchor.Offset.y, 0.0001f,
+                "0 is the authored `dial.y`; a negative offset insets the plate and a positive one pushes it off-screen");
+            Assert.AreEqual(0f, HudLayout.DialogueTopOffset, 0.0001f,
+                "the constant the scaler writes must agree with the table");
+        }
+
+        [Test]
+        public void DialoguePlate_IsTheSwfsOwnGeometry()
+        {
+            // assets.swf DefineSpriteTag spriteId=4639 (`dial`, GUI.as:242). Its children are placed by
+            // explicit matrices, and 20 twips = 1 px:
+            //   plate 4520  at (0,0)      edgeBounds 24000x4480, shapeBounds 24010x4490 (the 1px stroke)
+            //   txt   4521  at (4360,600) bounds X -40..18839, Y -40..3399
+            //   portret 4638 at (640,640)
+            //   lmb   390   at (22891,3631) scale 1.7427979
+            Assert.AreEqual(1200f, HudLayout.DialogueAuthoredWidth, 0.0001f);
+            Assert.AreEqual(225f, HudLayout.DialogueAuthoredHeight, 0.0001f,
+                "24000x4480 twips of fill plus the 1px stroke — the port drew 150.");
+
+            Assert.AreEqual(218f, HudLayout.DialogueTextLeft, 0.0001f, "4360 twips");
+            Assert.AreEqual(30f, HudLayout.DialogueTextTop, 0.0001f, "600 twips");
+            Assert.AreEqual(943.95f, HudLayout.DialogueTextWidth, 0.01f, "18879 twips");
+            Assert.AreEqual(171.95f, HudLayout.DialogueTextHeight, 0.01f, "3439 twips");
+
+            Assert.AreEqual(32f, HudLayout.DialoguePortraitLeft, 0.0001f, "640 twips");
+            Assert.AreEqual(32f, HudLayout.DialoguePortraitTop, 0.0001f);
+            Assert.AreEqual(1144.55f, HudLayout.DialogueKeyLeft, 0.01f, "22891 twips");
+            Assert.AreEqual(181.55f, HudLayout.DialogueKeyTop, 0.01f, "3631 twips");
+            Assert.AreEqual(1.7427979f, HudLayout.DialogueKeyScale, 0.0001f);
+        }
+
+        [Test]
+        public void DialoguePortraitCanvas_RegistersTheArtOnTheOraclesOffset()
+        {
+            // Every exported `portret` frame is 389x325 because the importer writes the clip's OVERALL
+            // bounds (measured: the union of all 70 frames is 389.65 x 325.44), while the artwork inside
+            // is only 161x161 — canvas x[115,275], y[20,180], identical on all 70 frames and on frame 1
+            // nothing at all. So canvas pixel (115,20) IS the sprite's own (0,0), and placing the texture
+            // at the Oracle's (32,32) would put the face 115 px right and 20 px down.
+            Assert.AreEqual(389f, HudLayout.DialoguePortraitCanvasWidth, 0.0001f);
+            Assert.AreEqual(325f, HudLayout.DialoguePortraitCanvasHeight, 0.0001f);
+            Assert.AreEqual(115f, HudLayout.DialoguePortraitArtOffsetX, 0.0001f, "canvas x of the art");
+            Assert.AreEqual(20f, HudLayout.DialoguePortraitArtOffsetY, 0.0001f, "canvas y of the art");
+
+            Vector2 canvas = HudLayout.DialoguePortraitCanvasPosition();
+            Assert.AreEqual(-83f, canvas.x, 0.0001f, "32 - 115: the texture starts left of the plate");
+            Assert.AreEqual(12f, canvas.y, 0.0001f, "32 - 20");
+
+            // The identity that actually matters: canvas position + art offset lands on the Oracle's own
+            // `portret` placement. A sign error on either constant breaks this and nothing else.
+            Assert.AreEqual(HudLayout.DialoguePortraitLeft,
+                            canvas.x + HudLayout.DialoguePortraitArtOffsetX, 0.0001f);
+            Assert.AreEqual(HudLayout.DialoguePortraitTop,
+                            canvas.y + HudLayout.DialoguePortraitArtOffsetY, 0.0001f);
+
+            // uGUI's Y grows up and the Oracle's grows down, so the flip must be present and must be a
+            // negation — a mirror, never a floor.
+            Vector2 ugui = HudLayout.DialoguePortraitCanvasLeftTopOffset();
+            Assert.AreEqual(canvas.x, ugui.x, 0.0001f);
+            Assert.AreEqual(-canvas.y, ugui.y, 0.0001f);
+
+            // The overhang is transparent margin only: 161 px of art from y=32 ends at 193, inside the
+            // 225 px plate.
+            Assert.That(HudLayout.DialoguePortraitTop + 161f, Is.LessThan(HudLayout.DialogueAuthoredHeight),
+                "The portrait art must fit inside the plate's height.");
+        }
+
+        [Test]
+        public void DialogueText_SitsInsideThePlateAndClearsThePortrait()
+        {
+            // A relational guard, not a restatement: it fails if the field is moved left onto the
+            // portrait, right onto the key indicator, or down past the plate's bottom edge.
+            Assert.That(HudLayout.DialogueTextLeft, Is.GreaterThan(HudLayout.DialoguePortraitLeft),
+                "The field must start to the right of the portrait's slot at x=32.");
+
+            // The field is 943.95 wide from x=218, so it ends at 1161.95 — inside the 1200-wide plate,
+            // which is the bound that actually matters (an overrun would cross the border).
+            //
+            // It is NOT clear of the `lmb` indicator, and asserting that it was is what made this
+            // fixture red. `lmb` sits at x=1144.55, so the two boxes overlap by ~17 px — exactly as they
+            // do in the SWF: 04_SYMBOLS_AND_ASSETS.md §2 lists `txt` at (218, 30) sized 942x170 and
+            // `lmb` at (1144.6, 181.6), and 218 + 942 = 1160 > 1144.6. The overlap is harmless because
+            // the field is top-anchored and its glyphs never reach y=181.55 — a guard that demanded
+            // clearance would be demanding something the oracle does not do.
+            Assert.That(HudLayout.DialogueTextLeft + HudLayout.DialogueTextWidth,
+                Is.LessThan(HudLayout.DialogueAuthoredWidth),
+                "The field must end inside the 1200-wide plate, or it overruns the border.");
+
+            Assert.That(HudLayout.DialogueTextTop + HudLayout.DialogueTextHeight,
+                Is.LessThan(HudLayout.DialogueAuthoredHeight),
+                "The field must fit inside the plate, or the last line is clipped.");
+
+            // 16 px body (field 4521's fontHeight=320 twips) in a 172 px field — six or seven lines.
+            Assert.AreEqual(16, HudLayout.DialogueFontSize);
+            Assert.That(HudLayout.DialogueTextHeight / HudLayout.DialogueFontSize, Is.GreaterThan(5f));
+        }
+
+        [Test]
+        public void DialogueColours_AreTheSwfsOwn()
+        {
+            // Border: the first LINESTYLE2 on shape 4520 — RGBA(51, 204, 153, 255) = #33CC99, 20 twips.
+            Assert.AreEqual(51f / 255f, HudLayout.DialogueBorderColor.r, 0.0001f);
+            Assert.AreEqual(204f / 255f, HudLayout.DialogueBorderColor.g, 0.0001f);
+            Assert.AreEqual(153f / 255f, HudLayout.DialogueBorderColor.b, 0.0001f);
+            Assert.AreEqual(1f, HudLayout.DialogueBorderColor.a, 0.0001f);
+            Assert.AreEqual(1f, HudLayout.DialogueBorderThickness, 0.0001f);
+
+            // Body: field 4521's textColor — RGBA(0, 255, 153, 255) = #00FF99. The port used white.
+            Assert.AreEqual(0f, HudLayout.DialogueTextColor.r, 0.0001f);
+            Assert.AreEqual(1f, HudLayout.DialogueTextColor.g, 0.0001f);
+            Assert.AreEqual(153f / 255f, HudLayout.DialogueTextColor.b, 0.0001f);
+
+            // The plate is opaque black (fillStyleType="0"), not the 0.78-alpha wash the port drew.
+            Assert.AreEqual(1f, HudLayout.DialoguePlateFill.a, 0.0001f);
+            Assert.AreEqual(0f, HudLayout.DialoguePlateFill.r, 0.0001f);
+        }
+
+        [Test]
         public void SatsScale_IsScreenDividedByOneHundred()
         {
             // GUI.as:322-323.

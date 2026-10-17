@@ -168,6 +168,8 @@ namespace PFE.UI.PipBuck
             Kind = entry.Kind;
             Equipped = entry.Equipped;
             Available = entry.Available;
+            Hidden = entry.Hidden;
+            Category = entry.CategoryKey ?? string.Empty;
             Fav = fav;
             Name = name;
             Value = value;
@@ -189,6 +191,27 @@ namespace PFE.UI.PipBuck
         /// (<c>alpha = 0.6</c>, <c>PipPageInv.as:415-418</c>).
         /// </summary>
         public bool Available { get; }
+
+        /// <summary>
+        /// Whether this is a stored weapon (<c>respect == 1</c>), listed only under showHidden. The
+        /// Oracle dims the <b>whole row</b> to 0.4 for one of these (<c>PipPageInv.as:411-414</c>) —
+        /// a different dim from the name-only 0.6 above, which is why the row carries both flags.
+        /// </summary>
+        public bool Hidden { get; }
+
+        /// <summary>
+        /// The row's <c>trol</c> label — the string <c>item.trol.gotoAndStop(obj.trol)</c> is driven by
+        /// (<c>PipPageInv.as:383</c>): <c>"w" + skill</c> for a weapon (<c>:118-121</c>, with <c>w7</c>
+        /// rewritten to <c>w6</c>), <c>"armor" + tip</c> for armour (<c>:201</c>), the raw <c>@tip</c>
+        /// for an item (<c>:271</c>).
+        ///
+        /// <para><b>Why the label and not an icon index.</b> The label is what the Oracle's data
+        /// carries and what its own clip is labelled with; the sprite index is the position of that
+        /// label in the clip. The page resolves one to the other against
+        /// <c>PipBuckCompositionDefinition.InventoryRowIconLabels</c>, which keeps the icon catalog
+        /// (art) and the row model (data) from having to know each other's shape.</para>
+        /// </summary>
+        public string Category { get; }
 
         public string Fav { get; }
         public string Name { get; }
@@ -249,6 +272,15 @@ namespace PFE.UI.PipBuck
         /// total — which is what a caller with no inventory to hand should produce.
         /// </summary>
         public Func<int, float> CategoryMass;
+
+        /// <summary>
+        /// Oracle <c>Res.pipText("caps")</c> — the word written before the total, "Caps" in the shipped
+        /// document. <b>Part of the line, not decoration:</b> <c>showBottext</c> writes
+        /// <c>Res.pipText("caps") + ": " + yel(pip.money)</c> (<c>PipPageInv.as:323</c>), so a strip
+        /// showing a bare number is a different string from the Oracle's. Null (a caller with no text
+        /// document) keeps the bare total, which is what the port drew before the document was wired.
+        /// </summary>
+        public string CapsLabel;
     }
 
     /// <summary>
@@ -601,15 +633,30 @@ namespace PFE.UI.PipBuck
         /// The bottom strip — the port of <c>PipPageInv.showBottext</c>
         /// (<c>PipPageInv.as:321-343</c>): always the caps total, then the page's own mass category in
         /// hard mode.
+        ///
+        /// <para><b>The caps line is <c>label + ": " + number</c>, not the number alone.</b> The Oracle
+        /// writes <c>Res.pipText("caps") + ": " + yel(pip.money)</c> in one assignment
+        /// (<c>:323</c>), so a strip showing a bare total is a different string from the Oracle's — the
+        /// play-test read it as "the caps readout is missing" rather than as a formatting difference.
+        /// <paramref name="capsLabel"/> carries the resolved word; an empty one is the no-document
+        /// path.</para>
         /// </summary>
         /// <param name="money">The Oracle's <c>pip.money</c>.</param>
         /// <param name="hardInventory">The Oracle's <c>World.w.hardInv</c>.</param>
         /// <param name="subPage">The Oracle's <c>page2</c>.</param>
         /// <param name="categoryMass">A <c>Func&lt;int,float&gt;</c> for <c>inv.retMass(cat)</c>, or null.</param>
-        public static string BottomText(int money, bool hardInventory, int subPage, Func<int, float> categoryMass)
+        /// <param name="capsLabel">
+        /// The Oracle's <c>Res.pipText("caps")</c>, or null/empty for the bare total — see
+        /// <see cref="PipInventoryFooter.CapsLabel"/>.
+        /// </param>
+        public static string BottomText(int money, bool hardInventory, int subPage,
+            Func<int, float> categoryMass, string capsLabel = null)
         {
-            // PipPageInv.as:323 — the caps total is written unconditionally, in the `yel` class.
-            string text = PipBuckReadoutFormat.Caps(money);
+            // PipPageInv.as:323 — the caps total is written unconditionally, in the `yel` class, and the
+            // label is written with it in the same assignment.
+            string text = string.IsNullOrEmpty(capsLabel)
+                ? PipBuckReadoutFormat.Caps(money)
+                : capsLabel + ": " + PipBuckReadoutFormat.Caps(money);
 
             if (!hardInventory || categoryMass == null) return text;
 
@@ -635,6 +682,7 @@ namespace PFE.UI.PipBuck
 
         /// <summary>The bottom strip, from a gathered <see cref="PipInventoryFooter"/>.</summary>
         public static string BottomText(PipInventoryFooter footer, int subPage)
-            => BottomText(footer.Money, footer.HardInventory, subPage, footer.CategoryMass);
+            => BottomText(footer.Money, footer.HardInventory, subPage, footer.CategoryMass,
+                footer.CapsLabel);
     }
 }

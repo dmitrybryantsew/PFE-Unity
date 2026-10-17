@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using PFE.Core;
+using PFE.Systems.Campaign;
 using PFE.UI.Common;
 
 namespace PFE.UI.PipBuck
@@ -210,8 +211,21 @@ namespace PFE.UI.PipBuck
                 opening = false;
             }
 
-            // PipBuck.as:271-274 — opening the device in a non-base land arms the travel flag.
-            if (!_vm.Light.Value)
+            // PipBuck.as:271-273 — `if(!light && World.w.loc && World.w.loc.base) travel = true;`
+            //
+            // Both halves of that condition were missing, and the pair of writes read as "opening the
+            // device arms travel, closing it disarms travel" — which left the flag false at the end of
+            // every `onoff` in every land. The `loc.base` half is the whole rule: it is what makes
+            // standing in the camp unlock the map and standing anywhere else lock it.
+            //
+            // `loc` itself is the port's "we know which land the player is in". With no campaign there is
+            // no answer, and AS3 writes nothing in that case either — hence the flag rather than a
+            // fallback to `false`, which would be a write the Oracle does not make.
+            CampaignManager campaign = CampaignManager.Current;
+            bool haveLocation = campaign != null;
+            bool inBaseLand = haveLocation && campaign.IsCurrentLandBase;
+
+            if (!_vm.Light.Value && haveLocation && inBaseLand)
             {
                 _vm.Travel.Value = true;
             }
@@ -253,8 +267,13 @@ namespace PFE.UI.PipBuck
 
             SetButtons();
 
-            // PipBuck.as:342-345.
-            if (!_vm.Light.Value)
+            // PipBuck.as:342-345 — `if(!light && World.w.loc && !World.w.loc.base) travel = false;`
+            //
+            // The same condition as the arming half above, negated. The page's own click gate does not
+            // read this flag — it reads `CampaignManager.TravelUnlocked`, which
+            // `RefreshTravelUnlockedForCurrentLand` keeps on the identical rule — but the two must agree
+            // or the next reader of this one inherits a wrong answer.
+            if (!_vm.Light.Value && haveLocation && !inBaseLand)
             {
                 _vm.Travel.Value = false;
             }

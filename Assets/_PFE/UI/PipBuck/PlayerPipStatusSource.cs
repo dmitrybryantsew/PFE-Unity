@@ -60,10 +60,11 @@ namespace PFE.UI.PipBuck
         public Func<(bool has, float hp, float max)> PetProvider { get; set; }
 
         /// <summary>
-        /// Caps, for row 9. <b>No provider is registered by default because the port does not track
-        /// money at all</b> — <c>GameInventory.cs:71</c> records it as deliberately untracked
-        /// ("cat0: Not tracked (money, special)"). The row therefore shows 0, which is the Oracle's own
-        /// starting value (<c>PipBuck.money = 0</c>, <c>PipBuck.as:51</c>) rather than a guess.
+        /// Caps, for row 9 — AS3 <c>inv.money.kol</c> (<c>PipBuck.as:411, 539</c>). The bootstrapper
+        /// registers a provider that reads <c>GameInventory.Money</c>; the port keeps caps as a count
+        /// rather than as an item, and that divergence is recorded on <c>GameInventory.Money</c>. A null
+        /// provider still means "no source" and leaves the row at the Oracle's own starting value of 0
+        /// (<c>PipBuck.as:51</c>).
         /// </summary>
         public Func<int> CapsProvider { get; set; }
 

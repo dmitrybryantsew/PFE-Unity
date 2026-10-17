@@ -25,12 +25,18 @@ namespace PFE.UI.HUD
     /// reads as "committed progress"; the fill colour is set once from the field below so it can be
     /// made distinct from the health and armour bars at a glance.</para>
     /// </summary>
-    public sealed class ActionProgressBarView : MonoBehaviour, IActionProgressView
+    public sealed class ActionProgressBarView : MonoBehaviour, IActionProgressView, IWorldAnchorSink
     {
         [Header("UI Components")]
         [SerializeField]
         [Tooltip("Slider that renders the fill. Auto-found on this GameObject when left empty.")]
         private Slider _slider;
+
+        [Header("Placement")]
+        [SerializeField]
+        [Tooltip("Pins the bar over the object being acted on. The Oracle's pr_bar is world-anchored " +
+                 "(GUI.as:1302), not screen-anchored — see IWorldAnchorSink.")]
+        private WorldAnchoredHudElement _anchor;
 
         [Header("Visual Settings")]
         [SerializeField]
@@ -93,6 +99,19 @@ namespace PFE.UI.HUD
 
         /// <summary>Assign the child subtree that shows and hides with the hold.</summary>
         public void SetContent(GameObject content) => _content = content;
+
+        /// <summary>
+        /// Hand the view the component that pins it over the target. Called once by the bootstrapper
+        /// that builds the rect; left null the bar simply stays wherever it was placed.
+        /// </summary>
+        public void SetAnchor(WorldAnchoredHudElement anchor) => _anchor = anchor;
+
+        /// <summary>
+        /// The object being acted on, pushed by <see cref="PFE.Entities.Player.PlayerActionInteractor"/>
+        /// when a hold arms. AS3's <c>pr_bar</c> rides with the interaction prompt over the target
+        /// (<c>GUI.as:1302</c>, <c>:1463</c>).
+        /// </summary>
+        public void SetWorldAnchor(Vector3 worldPosition) => _anchor?.SetWorldPoint(worldPosition);
 
         /// <summary>
         /// Reports progress and makes the bar visible. Called from the tick; the actual UI write

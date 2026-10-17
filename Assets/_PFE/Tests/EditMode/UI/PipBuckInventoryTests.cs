@@ -691,6 +691,43 @@ namespace PFE.Tests.EditMode.UI
             Assert.AreEqual(PipBuckReadoutFormat.Caps(42) + "    6", PipInventoryList.BottomText(footer, 4));
         }
 
+        /// <summary>
+        /// <b>The label is part of the line.</b> <c>showBottext</c> writes
+        /// <c>Res.pipText("caps") + ": " + yel(pip.money)</c> in one assignment
+        /// (<c>PipPageInv.as:323</c>), so a strip showing a bare total is a <i>different string</i> from
+        /// the Oracle's, not a shorter one. The play-test read the port's unlabelled <c>0</c> as "the
+        /// caps readout is missing" — the word is what makes it read as a readout at all.
+        ///
+        /// <para><b>Where the word comes from.</b> <c>Res.pipText</c> is <c>Res.txt("p", id)</c>, and
+        /// <c>"p"</c> is the <c>pip</c> clob — <c>text_en.xml</c> carries
+        /// <c>&lt;pip id="caps"&gt;&lt;n&gt;Caps&lt;/n&gt;&lt;/pip&gt;</c>, which is what
+        /// <c>PipBuckBootstrapper</c> resolves into <see cref="PipInventoryFooter.CapsLabel"/>. The
+        /// literal "Caps" below is that entry's value; a missing key would render the table's own
+        /// visible <c>*caps</c> miss marker rather than silently dropping the label.</para>
+        /// </summary>
+        [Test]
+        public void BottomText_WritesTheCapsLabelBeforeTheTotal()
+        {
+            string labelled = PipInventoryList.BottomText(
+                4139, false, PipInventoryList.ArmorSubPage, null, "Caps");
+
+            Assert.AreEqual("Caps: " + PipBuckReadoutFormat.Caps(4139), labelled);
+
+            // The two paths must be distinguishable, or the parameter proves nothing.
+            Assert.AreNotEqual(labelled,
+                PipInventoryList.BottomText(4139, false, PipInventoryList.ArmorSubPage, null),
+                "a labelled strip must not render identically to an unlabelled one");
+
+            // And the footer path carries it, so the page's single call site cannot forget it.
+            var footer = new PipInventoryFooter { Money = 4139, CapsLabel = "Caps" };
+            Assert.AreEqual(labelled, PipInventoryList.BottomText(footer, PipInventoryList.ArmorSubPage));
+
+            // The label survives the mass suffix in hard mode — it is a prefix, not a replacement.
+            Assert.AreEqual(labelled + "    11",
+                PipInventoryList.BottomText(4139, true, PipInventoryList.AidSubPage,
+                    cat => cat == 1 ? 11f : -1f, "Caps"));
+        }
+
         // ── Layout: the page header and the corrected tab bar ────────────────
 
         [Test]

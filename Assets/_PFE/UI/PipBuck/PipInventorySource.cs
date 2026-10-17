@@ -77,6 +77,24 @@ namespace PFE.UI.PipBuck
         /// </summary>
         public Func<bool> HardInventoryProvider { get; set; }
 
+        /// <summary>
+        /// The localisation document every name is read out of.
+        ///
+        /// <para><b>Why the source needs the document and not just the definitions.</b> The Oracle's
+        /// rows have <i>no</i> name field — <c>Item.nazv</c> is <b>assigned</b> from
+        /// <c>Res.txt</c> by the rule in <see cref="PipItemNames"/> (<c>Item.as:206-267</c>). The port's
+        /// <see cref="PFE.Data.Definitions.ItemDefinition.displayName"/> is a different field that ships
+        /// as the literal <c>"Item Name"</c> on all 500 item assets, because the importer never writes
+        /// it. Reading the definition alone therefore prints the placeholder on every row — the
+        /// play-test's "items have no name". The document is the only thing that can name them.</para>
+        ///
+        /// <para>Defaults to <see cref="PipTextTable.Empty"/>, which makes every lookup miss and
+        /// degrades to the definition's own name and then the raw id — see
+        /// <see cref="PipItemNames"/>. A source built without one still lists, which is what the
+        /// fixtures rely on.</para>
+        /// </summary>
+        public PipTextTable TextTable { get; set; } = PipTextTable.Empty;
+
         public IReadOnlyList<PipInventoryEntry> Read()
         {
             _entries.Clear();
@@ -102,12 +120,21 @@ namespace PFE.UI.PipBuck
             foreach (KeyValuePair<string, GameWeaponInstance> pair in inventory.Weapons)
             {
                 GameWeaponInstance weapon = pair.Value;
-                if (weapon == null || weapon.Definition == null) continue;
+                if (weapon == null) continue;
 
                 // PipPageInv.as:79-80 — `if(_loc2_.respect != 3)`. A scheme-only weapon is not listed.
                 if (weapon.Respect == WeaponRespect.SchemeOnly) continue;
 
-                string id = weapon.Definition.itemId;
+                // **ItemId, not Definition.itemId.** `Definition` is the *ItemDefinition* field and is
+                // null on every weapon built from a `<weapon>` row — which is every weapon the player
+                // can own, because the weapon and item tables are disjoint (see GameWeaponInstance's
+                // remarks). The guard that used to stand here tested `weapon.Definition == null` and so
+                // skipped the entire dictionary: the Weapons page stayed empty while the player was
+                // visibly holding a minigun. `ItemId` is the accessor that reads whichever of the two
+                // definition fields is actually set.
+                string id = weapon.ItemId;
+                if (string.IsNullOrEmpty(id)) continue;
+
                 bool hidden = weapon.Respect == WeaponRespect.Hidden;
 
                 // PipPageInv.as:120-128 — the primary key is 1 when usable, 2 when not, and 3 for a
@@ -116,21 +143,43 @@ namespace PFE.UI.PipBuck
                 int sort1 = weapon.IsAvailable ? 1 : 2;
                 if (hidden) sort1 = 3;
 
+                // **The definition accessor is WeaponDefinition, not Definition.** `Definition` is the
+                // *ItemDefinition* field and is null on every weapon built from a `<weapon>` row (see
+                // the ItemId remark above); the weapon's own asset comes back from the
+                // `WeaponDefinition` property. Reaching for the wrong one here is a compile error on
+                // skillLevel — which is how it was caught.
+                WeaponDefinition definition = weapon.WeaponDefinition;
+
                 _entries.Add(new PipInventoryEntry
                 {
                     Id = id,
-                    Name = weapon.Definition.displayName,
+
+                    // Item.as:206-220 — a weapon is named from the *weapon* table, never the item
+                    // table, and a variant from `id^variant` or `name + " - II"`. See PipItemNames.
+                    Name = PipItemNames.Weapon(TextTable, id, weapon.Variant, weapon.Definition?.displayName),
                     Kind = PipInventoryKind.Weapon,
                     SubPage = PipInventoryList.WeaponsSubPage,
-                    CategoryKey = string.Empty,
 
-                    // PipPageInv.as:129-139 — the Oracle's next two keys are the weapon's `skill` and
-                    // `lvl`. Neither exists on GameWeaponInstance, so both are 0 and the list falls
-                    // through to the name tiebreak. Recorded rather than invented: a made-up skill
-                    // number would silently reorder the whole page.
+                    // PipPageInv.as:118-121 — the row's icon key is `"w" + skill`, with `w7` rewritten
+                    // to `w6` because the clip has no distinct frame for telekinesis. `skill` is
+                    // `WeaponDefinition.skillLevel`, which is AllData's `@skill` — verified 0
+                    // mismatches on all 213 weapons — so no AllData read is needed here.
+                    //
+                    // (This used to be `string.Empty`, and the Oracle's `skill`/`lvl` sort keys below
+                    // used to be 0 with a note that GameWeaponInstance had neither. Both were wrong:
+                    // the definition carries both, under the names skillLevel and weaponLevel.)
+                    CategoryKey = "w" + (definition != null && definition.skillLevel == 7
+                        ? 6
+                        : (definition != null ? definition.skillLevel : 0)),
+
+                    // PipPageInv.as:129-139 — the second and third sort keys are the weapon's `skill`
+                    // and `lvl`. `lvl` is `WeaponDefinition.weaponLevel` (AllData's `@lvl`, verified 0
+                    // mismatches). The Oracle's `tip == 5` and `spell` overrides that replace `sort3`
+                    // with `perslvl` / `900 + perslvl` (:132-135) are NOT ported: the port's weapon
+                    // model has no `tip` on the instance, so a magic weapon sorts on its `lvl`.
                     Sort1 = sort1,
-                    Sort2 = 0,
-                    Sort3 = 0,
+                    Sort2 = definition != null ? definition.skillLevel : 0,
+                    Sort3 = definition != null ? definition.weaponLevel : 0,
 
                     // PipPageInv.as:140-143 — `hp` is the condition percentage, and the Oracle only
                     // writes it for `tip < 4` (thrown and magic weapons have no condition). The port's
@@ -143,12 +192,15 @@ namespace PFE.UI.PipBuck
                     Hidden = hidden,
                     Equipped = !string.IsNullOrEmpty(currentWeaponId) && currentWeaponId == id,
 
-                    // PipPageInv.as:144-155 — the `ammo` column is the rounds in the weapon. The
-                    // Oracle splits a magazine base from a per-round type; the port keeps only the
-                    // loaded type id, which is shown as-is rather than resolved to a display name
-                    // (that needs the item table and the Oracle's `nazv`).
+                    // PipPageInv.as:144-155 — the `ammo` column is the rounds in the weapon, and the
+                    // `ammotip` column is the *name* of the round it is loaded with. The Oracle reads
+                    // that name off the round's row in the item bag (`inv.items[ammoBase].nazv`,
+                    // :151). The port keeps only one id for a loaded round (`LoadedAmmoType`) where the
+                    // Oracle splits a base from a per-round type, so the same bag lookup is done with
+                    // that id; the raw id is shown when the bag has no row for it, which is the Oracle's
+                    // own "loaded with a round you hold none of" case.
                     Extra = weapon.CurrentAmmo.ToString(),
-                    ExtraTip = weapon.LoadedAmmoType ?? string.Empty,
+                    ExtraTip = AmmoTip(inventory, weapon.LoadedAmmoType),
 
                     Favorite = FavoriteLabel(inventory, id),
                 });
@@ -175,7 +227,10 @@ namespace PFE.UI.PipBuck
                 _entries.Add(new PipInventoryEntry
                 {
                     Id = id,
-                    Name = armor.Definition.displayName,
+
+                    // Item.as:229-231 — `Res.txt("a", id)`. Armour is a `<armor>` element and never an
+                    // `<item>` row, so it is named from the armour table.
+                    Name = PipItemNames.Armor(TextTable, id, armor.Definition.displayName),
                     Kind = PipInventoryKind.Armor,
                     SubPage = PipInventoryList.ArmorSubPage,
 
@@ -231,7 +286,13 @@ namespace PFE.UI.PipBuck
                 _entries.Add(new PipInventoryEntry
                 {
                     Id = id,
-                    Name = definition.displayName,
+
+                    // Item.as:240-267 — the `@base` variant branch, then the item table, then the
+                    // schematic override. This is the only thing that names an item: the definition's
+                    // own `displayName` ships as the literal "Item Name" on all 500 assets, so printing
+                    // it is what made every row read "Item Name". See PipItemNames.
+                    Name = PipItemNames.Item(TextTable, id, definition.legacyTip, definition.baseItemId,
+                        definition.modifierType, definition.workStation, definition.displayName),
                     Kind = PipInventoryKind.Item,
                     SubPage = subPage,
 
@@ -279,6 +340,30 @@ namespace PFE.UI.PipBuck
         }
 
         // ── Shared ────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// The loaded round's display name, or the raw id when the item bag has no row for it —
+        /// <c>PipPageInv.as:151</c>, <c>inv.items[ammoBase].nazv</c>.
+        ///
+        /// <para>See the call site for why the port looks up <c>LoadedAmmoType</c> where the Oracle
+        /// looks up <c>ammoBase</c>. The id is returned unchanged on a miss rather than blanked: the
+        /// Oracle's `nazv` would be `undefined` there, and a column that silently empties reads as a
+        /// layout fault, while an id reads as "this round has no row" — which is the truth.</para>
+        /// </summary>
+        private string AmmoTip(GameInventory inventory, string ammoId)
+        {
+            if (string.IsNullOrEmpty(ammoId)) return string.Empty;
+
+            ItemDefinition definition = inventory.Items.TryGetValue(ammoId, out GameItemInstance item)
+                ? item?.Definition
+                : null;
+
+            if (definition == null) return ammoId;
+
+            return PipItemNames.Item(TextTable, definition.itemId, definition.legacyTip,
+                definition.baseItemId, definition.modifierType, definition.workStation,
+                definition.displayName);
+        }
 
         /// <summary>
         /// The favourite column's text.
