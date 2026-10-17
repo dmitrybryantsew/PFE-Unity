@@ -2,6 +2,7 @@ using System;
 using PFE.Core;
 using PFE.Data.Definitions;
 using PFE.Entities.Units;
+using PFE.Systems.Campaign;
 using PFE.Systems.Combat;
 using PFE.Systems.Weapons;
 using PFE.Systems.Map;
@@ -130,6 +131,48 @@ namespace PFE.Entities.Enemies.Archetypes
 
         protected override bool StopsToAttack => false;
 
+        /// <summary>
+        /// AS3 <c>stroll == false</c> — this unit was authored to hold its post rather than wander.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Three placements spell it, and one unit row does.</b> The placement's
+        /// <c>ai="stay"</c>, <c>ai="quiet"</c> and <c>ai="sniper"</c> all clear <c>stroll</c>
+        /// (<c>UnitRaider.as:227-241</c>), and the unit row's own <c>&lt;un stay='1'/&gt;</c> does too
+        /// (<c>:351-354</c> — <c>if(node0.un.@stay.length()) this.stroll = false;</c>).
+        /// <see cref="UnitController.PlacementStaysPut"/> answers for <b>both</b> halves: the placement
+        /// attribute through <c>UnitPlacementAi</c>, and the row through
+        /// <see cref="PFE.Data.Definitions.UnitDefinition.willStayInPlace"/>, which
+        /// <c>UnitDataImporter.ParseUnitExtras</c> now imports. The row half is gated on the raider family
+        /// because <c>UnitRaider</c>'s constructor is the only reader of <c>node0.un.@stay</c> in the whole
+        /// oracle, and exactly one unit authors it (<c>zebra3</c>).</para>
+        ///
+        /// <para><b>What it suppresses, and what it must not.</b> Only the idle <i>wander</i> step below.
+        /// A pinned raider still turns to face, still hears, still sees, still raises the alarm and still
+        /// shoots — the oracle sets <c>aiState = 0</c> (stand) and leaves the whole perception chain above
+        /// it untouched. Suppressing more than the wander would make <c>ai="stay"</c> mean "deaf and
+        /// blind", which is not what the data says.</para>
+        /// </remarks>
+        protected bool StaysPut => _controller != null && _controller.PlacementStaysPut;
+
+        /// <summary>
+        /// AS3 <c>moving == false</c> — this unit was authored <c>ai="sniper"</c>, so it holds its ground
+        /// instead of closing to contact.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>The other half of the same attribute.</b> <c>UnitRaider.as:236-241</c> sets
+        /// <c>stroll</c>, <c>moving</c> and <c>weaponSkill</c> together for <c>sniper</c>; the port reads
+        /// the first through <see cref="StaysPut"/> and this one through
+        /// <see cref="UnitController.PlacementHoldsPosition"/>. Six shipped placements author it — two
+        /// slavers, two rangers, one zebra, one raider.</para>
+        ///
+        /// <para><b>What it does.</b> <c>UnitRaider.as:768-771</c> — <c>if(!this.moving) aiState = 4;</c>
+        /// — forces the hold/strafe state, which is the same <c>_familyState = 4</c> the stand-off test
+        /// below selects. <c>moving</c> is otherwise never false, so this is the only writer. The three
+        /// other readers (<c>:943</c>, <c>:1099</c>, <c>:1338</c>) all gate movement on it, and all three
+        /// are already satisfied by <c>_familyState == 4</c> producing <c>speed = 0</c>.</para>
+        /// </remarks>
+        protected bool HoldsPosition => _controller != null && _controller.PlacementHoldsPosition;
+
         protected override void Awake()
         {
             base.Awake();
@@ -202,11 +245,6 @@ namespace PFE.Entities.Enemies.Archetypes
 
         public override void SimTick(int tickIndex)
         {
-            _jumpCooldownTicks = UnitJumpMath.Tick(_jumpCooldownTicks);
-            if (_aiAttackT > 0) _aiAttackT--;
-            if (_aiTCh > 0) _aiTCh--;
-            if (_aiSpok > 0 && tickIndex % 10 == 0) _aiSpok--;
-
             // Release last tick's trigger before the state machine runs. AS3's `attack()` is called once
             // per frame and decides from scratch whether `currentWeapon.attack()` happens, so a frame in
             // which no branch fires is a frame with the trigger up.
@@ -216,8 +254,34 @@ namespace PFE.Entities.Enemies.Archetypes
             // that stops attacking (target lost, state drops to Alert/Patrol) would otherwise leave the
             // trigger held forever and keep shooting while it walks away. `ExecuteAttackAction` re-arms
             // this within the same tick, before the mount is advanced.
+            //
+            // It stays OUTSIDE the freeze guard below on purpose: a frozen shooter must stop firing, and
+            // this is the line that says so.
             _weaponTriggerHeld = false;
             SetWeaponTrigger(false);
+
+            // ── AS3's freeze gate, and where it sits relative to these decrements ──────────────────
+            //
+            // `UnitRaider.control()` checks `World.w.enemyAct <= 0` at :680 and returns at :684. The
+            // `aiLaz`/`aiJump`/`aiTCh` decrements are the lines AFTER it (:686-697). So a frozen
+            // shooter's cadence timers stop advancing, and un-freezing resumes the tick phase where it
+            // left off rather than restarting it.
+            //
+            // `base.SimTick` has the same gate and returns early, but a callee returning does not stop
+            // this method — so the guard has to be repeated here, or the timers would keep counting
+            // down under a freeze and the phase would be wrong on resume.
+            if (!EnemyActivity.IsFrozen)
+            {
+                _jumpCooldownTicks = UnitJumpMath.Tick(_jumpCooldownTicks);
+                if (_aiAttackT > 0) _aiAttackT--;
+                if (_aiTCh > 0) _aiTCh--;
+
+                // AS3's own site is `if(enemyAct > 1 && aiTCh % 10 == 1) --aiSpok;` — the
+                // `enemyAct > 1` half is `EnemyActivity.RunsCadence`, which at every value the console
+                // can write (3 or 0) is the same test as the `IsFrozen` guard this block is already
+                // inside. Written once rather than twice; see `EnemyActivity.CadenceFloor`.
+                if (_aiSpok > 0 && tickIndex % 10 == 0) _aiSpok--;
+            }
 
             base.SimTick(tickIndex);
 
@@ -317,7 +381,14 @@ namespace PFE.Entities.Enemies.Archetypes
             if (_aiTCh <= 0)
             {
                 _aiTCh = UnityEngine.Random.Range(40, 90);
-                if (UnityEngine.Random.value < 0.5f)
+
+                // AS3 `UnitRaider.control()` :725-742 — the wander decision is gated on `stroll`:
+                //     if(this.stroll) aiState = Math.floor(Math.random() * 2);
+                //     else            aiState = 0;
+                // so a pinned raider rolls nothing and stands. The dice are still consumed when it is
+                // pinned, deliberately: skipping the `Random.value` call would shift the shared stream and
+                // change every other unit's rolls for the rest of the room.
+                if (!StaysPut && UnityEngine.Random.value < 0.5f)
                 {
                     SetState(EnemyAIState.Patrol);
                     return;
@@ -450,6 +521,22 @@ namespace PFE.Entities.Enemies.Archetypes
             else
             {
                 _familyState = 3;
+            }
+
+            // ── AS3 `UnitRaider.as:768-771` — `if(!this.moving) aiState = 4;` ────────────────────────
+            //
+            // The override sits exactly where the oracle puts it: AFTER the state has been chosen and
+            // BEFORE it executes. So it beats the dash roll in the chain above without suppressing the
+            // roll itself — the `UnityEngine.Random.value` call still happens, which matters because
+            // skipping it would shift the shared stream (the same reason the pinned wander roll is
+            // consumed rather than skipped, see TickIdle).
+            //
+            // `_familyState == 7` cannot be re-entered while this is true: 7 is overwritten to 4 in the
+            // same frame it is assigned, and the flag is fixed for the unit's life once ApplyPlacement has
+            // run, so the wind-up branch's `return` is unreachable for a pinned sniper.
+            if (HoldsPosition)
+            {
+                _familyState = 4;
             }
 
             // Facing towards target
@@ -630,11 +717,31 @@ namespace PFE.Entities.Enemies.Archetypes
         /// quarter. The port fired a single fabricated hit at the window's start instead, which is both
         /// the wrong shape and the wrong delivery.</para>
         ///
-        /// <para><b><c>mazil</c> is not modelled.</b> The oracle raises the shooter's inaccuracy to 16 px
-        /// (5 while holding position, 25 while levitating). That value reaches the weapon through
-        /// <c>Pers.mazilAdd</c>, and an NPC has no stat source in this port — so the spread is currently
-        /// the weapon's own. Recorded in <c>ThrownWeaponController.Mazil</c> and in the worklog; it needs
-        /// an NPC stat source, not a hard-coded literal here.</para>
+        /// <para><b><c>mazil</c> is not modelled — and the guard makes a sniper the one case the port
+        /// already gets right.</b> The oracle raises the shooter's inaccuracy to 16 px (5 while holding
+        /// position, 25 while levitating), but only <c>if(!this.sniper)</c>: <c>Unit.mazil</c> is declared
+        /// <c>0</c> (<c>Unit.as:318</c>) and a sniper never overwrites it. That value reaches the weapon
+        /// through <c>Pers.mazilAdd</c>, and an NPC has no stat source in this port — so the spread is
+        /// the weapon's own for everyone, which is <b>correct for the 17 units whose row authors
+        /// <c>&lt;un sniper='1'/&gt;</c> and under-jittered for every other shooter</b>. Recorded in
+        /// <c>ThrownWeaponController.Mazil</c> and in the worklog; it needs an NPC stat source, not a
+        /// hard-coded literal here.</para>
+        ///
+        /// <para><b>The other <c>sniper</c> reader is satisfied structurally, not skipped.</b>
+        /// <c>if(this.aiAttackOch &gt; 0 &amp;&amp; (!this.sniper || celUnit))</c> (<c>:1525</c>) means a
+        /// sniper only holds its burst cadence with a target in view. Every caller of this method has
+        /// already required <c>_blackboard.TargetUnit != null</c> (see <c>TickCombatChase</c>'s guard), so
+        /// the <c>celUnit</c> term is true by construction and the test reduces to the plain
+        /// <c>_aiAttackOch &gt; 0</c> already written below.</para>
+        ///
+        /// <para><b>What changed for <c>sniper</c> is upstream, not here.</b>
+        /// <c>UnitDataImporter.ParseUnitExtras</c> now writes
+        /// <see cref="PFE.Data.Definitions.UnitDefinition.isSniper"/> from
+        /// <c>&lt;un sniper='1'/&gt;</c>, so <c>_isSniper</c> above stops being permanently
+        /// <c>false</c>. It is still <b>not read</b>: the oracle's only other consumer is the
+        /// <c>mazil</c> line this paragraph is about, and <c>mazil</c> needs an NPC stat source. The flag
+        /// is therefore carried, correct and unconsumed, with its consumer named — rather than left
+        /// looking like a flag nothing ever set.</para>
         /// </remarks>
         protected virtual void AttackWithRangedWeapon()
         {

@@ -68,6 +68,14 @@ namespace PFE.Tests.Editor.Entities.Enemies
                 "UnitRobobrain", "robobrain", "UnitDron", "dron", "UnitProtect", "protect",
                 "UnitGutsy", "gutsy", "UnitSentinel", "sentinel", "UnitSpriteBot", "spritebot",
                 "UnitVortex", "vortex", "UnitRoller", "roller", "UnitMsp", "msp",
+                // UnitEqd extends UnitAIRobot (UnitEqd.as:5), so it shares robobrain's brain. It is
+                // registered because eqd.asset has BOTH controllerId and parentId empty, so the chain
+                // falls through to unitId "eqd" — which was in no registry, leaving a reachable unit
+                // (7 shipped rooms + the enl2/biome-2/level-12 rung) on the brain-less base controller.
+                "UnitEqd", "eqd",
+                // The placed alias. UnitVariantResolver maps it to "robobrain", but it stays registered
+                // so a caller that bypasses resolution still gets a brain rather than a bare collider.
+                "robot",
                 // Flyer
                 "UnitBloat", "bloat", "UnitBat", "bloodwing", "bat", "UnitPhoenix", "phoenix", "UnitBloatEmitter", "ebloat",
                 // Climber

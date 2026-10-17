@@ -133,5 +133,132 @@ namespace PFE.Tests.Editor.Entities.Units
                     "stayed green.");
             }
         }
+
+        /// <summary>
+        /// The per-frame <i>unit actions</i> — the bookkeeping AS3 runs once per unit frame whatever
+        /// drives that frame — and the same invariant as the sweeps above: the motor must run every one
+        /// the shared step body runs.
+        ///
+        /// <para><b>Why this is a second list and not a longer first one.</b> The sweeps above read the
+        /// step's settled velocity and deal damage; these advance the unit's own clocks. Same seam, a
+        /// different claim, and folding them together would make one failure ambiguous. The list is
+        /// named rather than derived for the reason the sweep list gives.</para>
+        ///
+        /// <para><b>The call that motivated it.</b> <c>TickStealth</c> — the target-side stealth state,
+        /// AS3's <c>visibility</c>/<c>demask</c> block — was added to both drivers in one change, and
+        /// this guard is what stops a future one from being added to only one. <c>SweepTrapImpacts</c>
+        /// is the precedent: it was added to <c>StepUnit</c> alone and every fixture stayed green while
+        /// a spike trap dealt no damage in play.</para>
+        /// </summary>
+        [Test]
+        public void MotorDriver_RunsEveryPerFrameUnitTickTheUnitStepRuns()
+        {
+            string unit = SourceLint.ReadStripped(UnitControllerPath);
+            string motor = SourceLint.ReadStripped(MotorPath);
+
+            string stepUnit = SourceLint.MethodBody(unit, "protected virtual void StepUnit()");
+            string stepMotor = SourceLint.MethodBody(motor, "private void StepMotor()");
+
+            foreach (string tick in new[]
+                     {
+                         "TickContactInvulnerability", "TickEffects", "TickNoise", "TickSuspicion",
+                         "TickStealth", "TickControl"
+                     })
+            {
+                // Positive control: the shared step body defines the set. If a tick moves, this fixture
+                // must be updated rather than left asserting a name that exists nowhere.
+                Assert.That(stepUnit, Does.Contain(tick),
+                    $"UnitController.StepUnit no longer runs {tick}. If it moved, move this guard with " +
+                    "it — otherwise the motor-side assertion below is checking a dead name.");
+
+                Assert.That(stepMotor, Does.Contain(tick),
+                    $"TilePhysicsController.StepMotor does not run {tick}, but UnitController.StepUnit " +
+                    "does. A motor-driven unit never reaches StepUnit (that is what _hasTilePhysics " +
+                    "means), and PfeDebugSettings.UnitMotor is on, so the call is dead on the live path " +
+                    "— which is exactly how a spike trap came to deal no damage while every fixture " +
+                    "stayed green.");
+            }
+        }
+
+        /// <summary>
+        /// The <i>flyer</i> exclusions — the two places a unit that is airborne must be exempted from
+        /// ground physics — and the same invariant as the lists above, one level down: they live inside
+        /// <c>ApplyGravity</c> and <c>ApplyFriction</c> rather than in the step body itself, so the
+        /// guards above, which only read <c>StepUnit</c>/<c>StepMotor</c>, cannot see them.
+        ///
+        /// <para><b>The bug this exists to make unrepeatable.</b> <c>UnitController.IsFlying</c> existed
+        /// and was read by exactly one consumer — the spike-trap rule — but <i>neither</i> gravity path
+        /// consulted it. So a placement with <c>fly="1"</c> (AS3's <c>isFly</c>, read by
+        /// <c>Unit.forces()</c> at <c>Unit.as:1934-1952</c>) was spawned, told to fly to a waypoint by
+        /// its own script, and pulled straight back down on the very next frame, arriving at nothing.
+        /// The whole of the surf sequence's Calamity — who is flown in and revealed by
+        /// <c>surfStory</c> — depended on the branch that did not exist. Adding it to only one driver
+        /// would have produced the identical symptom on whichever path the live build happens to use,
+        /// which is the motor: <c>PfeDebugSettings.UnitMotor</c> is on.</para>
+        ///
+        /// <para><b>Why the pair is asserted as a conjunction and not one call.</b> Gravity and friction
+        /// are separate effects and separately reachable — a unit can be exempted from one and not the
+        /// other, and the result is a flyer that hovers but is ground-slowed, or one that falls but is
+        /// never braked. Both branches must exist in both drivers. Asserting only
+        /// <c>ApplyFlightBrake</c> would let the friction side regress silently.</para>
+        ///
+        /// <para><b>Why gravity and friction are read from different sources on each side.</b> On the
+        /// unit's own path, <c>IsFlying</c> is a <c>protected virtual</c> the subclass overrides, so it
+        /// is used directly. On the motor's path the unit is a different object in a different
+        /// assembly, so it goes through the public forwarder <c>UnitController.IsFlyingUnit</c>. The
+        /// motor-side assertion names the forwarder rather than the property because a future
+        /// refactor that widened <c>IsFlying</c> to <c>public</c> would otherwise leave the motor
+        /// reading a member it can no longer see — and the compiler, not this fixture, would be the
+        /// first to know.</para>
+        /// </summary>
+        [Test]
+        public void MotorDriver_ExemptsFlyersFromGravityAndFriction_JustAsTheUnitStepDoes()
+        {
+            string unit = SourceLint.ReadStripped(UnitControllerPath);
+            string motor = SourceLint.ReadStripped(MotorPath);
+
+            // Positive control: the shared seam must exist at all. If it is renamed or inlined, this
+            // fails first and the assertions below cannot pass against a stale name.
+            Assert.That(unit, Does.Contain("public Vector2 ApplyFlightBrakeToPixels("),
+                "UnitController no longer defines the public ApplyFlightBrakeToPixels seam. If it " +
+                "moved, move this guard with it — otherwise the motor-side assertion below is " +
+                "checking a name that exists nowhere.");
+
+            // The motor-less side must be a *caller* of that seam, not a second implementation. This
+            // is the assertion that makes the seam load-bearing: if it were dropped, ApplyFlightBrake
+            // could silently grow its own copy of the arithmetic and nothing here would notice.
+            Assert.That(SourceLint.MethodBody(unit, "protected void ApplyFlightBrake()"),
+                Does.Contain("ApplyFlightBrakeToPixels"),
+                "UnitController.ApplyFlightBrake no longer routes through ApplyFlightBrakeToPixels. " +
+                "It has become a second copy of the flyer's damping, which is free to disagree with " +
+                "the motor's — the drift this seam was introduced to remove.");
+
+            // ── Gravity: the flyer must brake, not fall. ──────────────────────────────────────────
+            Assert.That(SourceLint.MethodBody(unit, "protected void ApplyGravity()"),
+                Does.Contain("ApplyFlightBrake"),
+                "UnitController.ApplyGravity no longer branches on IsFlying. A flyer is then pulled " +
+                "down by gravity on every frame it is meant to be airborne, and never reaches the " +
+                "waypoint its script flew it to.");
+
+            Assert.That(SourceLint.MethodBody(motor, "private void ApplyGravity()"),
+                Does.Contain("ApplyFlightBrakeToPixels"),
+                "TilePhysicsController.ApplyGravity does not branch on the flyer flag, but " +
+                "UnitController.ApplyGravity does. The motor is the live path — PfeDebugSettings." +
+                "UnitMotor is on, and a motored unit never reaches the unit's own step — so a flyer " +
+                "falls there and the fly-to-waypoint verb silently does nothing. It must call the " +
+                "shared seam, not re-derive the damping from UnitFlyPhysics itself.");
+
+            // ── Friction: the flyer must keep its velocity. ───────────────────────────────────────
+            Assert.That(SourceLint.MethodBody(unit, "protected void ApplyFriction()"),
+                Does.Contain("IsFlying"),
+                "UnitController.ApplyFriction no longer exempts flyers. Ground friction then bleeds a " +
+                "flyer's velocity toward zero, so it decelerates mid-air and stalls short of its target.");
+
+            Assert.That(SourceLint.MethodBody(motor, "private void ApplyFriction()"),
+                Does.Contain("IsFlyingUnit"),
+                "TilePhysicsController.ApplyFriction does not exempt flyers, but " +
+                "UnitController.ApplyFriction does. Same seam as gravity: the motor is the live path, " +
+                "so a flyer stalls there while the unit-only half looks correct.");
+        }
     }
 }

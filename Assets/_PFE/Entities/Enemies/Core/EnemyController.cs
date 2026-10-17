@@ -74,6 +74,91 @@ namespace PFE.Entities.Enemies
         }
 
         /// <summary>
+        /// AS3 <c>Location.earMult</c> for the room this unit was spawned into — the difficulty scalar
+        /// <c>Location.setLocDif</c> halves on easy (<c>Location.as:32526</c>: <c>if(globalDif &lt; 2)
+        /// this.earMult *= 0.5;</c>).
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Why it is handed over rather than read.</b> The value belongs to the <i>room</i>, and
+        /// the unit's only reference to its room is the tile query — built after <c>Initialize</c>, the
+        /// same ordering that forces <see cref="SetLocationDifficulty"/>. It is the <i>listener's</i>
+        /// half of <c>Unit.listen()</c>'s <c>noise × ear × loc.earMult</c> product, so it is pushed
+        /// straight into <see cref="EnemyBrain.Sensors"/> rather than held as a number nothing reads.</para>
+        ///
+        /// <para><b>It reaches the hearing path only.</b> The oracle also reads <c>loc.earMult</c> in
+        /// <c>Location.budilo</c> (<c>Location.as:36411</c>), which is the <i>alarm</i> radius
+        /// (<c>param3² × earMult²</c>) — and the port has no alarm-radius object, so
+        /// <c>EnemyBrain.RaiseNeighbourAlarm</c> deliberately passes
+        /// <see cref="NoiseMath.DefaultEarMultiplier"/> to <see cref="NoiseMath.AlarmReaches"/> instead
+        /// of the neighbour's own multiplier. Setting this field therefore must not, and does not,
+        /// change the alarm path.</para>
+        ///
+        /// <para><b>Applied twice on purpose.</b> The push is attempted here (for a brain that already
+        /// exists, which is the live path — <c>[RequireComponent]</c> creates it first) and again from
+        /// <see cref="Initialize"/> after the brain is re-resolved, for the case where this component's
+        /// <c>Awake</c> ran before the brain existed. Writing it once in the wrong order is a silent
+        /// return to the neutral 1.</para>
+        /// </remarks>
+        public float LocationEarMultiplier { get; private set; } = NoiseMath.DefaultEarMultiplier;
+
+        /// <summary>
+        /// Set AS3's <c>Location.earMult</c> for this unit and push it into the live sensors. See
+        /// <see cref="LocationEarMultiplier"/> for why it is handed over here and what it does not affect.
+        /// </summary>
+        public void SetLocationEarMultiplier(float earMultiplier)
+        {
+            LocationEarMultiplier = earMultiplier;
+            if (_brain != null)
+            {
+                _brain.Sensors.EarMultiplier = earMultiplier;
+            }
+        }
+
+        /// <summary>
+        /// AS3 <c>Location.visMult</c> for the room this unit was spawned into — the <i>sight</i> twin of
+        /// <see cref="LocationEarMultiplier"/>, and the term that was missing for the whole life of the
+        /// port.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>What was wrong.</b> <c>EnemySensors.LocationVisiMult</c> was declared, multiplied
+        /// into <see cref="EnemySensors.EffectiveSightRangePixels"/>, and <b>assigned nowhere</b> — so
+        /// every observer in the game saw at the neutral <c>1</c> while the oracle multiplied by the
+        /// room's own value. The surf rooms author <c>vis='10'</c> (<c>RoomTemplate.visibilityMultiplier</c>
+        /// → <c>RoomEnvironment.visibilityMultiplier</c>), so their sight range was <b>ten times</b>
+        /// shorter than the original's: 480 px instead of 4800.</para>
+        ///
+        /// <para><b>Why that surfaced as "Calamity never targets anyone".</b> <c>surfStory</c> flies him
+        /// to tile <c>(40,7)</c>; the nearest raider sits at <c>(37,21)</c>, about 573 px away — just
+        /// outside a 480 px range and comfortably inside the oracle's 4800. He was not blind, he was
+        /// short-sighted by exactly the room's multiplier, and the one thing that would have closed the
+        /// distance (the agro descent) was inverted at the same time.</para>
+        ///
+        /// <para><b>Handed over rather than read, for the reason
+        /// <see cref="SetLocationDifficulty"/> gives:</b> the value belongs to the room, and the unit's
+        /// only handle on its room is the tile query — which <c>RoomUnitSpawner.Spawn</c> builds after
+        /// <c>Initialize</c>. The push is repeated from <c>Initialize</c>'s brain re-resolve, so a brain
+        /// created later still receives it.</para>
+        ///
+        /// <para><b>It reaches sight only.</b> The oracle's <c>visMult</c> is not a hearing term and
+        /// <c>EnemySensors</c> does not use it on the acoustic path; the alarm radius has its own
+        /// <c>earMult</c> handling. Setting this must not change either.</para>
+        /// </remarks>
+        public float LocationVisibilityMultiplier { get; private set; } = StealthMath.DefaultVisiMult;
+
+        /// <summary>
+        /// Set AS3's <c>Location.visMult</c> for this unit and push it into the live sensors. See
+        /// <see cref="LocationVisibilityMultiplier"/> for why it is handed over here.
+        /// </summary>
+        public void SetLocationVisibilityMultiplier(float visibilityMultiplier)
+        {
+            LocationVisibilityMultiplier = visibilityMultiplier;
+            if (_brain != null)
+            {
+                _brain.Sensors.LocationVisiMult = visibilityMultiplier;
+            }
+        }
+
+        /// <summary>
         /// The mount for <paramref name="weaponId"/>, or null when the unit does not carry it.
         /// </summary>
         public EnemyWeaponMount GetWeaponMount(string weaponId)
@@ -106,6 +191,60 @@ namespace PFE.Entities.Enemies
             {
                 pair.Value?.Tick(dt);
             }
+        }
+
+        /// <summary>
+        /// Aim every weapon this enemy carries at one world point — AS3's <c>celX</c>/<c>celY</c>
+        /// (<c>Unit.as:4703-4735</c>), which every <c>Weapon.actions()</c> reads to compute its barrel
+        /// angle (<c>Weapon.as:1074-1086</c>).
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Why a broadcast rather than one call per weapon id.</b> The oracle's <c>celX</c> is a
+        /// field on the <i>unit</i>, not on the weapon — <c>currentWeapon</c> and <c>dopWeapon</c> read
+        /// the same one. Routing it through <see cref="GetWeaponMount"/> would invite a caller to aim
+        /// only the primary weapon, which is not a state the oracle can express. This is the aim-side
+        /// twin of <see cref="TickWeaponMounts"/>, and iterating the same dictionary keeps the two from
+        /// ever disagreeing about which weapons a unit has.</para>
+        /// </remarks>
+        public void SetWeaponAimPoint(Vector2 worldPoint)
+        {
+            if (_weaponMounts.Count == 0) return;
+
+            foreach (KeyValuePair<string, EnemyWeaponMount> pair in _weaponMounts)
+            {
+                pair.Value?.SetAimTarget(worldPoint);
+            }
+        }
+
+        /// <summary>
+        /// Drop every mounted weapon and destroy its GameObject, so a later <see cref="EquipWeapon"/>
+        /// starts from nothing.
+        ///
+        /// <para><b>Why this exists: the placement arrives after the first roll.</b> AS3 reads the
+        /// placement's <c>weap</c> inside the unit's constructor, before any weapon is chosen
+        /// (<c>UnitRaider.as:162-181</c>). The port's spawner calls <c>Initialize</c> — which rolls — at
+        /// <c>RoomUnitSpawner.cs:1149</c> and <c>ApplyPlacement</c> at <c>:1233</c>, so the raider family
+        /// has to re-roll once the placement is known. Without a clear, a raider authored
+        /// <c>weap="lmg"</c> whose row rolled <c>p9mm</c> would end up holding both.</para>
+        ///
+        /// <para><b>Only ever called during spawn.</b> Both call sites run before the first
+        /// <c>SimTick</c>, so nothing has fired from the mounts being destroyed — but that is a
+        /// precondition, not a guarantee this method enforces, and it must stay true of any future
+        /// caller.</para>
+        /// </summary>
+        protected void ClearWeaponMounts()
+        {
+            if (_weaponMounts.Count == 0) return;
+
+            foreach (KeyValuePair<string, EnemyWeaponMount> pair in _weaponMounts)
+            {
+                if (pair.Value != null)
+                {
+                    Destroy(pair.Value.gameObject);
+                }
+            }
+
+            _weaponMounts.Clear();
         }
 
         /// <summary>
@@ -227,6 +366,18 @@ namespace PFE.Entities.Enemies
             // own Awake either (it ran before this Initialize, or before this component existed).
             // Idempotent, so repeating the Awake-time handover costs nothing.
             _brain?.AttachController(this);
+
+            // Re-apply the room's earMult for the same mirror case: SetLocationEarMultiplier ran before
+            // Initialize, so a brain that did not exist yet took no push. Harmless when the brain did
+            // exist — it is the same value written to the same field. See LocationEarMultiplier.
+            if (_brain != null)
+            {
+                _brain.Sensors.EarMultiplier = LocationEarMultiplier;
+
+                // ...and its sight twin, for exactly the same reason. See
+                // LocationVisibilityMultiplier — the term was never written before this.
+                _brain.Sensors.LocationVisiMult = LocationVisibilityMultiplier;
+            }
 
             // The definition has only just arrived — `RoomUnitSpawner` adds the component first and
             // calls this second — so anything the brain reads out of it has to happen here rather than

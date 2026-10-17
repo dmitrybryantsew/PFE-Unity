@@ -93,6 +93,37 @@ namespace PFE.Entities.Units
         private TilePhysicsController _cachedTilePhysics;
         private bool _hasTilePhysics;
 
+        /// <summary>
+        /// The child <c>SpriteRenderer</c> the spawner drew this unit's body into, or <c>null</c> when
+        /// nothing handed one over.
+        ///
+        /// <para><b>Why a seam rather than a <c>GetComponentInChildren</c>.</b> The sprite lives on a
+        /// <i>child</i> of the unit — deliberately, because the unit's own transform must stay on the
+        /// feet while the sprite is drawn 10 px below them (<c>RoomUnitSpawner.Spawn</c> documents the
+        /// measurement). A component search would therefore find the <i>first</i> renderer under the
+        /// unit, which is right today and silently wrong the moment a unit grows a second one (a held
+        /// weapon, a shield dome, a muzzle flare). The spawner already holds the exact renderer it
+        /// built, so it hands that one over — the same shape as <see cref="SetTileQuery"/> and
+        /// <see cref="SetDamageSystem"/>, and for the same reason: <c>AddComponent</c> never goes
+        /// through VContainer, so the owner is the only possible handover.</para>
+        ///
+        /// <para>Null is legal. A bare test spawn has no renderer, and a unit that never hides itself
+        /// never reads this field.</para>
+        /// </summary>
+        protected SpriteRenderer _visualRenderer;
+
+        /// <summary>
+        /// Whether this unit's body is currently drawn — AS3 <c>Unit.isVis</c> (<c>Unit.as:188</c>).
+        ///
+        /// <para><b>Kept separate from the renderer's <c>enabled</c> flag on purpose.</b> The oracle's
+        /// <c>isVis</c> is read back by behaviour (<c>UnitNPC.addVisual</c> recomputes it from
+        /// <c>targNPC.hidden</c>; <c>UnitNPC.command("show")</c> sets it), and a hidden NPC is still
+        /// targetable-but-ignored rather than absent. Deriving it from Unity would make a unit with no
+        /// renderer read as permanently invisible, which is the opposite of true for a headless
+        /// fixture.</para>
+        /// </summary>
+        protected bool _isVis = true;
+
         // ── Which clock owns this unit's step ────────────────────────────────
         //
         // Exactly ONE driver may own a unit's step, and _hasTilePhysics decides which one:
@@ -471,6 +502,66 @@ namespace PFE.Entities.Units
         }
 
         /// <summary>
+        /// Hand this unit the exact <c>SpriteRenderer</c> the spawner drew its body into — the seam that
+        /// lets <see cref="SetVisible"/> and a subclass that swaps its own art reach the right object.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Called by <c>RoomUnitSpawner.Spawn</c> before <c>Initialize</c></b>, because
+        /// <c>Initialize</c> is where an NPC subclass applies its own sprite and that needs the
+        /// renderer to already be here. Same handover shape and same reason as
+        /// <see cref="SetTileQuery"/>: the spawner built the child GameObject, so it is the only thing
+        /// that holds the reference.</para>
+        ///
+        /// <para>Null is accepted and means "no renderer" — see <see cref="_visualRenderer"/>.</para>
+        /// </remarks>
+        public virtual void SetVisualRenderer(SpriteRenderer visualRenderer)
+        {
+            _visualRenderer = visualRenderer;
+            ApplyVisualVisibility();
+        }
+
+        /// <summary>
+        /// AS3 <c>Unit.isVis</c> (<c>Unit.as:188</c>) — whether this unit's body is drawn. Read by
+        /// behaviour; see <see cref="_isVis"/>.
+        /// </summary>
+        public bool IsVisible => _isVis;
+
+        /// <summary>
+        /// Show or hide the unit's body — AS3's <c>vis.visible = …</c> writes in
+        /// <c>UnitNPC.hide</c> / <c>UnitNPC.command("show")</c> (<c>UnitNPC.as:283-295, 329-340</c>).
+        /// </summary>
+        /// <remarks>
+        /// <para><b>This does not touch the collider, the brain or <c>IsAlive</c>, and that is
+        /// deliberate.</b> AS3's <c>hide()</c> sets <c>inter.active = false</c> and the sprite's
+        /// <c>visible</c>, and nothing else — a hidden NPC is still simulated, still shootable and still
+        /// occupies its tile. An "invisible means gone" implementation would make the surf story's
+        /// hidden Calamity unkillable by the raiders he flies in to fight, which is the opposite of the
+        /// beat.</para>
+        /// </remarks>
+        public virtual void SetVisible(bool visible)
+        {
+            _isVis = visible;
+            ApplyVisualVisibility();
+        }
+
+        /// <summary>
+        /// Pushes <see cref="_isVis"/> onto the renderer, tolerating a null one.
+        ///
+        /// <para><b>A separate method because the two writes arrive in either order.</b> The spawner
+        /// hands the renderer over at spawn and a script hides the unit later, but a subclass may also
+        /// hide itself during <c>Initialize</c> — before any handover in a bare test. Routing both
+        /// through one call means neither order leaves the sprite disagreeing with <see cref="IsVisible"/>.
+        /// </para>
+        /// </summary>
+        protected void ApplyVisualVisibility()
+        {
+            if (_visualRenderer != null)
+            {
+                _visualRenderer.enabled = _isVis;
+            }
+        }
+
+        /// <summary>
         /// Hand this unit the port's damage authority — the seam <c>RoomUnitSpawner</c> needs, since
         /// <c>AddComponent</c> never goes through VContainer and so never satisfies
         /// <c>[Inject]</c>. See the field's remarks.
@@ -833,8 +924,21 @@ namespace PFE.Entities.Units
             TickNoise(IsGrounded, VelocityPixelsPerFrame);
             TickSuspicion();
 
+            // ...and the target-side stealth half of the same frame. It reads the same velocity, and it
+            // is the twin of the acoustic block: noise is how loud this unit is, stealth is how visible.
+            // Both drivers must call it — see the remarks on TickStealth.
+            TickStealth(VelocityPixelsPerFrame);
+
             ResolveGroundState();
             ApplyGravity();
+
+            // AS3 `Unit.step` runs `forces()` then `control()` then `run()` (Unit.as:1806-1809), and
+            // `run()` is where the brake and the position integration live. So the per-frame behaviour
+            // hook sits between gravity and friction here, which is the same place: a `control()` that
+            // adds to `dx`/`dy` (the NPC's fly thrust) is then damped and integrated by the same two
+            // calls the oracle uses.
+            TickControl();
+
             ApplyFriction();
             Move();
 
@@ -865,6 +969,35 @@ namespace PFE.Entities.Units
         {
             float scale = _simClock != null ? _simClock.StepScale : 1f;
             _unitStats?.TickEffects(scale);
+        }
+
+        /// <summary>
+        /// This unit's own per-frame behaviour — the port's home for AS3 <c>Unit.control()</c>
+        /// (<c>Unit.as:1820</c>), the virtual every unit subclass overrides to drive itself.
+        ///
+        /// <para><b>Why a named method and not just an override of <see cref="StepUnit"/>.</b>
+        /// <c>StepUnit</c> runs only on the <i>motor-less</i> path: a unit with a
+        /// <c>TilePhysicsController</c> is owned by <c>TilePhysicsController.StepMotor</c>, which is a
+        /// separate driver, and <c>StepUnit</c> early-returns for it. A subclass that put its
+        /// behaviour in <c>StepUnit</c> would therefore be dead the moment
+        /// <c>PfeDebugSettings.UnitMotor</c> is switched on — a change that is invisible from the
+        /// subclass and reads as "the NPC stopped working after an unrelated toggle". So the behaviour
+        /// lives here and <b>both</b> drivers call it: <see cref="StepUnit"/> and
+        /// <c>TilePhysicsController.StepMotor</c>, exactly as <see cref="TickEffects"/>,
+        /// <c>TickNoise</c> and <c>TickStealth</c> already do.</para>
+        ///
+        /// <para><b>Order.</b> AS3 runs <c>forces()</c> → <c>control()</c> → <c>run()</c>
+        /// (<c>Unit.as:1806-1809</c>), and <c>run()</c> is where the brake and the position write live.
+        /// <see cref="StepUnit"/> therefore calls this between <see cref="ApplyGravity"/> and
+        /// <see cref="ApplyFriction"/> — a subclass that adds to the velocity (the NPC's fly thrust)
+        /// gets the same damping and the same integration the oracle gives it.</para>
+        ///
+        /// <para>The base implementation does nothing, which is the oracle's own base behaviour: the
+        /// base <c>Unit</c> declares <c>control()</c> empty and every real behaviour is on a subclass.
+        /// </para>
+        /// </summary>
+        public virtual void TickControl()
+        {
         }
 
         // === Acoustic perception — AS3's `noise` / `makeNoise()` / `observation()` =================
@@ -1090,6 +1223,146 @@ namespace PFE.Entities.Units
         /// hard to re-hide from immediately after being seen. Draining is the reset.
         /// </remarks>
         public bool IsObserved => NoiseMath.IsObserved(_suspicion, MaxSuspicion);
+
+        // === Stealth — AS3's target-side `visibility` / `stealthMult` / `demask` =====================
+        //
+        // The arithmetic is in StealthMath; what lives here is the *state*, for exactly the reason the
+        // acoustic state does. AS3 declares the pieces on `Unit` (`visibility`, `stealthMult`,
+        // `demask`, `detecting`) and on `UnitPlayer` (`lurked`, `isSit`), and the two readers already
+        // hold a `UnitController`: `EnemySensors.Evaluate` takes `IReadOnlyList<UnitController>`, and
+        // `AddSuspicion` is on this class.
+        //
+        // A unit that is not the player keeps the neutral state (visibility 2000, stealthMult 1,
+        // demask 0, detecting 80). That is what makes the sensors' new per-target sight range equal the
+        // old flat `VisionRangePixels` for every existing target — the calibration is named in
+        // StealthMath.ReferenceVisibility rather than hidden here.
+
+        /// <summary>
+        /// This unit's target-side stealth state — AS3's <c>visibility</c>, <c>stealthMult</c>,
+        /// <c>demask</c>, <c>detecting</c>, <c>lurked</c>, <c>isSit</c>. Advanced by
+        /// <see cref="TickStealth"/>; read by <c>EnemySensors</c>.
+        /// </summary>
+        private StealthMath.StealthState _stealth = StealthMath.StealthState.Default;
+
+        /// <summary>
+        /// The whole target-side stealth state — AS3's <c>visibility</c>/<c>stealthMult</c>/<c>demask</c>
+        /// group. Handed out as one value so a reader sees a consistent snapshot.
+        /// </summary>
+        public StealthMath.StealthState Stealth => _stealth;
+
+        /// <summary>AS3 <c>Unit.visibility</c> — how large this unit looks to a searcher.</summary>
+        public int Visibility => _stealth.Visibility;
+
+        /// <summary>AS3 <c>Unit.stealthMult</c> — the cloak multiplier (1, or 0.2 while cloaked).</summary>
+        public float StealthMult => _stealth.StealthMult;
+
+        /// <summary>AS3 <c>Unit.demask</c> — the anti-stealth reveal from acting, 0…200.</summary>
+        public float Demask => _stealth.Demask;
+
+        /// <summary>
+        /// AS3 <c>Unit.detecting</c> — the radius inside which an observer sees this unit regardless of
+        /// facing. <b>0 while lurking or cloaked</b>, which deletes the point-blank tier.
+        /// </summary>
+        public int Detecting => _stealth.Detecting;
+
+        /// <summary>AS3 <c>UnitPlayer.lurked</c> — in cover.</summary>
+        public bool Lurked => _stealth.Lurked;
+
+        /// <summary>AS3 <c>Unit.isSit</c> — resting.</summary>
+        public bool IsSit => _stealth.IsSit;
+
+        /// <summary>
+        /// AS3 <c>Pers.visiMult</c> — the armour/perk concealment multiplier. <b>Scales the suspicion
+        /// contribution only, never the sight range</b> (<c>visiMult</c> appears nowhere in
+        /// <c>unit/Unit.as</c>). Overridden by the player once the <c>Armor.sneak</c> channel exists;
+        /// neutral here.
+        /// </summary>
+        protected virtual float StealthVisiMultSource => StealthMath.DefaultVisiMult;
+
+        /// <summary>
+        /// AS3 <c>Unit.stealthMult</c> — the cloak multiplier.
+        ///
+        /// <para><b>Not yet overridden by anything.</b> The hook exists so <c>PlayerController</c> can
+        /// read <c>CharacterStats.stealthMult</c> — which the <c>stealth</c> effect writes — but nothing
+        /// overrides it today, so every unit is neutral (1) and the cloak effect does not reach
+        /// perception yet. That is the `stealth`-effect work item, not an oversight; see
+        /// <c>docs/StealthSystem/03_GAP_LEDGER.md</c> §0.</para>
+        /// </summary>
+        protected virtual float StealthMultSource => StealthMath.DefaultStealthMult;
+
+        /// <summary>
+        /// AS3 <c>Pers.sneakLurk</c> — the flat subtraction applied while lurking/sitting. Neutral here;
+        /// the oracle's own default (<c>unit/Pers.as:311</c>) rather than
+        /// <c>CharacterStats.sneakLurk</c>, whose initialiser is 0 where the oracle's is 5. Wiring that
+        /// field is a data-channel item, not a silent behaviour change.
+        /// </summary>
+        protected virtual float SneakLurkSource => StealthMath.DefaultSneakLurk;
+
+        /// <summary>
+        /// AS3 <c>levit &gt; 0</c> — the player's levitation, one of the two per-tick <c>demask</c>
+        /// writers (<c>unit/UnitPlayer.as:1113-1116</c>). Neutral here; <c>PlayerController</c> overrides
+        /// it from <c>PlayerLocomotionController.IsLevitating</c>.
+        /// </summary>
+        protected virtual bool StealthLevitatingSource => false;
+
+        /// <summary>
+        /// AS3 <c>this.teleObj</c> — the player holding an object telekinetically, the other per-tick
+        /// <c>demask</c> writer (<c>unit/UnitPlayer.as:1239-1242</c>). Neutral here;
+        /// <c>PlayerController</c> overrides it from <c>PlayerTelekinesisController.IsHoldingObject</c>.
+        /// </summary>
+        protected virtual bool StealthTelekinesisSource => false;
+
+        /// <summary>
+        /// One step of the target-side stealth state — AS3's <c>UnitPlayer</c> per-tick block
+        /// (<c>unit/UnitPlayer.as:1089-1132</c>) plus <c>Unit</c>'s demask decay
+        /// (<c>unit/Unit.as:3139-3142</c>).
+        ///
+        /// <para><b>Called from the same two places <see cref="TickNoise"/> is, and for the same reason
+        /// it takes its velocity as a parameter.</b> A motor-driven unit never reaches
+        /// <c>StepUnit</c> — the motor owns that unit's whole step — so both drivers must call this, or
+        /// it is dead on the live path. <c>MotorGroundStateLintTests</c> pins that pair, because that is
+        /// exactly how the trap sweep came to deal no damage.</para>
+        ///
+        /// <para>The stat-derived multipliers are refreshed here rather than at their source because the
+        /// effect system writes <c>CharacterStats</c> on its own schedule; reading them once per step is
+        /// what makes a cloak take effect on the tick it is applied.</para>
+        /// </summary>
+        /// <param name="velocityPixelsPerFrame">
+        /// This driver's velocity in AS3 px/frame — the quantity AS3's <c>dx</c>/<c>dy</c> hold. The
+        /// sign convention differs between drivers, which is why every threshold in
+        /// <see cref="StealthMath"/> compares magnitudes.
+        /// </param>
+        public void TickStealth(Vector2 velocityPixelsPerFrame)
+        {
+            _stealth.VisiMult = StealthVisiMultSource;
+            _stealth.StealthMult = StealthMultSource;
+            _stealth.SneakLurk = SneakLurkSource;
+
+            _stealth = StealthMath.Tick(
+                _stealth,
+                velocityPixelsPerFrame.x,
+                velocityPixelsPerFrame.y,
+                levitating: StealthLevitatingSource,
+                telekinesisHolding: StealthTelekinesisSource);
+        }
+
+        /// <summary>
+        /// Raise this unit's <c>demask</c> — AS3's "you just did something loud" reveal. This is the
+        /// <b>event</b> half of the demask writers, reached from their own call sites exactly as AS3
+        /// reaches them: <c>weapon/Weapon.as:1575-1578</c> on firing, <c>unit/Unit.as:3765-3768</c> on
+        /// taking a hit. (The per-tick writers — fast move, levitation, telekinesis — live in
+        /// <see cref="StealthMath.Tick"/> instead, because AS3 runs them inside the step block.)
+        ///
+        /// <para><b>Raise-only, never assign.</b> Every oracle write is guarded by
+        /// <c>if(demask &lt; X) demask = X;</c>, so a footstep during a gunshot cannot shorten the
+        /// reveal — the same shape as <see cref="MakeNoise"/>, and for the same reason. See
+        /// <see cref="StealthMath.RaiseDemask"/>.</para>
+        /// </summary>
+        /// <param name="amount">The value to raise to. Non-positive is ignored.</param>
+        public void RaiseDemask(float amount)
+        {
+            _stealth.Demask = StealthMath.RaiseDemask(_stealth.Demask, amount);
+        }
 
         // === IEffectReceiver — AS3's `this.addEffect(...)` reach =============================
         //
@@ -1480,6 +1753,22 @@ namespace PFE.Entities.Units
         /// </summary>
         protected void ApplyGravity()
         {
+            // AS3 Unit.as:1915-1952 — `forces()` is a branch ladder, not a pair of additive steps, and
+            // the two arms are mutually exclusive. `if(levit) … else if(isPlav) … else if(isFly) { … }
+            // else { gravity }` — a flyer takes the `isFly` arm and never reaches `dy += World.ddy`.
+            //
+            // This gate is the reason a `fly="1"` placement (surfCalam, the camp's observer, the whole
+            // bloat family) does not sink: before it existed, every one of them was spawned, told to fly
+            // by its own script, and pulled straight back down by the same gravity a walking unit obeys.
+            // The oracle's `isFly` arm also carries the flyer's own damping — the speed cap and the
+            // brake deadzone — which is why this is `ApplyFlightBrake()` and not a bare `return`: with no
+            // ground brake to bleed it off, a flyer whose thrust is never capped accelerates for ever.
+            if (IsFlying)
+            {
+                ApplyFlightBrake();
+                return;
+            }
+
             if (_isGrounded)
             {
                 // Grounded: AS3 integrates nothing while `isLaz` (Unit.as:1962), so dy does not grow.
@@ -1497,6 +1786,54 @@ namespace PFE.Entities.Units
             }
 
             _velocity.y = UnitFallPhysics.FallSpeed(_velocity.y, StepSeconds);
+        }
+
+        /// <summary>
+        /// One step of AS3's <c>isFly</c> arm of <c>forces()</c> (<c>Unit.as:1934-1952</c>) — the
+        /// replacement for gravity <i>and</i> for the ground brake, on a flying unit.
+        ///
+        /// <para><b>Why it is not folded into <see cref="ApplyGravity"/>'s body.</b> The two drivers
+        /// disagree about where the unit's velocity lives — the motor keeps its own <c>dx</c>/<c>dy</c>
+        /// and this class keeps <c>_velocity</c> in Unity units per second — so the read/write has to
+        /// happen on the side that owns the value. This method is the motor-less side;
+        /// <c>TilePhysicsController.ApplyGravity</c> is the other. Both route the arithmetic through
+        /// <see cref="ApplyFlightBrakeToPixels"/>, so there is exactly one copy of it.</para>
+        ///
+        /// <para><b>Rate is 1 frame per step here.</b> This path's step is the sim clock's, which runs at
+        /// <c>World.fps</c> = 30 — one step is one oracle frame, so the 0.7 decay applies whole. The
+        /// motor passes its own <c>RateFramesPerStep</c>, because the legacy <c>FixedUpdate</c> path
+        /// steps at 50 Hz and a whole 0.7 there would decay 1.67× too fast.</para>
+        /// </summary>
+        protected void ApplyFlightBrake()
+        {
+            As3VelocityPixelsPerFrame = ApplyFlightBrakeToPixels(As3VelocityPixelsPerFrame, 1f);
+        }
+
+        /// <summary>
+        /// The flyer's damping for one step, as a pure function of an incoming velocity — the single
+        /// place <b>both</b> drivers get it from.
+        ///
+        /// <para><b>Why the arithmetic lives here and not in each driver.</b> The two drivers disagree
+        /// about where a unit's velocity lives — the motor keeps its own <c>dx</c>/<c>dy</c> in pixels
+        /// per frame and this class keeps <c>_velocity</c> in Unity units per second — so each has to do
+        /// its own read and write. But which <c>maxSpeed</c> and <c>brake</c> to resolve, and how to
+        /// apply them, is one decision, and hand-writing it twice is exactly how the two would drift:
+        /// the first draft had this class reading <c>_stats</c> and the motor reading
+        /// <c>Unit.Definition</c>, which happen to be the same object today
+        /// (<see cref="Definition"/>) and would not have to stay that way. The velocity is passed in and
+        /// returned so neither driver needs to expose its storage.</para>
+        ///
+        /// <para><b>Rate.</b> The caller supplies the frame count its step covers: the sim clock runs at
+        /// <c>World.fps</c> = 30, one step is one oracle frame, and the motor-less path passes
+        /// <c>1f</c>. The motor passes its own <c>RateFramesPerStep</c>, because the legacy
+        /// <c>FixedUpdate</c> path steps at 50 Hz and a whole 0.7 there would decay 1.67× too fast.</para>
+        /// </summary>
+        public Vector2 ApplyFlightBrakeToPixels(Vector2 velocityPixelsPerFrame, float rateFrames)
+        {
+            float maxSpeed = UnitFlyPhysics.ResolveMaxSpeed(_stats != null ? _stats.moveSpeed : 0f);
+            float brake = UnitFlyPhysics.ResolveBrake(_stats != null ? _stats.braking : 0f);
+
+            return UnitFlyPhysics.ApplyBrake(velocityPixelsPerFrame, maxSpeed, brake, rateFrames);
         }
 
         /// <summary>
@@ -1567,6 +1904,15 @@ namespace PFE.Entities.Units
         /// </summary>
         protected void ApplyFriction()
         {
+            // AS3 Unit.as:1967-1990 — the braking below is the `else` arm of the very branch whose
+            // `isFly` arm ApplyGravity already took. Running both would apply two different damping laws
+            // to one velocity: the flyer's 0.7 cap-and-deadzone, and then a constant ground deceleration
+            // on x. The oracle applies exactly one, and for a flyer it is the former.
+            if (IsFlying)
+            {
+                return;
+            }
+
             _velocity.x = UnitFallPhysics.GroundBrake(_velocity.x, StepSeconds);
         }
 
@@ -1707,6 +2053,134 @@ namespace PFE.Entities.Units
         }
 
         /// <summary>
+        /// The placement's <c>ai</c> attribute, verbatim — AS3 <c>Unit.aiTip</c>
+        /// (<c>Unit.as:404</c>, written once at <c>:619-621</c>: <c>if(param3.@ai.length()) this.aiTip =
+        /// param3.@ai;</c>).
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Stored raw and interpreted by family, because that is the oracle's own shape.</b>
+        /// AS3 keeps one string on the base class and lets each family's constructor decide what its
+        /// spellings mean. <see cref="PlacementAi"/> is the interpreted form; this is the input, kept so a
+        /// reader can tell "authored nothing" from "authored a spelling I do not know" — the difference
+        /// between <c>ai</c> absent and <c>Rooms.as:1936</c>'s <c>ai="quet"</c> typo, which the oracle
+        /// treats as absent and which any normalising match would silently repair.</para>
+        /// </remarks>
+        public string PlacementAiTip { get; private set; } = string.Empty;
+
+        /// <summary>
+        /// Which family's rules interpret this unit's placement <c>ai</c> — AS3's own discriminator.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Why this has to be overridden rather than derived from the unit id.</b> The family is
+        /// a <i>class</i> fact in AS3, and the port's class tree does not mirror AS3's:
+        /// <c>NecrosController</c> derives from <c>ArmedShooterController</c> here because it shares the
+        /// weapon-rolling controller, but <c>UnitNecros extends Unit</c> in the oracle and therefore reads
+        /// only <c>stay</c>. A derived family would silently hand the necros the raider's
+        /// <c>quiet</c>/<c>sniper</c> spellings. So each concrete controller states its own family, and
+        /// the default is <see cref="UnitAiFamily.Generic"/> — "no <c>aiTip</c> reader at all", which is
+        /// what the base <c>Unit</c> and <c>UnitPon</c> are.</para>
+        /// </remarks>
+        protected virtual UnitAiFamily AiFamily => UnitAiFamily.Generic;
+
+        /// <summary>
+        /// The interpreted form of <see cref="PlacementAiTip"/>, computed once in
+        /// <see cref="ApplyPlacement"/>. Defaults to <see cref="PlacementAiEffect.None"/>, which is the
+        /// correct answer for a unit that was never given a placement (a test spawn) and for every
+        /// <see cref="UnitAiFamily.Generic"/> family.
+        /// </summary>
+        PlacementAiEffect _placementAi;
+
+        // The placement `weap` pair — see ApplyPlacement for why presence and value are separate.
+        bool _placementWeapPresent;
+        string _placementWeapText = string.Empty;
+
+        /// <summary>
+        /// The interpreted placement <c>ai</c> — <see cref="UnitPlacementAi.Interpret"/> of
+        /// <see cref="PlacementAiTip"/> for <see cref="AiFamily"/>.
+        /// </summary>
+        public PlacementAiEffect PlacementAi => _placementAi;
+
+        /// <summary>
+        /// Whether this placement pins the unit to its post — AS3's <c>stroll = false</c>.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Two sources, and only one family honours the second.</b> The placement's own
+        /// <c>ai</c> spelling is the first (<c>UnitRaider.as:227-241</c> — <c>stay</c>, <c>quiet</c>,
+        /// <c>sniper</c>; <c>UnitAlicorn.as:206-214</c> — <c>stay</c>, <c>quiet</c>;
+        /// <c>UnitAIRobot.as:49-52</c> — <c>quiet</c> alone; <c>UnitNecros.as:102</c> — <c>stay</c>
+        /// alone). The unit <i>row</i>'s own <c>&lt;un stay='1'/&gt;</c> is the second
+        /// (<c>UnitRaider.as:351-354</c>), and <c>UnitRaider</c>'s constructor is its only reader in the
+        /// whole tree — so the row half is gated on <see cref="UnitAiFamily.Raider"/> rather than applied
+        /// to every unit. Exactly one unit authors it (<c>zebra3</c>, <c>AllData.as:361</c>).</para>
+        ///
+        /// <para><b>What it suppresses, and what it must not.</b> Only the idle <i>wander</i> roll:
+        /// <c>if(this.stroll) aiState = Math.floor(Math.random() * 2); else aiState = 0;</c>
+        /// (<c>UnitRaider.as:725-742</c>, and the same test at <c>UnitAIRobot.as:204</c> and
+        /// <c>UnitAlicorn.as:609</c>). A pinned unit still turns to face, still hears, still sees, still
+        /// raises the alarm and still shoots. Suppressing more would make <c>ai="stay"</c> mean "deaf and
+        /// blind", which is not what the data says.</para>
+        ///
+        /// <para><b>Read lazily, not cached in <see cref="ApplyPlacement"/>.</b> The row half needs
+        /// <see cref="Definition"/>, and the spawn order is definition → placement, but a caller that
+        /// applies a placement before assigning a definition must not get a stale <c>false</c>. The
+        /// property form is correct under either order.</para>
+        /// </remarks>
+        public bool PlacementStaysPut =>
+            (_placementAi & PlacementAiEffect.PinsToPost) != 0
+            || (AiFamily == UnitAiFamily.Raider && Definition != null && Definition.willStayInPlace);
+
+        /// <summary>
+        /// Whether this placement mutes the unit's idle voice barks — AS3's <c>quiet = true</c>
+        /// (<c>UnitRaider.as:231-235</c>, <c>UnitAlicorn.as:210-214</c>,
+        /// <c>UnitAIRobot.as:49-52</c>).
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Stored, but with no consumer in the port.</b> The flag's only readers in the oracle
+        /// are two voice barks — <c>if(!this.quiet &amp;&amp; isrnd(0.001)) this.replic("neutral");</c> at
+        /// <c>UnitRaider.as:1060</c> and <c>:1079</c> — and the port has no voice-line table for enemy
+        /// units at all (the NPC <c>replic</c> verbs queue a script action and say so in
+        /// <c>UnitNpcRules</c>). So this is data fidelity, not behaviour: it exists so that a future bark
+        /// system reads the oracle's own switch instead of inventing one, and the gap is named here rather
+        /// than left for someone to rediscover. Its <i>other</i> effect — clearing <c>stroll</c>, which the
+        /// oracle's shared branch does at the same time — is modelled, as
+        /// <see cref="PlacementStaysPut"/>.</para>
+        /// </remarks>
+        public bool PlacementIsQuiet => (_placementAi & PlacementAiEffect.Quiet) != 0;
+
+        /// <summary>
+        /// Whether this placement stops the unit closing distance — AS3's <c>moving = false</c>, set by
+        /// the <c>sniper</c> spelling alone (<c>UnitRaider.as:236-241</c>).
+        /// </summary>
+        /// <remarks>
+        /// <c>UnitRaider.as:768-771</c> is the reader that matters: <c>if(!this.moving) aiState = 4;</c>
+        /// runs <i>after</i> the state has been chosen and before it executes, so it beats even the dash
+        /// roll at <c>:765</c>. Six placements in the shipped rooms author <c>ai="sniper"</c> — two
+        /// slavers, two rangers, one zebra, one raider.
+        /// </remarks>
+        public bool PlacementHoldsPosition => (_placementAi & PlacementAiEffect.HoldsPosition) != 0;
+
+        /// <summary>
+        /// Whether this placement raises the unit's weapon skill to 2 — AS3's <c>weaponSkill = 2</c>, set
+        /// by the <c>sniper</c> spelling alone (<c>UnitRaider.as:236-241</c>).
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Named, not consumed.</b> <c>Unit.weaponSkill</c> (<c>Unit.as:314</c>, default 1,
+        /// otherwise the unit row's <c>&lt;comb skill&gt;</c> at <c>:1184</c>) reaches the shot through
+        /// <c>owner.weaponSkill</c>, where it <i>divides</i> the spread —
+        /// <c>deviation * (1 + breaking * 2) / skillConf / (_loc1_ + 0.01)</c>
+        /// (<c>Weapon.as:1454-1458</c>, and the same read in <c>WClub.as:575</c> and
+        /// <c>WThrow.as:133</c>). So <c>2</c> means "half the spread".</para>
+        ///
+        /// <para>The port's enemy weapons get their skill from an <c>IWeaponStatSource</c>, and an enemy
+        /// unit has none — <c>RangedWeaponController</c> resolves
+        /// <c>HitAvoidance.UnknownOwnerSkillLevel</c> and the spread is the weapon's own. Feeding the
+        /// flag into that chain is enemy weapon-skill plumbing, not import repair, and landing the read
+        /// without the consumer would be exactly the "writer before reader" trap
+        /// <c>UnitDefinition.canResurrect</c> was already in. Recorded here so the switch is not lost.</para>
+        /// </remarks>
+        public bool PlacementUsesSniperSkill => (_placementAi & PlacementAiEffect.SniperSkill) != 0;
+
+        /// <summary>
         /// Read this unit's authored placement — AS3's <c>Unit</c> constructor reading its <c>node</c>.
         ///
         /// <para><b>Facing is base behaviour, not a per-controller one.</b> <c>Unit.as:596-611</c>
@@ -1748,6 +2222,121 @@ namespace PFE.Entities.Units
             if (placement.fraction.HasValue)
             {
                 _instanceFaction = placement.fraction;
+            }
+
+            // AS3 `Unit.as:619-621` — the placement's `ai` attribute, read ONCE on the base unit into
+            // `aiTip`, then interpreted by each family's own constructor (`UnitRaider.as:227-241`,
+            // `UnitAlicorn.as:206-222`, `UnitAIRobot.as:49-52`, `UnitNecros.as:102`). The port had NO
+            // reader for a non-NPC placement's `ai` at all (`UnitNPCController.SetPlacement` was the only
+            // `GetAttribute("ai")` in the tree), so the surf room's seven raiders — six authored
+            // `ai="stay"` and one `ai="quiet"` — patrolled where the oracle leaves them standing, and
+            // three `ai="stay"` hellhounds would have been pinned by a global mapping even though the
+            // oracle's hellhound reads none of it.
+            //
+            // One read, one copy: `AiFamily` is the discriminator and `UnitPlacementAi.Interpret` is the
+            // table. A brain reads the answer back through the `Placement*` properties rather than
+            // re-reading `GetAttribute("ai")`, which is how two units of the same family end up
+            // disagreeing about their own data.
+            PlacementAiTip = placement.GetAttribute("ai", string.Empty) ?? string.Empty;
+            _placementAi = UnitPlacementAi.Interpret(AiFamily, PlacementAiTip);
+
+            // AS3 `UnitRaider.as:170` — the placement's `weap` attribute, the middle arm of the raider
+            // family's three-way weapon choice. Captured here, next to `ai`, for the same reason: it is a
+            // placement fact, `ApplyPlacement` is the one place a placement is read, and a second reader
+            // would be a second copy.
+            //
+            // TWO fields, not one, and that is not redundancy. `GetAttribute("weap", "")` answers "" for
+            // both an absent attribute and an authored empty one, and the oracle tells the two apart —
+            // `param3.@weap.length()` counts attributes, so `weap=""` is present and means "explicitly
+            // unarmed", while absent means "roll the unit row". Two shipped zebras author `weap=""`
+            // (RoomsMbase.as:4246, RoomsSerial.as:6253) and would be armed by a value-only read.
+            //
+            // Only `UnitRaider`'s own subclasses read this in AS3, so the reader gates on
+            // `AiFamily == Raider` exactly as the `ai` mapping does; see UnitPlacementWeapon.
+            _placementWeapPresent = MapObjectDataUtility.HasAttribute(
+                placement.attributes, UnitPlacementWeapon.AttributeName);
+            _placementWeapText = _placementWeapPresent
+                ? (placement.GetAttribute(UnitPlacementWeapon.AttributeName, string.Empty) ?? string.Empty)
+                : string.Empty;
+        }
+
+        /// <summary>
+        /// Whether this placement authored a <c>weap</c> attribute at all, regardless of its value —
+        /// AS3's <c>param3.@weap.length()</c>. See <see cref="PlacementWeaponMode"/> for why the two
+        /// questions are separate.
+        /// </summary>
+        public bool PlacementWeapPresent => _placementWeapPresent;
+
+        /// <summary>
+        /// The placement's <c>weap</c> text, or <c>""</c> when the attribute was absent.
+        /// </summary>
+        public string PlacementWeapText => _placementWeapText;
+
+        /// <summary>
+        /// What <see cref="PlacementWeapPresent"/>/<see cref="PlacementWeapText"/> mean for this unit's
+        /// weapon — AS3's three-way choice, as a value.
+        /// </summary>
+        public PlacementWeaponMode PlacementWeaponMode =>
+            UnitPlacementWeapon.Resolve(_placementWeapPresent, _placementWeapText);
+
+        /// <summary>
+        /// AS3 <c>Unit.command(param1, param2)</c> (<c>Unit.as:4784-4811</c>) — a script action
+        /// addressed to this unit by uid or code.
+        ///
+        /// <para><b>This is the base class's vocabulary, and it is short on purpose.</b> The oracle's
+        /// base <c>Unit.command</c> handles exactly two verbs, <c>activate</c> and <c>fraction</c>; the
+        /// rest of the script-facing verbs live on <c>UnitNPC</c> (<c>show</c>, <c>fly</c>,
+        /// <c>sign</c>, <c>ai</c>, <c>rep</c>, …) and on the other subclasses. Putting the NPC verbs
+        /// here would make every raider answer a <c>show</c> it has no art for.</para>
+        ///
+        /// <para><b><c>activate</c> is the resurrection verb, not a spawn.</b>
+        /// <c>Unit.as:4787-4798</c> clears <c>noAct</c>/<c>disabled</c>, re-runs <c>setNull(true)</c> +
+        /// <c>addVisual()</c> and emits the <c>tele</c> particle — it is what brings a removed unit
+        /// back. The port models the two flags it owns (<see cref="IsVisible"/> plus the effect-free
+        /// path) and leaves the particle emitter to the effect system, which the spawner already
+        /// wires.</para>
+        ///
+        /// <para><b><c>fraction</c> rewrites the unit's side at runtime</b> and, in the oracle, also
+        /// re-arms <c>warn</c> — <c>warn = (fraction != F_PLAYER)</c>. That second half matters: it is
+        /// what makes a captured turret stop shooting the player, and it is why this writes the
+        /// per-instance override rather than the definition.</para>
+        /// </summary>
+        /// <returns>
+        /// <c>true</c> when this class or a subclass recognised and ran the verb. <c>false</c> lets the
+        /// caller try the object host and then report an unmatched uid — see
+        /// <see cref="PFE.Systems.Map.Scripting.IUnitCommandHost"/>.
+        /// </returns>
+        public virtual bool Command(string verb, string value)
+        {
+            if (string.IsNullOrEmpty(verb))
+            {
+                return false;
+            }
+
+            switch (verb.Trim().ToLowerInvariant())
+            {
+                case "activate":
+                    // Unit.as:4787-4798. The oracle clears `noAct` and `disabled` and re-adds the
+                    // visual; the port's equivalent pair is the visibility flag and (for the callers
+                    // that set it) the dead flag, which `IsAlive` derives from the stats.
+                    SetVisible(true);
+                    return true;
+
+                case "fraction":
+                    // Unit.as:4799-4810 — `this.fraction = int(param2)`, and `warn` follows. Non-numeric
+                    // coerces to NaN in AS3 and every comparison against it is false, so the port
+                    // treats an unparseable value as "leave it alone" rather than inventing Neutral —
+                    // the same call RoomPopulator.ResolvePlacementFaction makes for the authored case.
+                    if (int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture,
+                                     out int fraction))
+                    {
+                        _instanceFaction = (FactionType)fraction;
+                    }
+
+                    return true;
+
+                default:
+                    return false;
             }
         }
 
@@ -2452,16 +3041,39 @@ namespace PFE.Entities.Units
         }
 
         /// <summary>
-        /// AS3 <c>Unit.invulner</c>, from the definition's authored flag.
+        /// AS3 <c>Unit.invulner</c> — the definition's authored flag, or the runtime one a script set.
         /// </summary>
         /// <remarks>
-        /// <b>The runtime toggles are not modelled.</b> AS3 raises this on <c>UnitBossNecr</c> for the
-        /// duration of its shadow phase and clears it after; the port has the authored
-        /// <c>isInvulnerable</c> and nothing that changes it, so such a unit is either always
-        /// invulnerable or never. Recorded rather than quietly approximated, because the knockback gate
-        /// reads it and because it is also one half of AS3's other bullet pass-through branch.
+        /// <para><b>The runtime half is <see cref="RuntimeInvulnerable"/>, and it is the cutscene's whole
+        /// protection.</b> AS3's <c>dialog</c> action calls <c>World.w.gg.controlOff()</c>
+        /// (<c>Script.as:260-271</c>), and <c>UnitPlayer.controlOff()</c> (<c>:2037-2049</c>) sets
+        /// <c>invulner = true</c>; <c>controlOn()</c> (<c>:2053-2065</c>) clears it. That flag is read as
+        /// part of the admission test in <c>Unit.findCel</c>'s player arm — <c>Unit.as:4658</c> is
+        /// <c>if(!(this.isMeet(loc.gg) &amp;&amp; !loc.gg.invulner &amp;&amp; this.fraction != F_PLAYER))</c>
+        /// — so an enemy does not merely fail to damage the player during a dialogue, it never selects
+        /// him as a target. The port had the authored flag and nothing that changed it, which is the gap
+        /// this closes.</para>
+        ///
+        /// <para><b>Why the definition half is kept rather than replaced.</b> AS3 sets <c>invulner</c>
+        /// from the unit node too (<c>Unit.as:1341</c>, <c>node.@invulner &gt; 0</c>) and
+        /// <c>UnitBossNecr</c> raises it for the duration of its shadow phase. The two are the same
+        /// field in the oracle; here the authored one is read from the definition and the runtime one is
+        /// a settable bit, and a unit is invulnerable when either says so.</para>
         /// </remarks>
-        public virtual bool IsInvulnerable => _stats != null && _stats.isInvulnerable;
+        public virtual bool IsInvulnerable =>
+            RuntimeInvulnerable || (_stats != null && _stats.isInvulnerable);
+
+        /// <summary>
+        /// AS3 <c>Unit.invulner</c>'s runtime half — raised by <c>controlOff</c> and cleared by
+        /// <c>controlOn</c> (<c>UnitPlayer.as:2037-2065</c>).
+        /// </summary>
+        /// <remarks>
+        /// <b>Not serialised, and not read from data.</b> Nothing in the oracle's unit rows writes it
+        /// (the importer pins <c>isInvulnerable = false</c>), so a serialised field here would be a
+        /// switch no data could ever set. The only writer is the script lock —
+        /// <c>PlayerScriptControlLock</c>, which is the port's <c>gg.controlOff()/controlOn()</c>.
+        /// </remarks>
+        public bool RuntimeInvulnerable { get; set; }
 
         /// <summary>
         /// Whether this unit is one of AS3's <c>doop</c> units — AS3 <c>Unit.doop</c>
@@ -2861,13 +3473,28 @@ namespace PFE.Entities.Units
         /// Whether this unit passes over spike traps instead of into them — AS3 <c>Unit.isFly</c>, which
         /// both arms of <c>Trap.attKorp</c> test.
         ///
-        /// <para><b>The port has no flying flag yet, so this defaults to <c>false</c> and every unit is
-        /// currently ground-bound as far as traps are concerned.</b> That matches the oracle for every
-        /// unit the base map spawns except the bloat emitter, which is a flyer and would in the oracle
-        /// sail over a spike field. A flyer brain that knows it flies should override this rather than
-        /// have the trap rule guess.</para>
+        /// <para><b>Two consumers, and they must not be allowed to disagree.</b> The trap rule above asks
+        /// whether this unit passes over a spike field; <see cref="ApplyGravity"/> asks whether it falls
+        /// at all. In the oracle those are one flag (<c>Unit.isFly</c>) read from two places
+        /// (<c>Trap.attKorp</c> and <c>forces()</c>), so a subclass that overrode only one of them would
+        /// produce a unit that hovers over the spikes and then lands in them. Both read this property;
+        /// neither re-derives it.</para>
+        ///
+        /// <para>Defaults to <c>false</c>, which is the oracle's own field default
+        /// (<c>Unit.as:284</c> <c>isFly:Boolean = false</c>).</para>
         /// </summary>
         protected virtual bool IsFlying => false;
+
+        /// <summary>
+        /// The physics-facing read of <see cref="IsFlying"/>, for the one caller that is not a subclass.
+        ///
+        /// <para><b>Why the motor cannot use <see cref="IsFlying"/> directly.</b>
+        /// <c>TilePhysicsController</c> owns a motor-driven unit's whole step — it is a separate
+        /// component, not a base class — so it cannot see a <c>protected</c> member. It has to ask the
+        /// same question the motor-less path asks itself, and it has to get the same answer, or
+        /// <c>PfeDebugSettings.UnitMotor</c> becomes a switch that changes whether a flyer falls.</para>
+        /// </summary>
+        public bool IsFlyingUnit => IsFlying;
 
         /// <summary>
         /// Run this unit's side of AS3 <c>Trap.step</c>/<c>Trap.attKorp</c> (<c>Trap.as:147-197</c>):
@@ -3104,11 +3731,30 @@ namespace PFE.Entities.Units
             PFE.Entities.Player.PlayerController player = FindFirstObjectByType<PFE.Entities.Player.PlayerController>();
 
             ctx.Hero = _heroTier;
-            RoomDifficulty difficulty = _tileQuery?.Room?.difficulty;
+            RoomInstance room = _tileQuery?.Room;
+            RoomDifficulty difficulty = room?.difficulty;
             ctx.LocDifLevel = difficulty != null ? Mathf.RoundToInt(difficulty.baseDifficulty) : 0;
             ctx.WeaponLevel = difficulty != null ? difficulty.weaponLevel : 1f;
             ctx.AllDif = 50f;      // lootDrop forces lootBroken = false (LootGen.as:789)
             ctx.LootBroken = false;
+
+            // The perks and the environment — the D9 wiring, the same two adapters the container sink
+            // installs. Without them a unit drop rolled with no `freel`/`barahlo` extra rolls, money that
+            // never scaled by `capsMult × difCapsMult`, no act id and `LacksWeapon` always true. See
+            // ContainerPropPresenter.ApplyRoomDifficulty for the per-field oracle citations; the only
+            // difference here is that the loot is dropped by a corpse rather than opened by a player, so
+            // the perks still come from the player (they are `World.w.pers`, not the unit's).
+            //
+            // `GameStage`, `LootLimit` and the per-run limit store are already on the context —
+            // LootRuntime.CreateContext filled them from the current land's published values.
+            ctx.Pers = player != null ? player.CharacterStats : null;
+            ctx.Env = new RoomLootEnvironment(
+                biom: room != null ? room.biome : 0,
+                itemsTip: string.Empty,   // AS3 loc.itemsTip; `@items` is not imported yet (see the adapter)
+                actId: LootRuntime.LandActId,
+                landRnd: LootRuntime.LandRnd,
+                hasProb: room != null && !string.IsNullOrEmpty(room.probId),
+                lacksWeapon: weaponId => WeaponLacks(player, weaponId));
 
             float centreY = transform.position.y + (_stats.Height * 0.5f);   // AS3 `Y - scY/2`
             LootRoller.RollUnitDrop(key, ctx, transform.position.x, centreY);
@@ -3134,6 +3780,29 @@ namespace PFE.Entities.Units
         }
 
         /// <summary>
+        /// AS3 <c>World.w.invent.weapons[id] == null || weapons[id].variant == 0</c> — the gate on the
+        /// four <c>specweap</c> unique-weapon candidates (<c>LootGen.as:745-755</c>).
+        ///
+        /// <para><b>A missing player or inventory answers <c>false</c>, deliberately.</b> The branch
+        /// <i>hands out</i> the weapon when this is true, so "cannot answer" must not read as "lacks it" —
+        /// that would drop <c>lsword^1</c>, <c>antidrak^1</c>, <c>quick^1</c> and <c>mlau^1</c> into the
+        /// world on every corpse. <c>false</c> means "assume the player has it", which withholds a unique
+        /// weapon rather than duplicating one. Named as an assumption rather than hidden behind a constant
+        /// in the adapter. Same helper shape as <c>ContainerPropPresenter.WeaponLacks</c>.</para>
+        /// </summary>
+        private static bool WeaponLacks(PFE.Entities.Player.PlayerController player, string weaponId)
+        {
+            if (player == null || string.IsNullOrEmpty(weaponId)) return false;
+
+            PlayerInventory inventory = player.GetComponent<PlayerInventory>();
+            GameInventory gameInventory = inventory != null ? inventory.Inventory : null;
+            if (gameInventory == null) return false;
+
+            GameWeaponInstance weapon = gameInventory.GetWeapon(weaponId);
+            return weapon == null || weapon.Variant == 0;
+        }
+
+        /// <summary>
         /// Put the rolled items into the world around the corpse — the port's stand-in for AS3's
         /// <c>Loot</c> props falling out (<c>LootGen.as:287-294</c>).
         ///
@@ -3142,9 +3811,9 @@ namespace PFE.Entities.Units
         /// a kill's loot is magnetic, unlike a player's own drop. <c>autoCollect: true</c> reproduces
         /// that.</para>
         ///
-        /// <para>An id that resolves to no <c>ItemDefinition</c> is <b>named in a warning</b>, never
-        /// dropped silently — a weapon or armour roll lands there today because those content types have
-        /// no world-pickup path yet, and a silent skip would read as "the table is thinner than it is".</para>
+        /// <para>An id that resolves to no definition <b>in the table its tip names</b> is <b>named in a
+        /// warning</b>, never dropped silently — a silent skip would read as "the table is thinner than it
+        /// is".</para>
         /// </summary>
         private void SpillDrops(LootContext ctx, PFE.Entities.Player.PlayerController player, float centreY)
         {
@@ -3166,20 +3835,42 @@ namespace PFE.Entities.Units
             for (int i = 0; i < ctx.Results.Count; i++)
             {
                 LootRoll roll = ctx.Results[i];
+
+                // A weapon roll's id lives in ContentType.Weapon, not ContentType.Item, so the item
+                // resolver answers null for it — permanently, for every weapon. A kill's weapon drop used
+                // to be lost here with a warning; asking the table the tip names is the fix.
+                if (LootTips.IsWeaponTip(roll.Tip))
+                {
+                    WeaponDefinition weapon = inventory.ResolveWeapon(roll.ItemId);
+                    if (weapon == null)
+                    {
+                        Debug.LogWarning($"[{GetType().Name}] '{ctx.TableKey}' rolled '{roll.ItemId}' (tip '" +
+                                         roll.Tip + "') but no WeaponDefinition resolves it — it was not " +
+                                         "spawned. The tip names the weapon table, so this id is absent " +
+                                         "from ContentType.Weapon rather than from the item table.");
+                        continue;
+                    }
+
+                    // One instance, never a stack: a weapon carries its own condition, magazine and
+                    // respect state, and AS3 forces weapons to kol 1 (Item.as:176-178).
+                    Vector3 weaponWhere = DropScatter(rng, centreY);
+                    if (WorldItemPickup.Spawn(weapon, 1, weaponWhere, autoCollect: true) != null)
+                    {
+                        spawned++;
+                    }
+
+                    continue;
+                }
+
                 ItemDefinition definition = inventory.ResolveItem(roll.ItemId);
                 if (definition == null)
                 {
                     Debug.LogWarning($"[{GetType().Name}] '{ctx.TableKey}' rolled '{roll.ItemId}' (tip '" +
-                                     roll.Tip + "') but no ItemDefinition resolves it — it was not spawned. " +
-                                     "Weapons/armour have no world-pickup path yet.");
+                                     roll.Tip + "') but no ItemDefinition resolves it — it was not spawned.");
                     continue;
                 }
 
-                // A small deterministic scatter, reusing the loot stream so a seeded test can predict it.
-                var where = new Vector3(
-                    transform.position.x + (rng.NextFloat() * 2f - 1f) * DropScatterRadius,
-                    centreY + (rng.NextFloat() * 2f - 1f) * DropScatterRadius,
-                    transform.position.z);
+                Vector3 where = DropScatter(rng, centreY);
 
                 if (WorldItemPickup.Spawn(definition, roll.Quantity, where, autoCollect: true) != null)
                 {
@@ -3197,6 +3888,23 @@ namespace PFE.Entities.Units
             {
                 Debug.Log($"[{GetType().Name}] '{ctx.TableKey}' yielded nothing (AS3's dropLoot returned false).");
             }
+        }
+
+        /// <summary>
+        /// A small deterministic scatter around the corpse, reusing the loot stream so a seeded test can
+        /// predict it — the port's stand-in for AS3's fall and bounce.
+        ///
+        /// <para><b>Extracted so the two content types consume the RNG in the same order.</b> Both
+        /// <c>NextFloat</c> calls happen here and nowhere else, so a weapon branch and an item branch
+        /// scatter identically. Two hand-copied versions of this expression is precisely how a seeded
+        /// sequence drifts the first time someone edits one of them.</para>
+        /// </summary>
+        private Vector3 DropScatter(IRngService rng, float centreY)
+        {
+            return new Vector3(
+                transform.position.x + (rng.NextFloat() * 2f - 1f) * DropScatterRadius,
+                centreY + (rng.NextFloat() * 2f - 1f) * DropScatterRadius,
+                transform.position.z);
         }
 
         /// <summary>Half-extent of the eject scatter, in world units — the corpse-drop twin of

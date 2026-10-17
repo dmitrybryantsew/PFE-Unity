@@ -845,6 +845,25 @@ namespace PFE.Systems.Physics
             Unit?.TickNoise(IsGrounded, VelocityPixelsPerFrame);
             Unit?.TickSuspicion();
 
+            // ...and the target-side stealth half, which is the acoustic block's twin: noise is how loud
+            // the unit is, stealth is how visible. It reads the same motor-owned velocity, so it belongs
+            // here for the same reason TickNoise does — a motor-driven unit never reaches
+            // UnitController.StepUnit, so leaving this out would make the whole stealth system dead on
+            // the live path while every arithmetic fixture stayed green. MotorGroundStateLintTests pins
+            // the pair.
+            Unit?.TickStealth(VelocityPixelsPerFrame);
+
+            // ...and the unit's own per-frame behaviour — AS3's `control()` (`Unit.as:1820`). It is
+            // called here, ABOVE the `currentRoom == null` guard and above the `if(!this.fixed)` gate
+            // below, because that is exactly where the oracle calls it: `forces()` and `control()` sit
+            // above both, and only `run()` is gated. A pinned unit still turns, still counts down, still
+            // drives its own state — it just never moves.
+            //
+            // The same trap as TickNoise/TickStealth above: a motor-driven unit never reaches
+            // UnitController.StepUnit, so a behaviour that lived only there would be dead on the live
+            // path while every motor-less fixture stayed green. MotorGroundStateLintTests pins the pair.
+            Unit?.TickControl();
+
             if (currentRoom == null) return;
 
             hitCeiling = false;
@@ -1107,6 +1126,27 @@ namespace PFE.Systems.Physics
                 return;
             }
 
+            // AS3 Unit.as:1915-1952 — `forces()` branches, it does not accumulate: the `isFly` arm
+            // replaces the gravity arm outright. A flyer therefore takes the flyer's own damping (the
+            // 0.7 speed cap and the brake deadzone) and never `dy -= World.ddy`.
+            //
+            // This is the motor-driven half of the same gate UnitController.ApplyGravity applies on the
+            // motor-less path. Both must ask the same question — hence UnitController.IsFlyingUnit, the
+            // public read that exists because this component is not a subclass and cannot see the
+            // protected `IsFlying`. Without the pair, `PfeDebugSettings.UnitMotor` would silently decide
+            // whether a `fly="1"` NPC hovers or falls.
+            if (Unit != null && Unit.IsFlyingUnit)
+            {
+                // One seam, not two: the unit owns which maxSpeed/brake to resolve and how to apply
+                // them, and this component only owns the velocity's storage. Writing the arithmetic out
+                // here as well would be a second copy that could disagree with the motor-less path's.
+                Vector2 braked = Unit.ApplyFlightBrakeToPixels(new Vector2(dx, dy), RateFramesPerStep);
+
+                dx = braked.x;
+                dy = braked.y;
+                return;
+            }
+
             if (!isGrounded && dashTimer <= 0f)
             {
                 // AS3 applies World.ddy once per 30 Hz frame, so accumulate proportionally to the
@@ -1122,6 +1162,15 @@ namespace PFE.Systems.Physics
         private void ApplyFriction()
         {
             if (dashTimer > 0f)
+            {
+                return;
+            }
+
+            // AS3 Unit.as:1967-1990 — this damping is the `else` arm of the branch whose `isFly` arm
+            // ApplyGravity already took, so a flyer must not take both. The flyer's damping is applied
+            // there instead; running this as well would layer a ground/air decay on top of the oracle's
+            // cap-and-deadzone and bleed the flight's thrust away.
+            if (Unit != null && Unit.IsFlyingUnit)
             {
                 return;
             }

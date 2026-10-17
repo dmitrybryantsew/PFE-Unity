@@ -2,6 +2,7 @@ using System;
 using PFE.Core;
 using PFE.Data.Definitions;
 using PFE.Entities.Units;
+using PFE.Systems.Campaign;
 using PFE.Systems.Combat;
 using PFE.Systems.Weapons;
 using PFE.Systems.Map;
@@ -154,6 +155,26 @@ namespace PFE.Entities.Enemies.Archetypes
 
         public override void SimTick(int tickIndex)
         {
+            // ── AS3's freeze gate ───────────────────────────────────────────────────────────────────
+            //
+            // `UnitTurret.control()` opens with `if(World.w.enemyAct <= 0 || this.sleep) return;`
+            // (`UnitTurret.as:572`), before the `aiTCh` decrement at :576 and before the cadence-gated
+            // `findCel()` at :638 (`enemyAct > 1 && aiTCh % 10 == 1`). So a frozen emplacement neither
+            // acquires a target nor advances its cadence.
+            //
+            // This override deliberately does NOT call `base.SimTick` — see the perception note below —
+            // so it cannot inherit the gate that lives there. It has to be repeated here.
+            //
+            // What still runs: the oracle's return is from `control()` only. `forces()`, `run()`,
+            // `actions()` and `animate()` are all outside it (`Unit.as:1806-1840`), so the emplacement
+            // keeps drawing and its weapon mount keeps advancing — which is why `TickWeapons()` is
+            // called here exactly as the live path's own tail calls it.
+            if (EnemyActivity.IsFrozen)
+            {
+                TickWeapons();
+                return;
+            }
+
             if (_fireCooldownTicks > 0) _fireCooldownTicks--;
 
             // Stationary emplacements never run motor locomotion

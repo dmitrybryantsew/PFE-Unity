@@ -37,6 +37,29 @@ namespace PFE.Entities.Enemies.Archetypes
         public const string ControllerAlias = "alicorn";
 
         /// <summary>
+        /// The placement-<c>ai</c> reader for this family — <c>UnitAlicorn.as:206-222</c>.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Three spellings, and the third is not an <c>ai</c> effect.</b> <c>stay</c> clears
+        /// <c>stroll</c>; <c>quiet</c> clears <c>stroll</c> and sets <c>quiet</c>; <c>pole</c> sets
+        /// <c>pole = true</c> and <c>poleId = …</c> and <b>does not touch <c>stroll</c></b> — it drives
+        /// the <c>unlock</c>/<c>open</c> script action on a named object (<c>:534-551</c>), so it has no
+        /// representation in <see cref="PlacementAiEffect"/> and is named in
+        /// <see cref="UnitPlacementAi.Interpret"/> rather than silently dropped.</para>
+        ///
+        /// <para><b>The alicorn's own wander gate is the third of three.</b>
+        /// <c>UnitAlicorn.as:609-616</c> repeats <c>UnitRaider</c>'s <c>if(this.stroll)</c> test, and
+        /// <c>:621</c> adds a second reader (<c>if(aiState == 0 &amp;&amp; this.superSilaTip == 1 &amp;&amp;
+        /// isrnd() &amp;&amp; this.stroll)</c>) — so a pinned alicorn also stops rolling its special
+        /// attack while idle.</para>
+        ///
+        /// <para><b><c>UnitBossAlicorn</c> is not this family.</b> It is <c>extends UnitPon</c> and reads
+        /// no <c>aiTip</c>, so <c>BossAlicornController</c> keeps the
+        /// <see cref="UnitAiFamily.Generic"/> default.</para>
+        /// </remarks>
+        protected override UnitAiFamily AiFamily => UnitAiFamily.Alicorn;
+
+        /// <summary>
         /// AS3 <c>UnitAlicorn.shitMaxHp</c> (<c>:33</c>, default <c>300</c>; <c>:173</c> raises it to
         /// <c>500</c> for <c>tr3</c>) — the pool <see cref="CastShield"/> fills.
         /// </summary>

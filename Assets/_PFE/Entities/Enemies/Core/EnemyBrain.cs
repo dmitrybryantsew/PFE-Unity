@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using PFE.Core;
 using PFE.Data.Definitions;
 using PFE.Entities.Units;
+using PFE.Systems.Campaign;
 using PFE.Systems.Map;
 using PFE.Systems.Map.TileQuery;
 using PFE.Systems.Physics;
@@ -493,6 +494,31 @@ namespace PFE.Entities.Enemies
                 return;
             }
 
+            // ── AS3's freeze: World.w.enemyAct <= 0 ────────────────────────────────────────────────
+            //
+            // The gate sits inside `control()`, after the facing/turn bookkeeping and BEFORE the
+            // `aiLaz`/`aiJump`/`aiTCh` decrements, `findCel()` and the whole state branch
+            // (`UnitRaider.as:680-697`). Three consequences, all of which this branch reproduces:
+            //
+            //  1. It returns from `control()` only. The unit's per-frame step calls `control()` in the
+            //     middle of `forces() … control() … run() … actions() … animate()`
+            //     (`Unit.as:1806-1840`), so physics, movement, the weapon mounts and the DRAWING all
+            //     keep running. A frozen enemy still falls, still slides on momentum it already had and
+            //     still animates — which is why `UpdateAnimation()` and `TickWeapons()` are called here
+            //     rather than skipped with the decision half.
+            //  2. It does NOT clear the target. An enemy that had already acquired the player keeps
+            //     `celUnit`; it stops acting on it and stops re-checking it. `UpdatePerception` is the
+            //     `findCel()` equivalent and is the thing being skipped.
+            //  3. The cadence timers stop. `_blackboard.ShockTimerTicks` etc. are decremented inside
+            //     `UpdatePerception`, which is skipped — so un-freezing resumes the tick phase where it
+            //     left off rather than restarting it.
+            if (EnemyActivity.IsFrozen)
+            {
+                UpdateAnimation();
+                TickWeapons();
+                return;
+            }
+
             // The perception half, hoisted out so a subclass that replaces the state machine can still
             // acquire a target. See UpdatePerception.
             UpdatePerception(tickIndex);
@@ -595,9 +621,14 @@ namespace PFE.Entities.Enemies
             // Update candidate targets (find living players)
             RefreshTargetCandidates();
 
+            // The occlusion walk's own origin, which the oracle keeps separate from the eye that the
+            // range is measured from. Handed over with the rest of the call state rather than derived
+            // inside the sensors, because only this side knows the body it belongs to.
+            Vector2 rayOriginPx = GetSightRayOriginPixels();
+
             // Evaluate sensory perception
             Vector2 eyePosPx = GetEyePositionPixels();
-            _sensors.Evaluate(_blackboard, eyePosPx, _blackboard.FacingDirection, _tileQuery, _targetCandidates, tickIndex);
+            _sensors.Evaluate(_blackboard, eyePosPx, _blackboard.FacingDirection, _tileQuery, _targetCandidates, tickIndex, rayOriginPx);
         }
 
         /// <summary>
@@ -1277,6 +1308,39 @@ namespace PFE.Entities.Enemies
         }
 
         /// <summary>
+        /// The point AS3's occlusion walk starts from — <c>Y - scY * 0.75</c> plus
+        /// <c>X + scX * 0.25 * storona</c> (<c>unit/Unit.as:4623-4624</c>).
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Deliberately NOT the eye.</b> <c>look()</c> derives its <i>range</i> from
+        /// <c>eyeY = Y - 30</c> (<c>Unit.as:4581</c>) but walks its <i>occlusion samples</i> from three
+        /// quarters of the body height above the feet. The two are different points on purpose, and
+        /// collapsing them into one is what lets a unit's own ledge block its sight: a ray that starts at
+        /// the feet crosses back down into the tile the unit is standing on within a few tens of
+        /// pixels, so a raider on a rooftop, or Calamity on the perch <c>fly 40:7</c> puts him, finds the
+        /// whole room occluded by the thing under him.</para>
+        ///
+        /// <para>The quarter-width nudge along the facing is the oracle's too, and it matters in the
+        /// same way: it moves the ray's start off the unit's own centre line, so a wall the unit is
+        /// hugging is not the first thing it hits.</para>
+        /// </remarks>
+        protected virtual Vector2 GetSightRayOriginPixels()
+        {
+            UnitDefinition stats = _controller != null ? _controller.Stats : null;
+            float heightPx = stats != null && stats.Height > 0f ? stats.Height * 100f : 50f;
+            float widthPx = stats != null && stats.Width > 0f ? stats.Width * 100f : 50f;
+
+            int facing = _blackboard != null ? _blackboard.FacingDirection : 1;
+            if (facing == 0)
+            {
+                facing = 1;
+            }
+
+            Vector2 feetPx = (Vector2)transform.position * 100f;
+            return feetPx + new Vector2(widthPx * 0.25f * facing, heightPx * 0.75f);
+        }
+
+        /// <summary>
         /// The rule itself, as a pure function of two factions — so it can be asserted with no
         /// GameObject, no collider and no running engine. Same move as
         /// <see cref="PFE.Systems.Weapons.FactionRule.CanHitDirectly"/>, which encodes the identical
@@ -1324,12 +1388,60 @@ namespace PFE.Entities.Enemies
 
             FactionType ownFaction = _controller != null ? _controller.Faction : FactionType.Neutral;
 
-            var players = FindObjectsByType<PFE.Entities.Player.PlayerController>(FindObjectsSortMode.None);
-            for (int i = 0; i < players.Length; i++)
+            // ── Every unit in the room, not just the player. ───────────────────────────────────────
+            //
+            // AS3's `findCel` walks `loc.units` and admits a unit that is alive, not `doop` and of a
+            // DIFFERENT faction — `UnitNPC.as:444-460` and `UnitTurret.as:541-559` spell the filter out,
+            // and the base `Unit.findCel` (`Unit.as:4643-4655`) reaches the same predicate from the other
+            // side by gating the player on `this.fraction != F_PLAYER`.
+            //
+            // The port searched `PlayerController` alone, which made "a unit may target another unit"
+            // unreachable for every unit in the game. The symptom that exposed it is Calamity: he is
+            // `<unit id='npc' fraction='100'>` (F_PLAYER), `surfStory` sets `ai agro`, and the ONE thing
+            // `agro` means is "shoot the raiders" — so with a player-only pool the faction gate correctly
+            // refused the only candidate he was ever offered, and he stood still through the whole fight
+            // with a sniper equipped. The camp turrets are the same shape from the other end.
+            //
+            // The three `continue`s are the oracle's own skip list, in its order: itself (AS3 never
+            // considers `this`, since `findCel` compares factions and a unit's own faction always
+            // matches), `sost > 1` (dead — `IsAlive`), and `doop` (`IsNonLiving`).
+            var units = FindObjectsByType<UnitController>(FindObjectsSortMode.None);
+            for (int i = 0; i < units.Length; i++)
             {
-                if (players[i] != null && players[i].IsAlive && IsValidTarget(players[i], ownFaction))
+                UnitController candidate = units[i];
+                if (candidate == null || ReferenceEquals(candidate, _controller))
                 {
-                    _targetCandidates.Add(players[i]);
+                    continue;
+                }
+
+                if (!candidate.IsAlive || candidate.IsNonLiving)
+                {
+                    continue;
+                }
+
+                // ── The invulnerable player is not a candidate at all. ─────────────────────────────
+                //
+                // AS3's base `Unit.findCel` admits the player only through
+                // `if(!(this.isMeet(loc.gg) && !loc.gg.invulner && this.fraction != F_PLAYER))`
+                // (`Unit.as:4658`) — `invulner` is part of the *admission* test, not a damage filter, so
+                // an invulnerable player is never seen, never approached and never shot at. That is the
+                // mechanism that keeps a cutscene a cutscene: `Script.as:260-271`'s `dialog` action calls
+                // `gg.controlOff()`, which raises `invulner` (`UnitPlayer.as:2043`) for as long as the
+                // dialogue is up.
+                //
+                // The predicate is `IsPlayer && IsInvulnerable` and not `IsInvulnerable` alone, because
+                // that is literally what the oracle reads — `loc.gg` is the player. Gating on the flag by
+                // itself would also hide an invulnerable *unit* from every other unit's candidate list,
+                // which the oracle does not do: `UnitNPC.findCel` (`:444-460`) and `UnitTurret.findCel`
+                // (`:541-559`) carry their own skip lists and neither mentions `invulner`.
+                if (candidate.IsPlayer && candidate.IsInvulnerable)
+                {
+                    continue;
+                }
+
+                if (IsValidTarget(candidate, ownFaction))
+                {
+                    _targetCandidates.Add(candidate);
                 }
             }
 
@@ -1340,6 +1452,10 @@ namespace PFE.Entities.Enemies
             // shooting what it was shooting rather than finishing the engagement.
             if (_blackboard.TargetUnit != null && _blackboard.TargetUnit.IsAlive &&
                 IsValidTarget(_blackboard.TargetUnit, ownFaction) &&
+                // ...and the same invulnerable-player refusal as the sweep above, for the same reason:
+                // a cutscene that starts while a unit is mid-engagement must break that engagement, not
+                // let the remembered target ride through the new admission test on a technicality.
+                !(_blackboard.TargetUnit.IsPlayer && _blackboard.TargetUnit.IsInvulnerable) &&
                 !_targetCandidates.Contains(_blackboard.TargetUnit))
             {
                 _targetCandidates.Add(_blackboard.TargetUnit);

@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using PFE.Data.Definitions;
 using PFE.Entities.Units;
+using PFE.Systems.Map;
 using PFE.Systems.Weapons;
 using UnityEngine;
 
@@ -44,6 +45,24 @@ namespace PFE.Entities.Enemies.Archetypes
     {
         public const string ControllerId = "UnitRaider";
         public const string ControllerAlias = "raider";
+
+        /// <summary>
+        /// The placement-<c>ai</c> reader this family uses — AS3 <c>UnitRaider.as:227-241</c>, inherited
+        /// by <c>UnitEncl</c>, <c>UnitMerc</c>, <c>UnitRanger</c>, <c>UnitZebra</c> and
+        /// <c>UnitSlaver</c> because they all extend <c>UnitRaider</c>.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Set here and not on <c>UnitController</c>, because the mapping is a class fact.</b>
+        /// This family reads <c>stay</c>, <c>quiet</c> and <c>sniper</c>; a robot reads only
+        /// <c>quiet</c>, an alicorn reads <c>stay</c>/<c>quiet</c>/<c>pole</c>, and a hellhound reads
+        /// none of them. See <see cref="UnitPlacementAi"/> for the table and
+        /// <c>UnitController.PlacementStaysPut</c> for what the answer drives.</para>
+        ///
+        /// <para><b>This is also the only family whose unit row can clear <c>stroll</c>.</b>
+        /// <c>UnitRaider.as:351-354</c> reads <c>node0.un.@stay</c> and no other class reads that
+        /// attribute, which is why the row half of <c>PlacementStaysPut</c> is gated on this family.</para>
+        /// </remarks>
+        protected override UnitAiFamily AiFamily => UnitAiFamily.Raider;
 
         /// <summary>
         /// Reusable candidate buffer, so a roll allocates nothing. Filled from
@@ -148,52 +167,107 @@ namespace PFE.Entities.Enemies.Archetypes
         protected override void OnWeaponServicesReady() => EquipRolledWeapon();
 
         /// <summary>
-        /// AS3 <c>UnitRaider</c>'s constructor weapon roll (<c>UnitRaider.as:179</c> +
-        /// <c>Unit.as:1450-1475</c>), then the <c>attackerType</c> ladder (<c>UnitRaider.as:257-272</c>).
+        /// AS3 <c>UnitRaider</c>'s constructor weapon choice (<c>UnitRaider.as:162-181</c>), then the
+        /// <c>attackerType</c> ladder (<c>UnitRaider.as:257-272</c>).
+        ///
+        /// <para><b>Three arms, and the roll is only the last of them.</b> The oracle's chain is
+        /// <c>param4.weap</c> (a runtime override object, no port equivalent) → the placement's
+        /// <c>param3.@weap</c> → <c>getXmlWeapon(param2)</c>, the unit row's <c>&lt;w&gt;</c> roll. The
+        /// middle arm is what this method now reads; see <see cref="UnitPlacementWeapon"/> for why
+        /// <c>weap=""</c> is "explicitly unarmed" rather than "roll anyway".</para>
+        ///
+        /// <para><b>Why this can run twice.</b> <c>RoomUnitSpawner</c> calls <c>Initialize</c> (which
+        /// rolls) before <c>ApplyPlacement</c> (which supplies the placement), so the first roll cannot
+        /// see the attribute. The <c>ApplyPlacement</c> override re-rolls when the attribute turns out
+        /// to matter, and <see cref="EnemyController.ClearWeaponMounts"/> drops the first weapon. Both
+        /// happen before the first <c>SimTick</c>.</para>
         /// </summary>
         private void RollWeapon(UnitDefinition definition)
         {
             WeaponDefinition rolled = null;
             EquippedWeaponId = null;
 
-            WeaponChance[] candidates = definition != null ? definition.weapons : null;
-            if (candidates != null && candidates.Length > 0)
+            // ── Arm 2: the placement's `weap` (UnitRaider.as:170-176) ────────────────────────────────
+            //
+            // Gated on the raider family because that is the only family AS3 lets read it — `UnitNecros`
+            // extends `Unit`, not `UnitRaider`, and this controller is shared with it for port
+            // convenience.
+            //
+            // The gate is applied to the MODE, not wrapped around the switch below. Folding it into the
+            // switch would leave a necros placement authoring `weap=""` looking like `Unarmed` to the
+            // roll guard further down, so it would be disarmed by an attribute its AS3 class never
+            // reads. No shipped necros placement authors `weap` today — the nineteen that do are
+            // raider/ranger/merc/slaver/zebra — which is precisely why the bug would have been invisible
+            // until someone authored one.
+            PlacementWeaponMode mode = AiFamily == UnitAiFamily.Raider
+                ? PlacementWeaponMode
+                : PlacementWeaponMode.Roll;
+
+            switch (mode)
             {
-                _weaponOptions.Clear();
-                for (int i = 0; i < candidates.Length; i++)
-                {
-                    _weaponOptions.Add(new WeaponOption(
-                        candidates[i].weaponId,
-                        candidates[i].chance,
-                        candidates[i].difficulty,
-                        // AS3 `f` — the row is this unit's SECONDARY weapon (mercgr for merc/encl,
-                        // robomlau/robogas for ranger, …). The oracle's roll steps over it
-                        // (`Unit.as:1459`) and the family constructor grants it by name instead, so it
-                        // must not be offered here. See WeaponRowParser for the full account.
-                        candidates[i].isFixedWeapon));
-                }
-
-                // `getXmlWeapon(param1:int)` truncates the caller's `locDifLevel` (a Number) — the
-                // parameter is typed int at the declaration, so AS3 does the same.
-                int difficulty = (int)LocationDifficulty;
-
-                int index = UnitWeaponSelector.SelectIndex(
-                    _weaponOptions,
-                    difficulty,
-                    // AS3's `isrnd` is `Math.random() < p` — Flash's *unseeded* global, not the room's
-                    // seeded spawn stream. UnityEngine.Random is the port's equivalent global, and using
-                    // it here deliberately leaves the seeded room stream untouched: a spawn that consumed
-                    // a number from it would desynchronise every later roll in the room, which is the
-                    // same reason AlicornController does not roll `osob` at spawn.
-                    roll01: () => UnityEngine.Random.value,
-                    // `Weapon.create` returns null for an id that is not in the weapon table, and the
-                    // oracle then CONTINUES to the next candidate rather than giving up (Unit.as:1470).
-                    isAvailable: id => TryGetWeaponDefinition(id, out _));
-
-                if (index != UnitWeaponSelector.NoWeapon)
-                {
-                    EquippedWeaponId = _weaponOptions[index].WeaponId;
+                case PlacementWeaponMode.Fixed:
+                    // `Weapon.create(this, param3.@weap)` — which strips a trailing `^n` BEFORE the
+                    // id lookup (Weapon.as:352-356). Without the strip, the two shipped placements
+                    // that author `lmg^1` and `zebr^1` would resolve to nothing and fight unarmed.
+                    EquippedWeaponId = UnitPlacementWeapon.BaseWeaponId(PlacementWeapText);
                     TryGetWeaponDefinition(EquippedWeaponId, out rolled);
+                    break;
+
+                case PlacementWeaponMode.Unarmed:
+                    // `weap=""` — the inner `!= ""` fails, `currentWeapon` stays null, and the roll
+                    // below is never reached.
+                    EquippedWeaponId = null;
+                    rolled = null;
+                    break;
+            }
+
+            // ── Arm 3: the unit row's roll (Unit.as:1450-1475) ───────────────────────────────────────
+            //
+            // Reached only when the placement authored no `weap` at all. Note this is the oracle's
+            // `else`, so a `Fixed`/`Unarmed` answer above must NOT fall through — which is why the
+            // switch sets `EquippedWeaponId` and the guard below tests it rather than re-testing the
+            // mode.
+            if (EquippedWeaponId == null && mode != PlacementWeaponMode.Unarmed)
+            {
+                WeaponChance[] candidates = definition != null ? definition.weapons : null;
+                if (candidates != null && candidates.Length > 0)
+                {
+                    _weaponOptions.Clear();
+                    for (int i = 0; i < candidates.Length; i++)
+                    {
+                        _weaponOptions.Add(new WeaponOption(
+                            candidates[i].weaponId,
+                            candidates[i].chance,
+                            candidates[i].difficulty,
+                            // AS3 `f` — the row is this unit's SECONDARY weapon (mercgr for merc/encl,
+                            // robomlau/robogas for ranger, …). The oracle's roll steps over it
+                            // (`Unit.as:1459`) and the family constructor grants it by name instead, so it
+                            // must not be offered here. See WeaponRowParser for the full account.
+                            candidates[i].isFixedWeapon));
+                    }
+
+                    // `getXmlWeapon(param1:int)` truncates the caller's `locDifLevel` (a Number) — the
+                    // parameter is typed int at the declaration, so AS3 does the same.
+                    int difficulty = (int)LocationDifficulty;
+
+                    int index = UnitWeaponSelector.SelectIndex(
+                        _weaponOptions,
+                        difficulty,
+                        // AS3's `isrnd` is `Math.random() < p` — Flash's *unseeded* global, not the room's
+                        // seeded spawn stream. UnityEngine.Random is the port's equivalent global, and using
+                        // it here deliberately leaves the seeded room stream untouched: a spawn that consumed
+                        // a number from it would desynchronise every later roll in the room, which is the
+                        // same reason AlicornController does not roll `osob` at spawn.
+                        roll01: () => UnityEngine.Random.value,
+                        // `Weapon.create` returns null for an id that is not in the weapon table, and the
+                        // oracle then CONTINUES to the next candidate rather than giving up (Unit.as:1470).
+                        isAvailable: id => TryGetWeaponDefinition(id, out _));
+
+                    if (index != UnitWeaponSelector.NoWeapon)
+                    {
+                        EquippedWeaponId = _weaponOptions[index].WeaponId;
+                        TryGetWeaponDefinition(EquippedWeaponId, out rolled);
+                    }
                 }
             }
 
@@ -220,6 +294,44 @@ namespace PFE.Entities.Enemies.Archetypes
             if (Stats == null || !HasWeaponServices) return;
 
             EquipWeapon(EquippedWeaponId);
+        }
+
+        /// <summary>
+        /// Re-roll the weapon now that the placement is known, when the placement's <c>weap</c>
+        /// attribute decides the outcome.
+        ///
+        /// <para><b>Why an override at all.</b> AS3 reads <c>param3.@weap</c> inside the unit's
+        /// constructor, so the placement is known before any weapon is chosen
+        /// (<c>UnitRaider.as:162-181</c>). The port's spawner calls <c>Initialize</c> — which rolls — at
+        /// <c>RoomUnitSpawner.cs:1149</c> and <c>ApplyPlacement</c> at <c>:1233</c>, so the first roll
+        /// cannot see the attribute. Re-rolling here is the same fix shape as
+        /// <c>UnitNPCController.SyncAnimatorFlight</c>: the fact arrives late, so the dependent state is
+        /// recomputed at the arrival seam rather than polled every frame.</para>
+        ///
+        /// <para><b>Only when the placement actually decides.</b> A unit whose placement authors no
+        /// <c>weap</c> keeps the weapon its first roll produced — re-rolling would consume a second
+        /// <c>Math.random()</c> for no reason and change the weapon of every un-authored raider in the
+        /// game. A unit whose placement says <c>weap=""</c> or names a weapon is re-rolled, and the first
+        /// weapon's mount is destroyed so it is not also held.</para>
+        /// </summary>
+        public override void ApplyPlacement(UnitInstance placement)
+        {
+            base.ApplyPlacement(placement);
+
+            // The same family gate as `RollWeapon`, and it has to be here too: a necros placement
+            // authoring `weap` must not trigger a re-roll, because AS3's necros never reads it.
+            if (AiFamily != UnitAiFamily.Raider) return;
+            if (!_weaponRolled) return;
+
+            PlacementWeaponMode mode = PlacementWeaponMode;
+            if (mode == PlacementWeaponMode.Roll) return;
+
+            // The definition the first roll used is gone by now; re-read it from the same source
+            // `Initialize` was given. `Stats` is not it — this needs the unit row's <w> candidates,
+            // which `RollWeapon` only consults on the `Roll` arm, so a null here costs nothing.
+            ClearWeaponMounts();
+            RollWeapon(Definition);
+            EquipRolledWeapon();
         }
     }
 
@@ -270,5 +382,22 @@ namespace PFE.Entities.Enemies.Archetypes
     {
         public new const string ControllerId = "UnitNecros";
         public new const string ControllerAlias = "necros";
+
+        /// <summary>
+        /// <c>UnitNecros</c> reads <c>stay</c> and nothing else — it extends <c>Unit</c>, <b>not</b>
+        /// <c>UnitRaider</c> (<c>UnitNecros.as:102</c>: <c>if(aiTip != "stay" &amp;&amp; isrnd())</c>), and
+        /// has no <c>stroll</c> or <c>quiet</c> field behind it.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Why the override is mandatory rather than cosmetic.</b> This controller derives from
+        /// <see cref="ArmedShooterController"/> because it shares the weapon-rolling controller — a port
+        /// convenience, not an oracle fact. Without this override it would inherit
+        /// <see cref="UnitAiFamily.Raider"/> and answer <c>quiet</c>/<c>sniper</c> as well, so a
+        /// hypothetical <c>ai="quiet"</c> necros would stand still where the oracle lets it wander. The
+        /// shipped data authors <c>stay</c> on seven necros placements and <c>quiet</c> on none, so the
+        /// divergence is latent rather than visible — which is exactly the kind that survives a
+        /// play-test.</para>
+        /// </remarks>
+        protected override UnitAiFamily AiFamily => UnitAiFamily.Necros;
     }
 }

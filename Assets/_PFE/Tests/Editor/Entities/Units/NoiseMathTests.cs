@@ -620,5 +620,129 @@ namespace PFE.Tests.Editor.Entities.Units
                 "A sound-only commit (±100 px) and a unit alarm (±125 px) are DIFFERENT numbers in the " +
                 "oracle — 200 and 250 as multipliers. Sharing one constant would be a quiet 25% change.");
         }
+
+        // ── observation()'s target-side scaling — the half that meets the stealth system ─────
+
+        /// <summary>
+        /// The oracle's own numbers through the nine-argument overload: a lurker at the far edge of a
+        /// sight range contributes <b>nothing</b>, and the same lurker at point blank survives.
+        ///
+        /// <para>This is the mechanic in one assertion. Vision's two tiers are 4 and 20, and
+        /// <c>Pers.sneakLurk</c> is 5, so the subtraction deletes the far tier outright and leaves the
+        /// near one at 15. Cover hides you at a distance and not under a guard's nose — and if a later
+        /// change made the subtraction come <i>before</i> the multiply, both numbers would move.</para>
+        /// </summary>
+        [Test]
+        public void Observation_LurkerIsDeletedAtRange_ButSurvivesAtPointBlank()
+        {
+            Assert.That(
+                NoiseMath.ObservationInput(
+                    4f, 0f, 0f, 0f, 1f, 1f, lurked: true, isSit: false, sneakLurk: 5f),
+                Is.EqualTo(0f),
+                "4 − 5 < 0 → 0. A lurker at the far edge of the sight range contributes nothing at all.");
+
+            Assert.That(
+                NoiseMath.ObservationInput(
+                    20f, 0f, 0f, 0f, 1f, 1f, lurked: true, isSit: false, sneakLurk: 5f),
+                Is.EqualTo(15f),
+                "20 − 5 = 15. Only the point-blank tier survives the subtraction, so cover does not " +
+                "hide you from someone you are standing on.");
+        }
+
+        /// <summary>
+        /// The subtraction comes <b>after</b> the stealth multiply. The order is observable, and this is
+        /// the case that separates the two readings.
+        /// </summary>
+        [Test]
+        public void Observation_LurkSubtractionComesAfterTheStealthMultiply()
+        {
+            // Oracle: (20 × 2.2) × 0.5 − 5 = 17.   Wrong order: (20 × 0.5 − 5) × 2.2 = 11.
+            float result = NoiseMath.ObservationInput(
+                20f, 6f, 0f, 0f, 0.5f, 1f, lurked: true, isSit: false, sneakLurk: 5f);
+
+            Assert.That(result, Is.EqualTo(17f).Within(1e-4f),
+                "unit/UnitPlayer.as:3117 scales by observ, :3124 multiplies by visiMult, :3127 subtracts " +
+                "sneakLurk — in that order. Subtracting before the multiply gives 11, and a port that did " +
+                "so would make a cloaked lurker far harder to notice than the oracle allows.");
+        }
+
+        /// <summary>
+        /// Sitting subtracts a <b>fifth</b> of <c>sneakLurk</c>, not all of it — and it does not zero
+        /// <c>detecting</c> or halve <c>visibility</c> (that is <c>lurked</c> alone).
+        /// </summary>
+        [Test]
+        public void Observation_SitSubtractsAFifthOfSneakLurk()
+        {
+            Assert.That(
+                NoiseMath.ObservationInput(
+                    4f, 0f, 0f, 0f, 1f, 1f, lurked: false, isSit: true, sneakLurk: 5f),
+                Is.EqualTo(3f).Within(1e-4f),
+                "4 − 5/5 = 3. `sneakLurk / 5`, per unit/UnitPlayer.as:3131.");
+
+            Assert.That(
+                NoiseMath.ObservationInput(
+                    4f, 0f, 0f, 0f, 1f, 1f, lurked: false, isSit: false, sneakLurk: 5f),
+                Is.EqualTo(4f),
+                "Positive control: not sitting means no subtraction at all.");
+        }
+
+        /// <summary>
+        /// <c>sneak − demask/20</c> is the comparison base for the observer's <c>observ</c>, so a target
+        /// with any <c>sneak</c> shifts the whole curve — and the shipped data's <c>sneak</c> is 0.
+        /// </summary>
+        [Test]
+        public void Observation_SneakShiftsTheObservComparisonBase()
+        {
+            // The comparison is against `base`, not against zero: a port that tested `observ > 0`
+            // would leave this at 4 and be wrong for every target with a sneak value.
+            Assert.That(
+                NoiseMath.ObservationInput(
+                    4f, 0f, sneak: 2f, demask: 0f, visiMult: 1f, stealthMult: 1f,
+                    lurked: false, isSit: false, sneakLurk: 0f),
+                Is.EqualTo(4f / 1.6f).Within(1e-4f),
+                "base = 2, observ = 0: the oracle DIVIDES — 4 / (1 − (0−2)·0.3).");
+
+            // `observ` strictly BETWEEN zero and `base` is the ONLY window where comparing against 0
+            // and comparing against `base` disagree, because `observ > base` implies `observ > 0`
+            // (base >= 0), and everything below `base` takes the divide branch either way. Without
+            // this case the base comparison is untested: a mutation that rewrote the conditions to
+            // `> 0` / `< 0` was measured to change NOTHING. base = 2, observ = 1: the oracle divides
+            // by 1.3; a port comparing against 0 would multiply by 0.8 instead.
+            Assert.That(
+                NoiseMath.ObservationInput(
+                    4f, 1f, sneak: 2f, demask: 0f, visiMult: 1f, stealthMult: 1f,
+                    lurked: false, isSit: false, sneakLurk: 0f),
+                Is.EqualTo(4f / 1.3f).Within(1e-4f),
+                "0 < observ < base must DIVIDE. This is the case that separates `> base` from `> 0`.");
+
+            // The oracle's sneak is a DEAD field (assigned nowhere), so base is always 0 in the shipped
+            // game — which is why the two-argument overload is exactly right for the data that exists.
+            Assert.That(
+                NoiseMath.ObservationInput(
+                    4f, 6f, sneak: 0f, demask: 200f, visiMult: 1f, stealthMult: 1f,
+                    lurked: false, isSit: false, sneakLurk: 0f),
+                Is.EqualTo(8.8f).Within(1e-4f),
+                "With sneak 0, demask 200 clamps the base back to 0 — so the reveal never makes a target " +
+                "easier to notice through this term, only through look()'s range.");
+        }
+
+        /// <summary>
+        /// The two-argument overload is the neutral case of the nine-argument one. Asserted rather than
+        /// assumed, because a divergence there would change the vision call site without touching the
+        /// model.
+        /// </summary>
+        [Test]
+        public void Observation_TwoArgumentOverload_IsTheNeutralCase()
+        {
+            foreach (float power in new[] { -1f, 0f, 6f })
+            {
+                Assert.That(
+                    NoiseMath.ObservationInput(4f, power),
+                    Is.EqualTo(NoiseMath.ObservationInput(
+                        4f, power, 0f, 0f, 1f, 1f, false, false, 0f)),
+                    $"observ {power}: the short overload must be the long one with the oracle's neutral " +
+                    "target state, or the vision call site silently diverges from the model.");
+            }
+        }
     }
 }

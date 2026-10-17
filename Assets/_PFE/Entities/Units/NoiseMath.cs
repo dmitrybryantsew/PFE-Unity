@@ -577,52 +577,119 @@ namespace PFE.Entities.Units
         /// <summary>
         /// AS3 <c>UnitPlayer.observation(param1, param2)</c>'s scaling half — what the raw sensor
         /// intensity becomes once the target's own stealth and the observer's own sharpness are folded
-        /// in (<c>:142156-142186</c>).
+        /// in (<c>unit/UnitPlayer.as:3106-3136</c>).
         ///
-        /// <para><b>Only two of the oracle's nine inputs exist in the port, and the other seven are
-        /// named here rather than silently assumed.</b> The oracle computes
-        /// <c>_loc3_ = sneak − demask/20</c> (clamped at 0), then scales by <c>param2</c> against it,
-        /// then multiplies by <c>pers.visiMult × stealthMult</c>, then subtracts <c>sneakLurk</c> when
-        /// lurking and a fifth of it when sitting. The port has none of <c>sneak</c>, <c>demask</c>,
-        /// <c>visiMult</c>, <c>stealthMult</c>, <c>lurked</c>, <c>isSit</c> or <c>sneakLurk</c> wired to a
-        /// live value, so all seven take their oracle defaults — <c>0, 0, 1, 1, false, false, 0</c> —
-        /// which collapses the whole pipeline to the two branches below. <b>This function is where they
-        /// go when they arrive</b>, and the collapse is written down so that a future reader can tell
-        /// "not ported yet" from "the oracle does nothing here".</para>
+        /// <para><b>This is the one place where the listener half and the target half meet.</b>
+        /// <paramref name="intensity"/> is a raw sensor intensity — <c>listen()</c>'s or
+        /// <c>look()</c>'s — and the rest of the oracle's body scales it by the <i>target's</i> own
+        /// state: <c>sneak</c>, <c>demask</c>, <c>pers.visiMult</c>, <c>stealthMult</c>, <c>lurked</c>,
+        /// <c>isSit</c> and <c>pers.sneakLurk</c>. The numbers live in <see cref="StealthMath"/>; this
+        /// is the order the oracle applies them in, and every step is observable.</para>
+        ///
+        /// <list type="number">
+        /// <item><description><c>base = max(0, sneak − demask/20)</c> (<c>:3108-3112</c>). Twenty points
+        /// of reveal cancel one point of sneak.</description></item>
+        /// <item><description>Scale <paramref name="intensity"/> against the observer's
+        /// <paramref name="observationPower"/> <b>relative to <c>base</c></b> (<c>:3113-3123</c>) —
+        /// <i>before</i> the stealth multiply, so a sharp observer notices faster even through
+        /// cover.</description></item>
+        /// <item><description><c>×= pers.visiMult × stealthMult</c> (<c>:3124</c>).</description></item>
+        /// <item><description><c>−= pers.sneakLurk</c> if <c>lurked</c>, <c>−= sneakLurk/5</c> if
+        /// <c>isSit</c> (<c>:3125-3132</c>).</description></item>
+        /// <item><description>Floor at 0 (<c>:3133-3136</c>).</description></item>
+        /// </list>
         /// </summary>
         /// <param name="intensity">The raw sensor intensity (<c>listen()</c>'s or <c>look()</c>'s).</param>
         /// <param name="observationPower">
         /// AS3 <c>param2</c> — the <b>observer's</b> <c>observ</c> attribute. The oracle's sentinel for
-        /// "no scaling" is <c>-1000</c>; the hearing call site passes only one argument, so hearing is
-        /// never scaled by it. With the port's <c>sneak = 0</c> and <c>demask = 0</c>, the comparison
-        /// base is exactly 0, which is why the two branches below are a plain <c>&gt; 0</c> /
-        /// <c>&lt; 0</c> test.
+        /// "no scaling" is <c>-1000</c>; the port's callers use <c>0</c>, which is also the neutral
+        /// comparison when <c>base == 0</c>. With the shipped data <c>base</c> is always 0 (<c>sneak</c>
+        /// is a dead field — see <see cref="StealthMath.ObservationBase"/>), so the two conventions
+        /// coincide. Hearing is never scaled by it: the oracle's hearing call site passes only one
+        /// argument (<c>unit/Unit.as:4669-4671</c>).
         /// </param>
+        /// <param name="sneak">AS3 <c>UnitPlayer.sneak</c> — always 0 in the shipped data. See <see cref="StealthMath.ObservationBase"/>.</param>
+        /// <param name="demask">The target's <c>demask</c> — the anti-stealth reveal.</param>
+        /// <param name="visiMult">AS3 <c>Pers.visiMult</c> — the armour/perk concealment multiplier.</param>
+        /// <param name="stealthMult">The target's <c>stealthMult</c> — the cloak multiplier.</param>
+        /// <param name="lurked">AS3 <c>UnitPlayer.lurked</c>.</param>
+        /// <param name="isSit">AS3 <c>Unit.isSit</c>.</param>
+        /// <param name="sneakLurk">AS3 <c>Pers.sneakLurk</c> — the flat subtraction while lurking/sitting.</param>
         /// <remarks>
         /// <b>A sharp observer notices faster; a dull one can be duller than nothing.</b>
         /// <c>observ = 6</c> (<c>zombie9</c>) multiplies the intensity by 2.2, so it commits in about
         /// half the time; a negative value <i>divides</i>, because the oracle's second branch is a
-        /// division by <c>1 − param2·0.3</c>. The shipped data never authors a negative <c>obs</c>, so
-        /// that branch is unreachable in play — it is implemented because leaving it out would make this
-        /// function silently wrong for an input the oracle accepts.
+        /// division by <c>1 − (param2 − base)·0.3</c>. The shipped data never authors a negative
+        /// <c>obs</c>, so that branch is unreachable in play — it is implemented because leaving it out
+        /// would make this function silently wrong for an input the oracle accepts.
+        ///
+        /// <para><b>The subtraction can outlast the intensity, and that is the mechanic.</b> A lurker at
+        /// the far edge of a sight range contributes <c>4 − 5 &lt; 0 → 0</c> — nothing at all — while the
+        /// same lurker at point blank contributes <c>20 − 5 = 15</c>. Only the top vision tier survives
+        /// <c>sneakLurk</c>, which is why cover hides you at a distance but not under a guard's
+        /// nose.</para>
         /// </remarks>
-        public static float ObservationInput(float intensity, float observationPower)
+        public static float ObservationInput(
+            float intensity,
+            float observationPower,
+            float sneak,
+            float demask,
+            float visiMult,
+            float stealthMult,
+            bool lurked,
+            bool isSit,
+            float sneakLurk)
         {
             if (intensity <= 0f)
             {
                 return 0f;
             }
 
-            if (observationPower > 0f)
+            float baseValue = StealthMath.ObservationBase(sneak, demask);
+
+            // The comparison is against `base`, not against zero: a target with any `sneak` shifts the
+            // whole curve. With the shipped `sneak = 0` this is the plain >0 / <0 test the two-argument
+            // overload has always been.
+            if (observationPower > baseValue)
             {
-                intensity *= 1f + observationPower * 0.2f;
+                intensity *= 1f + (observationPower - baseValue) * 0.2f;
             }
-            else if (observationPower < 0f)
+            else if (observationPower < baseValue)
             {
-                intensity /= 1f - observationPower * 0.3f;
+                intensity /= 1f - (observationPower - baseValue) * 0.3f;
+            }
+
+            intensity *= visiMult * stealthMult;
+
+            if (lurked)
+            {
+                intensity -= sneakLurk;
+            }
+
+            if (isSit)
+            {
+                intensity -= sneakLurk / StealthMath.SitSneakLurkDivisor;
             }
 
             return intensity < 0f ? 0f : intensity;
+        }
+
+        /// <summary>
+        /// The target-neutral overload — a unit with no stealth state at all (<c>sneak 0</c>,
+        /// <c>demask 0</c>, <c>visiMult 1</c>, <c>stealthMult 1</c>, not lurking, not sitting).
+        ///
+        /// <para>Kept as its own overload rather than optional parameters so that a call site which
+        /// genuinely has no target state reads as such, and so the existing vision call is provably
+        /// unchanged: every argument here is the oracle's neutral value, which collapses the extended
+        /// body to the two branches this method has always had.</para>
+        /// </summary>
+        public static float ObservationInput(float intensity, float observationPower)
+        {
+            return ObservationInput(
+                intensity, observationPower,
+                sneak: 0f, demask: 0f,
+                visiMult: 1f, stealthMult: 1f,
+                lurked: false, isSit: false, sneakLurk: 0f);
         }
 
         /// <summary>
