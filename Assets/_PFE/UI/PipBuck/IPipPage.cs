@@ -50,4 +50,41 @@ namespace PFE.UI.PipBuck
         /// <summary>Attach the page's GameObjects under the device's page root.</summary>
         void Build(RectTransform pageRoot);
     }
+
+    /// <summary>
+    /// A page whose contents depend on <i>who opened the device</i> — the four contextual pages
+    /// (4 vendor, 6 doctor, 7 workbench, 9 vault), which a world interaction opens with a context and
+    /// which must drop that context when the device closes.
+    ///
+    /// <para><b>Why this is not folded into <see cref="IPipPage.SetVisible"/>.</b> It was, and the
+    /// result was the reported "trading shows no traders, and no Quests tab". <c>PipBuck.setPage</c>
+    /// hides <b>every</b> page before showing the target (<c>PipBuck.as:417-423</c>), so opening page 4
+    /// through <c>NPC.pip(4)</c> ran <c>SetVisible(false)</c> on page 4 itself — and that call cleared
+    /// the vendor, the npcId and the npcInter that had just been handed to it. The page then rebuilt
+    /// with no context: an empty shelf and, because <see cref="PipSubTabs.IsVisible"/> hides
+    /// <c>vend4</c> when <c>npcId</c> is empty, no Quests tab at all.</para>
+    ///
+    /// <para>Visibility and lifetime are two different events. <c>vis.visible</c> is a page switch,
+    /// which must preserve state; the device closing is what the Oracle's
+    /// <c>pip.vendor = null; pip.npcId = null</c> (<c>PipBuck.as:323-324</c>) actually means.</para>
+    /// </summary>
+    public interface IPipContextPage
+    {
+        /// <summary>
+        /// What opened the page — <c>pip.npcId</c> / <c>pip.npcInter</c> / <c>pip.workTip</c>.
+        ///
+        /// <para><b>Read by the device, not by the page.</b> <see cref="PipSubTabs.NavigatesToPage"/>
+        /// needs the interaction kind to decide whether a sub-tab click leaves the page entirely — a
+        /// <c>doc</c>'s Repair tab is the clinic, and any other vendor's is a repair list
+        /// (<c>PipPageVend.as:478-484</c>). The page owns the context; the device owns the navigation
+        /// that depends on it, so the value has to be readable from outside.</para>
+        /// </summary>
+        PipSubTabContext Context { get; }
+
+        /// <summary>
+        /// The device closed — drop the context that was handed to this page. Called from
+        /// <c>PipBuckManager.OnClosed</c>, the port of <c>PipBuck.as:316-335</c>.
+        /// </summary>
+        void OnDeviceClosed();
+    }
 }

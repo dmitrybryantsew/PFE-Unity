@@ -187,6 +187,13 @@ namespace PFE.UI.PipBuck.Pages
         private Text _headerName;
         private Text _headerCount;
 
+        /// <summary>
+        /// The list scrollbar — the Oracle's <c>scBar</c>. Quests, Notes and Bestiary scroll with the
+        /// wheel and had no visible bar, so a list longer than eighteen rows gave no sign it continued.
+        /// Shared chrome: see <see cref="PipRowChrome.Scrollbar"/>.
+        /// </summary>
+        private readonly PipRowChrome.Scrollbar _scrollbar = new PipRowChrome.Scrollbar();
+
         private readonly RectTransform[] _rowRects = new RectTransform[VisibleRows];
         private readonly Text[] _nameCells = new Text[VisibleRows];
         private readonly Text[] _countCells = new Text[VisibleRows];
@@ -350,6 +357,7 @@ namespace PFE.UI.PipBuck.Pages
             BuildWorldPanel();
             BuildHeader();
             BuildRows();
+            _scrollbar.Build(_root, _composition);
             BuildTextFields();
             BuildIcon();
             BuildConfirmButton();
@@ -647,6 +655,10 @@ namespace PFE.UI.PipBuck.Pages
             int maxScroll = Mathf.Max(0, EntryCount - VisibleRows);
             if (_scroll > maxScroll) _scroll = maxScroll;
             if (_scroll < 0) _scroll = 0;
+
+            // The bar reads the same three numbers the rows do, from the same clamp — so the thumb can
+            // never disagree with which rows are drawn.
+            _scrollbar.Refresh(EntryCount, VisibleRows, _scroll, maxScroll);
         }
 
         private void RefreshSubTabs()

@@ -1,5 +1,7 @@
 using System;
 using UnityEngine;
+using UnityEngine.UI;
+using PFE.Data.Definitions;
 
 namespace PFE.UI.PipBuck
 {
@@ -437,6 +439,155 @@ namespace PFE.UI.PipBuck
         public static Vector2 PageHeaderPosition()
         {
             return new Vector2(PageRowX, PageRowY0 - PageRowPitch);
+        }
+    }
+
+    /// <summary>
+    /// The two pieces of chrome every <b>list</b> sub-tab shares: the tinted row band behind each row
+    /// and the vertical scrollbar to its right.
+    ///
+    /// <para><b>Why this exists.</b> Both were built on the inventory page first, and the other list
+    /// pages shipped without them — so Status, Skills, Perks, Effects and Health drew their text on a
+    /// transparent row, and Quests/Notes/Bestiary did too. The original draws the same dark band behind
+    /// every list row on every page (the row clip is the same class, <c>PipPage.as:108-142</c>, with
+    /// only its <c>back</c> child differing per page), so "no band" was a port omission, not a page
+    /// style. Moving the geometry and the show/hide rule here is what stops the next page from
+    /// inventing a second scrollbar with slightly different numbers.</para>
+    ///
+    /// <para><b>The numbers are the inventory page's, and they are attested.</b> <c>scBar</c> is
+    /// symbol 492 placed at (600, 100) with <c>scaleY</c> 5.360, i.e. 17×536, just right of the
+    /// 560-wide row panel; the show/hide rule is <c>arr.length &gt; maxrows</c>
+    /// (<c>PipPage.as:942-953</c>). The thumb's size and travel are the port's choice — the Flash
+    /// component's thumb arithmetic lives in the player's compiled <c>fl.controls</c>, not in the SWF's
+    /// tag stream — and they are the obvious fraction, which is what the component visibly does.</para>
+    /// </summary>
+    public static class PipRowChrome
+    {
+        // ── Row band (the row clip's `back` child) ────────────────────────────
+
+        /// <summary>The imported row art's own size — <c>visPipInvItem.back</c> (498).</summary>
+        public const float RowBackWidth = 560f;
+        public const float RowBackHeight = 25f;
+
+        /// <summary>The band's centre inside the 30-px row band, from the SWF placement's y.</summary>
+        public const float RowBackCentreY = 12f;
+
+        // ── Scrollbar (symbol 492, `scBar`) ───────────────────────────────────
+
+        public const float ListScrollbarX = 600f;
+        public const float ListScrollbarY = 100f;
+        public const float ListScrollbarWidth = 17f;
+        public const float ListScrollbarHeight = 536f;   // 100 authored x scaleY 5.360
+        public const float ThumbMinHeight = 54f;
+
+        /// <summary>
+        /// Adds the tinted band behind a row, stretched to <paramref name="rowWidth"/>.
+        ///
+        /// <para><b>Stretching rather than scaling the art's own width.</b> The row clips differ per
+        /// page — the inventory's panel is 560 px, the character sheet's list is ~900 px wide — and the
+        /// symbol is the same 560-wide bitmap. The Oracle does not scale it (each page's <c>back</c> is
+        /// its own child at its own size), but the port has one imported sprite, so the honest
+        /// approximation is to scale X to the row. Returns null when the composition is missing, which
+        /// leaves the row transparent but still a raycast target.</para>
+        /// </summary>
+        public static RectTransform AddRowBack(RectTransform row, Sprite back, float rowWidth)
+        {
+            if (row == null || back == null || rowWidth <= 0f) return null;
+
+            var go = new GameObject("back", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            var rect = (RectTransform)go.transform;
+            rect.SetParent(row, false);
+            rect.anchorMin = rect.anchorMax = new Vector2(0f, 1f);
+            rect.pivot = new Vector2(0.5f, 0.5f);            // the symbol registers at its centre
+            rect.sizeDelta = new Vector2(RowBackWidth, RowBackHeight);
+
+            float scaleX = rowWidth / RowBackWidth;
+            rect.localScale = new Vector3(scaleX, 1f, 1f);
+            rect.anchoredPosition = new Vector2(RowBackWidth * scaleX * 0.5f, -RowBackCentreY);
+
+            Image image = go.GetComponent<Image>();
+            image.sprite = back;
+            image.color = Color.white;
+            image.raycastTarget = false;
+            return rect;
+        }
+
+        /// <summary>
+        /// A list scrollbar: build once, then <see cref="Refresh"/> on every repaint.
+        ///
+        /// <para>Kept as an object rather than two loose methods because the track and the thumb are
+        /// state — a page that forgot to hold them would rebuild the chrome on every repaint and leak
+        /// one GameObject per frame.</para>
+        /// </summary>
+        public sealed class Scrollbar
+        {
+            private RectTransform _track;
+            private RectTransform _thumb;
+
+            /// <summary>Whether the chrome has been built. A page may refresh before its first build.</summary>
+            public bool IsBuilt => _track != null;
+
+            /// <summary>
+            /// Builds the track and its thumb under <paramref name="parent"/>, at the Oracle's
+            /// placement. <paramref name="composition"/> supplies the two skin sprites; a null
+            /// composition still builds the rects, so the show/hide logic stays exercisable.
+            /// </summary>
+            public void Build(RectTransform parent, PipBuckCompositionDefinition composition)
+            {
+                if (parent == null || _track != null) return;
+
+                var go = new GameObject("scBar", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+                _track = (RectTransform)go.transform;
+                _track.SetParent(parent, false);
+                _track.anchorMin = _track.anchorMax = new Vector2(0f, 1f);
+                _track.pivot = new Vector2(0f, 1f);
+                _track.sizeDelta = new Vector2(ListScrollbarWidth, ListScrollbarHeight);
+                _track.anchoredPosition = new Vector2(ListScrollbarX, -ListScrollbarY);
+
+                Image track = go.GetComponent<Image>();
+                track.sprite = composition != null ? composition.scrollBarTrack : null;
+                track.type = Image.Type.Sliced;
+                track.color = Color.white;
+                track.raycastTarget = false;
+
+                var thumbGo = new GameObject("thumb", typeof(RectTransform), typeof(CanvasRenderer),
+                    typeof(Image));
+                _thumb = (RectTransform)thumbGo.transform;
+                _thumb.SetParent(_track, false);
+                _thumb.anchorMin = _thumb.anchorMax = new Vector2(0f, 1f);
+                _thumb.pivot = new Vector2(0.5f, 1f);        // hangs DOWN from its top edge, like Flash's y
+                _thumb.sizeDelta = new Vector2(ListScrollbarWidth, ThumbMinHeight);
+                _thumb.anchoredPosition = Vector2.zero;
+
+                Image thumb = thumbGo.GetComponent<Image>();
+                thumb.sprite = composition != null ? composition.scrollBarThumb : null;
+                thumb.type = Image.Type.Sliced;
+                thumb.color = Color.white;
+                thumb.raycastTarget = false;
+
+                _track.gameObject.SetActive(false);
+            }
+
+            /// <summary>
+            /// Applies the Oracle's rule (<c>PipPage.as:942-953</c>): visible only when the list is
+            /// longer than the window, thumb at <c>scroll / maxScroll</c> of the travel.
+            /// </summary>
+            public void Refresh(int rowCount, int visibleRows, int scroll, int maxScroll)
+            {
+                if (_track == null) return;
+
+                bool visible = rowCount > visibleRows;
+                if (_track.gameObject.activeSelf != visible) _track.gameObject.SetActive(visible);
+                if (!visible || _thumb == null) return;
+
+                float fraction = Mathf.Clamp01((float)visibleRows / rowCount);
+                float thumbHeight = Mathf.Max(ThumbMinHeight, ListScrollbarHeight * fraction);
+                _thumb.sizeDelta = new Vector2(ListScrollbarWidth, thumbHeight);
+
+                float travel = ListScrollbarHeight - thumbHeight;
+                float top = maxScroll > 0 ? Mathf.Clamp(scroll, 0, maxScroll) / (float)maxScroll * travel : 0f;
+                _thumb.anchoredPosition = new Vector2(0f, -top);
+            }
         }
     }
 }

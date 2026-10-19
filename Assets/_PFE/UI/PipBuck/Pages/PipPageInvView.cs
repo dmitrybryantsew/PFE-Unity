@@ -153,17 +153,21 @@ namespace PFE.UI.PipBuck.Pages
         //   emptytext (1016) ( 19.5,  86.2)  w 569.45, fontHeight 14
         //   bottext (1015)   ( 19.5, 653.1)  w 872.5, fontHeight 18
 
-        private const float ListScrollbarX = 600f;
-        private const float ListScrollbarY = 100f;
-        private const float ListScrollbarWidth = 17f;
-        private const float ListScrollbarHeight = 536f;   // 100 authored x scaleY 5.360
+        // The scrollbar's five numbers now live in <see cref="PipRowChrome"/>, because every list
+        // sub-tab on the device needs the same bar and three copies of "600, 100, 17, 536, 54" is
+        // three chances to disagree. Aliased rather than deleted so every call site below still reads
+        // as the Oracle's own name for the piece.
+        private const float ListScrollbarX = PipRowChrome.ListScrollbarX;
+        private const float ListScrollbarY = PipRowChrome.ListScrollbarY;
+        private const float ListScrollbarWidth = PipRowChrome.ListScrollbarWidth;
+        private const float ListScrollbarHeight = PipRowChrome.ListScrollbarHeight;   // 100 authored x scaleY 5.360
 
         /// <summary>
         /// The thumb's minimum height, in the stretched track's pixels. Flash's UIScrollBar clamps the
         /// thumb to the skin's own arrow-to-arrow span; the thumb skin is 54 px tall, and squeezing a
         /// 9-sliced sprite below its caps would fold the caps over themselves.
         /// </summary>
-        private const float ThumbMinHeight = 54f;
+        private const float ThumbMinHeight = PipRowChrome.ThumbMinHeight;
 
         private const float InfoNameX = 631f;
         private const float InfoNameY = 87f;
@@ -238,13 +242,16 @@ namespace PFE.UI.PipBuck.Pages
         /// (<c>PipPageInv.as:545-551</c>), equips armour (<c>:552-559</c>) or uses an item
         /// (<c>:596</c>), and its <c>itemRightClick</c> queues a drop (<c>:636-661</c>).
         ///
-        /// <para><b>The port has no path for any of those yet.</b> <c>IInventoryCommandSink</c> carries
-        /// <c>AddItem</c>, <c>RemoveItem</c>, <c>AddArmor</c>, <c>ConsumeAmmo</c> and <c>DropItem</c>
-        /// (<c>InventoryCommand.cs:16-48</c>) — no "equip", no "use". Rather than call into
-        /// <c>GameInventory</c> directly and bypass the command seam the whole system exists to
-        /// establish, the page hands the row to this callback. Returning <c>true</c> means "handled";
-        /// returning <c>false</c> — or leaving the handler unset — falls through to the report below,
-        /// so a click always says what the Oracle would have done rather than doing nothing.</para>
+        /// <para><b>All three left-click branches have a host now</b>, and the page still does not call
+        /// into <c>GameInventory</c> itself: equipping reaches <c>PlayerWeaponLoadout</c>, wearing
+        /// reaches <c>UnitStats.EquipArmour</c>, and using reaches <c>PlayerInventory.UseItem</c> — none
+        /// of which are inventory mutations the command seam owns, and all of which need the player
+        /// rather than the bag. The page hands the row over and reports the answer. Returning
+        /// <c>true</c> means "acted"; returning <c>false</c> — or leaving the handler unset — falls
+        /// through to the report below, which is the refusal path.</para>
+        ///
+        /// <para><b>The right-click (drop) branch is still unported</b>, and that is why the relay
+        /// routes a ctrl-click to the same hook rather than pretending to have a second verb.</para>
         /// </summary>
         public Func<PipInventoryRow, bool> RowActivated { get; set; }
 
@@ -2305,8 +2312,11 @@ namespace PFE.UI.PipBuck.Pages
                 return;
             }
 
-            // No handler: say what the Oracle would have done, rather than nothing at all. See
-            // RowActivated for why the port cannot do it yet.
+            // No handler acted: say what the Oracle would have done, and name the verb. Every branch
+            // of `itemClick` now has a host, so this is the refusal path — an armour id with no
+            // instance, a stim that would heal nothing, a book already read — and not the old
+            // "nothing is wired" path it used to be. The refusal itself has already logged its own
+            // reason at the point that refused, so this line is the verb, not a second diagnosis.
             string verb;
             switch (row.Value.Kind)
             {
@@ -2315,8 +2325,8 @@ namespace PFE.UI.PipBuck.Pages
                 default: verb = "use item (PipPageInv.as:596)"; break;
             }
 
-            Debug.Log($"[PipPageInvView] '{row.Value.Id}' — the Oracle would {verb}, but the port has " +
-                      "no inventory command for it. Set RowActivated to supply one.");
+            Debug.Log($"[PipPageInvView] '{row.Value.Id}' — the Oracle would {verb}, and the host " +
+                      "declined: nothing was consumed. See the host's own log line for the reason.");
         }
 
         /// <summary>

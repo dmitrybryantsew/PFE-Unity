@@ -417,16 +417,36 @@ namespace PFE.UI.PipBuck
                 return;
             }
 
+            // PipPageMed.as:247-252 and PipPageVend.as:478-484 — **two sub-tabs are not sub-tabs.** A
+            // doctor's "Trading" is the merchant page and a doc-vendor's "Repair" is the clinic, so a
+            // click on either leaves this page entirely. The rule itself lives in
+            // PipSubTabs.NavigatesToPage, where it is testable; the context it branches on lives on the
+            // page, which is why IPipContextPage exposes it.
+            PipSubTabContext context = CurrentPageInstance is IPipContextPage contextual
+                ? contextual.Context
+                : PipSubTabContext.Default;
+
+            int target = PipSubTabs.NavigatesToPage(_vm.Page.Value, subPage, context);
+
             _vm.SubPage.Value = subPage;
+
+            // PipPage.as:891 — `this.pip.snd(2)`, the item click, which is the same sound a tab press
+            // makes. Played before the navigation on the Oracle's two redirecting pages, and before the
+            // page's own work on the rest.
+            Play(2);
+
+            if (target != 0)
+            {
+                // `page2 = 1; pip.onoff(4);` — and the `1` is load-bearing: the page being navigated
+                // *to* must not be left parked on the sub-tab that navigated away, so OnOff is called
+                // with the sub-page, not with 0. PipPageMed.as:250-254 writes the same thing as an
+                // explicit `pip.currentPage.page2 = 1; pip.currentPage.setStatus();` after the onoff.
+                OnOff(target, 1);
+                return;
+            }
 
             // The page's own setStatus, not this class's SetPage — see the method summary.
             CurrentPageInstance?.SetStatus(subPage);
-
-            // PipPage.as:891 — `this.pip.snd(2)`, the item click, which is the same sound a tab press
-            // makes. Note the Oracle plays it *before* the page's work on the two pages that navigate
-            // away; the port plays it after, because a page that navigated would have replaced the
-            // current page by then.
-            Play(2);
         }
 
         /// <summary>
@@ -535,12 +555,24 @@ namespace PFE.UI.PipBuck
         /// clears the vendor and NPC id, detaches the appearance customiser and restores the dialogue
         /// and notice alphas.
         ///
-        /// <para><b>Ported: nothing yet</b>, for the same reason as <see cref="OnOpened"/> — every one
-        /// of those owners is a later work item. The one that matters for I9 is the vendor/NPC reset,
-        /// which is a no-op while those pages are stubs.</para>
+        /// <para><b>The vendor/NPC reset is live now, and it was not before.</b> This method used to
+        /// empty its body with the note that the contextual pages "are stubs", so
+        /// <c>pip.vendor</c>/<c>pip.npcId</c> were never cleared. Nothing noticed while page 4 had no
+        /// way to be reached; once <c>PipPageVendView</c> did, the missing reset became a stale trader
+        /// surviving close and reopen, because a contextual page does not survive a close/reopen
+        /// cycle (<c>PipBuck.as:246-249</c> sends the device to page 1) yet still held its context.</para>
+        ///
+        /// <para><b>It goes through <see cref="IPipContextPage"/>, not a call on page 4.</b> Four pages
+        /// are contextual (4 vendor, 6 doctor, 7 workbench, 9 vault); naming one here would make the
+        /// next one a second edit to the manager. The loop also runs even when another page was
+        /// showing, which is the point — the reset is about the device, not about what was on screen.</para>
         /// </summary>
         private void OnClosed()
         {
+            for (int id = 1; id <= MaxPageId; id++)
+            {
+                if (_pages[id] is IPipContextPage contextual) contextual.OnDeviceClosed();
+            }
         }
 
         /// <summary>

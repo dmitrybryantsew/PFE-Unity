@@ -145,6 +145,14 @@ namespace PFE.UI.PipBuck.Pages
         // ── Built objects ─────────────────────────────────────────────────────
 
         private RectTransform _root;
+
+        /// <summary>
+        /// The list scrollbar — the Oracle's <c>scBar</c>. Shared chrome with the inventory page via
+        /// <see cref="PipRowChrome.Scrollbar"/>: the character sheet had a working mouse wheel and no
+        /// visible bar, so a player could scroll a list with no indication that more existed.
+        /// </summary>
+        private readonly PipRowChrome.Scrollbar _scrollbar = new PipRowChrome.Scrollbar();
+
         private readonly RectTransform[] _rowRects = new RectTransform[PipStatList.VisibleRows];
         private readonly Text[] _nameCells = new Text[PipStatList.VisibleRows];
         private readonly Text[] _valueCells = new Text[PipStatList.VisibleRows];
@@ -302,6 +310,7 @@ namespace PFE.UI.PipBuck.Pages
 
             BuildHeader();
             BuildRows();
+            _scrollbar.Build(_root, _composition);
             BuildEmptyText();
             BuildBottomText();
 
@@ -364,9 +373,21 @@ namespace PFE.UI.PipBuck.Pages
                 RectTransform rect = CreateRowRect("Row" + row, PipBuckLayout.PageRowPosition(row), true);
                 _rowRects[row] = rect;
 
+                // The Oracle's row `back`, behind everything else in the row. The character sheet's own
+                // clip is `visPipStatItem`, which was never imported, so the imported inventory row art
+                // (498) stands in — the same substitution the Info page already makes for `visPipQuestItem`
+                // (999). Without it the rows were transparent, which is why Status looked like a wall of
+                // floating text next to the inventory's banded list.
+                //
+                // The width is the art's own 560, not this page's 900-px row rect: the Oracle's band ends
+                // just before the scrollbar, which sits at x 600 in page-root coordinates, so a
+                // full-width band would run under the bar. 560 is also exactly the span the inventory
+                // page's identical art occupies.
+                PipRowChrome.AddRowBack(rect, _composition != null ? _composition.inventoryRowBack : null,
+                    PipRowChrome.RowBackWidth);
+
                 // A fully transparent Image still receives raycasts in Unity UI, so this is what makes
-                // the row hoverable and clickable without drawing anything — the Oracle's row
-                // background lives in the symbol that was not imported.
+                // the row hoverable and clickable without drawing anything of its own.
                 Image background = rect.GetComponent<Image>();
                 background.color = new Color(1f, 1f, 1f, 0f);
 
@@ -495,6 +516,7 @@ namespace PFE.UI.PipBuck.Pages
             RefreshSubTabs();
             RefreshHeader(hasList);
             RefreshRows(hasList);
+            _scrollbar.Refresh(_rows.Count, PipStatList.VisibleRows, _scroll, maxScroll);
             RefreshEmptyText(empty);
             RefreshBottomText();
         }

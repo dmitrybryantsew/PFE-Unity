@@ -10,6 +10,7 @@ using PFE.Entities.Player;
 using PFE.Systems.Campaign;
 using PFE.Systems.Inventory;
 using PFE.Systems.Map;
+using PFE.Systems.Trade;
 using PFE.UI.MainMenu;
 using PFE.UI.PipBuck.Pages;
 
@@ -104,6 +105,12 @@ namespace PFE.UI.PipBuck
         private const float RescanInterval = 0.5f;
 
         /// <summary>
+        /// Page 6 — AS3 <c>PipPageMed</c>, the doctor's contextual page. The id comes from the view,
+        /// because the view is the thing that owns the page.
+        /// </summary>
+        private const int ClinicPageId = PipPageMedView.MedPageId;
+
+        /// <summary>
         /// The container, for the one subscription this bootstrapper owns. Resolved lazily through
         /// <see cref="IObjectResolver.TryResolve"/> rather than injected as a constructor argument for
         /// the reason <c>HudBootstrapper</c> does the same: a missing broker should degrade to "the wall
@@ -113,6 +120,17 @@ namespace PFE.UI.PipBuck
 
         /// <summary>The travel-map subscription, released in <see cref="OnDestroy"/>.</summary>
         private IDisposable _travelMapSubscription;
+
+        /// <summary>The trade page, kept so the vendor subscription can open it without a cast.</summary>
+        private PipPageVendView _vendorPage;
+
+        private IDisposable _vendorSubscription;
+
+        /// <summary>The clinic-page subscription, released in <see cref="OnDestroy"/>.</summary>
+        private IDisposable _clinicSubscription;
+
+        /// <summary>The doctor's page, kept so the clinic subscription can open it without a cast.</summary>
+        private PipPageMedView _medPage;
 
         [Inject]
         public void Construct(InputReader input, PipBuckManager manager, IObjectResolver resolver)
@@ -191,6 +209,8 @@ namespace PFE.UI.PipBuck
             // The wall map's page. This is the subscriber `TravelMapOpenedMessage` has never had — see
             // BindTravelMap for what was dead and why it mattered.
             BindTravelMap();
+            BindVendorPage();
+            BindClinicPage();
 
             // The tab captions. PipBuckPages.TabLabelFor resolves the Oracle's own string-table key
             // (Res.pipText("main" + n), PipBuck.as:172) against the localisation document, which is
@@ -356,7 +376,7 @@ namespace PFE.UI.PipBuck
                 // (ii1..ii8) and the empty-list notice (emptyinv).
                 TextTable = _text,
 
-                // The Oracle's left-click action, for the one kind of row the port can act on.
+                // The Oracle's left-click action: equip a weapon, wear armour, or use an item.
                 // See ActivateInventoryRow.
                 RowActivated = ActivateInventoryRow,
 
@@ -455,9 +475,67 @@ namespace PFE.UI.PipBuck
             //
             // Named individually rather than looped so the log states which work item each one
             // belongs to, instead of a count.
-            RegisterStub(4, "PipPageVend — Item I12 (merchant)");
+
+            // ── Page 4: trade (docs/TradersAndTrade, T7) ──────────────────────
+            //
+            // The page needs a source, and the source needs the live bag and stats — both resolved
+            // lazily for the same reason the inventory's is (the player is assembled in
+            // PlayerController.Awake, which is not ordered against this Start).
+            var vendorSource = new PlayerVendorPageSource(ResolveInventory,
+                () => ResolvePlayer()?.CharacterStats,
+                id => ResolvePlayer()?.GetComponent<PlayerInventory>()?.ResolveItem(id))
+            {
+                TextTable = _text,
+                HardInventoryProvider = ResolveHardInventory,
+                InBaseProvider = () => CampaignManager.Current != null && CampaignManager.Current.IsCurrentLandBase,
+                TriggerIsOneProvider = name => ResolveTriggerAsInt(name) == 1,
+
+                // `AllData.d.weapon` — the table the item resolver cannot answer for. Without it the
+                // weapon vendor's shelf named every row by its raw id and priced it 0.
+                WeaponResolver = id => ResolvePlayerInventory()?.ResolveWeapon(id),
+
+                // `pers.priceRepArmor` (Pers.as:105, default 0.5) has no ported field — the gap ledger
+                // claimed one, and a grep for the name finds nothing. The Oracle's own default is used
+                // rather than inventing a curve; landing the field changes this line only.
+                RepairArmorMultiplierProvider = () => 0.5f,
+            };
+
+            var vendPage = new PipPageVendView(_manager.ViewModel, vendorSource)
+            {
+                TextTable = _text,
+                SubPageClicked = subPage => _manager.SubPageClick(subPage),
+
+                // `pip.snd(3)` after a transaction (PipPageVend.as:920-924). The sound belongs to the
+                // device, so the page raises it and the manager plays it.
+                TransactionCommitted = () => _manager.Play(3),
+            };
+
+            vendPage.Configure(_composition, _font, _text);
+            _manager.RegisterPage(vendPage);
+            _vendorPage = vendPage;
+
             RegisterStub(5, "PipPageOpt — options / save / load");
-            RegisterStub(6, "PipPageMed — Item I12 (doctor)");
+
+            // ── Page 6: the doctor (PipPageMed) ───────────────────────────────
+            //
+            // The page needs a source, and the source needs the live player's three halves — the organ
+            // readings on CharacterStats, the HP pool on UnitStats and the purse on GameInventory — all
+            // resolved lazily for the same reason the character sheet's are (the player is assembled in
+            // PlayerController.Awake, which is not ordered against this Start).
+            var medPage = new PipPageMedView(BuildMedSource())
+            {
+                TextTable = _text,
+                SubPageClicked = subPage => _manager.SubPageClick(subPage),
+
+                // `pip.snd(1)` on every handled click (PipPageMed.as:446). The sound belongs to the
+                // device, so the page raises it and the manager plays it.
+                Clicked = () => _manager.Play(1),
+            };
+
+            medPage.Configure(_composition, _font, _text);
+            _manager.RegisterPage(medPage);
+            _medPage = medPage;
+
             RegisterStub(7, "PipPageWork — Item I12 (workbench)");
             RegisterStub(8, "PipPageApp — Item I12 (appearance)");
             RegisterStub(9, "PipPageVault — Item I12 (container)");
@@ -466,6 +544,188 @@ namespace PFE.UI.PipBuck
             inventoryPage.Build(_view.PageRoot);
             statPage.Build(_view.PageRoot);
             infoPage.Build(_view.PageRoot);
+            vendPage.Build(_view.PageRoot);
+            medPage.Build(_view.PageRoot);
+        }
+
+        /// <summary>
+        /// Subscribes the device to <see cref="VendorOpenedMessage"/> and opens page 4 — the port of
+        /// <c>NPC.pip(4)</c> (<c>NPC.as:250-260</c>).
+        ///
+        /// <para><b>What was dead.</b> The NPC ladder (<c>UnitNPCController.Interact</c>) already
+        /// resolved a trader to <c>NpcActivationKind.Trade</c> and then reported it unwired; the page
+        /// did not exist at all (it was a stub). This subscription is the edge between them, and the
+        /// vendor is resolved from the campaign's registry rather than carried in the message, so a
+        /// land rebuild's fresh vendors are what opens.</para>
+        /// </summary>
+        private void BindVendorPage()
+        {
+            if (_resolver == null)
+            {
+                Debug.LogWarning("[PipBuckBootstrapper] No container resolver — VendorOpenedMessage is " +
+                                 "wired to nothing, so no trader NPC can open the trade page.");
+                return;
+            }
+
+            if (!_resolver.TryResolve(out ISubscriber<VendorOpenedMessage> subscriber))
+            {
+                Debug.LogWarning("[PipBuckBootstrapper] No ISubscriber<VendorOpenedMessage> — a trader " +
+                                 "will activate and open nothing. Check that " +
+                                 "RegisterMessageBroker<VendorOpenedMessage> is still in the installer.");
+                return;
+            }
+
+            _vendorSubscription = subscriber.Subscribe(message =>
+            {
+                CampaignManager campaign = CampaignManager.Current;
+                VendorRuntime vendor = campaign?.Vendors.Get(message.VendorId);
+
+                if (vendor == null)
+                {
+                    Debug.LogWarning($"[PipBuckBootstrapper] VendorOpenedMessage names '{message.VendorId}' " +
+                                     "but the campaign has no such vendor. The NPC's `vendor` attribute and " +
+                                     "the imported <vendor> blocks disagree — the shelf would be empty, so " +
+                                     "the page is not opened.");
+                    return;
+                }
+
+                if (_vendorPage == null)
+                {
+                    Debug.LogWarning("[PipBuckBootstrapper] The trade page is not built; cannot open page 4.");
+                    return;
+                }
+
+                Debug.Log($"[PipBuckBootstrapper] Trade page opened for '{message.VendorId}' " +
+                          $"(npc '{message.NpcId}', inter '{message.NpcInter}') — " +
+                          $"{vendor.Buys.Count} shelf rows, vendor has {vendor.Money} caps.");
+
+                // NPC.pip(4): set the three device fields, then onoff(4). The page's Open does the
+                // vendor.reset() and the multPrice push that PipBuck.onoff/setPage do.
+                _vendorPage.Open(vendor, message.NpcId, message.NpcInter);
+                _manager.OnOff(PipPageVendView.VendorPageId);
+            });
+        }
+
+        /// <summary>
+        /// Subscribes the device to <see cref="ClinicOpenedMessage"/> and opens page 6 — the port of
+        /// <c>NPC.pip(6)</c> (<c>NPC.as:250-260</c>), reached from <c>doc</c>/<c>vdoc</c>
+        /// (<c>:217-220</c>) and from <c>adoc</c> past its first repair (<c>:227-230</c>).
+        ///
+        /// <para><b>What was dead.</b> The NPC ladder (<c>UnitNPCController.Interact</c>) resolved a
+        /// doctor to <c>NpcActivationKind.Doctor</c> and then reported it unwired, and page 6 was a stub
+        /// that said so. The player pressed the key and got a notice. The page and this edge are the
+        /// answer.</para>
+        ///
+        /// <para><b>The vendor context is written first, and that is the Oracle's order.</b>
+        /// <c>NPC.pip</c> sets <c>pip.vendor</c>/<c>npcId</c>/<c>npcInter</c> and <i>then</i> opens the
+        /// page. A <c>doc</c> never reaches the vendor branch of <c>activate()</c>, so the Vendor tab
+        /// (which lights on page 6, <c>PipBuck.as:222-225</c>) is its only road to its own shelf.</para>
+        ///
+        /// <para><b>It is an <i>open</i>, not a toggle</b> — same reasoning as the trade page:
+        /// <c>page &gt; 0</c> is the open arm (<c>PipBuck.as:251-262</c>), and the interaction that
+        /// publishes this cannot fire while the device is already up.</para>
+        /// </summary>
+        private void BindClinicPage()
+        {
+            if (_resolver == null)
+            {
+                Debug.LogWarning("[PipBuckBootstrapper] No container resolver — ClinicOpenedMessage is " +
+                                 "wired to nothing, so no doctor NPC can open the clinic page.");
+                return;
+            }
+
+            if (!_resolver.TryResolve(out ISubscriber<ClinicOpenedMessage> subscriber))
+            {
+                Debug.LogWarning("[PipBuckBootstrapper] No ISubscriber<ClinicOpenedMessage> — a doctor " +
+                                 "will activate and open nothing. Check that " +
+                                 "RegisterMessageBroker<ClinicOpenedMessage> is still in the installer.");
+                return;
+            }
+
+            _clinicSubscription = subscriber.Subscribe(message =>
+            {
+                // `NPC.pip`'s context half, BEFORE the page opens: a doctor has no other route to its
+                // own shelf, because `activate()` never reaches the vendor branch for `doc`/`vdoc`.
+                // The Vendor tab lights on page 6 (PipBuck.as:222-225), so this context is what it
+                // shows. `SetContext`, not `Open`: opening the clinic must not reset the doctor's
+                // stock, which is `onoff(4)`'s job.
+                if (_vendorPage != null && !string.IsNullOrEmpty(message.VendorId))
+                {
+                    VendorRuntime clinicVendor = CampaignManager.Current?.Vendors.Get(message.VendorId);
+                    if (clinicVendor != null)
+                    {
+                        _vendorPage.SetContext(clinicVendor, message.NpcId, message.NpcInter);
+                    }
+                    else
+                    {
+                        Debug.LogWarning(
+                            $"[PipBuckBootstrapper] ClinicOpenedMessage names vendor " +
+                            $"'{message.VendorId}', but the campaign has no such vendor — the doctor's " +
+                            "shelf will not be reachable from the Vendor tab. (The clinic itself still " +
+                            "opens; `vendor='nope'` on the autodoc is the expected case.)");
+                    }
+                }
+
+                if (_medPage == null)
+                {
+                    Debug.LogWarning("[PipBuckBootstrapper] The clinic page is not built; cannot open " +
+                                     "page 6. A doctor will activate and show nothing.");
+                    return;
+                }
+
+                // `npcInter` is what picks the purse (money / gel / good) and whether the Trading tab
+                // exists at all (PipPageMed.as:48-57), so it is handed to the page rather than left to
+                // the source to guess from the last NPC. The vendor id travels with it so a caps-paying
+                // doctor's takings can be credited to the wallet the player later sells to
+                // (PipPageMed.as:442-445) — and so that closing the clinic drops it.
+                _medPage.Open(message.NpcId, message.NpcInter, message.VendorId);
+
+                Debug.Log($"[PipBuckBootstrapper] Clinic page opened for npc '{message.NpcId}' " +
+                          $"(inter '{message.NpcInter}', vendor '{message.VendorId}') — paid in " +
+                          $"'{PlayerPipMedSource.CurrencyFor(message.NpcInter)}'. Its trade is reachable " +
+                          "from the Vendor tab.");
+
+                _manager.OnOff(ClinicPageId);
+            });
+        }
+
+        /// <summary>
+        /// The doctor's data, wired to the live player.
+        ///
+        /// <para><b>Every owner is resolved per read</b>, like the character sheet's, and for the same
+        /// reason: the player is assembled in <c>PlayerController.Awake</c>.</para>
+        ///
+        /// <para><b>What is deliberately left unwired, and what that costs.</b>
+        /// <c>ActionsBlockedProvider</c> stays null — nothing in the port opens the device during a
+        /// cutscene, so the gate reads false; landing one changes this line and nothing else.
+        /// <c>ClinicVendorProvider</c> resolves the doctor's own wallet from the campaign's registry,
+        /// which is what makes a caps-paying doctor keep its takings
+        /// (<c>PipPageMed.as:442-445</c>). <c>NpcInterProvider</c> reads the <i>page's</i> context, not
+        /// the message's, because the page is the thing that outlives the message.</para>
+        /// </summary>
+        private IPipMedSource BuildMedSource()
+        {
+            return new PlayerPipMedSource(
+                () => ResolvePlayer()?.CharacterStats,
+                () => ResolvePlayer()?.Stats,
+                ResolveInventory)
+            {
+                NpcInterProvider = () => _medPage?.Context.NpcInter ?? string.Empty,
+                GlobalDifficultyProvider = ResolveDifficulty,
+                ActionsBlockedProvider = null,
+
+                // `pip.vendor` — the same registry the trade page reads, so the doctor's takings land in
+                // the wallet the player can later sell to. Resolved from the PAGE, not from a cached id,
+                // because the page drops its context when the device closes: a clinic the player walked
+                // away from must not credit a doctor they are no longer standing in front of.
+                ClinicVendorProvider = () =>
+                {
+                    string vendorId = _medPage?.ClinicVendorId;
+                    return string.IsNullOrEmpty(vendorId)
+                        ? null
+                        : CampaignManager.Current?.Vendors.Get(vendorId);
+                },
+            };
         }
 
         /// <summary>
@@ -578,6 +838,19 @@ namespace PFE.UI.PipBuck
             PlayerInventory owner = ResolvePlayer()?.GetComponent<PlayerInventory>();
             return owner != null ? owner.Inventory : null;
         }
+
+        /// <summary>
+        /// The player's <see cref="PlayerInventory"/> itself — the component, not its bag.
+        ///
+        /// <para><b>Needed because <c>useItem</c> is not a bag operation.</b> Using an item reaches the
+        /// character's stats, the spell book and the effect set, all of which live beside the inventory
+        /// on the player; <see cref="ResolveInventory"/> hands out the dictionary and would leave a
+        /// caller with no way back to those. Resolved per call for the same reason every other provider
+        /// in this file is: the player is assembled in <c>PlayerController.Awake</c>, which is not
+        /// ordered against this bootstrapper's <c>Start</c>.</para>
+        /// </summary>
+        private PlayerInventory ResolvePlayerInventory()
+            => ResolvePlayer()?.GetComponent<PlayerInventory>();
 
         /// <summary>
         /// The equipped weapon's id — AS3 <c>gg.newWeapon.id</c> (<c>PipPageInv.as:391</c>, the selection
@@ -890,8 +1163,9 @@ namespace PFE.UI.PipBuck
         // ── Inventory row activation ─────────────────────────────────────────
         //
         // PipPageInv.itemClick (PipPageInv.as:532-617): a weapon row equips it, an armour row wears
-        // it, and everything else uses it. The weapon and armour branches are ported; "use" is not,
-        // so it returns false and lets the page report what the Oracle would have done.
+        // it, and everything else uses it. All three branches are ported; the third one had been
+        // missing since the page was written, which is why every click on a stim or a spell logged
+        // "the port has no inventory command for it".
 
         /// <summary>
         /// Performs the Oracle's left-click action for a row, or reports that it could not.
@@ -900,8 +1174,16 @@ namespace PFE.UI.PipBuck
         private bool ActivateInventoryRow(PipInventoryRow row)
         {
             if (row.Kind == PipInventoryKind.Weapon) return EquipWeaponRow(row);
-            if (row.Kind != PipInventoryKind.Armor) return false;
+            if (row.Kind == PipInventoryKind.Armor) return WearArmourRow(row);
 
+            return UseInventoryRow(row);
+        }
+
+        /// <summary>
+        /// <c>PipPageInv.as:552-559</c> — the armour branch, <c>World.w.gg.changeArmor(id)</c>.
+        /// </summary>
+        private bool WearArmourRow(PipInventoryRow row)
+        {
             GameInventory inventory = ResolveInventory();
             if (inventory == null)
             {
@@ -942,6 +1224,47 @@ namespace PFE.UI.PipBuck
                       "PipBuck inventory page (PipPageInv.as:552-559).");
 
             return true;
+        }
+
+        /// <summary>
+        /// <c>PipPageInv.as:596</c> — <c>World.w.invent.useItem(id)</c>: the Aid and Misc pages, and
+        /// anything on Equipment that is neither a weapon nor armour.
+        ///
+        /// <para><b>The page is re-read after a successful use.</b> A potion changes the health readout
+        /// and the row's stack count; a spell changes the selection frame; a skill book changes the
+        /// character sheet. All of those are drawn from the page's own snapshot, so a use that did not
+        /// repaint would leave the list showing a row the player just consumed — the same one-tick
+        /// staleness the armour branch above already avoids with its <c>SetStatus(0)</c>.</para>
+        /// </summary>
+        private bool UseInventoryRow(PipInventoryRow row)
+        {
+            PlayerInventory playerInventory = ResolvePlayerInventory();
+            if (playerInventory == null)
+            {
+                Debug.LogWarning("[PipBuckBootstrapper] Cannot use '" + row.Id + "': there is no " +
+                                 "player inventory to use it from.");
+                return false;
+            }
+
+            // The Oracle's guards that live on the device rather than on the item: `pip.noAct` is
+            // checked by the page before this is reached, so only the world state is left to push.
+            playerInventory.AtBaseProvider ??= ResolveInBase;
+
+            if (!playerInventory.UseItem(row.Id)) return false;
+
+            // `setStatus(false)` — a full rebuild, because a use can change the list itself.
+            ResolveInventoryPage()?.SetStatus(0);
+            return true;
+        }
+
+        /// <summary>
+        /// <c>World.w.loc.base</c> — whether the current land is a base. Read lazily, like every other
+        /// provider here, because the land does not exist when the bootstrapper builds.
+        /// </summary>
+        private bool ResolveInBase()
+        {
+            CampaignManager campaign = CampaignManager.Current;
+            return campaign != null && campaign.IsCurrentLandBase;
         }
 
         /// <summary>
@@ -1157,6 +1480,12 @@ namespace PFE.UI.PipBuck
             // pointing at a destroyed bootstrapper alive for the rest of the session.
             _travelMapSubscription?.Dispose();
             _travelMapSubscription = null;
+
+            _vendorSubscription?.Dispose();
+            _vendorSubscription = null;
+
+            _clinicSubscription?.Dispose();
+            _clinicSubscription = null;
         }
     }
 }
