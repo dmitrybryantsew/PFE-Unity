@@ -131,6 +131,28 @@ namespace PFE.Systems.Weapons
         // ── Per-shot counters ──────────────────────────────────────────────────
         public int KolShoot;     // increments each shot — used for sndShoot_n gating
 
+        /// <summary>
+        /// Per-<b>instance</b> damage multiplier, applied to the shot's damage on top of everything the
+        /// definition and the ammo say. <c>1</c> is the identity and the value every weapon has unless
+        /// something explicitly stamps it.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Why this has to live on the state and not on the definition.</b>
+        /// <c>WeaponDefinition</c> is a <c>ScriptableObject</c> shared by every unit holding that weapon
+        /// id, so writing a multiplier into it would double the damage of <i>every</i> gutsy in the game
+        /// rather than the one variant that earned it. AS3 can mutate its weapon freely because each
+        /// <c>Weapon.create</c> builds a fresh object
+        /// (<c>UnitGutsy.as:30-33</c>: <c>this.dopWeapon.damage *= 2</c>), which is exactly the
+        /// per-instance semantics this field reproduces.</para>
+        ///
+        /// <para><b>Consumed by <c>RangedWeaponController</c> only.</b> That is the controller
+        /// <c>robofire</c> resolves to (<c>tip='0'</c>, <c>AllData.txt:1438</c>), and it is the only
+        /// weapon in the game whose damage an AS3 variant class doubles. Folding it into melee, thrown
+        /// and magic as well would be inventing behaviour nobody asked for; a controller that ignores
+        /// the field is honest, and the doc says so.</para>
+        /// </remarks>
+        public float DamageScale = 1f;
+
         // ── Input edge-detection (set by controller from BeginAttack/EndAttack) ──
         public bool IsAttack;    // attack is held this tick
         public bool WasAttack;   // attack was held last tick (for prep-sound edge)
@@ -143,6 +165,18 @@ namespace PFE.Systems.Weapons
         // ── World-space position (lerped toward hold point, matches AS3 X/Y) ───
         public float X;
         public float Y;
+
+        /// <summary>
+        /// AS3 <c>WClub.blumR</c> — a rotation offset in <b>degrees</b> added to the <i>drawn</i>
+        /// angle only (<c>WClub.as:332</c> computed, <c>:747</c> applied as
+        /// <c>vis.rotation = rot*180/PI + blumR</c>).
+        ///
+        /// <para><b>It must not touch <see cref="Rot"/>.</b> <c>rot</c> is what the blade tip is
+        /// projected along, so folding a cosmetic lean into it would move the hit volume. Zero for
+        /// every non-melee weapon and for a rigidly mounted (<c>weaponKrep &gt; 0</c>) one, which never
+        /// runs the spring that produces it.</para>
+        /// </summary>
+        public float BlumRDeg;
 
         /// <summary>
         /// Faction of the unit that owns this weapon — the attacker side of

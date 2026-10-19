@@ -21,12 +21,20 @@ namespace PFE.Tests.EditMode.Systems.Weapons
     /// <c>MeleeHitVolume</c> caches its <c>CapsuleCollider2D</c> in <c>Awake</c>, and EditMode never
     /// runs <c>Awake</c> for <c>AddComponent</c>.</para>
     ///
-    /// <para><b>Why the aim target equals the hold point</b> in the geometry tests: with a distant aim
-    /// the weapon's spring position drifts toward it each frame (pre-existing behaviour, not under
-    /// test), which offsets the absolute tip coordinates. Aiming at the weapon's own position freezes
-    /// the spring, so the tip distance is exactly the AS3 expression — and it also exercises
-    /// <c>DirectionTo</c>'s degenerate-input fallback, which AS3's <c>atan2(0,0)</c> resolves the same
-    /// way.</para>
+    /// <para><b>Why the geometry tests aim at the spring's REST point rather than at the hold
+    /// point.</b> A melee weapon is a levitating object: <c>WClub.actions()</c> springs its
+    /// <c>X/Y</c> toward <c>hold + clamp(cel − hold, meleeR)</c> every frame, attacking or not
+    /// (<see cref="MeleeSpringMath"/>), so any aim that is not already the rest point offsets the
+    /// absolute tip coordinates by however far the weapon has travelled. Aiming at the rest point
+    /// makes the step exactly zero on frame 0 and the tip distances exactly the AS3 expressions.
+    /// Before the spring was ported these tests aimed at <c>Vector2.zero</c>, which only "froze" the
+    /// weapon because the old code snapped it to the hold point whenever <c>t_attack &lt;= 0</c> —
+    /// the bug that has since been removed.</para>
+    ///
+    /// <para>The rest point is <c>(meleeS + 0.8·dlina, 0.3·dlina)</c> for a swing and
+    /// <c>(meleeS, 0)</c> for a thrust or an overhead: <c>meleeS</c> is the 40 px anchor in front of
+    /// the body, and the swing's aim cell is pulled back/down by the blade length
+    /// (<c>WClub.as:256-257</c>). See <see cref="RestAim"/>.</para>
     ///
     /// <para><b>Two more guards added 2026-10-03, after the audit's §4 was re-checked.</b> The
     /// original fixture only asked whether *some* frame was active, so it could not see that mtip 0's
@@ -91,6 +99,21 @@ namespace PFE.Tests.EditMode.Systems.Weapons
             return def;
         }
 
+        /// <summary>
+        /// The aim point at which the melee spring is exactly at rest, for a body standing at the
+        /// origin with <c>weaponY == 0</c> — i.e. the aim that makes <c>State.X/Y</c> stay on the hold
+        /// point for the whole swing. See the class note for the derivation.
+        /// </summary>
+        private static Vector2 RestAim(MeleeType type, float reachPx)
+        {
+            const float meleeS = 0.4f;                 // Pers.meleeS = 40 px
+            float dlina = reachPx / 100f;              // phis@long, px -> Unity units
+
+            return type == MeleeType.Horizontal
+                ? new Vector2(meleeS + 0.8f * dlina, 0.3f * dlina)
+                : new Vector2(meleeS, 0f);
+        }
+
         /// <summary>Swing once and return everything the controller told the hit volume to do.</summary>
         private static RecordingHitVolume RunOneSwing(MeleeType type, float rapid,
                                                      float minReach, float reach, int frames)
@@ -102,7 +125,7 @@ namespace PFE.Tests.EditMode.Systems.Weapons
 
             ctrl.BeginAttack();
             var hold = Vector2.zero;
-            var aim  = Vector2.zero;    // aim at the weapon itself: the spring cannot drift
+            var aim  = RestAim(type, reach);   // the spring is at rest here: the weapon cannot drift
             for (int i = 0; i < frames; i++)
                 ctrl.Tick(Dt, hold, hold, aim);
 
@@ -130,7 +153,7 @@ namespace PFE.Tests.EditMode.Systems.Weapons
 
             var log  = new List<Step>();
             var hold = Vector2.zero;
-            var aim  = Vector2.zero;    // aim at the weapon itself: the spring cannot drift
+            var aim  = RestAim(type, reach);   // the spring is at rest here: the weapon cannot drift
 
             ctrl.BeginAttack();
             for (int i = 0; i < frames; i++)

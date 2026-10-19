@@ -326,6 +326,21 @@ namespace PFE.Editor.Importers
             float minDlina = AttrF(phisT1, "minlong", 0f);
             def.meleeMinDlina = minDlina > 0f ? minDlina : def.meleeDlina;
 
+            // ── Melee MASS — WClub.as:330's step limit ───────────────────────────────────────────
+            //
+            //   norma(del, Math.max(this.levitRun, 1 / massa))      // WClub.as:330
+            //   massa = param1.@massa / 50                          // Weapon.as:715-721
+            //
+            // So the per-frame travel limit is `max(meleeRun, 50/@massa)` px: a bat (massa 1) may
+            // move 50 px per frame and a hammer (massa 15) only 3.3, where `meleeRun` (10 at tier 0)
+            // takes over. `massa` is a SINGLE-PURPOSE attribute — nothing else in the oracle reads it
+            // — which is why it is only now imported.
+            //
+            // Stored RAW and assigned unconditionally, like the two reach values above: 0 means the
+            // row authored none, and `MeleeSpringMath.StepClampPx` reproduces the oracle's
+            // `1/0 = Infinity` (unclamped) for it rather than freezing a stale asset value.
+            def.meleeMassa = AttrF(phisT1, "massa", 0f);
+
             def.skillLevel  = AttrI(rootAttrs, "skill", 0);
             def.weaponLevel = AttrI(rootAttrs, "lvl",   0);
             // AS3 Weapon.as:430 `this.perslvl = node.@perslvl`. Read with the same boundary-anchored
@@ -521,7 +536,28 @@ namespace PFE.Editor.Importers
             def.soundPrep   = Attr(snd, "prep",   "");
             def.soundPrepT1 = AttrI(snd, "t1",    0);
             def.soundPrepT2 = AttrI(snd, "t2",    0);
-            def.noiseRadius = AttrF(snd, "noise", 600f);
+            // Default 0, NOT 600. AS3 declares `public var noise:int = 0` (Weapon.as:214) and only
+            // ever assigns it from `getSndParam`'s `if(param1.@noise.length())` branch (:675), which
+            // is reached from `node.snd[0]` (:528) — so a weapon that authors no `<snd>`, or a
+            // `<snd>` with no `noise` attribute, is SILENT in the oracle (`:1579` then tests
+            // `this.noise > 0` and does nothing).
+            //
+            // The old default of 600 made 57 of 213 baked weapons audible that the oracle keeps
+            // silent, and the set is not random: every grenade and mine (`grenade`, `fgren`,
+            // `hgren`, `spgren`, `molotov`, `dinamit`, `bomb`, `dbomb`, `mercgr`, the seven
+            // `*mine` rows), every punch (`scorppunch`, `ship`), all six of dron's `ttweap1..6`,
+            // and the four robot weapons that carry `noise` on `<char>` instead of `<snd>`
+            // (`robolaser2`, `robospark2`, `dronplasma`, `dronpspark`). Measured with
+            // docs/Diagnostics/scripts/diff_weapon_noise.py: 156 match, 57 too loud, 0 too quiet.
+            //
+            // A grenade being silent here is correct, not a gap: a throw is quiet and the
+            // EXPLOSION is what carries, through Box.noiseDie (:855-857) rather than the weapon row.
+            //
+            // `<char noise='…'>` is deliberately NOT a fallback. It looks like a carrier — four
+            // robot rows author `noise='400'` on it — but getCharParam (Weapon.as:777-860) has no
+            // @noise branch at all, so the oracle never reads it. Copying it would invent 400 for
+            // those four rows.
+            def.noiseRadius = AttrF(snd, "noise", 0f);
 
             // The two that were missing. AS3 splits the <snd> block across THREE parsers, so reading
             // only the first one drops a throwable's landing sound and a mine's beeps silently:

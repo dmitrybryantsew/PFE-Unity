@@ -386,6 +386,25 @@ namespace PFE.Data.Definitions
         public float meleeDlina = 50f;
         [Tooltip("Minimum reach for thrust/slash weapons in Flash pixels (mindlina in AS3, phis@minlong). Defaults to meleeDlina when the row omits minlong; only the Overhead sweep (mtip=2) and the Thrust lunge read it.")]
         public float meleeMinDlina = 50f;
+
+        /// <summary>
+        /// <c>&lt;phis massa&gt;</c> — the weapon's own mass attribute, read <b>only</b> by the melee
+        /// spring's per-frame travel limit: <c>max(meleeRun, 1/massa)</c> px/frame, where AS3's
+        /// <c>massa</c> is this value divided by 50 (<c>Weapon.as:715-721</c>), so the limit works out
+        /// to <c>50 / massa</c>. A bat (<c>massa='1'</c>) gets 50 px/frame and is effectively
+        /// unclamped; a hammer (<c>massa='15'</c>) gets 3.3, so <c>Pers.meleeRun</c> (10 at tier 0)
+        /// wins instead.
+        ///
+        /// <para><b>0 means "the row authored no massa"</b> — a real state in the oracle, where
+        /// <c>1/0 = Infinity</c> makes the step unclamped. Every one of the 30 melee rows in
+        /// <c>AllData.as</c> does author it (values 1..15), so 0 only appears on an asset that has not
+        /// been reimported since this field was added; <see cref="MeleeSpringMath.StepClampPx"/>
+        /// reproduces the oracle's own behaviour for it rather than inventing a default.</para>
+        /// </summary>
+        [Tooltip("phis@massa — the weapon's own mass (1..15 on every melee row). Read ONLY by the " +
+                 "melee spring's step limit, max(meleeRun, 50/massa) px per frame. 0 = row authored " +
+                 "none, which in AS3 leaves the step unclamped. Melee only.")]
+        public float meleeMassa;
         [Tooltip("Enables combo counter — every 4th hit deals 2× damage (combinat in AS3, char@combo OR !auto&&!powerfull).")]
         public bool meleeCombo;
         [Tooltip("Weapon can be charged by holding attack (powerfull in AS3, char@pow). The charge itself is not ported — see TOPIC_weapons_dispatch.")]
@@ -550,8 +569,9 @@ namespace PFE.Data.Definitions
                  "On trigger release, playback jumps here to play the wind-down tail. " +
                  "Example: minigun_s t2=3060 = end of firing loop / start of spin-down.")]
         public int soundPrepT2;
-        [Tooltip("How far the shot sound travels in the world — used for AI noise awareness (snd.@noise).")]
-        public float noiseRadius = 600f;
+        [Tooltip("How far the shot sound travels in the world — used for AI noise awareness (snd.@noise). " +
+                 "0 = this weapon is silent (the oracle's default: AS3 Weapon.noise = 0).")]
+        public float noiseRadius;
 
         [Tooltip("Sound ID played when a THROWN object strikes a tile (snd.@fall). AS3 assigns it to the " +
                  "PhisBullet's sndHit (WThrow.as:196) and plays it on every tile bounce with volume " +
@@ -722,6 +742,7 @@ namespace PFE.Data.Definitions
         MeleeType IWeaponStats.meleeType => meleeType;
         float IWeaponStats.meleeDlina => meleeDlina;
         float IWeaponStats.meleeMinDlina => meleeMinDlina;
+        float IWeaponStats.meleeMassa => meleeMassa;
         bool IWeaponStats.meleeCombo => meleeCombo;
         bool IWeaponStats.meleePowerAttack => meleePowerAttack;
         ProjectileArchetype IWeaponStats.projectileArchetype => projectileArchetype;

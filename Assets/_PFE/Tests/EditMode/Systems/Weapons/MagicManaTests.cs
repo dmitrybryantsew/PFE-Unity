@@ -74,6 +74,7 @@ namespace PFE.Tests.EditMode.Systems.Weapons
             public float PunchDamMult => 1f;
             public float KickDestroy => 30f;
             public float MeleeRun => 10f;
+            public float MeleeR => 100f;
             public float CritInvis => 0f;
             public float Desintegr => 0f;
             public float AllPrecMult => 1f;

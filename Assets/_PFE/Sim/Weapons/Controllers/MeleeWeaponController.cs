@@ -15,10 +15,12 @@ namespace PFE.Systems.Weapons.Controllers
     /// <c>storona, -0.2</c>).</para>
     ///
     /// <para><b>What is still an approximation</b> — each named at its site and tracked in
-    /// <c>TOPIC_weapons_dispatch</c>: the spring position, the durability <i>wear rate</i> (a flat 1
-    /// per swing here vs <c>crash()</c>-on-hit there), the <c>rashod</c> ammo spend, and the
-    /// <c>weaponAttack()</c> <c>else if(t_attack &gt; 10) combo = 0</c> branch (<c>WClub.as:688-691</c>,
-    /// a combo reset when a swing is requested too early).</para>
+    /// <c>TOPIC_weapons_dispatch</c>: the durability <i>wear rate</i> (a flat 1 per swing here vs
+    /// <c>crash()</c>-on-hit there), the <c>rashod</c> ammo spend, the <c>weaponAttack()</c>
+    /// <c>else if(t_attack &gt; 10) combo = 0</c> branch (<c>WClub.as:688-691</c>, a combo reset when a
+    /// swing is requested too early), and the <c>lineCel()</c> tile clamp on the aim cell
+    /// (<c>WClub.as:258</c> / <c>:276</c>), which needs a tile query this controller does not have —
+    /// the same missing seam the <c>isLine</c> gate below records.</para>
     ///
     /// <para><b>The one behavioural gap left: the <c>isLine</c> gate.</b> Every WClub weapon sets
     /// <c>checkLine = true</c> on its bullet (<c>WClub.as:161-162</c>), and <c>Bullet.run()</c> then
@@ -47,13 +49,27 @@ namespace PFE.Systems.Weapons.Controllers
     ///
     /// Key behaviors from AS3:
     ///
-    /// Position (spring physics) — **an approximation, not a port.** AS3 (WClub.as:310-335) springs
-    ///   toward `holdPoint + norma(cel - hold, meleeR)`, halves and clamps the step to
-    ///   `max(levitRun, 1/massa)`, adds `blumR` to the drawn rotation, and puts `cel` at
-    ///   `owner.cel - dlina*0.8*storona, +dlina*0.3` behind/below the cursor after a `lineCel()`
-    ///   line-of-sight test. This controller snaps to the hold point whenever `t_attack <= 0` and
-    ///   otherwise chases the cursor clamped to `dlina`, with no `meleeR`, no `levitRun`, no `blumR`
-    ///   and no tile query. Tracked in TOPIC_weapons_dispatch.
+    /// Position (the levitating spring) — **ported 2026-10-20**; the arithmetic lives in
+    ///   <see cref="MeleeSpringMath"/> so it can be executed offline. A melee weapon is not held in
+    ///   the hand: it floats at the aim point, and its <c>X/Y</c> are <b>persistent</b>. Every frame
+    ///   (<c>WClub.as:310-335</c>) it takes a half step toward
+    ///   <c>hold + clamp(cel − hold, meleeR)</c>, the step clamped to
+    ///   <c>max(levitRun, 1/massa)</c>, and <c>blumR</c> is added to the <i>drawn</i> rotation.
+    ///   Nothing snaps it back to the hand when an attack ends — that only happens for a rigidly
+    ///   mounted unit (<c>weaponKrep &gt; 0</c>), and the player is <c>krep == 0</c>
+    ///   (<c>UnitPlayer.as:368</c>).
+    ///
+    ///   <para>This used to snap <c>State.X/Y</c> to the hold point whenever <c>t_attack &lt;= 0</c>
+    ///   and chase the cursor clamped to <c>dlina</c> while swinging, with no <c>meleeR</c>, no
+    ///   <c>levitRun</c> and no <c>blumR</c>. The visible result was a weapon that "launched at the
+    ///   target and was then set back", and a reach of <c>2·dlina</c> that ignored the melee skill
+    ///   entirely — the port's melee range never grew.</para>
+    ///
+    ///   The aim cell (<c>celX/celY</c>, and the spring's own <c>celRX/celRY</c>) is per sub-type:
+    ///   mtip 0 pulls it back by <c>dlina*0.8</c> and down by <c>dlina*0.3</c> (<c>:256-257</c>);
+    ///   mtip 1 captures it once per attack and then <b>freezes</b> it, so a thrust commits to the
+    ///   direction it was started in (<c>:267-279</c>); mtip 2 refreshes it every frame and pulls it
+    ///   back toward the hold point by the mean blade length (<c>:280-287</c>).
     ///
     /// mtip sub-behaviors — all three drive the hit volume (see UpdateHitWindow):
     ///   0 = swing (club/sword) — rot sweeps an arc driven by anim
@@ -151,7 +167,37 @@ namespace PFE.Systems.Weapons.Controllers
         // Weapon tip positions for MeleeSweep (previous and current frame).
         private Vector2 _prevTip;
         private bool    _inStrikeWindow;
-        private bool    _firstFrame = true;
+
+        // ── The aim cell (AS3 celX/celY and celRX/celRY) ──────────────────────
+
+        /// <summary>
+        /// <c>celX/celY</c> — the cell the weapon's <b>angle</b> is taken from. For mtip 1/2 it is a
+        /// snapshot of <see cref="_celRX"/>/<see cref="_celRY"/> taken <i>before</i> the overhead
+        /// pull-back, which is why the two are kept apart: AS3 copies
+        /// <c>this.celX = this.celRX</c> at <c>WClub.as:272-273</c> and then moves only <c>celR</c>
+        /// (<c>:285-286</c>), so a mtip 2 chop aims along the raw cursor while the spring targets the
+        /// pulled-back point.
+        /// </summary>
+        private float _celX, _celY;
+
+        /// <summary>
+        /// <c>celRX/celRY</c> — the cell the <b>spring</b> targets (and, for mtip 0, the same point).
+        /// Frozen for the whole of a thrust (<c>WClub.as:267-279</c>: refreshed only while
+        /// <c>t_attack &lt;= 0</c> or for mtip 2), pulled back for an overhead (<c>:280-287</c>).
+        /// </summary>
+        private float _celRX, _celRY;
+
+        /// <summary>
+        /// Whether <c>State.X/Y</c> has ever been written. AS3's rigid branch snaps when
+        /// <c>!X</c> (<c>WClub.as:310</c>) — "X is still 0", i.e. the weapon was just constructed and
+        /// <c>Weapon.as:957</c> has not run. An explicit flag is the same state without the 0,0
+        /// coordinate edge, and it is cleared implicitly by a re-equip because that builds a new
+        /// controller.
+        /// </summary>
+        private bool _positionInitialised;
+
+        /// <summary>AS3 <c>ready</c> — the spring has settled within 10 px of its aim cell.</summary>
+        private bool _ready;
 
         // Reach in Unity units.
         private float _dlina;
@@ -164,6 +210,85 @@ namespace PFE.Systems.Weapons.Controllers
         // Typed as the interface so EditMode tests can substitute a recording stub; the real
         // MeleeHitVolume caches its collider in Awake, which never runs for AddComponent in EditMode.
         public IMeleeHitVolume HitVolume { get; set; }
+
+        /// <summary>
+        /// The owner's <b>body</b>, for the three things the melee spring reads off <c>owner</c> that
+        /// the weapon's own <c>holdPoint</c> cannot supply:
+        ///
+        /// <list type="bullet">
+        /// <item><c>owner.X</c> — the spring's x anchor is <c>owner.X + meleeS*owner.storona</c>
+        /// (<c>WClub.as:326</c>), and the facing hysteresis is measured against it (<c>:259</c>).
+        /// <c>holdPoint.x</c> is <i>not</i> the same value: for the player it is
+        /// <c>X + scX*storona</c> when the cursor is outside the body and plain <c>X</c> when it is
+        /// inside (<c>UnitPlayer.as:3518-3526</c>), and <c>meleeS</c> is a fixed 40 px.</item>
+        /// <item><c>owner.Y - scY/2</c> — the aim origin a thrust or an overhead rotates about
+        /// (<c>WClub.as:430</c>, <c>:466</c>), i.e. the body's centre, not the weapon's position.</item>
+        /// <item><c>owner.weaponKrep</c> — whether the weapon is rigidly mounted. Zero (the player,
+        /// <c>UnitPlayer.as:368</c>) takes the spring; non-zero snaps to the hold point and never
+        /// springs (<c>WClub.as:310-315</c>).</item>
+        /// </list>
+        ///
+        /// <para><b>Set per tick by the caller, exactly like <c>RangedWeaponController.MuzzleWorldPoint</c>
+        /// and <c>OwnerFacingSign</c>.</b> Null means "no owner in scope" — a test, or a caller that
+        /// has not been updated — and then the hold point stands in for the body, which is the
+        /// pre-2026-10-20 behaviour of the spring's anchor. It is <b>not</b> a silent default: a real
+        /// rig that forgets to set it gets a weapon that hangs <c>meleeS</c> short of where the oracle
+        /// puts it, so both call sites set it.</para>
+        /// </summary>
+        public OwnerFrame? Owner { get; set; }
+
+        /// <summary>The owner's body, as the melee spring needs it. See <see cref="Owner"/>.</summary>
+        public readonly struct OwnerFrame
+        {
+            /// <summary><c>owner.X</c> — the body's centre x (a unit's transform IS its feet/centre).</summary>
+            public readonly float BodyX;
+
+            /// <summary><c>owner.Y - owner.scY/2</c> — the body's centre y.</summary>
+            public readonly float BodyCentreY;
+
+            /// <summary><c>owner.storona</c> — the body's facing, <c>+1</c> right / <c>-1</c> left.
+            /// <b>Not</b> the weapon's facing: AS3 anchors with the body's even while the weapon
+            /// itself is turned around.</summary>
+            public readonly float BodyFacingSign;
+
+            /// <summary><c>owner.weaponKrep &gt; 0</c> — rigidly mounted, so snap to the hold point.</summary>
+            public readonly bool RigidMount;
+
+            /// <summary>
+            /// Whether the per-frame travel clamp applies. AS3 gates it on <c>owner.player</c>
+            /// (<c>WClub.as:328</c>), so a non-player unit's melee weapon springs <b>unclamped</b>.
+            /// Only observable on the 14 <c>krep='0'</c> rows, since a <c>krep='1'</c> unit never
+            /// reaches the spring at all.
+            /// </summary>
+            public readonly bool ClampStep;
+
+            public OwnerFrame(float bodyX, float bodyCentreY, float bodyFacingSign,
+                              bool rigidMount, bool clampStep)
+            {
+                BodyX          = bodyX;
+                BodyCentreY    = bodyCentreY;
+                BodyFacingSign = bodyFacingSign >= 0f ? 1f : -1f;
+                RigidMount     = rigidMount;
+                ClampStep      = clampStep;
+            }
+        }
+
+        /// <summary>
+        /// <c>Pers.meleeR</c> in Unity units — the spring's radius, i.e. the melee weapon's
+        /// <b>range</b> (<c>WClub.as:242</c>). The blade adds <see cref="_dlina"/> on top, so the
+        /// effective reach is <c>meleeR + dlina</c>. A missing stat source falls back to the
+        /// <c>Pers</c> declaration default, which is also what an enemy sees (AS3 reads the
+        /// <i>player's</i> <c>World.w.pers.meleeR</c> for every unit).
+        /// </summary>
+        private float MeleeRadius => (_statSource != null
+            ? _statSource.MeleeR
+            : MeleeSpringMath.MeleeRDefaultPx) / PpuScale;
+
+        /// <summary><c>Pers.meleeRun</c> in Flash px — the spring's per-frame travel limit before the
+        /// <c>1/massa</c> term (<c>WClub.as:330</c>).</summary>
+        private float MeleeRunPx => _statSource != null
+            ? _statSource.MeleeRun
+            : MeleeSpringMath.MeleeRunDefaultPx;
 
         private readonly List<ShotPlan> _plans = new();
 
@@ -334,38 +459,28 @@ namespace PFE.Systems.Weapons.Controllers
 
         private void TickOneFlashFrame(Vector2 holdPoint, Vector2 aimTarget)
         {
-            // ── Facing direction ──────────────────────────────────────────────
-            _storona = aimTarget.x >= holdPoint.x ? 1f : -1f;
+            // ── The owner's body ──────────────────────────────────────────────
+            // Three values the spring needs and the hold point cannot give; see Owner. A missing
+            // frame (a test, or a caller not yet updated) stands the hold point in for the body.
+            bool  rigid       = Owner.HasValue && Owner.Value.RigidMount;
+            float bodyX       = Owner.HasValue ? Owner.Value.BodyX       : holdPoint.x;
+            float bodyCentreY = Owner.HasValue ? Owner.Value.BodyCentreY : holdPoint.y;
+            float bodyFacing  = Owner.HasValue ? Owner.Value.BodyFacingSign : _storona;
+            bool  clampStep   = !Owner.HasValue || Owner.Value.ClampStep;
 
-            // ── Spring position (AS3: del toward celTarget, clamped to meleeR) ──
-            if (_firstFrame || State.TAttack <= 0)
-            {
-                State.X    = holdPoint.x;
-                State.Y    = holdPoint.y;
-                _firstFrame = false;
-            }
-            else
-            {
-                // Cursor target clamped to reach.
-                Vector2 weaponPos = new Vector2(State.X, State.Y);
-                Vector2 toTarget  = aimTarget - weaponPos;
-                if (toTarget.magnitude > _dlina)
-                    toTarget = toTarget.normalized * _dlina;
+            // ── Aim cell + facing (AS3 WClub.as:254-293) ──────────────────────
+            UpdateAimCell(holdPoint, aimTarget, bodyX, bodyFacing);
 
-                Vector2 del = toTarget / 2f;   // AS3: (celX - X) / 2
-                State.X += del.x;
-                State.Y += del.y;
-            }
+            // ── Spring position (AS3 WClub.as:310-335) ────────────────────────
+            UpdatePosition(holdPoint, bodyX, bodyFacing, rigid, clampStep);
 
             // ── Rotation ──────────────────────────────────────────────────────
             // AS3 sets `rot` inside each mtip branch (WClub.as:377 / :430 / :466):
             //   mtip 0 → the anim-driven swing arc
-            //   mtip 1 / 2 → straight at the cursor
-            // AS3 aims the latter from `owner.Y - owner.scY/2`; this controller has no owner
-            // offset, so it aims from the weapon's own position like the rest of the class.
+            //   mtip 1 / 2 → straight at the aim cell, FROM THE BODY'S CENTRE
             UpdateAnim();
-            State.Rot = ComputeRot(aimTarget);
-            State.Ready = true;
+            State.Rot = ComputeRot(bodyX, bodyCentreY);
+            State.Ready = _ready;
 
             // ── attack() — AS3 Weapon.attack() (Weapon.as:1280-1302) ───────────
             //
@@ -401,7 +516,7 @@ namespace PFE.Systems.Weapons.Controllers
             // RunActions used to, since it ran above this call — shifted every window bound and
             // every anim sample one frame late, which is the offset the hit-window fixture documents
             // as audit §4's remaining phase-math item.
-            UpdateHitWindow(aimTarget);
+            UpdateHitWindow(bodyX, bodyCentreY);
 
             // ── actions() timers ──────────────────────────────────────────────
             RunActions();
@@ -409,6 +524,124 @@ namespace PFE.Systems.Weapons.Controllers
             State.IsShoot   = false;
             State.WasAttack = State.IsAttack;
             State.IsAttack  = false;
+        }
+
+        // ── Aim cell (AS3 WClub.as:254-293) ───────────────────────────────────
+
+        /// <summary>
+        /// Resolve <c>celX/celY</c> and <c>celRX/celRY</c> — the point the blade is angled at and the
+        /// point the spring travels to — plus the weapon's facing for this frame.
+        ///
+        /// <para><b>The three sub-types differ here, and that is the point.</b></para>
+        ///
+        /// <para><b>mtip 0 — swing</b> (<c>WClub.as:254-264</c>). The cell is the cursor pulled back
+        /// along the facing by <c>dlina*0.8</c> and down by <c>dlina*0.3</c>, because the blade sweeps
+        /// an arc about the weapon's own position and the <i>tip</i> is what should land on the
+        /// cursor. The facing has <b>hysteresis</b>: it only flips once the cursor is more than
+        /// <c>100*storona</c> behind the body, so a swing that sweeps across the character does not
+        /// turn the weapon round mid-arc. Note AS3 also runs <c>lineCel()</c> here and ignores its
+        /// return value, using only its side effect (clamping the cell to the first solid tile). The
+        /// port has no tile query on this path, so a cell inside a wall is not clamped — the same
+        /// missing seam as the <c>isLine</c> hit gate.</para>
+        ///
+        /// <para><b>mtip 1 — thrust</b> (<c>:265-279</c>). The cell is captured from the cursor
+        /// <b>once per attack</b> and then frozen for the whole swing, so a thrust commits to the
+        /// direction it was started in and the spear cannot be steered mid-lunge. The facing follows
+        /// the frozen cell with no hysteresis (<c>:288</c>).</para>
+        ///
+        /// <para><b>mtip 2 — overhead</b> (<c>:280-287</c>). Refreshed every frame (the
+        /// <c>mtip == 2</c> term in both conditions), then pulled back toward the hold point by the
+        /// mean blade length. <c>celX/celY</c> keeps the <b>raw</b> cursor — the copy at
+        /// <c>:272-273</c> happens before the pull-back — so the chop's <i>angle</i> still points at
+        /// the cursor while the spring targets the nearer point.</para>
+        /// </summary>
+        private void UpdateAimCell(Vector2 holdPoint, Vector2 aimTarget, float bodyX, float bodyFacing)
+        {
+            if (_def.meleeType == MeleeType.Horizontal)
+            {
+                _storona = MeleeSpringMath.SwingFacing(aimTarget.x, bodyX, bodyFacing,
+                                                       MeleeSpringMath.TurnHysteresisPx / PpuScale);
+                MeleeSpringMath.SwingAimCell(aimTarget.x, aimTarget.y, _dlina, _storona,
+                                             out _celX, out _celY);
+                _celRX = _celX;
+                _celRY = _celY;
+                return;
+            }
+
+            // WClub.as:267 / :274 — refreshed while idle, and for an overhead on every frame.
+            bool refresh = _def.meleeType == MeleeType.Overhead || State.TAttack <= 0;
+            if (refresh)
+            {
+                _celRX = aimTarget.x;
+                _celRY = aimTarget.y;
+            }
+
+            // WClub.as:272-273 — snapshot BEFORE the pull-back.
+            _celX = _celRX;
+            _celY = _celRY;
+
+            if (_def.meleeType == MeleeType.Overhead)
+            {
+                MeleeSpringMath.OverheadPullBack(ref _celRX, ref _celRY,
+                    bodyX + MeleeSpringMath.MeleeSPx / PpuScale * bodyFacing,
+                    holdPoint.y, _dlina, _minDlina);
+            }
+
+            // WClub.as:288 — measured on celR (the pulled-back point for mtip 2), against the body.
+            _storona = MeleeSpringMath.AimFacing(_celRX, bodyX);
+        }
+
+        // ── Spring position (AS3 WClub.as:310-335) ────────────────────────────
+
+        /// <summary>
+        /// Move the weapon one frame of the levitating spring, and set <see cref="State.BlumRDeg"/>.
+        ///
+        /// <para><b>Two branches, and only one of them is a spring.</b> <c>krep &gt; 0</c> — a
+        /// rigidly mounted unit, which the player is not (<c>UnitPlayer.as:368</c>) — snaps to the
+        /// hold point and never moves on its own (<c>WClub.as:310-315</c>). Everything else takes the
+        /// spring, and it keeps taking it <i>while idle</i>: that is what makes the weapon hover at
+        /// the aim point and what stops it snapping back when a swing ends.</para>
+        ///
+        /// <para>The x anchor is <c>owner.X + meleeS*owner.storona</c> — the body plus a fixed
+        /// 40 px in the <b>body's</b> facing — and the y anchor is <c>owner.weaponY</c>, which is the
+        /// hold point's y (<c>WClub.as:326-327</c>). Using the hold point's x instead would anchor
+        /// the spring to a point that moves with the cursor: <c>weaponX</c> is
+        /// <c>X + scX*storona</c> when the cursor is outside the body and plain <c>X</c> when it is
+        /// inside (<c>UnitPlayer.as:3518-3526</c>).</para>
+        /// </summary>
+        private void UpdatePosition(Vector2 holdPoint, float bodyX, float bodyFacing,
+                                    bool rigid, bool clampStep)
+        {
+            if (rigid || !_positionInitialised)
+            {
+                State.X        = holdPoint.x;
+                State.Y        = holdPoint.y;
+                State.BlumRDeg = 0f;
+                _positionInitialised = true;
+                _ready         = true;
+                return;
+            }
+
+            float anchorX = bodyX + MeleeSpringMath.MeleeSPx / PpuScale * bodyFacing;
+
+            // `max(levitRun, 1/massa)` px/frame, in Unity units. An infinite clamp is AS3's own
+            // result for a row with no <phis massa>, and for a non-player unit (which never reaches
+            // this clamp at all — `if(owner.player)`, WClub.as:328).
+            float stepClamp = clampStep
+                ? MeleeSpringMath.StepClampPx(MeleeRunPx, _def.meleeMassa) / PpuScale
+                : float.PositiveInfinity;
+
+            MeleeSpringMath.SpringResult spring = MeleeSpringMath.Resolve(
+                _celRX, _celRY,
+                anchorX, holdPoint.y,
+                State.X, State.Y,
+                MeleeRadius, stepClamp, _storona,
+                MeleeSpringMath.ReadyDistancePx / PpuScale);
+
+            State.X        = spring.X;
+            State.Y        = spring.Y;
+            State.BlumRDeg = spring.BlumRDeg;
+            _ready         = spring.Ready;
         }
 
         // ── Attack initiation ─────────────────────────────────────────────────
@@ -700,7 +933,7 @@ namespace PFE.Systems.Weapons.Controllers
         /// bound was <c>rapid*1/6</c> instead of <c>rapid/2</c>, and the whole window ran one frame
         /// late because the timer decrement preceded this call. Both fixed 2026-10-03.
         /// </summary>
-        private void UpdateHitWindow(Vector2 aimTarget)
+        private void UpdateHitWindow(float bodyX, float bodyCentreY)
         {
             bool wasCharging = _charging;
             _charging = false;
@@ -739,7 +972,7 @@ namespace PFE.Systems.Weapons.Controllers
                 _charging  = true;
                 _anim      = -0.25f;                                                 // AS3 :342
                 _powerMult = MeleeChargeMath.PowerMultiplier(State.Pow, _rapidAct);  // AS3 :351
-                State.Rot  = ComputeRot(aimTarget);                                  // rot from anim
+                State.Rot  = ComputeRot(bodyX, bodyCentreY);                          // rot from anim
                 EndStrikeWindow();                                                   // AS3 skips bindMove
                 return;
             }
@@ -752,11 +985,11 @@ namespace PFE.Systems.Weapons.Controllers
             switch (_def.meleeType)
             {
                 case MeleeType.Thrust:
-                    UpdateThrustWindow(aimTarget);
+                    UpdateThrustWindow();
                     break;
 
                 case MeleeType.Overhead:
-                    UpdateOverheadWindow(aimTarget);
+                    UpdateOverheadWindow();
                     break;
 
                 default:   // MeleeType.Horizontal
@@ -802,8 +1035,17 @@ namespace PFE.Systems.Weapons.Controllers
             BeginOrExtendStrike(tip);
         }
 
-        /// <summary>mtip 1 — the lunge: one line pushed out by anim * atDlina (WClub.as:435-454).</summary>
-        private void UpdateThrustWindow(Vector2 aimTarget)
+        /// <summary>
+        /// mtip 1 — the lunge: one line pushed out by anim * atDlina (WClub.as:435-454).
+        ///
+        /// <para><b>Projected along <see cref="WeaponRuntimeState.Rot"/>, not along a fresh
+        /// weapon→cursor vector.</b> AS3 factors the lunge out of <c>cos2/sin2</c> — the same
+        /// <c>cos(rot)/sin(rot)</c> it just wrote at <c>:430-434</c> — so the blade, the sprite and the
+        /// sweep are one direction. Re-deriving a direction from the weapon's own position (as this
+        /// did) put the sweep on a slightly different line than the drawn spear as soon as the spring
+        /// had moved the weapon off the body's aim axis.</para>
+        /// </summary>
+        private void UpdateThrustWindow()
         {
             float rapid = _rapidAct;
             if (State.TAttack < rapid / 2f || State.TAttack >= rapid * 5f / 6f)
@@ -813,9 +1055,10 @@ namespace PFE.Systems.Weapons.Controllers
             }
 
             // AS3: _loc6_ = X + cos2 * dlina + plX, with plX = cos2 * anim * atDlina.
-            // Factoring cos2 out gives dir * (dlina + anim * atDlina) along the aim axis.
+            // Factoring cos2 out gives dir * (dlina + anim * atDlina) along the blade's own angle.
             Vector2 weaponPos = new Vector2(State.X, State.Y);
-            Vector2 tip = weaponPos + DirectionTo(aimTarget, weaponPos) * (_dlina + _anim * AtDlina);
+            Vector2 dir = new Vector2(Mathf.Cos(State.Rot), Mathf.Sin(State.Rot));
+            Vector2 tip = weaponPos + dir * (_dlina + _anim * AtDlina);
 
             BeginOrExtendStrike(tip);
         }
@@ -828,7 +1071,7 @@ namespace PFE.Systems.Weapons.Controllers
         /// once from <c>weaponAttack()</c> at attack start for every mtip (<c>:674</c>); this branch
         /// only performs the sweep. See <see cref="Shoot"/>.
         /// </summary>
-        private void UpdateOverheadWindow(Vector2 aimTarget)
+        private void UpdateOverheadWindow()
         {
             if (State.TAttack != 1)
             {
@@ -836,8 +1079,10 @@ namespace PFE.Systems.Weapons.Controllers
                 return;
             }
 
+            // cos2/sin2 of `rot` (WClub.as:467-468 then :473) — the same single angle the sprite is
+            // drawn at. See UpdateThrustWindow for why this is not a weapon→cursor vector.
             Vector2 weaponPos = new Vector2(State.X, State.Y);
-            Vector2 dir       = DirectionTo(aimTarget, weaponPos);
+            Vector2 dir       = new Vector2(Mathf.Cos(State.Rot), Mathf.Sin(State.Rot));
 
             HitVolume?.SetActive(true);
             HitVolume?.BindMove(weaponPos + dir * _minDlina, weaponPos + dir * _dlina);
@@ -867,28 +1112,27 @@ namespace PFE.Systems.Weapons.Controllers
             _inStrikeWindow = false;
         }
 
-        /// <summary>Unit vector from origin toward target, falling back to +X when they coincide.</summary>
-        private static Vector2 DirectionTo(Vector2 target, Vector2 origin)
-        {
-            Vector2 d = target - origin;
-            return d.sqrMagnitude > 1e-8f ? d.normalized : Vector2.right;
-        }
-
         /// <summary>
         /// The weapon's drawn angle — AS3's <c>rot</c>, set inside each mtip branch
         /// (<c>WClub.as:377</c> / <c>:430</c> / <c>:466</c>): the anim-driven swing arc for a
-        /// horizontal swing, straight at the cursor for a thrust or an overhead.
+        /// horizontal swing, straight at the aim cell for a thrust or an overhead.
+        ///
+        /// <para><b>Aimed from the body's centre, not from the weapon.</b> AS3 rotates about
+        /// <c>(owner.X, owner.Y - owner.scY/2)</c> — the middle of the character — while the blade is
+        /// projected from the weapon's own <c>X/Y</c>. Those are different points once the spring has
+        /// let the weapon drift out to the cursor, and using the weapon's position as the origin (as
+        /// this did) tilts a thrust and an overhead away from the cursor by exactly that drift.</para>
         ///
         /// <para>Factored out because the power charge has to re-derive it. AS3 sets <c>anim</c> and
         /// then <c>rot</c> in the same pass (<c>:342</c> then <c>:377</c>), so the first charging frame
-        /// must show the pinned <c>-1/4</c> pose immediately. This controller computes <c>rot</c> in the
-        /// position phase, before the hit-window phase that decides to charge, so without this the
+        /// must show the pinned <c>-1/4</c> pose immediately. This controller computes <c>rot</c> in
+        /// the position phase, before the hit-window phase that decides to charge, so without this the
         /// charge would display one frame late. Two copies of the formula would let the charge and the
         /// normal path drift apart.</para>
         /// </summary>
-        private float ComputeRot(Vector2 aimTarget) => _def.meleeType == MeleeType.Horizontal
+        private float ComputeRot(float bodyX, float bodyCentreY) => _def.meleeType == MeleeType.Horizontal
             ? -Mathf.PI / 2f + (-Mathf.PI / 6f + _anim * Mathf.PI) * _storona
-            : Mathf.Atan2(aimTarget.y - State.Y, aimTarget.x - State.X);
+            : Mathf.Atan2(_celY - bodyCentreY, _celX - bodyX);
 
         // ── Helpers ───────────────────────────────────────────────────────────
 

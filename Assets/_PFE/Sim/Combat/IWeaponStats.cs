@@ -66,6 +66,15 @@ namespace PFE.Systems.Combat
         MeleeType meleeType { get; }
         float meleeDlina { get; }
         float meleeMinDlina { get; }
+
+        /// <summary>
+        /// <c>&lt;phis massa&gt;</c> — the weapon's own mass attribute, raw (1..15 on every melee row).
+        /// Read <b>only</b> by the melee spring's per-frame travel limit
+        /// (<c>WClub.as:330</c>: <c>max(levitRun, 1/massa)</c>, with <c>massa = @massa/50</c>, so the
+        /// limit is <c>50/@massa</c> px/frame). 0 = the row authored none, which the oracle treats as
+        /// <c>1/0 = Infinity</c>, i.e. unclamped.
+        /// </summary>
+        float meleeMassa { get; }
         bool meleeCombo { get; }
         bool meleePowerAttack { get; }
         ProjectileArchetype projectileArchetype { get; }
@@ -159,6 +168,7 @@ namespace PFE.Systems.Combat
         public MeleeType meleeType { get; set; } = MeleeType.Horizontal;
         public float meleeDlina { get; set; } = 50f;
         public float meleeMinDlina { get; set; } = 50f;
+        public float meleeMassa { get; set; } = 0f;
         public bool meleeCombo { get; set; } = false;
         public bool meleePowerAttack { get; set; } = false;
         public ProjectileArchetype projectileArchetype { get; set; } = ProjectileArchetype.Ballistic;

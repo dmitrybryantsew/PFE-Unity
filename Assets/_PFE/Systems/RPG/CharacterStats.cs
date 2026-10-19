@@ -762,6 +762,19 @@ namespace PFE.Systems.RPG
         /// <see cref="ResetToDefaults"/> reproduces it.</para>
         /// </summary>
         [HideInInspector] public float meleeRun = 10f;
+
+        /// <summary>
+        /// AS3 <c>Pers.meleeR</c> (<c>Pers.as:171</c>, <b>100</b>) — the melee reach in Flash pixels:
+        /// how far the levitating melee weapon may sit from the hold point (<c>WClub.as:242</c>,
+        /// <c>:291</c>). The melee skill raises it by 30 per tier (<c>AllData.as:5226</c>:
+        /// <c>v0='100' vd='30'</c>) and the alicorn effect multiplies it by 1.5
+        /// (<c>AllData.as:5317</c>).
+        ///
+        /// <para><b>Not reset by <c>defaultParams()</c></b>, exactly like <c>meleeRun</c> above:
+        /// <c>Pers.as:820-960</c> contains no assignment to either, so a removed melee skill leaves
+        /// the last value behind.</para>
+        /// </summary>
+        [HideInInspector] public float meleeR = 100f;
         [HideInInspector] public float jumpdy = 12f;
         [HideInInspector] public float djumpdy = 6f;
         [HideInInspector] public int infravis = 0;
@@ -1677,13 +1690,13 @@ namespace PFE.Systems.RPG
             // recompute. They were missing here, so a removed perk left a stale multiplier behind.
             reloadMult = 1.0f;
             recoilMult = 1.0f;
-            // jammedMult, recyc, meleeRun, drotMult and explRadMult are deliberately NOT reset here,
-            // because defaultParams() does not reset them either — the grep over Pers.as:820-960
-            // finds no assignment to any of the five. They therefore keep whatever the last <sk>
-            // left, even after the perk that granted it is gone. That looks like an oversight in
-            // AS3, but it is the oracle: reproducing it is what keeps a perk-removal recompute
-            // identical. (defaultParams() line 853 does set kickDestroy = 30, so that one IS reset;
-            // see below.)
+            // jammedMult, recyc, meleeRun, meleeR, drotMult and explRadMult are deliberately NOT
+            // reset here, because defaultParams() does not reset them either — the grep over
+            // Pers.as:820-960 finds no assignment to any of the six. They therefore keep whatever the
+            // last <sk> left, even after the perk that granted it is gone. That looks like an
+            // oversight in AS3, but it is the oracle: reproducing it is what keeps a perk-removal
+            // recompute identical. (defaultParams() line 853 does set kickDestroy = 30, so that one
+            // IS reset; see below.)
             //
             // desintegr joins that "not reset" group for the same reason and by the same grep: it is
             // a bare Pers field (Pers.as:199), not a gg.* param, and defaultParams() never assigns
@@ -2075,6 +2088,7 @@ namespace PFE.Systems.RPG
         float IWeaponStatSource.PunchDamMult => punchDamMult;
         float IWeaponStatSource.KickDestroy  => kickDestroy;
         float IWeaponStatSource.MeleeRun     => meleeRun;
+        float IWeaponStatSource.MeleeR       => meleeR;
 
         // The two attacker-side hit procs. Unlike the multipliers above, AS3 does not copy these
         // into setParams — it stamps them on the bullet at fire time (Weapon.as:1697 for critInvis,
@@ -2373,6 +2387,15 @@ namespace PFE.Systems.RPG
                     // a multiplier, and the only writer of Pers.meleeRun in the whole oracle.
                     meleeRun = ApplyFloatOp(meleeRun, refType, val);
                     TrackFactor("meleeRun", sourceId ?? "stat", sourceType, val, meleeRun);
+                    break;
+                case "meleeR":
+                    // The melee skill's OTHER row (AllData.as:5226, v0=100 vd=30) and the alicorn
+                    // effect's `ref='mult' v1='1.5'` (AllData.as:5317). It reaches the weapon as
+                    // `World.w.pers.meleeR` (WClub.as:242) — the spring's radius, i.e. the melee
+                    // weapon's RANGE. Until this case existed the row hit `default:`, so a skill point
+                    // in melee lengthened nothing: the port's reach came from `dlina` alone.
+                    meleeR = ApplyFloatOp(meleeR, refType, val);
+                    TrackFactor("meleeR", sourceId ?? "stat", sourceType, val, meleeR);
                     break;
                 case "gunsDamMult":
                     gunsDamMult = ApplyFloatOp(gunsDamMult, refType, val);

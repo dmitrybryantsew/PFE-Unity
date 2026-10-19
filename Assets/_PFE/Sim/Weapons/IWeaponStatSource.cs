@@ -98,6 +98,26 @@ namespace PFE.Systems.Weapons
         /// </summary>
         float MeleeRun { get; }
 
+        /// <summary>
+        /// <c>Pers.meleeR</c> (<c>Pers.as:171</c>, <b>100</b>) — the melee <b>reach</b>, in Flash
+        /// pixels: how far from the hold point the levitating melee weapon is allowed to sit, and
+        /// therefore how far the blade actually reaches (<c>WClub.as:242</c>, <c>:291</c>).
+        ///
+        /// <para><b>This is the stat that makes a melee weapon's range a skill.</b> The melee skill
+        /// grants it (<c>AllData.as:5226</c>: <c>v0='100' vd='30'</c> — 100 px at tier 0, 250 at
+        /// tier 5) and the alicorn effect multiplies it by 1.5 (<c>AllData.as:5317</c>). Ten times
+        /// larger in a sky location (<c>WClub.as:243-246</c>), which the port does not model — it has
+        /// no <c>loc.sky</c> on the weapon path (the same gap <c>ThrownObjectPhysics</c> records).</para>
+        ///
+        /// <para><b>Read by the spring, not by the hit.</b> The weapon's drawn position is
+        /// <c>hold + clamp(cel − hold, meleeR)</c> and its blade tip is <c>dlina</c> beyond that, so
+        /// the effective reach is <c>meleeR + dlina</c>. A null source returns
+        /// <see cref="MeleeSpringMath.MeleeRDefaultPx"/>, which is also what an enemy sees: AS3 reads
+        /// <c>World.w.pers.meleeR</c> — the <i>player's</i> value — for every unit
+        /// (<c>WClub.as:242</c>), a quirk this seam reproduces by having no per-unit override.</para>
+        /// </summary>
+        float MeleeR { get; }
+
         // ── Attacker-side hit procs ───────────────────────────────────────────
         //
         // These two are NOT weapon parameters and are NOT copied in setParams like the multipliers

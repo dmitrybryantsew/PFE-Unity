@@ -250,7 +250,8 @@ namespace PFE.Systems.Weapons
 
             _vis.localScale    = new Vector3(WeaponVisMath.VisLocalScaleX(facingLeft, parentSign), 1f, 1f);
             _vis.localRotation = Quaternion.Euler(0f, 0f,
-                WeaponVisMath.VisLocalRotationDeg(_state.Rot, _state.RotUp, facingLeft, parentSign));
+                WeaponVisMath.VisLocalRotationDeg(_state.Rot, _state.RotUp, facingLeft, parentSign,
+                                                  _state.BlumRDeg));
         }
 
         // ── Muzzle ───────────────────────────────────────────────────────────
@@ -426,9 +427,20 @@ namespace PFE.Systems.Weapons
         /// AS3 <c>vis.rotation</c> in degrees: facing right → <c>rot·180/π − rotUp</c>;
         /// facing left → <c>rot·180/π + 180 + rotUp</c>. The extra 180 compensates the mirror so the
         /// barrel still points along the aim instead of backwards.
+        ///
+        /// <para><paramref name="blumRDeg"/> is AS3's <c>blumR</c> (<c>WClub.as:332</c> computed,
+        /// <c>:747</c> applied as <c>rot·180/π + blumR</c>) — a cosmetic lean toward the direction the
+        /// levitating melee weapon is travelling. It is added to the <i>drawn</i> angle only, never to
+        /// <c>rot</c>, so it cannot move the hit tip. Zero for every non-melee weapon.</para>
+        ///
+        /// <para><b>The sign needs no extra fold.</b> The oracle's <c>blumR</c> is already expressed in
+        /// the port's frame by <see cref="MeleeSpringMath"/> (a y-mirror negates an angle), so it is
+        /// added exactly where the oracle adds it — inside the same <c>parentSign</c> multiplication
+        /// that turns the oracle's world angle into a local one.</para>
         /// </summary>
-        public static float VisRotationDeg(float rotRad, float rotUpDeg, bool facingLeft)
-            => rotRad * Mathf.Rad2Deg + (facingLeft ? rotUpDeg + 180f : -rotUpDeg);
+        public static float VisRotationDeg(float rotRad, float rotUpDeg, bool facingLeft,
+                                           float blumRDeg = 0f)
+            => rotRad * Mathf.Rad2Deg + blumRDeg + (facingLeft ? rotUpDeg + 180f : -rotUpDeg);
 
         // ── Melee (WClub.animate) ─────────────────────────────────────────────
 
@@ -564,7 +576,8 @@ namespace PFE.Systems.Weapons
         /// <c>scaleX = -1</c> renders a child's local rotation of <c>φ</c> as <c>-φ</c> — so the
         /// sign has to be flipped to land on the angle the oracle means.</para>
         /// </summary>
-        public static float VisLocalRotationDeg(float rotRad, float rotUpDeg, bool facingLeft, float parentScaleSign)
-            => parentScaleSign * VisRotationDeg(rotRad, rotUpDeg, facingLeft);
+        public static float VisLocalRotationDeg(float rotRad, float rotUpDeg, bool facingLeft,
+                                                float parentScaleSign, float blumRDeg = 0f)
+            => parentScaleSign * VisRotationDeg(rotRad, rotUpDeg, facingLeft, blumRDeg);
     }
 }

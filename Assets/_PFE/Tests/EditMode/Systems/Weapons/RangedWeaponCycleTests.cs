@@ -124,6 +124,7 @@ namespace PFE.Tests.EditMode.Systems.Weapons
             public float PunchDamMult = 1f;
             public float KickDestroy  = 30f;
             public float MeleeRun     = 10f;
+            public float MeleeR       = 100f;
 
             // Attacker-side hit procs. AS3's declaration defaults (no perk, no sneak skill) — 0
             // disables both procs, which is what these ranged fixtures assert by default.
@@ -164,6 +165,7 @@ namespace PFE.Tests.EditMode.Systems.Weapons
             float IWeaponStatSource.PunchDamMult => PunchDamMult;
             float IWeaponStatSource.KickDestroy  => KickDestroy;
             float IWeaponStatSource.MeleeRun     => MeleeRun;
+            float IWeaponStatSource.MeleeR       => MeleeR;
             float IWeaponStatSource.CritInvis    => CritInvis;
             float IWeaponStatSource.Desintegr    => Desintegr;
             float IWeaponStatSource.AllPrecMult  => AllPrecMult;
