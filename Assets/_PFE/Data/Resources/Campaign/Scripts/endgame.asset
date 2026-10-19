@@ -19,70 +19,70 @@ MonoBehaviour:
   - action: control off
     target: 
     value: 
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0
   - action: dblack
     target: 
     value: 1
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 5
     opt1: 0
     opt2: 0
   - action: black
     target: 
     value: 1
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0
   - action: endgame
     target: 
     value: 
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0
   - action: dblack
     target: 
     value: -3
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 1
     opt1: 0
     opt2: 0
   - action: black
     target: 
     value: 0
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0
   - action: wait
     target: 
     value: 
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0
   - action: dblack
     target: 
     value: 2
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 2
     opt1: 0
     opt2: 0
   - action: black
     target: 
     value: 1
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0
   - action: dialog
     target: 
     value: dial_endgame
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0

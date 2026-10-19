@@ -19,7 +19,7 @@ MonoBehaviour:
   - action: control off
     target: 
     value: 
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0
@@ -54,21 +54,21 @@ MonoBehaviour:
   - action: fly
     target: surfCalam
     value: 40:7
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0
   - action: show
     target: surfCalam
     value: 
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 2.5
     opt1: 0
     opt2: 0
   - action: sign
     target: surfCalam
     value: 
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0
@@ -82,35 +82,35 @@ MonoBehaviour:
   - action: ai
     target: surfCalam
     value: agro
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0
   - action: rep
     target: surfCalam
     value: 1
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0
   - action: show
     target: 
     value: 
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0
   - action: off
     target: this
     value: 
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0
   - action: control on
     target: 
     value: 
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0

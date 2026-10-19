@@ -19,42 +19,42 @@ MonoBehaviour:
   - action: control off
     target: 
     value: 
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0
   - action: dblack
     target: 
     value: 2
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 3
     opt1: 0
     opt2: 0
   - action: locon
     target: 
     value: 
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0
   - action: control on
     target: 
     value: 
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0
   - action: dblack
     target: 
     value: -3
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 3
     opt1: 0
     opt2: 0
   - action: black
     target: 
     value: 0
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0

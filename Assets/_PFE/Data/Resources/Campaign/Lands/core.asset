@@ -64,7 +64,7 @@ MonoBehaviour:
     - action: control off
       target: 
       value: 
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0
@@ -155,14 +155,14 @@ MonoBehaviour:
     - action: control on
       target: 
       value: 
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0
     - action: xp
       target: 
       value: 5000
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0
@@ -171,7 +171,7 @@ MonoBehaviour:
     - action: control off
       target: 
       value: 
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0
@@ -185,21 +185,21 @@ MonoBehaviour:
     - action: open
       target: coreD5
       value: 
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0
     - action: dialog
       target: 
       value: stableDialKogit
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0
     - action: control on
       target: 
       value: 
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0

@@ -19,56 +19,56 @@ MonoBehaviour:
   - action: dialog
     target: 
     value: dialFin4
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0
   - action: control off
     target: 
     value: 
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0
   - action: dblack
     target: 
     value: 1
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 4
     opt1: 0
     opt2: 0
   - action: music
     target: 
     value: music_strange
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0
   - action: open
     target: piF4
     value: 
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0
   - action: alicorn
     target: 
     value: 1
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0
   - action: dblack
     target: 
     value: -10
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 1
     opt1: 0
     opt2: 0
   - action: black
     target: 
     value: 0
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0
@@ -96,7 +96,7 @@ MonoBehaviour:
   - action: dialog
     target: 
     value: dialFin5
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0
@@ -117,21 +117,21 @@ MonoBehaviour:
   - action: off
     target: this
     value: 
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0
   - action: control on
     target: 
     value: 
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0
   - action: dialog
     target: 
     value: alicornArmor
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0

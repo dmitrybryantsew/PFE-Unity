@@ -144,7 +144,7 @@ MonoBehaviour:
     - action: dialog
       target: 
       value: velvetDial6
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0
@@ -158,7 +158,7 @@ MonoBehaviour:
     - action: xp
       target: 
       value: 5000
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0

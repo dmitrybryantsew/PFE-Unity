@@ -19,14 +19,14 @@ MonoBehaviour:
   - action: control off
     target: 
     value: 
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0
   - action: dialog
     target: 
     value: dialZebra1
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0
@@ -40,14 +40,14 @@ MonoBehaviour:
   - action: gotoland
     target: 
     value: covert
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0
   - action: control on
     target: 
     value: 
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0

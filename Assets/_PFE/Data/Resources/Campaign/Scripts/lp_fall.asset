@@ -26,63 +26,63 @@ MonoBehaviour:
   - action: scene
     target: 
     value: thunder1
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 7
     opt1: 0
     opt2: 0
   - action: dblack
     target: 
     value: 3
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 1
     opt1: 0
     opt2: 0
   - action: black
     target: 
     value: 1
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 1
     opt1: 0
     opt2: 0
   - action: scene
     target: 
     value: thunder2
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0
   - action: dblack
     target: 
     value: -1
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 3
     opt1: 0
     opt2: 0
   - action: black
     target: 
     value: 0
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 1
     opt1: 0
     opt2: 0
   - action: dialog
     target: 
     value: dialFB7
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0
   - action: music
     target: 
     value: music_fall_2
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0
   - action: scene
     target: 
     value: thunder2
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 2
     opt1: 0
     opt2: 0
@@ -96,35 +96,35 @@ MonoBehaviour:
   - action: dblack
     target: 
     value: 3
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 1
     opt1: 0
     opt2: 0
   - action: scene
     target: 
     value: thunder3
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0
   - action: dblack
     target: 
     value: -1
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 3
     opt1: 0
     opt2: 0
   - action: black
     target: 
     value: 0
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0
   - action: dialog
     target: 
     value: dialFB8
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0
@@ -138,7 +138,7 @@ MonoBehaviour:
   - action: dialog
     target: 
     value: dialFB9
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0
@@ -152,14 +152,14 @@ MonoBehaviour:
   - action: dblack
     target: 
     value: 1
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 5
     opt1: 0
     opt2: 0
   - action: black
     target: 
     value: 1
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 1
     opt1: 0
     opt2: 0
@@ -173,7 +173,7 @@ MonoBehaviour:
   - action: scene
     target: 
     value: 
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0

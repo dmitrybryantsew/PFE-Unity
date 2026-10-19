@@ -72,7 +72,7 @@ MonoBehaviour:
     - action: openland
       target: 
       value: random_encl
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0
@@ -86,7 +86,7 @@ MonoBehaviour:
     - action: stage
       target: 
       value: storyHelpCovert
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0
@@ -107,7 +107,7 @@ MonoBehaviour:
     - action: quest
       target: 
       value: storyEncl
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0
@@ -121,7 +121,7 @@ MonoBehaviour:
     - action: check
       target: observer
       value: 
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0
@@ -157,7 +157,7 @@ MonoBehaviour:
     - action: check
       target: observer
       value: 
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0
@@ -252,7 +252,7 @@ MonoBehaviour:
     - action: stage
       target: 
       value: patientHeal
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0

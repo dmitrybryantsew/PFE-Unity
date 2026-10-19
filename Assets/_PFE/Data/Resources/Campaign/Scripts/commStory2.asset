@@ -26,7 +26,7 @@ MonoBehaviour:
   - action: dialog
     target: 
     value: dialEncl4
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0
@@ -75,14 +75,14 @@ MonoBehaviour:
   - action: passed
     target: 
     value: 
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0
   - action: off
     target: this
     value: 
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0

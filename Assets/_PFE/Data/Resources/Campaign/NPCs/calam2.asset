@@ -164,7 +164,7 @@ MonoBehaviour:
     - action: openland
       target: 
       value: random_canter
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0

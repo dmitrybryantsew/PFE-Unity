@@ -26,7 +26,7 @@ MonoBehaviour:
   - action: dialog
     target: 
     value: dialEncl5
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0

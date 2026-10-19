@@ -19,56 +19,56 @@ MonoBehaviour:
   - action: control off
     target: 
     value: 
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 1
     opt1: 0
     opt2: 0
   - action: dialog
     target: 
     value: dialFB5
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0
   - action: dblack
     target: 
     value: 1.6
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0
   - action: vsos
     target: megaboss
     value: 
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 2
     opt1: 0
     opt2: 0
   - action: black
     target: 
     value: 1
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0
   - action: goto
     target: 
     value: 1 0
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0
   - action: black
     target: 
     value: 0
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0
   - action: control on
     target: 
     value: 
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0

@@ -67,7 +67,7 @@ MonoBehaviour:
     - action: control off
       target: 
       value: 
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0
@@ -81,14 +81,14 @@ MonoBehaviour:
     - action: stage
       target: 
       value: storyMane
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0
     - action: dialog
       target: 
       value: maneDialAmul
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0
@@ -102,28 +102,28 @@ MonoBehaviour:
     - action: quest
       target: 
       value: storyCanter
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0
     - action: passed
       target: 
       value: 
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0
     - action: refill
       target: 
       value: 
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0
     - action: control on
       target: 
       value: 
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0

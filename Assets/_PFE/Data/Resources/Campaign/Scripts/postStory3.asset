@@ -19,7 +19,7 @@ MonoBehaviour:
   - action: dialog
     target: 
     value: dialEncl2
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0
@@ -54,14 +54,14 @@ MonoBehaviour:
   - action: passed
     target: 
     value: 
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0
   - action: gotoland
     target: 
     value: random_encl
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0

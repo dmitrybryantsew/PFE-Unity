@@ -19,42 +19,42 @@ MonoBehaviour:
   - action: black
     target: 
     value: 1
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0
   - action: gui off
     target: 
     value: 
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0
   - action: control off
     target: 
     value: 
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0
   - action: anim
     target: 
     value: die
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 1
     opt2: 0
   - action: mess
     target: 
     value: beginMess
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 2
     opt1: 0
     opt2: 0
   - action: dblack
     target: 
     value: -2
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0
@@ -75,7 +75,7 @@ MonoBehaviour:
   - action: anim
     target: 
     value: res
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 2
     opt1: 0
     opt2: 0
@@ -89,21 +89,21 @@ MonoBehaviour:
   - action: control on
     target: 
     value: 
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 1
     opt1: 0
     opt2: 0
   - action: off
     target: this
     value: 
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0
   - action: mess
     target: 
     value: trWalk
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0

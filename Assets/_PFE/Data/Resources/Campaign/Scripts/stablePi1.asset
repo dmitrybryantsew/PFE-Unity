@@ -19,14 +19,14 @@ MonoBehaviour:
   - action: music
     target: 
     value: music_enc
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0
   - action: dialog
     target: 
     value: roomLP
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0

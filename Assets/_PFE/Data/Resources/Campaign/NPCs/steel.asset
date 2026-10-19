@@ -57,7 +57,7 @@ MonoBehaviour:
     - action: quest
       target: 
       value: hydroPon
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0
@@ -122,14 +122,14 @@ MonoBehaviour:
     - action: openland
       target: 
       value: random_mbase
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0
     - action: gotoland
       target: 
       value: random_mbase
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0
@@ -187,7 +187,7 @@ MonoBehaviour:
     - action: openland
       target: 
       value: bunker
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0
@@ -216,7 +216,7 @@ MonoBehaviour:
     - action: openland
       target: 
       value: hql
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0
@@ -273,7 +273,7 @@ MonoBehaviour:
     - action: openland
       target: 
       value: art
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0
@@ -309,35 +309,35 @@ MonoBehaviour:
     - action: stage
       target: 
       value: storyStorm
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0
     - action: control off
       target: 
       value: 
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0
     - action: music
       target: 
       value: pre_1
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0
     - action: show
       target: observer2
       value: 
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 2
       opt1: 0
       opt2: 0
     - action: dialog
       target: 
       value: dialStorm6
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0
@@ -358,14 +358,14 @@ MonoBehaviour:
     - action: quest
       target: 
       value: storyFbattle
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0
     - action: music
       target: 
       value: music_red
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0

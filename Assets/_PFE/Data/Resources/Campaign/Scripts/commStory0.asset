@@ -19,7 +19,7 @@ MonoBehaviour:
   - action: dialog
     target: 
     value: dialEncl3
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0
@@ -33,14 +33,14 @@ MonoBehaviour:
   - action: check
     target: commCheck
     value: 
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0
   - action: off
     target: this
     value: 
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0

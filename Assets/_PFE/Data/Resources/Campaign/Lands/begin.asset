@@ -75,14 +75,14 @@ MonoBehaviour:
     - action: on
       target: trDestroy
       value: 
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0
     - action: on
       target: trDoor
       value: 
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0
@@ -91,14 +91,14 @@ MonoBehaviour:
     - action: on
       target: trDoor
       value: 
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0
     - action: sign
       target: trSign5
       value: 1
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0
@@ -107,7 +107,7 @@ MonoBehaviour:
     - action: weapch
       target: 
       value: rech
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0
@@ -116,7 +116,7 @@ MonoBehaviour:
     - action: weapch
       target: 
       value: r32
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0
@@ -125,7 +125,7 @@ MonoBehaviour:
     - action: mess
       target: 
       value: trScheme
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 1
       opt2: 0
@@ -134,7 +134,7 @@ MonoBehaviour:
     - action: quest
       target: 
       value: collectHS
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0

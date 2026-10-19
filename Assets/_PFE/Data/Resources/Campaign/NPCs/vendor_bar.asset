@@ -79,7 +79,7 @@ MonoBehaviour:
     - action: unlock
       target: doorRBL1
       value: 
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0
@@ -108,14 +108,14 @@ MonoBehaviour:
     - action: openland
       target: 
       value: random_plant
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0
     - action: sign
       target: worldMap
       value: 1
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0
@@ -144,14 +144,14 @@ MonoBehaviour:
     - action: openland
       target: 
       value: raiders
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0
     - action: check
       target: rblCalam
       value: 
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0
@@ -187,14 +187,14 @@ MonoBehaviour:
     - action: openland
       target: 
       value: random_mane
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0
     - action: check
       target: rblCalam
       value: 
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0

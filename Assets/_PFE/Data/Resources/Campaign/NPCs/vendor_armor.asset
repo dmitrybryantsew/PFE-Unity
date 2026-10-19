@@ -364,7 +364,7 @@ MonoBehaviour:
     - action: quest
       target: 
       value: storyHelpCamp
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0
@@ -400,7 +400,7 @@ MonoBehaviour:
     - action: openland
       target: 
       value: workshop
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0
@@ -429,7 +429,7 @@ MonoBehaviour:
     - action: stage
       target: 
       value: storyHelpCamp
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0
@@ -450,7 +450,7 @@ MonoBehaviour:
     - action: trigger
       target: 
       value: helpcamp
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0
@@ -569,7 +569,7 @@ MonoBehaviour:
     - action: quest
       target: 
       value: collectPowerArmor
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0

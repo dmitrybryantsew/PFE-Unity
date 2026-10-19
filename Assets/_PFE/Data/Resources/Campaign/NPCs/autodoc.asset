@@ -38,4 +38,29 @@ MonoBehaviour:
   secondaryWeapon: 
   requiredSkill: repair
   requiredItemId: 
+  questId: repairAutoDoc
+  questSubId: 1
+  repairRequirements:
+  - itemId: glue
+    count: 3
+  - itemId: tape
+    count: 3
+  - itemId: tubing
+    count: 2
+  - itemId: pbatt
+    count: 1
+  - itemId: motor
+    count: 1
+  - itemId: spring
+    count: 2
+  - itemId: condens
+    count: 1
+  - itemId: chip
+    count: 1
+  - itemId: elcomp
+    count: 10
+  - itemId: uscan
+    count: 1
+  - itemId: tlaser
+    count: 1
   dialogues: []

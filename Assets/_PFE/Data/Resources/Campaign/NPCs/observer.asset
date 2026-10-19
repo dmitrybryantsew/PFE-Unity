@@ -67,28 +67,28 @@ MonoBehaviour:
     - action: turn
       target: observer
       value: -1
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0
     - action: mater
       target: observer
       value: 0
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 1
       opt1: 0
       opt2: 0
     - action: fly
       target: observer
       value: 1:21
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0
     - action: rem
       target: observer
       value: 
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0
@@ -124,7 +124,7 @@ MonoBehaviour:
     - action: check
       target: velvet
       value: 
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0
@@ -146,14 +146,14 @@ MonoBehaviour:
     - action: control off
       target: 
       value: 
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0
     - action: openland
       target: 
       value: stable_pi
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0
@@ -181,42 +181,42 @@ MonoBehaviour:
     - action: turn
       target: observer
       value: -1
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0
     - action: mater
       target: observer
       value: 0
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 1
       opt1: 0
       opt2: 0
     - action: fly
       target: observer
       value: 1:21
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0
     - action: rem
       target: observer
       value: 
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0
     - action: dialog
       target: 
       value: dialWat3
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0
     - action: control on
       target: 
       value: 
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0

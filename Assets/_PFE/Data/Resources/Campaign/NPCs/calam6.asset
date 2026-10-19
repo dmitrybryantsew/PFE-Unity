@@ -98,7 +98,7 @@ MonoBehaviour:
     - action: gotoland
       target: 
       value: thunder
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0

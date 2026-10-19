@@ -55,7 +55,7 @@ MonoBehaviour:
     - action: quest
       target: 
       value: freeCaptive
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0

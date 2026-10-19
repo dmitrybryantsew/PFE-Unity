@@ -19,14 +19,14 @@ MonoBehaviour:
   - action: music
     target: 
     value: pre_1
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0
   - action: dialog
     target: 
     value: dialRanger4
-    numericParam: 0
+    numericParam: -1
     delaySeconds: 0
     opt1: 0
     opt2: 0

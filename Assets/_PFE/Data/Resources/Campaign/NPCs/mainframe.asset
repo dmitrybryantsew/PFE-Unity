@@ -64,14 +64,14 @@ MonoBehaviour:
     - action: stage
       target: 
       value: storyMain
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0
     - action: quest
       target: 
       value: storyStable
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0
@@ -85,14 +85,14 @@ MonoBehaviour:
     - action: refill
       target: 
       value: 
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0
     - action: passed
       target: 
       value: 
-      numericParam: 0
+      numericParam: -1
       delaySeconds: 0
       opt1: 0
       opt2: 0
