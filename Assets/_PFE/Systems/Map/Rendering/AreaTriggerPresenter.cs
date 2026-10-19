@@ -202,6 +202,13 @@ namespace PFE.Systems.Map.Rendering
 
         private void Update()
         {
+            // A script can flip `isActive` at any time (`<s act="on" targ="nioLift1"/>`), and the
+            // trigger collider is what decides whether the area's own `<scr>`/`mess` can fire. Nothing
+            // subscribes to `AreaTriggerSystem.OnObjectStateChanged`, so before this poll a scripted
+            // `off` left the collider enabled — and a scripted `on` on an area that started with
+            // `off="1"` left it disabled, i.e. the button appeared to do nothing to the area itself.
+            SyncActiveState();
+
             // Hotkey F8 to toggle area trigger debug visuals at runtime
             bool f8Pressed = Input.GetKeyDown(KeyCode.F8) ||
                 (UnityEngine.InputSystem.Keyboard.current != null && UnityEngine.InputSystem.Keyboard.current.f8Key.wasPressedThisFrame);
@@ -213,6 +220,23 @@ namespace PFE.Systems.Map.Rendering
             }
         }
 
+        /// <summary>
+        /// Re-applies <see cref="ObjectInstance.isActive"/> to the collider and the debug overlay when
+        /// it changed since the last frame.
+        /// </summary>
+        private void SyncActiveState()
+        {
+            if (TriggerObject == null) return;
+
+            bool active = TriggerObject.isActive;
+            if (active == _lastActiveState) return;
+
+            _lastActiveState = active;
+            UpdateActiveState();
+        }
+
+        private bool _lastActiveState;
+
         public void Initialize(RoomInstance room, ObjectInstance trigger, AreaTriggerSystem triggerSystem = null)
         {
             Room = room;
@@ -221,6 +245,7 @@ namespace PFE.Systems.Map.Rendering
             ResolvedType = ResolveAreaType(trigger);
 
             EnsureCollider();
+            _lastActiveState = trigger != null && trigger.isActive;
             UpdateActiveState();
             UpdateDebugVisual();
         }

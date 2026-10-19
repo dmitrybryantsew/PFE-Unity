@@ -932,6 +932,44 @@ namespace PFE.Systems.Map.Rendering
         /// <param name="unit">The record to append. Its <c>position</c> is overwritten.</param>
         /// <param name="worldPosition">Where the unit's feet should land, in Unity world space.</param>
         /// <returns>True when the record was appended and the spawner rebuilt.</returns>
+        /// <summary>
+        /// Room-local <b>pixel</b> coordinates → Unity world position. The exact inverse of the
+        /// conversion inside <see cref="SpawnUnitNow"/>.
+        ///
+        /// <para><b>Needed by anything that has to place a world-space effect at an object the map
+        /// layer only knows in pixels.</b> A room is not at the world origin and its physical-object
+        /// parent carries the pixel scale, so adding the room origin by hand gets the position right in
+        /// exactly the room the author tested in. Returns the controller's own position when the parent
+        /// has not been built yet, so a caller that fires before initialisation lands somewhere visible
+        /// rather than at (0,0,0).</para>
+        /// </summary>
+        public Vector3 RoomPixelToWorld(Vector2 roomPixel)
+        {
+            if (backgroundPhysicalObjectParent == null)
+            {
+                return transform.position;
+            }
+
+            return backgroundPhysicalObjectParent.TransformPoint(
+                WorldCoordinates.PixelToUnity(roomPixel));
+        }
+
+        /// <summary>
+        /// The GameObject a runtime-added <see cref="UnitInstance"/> was built into, or false when the
+        /// room has no spawner or the record is not live. See
+        /// <see cref="RoomUnitSpawner.TryGetSpawnedObject"/> for why the caller cannot find it itself.
+        /// </summary>
+        public bool TryGetSpawnedUnit(UnitInstance unit, out GameObject spawned)
+        {
+            if (roomUnitSpawner != null)
+            {
+                return roomUnitSpawner.TryGetSpawnedObject(unit, out spawned);
+            }
+
+            spawned = null;
+            return false;
+        }
+
         public bool SpawnUnitNow(UnitInstance unit, Vector3 worldPosition)
         {
             if (unit == null || roomInstance == null || roomUnitSpawner == null ||

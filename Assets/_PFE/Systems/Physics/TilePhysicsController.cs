@@ -911,7 +911,11 @@ namespace PFE.Systems.Physics
             ApplyGravity();
 
             // 2b. Override vertical speed if locomotion controller is driving it (levitation)
-            if (hasDesiredVerticalSpeed)
+            //
+            // Skipped for a levitated unit: this arm ASSIGNS dy outright, so it would overwrite the
+            // telekinetic's per-tick acceleration with the victim's own hover speed — the pull would
+            // move the target sideways and never up or down.
+            if (hasDesiredVerticalSpeed && !(Unit != null && Unit.IsLevitated))
             {
                 dy = desiredVerticalSpeed;
                 hasDesiredVerticalSpeed = false;
@@ -1101,6 +1105,15 @@ namespace PFE.Systems.Physics
                 return;
             }
 
+            // AS3 `forces()`'s `if(levit)` arm replaces the locomotion arm as well as gravity: a
+            // levitated unit is not driven by its own input, it is driven by whoever holds it. Without
+            // this the player's locomotion keeps steering `dx` toward the input every tick and the
+            // telekinetic pull is a tug-of-war the pull always loses (the input write is absolute).
+            if (Unit != null && Unit.IsLevitated)
+            {
+                return;
+            }
+
             if (isOnLadder)
             {
                 // accel is px per canonical frame, so the delta applied over one step is accel * h.
@@ -1127,6 +1140,15 @@ namespace PFE.Systems.Physics
         /// </summary>
         private void ApplyGravity()
         {
+            // AS3 `forces()` tests `if(levit)` before the ladder, the swim, the flight and gravity — an
+            // externally levitated unit takes none of them. The motor-driven half of
+            // UnitController.ApplyGravity's gate; the two must answer the same question, or
+            // `PfeDebugSettings.UnitMotor` decides whether a telekinetic's victim floats.
+            if (Unit != null && Unit.IsLevitated)
+            {
+                return;
+            }
+
             if (isOnLadder)
             {
                 return;
@@ -1153,12 +1175,93 @@ namespace PFE.Systems.Physics
                 return;
             }
 
-            if (!isGrounded && dashTimer <= 0f)
+            // AS3 reads the tile under the unit's waist on every unit, every frame
+            // (`loc.getAbsTile(X, Y - scY/4).grav`) and branches on its sign. A dash replaces the
+            // whole gravity arm in the oracle (`forces()`'s `kdash_t` branch), so it wins over a lift
+            // exactly as it wins over a fall.
+            if (dashTimer <= 0f)
             {
-                // AS3 applies World.ddy once per 30 Hz frame, so accumulate proportionally to the
-                // frames this step covers. RateFramesPerStep is exactly 1f on the legacy path.
-                dy -= globalGravity * gravityMult * gravityScale * RateFramesPerStep;
+                float tileGravity = ResolveTileGravity();
+
+                if (tileGravity < 0f)
+                {
+                    ApplyLift(tileGravity);
+                    return;
+                }
+
+                if (!isGrounded)
+                {
+                    // AS3 applies World.ddy once per 30 Hz frame, so accumulate proportionally to the
+                    // frames this step covers. RateFramesPerStep is exactly 1f on the legacy path.
+                    dy -= globalGravity * gravityMult * gravityScale * tileGravity * RateFramesPerStep;
+                }
             }
+        }
+
+        /// <summary>
+        /// AS3 <c>loc.getAbsTile(X, Y - scY / 4).grav</c> — the gravity multiplier of the tile under
+        /// the unit's <b>lower body</b>, not under its feet.
+        ///
+        /// <para><b>Where the sample point comes from.</b> <c>UnitPlayer.as:767</c> and
+        /// <c>Unit.as:1960</c> both probe a quarter of the body height above the feet
+        /// (<c>Y</c> is the feet in the oracle, <c>scY</c> the body height). That offset is
+        /// load-bearing for a lift shaft: the floor tile the player stands on is <i>outside</i> the
+        /// area (an area is stamped bottom-up over the air it lifts, not over the floor), so a probe
+        /// at the feet would read 1 and the player would never leave the ground.</para>
+        ///
+        /// <para><b>Missing tile answers 1, never 0.</b> 0 means "weightless" to the physics below,
+        /// so an out-of-room or not-yet-filled tile returning 0 would silently switch gravity off for
+        /// whatever is standing there. 1 is the field's own default and the only honest answer for
+        /// "no data".</para>
+        /// </summary>
+        private float ResolveTileGravity()
+        {
+            if (currentRoom == null) return TileData.DefaultGravity;
+
+            float sampleX = posX;
+            float sampleY = posY + collisionHeight * 0.25f;
+
+            int tileX = Mathf.FloorToInt((sampleX - roomWorldPixelX) / WorldConstants.TILE_SIZE + 0.01f);
+            int tileY = Mathf.FloorToInt((sampleY - roomWorldPixelY) / WorldConstants.TILE_SIZE + 0.01f);
+
+            TileData tile = currentRoom.GetTileAtCoord(new Vector2Int(tileX, tileY));
+            return tile != null ? tile.gravityMultiplier : TileData.DefaultGravity;
+        }
+
+        /// <summary>
+        /// AS3's negative-<c>grav</c> arm — a lift shaft pushing a unit <b>up</b>
+        /// (<c>UnitPlayer.as:770-786</c>, <c>Unit.as:1962-1966</c>).
+        ///
+        /// <para><b>Why this cannot reuse the falling branch.</b> Three differences, and each one is
+        /// visible in play:</para>
+        /// <list type="bullet">
+        /// <item><description><b>It applies while grounded.</b> The oracle integrates gravity
+        /// unconditionally; the port's falling branch is gated on <c>!isGrounded</c> because a landed
+        /// unit has no downward velocity to grow. A lift must push off the floor, so gating it the
+        /// same way would leave a player standing in the shaft for ever.</description></item>
+        /// <item><description><b>It is a rise, not a fall, so Unity's +Y is the direction.</b>
+        /// <c>dy += World.ddy * grav</c> with <c>grav &lt; 0</c> in AS3's Y-down space is
+        /// <c>dy += ddy * |grav|</c> in the port's Y-up one.</description></item>
+        /// <item><description><b>It has its own terminal speed</b>: AS3 stops accelerating once
+        /// <c>dy</c> passes <c>maxdy * grav</c>, i.e. at <c>maxdy * |grav|</c> upward. For the
+        /// <c>-0.5</c> shafts that is 10 px/frame, half the motor's 20 px/frame clamp — without it the
+        /// player would rise at twice the authored speed and overshoot the landing.</description></item>
+        /// </list>
+        ///
+        /// <para><b>The locomotion's <c>gravityScale</c> is deliberately not applied.</b> That
+        /// multiplier is the jump/fall tuning curve (<c>PlayerLocomotionController.ResolveGravityScale</c>)
+        /// and AS3 has no counterpart inside this branch — folding it in would make the lift stronger
+        /// while rising (1.8×) than at rest.</para>
+        /// </summary>
+        private void ApplyLift(float tileGravity)
+        {
+            float magnitude = -tileGravity;
+            float terminal = maxSpeedY * magnitude;
+
+            if (dy >= terminal) return;
+
+            dy += globalGravity * gravityMult * magnitude * RateFramesPerStep;
+            if (dy > terminal) dy = terminal;
         }
 
         /// <summary>
@@ -1234,9 +1337,16 @@ namespace PFE.Systems.Physics
             float stepMoveX = moveX / subSteps;
             float stepMoveY = moveY / subSteps;
 
+            // AS3 divides the carry by the substep count as well: `checkShelf(dy / param1,
+            // osndy / param1)` (Unit.as:2340). It is not a share of the movement — it is the second
+            // argument of the landing test, which shifts BOTH ends of the window. Passing 0 here (what
+            // this used to do, by not having the argument at all) leaves a rising platform's top above
+            // the window, so the platform overtakes its rider and the rider falls through.
+            float stepCarryY = carry.y * PositionFramesPerStep / subSteps;
+
             for (int i = 0; i < subSteps; i++)
             {
-                MoveSingleStep(stepMoveX, stepMoveY);
+                MoveSingleStep(stepMoveX, stepMoveY, stepCarryY);
             }
             }
         }
@@ -1290,7 +1400,7 @@ namespace PFE.Systems.Physics
             }
         }
 
-        private void MoveSingleStep(float moveX, float moveY)
+        private void MoveSingleStep(float moveX, float moveY, float carryY)
         {
             float hw = collisionWidth * 0.5f;
             float hh = collisionHeight;
@@ -1339,7 +1449,7 @@ namespace PFE.Systems.Physics
                     isGrounded = true;
                 }
                 else if (!CanFallThroughPlatformsNow
-                    && TryLandOnShelfProp(posY, newY, out ObjectInstance prop, out float surfaceWorldPixelY))
+                    && TryLandOnShelfProp(posY, newY, carryY, out ObjectInstance prop, out float surfaceWorldPixelY))
                 {
                     // A prop is a floor too — AS3 Unit.checkShelf (Unit.as:2713-2741). The tile check
                     // above wins when it hits, which is the oracle's order: the tile loop runs first
@@ -1355,6 +1465,27 @@ namespace PFE.Systems.Physics
                     isGrounded = true;
                     RegisterSupportProp(prop);
                 }
+            }
+            else if (dy < 0f
+                && !CanFallThroughPlatformsNow
+                && TryLandOnShelfProp(posY, newY, carryY, out ObjectInstance risingProp, out float risingSurfaceWorldPixelY))
+            {
+                // <b>The upward branch asks too — but only when the unit's own dy is still downward.</b>
+                // AS3's structure is `if(dy + osndy < 0) { … if(dy > 0) checkShelf(…) else Y += … }`
+                // (Unit.as:2404-2434). The nested `dy > 0` is the case that matters here: a rider on a
+                // rising platform has a downward dy and a larger upward carry, so the net motion is up
+                // but the platform is still allowed to catch it. In the port's y-up motor that is
+                // `dy < 0` (gravity) inside a `moveY > 0` branch.
+                //
+                // Without this arm a rising platform is unbeatable: the rider's net move is upward, so
+                // the landing test above is never asked, the platform rises by its full step while the
+                // rider is carried by the previous one, and the gap grows until the feet are below the
+                // platform top and nothing can see them any more. That is exactly the reported
+                // "button-operated platforms cannot be stood on".
+                newY = risingSurfaceWorldPixelY;
+                dy = 0;
+                isGrounded = true;
+                RegisterSupportProp(risingProp);
             }
             else if (CheckCeilingCollisionAt(posX, newY, hw, hh))
             {
@@ -1392,11 +1523,18 @@ namespace PFE.Systems.Physics
         /// </summary>
         /// <param name="feetBeforeWorldPixelY">The feet before this substep, world pixels.</param>
         /// <param name="feetAfterWorldPixelY">The feet after this substep, world pixels.</param>
+        /// <param name="carryWorldPixelY">
+        /// This substep's share of the support's displacement — AS3's <c>osndy / param1</c>, the second
+        /// argument of <c>checkShelf</c> (<c>Unit.as:2340</c>). It shifts the upper end of the crossing
+        /// window, which is the only way a rising platform catches the feet it has just left behind.
+        /// Zero for a unit with no support, which reproduces the old test exactly.
+        /// </param>
         /// <param name="support">The prop landed on, or null.</param>
         /// <param name="surfaceWorldPixelY">The support's top edge, world pixels.</param>
         private bool TryLandOnShelfProp(
             float feetBeforeWorldPixelY,
             float feetAfterWorldPixelY,
+            float carryWorldPixelY,
             out ObjectInstance support,
             out float surfaceWorldPixelY)
         {
@@ -1425,7 +1563,8 @@ namespace PFE.Systems.Physics
                     feetBeforeRoomLocal,
                     feetAfterWorldPixelY - roomWorldPixelY,
                     out support,
-                    out float surfaceRoomLocalY))
+                    out float surfaceRoomLocalY,
+                    carryWorldPixelY))
             {
                 support = null;
                 return false;

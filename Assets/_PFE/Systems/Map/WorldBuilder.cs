@@ -197,6 +197,34 @@ namespace PFE.Systems.Map
                 return false;
             }
 
+            // Re-point the builder's shared template list at THIS build's collection.
+            //
+            // `allTemplates` is what the two post-passes read: `BuildDoorConnections` pairs door
+            // instances through it (:654-669) and `FinalizeSpecificAllRooms` resolves each room's
+            // `templateId` against it (:289). It was only ever assigned by `Initialize` (boot, with
+            // EVERY collection's templates) and by `BuildLand` (which sets it to the ONE land being
+            // built, :931). `BuildSpecificWorld` — the authored-land path — assigned neither, so a
+            // direct caller inherited whatever the previous build left behind.
+            //
+            // The consequence is route-dependent and looks exactly like "the land is empty": enter a
+            // procedural land first (`BuildLand` narrows the list to that land's collection), then
+            // enter an authored land. The authored build finds no template for any of its own rooms,
+            // so `FinalizeSpecificAllRooms` skips every one of them — silently, since it has no else
+            // branch — and `RoomPopulator.PopulateRoom` never runs. The rooms still draw, because
+            // tiles come from `roomGenerator.GenerateRoom(template, …)` with the template passed
+            // explicitly; only the units, props, checkpoints, area triggers and door connections go
+            // missing. A jump straight from boot works, because `Initialize` left the list holding
+            // every collection.
+            //
+            // Measured: `nio` entered after `random_plant` produced `rooms_nio/room_-1_0_-1_0_0` with
+            // `tiles=1200`, `room.units.Count == 0` and no objects, while the room asset authors three
+            // `raider` placements, boxes, a checkpoint, an area trigger and doors.
+            //
+            // `roomGenerator` is deliberately NOT re-initialised here: `GenerateRoom` takes its
+            // template as an argument and uses no pool, and `Initialize` would reset the per-land
+            // usage counts that `BuildLand` has already set up for this entry.
+            allTemplates = levelTemplates;
+
             roomGenerator.ConfigureLocation(locationContext ?? LocationBuildContext.None);
 
             // Calculate bounds from template positions
@@ -1080,7 +1108,9 @@ namespace PFE.Systems.Map
                 // AS3 sets `water` per cell (conf 2 row 1, conf 5 row 2), independent of the template.
                 if (cell.Water >= 0) DoorCarver.ApplyWaterLevel(room, cell.Water);
 
-                PlaceCellObjects(land, room, cell);
+                // `plan.LandStage`, not the builder's `landStage` field: the field is assigned by
+                // `BuildLand` and would be a second source of truth for the same number.
+                PlaceCellObjects(land, room, cell, plan.LandStage);
             }
 
             // ---- Entry (AS3 `Land.as:1180-1181`, `enterLand`: `locX = act.begLocX`, `locY = act.begLocY`) ----
@@ -1239,7 +1269,7 @@ namespace PFE.Systems.Map
         /// (AS3 <c>createCheck</c>) and the trial / battle door (AS3 <c>newRandomProb</c> →
         /// <c>createDoorProb</c>).
         /// </summary>
-        private void PlaceCellObjects(LandDefinition land, RoomInstance room, LandCellPlan cell)
+        private void PlaceCellObjects(LandDefinition land, RoomInstance room, LandCellPlan cell, int landStage)
         {
             if (cell.SuppressPlacement) return;
 
@@ -1263,8 +1293,8 @@ namespace PFE.Systems.Map
 
             if (cell.Checkpoint != CheckpointKind.None)
             {
-                ObjectInstance checkpoint =
-                    RoomPopulator.PlaceCheckpointMarker(room, cell.Checkpoint == CheckpointKind.Begin);
+                bool isBegin = cell.Checkpoint == CheckpointKind.Begin;
+                ObjectInstance checkpoint = RoomPopulator.PlaceCheckpointMarker(room, isBegin);
 
                 // AS3's second statement at the same branch (Location.as:2040-2046): the difficulty
                 // override that turns the return teleport on. Applied AFTER the placement, as the oracle
@@ -1275,6 +1305,16 @@ namespace PFE.Systems.Map
                 // procedural land anyway (checkpoints are planned by LandLayoutPlanner), so passing it
                 // keeps the rule honest rather than hard-coding true.
                 RoomPopulator.ApplyCheckpointTeleOn(checkpoint, land.isProcedural, _rng);
+
+                // AS3's THIRD statement (Location.as:2101-2104) — the entry cell's checkpoint always arms
+                // the return on the land's first stage, whatever the difficulty roll above said:
+                //   `if(this.land.act.landStage == 0 && param1) this.cp.teleOn = true;`
+                //
+                // This is the half that was missing, and it is the one the player notices: without it a
+                // Normal-difficulty run reaches `random_plant` stage 0 and the checkpoint the player is
+                // standing on has no way back to the camp unless a 33 % roll happened to pass. It is
+                // ordered after the difficulty override because the oracle's statement is.
+                RoomPopulator.ApplyBeginCheckpointTeleOn(checkpoint, isBegin, landStage);
             }
 
             if (cell.Prob != ProbKind.None)

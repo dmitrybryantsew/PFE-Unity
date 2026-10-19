@@ -89,6 +89,13 @@ namespace PFE.Systems.Map
             // which is the question the F2 Room tab exists to answer.
             RecordUpPointCounts(room, table.UpGroups);
 
+            // …and the alarm's reinforcement points, which AS3 keeps in a separate list
+            // (`Location.enspawn`) from the `up` groups. Recorded here for the same reason: the
+            // partition owns the authored rows and nothing downstream sees them again.
+            RecordEnemySpawnPoints(room, table.EnSpawns, template.environment != null
+                ? template.environment.spawnGroupId
+                : null);
+
             // Phase 1: Process template objects (from XML obj elements) sorted deterministically
             var sortedObjects = new List<ObjectSpawnData>(table.Spawnable);
             sortedObjects.Sort((a, b) =>
@@ -766,7 +773,10 @@ namespace PFE.Systems.Map
         /// <summary>
         /// AS3 <c>Location.createCheck(isBeg)</c> (<c>Location.as:2088-2111</c>): a checkpoint object plus a
         /// player spawn point. This is the <em>placement</em> half only — making the checkpoint activatable
-        /// (write <c>currentCP</c>, save) is a separate item.
+        /// (write <c>currentCP</c>, save) is the <c>activate(true)</c> tail, which <c>MapBridge</c> runs
+        /// after the land is built and the player is standing in the entry room
+        /// (<c>MapBridge.ActivateEntryCheckpoint</c>); the object is recovered with
+        /// <see cref="FindBeginCheckpoint"/>.
         ///
         /// <para><b>The id is the plain, unlocked <c>checkpoint</c> unless the oracle rolls a variant.</b>
         /// AS3 appends a random <c>1..5</c> only when the checkpoint is <i>not</i> the begin one, the land
@@ -886,17 +896,102 @@ namespace PFE.Systems.Map
             }
 
             bool teleOn = DifficultyRules.CheckpointTeleOn(globalDif, landRnd, roll);
-            if (teleOn)
-            {
-                checkpoint.attributes ??= new List<MapObjectAttributeData>();
-                checkpoint.attributes.Add(new MapObjectAttributeData
-                {
-                    key = TeleCheckpointAttribute,
-                    value = "1",
-                });
-            }
+            if (teleOn) SetTeleOn(checkpoint);
 
             return teleOn;
+        }
+
+        /// <summary>
+        /// AS3 <c>Location.createCheck</c>'s <b>third statement</b> (<c>Location.as:2101-2104</c>):
+        /// <code>
+        /// if(this.land.act.landStage == 0 &amp;&amp; param1) { this.cp.teleOn = true; }
+        /// if(param1) { this.cp.activate(true); }
+        /// </code>
+        ///
+        /// <para><b>This is the one checkpoint whose return is guaranteed, and only on stage 0.</b> It runs
+        /// <i>after</i> the difficulty override in <c>createObj</c> (<c>Location.as:2040-2046</c>), so it is
+        /// an override of an override: on Normal difficulty a procedural checkpoint only offers the return
+        /// when a 33 % roll passes, but the entry checkpoint of a land's <b>first</b> stage always does —
+        /// which is exactly the stage a player who has never reached the camp is on.</para>
+        ///
+        /// <para><b>Not a second copy of <see cref="ApplyCheckpointTeleOn"/>.</b> That method answers "did
+        /// the difficulty rule arm it"; this one answers "does the oracle force it regardless". Collapsing
+        /// them would either make every stage-0 checkpoint teleport (the <c>param1</c> term dropped) or
+        /// leave the guaranteed case at the mercy of a 33 % roll (the stage term dropped).</para>
+        /// </summary>
+        /// <param name="checkpoint">The entry cell's placement. <c>null</c> is tolerated.</param>
+        /// <param name="isBegin">AS3 <c>param1</c> — this is the entry cell's own checkpoint.</param>
+        /// <param name="landStage">AS3 <c>land.act.landStage</c>.</param>
+        /// <returns>The oracle's <c>teleOn</c> for this statement.</returns>
+        public static bool ApplyBeginCheckpointTeleOn(ObjectInstance checkpoint, bool isBegin, int landStage)
+        {
+            if (checkpoint == null || !isBegin || landStage != 0) return false;
+
+            SetTeleOn(checkpoint);
+            return true;
+        }
+
+        /// <summary>
+        /// Writes <c>teleOn</c> onto a placement — <c>CheckPoint.teleOn</c> (<c>CheckPoint.as:16</c>), which
+        /// the port carries as <see cref="TeleCheckpointAttribute"/> because the presenter that reads it
+        /// lives in another layer.
+        ///
+        /// <para><b>Idempotent.</b> The oracle has two writers (the difficulty override and
+        /// <c>createCheck</c>'s stage-0 line) and both can be true for the same object, so appending a
+        /// second identical attribute would leave a placement whose answer depends on read order.</para>
+        /// </summary>
+        private static void SetTeleOn(ObjectInstance checkpoint)
+        {
+            checkpoint.attributes ??= new List<MapObjectAttributeData>();
+
+            for (int i = 0; i < checkpoint.attributes.Count; i++)
+            {
+                if (string.Equals(checkpoint.attributes[i].key, TeleCheckpointAttribute, StringComparison.Ordinal))
+                {
+                    checkpoint.attributes[i] = new MapObjectAttributeData
+                    {
+                        key = TeleCheckpointAttribute,
+                        value = "1",
+                    };
+                    return;
+                }
+            }
+
+            checkpoint.attributes.Add(new MapObjectAttributeData
+            {
+                key = TeleCheckpointAttribute,
+                value = "1",
+            });
+        }
+
+        /// <summary>
+        /// The entry cell's checkpoint in a built room, or <c>null</c> — the placement
+        /// <c>Location.createCheck(true)</c> made (<c>Location.as:2105-2108</c>).
+        ///
+        /// <para><b>Found by the attribute, not by the object id.</b> The begin checkpoint's id is the plain
+        /// <c>checkpoint</c> (<see cref="PlaceCheckpointMarker"/>), and so is every non-begin checkpoint's
+        /// when the variant roll is off — the id cannot tell them apart. <see cref="BeginCheckpointAttribute"/>
+        /// is the fact the placement actually carries.</para>
+        ///
+        /// <para><b>Why a search and not a field on the room.</b> AS3 keeps <c>loc.cp</c> because
+        /// <c>createCheck</c> and <c>activate</c> are two statements in one function. In the port the
+        /// activation happens after the build (from <c>MapBridge</c>), so the object has to be recoverable
+        /// from the room it was placed in — and the room is what the caller has.</para>
+        /// </summary>
+        public static ObjectInstance FindBeginCheckpoint(RoomInstance room)
+        {
+            if (room?.objects == null) return null;
+
+            for (int i = 0; i < room.objects.Count; i++)
+            {
+                ObjectInstance obj = room.objects[i];
+                if (obj == null) continue;
+                if (!string.Equals(obj.objectType, "checkpoint", StringComparison.OrdinalIgnoreCase)) continue;
+                if (string.IsNullOrEmpty(obj.GetAttribute(BeginCheckpointAttribute, string.Empty))) continue;
+                return obj;
+            }
+
+            return null;
         }
 
         /// <summary>
@@ -1227,6 +1322,15 @@ namespace PFE.Systems.Map
             obj.runtimeState.InitializeFromAttributes(obj.attributes);
             obj.InitializeDynamicRuntimeState();
             obj.RefreshLegacyParameters();
+
+            // AS3 Area's constructor sets `enabled` from `@off` (Area.as:120-123: present and <= 0
+            // means enabled) and then, if enabled and `lift != 1`, stamps the lift onto its tiles
+            // (:231-234). Both halves were missing: every area started `isActive = true` (so a
+            // `off="1"` shaft was live from the first frame) and `@grav` was never written anywhere,
+            // so no lift shaft in the game moved anything.
+            obj.isActive = AreaLift.ResolveInitialEnabled(obj);
+            AreaLift.Apply(room, obj, obj.isActive);
+
             room.AddObject(obj);
         }
 
@@ -1597,6 +1701,15 @@ namespace PFE.Systems.Map
         /// stores in <c>newLoc</c> (<c>Land.as:950-951</c>) and what <c>randomUnit</c>'s parity tests
         /// read.
         /// </summary>
+        /// <summary>
+        /// Public seam onto <see cref="ResolveEnemyContext"/> for callers that build a unit <i>after</i>
+        /// the room was populated — today the alarm's reinforcements
+        /// (<c>SecurityRuntime.SpawnReinforcement</c>). They need the same biome/tipEnemy/difficulty
+        /// the initial enemy pass used, and recomputing those by hand is how a reinforcement ends up
+        /// being a different family from the room's garrison.
+        /// </summary>
+        public static LocationEnemyContext EnemyContextFor(RoomInstance room) => ResolveEnemyContext(room);
+
         private static LocationEnemyContext ResolveEnemyContext(RoomInstance room)
         {
             if (room == null) return LocationEnemyContext.NoContext;
@@ -1700,9 +1813,20 @@ namespace PFE.Systems.Map
             /// </summary>
             public List<ObjectSpawnData>[] UpGroups;
 
-            /// <summary>How many <c>enspawn</c> rows the room authored. See the remarks on
-            /// <see cref="PartitionObjectTable"/> — the consumer is unported.</summary>
-            public int EnSpawnRows;
+            /// <summary>
+            /// The <c>enspawn</c> rows the room authored, in template order.
+            ///
+            /// <para><b>This is AS3's <c>Location.enspawn</c></b> (<c>Location.as:87</c>, filled by
+            /// <c>addEnSpawn</c> at <c>:914-934</c>). It is a <i>different</i> list from the five
+            /// <c>up</c> groups: those place the room's standing garrison, while these are the points
+            /// <c>Location.enemySpawn()</c> draws reinforcements from when the alarm goes off
+            /// (<c>:2977-2998</c>). The port collected the count and threw the points away, which is
+            /// exactly why an alarm could raise, lock the exits and then produce nothing.</para>
+            /// </summary>
+            public List<ObjectSpawnData> EnSpawns;
+
+            /// <summary>How many <c>enspawn</c> rows the room authored.</summary>
+            public int EnSpawnRows => EnSpawns != null ? EnSpawns.Count : 0;
 
             /// <summary>How many <c>spawnpoint</c> rows were skipped. The player point is already on
             /// <c>room.spawnPoints</c> via <c>RoomGenerator</c>; AS3 never instantiates the marker.</summary>
@@ -1739,6 +1863,7 @@ namespace PFE.Systems.Map
             var partition = new ObjectTablePartition
             {
                 Spawnable = new List<ObjectSpawnData>(),
+                EnSpawns = new List<ObjectSpawnData>(),
                 UpGroups = new List<ObjectSpawnData>[LocationEnemySelector.GroupCount]
             };
 
@@ -1761,7 +1886,9 @@ namespace PFE.Systems.Map
                         continue;
 
                     case "enspawn":
-                        partition.EnSpawnRows++;
+                        // `addEnSpawn(nx, ny, xmll)` — kept, not counted. The consumer is
+                        // `Location.enemySpawn`, reached from the alarm; see RecordEnemySpawnPoints.
+                        partition.EnSpawns.Add(objData);
                         continue;
 
                     case "up":
@@ -1784,6 +1911,73 @@ namespace PFE.Systems.Map
             }
 
             return partition;
+        }
+
+        /// <summary>
+        /// AS3 <c>Location.enspawn</c>'s default group — <c>tipSpawn = "enl2"</c>
+        /// (<c>Location.as:223</c>), overridden per room by <c>&lt;options spawn="…"&gt;</c>
+        /// (<c>:498-501</c>). A room that authors no group still has alarm points; they just call the
+        /// default family.
+        /// </summary>
+        public const string DefaultEnemySpawnGroup = "enl2";
+
+        /// <summary>
+        /// Turn the room's authored <c>enspawn</c> rows into <see cref="SpawnPoint"/>s of
+        /// <see cref="SpawnType.Enemy"/>, carrying the <b>spawn group</b> (<c>enl1</c>/<c>enl2</c>/…) as
+        /// their <c>unitId</c>.
+        ///
+        /// <para><b>Why the points are recorded rather than the units.</b> AS3 resolves the unit at
+        /// spawn time — <c>enemySpawn</c> calls <c>createUnit(tipSpawn, x, y, true, null, null, 30)</c>
+        /// (<c>:2989</c>) — so which family arrives is decided when the alarm fires, not when the room
+        /// is built. Storing the group keeps that, and keeps the draw out of the seeded layout stream.
+        /// <c>SecurityRuntime.ResolveReinforcementUnitId</c> does the family/variant resolution.</para>
+        ///
+        /// <para><b>Public and static so the offline wall can pin it</b> — the same reason
+        /// <see cref="RecordUpPointCounts"/> is. <c>SpawnPoint</c> is a plain class and
+        /// <c>ObjectSpawnData</c> is a plain record, so this needs no editor to test.</para>
+        ///
+        /// <para><b>Idempotent.</b> A room can be re-populated (a rebuild, a load) and the player point
+        /// is not cleared by populate, so a blind append would multiply the enemy points on every
+        /// rebuild — and an alarm would then "spawn" the same marker several times over.</para>
+        /// </summary>
+        public static void RecordEnemySpawnPoints(
+            RoomInstance room, List<ObjectSpawnData> enSpawns, string spawnGroupId)
+        {
+            if (room == null || enSpawns == null || enSpawns.Count == 0) return;
+
+            string group = string.IsNullOrEmpty(spawnGroupId) ? DefaultEnemySpawnGroup : spawnGroupId;
+            room.spawnPoints ??= new List<SpawnPoint>();
+
+            for (int i = 0; i < enSpawns.Count; i++)
+            {
+                ObjectSpawnData row = enSpawns[i];
+                if (row == null) continue;
+
+                bool exists = false;
+                for (int j = 0; j < room.spawnPoints.Count; j++)
+                {
+                    SpawnPoint existing = room.spawnPoints[j];
+                    if (existing != null && existing.type == SpawnType.Enemy &&
+                        existing.tileCoord == row.tileCoord)
+                    {
+                        exists = true;
+                        break;
+                    }
+                }
+
+                if (exists) continue;
+
+                room.spawnPoints.Add(new SpawnPoint
+                {
+                    // The authored AS3 tile, unconverted: `SpawnPoint.GetEnemyRoomLocalPixel` mirrors it
+                    // and applies `addEnSpawn`'s anchor, which uses the placement's own `@size` (floored
+                    // at 1) and NOT the player's 2 — see SpawnPoint.EnemyAnchorSizeTiles.
+                    tileCoord = row.tileCoord,
+                    type = SpawnType.Enemy,
+                    unitId = group,
+                    facingDirection = 1f,
+                });
+            }
         }
 
         /// <summary>

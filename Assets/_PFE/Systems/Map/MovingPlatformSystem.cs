@@ -72,6 +72,14 @@ namespace PFE.Systems.Map
             _move = move;
             IsMove = true;
 
+            // BindMove writes `cdx`/`cdy` on this object's dynamic state, and a state that has never
+            // been structured has no `dynamicState` to write to. `RoomObjectPhysicsLayer.Register`
+            // normally does this first, but the platform system can be built for a room assembled by a
+            // fixture, and a rider that reads nothing is the silent failure this whole type exists to
+            // avoid. The call is memoised (RoomInstance._migratedFromParameters), so it is a field read
+            // on every path that has already structured the object.
+            obj.EnsureStructuredData();
+
             // AS3 reads X/Y off the object, which at this point are the placement's authored
             // coordinates (Interact.as:429-431). The port stores the same pair in `position`.
             BegX = obj.position.x;
@@ -79,12 +87,19 @@ namespace PFE.Systems.Map
 
             // Interact.as:432-451. The `@dx`-absent arm writes `endX = endX2 = X`; the port has no
             // `endX2` (it is only ever assigned, never read in the oracle), so only endX is kept.
+            // X is not mirrored between the two spaces, so `dx` keeps its sign.
             EndX = move.HasDx
                 ? BegX + (move.Mirror ? -move.Dx : move.Dx) * WorldConstants.TILE_SIZE
                 : BegX;
 
+            // Interact.as:448-451 — `endY = Y + dy * tileY`. AS3's Y runs DOWN, the port's room-local
+            // pixel Y runs UP (`WorldCoordinates.As3YToUnityLocalY` is the mirror), so the sign has to
+            // flip or every vertical platform travels the wrong way: `RoomsSerial2.as:4103` authors
+            // `dy="-19"` (rise 19 tiles) and the port would descend. Measured over the 640 imported
+            // rooms: 45 `<move>` nodes author a `dy` — 19 negative, 26 positive — so both directions
+            // occur and neither can be special-cased.
             EndY = move.HasDy
-                ? BegY + move.Dy * WorldConstants.TILE_SIZE
+                ? BegY - move.Dy * WorldConstants.TILE_SIZE
                 : BegY;
 
             // Interact.as:453-467. Note tStay/tMove were already defaulted to 10/100 by the data type,
@@ -319,10 +334,36 @@ namespace PFE.Systems.Map
         /// on each call (<c>RoomInstance.cs:1371-1378</c>). So assigning the position <i>is</i> the
         /// whole of <c>bindMove</c> here, and a caller that cached a rect has to re-read it — which is
         /// what <see cref="MovingPlatformSystem.Moved"/> is for.</para>
+        ///
+        /// <para><b>The displacement is not optional, and it is not written anywhere else.</b> AS3
+        /// records it at the end of <c>Box.run</c> — <c>cdx = X - stX</c> (<c>Box.as:643-644</c>), with
+        /// <c>stX</c> taken before <c>inter.step()</c> — and a rider reads it on its next frame
+        /// (<c>Unit.as:2014-2026</c>: <c>osndx/osndy</c>, gated at ±10 px). The port stores the same
+        /// pair in <c>MapObjectDynamicStateData.cdx/cdy</c>, but the only writer is
+        /// <c>RoomObjectPhysicsLayer.StepDynamicObject</c>, which skips every non-dynamic prop — and a
+        /// platform is <c>DoorOccupancy</c>, never integrated. So without this assignment a platform
+        /// moves and its rider does not: the platform slides out from under a unit that is standing
+        /// perfectly still, which is indistinguishable from "you cannot stand on it".</para>
+        ///
+        /// <para><b>Sign convention.</b> <see cref="ObjectInstance.position"/> is the port's y-up
+        /// space, so a rising platform has a positive <c>cdy</c>; <c>UnitController</c> and
+        /// <c>TilePhysicsController</c> both add it to a y-up step, so no flip is needed here. The
+        /// ±10 px gate is in AS3 frames either way, and a platform's per-frame travel in the shipped
+        /// data is 3.8 px at most (a 19-tile rise over 200 frames), well inside it.</para>
         /// </summary>
         private void BindMove(float x, float y)
         {
+            Vector2 previous = Object.position;
             Object.position = new Vector2(x, y);
+
+            MapObjectDynamicStateData state = Object.runtimeState?.dynamicState;
+            if (state == null)
+            {
+                return;
+            }
+
+            state.cdx = x - previous.x;
+            state.cdy = y - previous.y;
         }
 
         /// <summary>Raised on the <c>move</c>/<c>stop</c> edge, with the new <c>moveP</c>.</summary>
@@ -334,22 +375,27 @@ namespace PFE.Systems.Map
     /// <c>if(this.isMove) this.move()</c> line in AS3's <c>Interact.step</c>
     /// (<c>serv/Interact.as:620-624</c>).
     ///
-    /// <para><b>When it runs.</b> AS3 reaches that line from <c>Location.step</c>, which walks the
-    /// room's object list <i>after</i> <c>gg.step()</c> — the player — and <i>before</i> the land's
-    /// scripts (<c>Land.as:1566-1595</c>). The port mirrors that by ticking at
-    /// <c>SimTickOrder.MapObjects</c> (32): after <c>PlayerMotor</c> (20) and <c>UnitsAndAi</c> (30),
-    /// before <c>Scripts</c> (75). It is after the motors on purpose — a platform that wrote its
-    /// position before the unit standing on it had moved would have that write overwritten in the same
-    /// tick.</para>
+    /// <para><b>When it runs — measured, not as intended.</b> AS3 reaches that line from
+    /// <c>Location.step</c>, which walks the room's object list <i>after</i> <c>gg.step()</c> — the
+    /// player — and <i>before</i> the land's scripts (<c>Land.as:1566-1595</c>), i.e. once per rendered
+    /// frame at 30 fps. The live driver here is <c>RoomVisualController.LateUpdate</c>, which calls
+    /// <see cref="Step"/> once per rendered frame so the frame that advances a platform is the frame
+    /// that draws it at its new position. <b>There is no <c>SimTickOrder.MapObjects</c> slot</b> — this
+    /// comment used to claim one at order 32, and <c>grep -rn "MapObjects" Assets/_PFE --include=*.cs</c>
+    /// finds only the <c>Resources/MapObjects</c> asset paths. The consequence is a real, separate
+    /// defect: at 60 fps <see cref="MovingPlatformState.ElapsedFrames"/> advances twice per sim tick, so
+    /// a 200-frame travel takes 200 <i>rendered</i> frames rather than 200 sim ticks, and a rider's
+    /// carry is one rendered frame's displacement rather than one tick's. Fixing the cadence means
+    /// registering a per-room tickable and removing the LateUpdate call — an owner decision, recorded
+    /// in <c>docs/OnMapObjects/05_RemainingImplementationWork.md</c> rather than taken here.</para>
     ///
-    /// <para><b>What a moving platform still does not do in this port.</b> It writes
-    /// <see cref="ObjectInstance.position"/> and nothing else. Solid collision for these objects is
-    /// tile-stamped in the port (<c>AreaTriggerSystem.UpdateDoorTileCollision</c>) and only for
-    /// definitions that author <c>door=</c>; the objects that actually move — <c>platform2</c>,
-    /// <c>platform3</c>, <c>wturret</c>, <c>knop2</c> — author none, and <c>blocksMovement</c> is
-    /// imported from <c>phis</c> but read by nothing. So a platform moves and is drawn moving, and the
-    /// player still walks through it. That is a separate workstream and is reported, not papered
-    /// over.</para>
+    /// <para><b>What a moving platform does now.</b> It writes <see cref="ObjectInstance.position"/>
+    /// plus its own <c>cdx</c>/<c>cdy</c>, and it is registered as a <b>support surface</b> by
+    /// <c>RoomObjectPhysicsLayer</c> (see its <c>_staticShelfObjects</c> block): <c>platform2</c> and
+    /// <c>platform3</c> author <c>shelf="1"</c>, so a unit can stand on them and is carried by their
+    /// displacement. What it still does not do is block <i>horizontal</i> movement, which is also true
+    /// in the oracle — a prop is a one-way floor, not a wall; only <c>door=</c> objects are stamped into
+    /// the tile grid (<c>AreaTriggerSystem.UpdateDoorTileCollision</c>).</para>
     /// </summary>
     public sealed class MovingPlatformSystem
     {

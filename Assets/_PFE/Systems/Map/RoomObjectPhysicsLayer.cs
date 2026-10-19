@@ -134,6 +134,37 @@ namespace PFE.Systems.Map
         readonly HashSet<ObjectInstance> _dynamicObjectLookup = new HashSet<ObjectInstance>();
         int _lastKnownRoomObjectCount = -1;
 
+        // ── Static shelf props — the surfaces this layer never integrates ────────────────────────────
+        //
+        // <b>The oracle has one list, this layer had two halves of it.</b> AS3's `Unit.checkShelf`
+        // walks `loc.objs` — every box in the room, integrated or not — and takes the first one whose
+        // `shelf` is set (`Unit.as:2716-2719`). This port only ever tracked *dynamic* props
+        // (`IsDynamicPhysicalProp()`), so an object that is never integrated was also never a floor.
+        //
+        // <b>What that cost.</b> `platform2`/`platform3` — the button-operated platforms, 38 + 5
+        // placements across 50 of the 640 imported rooms — author `shelf="1"` and `wall="1"` and
+        // resolve to `MapObjectPhysicalCapability.DoorOccupancy` (family `Platform`, `:638-643`).
+        // `DoorOccupancy` has no consumer anywhere in the port, and the only other solidity path,
+        // tile stamping (`AreaTriggerSystem.UpdateDoorTileCollision`), runs for definitions that
+        // author `door=` — which these do not. So a platform had no collision of any kind: the unit
+        // walked through it, and once it moved, fell through it.
+        //
+        // <b>Why a separate list rather than widening `_dynamicObjects`.</b> Nothing here is
+        // integrated: a platform's position is written by `MovingPlatformState.Step` (an authored
+        // `<move>` node), not by gravity or a throw. Feeding it to `StepDynamicObject` would run
+        // `FollowSupport`/`IntegrateFallSpeed`/friction on an object that must not fall, and to
+        // `_impactCandidates` a prop that AS3 explicitly excludes — `attDrop` lives in `Box.run`,
+        // whose whole moving branch is gated on `wall == 0` (`Box.as:596`), and both platforms are
+        // `wall="1"`. So this list feeds the shelf query and nothing else.
+        //
+        // <b>Measured scope.</b> Exactly four definitions in the 202-definition catalog are
+        // non-dynamic and shelf-capable: `platform2`, `platform3`, and the two spike props
+        // (`spikes`, `fspikes`, already registered as traps). No crate, terminal, table or door
+        // changes behaviour — every one of those is either dynamic (already tracked) or `wall > 0`
+        // without an authored `shelf`.
+        readonly List<ObjectInstance> _staticShelfObjects = new List<ObjectInstance>();
+        readonly HashSet<ObjectInstance> _staticShelfLookup = new HashSet<ObjectInstance>();
+
         // ── Per-tick query candidate lists ───────────────────────────────────────────────────────
         //
         // <b>What these fix.</b> Both unit-side prop queries used to walk `_dynamicObjects` from
@@ -270,6 +301,13 @@ namespace PFE.Systems.Map
 
         /// <summary>Props that could be a surface this tick (the unit-independent half of Unit.checkShelf).</summary>
         public int ShelfCandidateCount => _shelfCandidates.Count;
+
+        /// <summary>
+        /// Non-dynamic props registered as surfaces — the `platform2`/`platform3` family. Read beside
+        /// <see cref="TrackedDynamicObjectCount"/> and <see cref="ShelfCandidateCount"/>: a room whose
+        /// platforms never appear here is a room where a platform is still a picture.
+        /// </summary>
+        public int StaticShelfCount => _staticShelfObjects.Count;
 
         /// <summary>Props that moved this tick — the list the impact sweep now walks.</summary>
         public int ImpactCandidateCount => _impactCandidates.Count;
@@ -520,6 +558,8 @@ namespace PFE.Systems.Map
         {
             _dynamicObjects.Clear();
             _dynamicObjectLookup.Clear();
+            _staticShelfObjects.Clear();
+            _staticShelfLookup.Clear();
             _traps.Clear();
             _trapLookup.Clear();
             MarkQueryCandidatesDirty();
@@ -559,6 +599,16 @@ namespace PFE.Systems.Map
 
             if (!obj.ShouldTrackInPhysicsLayer())
             {
+                // Not integrated, but possibly still a floor — see _staticShelfObjects. The test is
+                // `IsShelf()` and not "is a platform", because `shelf` is the oracle's own word for
+                // "something may rest on top of this" (Box.as:22/:269-274) and inventing a second
+                // predicate here is how the two would drift apart.
+                if (IsStaticShelfProp(obj) && _staticShelfLookup.Add(obj))
+                {
+                    _staticShelfObjects.Add(obj);
+                    MarkQueryCandidatesDirty();
+                }
+
                 return false;
             }
 
@@ -572,6 +622,54 @@ namespace PFE.Systems.Map
             return false;
         }
 
+        /// <summary>
+        /// Is this prop a surface that this layer never integrates — i.e. a candidate for
+        /// <see cref="_staticShelfObjects"/>?
+        ///
+        /// <para><b>Three terms, each of them load-bearing.</b></para>
+        ///
+        /// <list type="number">
+        /// <item><description><b>Not already dynamic.</b> A crate is integrated by this layer and
+        /// enters <see cref="_shelfCandidates"/> through <see cref="_dynamicObjects"/>; adding it here
+        /// as well would put it in the same query twice.</description></item>
+        /// <item><description><b>Physically present.</b> <see cref="MapObjectPhysicalCapability.None"/>
+        /// is the classifier's answer for areas, checkpoints, spawn markers, bonuses and unit rows
+        /// (<c>MapObjectDefinition.cs:618-636</c>). Those are not props, and several of them
+        /// (<c>area</c>, <c>checkpoint</c>) would otherwise pass the shelf rule on their 2×2 default
+        /// footprint and become invisible floors over a lift shaft.</description></item>
+        /// <item><description><b><c>shelf</c>.</b> <see cref="ObjectInstance.IsShelf"/> is AS3
+        /// <c>Obj.shelf</c> — default true, cleared for a prop narrower than one tile or part of wall
+        /// geometry, and restored by an authored <c>shelf</c> attribute
+        /// (<c>Box.as:269-274</c>). `platform2`/`platform3` are exactly the authored-attribute arm:
+        /// `wall="1"` would clear them, and their `shelf="1"` puts them back.</description></item>
+        /// </list>
+        ///
+        /// <para><b>Measured against the shipped catalog</b> (202 definition assets): four are
+        /// non-dynamic and shelf-capable — <c>platform2</c>, <c>platform3</c>, <c>spikes</c>,
+        /// <c>fspikes</c>. The two spike props are already traps on this layer; being a shelf as well
+        /// is the oracle's answer too (<c>Trap extends Box</c>, so its <c>shelf</c> is the same
+        /// field).</para>
+        /// </summary>
+        bool IsStaticShelfProp(ObjectInstance obj)
+        {
+            if (obj == null || obj.IsDestroyed())
+            {
+                return false;
+            }
+
+            if (obj.ShouldTrackInPhysicsLayer())
+            {
+                return false;
+            }
+
+            if (obj.GetResolvedPhysicalCapability() == MapObjectPhysicalCapability.None)
+            {
+                return false;
+            }
+
+            return obj.IsShelf();
+        }
+
         public bool Unregister(ObjectInstance obj)
         {
             if (obj == null)
@@ -580,6 +678,15 @@ namespace PFE.Systems.Map
             }
 
             RemoveTrap(obj);
+
+            // A static shelf can be removed from a room on its own (a script destroys or rebuilds a
+            // platform), and it is not in `_dynamicObjectLookup`, so the early return below would
+            // leave it in the list forever — a floor with no object behind it.
+            if (_staticShelfLookup.Remove(obj))
+            {
+                _staticShelfObjects.Remove(obj);
+                MarkQueryCandidatesDirty();
+            }
 
             if (!_dynamicObjectLookup.Remove(obj))
             {
@@ -879,6 +986,32 @@ namespace PFE.Systems.Map
                     _impactCandidates.Add(new ImpactCandidate(candidate, candidateState));
                 }
 
+                // The non-dynamic half of `Unit.checkShelf` — see _staticShelfObjects. Appended AFTER
+                // the dynamic props so the scan order still matches `loc.objs`' insertion order for
+                // everything that was already in it; a room's platforms are typically placed among the
+                // crates, so the first-match answer can differ from the oracle's when two shelves
+                // overlap. That difference is a tie-break, not a rule: both are legitimate supports and
+                // the caller uses the first it finds.
+                for (int i = 0; i < _staticShelfObjects.Count; i++)
+                {
+                    ObjectInstance candidate = _staticShelfObjects[i];
+                    if (candidate == null || !candidate.isActive || candidate.IsDestroyed())
+                    {
+                        continue;
+                    }
+
+                    // `isHeldByTelekinesis` is always false for these — the grab path only ever looks at
+                    // `_dynamicObjects` — but the term is kept because it is the oracle's `!levit`
+                    // (Unit.as:2719) and a future liftable platform must not become a floor mid-flight.
+                    MapObjectDynamicStateData candidateState = candidate.runtimeState?.dynamicState;
+                    if (candidateState == null || candidateState.isHeldByTelekinesis)
+                    {
+                        continue;
+                    }
+
+                    _shelfCandidates.Add(candidate);
+                }
+
                 _queryCandidatesDirty = false;
             }
         }
@@ -889,6 +1022,8 @@ namespace PFE.Systems.Map
             {
                 _dynamicObjects.Clear();
                 _dynamicObjectLookup.Clear();
+                _staticShelfObjects.Clear();
+                _staticShelfLookup.Clear();
                 _traps.Clear();
                 _trapLookup.Clear();
                 _lastKnownRoomObjectCount = 0;
@@ -912,6 +1047,19 @@ namespace PFE.Systems.Map
                 {
                     _dynamicObjectLookup.Remove(tracked);
                     _dynamicObjects.RemoveAt(i);
+                    removedAny = true;
+                }
+            }
+
+            // Same prune for the static shelves: this path runs when the object COUNT is unchanged, so
+            // a room that swapped one platform for another would otherwise keep a stale support.
+            for (int i = _staticShelfObjects.Count - 1; i >= 0; i--)
+            {
+                ObjectInstance shelf = _staticShelfObjects[i];
+                if (shelf == null || !roomObjects.Contains(shelf) || !IsStaticShelfProp(shelf))
+                {
+                    _staticShelfLookup.Remove(shelf);
+                    _staticShelfObjects.RemoveAt(i);
                     removedAny = true;
                 }
             }
@@ -1223,11 +1371,21 @@ namespace PFE.Systems.Map
         /// <param name="porogPixels">How far above the surface still counts as standing on it.</param>
         /// <param name="support">The prop found, or null.</param>
         /// <param name="surfaceY">The support's top edge, room-local pixels.</param>
+        /// <param name="carryPixels">
+        /// AS3's <c>param2</c> — the displacement of the prop the unit was standing on last tick
+        /// (<c>osndy</c>, <c>Unit.as:2340</c>/<c>:2422</c>). Both ends of the band move with it, which
+        /// is the state form of the oracle's test: <c>Y2 + param2 &lt;= Y1</c> becomes
+        /// <c>surface &lt;= feet + carry</c> and <c>Y2 + param1 + param2 &gt; Y1</c> becomes
+        /// <c>surface &gt; feet - porog + carry</c>. Without it a platform that rose this tick has its
+        /// top <i>above</i> the un-shifted band, so the rider is reported airborne and gravity wins.
+        /// Zero is the old behaviour and is what every caller without a known support passes.
+        /// </param>
         public bool TryFindGroundPropUnder(
             Rect feetBoundsRoomLocalPixels,
             float porogPixels,
             out ObjectInstance support,
-            out float surfaceY)
+            out float surfaceY,
+            float carryPixels = 0f)
         {
             // Region is here for the CALL COUNT as much as the time: this is asked once per unit per
             // step by ResolveGroundState, so `calls / calls(sim.tick)` is the unit count and
@@ -1238,9 +1396,10 @@ namespace PFE.Systems.Map
             {
             return TryFindPropSurfaceUnder(
                 feetBoundsRoomLocalPixels,
-                feetBoundsRoomLocalPixels.yMin - porogPixels,
+                feetBoundsRoomLocalPixels.yMin - porogPixels + carryPixels,
                 out support,
-                out surfaceY);
+                out surfaceY,
+                carryPixels);
             }
         }
 
@@ -1273,11 +1432,23 @@ namespace PFE.Systems.Map
         /// feet still counts — see <c>UnitCheckShelfMath.IsLandingOnSurface</c> for why.</param>
         /// <param name="support">The prop landed on, or null.</param>
         /// <param name="surfaceY">The support's top edge, room-local pixels.</param>
+        /// <param name="carryPixels">
+        /// AS3's <c>param2</c> — the support's own last-tick displacement
+        /// (<c>checkShelf(dy / param1, osndy / param1)</c>, <c>Unit.as:2340</c>). The motor passes this
+        /// substep's share of the carry it already applied to the move. <b>Only the upper bound shifts
+        /// here</b>, and that is not an inconsistency: the oracle's window is
+        /// <c>(Y2 + param1 + param2, Y2 + param2]</c>, and the port's <paramref name="feetAfterRoomLocalY"/>
+        /// already equals <c>feetBefore + step + carry</c> because the carry is folded into
+        /// <c>moveY</c>. Shifting it again would double-count the platform's rise. Without the upper
+        /// shift a rising platform's top sits above the window and the rider is left behind — which is
+        /// what made a button-operated lift impossible to ride.
+        /// </param>
         public bool TryFindPropCrossedThisStep(
             Rect feetBoundsBeforeRoomLocalPixels,
             float feetAfterRoomLocalY,
             out ObjectInstance support,
-            out float surfaceY)
+            out float surfaceY,
+            float carryPixels = 0f)
         {
             // The one to watch: a motor calls this ONCE PER SUBSTEP, so its call count is
             // (units x substeps per step x ticks per second) — the only query here whose count is
@@ -1290,7 +1461,8 @@ namespace PFE.Systems.Map
                 feetBoundsBeforeRoomLocalPixels,
                 feetAfterRoomLocalY,
                 out support,
-                out surfaceY);
+                out surfaceY,
+                carryPixels);
             }
         }
 
@@ -1305,12 +1477,23 @@ namespace PFE.Systems.Map
         /// <i>event</i> query sets it at the post-step feet ("what did this step cross"). Folding them
         /// into one function with the bound as a parameter keeps the filter — the part carrying the three
         /// oracle citations — in exactly one place.</para>
+        ///
+        /// <para><b><paramref name="carryPixels"/> is AS3's <c>param2</c>, and it moves the upper bound.</b>
+        /// The oracle's test is <c>Y2 + param2 &lt;= Y1 &amp;&amp; Y2 + param1 + param2 &gt; Y1</c>
+        /// (<c>Unit.as:2720</c>), where <c>param2</c> is <c>osndy</c> — the support's own displacement
+        /// this tick (<c>:2014-2026</c>). Written as a window, the surface must lie in
+        /// <c>(feetBefore + step + carry, feetBefore + carry]</c>. Dropping <c>carry</c> (what this
+        /// function did) shifts the window down by the platform's rise, so a lift overtakes its rider
+        /// instead of catching it. Each wrapper adds the carry to its own lower bound exactly where AS3
+        /// does — see the two <c>carryPixels</c> parameter docs. <c>0</c> reproduces the old behaviour
+        /// exactly.</para>
         /// </summary>
         bool TryFindPropSurfaceUnder(
             Rect feetBoundsRoomLocalPixels,
             float lowestAcceptedSurfaceRoomLocalY,
             out ObjectInstance support,
-            out float surfaceY)
+            out float surfaceY,
+            float carryPixels = 0f)
         {
             // The shared scan behind both shelf queries: one pass over EVERY tracked dynamic prop,
             // per call. Its self time is the per-candidate cost (IsShelf + GetApproximateBounds, the
@@ -1332,7 +1515,7 @@ namespace PFE.Systems.Map
                 return false;
             }
 
-            float feetY = feetBoundsRoomLocalPixels.yMin;
+            float feetY = feetBoundsRoomLocalPixels.yMin + carryPixels;
             float myLeft = feetBoundsRoomLocalPixels.xMin;
             float myRight = feetBoundsRoomLocalPixels.xMax;
 
@@ -1341,8 +1524,9 @@ namespace PFE.Systems.Map
             // a telekinesis grab or a destruction can flip between the rebuild and now, plus the three
             // comparisons that depend on the unit asking. See the candidate-list field block.
             //
-            // The list preserves `_dynamicObjects` order, so the FIRST match is the same prop this loop
-            // returned before — the result is identical, not merely equivalent.
+            // The list preserves `_dynamicObjects` order (static shelves are appended after them), so
+            // the FIRST match is the same prop this loop returned before for every prop that was
+            // already tracked — the result is identical, not merely equivalent.
             for (int i = 0; i < _shelfCandidates.Count; i++)
             {
                 ObjectInstance candidate = _shelfCandidates[i];
@@ -1368,7 +1552,8 @@ namespace PFE.Systems.Map
                 }
 
                 // ...and no lower than the caller's bound — the step-up allowance for a state query, or
-                // where this step's motion ended for an event query.
+                // where this step's motion ended for an event query. The caller has already added the
+                // support's displacement where AS3 adds it; see each wrapper for why the two differ.
                 if (candidateTop < lowestAcceptedSurfaceRoomLocalY)
                 {
                     continue;

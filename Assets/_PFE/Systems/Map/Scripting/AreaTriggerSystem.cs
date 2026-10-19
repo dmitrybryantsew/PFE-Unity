@@ -561,6 +561,14 @@ namespace PFE.Systems.Map.Scripting
                     for (int i = 0; i < targets.Count; i++)
                     {
                         targets[i].isActive = false;
+
+                        // AS3 `Area.command` runs `if(lift != 1) setLift()` for EVERY verb
+                        // (Area.as:271-274), so a lift area rewrites its tiles whenever it is told
+                        // `off` — the tiles go back to gravity 1. Without this the nio shaft's second
+                        // button would only disable the trigger collider and the player would keep
+                        // floating: `enabled` and `Tile.grav` are two halves of one state.
+                        AreaLift.ApplyCurrent(room, targets[i]);
+
                         OnObjectStateChanged?.Invoke(targets[i]);
                     }
 
@@ -570,6 +578,7 @@ namespace PFE.Systems.Map.Scripting
                     for (int i = 0; i < targets.Count; i++)
                     {
                         targets[i].isActive = true;
+                        AreaLift.ApplyCurrent(room, targets[i]);
                         OnObjectStateChanged?.Invoke(targets[i]);
                     }
 
@@ -579,6 +588,7 @@ namespace PFE.Systems.Map.Scripting
                     for (int i = 0; i < targets.Count; i++)
                     {
                         targets[i].isActive = !targets[i].isActive;
+                        AreaLift.ApplyCurrent(room, targets[i]);
                         OnObjectStateChanged?.Invoke(targets[i]);
                     }
 

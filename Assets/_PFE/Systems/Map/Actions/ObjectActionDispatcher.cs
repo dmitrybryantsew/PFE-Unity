@@ -250,6 +250,14 @@ namespace PFE.Systems.Map.Actions
                 unitVerbs: null,
                 report: reportUnhandled);
 
+            // AS3 `Area.command`'s tail — `if(lift != 1) setLift()` (Area.as:271-274) — runs for
+            // every verb an area receives, and the `allact` broadcast is the second way an area is
+            // told `on`/`off`/`onoff` (the first is `@targ`, in AreaTriggerSystem.DispatchObjectCommand).
+            // This callback existed but had no production binder, so a broadcast `on` flipped
+            // `isActive` and left the lift tiles untouched — a shaft that reported "on" and did not
+            // move. One binder here covers both dispatchers, because both are built by CreateFull.
+            broadcast.AreaPresentation = AreaLift.RefreshPresentation;
+
             dispatcher.Fallback = new BroadcastAction(broadcast);
 
             TerminalActionHost terminals = terminalHost ?? new TerminalActionHost();

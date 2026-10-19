@@ -59,6 +59,38 @@ namespace PFE.Systems.Map
         /// </summary>
         public float doorOcclusion = NoDoorOcclusion;
 
+        /// <summary>
+        /// <c>Tile.grav</c>'s default (<c>Tile.as:72</c>, <c>grav = 1</c>) — "ordinary gravity".
+        ///
+        /// <para><b>Why a named constant and not a literal <c>1f</c> at each site.</b> The value is read
+        /// in three places that must agree: this field's initialiser, <see cref="PFE.Systems.Map.AreaLift"/>
+        /// (which writes it back when an area is switched off), and the two physics drivers
+        /// (<c>TilePhysicsController.ResolveTileGravity</c>, <c>UnitController.ResolveTileGravity</c>),
+        /// which both answer <b>this</b> for a missing tile — never <c>0</c>, because 0 means
+        /// "weightless" and a not-yet-filled tile would silently switch gravity off for whatever stands
+        /// there.</para>
+        /// </summary>
+        public const float DefaultGravity = 1f;
+
+        /// <summary>
+        /// AS3 <c>Tile.grav</c> (<c>Tile.as:72</c>, default 1) — the per-tile gravity multiplier.
+        ///
+        /// <para><b>Written by <c>Area.setLift</c> and read by every unit that stands in the area.</b>
+        /// <c>Area.as:386-400</c> stamps the area's <c>@grav</c> onto its tiles while the area is
+        /// enabled and 1 back when it is not; <c>UnitPlayer.as:766-788</c> then reads
+        /// <c>getAbsTile(X, Y - scY/4).grav</c> — the tile a quarter of the body height above the feet
+        /// — and uses it both as the gravity multiplier and as the terminal-velocity factor. A
+        /// <b>negative</b> value accelerates the unit <i>upward</i>, which is what a lift shaft is;
+        /// <c>0</c> removes gravity outright.</para>
+        ///
+        /// <para><b>It is deliberately not part of the tile's visual/collision state.</b> Nothing in
+        /// the renderer, the fog pass or <c>TileCollisionMath</c> reads it, and
+        /// <c>RoomInstance.NotifyTilesMutated</c> is therefore not called when it changes: writing it
+        /// must not invalidate the collision chain or force a relight. See
+        /// <see cref="PFE.Systems.Map.AreaLift"/> for the writer.</para>
+        /// </summary>
+        public float gravityMultiplier = DefaultGravity;
+
         // Special properties - from AS3: zForm, stair, water
         public int heightLevel = 0;  // 0-3 (zForm in AS3)
         public int slopeType = 0;    // -1, 0, 1 (diagonal in AS3)

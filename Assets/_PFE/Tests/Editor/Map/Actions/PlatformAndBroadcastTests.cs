@@ -193,8 +193,11 @@ namespace PFE.Tests.Editor.Map.Actions
                 "the cycle's first frame is still p = 0 — it starts at the start, not mid-air");
 
             platform.Step();
-            Assert.AreEqual(3f * WorldConstants.TILE_SIZE, platform.Object.position.y, 0.0001f,
-                "the second frame is already at the far end (tStay = 0, tMove = 1)");
+            Assert.AreEqual(-3f * WorldConstants.TILE_SIZE, platform.Object.position.y, 0.0001f,
+                "the second frame is already at the far end (tStay = 0, tMove = 1). The sign is " +
+                "AS3's: `dy` is authored in a Y-DOWN space (`Interact.as:448-451`), so `dy=\"3\"` " +
+                "means three tiles DOWN and the port's Y-UP position must therefore decrease. " +
+                "This assertion used to read +3 and was pinning the un-mirrored sign.");
         }
 
         [Test]

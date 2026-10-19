@@ -173,6 +173,26 @@ namespace PFE.Systems.Map
                 {
                     FinalizeSpecificRoom(room, template, debugSettings);
                 }
+                else
+                {
+                    // Never silent. A room whose template cannot be resolved from the list it was
+                    // handed is a room that will render (its tiles were generated from the template at
+                    // build time) and then contain nothing — no units, no props, no checkpoint — which
+                    // reads to a player as "this land is empty" and to a reader of the code as a
+                    // population bug. It is neither: the template list and the build disagreed.
+                    //
+                    // The caller that produced this state was `WorldBuilder.BuildSpecificWorld`
+                    // leaving `allTemplates` stale after a procedural land narrowed it; see the
+                    // assignment at the top of that method. This warning is the tripwire for the next
+                    // caller that does the same thing.
+                    Debug.LogWarning(
+                        $"[RoomSetup] Room '{room.id}' (templateId='{room.templateId}', " +
+                        $"pos={room.landPosition}) has no matching template in the " +
+                        $"{templateLookup.Count}-entry lookup it was finalised against, so it was NOT " +
+                        "populated. Its tiles will draw and it will contain no units, props, " +
+                        "checkpoint or triggers. The template list passed to this pass does not " +
+                        "contain this room's collection.");
+                }
             }
         }
 

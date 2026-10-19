@@ -30,13 +30,13 @@ namespace PFE.Systems.Physics
     /// <b>1 px/frame²</b>, clamped at <b>20 px/frame</b> — the same <c>World.ddy</c> every other
     /// falling thing in this port uses.</para>
     ///
-    /// <para><b>Two AS3 gates are deliberately not modelled here, and both are recorded rather than
-    /// silently dropped.</b> (1) The per-tile <c>grav</c> multiplier: AS3 gates the acceleration on
-    /// the tile under the unit's feet, and this port's <c>TileData</c> has no <c>grav</c> field at
-    /// all, so there is no value to read — adding one is a data-model change, not a constant.
-    /// (2) <c>Unit.grav</c> per unit, which is <c>1</c> for every unit this path serves. Until (1)
-    /// lands, <c>dy += World.ddy</c> is the correct reduced form for a tile whose <c>grav</c> is
-    /// 1 — which is the only case the port can currently represent.</para>
+    /// <para><b>The per-tile <c>grav</c> multiplier is modelled, and it was not always.</b> This class
+    /// used to carry a note saying <c>TileData</c> had no <c>grav</c> field, so the reduced
+    /// <c>dy += World.ddy</c> form was "the only case the port can currently represent". That was true
+    /// when it was written and stopped being true when <c>TileData.gravityMultiplier</c> landed: the
+    /// field exists, <c>Area.setLift</c> writes it, and <see cref="FallSpeed"/> takes it as
+    /// <c>tileGravity</c>. The remaining gate that is still not modelled here is <c>Unit.grav</c>
+    /// per unit, which is <c>1</c> for every unit this path serves.</para>
     /// </summary>
     public static class UnitFallPhysics
     {
@@ -74,23 +74,76 @@ namespace PFE.Systems.Physics
             BrakePixelsPerFrameSquared * TileQueryConstants.PerFrameAccelerationToUnitsPerSecondSquared;
 
         /// <summary>
-        /// Fall speed for one step: accelerate by <see cref="GravityUnitsPerSecondSquared"/>, clamped
-        /// at <see cref="TerminalFallSpeed"/>.
+        /// Fall speed for one step: accelerate by <see cref="GravityUnitsPerSecondSquared"/> times the
+        /// tile's gravity multiplier, clamped at <see cref="TerminalFallSpeed"/> times the same
+        /// multiplier.
         ///
-        /// <para>The clamp is not cosmetic. AS3's gate (<c>dy &lt; World.maxdy</c>) means a long fall
-        /// stops accelerating at 20 px/frame; the port had no clamp on this path, so a unit falling
-        /// more than about a second kept speeding up without bound — the same omission
+        /// <para>The clamp is not cosmetic. AS3's gate (<c>dy &lt; World.maxdy * grav</c>) means a long
+        /// fall stops accelerating at 20 px/frame; the port had no clamp on this path, so a unit
+        /// falling more than about a second kept speeding up without bound — the same omission
         /// <c>RoomObjectPhysicsLayer</c> had, found and fixed by the same census.</para>
+        ///
+        /// <para><b><paramref name="tileGravity"/> is AS3's <c>Tile.grav</c>, and it scales both the
+        /// acceleration and the terminal speed.</b> That is one multiply, not two independent tuning
+        /// knobs: the oracle's gate is <c>dy &lt; World.maxdy * _loc1_.grav</c>, so a
+        /// <c>grav="0.2"</c> tile falls at a fifth of the acceleration <i>and</i> tops out at a fifth
+        /// of the speed. The default of 1 is the ordinary case and keeps every existing caller's
+        /// arithmetic identical.</para>
+        ///
+        /// <para><b>A non-positive value is not this function's business.</b> <c>grav &lt; 0</c> is the
+        /// lift shaft (a unit pushed <i>up</i>) and <c>grav == 0</c> is weightlessness; both take
+        /// neither arm of the oracle's <c>if</c>, so neither accelerates at all. The negative arm is
+        /// implemented by the driver that owns the velocity (it needs the sign flip and its own
+        /// terminal), and this function answers "no change" for anything at or below zero rather than
+        /// inventing a downward pull from a value that means the opposite.</para>
         /// </summary>
-        public static float FallSpeed(float velocityY, float deltaTime)
+        public static float FallSpeed(float velocityY, float deltaTime, float tileGravity = 1f)
         {
-            if (velocityY <= -TerminalFallSpeed)
+            if (tileGravity <= 0f)
+            {
+                return velocityY;
+            }
+
+            float terminal = TerminalFallSpeed * tileGravity;
+
+            if (velocityY <= -terminal)
             {
                 return velocityY;
             }
 
             return Mathf.Max(
-                -TerminalFallSpeed, velocityY - GravityUnitsPerSecondSquared * deltaTime);
+                -terminal, velocityY - GravityUnitsPerSecondSquared * tileGravity * deltaTime);
+        }
+
+        /// <summary>
+        /// The lift arm of the same branch: a unit on a <b>negative</b> gravity tile rises, and this is
+        /// its speed for one step — the mirror of <see cref="FallSpeed"/>.
+        ///
+        /// <para><b>Why it cannot call <see cref="FallSpeed"/> with a negative multiplier.</b> Three
+        /// differences, and each is visible in play. It returns a <i>rising</i> speed, so the terminal
+        /// is <c>+TerminalFallSpeed * |grav|</c> rather than a negative floor. It applies <b>while
+        /// grounded</b> — the caller decides that, because a lift has to push off the floor. And it
+        /// stops accelerating once the rise reaches <c>World.maxdy * |grav|</c>
+        /// (<c>Unit.as:1964</c>: <c>dy &gt; maxdy * grav</c> with <c>grav &lt; 0</c>), which for the
+        /// <c>-0.5</c> shafts is 10 px/frame — half the motor's clamp.</para>
+        /// </summary>
+        public static float LiftSpeed(float velocityY, float deltaTime, float tileGravity)
+        {
+            if (tileGravity >= 0f)
+            {
+                return velocityY;
+            }
+
+            float magnitude = -tileGravity;
+            float terminal = TerminalFallSpeed * magnitude;
+
+            if (velocityY >= terminal)
+            {
+                return velocityY;
+            }
+
+            return Mathf.Min(
+                terminal, velocityY + GravityUnitsPerSecondSquared * magnitude * deltaTime);
         }
 
         /// <summary>

@@ -299,6 +299,21 @@ namespace PFE.Systems.Map.Serialization
                 }
             }
 
+            // Re-derive every area's lift from the objects just restored.
+            //
+            // `TileData.gravityMultiplier` is not part of the snapshot on purpose: it is a *derived*
+            // value (area `@grav` × the area's enabled state), so persisting it would let a stale tile
+            // outvote the object the player can actually see and toggle. Restoring is the moment the
+            // tiles have been overwritten from the file, so the derivation has to run again here —
+            // otherwise a save taken while standing in a lift shaft loads with the shaft switched off.
+            if (room.objects != null)
+            {
+                for (int i = 0; i < room.objects.Count; i++)
+                {
+                    PFE.Systems.Map.AreaLift.ApplyCurrent(room, room.objects[i]);
+                }
+            }
+
             // Apply destroyed tiles if present
             if (destroyedTiles != null && room.tiles != null)
             {
@@ -955,6 +970,10 @@ namespace PFE.Systems.Map.Serialization
         public float securityLockAtt;
         public int securityMine;
         public int securityMineTip;
+
+        /// <summary>The trap's blast, rolled once at construction (<c>Interact.as:546</c>). Saved for the
+        /// same reason the lock is: re-deriving it would change what the same trap does after a reload.</summary>
+        public float securityTrapDamage;
         public bool securityHackable;
         public int securityAllDif;
 
@@ -988,6 +1007,7 @@ namespace PFE.Systems.Map.Serialization
                 securityLockAtt = state.securityLockAtt,
                 securityMine = state.securityMine,
                 securityMineTip = state.securityMineTip,
+                securityTrapDamage = state.securityTrapDamage,
                 securityHackable = state.securityHackable,
                 securityAllDif = state.securityAllDif,
                 dynamicState = MapObjectDynamicStateSnapshot.CreateFrom(state.dynamicState)
@@ -1021,6 +1041,7 @@ namespace PFE.Systems.Map.Serialization
                 securityLockAtt = securityLockAtt,
                 securityMine = securityMine,
                 securityMineTip = securityMineTip,
+                securityTrapDamage = securityTrapDamage,
                 securityHackable = securityHackable,
                 securityAllDif = securityAllDif,
                 dynamicState = dynamicState?.ToDynamicState() ?? new MapObjectDynamicStateData()

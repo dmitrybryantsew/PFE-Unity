@@ -1318,13 +1318,33 @@ namespace PFE.Systems.Map.Rendering
             BackdropCompositeData compositeData)
         {
             IReadOnlyList<Sprite> frames = _backgroundLookup.GetFrames(id);
-            if (frames == null || frames.Count == 0 || frames[0] == null)
+            if (frames == null || frames.Count == 0)
             {
                 WarnMissingBackgroundId(id, "background decoration");
                 return;
             }
 
-            Sprite sprite = frames[0];
+            // AS3 chooses the frame per PLACEMENT, not per id (BackObj.as:89-108): `fr` on the
+            // <back> tag, else `fr`/`lon`/`loff` on the <back> definition, else a RANDOM frame of
+            // the movieclip — `frame = Math.floor(Math.random() * vis.totalFrames + 1)`.
+            // Almost no <back> row authors any of those, so the random arm is the common one:
+            // measured 10,061 of 24,897 placements across 60 ids. `rgraff` alone is 180 placements
+            // with 13 frames, and taking frames[0] everywhere painted the same DIE skull on every
+            // wall of every room. See docs/ObjectImport/AUDIT_graffiti_and_backdrop_frames_2026-10-19.md
+            int frameIndex = ResolveDecorationFrameIndex(id, tileCoord, frames.Count);
+            Sprite sprite = frames[frameIndex];
+            if (sprite == null)
+            {
+                // A hole in the imported frame list must not delete the decoration: fall back to the
+                // frame the port used unconditionally before, and only then report a missing id.
+                sprite = frames[0];
+            }
+            if (sprite == null)
+            {
+                WarnMissingBackgroundId(id, "background decoration");
+                return;
+            }
+
             Vector2Int renderTileCoord = ConvertAs3TileCoord(tileCoord, sprite);
 
             GameObject backgroundObject = new GameObject($"Background_{id}_{tileCoord.x}_{tileCoord.y}");
@@ -1356,6 +1376,52 @@ namespace PFE.Systems.Map.Rendering
                 pixelOffset);
 
             targetList.Add(renderer);
+        }
+
+        /// <summary>
+        /// Which frame of a multi-frame backdrop decoration this placement draws.
+        ///
+        /// <para>AS3 rolls this per <c>BackObj</c> construction (<c>BackObj.as:101-104</c>):
+        /// <c>frame = Math.floor(Math.random() * vis.totalFrames + 1)</c>. The clip is then frozen
+        /// with <c>gotoAndStop</c>, so the roll happens once and the picture is stable for the life of
+        /// the location. The port rebuilds every decoration renderer on each room activation, so a
+        /// live <c>Random</c> roll would repaint all the graffiti every time the player re-entered the
+        /// room — more volatile than AS3. A stable hash of the placement gives the same variety with
+        /// the same picture on re-entry, which is the visible behaviour the oracle has.</para>
+        ///
+        /// <para>Frames are imported in filename order (<c>RoomGraphicsImporter.ImportFolderFrames</c>,
+        /// numeric by frame number), so index 0 is AS3 frame 1 — the same index an authored <c>fr</c>
+        /// would name.</para>
+        /// </summary>
+        private int ResolveDecorationFrameIndex(string id, Vector2Int tileCoord, int frameCount)
+        {
+            if (frameCount <= 1)
+            {
+                return 0;
+            }
+
+            // FNV-1a over room + id + cell. The room key is in the seed so two rooms that place the
+            // same id at the same cell do not mirror each other.
+            unchecked
+            {
+                uint hash = 2166136261u;
+
+                string key = _roomKey ?? string.Empty;
+                for (int i = 0; i < key.Length; i++)
+                {
+                    hash = (hash ^ (uint)key[i]) * 16777619u;
+                }
+
+                hash = (hash ^ (uint)'|') * 16777619u;
+                for (int i = 0; i < id.Length; i++)
+                {
+                    hash = (hash ^ (uint)id[i]) * 16777619u;
+                }
+
+                hash = (hash ^ (uint)tileCoord.x) * 16777619u;
+                hash = (hash ^ (uint)tileCoord.y) * 16777619u;
+                return (int)(hash % (uint)frameCount);
+            }
         }
 
         private Texture2D ResolveBackdropTexture(string backgroundWall)
