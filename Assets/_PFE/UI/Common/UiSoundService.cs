@@ -37,6 +37,22 @@ namespace PFE.UI.Common
         /// <summary><c>94_button</c> — generic button click.</summary>
         public const string ButtonSoundId = "button";
 
+        /// <summary><c>levelup</c> — a character level was gained (<c>Snd.as:300</c>).</summary>
+        public const string LevelUpSoundId = "levelup";
+
+        /// <summary>
+        /// <c>quest</c> — a quest was granted, or an objective inside one was revealed
+        /// (<c>Snd.as:305</c>, played at <c>Game.as:543,572,603</c> and <c>GUI.as:1928</c>).
+        /// </summary>
+        public const string QuestGivenSoundId = "quest";
+
+        /// <summary>
+        /// <c>quest_ok</c> — a WHOLE quest completed (<c>Snd.as:306</c>, played at
+        /// <c>Quest.as:693</c> and <c>Probation.as:210</c>). Not played for a sub-objective:
+        /// <c>Quest.as:690</c> gates it on <c>!this.sub</c>.
+        /// </summary>
+        public const string QuestCompleteSoundId = "quest_ok";
+
         private readonly ISoundService _sound;
         private Camera _camera;
 
@@ -59,6 +75,15 @@ namespace PFE.UI.Common
 
         /// <summary>Generic button click — <c>button</c>.</summary>
         public void PlayButtonClick(float volumeScale = 1f) => Play(ButtonSoundId, volumeScale);
+
+        /// <summary>A character level was gained — <c>levelup</c>.</summary>
+        public void PlayLevelUp(float volumeScale = 1f) => Play(LevelUpSoundId, volumeScale);
+
+        /// <summary>A quest was granted or an objective revealed — <c>quest</c>.</summary>
+        public void PlayQuestGiven(float volumeScale = 1f) => Play(QuestGivenSoundId, volumeScale);
+
+        /// <summary>A whole quest completed — <c>quest_ok</c>.</summary>
+        public void PlayQuestComplete(float volumeScale = 1f) => Play(QuestCompleteSoundId, volumeScale);
 
         /// <summary>
         /// Plays an interface signal by its raw <c>Snd.as</c> id. For the rare case where a view has its
