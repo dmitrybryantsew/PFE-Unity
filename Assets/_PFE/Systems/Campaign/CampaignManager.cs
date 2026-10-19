@@ -45,6 +45,21 @@ namespace PFE.Systems.Campaign
         private readonly IPublisher<TravelMapOpenedMessage> _travelMapPublisher;
 
         /// <summary>
+        /// The trade page's opener — the port's seam for <c>NPC.pip(4)</c> (<c>NPC.as:250-260</c>).
+        /// Optional: a host with no device (headless, tests) leaves it null and
+        /// <see cref="RequestTrade"/> reports instead of throwing.
+        /// </summary>
+        private readonly IPublisher<VendorOpenedMessage> _vendorOpenedPublisher;
+
+        /// <summary>
+        /// The clinic page's opener — the port's seam for <c>NPC.pip(6)</c> (<c>NPC.as:250-260</c>),
+        /// reached from the <c>doc</c>/<c>vdoc</c> branch (<c>NPC.as:217-220</c>) and from
+        /// <c>adoc</c> with <c>rep &gt; 1</c> (<c>:227-230</c>). Optional for the same reason as the
+        /// vendor publisher: a headless host has no device to open.
+        /// </summary>
+        private readonly IPublisher<ClinicOpenedMessage> _clinicOpenedPublisher;
+
+        /// <summary>
         /// AS3 <c>PipBuck.travel</c> — whether the world map accepts a destination right now.
         ///
         /// <para>Recomputed from the current land on every entry and on every map open
@@ -183,6 +198,21 @@ namespace PFE.Systems.Campaign
         /// </summary>
         private readonly IQuestScriptHost _questHooks;
 
+        /// <summary>
+        /// The item-table seam a vendor's <c>setRndBuys</c> rolls against, and the stream it rolls on —
+        /// AS3 <c>LootGen.getRandom</c> and <c>Game.rndLoot</c>. Both are constructor parameters rather
+        /// than lazy lookups because <see cref="InitializeVendors"/> needs them at game start, before
+        /// any trade page could ask for them.
+        ///
+        /// <para><b>They are optional, and that is load-bearing.</b> The offline fixtures build a
+        /// <c>CampaignManager</c> with <c>new</c> and no engine; a required parameter here would make
+        /// every one of them construct a <c>LootVendorItemSource</c>, which is the only ECall-bearing
+        /// part of the trade subsystem. The container path registers both, so production is never in
+        /// the null case — and <see cref="Initialize"/> reports it by name if it ever is.</para>
+        /// </summary>
+        private readonly IVendorItemSource _vendorItems;
+        private readonly PFE.Core.Rng.IRngService _vendorRng;
+
         public CampaignManager(
             ISubscriber<LandTransitionMessage> transitionSubscriber = null,
             IPublisher<LandTransitionMessage> transitionPublisher = null,
@@ -191,12 +221,20 @@ namespace PFE.Systems.Campaign
             IPublisher<TravelMapOpenedMessage> travelMapPublisher = null,
             CampaignEventBus events = null,
             IQuestRewardHost questRewards = null,
-            IQuestScriptHost questHooks = null)
+            IQuestScriptHost questHooks = null,
+            IPublisher<VendorOpenedMessage> vendorOpenedPublisher = null,
+            IPublisher<ClinicOpenedMessage> clinicOpenedPublisher = null,
+            IVendorItemSource vendorItems = null,
+            PFE.Core.Rng.IRngService vendorRng = null)
         {
             _transitionSubscriber = transitionSubscriber;
             _transitionPublisher = transitionPublisher;
             _buildPublisher = buildPublisher;
             _travelMapPublisher = travelMapPublisher;
+            _vendorOpenedPublisher = vendorOpenedPublisher;
+            _clinicOpenedPublisher = clinicOpenedPublisher;
+            _vendorItems = vendorItems;
+            _vendorRng = vendorRng;
             _events = events;
             _questRewards = questRewards;
             _questHooks = questHooks;
@@ -214,6 +252,35 @@ namespace PFE.Systems.Campaign
             if (_transitionSubscriber != null)
             {
                 _transitionSubscription = _transitionSubscriber.Subscribe(OnLandTransitionRequested);
+            }
+
+            // ── The vendors, before any land ────────────────────────────────────────────────
+            //
+            // AS3 Game.init's `for each(GameData.d.vendor) new Vendor(0, xml, saved)`
+            // (Game.as:220-229) runs once at game start, before the first land is entered, so a trade
+            // page opened in the very first room already has a shelf. Building them lazily on the first
+            // `VendorOpenedMessage` would be a different game: `setRndBuys` rolls against the level and
+            // stage that are current *then*, and a `random` vendor would stock differently depending on
+            // which room the player happened to walk into first.
+            //
+            // This is also the edge that was missing entirely. `InitializeVendors` had no production
+            // caller, so `CampaignManager.Vendors` was always empty, every `Get(vendorId)` returned
+            // null, and every trader in the game reported "the campaign has no such vendor" — which
+            // reads exactly like a data problem and is not one. The catalogue's 13 GUIDs were correct
+            // the whole time.
+            if (_vendorItems != null && _vendorRng != null)
+            {
+                InitializeVendors(_vendorItems, _vendorRng);
+            }
+            else if (_catalog != null && _catalog.AllVendors != null && _catalog.AllVendors.Count > 0)
+            {
+                // Only reachable when a catalogue was injected (so: the container path) but the seam was
+                // not. Gated on `_catalog` rather than `Catalog` on purpose: the offline fixtures pass
+                // `catalog: null` and must not emit this, because for them "no vendors" is the truth.
+                Debug.LogWarning($"[CampaignManager] The catalogue holds {_catalog.AllVendors.Count} " +
+                                 "<vendor> block(s) but no IVendorItemSource / IRngService was injected, " +
+                                 "so no vendor was built and every trade page would open over an empty " +
+                                 "shelf. Check GameLifetimeScope's IVendorItemSource registration.");
             }
 
             // Start in starting land if uninitialized
@@ -666,6 +733,63 @@ namespace PFE.Systems.Campaign
 
             // ...and only now show the page, so the snapshot it takes is the final value.
             PublishTravelMapOpened();
+        }
+
+        /// <summary>
+        /// Asks the device to open the trade page for an NPC — <c>NPC.pip(4)</c>
+        /// (<c>NPC.as:250-260</c>).
+        ///
+        /// <para><b>It publishes and returns; it does not open anything itself.</b> The device is a
+        /// view, the campaign is a model, and the one subscriber that owns both is
+        /// <c>PipBuckBootstrapper</c> — the same arrangement <see cref="PublishTravelMapOpened"/> uses
+        /// for page 3. A null publisher is a host with no device, which is a legitimate state (the
+        /// headless tests), so it warns once per call rather than throwing.</para>
+        /// </summary>
+        public void RequestTrade(string npcId, string vendorId, string npcInter)
+        {
+            if (string.IsNullOrEmpty(vendorId))
+            {
+                Debug.LogWarning("[CampaignManager] RequestTrade with no vendor id — the NPC's persona " +
+                                 "carries no `vendor` attribute, so there is no shelf to open.");
+                return;
+            }
+
+            if (_vendorOpenedPublisher == null)
+            {
+                Debug.LogWarning($"[CampaignManager] RequestTrade('{vendorId}') has no publisher — no " +
+                                 "VendorOpenedMessage broker is registered, so the trade page cannot " +
+                                 "open. Check GameLifetimeScope's RegisterMessageBroker list.");
+                return;
+            }
+
+            _vendorOpenedPublisher.Publish(new VendorOpenedMessage(npcId, vendorId, npcInter));
+        }
+
+        /// <summary>
+        /// Asks the device to open the clinic page for an NPC — <c>NPC.pip(6)</c>
+        /// (<c>NPC.as:250-260</c>), reached from the <c>doc</c>/<c>vdoc</c> branch (<c>:217-220</c>) and
+        /// from <c>adoc</c> with <c>rep &gt; 1</c> (<c>:227-230</c>).
+        ///
+        /// <para><b>The <c>npcInter</c> is carried, not just the id.</b> <c>pip</c> writes all three
+        /// device fields (<c>pip.vendor</c>, <c>pip.npcId</c>, <c>pip.npcInter</c>) whatever page it is
+        /// opening, and the clinic's own repair redirect reads them back to reach the trade page
+        /// (<c>PipPageVend.as:480-484</c>). Dropping it here would make that redirect impossible to
+        /// write later without re-plumbing this call.</para>
+        ///
+        /// <para>Publishes and returns, like <see cref="RequestTrade"/> and for the same reason: the
+        /// device is a view, the campaign is a model, and <c>PipBuckBootstrapper</c> owns both.</para>
+        /// </summary>
+        public void RequestClinic(string npcId, string npcInter, string vendorId = null)
+        {
+            if (_clinicOpenedPublisher == null)
+            {
+                Debug.LogWarning($"[CampaignManager] RequestClinic('{npcId}', '{npcInter}') has no " +
+                                 "publisher — no ClinicOpenedMessage broker is registered, so the clinic " +
+                                 "page cannot open. Check GameLifetimeScope's RegisterMessageBroker list.");
+                return;
+            }
+
+            _clinicOpenedPublisher.Publish(new ClinicOpenedMessage(npcId, npcInter, vendorId));
         }
 
         /// <summary>

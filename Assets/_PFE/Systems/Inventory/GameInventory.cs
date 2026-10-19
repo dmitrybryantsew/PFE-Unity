@@ -106,48 +106,90 @@ namespace PFE.Systems.Inventory
         // ===== Caps =====
 
         /// <summary>
-        /// The player's caps — AS3 <c>Invent.money.kol</c> (<c>Invent.as:43, 96</c>), granted at
+        /// The item id caps live under — AS3 <c>Invent.money</c> is literally
+        /// <c>this.items["money"]</c>, and <c>&lt;item id='money' tip='money'&gt;</c>
+        /// (<c>AllData.as:3859</c>) is an ordinary row of the bag.
+        /// </summary>
+        public const string MoneyItemId = "money";
+
+        /// <summary>
+        /// The player's caps — AS3 <c>Invent.money.kol</c> (<c>Invent.as:43, 96</c>), written at
         /// <b>50</b> by <c>addMin</c> (<c>Invent.as:1610</c>).
         ///
-        /// <para><b>This is a deliberate divergence, and it is the one place the oracle is not
-        /// followed.</b> The oracle holds caps as an ordinary item — <c>Invent.money</c> <i>is</i>
-        /// <c>this.items["money"]</c> — so every <c>Item</c>-shaped operation applies to them. The port
-        /// keeps them as a plain count here instead, for one reason: <c>GameInventory.AddItem</c> needs an
-        /// <see cref="ItemDefinition"/> for every mutation, and there is no item resolver on this class
-        /// (only <see cref="ArmorDefinitionResolver"/>), so an item-shaped money would have to be passed
-        /// in at every call site. Money is also <i>not</i> item-shaped anywhere the port actually uses it:
-        /// category 0 is deliberately untracked for mass (see <c>categoryMass</c>), and nothing else in
-        /// the port reads an item's <c>kol</c> for money.</para>
+        /// <para><b>This used to be a plain count and the two numbers disagreed.</b> The play-test that
+        /// found it posted one screenshot with <c>Bag with caps 200005</c> in the bag and
+        /// <c>Caps: 45</c> on the same screen. Both were live: caps had been split into a count here
+        /// and an item row there, and nothing ever moved one into the other. Loot, quest rewards and
+        /// the trade page each wrote one of the two, so which number a player saw depended on which
+        /// path had touched it last.</para>
         ///
-        /// <para><b>What this costs.</b> The oracle's <c>money</c> row appears in the bag and is subject
-        /// to weight/limit rules that a count is not. Nothing in the port asks for either. The research's
-        /// T0 named this option "(b) pragmatic" and required it to be written down; this is that
-        /// record.</para>
+        /// <para><b>The oracle has exactly one store, and this is it.</b> <c>Invent.money</c> is
+        /// <c>items["money"]</c>, and every reader reads that row: <c>PipBuck.as:411</c> mirrors it
+        /// into <c>pip.money</c>, <c>PipBuck.as:539</c> draws <c>invent.money.kol</c>,
+        /// <c>PipPageVend.as:512</c> spends it, <c>PipPageInv.as:323</c> prints it. So this property is
+        /// now a facade over the row rather than a second location. The old divergence record on this
+        /// member said "the count is the one place caps can change" — with one store that is finally
+        /// true.</para>
         ///
-        /// <para><b>What reads it.</b> The trade page's affordability test and its debit/credit, and the
-        /// status monitor's caps row through <c>PlayerPipStatusSource.CapsProvider</c>. Both go through
-        /// this property, so there is exactly one place caps can change.</para>
+        /// <para><b>What costs what.</b> The bag now carries the caps row, which the Oracle's bag does
+        /// too (it lists on the second inventory page alongside <c>valuables</c> — see
+        /// <see cref="InventoryPages"/>). It is excluded from carried mass below, because AS3's
+        /// <c>money</c> row has <c>mass: 0</c> (<c>Item.mass</c> defaults to 0 and the row carries no
+        /// <c>@m</c>) while <see cref="ItemDefinition.weight"/> defaults to 1 for every row imported
+        /// without one — a data divergence that is owner-only to close.</para>
         /// </summary>
         public int Money
         {
-            get => money;
+            get => items.TryGetValue(MoneyItemId, out GameItemInstance item) ? item.Quantity : 0;
             set
             {
-                if (value == money) return;
-                money = value;
-                MoneyChanged?.Invoke(money);
+                int current = Money;
+                if (current == value) return;
+
+                if (items.TryGetValue(MoneyItemId, out GameItemInstance item))
+                {
+                    // The setter clamps at 0, which is the same floor AS3's `minus` reaches.
+                    item.Quantity = value;
+                }
+                else if (ItemDefinitionResolver != null
+                         && ItemDefinitionResolver(MoneyItemId) is ItemDefinition definition)
+                {
+                    var created = new GameItemInstance(definition, Mathf.Max(0, value));
+                    items[MoneyItemId] = created;
+                    OnItemAdded?.Invoke(created);
+                }
+                else
+                {
+                    // No resolver and no row: the write cannot be made. Reported rather than silently
+                    // dropped, because a silently dropped purchase is money the player paid and did not
+                    // get, and a silently dropped grant is money they were told they had.
+                    Debug.LogWarning("[GameInventory] Caps cannot be written: no '" + MoneyItemId +
+                                     "' item row exists and no ItemDefinitionResolver can create one. " +
+                                     "Check that PlayerInventory has been given the content registry.");
+                    return;
+                }
+
+                CalculateMass();
+                MoneyChanged?.Invoke(Money);
             }
         }
 
-        [SerializeField]
-        private int money;
+        /// <summary>
+        /// Resolves an item definition by id — AS3's <c>AllData.d.item</c>. The seam the caps row
+        /// needs: <see cref="Money"/> can create the row on first write, which is the only reason the
+        /// count-vs-item divergence could ever have looked necessary.
+        ///
+        /// <para>Set by <c>PlayerInventory.Construct</c> from the same content registry that feeds
+        /// <see cref="ArmorDefinitionResolver"/>; null until then, and null in a headless fixture.</para>
+        /// </summary>
+        public Func<string, ItemDefinition> ItemDefinitionResolver { get; set; }
 
         /// <summary>Raised after <see cref="Money"/> changes, with the new value. The monitor and the
         /// trade page both redraw from this rather than polling.</summary>
         public event Action<int> MoneyChanged;
 
         /// <summary>Whether the player can pay <paramref name="amount"/> caps.</summary>
-        public bool CanAfford(int amount) => amount <= money;
+        public bool CanAfford(int amount) => amount <= Money;
 
         /// <summary>
         /// Credit caps. The caller is the sale path (AS3 <c>inv.money.kol += floor(kolSell)</c>,
@@ -156,7 +198,7 @@ namespace PFE.Systems.Inventory
         public void AddMoney(int amount)
         {
             if (amount <= 0) return;
-            Money = money + amount;
+            Money = Money + amount;
         }
 
         /// <summary>
@@ -167,9 +209,9 @@ namespace PFE.Systems.Inventory
         public bool TrySpendMoney(int amount)
         {
             if (amount <= 0) return true;
-            if (amount > money) return false;
+            if (amount > Money) return false;
 
-            Money = money - amount;
+            Money = Money - amount;
             return true;
         }
 
@@ -184,6 +226,24 @@ namespace PFE.Systems.Inventory
 
         public event Action<GameItemInstance> OnItemAdded;
         public event Action<GameItemInstance> OnItemRemoved;
+
+        /// <summary>
+        /// Fires on <b>every</b> successful <see cref="AddItem"/> — a brand-new stack <i>and</i> a merge
+        /// onto an existing one — carrying the instance and the quantity that arrived.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Why <see cref="OnItemAdded"/> cannot be used for this.</b> It fires only when a new
+        /// stack is created, so it is a "this item id appeared" signal, not an "items arrived" one.
+        /// The land's <c>eve='take'</c> scripts want the first (<c>LandItemScriptRunner</c>), which is
+        /// why that event keeps its meaning; a collect objective wants the second, and used to get
+        /// nothing at all after the first pickup — the reported "picking up a cogwheel does not move
+        /// the 0/20 counter".</para>
+        ///
+        /// <para><b>The delta, not the total.</b> A listener that needs the total asks the inventory
+        /// (<c>GetItem(id).Quantity</c>); carrying it here would go stale the moment two listeners ran
+        /// in the other order.</para>
+        /// </remarks>
+        public event Action<GameItemInstance, int> ItemQuantityAdded;
         public event Action<GameWeaponInstance> OnWeaponAdded;
         public event Action<GameWeaponInstance> OnWeaponRemoved;
         public event Action<GameArmorInstance> OnArmorAdded;
@@ -309,6 +369,7 @@ namespace PFE.Systems.Inventory
                 // full" — the reported "can't get 3000 ammo", and equally "100 eggs → 1".
                 existingItem.Quantity += quantity;
                 UpdateItemNewStatus(existingItem);
+                ItemQuantityAdded?.Invoke(existingItem, quantity);
             }
             else
             {
@@ -316,6 +377,7 @@ namespace PFE.Systems.Inventory
                 var newItem = new GameItemInstance(itemDefinition, quantity);
                 items[itemDefinition.itemId] = newItem;
                 OnItemAdded?.Invoke(newItem);
+                ItemQuantityAdded?.Invoke(newItem, quantity);
             }
 
             // Always calculate mass from current items
@@ -595,6 +657,15 @@ namespace PFE.Systems.Inventory
                 GameItemInstance item = kvp.Value;
                 if (item != null && item.Definition != null)
                 {
+                    // The caps row is massless in the Oracle: `<item id='money' tip='money'
+                    // fall='fall_caps'/>` (AllData.as:3859) carries no `@m`, and `Item.mass` defaults
+                    // to 0 (Item.as:91) — so `mass[3] += mass * kol` adds 0 no matter how rich the
+                    // player is. The port's `ItemDefinition.weight` defaults to 1 for every row
+                    // imported without an `@m`, which would charge 200,000+ caps to the bag. Skipped
+                    // here rather than by setting `weight: 0` on the asset, because the asset is
+                    // owner-only and the same default affects every other unweighted row.
+                    if (string.Equals(kvp.Key, MoneyItemId, StringComparison.Ordinal)) continue;
+
                     // AS3 Invent.as calcMass() charges each item to mass[item.invCat]. The category is
                     // DERIVED from the item's tip/uses, not read from a UI grouping — see
                     // InventoryCategoryRules, which replaced the fabricated
@@ -770,7 +841,7 @@ namespace PFE.Systems.Inventory
 
         private void UpdateItemNewStatus(GameItemInstance item)
         {
-            if (item.Definition != null && item.Definition.itemId != "money")
+            if (item.Definition != null && item.Definition.itemId != MoneyItemId)
             {
                 if (item.Quantity == 1)
                 {

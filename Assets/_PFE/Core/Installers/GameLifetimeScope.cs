@@ -24,6 +24,7 @@ using PFE.Core.Rng;
 using PFE.Core.Ids;
 using PFE.Core.Scripting;
 using PFE.Systems.Campaign;
+using PFE.Systems.Trade;
 using PFE.UI.Common;
 using PFE.UI.PipBuck;
 using UnityEngine;
@@ -96,6 +97,15 @@ public class GameLifetimeScope : LifetimeScope
         builder.RegisterMessageBroker<LandBuildRequestMessage>(pipe);
         // The camp's wall map (allact='map') and a `travel` NPC both publish this.
         builder.RegisterMessageBroker<TravelMapOpenedMessage>(pipe);
+        // A trader NPC publishes this; PipBuckBootstrapper's subscriber opens page 4 with the vendor
+        // context. Registered here because a broker that does not exist accepts the publish and
+        // delivers to nobody, silently — the HealMessage failure above.
+        builder.RegisterMessageBroker<VendorOpenedMessage>(pipe);
+        // A doctor (`doc`/`vdoc`, or `adoc` past its first repair) publishes this; the bootstrapper's
+        // subscriber opens page 6. Page 6 is still a stub, and that is the point: the Oracle's answer
+        // to a doctor is "open the clinic", so the port's answer is "open the clinic, which is a stub
+        // that says so" rather than "consume the interaction and do nothing".
+        builder.RegisterMessageBroker<ClinicOpenedMessage>(pipe);
         builder.RegisterMessageBroker<TutorialPromptMessage>(pipe);
         builder.RegisterMessageBroker<ObjectiveMarkerMessage>(pipe);
         // Campaign event surface (CampaignControl C3). The campaign used to mutate its own trigger and
@@ -325,12 +335,67 @@ public class GameLifetimeScope : LifetimeScope
             })
             .WithParameter<Action<string>>(_ => null);
 
+        // The vendor stocking seam — AS3's `LootGen.getRandom` + `Item` table lookup, both reached
+        // through the port's existing loot roller and item catalog rather than reimplemented.
+        //
+        // Registered with an explicit factory, NOT `Register<IVendorItemSource, LootVendorItemSource>`:
+        // that class has two constructors (`()` and `(Func<LootContext>)`), and VContainer picks by
+        // "most resolvable parameters", so a stray `Func<LootContext>` registration elsewhere would
+        // silently switch which one the container builds. Naming the constructor here removes the
+        // question.
+        //
+        // This is the registration whose absence made every trader report "the campaign has no such
+        // vendor": `CampaignManager.InitializeVendors` needs an item source and an RNG, had neither
+        // injected, and was never called, so `CampaignManager.Vendors` stayed empty while the
+        // catalogue's 13 vendor assets sat there correctly referenced.
+        builder.Register<IVendorItemSource>(_ => new LootVendorItemSource(), Lifetime.Singleton);
+
         builder.RegisterEntryPoint<CampaignManager>()
             .As<ICampaignManager>()
             .AsSelf()
             .WithParameter<IQuestRewardHost>(resolver =>
                 resolver.TryResolve<IQuestRewardHost>(out IQuestRewardHost rewards) ? rewards : null)
             .WithParameter<IQuestScriptHost>(_ => null);
+
+        // The vendor restock inputs — AS3 `Pers.limitBuys` (`Pers.as:317`, default 1) and
+        // `Pers.barterLvl` (`Pers.as:315`, default 0), read by `Game.refillVendors` (`Game.as:508-525`)
+        // through `Vendor.refill` (`Vendor.as:300-312`).
+        //
+        // Both were declared as `Func<>` properties on CampaignManager and assigned **nowhere**, so
+        // every refill used the field defaults and a perk that raised `barterLvl` changed nothing about
+        // what a shop restocked. That is the same shape as the missing `InitializeVendors` caller two
+        // blocks above: the consumer was written, the producer was not — and unlike a missing
+        // registration, a missing `Func` assignment throws nothing and logs nothing.
+        //
+        // Lazy lookups, not values, for the reason the `IQuestRewardHost` block above gives: the player
+        // is assembled in `PlayerController.Awake`, which Unity does not order against this build
+        // callback. Resolving once would leave the vendors restocking against a destroyed object.
+        //
+        // Resolving an entry point inside a build callback is already the pattern here — the SimLoop
+        // gate above does exactly this, and `RegisterEntryPoint` supplies `AsSelf` for the concrete
+        // type only when asked, which the registration above does.
+        builder.RegisterBuildCallback(container =>
+        {
+            CampaignManager campaign = container.Resolve<CampaignManager>();
+
+            campaign.VendorLimitBuysProvider = () =>
+            {
+                PlayerController player = UnityEngine.Object.FindFirstObjectByType<PlayerController>(
+                    FindObjectsInactive.Include);
+                return player != null && player.CharacterStats != null
+                    ? player.CharacterStats.limitBuys
+                    : 1f;
+            };
+
+            campaign.VendorBarterLevelProvider = () =>
+            {
+                PlayerController player = UnityEngine.Object.FindFirstObjectByType<PlayerController>(
+                    FindObjectsInactive.Include);
+                return player != null && player.CharacterStats != null
+                    ? player.CharacterStats.barterLvl
+                    : 0;
+            };
+        });
 
         // === Map-script interpreter (CampaignControl C2) ===
         //
@@ -359,7 +424,31 @@ public class GameLifetimeScope : LifetimeScope
         builder.Register<ScriptPresentationHost>(Lifetime.Singleton)
             .As<IScriptPresentationHost>()
             .WithParameter<PipTextTable>(_ => PFE.UI.Common.PfeTextTableProvider.Shared)
-            .WithParameter<Action<string>>(_ => null);
+            .WithParameter<Action<string>>(_ => null)
+            // `landlevel`'s two numbers — AS3 `game.lands[val].dif` and `pers.level`
+            // (Script.as:288-292). A factory for the same reason `stats` below is one: the land comes
+            // from the campaign and the level from a scene MonoBehaviour, and neither may exist when
+            // the container is built. Returning `null` for an unknown land is the oracle's own
+            // `Boolean(lands[val])` guard, not a fallback — the panel then shows the name only.
+            .WithParameter<Func<string, LandLevelFacts?>>(_ => landId =>
+            {
+                PFE.Systems.Campaign.CampaignManager campaign =
+                    PFE.Systems.Campaign.CampaignManager.Current;
+                PFE.Data.Definitions.Campaign.LandDefinition land =
+                    campaign != null && campaign.Catalog != null
+                        ? campaign.Catalog.GetLand(landId)
+                        : null;
+
+                if (land == null) return (LandLevelFacts?)null;
+
+                PlayerController player = UnityEngine.Object.FindFirstObjectByType<PlayerController>(
+                    FindObjectsInactive.Include);
+                int playerLevel = player != null && player.CharacterStats != null
+                    ? player.CharacterStats.Level
+                    : 1;
+
+                return new LandLevelFacts(land.baseDifficulty, playerLevel);
+            });
 
         // The player-facing half (`perk`, `xp`, `item`, `armor`, `effect`, `weapon`). `stats` is a
         // factory and not a value: CharacterStats is a scene MonoBehaviour that may not exist yet when
