@@ -16,10 +16,13 @@ MonoBehaviour:
   type: 3
   baseItemId: 
   modifierType: 0
+  workStation: 
   inventoryCategory: 0
   isHidden: 0
   keepContainer: 0
   isSellOnly: 0
+  legacyTip: compw
+  tip2: 
   dropChance: 0.5
   requiredStoryStage: 0
   requiredLevel: 0
@@ -66,6 +69,7 @@ MonoBehaviour:
     armor: 0
     magicArmor: 0
     dexterity: 0
+    sneak: 0
     reliability: 0
     resists:
       bullet: 0
@@ -82,11 +86,16 @@ MonoBehaviour:
       necrotic: 0
       venom: 0
       pink: 0
+    radVul: 0
   armorHP: 0
   armorTip: 0
   armorHideMane: 0
   armorIndestructible: 0
   armorNoRepair: 0
+  armorMeleeMult: 1
+  armorGunsMult: 1
+  armorMagicMult: 1
+  armorCrit: 0
   armourLevels: []
   component:
     category: 0
@@ -109,6 +118,7 @@ MonoBehaviour:
     atk: 0
     snd: 
   skillModifiers: []
+  skillRowsSource: 
   effects: []
   components: []
   displayName: Item Name
