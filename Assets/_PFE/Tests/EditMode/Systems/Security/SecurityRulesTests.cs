@@ -1,8 +1,10 @@
 using System.Collections.Generic;
 using NUnit.Framework;
 using PFE.Core.Rng;
+using PFE.Data.Definitions;
 using PFE.Systems.Map;
 using PFE.Systems.Security;
+using UnityEngine;
 
 namespace PFE.Tests.EditMode.Systems.Security
 {
@@ -536,14 +538,14 @@ namespace PFE.Tests.EditMode.Systems.Security
         public void Build_ClampsAPickTo24_AndAMechanicalTipTo7_ButSavesTheAuthoredValue()
         {
             ObjectInstance pick = Object("lock", "30");
-            SecurityProfile picked = SecurityRules.Build(pick, proceduralLand: false, new QueueRng(0.5f));
+            SecurityProfile picked = SecurityRules.Build(pick, SecurityBuildContext.Authored, new QueueRng(0.5f));
 
             Assert.That(picked.Lock, Is.EqualTo(SecurityRules.MaxLockLevel));
             Assert.That(picked.SaveLock, Is.EqualTo(30),
                 "saveLock keeps the authored value — the clamp applies to `lock` only.");
 
             ObjectInstance terminal = Object("lock", "30", "locktip", "2");
-            SecurityProfile hacked = SecurityRules.Build(terminal, proceduralLand: false, new QueueRng(0.5f));
+            SecurityProfile hacked = SecurityRules.Build(terminal, SecurityBuildContext.Authored, new QueueRng(0.5f));
 
             Assert.That(hacked.LockTip, Is.EqualTo(SecurityLockTip.Terminal));
             Assert.That(hacked.Lock, Is.EqualTo(SecurityRules.MaxMechanicalLevel));
@@ -559,13 +561,13 @@ namespace PFE.Tests.EditMode.Systems.Security
         public void Build_DerivesAllDif_FromLockLevelAndMine()
         {
             ObjectInstance obj = Object("lock", "6", "locklevel", "2");
-            SecurityProfile p = SecurityRules.Build(obj, proceduralLand: false, new QueueRng(0.5f));
+            SecurityProfile p = SecurityRules.Build(obj, SecurityBuildContext.Authored, new QueueRng(0.5f));
 
             Assert.That(p.LockLevel, Is.EqualTo(2), "an authored level is not re-rolled.");
             Assert.That(p.AllDif, Is.EqualTo(6 + 2 * 2), "a pick: lock + level*2.");
 
             ObjectInstance mined = Object("lock", "6", "locklevel", "2", "mine", "3");
-            SecurityProfile m = SecurityRules.Build(mined, proceduralLand: false, new QueueRng(0.5f));
+            SecurityProfile m = SecurityRules.Build(mined, SecurityBuildContext.Authored, new QueueRng(0.5f));
             Assert.That(m.AllDif, Is.EqualTo(6 + 2 * 2 + 3 * 2), "…plus mine*2.");
         }
 
@@ -585,7 +587,7 @@ namespace PFE.Tests.EditMode.Systems.Security
             // `low = 1` would halve 6 to 3 if it applied; the placement lock clears it first, and the
             // placement read that used to follow must not put it back.
             ObjectInstance obj = Object("lock", "6", "low", "1");
-            SecurityProfile p = SecurityRules.Build(obj, proceduralLand: false, new QueueRng(0.0f));
+            SecurityProfile p = SecurityRules.Build(obj, SecurityBuildContext.Authored, new QueueRng(0.0f));
 
             Assert.That(p.Low, Is.EqualTo(0f), "a placement `low` is not an oracle input.");
             Assert.That(p.Lock, Is.EqualTo(6), "so the draw of 0.0 cannot halve it.");
@@ -601,16 +603,175 @@ namespace PFE.Tests.EditMode.Systems.Security
         public void Build_AnUnlockedPlacementClearsItsMine_ButAnAuthoredMineStillLands()
         {
             ObjectInstance cleared = Object("lock", "0");
-            SecurityProfile a = SecurityRules.Build(cleared, proceduralLand: false, new QueueRng(0.5f));
+            SecurityProfile a = SecurityRules.Build(cleared, SecurityBuildContext.Authored, new QueueRng(0.5f));
             Assert.That(a.Lock, Is.EqualTo(0));
             Assert.That(a.Mine, Is.EqualTo(0), "`if(this.lock == 0) this.mine = 0;`");
             Assert.That(a.IsLocked, Is.False);
 
             ObjectInstance stillMined = Object("lock", "0", "mine", "4");
-            SecurityProfile b = SecurityRules.Build(stillMined, proceduralLand: false, new QueueRng(0.5f));
+            SecurityProfile b = SecurityRules.Build(stillMined, SecurityBuildContext.Authored, new QueueRng(0.5f));
             Assert.That(b.Lock, Is.EqualTo(0));
             Assert.That(b.Mine, Is.EqualTo(4),
                 "the placement `mine` read comes AFTER the zeroing — the trap is still there.");
+        }
+
+        // ── The two existence rolls (lockch / minech) ───────────────────────────────────────
+
+        /// <summary>
+        /// <c>lockch</c> is the probability that this placement has a lock <b>at all</b>
+        /// (<c>Interact.as:219</c>). <c>door1</c> authors <c>lockch='0.3'</c>, so in the oracle seven
+        /// out of ten wooden doors are simply unlocked.
+        ///
+        /// <para><b>This is the "every door is locked" regression.</b> The port read <c>lock</c> and
+        /// ignored <c>lockch</c>, so every <c>door1</c>/<c>door1a</c>/<c>door1b</c>/<c>chest</c> in the
+        /// game had a lock — a different game from the one where most doors just open.</para>
+        /// </summary>
+        [Test]
+        public void Build_RollsLockch_SoAMissLeavesTheObjectUnlocked()
+        {
+            MapObjectDefinition row = Definition("lock", "1", "lockch", "0.3", "inter", "1");
+
+            // 0.9 > 0.3 → no lock. The second draw is the fractional bump, and 1.0 has no fraction.
+            SecurityProfile missed = SecurityRules.Build(
+                ObjectWith(row), SecurityBuildContext.Authored, new QueueRng(0.9f, 0.5f));
+            Assert.That(missed.Lock, Is.EqualTo(0), "the lockch roll failed — there is no lock.");
+            Assert.That(missed.IsLocked, Is.False);
+
+            // 0.1 < 0.3 → locked, at the authored difficulty when locksLevel is 0.
+            SecurityProfile hit = SecurityRules.Build(
+                ObjectWith(row), SecurityBuildContext.Authored, new QueueRng(0.1f, 0.5f, 0.5f));
+            Assert.That(hit.Lock, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// The fractional bump sits <b>outside</b> the <c>lockch</c> gate (<c>Interact.as:230-233</c>):
+        /// a row authored <c>lock='1.3'</c> whose <c>lockch</c> roll fails still becomes lock <b>1</b>
+        /// with 30 % probability. It reads like a bug in the oracle and it is reproduced on purpose —
+        /// moving the bump inside the gate would make those doors reliably open.
+        /// </summary>
+        [Test]
+        public void Build_TheFractionalBumpSurvivesALockchMiss()
+        {
+            MapObjectDefinition row = Definition("lock", "1.3", "lockch", "0.3", "inter", "1");
+
+            SecurityProfile p = SecurityRules.Build(
+                ObjectWith(row), SecurityBuildContext.Authored, new QueueRng(0.9f, 0.1f));
+
+            Assert.That(p.Lock, Is.EqualTo(1),
+                "lockch missed, but the 0.3 fractional part still bumps the empty lock to 1.");
+        }
+
+        /// <summary>
+        /// A lock's difficulty is rolled against the <b>land's</b> <c>locksLevel</c>
+        /// (<c>floor(lock + (0.3 + random()) * locksLevel)</c>, <c>Interact.as:223</c>) — which is
+        /// <c>locDifLevel * 0.7</c> (<c>Land.as:984</c>). The port never read it, so lockpicking did not
+        /// scale with the land's difficulty at all.
+        /// </summary>
+        [Test]
+        public void Build_ScalesALockByTheLandsLocksLevel()
+        {
+            MapObjectDefinition row = Definition("lock", "1", "inter", "1");
+            var context = new SecurityBuildContext(locksLevel: 10f);
+
+            // (0.3 + 0.5) * 10 = 8 → floor(1 + 8) = 9.
+            SecurityProfile p = SecurityRules.Build(
+                ObjectWith(row), context, new QueueRng(0.5f, 0.5f));
+
+            Assert.That(p.Lock, Is.EqualTo(9));
+        }
+
+        /// <summary>
+        /// <c>minech</c> is the trap's own existence roll (<c>Interact.as:253-258</c>) — <c>safe</c>
+        /// authors 0.6, <c>wallsafe</c> 0.75. The port ignored it, so <b>every</b> safe carried a live
+        /// explosive; in the oracle two safes in five open without one.
+        /// </summary>
+        [Test]
+        public void Build_RollsMinech_SoAMissLeavesTheObjectUntrapped()
+        {
+            MapObjectDefinition row = Definition("mine", "2", "minech", "0.6", "inter", "1");
+
+            SecurityProfile missed = SecurityRules.Build(
+                ObjectWith(row), SecurityBuildContext.Authored, new QueueRng(0.9f, 0.5f));
+            Assert.That(missed.Mine, Is.EqualTo(0), "the minech roll failed — there is no trap.");
+            Assert.That(missed.TrapDamage, Is.EqualTo(0f));
+
+            // 0.1 arms it; 0.5 * (2 + 0*mech + 1) = 1.5 → 1. Then the minetip draw (0.5) leaves tip 3.
+            SecurityProfile armed = SecurityRules.Build(
+                ObjectWith(row), SecurityBuildContext.Authored, new QueueRng(0.1f, 0.5f, 0.0f, 0.5f));
+            Assert.That(armed.Mine, Is.EqualTo(1));
+            Assert.That(armed.MineTip, Is.EqualTo(3));
+        }
+
+        /// <summary>
+        /// An explosive trap's blast is rolled once, at construction:
+        /// <c>mine * 50 * (0.8 + random()*0.4) * (1 + locDifLevel*0.1)</c> (<c>Interact.as:546</c>).
+        /// A <b>signal</b> trap (<c>minetip == 6</c>) has no blast — its disaster is the alarm
+        /// (<c>:540-543</c>) — so it must not carry damage.
+        /// </summary>
+        [Test]
+        public void Build_AnExplosiveTrapCarriesItsBlast_ButASignalTrapDoesNot()
+        {
+            MapObjectDefinition explosive = Definition("mine", "2", "minech", "0.6", "inter", "1");
+            SecurityProfile boom = SecurityRules.Build(
+                ObjectWith(explosive), SecurityBuildContext.Authored,
+                new QueueRng(0.1f, 0.5f, 0.0f, 0.5f, 0.5f));
+            Assert.That(boom.Mine, Is.EqualTo(1));
+            Assert.That(boom.TrapDamage, Is.EqualTo(50f).Within(0.01f),
+                "1 * 50 * (0.8 + 0.5*0.4) * 1 = 50.");
+
+            MapObjectDefinition signal = Definition(
+                "mine", "2", "minech", "0.6", "minetip", "6", "inter", "1");
+            SecurityProfile alarm = SecurityRules.Build(
+                ObjectWith(signal), SecurityBuildContext.Authored,
+                new QueueRng(0.1f, 0.5f, 0.0f));
+            Assert.That(alarm.MineTip, Is.EqualTo(6));
+            Assert.That(alarm.TrapDamage, Is.EqualTo(0f), "a signal trap raises the alarm, not a blast.");
+        }
+
+        /// <summary>
+        /// Defusing a mine clears <b>only</b> the mine. The lock is untouched, which is what makes a
+        /// mined safe a two-press problem: press one disarms, press two picks. The port's
+        /// <c>TryWork</c> used to report a successful defusal as <c>Opened</c> and fall through to the
+        /// container's own action, so one press both disarmed the trap and opened the safe.
+        /// </summary>
+        [Test]
+        public void ResolveMine_ASuccessClearsTheTrapButLeavesTheLock()
+        {
+            SecurityProfile p = Pick(5);
+            p.Mine = 1;
+            p.MineTip = 3;
+
+            SecurityAttemptResult result = SecurityRules.ResolveMine(p, Picker(5), new QueueRng(0.99f));
+
+            Assert.That(result.Kind, Is.EqualTo(SecurityAttemptKind.Opened));
+            Assert.That(p.Mine, Is.EqualTo(0), "the trap is defused.");
+            Assert.That(p.Lock, Is.EqualTo(5), "…and the lock is exactly where it was.");
+        }
+
+        /// <summary>
+        /// <c>at_once</c> is read from the <b>definition row only</b> (<c>:296-299</c>), and it is what
+        /// lets one press finish the job — the <c>actOsn()</c> that follows a defusal runs only under
+        /// <c>if(this.at_once &gt; 0)</c> (<c>:935-938</c>, <c>:969-972</c>).
+        ///
+        /// <para><b>Both halves matter.</b> <c>alarm</c> is the only shipped row that is both mined and
+        /// <c>once</c>, and for it "open" means "disabled" — so a defused signal trap must spend the
+        /// panel in the same press. Every other mined row (<c>safe</c>, <c>wallsafe</c>, <c>stdoor</c>,
+        /// <c>basedoor</c>, <c>encldoor</c>, <c>term3</c>) is not <c>once</c>, which is what keeps a
+        /// mined safe a two-press problem. And a placement that authors <c>once</c> changes nothing:
+        /// the placement block has no <c>@once</c> read at all.</para>
+        /// </summary>
+        [Test]
+        public void ReadAtOnce_ComesFromTheDefinitionRow_AndNowhereElse()
+        {
+            Assert.That(SecurityRules.ReadAtOnce(ObjectWith(Definition("inter", "5", "once", "1"))), Is.True);
+
+            Assert.That(SecurityRules.ReadAtOnce(ObjectWith(Definition("inter", "1"))), Is.False,
+                "a row with no `once` is not a one-press object.");
+
+            Assert.That(SecurityRules.ReadAtOnce(Object("once", "1")), Is.False,
+                "a placement `once` is not read by the oracle — the definition row is the only source.");
+
+            Assert.That(SecurityRules.ReadAtOnce(null), Is.False);
         }
 
         // ── Fakes ────────────────────────────────────────────────────────────────────────────
@@ -625,6 +786,29 @@ namespace PFE.Tests.EditMode.Systems.Security
             }
 
             return obj;
+        }
+
+        /// <summary>
+        /// An <c>AllData</c> row as the port stores it — <c>legacyAttributes</c> is what
+        /// <c>MapObjectDefinition.GetAttribute</c> reads, and it is where <c>lock</c>/<c>lockch</c>/
+        /// <c>mine</c>/<c>minech</c>/<c>locktip</c> actually live.
+        /// </summary>
+        private static MapObjectDefinition Definition(params string[] keyValues)
+        {
+            var definition = ScriptableObject.CreateInstance<MapObjectDefinition>();
+            for (int i = 0; i + 1 < keyValues.Length; i += 2)
+            {
+                definition.legacyAttributes.Add(
+                    new MapObjectAttributeData { key = keyValues[i], value = keyValues[i + 1] });
+            }
+
+            return definition;
+        }
+
+        /// <summary>A placement with no attributes of its own, backed by <paramref name="definition"/>.</summary>
+        private static ObjectInstance ObjectWith(MapObjectDefinition definition)
+        {
+            return new ObjectInstance { objectId = "test_obj", definition = definition };
         }
 
         /// <summary>

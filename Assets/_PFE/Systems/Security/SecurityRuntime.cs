@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using PFE.Core;
 using PFE.Core.Rng;
+using PFE.Data.Definitions;
 using PFE.Entities.Units;
 using PFE.Systems.Inventory;
 using PFE.Systems.Map;
@@ -53,6 +54,11 @@ namespace PFE.Systems.Security
 
         private float _accumulator;
         private int _tick;
+
+        /// <summary>The room the panel scan was last run for, and whether it had a panel — see
+        /// <see cref="CheckAlarmPanelTrip"/>. Null means "rescan on the next tick".</summary>
+        private RoomInstance _panelScanRoom;
+        private bool _panelScanRoomHasPanel;
 
         /// <summary>The live runtime, created on first use.</summary>
         public static SecurityRuntime Instance
@@ -134,12 +140,21 @@ namespace PFE.Systems.Security
 
             if (!state.hasSecurityState)
             {
-                bool procedural = IsProceduralLand(room);
-                SecurityProfile built = SecurityRules.Build(obj, procedural, Rng);
+                SecurityProfile built = SecurityRules.Build(obj, BuildContext(room), Rng);
                 StoreProfile(state, built);
             }
 
-            return LoadProfile(state);
+            SecurityProfile profile = LoadProfile(state);
+
+            // Re-derive the authored `key` on every read. It is the one lock field that is NOT run
+            // state: `lock` is randomised once and must be saved, but `key` is a constant in the room
+            // asset and saving it bought nothing — while `StoreProfile` omitting it meant `LoadProfile`
+            // handed back a profile that had forgotten which key it wanted. The visible result was a
+            // door answering `noKey` while the player was carrying exactly that key.
+            // See SecurityRules.ReadLockKey for the full account.
+            profile.LockKey = SecurityRules.ReadLockKey(obj);
+
+            return profile;
         }
 
         /// <summary>Force a rebuild from the authored data — the F2 tab's "re-roll" control.</summary>
@@ -161,6 +176,37 @@ namespace PFE.Systems.Security
             return room != null && string.IsNullOrEmpty(room.probId);
         }
 
+        /// <summary>
+        /// The land-level difficulty scalars <see cref="SecurityRules.Build"/> rolls against.
+        ///
+        /// <para><b>These are the oracle's own numbers, not stand-ins.</b> <c>Land.setLocDif</c> writes
+        /// <c>loc.locksLevel = locDifLevel * 0.7</c> and <c>loc.mechLevel = locDifLevel / 4</c>
+        /// (<c>Land.as:982-987</c>), and the port stores exactly those two in
+        /// <see cref="RoomDifficulty.lockLevel"/> / <see cref="RoomDifficulty.mechLevel"/>
+        /// (<c>LocationDifficultyPlanner.cs:115-116</c>). Before this, <c>Build</c> never read them, so
+        /// every lock was rolled at the authored value and the land's difficulty had no effect on
+        /// lockpicking at all.</para>
+        /// </summary>
+        private static SecurityBuildContext BuildContext(RoomInstance room)
+        {
+            RoomDifficulty difficulty = room != null ? room.difficulty : null;
+
+            return new SecurityBuildContext(
+                proceduralLand: IsProceduralLand(room),
+                locksLevel: difficulty != null ? difficulty.lockLevel : 0f,
+                mechLevel: difficulty != null ? difficulty.mechLevel : 0f,
+                locDifLevel: difficulty != null ? difficulty.baseDifficulty : 0f);
+        }
+
+        /// <summary>
+        /// Snapshot the <b>resolved</b> half of a profile onto the object's runtime state.
+        ///
+        /// <para><b><c>LockKey</c> is deliberately absent.</b> It is authored data — a constant on the
+        /// room asset — not something the constructor resolves, so it is re-derived by
+        /// <see cref="SecurityRules.ReadLockKey"/> in <see cref="ProfileFor"/> instead of being stored.
+        /// Adding it here would work, but it would also make a static room-asset value part of the save
+        /// format and give it a second source of truth that could drift from the asset.</para>
+        /// </summary>
         private static void StoreProfile(MapObjectRuntimeStateData state, SecurityProfile p)
         {
             state.hasSecurityState = true;
@@ -172,6 +218,7 @@ namespace PFE.Systems.Security
             state.securityLockAtt = p.LockAtt;
             state.securityMine = p.Mine;
             state.securityMineTip = p.MineTip;
+            state.securityTrapDamage = p.TrapDamage;
             state.securityHackable = p.IsHackable;
             state.securityAllDif = p.AllDif;
         }
@@ -188,6 +235,7 @@ namespace PFE.Systems.Security
                 LockAtt = state.securityLockAtt,
                 Mine = state.securityMine,
                 MineTip = state.securityMineTip,
+                TrapDamage = state.securityTrapDamage,
                 IsHackable = state.securityHackable,
                 AllDif = state.securityAllDif,
             };
@@ -301,6 +349,11 @@ namespace PFE.Systems.Security
 
             if (profile.Mine > 0)
             {
+                // Captured before the roll: `ResolveMine` clears `Mine` on every branch that ends the
+                // press, and `DetonateTrap` needs the count to reconstruct a blast for a save written
+                // before `securityTrapDamage` existed.
+                int mineAtPress = profile.Mine;
+
                 result = SecurityRules.ResolveMine(profile, actor, rng);
                 Commit(obj, profile);
                 LogResult(obj, result);
@@ -309,13 +362,40 @@ namespace PFE.Systems.Security
                 {
                     // `fiascoRemine` — for `minetip == 6` that is `Interact.alarm()`, which raises the
                     // room alarm and starts the 240-tick budilo pulse (Interact.as:540-543, :1440-1450).
+                    // Otherwise it is `Interact.explosion()` (:1413-1428): a real blast, not a fizzle.
                     if (profile.MineTip == 6)
                     {
                         RaiseAlarm(room, obj.position, obj.objectId);
                     }
+                    else
+                    {
+                        DetonateTrap(obj, room, profile, mineAtPress);
+                    }
                 }
 
-                return result.Kind == SecurityAttemptKind.Opened
+                // ── The mine press does not reach the lock ─────────────────────────────────────────
+                //
+                // AS3's `act()` is an if/else-if chain and the mine branch is `else if(this.mine > 0)`
+                // (`:911-979`): it ends with `this.update(); this.unlock = 0; this.is_ready = false;`
+                // and falls out of the function. `actOsn()` — the thing that opens a container or a
+                // door — is called only under `if(this.at_once > 0)`.
+                //
+                // The port returned `Opened` on a successful defusal, and `Opened` falls through to
+                // `actOsn()`. That is why a mined safe "opened after you broke the trap": one press
+                // disarmed the mine AND opened the safe, skipping its lock entirely. Defusing is a
+                // separate action from opening, and the second press is what meets the lock.
+                //
+                // The one exception is the oracle's own `at_once` fall-through, and it is narrow:
+                // `actOsn()` runs after a DISASTER (:935-938) and after a SUCCESS (:969-972), but the
+                // plain-failure branch (:942-953) has no `actOsn()` at all. So a failed defusal leaves
+                // a `once` object shut. `alarm` is the only shipped row that is both mined and `once`,
+                // and for it opening IS disabling — which is what defusing its signal trap is for.
+                if (result.Kind == SecurityAttemptKind.Failed)
+                {
+                    return SecurityGateOutcome.Handled;
+                }
+
+                return SecurityRules.ReadAtOnce(obj)
                     ? SecurityGateOutcome.Opened
                     : SecurityGateOutcome.Handled;
             }
@@ -421,12 +501,81 @@ namespace PFE.Systems.Security
             return hacked;
         }
 
-        private static bool HasKey(GameObject user, string key)        {
+        private static bool HasKey(GameObject user, string key)
+        {
             if (string.IsNullOrEmpty(key) || user == null) return false;
 
             PlayerInventory inventory = user.GetComponent<PlayerInventory>();
             if (inventory == null) inventory = user.GetComponentInParent<PlayerInventory>();
             return inventory != null && inventory.CountOf(key) > 0;
+        }
+
+        /// <summary>
+        /// A container trap going off — AS3 <c>Interact.explosion()</c> (<c>:1413-1428</c>), which is
+        /// <c>new Bullet(...).iExpl(damage, destroy, explRadius)</c> at the object's own position.
+        ///
+        /// <para><b>What is ported and what is not.</b> The radius (260 px, <c>:66</c>) and the damage
+        /// (<c>mine * 50 * (0.8 + random()*0.4) * (1 + locDifLevel*0.1)</c>, rolled once at
+        /// construction — see <see cref="SecurityProfile.TrapDamage"/>) are the oracle's. What is not
+        /// ported is the bullet's armour/falloff resolution: this applies
+        /// <see cref="PFE.Systems.Combat.IDamageable.TakeDamage"/> directly, the same fallback
+        /// <c>MineObject.Detonate</c> uses when no <c>DamageSystem</c> is in scope. That makes a trap
+        /// blast slightly stronger against armour than the oracle's; it is a visible, recorded gap
+        /// rather than a silent no-op, which is what "the trap went off and nothing happened" was.</para>
+        ///
+        /// <para><b>Blast before clearing, and the order matters.</b> AS3 clears the mine with
+        /// <c>setAct("mine",101)</c> and then runs <c>fiascoRemine()</c> in the same branch, so the
+        /// object is already disarmed when the blast lands. The port commits the profile before calling
+        /// here (<see cref="TryWork"/>), which is the same order.</para>
+        /// </summary>
+        private static void DetonateTrap(ObjectInstance obj, RoomInstance room, SecurityProfile profile, int mineAtPress)
+        {
+            if (obj == null || profile == null) return;
+
+            // A save written before `securityTrapDamage` existed carries 0. Reconstruct the oracle's
+            // formula at its mean rather than detonating for nothing — the middle factor is the only
+            // random one and its mean is 1.
+            //
+            // `mineAtPress` and not `profile.Mine`: `ResolveMine` has already cleared the mine by the
+            // time this runs, so reading the profile here would make the guard below permanently false
+            // and turn the fallback into dead code that reads as a working branch.
+            float damage = profile.TrapDamage;
+            if (damage <= 0f && mineAtPress > 0)
+            {
+                float locDifLevel = room != null && room.difficulty != null
+                    ? room.difficulty.baseDifficulty
+                    : 0f;
+                damage = mineAtPress * 50f * (1f + locDifLevel * 0.1f);
+            }
+
+            RoomVisualController controller = ResolveController(room);
+            if (controller == null)
+            {
+                Debug.LogWarning(
+                    $"[Security] Trap on '{obj.objectId}' detonated, but no live RoomVisualController " +
+                    "owns the room — no blast was applied.");
+                return;
+            }
+
+            Vector3 centre = controller.RoomPixelToWorld(obj.position);
+            float radius = SecurityRules.TrapBlastRadiusPixels * 0.01f;
+
+            int hitCount = 0;
+            Collider2D[] hits = Physics2D.OverlapCircleAll(centre, radius);
+            for (int i = 0; i < hits.Length; i++)
+            {
+                Collider2D hit = hits[i];
+                if (hit == null || hit.isTrigger) continue;
+
+                var damageable = hit.GetComponent<PFE.Systems.Combat.IDamageable>();
+                if (damageable == null || !damageable.CanBeHit) continue;
+
+                damageable.TakeDamage(damage);
+                hitCount++;
+            }
+
+            Debug.Log($"[Security] Trap on '{obj.objectId}' detonated: {damage:0} damage over " +
+                      $"{SecurityRules.TrapBlastRadiusPixels:0} px, {hitCount} target(s) hit.");
         }
 
         private static void LogResult(ObjectInstance obj, in SecurityAttemptResult result)
@@ -643,6 +792,145 @@ namespace PFE.Systems.Security
             return false;
         }
 
+        /// <summary>
+        /// A hostile walking over an armed alarm panel trips it — AS3's <c>Interact</c> constructor
+        /// gives every <c>allact == "alarm"</c> object a trigger <b>area</b>
+        /// (<c>:577-587</c>): <c>new Area(loc)</c>, <c>owner.copy(area)</c>, <c>area.tip = "raider"</c>,
+        /// <c>area.over = this.alarm2</c>.
+        ///
+        /// <para><b>This is what "enemies can press the alarm button" means, and it is not a press.</b>
+        /// The panel's own <c>allAct</c> branch is an <b>off</b> switch — <c>allact == "alarm"</c> runs
+        /// <c>infoText("alarmOff"); setAct("open",1)</c> (<c>:1655-1659</c>), i.e. the player's use of
+        /// the panel <i>disables</i> it. Nothing raises the alarm by pressing. What raises it is a unit
+        /// entering the panel's footprint: <c>Area.step()</c> takes the rising edge
+        /// (<c>active &amp;&amp; !preactive</c>) and calls <c>over()</c> → <c>alarm2()</c>
+        /// (<c>:1452-1465</c>), which pulses <c>budilo</c> for 240 ticks, calls <c>loc.signal()</c> and
+        /// then disarms the panel (<c>allact = ""</c>, <c>active = false</c>).</para>
+        ///
+        /// <para><b>The footprint is the panel's own box.</b> <c>owner.copy(area)</c> copies the
+        /// panel's rect, and the <c>alarm</c> row is <c>size='1' wid='2'</c> — two tiles wide, one tall
+        /// (<c>AllData</c>: <c>&lt;obj ed='4' id='alarm' inter='5' mine='1' minetip='6' allact='alarm'
+        /// once='1' size='1' wid='2'/&gt;</c>).</para>
+        ///
+        /// <para><b>Recorded simplification: <c>tip</c> is not narrowed to raiders.</b> AS3 tests
+        /// <c>unit.areaTestTip == area.tip</c>, and <c>"raider"</c> is set only by
+        /// <c>UnitRaider.as:494</c> (<c>UnitBossNecr</c> sets <c>"en"</c>, which this panel does not
+        /// accept). The port has no <c>areaTestTip</c> field, so the test here is "hostile", which also
+        /// admits robots. That is a wider trigger than the oracle's; it is recorded rather than
+        /// guessed at, because the narrowing needs a per-controller tag that does not exist yet.</para>
+        /// </summary>
+        private void CheckAlarmPanelTrip()
+        {
+            RoomVisualController controller = CurrentController();
+            if (controller == null) return;
+
+            RoomInstance room = controller.RoomInstance;
+            if (room?.objects == null) return;
+
+            // The object walk is memoised per room. A room only changes on a land transition, so the
+            // common case — a room with no panel at all — costs one reference compare per tick
+            // instead of a full `room.objects` scan plus a unit query.
+            if (!ReferenceEquals(_panelScanRoom, room))
+            {
+                _panelScanRoom = room;
+                _panelScanRoomHasPanel = RoomHasArmedAlarmPanel(room);
+            }
+
+            if (!_panelScanRoomHasPanel) return;
+
+            // An alarm already running means the room has called for help; `alarm2` is a rising-edge
+            // trigger and must not re-fire every tick.
+            if (GetAlarm(room).IsActive) return;
+
+            for (int i = 0; i < room.objects.Count; i++)
+            {
+                ObjectInstance panel = room.objects[i];
+                if (panel == null) continue;
+                if (!string.Equals(panel.GetAllAct(), "alarm", StringComparison.OrdinalIgnoreCase)) continue;
+                if (panel.runtimeState != null && panel.runtimeState.isOpen) continue;
+
+                UnitController intruder = FindHostileInPanelFootprint(room, panel, controller);
+                if (intruder == null) continue;
+
+                TripAlarmPanel(room, panel, intruder);
+
+                // Force a rescan: this panel is now spent, and the flag must not keep the loop hot
+                // for a room whose last panel has just been used.
+                _panelScanRoom = null;
+                return;
+            }
+        }
+
+        /// <summary>
+        /// AS3 <c>Interact.alarm2()</c> (<c>:1452-1465</c>) — raise the alarm, then spend the panel.
+        /// </summary>
+        private void TripAlarmPanel(RoomInstance room, ObjectInstance panel, UnitController intruder)
+        {
+            RaiseAlarm(room, panel.position, panel.objectId);
+
+            // `this.area = null; this.active = false; this.allact = "";` — the panel is a one-shot.
+            // The port's "spent" flag is the same one `RoomHasArmedAlarmPanel` and the object's own
+            // open state already use, so the two cannot disagree.
+            panel.EnsureStructuredData();
+            panel.runtimeState.isOpen = true;
+
+            Push(new SecurityLogEntry
+            {
+                Tick = _tick,
+                ObjectId = panel.objectId,
+                MessageKey = "alarmTripped",
+                Detail = $"tripped by '{intruder.name}' — the panel is spent",
+                Kind = SecurityAttemptKind.Jammed,
+            });
+
+            Debug.Log($"[Security] Alarm panel '{panel.objectId}' in '{room.id}' tripped by " +
+                      $"'{intruder.name}' — alarm raised, panel spent.");
+        }
+
+        /// <summary>
+        /// The first living hostile standing inside a panel's footprint, or null.
+        ///
+        /// <para>Distances are compared in world units (1 unit = 100 px), so the panel's 2×1-tile box is
+        /// 0.8 × 0.4 half-extents and a unit contributes its own ~0.2 half-width — the same "does the
+        /// unit's body overlap the area's rect" test <c>Area.areaTest</c> performs.</para>
+        /// </summary>
+        private UnitController FindHostileInPanelFootprint(
+            RoomInstance room,
+            ObjectInstance panel,
+            RoomVisualController controller)
+        {
+            Vector3 centre = controller.RoomPixelToWorld(panel.position);
+
+            const float halfWidth = 0.8f;   // 2 tiles of 40 px, in world units
+            const float halfHeight = 0.4f;  // 1 tile
+            const float unitHalfWidth = 0.2f;
+
+            UnitController[] units = FindObjectsByType<UnitController>(FindObjectsSortMode.None);
+            for (int i = 0; i < units.Length; i++)
+            {
+                UnitController unit = units[i];
+                if (unit == null || !unit.IsAlive) continue;
+                if (unit.IsPlayer) continue;
+                if (unit.Faction == PFE.Data.Definitions.FactionType.Player) continue;
+                if (unit.Room != room) continue;
+
+                Vector3 delta = unit.transform.position - centre;
+                if (Mathf.Abs(delta.x) > halfWidth + unitHalfWidth) continue;
+                if (Mathf.Abs(delta.y) > halfHeight) continue;
+
+                return unit;
+            }
+
+            return null;
+        }
+
+        /// <summary>The controller currently showing the live room, or null when nothing is loaded.</summary>
+        private static RoomVisualController CurrentController()
+        {
+            var bridge = FindFirstObjectByType<MapBridge>();
+            return bridge != null ? bridge.VisualController : null;
+        }
+
         // =====================================================================================
         // Tick
         // =====================================================================================
@@ -671,6 +959,11 @@ namespace PFE.Systems.Security
         private void StepOnce()
         {
             _tick++;
+
+            // Before the alarm loop and before its early return: a panel trip is what *creates* an
+            // alarm, so gating it behind `_alarms.Count == 0` would make it unreachable in the one
+            // state that matters — a quiet room with an armed panel.
+            CheckAlarmPanelTrip();
 
             if (_alarms.Count == 0) return;
 
@@ -755,19 +1048,13 @@ namespace PFE.Systems.Security
         /// AS3 <c>Location.enemySpawn</c> (<c>Location.as:2977-2998</c>) — one reinforcement at a
         /// <b>random</b> enemy spawn point, already alerted.
         ///
-        /// <para><b>Two things are not ported, and both are visible rather than silent.</b>
-        /// <list type="number">
-        /// <item><b>The unit template.</b> AS3 spawns <c>this.tipSpawn</c> — the <i>land's</i> enemy
-        /// type (<c>:2991</c>) — not anything the marker carries. The port has no land-level
-        /// <c>tipSpawn</c>, so the marker's own <c>unitId</c> is used instead.</item>
-        /// <item><b>The markers themselves.</b> <c>enspawn</c> is not imported:
-        /// <c>AS3ToUnityConverter.FindSpawnPoints</c> only ever creates a <see cref="SpawnType.Player"/>
-        /// point (from the room's <c>player</c> object), and <c>RoomPopulator</c>'s checkpoint marker is
-        /// also a Player point. So in today's data this method finds no enemy marker, logs why, and
-        /// returns — an alarm alerts and locks the exits but produces no reinforcements.</item>
-        /// </list>
-        /// The gap is logged at <c>Warning</c> on purpose: "the alarm raised and nothing came" is
-        /// otherwise indistinguishable from "the alarm never raised".</para>
+        /// <para><b>Where the points come from.</b> <c>RoomPopulator.RecordEnemySpawnPoints</c> turns
+        /// the room's authored <c>enspawn</c> rows into <see cref="SpawnType.Enemy"/> entries on
+        /// <c>room.spawnPoints</c>, carrying the spawn <i>group</i> (<c>enl2</c> and friends) rather than
+        /// a unit. <c>ResolveReinforcementUnitId</c> then runs the oracle's own two rolls —
+        /// <c>randomUnit(group)</c> then <c>randomCid(family)</c> — at spawn time, which is when AS3
+        /// resolves them too. Before this the points did not exist at all, so an alarm raised, locked
+        /// the exits and produced nothing.</para>
         ///
         /// <para><b>Goes through <see cref="RoomVisualController.SpawnUnitNow"/>.</b> That is the only
         /// path that appends the record <i>and</i> rebuilds the presenter, and it does the pixel
@@ -783,10 +1070,9 @@ namespace PFE.Systems.Security
             {
                 Debug.LogWarning(
                     $"[Security] Alarm in '{room.id}' wanted a reinforcement, but the room has no " +
-                    "enemy spawn marker with a unit id. `enspawn` is not imported " +
-                    "(AS3ToUnityConverter.FindSpawnPoints emits Player points only), and AS3's own " +
-                    "template is the land's `tipSpawn`, which the port does not carry. Skipped " +
-                    "(Location.as:2977-2998).");
+                    "enemy spawn marker with a group id. AS3 returns here too when `enspawn` is empty " +
+                    "(Location.as:2979-2982) — a room that authors no alarm points calls for help and " +
+                    "nobody comes. Skipped.");
                 return;
             }
 
@@ -799,17 +1085,107 @@ namespace PFE.Systems.Security
                 return;
             }
 
-            var instance = new UnitInstance { unitId = point.unitId };
-            if (!controller.SpawnUnitNow(instance, point.GetUnityPosition(room)))
+            string unitId = ResolveReinforcementUnitId(point.unitId, room);
+            if (string.IsNullOrEmpty(unitId))
             {
                 Debug.LogWarning(
-                    $"[Security] Alarm reinforcement '{point.unitId}' could not be spawned in " +
+                    $"[Security] Alarm in '{room.id}': spawn group '{point.unitId}' resolved to no " +
+                    "unit id. Skipped.");
+                return;
+            }
+
+            if (!ResourcesUnitDefinitionProvider.Shared.TryGetUnit(unitId, out UnitDefinition definition) ||
+                definition == null)
+            {
+                Debug.LogWarning(
+                    $"[Security] Alarm in '{room.id}': no UnitDefinition for '{unitId}' — the " +
+                    "reinforcement would have no stats and no art. Skipped (the alarm still " +
+                    "alerts and locks the exits).");
+                return;
+            }
+
+            var instance = new UnitInstance
+            {
+                entityId = PFE.Core.Ids.EntityId
+                    .CreateForRoomSpawn(room.id, "reinforcement:" + unitId, _reinforcementSerial++)
+                    .ToString(),
+                unitId = unitId,
+                unitType = unitId,
+                isDead = false,
+                maxHealth = definition.health,
+                currentHealth = definition.health,
+                // Empty, so RoomUnitSpawner falls through to the definition's controllerId — the same
+                // precedence AS3's `createUnit(tipSpawn, …)` gets, since it passes no `cl`.
+                controllerId = string.Empty,
+                attributes = new List<MapObjectAttributeData>(),
+                facingDirection = point.facingDirection != 0f
+                    ? Mathf.RoundToInt(point.facingDirection)
+                    : 1,
+                // 0 = never buries: a reinforcement must be on screen the moment it arrives.
+                digger = 0,
+            };
+
+            // `GetEnemyUnityPosition`, not `GetUnityPosition`: an `enspawn` marker's anchor uses
+            // `addEnSpawn`'s own `size` (1), not the player's 2 — see SpawnPoint.EnemyAnchorSizeTiles.
+            if (!controller.SpawnUnitNow(instance, point.GetEnemyUnityPosition(room)))
+            {
+                Debug.LogWarning(
+                    $"[Security] Alarm reinforcement '{unitId}' could not be spawned in " +
                     $"'{room.id}' (SpawnUnitNow refused — no spawner or no physical parent).");
                 return;
             }
 
-            Debug.Log($"[Security] Alarm reinforcement '{point.unitId}' spawned in '{room.id}' " +
+            // `_loc5_.alarma()` — AS3 alerts the unit it just created, in the same call
+            // (Location.as:2990-2997). Without this the reinforcement stands idle until the next
+            // `budilo` pulse reaches it, which may never happen: the pulse radius is 1500 px around the
+            // alarm's origin and an `enspawn` point can be further away than that.
+            if (controller.TryGetSpawnedUnit(instance, out GameObject spawned) && spawned != null &&
+                spawned.TryGetComponent(out PFE.Entities.Enemies.EnemyController enemy) &&
+                enemy.Brain != null)
+            {
+                enemy.Brain.Alarma();
+            }
+
+            Debug.Log($"[Security] Alarm reinforcement '{unitId}' spawned in '{room.id}' " +
                       $"near ({originPixels.x:0},{originPixels.y:0}).");
+        }
+
+        /// <summary>Serial for reinforcement entity ids — a monotonic counter, so two reinforcements of
+        /// the same family in one alarm never share an id even after one of them dies.</summary>
+        private int _reinforcementSerial;
+
+        /// <summary>
+        /// Resolve the unit a spawn marker names into a concrete, spawnable id.
+        ///
+        /// <para><b>The marker carries a GROUP, not a unit.</b> AS3's <c>Location.enemySpawn</c> calls
+        /// <c>createUnit(this.tipSpawn, …)</c> (<c>:2989</c>) where <c>tipSpawn</c> is one of
+        /// <c>enl1</c>/<c>enl2</c>/<c>enf1</c>/<c>enc1</c>/<c>lov</c>, and <c>createUnit</c> then runs
+        /// <c>randomUnit(group)</c> → <c>randomCid(family)</c> to pick a family and a variant. Handing
+        /// the group id straight to the spawner is what the old port did, and it produced a unit
+        /// literally called <c>enl2</c> with no definition at all — the "alarm spawns nothing"
+        /// symptom.</para>
+        ///
+        /// <para><b>Draws from the security stream, not the room's.</b> AS3's spawn path uses
+        /// <c>Math.random()</c>, which is unseeded and independent of the layout stream; using
+        /// <see cref="Rng"/> keeps a reinforcement from shifting the seeded sequence that generated the
+        /// room. The cost is that two reinforcements of one alarm are not reproducible from the land
+        /// seed — which is exactly what AS3 does.</para>
+        /// </summary>
+        private static string ResolveReinforcementUnitId(string groupId, RoomInstance room)
+        {
+            if (string.IsNullOrEmpty(groupId)) return null;
+
+            // An authored marker that already names a unit (a hand-placed `enl2` variant, or the F2
+            // debug spawn) is used as-is: `randomUnit` has no case for it and would return "".
+            if (!LocationEnemySelector.IsGroupId(groupId)) return groupId;
+
+            LocationEnemyContext context = RoomPopulator.EnemyContextFor(room);
+
+            string family = LocationEnemySelector.RandomUnit(groupId, context, water: false, Rng);
+            if (string.IsNullOrEmpty(family)) family = groupId;
+
+            return UnitVariantResolver.ResolveSpawnId(
+                family, context.Difficulty, Rng, context.ToVariantContext());
         }
 
         /// <summary>

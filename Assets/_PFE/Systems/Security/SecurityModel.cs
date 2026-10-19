@@ -188,6 +188,19 @@ namespace PFE.Systems.Security
         /// <summary><c>mine</c> — trap level on the object, 0 for none.</summary>
         public int Mine;
 
+        /// <summary>
+        /// <c>Interact.damage</c> when the trap is a real explosive — the blast this object's mine
+        /// carries, resolved <b>once</b> at construction (<c>Interact.as:546</c>:
+        /// <c>mine * 50 * (0.8 + random()*0.4) * (1 + locDifLevel*0.1)</c>).
+        ///
+        /// <para><b>Why it is stored and not recomputed at detonation.</b> The oracle rolls it in the
+        /// constructor, so it is part of the object's resolved state exactly like <c>lock</c> and
+        /// <c>lockhp</c> — a rebuild that re-rolled it would make the same trap hurt differently after
+        /// a room reload. <c>0</c> means "no blast": either there is no mine, or <c>minetip == 6</c>
+        /// (a signal trap raises the alarm instead of exploding, <c>:540-543</c>).</para>
+        /// </summary>
+        public float TrapDamage;
+
         /// <summary><c>minetip</c> — 6 means "signal": a failed defusal raises the alarm instead of
         /// exploding (<c>:540-543</c>).</summary>
         public int MineTip = 3;

@@ -1,10 +1,52 @@
 using System;
 using PFE.Core.Rng;
+using PFE.Data.Definitions;
 using PFE.Systems.Map;
 using UnityEngine;
 
 namespace PFE.Systems.Security
 {
+    /// <summary>
+    /// The land-level numbers <see cref="Build"/> needs, which the object itself does not carry.
+    ///
+    /// <para><b>Why a struct and not three more parameters.</b> They all come from the same place
+    /// (<c>RoomDifficulty</c>, written once per room by <c>Land.setLocDif</c>) and they are all
+    /// difficulty scalars rather than per-object data, so a named group makes a call site read as
+    /// "build with this land's difficulty" instead of three bare floats.</para>
+    /// </summary>
+    public readonly struct SecurityBuildContext
+    {
+        /// <summary>AS3 <c>loc.land.rnd</c> — the +2..+3 bonus (<c>Interact.as:505-508</c>).</summary>
+        public readonly bool ProceduralLand;
+
+        /// <summary>AS3 <c>loc.locksLevel</c> — <c>locDifLevel * 0.7</c> (<c>Land.as:984</c>).</summary>
+        public readonly float LocksLevel;
+
+        /// <summary>AS3 <c>loc.mechLevel</c> — <c>locDifLevel / 4</c> (<c>Land.as:985</c>).</summary>
+        public readonly float MechLevel;
+
+        /// <summary>AS3 <c>loc.locDifLevel</c> — scales the trap's blast (<c>Interact.as:546</c>).</summary>
+        public readonly float LocDifLevel;
+
+        public SecurityBuildContext(
+            bool proceduralLand = false,
+            float locksLevel = 0f,
+            float mechLevel = 0f,
+            float locDifLevel = 0f)
+        {
+            ProceduralLand = proceduralLand;
+            LocksLevel = locksLevel;
+            MechLevel = mechLevel;
+            LocDifLevel = locDifLevel;
+        }
+
+        /// <summary>
+        /// Authored-difficulty context — every scalar zero, so the rolls collapse to the authored
+        /// value. This is what an offline fixture wants; a live room must pass its own numbers.
+        /// </summary>
+        public static SecurityBuildContext Authored => default;
+    }
+
     /// <summary>
     /// The lockpicking / terminal-hacking arithmetic — a line-by-line port of
     /// <c>serv/Interact.as</c> (<c>:492-557</c> construction, <c>:889-1263</c> the attempt,
@@ -43,6 +85,12 @@ namespace PFE.Systems.Security
         /// <summary>AS3 <c>Interact.maxMechLvl</c> (<c>:184</c>) — the cap for every non-pick tip and
         /// for the mine.</summary>
         public const int MaxMechanicalLevel = 7;
+
+        /// <summary>
+        /// AS3 <c>Interact.explRadius:Number = 260</c> (<c>:66</c>) — the trap blast's radius in
+        /// <b>pixels</b>, used by <c>explosion()</c> when a defusal goes wrong (<c>:1419-1427</c>).
+        /// </summary>
+        public const float TrapBlastRadiusPixels = 260f;
 
         /// <summary>AS3's <c>setAct("lock",101)</c> — unlocked.</summary>
         public const int SaveLockOpen = 101;
@@ -562,6 +610,65 @@ namespace PFE.Systems.Security
         // =====================================================================================
 
         /// <summary>
+        /// The authored <c>key</c> this lock answers to — <c>Interact.as:350-352</c>
+        /// (<c>if(this.xml.@key.length()) this.lockKey = this.xml.@key;</c>), placement over definition.
+        ///
+        /// <para><b>Why this is read from the object every time rather than carried on the profile.</b>
+        /// Every other lock field is <i>resolved</i> — <c>lock</c> is clamped and randomised
+        /// (<c>:505-516</c>), so it must be snapshotted once and saved or the same door changes
+        /// difficulty while the player walks away. <c>key</c> is not resolved at all: it is a constant
+        /// from the room asset. Snapshotting it therefore bought nothing and cost correctness, because
+        /// <c>SecurityRuntime.StoreProfile</c> never wrote it and <c>LoadProfile</c> built a fresh
+        /// profile from the stored fields — so <b>the key was discarded on the very first read</b>,
+        /// including the read inside the same call that had just built it.</para>
+        ///
+        /// <para><b>What that looked like in play.</b> <c>nio</c>'s <c>door3</c> is
+        /// <c>lock="20" locktip="0" key="key_sewer"</c>; <c>locktip="0"</c> makes it key-only, so it can
+        /// never be picked. The boss died, dropped <c>key_sewer</c>, the player took it
+        /// (<c>[WorldItemPickup] Took 1 × 'key_sewer'</c>) — and the door still answered
+        /// <c>[Security] door3: noKey</c>, because the profile it consulted had forgotten which key it
+        /// wanted. Holding the right key could not change anything: <c>Classify</c> only reports
+        /// <c>KeyUsed</c> when <c>LockKey</c> is non-empty (<c>:135</c>), so an empty key fell through
+        /// to the key-only refusal (<c>:139</c>).</para>
+        /// </summary>
+        public static string ReadLockKey(ObjectInstance obj)
+        {
+            if (obj == null) return string.Empty;
+
+            // Definition first, placement second — the same precedence as the rest of Build. A
+            // placement only wins where it actually authors the attribute, which is what the
+            // null-fallback form of GetAttribute gives.
+            string key = obj.definition != null ? obj.definition.GetAttribute("key", null) : null;
+            key = obj.GetAttribute("key", key);
+            return key ?? string.Empty;
+        }
+
+        /// <summary>
+        /// AS3 <c>Interact.at_once</c> — whether one press is the whole interaction, so the
+        /// <c>actOsn()</c> that opens the object runs in the <i>same</i> press.
+        ///
+        /// <para><b>Read from the definition row only, and that is the oracle's shape.</b>
+        /// <c>at_once</c> is assigned in exactly one place — <c>if(param2.@once.length())</c>
+        /// (<c>:296-299</c>) — and <c>param2</c> is the <c>AllData</c> row. The placement block
+        /// (<c>:321-468</c>) has no <c>@once</c> read at all, so a placement that authors <c>once</c>
+        /// changes nothing. Measured: 4 of the 202 <c>&lt;obj&gt;</c> rows author it
+        /// (<c>door4</c>, <c>enclpole</c>, <c>robocell</c>, <c>alarm</c>).</para>
+        ///
+        /// <para><b>Why the security layer needs it.</b> The mine branch ends the press — but for a
+        /// <c>once</c> object it falls through to <c>actOsn()</c> first (<c>:935-938</c> after a
+        /// disaster, <c>:969-972</c> after a success). <c>alarm</c> is the only row that is both mined
+        /// and <c>once</c>, and for it "open" means "disabled" — which is exactly what defusing the
+        /// signal trap is for. Treating every mine press as terminal made the player press twice.</para>
+        /// </summary>
+        public static bool ReadAtOnce(ObjectInstance obj)
+        {
+            if (obj == null) return false;
+
+            string raw = obj.definition != null ? obj.definition.GetAttribute("once", null) : null;
+            return ParseFloat(raw, 0f) > 0f;
+        }
+
+        /// <summary>
         /// Build a profile from an object's <b>definition</b> row overridden by its <b>placement</b>,
         /// then rolled once, exactly as <c>Interact</c>'s constructor does.
         ///
@@ -575,34 +682,167 @@ namespace PFE.Systems.Security
         /// up to +3 on a procedural land and <c>lockLevel</c> is rolled from <c>lock</c>
         /// (<c>:505-516</c>). Re-rolling on every room rebuild would make a lock change difficulty
         /// while the player walks away and back.</para>
+        ///
+        /// <para><b>Two of these rolls decide whether the thing exists at all</b>, and the port used to
+        /// skip both: <c>lockch</c> (<c>:219</c>) is the probability that this placement has a lock, and
+        /// <c>minech</c> (<c>:253-258</c>) the probability that it has a trap. Without them every
+        /// <c>door1</c> was locked (the row authors <c>lockch='0.3'</c>) and every <c>safe</c> was mined
+        /// (<c>minech='0.6'</c>). Those two numbers are the difference between a game where a lock is an
+        /// obstacle you meet and one where it is a tax you pay on every door.</para>
         /// </summary>
         public static SecurityProfile Build(
             ObjectInstance obj,
-            bool proceduralLand,
+            in SecurityBuildContext context,
             IRngService rng,
             SecurityProfile into = null)
         {
             SecurityProfile p = into ?? new SecurityProfile();
             if (obj == null) return p;
 
+            // `var _loc5_:* = true; if(this.xml && this.xml.@set.length()) _loc5_ = false;` (:195-199).
+            // A placement that authors `set` is a hand-placed override, and the oracle then takes the
+            // *unrandomised* `floor(authored)` arm for both the lock and the mine. No shipped placement
+            // carries `set` (measured: 0 in 640 room assets), but the branch is one line and its absence
+            // would be invisible until someone authored one.
+            bool roll = string.IsNullOrEmpty(obj.GetAttribute("set", null));
+
+            // ── locktip, first ─────────────────────────────────────────────────────────────────
+            // `:200-207`. It must be resolved BEFORE the lock roll, because the roll branches on it:
+            // `lockTip == 1 || 2` uses `locksLevel`, everything else `mechLevel`. The old port read the
+            // placement's `locktip` after rolling, so a placement that changed the tip changed the
+            // skill but not the difficulty band it was rolled in.
+            MapObjectDefinition definition = obj.definition;
+            p.LockTip = ParseTip(definition?.GetAttribute("locktip", null), p.LockTip);
+            p.LockTip = ParseTip(obj.GetAttribute("locktip", null), p.LockTip);
+
             // ── definition row first ────────────────────────────────────────────────────────────
-            if (obj.definition != null)
+            if (definition != null)
             {
-                p.LockTip = ParseTip(obj.definition.GetAttribute("locktip", null), p.LockTip);
-                p.Lock = ParseInt(obj.definition.GetAttribute("lock", null), p.Lock);
-                p.SaveLock = p.Lock;   // `this.saveLock = this.lock;` (:244) — the AUTHORED value.
-                p.LockLevel = ParseInt(obj.definition.GetAttribute("locklevel", null), p.LockLevel);
-                p.LockHp = ParseFloat(obj.definition.GetAttribute("lockhp", null), p.LockHp);
-                p.Mine = ParseInt(obj.definition.GetAttribute("mine", null), p.Mine);
-                p.MineTip = ParseInt(obj.definition.GetAttribute("minetip", null), p.MineTip);
-                p.LockKey = obj.definition.GetAttribute("key", p.LockKey) ?? p.LockKey;
-                p.IsHackable = ParseFloat(obj.definition.GetAttribute("hack", null), 0f) > 0f;
+                // `if(param2.@lock.length())` (:214) — a row with no `lock` has none, which is why
+                // 161 of the 202 imported rows are never locked no matter how many times they are
+                // placed.
+                string authoredLockRaw = definition.GetAttribute("lock", null);
+                if (authoredLockRaw != null)
+                {
+                    float authored = ParseFloat(authoredLockRaw, 0f);
+
+                    if (roll)
+                    {
+                        // `if(param2.@lockch.length() == 0 || random() < lockch)` (:219) — **the
+                        // probability that this particular placement has a lock at all**. This is the
+                        // line that made "every door is locked" in the port: `door1` authors
+                        // `lockch='0.3'`, `door1a` 0.6, `door1b` 0.8, so in the oracle most wooden
+                        // doors are simply not locked. Skipping the roll gave every one of them a lock.
+                        string lockChance = definition.GetAttribute("lockch", null);
+                        bool hasLock = lockChance == null || rng.NextFloat() < ParseFloat(lockChance, 0f);
+
+                        if (hasLock)
+                        {
+                            if (p.LockTip == SecurityLockTip.Pick || p.LockTip == SecurityLockTip.Terminal)
+                            {
+                                // `floor(lock + (0.3 + random()) * loc.locksLevel)` (:223)
+                                p.Lock = Mathf.FloorToInt(
+                                    authored + (0.3f + rng.NextFloat()) * context.LocksLevel);
+                            }
+                            else
+                            {
+                                // `floor(lock + random() * loc.mechLevel)` (:227)
+                                p.Lock = Mathf.FloorToInt(authored + rng.NextFloat() * context.MechLevel);
+                            }
+                        }
+
+                        // `if(random() < lock - floor(lock)) lock += 1;` (:230-233).
+                        //
+                        // <para><b>This sits OUTSIDE the `lockch` gate, and that is the oracle, not a
+                        // slip.</b> A row authored `lock='1.3'` therefore gives a "no lock" door a lock
+                        // of 1 with 30 % probability — the fractional part survives the miss. Reproducing
+                        // it is the whole point of the branch: a port that moved it inside the gate
+                        // would make those doors reliably open, which is a different game.</para>
+                        if (rng.NextFloat() < authored - Mathf.Floor(authored))
+                        {
+                            p.Lock += 1;
+                        }
+                    }
+                    else
+                    {
+                        p.Lock = Mathf.FloorToInt(authored);   // `:237`
+                    }
+
+                    p.SaveLock = p.Lock;   // `this.saveLock = this.lock;` (:244)
+                }
 
                 // `if(param2.@low.length()) this.low = param2.@low;` (:240-242) — the DEFINITION only.
                 // There is no placement read of `low` anywhere in the constructor: the placement block
                 // *clears* it (`:340`) and never sets it. Reading it from the placement as well would
                 // resurrect the halving roll on exactly the locks the oracle exempts.
-                p.Low = ParseFloat(obj.definition.GetAttribute("low", null), p.Low);
+                p.Low = ParseFloat(definition.GetAttribute("low", null), p.Low);
+                p.LockLevel = ParseInt(definition.GetAttribute("locklevel", null), p.LockLevel);
+                p.LockHp = ParseFloat(definition.GetAttribute("lockhp", null), p.LockHp);
+
+                // ── the trap: `if(param2.@mine.length())` (:249-281) ────────────────────────────
+                //
+                // Two independent gates, and the port had neither. `minech` is the chance the trap
+                // exists at all (`safe` 0.6, `wallsafe` 0.75), and the level is rolled. Reading `mine`
+                // straight off the row — which is what the port did — gave **every** safe a live
+                // explosive, so opening one was always a two-stage problem instead of sometimes one.
+                string authoredMineRaw = definition.GetAttribute("mine", null);
+                if (authoredMineRaw != null)
+                {
+                    int authoredMine = ParseInt(authoredMineRaw, 0);
+
+                    if (roll)
+                    {
+                        string mineChance = definition.GetAttribute("minech", null);
+                        bool armed = mineChance == null || rng.NextFloat() < ParseFloat(mineChance, 0f);
+
+                        if (armed)
+                        {
+                            if (mineChance != null)
+                            {
+                                // `floor(random() * (mine + random()*mechLevel + 1))` (:257)
+                                p.Mine = Mathf.FloorToInt(
+                                    rng.NextFloat() *
+                                    (authoredMine + rng.NextFloat() * context.MechLevel + 1f));
+                            }
+                            else
+                            {
+                                // `floor(mine + random()*mechLevel)` (:262)
+                                p.Mine = Mathf.FloorToInt(
+                                    authoredMine + rng.NextFloat() * context.MechLevel);
+                            }
+
+                            // `if(mine >= 2 && random() < 0.25) --mine;` (:264-267)
+                            if (p.Mine >= 2 && rng.NextFloat() < 0.25f)
+                            {
+                                p.Mine -= 1;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        p.Mine = authoredMine;   // `:271`
+                    }
+
+                    // `if(param2.@minetip.length()) … else if(param2.@inter != "3" && random() < 0.4)
+                    //  minetip = 6;` (:273-280). The draw is taken whenever the row authors `mine`,
+                    // even when the `minech` roll left the trap disarmed — the oracle's branch does not
+                    // depend on `mine > 0`.
+                    string authoredMineTip = definition.GetAttribute("minetip", null);
+                    if (authoredMineTip != null)
+                    {
+                        p.MineTip = ParseInt(authoredMineTip, p.MineTip);
+                    }
+                    else if (!string.Equals(definition.GetAttribute("inter", null), "3", StringComparison.Ordinal)
+                             && rng.NextFloat() < 0.4f)
+                    {
+                        p.MineTip = 6;
+                    }
+                }
+
+                // `key` is read by ReadLockKey below, not here — it is the one lock field that is
+                // re-derived from the object on every read instead of being snapshotted onto the
+                // profile. See ReadLockKey for why.
+                p.IsHackable = ParseFloat(definition.GetAttribute("hack", null), 0f) > 0f;
             }
 
             // ── placement override second ───────────────────────────────────────────────────────
@@ -610,19 +850,18 @@ namespace PFE.Systems.Security
             string placementLock = obj.GetAttribute("lock", null);
             if (placementLock != null)
             {
-                p.Lock = ParseInt(placementLock, p.Lock);
+                p.Lock = Mathf.FloorToInt(ParseFloat(placementLock, p.Lock));
                 p.SaveLock = p.Lock;   // `this.saveLock = this.lock;` (:339) — re-snapshotted.
                 p.Low = 0f;
                 if (p.Lock == 0) p.Mine = 0;
             }
 
-            p.LockTip = ParseTip(obj.GetAttribute("locktip", null), p.LockTip);
             p.LockLevel = ParseInt(obj.GetAttribute("locklevel", null), p.LockLevel);
             p.LockHp = ParseFloat(obj.GetAttribute("lockhp", null), p.LockHp);
             p.LockAtt = ParseFloat(obj.GetAttribute("lockatt", null), p.LockAtt);
             p.Mine = ParseInt(obj.GetAttribute("mine", null), p.Mine);
             p.MineTip = ParseInt(obj.GetAttribute("minetip", null), p.MineTip);
-            p.LockKey = obj.GetAttribute("key", p.LockKey) ?? p.LockKey;
+            p.LockKey = ReadLockKey(obj);
 
             string hack = obj.GetAttribute("hack", null);
             if (hack != null) p.IsHackable = ParseFloat(hack, 0f) > 0f;
@@ -630,10 +869,7 @@ namespace PFE.Systems.Security
             // NOTE: no `low` read here, deliberately — see the definition block above. `low` is a
             // definition-row attribute in the oracle (:240-242), and the placement block only clears it.
 
-            // `if(param2.@lockch.length() == 0 || random() < lockch)` — the placement's chance that the
-            // lock exists at all (:493-495). Not rolled: a placement with `lock` always has one, and
-            // the F2 tab's "Re-roll" is where a tester would otherwise look for it.
-            ApplyPostProcessing(p, proceduralLand, rng);
+            ApplyPostProcessing(p, context, rng);
 
             // NOTE: `SaveLock` is deliberately NOT re-stamped here. AS3 snapshots it at :244/:339 and
             // the post-processing block (:492-557) changes `lock` without touching `saveLock` — so a
@@ -644,10 +880,10 @@ namespace PFE.Systems.Security
         }
 
         /// <summary>
-        /// AS3 <c>:492-557</c> — caps, the <c>low</c> halving, the procedural bonus and the
-        /// <c>lockLevel</c> roll.
+        /// AS3 <c>:492-557</c> — caps, the <c>low</c> halving, the procedural bonus, the
+        /// <c>lockLevel</c> roll and the trap's blast damage.
         /// </summary>
-        private static void ApplyPostProcessing(SecurityProfile p, bool proceduralLand, IRngService rng)
+        private static void ApplyPostProcessing(SecurityProfile p, in SecurityBuildContext context, IRngService rng)
         {
             if (p.Lock < SeizedLockValue)
             {
@@ -663,7 +899,7 @@ namespace PFE.Systems.Security
 
                     // `if(lock > 0 && low <= 0 && land.rnd && prob == null && random() < 0.2)
                     //     lock += floor(random()*2) + 2;`   (:505-508)
-                    if (p.Lock > 0 && p.Low <= 0f && proceduralLand && rng.NextFloat() < 0.2f)
+                    if (p.Lock > 0 && p.Low <= 0f && context.ProceduralLand && rng.NextFloat() < 0.2f)
                     {
                         p.Lock += Mathf.FloorToInt(rng.NextFloat() * 2f) + 2;
                     }
@@ -688,6 +924,18 @@ namespace PFE.Systems.Security
 
             if (p.Mine > 0)
             {
+                // `if(mineTip == 6) fiascoRemine = alarm; else { damage = mine*50*(0.8+random()*0.4)
+                //  *(1 + loc.locDifLevel*0.1); fiascoRemine = explosion; }` (:540-548).
+                //
+                // A signal trap has no blast — its disaster is the alarm. An explosive trap's damage
+                // is rolled HERE, once, and stored: re-rolling it at detonation would make the same
+                // safe hurt differently on a second visit.
+                if (p.MineTip != 6)
+                {
+                    p.TrapDamage = p.Mine * 50f * (0.8f + rng.NextFloat() * 0.4f) *
+                                   (1f + context.LocDifLevel * 0.1f);
+                }
+
                 p.AllDif += p.Mine * 2;
             }
         }

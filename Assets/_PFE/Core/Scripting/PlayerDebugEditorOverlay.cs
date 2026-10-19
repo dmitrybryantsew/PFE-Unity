@@ -8634,7 +8634,16 @@ namespace PFE.Core.Scripting
             if (profile.Mine > 0)
             {
                 GUILayout.Label(
-                    "<color=#FFAA33>A trap is resolved before the lock — defuse it first.</color>",
+                    "<color=#FFAA33>A trap is resolved before the lock — defuse it first. " +
+                    "A successful defusal does NOT open the object; the next press meets the " +
+                    "lock.</color>",
+                    GUILayout.ExpandWidth(true));
+
+                GUILayout.Label(
+                    $"trap=<b>{profile.Mine}</b> tip=<b>{profile.MineTip}</b> " +
+                    $"<color=#AAAAAA>(6 = signal: a disaster raises the alarm)</color>  " +
+                    $"blast=<b>{profile.TrapDamage:0}</b> dmg over " +
+                    $"{SecurityRules.TrapBlastRadiusPixels:0} px",
                     GUILayout.ExpandWidth(true));
             }
 

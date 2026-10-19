@@ -796,23 +796,37 @@ namespace PFE.Entities.Enemies
         /// The propagation half — telling the neighbours — is <c>EnemyBrain.Budilo</c>, which is gated on
         /// each receiver's own <c>ear</c> and on whether it is a robot.</para>
         /// </summary>
-        public void RaiseAlarm(EnemyBlackboard blackboard, Vector2 alarmSourcePx, int durationTicks = 60)
+        public void RaiseAlarm(
+            EnemyBlackboard blackboard,
+            Vector2 alarmSourcePx,
+            int durationTicks,
+            bool caughtUnawares)
         {
             if (blackboard == null) return;
             blackboard.AlertTimerTicks = Mathf.Max(blackboard.AlertTimerTicks, durationTicks);
             blackboard.LastHeardNoisePosition = alarmSourcePx;
             blackboard.HasHeardNoise = true;
+
             // AS3 `UnitZombie.alarma()` / `UnitRaider.alarma()` — `shok = Math.floor(Math.random() * 15
             // + 5)` (UnitZombie.as:346, UnitRaider.as:493), i.e. 5..19. This was 3..7, which matches
             // neither end of the oracle's range.
             //
             // It is an ASSIGNMENT, not a raise — `StaggerMath.AlarmTicks` documents why that matters.
-            // Note also that the oracle gates this assignment on the unit being caught unawares
-            // (`UnitZombie.as:334-347`); this call site does not, because `RaiseAlarm` is also the
-            // port's "heard a noise" path and the state test belongs to the caller. See the open task
-            // recorded in `StaggerMath`'s remarks.
-            blackboard.ShockTimerTicks =
-                StaggerMath.AlarmTicks(Random.Range(0, StaggerMath.AlarmRollRange));
+            //
+            // `caughtUnawares` is the gate the oracle puts INSIDE `alarma()`, and omitting it was a
+            // real bug rather than a simplification. `UnitAIRobot.alarma()` is
+            // `if(sost == 1 && aiState <= 1) { … shok = …; }` (`UnitAIRobot.as:134-141`), so a robot
+            // that is already searching or chasing is not startled again. With the gate missing, any
+            // neighbour's shout re-armed `shok` on a robot that was already in the chase, and the fire
+            // gate `aiAttackOch == 0 && shok <= 0` (`UnitAIRobot.as:585`) then held it silent
+            // indefinitely. The caller decides, because the oracle's condition is per-archetype —
+            // `UnitZombie` uses `aiState <= 1 || aiState == 5` (`:334`), `UnitAIRobot` uses
+            // `aiState <= 1`.
+            if (caughtUnawares)
+            {
+                blackboard.ShockTimerTicks =
+                    StaggerMath.AlarmTicks(Random.Range(0, StaggerMath.AlarmRollRange));
+            }
         }
     }
 }

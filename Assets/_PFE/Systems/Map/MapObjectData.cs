@@ -195,6 +195,12 @@ namespace PFE.Systems.Map
         /// <summary><c>mine</c> — a trap on the object, resolved before the lock.</summary>
         public int securityMine;
 
+        /// <summary>
+        /// <c>Interact.damage</c> for an explosive trap — the blast rolled once at construction
+        /// (<c>Interact.as:546</c>). <c>0</c> when the object has no mine or the mine is a signal trap.
+        /// </summary>
+        public float securityTrapDamage;
+
         /// <summary><c>minetip</c> — 6 means "signal": a failed defusal raises the alarm.</summary>
         public int securityMineTip = 3;
 
