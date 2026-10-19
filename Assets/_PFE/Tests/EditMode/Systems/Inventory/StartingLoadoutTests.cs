@@ -76,12 +76,13 @@ namespace PFE.Tests.EditMode.Systems.Inventory
         }
 
         [Test]
-        public void Money_IsFiftyCaps_AndIsDocumentedAsNotGranted()
+        public void Money_IsFiftyCaps_AndIsGrantedOntoTheCapsItemRow()
         {
             Assert.That(StartingLoadout.Money, Is.EqualTo(50),
-                "items[\"money\"].kol = 50. Recorded as attested data: the port does not model money " +
-                "as a held item (GameInventory.cs:71-73), so PlayerInventory grants the other rows " +
-                "and reports this one in the class summary rather than inventing an item row.");
+                "items[\"money\"].kol = 50 (Invent.as:1610). One store: GameInventory.Money writes that " +
+                "row through ItemDefinitionResolver, so the bag row and the readout cannot disagree. " +
+                "The old assertion said the port did not model money as a held item at all, which is " +
+                "what let the two numbers drift apart.");
         }
 
         [Test]

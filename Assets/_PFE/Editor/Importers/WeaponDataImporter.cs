@@ -277,6 +277,16 @@ namespace PFE.Editor.Importers
             def.weaponId    = id;
             def.weaponType  = (WeaponType)AttrI(rootAttrs, "tip", 0);
 
+            // AS3 `@mess` — the once-per-save tutorial popup key (`Invent.as:1293`). Four weapon rows
+            // carry one (mont, r32, rech, telebul). Unconditional, so a reimport moves a stale value
+            // back to the default rather than freezing whatever the asset already held.
+            //
+            // ⚠ This attribute used to be listed as "deliberately dropped" on WeaponDefinition. It is
+            // not: the popup that reads it fires for weapons too, and all four keys have text in
+            // text_en.xml — in the `item` table keyed by the weapon id, because the `<weapon>` table
+            // there ships no `<mess>` child at all. See the gap ledger, pickup feedback §10.
+            def.mess        = Attr(rootAttrs, "mess", "");
+
             // AS3's second class selector. Weapon.as:345-394 dispatches on tip AND punch:
             // tip==1/12/4/5 → WClub/WPaint/WThrow/WMagic, then punch>0 → WPunch, else the base
             // (RANGED) Weapon. Dropping `punch` here is what made every tip==0 weapon look

@@ -14,12 +14,14 @@ namespace PFE.Systems.Inventory
     /// (<c>:1618-1622</c>) grants only the Stable-boy armour; <c>addMin()</c> is the full kit.
     /// This table is <c>addMin</c>, transcribed id for id.</para>
     ///
-    /// <para><b>Money is transcribed and granted as a count, not as an item.</b> <c>addMin</c> writes
-    /// <c>items["money"].kol = 50</c>. The oracle holds caps as an ordinary item; the port keeps them as
-    /// a plain count on <c>GameInventory.Money</c> instead, and <c>PlayerInventory.SeedStartingLoadout</c>
-    /// grants the 50 from <see cref="Money"/>. The divergence and its reason are recorded on
-    /// <c>GameInventory.Money</c> — it was previously recorded here as "deliberately ungranted", which
-    /// left the status monitor's caps row reading 0 and made trade impossible.</para>
+        /// <para><b>Money is granted as the caps item row, not as a second count.</b> <c>addMin</c> writes
+        /// <c>items["money"].kol = 50</c>. Caps are an ordinary item in the Oracle — <c>Invent.money</c>
+        /// <i>is</i> <c>this.items["money"]</c> (<c>Invent.as:41-43</c>), and every reader reads that
+        /// row. The port used to keep <see cref="StartingLoadout.Money"/> on a plain
+        /// <c>GameInventory.Money</c> int and leave no item row behind, which is exactly how a play-test
+        /// ended up with <c>Bag with caps 200005</c> in the bag and <c>Caps: 45</c> under it on the same
+        /// screen. <see cref="PFE.Systems.Inventory.PlayerInventory.SeedStartingLoadout"/> still writes the
+        /// same statement, and <c>GameInventory.Money</c> now creates the row it lands on.</para>
     ///
     /// <para><b>Weapons are transcribed and are granted like anything else.</b> The four ids are the
     /// Oracle's own, and they resolve through <c>ContentType.Weapon</c> — the port's counterpart to
@@ -95,8 +97,9 @@ namespace PFE.Systems.Inventory
             new Favourite("r32", 2),
         };
 
-        /// <summary><c>items["money"].kol = 50</c> — granted to <c>GameInventory.Money</c> at boot. See the
-        /// class summary for the count-vs-item divergence.</summary>
+        /// <summary><c>items["money"].kol = 50</c> — the caps row, written through
+        /// <c>GameInventory.Money</c> at boot, which creates the row if the player has not yet picked a
+        /// cap up. See the class summary for the count-vs-item history.</summary>
         public const int Money = 50;
 
         /// <summary>How many distinct ids the loadout names, for a log line and for the fixture.</summary>

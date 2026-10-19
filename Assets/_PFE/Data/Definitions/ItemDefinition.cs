@@ -113,6 +113,25 @@ namespace PFE.Data.Definitions
         [Tooltip("Raw AS3 @tip2 ('' when absent). Opens a second loot pool keyed on this value.")]
         public string tip2;
 
+        /// <summary>
+        /// Raw AS3 <c>@mess</c> — the key of the one-time tutorial popup shown when this item is first
+        /// picked up (<c>Invent.as:1293-1300</c>: <c>gui.impMess(Res.txt("i", l.mess), …)</c>).
+        ///
+        /// <para><b>Empty means "no popup", and that is the common case.</b> The key is not the item id
+        /// — <c>screwdriver</c> happens to use its own id, but the popup's title and body are the
+        /// <c>&lt;item id="screwdriver"&gt;</c> row's <c>&lt;n&gt;</c> and <c>&lt;mess&gt;</c> children,
+        /// so the key indexes the <i>text</i> table, not the item table. Two items may share a key and
+        /// then share one popup: the latch is per key, not per item.</para>
+        ///
+        /// <para><b>Populated by <c>SimpleDataImporter</c></b> (create and repair branches alike);
+        /// empty on an asset imported before the field existed, which is what the repair pass fills on
+        /// the next re-import. The runtime falls back to the shipped <c>&lt;item&gt;</c> row while the
+        /// field is empty — see <c>PlayerInventory.ItemRowMess</c> — so the popup works without a
+        /// re-import, the same arrangement <see cref="skillRowsSource"/> uses.</para>
+        /// </summary>
+        [Tooltip("Raw AS3 @mess — the one-time tutorial popup key. Empty when the row has none.")]
+        public string mess;
+
 #if ODIN_INSPECTOR
         [BoxGroup("Acquisition")]
 #else
@@ -367,6 +386,27 @@ namespace PFE.Data.Definitions
 #endif
         [Tooltip("Skills granted or modified by this item")]
         public SkillModifier[] skillModifiers;
+
+        /// <summary>
+        /// The row's verbatim <c>&lt;sk …/&gt;</c> run — the stats a holder gains by CARRYING the item,
+        /// applied by <c>Pers.setInvParameters</c> (<c>Pers.as:2290-2307</c>) through
+        /// <c>Pers.setSkillParam(xml, 1)</c> on every full stat recalculation.
+        ///
+        /// <para><b>Why a raw string and not a parsed struct.</b> Exactly 32 of the 500 shipped rows
+        /// carry <c>&lt;sk&gt;</c> children — <c>screwdriver</c>'s
+        /// <c>&lt;sk id='possLockPick' v1='1'/&gt;</c> is the one the lockpicking gate lives and dies
+        /// by — and the parsed form (<c>PersSkillRow</c>) lives in <c>PFE.Sim</c> next to its reader
+        /// (<c>ItemXmlRows.ParseSkillRows</c>), while this definition lives in <c>PFE.Data</c>,
+        /// an assembly <c>PFE.Sim</c> does not reference. Storing the source payload raw is the
+        /// established pattern here (<c>legacyTip</c>, <c>workStation</c>); the consuming side
+        /// (<c>PlayerInventory</c>'s <c>IItemSkillSource</c>) materialises and caches the parse.</para>
+        ///
+        /// <para><b>Populated by <c>SimpleDataImporter</c></b> (create and repair branches alike);
+        /// empty on an asset imported before the field existed, which is exactly what the repair
+        /// pass fills on the next re-import. Nothing in the runtime writes it.</para>
+        /// </summary>
+        [Tooltip("Verbatim AS3 <sk/> run — stats granted while this item is held. Parsed by ItemXmlRows.ParseSkillRows.")]
+        public string skillRowsSource;
 
 #if ODIN_INSPECTOR
         [BoxGroup("Effects")]

@@ -120,12 +120,14 @@ namespace PFE.Editor
                     item.itemId = id;
                     ApplyLegacyTips(item, row);
                     ApplyTipDefaults(item, tipCode, row.Attrs);
+                    item.skillRowsSource = SkillRowSource(row.Body);
                     AssetDatabase.CreateAsset(item, assetPath);
 
                     imported++;
                     if (isAmmo) ammoImported++;
                 }
-                else if (NeedsTipRepair(existing, tipCode) || NeedsLegacyTipRepair(existing, row))
+                else if (NeedsTipRepair(existing, tipCode) || NeedsLegacyTipRepair(existing, row)
+                         || NeedsSkillRowRepair(existing, row))
                 {
                     // Repair a row created before this tip was imported, without a second menu pass.
                     //
@@ -150,6 +152,7 @@ namespace PFE.Editor
                     // branch, or a re-import fixes the enum and leaves the name rule starved.
                     ApplyLegacyTips(existing, row);
                     ApplyTipDefaults(existing, tipCode, row.Attrs);
+                    existing.skillRowsSource = SkillRowSource(row.Body);
                     EditorUtility.SetDirty(existing);
                     repaired++;
                 }
@@ -186,6 +189,7 @@ namespace PFE.Editor
             item.baseItemId = legacy.Base;
             item.modifierType = legacy.Modifier;
             item.workStation = legacy.Work;
+            item.mess = legacy.Mess;
         }
 
         /// <summary>
@@ -204,11 +208,15 @@ namespace PFE.Editor
             public readonly int Modifier;
             public readonly string Work;
 
+            /// <summary><c>@mess</c> — the one-time tutorial popup key (<c>Invent.as:1293</c>).</summary>
+            public readonly string Mess;
+
             public LegacyAttributes(ItemXmlRow row)
             {
                 Base = WeaponXmlAttrs.Attr(row.Attrs, "base");
                 Modifier = WeaponXmlAttrs.AttrI(row.Attrs, "mod", 0);
                 Work = WeaponXmlAttrs.Attr(row.Attrs, "work");
+                Mess = WeaponXmlAttrs.Attr(row.Attrs, "mess");
             }
         }
 
@@ -229,7 +237,43 @@ namespace PFE.Editor
             return item.legacyTip != row.Tip || item.tip2 != row.Tip2
                 || item.baseItemId != legacy.Base
                 || item.modifierType != legacy.Modifier
-                || item.workStation != legacy.Work;
+                || item.workStation != legacy.Work
+                || item.mess != legacy.Mess;
+        }
+
+        /// <summary>
+        /// Whether an existing row's verbatim <c>&lt;sk&gt;</c> run differs from the source — i.e. the
+        /// asset predates <see cref="ItemDefinition.skillRowsSource"/> (all 500 did) or the row itself
+        /// changed. Written by <see cref="SkillRowSource"/>, so the predicate and the writer cannot
+        /// disagree — the two-regexes failure this importer has been bitten by twice.
+        /// </summary>
+        private static bool NeedsSkillRowRepair(ItemDefinition item, ItemXmlRow row)
+        {
+            return SkillRowSource(row.Body) != item.skillRowsSource;
+        }
+
+        /// <summary>
+        /// The row's <c>&lt;sk …/&gt;</c> children, concatenated verbatim — the string stored on
+        /// <see cref="ItemDefinition.skillRowsSource"/>.
+        ///
+        /// <para>Verbatim concatenation rather than a normalized re-render: the consumer
+        /// (<c>ItemXmlRows.ParseSkillRows</c>) re-reads these tags with the same attribute reader the
+        /// import used, so any lossless form works and verbatim is the one that cannot silently
+        /// invent values. A self-closing row (393 of the 500 — the other 107 carry the 32
+        /// <c>&lt;sk&gt;</c> runs plus the 75 schematic component lists) yields the empty string.</para>
+        /// </summary>
+        private static readonly System.Text.RegularExpressions.Regex SkillChildPattern =
+            new System.Text.RegularExpressions.Regex(@"<sk\b[^>]*>",
+                System.Text.RegularExpressions.RegexOptions.Singleline);
+
+        private static string SkillRowSource(string rowBody)
+        {
+            if (string.IsNullOrEmpty(rowBody)) return string.Empty;
+
+            var sb = new System.Text.StringBuilder();
+            foreach (System.Text.RegularExpressions.Match m in SkillChildPattern.Matches(rowBody))
+                sb.Append(m.Value);
+            return sb.ToString();
         }
 
         /// <summary>

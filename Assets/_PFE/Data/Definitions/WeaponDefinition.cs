@@ -36,6 +36,29 @@ namespace PFE.Data.Definitions
         [Tooltip("Display name (the Oracle's <weapon><n> row). Empty = fall back to the weapon id.")]
         public string displayName = "";
 
+        /// <summary>
+        /// AS3 <c>@mess</c> — the once-per-save tutorial popup key, read by <c>Invent.take</c> for
+        /// weapons exactly as it is for items (<c>Invent.as:1293-1300</c>).
+        ///
+        /// <para><b>Four of the 213 shipped weapon rows carry it</b> — <c>mont</c>, <c>r32</c>,
+        /// <c>rech</c>, <c>telebul</c> (<c>AllData.as:2192</c>, <c>:2455</c>, <c>:2559</c>,
+        /// <c>:3533</c>). All four have their text, and <b>not</b> where a reader would first look:
+        /// the <c>&lt;weapon&gt;</c> table in <c>text_en.xml</c> ships <c>&lt;n&gt;</c> and
+        /// <c>&lt;info&gt;</c> and <b>no <c>&lt;mess&gt;</c> child at all</b>, so the bodies live in
+        /// the <b><c>item</c></b> table keyed by the weapon id —
+        /// <c>&lt;item id="r32"&gt;&lt;mess s1="keyReload"&gt;…</c> (<c>text_en.xml:2800-2801</c>).
+        /// That is the row <c>Res.txt("i", l.mess)</c> reads, so the popup path is the same one an item
+        /// takes.</para>
+        ///
+        /// <para><b>Empty is the safe default and empty is what every shipped asset has.</b> The
+        /// runtime therefore reads the shipped row through
+        /// <c>PlayerInventory.WeaponRowMess</c> until the import fills this in, so the popup works
+        /// without a re-import — the same arrangement that keeps <c>possLockPick</c> alive. The
+        /// import is what makes the value survive offline.</para>
+        /// </summary>
+        [Tooltip("Tutorial popup key (AS3 @mess). Empty = fall back to the shipped AllData weapon row.")]
+        public string mess = "";
+
         // Legacy property for compatibility
         public string ID => weaponId;
 
@@ -275,12 +298,29 @@ namespace PFE.Data.Definitions
     //   <vis>  @flare / @grav / @icomult / @lasm / @loot / @vweap — presentation metadata the port
     //          derives elsewhere (icomult is folded into the sprite, flare is a muzzle effect).
     //   <snd>  @dem / @t11 / @t21 — see the note on soundFall/soundSens below.
-    //   root   @crack / @mess / @nostand / @sX / @sY — stand-offsets and sprite data; @sX/@sY are
-    //          read by the mine placement path only (see MineObject). @perk is read by
-    //          WeaponXmlExtras (the info pane's Perk line), and @perslvl is now a field above.
-    // Everything in that list was checked against the oracle, not against the port: each one is either
-    // absent from the data, or read by an AS3 subsystem the port does not have. The list is here so the
-    // next audit does not have to re-derive it — see docs/AUDIT_throwable_and_explosive_2026-10-03.md.
+        //   root   @crack / @mess / @nostand / @sX / @sY — stand-offsets and sprite data; @sX/@sY are
+        //          read by the mine placement path only (see MineObject). @perk is read by
+        //          WeaponXmlExtras (the info pane's Perk line), and @perslvl is now a field above.
+        // ⚠ @mess USED to be "deliberately dropped" here and no longer is: 2026-10-18 added the
+        // reader for it. `Invent.take`'s tutorial popup keys off `l.mess` for WEAPONS too
+        // (Invent.as:1293) — the `if(l.tip == Item.L_WEAPON)` branch is INSIDE `take` and calls
+        // `addWeapon` at :1101, so it is not a separate entry point and the popup tail runs for both.
+        // Measured 2026-10-18: four `<weapon>` rows carry it — `mont`, `r32`, `rech`, `telebul`
+        // (AllData.as:2192, :2455, :2559, :3533) — and all four have their text in text_en.xml.
+        // NOT where a reader would first look: the `<weapon>` table in that document ships `<n>` and
+        // `<info>` only, **no `<mess>` child at all**, so the text lives in the **`item`** table keyed
+        // by the weapon id: `<item id="r32"><mess s1="keyReload">Firearms are weapons that use
+        // various types of cartridges for firing. Press @1 to reload</mess></item>`
+        // (text_en.xml:2800-2801). That is the same shape `Res.txt("i", l.mess)` reads for an item, so
+        // the popup path is identical and nothing downstream is weapon-specific.
+        // ⚠ The runtime does NOT need a re-import to read the key: `PlayerInventory.WeaponRowMess`
+        // reads the shipped row through `AllDataElements.TryGet(allData, "weapon", id, …)`, which is
+        // depth-aware, public and offline-testable. The lookup is deliberately TABLE-EXPLICIT rather
+        // than item-first, because measured **32 ids exist in both tables** (`b bomb`, `cryogr`,
+        // `dinamit`, `fgren` …) and the Oracle reads `AllData.d.weapon` in the weapon branch.
+        // Everything in that list was checked against the oracle, not against the port: each one is either
+        // absent from the data, or read by an AS3 subsystem the port does not have. The list is here so the
+        // next audit does not have to re-derive it — see docs/AUDIT_throwable_and_explosive_2026-10-03.md.
 
         [Header("Ammunition")]
         public int magazineSize = 0;         // holder in AS3
