@@ -88,9 +88,48 @@ namespace PFE.Systems.Weapons
         /// </summary>
         private WeaponPresenter _presenter;
 
+        /// <summary>
+        /// A unit part that owns the hold point instead of the body — a griffin's arm, and the seam the
+        /// remaining <c>wPos</c> bone-table units will use. Null for every archetype whose hold point
+        /// <see cref="WeaponHoldRule"/> can already express.
+        ///
+        /// <para><b>Resolved lazily, and that is not defensive.</b> The part is built by the archetype
+        /// controller while this mount is built by <see cref="EquipRolledWeapon"/>; which of the two runs
+        /// first depends on the archetype's <c>Initialize</c> order, so resolving once in
+        /// <see cref="Initialize"/> would bind or miss depending on the class. Looking it up on first
+        /// use makes the order irrelevant, and a null result is re-tried on the next tick rather than
+        /// cached forever.</para>
+        /// </summary>
+        private IWeaponHoldPointSource _holdSource;
+
+        /// <summary>True once <see cref="_holdSource"/> has been searched for, so a hit is not re-searched.</summary>
+        private bool _holdSourceResolved;
+
+        /// <summary>
+        /// Which <c>setWeaponPos</c> override the owner runs — set by the controller that equips this
+        /// weapon, because the controller is the only thing that knows which AS3 class it stands in for
+        /// (<c>RobotController</c> maps <c>RobotKind</c> plus <c>RobotSecondaryKind</c>).
+        ///
+        /// <para>Default <see cref="WeaponHoldRule.Base"/> is the honest answer for an archetype that
+        /// has not been mapped yet: it is the inherited <c>Unit.setWeaponPos</c>, not the player's rule
+        /// and not a guess at a constant.</para>
+        /// </summary>
+        public WeaponHoldRule HoldRule { get; set; } = WeaponHoldRule.Base;
+
         private Vector2 _aimTarget;
         private bool    _hasAimTarget;
         private bool    _firing;
+
+        /// <summary>
+        /// A one-tick pulse set by <see cref="FireOnce"/> and consumed by the next <see cref="Tick"/>.
+        ///
+        /// <para><b>Deliberately a separate field from <see cref="_firing"/>.</b> That one is owned by
+        /// <see cref="SetFiring"/>. A one-shot that wrote it would be able to cancel a held trigger — or
+        /// be cancelled by one — depending only on which arrived first, and the loser would be silent:
+        /// either a burst weapon that fires once, or a one-shot that never fires at all. Keeping the two
+        /// apart means neither can corrupt the other, and each can be reasoned about on its own.</para>
+        /// </summary>
+        private bool    _fireOnce;
         private bool    _initialised;
 
         private readonly List<ShotPlan> _plans = new List<ShotPlan>(4);
@@ -109,7 +148,7 @@ namespace PFE.Systems.Weapons
         /// the controller or the spawner without a second play-test. Nothing in the project branches on
         /// this.
         /// </remarks>
-        public bool IsFiring => _firing;
+        public bool IsFiring => _firing || _fireOnce;
 
         /// <summary>
         /// How many shot batches this mount has produced since it was built — the proof that a trigger
@@ -202,10 +241,46 @@ namespace PFE.Systems.Weapons
                 return;
             }
 
+            // ── AS3 `Weapon.krep` — set once, at construction, exactly where the oracle sets it ────
+            //
+            // `Weapon.as:499-501` copies `owner.weaponKrep` onto the weapon while the weapon is being
+            // built (`if(owner && owner.weaponKrep > 0) krep = owner.weaponKrep;`), and `krep` is never
+            // re-read afterwards. Doing the same here — rather than per tick — keeps a mid-life
+            // definition swap from changing a rule the oracle fixes for the weapon's lifetime.
+            //
+            // What it selects: `Weapon.actions()` (Weapon.as:1076-1086) snaps `X/Y` to the hold point
+            // when `krep > 0` and eases at 1/5 only when it is 0. Every robot in the roster is
+            // `krep == 1`, so this is the arm the robot family has been missing — see
+            // `docs/EnemyImplementationGuides/AUDIT_robot_weapon_attachment_2026-10-19.md` §R1.
+            if (_controller is RangedWeaponController rigid)
+            {
+                rigid.SnapToHoldPoint = IsRigidlyMounted();
+                rigid.OwnerFacingSign  = _owner != null ? _owner.FacingDirection : 1;
+            }
+            else if (_controller is ThrownWeaponController rigidThrow)
+            {
+                // `WThrow` inherits the same `actions()` rule — measured: it overrides neither
+                // `actions()` nor `step()`, so a rigid-mounted thrower snaps exactly like a gun.
+                rigidThrow.SnapToHoldPoint = IsRigidlyMounted();
+                rigidThrow.OwnerFacingSign  = _owner != null ? _owner.FacingDirection : 1;
+            }
+
             _spawner = gameObject.GetComponent<ProjectileSpawner>();
             if (_spawner == null)
             {
                 _spawner = gameObject.AddComponent<ProjectileSpawner>();
+            }
+
+            // AS3 `UnitMerc.as:33` / `UnitEncl.as:30` — the throw count belongs to the UNIT, not to the
+            // weapon row: `(this.thWeapon as WThrow).kolAmmo = grenader;`. Read from the owner's
+            // definition here because this is the only place that has both the unit and its controller.
+            // A unit whose row authors no `<un grenader>` leaves the constructor's default in place,
+            // which matches the oracle — such a unit is never given the weapon at all
+            // (`UnitMerc.as:30`'s `if(grenader > 0)`).
+            if (_controller is ThrownWeaponController thrownController && _owner != null
+                && _owner.Definition != null)
+            {
+                thrownController.SetThrowCount(_owner.Definition.grenadeCount);
             }
 
             _spawner.Initialize(factory, resolver, debug);
@@ -280,6 +355,25 @@ namespace PFE.Systems.Weapons
             if (_owner == null) _owner = GetComponentInParent<UnitController>();
             UnitDefinition stats = _owner != null ? _owner.Stats : null;
             return stats != null && stats.isStable;
+        }
+
+        /// <summary>
+        /// AS3 <c>Weapon.krep &gt; 0</c> — read from <see cref="UnitDefinition.weaponKrep"/>, which is the
+        /// oracle's own field: <b>1</b> by default, 0 only when the row authors <c>krep='0'</c>
+        /// (<c>Unit.as:332</c>, <c>:1168</c>).
+        ///
+        /// <para><b>Not <see cref="UnitDefinition.isStable"/>.</b> That projection is <c>krep == 1</c>, so
+        /// it reads <c>false</c> both for an authored <c>krep='0'</c> and for the 91 rows that author
+        /// nothing — and for this rule those two are opposite answers (0 eases, absent snaps). Using it
+        /// would leave every drone, the spritebot and the mega dron easing, i.e. the four worst cases of
+        /// the lag this closes. See <see cref="UnitDefinition.weaponKrep"/>'s remarks for why
+        /// <c>IsFixedMeleeMount</c> above deliberately still reads <c>isStable</c>.</para>
+        /// </summary>
+        private bool IsRigidlyMounted()
+        {
+            if (_owner == null) _owner = GetComponentInParent<UnitController>();
+            UnitDefinition stats = _owner != null ? _owner.Stats : null;
+            return stats != null && stats.weaponKrep > 0;
         }
 
         /// <summary>
@@ -392,31 +486,169 @@ namespace PFE.Systems.Weapons
         public void SetFiring(bool firing) => _firing = firing;
 
         /// <summary>
-        /// The weapon's world hold point — AS3 <c>Unit.setWeaponPos</c>, through the same
-        /// <see cref="WeaponHoldPointMath"/> the player uses.
+        /// Show or hide the held-weapon sprite — AS3 <c>currentWeapon.vis.visible = false</c>
+        /// (<c>UnitRaider.as:510-513</c>, <c>UnitEqd.as:29</c>, <c>UnitProtect.as:34</c>,
+        /// <c>UnitSentinel.as:38</c>).
         ///
-        /// <para>Reusing the shared rule rather than writing a second one is the point: the hold point
-        /// is a function of the body box, the facing and the aim, and a private copy here would be the
-        /// second place to get the axis flip wrong.</para>
+        /// <para><b>Why the oracle hides it, and why the port had to.</b> The mount is a <i>child
+        /// GameObject</i> of the unit, so it does not inherit the body's death animation: a corpse drawn
+        /// on the "death"/"fall" row would keep a rifle floating where the hand used to be. The oracle
+        /// hides the sprite in every <c>dropLoot</c> override that owns a weapon, and the two it does not
+        /// hide it for are the alicorn and the dron — which never hold one in the port either.</para>
+        ///
+        /// <para><b>The visual only.</b> The controller, its state and its aim stay alive; a hidden
+        /// weapon that is somehow asked to fire still fires. Nothing in the oracle ties visibility to
+        /// firing either, and the brain stops deciding to attack on death
+        /// (<c>EnemyAIState.Dead</c>).</para>
         /// </summary>
+        public void SetHeldVisualVisible(bool visible)
+        {
+            if (_presenter == null) return;
+
+            // The presenter lives on the "vis" child, which is also the node that carries the
+            // SpriteRenderer and the pivot — deactivating it hides the sprite without touching the
+            // mount's own transform, so a later re-show lands exactly where it was.
+            _presenter.gameObject.SetActive(visible);
+        }
+
+        /// <summary>
+        /// Fire this weapon exactly once — AS3's <c>currentWeapon.attack()</c>, which is a <b>call</b>,
+        /// not a held trigger.
+        ///
+        /// <para><b>Why the mount owns this and not the caller.</b> The trigger is a level that
+        /// <see cref="Tick"/> reads on every tick, so a brain that pressed it and forgot to release would
+        /// be modelling a mouse button held down — which no enemy in the oracle ever does. Arming a pulse
+        /// here instead means the press and its release both happen inside one <see cref="Tick"/>: no
+        /// cross-tick state, and no assumption about who ticks this mount, or when, or how often.</para>
+        ///
+        /// <para><b>What holding it actually costs, measured rather than assumed.</b> For a
+        /// <b>semi-auto</b> weapon this does <i>not</i> produce a burst. <c>auto</c> is
+        /// <c>rapid &lt;= 6</c> (<c>Weapon.as:856</c>) and every spit weapon is <c>rapid</c> 60–90, so the
+        /// second and later presses take the single-shot branch — <c>t_auto = 3; ++pow; return;</c>
+        /// (<c>:1297-1302</c>) — which pins the debounce and inflates <c>pow</c> once per tick. The damage
+        /// from holding is therefore a <b>lockout plus a wrong charge counter</b>, not a machine gun: the
+        /// weapon fires once and then cannot fire again for as long as the trigger stays down.</para>
+        /// </summary>
+        public void FireOnce() => _fireOnce = true;
+
+        /// <summary>
+        /// The weapon's world hold point — the owner's own <c>setWeaponPos</c>, selected by
+        /// <see cref="HoldRule"/>.
+        ///
+        /// <para><b>It used to call <see cref="WeaponHoldPointMath.Resolve"/>, and that was the
+        /// "weapon is kinda misplaced" report.</b> <c>Resolve</c> models
+        /// <c>UnitPlayer.setWeaponPos</c> — the override that reaches the gun out past the snout when
+        /// the cursor is beyond the body, holds it at <c>scY * 0.7</c>, lifts it 40 px when the player
+        /// stands with the weapon up, and probes for walls. The mount never set <c>WeaponKrep</c>, so
+        /// <c>Resolve</c> took the <c>WeaponKrep == 0</c> branch by default and an enemy silently got
+        /// the player's rule: an NPC aiming at anything further than its own body width had its gun
+        /// shoved a full body width to the side and held 0.2 of a body too high.</para>
+        ///
+        /// <para><b>Then it over-corrected to the base rule, which was also wrong.</b> The base
+        /// <c>Unit.setWeaponPos</c> is only the inherited default; 21 oracle classes override it, and
+        /// every robot in this family is one of them — <c>protect</c> and <c>robobrain</c> hold at a flat
+        /// <c>Y - 40</c>, <c>sentinel</c> at <c>Y - 90</c>, <c>spritebot</c> at <c>Y - 1</c>. The
+        /// <see cref="HoldRule"/> dispatch is the fix; <see cref="WeaponHoldRule"/> carries the count and
+        /// the class list.</para>
+        ///
+        /// <para>The aim point is still tracked — it drives the <i>rotation</i>, which is
+        /// <c>Weapon.actions</c>'s <c>rot2</c> and has nothing to do with where the gun is held.</para>
+        /// </summary>
+        /// <summary>
+        /// The owner's body for <see cref="MeleeWeaponController.Owner"/> — AS3 reads <c>owner.X</c>,
+        /// <c>owner.Y - scY/2</c> and <c>owner.weaponKrep</c> directly in <c>WClub.actions()</c>.
+        ///
+        /// <para><b><c>weaponKrep</c> is the branch selector, and it is read from
+        /// <see cref="UnitDefinition.weaponKrep"/>, not from <c>isStable</c>.</b> The two answer
+        /// different questions for an absent attribute: <c>isStable</c> is the <c>krep == 1</c>
+        /// projection, so the 91 rows that author nothing read <c>false</c>, while AS3's field
+        /// initialiser is <b>1</b> (<c>Unit.as:332</c>) and those rows take the <i>rigid</i> branch.
+        /// The hold-point rule above makes the same distinction.</para>
+        ///
+        /// <para><c>ClampStep</c> is false: AS3 applies the per-frame travel clamp only to
+        /// <c>owner.player</c> (<c>WClub.as:328</c>).</para>
+        /// </summary>
+        private MeleeWeaponController.OwnerFrame ResolveMeleeOwnerFrame()
+        {
+            if (_owner == null) _owner = GetComponentInParent<UnitController>();
+            if (_owner == null)
+            {
+                // No unit in scope: report "rigid", which snaps to the hold point and is exactly what
+                // this mount's melee weapons did before the spring existed.
+                return new MeleeWeaponController.OwnerFrame(
+                    transform.position.x, transform.position.y, 1f, rigidMount: true, clampStep: false);
+            }
+
+            UnitDefinition stats = _owner.Stats;
+            float height = stats != null && stats.Height > 0f ? stats.Height : 0.7f;
+
+            return new MeleeWeaponController.OwnerFrame(
+                bodyX:          _owner.transform.position.x,
+                // AS3 `owner.Y - owner.scY/2`: the unit origin is the feet, so this is the body's middle.
+                bodyCentreY:    _owner.FeetWorldY - height * 0.5f,
+                bodyFacingSign: _owner.FacingDirection,
+                rigidMount:     stats == null || stats.weaponKrep > 0,
+                clampStep:      false);
+        }
+
         public Vector2 ResolveHoldPoint()
         {
             if (_owner == null) _owner = GetComponentInParent<UnitController>();
             if (_owner == null) return transform.position;
 
-            UnitDefinition stats = _owner.Stats;
-            var inputs = new WeaponHoldPointMath.Inputs
+            // A bone-driven hold point wins over every body rule: AS3's `UnitMerc.setWeaponPos` does
+            // not compute a position at all, it reads `arm.emit` through the arm's own transform
+            // (`UnitMerc.as:104-108`). The body rules below are the inherited `Unit.setWeaponPos` and
+            // are only reachable for a unit that has no such override.
+            if (ResolveHoldSource() != null && _holdSource.TryResolveHoldPoint(out Vector2 bonePoint))
             {
-                OwnerX     = _owner.transform.position.x,
-                OwnerFeetY = _owner.FeetWorldY,
-                BodyWidth  = stats != null && stats.Width  > 0f ? stats.Width  : 0.5f,
-                BodyHeight = stats != null && stats.Height > 0f ? stats.Height : 0.7f,
-                FacingSign = _owner.FacingDirection,
-                AimX       = _aimTarget.x,
-                Tip        = _def != null ? (int)_def.weaponType : 0,
-            };
+                return bonePoint;
+            }
 
-            return WeaponHoldPointMath.Resolve(inputs);
+            UnitDefinition stats = _owner.Stats;
+            float height = stats != null && stats.Height > 0f ? stats.Height : 0.7f;
+
+            return WeaponHoldPointMath.ResolveHold(
+                HoldRule,
+                _owner.transform.position.x,
+                _owner.FeetWorldY,
+                height,
+                // `storona` — read by the Zombie arm's `weaponX = X + storona * 30` and ignored by
+                // every other rule. The owner is the source, not the mount, for the same reason the
+                // hold RULE is: the controller is what knows which class it is standing in for.
+                _owner.FacingDirection);
+        }
+
+        /// <summary>
+        /// Find (once) and bind the part that owns this weapon's hold point, if the unit has one.
+        ///
+        /// <para>Searched from the <b>unit</b>, not from this mount: the part is a sibling of the mount
+        /// under the unit root, because it belongs to the body (a griffin's arm is drawn with the body
+        /// and mirrors with it), while the mount owns only the weapon. A search from here would never
+        /// find a sibling.</para>
+        /// </summary>
+        private IWeaponHoldPointSource ResolveHoldSource()
+        {
+            if (_holdSourceResolved)
+            {
+                return _holdSource;
+            }
+
+            if (_owner == null) _owner = GetComponentInParent<UnitController>();
+            if (_owner == null)
+            {
+                return null;
+            }
+
+            _holdSource = _owner.GetComponentInChildren<IWeaponHoldPointSource>(true);
+            _holdSourceResolved = _holdSource != null;
+
+            if (_holdSource != null && _controller != null)
+            {
+                _holdSource.BindWeapon(_controller.State);
+            }
+
+            return _holdSource;
         }
 
         /// <summary>
@@ -430,11 +662,17 @@ namespace PFE.Systems.Weapons
         {
             if (!_initialised || _controller == null) return;
 
-            Vector2 hold = ResolveHoldPoint();
-
+            // ── The aim point, before the hold point ─────────────────────────────────────────────
+            //
             // One aim point for both consumers. The presenter draws from the same flip decision the
             // controller aims with, so resolving them separately is how the drawn barrel and the fired
             // round come to disagree.
+            //
+            // It is resolved FIRST because a bone-driven hold point is posed by it: a griffin's arm
+            // turns with the weapon (`UnitMerc.as:89`), so the hand is not where the previous aim put it
+            // until the aim is known. Doing this after `ResolveHoldPoint` — which is where it used to
+            // sit, harmlessly, while every hold point was a body constant — would leave the weapon one
+            // frame behind the arm on every turn.
             //
             // `_hasAimTarget` alone — NOT `_firing && _hasAimTarget`. The old form threw away a
             // per-frame aim point on every non-firing tick, which silently reverted an NPC to the
@@ -442,15 +680,54 @@ namespace PFE.Systems.Weapons
             // the picture. A brain that never calls SetAimTarget still gets the fallback, so the raider
             // path is unchanged.
             Vector2 aim = _hasAimTarget ? _aimTarget : ResolveIdleAimTarget();
+            ResolveHoldSource()?.SetAimWorldPoint(aim);
             _presenter?.SetAimTarget(aim);
+
+            Vector2 hold = ResolveHoldPoint();
 
             if (_controller is RangedWeaponController ranged)
             {
-                ranged.MuzzleWorldPoint = hold;
+                // ── The muzzle, from the DRAWN weapon ────────────────────────────────────────────
+                //
+                // AS3 `Weapon.shoot()` calls `getBulXY()` (Weapon.as:1461), which reads the `vis.emit`
+                // marker through `vis.localToGlobal` — the barrel tip *after* the flip and the aim
+                // rotation — and falls back to `X/Y` only when that lookup fails (Weapon.as:1395-1420).
+                //
+                // The presenter already publishes exactly that point
+                // (`WeaponPresenter.MuzzleWorldPosition`), and the player path reads it
+                // (`PlayerWeaponLoadout.cs:599`). This mount handed the controller `hold` instead — the
+                // weapon's ORIGIN — so every enemy round left the grip: measured 0.875 u short on
+                // `dront`'s `ttweap1`, 0.15 u on `robolaser`, 0.17 u on `robospark`/`roboplasma`.
+                // Null until the first `LateUpdate`, and `hold` is then the oracle's own fallback.
+                ranged.MuzzleWorldPoint = _presenter != null && _presenter.MuzzleWorldPosition.HasValue
+                    ? _presenter.MuzzleWorldPosition.Value
+                    : hold;
+
+                // `owner.storona` for the rigid arm's aim formula (`Weapon.as:1080`). It changes with
+                // the brain's facing, so it is refreshed per tick rather than fixed at construction.
+                ranged.OwnerFacingSign = _owner != null ? _owner.FacingDirection : 1;
+            }
+            else if (_controller is ThrownWeaponController thrownAim)
+            {
+                thrownAim.OwnerFacingSign = _owner != null ? _owner.FacingDirection : 1;
+            }
+            else if (_controller is MeleeWeaponController melee)
+            {
+                melee.Owner = ResolveMeleeOwnerFrame();
             }
 
-            if (_firing) _controller.BeginAttack();
-            else         _controller.EndAttack();
+            // A held trigger and a one-shot pulse are the same press for this tick and different
+            // afterwards: `_firing` is whatever `SetFiring` last said, while `_fireOnce` is spent here.
+            // Neither writes the other's field, so a `FireOnce` can never cancel a held trigger and a
+            // held trigger can never swallow a one-shot.
+            if (_firing || _fireOnce) _controller.BeginAttack();
+            else                      _controller.EndAttack();
+
+            // Consumed by the tick that read it, so the NEXT tick takes `EndAttack` — the two-tick
+            // press/release a real click makes. Not cleared inside `FireOnce`, because the read is what
+            // makes the press count; and not cleared on the early returns above, so a pulse armed while
+            // the mount cannot tick is deferred to the next tick rather than silently dropped.
+            _fireOnce = false;
 
             _controller.Tick(dt, hold, hold, aim);
 

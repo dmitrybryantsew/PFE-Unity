@@ -363,9 +363,34 @@ namespace PFE.Data.Definitions
         [Range(0.1f, 3f)]
         public float skill = 1f;
 
-        [Tooltip("Water ability")]
-        [Range(0f, 2f)]
-        public float waterAbility = 1f;
+        /// <summary>
+        /// AS3 <c>Unit.armor_qual</c> — the <b>probability</b> that this unit's armour rating applies to
+        /// a given hit, authored on the <c>&lt;comb&gt;</c> element as <c>aqual='…'</c>
+        /// (<c>Unit.as:1154-1156</c>).
+        ///
+        /// <para><b>Not a magnitude.</b> It is consumed as <c>isrnd(armor_qual)</c>, and <c>isrnd(n)</c>
+        /// is literally <c>Math.random() &lt; n</c> (<c>Unit.as:4855</c>) — so <c>0.75</c> means "the
+        /// plate's flat rating applies to three hits in four", not "75 % damage reduction". The rating
+        /// it gates is <see cref="armor"/> (physical) or <see cref="magicArmor"/> (energy), picked by the
+        /// damage type.</para>
+        ///
+        /// <para><b>Zero means never, and zero is AS3's default.</b> A unit with <c>armor</c> but no
+        /// <c>aqual</c> wears its pool down without ever reducing a hit. That is the oracle's behaviour,
+        /// not a bug to "fix" with a default of 1.</para>
+        ///
+        /// <para><b>This field used to be called <c>waterAbility</c> and was filled from the same
+        /// attribute.</b> The name came from a reading of <c>aqual</c> as "aquatic ability"; the oracle
+        /// has no such stat — <c>@aqual</c> is written to exactly one place, <c>armor_qual</c>
+        /// (<c>:1154-1156</c>), and the field had <b>zero readers</b> in the port, so the mis-mapping was
+        /// invisible. Renaming it (rather than adding a second field) keeps one field per attribute; the
+        /// values already in the 148 unit assets sit under the old key and are discarded on load, so the
+        /// next **overwrite**-import is what makes them live. Until then every asset answers the class
+        /// default, which is "no armour reduction" — the pre-existing behaviour, not a regression.</para>
+        /// </summary>
+        [Tooltip("AS3 'aqual' — probability (0..1) that this unit's flat armour rating applies to a hit. " +
+                 "0 = never. The pool still wears down either way.")]
+        [Range(0f, 1f)]
+        public float armourQuality = 0f;
 
         [Tooltip("AS3 'ear' — the unit's hearing multiplier. 0 = stone deaf (every small robot in the " +
                  "roster authors it), 1 = ordinary, 2.5 = the boss at :2761.")]
@@ -377,6 +402,35 @@ namespace PFE.Data.Definitions
 
         [Tooltip("Is stable (cannot be knocked down)")]
         public bool isStable = false;
+
+        /// <summary>
+        /// AS3 <c>Unit.weaponKrep</c> — the raw <c>&lt;comb krep&gt;</c> value. Declared <b>1</b>
+        /// (<c>Unit.as:332</c>) and overwritten only when the attribute is present (<c>Unit.as:1168</c>),
+        /// so <b>absent means 1, not 0</b>. The player is the one unit that forces it to 0
+        /// (<c>UnitPlayer.as:368</c>).
+        ///
+        /// <para><b>Why this is not <see cref="isStable"/>.</b> <c>isStable</c> is the importer's
+        /// <c>krep == 1</c> projection and it collapses two different rows into <c>false</c>: the 14
+        /// that author <c>krep='0'</c> and the 91 that author nothing. For the rules that ask
+        /// "is the weapon rigidly mounted" those two answers are opposites — 0 lerps, absent snaps —
+        /// so the projection cannot carry the rule. Measured over <c>AllData.as</c>: 139
+        /// <c>&lt;comb&gt;</c> nodes, 34 <c>krep='1'</c>, 14 <c>krep='0'</c>, 91 absent.</para>
+        ///
+        /// <para><b>Consumers, and why only one so far.</b> The snap-vs-lerp rule reads this
+        /// (<c>RangedWeaponController.SnapToHoldPoint</c>, fed by <c>EnemyWeaponMount</c>), because its
+        /// only interim error before a re-import is "a rigid mount snaps instead of trailing" — which is
+        /// strictly closer to the oracle. <see cref="isStable"/> still feeds
+        /// <c>ArmedShooterController.WeaponKrep</c> and <c>EnemyWeaponMount.IsFixedMeleeMount</c> on
+        /// purpose: for those, defaulting the 14 <c>krep='0'</c> rows to 1 would flip a melee-armed
+        /// raider from a swinging weapon to a rigid one. <b>Switch them to this field only after
+        /// <c>PFE/Data/Reimport Units (Overwrite Existing)</c> has run</b>, which is what writes 0 onto
+        /// those 14 assets.</para>
+        /// </summary>
+        [Tooltip("AS3 'comb krep' — 1 = the weapon is rigidly mounted (snaps to the hold point, and " +
+                 "a melee weapon does not swing). DEFAULT 1: the oracle's field default, applied when " +
+                 "the row authors no krep. Only krep='0' opts out (14 rows + the player).")]
+        [Range(0, 2)]
+        public int weaponKrep = 1;
 
         #endregion
 
@@ -569,6 +623,25 @@ namespace PFE.Data.Definitions
         [Tooltip("Icon cell within the sheet (vis@icoX/icoY); (-1,-1) = not declared")]
         public Vector2Int iconCell = new Vector2Int(-1, -1);
 
+        /// <summary>
+        /// The unit's <b>separate aiming limb</b>, or null for the ~every unit that has none — AS3
+        /// <c>UnitMerc.arm</c>, <c>Res.getVis("visualGrifArm" + tr, …)</c>
+        /// (<c>fe/unit/UnitMerc.as:29</c>).
+        ///
+        /// <para><b>Why it is a sprite on the definition and not a second sheet.</b> The limb is a
+        /// one-frame symbol of its own, chosen by the <i>same</i> variant number as the body sheet —
+        /// <c>sprGriffonN</c> pairs with <c>visualGrifArmN</c> — so the only thing the runtime needs is
+        /// "which sprite", and the number it needs to look up the limb's geometry (the port's
+        /// <c>GriffinArmMath.Variants</c>) is the same one. Keeping it off the sheet means the body's
+        /// cell grid is untouched by a limb that is not part of any of its states.</para>
+        ///
+        /// <para>Written by <c>UnitSpriteImporter</c>'s griffin-arm pass, which also bakes the limb's
+        /// measured registration point into the sprite's pivot. Null means the pass has not run, and the
+        /// griffin then holds its weapon at the body hold point rather than not shooting at all.</para>
+        /// </summary>
+        [Tooltip("AS3 UnitMerc.arm — the separate aiming limb (visualGrifArmN); null for every other unit")]
+        public Sprite armSprite;
+
         [Tooltip("Gender")]
         public Gender gender = Gender.Other;
 
@@ -602,9 +675,60 @@ namespace PFE.Data.Definitions
         [Range(0, 20)]
         public int grenadeCount = 0;
 
-        [Tooltip("Stalk distance")]
+        /// <summary>
+        /// AS3 <c>&lt;un stalk='…'&gt;</c> → <c>UnitRaider.stalkDist</c> (<c>UnitRaider.as:327-330</c>),
+        /// the radius inside which a flying unit stops approaching and hovers
+        /// (<c>:1291-1299</c>).
+        ///
+        /// <para><b><c>500</c> is AS3's declared default</b> (<c>UnitRaider.as:91</c>), not a tuned
+        /// number, and the previous <c>0</c> initialiser was a value no oracle class ever holds: a
+        /// <c>stalkDist</c> of 0 means "never hover", which the oracle only reaches by overwriting it for
+        /// a contact attacker (<c>:275-278</c>). That overwrite is a rule the brain applies, not
+        /// something the asset should encode.</para>
+        ///
+        /// <para>6 rows author the attribute — see
+        /// <see cref="UnitExtrasParser.ParseStalkDistance"/>.</para>
+        /// </summary>
+        [Tooltip("Stalk distance (AS3 stalkDist) — a flyer's hover radius")]
         [Range(0, 2000)]
-        public int stalkDistance = 0;
+        public int stalkDistance = 500;
+
+        /// <summary>
+        /// AS3 <c>&lt;un och='…'&gt;</c> → <c>UnitRaider.aiAttackOch</c> (<c>UnitRaider.as:319-321</c>).
+        ///
+        /// <para><b>Raider-only, and that is measured, not assumed.</b> <c>@och</c> has exactly one
+        /// reader in the whole oracle — <c>UnitRaider.as:319-321</c> — so the attribute reaches
+        /// <c>UnitMerc</c>, <c>UnitEncl</c> and <c>UnitRanger</c> through inheritance and reaches
+        /// <b>nothing</b> in the robot family. <c>UnitAIRobot</c> declares its own
+        /// <c>aiAttackOch = 100</c> (<c>UnitAIRobot.as:26</c>) and never reads it from XML, so a robot
+        /// with an authored <c>och</c> keeps 100. That is why <c>RobotBrain._burstCooldownTicks</c>
+        /// stays a constant: there is no data to import for it.</para>
+        ///
+        /// <para><b><c>0</c> means "not authored", and each family reads that differently — which is
+        /// why the asset stores the raw presence rather than a resolved number.</b> The raider's declared
+        /// default is also <c>0</c>, and a <c>0</c> there means the 10 %-per-frame branch — unless the
+        /// rolled weapon's magazine is over 10, in which case <c>UnitRaider</c>'s constructor derives
+        /// <c>round(holder / 2)</c> (<c>:217-219</c>). The robot's declared default is <c>100</c> and it
+        /// has no holder rule at all. Resolving here would bake one family's default into the other's
+        /// data.</para>
+        /// </summary>
+        [Tooltip("Burst cadence in ticks (AS3 aiAttackOch); 0 = not authored")]
+        [Range(0, 300)]
+        public int aiAttackOch = 0;
+
+        /// <summary>
+        /// AS3 <c>&lt;un dist='…'&gt;</c> → <c>UnitRaider.aiDist</c> (<c>:323-326</c>), the range at
+        /// which the ranged arm commits (<c>:756</c>).
+        ///
+        /// <para><b>This is not <see cref="detectionDistance"/>.</b> That field is AS3's
+        /// <c>observ</c>/observation power path and was being used as an <c>aiDist</c> stand-in — 400
+        /// for every unit in the game, where the oracle's default is 1000 and 8 rows author 500/600/700.
+        /// Keeping them separate is what lets the commit range be the authored number while observation
+        /// stays observation.</para>
+        /// </summary>
+        [Tooltip("Commit range in pixels (AS3 aiDist); 1000 is AS3's default")]
+        [Range(0, 3000)]
+        public int aiDistance = 1000;
 
         [Tooltip("Action points (SATS)")]
         [Range(0, 100)]
@@ -699,6 +823,27 @@ namespace PFE.Data.Definitions
         /// </summary>
         [Tooltip("Can resurrect (AS3 UnitZombie.isRes; presence of <un res=.../>)")]
         public bool canResurrect = false;
+
+        /// <summary>
+        /// AS3 <c>UnitZombie.superSilaTip</c> — which super-attack this variant owns, from
+        /// <c>&lt;un ss='N'/&gt;</c> (<c>UnitZombie.as:151-156</c>, resolved into the effect ladder by
+        /// <c>setSuper()</c>, <c>:954-1037</c>). <b>0 means "no super"</b>, which is AS3's own field
+        /// initialiser and the state of every unit that does not author the attribute.
+        ///
+        /// <para><b>Nine rows carry it, and they are exactly <c>zombie1..zombie9</c></b>
+        /// (<c>AllData.as:793, 803, 813, 828, 838, 849, 865, 881, 896</c>). <c>zombie0</c> — "Дикий гуль",
+        /// the plain ghoul — authors none, which is why the family template and the weakest variant are
+        /// the two units with no special at all.</para>
+        ///
+        /// <para><b>The values are a dispatch table, not a strength.</b> 1 pounce, 2 telekinesis,
+        /// 3 venom spit, 4 acid spit, 5 radiation aura, 6 quake, 7 necro bolt + telekinesis, 8 pink spit
+        /// + death blast, 9 is rewritten to 1 with a stronger jump by <c>setSuper()</c>
+        /// (<c>:962-969</c>). Reading it as "power level" would make every variant the same unit with a
+        /// different multiplier.</para>
+        /// </summary>
+        [Tooltip("AS3 UnitZombie.superSilaTip from <un ss=N/> — 0 = no super, 1..9 = the effect " +
+                 "ladder in ZombieBrain. Only zombie1..9 author it.")]
+        public int superSkill = 0;
 
         [Tooltip("Glows")]
         public bool glows = false;

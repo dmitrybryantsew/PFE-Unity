@@ -3,6 +3,87 @@ using UnityEngine;
 namespace PFE.Systems.Weapons
 {
     /// <summary>
+    /// Which <c>setWeaponPos</c> override a unit runs — i.e. <b>which AS3 class it is</b>.
+    ///
+    /// <para><b>Why this exists, and why the earlier "only the player overrides it" note was wrong.</b>
+    /// <c>grep -n "function setWeaponPos"</c> over the 1016 oracle <c>.as</c> files returns
+    /// <b>1 base + 21 overrides</b> (<c>Unit.as:3288</c> plus <c>UnitAlicorn</c>, <c>UnitBossAlicorn</c>,
+    /// <c>UnitBossNecr</c>, <c>UnitBossEncl</c>, <c>UnitBossRaider</c>, <c>UnitBossUltra</c>,
+    /// <c>UnitDron</c>, <c>UnitEqd</c>, <c>UnitGutsy</c>, <c>UnitMerc</c>, <c>UnitPet</c>,
+    /// <c>UnitPlayer</c>, <c>UnitPon</c>, <c>UnitProtect</c>, <c>UnitRaider</c>, <c>UnitRobobrain</c>,
+    /// <c>UnitSentinel</c>, <c>UnitSpriteBot</c>, <c>UnitTurret</c>, <c>UnitZombie</c>). The claim
+    /// survived because it was never counted — a plausible sentence in a doc comment is not a
+    /// measurement.</para>
+    ///
+    /// <para>The overrides are <b>not</b> cosmetic variants of one rule. They are per-class constants
+    /// in Flash pixels, and the base rule is the only one that scales with <c>scY</c>:
+    /// <c>UnitRobobrain</c>/<c>UnitProtect</c> lift 40 px, <c>UnitSentinel</c> 90 px,
+    /// <c>UnitSpriteBot</c> 1 px, <c>UnitDron</c> uses <c>scY/2</c> plus 40 more on the
+    /// <c>tr &gt;= 100</c> mega drone, and <c>UnitGutsy</c> reads a per-animation-frame bone table.
+    /// A single fraction of the body cannot express any of them.</para>
+    /// </summary>
+    public enum WeaponHoldRule
+    {
+        /// <summary><c>Unit.setWeaponPos</c> — <c>X, Y - scY*0.5</c>. The inherited default.</summary>
+        Base = 0,
+
+        /// <summary><c>UnitRobobrain.setWeaponPos</c> (<c>:51-55</c>) — <c>X, Y - 40</c>.</summary>
+        Robobrain = 1,
+
+        /// <summary>
+        /// <c>UnitProtect.setWeaponPos</c> (<c>:124-127</c>) — <c>X, Y - 40</c>. The same two lines as
+        /// <see cref="Robobrain"/>, kept as its own member because it is a different class that happens
+        /// to agree: if one of them ever moves, the other must not follow.
+        /// </summary>
+        Protect = 2,
+
+        /// <summary><c>UnitSentinel.setWeaponPos</c> (<c>:97-101</c>) — <c>X, Y - 90</c>.</summary>
+        Sentinel = 3,
+
+        /// <summary><c>UnitSpriteBot.setWeaponPos</c> (<c>:66-70</c>) — <c>X, Y - 1</c>.</summary>
+        SpriteBot = 4,
+
+        /// <summary><c>UnitDron.setWeaponPos</c> (<c>:173-181</c>) — <c>X, Y - scY/2</c>.</summary>
+        Dron = 5,
+
+        /// <summary>The same, plus the <c>if(tr &gt;= 100) weaponY += 40</c> mega-drone lift (<c>dront</c>).</summary>
+        DronHeavy = 6,
+
+        /// <summary>
+        /// <c>UnitGutsy.setWeaponPos</c> (<c>:104-111</c>) — a per-animation-frame bone table
+        /// (<c>BlitAnim.wPosGutsy</c>, read as <c>wPos[animState][frame]</c>), the same shape
+        /// <c>UnitRaider</c>, <c>UnitMerc</c>, <c>UnitAlicorn</c>, <c>UnitEncl</c>, <c>UnitRanger</c>
+        /// and <c>UnitZebra</c> use.
+        ///
+        /// <para><b>Not ported as a rule, and that is now the honest state.</b> The table is 250+ frames
+        /// of <c>{x, y, r}</c> per animation, so this member deliberately falls back to
+        /// <see cref="Base"/> rather than inventing a constant. It exists so the gap is a named value
+        /// at the call site instead of an accidental omission.</para>
+        ///
+        /// <para><b>The griffin is the one exception and it does not go through this rule.</b> Its table
+        /// (<c>BlitAnim.wPosGriffon1</c>) <i>is</i> imported — <c>GriffinArmMath.WPosGriffon1</c> — but
+        /// it is consumed by <c>GriffinArmRig</c>, which publishes the weapon's hold point from the arm's
+        /// <c>emit</c> bone through <c>IWeaponHoldPointSource</c>. A <c>merc*</c> unit therefore never
+        /// reaches this arm of the switch: its hold point is a bone, not a body constant, and a
+        /// per-frame table cannot be expressed here anyway (this signature knows only the body, the
+        /// facing and the aim — not the animation frame).</para>
+        /// </summary>
+        WPosTable = 7,
+
+        /// <summary>
+        /// <c>UnitZombie.setWeaponPos</c> (<c>UnitZombie.as:175-179</c>) — <b>the one override that moves
+        /// the weapon forward as well as up</b>:
+        /// <c>weaponX = X + storona * 30; weaponY = Y - scY * 0.8;</c>.
+        ///
+        /// <para>It is used by the four variants whose super fires a spit weapon (<c>zombie3</c>
+        /// <c>zombivenom</c>, <c>zombie6</c> <c>zombiacid</c>, <c>zombie7</c> <c>zombinecro</c>,
+        /// <c>zombie8</c> <c>zombipink</c>) — the plain ghouls never carry one, which is why this rule
+        /// had never been needed before.</para>
+        /// </summary>
+        Zombie = 8
+    }
+
+    /// <summary>
     /// Where a held weapon sits, as a pure function of the owner's body and the cursor — the port of
     /// AS3 <c>UnitPlayer.setWeaponPos</c> (<c>UnitPlayer.as:3514-3585</c>) and the base
     /// <c>Unit.setWeaponPos</c> (<c>Unit.as:3288-3294</c>).
@@ -47,6 +128,19 @@ namespace PFE.Systems.Weapons
 
         /// <summary>AS3's <c>weaponY -= 40</c> — the weapon-up lift, in Flash pixels.</summary>
         public const float WeaponUpLiftPixels = 40f;
+
+        /// <summary>
+        /// <c>UnitZombie.setWeaponPos</c>'s <c>storona * 30</c> — how far in front of the body centre the
+        /// spit weapon is held, in Flash pixels (<c>UnitZombie.as:177</c>).
+        /// </summary>
+        public const float ZombieHoldAheadPixels = 30f;
+
+        /// <summary>
+        /// <c>UnitZombie.setWeaponPos</c>'s <c>scY * 0.8</c> — the spit weapon's height as a fraction of
+        /// the body (<c>UnitZombie.as:178</c>). Higher than the base rule's 0.5 because the mouth is
+        /// where a spit comes from.
+        /// </summary>
+        public const float ZombieHoldHeightFraction = 0.8f;
 
         /// <summary>AS3's <c>weaponX + storona * 15</c> — how far ahead the wall probe looks, in Flash pixels.</summary>
         public const float WallProbeAheadPixels = 15f;
@@ -120,6 +214,131 @@ namespace PFE.Systems.Weapons
             /// reached its "holstered" phase, so the weapon drops to the base hold while it is swapped.
             /// </summary>
             public bool SwappingWeapon;
+        }
+
+        /// <summary>AS3 <c>UnitRobobrain</c>/<c>UnitProtect</c>: <c>weaponY = Y - 40</c>, in Flash pixels.</summary>
+        public const float RobobrainHoldLiftPixels = 40f;
+
+        /// <summary>AS3 <c>UnitSentinel</c>: <c>weaponY = Y - 90</c>, in Flash pixels.</summary>
+        public const float SentinelHoldLiftPixels = 90f;
+
+        /// <summary>AS3 <c>UnitSpriteBot</c>: <c>weaponY = Y - 1</c>, in Flash pixels.</summary>
+        public const float SpriteBotHoldLiftPixels = 1f;
+
+        /// <summary>AS3 <c>UnitDron</c>'s <c>if(tr &gt;= 100) weaponY += 40</c>, in Flash pixels.</summary>
+        public const float DronHeavyExtraLiftPixels = 40f;
+
+        /// <summary>
+        /// AS3 base <c>Unit.setWeaponPos</c> (<c>Unit.as:3288-3294</c>) — the hold point for a unit that
+        /// overrides nothing.
+        ///
+        /// <code>
+        /// weaponX = X;
+        /// weaponY = Y - scY * 0.5;
+        /// </code>
+        ///
+        /// <para><b>Prefer <see cref="ResolveHold"/>, which dispatches on
+        /// <see cref="WeaponHoldRule"/>.</b> This method is that dispatch's <c>Base</c> arm, and calling
+        /// it for a class that overrides <c>setWeaponPos</c> is the bug it was introduced to fix — see
+        /// <see cref="WeaponHoldRule"/> for the 21 overrides.</para>
+        ///
+        /// <para><b>The bug this closes.</b> <c>EnemyWeaponMount</c> called
+        /// <see cref="Resolve"/> without setting <c>WeaponKrep</c>, so it took the
+        /// <c>WeaponKrep == 0</c> branch — which is the <i>player's</i> derived rule. A robot aiming at
+        /// a player 500 px away always satisfies <c>celX &gt; X2</c>, so its gun was pushed a full body
+        /// width sideways (<c>weaponX = X + scX*storona</c>) and held at <c>scY * 0.7</c> instead of
+        /// <c>scY * 0.5</c>. For <c>protect</c> (<c>sX 60</c>, <c>sY 70</c>) that is 60 px right and
+        /// 14 px high — the reported "weapon is kinda misplaced". Its own rule is neither of those: it
+        /// is a flat <c>Y - 40</c>.</para>
+        ///
+        /// <para><b>Not a <c>krep</c> question.</b> <c>weaponKrep</c> only selects a branch <i>inside
+        /// the player's override</i>; an NPC never reaches it, so passing the owner's <c>krep</c> here
+        /// would be modelling a branch that does not exist for this class.</para>
+        /// </summary>
+        /// <param name="ownerX">Owner's world X — AS3 <c>X</c>, the body box's centre.</param>
+        /// <param name="feetY">Owner's world Y at the feet — AS3 <c>Y</c>.</param>
+        /// <param name="bodyHeight">Body height in world units — AS3 <c>scY</c>.</param>
+        public static Vector2 ResolveBaseHold(float ownerX, float feetY, float bodyHeight)
+            => ResolveHold(WeaponHoldRule.Base, ownerX, feetY, bodyHeight);
+
+        /// <summary>
+        /// Resolve the hold point for a unit that is <b>not</b> the player, dispatching on the
+        /// <c>setWeaponPos</c> override its AS3 class carries.
+        /// </summary>
+        /// <remarks>
+        /// <para>Every arm is a transcription, then flipped once: AS3 writes <c>Y - n</c> with y running
+        /// <i>down</i>, the port's y runs up, so each becomes <c>feetY + n/100</c>.</para>
+        ///
+        /// <para><see cref="WeaponHoldRule.WPosTable"/> deliberately resolves as
+        /// <see cref="WeaponHoldRule.Base"/>: the bone table is not imported, and a fabricated constant
+        /// would be a worse lie than an approximate height. The call site is where that gap is visible,
+        /// so it is named there rather than hidden here.</para>
+        /// </remarks>
+        /// <param name="rule">The AS3 class's override. See <see cref="WeaponHoldRule"/>.</param>
+        /// <param name="ownerX">Owner's world X — AS3 <c>X</c>.</param>
+        /// <param name="feetY">Owner's world Y at the feet — AS3 <c>Y</c>.</param>
+        /// <param name="bodyHeight">Body height in world units — AS3 <c>scY</c>. Read by the
+        /// <c>Base</c>, <c>Dron</c> and <c>Zombie</c> arms; the fixed-offset arms ignore it.</param>
+        /// <param name="facingSign">
+        /// AS3 <c>storona</c> — <c>+1</c>/<c>-1</c>, or <c>0</c> when the caller does not know it. Only
+        /// <see cref="WeaponHoldRule.Zombie"/> reads it (its override offsets X by
+        /// <c>storona * 30</c>); every other arm is symmetric, so the default of 0 keeps their results
+        /// byte-identical.
+        /// </param>
+        public static Vector2 ResolveHold(
+            WeaponHoldRule rule,
+            float ownerX,
+            float feetY,
+            float bodyHeight,
+            float facingSign = 0f)
+        {
+            float liftPixels;
+            float aheadPixels = 0f;
+            switch (rule)
+            {
+                case WeaponHoldRule.Robobrain:
+                case WeaponHoldRule.Protect:
+                    liftPixels = RobobrainHoldLiftPixels;
+                    break;
+
+                case WeaponHoldRule.Sentinel:
+                    liftPixels = SentinelHoldLiftPixels;
+                    break;
+
+                case WeaponHoldRule.SpriteBot:
+                    liftPixels = SpriteBotHoldLiftPixels;
+                    break;
+
+                case WeaponHoldRule.Dron:
+                    // `weaponY = Y - scY / 2` — the one override that agrees with the base rule.
+                    liftPixels = bodyHeight * 0.5f * FlashPixelsPerUnit;
+                    break;
+
+                case WeaponHoldRule.DronHeavy:
+                    // The same, then `if(tr >= 100) weaponY += 40` — a DOWNWARD nudge in Flash (y grows
+                    // down), i.e. the mega drone holds its gun 40 px LOWER, not higher. Flipped once:
+                    // the port subtracts it.
+                    liftPixels = bodyHeight * 0.5f * FlashPixelsPerUnit - DronHeavyExtraLiftPixels;
+                    break;
+
+                case WeaponHoldRule.Zombie:
+                    // `weaponX = X + storona * 30; weaponY = Y - scY * 0.8;` (UnitZombie.as:177-178).
+                    // The X half is the reason this overload grew a facing parameter: every other
+                    // override is symmetric, so an X offset had nowhere to be expressed.
+                    liftPixels = bodyHeight * ZombieHoldHeightFraction * FlashPixelsPerUnit;
+                    aheadPixels = (facingSign >= 0f ? 1f : -1f) * ZombieHoldAheadPixels;
+                    break;
+
+                case WeaponHoldRule.Base:
+                case WeaponHoldRule.WPosTable:
+                default:
+                    liftPixels = bodyHeight * FallbackHoldHeightFraction * FlashPixelsPerUnit;
+                    break;
+            }
+
+            return new Vector2(
+                ownerX + aheadPixels / FlashPixelsPerUnit,
+                feetY + liftPixels / FlashPixelsPerUnit);
         }
 
         /// <summary>

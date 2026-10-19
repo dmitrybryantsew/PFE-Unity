@@ -895,6 +895,21 @@ namespace PFE.Systems.Map.Rendering
             _stale.Clear();
         }
 
+        /// <summary>
+        /// The GameObject built for a unit record, or false when the record has not been spawned (yet).
+        ///
+        /// <para><b>Needed by callers that add a unit at runtime and then have to talk to it in the same
+        /// frame.</b> The alarm's reinforcement is the first one: AS3's <c>enemySpawn</c> calls
+        /// <c>_loc5_.alarma()</c> on the unit it just created (<c>Location.as:2990-2997</c>), and the
+        /// port has no handle on the GameObject otherwise — <c>RefreshAll</c> builds it inside this
+        /// class.</para>
+        /// </summary>
+        public bool TryGetSpawnedObject(UnitInstance unit, out GameObject spawned)
+        {
+            spawned = null;
+            return unit != null && _spawned.TryGetValue(unit, out spawned) && spawned != null;
+        }
+
         public void DestroyAll()
         {
             foreach (KeyValuePair<UnitInstance, GameObject> pair in _spawned)
@@ -1303,11 +1318,25 @@ namespace PFE.Systems.Map.Rendering
         void ApplySprite(SpriteRenderer renderer, UnitInstance unit, UnitDefinition definition)
         {
             Sprite sprite = definition != null ? definition.sprite : null;
+
+            // The registration point comes from the ART, not only from the definition. A turret's
+            // resting frame is a DisplayObject MovieClip whose origin is neither the frame's centre nor
+            // a 10 px feet gap (UnitTurret.setVisPos is `vis.x = X; vis.y = Y`), and no turret row
+            // authors `sprDX`/`sprDY`, so `registrationPoint` is (-1,-1) for all six mounts and the
+            // blit rule below drew them 28.5 px left and 56 px high. TurretSpriteOrigin carries the
+            // measured origin; every other unit falls through to its own declared value unchanged.
             UnitSpriteAnchor.ApplyTo(
                 renderer,
                 sprite,
-                definition != null ? definition.registrationPoint : new Vector2Int(-1, -1));
+                TurretSpriteOrigin.Resolve(unit.unitId, definition != null ? definition.registrationPoint : new Vector2Int(-1, -1)));
             renderer.enabled = sprite != null;
+
+            // A turret is not one sprite: UnitTurret animates a gun and a lamp inside the mount's own
+            // MovieClip (UnitTurret.as:298-313), and the importer flattened that tree into one baked
+            // frame. Attach rebuilds the two missing pieces from the baked parts and, when they exist,
+            // swaps the body for the gun-free version of the same canvas. Returns null for every unit
+            // that is not one of the six mounts, so this is a no-op for the other ~290.
+            TurretPartPresenter.Attach(renderer, unit.unitId, renderer.sortingOrder, renderer.sortingLayerName);
 
             if (sprite == null && _warnedMissingSprite.Add(unit.unitId))
             {

@@ -305,6 +305,18 @@ namespace PFE.Entities.Enemies
             => WeaponDefinitionProvider.TryGetWeapon(weaponId, out definition);
 
         /// <summary>
+        /// Which AS3 class's <c>setWeaponPos</c> override this unit runs — see
+        /// <see cref="WeaponHoldRule"/>.
+        ///
+        /// <para><b>Answered by the controller, not by the mount.</b> The mount is a child component
+        /// that only knows the <see cref="UnitDefinition"/>; the thing that knows whether it is standing
+        /// in for a <c>UnitSentinel</c> or a <c>UnitRobobrain</c> is this controller. The base answer is
+        /// <see cref="WeaponHoldRule.Base"/> — the inherited <c>Unit.setWeaponPos</c> — so an archetype
+        /// that has not been mapped gets the inherited rule rather than a guess.</para>
+        /// </summary>
+        protected virtual WeaponHoldRule ResolveHoldRule() => WeaponHoldRule.Base;
+
+        /// <summary>
         /// Equip a weapon by id and return its mount. Idempotent per id: calling twice returns the same
         /// mount rather than stacking a second controller on the unit.
         ///
@@ -333,6 +345,12 @@ namespace PFE.Entities.Enemies
             mountGo.transform.SetParent(transform, false);
 
             EnemyWeaponMount mount = mountGo.AddComponent<EnemyWeaponMount>();
+
+            // Before Initialize, so a mount that is armed and ticking in the same frame already holds
+            // the right rule. See WeaponHoldRule: the hold point is a per-class constant in the oracle,
+            // not one shared fraction of the body.
+            mount.HoldRule = ResolveHoldRule();
+
             mount.Initialize(def, Faction, _projectileFactory, _resolver, _soundService, _debugSettings, _rng);
             _weaponMounts[weaponId] = mount;
             return mount;

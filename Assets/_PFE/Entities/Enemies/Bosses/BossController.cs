@@ -97,6 +97,13 @@ namespace PFE.Entities.Enemies.Bosses
     {
         public new const string ControllerId = "UnitBossDron";
         public new const string ControllerAlias = "bossdron";
+
+        /// <summary>
+        /// <c>UnitBossDron.as:60</c> — <c>collisionTip = 0</c>. The megadron is a floating chassis; its
+        /// contact hit does not exchange momentum. See
+        /// <see cref="PFE.Entities.Units.UnitController.CollisionTip"/>.
+        /// </summary>
+        public override bool CollisionTip => false;
     }
 
     [RequireComponent(typeof(BossUltraBrain))]
@@ -134,6 +141,12 @@ namespace PFE.Entities.Enemies.Bosses
     {
         public new const string ControllerId = "UnitThunderHead";
         public new const string ControllerAlias = "thunderhead";
+
+        /// <summary>
+        /// <c>UnitThunderHead.as:147</c> — <c>collisionTip = 0</c>. See
+        /// <see cref="PFE.Entities.Units.UnitController.CollisionTip"/>.
+        /// </summary>
+        public override bool CollisionTip => false;
     }
 
     public class ThunderTurretController : EnemyController

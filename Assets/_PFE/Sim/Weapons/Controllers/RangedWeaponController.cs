@@ -43,6 +43,45 @@ namespace PFE.Systems.Weapons.Controllers
         // Previous aim point for rot2 calculation (needed for ready check).
         private Vector2 _lastAimTarget;
 
+        /// <summary>
+        /// AS3 <c>Weapon.krep &gt; 0</c> — the weapon is <b>rigidly mounted</b>, so its position
+        /// <b>snaps</b> to the owner's hold point every frame instead of easing toward it.
+        ///
+        /// <para><b>Oracle</b> — <c>Weapon.actions()</c> (<c>Weapon.as:1076-1086</c>), an
+        /// <c>if/else if/else</c> whose <i>first</i> arm is the rigid one:</para>
+        /// <code>
+        /// if(tip == 5)                 { X = magicX; Y = magicY; rot2 = atan2(celY-Y, celX-X); }
+        /// else if(krep > 0 || !X)      { X = owner.weaponX; Y = owner.weaponY;          // SNAP
+        ///                                rot2 = atan2(celY-Y, abs(celX-X) * owner.storona); }
+        /// else                         { X += (owner.weaponX - X) / 5; Y += …;         // LERP
+        ///                                rot2 = atan2(celY-Y, celX-X); }
+        /// </code>
+        /// <para><c>Weapon.krep</c> is <c>owner.weaponKrep</c> (<c>Weapon.as:499-501</c>), which is
+        /// <b>1 by default</b> (<c>Unit.as:332</c>) and 0 only for the player (<c>UnitPlayer.as:368</c>)
+        /// and the 14 rows that author <c>krep='0'</c>. So the lerp is the <i>player's</i> rule, not the
+        /// NPC's — the port applied it to everyone, which made a moving enemy's gun trail `4·v` pixels
+        /// behind its body (0.6 u on the mega dron). See
+        /// <c>docs/EnemyImplementationGuides/AUDIT_robot_weapon_attachment_2026-10-19.md</c> §R1.</para>
+        ///
+        /// <para><b>Defaults to false so the player path is byte-identical.</b> Only
+        /// <c>EnemyWeaponMount</c> sets it, from <see cref="PFE.Data.Definitions.UnitDefinition.weaponKrep"/>.</para>
+        /// </summary>
+        public bool SnapToHoldPoint { get; set; }
+
+        /// <summary>
+        /// AS3 <c>owner.storona</c> — the owner's facing, <c>+1</c> right / <c>-1</c> left, as the
+        /// <b>rigid</b> arm's aim formula reads it.
+        ///
+        /// <para><b>Why the rigid arm needs it and the lerp arm does not.</b> The lerp arm aims at the
+        /// cursor outright (<c>atan2(dy, dx)</c>). The rigid arm aims at
+        /// <c>atan2(dy, |dx| * storona)</c> — i.e. the barrel always points along the <i>body's</i>
+        /// facing and only the <i>elevation</i> follows the cursor, because a shoulder-mounted gun
+        /// cannot swing through its own torso. Dropping the term (aiming at the cursor) makes a robot
+        /// whose target is behind it snap its barrel 180° round, which is the visible half of the same
+        /// bug. Defaults to <c>+1</c>, the harmless value for a caller that never sets it.</para>
+        /// </summary>
+        public float OwnerFacingSign { get; set; } = 1f;
+
         // Ammo source (player inventory). Null = training/infinite mode.
         private readonly IAmmoSource _ammoSource;
 
@@ -210,21 +249,43 @@ namespace PFE.Systems.Weapons.Controllers
         /// </summary>
         private void TickOneFlashFrame(Vector2 holdPoint, Vector2 aimTarget)
         {
-            // ── Position lerp (AS3: X += (owner.weaponX - X) / 5) ────────────
-            // On first frame (X==0, Y==0) snap instantly.
-            if (State.X == 0f && State.Y == 0f)
+            // ── Position: snap for a rigid mount, lerp for a carried weapon ──────────────
+            //
+            // AS3 `Weapon.actions()` (Weapon.as:1076-1086). The two arms are NOT interchangeable
+            // tuning: `krep > 0` means the weapon is bolted to the body, so the oracle assigns
+            // `X/Y` outright. The 1/5 easing is the *player's* branch (`UnitPlayer.as:368` forces
+            // weaponKrep to 0) and the 14 rows that author `krep='0'`.
+            //
+            // The port used to test "is this the first frame" and lerp for everybody, so every
+            // moving enemy dragged its gun 4·v px behind its own body — 0.6 u on the mega dron,
+            // 0.32 u on a dron3 — while `EnemyWeaponMount` fired from the *unlagged* hold point,
+            // so the barrel and the round disagreed by that lag.
+            //
+            // `rot2` differs between the arms too, and that is the oracle's own asymmetry: the rigid
+            // arm aims along the body's facing (`|dx| * owner.storona`) and lets only the elevation
+            // follow the cursor; the lerp arm aims at the cursor outright.
+            float rot2;
+            if (SnapToHoldPoint)
             {
                 State.X = holdPoint.x;
                 State.Y = holdPoint.y;
+                rot2 = Mathf.Atan2(aimTarget.y - State.Y,
+                                   Mathf.Abs(aimTarget.x - State.X) * FacingSign());
+            }
+            else if (State.X == 0f && State.Y == 0f)
+            {
+                // AS3's `!X` half of the same arm, kept as an explicit first-frame initialiser so the
+                // player path is unchanged: from frame 2 on a krep == 0 owner takes the easing arm.
+                State.X = holdPoint.x;
+                State.Y = holdPoint.y;
+                rot2 = Mathf.Atan2(aimTarget.y - State.Y, aimTarget.x - State.X);
             }
             else
             {
                 State.X += (holdPoint.x - State.X) / 5f;
                 State.Y += (holdPoint.y - State.Y) / 5f;
+                rot2 = Mathf.Atan2(aimTarget.y - State.Y, aimTarget.x - State.X);
             }
-
-            // ── Rotation smoothing (AS3: drot smoothing toward rot2) ──────────
-            float rot2 = Mathf.Atan2(aimTarget.y - State.Y, aimTarget.x - State.X);
             AdvanceRotation(rot2);
 
             // ── Input: attack() ───────────────────────────────────────────────
@@ -483,10 +544,17 @@ namespace PFE.Systems.Weapons.Controllers
             //
             // This used to be the weapon origin unconditionally, with a comment claiming the
             // spawner would apply WeaponVisualDefinition.muzzleLocalOffset. No spawner ever read
-            // that field — it was 0 in all 129 weapon visuals and had no reader anywhere — so every
-            // shot left the gun's registration point, i.e. its rear. Facing right the rear sits
-            // behind the character and the error is invisible; facing left it is on screen, which
-            // is the reported "turned left and it fires from the back".
+            // that field — so every shot left the gun's registration point, i.e. its rear. Facing
+            // right the rear sits behind the character and the error is invisible; facing left it is
+            // on screen, which is the reported "turned left and it fires from the back".
+            //
+            // **The "it was 0 in all 129 weapon visuals" half of that note is stale (2026-10-19).**
+            // Measured over the 174 visual assets on disk: 30 carry {x:0,y:0} and **144 carry a
+            // non-zero offset** (robolaser 0.15 u, robospark 0.17 u, the mega dron's ttweap1 0.875 u).
+            // So the field is populated and the fallback below is the *exception*, not the norm —
+            // which is why every caller must pass MuzzleWorldPoint. The NPC mount did not (it passed
+            // the hold point) until the same date; see
+            // docs/EnemyImplementationGuides/AUDIT_robot_weapon_attachment_2026-10-19.md §R2.
             Vector2 muzzleWorld = MuzzleWorldPoint ?? new Vector2(State.X, State.Y);
 
             // ── Resolve the round this shot fires ──────────────────────────────
@@ -552,7 +620,13 @@ namespace PFE.Systems.Weapons.Controllers
             // it into `b.damage = resultDamage(damage, _loc1_) * ammoDamage` — i.e. on the whole
             // damage product, which is what BaseDamage already is. Damage only: the knockback is
             // `otbros * otbrosMult` with no breaking term (:1671), so the knock scale stays 1.
-            damCtx = damCtx.WithScaledDamage(WeaponWearMath.BaseDamageMultiplier(breaking), 1f);
+            //
+            // `State.DamageScale` rides on the same call because AS3 applies the two at the same point
+            // and in the same shape — a plain multiply on the finished damage product. The only writer
+            // today is the gutsy variant's `dopWeapon.damage *= 2` (UnitGutsy.as:30-33), which needs a
+            // per-instance factor because the port's WeaponDefinition is shared.
+            damCtx = damCtx.WithScaledDamage(
+                WeaponWearMath.BaseDamageMultiplier(breaking) * State.DamageScale, 1f);
 
             // ── Cues (same for all pellets) ───────────────────────────────────
             bool playSound = State.KolShoot % Mathf.Max(1, _def.magazineSize > 0 ? 1 : 1) == 0;
@@ -648,6 +722,14 @@ namespace PFE.Systems.Weapons.Controllers
         /// Increments State.Rot toward rot2 by at most drot radians per frame.
         /// Sets State.Ready = true when aligned.
         /// </summary>
+        /// <summary>
+        /// <see cref="OwnerFacingSign"/> as a strict <c>±1</c>. AS3's <c>storona</c> is only ever
+        /// <c>±1</c>; a caller that left the default or handed over a <c>0</c> must not silently
+        /// produce a 90° barrel (<c>atan2(dy, 0)</c>), so the sign is normalised here rather than at
+        /// every assignment.
+        /// </summary>
+        private float FacingSign() => OwnerFacingSign >= 0f ? 1f : -1f;
+
         private void AdvanceRotation(float rot2)
         {
             float drot = _def.bulletGravity > 0 ? 0f : 0f; // placeholder — drot is not a WeaponDefinition field yet

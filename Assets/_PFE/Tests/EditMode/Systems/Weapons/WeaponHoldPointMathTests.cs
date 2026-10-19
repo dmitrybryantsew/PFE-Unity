@@ -260,5 +260,201 @@ namespace PFE.Tests.EditMode.Systems.Weapons
             Assert.AreEqual(2f + 0.75f, WeaponHoldPointMath.ResolveMagicFallback(0f, 2f, BodyH, isSitting: false, blocked: true).y, Tolerance);
             Assert.AreEqual(2f + 0.35f, WeaponHoldPointMath.ResolveMagicFallback(0f, 2f, BodyH, isSitting: true,  blocked: true).y, Tolerance);
         }
+
+        // ── The base rule, for every unit that is not the player ──────────────
+
+        [Test]
+        public void BaseHold_IsTheOracleBaseSetWeaponPos()
+        {
+            // `Unit.as:3288-3294`: `weaponX = X; weaponY = Y - scY * 0.5;` and nothing else.
+            Vector2 hold = WeaponHoldPointMath.ResolveBaseHold(ownerX: 1.5f, feetY: 2f, bodyHeight: BodyH);
+            Assert.AreEqual(1.5f, hold.x, Tolerance);
+            Assert.AreEqual(2f + BodyH * 0.5f, hold.y, Tolerance);
+        }
+
+        [Test]
+        public void BaseHold_IgnoresTheAimEntirely()
+        {
+            // The bug this replaced: the NPC mount called `Resolve` without `WeaponKrep`, so it took the
+            // PLAYER branch. With the aim past the snout that pushes the gun a full body width sideways.
+            // The base rule has no aim term at all, so no aim value can move it.
+            //
+            // Pinned as a property rather than one value: `Resolve` at aimX = 10 returns 0.5 (the
+            // reach-out), and the two must differ, or the fix is a no-op.
+            Vector2 baseHold = WeaponHoldPointMath.ResolveBaseHold(0f, 0f, BodyH);
+            Vector2 playerHold = WeaponHoldPointMath.Resolve(Inputs(aimX: 10f));
+
+            Assert.AreEqual(0f, baseHold.x, Tolerance);
+            Assert.AreEqual(0.5f, playerHold.x, Tolerance);
+            Assert.AreNotEqual(playerHold.x, baseHold.x,
+                "the base rule must not reproduce the player's reach-out, or the NPC mount fix is vacuous");
+        }
+
+        // ── The per-class overrides (WeaponHoldRule) ──────────────────────────
+        //
+        // `grep -n "function setWeaponPos"` over the oracle is 1 base + 21 overrides. Every robot in
+        // that family is one of the overrides, and the values below are its constant, flipped once
+        // (Flash y runs down, the port's runs up).
+
+        /// <summary>`protect`: `&lt;phis sX='60' sY='70'&gt;` — width 0.6, height 0.7.</summary>
+        private const float ProtectBodyW = 0.6f;
+        private const float ProtectBodyH = 0.7f;
+
+        [Test]
+        public void HoldRule_Protect_IsAFlatFortyPixelsAboveTheFeet()
+        {
+            // `UnitProtect.as:124-127`: `weaponX = X; weaponY = Y - 40;` — 40 px is 0.40 units, and the
+            // body height plays no part.
+            Vector2 hold = WeaponHoldPointMath.ResolveHold(
+                WeaponHoldRule.Protect, ownerX: 1.5f, feetY: 2f, bodyHeight: ProtectBodyH);
+
+            Assert.AreEqual(1.5f, hold.x, Tolerance);
+            Assert.AreEqual(2f + 0.40f, hold.y, Tolerance, "AS3: weaponY = Y - 40 px");
+        }
+
+        [Test]
+        public void HoldRule_Protect_DiffersFromTheBaseRule()
+        {
+            // The control that makes the test above non-vacuous. `protect`'s own rule is 0.40 above the
+            // feet; the inherited base rule would be 0.35, and the player's rule 0.49 plus a sideways
+            // shove. A test that only checked "it is above the feet" would pass for all three.
+            Vector2 protect = WeaponHoldPointMath.ResolveHold(WeaponHoldRule.Protect, 0f, 0f, ProtectBodyH);
+            Vector2 baseRule = WeaponHoldPointMath.ResolveHold(WeaponHoldRule.Base, 0f, 0f, ProtectBodyH);
+
+            Assert.AreEqual(0.40f, protect.y, Tolerance);
+            Assert.AreEqual(0.35f, baseRule.y, Tolerance);
+            Assert.Greater(Math.Abs(protect.y - baseRule.y), Tolerance,
+                "protect's own rule must differ from the inherited base rule");
+        }
+
+        [Test]
+        public void HoldRule_Robobrain_AgreesWithProtect()
+        {
+            // Two different oracle classes, the same two lines. Kept as separate members so one moving
+            // cannot silently drag the other.
+            Assert.AreEqual(
+                WeaponHoldPointMath.ResolveHold(WeaponHoldRule.Protect, 0f, 2f, BodyH).y,
+                WeaponHoldPointMath.ResolveHold(WeaponHoldRule.Robobrain, 0f, 2f, BodyH).y,
+                Tolerance);
+        }
+
+        [Test]
+        public void HoldRule_Sentinel_IsNinetyPixelsAboveTheFeet()
+        {
+            // `UnitSentinel.as:97-101`: `weaponY = Y - 90`.
+            Vector2 hold = WeaponHoldPointMath.ResolveHold(WeaponHoldRule.Sentinel, 0f, 2f, BodyH);
+            Assert.AreEqual(2f + 0.90f, hold.y, Tolerance);
+        }
+
+        [Test]
+        public void HoldRule_SpriteBot_IsOnePixelAboveTheFeet()
+        {
+            // `UnitSpriteBot.as:66-70`: `weaponY = Y - 1`. The spritebot hovers, so its gun sits on its
+            // own origin rather than at a body fraction.
+            Vector2 hold = WeaponHoldPointMath.ResolveHold(WeaponHoldRule.SpriteBot, 0f, 2f, BodyH);
+            Assert.AreEqual(2f + 0.01f, hold.y, Tolerance);
+        }
+
+        [Test]
+        public void HoldRule_Dron_IsTheSameAsTheBaseRule()
+        {
+            // `UnitDron.as:173-176`: `weaponY = Y - scY / 2` — the one override that happens to agree
+            // with the inherited rule. If this ever diverges, one of the two was transcribed wrong.
+            Assert.AreEqual(
+                WeaponHoldPointMath.ResolveHold(WeaponHoldRule.Base, 0f, 2f, BodyH).y,
+                WeaponHoldPointMath.ResolveHold(WeaponHoldRule.Dron, 0f, 2f, BodyH).y,
+                Tolerance);
+        }
+
+        [Test]
+        public void HoldRule_DronHeavy_HoldsFortyPixelsLower()
+        {
+            // `UnitDron.as:177-180`: `if(tr >= 100) weaponY += 40`. Flash's y grows DOWN, so `+=` is a
+            // drop. The port subtracts. Transcribing the sign literally would raise the mega drone's
+            // gun instead of lowering it, and only a `dront` would ever show it.
+            float dron = WeaponHoldPointMath.ResolveHold(WeaponHoldRule.Dron, 0f, 2f, BodyH).y;
+            float heavy = WeaponHoldPointMath.ResolveHold(WeaponHoldRule.DronHeavy, 0f, 2f, BodyH).y;
+
+            Assert.AreEqual(dron - 0.40f, heavy, Tolerance);
+        }
+
+        [Test]
+        public void HoldRule_WPosTable_FallsBackToTheBaseRule()
+        {
+            // Gutsy's bone table is not imported. The fallback is deliberate and named at the call site
+            // rather than hidden here — see WeaponHoldRule.WPosTable.
+            Assert.AreEqual(
+                WeaponHoldPointMath.ResolveHold(WeaponHoldRule.Base, 1f, 2f, BodyH),
+                WeaponHoldPointMath.ResolveHold(WeaponHoldRule.WPosTable, 1f, 2f, BodyH));
+        }
+
+        [Test]
+        public void HoldRule_FixedRulesIgnoreTheBodyHeight()
+        {
+            // The property that separates the fixed-offset overrides from the fraction-based ones: a
+            // sentinel 2 units tall holds its gun at the same height as one 0.7 tall. Written as a
+            // pair so it cannot pass by both arms being equal for the wrong reason.
+            foreach (WeaponHoldRule rule in new[]
+                     {
+                         WeaponHoldRule.Robobrain, WeaponHoldRule.Protect,
+                         WeaponHoldRule.Sentinel, WeaponHoldRule.SpriteBot,
+                     })
+            {
+                float small = WeaponHoldPointMath.ResolveHold(rule, 0f, 0f, 0.7f).y;
+                float tall  = WeaponHoldPointMath.ResolveHold(rule, 0f, 0f, 2.0f).y;
+                Assert.AreEqual(small, tall, Tolerance, $"{rule} must not scale with scY");
+            }
+
+            // Control: the base rule DOES scale, so the loop above is not "everything is constant".
+            Assert.AreNotEqual(
+                WeaponHoldPointMath.ResolveHold(WeaponHoldRule.Base, 0f, 0f, 0.7f).y,
+                WeaponHoldPointMath.ResolveHold(WeaponHoldRule.Base, 0f, 0f, 2.0f).y);
+        }
+
+        [Test]
+        public void HoldRule_EveryRuleExceptZombieKeepsTheWeaponOnTheBodyHorizontally()
+        {
+            // Every oracle override assigns `weaponX = X` — except `UnitZombie`, which adds
+            // `storona * 30` and is covered by its own test below. This is the half of the "misplaced"
+            // report that the sideways shove caused — 0.6 units right for `protect`, a full body width.
+            //
+            // The exclusion is the point. When `Zombie` was added to the enum this test went red at
+            // 1.8 vs 1.5, because it iterated `Enum.GetValues` and had encoded "no override moves the
+            // weapon sideways" as an absolute. That was true of the 21 overrides as originally
+            // surveyed and false of the 22nd: `UnitZombie.as:175-179` is the one that does. A new
+            // enum member must be a decision here, not an accident.
+            foreach (WeaponHoldRule rule in (WeaponHoldRule[])Enum.GetValues(typeof(WeaponHoldRule)))
+            {
+                if (rule == WeaponHoldRule.Zombie) continue;
+
+                Vector2 hold = WeaponHoldPointMath.ResolveHold(rule, 1.5f, 2f, ProtectBodyW);
+                Assert.AreEqual(1.5f, hold.x, Tolerance, $"{rule} must not move the weapon sideways");
+            }
+        }
+
+        [Test]
+        public void HoldRule_Zombie_HoldsTheSpitWeaponThirtyPixelsAheadAndHigher()
+        {
+            // `UnitZombie.as:175-179`:
+            //     weaponX = X + storona * 30;
+            //     weaponY = Y - scY * 0.8;
+            // The only override that moves the weapon FORWARD as well as up — it spits, so the weapon
+            // sits at the mouth rather than at the body centre.
+            Vector2 right = WeaponHoldPointMath.ResolveHold(
+                WeaponHoldRule.Zombie, ownerX: 1.5f, feetY: 2f, bodyHeight: ProtectBodyH, facingSign: 1f);
+            Vector2 left = WeaponHoldPointMath.ResolveHold(
+                WeaponHoldRule.Zombie, ownerX: 1.5f, feetY: 2f, bodyHeight: ProtectBodyH, facingSign: -1f);
+
+            Assert.AreEqual(1.5f + 0.30f, right.x, Tolerance, "AS3: weaponX = X + storona * 30 px");
+            Assert.AreEqual(1.5f - 0.30f, left.x, Tolerance, "the offset must mirror with storona");
+            Assert.AreEqual(2f + ProtectBodyH * 0.8f, right.y, Tolerance, "AS3: weaponY = Y - scY * 0.8");
+
+            // Controls. Without these the two assertions above would pass for a rule that simply
+            // echoed the body centre and the base height.
+            Vector2 baseRule = WeaponHoldPointMath.ResolveHold(
+                WeaponHoldRule.Base, 1.5f, 2f, ProtectBodyH, facingSign: 1f);
+            Assert.AreNotEqual(baseRule.x, right.x, "Zombie must differ from the base rule horizontally");
+            Assert.AreNotEqual(baseRule.y, right.y, "Zombie holds higher than the base rule's scY * 0.5");
+        }
     }
 }

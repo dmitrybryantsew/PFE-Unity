@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using PFE.Data.Definitions;
 using PFE.Entities.Units;
 using PFE.Systems.Map;
@@ -147,6 +148,45 @@ namespace PFE.Entities.Enemies.Archetypes
             if (string.IsNullOrEmpty(_turretWeaponId)) return;
             if (Stats == null || !HasWeaponServices) return;
             EquipWeapon(_turretWeaponId);
+            BindTurretParts();
+        }
+
+        /// <summary>
+        /// The weapon <c>tr</c> — <c>UnitTurret.as:46-65</c>'s value, which <c>animate()</c> then feeds
+        /// to <c>vis.osn.puha.gotoAndStop(this.tr)</c> as a <em>frame number</em> (<c>:298</c>). The id
+        /// is <c>"turret" + tr</c>, so the frame is the id's tail.
+        /// </summary>
+        public int Tr
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(_turretWeaponId)) return 1;
+                return int.TryParse(_turretWeaponId.Substring(TurretMountMath.IdPrefix.Length),
+                                    NumberStyles.Integer, CultureInfo.InvariantCulture, out int tr)
+                    ? tr
+                    : 1;
+            }
+        }
+
+        /// <summary>
+        /// Hand the presenter the live aim and AI state.
+        ///
+        /// <para><b>Two binds, because the art and the weapon arrive at different times.</b>
+        /// <see cref="TurretPartPresenter.Attach"/> runs in the spawner's sprite pass, which is before
+        /// this controller exists; the weapon is equipped here, once <c>Stats</c> and the weapon services
+        /// are both present. A single bind would have to be in whichever of the two is later, and that
+        /// is not knowable from either side — so the art half is built early and the state half is
+        /// attached when it exists.</para>
+        /// </summary>
+        private void BindTurretParts()
+        {
+            EnemyWeaponMount mount = TurretWeaponMount;
+            if (mount == null) return;
+
+            TurretPartPresenter parts = GetComponentInChildren<TurretPartPresenter>(true);
+            if (parts == null) return;
+
+            parts.Bind(mount.Controller != null ? mount.Controller.State : null, Brain, Tr);
         }
 
         /// <summary>

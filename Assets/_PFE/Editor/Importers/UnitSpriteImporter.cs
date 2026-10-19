@@ -6,6 +6,7 @@ using System.Linq;
 using PFE.Data.Definitions;
 using PFE.Data.Definitions.Campaign;
 using PFE.Editor.Importers.SWF;
+using PFE.Entities.Enemies.Archetypes;
 using PFE.Systems.Particles;
 using UnityEditor;
 using UnityEditor.U2D.Sprites;
@@ -120,6 +121,14 @@ namespace PFE.Editor.Importers
             /// <summary>Total frames copied across those clips.</summary>
             public int NpcClipFrames;
 
+            /// <summary>
+            /// Griffin units wired to a separate aiming arm (AS3 <c>UnitMerc.arm</c>). Counted
+            /// separately from <see cref="UnitsWired"/> because it is a limb on a unit that already
+            /// has a body — a unit can be wired and still have no arm, and that is the state the
+            /// griffin shipped in.
+            /// </summary>
+            public int GriffinArmsWired;
+
             /// <summary>States whose row or frame count falls outside the sheet they are drawn from.</summary>
             public readonly List<string> OutOfRange = new List<string>();
 
@@ -139,6 +148,8 @@ namespace PFE.Editor.Importers
                               $"{NpcsWithNoVisual} with no visual");
                 sb.AppendLine($"npc persona clips  : {NpcClipsImported} personas, {NpcClipFrames} frames " +
                               "(the `osn` MovieClip `UnitNPC.animate()` drives)");
+                sb.AppendLine($"griffin arms wired : {GriffinArmsWired} " +
+                              "(the separate aiming limb `UnitMerc.arm`)");
                 sb.AppendLine($"states out of range : {OutOfRange.Count}");
                 sb.AppendLine($"warnings           : {Warnings.Count}");
                 return sb.ToString();
@@ -279,6 +290,23 @@ namespace PFE.Editor.Importers
 
             // Report the states the sheet cannot satisfy, after the sheets are known.
             ReportOutOfRangeStates(units, result);
+
+            // ── Pass 4: the griffin's separate aiming arm ────────────────────
+            //
+            // Deliberately last and outside the sheet pass: the arm is not a state of the body sheet,
+            // it is a limb drawn beside it, so it is neither a cell to slice nor a DisplayObject to
+            // wire to `spriteSheet`. See ImportGriffinArms for why the oracle needs it at all.
+            try
+            {
+                ImportGriffinArms(units, result);
+            }
+            catch (Exception e)
+            {
+                result.Warnings.Add($"griffin arms: pass threw {e.GetType().Name}: {e.Message}");
+            }
+
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
 
             return result;
         }
@@ -1267,6 +1295,173 @@ namespace PFE.Editor.Importers
 
             result.VisualFramesCopied += copied;
             return true;
+        }
+
+        // ── Griffin arm pass ─────────────────────────────────────────────────
+
+        /// <summary>
+        /// Import the five <c>visualGrifArm1..5</c> limbs and hang each one on its griffin.
+        ///
+        /// <para><b>Why the griffin needs a limb the body does not have.</b> Every other unit holds its
+        /// weapon at a point on its own body. <c>UnitMerc</c> overrides <c>setWeaponPos</c> to hang the
+        /// weapon on an <c>emit</c> marker inside a <b>separate rotating arm clip</b>
+        /// (<c>UnitMerc.as:29</c>, <c>:95-109</c>), so the gun follows the hand as the griffin aims
+        /// instead of sliding around its chest. Without the limb the weapon is drawn at the body hold
+        /// point and does not look held at all — the reported "its weapon does not turn to the side".</para>
+        ///
+        /// <para><b>The pivot is baked from measurement, not left at centre.</b> The arm rotates about
+        /// its registration point — the shoulder — and that point exists nowhere in the AS3 source: it
+        /// is the symbol's own registration, recoverable only from the SWF. It was measured for all five
+        /// arms (<see cref="GriffinArmMath.Variants"/>) by taking the union of each arm's <i>rendered</i>
+        /// children's bounds through their placement matrices; each result matches the exported PNG's
+        /// size to within a pixel, which is what makes the numbers trustworthy rather than plausible.</para>
+        ///
+        /// <para>Baking it here rather than compensating at runtime is deliberate: every other
+        /// DisplayObject visual in this import gets <c>SpriteAlignment.Center</c> as a documented
+        /// placeholder, and the runtime compensates for that
+        /// (<see cref="PFE.Entities.Units.UnitSpriteAnchor"/> for bodies,
+        /// <c>GriffinArmRig.BuildArt</c> for the arm). Writing the real pivot means the compensation
+        /// computes to zero and the sprite is also correct in the editor, where nothing compensates.</para>
+        /// </summary>
+        static void ImportGriffinArms(List<UnitDefinition> units, Result result)
+        {
+            foreach (UnitDefinition unit in units)
+            {
+                int variant = GriffinArmVariantFor(unit);
+                if (variant == 0)
+                {
+                    continue;
+                }
+
+                GriffinArmMath.GriffinArmVariant spec = GriffinArmMath.Variants[variant - 1];
+
+                string sourceFolder = FindVisualFolder(spec.SymbolName);
+                if (sourceFolder == null)
+                {
+                    result.Warnings.Add(
+                        $"{unit.id}: no DefineSprite_*_{spec.SymbolName} folder in pfe/sprites, so the " +
+                        "griffin keeps the body hold point instead of its hand");
+                    continue;
+                }
+
+                string targetFolder = $"{VisualArtRoot}/{spec.SymbolName}";
+                EnsureDirectory(targetFolder);
+
+                string[] pngs = Directory.GetFiles(sourceFolder, "*.png")
+                    .OrderBy(UnitSheetLayout.FrameNumberOf)
+                    .ToArray();
+
+                if (pngs.Length == 0)
+                {
+                    result.Warnings.Add($"{unit.id}: {spec.SymbolName} has no PNG frames");
+                    continue;
+                }
+
+                string firstAssetPath = null;
+                foreach (string png in pngs)
+                {
+                    int frame = UnitSheetLayout.FrameNumberOf(png);
+                    string dest = $"{targetFolder}/f{frame:D3}.png";
+                    CopyIfNewer(png, dest);
+                    if (firstAssetPath == null)
+                    {
+                        firstAssetPath = dest;
+                    }
+                }
+
+                AssetDatabase.ImportAsset(targetFolder, ImportAssetOptions.ImportRecursive);
+
+                // The pivot needs the sprite's pixel size, which needs the texture to exist — hence the
+                // import above, then a reimport once the custom pivot is written. The size comes off the
+                // PNG header rather than off the imported texture so a stale .meta cannot feed a stale
+                // size back into the pivot.
+                Vector2 size = PngPixelSize(pngs[0]);
+                if (size.x <= 0f || size.y <= 0f)
+                {
+                    result.Warnings.Add($"{unit.id}: could not read {spec.SymbolName}'s PNG size");
+                    continue;
+                }
+
+                float pivotX = spec.OriginPixels.x / size.x;
+                float pivotY = 1f - (spec.OriginPixels.y / size.y);
+
+                foreach (string png in pngs)
+                {
+                    int frame = UnitSheetLayout.FrameNumberOf(png);
+                    string assetPath = $"{targetFolder}/f{frame:D3}.png";
+
+                    var importer = AssetImporter.GetAtPath(assetPath) as TextureImporter;
+                    if (importer == null)
+                    {
+                        continue;
+                    }
+
+                    ConfigureBase(importer, MaxTextureSize);
+                    importer.spriteImportMode = SpriteImportMode.Single;
+
+                    var settings = new TextureImporterSettings();
+                    importer.ReadTextureSettings(settings);
+                    settings.spriteAlignment = (int)SpriteAlignment.Custom;
+                    settings.spritePivot = new Vector2(pivotX, pivotY);
+                    importer.SetTextureSettings(settings);
+
+                    Reimport(importer, assetPath, unit, result);
+                }
+
+                var armSprite = AssetDatabase.LoadAssetAtPath<Sprite>(firstAssetPath);
+                if (armSprite == null)
+                {
+                    result.Warnings.Add($"{unit.id}: {spec.SymbolName} imported but no Sprite could be loaded");
+                    continue;
+                }
+
+                SetPrivateField(unit, "armSprite", armSprite);
+                EditorUtility.SetDirty(unit);
+                result.GriffinArmsWired++;
+            }
+        }
+
+        /// <summary>
+        /// Which griffin arm belongs to a unit — AS3's <c>tr</c>, 1-based, or 0 for "no arm".
+        ///
+        /// <para>A one-line wrapper over <see cref="GriffinArmMath.VariantIndexForSpriteSheet"/> so the
+        /// importer and the runtime cannot disagree about which sheet pairs with which limb. The rule
+        /// itself lives in the math class, which is where it is documented and where it is testable
+        /// without the editor.</para>
+        /// </summary>
+        static int GriffinArmVariantFor(UnitDefinition unit)
+            => unit == null ? 0 : GriffinArmMath.VariantIndexForSpriteSheet(unit.spriteSheetId) + 1;
+
+        /// <summary>
+        /// A PNG's pixel size, read straight from the IHDR chunk (bytes 16-24) — no decode, no texture.
+        ///
+        /// <para>Read from the <i>source</i> rather than from the imported texture because the pivot is
+        /// written in the same step that creates the texture: a first import would have to happen with
+        /// no pivot, and a stale <c>.meta</c> from an earlier run would then feed its own size back in.
+        /// Returns zero on a file that is not a readable PNG, which the caller reports.</para>
+        /// </summary>
+        static Vector2 PngPixelSize(string path)
+        {
+            try
+            {
+                using (var stream = File.OpenRead(path))
+                {
+                    var header = new byte[24];
+                    if (stream.Read(header, 0, header.Length) < header.Length)
+                    {
+                        return Vector2.zero;
+                    }
+
+                    // 8-byte signature, 4-byte length, "IHDR", then width and height big-endian.
+                    int width  = (header[16] << 24) | (header[17] << 16) | (header[18] << 8) | header[19];
+                    int height = (header[20] << 24) | (header[21] << 16) | (header[22] << 8) | header[23];
+                    return new Vector2(width, height);
+                }
+            }
+            catch (Exception)
+            {
+                return Vector2.zero;
+            }
         }
 
         static string FindVisualFolder(string visualName)

@@ -94,10 +94,44 @@ namespace PFE.Entities.Units
             _renderer != null && _definition != null && _state.HasFrames;
 
         /// <summary>
+        /// Whether this unit's sheet carries frames for <paramref name="as3Id"/> — AS3's
+        /// <c>Boolean(anims["pre"])</c> (<c>UnitZombie.as:256, 261</c>).
+        ///
+        /// <para><b>Why a brain needs to ask before returning a state.</b> The oracle's super branches
+        /// are <c>if(aiState == 4 &amp;&amp; anims["pre"])</c> — when the row is missing it <i>falls
+        /// through</i> to the movement ladder and the zombie keeps walking. <see cref="SetState"/>
+        /// instead switches to an empty state and holds the last drawn cell, which is a different
+        /// picture: a variant with no <c>pre</c> row would freeze for the whole wind-up instead of
+        /// walking. The brain uses this to reproduce the fall-through.</para>
+        /// </summary>
+        public bool HasState(string as3Id)
+        {
+            if (string.IsNullOrEmpty(as3Id) || _definition == null || _definition.animations == null)
+            {
+                return false;
+            }
+
+            return _definition.animations.Get(as3Id).HasFrames;
+        }
+
+        /// <summary>
         /// The index into <see cref="UnitDefinition.spriteSheet"/> that should be on screen, or
         /// <c>-1</c> when the state has no frames or its cell lies outside the sheet.
         /// </summary>
         public int CurrentCellIndex => CellIndexFor(_state, _frame);
+
+        /// <summary>
+        /// The renderer this animator draws the body on.
+        ///
+        /// <para>Read by a unit part that is drawn <i>beside</i> the body rather than on it and has to
+        /// agree with it: the griffin's aiming arm
+        /// (<c>PFE.Entities.Enemies.Archetypes.GriffinArmRig</c>) copies the body's sorting layer,
+        /// sorting order and tint, because AS3 puts the arm on the same layer as <c>vis</c> and
+        /// colour-transforms it with the same matrix (<c>UnitMerc.as:52-56</c>). Without the accessor
+        /// the rig would have to guess a layer, and a guessed layer is a limb drawn behind the floor or
+        /// in front of the player.</para>
+        /// </summary>
+        public SpriteRenderer Renderer => _renderer;
 
         /// <summary>
         /// Bind this animator to a unit and start it in <paramref name="initialState"/> — AS3's
@@ -306,7 +340,9 @@ namespace PFE.Entities.Units
             // per-frame resting frame does not, so a unit that starts animating would otherwise jump by
             // the difference. UnitSpriteAnchor derives the offset from the sprite actually drawn, so a
             // correctly-pivoted cell yields zero and a centre-pivoted one yields the correction.
-            UnitSpriteAnchor.ApplyTo(_renderer, cell, _definition.registrationPoint);
+            // Same resolution the resting frame used — a turret's DisplayObject origin overrides the
+            // definition's (-1,-1), so a cell and the resting frame cannot disagree about the anchor.
+            UnitSpriteAnchor.ApplyTo(_renderer, cell, TurretSpriteOrigin.Resolve(_definition));
             _renderer.enabled = _visible && cell != null;
         }
 

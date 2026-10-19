@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using PFE.Data.Definitions;
 using PFE.Entities.Units;
+using PFE.Systems.Loot;
 using PFE.Systems.Map;
 using PFE.Systems.Weapons;
 using UnityEngine;
@@ -62,7 +63,81 @@ namespace PFE.Entities.Enemies.Archetypes
         /// <c>UnitRaider.as:351-354</c> reads <c>node0.un.@stay</c> and no other class reads that
         /// attribute, which is why the row half of <c>PlacementStaysPut</c> is gated on this family.</para>
         /// </remarks>
+        /// <summary>
+        /// The family's secondary weapons — AS3's <c>thWeapon</c>/<c>dopWeapon</c>, built by the
+        /// subclass constructor and fired on their own countdown, outside <c>attackerType</c> entirely.
+        ///
+        /// <para><b>Why the controller owns the list and not the brain.</b> Which weapon a family
+        /// carries is a class fact (<c>UnitMerc.as:30-35</c>, <c>UnitEncl.as:29-34</c>,
+        /// <c>UnitRanger.as:28-29</c>), and it is gated on data the controller already reads — the
+        /// mercenary's <c>&lt;un grenader&gt;</c> count. The brain only owns the countdown.</para>
+        /// </summary>
+        private readonly List<string> _secondaryWeaponIds = new List<string>(2);
+
+        /// <summary>The ids in <see cref="_secondaryWeaponIds"/>, for the brain's countdown.</summary>
+        public IReadOnlyList<string> SecondaryWeaponIds => _secondaryWeaponIds;
+
+        /// <summary>
+        /// Shortest <i>initial</i> <c>t_gren</c>, in ticks — the value the field is declared with
+        /// (<c>UnitMerc.as:17</c>: <c>round(random*150+50)</c>; <c>UnitRanger.as:14</c>:
+        /// <c>round(random*120+50)</c>).
+        /// </summary>
+        public int SecondaryPeriodMinTicks { get; private set; }
+
+        /// <summary>Longest <i>initial</i> <c>t_gren</c>, in ticks.</summary>
+        public int SecondaryPeriodMaxTicks { get; private set; }
+
+        /// <summary>
+        /// Shortest <c>t_gren</c> <i>re-arm</i>, in ticks (<c>UnitMerc.as:153</c>:
+        /// <c>random*150+50</c>; <c>UnitRanger.as:80</c>: <c>random*90+50</c>).
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Separate from the initial period because the ranger's differ.</b> The mercenary
+        /// arms and re-arms on the same 50–200 range, but the ranger is declared with
+        /// <c>random*120+50</c> (50–170) and re-armed with <c>random*90+50</c> (50–140) — it starts
+        /// patient and then becomes markedly quicker. Collapsing the two into one pair would make
+        /// every ranger after its first rocket wait up to 30 ticks longer than the original.</para>
+        /// </remarks>
+        public int SecondaryRearmMinTicks { get; private set; }
+
+        /// <summary>Longest <c>t_gren</c> re-arm, in ticks.</summary>
+        public int SecondaryRearmMaxTicks { get; private set; }
+
+        /// <summary>
+        /// <c>true</c> for merc/encl, whose secondary only fires on a 50 % roll <i>and</i> only with a
+        /// target in view (<c>UnitMerc.as:88-95</c>); <c>false</c> for the ranger, which always throws
+        /// one of its two (<c>UnitRanger.as:69-81</c>).
+        /// </summary>
+        public bool SecondaryFiresOnlyWithTarget { get; private set; }
+
+        /// <summary>
+        /// The mount for a secondary id, or null. Thin wrapper so the brain never has to know whether
+        /// the unit is a merc, an enclave soldier or a ranger.
+        /// </summary>
+        public EnemyWeaponMount GetSecondaryMount(int index)
+            => index >= 0 && index < _secondaryWeaponIds.Count
+                ? GetWeaponMount(_secondaryWeaponIds[index])
+                : null;
+
         protected override UnitAiFamily AiFamily => UnitAiFamily.Raider;
+
+        /// <summary>
+        /// This unit as an <see cref="ArmedShooterBrain"/> — the holder of the runtime <c>isFly</c>
+        /// flag, which the base <c>EnemyBrain</c> type does not have.
+        /// </summary>
+        protected ArmedShooterBrain ShooterBrain => _brain as ArmedShooterBrain;
+
+        /// <summary>
+        /// AS3 <c>Unit.isFly</c>, handed to the physics layer.
+        ///
+        /// <para><b>This override is the difference between a griffin and a raider.</b>
+        /// <c>UnitController.IsFlying</c> is what <c>TilePhysicsController.ApplyGravity</c> and
+        /// <c>ApplyFriction</c> test to choose the <c>isFly</c> arm of <c>forces()</c> instead of
+        /// gravity; both of those were ported and correct, and both were unreachable for an enemy
+        /// because the base answer is a constant <c>false</c>. The brain owns the state (it is what
+        /// reads the target's height and the fall timer), so the controller only forwards it.</para>
+        /// </summary>
+        protected override bool IsFlying => ShooterBrain != null && ShooterBrain.IsFlying;
 
         /// <summary>
         /// Reusable candidate buffer, so a roll allocates nothing. Filled from
@@ -121,6 +196,71 @@ namespace PFE.Entities.Enemies.Archetypes
         /// (<c>UnitRaider.as:1546-1549</c>); the brain reads this to do the same.
         /// </summary>
         public int RemainingThrows => WeaponMount != null ? WeaponMount.RemainingThrows : -1;
+
+        /// <summary>
+        /// The tier of the weapon this unit is holding — AS3 <c>currentWeapon.variant</c>, i.e. the
+        /// number that gets appended as <c>^N</c> when the gun is dropped or serialised
+        /// (<c>UnitRaider.as:184-187</c>, <c>:516-520</c>).
+        ///
+        /// <para><b>Two things set it, and both are oracle reads.</b></para>
+        /// <list type="number">
+        ///   <item><description>the placement's <c>weap='lmg^1'</c>, through
+        ///     <see cref="UnitPlacementWeapon.VariantOf"/> — the same suffix
+        ///     <see cref="UnitPlacementWeapon.BaseWeaponId"/> strips for the lookup;</description></item>
+        ///   <item><description>the hero upgrade, <c>UnitRaider.setHero</c>'s
+        ///     <c>updVariant(1)</c> (<c>:362-372</c>), rolled by
+        ///     <see cref="EnemyWeaponDropRules.ShouldUpgradeToHeroVariant"/>.</description></item>
+        /// </list>
+        ///
+        /// <para><b>The tier is recorded but not yet applied to the fired stats.</b> AS3's
+        /// <c>updVariant</c> re-runs <c>getXmlParam()</c>, so a <c>carbine^1</c> hits harder and holds
+        /// more. The port's weapon controllers read the base <see cref="WeaponDefinition"/>, and the
+        /// merge that would produce the tier-1 numbers
+        /// (<see cref="PFE.Systems.Weapons.WeaponVariantXml.MergeRuns"/>) has no runtime applier — the
+        /// same open gap that stops a player's picked-up unique from firing better. It is one gap, and
+        /// this field is the identity half of it: the drop, the pickup name and the trader price are
+        /// correct, the damage is not.</para>
+        /// </summary>
+        public int HeldWeaponVariant { get; private set; }
+
+        /// <summary>
+        /// AS3 <c>isDropArm</c> — whether this unit's corpse drops the weapon it was holding
+        /// (<c>UnitRaider.as:47, 206-209, 514-522</c>). See
+        /// <see cref="EnemyWeaponDropRules.IsDropArm"/> for the three things that clear
+        /// it; this property only supplies the inputs.
+        /// </summary>
+        public bool DropsWieldedWeapon => EnemyWeaponDropRules.IsDropArm(
+            AiFamily == UnitAiFamily.Raider, FamilyId, _placementNoDrop);
+
+        /// <summary>
+        /// The unit row's family key — <c>parentId</c> when it has one (<c>raider1</c> → <c>raider</c>),
+        /// otherwise the row's own id. The same expression <see cref="EquipFamilySecondaries"/> uses, and
+        /// the only thing that distinguishes <c>encl</c>/<c>ranger</c> from the rest of the family: both
+        /// extend <c>UnitRaider</c> and therefore share this controller, but both clear
+        /// <c>isDropArm</c> in their constructors.
+        /// </summary>
+        private string FamilyId
+        {
+            get
+            {
+                UnitDefinition def = Definition;
+                if (def == null) return null;
+                return !string.IsNullOrEmpty(def.parentId) ? def.parentId : def.id;
+            }
+        }
+
+        /// <summary>
+        /// Whether the placement carried a <c>nodrop</c> attribute — <b>presence</b>, not value
+        /// (<c>UnitRaider.as:206-209</c>). Two shipped slaver placements author <c>nodrop="1"</c>.
+        /// </summary>
+        private bool _placementNoDrop;
+
+        /// <summary>
+        /// Whether the hero-tier weapon roll has already run. It must run <b>once</b>, after the final
+        /// weapon is known: <c>ApplyPlacement</c> can re-roll a placement-fixed weapon, and a second roll
+        /// would consume a second random draw and could upgrade a weapon the first one did not.
+        /// </summary>
+        private bool _heroVariantApplied;
 
         protected override void Awake()
         {
@@ -187,6 +327,11 @@ namespace PFE.Entities.Enemies.Archetypes
             WeaponDefinition rolled = null;
             EquippedWeaponId = null;
 
+            // A re-roll must not inherit the previous weapon's tier. `ApplyPlacement` calls this again
+            // when the placement names a weapon, and a tier left standing from the first roll would be
+            // appended to an id it never belonged to.
+            HeldWeaponVariant = 0;
+
             // ── Arm 2: the placement's `weap` (UnitRaider.as:170-176) ────────────────────────────────
             //
             // Gated on the raider family because that is the only family AS3 lets read it — `UnitNecros`
@@ -210,6 +355,11 @@ namespace PFE.Entities.Enemies.Archetypes
                     // id lookup (Weapon.as:352-356). Without the strip, the two shipped placements
                     // that author `lmg^1` and `zebr^1` would resolve to nothing and fight unarmed.
                     EquippedWeaponId = UnitPlacementWeapon.BaseWeaponId(PlacementWeapText);
+                    // …and the suffix it stripped is the weapon's TIER, which AS3 keeps
+                    // (`currentWeapon.variant`) and re-appends when the corpse is looted
+                    // (UnitRaider.as:516-520). Dropping it here is what made those two placements
+                    // drop a plain gun.
+                    HeldWeaponVariant = UnitPlacementWeapon.VariantOf(PlacementWeapText);
                     TryGetWeaponDefinition(EquippedWeaponId, out rolled);
                     break;
 
@@ -290,10 +440,80 @@ namespace PFE.Entities.Enemies.Archetypes
         /// </summary>
         private void EquipRolledWeapon()
         {
-            if (string.IsNullOrEmpty(EquippedWeaponId)) return;
             if (Stats == null || !HasWeaponServices) return;
 
-            EquipWeapon(EquippedWeaponId);
+            if (!string.IsNullOrEmpty(EquippedWeaponId))
+            {
+                EquipWeapon(EquippedWeaponId);
+            }
+
+            EquipFamilySecondaries();
+
+            // The magazine rule in `UnitRaider`'s constructor (`:217-219`) runs after the weapon roll and
+            // reads the weapon's `holder`, so the brain can only finish its tuning once the mount exists.
+            ShooterBrain?.OnWeaponEquipped();
+        }
+
+        /// <summary>
+        /// Build the family's secondary weapon(s) — the <c>f='1'</c> rows the roll deliberately steps
+        /// over (<see cref="UnitWeaponSelector.SelectIndex"/>), which each subclass grants by name.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>The ammo gate is the oracle's, and it is not cosmetic.</b>
+        /// <c>UnitMerc.as:30</c> and <c>UnitEncl.as:29</c> wrap the whole creation in
+        /// <c>if(grenader &gt; 0)</c>, so <c>merc1</c>, <c>merc2</c> and <c>merc4</c> — which author no
+        /// <c>grenader</c> — carry <b>no</b> <c>mercgr</c> in the original game, even though their rows
+        /// list the candidate. Equipping it unconditionally would hand three of the five griffins a
+        /// 50-damage rocket the oracle never gives them.</para>
+        ///
+        /// <para><b>The ranger's two are unconditional.</b> <c>UnitRanger.as:28-29</c> has no gate at
+        /// all: <c>robomlau</c> when it has a target, <c>robogas</c> when it does not.</para>
+        ///
+        /// <para><b>Idempotent by construction.</b> <c>EquipWeapon</c> is per-id, and the list is
+        /// rebuilt from scratch on every call — <c>ApplyPlacement</c> destroys the mounts and re-enters
+        /// this path, so appending without clearing would grow the list on every spawn.</para>
+        /// </remarks>
+        private void EquipFamilySecondaries()
+        {
+            _secondaryWeaponIds.Clear();
+
+            UnitDefinition def = Definition;
+            if (def == null) return;
+
+            string familyId = !string.IsNullOrEmpty(def.parentId) ? def.parentId : def.id;
+
+            switch (familyId)
+            {
+                case "merc":
+                case "encl":
+                    if (def.grenadeCount <= 0) return;
+
+                    _secondaryWeaponIds.Add("mercgr");
+                    SecondaryPeriodMinTicks = 50;
+                    SecondaryPeriodMaxTicks = 200;
+                    SecondaryRearmMinTicks = 50;
+                    SecondaryRearmMaxTicks = 200;
+                    SecondaryFiresOnlyWithTarget = true;
+                    break;
+
+                case "ranger":
+                    _secondaryWeaponIds.Add("robomlau");
+                    _secondaryWeaponIds.Add("robogas");
+                    SecondaryPeriodMinTicks = 50;
+                    SecondaryPeriodMaxTicks = 170;
+                    SecondaryRearmMinTicks = 50;
+                    SecondaryRearmMaxTicks = 140;
+                    SecondaryFiresOnlyWithTarget = false;
+                    break;
+
+                default:
+                    return;
+            }
+
+            for (int i = 0; i < _secondaryWeaponIds.Count; i++)
+            {
+                EquipWeapon(_secondaryWeaponIds[i]);
+            }
         }
 
         /// <summary>
@@ -318,13 +538,29 @@ namespace PFE.Entities.Enemies.Archetypes
         {
             base.ApplyPlacement(placement);
 
+            // The base returns early on a null placement, so it never dereferences one — but this
+            // override reads `placement.attributes` below and would. A bare spawn (a test, a
+            // `loc.createUnit` with no node) is exactly that case.
+            if (placement == null) return;
+
             // The same family gate as `RollWeapon`, and it has to be here too: a necros placement
             // authoring `weap` must not trigger a re-roll, because AS3's necros never reads it.
             if (AiFamily != UnitAiFamily.Raider) return;
+
+            // `UnitRaider.as:206-209` — `if(param3 && param3.@nodrop.length()) isDropArm = false;`.
+            // Presence, not value: `nodrop="0"` disables the drop just as `nodrop="1"` does.
+            _placementNoDrop = MapObjectDataUtility.HasAttribute(placement.attributes, NoDropAttributeName);
+
             if (!_weaponRolled) return;
 
             PlacementWeaponMode mode = PlacementWeaponMode;
-            if (mode == PlacementWeaponMode.Roll) return;
+            if (mode == PlacementWeaponMode.Roll)
+            {
+                // No re-roll, but the hero tier is only known now (base.ApplyPlacement read it), so the
+                // weapon upgrade still has to be evaluated here.
+                ApplyHeroWeaponVariant();
+                return;
+            }
 
             // The definition the first roll used is gone by now; re-read it from the same source
             // `Initialize` was given. `Stats` is not it — this needs the unit row's <w> candidates,
@@ -332,6 +568,134 @@ namespace PFE.Entities.Enemies.Archetypes
             ClearWeaponMounts();
             RollWeapon(Definition);
             EquipRolledWeapon();
+
+            // After the re-roll, because a `weap`-fixed weapon is the one that ends up held.
+            ApplyHeroWeaponVariant();
+        }
+
+        /// <summary>AS3's placement attribute — <c>UnitRaider.as:206</c>.</summary>
+        public const string NoDropAttributeName = "nodrop";
+
+        /// <summary>
+        /// AS3 <c>UnitRaider.setHero</c>'s weapon half (<c>UnitRaider.as:362-372</c>) — a hero raider's
+        /// weapon can be its "II" variant, and that variant is what the corpse drops.
+        ///
+        /// <para><b>Why it runs from <c>ApplyPlacement</c> and not from the constructor.</b> The oracle
+        /// calls <c>setHero</c> from <c>Location.createUnit</c> <i>after</i> the unit is built
+        /// (<c>Location.as:1204</c>), so the weapon already exists and the placement's <c>hero</c>
+        /// attribute is already known. In the port the tier arrives on the placement, which
+        /// <c>RoomUnitSpawner</c> hands over in <c>ApplyPlacement</c> — after <c>Initialize</c> rolled.
+        /// Running here is the same order by a different route.</para>
+        ///
+        /// <para><b>Two gates, and the second one is not obvious.</b></para>
+        /// <list type="number">
+        ///   <item><description><c>hero == 1</c> — tiers 2, 3 and 4 are <c>Unit.setHero</c>'s
+        ///     armoured/damage tiers (<c>Unit.as:1651-1665</c>) and never touch the
+        ///     weapon.</description></item>
+        ///   <item><description><b><c>mHero</c></b> — <c>Unit.setHero</c> opens with
+        ///     <c>if(!this.mHero) return;</c> (<c>Unit.as:1628</c>), and <c>mHero</c> is set only by the
+        ///     unit <b>row</b>'s <c>&lt;param hero='…'&gt;</c> (<c>Unit.as:1371-1375</c>). Note the value
+        ///     is a hero <i>name</i> — <c>hero='zebra'</c> — not a tier; the numeric tier is
+        ///     <c>hero</c>, which <c>setHero</c> assigns from its argument.</description></item>
+        /// </list>
+        ///
+        /// <para><b>Why the gate here is "is this a raider family" and not "is this row an mHero row".</b>
+        /// The row flag is not imported — <c>UnitDefinition.heroType</c> is declared
+        /// (<c>UnitDefinition.cs:482</c>) and written by nothing, so the port cannot ask. The
+        /// substitution is <b>measured, not assumed</b>: only <b>6 of the 38</b> raider-family rows are
+        /// <c>mHero</c> rows (<c>raider</c>, <c>slaver</c>, <c>zebra</c>, <c>merc</c>, <c>ranger</c>,
+        /// <c>encl</c> — the six base rows), but <b>every one of the 41 shipped hero placements</b> uses a
+        /// base row, and the 6 that do not (<c>necros</c> ×2, <c>ebloat</c> ×1, <c>ant</c> ×3) are not
+        /// raider-family, so this override never sees them. A mod that placed <c>hero=</c> on a numbered
+        /// raider row (<c>raider5</c>) would diverge; importing <c>heroType</c> is the fix when someone
+        /// needs it.</para>
+        ///
+        /// <para><b>The draw is <c>UnityEngine.Random</c>, deliberately.</b> AS3's <c>isrnd</c> is
+        /// Flash's unseeded global, and the weapon roll itself uses the same source for the same reason
+        /// (see <c>RollWeapon</c>'s note): consuming the seeded room stream here would desynchronise
+        /// every later roll in the room.</para>
+        /// </summary>
+        private void ApplyHeroWeaponVariant()
+        {
+            if (_heroVariantApplied) return;
+            _heroVariantApplied = true;
+
+            if (HeroTier != EnemyWeaponDropRules.HeroTierThatUpgradesTheWeapon) return;
+            if (string.IsNullOrEmpty(EquippedWeaponId)) return;
+
+            if (!TryGetWeaponDefinition(EquippedWeaponId, out WeaponDefinition weapon) || weapon == null)
+            {
+                return;
+            }
+
+            if (!EnemyWeaponDropRules.ShouldUpgradeToHeroVariant(
+                    weapon.uniq, UnityEngine.Random.value))
+            {
+                return;
+            }
+
+            HeldWeaponVariant = EnemyWeaponDropRules.HeroVariant;
+        }
+
+        /// <summary>
+        /// AS3 <c>UnitRaider.dropLoot</c>'s second half (<c>UnitRaider.as:507-523</c>) — hide the held
+        /// gun's sprite, then (if <c>isDropArm</c>) drop it as a loot item.
+        ///
+        /// <para><b>Order and guards are the oracle's.</b> <c>super.dropLoot()</c> has already run — the
+        /// base class calls this hook after its table/essence/gem rolls — and the visual is hidden
+        /// <b>whether or not</b> the weapon is dropped, because the oracle's hide sits outside the
+        /// <c>if(isDropArm)</c> block. Only a unit with no weapon at all skips both
+        /// (<c>if(currentWeapon)</c>).</para>
+        ///
+        /// <para><b><c>if(currentWeapon)</c> is "did it roll a weapon", not "is there a mount".</b> The
+        /// gate is <see cref="EquippedWeaponId"/> — the id the roll accepted — and the mount is consulted
+        /// only to hide the sprite, through a null-conditional call. Gating the drop on the mount would
+        /// lose the gun for every unit whose weapon services arrived late or whose definition failed to
+        /// resolve, and those are exactly the cases where a silent loss is hardest to see.</para>
+        ///
+        /// <para><b><c>kol = 0</c> is not a typo.</b> That is the oracle's fifth argument
+        /// (<c>:521</c>) and it is what makes the dropped gun 5–20 % condition rather than pristine —
+        /// see <see cref="EnemyWeaponDropRules.DroppedWeaponKol"/>. <c>imp</c> is left at the roller's
+        /// default because AS3's <c>LootGen.lootId</c> takes no such argument: the drop is an ordinary
+        /// item, not one of the container-child rolls that <c>RollPlacedItems</c> marks important.</para>
+        ///
+        /// <para><b>Two other halves of the same oracle method are NOT ported, and are named here so
+        /// they cannot be mistaken for "done".</b> <c>UnitRaider.dropLoot</c> continues past the drop
+        /// with:</para>
+        /// <list type="number">
+        ///   <item><description><c>if(attackerType == 3)</c> — a <b>thrower fires three more
+        ///     <c>currentWeapon.attack()</c> shots</b> at random offsets around its own corpse
+        ///     (<c>:526-533</c>). A dying grenadier lobs a last handful; the port's corpses are inert.
+        ///     <c>attackerType</c> 3 is a weapon whose <c>tip</c> is 4, so the units this affects are
+        ///     measured: <c>raider9</c> (both candidates), <c>raider8</c> (one of three) and
+        ///     <c>merc1</c>–<c>merc5</c> (one each).</description></item>
+        ///   <item><description><c>if(dropWeapon)</c> — a second, invisible weapon built from the unit
+        ///     row's <c>&lt;un drop='…'&gt;</c> attribute (<c>:210-215</c>, <c>:349</c>) and fired
+        ///     <b>once</b> at the corpse (<c>:534-538</c>). <b>Exactly one unit authors it:
+        ///     <c>zebra2</c></b> — "Зебра-диверсант" — with <c>drop='bomb'</c>, i.e. the saboteur is
+        ///     supposed to set off a bomb when it dies. Blocked on data, not on code:
+        ///     <c>UnitExtrasParser</c> reads <c>&lt;un&gt;</c> for <c>walker</c>, <c>sniper</c>,
+        ///     <c>stay</c> and <c>glow</c> and not for <c>drop</c>, so the id never reaches a
+        ///     <see cref="PFE.Data.Definitions.UnitDefinition"/> and the unit assets would need a
+        ///     re-import to carry it.</description></item>
+        /// </list>
+        /// </summary>
+        protected override void DropWieldedWeapon(LootContext ctx, float centreY)
+        {
+            // `if(currentWeapon)` — a unit that rolled nothing (or authored `weap=""`) has no gun to
+            // hide and nothing to drop.
+            if (string.IsNullOrEmpty(EquippedWeaponId)) return;
+
+            WeaponMount?.SetHeldVisualVisible(false);        // `currentWeapon.vis.visible = false`
+
+            if (!DropsWieldedWeapon) return;                 // `if(isDropArm)`
+
+            LootRoller.RollPlacedItem(
+                EnemyWeaponDropRules.DropId(EquippedWeaponId, HeldWeaponVariant),
+                ctx,
+                kol: EnemyWeaponDropRules.DroppedWeaponKol,
+                nx: transform.position.x,
+                ny: centreY);
         }
     }
 
@@ -375,6 +739,53 @@ namespace PFE.Entities.Enemies.Archetypes
     {
         public new const string ControllerId = "UnitMerc";
         public new const string ControllerAlias = "merc";
+
+        /// <summary>
+        /// AS3 <c>UnitMerc.arm</c> — the griffin's separate aiming limb, or null when the arm art has
+        /// not been imported (<c>UnitDefinition.armSprite</c> is written by
+        /// <c>UnitSpriteImporter</c>'s griffin-arm pass).
+        ///
+        /// <para>It is built here rather than inside the weapon mount because the limb belongs to the
+        /// <i>body</i>: AS3 adds it to the same layer as <c>vis</c> and mirrors it with the unit's own
+        /// <c>storona</c>, not with the weapon's aim. The mount then asks it where the weapon goes
+        /// through <c>IWeaponHoldPointSource</c>.</para>
+        /// </summary>
+        private GriffinArmRig _arm;
+
+        /// <summary>
+        /// Build the arm <b>after</b> <c>base.Initialize</c>: the rig reads
+        /// <see cref="PFE.Entities.Units.UnitController.Stats"/> for the sheet's cell size and
+        /// registration point, and those only exist once the base has assigned the definition. The
+        /// weapon mount resolves its hold-point source lazily, so building the limb a step after the
+        /// weapon is built costs nothing and needs no ordering contract between the two.
+        /// </summary>
+        public override void Initialize(UnitDefinition definition, UnitStats stats)
+        {
+            base.Initialize(definition, stats);
+
+            if (definition == null || definition.armSprite == null)
+            {
+                return;
+            }
+
+            int variant = GriffinArmMath.VariantIndexForSpriteSheet(definition.spriteSheetId);
+            _arm = GriffinArmRig.Attach(this, definition.armSprite, variant);
+        }
+
+        /// <summary>
+        /// AS3 <c>UnitMerc.as:164-166</c> — <c>if(sost == 2 || sost == 3) arm.visible = false</c>. The
+        /// death animation is drawn without the limb, so leaving the arm on leaves a gun-holding hand
+        /// floating over a corpse.
+        /// </summary>
+        protected override void OnDeath()
+        {
+            if (_arm != null)
+            {
+                _arm.SetVisible(false);
+            }
+
+            base.OnDeath();
+        }
     }
 
     [RequireComponent(typeof(ArmedShooterBrain))]
@@ -399,5 +810,12 @@ namespace PFE.Entities.Enemies.Archetypes
         /// play-test.</para>
         /// </remarks>
         protected override UnitAiFamily AiFamily => UnitAiFamily.Necros;
+
+        /// <summary>
+        /// <c>UnitNecros.as:29</c> — <c>collisionTip = 0</c>. A necrosprite's contact hit damages
+        /// without exchanging momentum, so it neither shoves its target nor recoils off it. See
+        /// <see cref="PFE.Entities.Units.UnitController.CollisionTip"/>.
+        /// </summary>
+        public override bool CollisionTip => false;
     }
 }
