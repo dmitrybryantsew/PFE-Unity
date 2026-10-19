@@ -122,6 +122,7 @@ InitTestScene*.unity*
 
 # Local test artifacts
 /test_results.xml
+/test-results.xml
 /unity_test_log.txt
 /TestResults-PlayMode.xml
 
