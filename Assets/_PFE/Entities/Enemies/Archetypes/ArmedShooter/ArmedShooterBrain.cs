@@ -71,22 +71,111 @@ namespace PFE.Entities.Enemies.Archetypes
         /// </summary>
         [SerializeField] protected bool _canDash;
         [SerializeField] protected bool _durak = true; // allows sprinting
+        /// <summary>
+        /// AS3 <c>UnitRaider.flyer</c> (<c>UnitRaider.as:29</c>) — "this unit can fly", a <b>class</b>
+        /// fact for the two subclasses that set it in their constructors.
+        ///
+        /// <para><b>Where the value comes from, and why not from the row.</b> <c>UnitMerc.as:22</c> and
+        /// <c>UnitEncl.as:18</c> both write <c>flyer = true;</c> before <c>super()</c>. The row-side
+        /// writer (<c>UnitRaider.as:314-318</c>, <c>&lt;un flyer='1'&gt;</c>) exists in the oracle but
+        /// <b>no shipped row authors it</b> — <c>grep "flyer="</c> over <c>AllData</c> returns 0 — so in
+        /// the shipped game the flag is true for exactly the merc and encl families and false for every
+        /// other raider variant. <see cref="ApplyDefinitionTuning"/> therefore derives it from the family
+        /// id, the same way it already derives <c>maxSpok</c>.</para>
+        ///
+        /// <para><b>It was declared and never assigned</b> until this pass, which is why the animation
+        /// branch below it could not be reached and no griffin ever flew. A flag with no writer is
+        /// indistinguishable from a feature that was never ported — which is what it was.</para>
+        /// </summary>
         [SerializeField] protected bool _isFlyer;
+
+        /// <summary>
+        /// AS3 <c>Unit.isFly</c> (<c>Unit.as:284</c>) for this brain — the runtime flight state, as
+        /// opposed to <see cref="_isFlyer"/>'s capability.
+        ///
+        /// <para><b>Two writers, both from <c>UnitRaider.control()</c>:</b>
+        /// <c>:938</c> (<c>if(flyer &amp;&amp; celDY &lt; -80) isFly = true</c> — the target is well
+        /// above) and <c>:955-971</c> (six airborne ticks), and one clearer, <c>:1313-1331</c> (twenty
+        /// ticks of floor contact). The port's <c>TargetDeltaY</c> is the negation of the oracle's
+        /// <c>celDY</c> because the port's Y grows upward, so the oracle's <c>&lt; -80</c> is
+        /// <c>&gt; 80</c> here — the same flip <c>UpdateDropThrough</c> already relies on.</para>
+        /// </summary>
+        protected bool _isFly;
+
+        /// <summary>AS3 <c>t_fall</c> (<c>UnitRaider.as:955-966</c>) — consecutive airborne ticks.</summary>
+        protected int _tFall;
+
+        /// <summary>AS3 <c>t_landing</c> (<c>UnitRaider.as:1313-1327</c>) — consecutive grounded ticks.</summary>
+        protected int _tLanding;
+
+        /// <summary>AS3 <c>t_float</c> (<c>UnitRaider.as:974-980</c>) — the hover bob's phase.</summary>
+        protected float _tFloat;
+
+        /// <summary>
+        /// AS3 <c>stalkDist</c> — the radius inside which a flying unit stops approaching and hovers
+        /// (<c>UnitRaider.as:1291-1299</c>, <c>rasst2 &lt; stalkDist * stalkDist</c>).
+        ///
+        /// <para><b>A constant standing in for an unimported attribute, not a tuned value.</b> The
+        /// attribute is <c>&lt;un stalk&gt;</c>; <c>UnitDataImporter.ParseUnitExtras</c> documents it as
+        /// one of the eighteen it deliberately does not write, and <c>UnitDefinition.stalkDistance</c>
+        /// exists but is read by nothing. Shipped values for the flyers are 500 (<c>merc1</c>,
+        /// <c>merc2</c>) and 1000 (<c>merc3</c>), so 500 is the family's floor rather than a guess.</para>
+        /// </summary>
+        protected float _stalkDistance = 500f;
+
+        /// <summary>
+        /// <c>UnitRaider.as:974-980</c> — <c>t_float += 0.0512</c> per frame, then
+        /// <c>floatX = sin(t_float)</c>, <c>floatY = cos(t_float) * 2</c>. The constant is the oracle's,
+        /// not a tuning knob.
+        /// </summary>
+        protected const float FloatPhaseStep = 0.0512f;
+
+        /// <summary>How long a flying unit must stay in floor contact before it lands (<c>:1313-1327</c>).</summary>
+        protected const int LandingTicks = 20;
+
+        /// <summary>
+        /// <c>UnitRaider.as:1293-1294</c> — <c>dx *= 0.85; dy *= 0.85;</c>, the hover's per-frame damping.
+        /// The oracle <b>bleeds</b> a hovering flyer's velocity; it does not stop it. Stopping it is
+        /// what made a griffin look pinned in place instead of coasting to a halt inside its stand-off
+        /// radius.
+        /// </summary>
+        protected const float HoverDamping = 0.85f;
+
+        /// <summary>Airborne ticks before <c>isFly</c> arms (<c>UnitRaider.as:955-966</c>, <c>t_fall &gt; 6</c>).</summary>
+        protected const int FlyAfterFallTicks = 6;
+
+        /// <summary>The target's height above the unit that arms flight outright (<c>:938</c>, 80 px).</summary>
+        protected const float FlyOnTargetAbovePixels = 80f;
+
+        /// <summary>
+        /// Whether this unit is airborne <i>under its own power</i> right now — the brain's answer to AS3
+        /// <c>isFly</c>.
+        ///
+        /// <para><b>Read by <see cref="ArmedShooterController.IsFlying"/>, which is what turns gravity
+        /// off.</b> That link is the whole reason the flag has to be public: <c>UnitFlyPhysics</c> and
+        /// <c>TilePhysicsController</c>'s flyer branch were ported and correct, and unreachable, because
+        /// no enemy controller ever answered <c>true</c>.</para>
+        /// </summary>
+        public bool IsFlying => _isFly;
+
+        /// <summary>Whether this unit is a flyer at all (AS3 <c>flyer</c>), for diagnostics.</summary>
+        public bool IsFlyer => _isFlyer;
+
         [SerializeField] protected float _aiDist = 400f;
 
         /// <summary>
         /// Burst cadence in ticks (AS3 <c>aiAttackOch</c>, <c>UnitRaider.as:1525-1536</c>).
         ///
-        /// <para><b>AS3 reads this from data and the port cannot yet.</b>
-        /// <c>UnitRaider.getXmlParam()</c> assigns it from the unit's own <c>&lt;un och=…&gt;</c>
-        /// attribute — <c>if(node0.un.@och.length()) this.aiAttackOch = node0.un.@och;</c>
-        /// (<c>UnitRaider.as:319-321</c>). <c>UnitExtrasParser</c> deliberately reads only <c>res</c>
-        /// from that node, and says why: the node carries ~19 attributes and giving them writers before
-        /// anything reads them is the trap <c>canResurrect</c> was already in. So this is a <b>constant
-        /// standing in for an unimported attribute</b>, not a tuned value. Do not "balance" it. Closing
-        /// the <c>&lt;un&gt;</c> import is the work that replaces it.</para>
+        /// <para><b>Now imported, and the old constant was wrong in both directions.</b> The value is
+        /// <c>&lt;un och='…'&gt;</c> (<c>UnitRaider.as:319-321</c>), and when the row is silent AS3's
+        /// declared default is <b>0</b> — which is not "no cadence" but the 10 %-per-frame branch
+        /// (<c>:1517</c>) <i>and</i> the trigger for the constructor's magazine rule:
+        /// <c>if(currentWeapon &amp;&amp; currentWeapon.holder &gt; 10 &amp;&amp; aiAttackOch == 0)
+        /// aiAttackOch = round(holder / 2)</c> (<c>:217-219</c>). The port carried a flat <c>30</c>, so
+        /// every shooter without an authored <c>och</c> fired on a duty cycle the oracle never runs, and
+        /// <c>merc2</c>'s authored <c>och='3'</c> and <c>merc3</c>'s <c>45</c> were ignored entirely.</para>
         /// </summary>
-        protected int _aiAttackOch = 30;
+        protected int _aiAttackOch;
         protected int _aiAttackT;
 
         /// <summary>Jump cooldown (AS3 aiJump, 30..79 ticks).</summary>
@@ -128,6 +217,30 @@ namespace PFE.Entities.Enemies.Archetypes
         /// exactly one frame of "held".</para>
         /// </summary>
         protected bool _weaponTriggerHeld;
+
+        /// <summary>
+        /// AS3 <c>t_gren</c> (<c>UnitMerc.as:17</c>, <c>UnitEncl.as:13</c>, <c>UnitRanger.as:14</c>) —
+        /// the countdown before the family's secondary weapon is thrown. <c>-1</c> means "not seeded
+        /// yet"; the oracle seeds it in the constructor with <c>round(random * span + 50)</c>, which the
+        /// first tick does here because the span is the family's and the brain only learns it from the
+        /// controller.
+        /// </summary>
+        /// <remarks>
+        /// An <c>int</c>, not a <c>float</c>: the oracle declares <c>int</c> and decrements with
+        /// <c>--</c>, and the countdown is a tick count, not a duration. The re-arm range is a
+        /// <i>different</i> pair of bounds from the initial one on the ranger — see
+        /// <c>ArmedShooterController.SecondaryRearmMinTicks</c>.
+        /// </remarks>
+        protected int _secondaryTimer = -1;
+
+        /// <summary>
+        /// The secondary weapon that fires this tick, or <c>-1</c>.
+        ///
+        /// <para>A latch rather than a direct call for the same reason as
+        /// <see cref="_weaponTriggerHeld"/>: <c>EnemyWeaponMount</c> holds its trigger until told
+        /// otherwise, and <see cref="ReleaseSecondaryTrigger"/> is what tells it.</para>
+        /// </summary>
+        protected int _secondaryFiring = -1;
 
         protected override bool StopsToAttack => false;
 
@@ -210,7 +323,15 @@ namespace PFE.Entities.Enemies.Archetypes
 
             if (def.isWalker) _isWalker = true;
             if (def.isSniper) _isSniper = true;
-            if (def.detectionDistance > 0) _aiDist = def.detectionDistance;
+
+            // AS3 `aiDist` (`UnitRaider.as:323-326`, declared 1000). This used to read
+            // `detectionDistance` — AS3's *observation* power, which the importer leaves at 400 for every
+            // unit — so the ranged arm committed at 400 px where the oracle commits at 1000, and the 8
+            // rows that author `<un dist>` (500/600/700) were ignored.
+            _aiDist = def.aiDistance > 0 ? def.aiDistance : 1000f;
+
+            // AS3 `stalkDist` (`:327-330`, declared 500), the flyer's hover radius.
+            _stalkDistance = def.stalkDistance > 0 ? def.stalkDistance : 500f;
 
             string defId = def.id != null ? def.id.ToLowerInvariant() : "";
 
@@ -222,6 +343,14 @@ namespace PFE.Entities.Enemies.Archetypes
             // `encl`); the unit's own id is the fallback for a family template, which has no parent.
             string familyId = !string.IsNullOrEmpty(def.parentId) ? def.parentId : defId;
             _maxSpok = (familyId == "encl" || familyId == "merc") ? 50 : 30;
+
+            // AS3 `flyer` is a class fact, not a row attribute — `UnitMerc.as:22` and `UnitEncl.as:18`
+            // set it in their constructors and nothing in `AllData` authors `<un flyer>` (grep: 0). The
+            // port routes `merc*` through `controllerId: raider`, so the brain cannot tell the class
+            // from its own type; the family id is the fact it does have, and it is the same one the
+            // `maxSpok` line above already trusts. `merc1..5` carry `parentId: merc` and `encl1..4`
+            // `parentId: encl`, and no other unit does.
+            _isFlyer = familyId == "merc" || familyId == "encl";
 
             // ── The attack branch, read off the weapon the controller rolled ──────────────────
             //
@@ -241,7 +370,50 @@ namespace PFE.Entities.Enemies.Archetypes
             // 0 when there is no controller at all: the brain is then attached to something that is not
             // an ArmedShooter and has no weapon, which is AS3's own `!currentWeapon → 0` answer.
             _attackerType = ShooterController != null ? ShooterController.AttackerType : 0;
+
+            // ── `aiAttackOch`, the authored value then the magazine rule ──────────────────────────
+            //
+            // `UnitRaider.getXmlParam()` writes the row's `<un och>` (`:319-321`), then the CONSTRUCTOR
+            // — which runs after the weapon roll — overwrites a still-zero value from the weapon's
+            // magazine (`:217-219`). Both halves matter: `och == 0` is the 10 %-per-frame branch, and
+            // deriving it from `holder` is what makes a 12-round rifle fire in bursts while a 6-round
+            // revolver does not.
+            //
+            // The derivation needs the MOUNT, which does not exist yet when this runs during
+            // `Initialize` (the controller rolls, then calls `base.Initialize`, then equips). That is why
+            // `OnWeaponEquipped` re-enters this method once the weapon is on the unit — see
+            // `ArmedShooterController.EquipRolledWeapon`.
+            int och = def.aiAttackOch;
+            if (och == 0)
+            {
+                WeaponDefinition primary = ShooterController != null && ShooterController.WeaponMount != null
+                    ? ShooterController.WeaponMount.Definition
+                    : null;
+
+                if (primary != null && primary.magazineSize > 10)
+                {
+                    och = Mathf.RoundToInt(primary.magazineSize / 2f);
+                }
+            }
+
+            _aiAttackOch = och;
+
+            // `if(this.attackerType <= 0) this.stalkDist = 0;` (`UnitRaider.as:275-278`) — a contact
+            // attacker never hovers, whatever its family authors.
+            if (_attackerType <= 0) _stalkDistance = 0f;
         }
+
+        /// <summary>
+        /// Re-derive the tuning once the rolled weapon is mounted.
+        ///
+        /// <para><b>Why a hook and not a poll.</b> `_aiAttackOch`'s magazine rule
+        /// (<c>UnitRaider.as:217-219</c>) is a <i>constructor</i> fact — it is computed once, from the
+        /// weapon the unit ended up holding, and never recomputed. The port's equivalent moment is the
+        /// end of `ArmedShooterController.EquipRolledWeapon`, which is the first point at which the
+        /// mount exists. Re-entering the whole tuning is idempotent (every field it writes is derived),
+        /// so no separate partial-update path can drift from the full one.</para>
+        /// </summary>
+        public void OnWeaponEquipped() => ApplyDefinitionTuning();
 
         public override void SimTick(int tickIndex)
         {
@@ -259,6 +431,7 @@ namespace PFE.Entities.Enemies.Archetypes
             // this is the line that says so.
             _weaponTriggerHeld = false;
             SetWeaponTrigger(false);
+            ReleaseSecondaryTrigger();
 
             // ── AS3's freeze gate, and where it sits relative to these decrements ──────────────────
             //
@@ -285,8 +458,34 @@ namespace PFE.Entities.Enemies.Archetypes
 
             base.SimTick(tickIndex);
 
-            UpdateDropThrough();
-            UpdateJump(tickIndex);
+            // The secondary's countdown is NOT ticked here. `base.SimTick` ends in `TickWeapons`, which
+            // advances every mount — so a trigger set after it would be released at the top of the next
+            // tick before any mount ever saw it. `TickWeapons` below is where it runs.
+
+            // AS3 `UnitRaider.control()` runs the flyer block (`:938`, `:955-980`) before the state
+            // machine's own movement, so this tick's steering reads a flight state decided this tick.
+            // `IsFlying` reaches the motor's gravity pass on the following step — which is the oracle's
+            // own ordering, since `forces()` runs before `control()`.
+            UpdateFlight();
+
+            // `currentWeapon.rot` is rewritten from `celX`/`celY` on every frame of `control()`
+            // (`:663-667`), including the frames the trigger is up. Publishing it here — after the
+            // sensors and the state machine have run, so the goal is this tick's — is what makes the
+            // gun track a moving player instead of snapping to the facing between shots.
+            UpdateAim();
+
+            if (_isFly)
+            {
+                // A flying unit has no platform to drop through and no jump to make. The release is
+                // asserted rather than merely skipped: `SetDropThroughPlatforms` is a level, so not
+                // calling it would leave the last ground-side answer latched.
+                SetDropThroughPlatforms(false);
+            }
+            else
+            {
+                UpdateDropThrough();
+                UpdateJump(tickIndex);
+            }
         }
 
         /// <summary>
@@ -313,10 +512,189 @@ namespace PFE.Entities.Enemies.Archetypes
 
             if (firing && _blackboard.TargetUnit != null)
             {
-                mount.SetAimTarget(_blackboard.TargetUnit.transform.position);
+                // The target's CENTRE, not its origin. AS3's `celY` is `param1.Y - param1.scY/2`
+                // (`Unit.as:4708`), i.e. mid-body; a unit's transform sits on its feet, so aiming at
+                // `transform.position` points the barrel half a body too low — visible as a gun that
+                // fires into the floor when the shooter is a griffin hovering at head height.
+                mount.SetAimTarget(
+                    EnemySensors.GetUnitCenterPixels(_blackboard.TargetUnit) * TileQueryConstants.PixelToUnit);
             }
 
             mount.SetFiring(firing);
+        }
+
+        /// <summary>
+        /// Point the held weapon at the unit's goal on <b>every</b> tick — AS3 <c>UnitRaider.control()</c>
+        /// <c>:663-667</c>.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>The oracle writes <c>currentWeapon.rot</c> every frame, not only on a firing
+        /// frame.</b> <c>if(currentWeapon &amp;&amp; currentWeapon.drot &gt; 0) currentWeapon.rot =
+        /// Math.atan2(celY - currentWeapon.Y, Math.abs(celX - currentWeapon.X) * storona)</c>, from the
+        /// same <c>celX</c>/<c>celY</c> the movement uses. The port published an aim only from
+        /// <see cref="SetWeaponTrigger"/>, i.e. on the ticks the trigger was held — so between shots the
+        /// gun snapped back to <c>EnemyWeaponMount</c>'s facing-only fallback and never followed the
+        /// player, which is the reported "its weapon does not turn".</para>
+        ///
+        /// <para><b>Cheap and idempotent.</b> <c>SetAimTarget</c> is two field writes; the mount reads
+        /// the value once per tick and the presenter once per frame.</para>
+        /// </remarks>
+        protected virtual void UpdateAim()
+        {
+            if (_controller == null || !_controller.IsAlive) return;
+
+            ArmedShooterController ctrl = ShooterController;
+            if (ctrl == null) return;
+
+            EnemyWeaponMount mount = ctrl.WeaponMount;
+            if (mount == null) return;
+
+            mount.SetAimTarget(ResolveAimWorldPoint());
+        }
+
+        /// <summary>
+        /// The world point the held weapon should point at — the port's <c>celX</c>/<c>celY</c>, in
+        /// <b>world units</b> (the unit the mount, the presenter and the ranged controller all speak).
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Two cases, both the oracle's.</b> With a goal — a committed target, or the last
+        /// place one was seen — the weapon points at it. With no goal at all it points at the
+        /// ahead-point <c>control()</c> maintains for an idle unit:
+        /// <c>celY = Y - scY; celX = X + scX * storona * 2;</c> (<c>:682-683</c>), i.e. two body widths
+        /// forward at head height. That replaces the mount's fallback, which aims at the <i>feet</i> and
+        /// so tilts every idle NPC's gun slightly downward.</para>
+        /// </remarks>
+        protected Vector2 ResolveAimWorldPoint()
+        {
+            if (TryResolveCelPixels(out Vector2 goalPx, out _))
+            {
+                return goalPx * TileQueryConstants.PixelToUnit;
+            }
+
+            UnitDefinition def = _controller.Definition;
+            float heightPx = def != null && def.Height > 0f ? def.Height * 100f : 50f;
+            float widthPx = def != null && def.Width > 0f ? def.Width * 100f : 40f;
+
+            Vector2 feetPx = (Vector2)_controller.transform.position * 100f;
+            float facing = _controller.FacingDirection >= 0 ? 1f : -1f;
+
+            return new Vector2(feetPx.x + widthPx * 2f * facing, feetPx.y + heightPx)
+                 * TileQueryConstants.PixelToUnit;
+        }
+
+        /// <summary>
+        /// Decide this tick's secondary trigger <b>before</b> the mounts are advanced, then let the base
+        /// advance them.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Why this override exists.</b> <see cref="UpdateSecondaryWeapon"/> used to run after
+        /// <c>base.SimTick</c>, which ends in <c>TickWeapons</c>. The sequence was therefore: release the
+        /// secondary at the top of tick N, advance every mount with the trigger up, set the trigger at
+        /// the tail of tick N — and then release it again at the top of tick N+1 <i>before</i> any mount
+        /// could consume it. The trigger was never true while a mount ticked, so <c>mercgr</c>,
+        /// <c>robomlau</c> and <c>robogas</c> never fired at all. Nothing threw and nothing logged.</para>
+        ///
+        /// <para><b>Why here and not before <c>base.SimTick</c>.</b> <see cref="UpdateSecondaryWeapon"/>
+        /// reads <c>_familyState</c>, which the state machine inside <c>base.SimTick</c> decides. Sitting
+        /// on the <c>TickWeapons</c> seam keeps that read <i>this</i> tick's — the same tick the mount
+        /// consumes — which is the oracle's ordering: <c>attack()</c> runs from the state machine's combat
+        /// arms and the weapon's own step follows in the same frame.</para>
+        /// </remarks>
+        protected override void TickWeapons()
+        {
+            UpdateSecondaryWeapon();
+            base.TickWeapons();
+        }
+
+        /// <summary>
+        /// AS3's secondary weapon countdown — <c>UnitMerc.attack()</c>'s <c>t_gren</c> tail
+        /// (<c>UnitMerc.as:88-95</c>, identical in <c>UnitEncl.as:103-114</c>) and
+        /// <c>UnitRanger.attack()</c>'s (<c>UnitRanger.as:69-81</c>).
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Three differences between the two families, all in the oracle's text:</b></para>
+        /// <list type="bullet">
+        /// <item><description><b>Merc / encl</b> — one weapon (<c>mercgr</c>), re-armed to
+        /// <c>round(random*150+50)</c>, and it only throws when there is a target <i>and</i> a 50 % roll
+        /// passes: <c>if(Boolean(celUnit) &amp;&amp; isrnd()) this.thWeapon.attack();</c>.</description></item>
+        /// <item><description><b>Ranger</b> — two weapons, re-armed to <c>round(random*90+50)</c>, and it
+        /// always throws one: <c>robomlau</c> with a target, <c>robogas</c> without.</description></item>
+        /// <item><description><b>The timer re-arms whether or not the throw happened.</b> The re-arm is
+        /// outside the <c>if</c> in both classes, so a mercenary that failed its roll waits a full period
+        /// rather than retrying next frame. Moving it inside the guard would make the rocket fire on the
+        /// first frame a target appeared, every time.</description></item>
+        /// </list>
+        ///
+        /// <para><b>Gated on the combat states.</b> AS3 sets <c>aiAttack = 1</c> for states 3, 4, 6 and 8
+        /// and calls <c>attack()</c> only then (<c>:1442-1452</c>); <c>attack()</c> is not called while
+        /// patrolling, so a griffin does not lob rockets at nothing.</para>
+        /// </remarks>
+        protected virtual void UpdateSecondaryWeapon()
+        {
+            ArmedShooterController ctrl = ShooterController;
+            if (ctrl == null) return;
+            if (ctrl.SecondaryWeaponIds.Count == 0) return;
+
+            // `UnitRaider.control()` returns at `:684` when `World.w.enemyAct <= 0`, and `attack()` is
+            // called from the tail of `control()` — so a frozen shooter's `t_gren` does not advance and
+            // cannot throw. This runs on the `TickWeapons` seam, which is outside `SimTick`'s own freeze
+            // block (the base returns from `SimTick` only), so the guard has to be repeated here.
+            if (EnemyActivity.IsFrozen) return;
+
+            if (_familyState != 3 && _familyState != 4 && _familyState != 6 && _familyState != 8)
+            {
+                return;
+            }
+
+            if (_secondaryTimer < 0)
+            {
+                _secondaryTimer = UnityEngine.Random.Range(
+                    ctrl.SecondaryPeriodMinTicks, ctrl.SecondaryPeriodMaxTicks + 1);
+            }
+
+            if (--_secondaryTimer > 0) return;
+
+            bool hasTarget = _blackboard.TargetUnit != null;
+
+            bool mayFire = !ctrl.SecondaryFiresOnlyWithTarget
+                || (hasTarget && UnityEngine.Random.value < 0.5f);
+
+            if (mayFire)
+            {
+                // Ranger: `if(celUnit) dopWeapon1.attack(); else dopWeapon2.attack();`
+                int index = hasTarget || ctrl.SecondaryWeaponIds.Count < 2 ? 0 : 1;
+
+                EnemyWeaponMount mount = ctrl.GetSecondaryMount(index);
+                if (mount != null)
+                {
+                    // The same `celX`/`celY` the primary reads — AS3 maintains ONE aim point per unit
+                    // and both `currentWeapon` and `thWeapon` read it (`WThrow.shoot()` uses
+                    // `owner.celX`/`celY`, `Unit.as:4707-4708`). Aiming the rocket at
+                    // `transform.position` pointed it at the target's feet, i.e. half a body low, and
+                    // left the ranger's no-target `robogas` throw with a stale point instead of the
+                    // oracle's ahead-of-the-body idle aim.
+                    mount.SetAimTarget(ResolveAimWorldPoint());
+                    mount.SetFiring(true);
+                    _secondaryFiring = index;
+                }
+            }
+
+            // Outside the `mayFire` guard, exactly as in the oracle — and on the RE-ARM range, which
+            // is not the initial one for the ranger (`UnitRanger.as:80` = `random*90+50`).
+            _secondaryTimer = UnityEngine.Random.Range(
+                ctrl.SecondaryRearmMinTicks, ctrl.SecondaryRearmMaxTicks + 1);
+        }
+
+        /// <summary>
+        /// Release last tick's secondary trigger. Called at the top of every tick, beside
+        /// <see cref="SetWeaponTrigger"/>'s release.
+        /// </summary>
+        protected virtual void ReleaseSecondaryTrigger()
+        {
+            if (_secondaryFiring < 0) return;
+
+            ShooterController?.GetSecondaryMount(_secondaryFiring)?.SetFiring(false);
+            _secondaryFiring = -1;
         }
 
         protected virtual void UpdateDropThrough()
@@ -355,6 +733,231 @@ namespace PFE.Entities.Enemies.Archetypes
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// The flyer half of <c>UnitRaider.control()</c> — <c>:938</c> (arm on a target well above),
+        /// <c>:955-971</c> (arm after six airborne ticks), <c>:974-980</c> (the bob) and
+        /// <c>:1288-1334</c> (steer, hover, land).
+        ///
+        /// <para><b>What was missing, and why it looked ported.</b> Every piece downstream of this method
+        /// already existed: <c>UnitFlyPhysics.ApplyBrake</c> is a literal transcription of the
+        /// <c>isFly</c> arm of <c>forces()</c>, <c>TilePhysicsController.ApplyGravity</c> calls it
+        /// instead of applying gravity, and the merc family's <c>fly</c> clip (row 1, 14 frames,
+        /// looping) is imported into all five assets. What was absent was the <i>state</i>: nothing ever
+        /// set <c>flyer</c>, nothing ever set <c>isFly</c>, and <c>EnemyController</c> inherited
+        /// <c>IsFlying =&gt; false</c> from <c>UnitController</c>, so the motor's flyer branch could not
+        /// be taken by any enemy in the game. A griffin therefore walked, jumped and fell like a raider
+        /// while holding a griffin's sprite.</para>
+        ///
+        /// <para><b>The steering is the oracle's shape, not its arithmetic.</b> AS3 accumulates into
+        /// <c>dx</c>/<c>dy</c> and lets <c>forces()</c> damp the result; the port's brain seam is a
+        /// <i>desired speed</i> (<see cref="MoveHorizontal"/>) and a <i>desired velocity</i>
+        /// (<see cref="SetVerticalSpeed"/>), because the motor owns the velocity's storage. So the
+        /// current velocity is read back, the thrust vector is computed the same way — normalised,
+        /// capped at <c>accel</c>, scaled down by <c>dist²/10000</c> inside 100 px — and the two are
+        /// added, exactly as <c>dx += spd.x</c> does. The 0.85 hover damping is applied to the same
+        /// read-back velocity rather than replaced by a hard stop.</para>
+        ///
+        /// <para><b>Both halves of the bob are applied, and the goal is recomputed every tick.</b> The
+        /// previous version dropped <c>floatX</c> (a horizontal bob "fighting the motor's
+        /// <c>MoveTowards</c>") and steered on <c>EnemyBlackboard.TargetDeltaX/Y</c>. Those deltas are
+        /// written <b>only on a sighting commit</b> (<c>EnemySensors.cs:699-700</c>), so they are frozen
+        /// the moment line of sight breaks and are <b>zero</b> for a unit that was only ever alerted by
+        /// sound — which is a griffin that thrusts at nothing and just bobs up and down in place. The
+        /// oracle rewrites <c>celX</c>/<c>celY</c> every frame through <c>setCel</c>; see
+        /// <see cref="TryResolveCelPixels"/>.</para>
+        /// </summary>
+        protected virtual void UpdateFlight()
+        {
+            if (!_isFlyer || _controller == null || !_controller.IsAlive)
+            {
+                _isFly = false;
+                return;
+            }
+
+            // ── Acquisition ─────────────────────────────────────────────────────────────────────────
+            // `if(this.flyer && celDY < -80) isFly = true;` (:938). The port's Y grows upward, so the
+            // oracle's negative delta is a positive one here.
+            if (_blackboard.HasLastKnownTargetPosition
+                && _blackboard.TargetDeltaY > FlyOnTargetAbovePixels)
+            {
+                _isFly = true;
+            }
+
+            // `if(flyer) { if(stay) t_fall = 0; else { ++t_fall; if(t_fall > 6) isFly = true; } }`
+            // (:955-971). `stay` is the oracle's grounded flag.
+            //
+            // ── The landing rule needs a PUSH into the floor, not mere contact ───────────────────
+            // `:1313-1331` counts frames in which `turnY < 0`, and `turnY` is written by `run()` when a
+            // DOWNWARD move is blocked by the floor. A flyer that merely rests on the floor with
+            // `dy == 0` never sets it and therefore never lands. The port's `IsGrounded` is a proximity
+            // probe ("is there a tile 2 px under the feet"), which a resting flyer satisfies every
+            // tick — so the old test dismounted a griffin the instant it touched down, and a
+            // dismounted mercenary is a `sniper` with `moving == false`, i.e. one that stands still for
+            // the rest of the fight. A strictly downward velocity is the port's closest equivalent of
+            // `turnY < 0`: the unit is driving itself into the floor.
+            if (_controller.IsGrounded)
+            {
+                _tFall = 0;
+
+                bool pressingDown = _controller.VelocityPixelsPerFrame.y < 0f;
+                if (_isFly && pressingDown)
+                {
+                    if (++_tLanding > LandingTicks)
+                    {
+                        _isFly = false;
+                        _tLanding = 0;
+                    }
+                }
+                else
+                {
+                    // Consecutive contact only: a griffin that touches down, lifts off the floor on
+                    // the next bob tick and touches down again has not been pressing into it for
+                    // twenty frames.
+                    _tLanding = 0;
+                }
+            }
+            else
+            {
+                _tLanding = 0;
+                if (++_tFall > FlyAfterFallTicks) _isFly = true;
+            }
+
+            if (!_isFly) return;
+
+            // ── The bob, `:974-980` ─────────────────────────────────────────────────────────────────
+            _tFloat += FloatPhaseStep;
+            float floatX = Mathf.Sin(_tFloat);
+            float floatY = Mathf.Cos(_tFloat) * 2f;
+
+            // ── The goal, AS3 `celX`/`celY` ─────────────────────────────────────────────────────────
+            bool hasGoal = TryResolveCelPixels(out Vector2 goalPx, out bool goalIsLiveTarget);
+
+            Vector2 selfCenterPx = EnemySensors.GetUnitCenterPixels(_controller);
+            Vector2 delta = hasGoal ? goalPx - selfCenterPx : Vector2.zero;
+
+            // `aiNapr`/`tstor` follow `celDX` in `control()`, and the whole body sprite — the weapon's
+            // parent — mirrors on `storona`. Without this a griffin that lost its target never turned,
+            // so its gun stayed on the side it was born facing.
+            if (hasGoal && Mathf.Abs(delta.x) > 5f)
+            {
+                ApplyFacing(delta.x > 0f ? 1 : -1);
+            }
+
+            // The oracle accumulates into `dx`/`dy` and lets `forces()` damp the result; the port's
+            // seam is a desired velocity, so the current one is read back and the thrust added to it.
+            // That is what keeps the 0.7 speed cap and the `brake` deadzone in `ApplyFlightBrake`
+            // meaningful: they are what stop an accumulating thrust from growing for ever.
+            Vector2 velocity = _controller.VelocityPixelsPerFrame;
+
+            // `if(Boolean(celUnit) && rasst2 < this.stalkDist * this.stalkDist)` (:1291-1299) — close
+            // enough to a target it can actually SEE: hold station. `celUnit` is a live committed
+            // target, not "has ever seen one" — a griffin hunting a last-known position must keep
+            // flying to it, which is the whole reason the two cases are separate in the oracle.
+            if (goalIsLiveTarget && delta.sqrMagnitude < _stalkDistance * _stalkDistance)
+            {
+                // `dx *= 0.85; dx += floatX; dy += floatY;`
+                //
+                // The horizontal half coasts to rest and then sways on the spot. It is written this
+                // way rather than as one `dx * 0.85 + floatX` because the measured velocity already
+                // contains last tick's `floatX`, and feeding the bob back through a 0.85 filter
+                // integrates it: `v = 0.85 v + 1` settles at 6.7 px/frame, a griffin sliding sideways
+                // across the room. The oracle is safe from that only because `brake = 1` absorbs a
+                // bob of 0.5 (`UnitFlyPhysics` documents the pairing for `UnitNPC`); `UnitRaider`'s
+                // bob is 2, four times the value the deadzone was sized for.
+                float hoverX = velocity.x * HoverDamping;
+                if (Mathf.Abs(hoverX) < 1f)
+                {
+                    hoverX = floatX;
+                }
+
+                MoveHorizontal(hoverX);
+                SetVerticalSpeed(floatY);
+                return;
+            }
+
+            // `else { spd.x = celX - X; spd.y = celY - (Y - scY/2); norma(spd, min(accel,
+            // accel * dist² / 10000)); dx += spd.x + floatX; dy += spd.y + floatY; }` (:1300-1325).
+            float accel = _controller.Definition != null && _controller.Definition.acceleration > 0f
+                ? _controller.Definition.acceleration
+                : 2f;
+
+            float distSq = delta.sqrMagnitude;
+            float thrust = Mathf.Min(accel, accel * distSq / 10000f);
+
+            Vector2 step;
+            if (distSq > 0.0001f)
+            {
+                step = delta * (thrust / Mathf.Sqrt(distSq));
+            }
+            else
+            {
+                step = Vector2.zero;
+            }
+
+            // Horizontal accumulates (momentum toward the goal, capped by the flyer brake); vertical
+            // is commanded outright. The vertical bob is deliberately NOT fed back into the command —
+            // same integration argument as the hover above, and on this axis it would be a slow climb
+            // to the ceiling rather than a sway.
+            MoveHorizontal(velocity.x + step.x);
+            SetVerticalSpeed(step.y + floatY);
+        }
+
+        /// <summary>
+        /// The flight goal in <b>world pixels</b> — AS3 <c>celX</c>/<c>celY</c>, which
+        /// <c>setCel</c> rewrites every frame (<c>Unit.as:4703-4733</c>: the target's centre while it is
+        /// committed, the last committed point otherwise).
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Why the blackboard's cached deltas cannot be used for this.</b>
+        /// <c>TargetDeltaX/Y</c> and <c>TargetDistance</c> are written on exactly one branch of
+        /// <c>EnemySensors.Evaluate</c> — the sighting commit (<c>EnemySensors.cs:695-700</c>). They
+        /// are frozen the moment line of sight breaks, and a sound-only commit never writes them at
+        /// all, so they stay at their <c>Reset</c> values of <c>0</c>. A flyer steering on them either
+        /// thrusts along a stale vector or thrusts at nothing: it hovers, bobs, and never closes.</para>
+        ///
+        /// <para><b>One recorded approximation.</b> <c>LastKnownTargetPosition</c> is stored at the
+        /// target's <i>feet</i> (<c>EnemySensors.cs:697</c>) while the oracle's <c>celY</c> is its
+        /// centre, so a flyer heading for a remembered position aims half a body low. It is not
+        /// corrected here because the same field drives the walkers' jump height
+        /// (<c>UnitJumpMath.ShouldJump</c>) and the F3 overlay, where the feet are the right point.</para>
+        /// </remarks>
+        /// <param name="goalPx">The goal, in world pixels.</param>
+        /// <param name="isLiveTarget">
+        /// <c>true</c> when the goal is the currently committed target — the oracle's
+        /// <c>celUnit != null</c>, which is the gate on the hover branch.
+        /// </param>
+        protected bool TryResolveCelPixels(out Vector2 goalPx, out bool isLiveTarget)
+        {
+            isLiveTarget = false;
+
+            if (_blackboard.TargetUnit != null)
+            {
+                goalPx = EnemySensors.GetUnitCenterPixels(_blackboard.TargetUnit);
+                isLiveTarget = true;
+                return true;
+            }
+
+            // A sound-only commit is `setCel(null, X + rand*200 - 100, Y + rand*200 - 100)`
+            // (`Unit.as:4683-4686`) — a GOAL, with `celUnit` deliberately left null. Without this arm a
+            // griffin that was only ever alerted by a gunshot has no goal at all and hovers where it
+            // stands; the walkers get this from `EnemyBrain.TickAlert`, which a flyer never reaches
+            // because its own movement ladder runs after the state machine.
+            if (_blackboard.HasHeardNoise)
+            {
+                goalPx = _blackboard.LastHeardNoisePosition;
+                return true;
+            }
+
+            if (_blackboard.HasLastKnownTargetPosition)
+            {
+                goalPx = _blackboard.LastKnownTargetPosition;
+                return true;
+            }
+
+            goalPx = Vector2.zero;
+            return false;
         }
 
         public override void Alarma(float sourceX = -1f, float sourceY = -1f)
@@ -449,7 +1052,11 @@ namespace PFE.Entities.Enemies.Archetypes
                 StopMovement();
                 if (_aiTCh <= 0)
                 {
-                    if (_blackboard.TargetUnit != null)
+                    // `if(celUnit)` in `UnitRaider.as:698-715` — a COMMITTED target, not merely a
+                    // non-null one. See the identical note in `RobotBrain.TickAlert`: a stale
+                    // `TargetUnit` plus a drained budget promoted into a chase that bailed on its
+                    // first tick. The `else` arm is the oracle's `else { aiState = 1; }`.
+                    if (_blackboard.TargetUnit != null && !ChaseBudgetExhausted)
                     {
                         _familyState = 3;
                         SetState(EnemyAIState.CombatChase);
@@ -549,7 +1156,10 @@ namespace PFE.Entities.Enemies.Archetypes
 
             if (speed > 0f)
             {
-                HandleLedgeAhead(tickIndex);
+                // AS3's ledge reaction (`checkJump`/`shX1`) is the ground arm of `control()`. A flyer
+                // never takes it: there is no ledge to fall off, and `HandleLedgeAhead` would reverse
+                // a griffin in mid-air at the edge of a catwalk.
+                if (!_isFly) HandleLedgeAhead(tickIndex);
                 float dir = dx >= 0 ? 1f : -1f;
                 MoveHorizontal(dir * speed);
             }
@@ -858,8 +1468,11 @@ namespace PFE.Entities.Enemies.Archetypes
         {
             if (_blackboard.TargetUnit == null || _controller == null) return;
 
-            // Emit noise
-            _controller.MakeNoise(250, true);
+            // No noise here. A real shot is announced by ProjectileSpawner.AnnounceShot from the
+            // weapon's own `<snd noise>` (AS3 `Weapon.as:1581`); this path exists only for a unit
+            // whose mount failed to build, and it spawns no projectile, so there is no weapon to
+            // take a radius from. `MakeNoise(250, true)` was invented.
+            // See docs/EnemyImplementationGuides/AUDIT_noise_sources_2026-10-19.md.
 
             // Directly report simulated ranged combat or contact impact
             float baseDamage = _controller.Definition != null ? _controller.Definition.damage : 10f;
@@ -890,7 +1503,8 @@ namespace PFE.Entities.Enemies.Archetypes
         protected virtual void FireThrownAttack()
         {
             if (_blackboard.TargetUnit == null || _controller == null) return;
-            _controller.MakeNoise(180, true);
+            // No noise — same reason as FireRangedAttack: this is the no-mount fallback, and the
+            // thrown weapon's own `<snd noise>` is what the oracle charges when it actually lands.
 
             float baseDamage = _controller.Definition != null ? _controller.Definition.damage * 1.5f : 15f;
             Vector2 targetPos = (Vector2)_blackboard.TargetUnit.transform.position * 100f;
@@ -945,6 +1559,16 @@ namespace PFE.Entities.Enemies.Archetypes
             // -> run; a walker patrolling -> walk; otherwise -> trot.
             if (_controller.IsGrounded)
             {
+                // A grounded flyer plays `walk`, never `trot`/`run`: `UnitMerc.animate()`'s `stay`
+                // branch is `if(dx == 0) "stay"; else "walk";` with no third option. This is not
+                // cosmetic — `merc1..5` author `trot` and `run` with `length: 0`, so the raider mapping
+                // below would show an empty clip, i.e. a griffin with no sprite at all while it walks
+                // to its hover distance.
+                if (_isFlyer)
+                {
+                    return currentSpeed < 0.1f ? "stay" : "walk";
+                }
+
                 if (currentSpeed < 0.1f || _familyState == 7)
                 {
                     return "stay";
@@ -963,22 +1587,15 @@ namespace PFE.Entities.Enemies.Archetypes
                 return "trot";
             }
 
-            // `else if(this.flyer) { if(isFly) "derg"; else "stay"; }` (UnitRaider.as:445-455).
-            //
-            // `derg` is a REAL row — raider, slaver and zebra each author one
-            // (AllData.as:84/218/320) — and it used to be parser-dropped, which is why this returned the
-            // invented `"fly"`. `"fly"` is not one of UnitRaider.animate()'s ids at all and no raider
-            // sheet authors it, so the old return could only ever blank the sprite.
-            //
-            // ⚠ BOTH halves of the oracle's test are still missing, so this arm stays unreachable:
-            // `_isFlyer` is declared and never assigned (the `<param>` attribute that would set it is not
-            // imported), and the port has no equivalent of AS3's runtime `isFly`. The branch is kept
-            // faithful rather than deleted so those two missing writers are visible exactly where they
-            // are needed, and it takes the oracle's `isFly` arm — a unit that is a flyer and is airborne
-            // is flying.
-            if (_isFlyer)
+            // `else if(this.flyer) { if(isFly) "derg"; else "stay"; }` is `UnitRaider.animate()`'s arm
+            // (`:445-455`), and it is NOT the arm the reported units take: `UnitMerc.animate()`
+            // (<c>:196-217</c>) and `UnitEncl.animate()` (<c>:157-170</c>) both override it with
+            // `else if(isFly || aiPlav || levit) "fly";` — the clip the merc/encl sheets actually
+            // author (`<blit id='fly' y='1' len='14' rep='1'/>`). Returning `derg` here, as this arm
+            // used to, would have been the raider's answer for a griffin.
+            if (_isFlyer && _isFly)
             {
-                return "derg";
+                return "fly";
             }
 
             // AS3's remaining arms — `levit` -> `derg`, `isLaz && mostLaz` -> `laz`, `aiPlav` -> `plav` —
