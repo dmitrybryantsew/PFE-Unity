@@ -1,5 +1,6 @@
 using PFE.Data.Definitions;
 using PFE.Entities.Units;
+using PFE.Systems.Weapons;
 using UnityEngine;
 
 namespace PFE.Entities.Enemies.Archetypes
@@ -96,6 +97,53 @@ namespace PFE.Entities.Enemies.Archetypes
                 _brain.SetState(EnemyAIState.Idle);
             }
         }
+
+        /// <summary>
+        /// <c>UnitZombie.setWeaponPos</c> (<c>UnitZombie.as:175-179</c>) — the spit weapon is held
+        /// <b>30 px ahead of the body centre</b> and <b>0.8 of the body height above the feet</b>, on the
+        /// side the unit is facing.
+        ///
+        /// <para><b>Why this has to be answered here and not left at the base rule.</b> The base
+        /// <c>Unit.setWeaponPos</c> is the inherited default and the zombie is one of the 21 classes that
+        /// override it. Without the override the venom lands from a grip point a full body width to the
+        /// side of the mouth, which is visible on every spit and looks like a muzzle-offset bug rather
+        /// than the missing per-class constant it is. <c>WeaponHoldRule</c> carries the count.</para>
+        /// </summary>
+        protected override WeaponHoldRule ResolveHoldRule() => WeaponHoldRule.Zombie;
+
+        /// <summary>
+        /// AS3 <c>currentWeapon.attack()</c> for the spit skills — equip the weapon this skill fires,
+        /// aim it at <paramref name="aimWorldPoint"/> and fire one shot.
+        ///
+        /// <para><b>One shot, not a held trigger.</b> The oracle's <c>attack()</c> is a single call, so
+        /// this goes through <see cref="EnemyWeaponMount.FireOnce"/>, which presses and releases inside
+        /// one mount tick. See that method for what holding the trigger would actually cost — for a
+        /// semi-auto weapon it is a lockout and an inflated <c>pow</c>, not a burst.</para>
+        ///
+        /// <para><b>Not <c>MarkAutomaticTrigger</c>.</b> That clears the semi-auto <c>t_auto</c>
+        /// debounce so a held trigger can re-arm, which is what an NPC pushing every frame needs. A
+        /// zombie presses once and releases, which is the ordinary semi-auto cycle — the same reason
+        /// raiders are deliberately left without it.</para>
+        /// </summary>
+        /// <param name="weaponId">The weapon id, from <c>ZombieSuperMath.WeaponId</c>. Null is a
+        /// no-op: a skill that fires nothing is not an error.</param>
+        public void FireSuperWeapon(string weaponId, Vector2 aimWorldPoint)
+        {
+            if (string.IsNullOrEmpty(weaponId))
+            {
+                return;
+            }
+
+            EnemyWeaponMount mount = EquipWeapon(weaponId);
+            if (mount == null)
+            {
+                // EquipWeapon already logged why (no WeaponDefinition for the id).
+                return;
+            }
+
+            mount.SetAimTarget(aimWorldPoint);
+            mount.FireOnce();
+        }
     }
 
     [RequireComponent(typeof(ZombieBrain))]
@@ -158,5 +206,12 @@ namespace PFE.Entities.Enemies.Archetypes
     {
         public const string ControllerId = "UnitSpectre";
         public const string ControllerAlias = "spectre";
+
+        /// <summary>
+        /// <c>UnitSpectre.as:33</c> — <c>collisionTip = 0</c>. A ghost passes through rather than
+        /// body-checking, so its contact hit does no momentum exchange. See
+        /// <see cref="PFE.Entities.Units.UnitController.CollisionTip"/>.
+        /// </summary>
+        public override bool CollisionTip => false;
     }
 }

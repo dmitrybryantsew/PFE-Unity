@@ -3,11 +3,11 @@ namespace PFE.Entities.Enemies
     /// <summary>
     /// Shared high-level behavioral states for enemy AI brains.
     ///
-    /// <para><b>Values 0-3 are AS3's <c>aiState</c> integers and mean what AS3 means by them. Values 4-7
-    /// are NOT, and the comments here used to claim they were</b> — which is worse than a plain omission,
-    /// because a state-to-animation table written from those comments draws the wrong row and looks
-    /// plausible while doing it. In <c>UnitZombie.as</c>: <c>4</c> is the super wind-up (<c>pre</c>),
-    /// <c>5</c> is <b>buried</b>, <c>6</c> is <b>digging out</b>, <c>7</c> is the <b>super attack</b>.
+    /// <para><b>Values 0-3 and 4-6 are AS3's <c>aiState</c> integers and mean what AS3 means by them;
+    /// 7 and 9 are the port's, and the split is deliberate.</b> In <c>UnitZombie.as</c>: <c>4</c> is the
+    /// super wind-up (<c>pre</c>), <c>5</c> is <b>buried</b>, <c>6</c> is <b>digging out</b>, <c>7</c> is
+    /// the <b>super attack</b>. The port keeps 4/5/6 as-is, uses <see cref="Attack"/> (7) for its own
+    /// stop-and-swing construct that AS3 does not have, and puts AS3's 7 at <see cref="SuperAttack"/> (9).
     /// "Shock" is the separate <c>shok</c> field, not a state, and death is <c>sost</c>, also not a
     /// state.</para>
     /// </summary>
@@ -35,9 +35,9 @@ namespace PFE.Entities.Enemies
 
         /// <summary>
         /// AS3 <c>aiState 4</c> — the super-attack wind-up, which plays the <c>pre</c> row
-        /// (<c>UnitZombie.as:256-260</c>). <b>Not ported</b>: it needs <c>setSuper()</c> and the
-        /// <c>&lt;un ss=…&gt;</c> data. This member previously claimed to be a "ranged hold", which is a
-        /// state AS3 does not have at 4.
+        /// (<c>UnitZombie.as:256-260</c>) for <c>tPrepSuper</c> ticks. Reached from
+        /// <c>ZombieBrain</c>'s <c>aiZlo</c> trigger; the tick that takes the timer to zero calls
+        /// <c>superSila()</c> and promotes to <see cref="SuperAttack"/>.
         /// </summary>
         PrepareSuper = 4,
 
@@ -68,6 +68,23 @@ namespace PFE.Entities.Enemies
         /// An archetype opts in by returning <c>true</c> from <c>StopsToAttack</c>.</para>
         /// </summary>
         Attack = 7,
+
+        /// <summary>
+        /// AS3 <c>aiState 7</c> — the <b>super attack</b>, which plays the <c>super</c> row
+        /// (<c>UnitZombie.as:261-264</c>).
+        ///
+        /// <para><b>Why 9 and not 7.</b> 7 is already taken by <see cref="Attack"/>, the port's
+        /// stop-and-swing construct, which AS3 does not have at all. The two cannot share a value: a
+        /// shared code path that mapped <see cref="Attack"/> to the <c>super</c> row would play the
+        /// empowered animation for an ordinary melee swing, and the zombie is exactly the family where
+        /// that would show — it is the only one that authors both. Renumbering <see cref="Attack"/>
+        /// instead would break every serialized reference to it.</para>
+        ///
+        /// <para>The state is entered only by <c>ZombieBrain</c> today, from the wind-up
+        /// (<see cref="PrepareSuper"/>), and lasts <c>tSuper</c> ticks before returning to
+        /// <see cref="CombatChase"/> with a fresh 50..99-tick timer.</para>
+        /// </summary>
+        SuperAttack = 9,
 
         /// <summary>
         /// Dying or deceased. Simulation disabled or waiting for despawn/corpse conversion.

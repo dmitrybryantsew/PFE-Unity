@@ -125,6 +125,13 @@ namespace PFE.Core
                 case EnemyAIState.Attack:
                     return "Attack (PORT-ONLY: AS3's 7 is the super attack, not this)";
 
+                // Deliberately adjacent to Attack: these two are the collision the label exists to
+                // expose. AS3's 7 is the super; the port parked it at 9 because it used 7 for its own
+                // stop-and-swing state, so printing a bare 9 (or a bare 7) would invite exactly the
+                // wrong mapping. A reader comparing the two lines sees why they cannot be merged.
+                case EnemyAIState.SuperAttack:
+                    return "SuperAttack (AS3 aiState 7 — the `super` row; held at 9 because the port's 7 is Attack)";
+
                 case EnemyAIState.Dead:
                     return "Dead (AS3 `sost`, not an aiState at all)";
 

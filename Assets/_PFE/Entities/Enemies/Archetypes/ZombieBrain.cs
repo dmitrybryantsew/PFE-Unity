@@ -27,17 +27,19 @@ namespace PFE.Entities.Enemies.Archetypes
     /// (<c>:120-127</c>), so a room's zombies are a mix of walkers and ambushers. See
     /// <see cref="PFE.Entities.Enemies.EnemyAIState.Buried"/>.</para>
     ///
-    /// <para><b>What is still deliberately not modelled, and why.</b> <c>UnitZombie</c> is the largest
-    /// unit script in the oracle — 1239 lines — and the remainder is the <b>super</b> system
-    /// (<c>setSuper</c>/<c>findSuper</c>/<c>superSila</c>/<c>superSila2</c>/<c>superSilaVse</c>,
-    /// <c>:954-1228</c>), <b>resurrection</b> (<c>t_res</c>/<c>resurrect</c>, <c>:495-525</c>), the
-    /// <b>quake</b> and the two venom weapons. None of it is reachable without the data that drives it:
-    /// <c>superSilaTip</c> comes from <c>&lt;un ss=…&gt;</c> and <c>isRes</c> from <c>&lt;un res/&gt;</c>
-    /// — and the port's <c>UnitDefinition</c> has a reader for <c>res</c>
-    /// (<see cref="UnitDefinition.canResurrect"/>) but <b>not</b> for <c>ss</c>. So the variants that
-    /// carry those attributes (zombie2, zombie5, ...) will behave as plain ghouls until that workstream
-    /// lands — except that <c>canResurrect</c> is now read by nothing but the importer, so a resurrecting
-    /// variant still looks identical to a plain one.</para>
+    /// <para><b>The super system is ported</b> — <c>setSuper()</c>/<c>findSuper()</c>/<c>superSila()</c>/
+    /// <c>superSila2()</c>/<c>superSilaVse()</c> (<c>:954-1228</c>), driven by
+    /// <c>&lt;un ss='N'/&gt;</c> (<see cref="UnitDefinition.superSkill"/>). Nine variants carry it and
+    /// each is a different attack, not a multiplier: 1/9 pounce, 2 telekinesis, 3 venom, 4 acid,
+    /// 5 radiation, 6 quake, 7 necro + telekinesis, 8 pink + a death blast. The arithmetic lives in
+    /// <see cref="ZombieSuperMath"/> so it can be pinned offline; this class owns the state machine.
+    /// <c>zombie0</c> — the plain ghoul — authors no <c>ss</c> and therefore behaves exactly as it did
+    /// before this workstream.</para>
+    ///
+    /// <para><b>Resurrection is ported too</b> — the 300-tick <c>t_res</c> countdown
+    /// (<c>:495-525</c>) lives on <see cref="ZombieController"/> because it outlives the brain's state
+    /// machine; this class drives the countdown and the <c>die</c> row's last 20 ticks with their
+    /// <c>die_spark</c> emission (<c>:219-230</c>).</para>
     /// </summary>
     public sealed class ZombieBrain : EnemyBrain
     {
@@ -47,7 +49,6 @@ namespace PFE.Entities.Enemies.Archetypes
         /// <c>:938</c> as <c>celDX &lt; this.optDistAtt &amp;&amp; celDX &gt; -this.optDistAtt</c>.
         /// </summary>
         private const float OptDistAttackPixels = 200f;
-
         /// <summary>
         /// The vertical half-extent of the same window — <c>UnitZombie.as:938</c>
         /// <c>celDY &lt; 80 &amp;&amp; celDY &gt; -80</c>. Not a field in the oracle; it is a literal
@@ -73,6 +74,121 @@ namespace PFE.Entities.Enemies.Archetypes
         private float _unburiedEar = 1f;
 
         private bool _buriedEarCaptured;
+
+        // ── The super system — AS3 UnitZombie.as:35-79 and :954-1228 ────────────────────────────────
+        //
+        // The field names are the oracle's on purpose, so a reader can diff this block against
+        // `setSuper()` line by line. Only the units the data actually assigns differ in meaning from
+        // AS3's declared defaults.
+
+        /// <summary>
+        /// AS3 <c>superSilaTip</c> — the raw <c>&lt;un ss='N'/&gt;</c> value
+        /// (<see cref="UnitDefinition.superSkill"/>). <c>0</c> = no super, which is <c>zombie0</c> and
+        /// the family template.
+        /// </summary>
+        private int _superSkill;
+
+        /// <summary>
+        /// <see cref="ZombieSuperMath.EffectiveSkill"/> of <see cref="_superSkill"/> — <c>9</c> already
+        /// rewritten to <c>1</c>, exactly as <c>setSuper()</c> does (<c>UnitZombie.as:962-969</c>).
+        /// Every downstream test reads this, never the raw value.
+        /// </summary>
+        private int _effectiveSkill;
+
+        /// <summary>AS3 <c>setSuper()</c>'s derived table — timings, speeds and the contact window.</summary>
+        private ZombieSuperMath.Tuning _superTuning = ZombieSuperMath.Resolve(0);
+
+        /// <summary>
+        /// AS3 <c>aiZlo</c> (<c>:77</c>) — the chase's grudge meter. It grows one per tick while chasing
+        /// and fires the super once it passes <c>tZlo</c>.
+        /// </summary>
+        private int _aiZlo;
+
+        /// <summary>
+        /// AS3 <c>tSuper</c>, <b>mutable</b>: the pounce overwrites it with a distance-derived value
+        /// (<c>:1116-1120</c>), every other skill keeps the table's constant.
+        /// </summary>
+        private int _superTicks;
+
+        /// <summary>
+        /// AS3 <c>super_on</c> (<c>:65</c>) — true from <c>superSila()</c> until the first tick that is
+        /// <i>not</i> state 7 (<c>:741-744</c>). It is what makes the tear-down idempotent and, more
+        /// importantly, what makes it happen one tick AFTER the state ends — the oracle's order.
+        /// </summary>
+        private bool _superOn;
+
+        /// <summary>
+        /// AS3 <c>superX</c>/<c>superY</c>, already converted to <b>this port's room-local pixels
+        /// (Y up)</b>. <c>superX &lt;= 0</c> is the oracle's "no destination found" sentinel and is kept
+        /// as such — <c>findSuper()</c> failing is a real outcome, not an error.
+        /// </summary>
+        private float _superX;
+        private float _superY;
+
+        /// <summary>
+        /// The pounce's per-tick velocity in AS3 units (px/frame), re-asserted every tick of state 7.
+        /// AS3 holds these constant by setting <c>grav = 0</c>; the port has no per-unit gravity
+        /// override, so it corrects the velocity instead — see <see cref="MaintainPounceVelocity"/>.
+        /// </summary>
+        private float _pounceVelocityX;
+        private float _pounceVelocityY;
+
+        /// <summary>
+        /// AS3 <c>teleUnit</c> (<c>:49</c>) — the unit being dragged. Nulled by
+        /// <see cref="SuperSilaVse"/>, by the target's death, and when the zombie dies.
+        /// </summary>
+        private UnitController _teleUnit;
+
+        /// <summary>AS3 <c>radMax</c>/<c>radMin</c>/<c>radioactiv</c>/<c>radrad</c> for skill 5.</summary>
+        private float _radMax = 1f;
+        private float _radMin = 1f;
+        private float _radCurrent;
+        private float _radRadius = ZombieSuperMath.RadiationRadiusMin;
+        private float _radHeal = ZombieSuperMath.DefaultRadHeal;
+
+        /// <summary>AS3 <c>vDestroy</c> — the wall-destroy speed while chasing (state 2/3/7 only).</summary>
+        private float _vDestroy = ZombieSuperMath.DefaultVDestroy;
+
+        /// <summary>
+        /// The contact window's half-width. AS3 <c>optDistAtt</c> is 200 and ss 7 raises it to 400
+        /// (<c>:1019</c>) — a real reach difference, not decoration.
+        /// </summary>
+        private float _optDistAttack = OptDistAttackPixels;
+
+        /// <summary>
+        /// The countdown ticks that still owe a <c>die_spark</c> emission. AS3 emits three sparks per
+        /// frame while <c>t_res &lt; 20</c> (<c>:219-230</c>); the port needs to know it already played
+        /// them for this death so a corpse re-entering the tick does not spray for ever.
+        /// </summary>
+        private int _resurrectSparksTicks;
+
+        /// <summary>
+        /// The state this unit was in when it fell, restored by <see cref="TickResurrectCorpse"/>.
+        /// AS3 does not need a field for this — <c>resurrect()</c> never touches <c>aiState</c>, so the
+        /// value simply survives the death. The port's <see cref="EnemyAIState.Dead"/> overwrites it, so
+        /// the last live state has to be remembered explicitly.
+        /// </summary>
+        private EnemyAIState _stateBeforeDeath = EnemyAIState.Idle;
+
+        public override void SetState(EnemyAIState newState)
+        {
+            if (newState == EnemyAIState.Dead && _currentState != EnemyAIState.Dead)
+            {
+                _stateBeforeDeath = _currentState;
+            }
+
+            base.SetState(newState);
+        }
+
+        /// <summary>
+        /// A despawned zombie must not leave its victim floating. AS3 clears <c>levit</c> in
+        /// <c>superSilaVse()</c> and relies on the unit object surviving; the port destroys the
+        /// GameObject on room unload, and the target outlives it.
+        /// </summary>
+        private void OnDisable()
+        {
+            ClearTelekinetic();
+        }
 
         protected override void Awake()
         {
@@ -119,20 +235,93 @@ namespace PFE.Entities.Enemies.Archetypes
         /// </summary>
         public override void SimTick(int tickIndex)
         {
-            if (_controller is ZombieController zc && !zc.IsAlive && zc.CanResurrect)
-            {
-                zc.UpdateResurrectTick();
-            }
+            bool wasDead = _controller != null && !_controller.IsAlive;
 
-            // AS3 decrements `aiJump` near the top of `UnitZombie.control()` (`:582-585`), ahead of the
-            // `aiState` branch that tests it (`:839`). The order matters only at the boundary where the
-            // cooldown reaches zero: the oracle decrements first and tests after, so this does too.
-            _jumpCooldownTicks = UnitJumpMath.Tick(_jumpCooldownTicks);
+            if (wasDead)
+            {
+                // AS3 `UnitZombie.die()` opens with `superSilaVse()` (`:351-355`) — a zombie that dies
+                // mid-pull releases its victim rather than leaving them levitated for ever. The port
+                // does it on the first dead tick instead of inside the death event, because the brain
+                // has no death hook and `_superOn` makes it a one-shot anyway.
+                if (_superOn)
+                {
+                    SuperSilaVse();
+                }
+
+                // AS3 `control()` opens with `if(sost == 3) { … return; }` (`UnitZombie.as:536-551`), so
+                // the resurrection countdown is the ONLY thing a dead zombie does — no jump cooldown, no
+                // state machine, no super. The base still ticks so the corpse animates.
+                TickResurrectCorpse();
+            }
+            else
+            {
+                // AS3 decrements `aiJump` near the top of `UnitZombie.control()` (`:582-585`), ahead of
+                // the `aiState` branch that tests it (`:839`). The order matters only at the boundary
+                // where the cooldown reaches zero: the oracle decrements first and tests after, so this
+                // does too.
+                _jumpCooldownTicks = UnitJumpMath.Tick(_jumpCooldownTicks);
+            }
 
             base.SimTick(tickIndex);
 
+            if (wasDead)
+            {
+                return;
+            }
+
+            // AS3 steps 13-15 of `control()` (`:723-744`) — the grudge meter, the trigger and the
+            // tear-down. They run AFTER the state chain and BEFORE the movement branch, which is why
+            // this sits between the base tick and the two movement hooks below.
+            UpdateSuperState();
+
             UpdateDropThroughPlatforms();
             UpdateJump(tickIndex);
+        }
+
+        /// <summary>
+        /// AS3 <c>control()</c>'s <c>sost == 3</c> block (<c>UnitZombie.as:536-551</c>) — the
+        /// resurrection countdown, plus the <c>die</c> row's spark shower for its last 20 ticks
+        /// (<c>:219-230</c>).
+        ///
+        /// <para><b>The sparks are emitted here rather than in <c>animate()</c></b> because the port's
+        /// animation selection is a pure state lookup and has no business making particles; the oracle
+        /// happens to do both in one method, but that is a Flash idiom, not a rule.</para>
+        /// </summary>
+        private void TickResurrectCorpse()
+        {
+            if (!(_controller is ZombieController zc) || !zc.CanResurrect)
+            {
+                return;
+            }
+
+            // `if(sost == 3 && isRes && this.t_res < 20)` — three sparks per frame, scattered across the
+            // body and up to 10 px above the feet.
+            if (zc.ResurrectTimer < 20 && _resurrectSparksTicks != zc.ResurrectTimer && _controller != null)
+            {
+                _resurrectSparksTicks = zc.ResurrectTimer;
+
+                Vector2 feet = (Vector2)transform.position * 100f;
+                float halfWidth = _controller.Stats != null ? _controller.Stats.Width * 50f : 25f;
+
+                for (int i = 0; i < 3; i++)
+                {
+                    float x = feet.x + (UnityEngine.Random.value - 0.5f) * 2f * halfWidth;
+                    float y = feet.y - UnityEngine.Random.value * 10f;
+                    _controller.EmitParticle("die_spark", new Vector2(x, y));
+                }
+            }
+
+            zc.UpdateResurrectTick();
+
+            // `resurrect()` leaves `aiState` alone (`:495-524`) — it only resets `hp`, `sost`, `t_res`,
+            // `tZlo` and `aiTCh`. The port therefore restores the state the unit was in when it fell,
+            // rather than snapping to Idle: a ghoul that died mid-chase gets straight back up and
+            // carries on, which is what makes a `res='1'` variant feel unkillable.
+            if (_controller.IsAlive)
+            {
+                _resurrectSparksTicks = 0;
+                SetState(_stateBeforeDeath);
+            }
         }
 
         /// <summary>
@@ -595,6 +784,39 @@ namespace PFE.Entities.Enemies.Archetypes
             // `maxSpeed = runSpeed;` at aiState 3. `runSpeed` is `node.@run` (Unit.as:1072).
             _alertSpeed = definition.RunSpeed * 0.6f;
             _chaseSpeed = definition.RunSpeed;
+
+            ApplyDefinitionSuper(definition);
+        }
+
+        /// <summary>
+        /// AS3 <c>setSuper()</c> (<c>UnitZombie.as:954-1037</c>) — turn the row's <c>ss</c> into the
+        /// timing table, the weapon and the aura constants.
+        ///
+        /// <para><b>Called from the same place the oracle calls it</b> — the constructor, after
+        /// <c>getXmlParam()</c> has read <c>ss</c>. Here that is <c>OnDefinitionAssigned</c>, because the
+        /// port's definition arrives with <c>Initialize</c> rather than with the constructor.</para>
+        /// </summary>
+        private void ApplyDefinitionSuper(UnitDefinition definition)
+        {
+            _superSkill = definition.superSkill;
+            _effectiveSkill = ZombieSuperMath.EffectiveSkill(_superSkill);
+            _superTuning = ZombieSuperMath.Resolve(_superSkill);
+            _superTicks = _superTuning.TSuper;
+            _optDistAttack = _superTuning.OptDistAttack;
+            _vDestroy = _superTuning.VDestroy;
+
+            if (_effectiveSkill == ZombieSuperMath.Radiation)
+            {
+                // `radioactiv = radMin = 1; radMax = 20; radrad = radradMin = 120; radradMax = 1200;`
+                // (:1004-1007). `setLevel` scales radMax by 1 + 0.05*level and radHeal by 1 + 0.16*level
+                // (:171-172); the port has no unit level at spawn, so both keep their base values and
+                // that is recorded in the audit rather than guessed at.
+                _radMin = 1f;
+                _radMax = 20f;
+                _radCurrent = _radMin;
+                _radRadius = ZombieSuperMath.RadiationRadiusMin;
+                _radHeal = ZombieSuperMath.DefaultRadHeal;
+            }
         }
 
         // ── The digger: a zombie that waits buried in the floor ─────────────────────────────────────
@@ -862,7 +1084,14 @@ namespace PFE.Entities.Enemies.Archetypes
             {
                 // `super.alarma()` runs before the state change in the oracle (:336), so the unit still
                 // records where the noise came from — which is what it will chase once it is out.
-                _sensors.RaiseAlarm(_blackboard, damageSourcePx, durationTicks: 90);
+                //
+                // `caughtUnawares: true` keeps the zombie path exactly as it was. The zombie's own gate
+                // is `aiState <= 1 || aiState == 5` (`UnitZombie.as:334`), and the port has no separate
+                // "caught mid-hesitation" state to test the second arm against, so narrowing this would
+                // be a guess. Recorded as an open item rather than silently changed — the robot half
+                // (`UnitAIRobot.as:134`) is the one that had a user-visible symptom.
+                _sensors.RaiseAlarm(
+                    _blackboard, damageSourcePx, durationTicks: 90, caughtUnawares: true);
                 BeginDigging();
                 return;
             }
@@ -956,7 +1185,7 @@ namespace PFE.Entities.Enemies.Archetypes
         /// </summary>
         protected override bool IsTargetInAttackRange()
         {
-            return Mathf.Abs(_blackboard.TargetDeltaX) < OptDistAttackPixels
+            return Mathf.Abs(_blackboard.TargetDeltaX) < _optDistAttack
                 && Mathf.Abs(_blackboard.TargetDeltaY) < ContactAttackVerticalPixels;
         }
 
@@ -989,11 +1218,576 @@ namespace PFE.Entities.Enemies.Archetypes
                 return;
             }
 
-            attacker.TryContactAttack(target, scale);
+            bool hit = attacker.TryContactAttack(target, scale);
+
+            // `if(attKorp(...) || isrnd(0.2)) { if(aiZlo > 80) aiZlo -= 25; }` (:940-946) — landing a
+            // blow calms the grudge, which is why a zombie that is actually connecting takes longer to
+            // reach its super than one that keeps missing.
+            if ((hit || UnityEngine.Random.value < 0.2f) && _aiZlo > 80)
+            {
+                _aiZlo -= 25;
+            }
+
+            // `if(superSilaTip == 7 && isrnd(0.1)) currentWeapon.attack();` (:947-950) — the necro
+            // variant also bolts its target between supers.
+            if (_effectiveSkill == ZombieSuperMath.NecroSpit && UnityEngine.Random.value < 0.1f)
+            {
+                FireSuperWeapon();
+            }
+        }
+
+        // ── The super system: state 4 (wind-up) → state 7 (the attack) ─────────────────────────────
+        //
+        // The oracle's control() is one long if/else chain; these methods are its arms, in its order.
+        // The arithmetic is in ZombieSuperMath; what is here is the state, the ordering and the wiring
+        // into the port's motor and damage seams.
+
+        /// <summary>
+        /// AS3 <c>control()</c> steps 13-15 (<c>UnitZombie.as:723-744</c>) — the grudge meter, the
+        /// trigger that starts a super, and the tear-down.
+        ///
+        /// <para><b>All three run on every live tick, whatever the state.</b> The meter only grows in
+        /// the chase, but the trigger's second term is <c>aiState == 3</c> as well as <c>celUnit</c>, and
+        /// the tear-down is a test on the <i>previous</i> tick's <c>super_on</c> — so all three have to
+        /// be evaluated outside the state dispatch, which is exactly where the oracle puts them: after
+        /// the chain and before the movement branch.</para>
+        /// </summary>
+        private void UpdateSuperState()
+        {
+            // `if(aiState == 3 && aiZlo < tZlo + 10) ++aiZlo;` (:723-726). The cap is +10 above the
+            // threshold, so a zombie that keeps hitting a target without ever firing still saturates.
+            if (_currentState == EnemyAIState.CombatChase && _aiZlo < _superTuning.TZlo + 10)
+            {
+                _aiZlo++;
+            }
+
+            // `if(ss > 0 && aiZlo > tZlo && (celUnit || aiState == 3))` (:727-740).
+            if (_superSkill > 0
+                && _aiZlo > _superTuning.TZlo
+                && (_blackboard.TargetUnit != null || _currentState == EnemyAIState.CombatChase))
+            {
+                if (_teleUnit == null)
+                {
+                    _teleUnit = _blackboard.TargetUnit;
+                }
+
+                // `findSuper()` is called ONLY for skills 1 and 2 (:733-736). Skill 7 shares their
+                // pull logic but deliberately starts with no destination — `superSila2` captures one
+                // 20 ticks into state 7 instead. Calling it here "for consistency" would change where
+                // a necro zombie drags its victim.
+                if (_effectiveSkill == ZombieSuperMath.Pounce || _effectiveSkill == ZombieSuperMath.Telekinesis)
+                {
+                    FindSuper();
+                }
+
+                _aiZlo = 0;
+                SetState(EnemyAIState.PrepareSuper);
+                _blackboard.StateTimerTicks = _superTuning.TPrepSuper;
+                return;
+            }
+
+            // `if(aiState != 7 && super_on) superSilaVse();` (:741-744) — one tick AFTER state 7 ends,
+            // because the state already moved to 3. Running it in the state-7 exit instead would be a
+            // tick early; it matters for the pounce, whose velocity would be cleared on the tick the
+            // oracle still holds `grav = 0`.
+            if (_currentState != EnemyAIState.SuperAttack && _superOn)
+            {
+                SuperSilaVse();
+            }
         }
 
         /// <summary>
-        /// AS3 <c>UnitZombie.animate()</c> (<c>UnitZombie.as:215-320</c>) — the animation state the
+        /// AS3's <c>aiState == 4</c> arm (<c>UnitZombie.as:607-615</c>) — count the wind-up down, then
+        /// launch and promote to state 7.
+        /// </summary>
+        protected override void TickPrepareSuper(int tickIndex)
+        {
+            if (_superSkill <= 0)
+            {
+                // Unreachable: only UpdateSuperState enters this state and it tests `ss > 0` first. A
+                // guard rather than an assumption, because the failure mode is a zombie frozen in a
+                // wind-up for ever, with nothing on screen to say why.
+                SetState(EnemyAIState.CombatChase);
+                return;
+            }
+
+            if (_blackboard.StateTimerTicks > 0)
+            {
+                _blackboard.StateTimerTicks--;
+                return;
+            }
+
+            SuperSila();
+
+            SetState(EnemyAIState.SuperAttack);
+
+            // `aiTCh = this.tSuper` AFTER `superSila()`, because the pounce overwrites `tSuper` with a
+            // distance-derived value inside it (:1116-1120). Reading it before would give a pounce the
+            // table's 20 ticks regardless of how far it had to travel.
+            _blackboard.StateTimerTicks = _superTicks;
+        }
+
+        /// <summary>
+        /// AS3's <c>aiState == 7</c> arm (<c>UnitZombie.as:616-620</c>) plus the per-tick
+        /// <c>superSila2()</c> call at <c>:706-709</c>.
+        /// </summary>
+        protected override void TickSuperAttack(int tickIndex)
+        {
+            if (_blackboard.StateTimerTicks > 0)
+            {
+                _blackboard.StateTimerTicks--;
+                SuperSila2();
+                return;
+            }
+
+            SetState(EnemyAIState.CombatChase);
+
+            // `aiTCh = floor(random() * 50) + 50` (:619) — 50..99. `Random.Range(50, 100)` is the
+            // integer overload, so the upper bound is exclusive and the range is the oracle's.
+            _blackboard.StateTimerTicks = UnityEngine.Random.Range(50, 100);
+        }
+
+        /// <summary>
+        /// AS3 <c>superSila()</c> (<c>UnitZombie.as:1100-1152</c>) — the moment the attack fires.
+        /// </summary>
+        private void SuperSila()
+        {
+            _superOn = true;
+
+            switch (_effectiveSkill)
+            {
+                case ZombieSuperMath.Pounce:
+                    LaunchPounce();
+                    break;
+
+                case ZombieSuperMath.VenomSpit:
+                case ZombieSuperMath.AcidSpit:
+                case ZombieSuperMath.PinkSpit:
+                    FireSuperWeapon();
+                    break;
+
+                case ZombieSuperMath.Radiation:
+                    StartRadiationBurst();
+                    break;
+
+                case ZombieSuperMath.Quake:
+                    // `loc.budilo(X, Y, 1000)` (:1149) — the only thing superSila does for skill 6;
+                    // the shockwaves themselves are superSila2's four-tick beat.
+                    Budilo(1000f);
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// AS3 <c>superSila2()</c> (<c>UnitZombie.as:1154-1204</c>) — the per-tick half of state 7.
+        /// </summary>
+        private void SuperSila2()
+        {
+            switch (_effectiveSkill)
+            {
+                case ZombieSuperMath.Pounce:
+                    // `grav = 0` (:1159-1162). The port has no per-unit gravity override, so it holds
+                    // the launch velocity instead — see MaintainPounceVelocity.
+                    MaintainPounceVelocity();
+                    break;
+
+                case ZombieSuperMath.Telekinesis:
+                case ZombieSuperMath.NecroSpit:
+                    TickTelekinesis();
+                    break;
+
+                case ZombieSuperMath.Radiation:
+                    _radCurrent = ZombieSuperMath.RadiationDecay(
+                        _radCurrent, _radMax, _radMin, _superTuning.TSuper);
+                    break;
+
+                case ZombieSuperMath.Quake:
+                    // `if(aiTCh % 4 == 1) quake(12)` (:1197-1203).
+                    if (ZombieSuperMath.IsQuakeBeat(_blackboard.StateTimerTicks))
+                    {
+                        Quake();
+                    }
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// AS3 <c>superSilaVse()</c> (<c>UnitZombie.as:1206-1227</c>) — put everything back. Called one
+        /// tick after state 7 ends, and from death (<c>:351-355</c>).
+        /// </summary>
+        private void SuperSilaVse()
+        {
+            _superOn = false;
+
+            switch (_effectiveSkill)
+            {
+                case ZombieSuperMath.Pounce:
+                    // `maxSpeed = vJump + 3; grav = 1;` (:1211-1212). The speed half is the oracle's
+                    // post-landing limp; the port's speed ladder re-derives maxSpeed from the state
+                    // every tick, so only the velocity reset has an equivalent here.
+                    _pounceVelocityX = 0f;
+                    _pounceVelocityY = 0f;
+                    break;
+
+                case ZombieSuperMath.Telekinesis:
+                case ZombieSuperMath.NecroSpit:
+                    ClearTelekinetic();
+                    break;
+
+                case ZombieSuperMath.Radiation:
+                    // `radioactiv = radMin; radrad = radradMin;` (:1222-1226).
+                    _radCurrent = _radMin;
+                    _radRadius = ZombieSuperMath.RadiationRadiusMin;
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// AS3 <c>findSuper()</c> (<c>UnitZombie.as:1039-1098</c>), called at the trigger for skills 1
+        /// and 2. Converts into and out of the oracle's coordinate space around the pure search.
+        /// </summary>
+        private void FindSuper()
+        {
+            if (_controller == null || _tileQuery == null || _tileQuery.Room == null)
+            {
+                _superX = -1f;
+                _superY = 0f;
+                return;
+            }
+
+            if (!TryGetSuperCoordinates(out float celX, out float celY, out float selfX, out float selfY))
+            {
+                _superX = -1f;
+                _superY = 0f;
+                return;
+            }
+
+            RoomInstance room = _tileQuery.Room;
+            float roomHeightPx = room.height * TileQueryConstants.TileSize;
+            float tileSize = TileQueryConstants.TileSize;
+            float bodyHeightPx = UnitHeightPixels;
+
+            ZombieSuperMath.FindSuper(
+                _effectiveSkill,
+                celX,
+                celY,
+                selfX,
+                selfY,
+                bodyHeightPx,
+                tileSize,
+                (col, as3Row) => IsAirAtAs3Tile(room, col, as3Row),
+                out float as3X,
+                out float as3Y);
+
+            // `superX` is an X coordinate and is the same in both spaces; only Y flips. The `<= 0`
+            // sentinel is preserved rather than converted, or a failed search would become a valid
+            // position at the room's bottom edge.
+            _superX = as3X;
+            _superY = as3X <= 0f ? 0f : ZombieSuperMath.As3YToPortY(as3Y, roomHeightPx);
+        }
+
+        /// <summary>
+        /// The four numbers <c>findSuper()</c> reads, in AS3's space: the target's centre and this
+        /// unit's body centre + feet.
+        ///
+        /// <para><b>The target's centre comes from the blackboard, not from its transform.</b>
+        /// <c>EnemySensors</c> writes <c>TargetDeltaX/Y</c> as <i>target centre − eye</i>, and the eye is
+        /// the body centre — so composing them keeps one definition of "where the target is" and works
+        /// in <c>Alert</c>, where the target is remembered rather than seen.</para>
+        /// </summary>
+        private bool TryGetSuperCoordinates(out float celX, out float celY, out float selfX, out float selfY)
+        {
+            celX = celY = selfX = selfY = 0f;
+
+            Vector2 origin = _tileQuery.OriginPixel;
+            float roomHeightPx = _tileQuery.Room.height * TileQueryConstants.TileSize;
+
+            Vector2 feetWorldPx = (Vector2)transform.position * 100f;
+            selfX = feetWorldPx.x - origin.x;
+
+            float feetPortY = feetWorldPx.y - origin.y;
+            selfY = ZombieSuperMath.PortYToAs3Y(feetPortY, roomHeightPx);
+
+            Vector2 eyePx = GetEyePositionPixels();
+            float targetCentrePortY = (eyePx.y + _blackboard.TargetDeltaY) - origin.y;
+            celX = (eyePx.x + _blackboard.TargetDeltaX) - origin.x;
+            celY = ZombieSuperMath.PortYToAs3Y(targetCentrePortY, roomHeightPx);
+
+            return true;
+        }
+
+        /// <summary>
+        /// AS3 <c>loc.getTile(col, row).phis == 0</c> — is this tile air? The row is converted from the
+        /// oracle's top-down indexing to this port's bottom-up one, and an out-of-bounds tile answers
+        /// <c>true</c> because <c>getTile</c> returns the zero-initialised <c>otstoy</c> sentinel there
+        /// (<c>Location.as:2324-2331</c>).
+        /// </summary>
+        private static bool IsAirAtAs3Tile(RoomInstance room, int col, int as3Row)
+        {
+            int portRow = ZombieSuperMath.As3RowToPortRow(as3Row, room.height);
+            TileData tile = room.GetTileAtCoord(new Vector2Int(col, portRow));
+
+            return tile == null || tile.physicsType == TilePhysicsType.Air;
+        }
+
+        /// <summary>
+        /// AS3 <c>superSila()</c>'s pounce arm (<c>:1107-1123</c>) — launch, and remember the velocity
+        /// so <see cref="MaintainPounceVelocity"/> can hold it.
+        /// </summary>
+        private void LaunchPounce()
+        {
+            // `if(superX > 0 && superY > 0 && stay)` (:1109). `stay` is the oracle's grounded flag: a
+            // pounce from mid-air has nothing to push off.
+            if (_controller == null || !_controller.IsGrounded)
+            {
+                return;
+            }
+
+            if (_tileQuery == null || _tileQuery.Room == null)
+            {
+                return;
+            }
+
+            Vector2 origin = _tileQuery.OriginPixel;
+            float roomHeightPx = _tileQuery.Room.height * TileQueryConstants.TileSize;
+
+            Vector2 feetWorldPx = (Vector2)transform.position * 100f;
+            float selfX = feetWorldPx.x - origin.x;
+            float selfPortY = feetWorldPx.y - origin.y;
+
+            if (!ZombieSuperMath.TryPounce(
+                    _superX,
+                    _superY,
+                    selfX,
+                    selfPortY,
+                    _superTuning.VJump,
+                    out float vx,
+                    out float vy,
+                    out int ticks))
+            {
+                // The oracle's own outcome when `findSuper()` found no landing column: the wind-up
+                // played, state 7 runs for `tSuper` ticks, and nothing happens. Do NOT fall back to the
+                // target's position — that would turn a failed search into a different attack.
+                return;
+            }
+
+            _pounceVelocityX = vx;
+            _pounceVelocityY = vy;
+            _superTicks = ticks;
+
+            // One absolute assignment now, so the launch is instant as AS3's `dx = …` is, then the
+            // per-tick maintenance below keeps it there.
+            Vector2 current = _controller.VelocityPixelsPerFrame;
+            _controller.AddVelocityPixelsPerFrame(new Vector2(vx - current.x, vy - current.y));
+
+            // The desired speed is what the motor steers toward; setting it stops the motor from
+            // braking the launch back toward zero on the very next step.
+            MoveHorizontal(vx);
+            SetVerticalSpeed(vy);
+        }
+
+        /// <summary>
+        /// Holds the pounce's velocity for the whole of state 7 — the port's substitute for AS3's
+        /// <c>grav = 0</c> (<c>:1159-1162</c>).
+        ///
+        /// <para><b>Why a correction rather than a flag.</b> Both movement drivers apply gravity and
+        /// friction <i>after</i> the brain ticks, and neither exposes a per-unit gravity scale. Adding
+        /// back exactly what the step took away each tick reproduces "dy never changes" without
+        /// touching the physics layer, and it works identically on the motor and motor-less paths —
+        /// which matters because which one is live is a project setting, not a property of this unit.
+        /// The residual error within a single step is at most one tick of gravity.</para>
+        /// </summary>
+        private void MaintainPounceVelocity()
+        {
+            if (_controller == null) return;
+
+            Vector2 current = _controller.VelocityPixelsPerFrame;
+            _controller.AddVelocityPixelsPerFrame(
+                new Vector2(_pounceVelocityX - current.x, _pounceVelocityY - current.y));
+
+            MoveHorizontal(_pounceVelocityX);
+            SetVerticalSpeed(_pounceVelocityY);
+        }
+
+        /// <summary>
+        /// AS3 <c>currentWeapon.attack()</c> for the three spit skills (<c>:1126-1129</c>) and the
+        /// 10 %-per-contact-tick swing skill 7 adds (<c>:947-950</c>).
+        /// </summary>
+        private void FireSuperWeapon()
+        {
+            if (!(_controller is ZombieController zc))
+            {
+                return;
+            }
+
+            // The weapon is a function of the skill, and `WeaponId` already folds ss 9 into ss 1 and
+            // returns null for every skill that spits nothing — so a skill with no weapon is a silent
+            // no-op here rather than a guard the caller has to repeat.
+            string weaponId = ZombieSuperMath.WeaponId(_superSkill);
+            if (string.IsNullOrEmpty(weaponId))
+            {
+                return;
+            }
+
+            // `FireOnce`, not `SetFiring(true)`: AS3's `attack()` is a single call, and the mount owns
+            // the press/release pair so no cross-tick state is needed here.
+            zc.FireSuperWeapon(weaponId, ResolveAimWorldPoint());
+        }
+
+        /// <summary>
+        /// Where the spit is aimed: the target's body centre when there is one, otherwise the point
+        /// ahead of the muzzle. Same shape as <c>ArmedShooterBrain.ResolveAimWorldPoint</c>.
+        /// </summary>
+        private Vector2 ResolveAimWorldPoint()
+        {
+            if (_blackboard.TargetUnit != null)
+            {
+                UnitController target = _blackboard.TargetUnit;
+                float height = target.Stats != null ? target.Stats.Height * 100f : 50f;
+                return (Vector2)target.transform.position * 100f + new Vector2(0f, height * 0.5f);
+            }
+
+            Vector2 eye = GetEyePositionPixels();
+            int facing = _controller != null ? _controller.FacingDirection : 1;
+            return eye + new Vector2(facing * 100f, 0f);
+        }
+
+        /// <summary>
+        /// AS3 <c>superSila()</c>'s radiation arm (<c>:1130-1146</c>) — open the aura, then heal every
+        /// living zombie inside it.
+        /// </summary>
+        private void StartRadiationBurst()
+        {
+            _radCurrent = _radMax;
+            _radRadius = ZombieSuperMath.RadiationRadiusMax;
+
+            // The oracle walks `loc.units` and heals every `UnitZombie` with `sost == 1`. The port has
+            // no room-owned unit list, so it sweeps the scene the same way
+            // `EnemyBrain.RefreshTargetCandidates` does — one definition of "the units in this room",
+            // already used by every other cross-unit query.
+            Vector2 selfPx = (Vector2)transform.position * 100f;
+            float radius = _radRadius;
+            float heal = _radHeal;
+
+            var zombies = FindObjectsByType<ZombieController>(FindObjectsSortMode.None);
+            for (int i = 0; i < zombies.Length; i++)
+            {
+                ZombieController other = zombies[i];
+                if (other == null || !other.IsAlive || other.Stats == null) continue;
+
+                float distance = Vector2.Distance((Vector2)other.transform.position * 100f, selfPx);
+                float amount = ZombieSuperMath.RadiationHeal(heal, radius, distance);
+                if (amount > 0f)
+                {
+                    other.UnitStats.Heal(amount);
+                }
+            }
+
+            if (_controller != null)
+            {
+                _controller.EmitParticle("radioblast", selfPx + new Vector2(0f, UnitHeightPixels * 0.5f));
+            }
+
+            // NOT ported, and recorded rather than approximated: `ggModum()` damages the PLAYER through
+            // `UnitPlayer.raddamage`, which accumulates into the player's `drad`/`rad` stat. The port
+            // has no radiation stat at all (PlayerInventory logs `@hrad` as unmodelled), so the damage
+            // half of this aura has nowhere to land. Healing the other zombies is the half that does.
+        }
+
+        /// <summary>
+        /// AS3 <c>superSila2()</c>'s telekinetic arm (<c>:1163-1192</c>).
+        /// </summary>
+        private void TickTelekinesis()
+        {
+            // `if(aiTCh == 30) { superX = X; superY = Y; }` (:1165-1168) — capture the anchor 20 ticks
+            // into state 7 (tSuper is 50 for these skills), so the victim is dragged to where the
+            // zombie stood AFTER it had already closed in.
+            if (_blackboard.StateTimerTicks == 30 && _tileQuery != null && _tileQuery.Room != null)
+            {
+                Vector2 origin = _tileQuery.OriginPixel;
+                Vector2 feetWorldPx = (Vector2)transform.position * 100f;
+                _superX = feetWorldPx.x - origin.x;
+                _superY = feetWorldPx.y - origin.y;
+            }
+
+            if (_teleUnit == null || !_teleUnit.IsAlive)
+            {
+                ClearTelekinetic();
+                return;
+            }
+
+            // `if(teleUnit && teleUnit.levit != 1)` (:1170). The port's `levit == 1` is a unit that
+            // already holds itself up — a flyer or the player's own levitation — and the oracle refuses
+            // to grab those.
+            if (_teleUnit.IsFlyingUnit || _teleUnit.IsLevitated)
+            {
+                return;
+            }
+
+            if (_tileQuery == null || _tileQuery.Room == null)
+            {
+                return;
+            }
+
+            Vector2 targetOrigin = _tileQuery.OriginPixel;
+            Vector2 targetPx = (Vector2)_teleUnit.transform.position * 100f;
+            float targetPortX = targetPx.x - targetOrigin.x;
+            float targetPortY = targetPx.y - targetOrigin.y;
+
+            ZombieSuperMath.TelekinesisStep(
+                _superX,
+                _superY,
+                targetPortX,
+                targetPortY,
+                _teleUnit.VelocityPixelsPerFrame,
+                out Vector2 delta);
+
+            // `teleUnit.levit = 2` — asserted every tick, exactly as the oracle does, so a target that
+            // died and was revived mid-pull is still held.
+            _teleUnit.SetLevitated(true);
+
+            if (delta.sqrMagnitude > 0f)
+            {
+                _teleUnit.AddVelocityPixelsPerFrame(delta);
+            }
+        }
+
+        /// <summary>
+        /// AS3 <c>superSilaVse()</c>'s telekinetic half (<c>:1214-1221</c>) — release the victim.
+        /// </summary>
+        private void ClearTelekinetic()
+        {
+            if (_teleUnit != null && _teleUnit.IsLevitated)
+            {
+                _teleUnit.SetLevitated(false);
+            }
+
+            _teleUnit = null;
+        }
+
+        /// <summary>
+        /// AS3 <c>quake()</c> (<c>UnitZombie.as:526-531</c>) — a shout, a screen shake and a dust
+        /// burst, scaled by <c>superQuake</c>.
+        ///
+        /// <para><b>The wall destruction is not ported.</b> <c>loc.earthQuake</c> shakes the camera and
+        /// <c>destroyWall</c> (<c>:486-493</c>) breaks tiles the unit walks into; the port has no
+        /// tile-destruction path for units at all — <c>TileData</c> carries hit points but nothing calls
+        /// them for an enemy. Recorded as a gap, not silently dropped: a skill-6 zombie here shakes and
+        /// shouts but does not open the floor.</para>
+        /// </summary>
+        private void Quake()
+        {
+            Budilo(500f);
+
+            if (_controller != null)
+            {
+                Vector2 feet = (Vector2)transform.position * 100f;
+                _controller.EmitParticle("quake", feet + new Vector2(UnityEngine.Random.Range(-20f, 20f), 0f));
+            }
+        }
+
+        /// <summary>
+        /// AS3 <c>animate()</c> (<c>UnitZombie.as:215-320</c>) — the animation state the
         /// oracle would select this frame, reduced to the branches this slice can reach.
         ///
         /// <para><b>The oracle's branch order is the whole point.</b> It tests <c>sost</c> (dead?) first,
@@ -1011,12 +1805,10 @@ namespace PFE.Entities.Enemies.Archetypes
 
             if (!_controller.IsAlive)
             {
-                // AS3 `sost` is 1 alive, 2 dead, 3 dead-with-resurrection-pending. The port has no
-                // `t_res` countdown, so `sost == 3` is unreachable and both dead states take the block
-                // below. `UnitDefinition.canResurrect` now carries the data (`res='1'` on zombie7/8/9)
-                // but still has no reader — UnitZombie.as:218-232, the countdown that draws `die` for
-                // its last 20 ticks, is not modelled. That is why a resurrecting variant currently
-                // looks identical to a plain one.
+                // AS3 `sost` is 1 alive, 2 dead, 3 dead-with-resurrection-pending. The countdown is now
+                // ported (ZombieController), and its last 20 ticks draw the `die` row frame-by-frame
+                // with a spark shower (:219-230) — but the port's animator has no seek-to-frame verb, so
+                // the row is stepped normally here. The visible difference is one of phase, not of row.
                 //
                 // UnitZombie.as:234-251. `stay` is AS3's grounded flag, and the oracle reads its own
                 // `animState` to decide which of the two to draw — which is exactly the state the
@@ -1030,6 +1822,23 @@ namespace PFE.Entities.Enemies.Archetypes
                 }
 
                 return "death";
+            }
+
+            // AS3 aiState 4 and 7 — `pre` and `super` (`UnitZombie.as:256-264`), tested BEFORE the
+            // buried/dig branches because that is the oracle's order. Each is gated on the row existing
+            // (`anims["pre"]` / `anims["super"]`): when a variant does not author it the oracle falls
+            // through to the movement ladder and the zombie keeps walking, so returning the id
+            // unconditionally would freeze it instead.
+            if (_currentState == EnemyAIState.PrepareSuper
+                && _animator != null && _animator.HasState("pre"))
+            {
+                return "pre";
+            }
+
+            if (_currentState == EnemyAIState.SuperAttack
+                && _animator != null && _animator.HasState("super"))
+            {
+                return "super";
             }
 
             // AS3 aiState 5 and 6 (UnitZombie.as:265-278), tested HERE — before the grounded and
@@ -1055,12 +1864,10 @@ namespace PFE.Entities.Enemies.Archetypes
                 return "dig";
             }
 
-            // AS3 aiState 4 and 7 are `pre` (super wind-up) and `super` (UnitZombie.as:256-264). Neither
-            // is reachable from this slice — both need `setSuper()` and the `<un ss=…>` data — and
-            // selecting one anyway would be worse than not selecting it: `zombie0` owns neither row, so
-            // the animator would fall through to the state already showing and the mistake would be
-            // invisible. That is also why `EnemyAIState.Attack` is never mapped to `super` — the port's
-            // `Attack` is a generic swing, AS3's 7 is the super, and the two are not the same thing.
+            // States 4 and 7 are handled above, before the buried/dig branches, because the oracle
+            // tests them first. `EnemyAIState.Attack` (the port-only swing) is still never mapped to
+            // `super`: AS3's 7 is the super and the port's 7 is a generic swing, which is why the super
+            // lives at `SuperAttack` (9) instead.
             if (!_controller.IsGrounded)
             {
                 // The pose for this row is written by PoseAnimationState, which the base calls BEFORE it

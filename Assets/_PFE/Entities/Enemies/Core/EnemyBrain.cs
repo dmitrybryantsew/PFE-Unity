@@ -294,7 +294,21 @@ namespace PFE.Entities.Enemies
                     break;
 
                 case EnemyAIState.CombatChase:
-                    if (previousState == EnemyAIState.Idle || previousState == EnemyAIState.Patrol || previousState == EnemyAIState.Alert)
+                    // `aiState <= 1` — Idle/Patrol ONLY. Alert is deliberately NOT in this set.
+                    //
+                    // This is the robot's `shok` gate, and getting it wrong silences the unit.
+                    // `UnitAIRobot.alarma()` is:
+                    // `if(sost == 1 && aiState <= 1) { … shok = Math.floor(Math.random() * 15 + 5); }`
+                    // (`UnitAIRobot.as:134-141`). A robot that is already searching (`aiState == 2`) or
+                    // chasing (`aiState == 3`) is NOT startled again, so `alarma()` is a no-op for it.
+                    // The port's `Alert` is the oracle's searching state, i.e. `aiState == 2`, so
+                    // including it here re-armed `shok` on every Alert → CombatChase transition — and
+                    // the state machine makes that transition repeatedly. `shok` then never reached 0,
+                    // and since the oracle's fire gate is `aiAttackOch == 0 && shok <= 0`
+                    // (`UnitAIRobot.as:585`, ported in `RobotBrain.ExecuteAttackAction`), the robot
+                    // stood there armed and silent forever. Reported as "bot has weapon now but it's
+                    // not using it, it's just alert", with `shok11` in the F3 label.
+                    if (previousState == EnemyAIState.Idle || previousState == EnemyAIState.Patrol)
                     {
                         // AS3 `alarma()` sets `shok` as it promotes an unaware unit into the chase
                         // (`UnitZombie.as:344-346`), so "entered the chase from an unaware state" is the
@@ -326,6 +340,18 @@ namespace PFE.Entities.Enemies
                     // AS3 sets `aiTCh` at the two points of entry, not in one place: `alarma()` uses 24
                     // (UnitZombie.as:340) and so does the `celUnit` branch of `control()` (:600).
                     _blackboard.StateTimerTicks = _digDurationTicks;
+                    StopMovement();
+                    break;
+
+                case EnemyAIState.PrepareSuper:
+                case EnemyAIState.SuperAttack:
+                    // AS3 applies no movement acceleration in either state: the `aiState == 2 || 3`
+                    // branch is an `else if` of the same chain, so `dx` is left to the brake. Stopping
+                    // the desired speed is the port's equivalent — the motor's own friction then bleeds
+                    // the residual velocity exactly as `tormoz` does.
+                    //
+                    // The pounce is unaffected: it writes its own velocity AFTER this call, from
+                    // `superSila()`, which is where the oracle writes `dx`/`dy` too.
                     StopMovement();
                     break;
 
@@ -447,7 +473,14 @@ namespace PFE.Entities.Enemies
                     UnityEngine.Random.value);
 
                 neighbour._sensors.RaiseAlarm(
-                    neighbour._blackboard, selfPx + jitter, durationTicks: _patrolDurationTicks);
+                    neighbour._blackboard,
+                    selfPx + jitter,
+                    durationTicks: _patrolDurationTicks,
+                    // The RECEIVER's state decides, not the shouter's: `alarma()` gates on the
+                    // receiving unit's own `aiState`. A neighbour already chasing is not startled
+                    // again. See RaiseAlarm's remarks.
+                    caughtUnawares: neighbour._currentState == EnemyAIState.Idle
+                                    || neighbour._currentState == EnemyAIState.Patrol);
             }
         }
 
@@ -473,7 +506,17 @@ namespace PFE.Entities.Enemies
                 return;
             }
 
-            _sensors.RaiseAlarm(_blackboard, damageSourcePx, durationTicks: 90);
+            // `alarma()` on taking damage, gated the way `UnitAIRobot.as:134-141` gates it: only a unit
+            // that is not already searching or chasing is startled. For a robot this is exact. For the
+            // zombie the oracle's set is wider (`aiState <= 1 || aiState == 5`, `UnitZombie.as:334`) and
+            // that extra arm is NOT modelled here — recorded rather than guessed, because the port has no
+            // separate "caught mid-hesitation" state to test against.
+            _sensors.RaiseAlarm(
+                _blackboard,
+                damageSourcePx,
+                durationTicks: 90,
+                caughtUnawares: _currentState == EnemyAIState.Idle
+                                || _currentState == EnemyAIState.Patrol);
 
             if (_currentState == EnemyAIState.Idle || _currentState == EnemyAIState.Patrol)
             {
@@ -552,6 +595,14 @@ namespace PFE.Entities.Enemies
 
                 case EnemyAIState.Digging:
                     TickDigging(tickIndex);
+                    break;
+
+                case EnemyAIState.PrepareSuper:
+                    TickPrepareSuper(tickIndex);
+                    break;
+
+                case EnemyAIState.SuperAttack:
+                    TickSuperAttack(tickIndex);
                     break;
             }
 
@@ -826,7 +877,25 @@ namespace PFE.Entities.Enemies
 
         protected virtual void TickAlert(int tickIndex)
         {
-            if (_blackboard.TargetUnit != null && _blackboard.HasLineOfSight)
+            // `!ChaseBudgetExhausted` is part of the promotion, and leaving it out is an infinite loop
+            // rather than a nuance.
+            //
+            // `EnemySensors.Evaluate` can leave a STALE `TargetUnit` while `HasLineOfSight` is true: the
+            // "seen but the observation meter has not filled" branch (`EnemySensors.cs:758-772`) sets
+            // `HasLineOfSight = true` and does NOT clear `TargetUnit` and does NOT re-commit, so the
+            // awareness budget keeps draining. Once it is below `ChaseThresholdTicks`, this method
+            // promoted to `CombatChase` on `T && L` alone, and `TickCombatChase` immediately bailed on
+            // `ChaseBudgetExhausted` back to `Alert` — every tick, forever. The F3 label showed
+            // `T L … Alert`, `shok` was re-armed on every promotion, and the unit never reached
+            // `ExecuteAttackAction`. Reported as "bot has weapon now but it's not using it, it's just
+            // alert".
+            //
+            // It is also the faithful gate: the oracle enters `aiState == 3` only from
+            // `aiSpok >= maxSpok`, and a sound-only commit deliberately sits one short
+            // (`EnemyAwarenessMath.SoundOnlyAwarenessTicks` = 290 vs a 300 threshold) so that hearing
+            // something can never promote a unit into the chase. Without this test that documented
+            // invariant is defeated by this line.
+            if (_blackboard.TargetUnit != null && _blackboard.HasLineOfSight && !ChaseBudgetExhausted)
             {
                 SetState(EnemyAIState.CombatChase);
                 return;
@@ -1145,6 +1214,32 @@ namespace PFE.Entities.Enemies
         }
 
         /// <summary>
+        /// The per-tick behaviour of <see cref="EnemyAIState.PrepareSuper"/> — AS3's <c>aiState 4</c>
+        /// wind-up (<c>UnitZombie.as:607-615</c>).
+        ///
+        /// <para><b>The base does nothing, for the same reason <see cref="TickBuried"/> does.</b> The
+        /// wind-up's only content is the zombie's own <c>superSila()</c>, and only <c>ZombieBrain</c>
+        /// ever enters the state — so a generic implementation here would be a second, invented rule for
+        /// a state no other archetype can reach.</para>
+        /// </summary>
+        protected virtual void TickPrepareSuper(int tickIndex)
+        {
+        }
+
+        /// <summary>
+        /// The per-tick behaviour of <see cref="EnemyAIState.SuperAttack"/> — AS3's <c>aiState 7</c>
+        /// (<c>UnitZombie.as:616-620</c> and the <c>superSila2()</c> call at <c>:706-709</c>).
+        ///
+        /// <para><b>The base does nothing</b> — see <see cref="TickPrepareSuper"/>. Note this is
+        /// deliberately <i>not</i> <see cref="TickAttack"/>: that one belongs to the port-only
+        /// stop-and-swing state and returns to the chase on its first tick, which would cancel a super
+        /// one tick after it started.</para>
+        /// </summary>
+        protected virtual void TickSuperAttack(int tickIndex)
+        {
+        }
+
+        /// <summary>
         /// Count the dig down one tick. <c>true</c> once the counter has already reached zero, i.e. the
         /// unit should be standing on this tick — AS3 <c>UnitZombie.control()</c>'s
         /// <c>else if(aiState == 6)</c> arm (<c>UnitZombie.as:586-594</c>).
@@ -1260,6 +1355,37 @@ namespace PFE.Entities.Enemies
             {
                 _controller.SetVelocityY(
                     upwardForcePixelsPerFrame * TileQueryConstants.PerFrameVelocityToUnitsPerSecond);
+            }
+        }
+
+        /// <summary>
+        /// Command a vertical velocity for this step, in AS3's units (pixels per 30 Hz frame), without
+        /// touching the unit's grounded state.
+        ///
+        /// <para><b>Why this is not <see cref="JumpVertical"/>.</b> <c>Jump</c> is an <i>impulse</i> that
+        /// also clears <c>isGrounded</c> and the ladder/platform flags — correct for a walker leaving the
+        /// floor, wrong for a flyer that is being steered. A flyer that called it every tick would never
+        /// read as grounded, and the landing rule (<c>UnitRaider.as:1313-1331</c>, 20 ticks of contact
+        /// before <c>isFly = false</c>) is exactly a test on groundedness.</para>
+        ///
+        /// <para><b>Routed like every other movement verb.</b> The motor's
+        /// <c>SetDesiredVerticalSpeed</c> is consumed once per step and assigns <c>dy</c> outright
+        /// (<c>TilePhysicsController.cs:914-918</c>), after the gravity/flight pass, so it is the last
+        /// word on vertical velocity for that step — the same ordering AS3 gives
+        /// <c>forces()</c> → <c>control()</c>. The motor-less path goes through
+        /// <c>SetVelocityY</c> with the same 3.33× unit reconciliation as
+        /// <see cref="JumpVertical"/>.</para>
+        /// </summary>
+        protected virtual void SetVerticalSpeed(float speedPixelsPerFrame)
+        {
+            if (_motor != null)
+            {
+                _motor.SetDesiredVerticalSpeed(speedPixelsPerFrame);
+            }
+            else if (_controller != null)
+            {
+                _controller.SetVelocityY(
+                    speedPixelsPerFrame * TileQueryConstants.PerFrameVelocityToUnitsPerSecond);
             }
         }
 
