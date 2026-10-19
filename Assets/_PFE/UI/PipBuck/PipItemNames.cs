@@ -89,7 +89,8 @@ namespace PFE.UI.PipBuck
             // :208-210 — the plain weapon.
             if (variant == 0) return Finish(Lookup(text, "w", id), fallback, id);
 
-            // :212-214 — a variant with its own row (`minigun^1` is "Unique minigun").
+            // :212-214 — a variant with its own row (`spear^1` is "Viper`s bite", `minigun^1` is
+            // "Gale"). 55 of the 71 weapons that carry a `<com uniq>` have such a row.
             string variantName = Lookup(text, "w", id + "^" + variant);
             if (variantName != null) return variantName;
 

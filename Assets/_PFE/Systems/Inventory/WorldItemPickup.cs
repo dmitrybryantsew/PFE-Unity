@@ -6,6 +6,7 @@ using PFE.Systems.Interaction;
 using PFE.Systems.Map.Rendering;
 using PFE.UI.Common;
 using PFE.UI.HUD;
+using PFE.UI.PipBuck;
 
 namespace PFE.Systems.Inventory
 {
@@ -105,6 +106,32 @@ namespace PFE.Systems.Inventory
         public WeaponDefinition WeaponDefinition { get; private set; }
 
         /// <summary>
+        /// AS3 <c>Item.variant</c> for a weapon pickup — <c>0</c> for the plain weapon, <c>1</c> for the
+        /// "II" tier. Always <c>0</c> for an item pickup.
+        ///
+        /// <para><b>Why the world object has to carry it.</b> The roller splits <c>id^N</c> into
+        /// <c>ItemId</c> + <c>Variant</c> (<c>Item.as:132-136</c>) and the drop spawns from
+        /// <see cref="WeaponDefinition"/>, which is keyed by the base id. Without this field the tier
+        /// dies at the spawn — the exact shape of the bug that made every rolled unique a base weapon.
+        /// It travels: this → <see cref="Interact"/> → <c>InventoryCommand.Variant</c> →
+        /// <c>GameWeaponInstance.variant</c> → the PipBuck row's name and the trader's ×3 price.</para>
+        /// </summary>
+        public int Variant { get; private set; }
+
+        /// <summary>
+        /// The condition a weapon arrives in, as a fraction of its row's <c>maxDurability</c> —
+        /// AS3 <c>Item.sost * Item.multHP</c>, which <c>Invent.take</c> multiplies by
+        /// <c>char[variant].@maxhp</c> to get the weapon's hp (<c>Invent.as:1068-1075</c>).
+        ///
+        /// <para><b><c>1</c> means "undamaged", and it is the default.</b> Only a rolled drop knows
+        /// better: an enemy's own gun arrives at <c>0.05..0.20</c> because the drop passes
+        /// <c>kol = 0</c> (<c>Item.as:185-188</c>), and that number is the whole reason a corpse's
+        /// weapon is worth less than a shop's. Before this field the condition was computed by the
+        /// roller and discarded here, so every dropped weapon arrived at full durability.</para>
+        /// </summary>
+        public float Condition { get; private set; } = 1f;
+
+        /// <summary>
         /// Whether walking over this pickup collects it — AS3 <c>Loot.auto</c> (<c>Loot.as:33</c>,
         /// assigned from the constructor's <c>nauto</c> at <c>:238</c>).
         ///
@@ -160,6 +187,12 @@ namespace PFE.Systems.Inventory
         ///
         /// <para>The <c>displayName</c> field still wins when it is set, so an importer that later freezes
         /// the names into the assets takes precedence without touching this method.</para>
+        ///
+        /// <para><b>A variant reads the <c>id^N</c> row, then falls back to <c>" - II"</c></b> —
+        /// <c>Item.as:206-220</c>, which is the same rule the PipBuck row uses, so the prompt and the
+        /// inventory list cannot disagree about what the player just picked up. It is delegated to
+        /// <see cref="PipItemNames.Weapon"/> rather than re-implemented: 55 of the 71 variants have a
+        /// bespoke name (<c>spear^1</c> is "Viper`s bite") and the other 16 get the literal suffix.</para>
         /// </summary>
         private string DisplayName
         {
@@ -167,6 +200,12 @@ namespace PFE.Systems.Inventory
             {
                 if (WeaponDefinition != null)
                 {
+                    if (Variant > 0)
+                    {
+                        return PipItemNames.Weapon(PfeTextTableProvider.Shared, WeaponDefinition.weaponId,
+                                                   Variant, WeaponDefinition.displayName);
+                    }
+
                     return !string.IsNullOrEmpty(WeaponDefinition.displayName)
                         ? WeaponDefinition.displayName
                         : PfeTextTableProvider.WeaponNameOrId(WeaponDefinition.weaponId);
@@ -204,7 +243,7 @@ namespace PFE.Systems.Inventory
             // weapon id through AddItem is rejected with "no item row" 100 % of the time, for every
             // weapon, which is precisely why weapons never reached the inventory.
             InventoryCommandResult result = WeaponDefinition != null
-                ? inventory.Submit(InventoryCommand.AddWeapon(WeaponDefinition.weaponId))
+                ? inventory.Submit(InventoryCommand.AddWeapon(WeaponDefinition.weaponId, Variant, Condition))
                 : inventory.Submit(InventoryCommand.AddItem(ItemId, Quantity));
 
             if (!result.Applied)
@@ -249,7 +288,10 @@ namespace PFE.Systems.Inventory
                 hasSkillRows: Definition != null && !string.IsNullOrEmpty(Definition.skillRowsSource),
                 isMoney: string.Equals(ItemId, "money"),
                 quantity: Quantity,
-                conditionPercent: 100,   // see ItemPickupFeedback.Build: a definition has no `sost`
+                // AS3's `infoText("takeWeapon", nazv, round(sost * multHP * 100))`
+                // (Invent.as:1082, :1099) — the percentage the corner message shows for a weapon.
+                // Items keep 100: their condition lives on a definition the port does not carry.
+                conditionPercent: WeaponDefinition != null ? Mathf.RoundToInt(Condition * 100f) : 100,
                 forcedColour: -1,        // the port's ItemDefinition carries no AS3 `fc`
                 playerPosition: user != null ? user.transform.position : transform.position);
 
@@ -343,7 +385,8 @@ namespace PFE.Systems.Inventory
 
             return SpawnCore(definition.itemId, quantity, position, autoCollect,
                              icon: definition.icon, fallbackColor: definition.fallbackColor,
-                             itemDefinition: definition, weaponDefinition: null);
+                             itemDefinition: definition, weaponDefinition: null,
+                             variant: 0, condition: 1f);
         }
 
         /// <summary>
@@ -363,9 +406,14 @@ namespace PFE.Systems.Inventory
         /// it is real data rather than a placeholder: 179 of the 213 shipped weapon assets reference a
         /// visual and all 174 visuals carry frames (<c>visr32</c> has 40, <c>idleFrame 0</c>). The 34
         /// without one fall back to the shared square — see <see cref="WeaponFallbackColor"/>.</para>
+        ///
+        /// <para><b>Two extra parameters, both from the roll.</b> <paramref name="variant"/> is the
+        /// <c>^N</c> tier (<c>Item.as:132-136</c>) and <paramref name="condition"/> is
+        /// <c>sost * multHP</c> (<c>Invent.as:1068-1075</c>). Both default to "plain and pristine", so
+        /// every pre-existing caller keeps its behaviour, and a drop that knows better passes them.</para>
         /// </summary>
         public static WorldItemPickup Spawn(WeaponDefinition weaponDefinition, int quantity, Vector3 position,
-                                            bool autoCollect = false)
+                                            bool autoCollect = false, int variant = 0, float condition = 1f)
         {
             if (weaponDefinition == null)
             {
@@ -384,7 +432,8 @@ namespace PFE.Systems.Inventory
 
             return SpawnCore(weaponDefinition.weaponId, quantity, position, autoCollect,
                              icon: icon, fallbackColor: WeaponFallbackColor,
-                             itemDefinition: null, weaponDefinition: weaponDefinition);
+                             itemDefinition: null, weaponDefinition: weaponDefinition,
+                             variant: variant, condition: condition);
         }
 
         /// <summary>
@@ -394,7 +443,8 @@ namespace PFE.Systems.Inventory
         private static WorldItemPickup SpawnCore(string id, int quantity, Vector3 position, bool autoCollect,
                                                  Sprite icon, Color fallbackColor,
                                                  ItemDefinition itemDefinition,
-                                                 WeaponDefinition weaponDefinition)
+                                                 WeaponDefinition weaponDefinition,
+                                                 int variant, float condition)
         {
             var go = new GameObject($"Loot_{id}_{quantity}");
             go.transform.position = position;
@@ -405,6 +455,8 @@ namespace PFE.Systems.Inventory
             pickup.Definition = itemDefinition;
             pickup.WeaponDefinition = weaponDefinition;
             pickup.AutoCollect = autoCollect;
+            pickup.Variant = variant;
+            pickup.Condition = Mathf.Clamp01(condition);
 
             // A trigger, so loot never blocks movement. AS3's Loot is a world object with no collision
             // against the unit either — it is taken, not bumped into.

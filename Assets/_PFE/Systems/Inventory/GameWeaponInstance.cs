@@ -248,6 +248,38 @@ namespace PFE.Systems.Inventory
         }
 
         /// <summary>
+        /// Raise this instance to a higher variant tier — AS3 <c>Weapon.updVariant(1)</c>
+        /// (<c>Weapon.as:895-912</c>), reached from <c>Invent.updWeapon</c> when a taken weapon's tier
+        /// beats the one already held (<c>Invent.as:1076-1085</c>).
+        ///
+        /// <para><b>One-way, and it is the oracle's one-way.</b> <c>updVariant</c> assigns
+        /// <c>variant = param1</c> with no comparison of its own; the "only upward" rule lives in
+        /// <c>take</c>. Keeping the guard here as well means a second caller cannot walk a weapon back
+        /// down a tier.</para>
+        ///
+        /// <para><b>Why the health is reset.</b> <c>updVariant</c> re-runs <c>getXmlParam()</c>, and that
+        /// method ends with <c>this.hp = this.maxhp</c> (<c>Weapon.as:579</c>) — so an upgrade in the
+        /// original game <i>also</i> repairs the weapon to full. That is a real consequence of picking a
+        /// unique up, not an invention here.</para>
+        ///
+        /// <para><b>What is deliberately not done: the tier-1 stats.</b> The oracle's
+        /// <c>getXmlParam</c> re-reads <c>char[variant]</c> over the base run, so a
+        /// <c>carbine^1</c> fires at 13 damage instead of 11 and holds 40 rounds instead of 30. The
+        /// port's <see cref="maxHealth"/> stays the base tier's because the merge that produces those
+        /// numbers (<c>WeaponVariantXml.MergeRuns</c>) has no runtime applier yet — see
+        /// <c>docs/OnWeaponsSystemImplementation/15_UniqueWeaponVariants_PortResearch_2026-10-13.md</c>
+        /// §8.7. The tier is recorded, named and priced correctly; the stat delta is the remaining
+        /// half, and it is one gap for the player and the enemy alike.</para>
+        /// </summary>
+        public void UpgradeVariant(int newVariant)
+        {
+            if (newVariant <= variant) return;
+
+            variant = newVariant;
+            currentHealth = maxHealth;
+        }
+
+        /// <summary>
         /// Set loaded ammo type
         /// </summary>
         public void SetLoadedAmmo(string ammoType)

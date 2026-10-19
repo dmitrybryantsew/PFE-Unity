@@ -143,5 +143,24 @@ namespace PFE.Entities.Units
             !string.IsNullOrEmpty(rawWeaponId)
             && rawWeaponId.Length >= 2
             && rawWeaponId[rawWeaponId.Length - 2] == VariantSeparator;
+
+        /// <summary>
+        /// The tier <c>Weapon.create</c> gives a <c>weap='lmg^1'</c> placement.
+        ///
+        /// <para><b>Always 1, and the digit is <i>not</i> read.</b> <c>Weapon.create</c>'s strip
+        /// (<c>Weapon.as:352-357</c>) is
+        /// <c>if(id.charAt(id.length - 2) == "^") { id = id.substr(0, id.length - 2); nvar = 1; }</c> —
+        /// the literal <c>1</c>, not <c>int(last char)</c>. So a placement authoring <c>weap='lmg^2'</c>
+        /// would still get tier 1, while the same string handed to <c>Item</c>'s constructor
+        /// (<c>Item.as:132-136</c>) reads the digit and yields tier 2. The two parsers genuinely
+        /// disagree, and this is the <c>Weapon.create</c> side — the side a unit's loadout goes
+        /// through.</para>
+        ///
+        /// <para><b>Why it matters at all.</b> Two shipped placements name a variant
+        /// (<c>weap='lmg^1'</c>, <c>weap='zebr^1'</c>), and a unit that holds tier 1 drops
+        /// <c>id^1</c> (<c>UnitRaider.as:516-520</c>). Discarding the tier at the lookup — which is what
+        /// the port did until now — makes those two raiders drop a plain gun.</para>
+        /// </summary>
+        public static int VariantOf(string rawWeaponId) => IsVariantSuffixed(rawWeaponId) ? 1 : 0;
     }
 }

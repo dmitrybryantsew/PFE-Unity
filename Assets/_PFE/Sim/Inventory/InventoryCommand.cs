@@ -88,18 +88,51 @@ namespace PFE.Systems.Inventory
         public readonly PickupType PickupType;
 
         /// <summary>
+        /// AS3 <c>Item.variant</c> — the <c>^N</c> tier of the weapon being added. Only read by
+        /// <see cref="InventoryCommandKind.AddWeapon"/>; <c>0</c> is the plain weapon.
+        ///
+        /// <para><b>Why it is on the command and not resolved by the sink.</b> The tier is a property of
+        /// the <i>thing being picked up</i>, not of the row: <c>lsword</c> and <c>lsword^1</c> resolve to
+        /// the same <see cref="PFE.Data.Definitions.WeaponDefinition"/>, so a sink that only had the id
+        /// could not recover the tier. <c>Invent.take</c> carries it on the <c>Item</c> for the same
+        /// reason (<c>Invent.as:1078-1101</c>).</para>
+        /// </summary>
+        public readonly int Variant;
+
+        /// <summary>
+        /// AS3 <c>Item.sost * Item.multHP</c> — the fraction of the weapon row's
+        /// <c>maxDurability</c> the incoming copy is worth. Only read by
+        /// <see cref="InventoryCommandKind.AddWeapon"/>; <c>1</c> is undamaged.
+        ///
+        /// <para><b>Carried because the sink cannot re-derive it.</b> The condition is rolled once, by
+        /// the loot generator, from the <c>kol</c> argument of the drop (<c>Item.as:185-193</c>); a sink
+        /// that rolled its own would consume a different RNG and give a different number. AS3 passes the
+        /// finished <c>Item</c>, so the value travels with the request.</para>
+        /// </summary>
+        public readonly float Condition;
+
+        /// <summary>
         /// Public, unlike the rest of this codebase's value types, because a network deserializer has to
         /// rebuild a command from the wire — <b>including a kind this build does not recognise</b>, which
         /// is precisely the case <see cref="InventoryCommandValidation.IsKnownKind"/> exists to catch.
         /// A private constructor would make that path untestable and leave the guard unprovable. The
         /// factories below remain the way gameplay constructs one.
         /// </summary>
-        public InventoryCommand(InventoryCommandKind kind, string id, int quantity, PickupType pickupType)
+        /// <remarks>
+        /// <para><b>The last two parameters are optional and defaulted, deliberately.</b> Every existing
+        /// caller and every deserializer that predates them keeps compiling and keeps its behaviour:
+        /// <c>variant 0</c> is the plain weapon and <c>condition 1</c> is an undamaged one. A required
+        /// parameter would have moved the whole test suite's result rather than one command's.</para>
+        /// </remarks>
+        public InventoryCommand(InventoryCommandKind kind, string id, int quantity, PickupType pickupType,
+                                int variant = 0, float condition = 1f)
         {
             Kind = kind;
             Id = id;
             Quantity = quantity;
             PickupType = pickupType;
+            Variant = variant;
+            Condition = condition;
         }
 
         public static InventoryCommand AddItem(string itemId, int quantity = 1,
@@ -127,8 +160,12 @@ namespace PFE.Systems.Inventory
         /// carries its own condition and magazine, so it is not a stack. See
         /// <see cref="InventoryCommandKind.AddWeapon"/>.
         /// </summary>
-        public static InventoryCommand AddWeapon(string weaponId)
-            => new InventoryCommand(InventoryCommandKind.AddWeapon, weaponId, 1, PickupType.Loot);
+        /// <param name="weaponId">AS3 <c>Item.id</c>, already variant-stripped.</param>
+        /// <param name="variant">AS3 <c>Item.variant</c> — see <see cref="Variant"/>.</param>
+        /// <param name="condition">AS3 <c>sost * multHP</c> — see <see cref="Condition"/>.</param>
+        public static InventoryCommand AddWeapon(string weaponId, int variant = 0, float condition = 1f)
+            => new InventoryCommand(InventoryCommandKind.AddWeapon, weaponId, 1, PickupType.Loot,
+                                    variant, condition);
 
         public override string ToString() => $"{Kind}('{Id}' x{Quantity})";
     }

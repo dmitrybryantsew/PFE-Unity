@@ -152,6 +152,15 @@ namespace PFE.Systems.Inventory
         /// creates exactly one, and AS3's <c>weapons[id]</c> likewise holds one <c>Weapon</c> per id. So a
         /// second add of an id already held <i>repairs</i> that weapon rather than producing a second, and
         /// reporting 1 is the honest count of what changed.</para>
+        ///
+        /// <para><b>The condition and the tier are converted here, not stored raw.</b> AS3 has no
+        /// "condition" argument on <c>addWeapon</c> — it has <b>hp</b>, already multiplied out:
+        /// <c>hp = round(char[variant].@maxhp * sost * multHP)</c> (<c>Invent.as:1068-1075</c>), and the
+        /// variant node's <c>maxhp</c> wins when it exists. The port's
+        /// <see cref="GameInventory.AddWeapon"/> takes the same absolute hp, so this is where the
+        /// fraction becomes durability. A row with no <c>maxDurability</c> (0) falls back to
+        /// <c>float.MaxValue</c>, which the instance reads as "full" — the same answer it gave before
+        /// this parameter existed.</para>
         /// </summary>
         private InventoryCommandResult ApplyAddWeapon(InventoryCommand command)
         {
@@ -159,7 +168,15 @@ namespace PFE.Systems.Inventory
             if (weapon == null)
                 return InventoryCommandResult.Fail($"no weapon row for '{command.Id}'");
 
-            return _inventory.AddWeapon(command.Id) != null
+            float health = float.MaxValue;
+            if (weapon.maxDurability > 0f)
+            {
+                // Math.Clamp, not Mathf: this file carries no UnityEngine dependency today (it is the
+                // half of the seam a headless host could run), and a clamp is not a reason to add one.
+                health = weapon.maxDurability * Math.Clamp(command.Condition, 0f, 1f);
+            }
+
+            return _inventory.AddWeapon(command.Id, health, 0, WeaponRespect.Active, command.Variant) != null
                 ? InventoryCommandResult.Ok(1)
                 : InventoryCommandResult.Fail($"the inventory refused weapon '{command.Id}'");
         }
