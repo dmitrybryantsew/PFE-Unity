@@ -323,6 +323,9 @@ MonoBehaviour:
   secondaryWeapon: 
   requiredSkill: 
   requiredItemId: 
+  questId: 
+  questSubId: 
+  repairRequirements: []
   dialogues:
   - dialogueId: vendor_weap_hi
     isImportant: 0

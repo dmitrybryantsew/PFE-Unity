@@ -38,6 +38,9 @@ MonoBehaviour:
   secondaryWeapon: 
   requiredSkill: 
   requiredItemId: 
+  questId: 
+  questSubId: 
+  repairRequirements: []
   dialogues:
   - dialogueId: vendor_mage_hi
     isImportant: 0

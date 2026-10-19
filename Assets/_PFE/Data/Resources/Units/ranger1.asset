@@ -31,7 +31,7 @@ MonoBehaviour:
   runMultiplier: 2
   runSpeed: 0
   acceleration: 1.8
-  braking: 0.5
+  braking: 1
   jumpForce: 14
   knocked: 1
   levitationMaxHeight: 60
@@ -52,10 +52,11 @@ MonoBehaviour:
   skinThickness: 0
   dexterity: 0.8
   skill: 1.2
-  waterAbility: 1
+  armourQuality: 0
   ear: 1
   damageType: 2
   isStable: 1
+  weaponKrep: 1
   bloodType: 0
   leavesCorpse: 1
   isInvulnerable: 0
@@ -295,6 +296,7 @@ MonoBehaviour:
   spriteSheetRows: 8
   registrationPoint: {x: -1, y: -1}
   iconCell: {x: -1, y: -1}
+  armSprite: {fileID: 0}
   gender: 2
   musicTrack: combat_1
   deathSoundId: sr
@@ -303,15 +305,18 @@ MonoBehaviour:
   detectionDistance: 400
   grenadeCount: 0
   stalkDistance: 0
+  aiAttackOch: 60
+  aiDistance: 1000
   actionPoints: 0
   specialState: 0
   attractRange: 0
-  isWalker: 0
-  isSniper: 0
+  isWalker: 1
+  isSniper: 1
   hasGrenades: 0
   usesEnclaveWeapons: 0
   willStayInPlace: 0
   canResurrect: 0
+  superSkill: 0
   glows: 0
   hasLightBulb: 0
   canCarryItems: 0

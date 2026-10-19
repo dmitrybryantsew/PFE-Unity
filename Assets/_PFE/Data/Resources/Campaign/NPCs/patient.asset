@@ -41,6 +41,9 @@ MonoBehaviour:
   secondaryWeapon: 
   requiredSkill: medic
   requiredItemId: vaccine
+  questId: 
+  questSubId: 
+  repairRequirements: []
   dialogues:
   - dialogueId: dialPatient9
     isImportant: 0

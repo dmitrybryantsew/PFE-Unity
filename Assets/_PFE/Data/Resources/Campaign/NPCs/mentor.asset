@@ -38,6 +38,9 @@ MonoBehaviour:
   secondaryWeapon: 
   requiredSkill: 
   requiredItemId: 
+  questId: 
+  questSubId: 
+  repairRequirements: []
   dialogues:
   - dialogueId: dialMen3
     isImportant: 0

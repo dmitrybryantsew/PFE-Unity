@@ -38,4 +38,7 @@ MonoBehaviour:
   secondaryWeapon: 
   requiredSkill: 
   requiredItemId: 
+  questId: 
+  questSubId: 
+  repairRequirements: []
   dialogues: []

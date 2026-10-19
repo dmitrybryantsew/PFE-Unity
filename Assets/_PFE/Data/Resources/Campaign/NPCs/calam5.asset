@@ -71,6 +71,9 @@ MonoBehaviour:
   secondaryWeapon: 
   requiredSkill: 
   requiredItemId: 
+  questId: 
+  questSubId: 
+  repairRequirements: []
   dialogues:
   - dialogueId: dialStorm4
     isImportant: 0

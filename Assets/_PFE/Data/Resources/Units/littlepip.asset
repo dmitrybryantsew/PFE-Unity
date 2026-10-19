@@ -31,7 +31,7 @@ MonoBehaviour:
   runMultiplier: 2
   runSpeed: 0
   acceleration: 3.5
-  braking: 0.5
+  braking: 1
   jumpForce: 15
   knocked: 1
   levitationMaxHeight: 60
@@ -111,6 +111,8 @@ MonoBehaviour:
   detectionDistance: 400
   grenadeCount: 0
   stalkDistance: 0
+  aiAttackOch: 0
+  aiDistance: 1000
   actionPoints: 0
   specialState: 0
   attractRange: 0

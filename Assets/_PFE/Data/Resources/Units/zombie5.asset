@@ -31,7 +31,7 @@ MonoBehaviour:
   runMultiplier: 2
   runSpeed: 11
   acceleration: 1
-  braking: 0.5
+  braking: 1
   jumpForce: 16
   knocked: 1
   levitationMaxHeight: 60
@@ -52,10 +52,11 @@ MonoBehaviour:
   skinThickness: 0
   dexterity: 1
   skill: 1
-  waterAbility: 0.4
+  armourQuality: 0
   ear: 1
   damageType: 2
   isStable: 0
+  weaponKrep: 1
   bloodType: 0
   leavesCorpse: 1
   isInvulnerable: 0
@@ -295,6 +296,7 @@ MonoBehaviour:
   spriteSheetRows: 8
   registrationPoint: {x: -1, y: -1}
   iconCell: {x: -1, y: -1}
+  armSprite: {fileID: 0}
   gender: 2
   musicTrack: combat_1
   deathSoundId: zm
@@ -303,6 +305,8 @@ MonoBehaviour:
   detectionDistance: 400
   grenadeCount: 0
   stalkDistance: 0
+  aiAttackOch: 0
+  aiDistance: 1000
   actionPoints: 0
   specialState: 0
   attractRange: 0
@@ -312,6 +316,7 @@ MonoBehaviour:
   usesEnclaveWeapons: 0
   willStayInPlace: 0
   canResurrect: 0
+  superSkill: 6
   glows: 0
   hasLightBulb: 0
   canCarryItems: 0

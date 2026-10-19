@@ -38,6 +38,9 @@ MonoBehaviour:
   secondaryWeapon: robomlau
   requiredSkill: 
   requiredItemId: 
+  questId: 
+  questSubId: 
+  repairRequirements: []
   dialogues:
   - dialogueId: dialFB1
     isImportant: 0
