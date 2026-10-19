@@ -78,14 +78,15 @@ namespace PFE.Entities.Enemies.Archetypes
         protected override bool StopsToAttack => false;
 
         /// <summary>
-        /// Promotes a mounted turret to mobile when knocked off its mount (AS3 UnitTurret.otryv()).
+        /// Promotes a mounted turret to mobile when knocked off its mount.
+        /// <para><b>The citation this method used to carry was wrong.</b> It said
+        /// <c>AS3 UnitTurret.otryv()</c>, but <c>otryv</c> exists only on <c>inter/Camera.as</c>
+        /// (a camera-lead field) — there is no <c>UnitTurret.otryv</c> anywhere in the oracle. The
+        /// method is kept because detaching is a real port behaviour; the invented
+        /// <c>MakeNoise(100, true)</c> is removed, since no oracle brain makes noise on detach.</para>
         /// </summary>
         public virtual void DetachFromMount()
         {
-            if (_controller != null)
-            {
-                _controller.MakeNoise(100, true);
-            }
         }
 
         protected override void Awake()

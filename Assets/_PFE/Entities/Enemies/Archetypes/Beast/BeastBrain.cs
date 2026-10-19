@@ -296,7 +296,9 @@ namespace PFE.Entities.Enemies.Archetypes
                 if (_spitTimer <= 0)
                 {
                     _spitTimer = UnityEngine.Random.Range(45, 80);
-                    _controller.MakeNoise(80, true);
+                    // No noise: the spit is a weapon and carries its own `<snd noise>` (AS3
+                    // `Weapon.as:1581`, emitted by ProjectileSpawner.AnnounceShot). The invented
+                    // `MakeNoise(80, true)` was quieter than the weapon it stood in for.
 
                     float acidDmg = _controller.Definition != null ? _controller.Definition.damage : 8f;
                     Vector2 targetPos = (Vector2)_blackboard.TargetUnit.transform.position * 100f;
@@ -321,7 +323,9 @@ namespace PFE.Entities.Enemies.Archetypes
             if (_isScorpion && _tPunch <= 0)
             {
                 _tPunch = 15; // UnitMonstrik.as:508
-                _controller.MakeNoise(120, true);
+                // No noise. `scorppunch` / `scorp2punch` / `scorp3punch` author no `<snd noise>`,
+                // so in the oracle a scorpion punch is SILENT (Weapon.noise = 0, Weapon.as:214).
+                // `MakeNoise(120, true)` contradicted the data it was standing in for.
                 _controller.TryContactAttack(_blackboard.TargetUnit, 1.8f);
                 return;
             }

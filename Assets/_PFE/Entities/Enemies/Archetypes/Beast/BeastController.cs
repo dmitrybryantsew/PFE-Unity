@@ -60,6 +60,13 @@ namespace PFE.Entities.Enemies.Archetypes
         public new const string ControllerId = "UnitSlime";
         public new const string ControllerAlias = "slime";
 
+        /// <summary>
+        /// <c>UnitSlime.as:65</c> — <c>collisionTip = 0</c>. A slime that touches a unit damages it but
+        /// exchanges no momentum, so it neither shoves nor recoils. See
+        /// <see cref="PFE.Entities.Units.UnitController.CollisionTip"/>.
+        /// </summary>
+        public override bool CollisionTip => false;
+
         protected override void Awake()
         {
             base.Awake();

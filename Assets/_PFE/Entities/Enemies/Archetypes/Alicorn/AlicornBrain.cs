@@ -482,7 +482,10 @@ namespace PFE.Entities.Enemies.Archetypes
             // Magic bolt attack (alilight). AS3 `:1016` arms the burst; the weapon fires on the
             // following frames from `UpdateWeaponFire`, which is what makes the bolt leave the horn
             // rather than the decision point.
-            _controller.MakeNoise(150, true);
+            // No noise here: the bolt is a weapon, and its noise comes from the weapon's own
+            // `<snd noise>` via ProjectileSpawner.AnnounceShot. AS3 `Weapon.as:1581`. The old
+            // `MakeNoise(150, true)` was invented — no brain in the oracle calls makeNoise at all.
+            // See docs/EnemyImplementationGuides/AUDIT_noise_sources_2026-10-19.md.
 
             // The bolt carries the damage now. Applying it here as well would make every shot hit
             // twice — once on the projectile's impact and once instantly — so the direct report is
@@ -520,7 +523,9 @@ namespace PFE.Entities.Enemies.Archetypes
         protected virtual void TryTeleportAway()
         {
             _teleportCooldownTicks = UnityEngine.Random.Range(90, 150);
-            _controller.MakeNoise(200, true);
+            // No noise. A teleport is not in the oracle's noise model — the complete caller set is
+            // movement/landing, budilo, the shot, the wall crash and doors (see the audit doc).
+            // `MakeNoise(200, true)` was invented.
 
             // Offset position by 150-250 pixels away from player
             float dir = (_blackboard.TargetDeltaX >= 0) ? -1f : 1f;

@@ -264,7 +264,8 @@ namespace PFE.Entities.Enemies.Archetypes
                 if (_attackTimer <= 0)
                 {
                     _attackTimer = UnityEngine.Random.Range(30, 50);
-                    _controller.MakeNoise(120, true);
+                    // No noise: `antfire` is a weapon and its `<snd noise>` is the radius
+                    // (AS3 `Weapon.as:1581`). The invented `MakeNoise(120, true)` is removed.
 
                     float dmg = _controller.Definition != null ? _controller.Definition.damage : 10f;
                     Vector2 targetPos = (Vector2)_blackboard.TargetUnit.transform.position * 100f;

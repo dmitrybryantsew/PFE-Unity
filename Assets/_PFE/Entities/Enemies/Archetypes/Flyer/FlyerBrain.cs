@@ -293,7 +293,9 @@ namespace PFE.Entities.Enemies.Archetypes
                 else if (_attackTimer <= 0)
                 {
                     _attackTimer = UnityEngine.Random.Range(35, 60);
-                    _controller.MakeNoise(100, true);
+                    // No noise: the ranged attack's weapon supplies `<snd noise>` through
+                    // ProjectileSpawner.AnnounceShot (AS3 `Weapon.as:1581`). The invented
+                    // `MakeNoise(100, true)` is removed.
 
                     float baseDamage = _controller.Definition != null ? _controller.Definition.damage : 8f;
                     Vector2 targetPos = (Vector2)_blackboard.TargetUnit.transform.position * 100f;
