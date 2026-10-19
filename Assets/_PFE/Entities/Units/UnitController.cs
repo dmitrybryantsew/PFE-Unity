@@ -432,6 +432,7 @@ namespace PFE.Entities.Units
             ResolvePhysicsComponents();
             ApplyDefinitionToCollider();
             SeedEvasionFromDefinition();
+            SeedArmourFromDefinition();
 
             // The stats object now exists, so the effect payloads have somewhere to route their damage.
             AttachEffectDamageSink();
@@ -465,6 +466,83 @@ namespace PFE.Entities.Units
             }
 
             _unitStats.dexterity = _stats.dexterity;
+        }
+
+        /// <summary>
+        /// Project the definition's authored armour onto the live stats — the producer for
+        /// <c>@armor</c>/<c>@marmor</c>/<c>@armorhp</c>/<c>@aqual</c> and for <c>@skin</c>.
+        ///
+        /// <para><b>This is the seam the whole NPC armour mechanic was missing.</b> Everything
+        /// downstream of it has been ported and tested for months: <c>ArmourWear.PoolIntegrityDamage</c>
+        /// scales the wear (acid ×4, explosive ×2, divided by the weapon's <c>armorMult</c>),
+        /// <c>DamageCalculator.ResolveDamage</c> runs the reliability roll and the flat reduction, and
+        /// <c>UnitStats.ApplyDamage</c> writes the depleted pool back. But <b>nothing ever built an
+        /// <see cref="ArmourState"/> from a unit's <c>&lt;comb&gt;</c> row</b> —
+        /// <c>ArmourState.FromUnitPool</c> had exactly one kind of caller, a test — so every NPC
+        /// answered <c>ArmourState.None</c> and took full damage, while 50 of the oracle's
+        /// <c>&lt;comb&gt;</c> rows author a rating (robots, metal-clad raiders, the armoured monsters).
+        /// The ported rules were unreachable, not wrong.</para>
+        ///
+        /// <para><b>Only the pool model, and only for non-player units.</b> AS3's block is guarded
+        /// <c>!this.player</c> (<c>Unit.as:3578</c>): the player's armour is a projected <c>Armor</c>
+        /// item written by <c>Armor.setArmor()</c>, and <c>PlayerController</c> builds its own
+        /// <see cref="UnitStats"/> without ever calling this method. The <c>fraction</c> guard is
+        /// therefore belt-and-braces rather than the mechanism — but it is also the faithful term, so a
+        /// future spawn path that routes the player through <c>Initialize</c> cannot quietly give the
+        /// player a second, item-less armour.</para>
+        ///
+        /// <para><b>The pool's capacity is not simply the unit's health.</b> See
+        /// <see cref="UnitArmourMath.PoolCapacity"/>: an authored <c>@armorhp</c> ignores the difficulty
+        /// cut, while the fallback arm reads the already-cut <c>this.hp</c>. <c>UnitStats.MaxHp</c> is
+        /// the post-cut number, which is exactly what the fallback arm wants and what the authored arm
+        /// must not use — so both are handed over separately.</para>
+        ///
+        /// <para><b><c>@skin</c> is the sibling term and was missing for the same reason.</b> The
+        /// reduction block opens with <c>_loc8_ = this.skin</c> (<c>Unit.as:3615</c>, <c>:3623</c>), and
+        /// <see cref="UnitStats.skinResistance"/> has been a live <i>reader</i> since the armoured
+        /// training dummy landed — with <b>no writer from data</b>. 16 <c>&lt;comb&gt;</c> rows author
+        /// <c>skin</c>; all 16 read 0. <c>TrainingDummyController</c> still overwrites this for its
+        /// <c>tr='1'</c> variant, deliberately: AS3 raises the dummy's skin in its constructor
+        /// (<c>UnitTrain.as:41-45</c>), and that runs after this seeding, exactly as before.</para>
+        ///
+        /// <para><b>Data caveat, and it is the honest kind.</b> <c>armourQuality</c> is a field the
+        /// existing unit assets do not carry yet — the value used to be imported into a dead field
+        /// called <c>waterAbility</c> (see its doc). So until <c>PFE/Data/Import Units from AllData.as</c>
+        /// is run again, every asset answers <c>armourQuality = 0</c>, which means "the rating never
+        /// applies": the pool still wears and the HUD/debug overlay shows it draining, but no damage is
+        /// reduced. That is the pre-existing behaviour, not a regression — and a re-import is the whole
+        /// fix, with no code change.</para>
+        /// </summary>
+        void SeedArmourFromDefinition()
+        {
+            if (_stats == null || _unitStats == null)
+            {
+                return;
+            }
+
+            _unitStats.skinResistance = _stats.skinThickness;
+
+            if (_stats.fraction == FactionType.Player)
+            {
+                return;
+            }
+
+            ArmourState pool = UnitArmourMath.Build(
+                armour: _stats.armor,
+                magicArmour: _stats.magicArmor,
+                authoredArmourHp: _stats.armorHealth,
+                hpAfterDifficulty: _unitStats.MaxHp.Value,
+                quality: _stats.armourQuality);
+
+            // Nothing authored, or no capacity to wear — leave the projection at None rather than
+            // publishing a zeroed one. `SetArmour` recomputes the vulnerability table, and an unarmoured
+            // unit has nothing to recompute.
+            if (!pool.IsEquipped)
+            {
+                return;
+            }
+
+            _unitStats.EquipArmour(pool);
         }
 
         /// <summary>
@@ -685,7 +763,7 @@ namespace PFE.Entities.Units
         /// go through <c>udarBullet</c>, so the hit takes neither the hit-avoidance roll nor the
         /// <c>udarBullet</c> damage spread (<c>×0.7..1.3</c>, <c>:4085</c>) — the same shape
         /// <see cref="ReportEffectDamage"/> and <c>ReportPropImpact</c> use. It does have a spread of its
-        /// own, <c>×0.8..1.2</c> at <c>:4149</c>, and that is drawn here, before the report, because the
+        /// own, <c>×0.8..1.2</c> at <c>:4150</c>, and that is drawn here, before the report, because the
         /// oracle draws it before <c>damage()</c> — see
         /// <see cref="DamageSystem.RollContactAttackVariance"/>.</para>
         ///
@@ -730,17 +808,26 @@ namespace PFE.Entities.Units
             // HitAvoidance and only the Direct path reaches it), so the grant sits here.
             target.GrantContactInvulnerability();
 
-            // AS3 udarUnit:4149 — the spread, drawn before the damage is computed.
+            // AS3 udarUnit:4150 — the spread, drawn before the damage is computed.
             // AS3 udarUnit:4166 — `this.damage(param1.dam * _loc3_ * param2, param1.tipDamage)`.
             // `_stats.damage` is the row's `<comb damage>`; `_stats.damageType` is its `<comb tipdam>`,
             // which Unit.as:186 declares as 2 (D_PHIS) and only an explicit attribute moves.
             float baseDamage = _stats != null ? _stats.damage : 0f;
             DamageType type = _stats != null ? _stats.damageType : DamageType.PhysicalMelee;
 
+            // The draw comes first because the oracle's does, and it is the only RNG this path takes —
+            // the exchange below consumes none, so the order is preserved for readability rather than
+            // for the stream. A hit with no DamageSystem cannot draw at all; it still exchanges, since
+            // the shove is not part of the damage pipeline and AS3 applies it either way.
+            float damage = _damageSystem != null
+                ? baseDamage * _damageSystem.RollContactAttackVariance() * damageScale
+                : baseDamage * damageScale;
+
+            // AS3 udarUnit:4151-4159 — the momentum exchange, BETWEEN the spread and damage().
+            ApplyContactCollisionExchange(target);
+
             if (_damageSystem != null)
             {
-                float damage = baseDamage * _damageSystem.RollContactAttackVariance() * damageScale;
-
                 _damageSystem.Report(PendingDamage.Contact(
                     DamageContext.Contact(damage, type),
                     target,
@@ -765,6 +852,50 @@ namespace PFE.Entities.Units
 
             target.TakeDamage(baseDamage * damageScale);
             return true;
+        }
+
+        /// <summary>
+        /// AS3 <c>Unit.udarUnit()</c>'s momentum exchange (<c>Unit.as:4151-4159</c>) — the shove a
+        /// contact attack delivers, which is a <b>different mechanic</b> from a weapon's
+        /// <c>otbros</c>.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Why it is not <see cref="ApplyKnockback"/>.</b> That one is additive and comes from
+        /// a bullet's <c>knockx/knocky · otbros</c> — "knocked back by the damage". This one is a
+        /// <b>replacement</b> of both bodies' velocities about their common centre of mass, and a
+        /// contact attack never calls <c>otbros</c> at all (<c>udarUnit</c> goes straight to
+        /// <c>damage()</c>). Two units charging each other therefore <i>swap</i> velocity rather than
+        /// each gaining an impulse, and a claw with no weapon still shoves.</para>
+        ///
+        /// <para><b>Both sides are written, and the attacker is not spared.</b> A zombie that runs into
+        /// a standing player stops, because the exchange gives it the centre-of-mass velocity. Writing
+        /// only the target's half would make every melee attacker a perpetual-motion ram.</para>
+        ///
+        /// <para><b>The gate is the attacker's <see cref="CollisionTip"/>.</b> Slimes, spectres,
+        /// necroses, the megadron and thunderhead author it as <c>0</c> in AS3 and therefore shove
+        /// nothing; everyone else does.</para>
+        ///
+        /// <para><b>It runs even when the target is a corpse.</b> <c>udarUnit</c> has no <c>sost</c>
+        /// test — the same reason a blade damages a corpse — and the port's <c>CanBeHit</c> work
+        /// already made that call for damage. A body is a body.</para>
+        /// </remarks>
+        private void ApplyContactCollisionExchange(UnitController target)
+        {
+            if (!CollisionTip)
+            {
+                return;
+            }
+
+            UnitCollisionExchange exchange = UnitCollisionImpulseMath.ResolveExchange(
+                attackerVelocityPixelsPerFrame: VelocityPixelsPerFrame,
+                attackerMassa:                 Mass,
+                attackerKnocked:               Knocked,
+                targetVelocityPixelsPerFrame:  target.VelocityPixelsPerFrame,
+                targetMassa:                   target.Mass,
+                targetKnocked:                 target.Knocked);
+
+            SetVelocityPixelsPerFrame(exchange.AttackerVelocityPixelsPerFrame);
+            target.SetVelocityPixelsPerFrame(exchange.TargetVelocityPixelsPerFrame);
         }
 
         /// <summary>
@@ -1464,6 +1595,36 @@ namespace PFE.Entities.Units
         }
 
         /// <summary>
+        /// Emit a named particle at a Unity world position — the thin seam an archetype brain needs for
+        /// the oracle's <c>Emitter.emit(id, loc, X, Y)</c> call sites.
+        ///
+        /// <para><b>Why a method on the unit rather than a field on the brain.</b> The emitter is
+        /// injected into the <i>controller</i> by <c>RoomUnitSpawner</c> (<c>SetParticleEmitter</c>), the
+        /// same handover that gives the effect visuals their sink; a brain has no DI access and would
+        /// otherwise need a second, parallel wiring path that could be forgotten for exactly one
+        /// archetype. Null-safe: a bare test spawn has no emitter, and <c>false</c> means "nothing was
+        /// drawn", which is the honest answer there.</para>
+        /// </summary>
+        /// <returns><c>true</c> when the particle was accepted by the world.</returns>
+        public bool EmitParticle(string particleId, Vector2 worldPositionPixels)
+        {
+            if (_particleEmitter == null || string.IsNullOrEmpty(particleId))
+            {
+                return false;
+            }
+
+            // The emitter works in Unity world units, not pixels — the conversion belongs to it, and
+            // `Emit` does it (RoomParticleEmitter.TryToAs3Local). Passing pixels here would put every
+            // quake flash a hundred times off screen.
+            var worldUnits = new Vector3(
+                worldPositionPixels.x * TileQueryConstants.PixelToUnit,
+                worldPositionPixels.y * TileQueryConstants.PixelToUnit,
+                transform.position.z);
+
+            return _particleEmitter.Emit(particleId, worldUnits);
+        }
+
+        /// <summary>
         /// Ask the room whether this unit is standing on something, before gravity reads the answer.
         ///
         /// <para>Runs every physics step rather than being event-driven, because the question is about
@@ -1497,6 +1658,25 @@ namespace PFE.Entities.Units
             // collider or its prop layer must not keep a stale support alive: the carry in Move() reads
             // `_groundPropCarryPixels` unconditionally, and a stale one would drag the unit sideways
             // every step for a crate it is no longer standing on.
+            //
+            // The PREVIOUS support's displacement is read first, because it is the second argument of
+            // the oracle's own landing test (`checkShelf(dy, osndy)`, Unit.as:2340 — `osndy` comes from
+            // `stayOsn`, i.e. from the prop this unit stood on last tick, Unit.as:2014-2026). It is
+            // what lets a platform that rose this tick still be found: without it the surface is above
+            // the un-shifted band, the unit reads as airborne, and gravity wins every tick until the
+            // feet are below the platform top and no query can see them.
+            Vector2 supportCarry = Vector2.zero;
+            ObjectInstance previousSupport = _groundProp;
+            if (previousSupport != null)
+            {
+                MapObjectDynamicStateData previousState = previousSupport.runtimeState?.dynamicState;
+                if (previousState != null &&
+                    UnitCheckShelfMath.IsSupportStillCarrying(previousState.cdx, previousState.cdy))
+                {
+                    supportCarry = new Vector2(previousState.cdx, previousState.cdy);
+                }
+            }
+
             _groundProp = null;
             _groundPropSurfaceRoomLocalY = null;
             _groundPropCarryPixels = Vector2.zero;
@@ -1566,7 +1746,8 @@ namespace PFE.Entities.Units
                     roomLocalFeet,
                     TileQueryConstants.PorogGrounded,
                     out ObjectInstance support,
-                    out float surfaceRoomLocalY))
+                    out float surfaceRoomLocalY,
+                    supportCarry.y))
             {
                 return;
             }
@@ -1759,15 +1940,22 @@ namespace PFE.Entities.Units
 
         /// <summary>
         /// Apply gravity if not grounded.
-        /// Replaces: if (!levit) dy += World.ddy * grav (from Unit.as)
+        /// Replaces: <c>dy += World.ddy * _loc1_.grav * this.grav</c> (from <c>Unit.as:1962-1965</c>)
         ///
         /// <para>AS3's gate is <c>!levit &amp;&amp; this.isLaz == 0</c> (<c>Unit.as:1962</c>), where
         /// <c>isLaz</c> means "standing on something"; <see cref="_isGrounded"/> is this port's
         /// equivalent and is now resolved from the room's tile query by
         /// <see cref="ResolveGroundState"/> (the collision callbacks below are the fallback for a unit
-        /// with no room). The magnitude and the terminal clamp live in
-        /// <see cref="UnitFallPhysics.FallSpeed"/>, which is pure and tested — the
-        /// value was the wrong part, not the shape of the branch.</para>
+        /// with no room). The magnitude, the per-tile <c>grav</c> multiplier and the terminal clamp
+        /// live in <see cref="UnitFallPhysics.FallSpeed"/> / <see cref="UnitFallPhysics.LiftSpeed"/>,
+        /// which are pure and tested — the value was the wrong part, not the shape of the branch.</para>
+        ///
+        /// <para><b>The branch is a three-way, not a two-way.</b> The oracle's condition
+        /// (<c>grav &gt; 0 &amp;&amp; dy &lt; maxdy*grav || grav &lt; 0 &amp;&amp; dy &gt; maxdy*grav</c>)
+        /// reads as "integrate" but is really "integrate downward, integrate upward, or don't
+        /// integrate": <c>grav &lt; 0</c> is the lift shaft that pushes a unit up, and
+        /// <c>grav == 0</c> leaves <c>dy</c> untouched. The negative arm is therefore taken before the
+        /// grounded check, because a lift must push off the floor.</para>
         ///
         /// <para><b>The cadence is no longer fixed to FixedUpdate.</b> This used to carry a "known
         /// divergence" note: it ran in <c>FixedUpdate</c> against <c>Time.fixedDeltaTime</c> (Unity's
@@ -1780,6 +1968,18 @@ namespace PFE.Entities.Units
         /// </summary>
         protected void ApplyGravity()
         {
+            // AS3 `forces()` (Unit.as:1915-1952) is `if(levit) … else if(isPlav) … else if(isFly) … else
+            // gravity` — the levitation arm is FIRST and replaces every other one. An externally
+            // levitated unit therefore takes neither gravity nor the flight brake: the thing holding it
+            // up is the pull, and it is the pull that supplies its velocity.
+            //
+            // Without this the telekinetic's 2 px/frame² upward acceleration would fight a 1 px/frame²
+            // downward one, and the victim would sink through the effect that is supposed to lift it.
+            if (IsLevitated)
+            {
+                return;
+            }
+
             // AS3 Unit.as:1915-1952 — `forces()` is a branch ladder, not a pair of additive steps, and
             // the two arms are mutually exclusive. `if(levit) … else if(isPlav) … else if(isFly) { … }
             // else { gravity }` — a flyer takes the `isFly` arm and never reaches `dy += World.ddy`.
@@ -1793,6 +1993,27 @@ namespace PFE.Entities.Units
             if (IsFlying)
             {
                 ApplyFlightBrake();
+                return;
+            }
+
+            // AS3 reads the tile under the unit's lower body on EVERY unit, every frame
+            // (`loc.getAbsTile(X, Y - scY / 4).grav`, Unit.as:1960-1966, UnitPlayer.as:766-788) and
+            // branches on its sign. This is the motor-less half of that read;
+            // `TilePhysicsController.ApplyGravity` is the other.
+            //
+            // Both halves are required, and not for symmetry: `PfeDebugSettings.UnitMotor` is OFF by
+            // default, so this is the LIVE path for every spawned unit while the player — whose rig
+            // adds a motor unconditionally — is the only unit that takes the motor's copy. A read only
+            // in the motor would make a lift shaft a player-only feature and leave every NPC standing
+            // on the floor of a shaft that rises around them.
+            float tileGravity = ResolveTileGravity();
+
+            // The negative arm runs BEFORE the grounded check, because a lift has to push off the
+            // floor: the oracle integrates gravity unconditionally, and a unit in a shaft is grounded
+            // for as long as it takes to leave the tile it stands on.
+            if (tileGravity < 0f)
+            {
+                _velocity.y = UnitFallPhysics.LiftSpeed(_velocity.y, StepSeconds, tileGravity);
                 return;
             }
 
@@ -1812,7 +2033,50 @@ namespace PFE.Entities.Units
                 return;
             }
 
-            _velocity.y = UnitFallPhysics.FallSpeed(_velocity.y, StepSeconds);
+            _velocity.y = UnitFallPhysics.FallSpeed(_velocity.y, StepSeconds, tileGravity);
+        }
+
+        /// <summary>
+        /// AS3 <c>loc.getAbsTile(X, Y - scY / 4).grav</c> — the gravity multiplier of the tile under the
+        /// unit's <b>lower body</b>, not under its feet. The motor-less twin of
+        /// <c>TilePhysicsController.ResolveTileGravity</c>; the two must answer the same question the
+        /// same way, or <c>PfeDebugSettings.UnitMotor</c> decides whether a lift works.
+        ///
+        /// <para><b>Where the sample point comes from.</b> <c>UnitPlayer.as:767</c> and
+        /// <c>Unit.as:1960</c> both probe a quarter of the body height above the feet (<c>Y</c> is the
+        /// feet in the oracle, <c>scY</c> the body height). That offset is load-bearing for a lift
+        /// shaft: the floor tile a unit stands on is <i>outside</i> the area (an area is stamped
+        /// bottom-up over the air it lifts, not over the floor), so a probe at the feet would read 1
+        /// and the unit would never leave the ground.</para>
+        ///
+        /// <para><b>Room-local pixels, because that is the space the tile grid lives in.</b>
+        /// <see cref="RoomLocalFeetBoundsPixels"/> already subtracts the room origin, which is the one
+        /// place the two spaces meet.</para>
+        /// </summary>
+        protected float ResolveTileGravity()
+        {
+            RoomInstance room = Room;
+            if (room == null || _collider == null)
+            {
+                return TileData.DefaultGravity;
+            }
+
+            Rect feet = RoomLocalFeetBoundsPixels();
+            float sampleX = feet.center.x;
+            float sampleY = feet.y + feet.height * 0.25f;
+
+            // The same +0.01 epsilon the motor's copy uses: a collider bound landing a hair under a
+            // tile edge (39.9999 for 40) would floor into the previous tile, and the two drivers must
+            // never disagree about which tile a unit is standing in.
+            var coord = new Vector2Int(
+                Mathf.FloorToInt(sampleX / TileQueryConstants.TileSize + 0.01f),
+                Mathf.FloorToInt(sampleY / TileQueryConstants.TileSize + 0.01f));
+
+            TileData tile = room.GetTileAtCoord(coord);
+
+            // Missing tile answers the default, never 0: 0 means "weightless", so an out-of-room or
+            // not-yet-filled tile would silently switch gravity off for whatever stands there.
+            return tile != null ? tile.gravityMultiplier : TileData.DefaultGravity;
         }
 
         /// <summary>
@@ -2448,6 +2712,63 @@ namespace PFE.Entities.Units
         }
 
         /// <summary>
+        /// AS3 <c>Unit.levit</c> — a unit under someone else's levitation, i.e. the value <b>2</b>.
+        /// The zombie telekinetic sets it on its victim (<c>UnitZombie.as:1178</c>) and clears it when
+        /// the super ends (<c>:1216-1219</c>).
+        ///
+        /// <para><b>Only the external value lives here.</b> AS3's <c>levit == 1</c> is the unit's
+        /// <i>own</i> levitation (the player's perk, a flyer's hover) and the port already models those
+        /// in their own systems — <c>PlayerLocomotionController</c>'s levitation state and
+        /// <c>IsFlying</c>. Reproducing them here as a second flag would give "can this unit float" two
+        /// answers that could disagree. The telekinetic's check is <c>levit != 1</c>
+        /// (<c>UnitZombie.as:1170</c>), i.e. "do not grab something that is already holding itself up";
+        /// the port's equivalent is <see cref="IsFlyingUnit"/>, tested by the caller.</para>
+        ///
+        /// <para><b>Why it has to be a flag rather than a velocity.</b> Both gravity drivers branch on
+        /// it — <c>UnitController.ApplyGravity</c> and <c>TilePhysicsController.ApplyGravity</c> — and
+        /// the oracle's <c>forces()</c> puts <c>if(levit)</c> <i>first</i>, ahead of <c>isPlav</c> and
+        /// <c>isFly</c>. Injecting velocity alone would leave gravity adding 1 px/frame² downward every
+        /// tick, so a levitated player would sink through the pull that is supposed to lift them.</para>
+        /// </summary>
+        public bool IsLevitated { get; private set; }
+
+        /// <summary>
+        /// Set or clear <see cref="IsLevitated"/>. The caller owns the lifetime: AS3 clears it in
+        /// <c>superSilaVse()</c> and on death (<c>UnitZombie.as:353, 1214-1221</c>), and a stale flag
+        /// would leave a unit floating for ever with nothing on screen to explain it.
+        /// </summary>
+        public void SetLevitated(bool levitated)
+        {
+            IsLevitated = levitated;
+        }
+
+        /// <summary>
+        /// Add a velocity to this unit in <b>AS3's units — pixels per 30 Hz frame</b>, routed to
+        /// whichever movement layer is actually stepping it.
+        ///
+        /// <para><b>Why <see cref="AddForce"/> is not enough.</b> That method writes
+        /// <c>_velocity</c>, the Unity-units-per-second field the <i>motor-less</i> path integrates. A
+        /// motor-driven unit (the shipped default) keeps its velocity in <c>TilePhysicsController.dx/dy</c>
+        /// and never reads <c>_velocity</c>, so a force added there is silently discarded — the same
+        /// two-storage trap <c>EnemyBrain.MoveHorizontal</c> documents for horizontal speed.</para>
+        ///
+        /// <para><b>Additive, not absolute</b> — AS3's telekinetic writes
+        /// <c>teleUnit.dx += l1</c> (<c>UnitZombie.as:1181</c>), so a pull composes with whatever the
+        /// target is already doing instead of teleporting it to a speed.</para>
+        /// </summary>
+        /// <param name="velocityPixelsPerFrame">The delta to add, in AS3's px/frame.</param>
+        public void AddVelocityPixelsPerFrame(Vector2 velocityPixelsPerFrame)
+        {
+            if (_cachedTilePhysics != null)
+            {
+                _cachedTilePhysics.AddForce(velocityPixelsPerFrame.x, velocityPixelsPerFrame.y);
+                return;
+            }
+
+            _velocity += velocityPixelsPerFrame * TileQueryConstants.PerFrameVelocityToUnitsPerSecond;
+        }
+
+        /// <summary>
         /// AS3 <c>Unit.throu</c> (<c>Unit.as:296</c>) — ask this unit's ground probe to ignore one-way
         /// platforms, so it falls through whatever it is standing on.
         ///
@@ -2919,6 +3240,35 @@ namespace PFE.Entities.Units
         /// </remarks>
         public virtual float Mass => _stats != null ? _stats.Massa : 1f;
 
+        /// <summary>
+        /// AS3 <c>Unit.collisionTip</c> — whether this unit <b>exchanges momentum</b> when its contact
+        /// attack lands (<c>Unit.as:196</c>, default <c>1</c>).
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Read on the ATTACKER, in <see cref="TryContactAttack"/>.</b> AS3's test is
+        /// <c>if(param1.collisionTip == 1)</c> (<c>Unit.as:4151</c>) inside the <i>target's</i>
+        /// <c>udarUnit</c>, where <c>param1</c> is the striker — so this is the striker's flag. A
+        /// <c>false</c> here means "this unit's claw does not shove", not "this unit cannot be shoved";
+        /// the latter is <see cref="Knocked"/> and they are independent.</para>
+        ///
+        /// <para><b>Six AS3 subclasses set it to <c>0</c>, all in their constructors, and five of them
+        /// are ported.</b> <c>UnitSlime.as:65</c>, <c>UnitSpectre.as:33</c>, <c>UnitNecros.as:29</c>,
+        /// <c>UnitBossDron.as:60</c> and <c>UnitThunderHead.as:147</c> each override this to
+        /// <c>false</c> on their controller. <c>UnitScythe.as:44</c> is the sixth and has no controller
+        /// to override — the scythe is a self-propelled blade entity whose <c>forces()</c> is empty
+        /// (<c>UnitScythe.as:56-58</c>), not an archetype — so it is a recorded gap.</para>
+        ///
+        /// <para><b><c>true</c> is the right fallback</b> and AS3's own field default. Answering
+        /// <c>false</c> for a unit with no definition would silently disable the shove for the whole
+        /// roster, which is the state the port was in before this landed.</para>
+        ///
+        /// <para><b>Virtual, like <see cref="IsFixed"/>, <see cref="Knocked"/> and
+        /// <see cref="Mass"/>,</b> because AS3 assigns it per <i>class</i> and the port's importer has no
+        /// attribute to read — <c>collisionTip</c> appears in no unit row. A controller is the class
+        /// the port does have.</para>
+        /// </remarks>
+        public virtual bool CollisionTip => UnitCollisionImpulseMath.CollisionTipDefault;
+
         // === IBloodSpraySource — AS3 `Unit.blood` and `scX`/`scY` ==============================
         //
         // A second optional interface, for the same reason `IEffectReceiver` is one: AS3's blood block
@@ -3285,11 +3635,36 @@ namespace PFE.Entities.Units
         /// Adds a knockback impulse to this unit's velocity — AS3's <c>dx += …; dy += …</c>.
         /// </summary>
         /// <remarks>
-        /// Delegates to <see cref="AddForce"/>, which is the port of AS3's <c>Unit.forces()</c> and has
-        /// carried a "explosions, knockback, etc." doc comment since long before anything called it —
-        /// the producer for this existed and had no consumer until now.
+        /// <para><b>The impulse is in Unity units per second</b>, which is what
+        /// <c>DamageSystem.ApplyKnockback</c> converts AS3's px/frame into. It must be routed through
+        /// <see cref="AddVelocityPixelsPerFrame"/> and <b>not</b> written to <c>_velocity</c>
+        /// directly.</para>
+        ///
+        /// <para><b>Why that is a fix and not a refactor.</b> This method used to be
+        /// <c>AddForce(impulse)</c>, i.e. <c>_velocity += impulse</c>. <c>_velocity</c> is the
+        /// <i>motor-less</i> storage — it is read by <see cref="StepUnit"/> and by nothing else. A unit
+        /// with a <c>TilePhysicsController</c> keeps its velocity in that component's own
+        /// <c>dx</c>/<c>dy</c> and never looks at <c>_velocity</c> at all (see
+        /// <see cref="As3VelocityPixelsPerFrame"/>), so for every motor-driven unit the impulse was
+        /// written and then silently dropped. The <b>player</b> is always motor-driven —
+        /// <c>PlayerLocomotionController</c> declares <c>[RequireComponent(typeof(TilePhysicsController))]</c>
+        /// and <c>PlayerRigBuilder</c> adds one — so no shot, blast or throw had ever moved the player,
+        /// while every NPC (motor-less by default, <c>PfeDebugSettings.UnitMotor</c> off) was thrown
+        /// correctly. That asymmetry is exactly what makes this class of bug survive a play-test: the
+        /// mechanic visibly works on the thing you are shooting at.</para>
+        ///
+        /// <para><b>Both paths are unchanged in value.</b> For a motor-less unit
+        /// <see cref="AddVelocityPixelsPerFrame"/> multiplies by
+        /// <c>TileQueryConstants.PerFrameVelocityToUnitsPerSecond</c> and this method divides by it, so
+        /// the net write is <c>_velocity += impulse</c> — the same quantity to within one rounding step
+        /// (a divide and a multiply by the same constant, not an exact identity in binary floating
+        /// point). Only the motor-driven path changes, and it changes from "discarded" to "applied in
+        /// px/frame", which is the unit the motor's own <c>AddForce</c> expects.</para>
         /// </remarks>
-        public virtual void ApplyKnockback(Vector2 impulse) => AddForce(impulse);
+        public virtual void ApplyKnockback(Vector2 impulse)
+        {
+            AddVelocityPixelsPerFrame(impulse / TileQueryConstants.PerFrameVelocityToUnitsPerSecond);
+        }
 
         // === Timed contact invulnerability — AS3 `neujaz` ===================================
         //
@@ -3490,6 +3865,27 @@ namespace PFE.Entities.Units
         /// time.</para>
         /// </summary>
         public Vector2 VelocityPixelsPerFrame => As3VelocityPixelsPerFrame;
+
+        /// <summary>
+        /// Replace this unit's velocity, in AS3's own units — <b>pixels per 30 Hz frame</b> — through
+        /// the same two-storage seam <see cref="VelocityPixelsPerFrame"/> reads.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Replace, not add.</b> AS3 has both: <c>otbros</c> does <c>dx += …</c> (that is
+        /// <see cref="AddVelocityPixelsPerFrame"/>) while <c>udarUnit</c>'s exchange <i>assigns</i>
+        /// <c>dx = …</c>. Using the additive one for the exchange would let two bodies gain energy on
+        /// every contact, so the two verbs have to stay separate.</para>
+        ///
+        /// <para><b>Why a method and not a settable property.</b> <see cref="As3VelocityPixelsPerFrame"/>
+        /// is protected; a public setter on this class would also make
+        /// <see cref="VelocityPixelsPerFrame"/> writable and every caller that reads it a candidate for
+        /// accidentally writing it. A verb is greppable — <c>SetVelocityPixelsPerFrame</c> has exactly
+        /// two callers, both in the contact exchange.</para>
+        /// </remarks>
+        public void SetVelocityPixelsPerFrame(Vector2 velocityPixelsPerFrame)
+        {
+            As3VelocityPixelsPerFrame = velocityPixelsPerFrame;
+        }
 
         /// <summary>
         /// Run this unit's side of AS3 <c>Box.attDrop</c> (<c>Box.as:914-940</c>) and
@@ -4238,7 +4634,36 @@ namespace PFE.Entities.Units
                                           nx: transform.position.x, ny: centreY);
             }
 
+            // AS3 `UnitRaider.dropLoot` (:507-523) — the gun the corpse was holding, dropped
+            // <b>after</b> `super.dropLoot()` returns, i.e. after the table, the essence and the gem.
+            // A no-op for every family that does not override `dropLoot`, which is all of them except
+            // the raider family (and the two bosses, whose port controllers hold no weapon at all).
+            //
+            // Rolled into `ctx` rather than spawned here so the dropped weapon goes through the same
+            // item-construction rules as every other drop — the `kol = 0` condition band, the `^N`
+            // variant split and the per-run `@limit` check are all the roller's, not a second copy's.
+            DropWieldedWeapon(ctx, centreY);
+
             SpillDrops(ctx, player, centreY);
+        }
+
+        /// <summary>
+        /// AS3 <c>UnitRaider.dropLoot</c>'s second half (<c>UnitRaider.as:507-523</c>) — drop the weapon
+        /// the corpse was holding, in 5–20 % condition, as its own <c>^N</c> variant when it had one.
+        ///
+        /// <para><b>Why a virtual hook and not an override of <see cref="DropLootOnDeath"/>.</b> The
+        /// oracle puts this <i>inside</i> <c>dropLoot</c>, after <c>super.dropLoot()</c>, so it sits
+        /// behind the same once-only guard (<c>!lootIsDrop</c>, <c>Unit.as:4381</c>) as the table roll:
+        /// a second <c>die()</c> on a body that is already a corpse must not drop a second gun. An
+        /// override of <see cref="DropLootOnDeath"/> would have to re-implement that guard, and
+        /// <c>_lootDropped</c> is private. The hook therefore runs exactly where the oracle runs it and
+        /// inherits the guard for free.</para>
+        ///
+        /// <para><b>Default: nothing.</b> Only the raider family overrides this. The base <c>Unit</c> has
+        /// no <c>isDropArm</c> and its <c>dropLoot</c> never looks at <c>currentWeapon</c>.</para>
+        /// </summary>
+        protected virtual void DropWieldedWeapon(LootContext ctx, float centreY)
+        {
         }
 
         /// <summary>
@@ -4315,8 +4740,18 @@ namespace PFE.Entities.Units
 
                     // One instance, never a stack: a weapon carries its own condition, magazine and
                     // respect state, and AS3 forces weapons to kol 1 (Item.as:176-178).
+                    //
+                    // `Variant` and `Condition` are carried, not dropped. Until this, both were computed
+                    // by the roller and thrown away here, so a rolled `lsword^1` spawned as a base
+                    // `lsword` and every dropped weapon arrived pristine — while AS3 hands
+                    // `Invent.take` an item whose `sost` is 0.05..0.20 for a `kol = 0` roll
+                    // (Item.as:185-188) and whose `variant` is the `^N` tier. `HpMultiplier` is AS3's
+                    // `multHP` (0.4 for a broken container), which `take` multiplies into the same
+                    // product: `hp = round(char[v].@maxhp * sost * multHP)` (Invent.as:1068-1075).
                     Vector3 weaponWhere = DropScatter(rng, centreY);
-                    if (WorldItemPickup.Spawn(weapon, 1, weaponWhere, autoCollect: true) != null)
+                    if (WorldItemPickup.Spawn(weapon, 1, weaponWhere, autoCollect: true,
+                                              variant: roll.Variant,
+                                              condition: roll.Condition * roll.HpMultiplier) != null)
                     {
                         spawned++;
                     }

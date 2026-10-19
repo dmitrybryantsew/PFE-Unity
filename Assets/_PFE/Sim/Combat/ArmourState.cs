@@ -213,6 +213,10 @@ namespace PFE.Entities.Units
         /// Its ratings do <b>not</b> degrade with condition, because AS3 never runs anything like
         /// <c>setArmor()</c> for a unit pool: <c>armor_qual</c> stays at its XML value until the pool
         /// empties and is zeroed in place (<c>Unit.as:3601</c>).
+        ///
+        /// <para><b>Production callers should go through <see cref="UnitArmourMath.Build"/></b>, which
+        /// owns the gate (<c>armor &gt; 0 || marmor &gt; 0</c>) and the two-armed capacity rule. This
+        /// constructor takes the numbers; it does not decide where they come from.</para>
         /// </summary>
         public static ArmourState FromUnitPool(
             float integrity,

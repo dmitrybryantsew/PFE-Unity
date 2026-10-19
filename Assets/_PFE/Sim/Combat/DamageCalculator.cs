@@ -427,7 +427,23 @@ namespace PFE.Systems.Combat
                     // (Armor.as:337) is called from UnitPlayer.damage() at :3297, while the reduction
                     // block lives in super.damage() at :3324. So this hit already sees the armour it
                     // just dented: crossing the half-way mark degrades the very hit that crossed it.
-                    float condition = ArmourState.ConditionFactorOf(integrityAfter, armour.maxIntegrity);
+                    //
+                    // ── But ONLY for the equipped item. The unit pool has no condition curve. ─────
+                    // `setArmor()` is an `Armor` method and `Armor` is the player's plate; an NPC's
+                    // pool is never re-projected, because nothing writes `Unit.armor`/`marmor`/
+                    // `armor_qual` after the XML parse (:1146-1164) — except `setLevel()`'s level
+                    // scaling (:1609-1612) and the in-place zeroing when the pool empties (:3601).
+                    // So a pool at 10 % integrity still applies its FULL rating, and the only state
+                    // it has is "intact" or "empty". Applying `ConditionFactorOf` to it would give a
+                    // damaged robot a 0.6 multiplier that the oracle never produces.
+                    //
+                    // This was latent rather than observed: until `UnitArmourMath` gave the pool a
+                    // production builder, the only pools in the tree were test fixtures, and they all
+                    // sat at or above half integrity — where the factor is 1 and the two rules agree.
+                    // A test that only ever used a full pool could not have caught it.
+                    float condition = armour.model == ArmourModel.UnitPool
+                        ? 1f
+                        : ArmourState.ConditionFactorOf(integrityAfter, armour.maxIntegrity);
                     float reliability = armour.reliability * condition;
 
                     if (reliability > 0f && rng != null && rng.Chance(reliability))
