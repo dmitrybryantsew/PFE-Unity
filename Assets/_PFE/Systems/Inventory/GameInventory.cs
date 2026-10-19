@@ -471,6 +471,27 @@ namespace PFE.Systems.Inventory
             // Check if already have this weapon
             if (weapons.TryGetValue(weaponId, out GameWeaponInstance existingWeapon))
             {
+                // AS3 `Invent.take`'s two branches for a weapon already held (`Invent.as:1076-1094`):
+                //
+                //   1. upgrade the tier when the incoming copy is a HIGHER variant
+                //      (`if(weapons[id].variant < l.variant) updWeapon(id, l.variant)`), and
+                //   2. repair it to the incoming copy's hp.
+                //
+                // The port only ever did (2). That made a dropped `carbine^1` — the whole point of the
+                // raider hero's weapon — indistinguishable from picking up a second plain carbine: the
+                // tier was dropped on the floor and the bag kept showing " - " with base stats.
+                //
+                // The upgrade is gated exactly as `Weapon.updVariant` gates it (`Weapon.as:895-900`): a
+                // weapon with no `<com>` (uniq -1) has no tier 1 to upgrade to, so the request is
+                // ignored rather than half-applied. `uniq == 0` still upgrades — see
+                // `EnemyWeaponDropRules.ShouldUpgradeOwnedWeapon`.
+                float uniq = existingWeapon.WeaponDefinition != null ? existingWeapon.WeaponDefinition.uniq : -1f;
+                if (PFE.Systems.Loot.EnemyWeaponDropRules.ShouldUpgradeOwnedWeapon(
+                        existingWeapon.Variant, variant, uniq))
+                {
+                    existingWeapon.UpgradeVariant(variant);
+                }
+
                 // Repair existing weapon
                 float repairAmount = (health == float.MaxValue) ? existingWeapon.MaxHealth : health;
                 existingWeapon.Repair(repairAmount, 1.0f);
