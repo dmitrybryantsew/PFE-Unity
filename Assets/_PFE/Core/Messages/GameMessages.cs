@@ -70,6 +70,36 @@ namespace PFE.Core.Messages
     }
 
     /// <summary>
+    /// Published on <b>both</b> edges of the grenade key — AS3 <c>ctr.keyGrenad</c>, <c>G</c>
+    /// (<c>inter/Ctr.as:25</c>: <c>&lt;key id='keyGrenad' def={Keyboard.G}/&gt;</c>).
+    ///
+    /// <para><b>A separate key from Attack, and a separate weapon from the one in hand.</b>
+    /// <c>UnitPlayer.as:2188-2204</c> reads <c>keyGrenad</c> and fires <c>this.throwWeapon</c> — a
+    /// second <c>Weapon</c> object held in its own slot, not <c>currentWeapon</c>. The slot is filled
+    /// two ways: from <c>invent.fav[29]</c> at init (<c>:436</c>), or automatically the moment a
+    /// <c>tip == 4</c> weapon is switched to while that favourite is empty (<c>:3693-3696</c>). So a
+    /// player holding a rifle can still throw a grenade without putting the rifle down, which is the
+    /// whole point of the key being separate.</para>
+    ///
+    /// <para><b>Held, not edge-triggered</b>, for the same reason as <see cref="MagicWeaponMessage"/>:
+    /// AS3 clears the key itself once the throw has happened
+    /// (<c>if(this.throwWeapon.tip == 4) { this.ctr.keyGrenad = false; }</c>, <c>:2196-2199</c>), and
+    /// the weapon's own <c>t_auto</c> debounce is what paces repeats. Publishing only the press edge
+    /// would work for today's data and break the moment a thrown weapon is <c>auto</c>.</para>
+    ///
+    /// <para><b>Why this message had to exist at all.</b> <c>ThrownObject</c>,
+    /// <c>MineObject</c> and <c>ThrownWeaponController</c> were all ported and all unreachable from
+    /// the player: there was no key, no message, and no throw slot on
+    /// <c>PlayerWeaponLoadout</c> — the only controller it owned was <c>_current</c>. A grenade could
+    /// be <i>equipped</i> (which replaced the gun) and thrown with Attack, and nothing else.</para>
+    /// </summary>
+    public struct GrenadeMessage
+    {
+        /// <summary>True while the G key is down; false on release.</summary>
+        public bool IsHeld;
+    }
+
+    /// <summary>
     /// Published on <b>both</b> edges of the magic-weapon key — AS3 <c>ctr.keyMagic</c>, <c>T</c>
     /// (<c>inter/Ctr.as:24</c>).
     ///

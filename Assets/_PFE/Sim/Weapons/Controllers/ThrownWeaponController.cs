@@ -44,6 +44,29 @@ namespace PFE.Systems.Weapons.Controllers
         private readonly IWeaponStats _def;
 
         /// <summary>
+        /// AS3 <c>Weapon.krep &gt; 0</c> — the weapon is rigidly mounted, so its position <b>snaps</b>
+        /// to the owner's hold point instead of easing toward it.
+        ///
+        /// <para><b>Why a thrown weapon has this at all:</b> <c>WThrow</c> does not override
+        /// <c>actions()</c> (measured: <c>grep "override public function actions" WThrow.as</c> → 0
+        /// hits; only <c>WClub</c> and <c>WMagic</c> do), so it runs the base
+        /// <c>Weapon.actions()</c> rule verbatim — including the <c>krep &gt; 0</c> snap at
+        /// <c>Weapon.as:1076-1081</c>. Same two arms as <see cref="RangedWeaponController"/>; see that
+        /// property's remarks for the measurement.</para>
+        ///
+        /// <para>Defaults to <c>false</c>, which is the player's value (<c>UnitPlayer.as:368</c> forces
+        /// <c>weaponKrep = 0</c>), so the player's grenade path is unchanged.</para>
+        /// </summary>
+        public bool SnapToHoldPoint { get; set; }
+
+        /// <summary>
+        /// AS3 <c>owner.storona</c> for the rigid arm's aim formula
+        /// (<c>atan2(dy, |dx| * owner.storona)</c>, <c>Weapon.as:1080</c>). See
+        /// <see cref="RangedWeaponController.OwnerFacingSign"/> for why the term exists at all.
+        /// </summary>
+        public float OwnerFacingSign { get; set; } = 1f;
+
+        /// <summary>
         /// The owner's RPG multipliers — null means "no owner stats", in which case every accessor
         /// falls back to the AS3 declaration default. Same contract as
         /// <see cref="RangedWeaponController"/>'s source, and read live so a perk taken mid-fight
@@ -83,6 +106,34 @@ namespace PFE.Systems.Weapons.Controllers
         /// </summary>
         private int _kolAmmo;
         private const int DefaultKolAmmo = 4;
+
+        /// <summary>
+        /// Seed the NPC throw counter from the owner's own data — AS3
+        /// <c>UnitMerc.as:33</c> / <c>UnitEncl.as:30</c>: <c>(this.thWeapon as WThrow).kolAmmo =
+        /// grenader;</c>.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Why this cannot be read from the weapon.</b> <c>kolAmmo</c> is not a weapon property
+        /// at all — <c>WThrow.as:12</c> declares it <c>4</c>, and the <i>unit</i> overwrites it from its
+        /// own <c>&lt;un grenader&gt;</c> attribute right after <c>Weapon.create</c>. So two griffins
+        /// holding the same <c>mercgr</c> row carry different numbers of rockets: <c>merc3</c> four
+        /// (<c>grenader='4'</c>, <c>AllData.txt:460</c>) and <c>merc5</c> two (<c>grenader='2'</c>,
+        /// <c>:491</c>). Seeding from <c>magazineSize</c> instead — which is what the constructor does —
+        /// gave both the same count, because <c>mercgr</c> authors no <c>holder</c>.</para>
+        ///
+        /// <para><b>Ignored for a player-owned weapon and for a zero.</b> A player's throws come from
+        /// the inventory (<c>WThrow.getAmmo()</c>'s other half), and a unit with no <c>grenader</c> has
+        /// no throw weapon at all in the oracle — <c>UnitMerc.as:30</c> wraps the creation in
+        /// <c>if(grenader &gt; 0)</c> — so a zero here must not be applied on top of the constructor's
+        /// default and silently disarm a weapon that was correctly built.</para>
+        /// </remarks>
+        public void SetThrowCount(int count)
+        {
+            if (!_npcOwner) return;
+            if (count <= 0) return;
+
+            _kolAmmo = count;
+        }
 
         /// <summary>
         /// Whether the owner is an NPC, i.e. which half of <c>WThrow.getAmmo()</c> applies.
@@ -205,19 +256,32 @@ namespace PFE.Systems.Weapons.Controllers
         {
             _lastAimTarget = aimTarget;
 
-            // Position lerp (same as ranged — weapon sprite tracks hold point).
-            if (State.X == 0f && State.Y == 0f)
+            // Position — AS3 `Weapon.actions()` (Weapon.as:1076-1086), the same two arms the ranged
+            // controller takes: `krep > 0` assigns `X/Y` outright (a rigid mount), the 1/5 easing is the
+            // carried-weapon arm and therefore the player's. `rot2` differs with the arm as well — the
+            // rigid one aims along the body's facing and lets only the elevation follow the cursor.
+            float rot2;
+            if (SnapToHoldPoint)
             {
                 State.X = holdPoint.x;
                 State.Y = holdPoint.y;
+                rot2 = Mathf.Atan2(aimTarget.y - State.Y,
+                                   Mathf.Abs(aimTarget.x - State.X) * (OwnerFacingSign >= 0f ? 1f : -1f));
+            }
+            else if (State.X == 0f && State.Y == 0f)
+            {
+                State.X = holdPoint.x;
+                State.Y = holdPoint.y;
+                rot2 = Mathf.Atan2(aimTarget.y - State.Y, aimTarget.x - State.X);
             }
             else
             {
                 State.X += (holdPoint.x - State.X) / 5f;
                 State.Y += (holdPoint.y - State.Y) / 5f;
+                rot2 = Mathf.Atan2(aimTarget.y - State.Y, aimTarget.x - State.X);
             }
 
-            State.Rot   = Mathf.Atan2(aimTarget.y - State.Y, aimTarget.x - State.X);
+            State.Rot   = rot2;
             State.Ready = true;
 
             if (_attackHeld)
@@ -419,11 +483,19 @@ namespace PFE.Systems.Weapons.Controllers
         /// where <c>param1</c>/<c>param2</c> are the cursor offset in <b>Flash pixels</b> and
         /// <c>param3</c> is <c>weaponSkill * skillConf</c>.
         ///
-        /// <para><b>There is no lower clamp, and adding one changes the game.</b> The distance term
-        /// goes negative whenever the cursor sits above the thrower by more than the geometry allows
-        /// for — a steep upward lob — and the oracle lets that negative through, which is what makes
-        /// such a throw drop short. The port used to wrap the result in <c>Mathf.Max(1f, …)</c>,
-        /// silently turning every one of those into a 1 px/frame nudge. Removed.</para>
+        /// <para><b>The vertical term is y-up, so its sign is flipped.</b> AS3 writes
+        /// <c>- param2 / 10 * param3</c> with <c>param2 = celY - Y</c> in <b>y-down</b> space, i.e.
+        /// positive when the target is <i>below</i> the thrower: the oracle throws harder at a target
+        /// above and softer at one below. Unity's <c>dYpx</c> is that quantity negated, so the term
+        /// must be <c>+ dYpx / 10</c>. Transcribing the minus was the owner-reported "raiders drop
+        /// grenades at their own feet": with the inverted sign a target <i>above</i> shrinks the launch
+        /// speed instead of raising it, and at a steep angle the term collapses towards zero.</para>
+        ///
+        /// <para><b>There is no lower clamp, and adding one changes the game.</b> AS3's
+        /// <c>(dist - dy_down) / 10</c> can never be negative — <c>dist &gt;= |dy|</c> — so the oracle
+        /// never throws backwards; it only throws slowly. The port used to wrap the result in
+        /// <c>Mathf.Max(1f, …)</c>, which hid the inverted sign for shallow angles and turned every
+        /// steep one into a 1 px/frame nudge. The clamp is gone and the sign is now correct.</para>
         /// </summary>
         private float GetVel(Vector2 spawnPos, Vector2 aimTarget, float skill)
         {
@@ -431,7 +503,7 @@ namespace PFE.Systems.Weapons.Controllers
             float dYpx = (aimTarget.y - spawnPos.y) * PpuScale;
 
             float distTerm = Mathf.Sqrt(dXpx * dXpx + dYpx * dYpx) / 10f * skill
-                           - dYpx / 10f * skill;
+                           + dYpx / 10f * skill;
 
             return Mathf.Min(_def.projectileSpeed * skill, distTerm);
         }
@@ -440,11 +512,20 @@ namespace PFE.Systems.Weapons.Controllers
         /// AS3 <c>WThrow.getRot()</c> (<c>WThrow.as:122-125</c>):
         /// <c>-param1 / (param3 + 0.0001) / 100</c> — the launch-angle correction that makes a flat
         /// throw arc. <c>param3</c> is the velocity <see cref="GetVel"/> just returned, in px/frame.
+        ///
+        /// <para><b>The sign is flipped here, and that is the port's fix, not a transcription error.</b>
+        /// Flash's rotation is clockwise-positive with y running <i>down</i>, so AS3's leading minus
+        /// tilts the launch <b>upward</b> — the further the target, the higher the lob, which is the
+        /// whole point of the correction. Unity's angle is counter-clockwise with y running <i>up</i>,
+        /// so the same numeric value tilts the throw <i>downward</i>: every ported throw was aimed into
+        /// the floor at <c>dx / vel / 100</c> radians (≈20° at a 700 px range with a 20 px/frame
+        /// grenade). That is the owner-reported "grenades land under the thrower while the original
+        /// threw them at the player".</para>
         /// </summary>
         private float GetRot(Vector2 spawnPos, Vector2 aimTarget, float velPx)
         {
             float dXpx = (aimTarget.x - spawnPos.x) * PpuScale;
-            return -dXpx / (velPx + 0.0001f) / 100f;
+            return dXpx / (velPx + 0.0001f) / 100f;
         }
 
         /// <summary>

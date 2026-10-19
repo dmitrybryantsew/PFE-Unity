@@ -78,6 +78,7 @@ public class GameLifetimeScope : LifetimeScope
         // SpellHotkeyMessage carries its own Slot, so one broker serves all four slots.
         builder.RegisterMessageBroker<SpellCastMessage>(pipe);
         builder.RegisterMessageBroker<MagicWeaponMessage>(pipe);
+        builder.RegisterMessageBroker<GrenadeMessage>(pipe);
         builder.RegisterMessageBroker<SpellHotkeyMessage>(pipe);
         // Combat messages
         builder.RegisterMessageBroker<DamageDealtMessage>(pipe);

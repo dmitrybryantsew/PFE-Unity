@@ -198,6 +198,7 @@ namespace PFE.Entities.Player
             ISubscriber<ReloadMessage> reloadSubscriber,
             ISubscriber<SpellCastMessage> spellCastSubscriber,
             ISubscriber<SpellHotkeyMessage> spellHotkeySubscriber,
+            ISubscriber<GrenadeMessage> grenadeSubscriber,
             PFE.Core.PfeDebugSettings debugSettings,
             // Required, not optional: VContainer has no optional parameters (it resolves every [Inject]
             // argument or throws), so a default value here would document a fallback that never happens.
@@ -301,6 +302,28 @@ namespace PFE.Entities.Player
                 if (_debugSettings.LogWeaponLifecycle)
                     Debug.Log("[PlayerController] ReloadMessage received — forwarding to the loadout.");
                 _loadout?.StartReload();
+            }).AddTo(_disposables);
+
+            // G — AS3 `keyGrenad` (UnitPlayer.as:2188-2204). Fires the player's `throwWeapon`, a slot
+            // independent of the weapon in hand, which is why this is not routed through Attack.
+            //
+            // Press edge only, even though the message carries both edges. AS3 reads the held boolean
+            // every frame, but the handler itself clears it after a successful throw
+            // (`if(this.throwWeapon.tip == 4) { this.ctr.keyGrenad = false; }`, :2196-2199), so one press
+            // is one throw. `t_attack`/`t_auto` on the controller then pace anything that slips through.
+            grenadeSubscriber.Subscribe(message =>
+            {
+                if (!message.IsHeld) return;
+
+                bool threw = _loadout != null && _loadout.ThrowGrenade();
+
+                if (_debugSettings.LogWeaponLifecycle)
+                {
+                    Debug.Log(threw
+                        ? $"[PlayerController] GrenadeMessage — throwing '{_loadout.ThrowWeapon?.State.Def.weaponId}'."
+                        : "[PlayerController] GrenadeMessage — no throwable in the grenade slot " +
+                          "(AS3's `else { keyGrenad = false; }` arm).");
+                }
             }).AddTo(_disposables);
 
             teleportSubscriber.Subscribe(message =>

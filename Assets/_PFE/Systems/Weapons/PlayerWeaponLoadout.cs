@@ -173,6 +173,34 @@ namespace PFE.Systems.Weapons
 
         private WeaponControllerFactory _factory;
         private IWeaponController _current;
+
+        /// <summary>
+        /// AS3 <c>UnitPlayer.throwWeapon</c> (<c>:189</c>) — the weapon the grenade key fires.
+        ///
+        /// <para><b>Why this is a second controller and not "equip the grenade".</b> The whole point of
+        /// <c>keyGrenad</c> is that it does <i>not</i> disturb the weapon in hand:
+        /// <c>UnitPlayer.as:2188-2204</c> calls <c>throwWeapon.attack()</c> while
+        /// <c>currentWeapon</c> keeps ticking. Before this field existed the only way to throw was to
+        /// equip a <c>tip == 4</c> weapon, which replaced the gun — so the key had nothing to fire and
+        /// the whole <c>ThrownObject</c>/<c>MineObject</c> stack was unreachable from the player.</para>
+        ///
+        /// <para><b>Filled from two places, exactly as in the oracle.</b> On
+        /// <see cref="Equip"/>, a thrown weapon with no explicit assignment becomes the throw weapon
+        /// (<c>:3693-3696</c>: <c>if(currentWeapon.tip == 4 &amp;&amp; this.invent.fav[29] == null)
+        /// this.throwWeapon = currentWeapon;</c>). The explicit assignment — the player putting a
+        /// grenade in favourite slot 29 — is <see cref="EquipThrow"/>.</para>
+        /// </summary>
+        private IWeaponController _throwController;
+
+        /// <summary>Set by <see cref="ThrowGrenade"/>, consumed by the next <c>FixedUpdate</c>.</summary>
+        private bool _throwRequested;
+
+        /// <summary>
+        /// The weapon the grenade key will fire, or null when the player has none. Exposed so the HUD
+        /// and the dev console can say <i>which</i> throwable is armed rather than only whether one is.
+        /// </summary>
+        public IWeaponController ThrowWeapon => _throwController;
+
         private bool _wasReloading;     // tracks previous-frame reload state for sound trigger
         private bool _prepWasAttacking; // tracks previous-frame attack state for prep sound edges
         private readonly object _prepSoundKey = new object(); // stable key for ISoundService loop
@@ -197,6 +225,10 @@ namespace PFE.Systems.Weapons
 
         // Pending shots from this FixedUpdate — forwarded to spawner/presenter.
         private readonly List<ShotPlan> _pendingPlans = new();
+
+        // Same, for the grenade slot. A separate buffer so a throw in the same tick as a rifle shot
+        // cannot be lost by the Clear() above.
+        private readonly List<ShotPlan> _throwPlans = new();
 
         // ── Public API ────────────────────────────────────────────────────────
 
@@ -349,7 +381,82 @@ namespace PFE.Systems.Weapons
                 ownerInventory.Inventory.CurrentWeaponId = def.weaponId;
             }
 
+            // ── The grenade slot fills itself ─────────────────────────────────────────────────────
+            //
+            // AS3 `UnitPlayer.as:3693-3696`, in the tail of `changeWeaponNow`:
+            //   if(currentWeapon.tip == 4 && this.invent.fav[29] == null) this.throwWeapon = currentWeapon;
+            // i.e. switching TO a throwable makes it the grenade weapon, but only while the player has
+            // not assigned slot 29 explicitly — an explicit choice is never overwritten by a switch.
+            //
+            // Recorded divergence: AS3 shares one object between the two roles, so the two share
+            // `t_attack`/`t_auto`. This builds a second controller instead. The visible difference is
+            // that throwing and firing a grenade-as-active-weapon keep separate cooldowns; the shared
+            // form would need `EndAttack` on the throw to be conditional on the attack key still being
+            // held, and getting that wrong silently kills a held trigger.
+            if (def.weaponType == WeaponType.Thrown && _throwController == null)
+            {
+                EquipThrow(def);
+            }
+
             Debug.Log($"[PlayerWeaponLoadout] Equipped '{def.weaponId}'.");
+        }
+
+        /// <summary>
+        /// Fill the grenade slot — AS3 <c>throwWeapon</c>, either from the player's favourite slot 29
+        /// (<c>UnitPlayer.as:436</c>) or automatically when a thrown weapon is switched to
+        /// (<c>:3693-3696</c>).
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Player-owned, so <c>getAmmo()</c> takes the inventory branch.</b>
+        /// <c>WThrow.getAmmo()</c> (<c>:268-280</c>) splits on <c>owner.player</c>: the player consumes
+        /// a real item, an NPC spends its own four-round counter. <c>_factory</c> was built without
+        /// <c>npcOwner</c>, so <see cref="ThrownWeaponController"/> resolves the player half — which is
+        /// why a player with no <c>bomb</c> in the bag gets a silent no-throw rather than infinite
+        /// grenades.</para>
+        /// </remarks>
+        public void EquipThrow(WeaponDefinition def)
+        {
+            if (def == null) return;
+
+            if (def.weaponType != WeaponType.Thrown)
+            {
+                Debug.LogWarning(
+                    $"[PlayerWeaponLoadout] '{def.weaponId}' is weaponType {def.weaponType}, not Thrown — " +
+                    "the grenade slot only takes tip == 4 weapons (AS3 WThrow).");
+                return;
+            }
+
+            _throwController?.Dispose();
+
+            if (_ownerUnit == null)
+                _ownerUnit = GetComponentInParent<PFE.Entities.Units.UnitController>();
+
+            FactionType ownerFaction = _ownerUnit != null ? _ownerUnit.Faction : FactionType.Neutral;
+
+            _throwController = _factory?.Create(def, ownerFaction);
+
+            Debug.Log(_throwController != null
+                ? $"[PlayerWeaponLoadout] Grenade slot armed with '{def.weaponId}' (AS3 throwWeapon)."
+                : $"[PlayerWeaponLoadout] No controller for throwable '{def.weaponId}' — grenade slot empty.");
+        }
+
+        /// <summary>
+        /// Request one throw. Returns false when there is nothing in the slot, which is the
+        /// <c>else { this.ctr.keyGrenad = false; }</c> arm of <c>UnitPlayer.as:2197-2200</c>.
+        /// </summary>
+        /// <remarks>
+        /// Deferred to the next <c>FixedUpdate</c> rather than fired here, because a shot is only
+        /// produced by <c>Tick</c>: <c>ThrownWeaponController.RunAttack</c> arms <c>t_attack</c> and
+        /// <c>RunActions</c> is what reaches <c>Shoot</c>, both inside the same tick. Firing on the
+        /// input edge would need the controller to be ticked from the input callback, which runs at
+        /// render rate and would make the fuse and the arc depend on the framerate.
+        /// </remarks>
+        public bool ThrowGrenade()
+        {
+            if (_throwController == null) return false;
+
+            _throwRequested = true;
+            return true;
         }
 
         /// <summary>
@@ -469,6 +576,12 @@ namespace PFE.Systems.Weapons
 
         private void FixedUpdate()
         {
+            // The grenade slot ticks even when the player is unarmed — AS3 runs
+            // `throwWeapon.actions()` from `UnitPlayer.as:1202-1205` unconditionally, which is what
+            // advances `t_attack`/`t_auto` between throws. Placed before the `_current == null` early
+            // return so a weaponless player can still lob a grenade.
+            TickThrowWeapon();
+
             if (_current == null) return;
 
             Vector2 holdPoint = ResolveHoldPoint();
@@ -484,6 +597,12 @@ namespace PFE.Systems.Weapons
             // fire time from the same display list it just animated.
             if (_current is RangedWeaponController ranged)
                 ranged.MuzzleWorldPoint = _weaponPresenter != null ? _weaponPresenter.MuzzleWorldPosition : null;
+
+            // The melee spring's body frame — AS3 reads `owner.X`, `owner.Y - scY/2` and
+            // `owner.weaponKrep` straight out of `WClub.actions()`. Same per-tick push as the muzzle
+            // point above, and for the same reason: the controller is a plain class with no unit.
+            if (_current is MeleeWeaponController melee)
+                melee.Owner = ResolveMeleeOwnerFrame();
 
             if (_debugSettings?.LogWeaponControllerDiagnostics == true)
             {
@@ -582,6 +701,60 @@ namespace PFE.Systems.Weapons
             => mount != null && (_weaponPresenter == null || !mount.IsChildOf(_weaponPresenter.transform));
 
         /// <summary>
+        /// Advance the grenade slot by one fixed step and spawn anything it threw.
+        ///
+        /// <para><b>One tick per throw, not a held trigger.</b> <c>ThrownWeaponController.RunAttack</c>
+        /// sets <c>IsAttack</c> and arms <c>t_attack</c>; <c>RunActions</c> then reaches <c>Shoot</c> when
+        /// <c>t_attack == rapid</c>, which is the same tick. So the request is bracketed by
+        /// <c>BeginAttack</c>/<c>EndAttack</c> around a single <c>Tick</c> — exactly AS3's
+        /// <c>throwWeapon.attack()</c>, a single call from the key handler
+        /// (<c>UnitPlayer.as:2194</c>), not a held trigger like the rifle's.</para>
+        ///
+        /// <para><b>Aim and hold point are shared with the held weapon on purpose.</b> AS3 fires from
+        /// the same unit at the same <c>celX</c>/<c>celY</c> cursor and uses
+        /// <c>UnitPlayer.setWeaponPos</c> for the throw origin too; the throw's own arc is then computed
+        /// by <c>WThrow.getVel</c> from that origin to the cursor.</para>
+        /// </summary>
+        private void TickThrowWeapon()
+        {
+            if (_throwController == null) return;
+
+            Vector2 holdPoint = ResolveHoldPoint();
+            Vector2 hornPoint = ResolveHornPoint();
+
+            bool fire = _throwRequested;
+            _throwRequested = false;
+
+            if (fire) _throwController.BeginAttack();
+
+            _throwController.Tick(Time.fixedDeltaTime, holdPoint, hornPoint, _aimTarget);
+
+            if (fire) _throwController.EndAttack();
+
+            _throwPlans.Clear();
+            _throwPlans.AddRange(_throwController.FlushShotPlans());
+
+            if (_throwPlans.Count == 0) return;
+
+            // Sound and the shot itself, mirroring the held weapon's tail. The throw's own
+            // `sndShoot` is the weapon's (`<snd shoot='mine_s'/>` on `bomb`), not a hard-coded cue.
+            if (_soundService != null)
+            {
+                for (int i = 0; i < _throwPlans.Count; i++)
+                {
+                    if (!_throwPlans[i].Cues.PlayShootSound) continue;
+
+                    var throwSnd = _throwController.State.Def.soundShoot;
+                    if (!string.IsNullOrEmpty(throwSnd))
+                        _soundService.Play(throwSnd, holdPoint);
+                    break;
+                }
+            }
+
+            _projectileSpawner?.SpawnFromPlans(_throwPlans);
+        }
+
+        /// <summary>
         /// Where the held weapon sits this tick — the port of AS3 <c>UnitPlayer.setWeaponPos</c>.
         ///
         /// <para><b>Why the derived point wins.</b> AS3 has no hold-point marker: the point is computed
@@ -646,6 +819,43 @@ namespace PFE.Systems.Weapons
             // only pull the weapon back off a wall it would otherwise poke into. Passing null means
             // they never fire, which is AS3's result in open ground.
             return WeaponHoldPointMath.Resolve(inputs, isSolidAt: null);
+        }
+
+        /// <summary>
+        /// The player's body, for <see cref="MeleeWeaponController.Owner"/>.
+        ///
+        /// <para><b><c>rigidMount</c> is hard <c>false</c> for the player, and that is not an
+        /// approximation.</b> <c>UnitPlayer.as:368</c> assigns <c>weaponKrep = 0</c> in the
+        /// constructor, so a player's melee weapon always takes <c>WClub.actions()</c>'s <i>spring</i>
+        /// branch — it hovers at the aim point instead of being carried. Reading
+        /// <c>UnitDefinition.weaponKrep</c> here (whose initialiser is <b>1</b>) would make the
+        /// player's club snap rigidly to the hold point, which is the exact bug this frame exists to
+        /// fix.</para>
+        ///
+        /// <para><c>clampStep</c> is <c>true</c>: the per-frame travel limit is gated on
+        /// <c>owner.player</c> (<c>WClub.as:328</c>), and this is the player.</para>
+        /// </summary>
+        private MeleeWeaponController.OwnerFrame ResolveMeleeOwnerFrame()
+        {
+            if (_ownerUnit == null)
+            {
+                // No UnitController: an enemy rig or a bare test object. The rig origin stands in for
+                // the body, which is what the hold point's own fallback does.
+                return new MeleeWeaponController.OwnerFrame(
+                    transform.position.x, transform.position.y, 1f, rigidMount: false, clampStep: true);
+            }
+
+            UnitDefinition stats = _ownerUnit.Stats;
+            float height = stats != null && stats.Height > 0f ? stats.Height : 0.7f;
+
+            return new MeleeWeaponController.OwnerFrame(
+                bodyX:          _ownerUnit.transform.position.x,
+                // AS3 `owner.Y - owner.scY/2` — the body's middle, which is what a thrust and an
+                // overhead rotate about. The unit origin is the feet.
+                bodyCentreY:    _ownerUnit.FeetWorldY - height * 0.5f,
+                bodyFacingSign: _ownerUnit.FacingDirection,
+                rigidMount:     false,
+                clampStep:      true);
         }
 
         /// <summary>
