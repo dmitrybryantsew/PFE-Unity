@@ -85,8 +85,17 @@ namespace PFE.UI.HUD
         /// <summary>Oracle <c>vis.inform</c> — the terminal reader.</summary>
         TerminalReader,
 
-        /// <summary>Oracle <c>vis.imp</c> — the centred key-hint line.</summary>
-        KeyHint,
+        /// <summary>
+        /// Oracle <c>vis.imp</c> — the one-time tutorial popup (<c>GUI.impMess</c>,
+        /// <c>GUI.as:1905-1932</c>).
+        ///
+        /// <para><b>Was <c>KeyHint</c>, and that name was wrong.</b> <c>vis.imp</c> is never used for a
+        /// key hint anywhere in the oracle: it is created hidden (<c>GUI.as:289</c>), filled and shown
+        /// only by <c>impMess</c> (<c>:1924-1927</c>), and hidden again when the player presses
+        /// something (<c>:2074</c>). The slot's anchor was right and its name described a use that does
+        /// not exist.</para>
+        /// </summary>
+        ImportantMessage,
     }
 
     /// <summary>
@@ -429,10 +438,10 @@ namespace PFE.UI.HUD
             return new Vector2(screenX / 100f, screenY / 100f);
         }
 
-        // ── Key-hint line (GUI.as:347-348) ────────────────────────────────────
+        // ── Important-message popup (GUI.as:347-348) ──────────────────────────
 
         /// <summary>Oracle: <c>imp.y = round(screenY / 2 - 50)</c> (<c>GUI.as:348</c>) — 50 px below centre.</summary>
-        public const float KeyHintCentreOffsetY = -50f;
+        public const float ImportantMessageCentreOffsetY = -50f;
 
         // ── The anchor table ──────────────────────────────────────────────────
 
@@ -503,7 +512,7 @@ namespace PFE.UI.HUD
                 { HudSlot.TerminalReader, new HudAnchor(Centre, Vector2.zero) },
 
                 // GUI.as:347-348 `imp.x = round(screenX / 2); imp.y = round(screenY / 2 - 50)`.
-                { HudSlot.KeyHint, new HudAnchor(Centre, new Vector2(0f, KeyHintCentreOffsetY)) },
+                { HudSlot.ImportantMessage, new HudAnchor(Centre, new Vector2(0f, ImportantMessageCentreOffsetY)) },
 
                 // GUI.as:315 `vis.info.x = screenX - 20` — right edge. Its y is not set; the inset is
                 // this port's. See SourceFor(InfoLog).
@@ -572,7 +581,7 @@ namespace PFE.UI.HUD
                 case HudSlot.SneakEye:
                 case HudSlot.Dialogue:
                 case HudSlot.TerminalReader:
-                case HudSlot.KeyHint:
+                case HudSlot.ImportantMessage:
                     return HudAnchorSource.OracleResizeScreen;
 
                 // The Oracle sets these, but in another method and on a state change rather than on

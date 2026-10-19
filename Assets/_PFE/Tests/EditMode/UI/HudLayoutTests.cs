@@ -100,13 +100,14 @@ namespace PFE.Tests.EditMode.UI
         }
 
         [Test]
-        public void KeyHint_IsFiftyBelowCentre()
+        public void ImportantMessage_IsFiftyBelowCentre()
         {
             // GUI.as:347-348 `imp.x = round(screenX / 2); imp.y = round(screenY / 2 - 50)`.
-            HudAnchor a = HudLayout.AnchorFor(HudSlot.KeyHint);
+            // `vis.imp` is the one-time tutorial popup (GUI.impMess), not a key hint — see the slot.
+            HudAnchor a = HudLayout.AnchorFor(HudSlot.ImportantMessage);
 
             Assert.AreEqual(new Vector2(0.5f, 0.5f), a.Point);
-            Assert.AreEqual(HudLayout.KeyHintCentreOffsetY, a.Offset.y, 0.0001f);
+            Assert.AreEqual(HudLayout.ImportantMessageCentreOffsetY, a.Offset.y, 0.0001f);
             Assert.AreEqual(-50f, a.Offset.y, 0.0001f);
         }
 

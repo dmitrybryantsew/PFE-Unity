@@ -6,8 +6,11 @@ using PFE.Core.Messages;
 using PFE.Data.Definitions;
 using PFE.Entities.Player;
 using PFE.Entities.Units;
+using PFE.Systems.Campaign;
 using PFE.Systems.Interaction;
+using PFE.Systems.Inventory;
 using PFE.Systems.Weapons;
+using PFE.UI.Common;
 using PFE.UI.HUD;
 
 namespace PFE.Core
@@ -65,6 +68,49 @@ namespace PFE.Core
         private ScriptToastView _toast;
         private ScriptDialogueView _dialogue;
         private ScriptOverlayView _overlay;
+
+        /// <summary>
+        /// The progression chimes — level up, quest granted, quest completed.
+        ///
+        /// <para><b>Not part of the script-presentation trio above, and deliberately not on the
+        /// canvas.</b> It draws nothing, so it is attached to the bootstrapper's own GameObject
+        /// rather than to the HUD canvas: the canvas is what <c>gui off</c> can hide, and a level-up
+        /// during a cutscene must still chime. Its three clips (<c>levelup</c>, <c>quest</c>,
+        /// <c>quest_ok</c>) were already imported; what was missing was this subscriber —
+        /// <c>LevelUpMessage</c> had a publisher and no listener at all.</para>
+        /// </summary>
+        private ProgressSoundView _progressSounds;
+
+        /// <summary>
+        /// The two halves of the pickup feedback AS3 shows on every take: the corner message list
+        /// (<c>vis.info</c>, <c>GUI.as:1553-1577</c>) and the rising label over the player
+        /// (<c>GUI.floatText</c>, <c>:1608-1638</c>).
+        ///
+        /// <para><b>They were both missing, and that is why taking the screwdriver printed nothing.</b>
+        /// The take path worked — the item landed in the bag and the pickup despawned — but the oracle
+        /// routes every take through <c>Invent.take</c>'s tail, which is where "Found: Screwdriver" comes
+        /// from. The port had no subscriber for either half, so the whole feedback surface was silent.
+        /// </para>
+        ///
+        /// <para>Both are driven from <see cref="ItemPickupFeedback"/>, a static seam rather than a
+        /// MessagePipe broker — see that type for why the publisher cannot be injected.</para>
+        /// </summary>
+        private InfoLogView _infoLog;
+        private PickupFloatTextView _floatText;
+
+        /// <summary>
+        /// The one-time tutorial popup — <c>GUI.impMess</c> (<c>GUI.as:1905-1932</c>). Fired by
+        /// <see cref="ItemPickedUpMessage.MessKey"/> and dismissed by any press after 30 frames.
+        ///
+        /// <para><b>It holds the player still, so the bootstrapper owns that half.</b> The oracle writes
+        /// <c>World.w.ctr.active = false</c> and <c>guiPause = true</c>; the port's equivalent is
+        /// <see cref="PlayerController.ModalInputBlocked"/> — a <i>separate</i> flag from the cutscene
+        /// lock, so the two cannot fight. See <see cref="UpdateImportantMessage"/>.</para>
+        /// </summary>
+        private ImpMessView _impMess;
+
+        /// <summary>The UI sound service, when the scene has one. <c>impMess</c> plays the quest chime.</summary>
+        private UiSoundService _sound;
 
         /// <summary>
         /// The interface composition — held for the one catalog the HUD itself draws from, the dialogue
@@ -136,6 +182,10 @@ namespace PFE.Core
             // re-scan window: a player with no loadout yet still has its bar attached to the right
             // object. One reference write per frame; SetTarget is idempotent.
             BindReloadAnchor();
+
+            // Above the early-outs for the same reason: a tutorial popup must keep ticking (and keep
+            // holding the player) whether or not a weapon has equipped.
+            UpdateImportantMessage();
 
             // Steady state: both sources cached and alive. No lookups, no allocations.
             if (_player == null || _loadout == null)
@@ -214,6 +264,13 @@ namespace PFE.Core
             _holdBar = BuildHoldBar(canvasGo.transform);
             _prompt = BuildInteractionPrompt(canvasGo.transform);
 
+            // The pickup feedback. Built last so the floating labels sit at the end of the sibling
+            // order and therefore draw over everything else on the canvas — the oracle's `take`
+            // particle is on `Sloy 5`, the front-most layer.
+            _infoLog = BuildInfoLog(canvasGo.transform);
+            _floatText = BuildPickupFloatText(canvasGo.transform);
+            _impMess = BuildImportantMessage(canvasGo.transform);
+
             // The script-presentation views. Built after the stat cluster so the blackout image can be
             // moved to the back of the sibling order: in the Oracle `vblack` lives on the world layer
             // and the GUI — including `vis.mess` — draws over it, which is what lets `beginBeg` show
@@ -223,7 +280,13 @@ namespace PFE.Core
             _overlay = BuildOverlay(canvasGo.transform);
             _overlay.SetGuiElements(_healthBarRoot, _healthTextRoot);
 
+            // On the bootstrapper, not on the canvas — see the field's note. Added unconditionally so
+            // that Bind can report a missing broker instead of the component being absent entirely.
+            _progressSounds = gameObject.AddComponent<ProgressSoundView>();
+
             BindScriptViews();
+            BindProgressSounds();
+            BindPickupFeedback();
 
             // Hand over the reference but do NOT bind here. Each view binds itself in its own
             // Start(), which removes any dependence on whether this Start() or theirs runs first,
@@ -238,7 +301,8 @@ namespace PFE.Core
 
             Debug.Log("[HudBootstrapper] HUD built (health bar, armour bar, ammo counter, " +
                       "world-anchored reload bar, world-anchored hold bar, world-anchored interaction " +
-                      "prompt, script banner, dialogue window, blackout overlay) on a " +
+                      "prompt, script banner, dialogue window, blackout overlay, pickup message list, " +
+                      "pickup floating labels) on a " +
                       HudLayout.ReferenceWidth + "x" + HudLayout.ReferenceHeight + " canvas.");
         }
 
@@ -640,6 +704,303 @@ namespace PFE.Core
             return view;
         }
 
+        // ── Pickup feedback ───────────────────────────────────────────────────
+
+        /// <summary>
+        /// The corner message list — the oracle's <c>vis.info</c>, placed by
+        /// <c>GUI.as:315 vis.info.x = screenX - 20</c> (right edge) with a Y the oracle never sets, hence
+        /// the port-choice inset already documented on <see cref="HudSlot.InfoLog"/>.
+        ///
+        /// <para><b>No backing plate.</b> <c>vis.info</c> is bare text over the world — which is exactly
+        /// why the oracle dims it to 0.2 when the cursor moves into its corner
+        /// (<c>Ctr.as:528-535</c>): the panel is in the way of the world and gets out of it. A plate
+        /// would make the dim pointless and the panel opaque. See <see cref="InfoLogView.Dimmed"/>.</para>
+        ///
+        /// <para><b>400 × 120, and the width is evidence rather than taste.</b> The dim strip in
+        /// <c>Ctr.onMouseMove1</c> is <c>stageX &gt; stageWidth - 400</c> and <c>stageY &lt; 100</c>, so
+        /// the panel the game expects a player to hover over occupies roughly the top-right 400 × 100.
+        /// Six 18 px lines fit in 120.</para>
+        /// </summary>
+        private InfoLogView BuildInfoLog(Transform parent)
+        {
+            var rect = CreateHudElement("Info Log", parent, new Vector2(400f, 120f));
+            _layout.Register(HudSlot.InfoLog, rect);
+
+            // Alpha is the fade channel (see InfoLogView), so the group is the element's visibility
+            // control and starts fully visible — the oracle's `infoAlpha` starts at 1.
+            var group = rect.gameObject.AddComponent<CanvasGroup>();
+            group.alpha = 1f;
+            group.blocksRaycasts = false;
+            group.interactable = false;
+
+            var textRect = CreateRect("Text", rect,
+                anchor: new Vector2(0.5f, 0.5f), pivot: new Vector2(0.5f, 0.5f),
+                anchoredPosition: Vector2.zero, size: Vector2.zero);
+            Stretch(textRect);
+
+            var text = textRect.gameObject.AddComponent<Text>();
+            text.font = ResolveFont();
+            text.fontSize = 18;
+            // `.r` — the HUD's body colour, #00FF99. `infoText` adds no colour span of its own; only
+            // `@1` gets markup, and only `<b>` (GUI.as:1555-1560).
+            text.color = PFE.UI.Common.PfeUiColors.Green;
+            text.alignment = TextAnchor.UpperRight;
+            text.horizontalOverflow = HorizontalWrapMode.Overflow;
+            text.verticalOverflow = VerticalWrapMode.Overflow;
+            text.raycastTarget = false;
+            text.text = string.Empty;
+
+            var view = rect.gameObject.AddComponent<InfoLogView>();
+            view.Construct(text, group);
+            return view;
+        }
+
+        /// <summary>
+        /// The rising label pool. Lives on the bootstrapper's own GameObject rather than on the canvas
+        /// for the same reason <see cref="ProgressSoundView"/> does: it draws nothing itself, and the
+        /// labels it creates are parented to the canvas explicitly (they must be, for
+        /// <see cref="WorldAnchoredHudElement"/> — see <see cref="PickupFloatTextView.Construct"/>).
+        /// </summary>
+        private PickupFloatTextView BuildPickupFloatText(Transform canvas)
+        {
+            var view = gameObject.AddComponent<PickupFloatTextView>();
+            view.Construct(canvas, ResolveFont());
+            return view;
+        }
+
+        /// <summary>
+        /// Subscribes to the take path. Every failure is reported separately, because a silent take is
+        /// the defect this closes and "nothing happened" has three different causes here.
+        /// </summary>
+        private void BindPickupFeedback()
+        {
+            ItemPickupFeedback.Published -= OnItemPickedUp;
+            ItemPickupFeedback.Published += OnItemPickedUp;
+
+            if (_infoLog == null || _floatText == null || _impMess == null)
+            {
+                Debug.LogWarning("[HudBootstrapper] Pickup feedback is only partly built — " +
+                                 $"info log: {_infoLog != null}, floating labels: {_floatText != null}, " +
+                                 $"tutorial popup: {_impMess != null}.");
+            }
+        }
+
+        /// <summary>
+        /// One accepted take. The two halves are independent by design: <see cref="ItemPickedUpMessage.InfoLine"/>
+        /// is null for armour and spells, which the oracle shows as a label with no list entry
+        /// (<c>Invent.as:1119-1131</c>), and the label is shown for every take.
+        /// </summary>
+        private void OnItemPickedUp(ItemPickedUpMessage message)
+        {
+            if (!string.IsNullOrEmpty(message.InfoLine))
+            {
+                _infoLog?.Push(message.InfoLine);
+            }
+
+            _floatText?.Show(message.FloatLabel, message.ColourIndex, message.WorldPosition);
+
+            // #3 — the once-per-save tutorial popup. It goes up last so it draws over the label the
+            // same take just spawned, which is what the oracle's draw order does too (the label is a
+            // world particle on `Sloy 5`; `vis.imp` is on the HUD above it).
+            if (!string.IsNullOrEmpty(message.MessKey))
+            {
+                ShowImportantMessage(message.MessKey, message.Icon);
+            }
+        }
+
+        private void OnDestroy()
+        {
+            ItemPickupFeedback.Published -= OnItemPickedUp;
+        }
+
+        /// <summary>
+        /// The one-time tutorial popup. Anchored by <c>GUI.as:347-348</c>
+        /// (<c>imp.x = round(screenX/2)</c>, <c>imp.y = round(screenY/2 - 50)</c>), which the
+        /// <see cref="HudSlot.ImportantMessage"/> row already carries.
+        ///
+        /// <para><b>The vertical order is the oracle's, and it is the only part of the layout that
+        /// is.</b> <c>impMess</c> computes <c>imp.txt.y = imp.ico.y + imp.ico.height + 15</c>
+        /// (<c>GUI.as:1925</c>) — the body sits <b>below the icon</b>, with a 15 px gap. The title's
+        /// position is never set, so it is authored in the symbol; putting it above the icon is the
+        /// only arrangement in which that line and an authored title both fit. The panel's 620 × 340,
+        /// the 96 px icon and the 18 px body are this port's — the <c>imp</c> symbol carries its own
+        /// geometry in the SWF and the importer flattened it, the same gap
+        /// <see cref="HudLayout"/> marks for the stat cluster.</para>
+        ///
+        /// <para><b>The plate and border are borrowed from the dialogue window.</b> Whether the
+        /// oracle's <c>imp</c> symbol has a backing plate is not recoverable from the source, and bare
+        /// text over the world at the screen's centre would be unreadable in a lit room. Reusing
+        /// <see cref="HudLayout.DialoguePlateFill"/> keeps the two centred panels looking like one HUD
+        /// rather than two.</para>
+        /// </summary>
+        private ImpMessView BuildImportantMessage(Transform parent)
+        {
+            const float width = 620f;
+            const float height = 340f;
+
+            var root = CreateHudElement("Important Message", parent, new Vector2(width, height));
+            _layout.Register(HudSlot.ImportantMessage, root);
+
+            // Starts hidden — `imp.visible = false` at GUI.as:289 — and the group is the visibility
+            // channel so the view can toggle it without deactivating the object it lives on.
+            var group = root.gameObject.AddComponent<CanvasGroup>();
+            group.alpha = 0f;
+            group.blocksRaycasts = false;
+            group.interactable = false;
+
+            var plate = CreateImage("Plate", root, HudLayout.DialoguePlateFill);
+            Stretch(plate.rectTransform);
+            plate.raycastTarget = false;
+
+            CreateBorder(root, HudLayout.DialogueBorderColor, width, height,
+                HudLayout.DialogueBorderThickness);
+
+            // Title — `imp.title.text = ntitle` (GUI.as:1924). 18 px from the panel's top edge.
+            var titleRect = CreateRect("Title", root,
+                anchor: new Vector2(0.5f, 1f), pivot: new Vector2(0.5f, 1f),
+                anchoredPosition: new Vector2(0f, -18f), size: new Vector2(width - 60f, 40f));
+
+            var title = titleRect.gameObject.AddComponent<Text>();
+            title.font = ResolveFont();
+            title.fontSize = 24;
+            title.color = PFE.UI.Common.PfeUiColors.Green;
+            title.alignment = TextAnchor.MiddleCenter;
+            title.horizontalOverflow = HorizontalWrapMode.Overflow;
+            title.verticalOverflow = VerticalWrapMode.Overflow;
+            title.raycastTarget = false;
+            title.text = string.Empty;
+
+            // Icon — `imp.ico.gotoAndStop(nico)` (:1912-1921). 96 px, directly under the title.
+            var iconRect = CreateRect("Icon", root,
+                anchor: new Vector2(0.5f, 1f), pivot: new Vector2(0.5f, 1f),
+                anchoredPosition: new Vector2(0f, -68f), size: new Vector2(96f, 96f));
+
+            var icon = iconRect.gameObject.AddComponent<Image>();
+            icon.raycastTarget = false;
+            icon.preserveAspect = true;
+            // Frame 1 of `imp.ico` is blank, and that is the oracle's own fallback (:1912, :1921) —
+            // so a popup with no icon draws nothing rather than a placeholder box.
+            icon.enabled = false;
+            icon.sprite = null;
+
+            // Body — `imp.txt`, at icon bottom + 15 (:1925). Top of the body is therefore
+            // 68 + 96 + 15 = 179 below the panel's top edge.
+            const float bodyTop = 68f + 96f + 15f;
+            var bodyRect = CreateRect("Body", root,
+                anchor: new Vector2(0.5f, 1f), pivot: new Vector2(0.5f, 1f),
+                anchoredPosition: new Vector2(0f, -bodyTop),
+                size: new Vector2(width - 60f, height - bodyTop - 20f));
+
+            var body = bodyRect.gameObject.AddComponent<Text>();
+            body.font = ResolveFont();
+            body.fontSize = 18;
+            body.color = PFE.UI.Common.PfeUiColors.Green;
+            body.alignment = TextAnchor.UpperLeft;
+            body.horizontalOverflow = HorizontalWrapMode.Wrap;
+            body.verticalOverflow = VerticalWrapMode.Overflow;
+            body.raycastTarget = false;
+            body.text = string.Empty;
+
+            var view = root.gameObject.AddComponent<ImpMessView>();
+            view.Construct(title, body, icon, group);
+            return view;
+        }
+
+        /// <summary>
+        /// One frame of the popup: hold the player, and release on the frame it is dismissed.
+        ///
+        /// <para><b>Called above the early-outs</b> in <c>Update</c> for the same reason the interaction
+        /// prompt is: the steady state returns as soon as the weapon and stats are bound, and a popup
+        /// driven from below that return would never dismiss.</para>
+        ///
+        /// <para><b>The lock is re-asserted every frame, not set once.</b> That is what the oracle does
+        /// (<c>GUI.as:2069-2076</c> forces <c>ctr.active = false</c> again on every frame while
+        /// <c>guiPause</c> is set), and it is also what makes this robust against anything else clearing
+        /// the flag.</para>
+        /// </summary>
+        private void UpdateImportantMessage()
+        {
+            if (_impMess == null) return;
+
+            _impMess.Tick();
+
+            // Reconciled off Visible rather than off Tick's return value, so any other path that hides
+            // the popup (a room change calling Dismiss, a future script) cannot leave the player
+            // frozen. ModalInputBlocked has exactly one writer — this method — so mirroring Visible is
+            // exact rather than approximate.
+            if (_impMess.Visible)
+            {
+                if (_player == null) _player = ResolvePlayer();
+                if (_player != null) _player.ModalInputBlocked = true;
+            }
+            else if (_player != null && _player.ModalInputBlocked)
+            {
+                _player.ModalInputBlocked = false;
+            }
+        }
+
+        /// <summary>
+        /// The popup's two texts, resolved from the <c>item</c> table — <c>Res.txt("i", key)</c> for the
+        /// title (the <c>&lt;n&gt;</c> child) and <c>Res.txt("i", key, 2)</c> for the body (the
+        /// <c>&lt;mess&gt;</c> child, <c>razd</c> 2 of <c>n / info / mess / help</c>) — and then the
+        /// once-per-save latch.
+        ///
+        /// <para><b>The latch is written here, not in the publisher, and the measurement that decided
+        /// it is a count.</b> 45 of the 500 shipped <c>&lt;item&gt;</c> rows carry a <c>@mess</c> key
+        /// (plus 4 of the 213 <c>&lt;weapon&gt;</c> rows), and only <b>21</b> of those 45 keys have a
+        /// matching <c>&lt;item id=key&gt;</c> row in the shipped <c>text_en.xml</c>. The missing 24+
+        /// are the skill-book tutorials (<c>melee</c>, <c>smallguns</c>, <c>sneak</c>, <c>repair</c>,
+        /// <c>science</c>, the nine <c>sp_*</c> spells, the <c>mod_*</c>/<c>impl_*</c> implants,
+        /// <c>lockpick</c>, <c>tele</c> …). If the latch were written by the publisher, every one of
+        /// those would be burned the first time its book was picked up — permanently, even against a
+        /// more complete language file. Writing it here means a miss costs one warning per pickup and
+        /// keeps the tutorial alive.</para>
+        ///
+        /// <para>So the two halves of the oracle's <c>triggers["mess_" + key]</c> are split: the take
+        /// path <b>reads</b> it to decide whether to offer the popup, and this <b>writes</b> it on the
+        /// one path that can know the text exists. No other writer touches this key.</para>
+        ///
+        /// <para><b>The body is substituted, the title is not — and that asymmetry is the Oracle's.</b>
+        /// <c>Res.txt</c> runs its <c>@n</c> substitution only under <c>if(razd >= 1 || dop)</c>
+        /// (<c>Res.as:108</c>), so the razd-0 title is shown raw while the razd-2 body is not. Within the
+        /// body it runs <b>two</b> passes in a fixed order — the entry's own <c>@s1</c>
+        /// (<c>:110-112</c>), then the <c>&lt;mess&gt;</c> child's (<c>:116-119</c>). All nine
+        /// <c>sp_*</c> spell books point at <c>mess='spell'</c>, whose body is
+        /// <c>&lt;mess s1="keyDef"&gt;…you can apply it by pressing the @1 key…</c>, so skipping this
+        /// showed the placeholder to the player. <see cref="PipTextTable.KeysOfChild"/> is what makes
+        /// the second pass reachable at all.</para>
+        /// </summary>
+        private void ShowImportantMessage(string messKey, Sprite icon)
+        {
+            string table = PFE.UI.PipBuck.PipTextTable.TableFor("i");
+            PFE.UI.PipBuck.PipTextTable text = PfeTextTableProvider.Shared;
+
+            if (!text.TryGetInTable(table, messKey, 0, out string title)
+                || !text.TryGetInTable(table, messKey, 2, out string body)
+                || string.IsNullOrEmpty(body))
+            {
+                Debug.LogWarning($"[HudBootstrapper] The popup for '{messKey}' has no " +
+                                 $"<item id=\"{messKey}\"><n>/<mess> in the localisation document — " +
+                                 "it will not be shown, and the mess_ latch was NOT written so a " +
+                                 "more complete text file can still deliver it.");
+                return;
+            }
+
+            // Res.as:108-119 — both substitution passes, in the Oracle's order. The title is razd 0 and
+            // is deliberately left raw: the Oracle's gate is `razd >= 1 || dop`.
+            body = PFE.UI.PipBuck.PipTextTable.ApplyKeys(body, text.KeysOfEntry(table, messKey), text.Key);
+            body = PFE.UI.PipBuck.PipTextTable.ApplyKeys(body, text.KeysOfChild(table, messKey, 2), text.Key);
+
+            // Invent.as:1296 — `triggers["mess_" + l.mess] = 1`. Through the campaign trigger store so
+            // it round-trips in a save exactly as the oracle's does.
+            CampaignManager.Current?.SetTrigger(PickupFeedbackRules.MessTriggerKey(messKey), 1);
+
+            _impMess?.Show(title, body, icon);
+            // Snd.ps("quest") — GUI.as:1928. The same clip the quest-given chime uses, which is why
+            // this goes through UiSoundService rather than a separate id.
+            _sound?.PlayQuestGiven();
+        }
+
         // ── Script presentation ───────────────────────────────────────────────
 
         /// <summary>
@@ -892,6 +1253,58 @@ namespace PFE.Core
                 Debug.LogWarning("[HudBootstrapper] No ISubscriber<ScriptOverlayMessage> — `black`, `dblack` " +
                                  "and `gui off/on` will be published into nothing.");
             }
+        }
+
+        /// <summary>
+        /// Attaches the three progression chimes.
+        ///
+        /// <para><b>Every failure is reported separately, because each one is a different silence.</b>
+        /// No <c>UiSoundService</c> is a scene with no <c>SoundService</c> (a test harness, an early
+        /// frame) and is normal enough to warrant a single line rather than a warning; a missing
+        /// <c>LevelUpMessage</c> broker is a mis-registered container and is the difference between
+        /// "the level-up chime is gone" and "nothing about level-ups is observable"; a missing quest
+        /// broker is the same for quests. Collapsing them would leave the next person unable to tell
+        /// which of the three is at fault.</para>
+        /// </summary>
+        private void BindProgressSounds()
+        {
+            if (_resolver == null)
+            {
+                Debug.LogWarning("[HudBootstrapper] No container resolver — level-up and quest chimes " +
+                                 "are wired to nothing.");
+                return;
+            }
+
+            if (!_resolver.TryResolve(out UiSoundService sound))
+            {
+                Debug.Log("[HudBootstrapper] No UiSoundService — progression chimes will be silent " +
+                          "(the scene has no SoundService; this is expected in a headless harness).");
+                return;
+            }
+
+            // Kept for the tutorial popup's `Snd.ps("quest")` (GUI.as:1928), which is not a
+            // ProgressSoundView concern — it fires from the take path, not from a message.
+            _sound = sound;
+
+            _resolver.TryResolve(out ISubscriber<LevelUpMessage> levelUps);
+            _resolver.TryResolve(out ISubscriber<QuestStateChangedMessage> quests);
+
+            if (levelUps == null)
+            {
+                Debug.LogWarning("[HudBootstrapper] No ISubscriber<LevelUpMessage> — the `levelup` chime " +
+                                 "(Pers.as:1140) will never play.");
+            }
+
+            if (quests == null)
+            {
+                Debug.LogWarning("[HudBootstrapper] No ISubscriber<QuestStateChangedMessage> — the `quest` " +
+                                 "and `quest_ok` chimes (Game.as:543, Quest.as:693) will never play.");
+            }
+
+            _progressSounds?.Bind(sound, levelUps, quests);
+
+            Debug.Log($"[HudBootstrapper] Progression chimes bound (level-up: {levelUps != null}, " +
+                      $"quest: {quests != null}).");
         }
 
         private AmmoCounterView BuildAmmoCounter(Transform parent)

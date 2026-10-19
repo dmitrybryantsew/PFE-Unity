@@ -1,9 +1,11 @@
 using System.Collections.Generic;
 using UnityEngine;
 using PFE.Data.Definitions;
+using PFE.Systems.Campaign;
 using PFE.Systems.Interaction;
 using PFE.Systems.Map.Rendering;
 using PFE.UI.Common;
+using PFE.UI.HUD;
 
 namespace PFE.Systems.Inventory
 {
@@ -225,6 +227,74 @@ namespace PFE.Systems.Inventory
                 source.transform.SetParent(null);
                 Destroy(source.gameObject, Definition.pickupSound.length + 0.1f);
             }
+
+            // The feedback the original game shows on every take: the "Found: …" line in the corner
+            // message list and the rising label over the player (AS3 `Invent.take`'s tail,
+            // unit/Invent.as:1224-1300). Published AFTER the add was accepted, because the oracle's
+            // `infoText` calls all sit behind `if (tr == 0 && !testLoot)` — a rejected take must be
+            // silent, and the port's rejection path returns above.
+            //
+            // `tip` is the raw AS3 @tip, which is what the oracle's whole if/else chain tests. A weapon
+            // has no item row at all in the port, so its tip is the constant the chain compares against.
+            //
+            // `hasSkillRows` reads the raw <sk/> payload, matching `Boolean(l.xml.sk.length())`. It is
+            // import-dependent: 0 of the 500 shipped assets carry the field until
+            // `PFE > Data > Simple Import All Data` runs, so until then every item classifies as the
+            // catch-all arm. The only visible effect is a one-step colour difference on the ~32 rows that
+            // do have <sk> children — unlike `possLockPick`, nothing gates on this.
+            ItemPickedUpMessage message = ItemPickupFeedback.Build(
+                ItemId,
+                DisplayName,
+                WeaponDefinition != null ? "weapon" : Definition?.legacyTip,
+                hasSkillRows: Definition != null && !string.IsNullOrEmpty(Definition.skillRowsSource),
+                isMoney: string.Equals(ItemId, "money"),
+                quantity: Quantity,
+                conditionPercent: 100,   // see ItemPickupFeedback.Build: a definition has no `sost`
+                forcedColour: -1,        // the port's ItemDefinition carries no AS3 `fc`
+                playerPosition: user != null ? user.transform.position : transform.position);
+
+            // #3, the one-time tutorial popup (`Invent.as:1293-1300`). Two of the oracle's three
+            // conditions are decided here:
+            //   * the row carries a `mess` key at all;
+            //   * `World.w.helpMess || l.tip == "art"` — the option, or an artefact bypassing it;
+            //   * `triggers["mess_" + key] <= 0` — not shown yet this save.
+            //
+            // The third is only READ here. The WRITE is the HUD's, because 33 of the 45 `mess` keys in
+            // AllData have no `<item id=key><mess>` row in the shipped text_en.xml and a latch written
+            // here would burn them: `ShowImportantMessage` logs the miss and shows nothing, and the key
+            // would then be latched for a text file that never arrives. Latching on success costs one
+            // warning per pickup of an un-texted item and keeps the tutorial alive for a language file
+            // that is more complete.
+            //
+            // The file the KEY is read from is table-explicit, exactly as the Oracle's is: `take`'s
+            // `if(l.tip == Item.L_WEAPON)` branch indexes `AllData.d.weapon`, and 32 ids exist in BOTH
+            // tables — so one item-first lookup would read the wrong row for those. Same reason the
+            // inventory command above is split into AddWeapon/AddItem.
+            bool isWeapon = WeaponDefinition != null;
+            string messKey = isWeapon
+                ? ItemPickupFeedback.ResolveWeaponMessKey(ItemId, WeaponDefinition.mess)
+                : ItemPickupFeedback.ResolveItemMessKey(ItemId, Definition?.mess);
+            if (messKey != null)
+            {
+                CampaignManager campaign = CampaignManager.Current;
+                bool alreadyShown = campaign != null
+                    && campaign.GetTrigger(PickupFeedbackRules.MessTriggerKey(messKey)).IsGreaterThanZero();
+
+                // `tip` is passed as the raw AS3 classification the oracle's gate compares. A weapon's
+                // tip is its numeric `@tip`, which never equals "art", so the option alone decides —
+                // which is what Invent.as:1293 says for weapons too.
+                if (PickupFeedbackRules.ShowsImportantMessage(
+                        HelpMessages.Enabled, isWeapon ? "weapon" : Definition?.legacyTip, messKey, alreadyShown))
+                {
+                    message.MessKey = messKey;
+                    // The icon is the weapon's own held sprite for a weapon, and the item's own icon for
+                    // an item — the same sprite the pickup is drawn with, which is the closest thing the
+                    // port has to the oracle's `imp.ico.gotoAndStop(nico)` frame set.
+                    message.Icon = isWeapon ? GetComponent<SpriteRenderer>()?.sprite : Definition?.icon;
+                }
+            }
+
+            ItemPickupFeedback.Publish(message);
 
             Debug.Log($"[WorldItemPickup] Took {Quantity} × '{ItemId}' at " +
                       $"{transform.position.x:0.##},{transform.position.y:0.##}.");

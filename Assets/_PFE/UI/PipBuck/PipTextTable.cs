@@ -193,6 +193,23 @@ namespace PFE.UI.PipBuck
             /// </summary>
             public string[] Keys;
 
+            /// <summary>
+            /// The <c>s1</c>…<c>s5</c> a <b>child element</b> itself carries, by child name — a third
+            /// carrier, distinct from <see cref="Keys"/> (the entry's own) and from
+            /// <see cref="RawLine.Keys"/> (a dialogue row's own).
+            ///
+            /// <para><b>Why this one exists.</b> <c>Res.txt</c> runs <b>two</b> substitution passes over
+            /// the same string, not one (<c>Res.as:108-119</c>): the entry's own <c>@s1</c> first, then
+            /// the <c>clob[razd]</c> child's. The popup body is <c>razd 2</c>, and its placeholders live
+            /// on the child — <c>&lt;item id="spell"&gt;&lt;mess s1="keyDef"&gt;…pressing the @1 key…</c>.
+            /// <c>Children</c> keeps only <c>InnerText</c>, so before this field the port read the
+            /// sentence and threw the attribute away, and the popup rendered "@1" literally.</para>
+            ///
+            /// <para><c>null</c> until the first child with a key name is seen, which is three elements
+            /// in the whole 814 KB document — so this costs nothing per entry in the common case.</para>
+            /// </summary>
+            public Dictionary<string, string[]> ChildKeys;
+
             /// <summary>The Oracle's <c>@imp</c> — 0 hides the message when the caller is not
             /// important (<c>Res.messText</c>, <c>Res.as:174-178</c>).</summary>
             public int Importance;
@@ -362,6 +379,19 @@ namespace PFE.UI.PipBuck
                     if (child.NodeType != XmlNodeType.Element) continue;
                     entry.Children[child.Name] = child.InnerText;
 
+                    // Res.as:116-119 — `if(xl[clob[razd]][0].@s1.length()) s = addKeys(s, …)`. The key
+                    // names can sit on the child rather than on the entry, so they must be kept per
+                    // child; see Entry.ChildKeys for the popup that needed it.
+                    if (child is XmlElement childElement)
+                    {
+                        string[] childKeys = ReadKeys(childElement);
+                        if (childKeys != null)
+                        {
+                            entry.ChildKeys ??= new Dictionary<string, string[]>(StringComparer.Ordinal);
+                            entry.ChildKeys[child.Name] = childKeys;
+                        }
+                    }
+
                     // The `<r>` rows live under `<n>` and are what `GUI.dialText` walks by index
                     // (GUI.as:1770-1782). `InnerText` above flattens them into one run of prose with no
                     // separator, so keeping the rows is the only way to answer "what does line 1 say".
@@ -372,7 +402,23 @@ namespace PFE.UI.PipBuck
                     }
                 }
 
-                entries[id] = entry;
+                // **FIRST wins, because that is what the Oracle's XPath does.**
+                //
+                // `Res.txt` runs `xl = d[clob[tip]].(@id == id); s = xl[clob[razd]][0]`
+                // (Res.as:70-71) — the `[0]` is the first match in document order, so a duplicated id
+                // resolves to the EARLIER row. Overwriting would resolve it to the later one, which is
+                // a different string and a silent divergence rather than a crash.
+                //
+                // There is exactly one duplicated id in the shipped document: `<pip id="hp">` appears
+                // at text_en.xml:4873 as "Health" (with an info paragraph) and again at :5019 as "HP"
+                // (with none). Last-wins therefore renamed the health row on the character sheet's
+                // Health sub-page and on the doctor's price list from "Health" to "HP" — two pages
+                // quoting a word the Oracle does not show there. Measured, not assumed: a scan of the
+                // document finds 422 `pip` rows, 421 distinct ids, one duplicate.
+                if (!entries.ContainsKey(id))
+                {
+                    entries[id] = entry;
+                }
             }
 
             return tables;
@@ -634,6 +680,41 @@ namespace PFE.UI.PipBuck
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// The <c>s1</c>…<c>s5</c> the <b>entry</b> itself carries — the first of <c>Res.txt</c>'s two
+        /// substitution passes (<c>Res.as:110-112</c>).
+        ///
+        /// <para>The array form, because <see cref="ApplyKeys"/> takes one. <see cref="EntryAttribute"/>
+        /// reaches the same values one string at a time, which is enough for a caller that wants one
+        /// name and not for one that has to substitute.</para>
+        /// </summary>
+        public string[] KeysOfEntry(string table, string id) => FindEntry(table, id)?.Keys;
+
+        /// <summary>
+        /// The <c>s1</c>…<c>s5</c> the <b>child</b> a <paramref name="razd"/> selects itself carries —
+        /// the second of <c>Res.txt</c>'s two substitution passes (<c>Res.as:116-119</c>).
+        ///
+        /// <para><b>Both passes matter and they are not redundant.</b> <c>Res.as:108-119</c> reads the
+        /// entry's own <c>@s1</c> first and the child's second, each overwriting the same <c>@n</c>
+        /// slot in the same string. A caller that reads only <see cref="EntryAttribute"/>'s
+        /// <c>s1</c>…<c>s5</c> substitutes nothing for a row that hangs its placeholders on the child,
+        /// which is exactly what <c>&lt;mess s1="keyDef"&gt;</c> does. See
+        /// <see cref="Entry.ChildKeys"/>.</para>
+        ///
+        /// <returns>The 5-slot array, or <c>null</c> when the entry, the child or its attributes are
+        /// absent. Slot <i>i</i> is <c>Keys[i - 1]</c>, an absent slot is <c>null</c>.</returns>
+        /// </summary>
+        public string[] KeysOfChild(string table, string id, int razd)
+        {
+            string child = ChildFor(razd);
+            if (child == null) return null;
+
+            Entry entry = FindEntry(table, id);
+            if (entry?.ChildKeys == null) return null;
+
+            return entry.ChildKeys.TryGetValue(child, out string[] keys) ? keys : null;
         }
 
         /// <summary>

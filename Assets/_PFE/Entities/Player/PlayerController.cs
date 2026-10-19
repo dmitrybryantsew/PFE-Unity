@@ -78,6 +78,29 @@ namespace PFE.Entities.Player
         /// </summary>
         public bool ScriptControlEnabled { get; set; } = true;
 
+        /// <summary>
+        /// Set while a modal HUD message is on screen — the port's <c>guiPause</c> (<c>GUI.as:120</c>),
+        /// which <c>impMess</c> raises so the player cannot walk or act while reading a tutorial popup
+        /// (<c>GUI.as:1931</c>, and the per-frame re-assertion at <c>:2069-2076</c>).
+        ///
+        /// <para><b>Why this is a second flag rather than another write to
+        /// <see cref="ScriptControlEnabled"/>.</b> <c>PlayerScriptControlLock</c> is a reconciler: it
+        /// re-applies its remembered value on every frame where the controller disagrees
+        /// (<c>PlayerScriptControlLock.Update</c>). A modal that wrote <c>ScriptControlEnabled = false</c>
+        /// directly would therefore be undone on whichever frames that reconciler ran afterwards, and
+        /// would also have to guess what to restore on dismissal — restoring <c>true</c> would release a
+        /// cutscene's <c>control off</c> that the popup never took. Two independent flags ORed at the
+        /// point of use cannot fight and need no restoration.</para>
+        /// </summary>
+        public bool ModalInputBlocked { get; set; }
+
+        /// <summary>
+        /// Whether player input is currently honoured at all — the cutscene lock <b>and</b> the modal
+        /// block. Every input gate reads this rather than <see cref="ScriptControlEnabled"/> directly,
+        /// so a new blocker cannot be added to one gate and forgotten in another.
+        /// </summary>
+        public bool ControlActive => ScriptControlEnabled && !ModalInputBlocked;
+
         // Dependencies (injected via VContainer)
         private InputReader _input;
         private PFE.Core.PfeDebugSettings _debugSettings;
@@ -503,6 +526,21 @@ namespace PFE.Entities.Player
             EnsureInventoryComponent();
             WireInventoryIfReady();
 
+            // AS3 Pers.setInvParameters(this.gg.invent) (Pers.as:2227) reads the inventory during every
+            // full stat recalculation, and AS3 Invent.take ends in gg.pers.setParameters()
+            // (Invent.as:1220) — so PICKING UP the screwdriver is what grants possLockPick, and
+            // dropping it removes the grant on the next recalc. Both halves land here: the recalc
+            // reads rows through the inventory (step 5.5), and every add/remove mutation schedules
+            // one. ItemQuantityAdded covers every arrival including stack growth (the cogwheel
+            // lesson, see PlayerInventory.Construct); OnItemRemoved covers a spent stack, whose row
+            // lingers at Quantity 0 and must stop granting.
+            _characterStats.ItemSkillSource = _inventoryComponent;
+            if (_inventoryComponent.Inventory != null)
+            {
+                _inventoryComponent.Inventory.ItemQuantityAdded += OnInventoryStatsDirty;
+                _inventoryComponent.Inventory.OnItemRemoved += OnItemRemovedRecalc;
+            }
+
             // Walk-over loot collection. Created AFTER the inventory block above because it needs the
             // PlayerInventory that block has just ensured exists; putting it on the sim clock is
             // AttachSimulation's job below.
@@ -587,6 +625,12 @@ namespace PFE.Entities.Player
                 _characterStats.onDeath -= OnCharacterDeath;
             }
 
+            if (_inventoryComponent != null && _inventoryComponent.Inventory != null)
+            {
+                _inventoryComponent.Inventory.ItemQuantityAdded -= OnInventoryStatsDirty;
+                _inventoryComponent.Inventory.OnItemRemoved -= OnItemRemovedRecalc;
+            }
+
             // Clean up MessagePipe subscriptions
             _disposables?.Dispose();
 
@@ -610,6 +654,23 @@ namespace PFE.Entities.Player
                       "re-applied (organMult/dieDamage/teleMana/difCapsMult).");
         }
 
+        /// <summary>
+        /// The port of AS3 <c>Invent.take</c>'s tail (<c>Invent.as:1220</c>): a full recalculation after
+        /// every inventory mutation, which is what makes carrying the screwdriver grant
+        /// <c>possLockPick</c> the moment it lands in the bag. Also fired by <c>usePotion</c>'s three
+        /// call sites in AS3 (Invent.as:397/458/477) — the port's consumable path raises the same two
+        /// events, so one handler covers both.
+        /// </summary>
+        private void OnInventoryStatsDirty(GameItemInstance item, int quantity)
+        {
+            if (_characterStats != null) _characterStats.RecalculateStats();
+        }
+
+        private void OnItemRemovedRecalc(GameItemInstance item)
+        {
+            if (_characterStats != null) _characterStats.RecalculateStats();
+        }
+
         private void Update()
         {
             HandleAiming();
@@ -624,7 +685,7 @@ namespace PFE.Entities.Player
             //
             // The cost is one `Physics2D.OverlapCircleAll` at the cursor per frame, which is what
             // the Oracle's own per-frame object scan costs; it is not a scene walk.
-            CurrentInteractTarget = ScriptControlEnabled ? FindCursorTarget() : null;
+            CurrentInteractTarget = ControlActive ? FindCursorTarget() : null;
 
             // Direct interact check (E key or Right-Click). Both edges are read, because acting is a
             // hold: AS3 keeps keyAction as a held boolean (set at Ctr.as:699, cleared at :797) and
@@ -640,7 +701,7 @@ namespace PFE.Entities.Player
             // grabbing a terminal while a script is talking. `EndInteract` below is deliberately NOT
             // gated — if the lock lands while the key is held, the release still has to be delivered or
             // the interactor stays stuck in its "acting" state for the rest of the session.
-            if (ScriptControlEnabled && (ePressed || rightClick))
+            if (ControlActive && (ePressed || rightClick))
             {
                 HandleInteract();
             }
@@ -671,7 +732,7 @@ namespace PFE.Entities.Player
             // vector rather than early-returning keeps the rest of this method running, which matters:
             // the locomotion controller has to be told "no input" so it decelerates, whereas an early
             // return would leave it holding the last direction for the whole cutscene.
-            Vector2 input = ScriptControlEnabled ? _input.CurrentMoveInput : Vector2.zero;
+            Vector2 input = ControlActive ? _input.CurrentMoveInput : Vector2.zero;
 
             // Arm the loot-take window — AS3's `this.isTake = 40`, set while a horizontal direction is
             // HELD (UnitPlayer.as:2551, :2570) or on a jump press (:2685). It is assigned, not
@@ -690,9 +751,9 @@ namespace PFE.Entities.Player
                 // Every edge and level below is gated on the same lock as the move vector: a cutscene
                 // that let the player jump or dash would be worse than one that let them walk, because
                 // it also breaks the animation the script is playing.
-                bool jumpHeld = ScriptControlEnabled && _input.IsJumpHeld;
-                bool runHeld = ScriptControlEnabled && _input.IsDashing.Value;
-                bool jumpPressed = ScriptControlEnabled && _input.Jump != null && _input.Jump.WasPressedThisFrame();
+                bool jumpHeld = ControlActive && _input.IsJumpHeld;
+                bool runHeld = ControlActive && _input.IsDashing.Value;
+                bool jumpPressed = ControlActive && _input.Jump != null && _input.Jump.WasPressedThisFrame();
                 bool dashPressed = runHeld && DetectHorizontalDoubleTap(input.x);
                 bool dropThroughPressed = DetectDownDoubleTap(input.y);
                 // Provide mouse cursor world position for teleport targeting (AS3: World.w.celX/celY)
