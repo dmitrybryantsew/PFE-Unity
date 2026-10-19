@@ -32,8 +32,18 @@ namespace PFE.Systems.Campaign
         /// (<c>Script.as:458-468</c>).</summary>
         public bool access;
 
-        /// <summary>AS3 <c>visited</c> — set on the first entry to a non-procedural land
-        /// (<c>Game.as:386-389</c>).</summary>
+        /// <summary>
+        /// AS3 <c>visited</c> — set on the first entry to <b>any</b> land, procedural included
+        /// (<c>Land.as:1146</c>, the first line of <c>enterLand</c>).
+        ///
+        /// <para><b>Not "a non-procedural land".</b> <c>Game.as:386-389</c> writes the same field again
+        /// under <c>if(!curLand.rnd)</c>, and reading that line as the rule is what kept this flag false
+        /// for every procedural land: <c>curLand</c> and <c>land.act</c> are one object, so the extra write
+        /// is redundant, and the unconditional one has already happened. Two consumers depend on the
+        /// broader answer — <c>LandLayoutPlanner</c> gates the <c>beg*</c> entry room on <c>!visited</c>
+        /// (<c>Land.as:223</c>), and the travel map shows a land when <c>visited || access</c>
+        /// (<c>PipPageInfo.as:193</c>).</para>
+        /// </summary>
         public bool visited;
 
         /// <summary>AS3 <c>passed</c> — set by the <c>passed</c> script action (<c>Script.as:469-472</c>).</summary>
@@ -135,7 +145,9 @@ namespace PFE.Systems.Campaign
             Get(landId).access = value;
         }
 
-        /// <summary>AS3 <c>Game.as:386-389</c> — a land becomes visible after its first entry.</summary>
+        /// <summary>AS3 <c>Land.as:1146</c> — every entry to a land marks it visited, which is what makes
+        /// it selectable on the travel map (<c>PipPageInfo.as:193</c>) and what retires a procedural
+        /// land's authored <c>beg*</c> entrance room on the next build (<c>Land.as:223</c>).</summary>
         public void MarkVisited(string landId)
         {
             Get(landId).visited = true;

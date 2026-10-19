@@ -228,5 +228,44 @@ namespace PFE.Tests.Editor.Campaign
             Assert.IsFalse(manager.MainReturnIsLive(),
                 "no catalogue and no mission — the oracle's `else`, i.e. a main checkpoint with no button");
         }
+
+        // ---- a regenerated land forgets its checkpoint (Land.saveObjs, Land.as:1193-1196) ----
+
+        /// <summary>
+        /// <b>The bug this exists for.</b> A procedural land is rebuilt on every descent, and every conf 0
+        /// land enters at (0,0) at every stage with a code-less checkpoint — so the rebuilt entry
+        /// checkpoint's identity (room cell, since the code is empty) is <i>the same</i> as the previous
+        /// stage's. Left alone, the fresh object reads as already active, <c>ActivateCheckpoint</c> refuses
+        /// at <c>CheckPoint.as:190</c>, and the return offer is never armed: a checkpoint you cannot press.
+        ///
+        /// <para>AS3 has no equivalent state to clear — it rebuilds the objects, and a random land never
+        /// restores them from <c>game.objs</c> because <c>Land.saveObjs</c> returns early for one. This is
+        /// the port's stand-in for "the object is new".</para>
+        /// </summary>
+        [Test]
+        public void ClearCheckpointForRebuild_MakesTheSameCellActivatableAgain()
+        {
+            CampaignManager manager = EnterSurf();
+
+            // The entry checkpoint: same cell, same (empty) code, at every stage.
+            Assert.IsTrue(manager.ActivateCheckpoint("surf", Room, string.Empty,
+                isBegin: true, teleOn: true, main: false, locked: false), "stage 0 activates");
+            Assert.IsTrue(manager.OffersReturn("surf", Room, string.Empty), "precondition: armed");
+
+            Assert.IsFalse(manager.ActivateCheckpoint("surf", Room, string.Empty,
+                isBegin: true, teleOn: true, main: false, locked: false),
+                "control: without a rebuild the same placement is already active and is refused");
+
+            manager.ClearCheckpointForRebuild();
+
+            Assert.IsNull(manager.CurrentCheckpoint, "the record named a layout that no longer exists");
+            Assert.IsFalse(manager.OffersReturn("surf", Room, string.Empty), "and the button with it");
+
+            Assert.IsTrue(manager.ActivateCheckpoint("surf", Room, string.Empty,
+                isBegin: true, teleOn: true, main: false, locked: false),
+                "the rebuilt land's entry checkpoint is fresh and activates");
+            Assert.IsTrue(manager.OffersReturn("surf", Room, string.Empty),
+                "so its return-to-base is armed again — the whole point");
+        }
     }
 }

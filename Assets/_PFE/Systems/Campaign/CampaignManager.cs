@@ -346,6 +346,27 @@ namespace PFE.Systems.Campaign
             // run's `upland` increment again.
             _landStates.ResetUpStage(resolvedId);
 
+            // AS3 Game.as:373-377 — arriving in the hub:
+            //   if(this.curLand.id == "rbl") { triggers["noreturn"] = 0; triggers["nomed"] = 0;
+            //                                  triggers["rbl_visited"] = 1; }
+            //
+            // `noreturn` is the trigger `mReturn` is derived from (`ActivateCheckpoint`), i.e. it is the
+            // switch that decides whether ANY checkpoint offers "return to base". A new game sets it to 1
+            // (`Game.as:204`) and only reaching the hub clears it, so without this write the whole
+            // return cycle is one-way: the player could leave the camp but nothing would ever arm the
+            // trip back, because `mReturn` was never turned on. `rbl_visited` is the flag the camp's own
+            // dialogue and the `calam` NPC hide behind (`UnitNpcRules`).
+            //
+            // AS3 spells the literal id; this reads the catalogue's base tip instead, which is the port's
+            // standing rule (`IsBaseLandTip`) so a second hub needs no change here.
+            LandDefinition arrived = catalog?.GetLand(resolvedId);
+            if (arrived != null && IsBaseLandTip(arrived.tip))
+            {
+                SetTrigger("noreturn", 0);
+                SetTrigger("nomed", 0);
+                SetTrigger("rbl_visited", 1);
+            }
+
             // AS3 builds every room's Location up front at land load (Land.as:947) and swaps them on a
             // room change (:1263), so a land entry discards the whole previous set — and with it every
             // re-pointed button. Only `act`/`used` come back on the next build (CheckPoint.as:110-122),
@@ -1119,6 +1140,33 @@ namespace PFE.Systems.Campaign
 
             _events?.PublishCheckpointActivated(resolved, room.x, room.y, room.z, code);
             return true;
+        }
+
+        /// <summary>
+        /// Forget the current checkpoint because the land that owned it was <b>regenerated</b>.
+        ///
+        /// <para><b>Why a rebuild is not a re-entry.</b> AS3 restores a checkpoint's <c>act</c>/<c>used</c>
+        /// from <c>game.objs</c> (<c>CheckPoint.as:105-124</c>), and a random land never writes there —
+        /// <c>Land.saveObjs</c> returns immediately for one (<c>Land.as:1193-1196</c>). So every checkpoint
+        /// in a regenerated procedural land is <b>fresh</b> (<c>active == 0</c>), including the entry one,
+        /// which <c>createCheck(true)</c> then activates from scratch.</para>
+        ///
+        /// <para><b>What goes wrong without this.</b> <see cref="ActivateCheckpoint"/> derives <c>active</c>
+        /// from "is this the checkpoint the player already activated" (<see cref="IsCurrentCheckpoint"/>),
+        /// because the port rebuilds the object and AS3 does not. Every conf 0 land enters at (0,0) at
+        /// every stage, and a procedural checkpoint's <c>code</c> is empty, so the identity falls back to
+        /// the room cell — the new entry checkpoint then reads as already active, the activation is
+        /// refused at <c>CheckPoint.as:190</c>, and the return offer is never armed. The player stands on
+        /// a checkpoint with a dead button.</para>
+        ///
+        /// <para>Callers: <c>MapBridge.PerformLandTransition</c>'s procedural branch, before the build.</para>
+        /// </summary>
+        public void ClearCheckpointForRebuild()
+        {
+            // Both, and together: they are two answers about the same object, and the oracle loses both
+            // when the Location set is rebuilt (the re-pointed `inter.actFun` dies with the object).
+            CurrentCheckpoint = null;
+            ReturnCheckpoint = null;
         }
 
         /// <summary>

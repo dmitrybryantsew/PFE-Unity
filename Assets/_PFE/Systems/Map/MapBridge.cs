@@ -13,6 +13,7 @@ using PFE.Systems.Campaign;
 using PFE.Systems.Map;
 using PFE.Systems.Map.Generation;
 using PFE.Systems.Map.Rendering;
+using PFE.Systems.Map.Serialization;
 using PFE.Systems.Map.Streaming;
 
 public class MapBridge : MonoBehaviour
@@ -1188,6 +1189,20 @@ public class MapBridge : MonoBehaviour
             // be set here, before BuildLand.
             worldBuilder.ProbContext = probContext;
 
+            // A regenerated procedural land's objects are FRESH, and its checkpoint record must not
+            // outlive the layout that named it:
+            //   · AS3 never persists a random land's objects — `Land.saveObjs` returns immediately
+            //     (`Land.as:1193-1196`), so no `<obj code>` for a checkpoint in a procedural land is ever
+            //     written back, and `CheckPoint`'s constructor has nothing to restore `act` from
+            //     (`:105-124`).
+            //   · The port's `CurrentCheckpoint` is campaign state and survives a rebuild. Every conf 0
+            //     land enters at (0,0) at every stage, and a procedural checkpoint's `code` is empty — so
+            //     the identity falls back to the room cell (`CampaignManager.MatchesCheckpoint`) and the
+            //     NEW entry checkpoint reads as "already active". `ActivateCheckpoint` then refuses, the
+            //     return is never armed, and no save is written: the entry checkpoint would be a prop you
+            //     cannot press, which is exactly the state this change exists to fix.
+            campaign?.ClearCheckpointForRebuild();
+
             built = worldBuilder.BuildLand(land, templates, state.landStage, state.visited,
                 forceRegenerate: false, mbaseVisited: mbaseVisited, runDifficulty: runDifficulty);
         }
@@ -1271,6 +1286,24 @@ public class MapBridge : MonoBehaviour
             _visualController.Initialize(currentRoom, _tileDatabase);
             SpawnPlayer(currentRoom);
 
+            // AS3 `Location.createCheck(true)` ends with `this.cp.activate(true)`
+            // (Location.as:2105-2108) — the entry checkpoint is activated by the BUILD, not by the
+            // player. That is what makes the "safe prop" at the start of a level the land's current
+            // checkpoint, and — when the placement carries `teleOn` — what arms its return-to-camp
+            // button (`CheckPoint.as:234-240`).
+            //
+            // Procedural only: `createCheck` is called from `buildRandomLand` alone, and an authored
+            // room's checkpoints come from its own `<obj>` children, which the oracle never activates.
+            //
+            // AFTER SpawnPlayer, which is the port's ordering rather than the oracle's. AS3 activates
+            // inside `new Land(...)`, when the player has no position yet; here the save that ends the
+            // activation (`CheckPoint.as:247`) is a real file write, so it must record the arrival
+            // rather than the room the player just left.
+            if (landIsRandom)
+            {
+                ActivateEntryCheckpoint(campaign, targetLand, currentRoom);
+            }
+
             if (rtm != null)
             {
                 rtm.SetLandMap(landMap);
@@ -1301,19 +1334,27 @@ public class MapBridge : MonoBehaviour
             playerController.enabled = true;
         }
 
-        // AS3 Game.as:386-389 — `if(!this.curLand.rnd) { this.curLand.visited = true; }`.
+        // AS3 `Land.enterLand`'s FIRST line — `this.act.visited = true` (Land.as:1146) — for EVERY land,
+        // procedural included.
         //
-        // Deliberately AFTER the entry and not before. `firstVisit` above was computed from the pre-entry
-        // value, and marking the land visited on the way in would make every entry read as a re-visit —
-        // so every authored land would resume at its checkpoint, including the first one.
+        // This used to be gated on `!landIsRandom`, on the strength of `Game.as:386-389`
+        // (`if(!this.curLand.rnd) { this.curLand.visited = true; }`). That line is real but it is
+        // **redundant, not a gate**: `curLand` and `land.act` are the same LandAct object, and `enterLand`
+        // has already written `visited = true` one call earlier for every land. Reading the redundant line
+        // as the rule is what kept `visited` false on every procedural entry — and that is the whole of
+        // "a deeper level always starts in the entrance room":
         //
-        // Gated on `!landIsRandom` for two reasons that agree: it is literally the oracle's condition, and
-        // `visited` is consumed by LandLayoutPlanner (it gates the `beg*` entry room), which is reached only
-        // from the procedural branch. Writing it for a procedural land would change that land's layout on
-        // its second entry — a behaviour change nothing here asked for. (Land.as:1145 also writes
-        // `act.visited` unconditionally at enterLand's first line; the port leaves that write out, which is
-        // recorded in the open-work list rather than silently reproduced.)
-        if (!landIsRandom && campaign != null)
+        //   · `LandLayoutPlanner` gates the `beg*` room on `!visited` (Land.as:223), so row 0 was rebuilt
+        //     as the authored entrance on EVERY stage. From stage 1 the oracle fills that row with
+        //     `newRandomLoc` (Land.as:389), i.e. the player arrives in a random room, on the entry cell's
+        //     activated checkpoint. The grid grew but the arrival room never changed.
+        //   · `PipPageInfo:193` shows a land on the travel map when `visited || access`, so the same flag
+        //     is what makes a procedural land selectable after its first entry.
+        //
+        // Deliberately AFTER the entry and not before: `firstVisit` above was computed from the pre-entry
+        // value (`CheckpointRules.IsFirstVisit`), and marking the land visited on the way in would make
+        // every authored land read as a re-visit and resume at its checkpoint on the very first entry.
+        if (campaign != null)
         {
             campaign.LandStates.MarkVisited(targetLand);
         }
@@ -1455,6 +1496,66 @@ public class MapBridge : MonoBehaviour
         Debug.LogWarning(
             $"[MapBridge] Unknown land id '{targetLand}': no <land> entry in GameData.as declares it.");
         return string.Empty;
+    }
+
+    /// <summary>
+    /// AS3 <c>Location.createCheck(true)</c>'s tail (<c>Location.as:2105-2108</c>) — the entry cell's
+    /// checkpoint is <b>activated by the build</b>:
+    /// <code>
+    /// if(this.land.act.landStage == 0 &amp;&amp; param1) { this.cp.teleOn = true; }
+    /// if(param1) { this.cp.activate(true); }
+    /// </code>
+    ///
+    /// <para><b>What the activation buys, in order of how visible it is.</b> It writes the land's current
+    /// checkpoint (<c>land.currentCP</c>, <c>:213</c>), which is the record a re-entry resumes at; it
+    /// re-points the button at <c>teleport</c> when <c>mReturn &amp;&amp; teleOn &amp;&amp; !used</c>
+    /// (<c>:234-240</c>), which is the "return to base" prompt; and it ends in <c>World.w.saveGame()</c>
+    /// (<c>:247</c>), so arriving in a land is itself a save. The <c>param1 == true</c> argument is what
+    /// skips the heal/XP restore (<c>:194</c>) — a begin checkpoint is not a rest stop.</para>
+    ///
+    /// <para><b>The <c>teleOn</c> is read off the placement, not re-derived here.</b> Two statements write
+    /// it — the difficulty override in <c>Location.createObj</c> (<c>:2040-2046</c>) and
+    /// <c>createCheck</c>'s stage-0 line — and both have already run inside the builder
+    /// (<c>WorldBuilder.PlaceCellObjects</c> → <c>RoomPopulator.ApplyCheckpointTeleOn</c> /
+    /// <c>ApplyBeginCheckpointTeleOn</c>). Reading the attribute is what keeps this method from owning a
+    /// third copy of that rule.</para>
+    ///
+    /// <para><b><c>locked</c> is <c>false</c> by construction, not by assumption.</b> The begin checkpoint
+    /// never rolls a locked variant — <c>CheckpointRules.SelectObjectId</c> short-circuits on
+    /// <c>isBegin</c> — and the plain <c>checkpoint</c> row authors neither <c>lock</c> nor <c>mine</c>
+    /// (<c>AllData.as:5007</c>). A locked entry checkpoint would be a player locked out of their own
+    /// arrival save.</para>
+    /// </summary>
+    /// <param name="campaign">The campaign; <c>null</c> is tolerated (headless, tests).</param>
+    /// <param name="landId">The land just built.</param>
+    /// <param name="entryRoom">The room the player was spawned in — <c>landMap.currentRoom</c>.</param>
+    private static void ActivateEntryCheckpoint(CampaignManager campaign, string landId, RoomInstance entryRoom)
+    {
+        if (campaign == null || entryRoom == null) return;
+
+        ObjectInstance begin = RoomPopulator.FindBeginCheckpoint(entryRoom);
+        if (begin == null)
+        {
+            // Not an error: a conf only places a begin checkpoint where the plan says so, and the entry
+            // cell of a land whose `locx/locy` is off the checkpoint parity carries none. Named anyway,
+            // because "no checkpoint at the entrance" and "the activation was refused" look identical
+            // from inside the game.
+            Debug.Log($"[MapBridge] '{landId}': the entry room ({entryRoom.landPosition.x}," +
+                      $"{entryRoom.landPosition.y}) carries no begin checkpoint, so nothing was activated.");
+            return;
+        }
+
+        bool teleOn = !string.IsNullOrEmpty(
+            begin.GetAttribute(RoomPopulator.TeleCheckpointAttribute, string.Empty));
+
+        if (!campaign.ActivateCheckpoint(landId, entryRoom.landPosition, begin.code,
+                isBegin: true, teleOn: teleOn, main: false, locked: false))
+        {
+            return;
+        }
+
+        // AS3 CheckPoint.as:247 — the last line of activate().
+        SaveManager.Instance?.RequestCheckpointSave();
     }
 
     /// <summary>

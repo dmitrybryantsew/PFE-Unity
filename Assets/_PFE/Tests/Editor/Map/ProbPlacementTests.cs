@@ -473,5 +473,101 @@ namespace PFE.Tests.Editor.Map
         {
             Assert.IsNull(RoomPopulator.PlaceReturnDoor(null));
         }
+
+        // =====================================================================
+        //  createCheck's tail — teleOn, and finding the entry checkpoint again
+        //  (Location.as:2100-2107, CheckPoint.as:234-240)
+        // =====================================================================
+
+        /// <summary>
+        /// <c>Location.createCheck</c>'s third statement (<c>:2101-2104</c>) — the entry cell's checkpoint
+        /// arms the return on the land's <b>first</b> stage regardless of the difficulty roll.
+        ///
+        /// <para><b>The stage term is what this pins.</b> Without it, a Normal-difficulty run reaches a
+        /// land's stage 0 with a 33 % chance of a way home (<c>Location.as:2040-2046</c> is the only other
+        /// writer). The two cases below differ in one number and must differ in the answer.</para>
+        /// </summary>
+        [Test]
+        public void ApplyBeginCheckpointTeleOn_OnlyOnTheFirstStage()
+        {
+            RoomInstance room = MakeRoom(new Vector2Int(4, 4));
+
+            ObjectInstance stage0 = RoomPopulator.PlaceCheckpointMarker(room, isBegin: true);
+            Assert.IsTrue(RoomPopulator.ApplyBeginCheckpointTeleOn(stage0, isBegin: true, landStage: 0),
+                "landStage 0 + param1 — the oracle forces teleOn on");
+            Assert.AreEqual("1", stage0.GetAttribute(RoomPopulator.TeleCheckpointAttribute),
+                "the presenter reads this attribute as CheckPoint.teleOn");
+
+            ObjectInstance stage1 = RoomPopulator.PlaceCheckpointMarker(room, isBegin: true);
+            Assert.IsFalse(RoomPopulator.ApplyBeginCheckpointTeleOn(stage1, isBegin: true, landStage: 1),
+                "stage 1 — createCheck does NOT force it; only the difficulty roll can");
+            Assert.AreEqual(string.Empty, stage1.GetAttribute(RoomPopulator.TeleCheckpointAttribute));
+        }
+
+        /// <summary>
+        /// A non-begin checkpoint is never forced — <c>param1</c> is the entry cell's own flag, and a
+        /// mid-land checkpoint's return is the difficulty roll's business.
+        /// </summary>
+        [Test]
+        public void ApplyBeginCheckpointTeleOn_IgnoresNonBeginCheckpoints()
+        {
+            RoomInstance room = MakeRoom(new Vector2Int(4, 4));
+            ObjectInstance normal = RoomPopulator.PlaceCheckpointMarker(room, isBegin: false);
+
+            Assert.IsFalse(RoomPopulator.ApplyBeginCheckpointTeleOn(normal, isBegin: false, landStage: 0));
+            Assert.AreEqual(string.Empty, normal.GetAttribute(RoomPopulator.TeleCheckpointAttribute));
+        }
+
+        /// <summary>
+        /// The two writers must not stack: the difficulty override and <c>createCheck</c>'s line can both
+        /// fire for the same object, and two identical <c>tele</c> attributes would make the answer depend
+        /// on read order.
+        /// </summary>
+        [Test]
+        public void ApplyBeginCheckpointTeleOn_DoesNotDuplicateAnExistingAttribute()
+        {
+            RoomInstance room = MakeRoom(new Vector2Int(4, 4));
+            ObjectInstance begin = RoomPopulator.PlaceCheckpointMarker(room, isBegin: true);
+
+            Assert.IsTrue(RoomPopulator.ApplyBeginCheckpointTeleOn(begin, isBegin: true, landStage: 0));
+            RoomPopulator.ApplyBeginCheckpointTeleOn(begin, isBegin: true, landStage: 0);
+
+            int count = 0;
+            foreach (MapObjectAttributeData attribute in begin.attributes)
+            {
+                if (attribute.key == RoomPopulator.TeleCheckpointAttribute) count++;
+            }
+
+            Assert.AreEqual(1, count, "one attribute, not one per writer");
+        }
+
+        /// <summary>
+        /// <c>FindBeginCheckpoint</c> is how the activation that AS3 runs inline (<c>Location.as:2107</c>)
+        /// reaches the placement again after the build. It must answer the <b>begin</b> one, and the id
+        /// cannot be the discriminator: with the variant roll off — which is the live configuration — every
+        /// checkpoint in a procedural land is the plain <c>checkpoint</c>.
+        /// </summary>
+        [Test]
+        public void FindBeginCheckpoint_AnswersTheBeginMarker_NotJustAnyCheckpoint()
+        {
+            RoomInstance room = MakeRoom(new Vector2Int(4, 4), new Vector2Int(9, 9));
+
+            ObjectInstance normal = RoomPopulator.PlaceCheckpointMarker(room, isBegin: false);
+            ObjectInstance begin = RoomPopulator.PlaceCheckpointMarker(room, isBegin: true);
+
+            Assert.AreEqual(normal.objectId, begin.objectId,
+                "positive control: the ids are identical, so an id-based search could not tell them apart");
+            Assert.AreSame(begin, RoomPopulator.FindBeginCheckpoint(room));
+        }
+
+        [Test]
+        public void FindBeginCheckpoint_WithNoBeginMarker_AnswersNull()
+        {
+            RoomInstance room = MakeRoom(new Vector2Int(4, 4));
+            RoomPopulator.PlaceCheckpointMarker(room, isBegin: false);
+
+            Assert.IsNull(RoomPopulator.FindBeginCheckpoint(room));
+            Assert.IsNull(RoomPopulator.FindBeginCheckpoint(null));
+        }
     }
 }
