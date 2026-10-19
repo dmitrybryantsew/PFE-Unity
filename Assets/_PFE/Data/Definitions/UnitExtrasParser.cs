@@ -13,20 +13,21 @@ namespace PFE.Data.Definitions
     /// right is a <em>guard</em>, and a wrong guard is wrong <b>silently</b> — exactly the class of
     /// defect that needs a test rather than a careful reading.</para>
     ///
-    /// <para><b>Four attributes are read here; the node carries twenty-two.</b> The other eighteen
-    /// (<c>ss</c> 9, <c>och</c> 11, <c>skill</c> 7, <c>stalk</c> 6, <c>dist</c> 6, <c>grenader</c> 4,
-    /// <c>attr</c> 4, <c>attch</c> 4, <c>tip</c> 3, <c>enclweap</c> 3, <c>chootch</c> 3, <c>robot</c> 1,
-    /// <c>plate</c> 1, <c>one</c> 1, <c>gryz</c> 1, <c>gren</c> 1, <c>glow</c> 1, <c>drop</c> 1,
-    /// <c>bulb</c> 1 — the counts are over the 52 <c>&lt;un&gt;</c> nodes in <c>AllData.as</c>) are
-    /// deliberately left unwritten: closing the node is its own workstream, and giving an attribute a
-    /// writer before anything reads it is the trap <see cref="UnitDefinition.canResurrect"/> was already
-    /// in. <c>stalk</c> and <c>dist</c> are the two that look closest to ready and are not — see the
-    /// note on <see cref="ParseWalker"/>.</para>
+    /// <para><b>Eight attributes are read here; the node carries twenty-two.</b> The remaining fourteen
+    /// (<c>ss</c> 9, <c>skill</c> 7, <c>attr</c> 4, <c>attch</c> 4, <c>tip</c> 3, <c>enclweap</c> 3,
+    /// <c>chootch</c> 3, <c>robot</c> 1, <c>plate</c> 1, <c>one</c> 1, <c>gryz</c> 1, <c>gren</c> 1,
+    /// <c>glow</c> 1, <c>drop</c> 1, <c>bulb</c> 1 — the counts are over the 52 <c>&lt;un&gt;</c> nodes
+    /// in <c>AllData.as</c>) are deliberately left unwritten: closing the node is its own workstream, and
+    /// giving an attribute a writer before anything reads it is the trap
+    /// <see cref="UnitDefinition.canResurrect"/> was already in.</para>
     ///
-    /// <para><b>Why these four are different.</b> <c>res</c>, <c>walker</c>, <c>sniper</c> and
-    /// <c>stay</c> are each read by a ported code path, so an unread attribute here is a live divergence
-    /// rather than a dormant one: <c>zebra3</c> alone authors <c>walker='1' sniper='1' stay='1'</c>
-    /// (<c>AllData.as:361</c>) and the port dropped all three.</para>
+    /// <para><b>Why these eight are different.</b> <c>res</c>, <c>walker</c>, <c>sniper</c>, <c>stay</c>,
+    /// <c>och</c>, <c>dist</c>, <c>stalk</c> and <c>grenader</c> are each read by a ported code path, so
+    /// an unread attribute here is a live divergence rather than a dormant one: <c>zebra3</c> alone
+    /// authors <c>walker='1' sniper='1' stay='1'</c> (<c>AllData.as:361</c>) and the port dropped all
+    /// three. <c>och</c>/<c>dist</c>/<c>stalk</c>/<c>grenader</c> were added on 2026-10-19 with their
+    /// readers — <c>ArmedShooterBrain</c>'s burst cadence and commit range, the flyer's hover radius, and
+    /// the mercenary/enclave secondary weapon.</para>
     /// </summary>
     public static class UnitExtrasParser
     {
@@ -151,6 +152,134 @@ namespace PFE.Data.Definitions
         /// </summary>
         /// <param name="unitContent">The unit's own <c>&lt;unit&gt;…&lt;/unit&gt;</c> text.</param>
         public static bool ParseStaysPut(string unitContent) => Declares(UnAttributes(unitContent), "stay");
+
+        /// <summary>
+        /// The unit's <c>&lt;un och='…'&gt;</c> — AS3 <c>UnitRaider.aiAttackOch</c>
+        /// (<c>UnitRaider.as:319-321</c>) and <c>UnitAIRobot.aiAttackOch</c> (declared <c>100</c>,
+        /// <c>UnitAIRobot.as:31</c>), or <c>null</c> when the row does not author it.
+        ///
+        /// <para><b>Null is not zero, and that distinction is the whole rule.</b> AS3 assigns only
+        /// inside <c>if(node0.un.@och.length())</c>, so an absent attribute leaves the class default in
+        /// place — and for the raider that default is <c>0</c>, which is not "fire as fast as possible"
+        /// but a <i>different branch</i>: <c>aiAttackOch == 0</c> is the 10 %-per-frame trigger, and
+        /// <c>UnitRaider</c>'s constructor then overwrites it from the rolled weapon's magazine
+        /// (<c>:217-219</c>, <c>holder &gt; 10</c>). Collapsing "absent" into <c>0</c> would be correct
+        /// for the raider by luck and wrong for the robot, whose default is <c>100</c>.</para>
+        ///
+        /// <para><b>11 rows author it</b>, and the shipped values are far from the port's old constant
+        /// of 30: <c>raider1</c>/<c>raider5</c> 60, <c>raider3</c> 120, <c>merc2</c> 3, <c>merc3</c> 45,
+        /// <c>slaver4</c> 25, the three <c>zebra</c> snipers 16.</para>
+        /// </summary>
+        public static int? ParseAttackOch(string unitContent) => ReadInt(UnAttributes(unitContent), "och");
+
+        /// <summary>
+        /// The unit's <c>&lt;un dist='…'&gt;</c> — AS3 <c>UnitRaider.aiDist</c>
+        /// (<c>UnitRaider.as:323-326</c>), the range at which the ranged arm commits
+        /// (<c>:756</c>). Absent leaves the class default <c>1000</c>.
+        ///
+        /// <para><b>Not the same quantity as <see cref="UnitDefinition.detectionDistance"/>.</b> That
+        /// one comes from <c>&lt;vis observ&gt;</c> (<c>Unit.as</c>'s observation power) and the port
+        /// used it as a stand-in for <c>aiDist</c> — 400 for every unit in the game, because
+        /// <c>UnitDataImporter</c> writes 400 as the default and <c>observ</c> writes a different field
+        /// entirely. 8 rows author <c>dist</c>: 500, 600 and 700.</para>
+        /// </summary>
+        public static int? ParseAiDistance(string unitContent) => ReadInt(UnAttributes(unitContent), "dist");
+
+        /// <summary>
+        /// The unit's <c>&lt;un stalk='…'&gt;</c> — AS3 <c>UnitRaider.stalkDist</c>
+        /// (<c>UnitRaider.as:327-330</c>), the radius inside which a <b>flying</b> unit stops
+        /// approaching and hovers (<c>:1291-1299</c>). Absent leaves the class default <c>500</c>;
+        /// <c>UnitRaider</c>'s constructor forces it to <c>0</c> for a contact attacker
+        /// (<c>:275-278</c>), which is a separate rule and belongs to the brain.
+        ///
+        /// <para>6 rows author it: 500 (<c>merc1</c>, <c>merc2</c>, <c>slaver4</c>), 1000
+        /// (<c>merc3</c>, <c>encl1</c>), 1500 (<c>merc4</c>).</para>
+        /// </summary>
+        public static int? ParseStalkDistance(string unitContent) => ReadInt(UnAttributes(unitContent), "stalk");
+
+        /// <summary>
+        /// The unit's <c>&lt;un grenader='…'&gt;</c> — AS3 <c>UnitRaider.grenader</c>
+        /// (<c>UnitRaider.as:343-346</c>), the number of secondary-weapon rounds a mercenary or
+        /// enclave soldier carries.
+        ///
+        /// <para><b>It gates the secondary weapon, it does not merely size it.</b>
+        /// <c>UnitMerc.as:30</c> and <c>UnitEncl.as:29</c> both wrap the whole
+        /// <c>Weapon.create(this,"mercgr")</c> in <c>if(grenader &gt; 0)</c>, so <c>merc1</c>,
+        /// <c>merc2</c> and <c>merc4</c> — which author no <c>grenader</c> — have <b>no</b> rocket in the
+        /// oracle, even though their rows carry the <c>f='1'</c> <c>mercgr</c> candidate. 4 rows author
+        /// it: <c>merc3</c> 4, <c>merc5</c> 2, <c>encl2</c> 2, <c>encl3</c> 4.</para>
+        ///
+        /// <para><b>The anchor matters here.</b> <c>&lt;un gren='1'/&gt;</c> also exists
+        /// (<c>raider9</c>) and is a different attribute with no reader; <c>(?:^|\s)gren=</c> does not
+        /// match inside <c>grenader=</c> and vice versa.</para>
+        /// </summary>
+        public static int? ParseGrenadeCount(string unitContent) => ReadInt(UnAttributes(unitContent), "grenader");
+
+        /// <summary>
+        /// The unit's <c>&lt;un ss='…'&gt;</c> — AS3 <c>UnitZombie.superSilaTip</c>
+        /// (<c>UnitZombie.as:151-156</c>), which <c>setSuper()</c> turns into the super-attack ladder
+        /// (<c>:954-1037</c>).
+        ///
+        /// <para><b>Nine rows author it and every one is a zombie variant</b> — <c>zombie1..zombie9</c>
+        /// (<c>AllData.as:793, 803, 813, 828, 838, 849, 865, 881, 896</c>). <c>zombie0</c>, the plain
+        /// ghoul, authors none and has no super at all.</para>
+        ///
+        /// <para><b>Ownership guard, unlike <c>walker</c>.</b> <c>ss</c> is read by exactly one class in
+        /// the oracle, so there is no second meaning to defend against — but the value is a
+        /// <i>dispatch index</i>, and writing it onto a unit whose class never reads it would leave a
+        /// number that looks meaningful and is inert. The same family gate as
+        /// <see cref="ParseCanResurrect"/>, for the same reason: the zombie controller is the only
+        /// reader.</para>
+        ///
+        /// <para><b>The value is kept, not just its presence</b> — unlike <c>res</c>. Each index selects
+        /// a different effect, so collapsing them to a boolean would make all nine variants identical.</para>
+        /// </summary>
+        /// <param name="unitContent">The unit's own <c>&lt;unit&gt;…&lt;/unit&gt;</c> text.</param>
+        /// <param name="parentId">The unit's <c>parent=</c>; must be <c>zombie</c>.</param>
+        public static int? ParseSuperSkill(string unitContent, string parentId)
+        {
+            if (!string.Equals(parentId, ZombieFamilyId, StringComparison.Ordinal)) return null;
+
+            return ReadInt(UnAttributes(unitContent), "ss");
+        }
+
+        /// <summary>
+        /// True when the unit's <c>&lt;un&gt;</c> element declares <c>glow</c> — AS3
+        /// <c>UnitZombie.glowTip</c> (<c>UnitZombie.as:157-160</c>), the radiating light that
+        /// <c>visZombieLight</c> draws and whose strength <c>animate()</c> fades
+        /// (<c>:110-117</c>, <c>:251-254</c>).
+        ///
+        /// <para><b>Exactly one row authors it — <c>zombie4</c></b>, the "Светящийся гуль", and it is
+        /// also the radiation variant. No ownership guard: <c>glow</c> has one owner in the oracle and no
+        /// second meaning anywhere.</para>
+        ///
+        /// <para><b>Presence, not value.</b> AS3 stores the number (<c>glowTip</c>) but only ever tests
+        /// <c>&gt; 0</c>; the one shipped author writes <c>'1'</c>.</para>
+        /// </summary>
+        public static bool ParseGlows(string unitContent) => Declares(UnAttributes(unitContent), "glow");
+
+        /// <summary>
+        /// The integer value of <paramref name="name"/> on the <c>&lt;un&gt;</c> attribute run, or
+        /// <c>null</c> when the attribute is absent.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>The leading anchor is the trap this guards.</b> An unanchored
+        /// <c>och='([0-9]+)'</c> would also match the tail of any future <c>boch=</c>; more immediately,
+        /// <c>dist='…'</c> unanchored would match nothing today but <c>stalk='…'</c> unanchored is a
+        /// prefix-match hazard in the other direction. <see cref="Declares"/> already anchors this way
+        /// for the four presence reads, and the two helpers must agree or one of them is wrong.</para>
+        /// <para>AS3's values are all non-negative, but the pattern admits a sign so a malformed row
+        /// fails loudly at parse time rather than being silently clamped.</para>
+        /// </remarks>
+        private static int? ReadInt(string unAttributes, string name)
+        {
+            if (unAttributes == null) return null;
+
+            Match match = Regex.Match(unAttributes, @"(?:^|\s)" + Regex.Escape(name) + "='(-?[0-9]+)'");
+            if (!match.Success) return null;
+
+            return int.TryParse(match.Groups[1].Value, out int value) ? value : (int?)null;
+        }
 
         /// <summary>
         /// The attribute text of this unit's <c>&lt;un&gt;</c> element, or <c>null</c> when it has none.

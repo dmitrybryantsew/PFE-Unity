@@ -75,11 +75,56 @@ namespace PFE.Systems.Map
         }
 
         /// <summary>
-        /// The spawn anchor as a Unity <b>world</b> position.
+        /// The spawn anchor as a Unity <b>world</b> position, using the <b>player</b> anchor
+        /// (<see cref="AnchorSizeTiles"/> = 2).
         /// </summary>
+        /// <remarks>
+        /// <b>Not for an <see cref="SpawnType.Enemy"/> point.</b> An <c>enspawn</c> marker authors no
+        /// <c>size</c>, so <c>Location.addEnSpawn</c> (<c>:914-930</c>) anchors it at
+        /// <c>(x + 0.5) * tileX</c> — half a tile left of this one. Use
+        /// <see cref="GetEnemyUnityPosition"/> for those. The two methods exist separately precisely
+        /// because "the spawn point's position" sounds like one idea and is two formulas.
+        /// </remarks>
         public Vector3 GetUnityPosition(RoomInstance room)
         {
             return WorldCoordinates.PixelToUnity(GetWorldPixel(room));
+        }
+
+        /// <summary>
+        /// AS3 <c>Location.addEnSpawn</c>'s anchor size (<c>:914-930</c>): <c>int(placement.@size)</c>,
+        /// floored at <b>1</b> — <i>not</i> <see cref="AnchorSizeTiles"/>.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Why this is a separate constant and not the player's 2.</b> The two anchors are
+        /// different formulas over the same tile coordinate:
+        /// <c>addEnSpawn</c> writes <c>(x + 0.5*size) * tileX</c>, while the player anchor is
+        /// <c>Land.as:1229</c>'s <c>(x + 1) * tileX</c> — the same value only because the
+        /// <c>player</c> row is <c>size='2'</c>. An <c>enspawn</c> marker authors no <c>size</c>
+        /// (measured: 0 of the 89 shipped markers have a non-empty attribute list), so <c>size</c> is
+        /// 1 and reusing the player's 2 puts every reinforcement <b>half a tile (20 px) right</b> of
+        /// where the oracle spawns it.</para>
+        /// </remarks>
+        public const float EnemyAnchorSizeTiles = 1f;
+
+        /// <summary>
+        /// The <b>enemy</b> spawn anchor in room-local pixels — <c>Location.addEnSpawn</c>
+        /// (<c>:914-930</c>): <c>x = (nx + 0.5*size) * tileX</c>,
+        /// <c>y = (ny + 1) * tileY - 1</c>, mirrored into the port's Y-up space.
+        /// </summary>
+        public Vector2 GetEnemyRoomLocalPixel(RoomInstance room)
+        {
+            int roomHeight = room != null ? room.height : WorldConstants.ROOM_HEIGHT;
+            int borderOffset = room != null ? Mathf.Max(0, room.borderOffset) : 0;
+
+            return WorldCoordinates.As3BottomCentreAnchorPixels(
+                tileCoord, EnemyAnchorSizeTiles, roomHeight, borderOffset);
+        }
+
+        /// <summary>The enemy spawn anchor as a Unity <b>world</b> position.</summary>
+        public Vector3 GetEnemyUnityPosition(RoomInstance room)
+        {
+            return WorldCoordinates.PixelToUnity(
+                GetEnemyRoomLocalPixel(room) + WorldCoordinates.RoomOriginPixel(room));
         }
     }
 }

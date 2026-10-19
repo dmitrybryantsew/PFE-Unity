@@ -612,6 +612,47 @@ namespace PFE.Editor.Importers
             {
                 SetPrivateField(unit, "willStayInPlace", true);
             }
+
+            // ── The four numeric reads (2026-10-19) ─────────────────────────────────────────────────
+            //
+            // Each is written only when the row authors it, and each destination starts at AS3's own
+            // declared default — `aiAttackOch` 0 (`UnitRaider.as:87`), `aiDistance` 1000 (`:89`),
+            // `stalkDistance` 500 (`:91`), `grenadeCount` 0 (`:45`). So "absent" leaves the class
+            // default in place, which is exactly what `if(node0.un.@x.length())` does in the oracle.
+            //
+            // Writing the resolved value here instead would be wrong in one direction per family:
+            // `aiAttackOch == 0` is not "off" for a raider, it is the 10 %-per-frame branch *and* the
+            // trigger for the `holder > 10 → round(holder/2)` derivation in `UnitRaider`'s constructor,
+            // while the robot family's default is 100. The field stores what the row says; the brains
+            // apply their own class rule.
+            int? attackOch = UnitExtrasParser.ParseAttackOch(content);
+            if (attackOch.HasValue) SetPrivateField(unit, "aiAttackOch", attackOch.Value);
+
+            int? aiDistance = UnitExtrasParser.ParseAiDistance(content);
+            if (aiDistance.HasValue) SetPrivateField(unit, "aiDistance", aiDistance.Value);
+
+            int? stalkDistance = UnitExtrasParser.ParseStalkDistance(content);
+            if (stalkDistance.HasValue) SetPrivateField(unit, "stalkDistance", stalkDistance.Value);
+
+            int? grenadeCount = UnitExtrasParser.ParseGrenadeCount(content);
+            if (grenadeCount.HasValue) SetPrivateField(unit, "grenadeCount", grenadeCount.Value);
+
+            // ── The zombie super (2026-10-19) ───────────────────────────────────────────────────────
+            //
+            // `ss` is a DISPATCH INDEX, not a strength: 1 pounce, 2 telekinesis, 3 venom, 4 acid,
+            // 5 radiation, 6 quake, 7 necro, 8 pink, 9 the stronger pounce. Absent leaves AS3's own
+            // initialiser (`superSilaTip = 0`, `UnitZombie.as:35`) in place, which is what `zombie0` —
+            // the plain ghoul — must keep.
+            int? superSkill = UnitExtrasParser.ParseSuperSkill(content, unit.parentId);
+            if (superSkill.HasValue) SetPrivateField(unit, "superSkill", superSkill.Value);
+
+            // `glow` is a presence read on the same node (UnitZombie.as:157-160). One unit authors it:
+            // zombie4, the radiating one. Written here because nothing had ever written it — the field
+            // existed and every asset read 0, including the unit whose row says `glow='1'`.
+            if (UnitExtrasParser.ParseGlows(content))
+            {
+                SetPrivateField(unit, "glows", true);
+            }
         }
 
         private static void ParseMovement(UnitDefinition unit, string content)
@@ -779,12 +820,22 @@ namespace PFE.Editor.Importers
             }
 
             // Parse krep (isStable - NOT armor!)
+            //
+            // Two fields, because the oracle's single `weaponKrep` answers two different questions and
+            // `isStable` can only answer one of them. `krep == 1` is a genuine projection (stable on its
+            // feet), but "absent" is NOT the same answer as `krep='0'` for the weapon rules: absent means
+            // 1 (`Unit.as:332`), and 1 means the weapon is rigidly mounted. So the raw value goes into
+            // `weaponKrep`, whose own initialiser is 1 — which is why an asset written before this field
+            // existed still reads correctly (a missing YAML key keeps the C# initialiser; a serialised
+            // `0` would not). The 14 rows that author `krep='0'` are the only ones that need the write,
+            // and they get it on the next overwrite-import.
             var krepMatch = Regex.Match(attrs, @"krep='(\d+)'");
             if (krepMatch.Success)
             {
                 int krep = int.Parse(krepMatch.Groups[1].Value);
                 bool isStable = krep == 1;
                 SetPrivateField(unit, "isStable", isStable);
+                SetPrivateField(unit, "weaponKrep", krep);
             }
 
             // Parse damage
@@ -803,12 +854,37 @@ namespace PFE.Editor.Importers
                 SetPrivateField(unit, "skill", skill);
             }
 
-            // Parse aqual (water ability)
-            var aqualMatch = Regex.Match(attrs, @"aqual='(-?\d+\.?\d*)'");
+            // Parse aqual (armour quality — NOT a water ability)
+            //
+            // AS3 writes `@aqual` to exactly one place: `this.armor_qual = node.@aqual`
+            // (`Unit.as:1154-1156`), the probability that this unit's flat armour rating applies to a
+            // hit (`isrnd(armor_qual)`, `:3616`). There is no aquatic stat anywhere in `Unit.as`, so the
+            // old target field here — `waterAbility` — was a name invented from the attribute's
+            // spelling, and it had **zero readers**, which is why nothing ever went red. The field is
+            // now `armourQuality` and this is its only writer.
+            //
+            // Absent means 0, and 0 means "the rating never applies" — AS3's own field default
+            // (`Unit.as:158`). It is deliberately NOT defaulted to 1 here: a unit with `armor='5'` and
+            // no `aqual` wears its pool down without ever reducing a hit, and that is the oracle.
+            var aqualMatch = Regex.Match(attrs, @"\baqual='(-?\d+\.?\d*)'");
             if (aqualMatch.Success)
             {
                 float aqual = ParseFloat(aqualMatch.Groups[1].Value);
-                SetPrivateField(unit, "waterAbility", aqual);
+                SetPrivateField(unit, "armourQuality", aqual);
+            }
+
+            // Parse skin (natural resistance)
+            //
+            // AS3 `if(node.@skin.length()) this.skin = node.@skin` (`Unit.as:1142-1145`). `skin` is the
+            // floor of the reduction block — `_loc8_ = this.skin` sits INSIDE each of the two damage-type
+            // branches (`:3615`, `:3623`), so it is not the universal resistance its name suggests.
+            // `UnitDefinition.skinThickness` existed with no writer at all: 16 `<comb>` rows author
+            // `skin`, and every unit read 0.
+            var skinMatch = Regex.Match(attrs, @"\bskin='(-?\d+\.?\d*)'");
+            if (skinMatch.Success)
+            {
+                float skin = ParseFloat(skinMatch.Groups[1].Value);
+                SetPrivateField(unit, "skinThickness", skin);
             }
 
             // Parse dexter (dexterity)
@@ -1206,6 +1282,13 @@ namespace PFE.Editor.Importers
             // directions at once.
             SetPrivateField(unit, "noiseRun", 200);
             SetPrivateField(unit, "ear", 1f);
+            // AS3 `Unit.armor_qual:Number = 0` (`:158`) and `Unit.skin:Number = 0` (`:156`) — written
+            // rather than left to the field initialisers for the same reason as `braking` above: the two
+            // must agree, and a reader of this function should see the value the oracle declares. Both
+            // are only overwritten by ParseCombat when the row authors the attribute, so 0 here is
+            // exactly "the source is silent" — which for `armor_qual` means the rating never applies.
+            SetPrivateField(unit, "armourQuality", 0f);
+            SetPrivateField(unit, "skinThickness", 0f);
             SetPrivateField(unit, "detectionDistance", 400);
             SetPrivateField(unit, "actionPoints", 0);
         }
