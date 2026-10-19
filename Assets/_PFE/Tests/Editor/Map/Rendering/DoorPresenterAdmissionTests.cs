@@ -153,5 +153,59 @@ namespace PFE.Tests.Editor.Map.Rendering
             Assert.IsFalse(admitted);
             Assert.IsFalse(consulted, "No allact means no question to ask.");
         }
+
+        [Test]
+        public void AButtonWithAnInlineScriptIsAdmitted()
+        {
+            // The third failure of the same rule, and the reason this clause exists. `knop1` is
+            // `tip='box' inter='4' knop='1'` (AllData.as:4907) — type "box", family Device (4), visual
+            // "visknop1" — so every shape clause rejects it, and its placements author children rather
+            // than an `allact` (`<obj id="knop1"><scr act="on" targ="nioLift1"/></obj>`, RoomsSerial.as:129),
+            // so the dispatcher has nothing to answer for either. It fell to
+            // ObjectColliderDebugPresenter: drawn, no collider, no IInteractable — every button in every
+            // authored room was physically unreachable.
+            Assert.IsTrue(RoomObjectVisualManager.UsesDoorPresenter(
+                "box", false, "visknop1", null, Handles("comein", "map"), hasInteractScript: true));
+        }
+
+        [Test]
+        public void AButtonWithoutItsInlineScriptIsNotAdmitted()
+        {
+            // Control for the test above: the identical shape with the flag off still keeps the debug
+            // presenter. This is the state the buttons were actually in, and it proves the new clause —
+            // not the id or the family — is what admits them.
+            Assert.IsFalse(RoomObjectVisualManager.UsesDoorPresenter(
+                "box", false, "visknop1", null, Handles("comein", "map")));
+        }
+
+        [Test]
+        public void OnlyTheDefaultEventCountsAsAnInteractScript()
+        {
+            // AS3 splits `xml.scr` children by `eve` (Box.as:320-345): a child with no event becomes
+            // `scrAct` (the click script), while "open"/"close"/"touch"/"die" become separate latches. A
+            // crate with only a death script is not a button, so admitting on `scripts.Count > 0` would
+            // hand a collider to half the scenery.
+            var interact = new PFE.Systems.Map.ObjectInstance();
+            interact.scripts.Add(Script(null));
+
+            var deathOnly = new PFE.Systems.Map.ObjectInstance();
+            deathOnly.scripts.Add(Script("die"));
+
+            var empty = new PFE.Systems.Map.ObjectInstance();
+            empty.scripts.Add(new PFE.Systems.Map.MapObjectScriptData { eventName = null });
+
+            Assert.IsTrue(RoomObjectVisualManager.HasInteractScript(interact));
+            Assert.IsFalse(RoomObjectVisualManager.HasInteractScript(deathOnly));
+            Assert.IsFalse(RoomObjectVisualManager.HasInteractScript(empty),
+                "A script with no actions is not a script the runner can execute.");
+            Assert.IsFalse(RoomObjectVisualManager.HasInteractScript(null));
+        }
+
+        private static PFE.Systems.Map.MapObjectScriptData Script(string eventName)
+        {
+            var script = new PFE.Systems.Map.MapObjectScriptData { eventName = eventName };
+            script.actions.Add(new PFE.Systems.Map.MapObjectScriptActionData { act = "on", targ = "nioLift1" });
+            return script;
+        }
     }
 }

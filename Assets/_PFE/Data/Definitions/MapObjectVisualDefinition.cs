@@ -72,6 +72,28 @@ namespace PFE.Data.Definitions
         /// </summary>
         public bool IsDoorStateSheet => HasFrames && frames.Length == 3;
 
+        /// <summary>
+        /// True when this sheet is a <b>button lamp</b> — the pressed / released pair a <c>knop</c>
+        /// toggles. Measured: exactly four sheets in the imported set are 15 frames long, and they are
+        /// precisely <c>visknop1..4</c>.
+        ///
+        /// <para><b>The labels, read out of the source SWF</b> (<c>texture1.swf</c>, symbols 113 / 110 /
+        /// 105 / 102 — <c>visknop1/2/3/4</c>): <c>frameCount=15</c>, and two FrameLabel records,
+        /// <c>"close"@1</c> and <c>"open"@2</c>. So frame 1 of the sheet is the released lamp (dark) and
+        /// frame 2 opens a 14-frame lit pulse. That is the same <c>close</c>/<c>open</c> label pair a
+        /// door uses, at the same frame numbers — which is why one <see cref="OpenStateFrame"/> serves
+        /// both layouts.</para>
+        ///
+        /// <para><b>Why the frame count is the discriminator and not the object id.</b> The PNG sheets
+        /// carry no label data, so the mapping has to be reconstructed from something the importer
+        /// preserved. Frame count is that something, and it is unambiguous here: 15 occurs four times in
+        /// the 140 imported visuals and never for a non-button. The terminals are the control — every
+        /// <c>visterm*</c> sheet is <i>one</i> frame with <b>zero</b> labels, so AS3's
+        /// <c>gotoAndStop("open")</c> on a terminal throws and is swallowed by
+        /// <c>Box.setVisState</c>'s try/catch; a terminal must therefore never change frame.</para>
+        /// </summary>
+        public bool IsButtonLampSheet => HasFrames && frames.Length == 15;
+
         /// <summary>Flash <c>"close"</c> — the intact door. Always the first frame.</summary>
         public int ClosedStateFrame => 0;
 
@@ -79,8 +101,13 @@ namespace PFE.Data.Definitions
         /// Flash <c>"open"</c> — the doorway. <b>-1 when the sheet has no open state</b>,
         /// which is every Z-door sheet: they are <c>comein</c> clips, never opened or
         /// closed (<c>door=</c> is absent from their definitions).
+        ///
+        /// <para>Also 1 for a button lamp sheet, whose <c>"open"</c> label is on frame 2 for the same
+        /// reason — see <see cref="IsButtonLampSheet"/>. This is what makes pressing a <c>knop</c>
+        /// visibly light it, which AS3 does through <c>Interact.actOsn</c>'s
+        /// <c>if(this.knop) … setVisState("open")</c>.</para>
         /// </summary>
-        public int OpenStateFrame => IsDoorStateSheet ? 1 : -1;
+        public int OpenStateFrame => IsDoorStateSheet || IsButtonLampSheet ? 1 : -1;
 
         /// <summary>
         /// Flash <c>"die"</c> — the wrecked door. <b>-1 when the sheet has no die state</b>;
@@ -91,9 +118,10 @@ namespace PFE.Data.Definitions
 
         /// <summary>
         /// Flash <c>"comein"</c> — the entry animation of a Z door, and the only label AS3
-        /// ever <i>plays</i> rather than seeks to. -1 when the sheet is a single frame.
+        /// ever <i>plays</i> rather than seeks to. -1 when the sheet is a single frame, and -1 for a
+        /// button lamp sheet, which authors no <c>comein</c> label (only <c>close</c> and <c>open</c>).
         /// </summary>
-        public int ComeInFrame => HasAnimation ? 1 : -1;
+        public int ComeInFrame => HasAnimation && !IsButtonLampSheet ? 1 : -1;
 
         /// <summary>The sprite for <paramref name="frameIndex"/>, or null when out of range.</summary>
         public Sprite GetFrame(int frameIndex)

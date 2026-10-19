@@ -269,14 +269,39 @@ public class MapBridge : MonoBehaviour
             return;
         }
 
-        _visualController.OnGotoLand += HandleGotoLand;
-
         // L0's consumer half: CampaignManager owns campaign *state* and publishes a build request; this
         // component owns WorldBuilder and performs the build. Wired here rather than in Construct so the
         // boot-time request is not consumed twice — see _landBuildSubscription.
         if (_landBuildSubscriber != null)
         {
             _landBuildSubscription = _landBuildSubscriber.Subscribe(HandleLandBuildRequest);
+
+            // ...and `OnGotoLand` is deliberately NOT wired when that seam exists.
+            //
+            // `gotoland` reaches the builder through BOTH wires, and the two start two independent
+            // `PerformLandTransition` coroutines for one trigger. `AreaTriggerSystem.GotoLand` raises
+            // `OnGotoLand` first (`AreaTriggerSystem.cs:860`) and only then calls the campaign host
+            // (`:861`), which publishes the build request — so both fire, in the same frame, for the
+            // same land.
+            //
+            // That is not harmless duplication, and it is why `nio` looked empty when entered through
+            // the plant exit corridor but fine from the F2 Lands tab (which only publishes a request).
+            // Measured in Editor.log for one corridor entry: two `Starting land transition to 'nio'`,
+            // then the first coroutine's `RoomVisualController.Initialize` is followed by the second's,
+            // which calls `ClearVisuals()` and destroys the objects and units the first had just built.
+            // The first then activates the room and the second's `RoomStreamingManager.ActivateRoom`
+            // **early-returns** — "Don't reactivate the same room" (`RoomStreamingManager.cs:94`) — so
+            // the room is left activated by one coroutine and populated by the other. Only one
+            // `Activating` line appears in the log for two transitions; that missing line is the bug.
+            //
+            // The oracle has one path: `Script.as:443-456` calls `Game.gotoLand` once. Keeping
+            // `OnGotoLand` as a *fallback only* — for a scene or test rig with no campaign broker —
+            // preserves the pre-L0 behaviour where it is still the only route, and removes the
+            // double-build where it is not.
+        }
+        else
+        {
+            _visualController.OnGotoLand += HandleGotoLand;
         }
 
         // Wait for Game Manager to finish generating the world
@@ -949,7 +974,56 @@ public class MapBridge : MonoBehaviour
         StartCoroutine(PerformLandTransition(msg.LandId, entry));
     }
 
+    /// <summary>
+    /// Whether a land transition coroutine is currently running. See
+    /// <see cref="PerformLandTransition"/> for why one transition at a time is a correctness
+    /// requirement and not just tidiness.
+    /// </summary>
+    private bool _transitionInFlight;
+
+    /// <summary>
+    /// Entry point for every land change. Refuses to start a second transition while one is running.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Why a guard rather than trusting the wiring.</b> Two concurrent transitions do not
+    /// interleave safely: each calls <c>landMap.Clear()</c> and then builds, so the later one wipes the
+    /// map the earlier one just populated, and each calls <c>RoomVisualController.Initialize</c> — whose
+    /// first act on an initialized controller is <c>ClearVisuals()</c>. The survivor's
+    /// <c>RoomStreamingManager.ActivateRoom</c> then early-returns because the room is already the
+    /// active one, so the room ends up activated by one coroutine and drawn by the other.</para>
+    ///
+    /// <para><b>Observed symptom.</b> Entering <c>nio</c> through the plant exit corridor produced two
+    /// transitions and a room with no props, no enemies and no boss; the same land entered from the F2
+    /// Lands tab produced one transition and a fully populated room. The wiring that caused the pair is
+    /// fixed at its source in <see cref="Start"/>; this guard is the second line of defence, because a
+    /// script can also fire two <c>gotoland</c> actions in consecutive ticks.</para>
+    ///
+    /// <para><b>Ignore, not queue.</b> A queued transition would still build the world twice. The
+    /// ignored request names the land the player is already being taken to; the honest response is to
+    /// refuse it and say so.</para>
+    /// </remarks>
     public System.Collections.IEnumerator PerformLandTransition(string targetLand, Vector3Int? targetPosition = null)
+    {
+        if (_transitionInFlight)
+        {
+            Debug.LogWarning(
+                $"[MapBridge] Ignoring a second land transition to '{targetLand}': one is already in " +
+                "flight. Two overlapping transitions each clear the land map and re-initialise the room " +
+                "visuals, which leaves the room activated but unpopulated.");
+            yield break;
+        }
+
+        _transitionInFlight = true;
+
+        // A nested coroutine that ends with `yield break` simply completes, so the flag is cleared on
+        // every exit path without wrapping the body in try/finally (which cannot span a `yield` in an
+        // iterator with a `catch`, and would need the whole body re-indented here).
+        yield return RunLandTransition(targetLand, targetPosition);
+
+        _transitionInFlight = false;
+    }
+
+    private System.Collections.IEnumerator RunLandTransition(string targetLand, Vector3Int? targetPosition)
     {
         Debug.Log($"[MapBridge] Starting land transition to '{targetLand}'...");
 
@@ -1048,7 +1122,7 @@ public class MapBridge : MonoBehaviour
         // AS3 `Land.enterLand` (Land.as:1143-1186) is a three-way choice, and this is that order:
         //   1. param2 != null              — the caller named a room ("x:y")        -> use it
         //   2. land.currentCP && !param1   — a re-visit to a land with a checkpoint -> resume there
-        //   3. otherwise                   — the land's begin cell                  -> ResolveEntrancePosition
+        //   3. otherwise                   — the land's begin cell                  -> begLocX/begLocY
         //
         // Order is load-bearing: a caller that DID name a room still gets that room on a re-visit, so only
         // a nameless entry falls through to the checkpoint. The precedence is asserted offline in
@@ -1067,7 +1141,7 @@ public class MapBridge : MonoBehaviour
                 break;
 
             default:
-                startPos = ResolveEntrancePosition(templates, collectionName);
+                startPos = ResolveDefaultEntryCell(land, templates, collectionName);
                 break;
         }
 
@@ -1205,6 +1279,19 @@ public class MapBridge : MonoBehaviour
 
             if (rsm != null)
             {
+                // Drop the streaming manager's record of whatever was active BEFORE activating the new
+                // room. `ActivateRoom` early-returns when the room it is handed is already the active
+                // one ("Don't reactivate the same room", `RoomStreamingManager.cs:94`), and that early
+                // return skips `ActivateRoomInternal` — the only writer of `room.isActive` and the only
+                // raiser of `OnRoomActivated`.
+                //
+                // That matters here because `Initialize` above may have destroyed and rebuilt the room's
+                // visuals (its first act on an already-initialized controller is `ClearVisuals()`).
+                // Without this reset, a build that re-used a room instance the manager still considered
+                // active would finish with fresh visuals and no activation pass — a room that draws its
+                // tiles but none of its props or enemies. Resetting first makes activation unconditional
+                // and idempotent, which is the property the transition actually needs.
+                rsm.ResetStreaming();
                 rsm.ActivateRoom(currentRoom);
             }
         }
@@ -1408,6 +1495,52 @@ public class MapBridge : MonoBehaviour
         return new Vector3Int(room.Value.x, room.Value.y, room.Value.z);
     }
 
+    /// <summary>
+    /// The cell a land is entered at when the caller named no room and no checkpoint applies —
+    /// AS3 <c>Land.enterLand</c>'s else-branch: <c>locX = act.begLocX; locY = act.begLocY; locZ = 0</c>
+    /// (<c>Land.as:1178-1181</c>). <c>begLocX/begLocY</c> is the land's own <c>locx</c>/<c>locy</c>
+    /// (<c>LandAct.as:157</c>), stored as <see cref="LandDefinition.entryCoordinates"/>.
+    ///
+    /// <para><b>Why this is a method and not an expression in the switch.</b> It used to be
+    /// <see cref="ResolveEntrancePosition"/> unconditionally, and that heuristic is what put every
+    /// <c>nio</c> entry into the boss arena: it takes the first template with a type-0 spawn point, and
+    /// <c>rooms_nio</c>'s first such template is <c>bossraider</c> at (-1,0,<b>1</b>) — the Z=1 layer of
+    /// the same cell as the entrance corridor <c>room_-1_0</c> (-1,0,0). The player arrived in the boss
+    /// room from both the plant exit and the land map, then had to walk out through the boss door to
+    /// reach the room they should have started in. The oracle has no such ambiguity: z is forced to 0
+    /// and the cell comes from the land, never from whichever room happens to own a spawn point.</para>
+    ///
+    /// <para><b>Pure, and public, so it is assertable offline</b> — the same reason
+    /// <see cref="WorldBuilder.ResolveProceduralEntry"/> is. The surrounding transition needs a live
+    /// scene; this decision does not, and it is the one that was wrong.</para>
+    /// </summary>
+    /// <param name="land">The resolved land definition, or null when the catalogue did not have it.</param>
+    /// <param name="templates">The collection being built — read only when <paramref name="land"/> is null.</param>
+    /// <param name="collectionName">The collection key, for the one hardcoded fallback inside the heuristic.</param>
+    public static Vector3Int ResolveDefaultEntryCell(
+        LandDefinition land, List<RoomTemplate> templates, string collectionName)
+    {
+        if (land != null)
+        {
+            return new Vector3Int(land.entryCoordinates.x, land.entryCoordinates.y, 0);
+        }
+
+        return ResolveEntrancePosition(templates, collectionName);
+    }
+
+    /// <summary>
+    /// The entry cell for a land the catalogue could <b>not</b> resolve — the last-resort guess.
+    ///
+    /// <para><b>Not the normal path.</b> AS3 enters every land at <c>act.begLocX/begLocY</c>
+    /// (<c>Land.as:1178-1181</c>), i.e. the land's own <c>locx</c>/<c>locy</c>, with <c>locZ = 0</c>.
+    /// That value is <see cref="LandDefinition.entryCoordinates"/> and the caller uses it directly. This
+    /// method exists only for a land with no definition, where there is no <c>locx/locy</c> to read.</para>
+    ///
+    /// <para><b>Why the second clause is dangerous.</b> "First template with a type-0 spawn point" has no
+    /// notion of the Z axis, so it can name a <i>layer</i> room. It did exactly that for <c>nio</c>: the
+    /// first spawned template in the collection is <c>bossraider</c> at (-1,0,<b>1</b>), so every entry
+    /// spawned the player in the boss arena. Keep it as a fallback, never as the authored entry rule.</para>
+    /// </summary>
     private static Vector3Int ResolveEntrancePosition(List<RoomTemplate> templates, string collectionName)
     {
         if (string.Equals(collectionName, "rooms_surf", StringComparison.OrdinalIgnoreCase))

@@ -328,7 +328,22 @@ namespace PFE.Tests.Editor.Map.Streaming
             bool isOpen = false,
             bool isDestroyed = false)
         {
-            var doorObj = new ObjectInstance
+            return CreateDoorPresenter(visual, out renderer, out _, isOpen, isDestroyed);
+        }
+
+        /// <summary>
+        /// As above, but also hands back the <see cref="ObjectInstance"/>. The state-sync tests need
+        /// it: they change <c>runtimeState.isOpen</c> the way <c>AreaTriggerSystem</c>'s verbs do —
+        /// behind the presenter's back, never through <c>SetOpen</c>.
+        /// </summary>
+        private DoorPropPresenter CreateDoorPresenter(
+            MapObjectVisualDefinition visual,
+            out SpriteRenderer renderer,
+            out ObjectInstance doorObj,
+            bool isOpen = false,
+            bool isDestroyed = false)
+        {
+            doorObj = new ObjectInstance
             {
                 objectId = "door1",
                 objectType = "door",
@@ -413,6 +428,114 @@ namespace PFE.Tests.Editor.Map.Streaming
 
             Assert.That(presenter.CurrentFrame, Is.EqualTo(0));
             Assert.That(renderer.sprite, Is.EqualTo(frames[0]));
+
+            Object.DestroyImmediate(visual);
+            Object.DestroyImmediate(texture);
+        }
+
+        [Test]
+        public void ButtonLampSheet_SeeksTheOpenLabelForItsPressedState()
+        {
+            // Measured out of texture1.swf: visknop1..4 (symbols 113 / 110 / 105 / 102) are 15-frame
+            // sheets whose only FrameLabel records are "close"@1 and "open"@2. AS3's Interact.actOsn
+            // toggles a knop's OWN open state on every press (Interact.as:1291-1297) and setAct("open")
+            // seeks that label — so the lamp is lit while open and dark while closed. The port had no
+            // mapping for this layout, resolved both states to frame 0, and every button in the game
+            // looked permanently unpressed.
+            var texture = new Texture2D(4, 4);
+            MapObjectVisualDefinition visual = CreateDoorSheet(texture, 15, out Sprite[] frames);
+
+            Assert.That(visual.IsButtonLampSheet, Is.True);
+            Assert.That(visual.IsDoorStateSheet, Is.False);
+            Assert.That(visual.OpenStateFrame, Is.EqualTo(1), "'open' is frame 2 of the timeline");
+            Assert.That(visual.DestroyedStateFrame, Is.EqualTo(-1), "a button authors no 'die' label");
+            Assert.That(visual.ComeInFrame, Is.EqualTo(-1), "a button authors no 'comein' label");
+
+            DoorPropPresenter released = CreateDoorPresenter(visual, out SpriteRenderer releasedRenderer);
+            Assert.That(released.CurrentFrame, Is.EqualTo(0), "released lamp is the 'close' frame");
+            Assert.That(releasedRenderer.sprite, Is.EqualTo(frames[0]));
+
+            DoorPropPresenter pressed = CreateDoorPresenter(visual, out SpriteRenderer pressedRenderer, isOpen: true);
+            Assert.That(pressed.CurrentFrame, Is.EqualTo(1), "pressed lamp is the 'open' frame");
+            Assert.That(pressedRenderer.sprite, Is.EqualTo(frames[1]));
+
+            Object.DestroyImmediate(visual);
+            Object.DestroyImmediate(texture);
+        }
+
+        [Test]
+        public void OneFrameTerminalSheet_HasNoLabelsSoNeverChangesFrame()
+        {
+            // The control for the test above. Every visterm* sheet (symbols 434 / 433 / 430 / 427 /
+            // 424) is ONE frame with ZERO FrameLabel records, so AS3's gotoAndStop("open") throws and
+            // Box.setVisState swallows it. A terminal must stay on its only frame no matter what its
+            // state says — the rule has to be the sheet's shape, not "any object that can be pressed".
+            var texture = new Texture2D(4, 4);
+            MapObjectVisualDefinition visual = CreateDoorSheet(texture, 1, out Sprite[] frames);
+
+            Assert.That(visual.IsButtonLampSheet, Is.False);
+            Assert.That(visual.OpenStateFrame, Is.EqualTo(-1));
+            Assert.That(visual.ComeInFrame, Is.EqualTo(-1));
+
+            DoorPropPresenter presenter = CreateDoorPresenter(visual, out SpriteRenderer renderer, isOpen: true);
+            Assert.That(presenter.CurrentFrame, Is.EqualTo(0));
+            Assert.That(renderer.sprite, Is.EqualTo(frames[0]));
+
+            Object.DestroyImmediate(visual);
+            Object.DestroyImmediate(texture);
+        }
+
+        [Test]
+        public void SyncVisualToState_FollowsAStateWrittenBehindThePresenter()
+        {
+            // `AreaTriggerSystem`'s open / close / swap verbs write `runtimeState.isOpen` directly and
+            // re-stamp the tiles; they never call SetOpen. So the sprite kept describing the OLD state
+            // — rooms_begin/room_4_1's platform stayed drawn solid after the knop swapped it, which is
+            // the "pressing it does not remove the platform" report. The room's per-frame sync is the
+            // repair, and this pins it.
+            var texture = new Texture2D(4, 4);
+            MapObjectVisualDefinition visual = CreateDoorSheet(texture, 3, out Sprite[] frames);
+            DoorPropPresenter presenter = CreateDoorPresenter(visual, out SpriteRenderer renderer, out ObjectInstance obj);
+
+            Assert.That(presenter.CurrentFrame, Is.EqualTo(0));
+
+            // What `<s act="swap" targ="trPl"/>` does to the platform.
+            obj.runtimeState.isOpen = true;
+            presenter.SyncVisualToState();
+            Assert.That(presenter.CurrentFrame, Is.EqualTo(1));
+            Assert.That(renderer.sprite, Is.EqualTo(frames[1]));
+
+            // And back, so the sync is not one-way.
+            obj.runtimeState.isOpen = false;
+            presenter.SyncVisualToState();
+            Assert.That(presenter.CurrentFrame, Is.EqualTo(0));
+            Assert.That(renderer.sprite, Is.EqualTo(frames[0]));
+
+            Object.DestroyImmediate(visual);
+            Object.DestroyImmediate(texture);
+        }
+
+        [Test]
+        public void SyncVisualToState_LeavesAFinishedComeInClipOnItsLastFrame()
+        {
+            // A Z door's comein clip ENDS on its last frame, and TickAnimation leaves the renderer
+            // there. That is a state the label model cannot name, so the per-frame sync must not touch
+            // these sheets at all — otherwise a doorway that just finished opening would snap back to
+            // frame 0 on the very next frame.
+            var texture = new Texture2D(4, 4);
+            MapObjectVisualDefinition visual = CreateDoorSheet(texture, 11, out Sprite[] frames);
+            DoorPropPresenter presenter = CreateDoorPresenter(visual, out SpriteRenderer renderer);
+
+            presenter.BeginComeIn();
+            presenter.TickAnimation(5f);
+            Assert.That(presenter.IsPlayingComeIn, Is.False);
+
+            int settled = presenter.CurrentFrame;
+            Assert.That(settled, Is.EqualTo(frames.Length - 1));
+
+            presenter.SyncVisualToState();
+            Assert.That(presenter.CurrentFrame, Is.EqualTo(settled),
+                "a finished comein clip must not be re-seeked");
 
             Object.DestroyImmediate(visual);
             Object.DestroyImmediate(texture);

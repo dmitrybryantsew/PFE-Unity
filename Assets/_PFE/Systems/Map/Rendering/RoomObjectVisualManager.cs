@@ -97,12 +97,18 @@ namespace PFE.Systems.Map.Rendering
         /// Passing a delegate rather than a dispatcher keeps the caller's dispatcher lazy — it is built
         /// on first use, not once per object.
         /// </param>
+        /// <param name="hasInteractScript">
+        /// Whether the placement carries its own inline <c>&lt;scr&gt;</c> (see
+        /// <see cref="HasInteractScript"/>). This is AS3's third gate, and it is the only one a button
+        /// satisfies — see the remark inside.
+        /// </param>
         public static bool UsesDoorPresenter(
             string objectType,
             bool definitionIsInteractiveFamily,
             string visualObjectId,
             string allAct,
-            Func<string, bool> dispatcherHandles)
+            Func<string, bool> dispatcherHandles,
+            bool hasInteractScript = false)
         {
             if (string.Equals(objectType, "door", StringComparison.OrdinalIgnoreCase)) return true;
             if (definitionIsInteractiveFamily) return true;
@@ -112,6 +118,22 @@ namespace PFE.Systems.Map.Rendering
             {
                 return true;
             }
+
+            // AS3 builds an `Interact` for an object on ANY of four facts (Box.as:310):
+            //
+            //     node.@inter.length() || xml.@inter.length() || xml.scr.length() || xml.@scr.length()
+            //
+            // i.e. the definition authors `inter`, or the placement does, or the placement carries
+            // `<scr>` children, or it carries a `scr=` attribute. The clauses above cover the shapes;
+            // this one covers the fourth fact, which no shape test can see.
+            //
+            // It is the ONLY clause a button can satisfy. `knop1` is `tip='box' inter='4' knop='1'`
+            // (AllData.as:4907) and the authored placements give it children, not an attribute:
+            // `<obj id="knop1" ...><scr act="on" targ="nioLift1"/></obj>` (RoomsSerial.as:129). With no
+            // `allact` the dispatcher clause below answers false, so every button in every authored
+            // room fell to ObjectColliderDebugPresenter — drawn, with no collider and no IInteractable,
+            // i.e. physically unreachable. That is the reported "buttons do nothing".
+            if (hasInteractScript) return true;
 
             // The last clause is "this object carries a script the dispatcher can actually run", which no
             // shape test can answer. Deliberately not "has an allact": an unported id would then get a
@@ -126,6 +148,36 @@ namespace PFE.Systems.Map.Rendering
             // would be unreachable code that reads like a safeguard, and the next person to move a prob id
             // out of that set would trust it.
             return !string.IsNullOrEmpty(allAct) && dispatcherHandles != null && dispatcherHandles(allAct);
+        }
+
+        /// <summary>
+        /// Whether this object carries an inline <b>interact</b> script — the port's reading of AS3
+        /// <c>Box.as:320-325</c>, where an <c>xml.scr</c> child with no <c>eve</c> attribute becomes
+        /// <c>inter.scrAct</c>.
+        ///
+        /// <para><b>Only the default event counts.</b> A child with <c>eve="open"</c>, <c>"close"</c>,
+        /// <c>"touch"</c> or <c>"die"</c> is a different latch in AS3 (<c>scrOpen</c>/<c>scrClose</c>/
+        /// <c>scrTouch</c>/<c>scrDie</c>) and must not make an object clickable on its own — a crate with
+        /// only a death script is not a button. <see cref="ObjectInstance.scripts"/> stores the event in
+        /// <c>eventName</c>, blank for the default.</para>
+        /// </summary>
+        public static bool HasInteractScript(ObjectInstance obj)
+        {
+            if (obj?.scripts == null) return false;
+
+            for (int i = 0; i < obj.scripts.Count; i++)
+            {
+                MapObjectScriptData script = obj.scripts[i];
+                if (script?.actions == null || script.actions.Count == 0) continue;
+
+                if (string.IsNullOrEmpty(script.eventName) ||
+                    string.Equals(script.eventName, "interact", StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         /// <summary>
@@ -357,7 +409,11 @@ namespace PFE.Systems.Map.Rendering
                      obj.definition.family == MapObjectFamily.Checkpoint),
                 visual != null ? visual.objectId : null,
                 obj.GetAllAct(),
-                allAct => ObjectActions.Handles(allAct));
+                allAct => ObjectActions.Handles(allAct),
+                // AS3 `Box.as:310`'s `xml.scr.length()` gate — the only one a button satisfies, since a
+                // `knop1` placement authors children instead of an `allact`. Asked here rather than in
+                // UsesDoorPresenter so the rule stays a pure function of its arguments.
+                HasInteractScript(obj));
 
             // AS3 checks `cont` BEFORE the door branch — Interact.actOsn() runs `cont != null -> loot()`
             // (Interact.as:1285-1288) and only then falls through to the door/knop toggle (:1294-1314).
@@ -441,6 +497,13 @@ namespace PFE.Systems.Map.Rendering
             }
             else
             {
+                // Scripts change a door's state without going through the presenter:
+                // `AreaTriggerSystem.DispatchObjectCommand`'s open/close/swap verbs write
+                // `runtimeState.isOpen` and re-stamp the tiles, and nothing used to tell the sprite.
+                // The visible result was a platform that stayed drawn while its collision had gone —
+                // `rooms_begin/room_4_1`'s knop is exactly that case. Cheap to poll: this loop already
+                // visits every object, and the sync early-outs on the frame index.
+                doorPresenter.SyncVisualToState();
                 presenter.frameIndex = doorPresenter.CurrentFrame;
             }
 

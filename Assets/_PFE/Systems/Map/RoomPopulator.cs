@@ -247,7 +247,11 @@ namespace PFE.Systems.Map
                         // The two `uidObjs` keys. They live on the placement record, not in the attribute
                         // list — see UnitInstance.uid.
                         uid: spawnData.uid,
-                        code: spawnData.code);
+                        code: spawnData.code,
+                        // The unit's own <item> children — the boss's `key_sewer` lives here. Without this
+                        // parameter the whole authored chain (parser -> converter -> RoomObjectData ->
+                        // this spawn descriptor) terminated at a method with no field to receive it.
+                        items: spawnData.items);
                     break;
 
                 case "box":
@@ -354,7 +358,8 @@ namespace PFE.Systems.Map
             Vector2Int? as3PlacementTile = null,
             IObjectDefinitionProvider objectDefinitions = null,
             string uid = null,
-            string code = null)
+            string code = null,
+            List<MapObjectItemData> items = null)
         {
             // ── Step 1 of the oracle's createUnit: which FAMILY is this really?
             //
@@ -472,6 +477,10 @@ namespace PFE.Systems.Map
                 currentHealth = health,
                 controllerId = controllerId ?? string.Empty,
                 attributes = MapObjectDataUtility.CloneAttributes(attributes),
+                // The unit's own <item> children — AS3 Unit.create builds `inter` from the placed node and
+                // Unit.dropLoot opens with `if(inter) inter.loot()` (Unit.as:4450-4455). Cloned for the same
+                // reason `attributes` is: the caller's spawn descriptor outlives this unit.
+                items = MapObjectDataUtility.CloneItems(items),
                 fraction = ResolvePlacementFaction(attributes),
                 facingDirection = facing,
                 digger = digger

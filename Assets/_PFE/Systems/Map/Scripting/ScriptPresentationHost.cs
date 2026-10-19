@@ -39,6 +39,22 @@ namespace PFE.Systems.Map.Scripting
         private readonly PipTextTable _text;
         private readonly Action<string> _report;
 
+        /// <summary>
+        /// AS3 <c>game.lands[val].dif</c> and <c>pers.level</c> for the <c>landlevel</c> panel —
+        /// <c>Script.as:288-292</c>. Returns <c>null</c> when the land id is not in the catalogue.
+        ///
+        /// <para><b>Why a delegate and not a reference.</b> Both values live on the campaign and on a
+        /// scene component (<c>CampaignManager</c>, <c>PlayerController.CharacterStats</c>), neither of
+        /// which this type may depend on: it is constructed by the container before any scene object
+        /// exists, and the same host serves every land. A factory is the same shape
+        /// <c>ScriptPlayerHost</c> already uses for <c>CharacterStats</c>.</para>
+        ///
+        /// <para><b>Null is legal.</b> A test rig, or a scene without the campaign, then gets the old
+        /// behaviour — the land's name and the two labels, with the numbers omitted and the omission
+        /// reported once.</para>
+        /// </summary>
+        private readonly Func<string, LandLevelFacts?> _landLevel;
+
         /// <summary>Features with no consumer in the port yet, reported once each by name. A silent
         /// return here is indistinguishable from "the command ran and changed nothing", which is the
         /// failure mode this whole type exists to end.</summary>
@@ -56,7 +72,8 @@ namespace PFE.Systems.Map.Scripting
             IPublisher<ScriptDialogueMessage> dialoguePublisher = null,
             IPublisher<ScriptControlLockMessage> controlPublisher = null,
             IPublisher<ScriptOverlayMessage> overlayPublisher = null,
-            Action<string> report = null)
+            Action<string> report = null,
+            Func<string, LandLevelFacts?> landLevel = null)
         {
             _text = text ?? PipTextTable.Empty;
             _promptPublisher = promptPublisher;
@@ -64,6 +81,7 @@ namespace PFE.Systems.Map.Scripting
             _controlPublisher = controlPublisher;
             _overlayPublisher = overlayPublisher;
             _report = report ?? (message => Debug.LogWarning(message));
+            _landLevel = landLevel;
         }
 
         /// <summary>Whether the HUD bar is currently told to draw. Read by tests and by a later
@@ -201,12 +219,30 @@ namespace PFE.Systems.Map.Scripting
         /// AS3 <c>Script.as:281-295</c>: the land's name, the recommended level, the player's level and —
         /// when the land outranks the player — the "you are under-levelled" line.
         ///
-        /// <para><b>The composition is the oracle's, and the two missing inputs are named rather than
-        /// guessed.</b> The oracle reads <c>World.w.game.lands[val].dif</c> and
-        /// <c>World.w.pers.level</c>. Neither is reachable from this seam, so the land's name and
-        /// difficulty are shown and the comparison line is omitted — reported once, because a
-        /// recommended-level panel that silently drops the warning is worse than one that says it
-        /// cannot.</para>
+        /// <para><b>The oracle's body, term by term</b>
+        /// (<c>Script.as:288-293</c>):</para>
+        /// <code>
+        /// _loc3_ = Res.txt("m", val) + "\n" + Res.pipText("recLevel") + ": [" + lands[val].dif + "]"
+        ///        + "\n" + Res.pipText("isperslvl") + ": [" + pers.level + "]";
+        /// if (lands[val].dif &gt; pers.level) _loc3_ += "\n\n" + Res.pipText("wrLevel");
+        /// </code>
+        ///
+        /// <para><b>This used to render the labels with no numbers</b>, because the land's
+        /// <c>dif</c> and the player's level were "not reachable from the script seam". They are now:
+        /// <see cref="LandLevelFacts"/> carries both, supplied by the container. The visible symptom
+        /// before the fix was the plant exit corridor's "recommended level for the next zone" panel
+        /// showing an empty bracket where the number belongs — the panel the player reads immediately
+        /// before stepping into <c>nio</c>.</para>
+        ///
+        /// <para><b><c>dif</c> is the land's authored difficulty, not its stage.</b> In the oracle it is
+        /// the <c>dif</c> attribute of the <c>&lt;land&gt;</c> row (<c>GameData.as:171</c>, <c>nio</c> =
+        /// 7), which the importer writes to <c>LandDefinition.baseDifficulty</c>. It is compared against
+        /// <c>pers.level</c> — the player's character level, not the run difficulty.</para>
+        ///
+        /// <para><b>A missing catalogue entry degrades, it does not guess.</b> The oracle's guard is
+        /// <c>if(dialOn &amp;&amp; Boolean(lands[val]))</c>: an unknown land shows nothing at all. The port
+        /// keeps the name and the two labels and reports the omission once, so a data gap reads as a
+        /// data gap instead of as a land whose recommended level happens to be zero.</para>
         /// </summary>
         public void ShowLandLevel(string landId)
         {
@@ -218,14 +254,33 @@ namespace PFE.Systems.Map.Scripting
                 name = landId;
             }
 
-            string body = name + "\n" + _text.Pip("recLevel");
+            LandLevelFacts? facts = _landLevel?.Invoke(landId);
+            if (facts == null)
+            {
+                ReportOnce("landlevel",
+                    "[ScriptPresentationHost] `landlevel` shows the land's name but not its difficulty " +
+                    "comparison: no land-level facts are wired, so `game.lands[val].dif` and " +
+                    "`pers.level` (Script.as:288-293) cannot be read. Check the " +
+                    "`Func<string, LandLevelFacts?>` registration in GameLifetimeScope.");
+            }
 
-            ReportOnce("landlevel",
-                "[ScriptPresentationHost] `landlevel` shows the land's name but not its difficulty " +
-                "comparison: the Oracle reads `game.lands[val].dif` and `pers.level` " +
-                "(Script.as:281-295) and neither is reachable from the script seam yet.");
+            var body = new System.Text.StringBuilder(name);
 
-            ShowRawDialogue(body, mod: 1, push: false, wait: true);
+            if (facts != null)
+            {
+                body.Append('\n').Append(_text.Pip("recLevel"))
+                    .Append(": [").Append(facts.Value.RequiredLevel).Append(']');
+
+                body.Append('\n').Append(_text.Pip("isperslvl"))
+                    .Append(": [").Append(facts.Value.PlayerLevel).Append(']');
+
+                if (facts.Value.RequiredLevel > facts.Value.PlayerLevel)
+                {
+                    body.Append("\n\n").Append(_text.Pip("wrLevel"));
+                }
+            }
+
+            ShowRawDialogue(body.ToString(), mod: 1, push: false, wait: true);
         }
 
         // ── Control, HUD and the overlay ──────────────────────────────────────
@@ -302,6 +357,31 @@ namespace PFE.Systems.Map.Scripting
         private void ReportOnce(string key, string message)
         {
             if (_reported.Add(key)) _report(message);
+        }
+    }
+
+    /// <summary>
+    /// The two numbers <c>landlevel</c> prints — AS3 <c>World.w.game.lands[val].dif</c> and
+    /// <c>World.w.pers.level</c> (<c>Script.as:288-292</c>).
+    ///
+    /// <para><b>A struct rather than two <c>Func</c>s</b> so the pair is read at one moment. Two separate
+    /// lookups could straddle a land change and print one land's requirement against another's level;
+    /// the oracle reads both inside one statement, and this type makes that atomicity the default.</para>
+    ///
+    /// <para><b><c>RequiredLevel</c> is authored, <c>PlayerLevel</c> is live.</b> The first comes from
+    /// <c>LandDefinition.baseDifficulty</c> (the <c>&lt;land dif="…"&gt;</c> attribute, <c>nio</c> = 7);
+    /// the second from the player's <c>CharacterStats.Level</c>. They are compared as-is: the oracle's
+    /// warning is a plain <c>&gt;</c>, with no scaling by run difficulty or land stage.</para>
+    /// </summary>
+    public readonly struct LandLevelFacts
+    {
+        public readonly int RequiredLevel;
+        public readonly int PlayerLevel;
+
+        public LandLevelFacts(int requiredLevel, int playerLevel)
+        {
+            RequiredLevel = requiredLevel;
+            PlayerLevel = playerLevel;
         }
     }
 }

@@ -255,14 +255,31 @@ namespace PFE.Systems.Map
             {
                 startPosition = preferredStartPosition.Value;
             }
-            else if (!landMap.HasRoom(startPosition))
+            else
             {
-                foreach (var template in levelTemplates)
+                // A named entry that names nothing is a data/land-definition disagreement, and the two
+                // ways it can happen look identical from the outside: `locx/locy` pointing at a cell this
+                // collection never built, or a checkpoint recording a room the land no longer has. Report
+                // it by value, because the fallback below silently drops the player in the first room —
+                // which is exactly what a broken entry looks like from the player's seat.
+                if (preferredStartPosition.HasValue)
                 {
-                    if (HasFixedPosition(template))
+                    Debug.LogWarning($"[WorldBuilder] Entry cell {preferredStartPosition.Value} holds no " +
+                                     "room in this collection; falling back to the first placed room.");
+                }
+
+                // `startPosition` is a field and survives a rebuild, so it can still name a room in the
+                // PREVIOUS land that happens to exist here too. Only trust it when this build put a room
+                // there; otherwise take the first placed template.
+                if (!landMap.HasRoom(startPosition))
+                {
+                    foreach (var template in levelTemplates)
                     {
-                        startPosition = template.fixedPosition;
-                        break;
+                        if (HasFixedPosition(template))
+                        {
+                            startPosition = template.fixedPosition;
+                            break;
+                        }
                     }
                 }
             }

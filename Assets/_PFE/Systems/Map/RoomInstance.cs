@@ -827,6 +827,31 @@ namespace PFE.Systems.Map
         /// </summary>
         public string code = "";
 
+        /// <summary>
+        /// The <c>&lt;item&gt;</c> children this placement authored — the unit's own death drop.
+        ///
+        /// <para><b>What AS3 calls this.</b> <c>Location.createUnit</c> hands the placed node to
+        /// <c>Unit.create</c>, whose base constructor builds an <c>Interact</c> from it
+        /// (<c>Unit.as:440-452</c> builds <c>inter</c> from the node's <c>&lt;item&gt;</c> children).
+        /// <c>Unit.dropLoot</c> then opens with <c>if(inter) { inter.loot(); }</c>
+        /// (<c>Unit.as:4450-4455</c>) <i>before</i> the essence and gem rolls, so this table is what drops
+        /// first and what decides whether anything drops at all.</para>
+        ///
+        /// <para><b>Why this field exists even though the type is already on
+        /// <c>ObjectInstance</c>.</b> The parse was never the hole: <c>AS3RoomParser.cs:382-390</c> reads
+        /// the <c>&lt;item&gt;</c> nodes, <c>AS3ToUnityConverter.ConvertItems</c> projects them, and
+        /// <c>RoomObjectData.items</c> carries them onto the room asset. They were dropped one step
+        /// later — <see cref="RoomPopulator.CreateUnit"/> took <c>attributes</c>, <c>turn</c>, <c>uid</c>
+        /// and <c>code</c> off the placement and had <b>no parameter for items at all</b>. A box got them
+        /// (<c>CreateObject</c> at <c>RoomPopulator.cs:690</c> clones them), so a safe opened with its
+        /// <c>alc1</c> while the boss that was supposed to drop the key dropped nothing.</para>
+        ///
+        /// <para><b>Null, not empty, when nothing was authored</b> — <c>RollPlacedItems</c> returns
+        /// immediately for a null or empty list, and an empty list keeps the field out of the way of the
+        /// Inspector.</para>
+        /// </summary>
+        public List<MapObjectItemData> items = null;
+
         public Vector2 position;
         public bool isDead = false;
         public bool IsDead => isDead;
@@ -971,6 +996,27 @@ namespace PFE.Systems.Map
         public Vector2 position;
         public bool isActive = true;
         public MapObjectRuntimeStateData runtimeState = new MapObjectRuntimeStateData();
+
+        /// <summary>
+        /// Whether the placement's <c>open</c> attribute has already been applied to
+        /// <see cref="runtimeState"/>.
+        ///
+        /// <para><b>AS3 applies it exactly once, when the location is built.</b> <c>Interact</c>'s
+        /// constructor ends with <c>if(this.xml.@open.length()) { this.setAct("open",1); this.update(); }</c>
+        /// (<c>Interact.as:325-329</c>), and an <c>Interact</c> is constructed per location build — so a
+        /// door authored <c>open="1"</c> starts open, and the player's later toggle survives until the
+        /// room is rebuilt.</para>
+        ///
+        /// <para><b>The port needs the latch because presenters are re-created far more often than
+        /// locations are.</b> <see cref="PFE.Systems.Map.Rendering.DoorPropPresenter"/> is rebuilt every
+        /// time a room streams back in, while this instance (and its runtime state) survives. Re-applying
+        /// on each <c>Initialize</c> would re-open a platform the player had just closed, every time they
+        /// walked out of the room and back.</para>
+        ///
+        /// <para>Not serialized: after a load the saved <c>isOpen</c> is the authority, and re-deriving it
+        /// from the placement would overwrite it.</para>
+        /// </summary>
+        [NonSerialized] public bool initialOpenApplied;
 
         /// <summary>
         /// The <see cref="parameters"/> value the one-time legacy migration has already run on, or null
