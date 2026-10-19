@@ -9,6 +9,7 @@ using PFE.Systems.Campaign;
 using PFE.Systems.Combat;
 using PFE.Systems.Effects;
 using PFE.Systems.Loot;
+using PFE.Systems.Items;
 using PFE.Systems.RPG.Data;
 using PFE.Systems.Weapons;
 
@@ -611,6 +612,22 @@ namespace PFE.Systems.RPG
         /// <c>v0='3' v1='5'</c>).
         /// </summary>
         [HideInInspector] public int hackAtt = 3;
+        /// <summary>
+        /// AS3 <c>Pers.security</c> (<c>Pers.as:303</c>, <b>0</b>) — the <b>mode</b> a
+        /// <c>hack_robot</c> terminal passes to every unit in the room
+        /// (<c>Interact.as:1585</c>: <c>unit.hack(World.w.pers.security)</c>).
+        ///
+        /// <para><b>It is a mode, not a level.</b> <c>UnitTurret.hack(0)</c> shuts the turret
+        /// <i>off</i>; <c>1</c>/<c>2</c> reprogram it to the player
+        /// (<c>UnitTurret.as:385-414</c>). The <c>security</c> perk is what moves it from 0 to 1
+        /// (<c>AllData.as:5619-5623</c>: <c>&lt;sk id='security' v0='0' v1='1'/&gt;</c>), so the same
+        /// terminal is a switch before that perk and a recruitment tool after it.</para>
+        ///
+        /// <para><b>Missing until now.</b> The field was absent from the port, so
+        /// <c>SecurityRuntime.HackUnitsInRoom</c> had no number to pass and the <c>security</c> perk's
+        /// <c>&lt;sk&gt;</c> row had nowhere to land.</para>
+        /// </summary>
+        [HideInInspector] public int security = 0;
         [HideInInspector] public int repair = 0;
         [HideInInspector] public float repairMult = 1.0f;
         [HideInInspector] public int remine = 0;
@@ -679,10 +696,27 @@ namespace PFE.Systems.RPG
         [HideInInspector] public int himLevel = 1;
 
         /// <summary>
+        /// AS3 <c>Pers.ad1</c> (<c>Pers.as:489</c>, default <b>100</b>) — the severity at which the first
+        /// addiction warning fires (<c>Invent.as:502-513</c>).
+        ///
+        /// <para><b>Added with the item-use port, not before it.</b> The two higher thresholds were
+        /// already here for the character sheet's effect rows; this one had no reader until
+        /// <c>Invent.useItem</c> landed, which is exactly the shape that makes a field look unnecessary
+        /// right up until the first chem is used.</para>
+        /// </summary>
+        [HideInInspector] public int ad1 = 100;
+
+        /// <summary>
         /// AS3 <c>Pers.ad2</c> (<c>Pers.as:491</c>, default <b>250</b>) — the addiction severity at which
         /// a chem's effect steps up to stage 2 (<c>PipPage.as:288</c>, <c>Effect.as:326</c>).
         /// </summary>
         [HideInInspector] public int ad2 = 250;
+
+        /// <summary>
+        /// AS3 <c>Pers.admax</c> (<c>Pers.as:495</c>, default <b>750</b>) — the ceiling a chem's severity
+        /// is clamped to (<c>Invent.as:498-501</c>). Without it the roll compounds without bound.
+        /// </summary>
+        [HideInInspector] public int admax = 750;
 
         /// <summary>
         /// AS3 <c>Pers.ad3</c> (<c>Pers.as:493</c>, default <b>500</b>) — the stage-3 threshold
@@ -1851,6 +1885,20 @@ namespace PFE.Systems.RPG
         float ILootPersFlags.DropTre => dropTre;
 
         /// <summary>
+        /// Where the held-item <c>&lt;sk&gt;</c> rows come from (AS3 <c>Pers.setInvParameters</c>'s
+        /// inventory argument, <c>Pers.as:2227</c>). Null on any character without an inventory —
+        /// NPCs, test rigs — which simply skips step 5.5, the same as an AS3 <c>Pers</c> whose
+        /// <c>gg.invent</c> is null.
+        ///
+        /// <para><b>Wired by <see cref="PFE.Entities.Player.PlayerController.Awake"/></b> to the
+        /// player's <c>PlayerInventory</c>, which also raises the recalc on every mutation — the port
+        /// of AS3 <c>Invent.take</c> ending in <c>gg.pers.setParameters()</c> (<c>Invent.as:1220</c>).
+        /// A character that never gets a source keeps every other stat path working; only
+        /// carry-granted stats (the lockpicking tools above all) stay inert.</para>
+        /// </summary>
+        public IItemSkillSource ItemSkillSource { get; set; }
+
+        /// <summary>
         /// Recalculate all derived stats from skills, perks, and level (AS3 Pers.as:2152 setParameters).
         /// </summary>
         public void RecalculateStats()
@@ -1924,6 +1972,29 @@ namespace PFE.Systems.RPG
                 else
                 {
                     ApplyPerkEffectsFallback(perkId, rank);
+                }
+            }
+
+            // 5.5 Apply held-item <sk> rows (AS3 Pers.setInvParameters, Pers.as:2290-2307).
+            // AS3 iterates the "pers" loot group and calls setSkillParam(itemXml, 1) for every item
+            // with kol > 0 — this is how carrying the screwdriver sets possLockPick = 1 and how
+            // titansd/stethoscope/kogit add to lockPick. The recalc ORDER is load-bearing: this runs
+            // after ResetToDefaults (Pers.as:931 zeroes possLockPick) and after skills/perks, exactly
+            // where AS3's setInvParameters sits inside setParameters — so dropping the screwdriver
+            // removes the grant on the NEXT recalc, and nothing needs an undo path.
+            if (ItemSkillSource != null)
+            {
+                foreach (var held in ItemSkillSource.EnumerateHeldSkillRows())
+                {
+                    if (held.Value == null) continue;
+                    foreach (PersSkillRow row in held.Value)
+                    {
+                        if (string.IsNullOrEmpty(row.Id)) continue;
+                        string refType = row.Op == SkillRowOp.Add ? "add"
+                            : row.Op == SkillRowOp.Mult ? "mult"
+                            : null;  // AS3's absent ref — ApplyFloatOp assigns, Pers.as:1554-1556
+                        ApplyNamedStat(row.Id, row.Tip, refType, row.ValueFor(1), held.Key, "item");
+                    }
                 }
             }
 
@@ -2454,6 +2525,13 @@ namespace PFE.Systems.RPG
                 case "hackAtt":
                     hackAtt = Mathf.RoundToInt(ApplyFloatOp(hackAtt, refType, val));
                     TrackFactor("hackAtt", sourceId ?? "stat", sourceType, val, hackAtt);
+                    break;
+                case "security":
+                    // AS3's `security` perk writes 0 -> 1 (AllData.as:5619-5623). Without this case the
+                    // row would parse, apply nothing, and leave every hack_robot terminal in "shut down"
+                    // mode — a perk that silently does nothing is worse than one that is missing.
+                    security = Mathf.RoundToInt(ApplyFloatOp(security, refType, val));
+                    TrackFactor("security", sourceId ?? "stat", sourceType, val, security);
                     break;
                 case "unlockMaster":
                     unlockMaster = Mathf.RoundToInt(ApplyFloatOp(unlockMaster, refType, val));
@@ -3260,6 +3338,46 @@ namespace PFE.Systems.RPG
             }
         }
 
+        /// <summary>
+        /// AS3 <c>Pers.getLockMaster</c> (<c>Pers.as:2356-2367</c>) — the <b>quality tier</b> the actor
+        /// can open, compared against a container's <c>locklevel</c>.
+        ///
+        /// <para><b>This is a different number from <see cref="GetLockTip"/>.</b> The skill is rolled
+        /// against the lock's <i>difficulty</i>; the master is a <i>gate</i>: when
+        /// <c>master &lt; lockLevel</c> the attempt is a <b>guaranteed failure</b> no matter how good
+        /// the roll (<c>Interact.as:1017-1020</c>). It is raised by the same perks that raise the skill
+        /// (<c>AllData.as:6034</c>, <c>:6045</c>), which is why the two are easy to conflate.</para>
+        ///
+        /// <para>Every tip except a pick and a terminal answers <b>100</b> — the gate never fires for
+        /// them.</para>
+        /// </summary>
+        public int GetLockMaster(int lockType)
+        {
+            switch (lockType)
+            {
+                case 1:
+                    return unlockMaster;
+                case 2:
+                    return hackerMaster;
+                default:
+                    return 100;
+            }
+        }
+
+        /// <summary>
+        /// AS3 <c>Pers.getLockPickTime</c> (<c>Pers.as:2381-2389</c>) — how long one attempt takes, in
+        /// ticks, given the lock's difficulty and its tip.
+        ///
+        /// <para><b>The 0.6 is a skill bonus, not a penalty.</b> <c>if(lock &lt; getLockTip(tip))</c> —
+        /// a lock <i>below</i> your rank is worked 40% faster. The comparison is against the
+        /// <b>difficulty</b> (<c>param1</c>), not the quality tier.</para>
+        /// </summary>
+        public int GetLockPickTime(int lockDifficulty, int lockTip)
+        {
+            int skill = GetLockTip(lockTip);
+            return lockDifficulty < skill ? Mathf.RoundToInt(lockPickTime * 0.6f) : lockPickTime;
+        }
+
         private void TrackFactor(string statId, string sourceId, string sourceType, float value, float result)
         {
             if (!statFactors.ContainsKey(statId))
@@ -3425,5 +3543,30 @@ namespace PFE.Systems.RPG
         public float legsHp;
         public float bloodHp;
         public float manaHp;
+    }
+
+    /// <summary>
+    /// The inventory side of AS3 <c>Pers.setInvParameters(inv)</c> (<c>Pers.as:2290-2307</c>):
+    /// enumerates the held items whose definitions carry <c>&lt;sk&gt;</c> rows.
+    ///
+    /// <para><b>The AS3 gate is <c>kol &gt; 0</c></b> — an item at zero quantity grants nothing, even
+    /// though its row still exists in the bag — so an implementation must filter on the live quantity,
+    /// not on presence in the dictionary. AS3's iteration set is <c>LootGen.arr["pers"]</c>
+    /// (<c>LootGen.as:94-95</c>: every item with <c>tip='art'</c>, <c>tip='impl'</c>, or any
+    /// <c>&lt;sk&gt;</c> child); the port's equivalent filter is "the definition's
+    /// <c>skillRowsSource</c> parses to at least one row", which covers the same rows that have an
+    /// effect — the art/impl rows without children would only have reached the
+    /// <c>AllData.d.eff</c> fallback, and no shipped row lands there.</para>
+    ///
+    /// <para>Implemented by <c>PlayerInventory</c>; consumed only by
+    /// <see cref="CharacterStats.RecalculateStats"/> step 5.5.</para>
+    /// </summary>
+    public interface IItemSkillSource
+    {
+        /// <summary>
+        /// Every held item's parsed <c>&lt;sk&gt;</c> rows, keyed by item id. Rows may be shared
+        /// instances — the consumer must not mutate them.
+        /// </summary>
+        IEnumerable<KeyValuePair<string, PersSkillRow[]>> EnumerateHeldSkillRows();
     }
 }

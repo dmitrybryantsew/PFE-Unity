@@ -13,6 +13,7 @@ using PFE.Systems.Map.Actions;
 using PFE.Systems.Map.Scripting;
 using PFE.Systems.Map.Serialization;
 using PFE.Systems.Physics;
+using PFE.Systems.Security;
 using PFE.Sim.Campaign;
 
 namespace PFE.Systems.Map.Rendering
@@ -31,7 +32,7 @@ namespace PFE.Systems.Map.Rendering
     /// <c>gotoAndPlay("comein")</c> for the one Z-door clip (<c>Box.as:508-532</c>).</para>
     /// </summary>
     [RequireComponent(typeof(BoxCollider2D))]
-    public class DoorPropPresenter : MonoBehaviour, IInteractable, IHoldInteractable, IInteractableName, IDestructibleTile
+    public class DoorPropPresenter : MonoBehaviour, IInteractable, IHoldInteractable, IInteractableName, IDestructibleTile, ISecurityObject
     {
         /// <summary>
         /// Seconds per frame of a played clip. The map-object sprites ship in
@@ -232,12 +233,76 @@ namespace PFE.Systems.Map.Rendering
                 travelMapHost: campaign,
                 exitHost: campaign,
                 probHost: transition,
+                terminalHost: CreateTerminalHost(),
                 verbHost: new ObjectVerbHost
                 {
                     // AS3 setAct("open", n) → setDoor(): restamp the tiles the object covers.
                     StampDoorTiles = (room, obj, isOpen) =>
                         PFE.Systems.Map.Scripting.AreaTriggerSystem.UpdateDoorTileCollision(room, obj, isOpen),
                 });
+        }
+
+        /// <summary>
+        /// The capabilities the terminal <c>allact</c> branches need — AS3's
+        /// <c>World.w.gui.infoText</c>, <c>World.w.pip</c>, <c>unit.hack()</c> and
+        /// <c>loc.allAct(owner, "hack", "")</c>.
+        ///
+        /// <para><b>Why this exists now and did not before.</b> <c>CreateFull</c> was called with no
+        /// terminal host, so it built an empty one and every capability reported itself as unwired —
+        /// which is why <c>hack_robot</c> and <c>hack_lock</c> were documented as "unhandled" while
+        /// being registered. Registering a branch and wiring it are two different steps, and the
+        /// dispatcher's tests could only see the first.</para>
+        ///
+        /// <para><b><c>HackUnits</c> and <c>Broadcast</c> both land in the security runtime</b>, because
+        /// both are the same sweep the player can also reach by picking a lock. The oracle routes the
+        /// second one through <c>loc.allAct</c> → each object's <c>command("hack")</c>; the port's
+        /// object-verb broadcast has no <c>hack</c> verb, so the sweep is called directly. Same set of
+        /// objects, one hop fewer.</para>
+        /// </summary>
+        private static TerminalActionHost CreateTerminalHost()
+        {
+            return new TerminalActionHost
+            {
+                // AS3 `World.w.gui.infoText(key)`. The port has no info strip; the log is the honest
+                // channel and the F2 Security tab renders the same events.
+                InfoText = key => Debug.Log($"[Terminal] {key}"),
+
+                // AS3 `World.w.gui.bulb(X, Y)` — the flash at the terminal. Cosmetic, and the port's
+                // particle emitter is per-room rather than global; logged rather than faked.
+                Bulb = (room, obj) => Debug.Log($"[Terminal] bulb at {obj?.objectId} in {room?.id}"),
+
+                // AS3 `for each(unit) unit.hack(World.w.pers.security)` (Interact.as:1585).
+                HackUnits = room =>
+                {
+                    GameObject player = SecurityRuntime.PlayerObject;
+                    int security = player != null ? SecurityRuntime.ReadActor(player).Security : 0;
+                    SecurityRuntime.HackUnitsInRoom(room, security);
+                },
+
+                // AS3 `for each(obj) obj.inter.command("hack")` (Interact.as:1592-1598).
+                Broadcast = (room, sender, verb, allId) =>
+                {
+                    if (verb == "hack")
+                    {
+                        SecurityRuntime.HackRoom(room);
+                    }
+                },
+
+                // AS3 `this.setAct("open", 1)` (Interact.as:1653-1658) — the robocell and the alarm
+                // panel both end here, and `setAct("open",1)` is also what clears their own `allact`
+                // (Interact.as:869-874). The alarm panel additionally stops the room alarm, which is
+                // the only way to end one early.
+                SetOpen = (room, obj) =>
+                {
+                    if (obj?.runtimeState != null)
+                    {
+                        obj.runtimeState.isOpen = true;
+                    }
+
+                    PFE.Systems.Map.Scripting.AreaTriggerSystem.UpdateDoorTileCollision(room, obj, true);
+                    SecurityRuntime.ClearAlarm(room);
+                },
+            };
         }
 
         private int _currentFrameIndex;
@@ -342,7 +407,21 @@ namespace PFE.Systems.Map.Rendering
         /// </summary>
         public bool IsDoorBox => _objectInstance != null && _objectInstance.IsDoorBox();
 
-        public string ActionText => IsInteractableDoor ? (IsOpen ? "Close" : "Open") : string.Empty;
+        public string ActionText
+        {
+            get
+            {
+                if (!IsInteractableDoor) return string.Empty;
+
+                // A lock owns the prompt while it exists — AS3's update() writes `actionText` from
+                // `lock`/`lockTip` before it ever considers open/close (`Interact.as:732-776`), so a
+                // locked door reads "Pick lock", not "Open".
+                string locked = SecurityGate.Prompt(_objectInstance, _room, null);
+                if (locked != null) return locked;
+
+                return IsOpen ? "Close" : "Open";
+            }
+        }
 
         /// <summary>
         /// The door's display name — AS3 <c>celObj.nazv</c>, the first line of the world-anchored
@@ -372,8 +451,21 @@ namespace PFE.Systems.Map.Rendering
         /// second; the metal doors and terminals author 15/20/30; and plain <c>door1</c>/<c>door2</c>/
         /// <c>hatch</c> author nothing at all, so this returns 0 and the caller keeps acting on the
         /// press — which is why adding the hold changed nothing for them.</para>
+        ///
+        /// <para><b>A locked object always has a hold, even with no authored <c>time</c>.</b> AS3 adds
+        /// the pick duration to the authored one (<c>UnitPlayer.as:1976</c>:
+        /// <c>t_action = inter.t_action + pers.getLockPickTime(lock, tip)</c>), so a <c>door1</c> with
+        /// no <c>time</c> still costs a full second to pick. Returning 0 there would fire the attempt on
+        /// the press and make lockpicking free.</para>
         /// </summary>
-        public int HoldFrames => _objectInstance != null ? _objectInstance.GetHoldFrames() : 0;
+        public int HoldFrames
+        {
+            get
+            {
+                int authored = _objectInstance != null ? _objectInstance.GetHoldFrames() : 0;
+                return authored + SecurityGate.ExtraHoldFrames(_objectInstance, _room);
+            }
+        }
 
         /// <summary>
         /// This door's world position — what the hold's range guard measures against, and the
@@ -409,6 +501,11 @@ namespace PFE.Systems.Map.Rendering
 
             ResolveDurability();
 
+            // AS3 applies the placement's `open` attribute before any door state exists (Interact's
+            // constructor, Interact.as:325-329), so it has to land before the tile stamping below or the
+            // first stamp would use the wrong state.
+            ApplyAuthoredInitialOpen(obj);
+
             // In AS3 (Box.as:653), initDoor stamps solid collision if closed — but initDoor is only
             // reached when the definition authors `door=` (Box.as:290-297). A `comein` Z door does not,
             // and it stands on open ground (RoomsCamp.as places indoor2 at 16,15 and 16,7; both are `_`
@@ -434,6 +531,36 @@ namespace PFE.Systems.Map.Rendering
             EnsureCheckpointArea();
 
             UpdateVisualFrame();
+        }
+
+        /// <summary>
+        /// Applies a placement's authored <c>open</c> attribute, once per object instance.
+        ///
+        /// <para>AS3: <c>Interact</c>'s constructor ends with
+        /// <c>if(this.xml.@open.length()) { this.setAct("open",1); this.update(); }</c>
+        /// (<c>Interact.as:325-329</c>). Two details are load-bearing:</para>
+        /// <list type="bullet">
+        /// <item><b>It tests presence, not the value.</b> <c>open="0"</c> opens the object just as
+        /// <c>open="1"</c> does — the attribute is a flag, not a boolean. An empty <c>open=""</c> has
+        /// <c>length() == 0</c> and does <i>not</i> fire.</item>
+        /// <item><b>It runs once, at build time.</b> <see cref="ObjectInstance.initialOpenApplied"/> is the
+        /// latch that keeps it one-shot across the port's presenter rebuilds.</item>
+        /// </list>
+        ///
+        /// <para><b>The case this exists for:</b> <c>rooms_begin/room_4_1</c> places <c>platform1</c> at
+        /// (27,16) with <c>open="1"</c> — the solid platform starts <i>retracted</i> (tiles stamped Air),
+        /// and the knop at (28,22) swaps it. Without this the platform started solid, so the button's
+        /// first press was the only thing that could have cleared it and the room read as a dead end.</para>
+        /// </summary>
+        private void ApplyAuthoredInitialOpen(ObjectInstance obj)
+        {
+            if (obj == null || obj.initialOpenApplied) return;
+            obj.initialOpenApplied = true;
+
+            string open = obj.GetAttribute("open", null);
+            if (string.IsNullOrEmpty(open)) return;
+
+            obj.runtimeState.isOpen = true;
         }
 
         private void GetDoorBounds(out Vector2 size, out Vector2 offset)
@@ -906,6 +1033,51 @@ namespace PFE.Systems.Map.Rendering
             _frameTimer = 0f;
             _comeInFrameIndex = -1;
             UpdateRendererSprite();
+        }
+
+        /// <summary>
+        /// Re-seeks the sprite when <see cref="ObjectInstance.runtimeState"/>'s <c>isOpen</c> has been
+        /// changed by someone other than this presenter.
+        ///
+        /// <para><b>Why this has to exist.</b> Only three methods used to push state into the sprite —
+        /// <see cref="Initialize"/>, <see cref="SetOpen"/> and <see cref="Interact"/> — so every writer
+        /// that set <c>isOpen</c> <i>directly</i> changed the world without changing the picture. That is
+        /// the script path: <c>AreaTriggerSystem.DispatchObjectCommand</c>'s <c>open</c> / <c>close</c> /
+        /// <c>swap</c> verbs write <c>runtimeState.isOpen</c> and re-stamp the tiles
+        /// (<c>AreaTriggerSystem.UpdateDoorTileCollision</c>), and nothing told the presenter. The result
+        /// was a door whose collision had moved and whose sprite had not: the player walked through a
+        /// platform that was still drawn solid, or into a doorway that was still drawn shut.</para>
+        ///
+        /// <para><b>Polled rather than raised.</b> <c>AreaTriggerSystem.OnObjectStateChanged</c> exists
+        /// and has <i>no</i> subscribers, so an event would need a new wiring path through the manager's
+        /// lifetime as well as a listener. The room's presenter sync already walks every object each
+        /// frame (<c>RoomObjectVisualManager.UpdatePresenter</c>), so one extra
+        /// <see cref="ResolveStateFrameIndex"/> per object per frame — two integer comparisons — buys the
+        /// same result with no lifecycle to get wrong, and it self-heals for any future writer including
+        /// a save load.</para>
+        ///
+        /// <para>Guarded on <see cref="IsPlayingComeIn"/> because <see cref="UpdateVisualFrame"/> aborts
+        /// the <c>comein</c> clip: a Z door mid-entry must not be re-seeked by a poll.</para>
+        /// </summary>
+        public void SyncVisualToState()
+        {
+            if (_visual == null || !_visual.HasFrames) return;
+            if (IsPlayingComeIn) return;
+
+            // A sheet that cannot express "open" or "die" has nothing for this poll to keep in sync,
+            // and re-seeking it would actively do harm: a Z door's `comein` clip ENDS on its last
+            // frame (TickAnimation leaves _currentFrameIndex there), which is a state the label model
+            // cannot name — resolving it would snap the finished doorway back to frame 0. AS3 leaves
+            // the symbol where gotoAndPlay left it, so this poll must not touch these sheets at all.
+            if (_visual.OpenStateFrame < 0 && _visual.DestroyedStateFrame < 0) return;
+
+            if (ResolveStateFrameIndex() == _currentFrameIndex) return;
+
+            UpdateVisualFrame();
+
+            // The solid collider is derived from the same state (`wantsSolid = IsDoorBox && !IsOpen`),
+            // so a state change made behind SetOpen's back leaves it describing the old state too.
+            RefreshSolidCollider();
         }
 
         /// <summary>
@@ -1425,6 +1597,46 @@ namespace PFE.Systems.Map.Rendering
             return obj?.definition != null ? obj.definition.GetAttribute(key, string.Empty) : string.Empty;
         }
 
+        /// <summary>
+        /// Toggles a <c>knop</c>'s own open state and re-seeks its sprite — the port of the
+        /// <c>door</c>/<c>knop</c> branch at the head of AS3 <c>Interact.actOsn</c>
+        /// (<c>Interact.as:1291-1297</c>).
+        ///
+        /// <para><b>This is a lamp, not a mechanism.</b> The button's own state and the thing it
+        /// operates are separate in the oracle: <c>rooms_begin/room_4_1</c>'s knop is
+        /// <c>&lt;scr&gt;&lt;s act="swap" targ="trPl"/&gt;…</c>, so the press lights the button
+        /// <i>and</i> swaps the platform. Toggling the button does not touch the platform, and the
+        /// platform's state does not touch the button — which is why this must not be folded into
+        /// <see cref="SetOpen"/>.</para>
+        ///
+        /// <para><b>The two gates are AS3's.</b> <c>knop &gt; 0</c> — the attribute lives on the
+        /// <i>definition</i> row (<c>AllData.as:4907</c>, <c>knop='1'</c>), and a terminal does not
+        /// author it (<c>AllData.as:4899</c>). <c>action &gt; 0</c> — <c>action</c> is the definition's
+        /// <c>@inter</c>, so an object placed with <c>inter='0'</c> has nothing to press. Both are
+        /// required; a knop that failed either would stay dark in AS3 too.</para>
+        /// </summary>
+        private void ToggleAuthoredKnopState()
+        {
+            if (_objectInstance?.definition == null) return;
+
+            string knop = ReadDefinitionAttribute(_objectInstance, "knop");
+            if (string.IsNullOrEmpty(knop) || knop == "0") return;
+
+            string action = ReadDefinitionAttribute(_objectInstance, "inter");
+            if (!int.TryParse(action, NumberStyles.Integer, CultureInfo.InvariantCulture, out int actionValue) ||
+                actionValue <= 0)
+            {
+                return;
+            }
+
+            _objectInstance.runtimeState.isOpen = !_objectInstance.runtimeState.isOpen;
+
+            // Seeks the lamp sheet's `open` / `close` label. A one-frame terminal sheet resolves both
+            // to frame 0, so this is a no-op for them even if a future definition authorises it —
+            // which is what AS3's swallowed gotoAndStop amounts to.
+            UpdateVisualFrame();
+        }
+
         public void Interact(GameObject user)
         {
             // A checkpoint is not an `allact` in AS3 — CheckPoint builds its own Interact with
@@ -1442,6 +1654,48 @@ namespace PFE.Systems.Map.Rendering
 
             if (Time.frameCount == _lastInteractFrame) return;
             _lastInteractFrame = Time.frameCount;
+
+            // ── The lock, before anything else ───────────────────────────────────────────────────
+            //
+            // AS3's `Interact.act()` resolves the mine first, then the lock, and only reaches
+            // `actOsn()` — which is what opens a door, loots a container or runs an `allact` — when
+            // there is nothing left in the way (`:889-1244`, `:1265-1328`). Placing this gate after
+            // the dispatcher instead would let a locked terminal run its `hack_robot` sweep on a
+            // failed hack, which is the whole feature inverted.
+            SecurityGateOutcome security = SecurityGate.TryWork(user, _objectInstance, _room);
+            if (security == SecurityGateOutcome.Handled)
+            {
+                return;
+            }
+
+            // `Opened` (a picked lock, a key, or a successful mine defusal) falls through to the
+            // object's own action — AS3's `successUnlock`/`actOsn` chain. `NotLocked` does the same,
+            // which is why the two are not separated here.
+
+            // ── The object's own state, before its script ────────────────────────────────────────
+            //
+            // AS3 `Interact.actOsn` (Interact.as:1291-1297) toggles the object's own `open` before it
+            // runs anything else:
+            //
+            //     if((this.door > 0 || this.knop > 0) && this.action > 0) {
+            //         this.open = !this.open;
+            //         this.setAct("open", this.open ? 1 : 0);     // → setVisState("open"|"close")
+            //     }
+            //     if(Boolean(this.allact) || this.prob != null) { this.allAct(); }
+            //     ...
+            //     if(this.scrAct) { this.scrAct.start(); }
+            //
+            // For a `knop`, `setAct("open")` seeks its sheet to the `open` label — the lamp. So a
+            // button's press is *visible* in AS3: released lamp → lit lamp → released lamp. The port
+            // had no equivalent, so every button looked permanently unpressed no matter how often it
+            // was worked; that is the second half of "it always pressed".
+            //
+            // Doors are excluded on purpose: ToggleOpen → SetOpen already does this (plus the tile
+            // stamp, the eject and the relight), and toggling here as well would flip it twice.
+            if (!IsDoorBox)
+            {
+                ToggleAuthoredKnopState();
+            }
 
             // AS3 runs an object's `allact` script from Interact.act() (Interact.as:889). This method
             // is the "the action fired" entry point, not "the button went down": a door that authors
@@ -1466,6 +1720,22 @@ namespace PFE.Systems.Map.Rendering
                     BeginComeIn();
                 }
 
+                return;
+            }
+
+            // AS3 `Interact.actOsn` ends with `if(this.scrAct) this.scrAct.start()`
+            // (Interact.as:1323-1325): an object's own inline `<scr>` runs on the same press that works
+            // it, for a door and a `knop` alike. A button carries no `allact`, so the dispatcher above
+            // answered NoScript and the old code fell straight to ToggleOpen() — which refuses anything
+            // that is not a door box (`IsDoorBox`), so the press did nothing at all even once the object
+            // had a presenter. This is the second half of the "buttons do nothing" fix; the first is the
+            // admission clause in RoomObjectVisualManager.UsesDoorPresenter.
+            //
+            // Not for a door box: ToggleOpen → SetOpen already raises OnObjectInteracted, so running the
+            // script here as well would execute it twice for a door that authors `<scr>` and no `allact`.
+            if (!IsDoorBox && RoomObjectVisualManager.HasInteractScript(_objectInstance))
+            {
+                _triggerSystem?.OnObjectInteracted(_room, _objectInstance);
                 return;
             }
 

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using PFE.Core;
 using PFE.Systems.Campaign;
+using PFE.Systems.Security;
 using UnityEngine;
 
 namespace PFE.Systems.Map.Scripting
@@ -643,6 +644,17 @@ namespace PFE.Systems.Map.Scripting
                     else _player.ChangeWeapon(action.val);
                     break;
 
+                // ── Security ───────────────────────────────────────────────────────────────────────
+                case "alarm":
+                    // AS3 `Script.as:480-483` — `World.w.loc.signal()`. This is the tripwire half of the
+                    // alarm system: the shipped rooms raise one from an invisible `<obj id="area">` whose
+                    // own `<scr>` is `<s act="alarm"/><s act="off" targ="this"/>`
+                    // (RoomsProb.as:5923, RoomsSerial.as:2953), and a raider's per-unit `alarm` script
+                    // reaches the same branch (UnitRaider.as:800-806).
+                    if (room == null) ReportMissing("alarm");
+                    else SecurityRuntime.RaiseAlarm(room, AlarmOrigin(room, owner), owner?.objectId);
+                    break;
+
                 // ── Blocking ───────────────────────────────────────────────────────────────────────
                 case "wait":
                     // `this.wait = true; this.dial_n = 0;` (Script.as:555-560) — block until the action key.
@@ -715,9 +727,27 @@ namespace PFE.Systems.Map.Scripting
             _objects.GotoXY(parts[0], parts[1]);
         }
 
+        /// <summary>
+        /// Where the alarm's <c>budilo</c> pulse originates, in room-local pixels.
+        ///
+        /// <para><b>AS3's script path has no origin at all.</b> <c>Location.signal()</c> takes only a
+        /// duration and only sets the two timers (<c>:2912-2920</c>); the pulse origin belongs to
+        /// <c>Interact</c>, which uses its own owner's position (<c>:642</c>). A script-raised alarm
+        /// therefore has no "where", so the port uses the raising object when there is one and the room
+        /// centre otherwise — the pulse only decides who hears it, and both answers are better than a
+        /// pulse at (0,0).</para>
+        /// </summary>
+        private static Vector2 AlarmOrigin(RoomInstance room, ObjectInstance owner)
+        {
+            if (owner != null) return owner.position;
+
+            float w = room != null ? room.width : WorldConstants.ROOM_WIDTH;
+            float h = room != null ? room.height : WorldConstants.ROOM_HEIGHT;
+            return new Vector2(w * WorldConstants.TILE_SIZE * 0.5f, h * WorldConstants.TILE_SIZE * 0.5f);
+        }
+
         /// <summary>AS3's <c>gotoland</c> branches on <c>@n</c> (<c>Script.as:443-456</c>).</summary>
         private static int NValue(MapObjectScriptActionData action) => ParseInt(action?.n);
-
         private static string GotolandCoordinates(MapObjectScriptActionData action)
         {
             if (NValue(action) != 1) return null;

@@ -24,6 +24,7 @@ using PFE.Systems.Map.Streaming;
 using PFE.Systems.Physics;
 using PFE.Systems.RPG;
 using PFE.Systems.RPG.Data;
+using PFE.Systems.Security;
 using PFE.Systems.Combat;
 using PFE.Systems.Weapons;
 using PerkDefinition = PFE.Systems.RPG.Data.PerkDefinition;
@@ -46,7 +47,7 @@ namespace PFE.Core.Scripting
         public bool IsOpen = false;
 
         private Rect _windowRect = new Rect(60, 40, 920, 660);
-        private int _activeTab = 0; // 0: Pip Stats, 1: Skills, 2: Perks, 3: Weapons, 4: Armor, 5: Vitals & Presets, 6: Effects, 7: Spells, 8: Inventory, 9: Rig, 10: Spawn Unit, 11: Lands, 12: Land State, 13: Land Map, 14: Save / Load, 15: Campaign Vars, 16: Room, 17: Cheats
+        private int _activeTab = 0; // 0: Pip Stats, 1: Skills, 2: Perks, 3: Weapons, 4: Armor, 5: Vitals & Presets, 6: Effects, 7: Spells, 8: Inventory, 9: Rig, 10: Spawn Unit, 11: Lands, 12: Land State, 13: Land Map, 14: Save / Load, 15: Campaign Vars, 16: Room, 17: Cheats, 18: Security
 
         private static readonly string[] TabNames = new string[]
         {
@@ -67,7 +68,8 @@ namespace PFE.Core.Scripting
             "💾 Save / Load",
             "🏁 Campaign Vars",
             "🏠 Room",
-            "🎮 Cheats"
+            "🎮 Cheats",
+            "🔐 Security"
         };
 
         /// <summary>How many tabs the strip actually ships. Exposed <b>so the strip test can assert against
@@ -123,6 +125,18 @@ namespace PFE.Core.Scripting
         /// nothing to flip and the guard's message is the right answer.</para>
         /// </remarks>
         private const int CheatsTab = 17;
+
+        /// <summary>
+        /// Index of the "Security" tab — the lockpicking / hacking / alarm readout.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Exempt from the no-player guard, unlike <see cref="CheatsTab"/>.</b> Only section A
+        /// needs a player: section C is the current room's alarm, section D is the process-wide log,
+        /// and section B reads whatever the cursor is on. A room whose alarm is stuck on, or a lock
+        /// that will not open, is exactly the situation where the player may be missing — the same
+        /// argument the Room tab makes.</para>
+        /// </remarks>
+        private const int SecurityTab = 18;
 
         // Scroll positions for each tab
         private Vector2 _pipStatsScroll;
@@ -895,9 +909,13 @@ namespace PFE.Core.Scripting
             // RoomInstance through the LandMap / room controller, and a room whose population came out
             // empty is exactly the thing you opened the tab to see — gating it on a player would hide it
             // in the very scene where the room is the problem.
+            // The Security tab (18) is exempt for the Room tab's reason once more: only its actor
+            // section reads the player, while the room alarm, the lock profile of whatever the cursor
+            // is on, and the process-wide attempt log are all readable without one. An alarm stuck on
+            // is exactly when you want the tab that can clear it.
             if (player == null && _activeTab != 9 && _activeTab != LandsTab &&
                 _activeTab != LandStateTab && _activeTab != LandMapTab && _activeTab != SaveLoadTab &&
-                _activeTab != CampaignVarsTab && _activeTab != RoomTab)
+                _activeTab != CampaignVarsTab && _activeTab != RoomTab && _activeTab != SecurityTab)
             {
                 GUILayout.Box("PlayerController not found in scene. Please enter a gameplay room/scene.", _cardStyle, GUILayout.ExpandHeight(true));
                 GUI.DragWindow(new Rect(0, 0, _windowRect.width, 30));
@@ -959,6 +977,9 @@ namespace PFE.Core.Scripting
                     break;
                 case CheatsTab:
                     DrawCheatsTab(player);
+                    break;
+                case SecurityTab:
+                    DrawSecurityTab(player);
                     break;
             }
 
@@ -8413,6 +8434,373 @@ namespace PFE.Core.Scripting
         private static bool TryParseFloat(string text, out float value)
             => float.TryParse(text, System.Globalization.NumberStyles.Float,
                               System.Globalization.CultureInfo.InvariantCulture, out value);
+
+        // =========================================================================
+        // SECURITY — lockpicking, hacking, traps, the room alarm
+        // =========================================================================
+
+        private Vector2 _securityScroll;
+
+        /// <summary>
+        /// The Security tab — the parameters of the lockpicking / hacking / alarm subsystem, and its
+        /// live state.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Why this tab is the subsystem's only feedback channel.</b> AS3 prints every outcome
+        /// through <c>gui.infoText</c> (<c>Interact.as:1106</c> "unLockFail", <c>:1085</c>
+        /// "unLockZhopa", …). The port has no info-text strip, so a failed pick would otherwise be
+        /// indistinguishable from a press that never arrived — which is the exact failure mode this
+        /// project has already paid for twice (see <c>TOPIC_lessons</c> #196). Section D is that strip.</para>
+        ///
+        /// <para><b>Four sections, in the order a player meets them:</b> what <i>you</i> bring to a
+        /// lock (A), what the lock asks for (B), whether the room is hunting you (C), and what the last
+        /// twenty-four presses actually did (D).</para>
+        /// </remarks>
+        private void DrawSecurityTab(PlayerController player)
+        {
+            _securityScroll = GUILayout.BeginScrollView(_securityScroll);
+
+            GUILayout.Label("<b>Security</b> — locks, terminals, traps and the room alarm",
+                GUILayout.ExpandWidth(true));
+
+            // Kept as short lines on purpose: the window is 920 px and a GUILayout.Label does NOT
+            // wrap, so a long line is clipped silently and the tail vanishes.
+            GUILayout.Label("<color=#AAAAAA><size=11>Five numbers that look alike and are not:</size></color>",
+                GUILayout.ExpandWidth(true));
+            GUILayout.Label("<color=#AAAAAA><size=11>lock = difficulty · lockLevel = quality tier vs your</size></color>",
+                GUILayout.ExpandWidth(true));
+            GUILayout.Label("<color=#AAAAAA><size=11>master · lockHp = damage pool · lockAtt = terminal</size></color>",
+                GUILayout.ExpandWidth(true));
+            GUILayout.Label("<color=#AAAAAA><size=11>attempts · mine = a trap resolved BEFORE the lock.</size></color>",
+                GUILayout.ExpandWidth(true));
+
+            GUILayout.Space(6);
+
+            DrawSecurityActor(player);
+            GUILayout.Space(6);
+            DrawSecurityTarget(player);
+            GUILayout.Space(6);
+            DrawSecurityAlarm(player);
+            GUILayout.Space(6);
+            DrawSecurityLog();
+
+            GUILayout.EndScrollView();
+        }
+
+        /// <summary>Section A — the actor half of every roll.</summary>
+        private void DrawSecurityActor(PlayerController player)
+        {
+            GUILayout.BeginVertical(_cardStyle);
+            GUILayout.Label("<b>A. You</b> <color=#AAAAAA>(what the roll reads — " +
+                            "SecurityRuntime.ReadActor)</color>", GUILayout.ExpandWidth(true));
+
+            if (player == null)
+            {
+                GUILayout.Label("<color=#FFAA33>No live player — the actor half is empty.</color>",
+                    GUILayout.ExpandWidth(true));
+                GUILayout.EndVertical();
+                return;
+            }
+
+            SecurityActor a = SecurityRuntime.ReadActor(player.gameObject);
+
+            GUILayout.Label(
+                $"skills  pick=<b>{SecuritySkillText(a.SkillPick)}</b>  " +
+                $"terminal=<b>{SecuritySkillText(a.SkillTerminal)}</b>  " +
+                $"demolition=<b>{SecuritySkillText(a.SkillMine)}</b>  " +
+                $"signal=<b>{SecuritySkillText(a.SkillSignal)}</b>  " +
+                $"repair=<b>{SecuritySkillText(a.SkillRepair)}</b>",
+                GUILayout.ExpandWidth(true));
+
+            GUILayout.Label(
+                $"masters  unlockMaster=<b>{a.MasterPick}</b>  hackerMaster=<b>{a.MasterTerminal}</b>  " +
+                "<color=#AAAAAA>a lock level above these always fails</color>",
+                GUILayout.ExpandWidth(true));
+
+            GUILayout.Label(
+                $"lockAtt=<b>{a.LockAtt:0.##}</b>  pinBreak=<b>{a.PinBreak:0.##}</b>  " +
+                $"upChance=<b>{a.UpChance:0.##}</b>  hackAtt=<b>{a.HackAtt}</b>  " +
+                $"security=<b>{a.Security}</b>",
+                GUILayout.ExpandWidth(true));
+
+            GUILayout.Label(
+                $"lockPickTime=<b>{a.LockPickTime}</b> ticks " +
+                $"({a.LockPickTime / (float)SimClock.CanonicalTicksPerSecond:0.##} s)  " +
+                $"pins=<b>{a.Pins}</b>  runa=<b>{a.Runa}</b>  reboot=<b>{a.Reboot}</b>",
+                GUILayout.ExpandWidth(true));
+
+            GUILayout.Label(
+                "<color=#AAAAAA>`security` is the mode a hack_robot terminal passes: 0 shuts a turret " +
+                "down, 1 recruits it.</color>", GUILayout.ExpandWidth(true));
+
+            GUILayout.EndVertical();
+        }
+
+        /// <summary>Section B — the lock under the cursor, and the odds of opening it.</summary>
+        private void DrawSecurityTarget(PlayerController player)
+        {
+            GUILayout.BeginVertical(_cardStyle);
+            GUILayout.Label("<b>B. Target</b> <color=#AAAAAA>(whatever the cursor is on, as resolved)</color>",
+                GUILayout.ExpandWidth(true));
+
+            ObjectInstance obj = null;
+            RoomInstance room = null;
+            if (player != null && player.CurrentInteractTarget is ISecurityObject secured)
+            {
+                obj = secured.ObjectInstance;
+                room = secured.Room;
+            }
+
+            if (obj == null)
+            {
+                GUILayout.Label(
+                    "<color=#AAAAAA>Nothing lockable under the cursor. Aim at a door, safe or " +
+                    "terminal and hold the action key.</color>", GUILayout.ExpandWidth(true));
+                GUILayout.EndVertical();
+                return;
+            }
+
+            SecurityProfile profile = SecurityRuntime.ProfileFor(obj, room);
+            if (profile == null)
+            {
+                GUILayout.Label($"<b>{obj.objectId}</b> — no security profile could be resolved.",
+                    GUILayout.ExpandWidth(true));
+                GUILayout.EndVertical();
+                return;
+            }
+
+            SecurityActor actor = SecurityRuntime.ReadActor(player != null ? player.gameObject : null);
+            string prompt = SecurityGate.Prompt(obj, room, string.Empty);
+
+            GUILayout.Label(
+                $"<b>{obj.objectId}</b>   room=<b>{(room != null ? room.id : "-")}</b>   " +
+                $"prompt=<b>{(string.IsNullOrEmpty(prompt) ? "(none — nothing to do here)" : prompt)}</b>",
+                GUILayout.ExpandWidth(true));
+
+            GUILayout.Label(
+                $"lock=<b>{profile.Lock}</b>  level=<b>{profile.LockLevel}</b>  " +
+                $"tip=<b>{SecurityTipText(profile.LockTip)}</b>  hp=<b>{profile.LockHp:0.#}</b>  " +
+                $"att=<b>{profile.LockAtt:0.#}</b>",
+                GUILayout.ExpandWidth(true));
+
+            GUILayout.Label(
+                $"mine=<b>{profile.Mine}</b>  minetip=<b>{profile.MineTip}</b>  " +
+                $"allDif=<b>{profile.AllDif}</b>  hack=<b>{(profile.IsHackable ? "yes" : "no")}</b>  " +
+                $"key=<b>{(string.IsNullOrEmpty(profile.LockKey) ? "-" : profile.LockKey)}</b>",
+                GUILayout.ExpandWidth(true));
+
+            // The ternary lives in a local, not in the interpolation hole: the project's language
+            // version is C# 9, and CS8967 forbids a newline anywhere inside a non-verbatim
+            // interpolated string — including inside a hole.
+            string state = profile.IsLocked ? "<b>locked</b>"
+                : profile.Jammed
+                    ? "<color=#FF5555><b>seized — ruined for the rest of the run</b></color>"
+                    : "<color=#66DD66><b>open</b></color>";
+
+            GUILayout.Label(
+                $"state: {state}  " +
+                $"saveLock=<b>{profile.SaveLock}</b>  " +
+                $"<color=#AAAAAA>(101 = opened, 102 = seized)</color>",
+                GUILayout.ExpandWidth(true));
+
+            if (profile.IsLocked)
+            {
+                int skill = SecurityRules.SkillFor(profile.LockTip, actor);
+                int master = SecurityRules.MasterFor(profile.LockTip, actor);
+                int delta = profile.Lock - skill;
+                bool gated = master < profile.LockLevel;
+                float chance = gated ? 0f : SecurityRules.GetChance(delta, actor.UpChance > 0f);
+
+                GUILayout.Label(
+                    $"chance=<b>{chance:P0}</b>  delta=<b>{delta}</b> " +
+                    $"<color=#AAAAAA>(lock − your skill)</color>  " +
+                    $"masterGate=<b>{(gated ? "FAILS" : "passes")}</b>",
+                    GUILayout.ExpandWidth(true));
+
+                if (gated)
+                {
+                    GUILayout.Label(
+                        $"<color=#FF5555>Level {profile.LockLevel} is above your mastery " +
+                        $"{master} — every attempt fails until you train it.</color>",
+                        GUILayout.ExpandWidth(true));
+                }
+
+                GUILayout.Label(
+                    $"hold per attempt=<b>{SecurityGate.ExtraHoldFrames(obj, room)}</b> ticks  " +
+                    $"<color=#AAAAAA>(30 ticks = 1 s, 18 when the lock is below your rank)</color>",
+                    GUILayout.ExpandWidth(true));
+            }
+
+            if (profile.Mine > 0)
+            {
+                GUILayout.Label(
+                    "<color=#FFAA33>A trap is resolved before the lock — defuse it first.</color>",
+                    GUILayout.ExpandWidth(true));
+            }
+
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("🎲 Re-roll this lock (rebuild from authored data)",
+                                 GUILayout.Height(24), GUILayout.Width(320)))
+            {
+                SecurityProfile rebuilt = SecurityRuntime.RebuildProfile(obj, room);
+                Debug.Log($"[Security] Re-rolled '{obj.objectId}': lock={rebuilt.Lock}, " +
+                          $"level={rebuilt.LockLevel}, tip={rebuilt.LockTip}, hp={rebuilt.LockHp}, " +
+                          $"mine={rebuilt.Mine}.");
+            }
+            GUILayout.Label("<color=#AAAAAA>for testing a lock you cannot open</color>",
+                GUILayout.ExpandWidth(true));
+            GUILayout.EndHorizontal();
+
+            GUILayout.EndVertical();
+        }
+
+        /// <summary>Section C — the current room's alarm, with the two knobs that drive it.</summary>
+        private void DrawSecurityAlarm(PlayerController player)
+        {
+            GUILayout.BeginVertical(_cardStyle);
+            GUILayout.Label("<b>C. Room alarm</b> <color=#AAAAAA>(t_alarm / t_alarmsp / t_budilo)</color>",
+                GUILayout.ExpandWidth(true));
+
+            RoomInstance room = ResolveCurrentRoom(out string source);
+            if (room == null)
+            {
+                GUILayout.Label("<color=#AAAAAA>No current room — enter a land first.</color>",
+                    GUILayout.ExpandWidth(true));
+                GUILayout.EndVertical();
+                return;
+            }
+
+            RoomAlarm alarm = SecurityRuntime.GetAlarm(room);
+            bool panel = SecurityRuntime.RoomHasArmedAlarmPanel(room);
+
+            GUILayout.Label(
+                $"room=<b>{room.id}</b>   panel armed=<b>{(panel ? "yes" : "no")}</b>   " +
+                $"any alarm anywhere=<b>{(SecurityRuntime.AnyAlarmActive ? "YES" : "no")}</b>",
+                GUILayout.ExpandWidth(true));
+
+            GUILayout.Label(
+                $"t_alarm=<b>{alarm.TicksLeft}</b> " +
+                $"({alarm.TicksLeft / (float)SimClock.CanonicalTicksPerSecond:0.0} s)  " +
+                $"t_alarmsp=<b>{alarm.SpawnTicksLeft}</b>  " +
+                $"t_budilo=<b>{alarm.PulseTicksLeft}</b>  " +
+                $"<color=#AAAAAA>state: {(alarm.IsActive ? "ACTIVE" : "quiet")}</color>",
+                GUILayout.ExpandWidth(true));
+
+            GUILayout.Label(
+                $"spawnBudget(kolEnSpawn)=<b>{alarm.SpawnBudget}</b>  " +
+                $"raises=<b>{alarm.RaiseCount}</b>  spawned=<b>{alarm.SpawnedCount}</b>  " +
+                $"origin=({alarm.Origin.x:0},{alarm.Origin.y:0}) px",
+                GUILayout.ExpandWidth(true));
+
+            GUILayout.Label(
+                "<color=#AAAAAA>While t_alarm is positive every land exit refuses (World.possiblyOut " +
+                "= 2).</color>", GUILayout.ExpandWidth(true));
+
+            if (!panel)
+            {
+                GUILayout.Label(
+                    "<color=#FFAA33>No armed alarm panel in this room — a sighting cannot raise the " +
+                    "alarm here. The button below still can.</color>", GUILayout.ExpandWidth(true));
+            }
+
+            Vector2 origin = player != null
+                ? (Vector2)player.transform.position * 100f
+                : alarm.Origin;
+
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button($"🚨 Raise alarm ({RoomAlarm.DefaultSignalTicks} ticks)",
+                                 GUILayout.Height(24), GUILayout.Width(230)))
+            {
+                SecurityRuntime.RaiseAlarm(room, origin, "F2");
+            }
+
+            if (GUILayout.Button("🔕 Clear", GUILayout.Height(24), GUILayout.Width(110)))
+            {
+                SecurityRuntime.ClearAlarm(room);
+            }
+
+            GUILayout.Label($"<color=#AAAAAA>origin {source}</color>", GUILayout.ExpandWidth(true));
+            GUILayout.EndHorizontal();
+
+            GUILayout.EndVertical();
+        }
+
+        /// <summary>Section D — the attempt log, newest first.</summary>
+        private void DrawSecurityLog()
+        {
+            GUILayout.BeginVertical(_cardStyle);
+            GUILayout.Label("<b>D. Log</b> <color=#AAAAAA>(newest first — the port's stand-in for " +
+                            "gui.infoText)</color>", GUILayout.ExpandWidth(true));
+
+            IReadOnlyList<SecurityLogEntry> log = SecurityRuntime.Log;
+            if (log.Count == 0)
+            {
+                GUILayout.Label(
+                    "<color=#AAAAAA>Empty. No press has reached the security layer yet.</color>",
+                    GUILayout.ExpandWidth(true));
+                GUILayout.EndVertical();
+                return;
+            }
+
+            for (int i = log.Count - 1; i >= 0; i--)
+            {
+                SecurityLogEntry entry = log[i];
+                GUILayout.Label(
+                    $"<color=#888888>#{entry.Tick,6}</color>  <b>{entry.ObjectId}</b>  " +
+                    $"<color={SecurityLogColour(entry.Kind)}>{entry.MessageKey}</color>  " +
+                    $"{entry.Detail}",
+                    GUILayout.ExpandWidth(true));
+            }
+
+            GUILayout.EndVertical();
+        }
+
+        /// <summary>
+        /// The skill column of section A. AS3's <c>getLockTip</c> answers <b>-100</b> for an actor
+        /// without the tool (<c>Pers.as:2318-2322</c>), and that sentinel is what the
+        /// <c>unlock &gt; -99</c> gate turns into "no possibility" — so printing the raw number would
+        /// be correct and unreadable at the same time.
+        /// </summary>
+        private static string SecuritySkillText(int skill)
+        {
+            return skill <= -99 ? "none" : skill.ToString();
+        }
+
+        /// <summary>The lock tip in words — <c>locktip</c> selects the verb, not the difficulty.</summary>
+        private static string SecurityTipText(SecurityLockTip tip)
+        {
+            switch (tip)
+            {
+                case SecurityLockTip.Key: return "key only";
+                case SecurityLockTip.Pick: return "lockpick";
+                case SecurityLockTip.Terminal: return "terminal";
+                case SecurityLockTip.Mine: return "mine";
+                case SecurityLockTip.RepairWeapon: return "repair (power)";
+                case SecurityLockTip.RepairPart: return "repair (part)";
+                case SecurityLockTip.Signal: return "signal trap";
+                default: return ((int)tip).ToString();
+            }
+        }
+
+        /// <summary>Colour an outcome by whether it helped, hurt, or destroyed the lock.</summary>
+        private static string SecurityLogColour(SecurityAttemptKind kind)
+        {
+            switch (kind)
+            {
+                case SecurityAttemptKind.Opened:
+                case SecurityAttemptKind.KeyUsed:
+                    return "#66DD66";
+                case SecurityAttemptKind.Jammed:
+                case SecurityAttemptKind.LockedOut:
+                    return "#FF5555";
+                case SecurityAttemptKind.Failed:
+                case SecurityAttemptKind.PinBroke:
+                case SecurityAttemptKind.FailedNoVisibleDamage:
+                    return "#FFAA33";
+                default:
+                    return "#AAAAAA";
+            }
+        }
     }
 
     /// <summary>

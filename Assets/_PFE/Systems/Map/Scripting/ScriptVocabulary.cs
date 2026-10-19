@@ -67,6 +67,10 @@ namespace PFE.Systems.Map.Scripting
 
             // Objects and the player.
             "allact", "take", "armor", "xp", "perk", "eff", "remeff", "weapch",
+
+            // Security. `alarm` is `World.w.loc.signal()` (Script.as:480-483) — the tripwire areas in
+            // RoomsProb/RoomsSerial and a raider's own alarm script both land here.
+            "alarm",
         };
 
         /// <summary>
@@ -80,9 +84,11 @@ namespace PFE.Systems.Map.Scripting
             // has no land-wide object toggle — the objects exist, the aggregate switch does not.
             "locon", "locoff",
 
-            // Prob-room machinery: entering a prob room, its wave trigger, and the alarm. The prob host
-            // exists (IProbRoomHost) but is not reachable from a room script yet.
-            "actprob", "wave", "alarm",
+            // Prob-room machinery: entering a prob room and its wave trigger. The prob host exists
+            // (IProbRoomHost) but is not reachable from a room script yet.
+            // `alarm` is NOT here any more — it raises the room alarm through SecurityRuntime
+            // (Script.as:480-483), which is what the tripwire areas in RoomsProb/RoomsSerial need.
+            "actprob", "wave",
 
             // `trus` writes a trust value on the location; nothing in the port reads one.
             "trus",

@@ -1,5 +1,7 @@
 ﻿using System;
 using PFE.Systems.Map.Scripting;
+using PFE.Systems.Security;
+using UnityEngine;
 
 namespace PFE.Systems.Map.Actions
 {
@@ -60,6 +62,16 @@ namespace PFE.Systems.Map.Actions
         public bool Execute(in ObjectActionContext context)
         {
             if (_host == null) return false;
+
+            // AS3 `World.w.possiblyOut()` answers 2 while `loc.t_alarm > 0` (World.as:1455-1458), and
+            // every exit branch that consults it refuses with `noOutLoc` (Interact.as:1560-1563). The
+            // level exit is the one place that matters most: an alarm you can simply walk out of is not
+            // an alarm. Refused rather than reported, so the door does not look like it worked.
+            if (SecurityRuntime.AnyAlarmActive)
+            {
+                Debug.Log("[Exit] refused: the alarm is still running (World.as:1455-1458).");
+                return false;
+            }
 
             _host.GotoNextLevel();
             return true;

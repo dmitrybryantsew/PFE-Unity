@@ -6,6 +6,7 @@ using PFE.Core.Messages;
 using PFE.Systems.Map.Actions;
 using PFE.Systems.Map.Generation;
 using PFE.Systems.Map.Streaming;
+using PFE.Systems.Security;
 using UnityEngine;
 
 namespace PFE.Systems.Map.Scripting
@@ -37,6 +38,18 @@ namespace PFE.Systems.Map.Scripting
         /// happened before <see cref="IUnitCommandHost"/> existed, so no fixture changes meaning.</para>
         /// </summary>
         private IUnitCommandHost _unitHost;
+
+        /// <summary>
+        /// The room-scoped particle emitter, pushed by <c>RoomVisualController</c> — the same push, for
+        /// the same reason, as <see cref="_unitHost"/>: this type is built with <c>new</c> before the
+        /// adapters arrive.
+        ///
+        /// <para>It exists for exactly one effect: AS3 <c>Interact.shine()</c>, the ten-particle
+        /// "unlock" sparkle that <c>command("unlock")</c> and the <c>hack</c> verb both end with
+        /// (<c>Interact.as:1678-1686</c>). Null is legal — an offline fixture has no particle world —
+        /// and <see cref="ObjectShineEmitter"/> then reports once by name instead of throwing.</para>
+        /// </summary>
+        private PFE.Systems.Particles.Adapters.RoomParticleEmitter _particles;
 
         /// <summary>
         /// The stepwise interpreter, created on first use from <see cref="ScriptSystem.Current"/> and
@@ -591,19 +604,46 @@ namespace PFE.Systems.Map.Scripting
 
                     return true;
 
+                case "swap":
+                    // AS3 `Interact.command("swap")` (Interact.as:1761-1765):
+                    //     this.open = !this.open;
+                    //     this.setAct("open", this.open ? 1 : 0);
+                    // i.e. a pure toggle of the door state — no `allAct` re-entry, no autoClose.
+                    //
+                    // This is how every authored button drives a door through its own `<scr>`:
+                    // `rooms_begin/room_4_1`'s knop is `<s act="swap" targ="trPl"/>` and `trPl` is the
+                    // `platform1` at (27,16). The `allact` path already had `swap`
+                    // (`ObjectVerbCommand`), but this `@targ` path did not, so the press resolved the
+                    // target, found no verb, and the platform never moved — the button looked alive
+                    // (the prompt appeared) and did nothing.
+                    for (int i = 0; i < targets.Count; i++)
+                    {
+                        bool open = !targets[i].runtimeState.isOpen;
+                        targets[i].runtimeState.isOpen = open;
+                        UpdateDoorTileCollision(room, targets[i], open);
+                        OnObjectStateChanged?.Invoke(targets[i]);
+                    }
+
+                    return true;
+
                 case "unlock":
                 case "lock":
-                    // AS3 `Box.command("unlock")` clears the door's lock so the player may open it. The
-                    // port keeps a lock as `hasLockValue` + `lockValue` on the runtime state — the pair
-                    // the save format already round-trips (RoomStateSnapshot.cs:935-937).
+                    // AS3 `Interact.command("unlock")` (:1709-1717):
+                    //     this.active = true;
+                    //     this.setAct("mine",101);
+                    //     this.setAct("lock",101);
+                    //     this.update();
+                    //     this.shine();
+                    // i.e. the script clears the object's MINE and LOCK outright — no roll, no key,
+                    // no lockTip consult — and flashes the "unlock" emitter over it. This is the only
+                    // way through `rooms_begin/room_2_0`'s `begDoor` (door3, locktip="0", no key
+                    // authored anywhere): the trigger area at (17,15) runs the `beginMtn` cutscene
+                    // whose second-to-last action is `<s act="unlock" targ="begDoor"/>`
+                    // (GameData.as:1202-1216). A key-only door the player cannot open by hand and
+                    // whose scripted unlock is a no-op is a bricked exit.
                     //
-                    // `beginMtn` is the caller that needs this: it unlocks `begDoor` at the end of the
-                    // checkpoint cutscene so the player can leave the catacombs.
-                    //
-                    // Note the read side is not written yet: nothing in the port consults `hasLockValue`
-                    // before opening a door, so the *state* is now correct and the *gate* is still to
-                    // come. Setting it is not a no-op — the state is saved, and the gate is a separate
-                    // change on the interact path.
+                    // `lock` has NO Interact.command branch in the oracle — it is a port-side command
+                    // kept for symmetry with the legacy flag, and it writes the flag only.
                     for (int i = 0; i < targets.Count; i++)
                     {
                         ObjectInstance target = targets[i];
@@ -620,7 +660,30 @@ namespace PFE.Systems.Map.Scripting
                         }
                         else
                         {
+                            // The legacy flag the save format already round-trips…
                             target.runtimeState.hasLockValue = false;
+
+                            // …and the security profile the interact gate ACTUALLY reads. This is the
+                            // half that was missing: `SecurityGate.IsLocked` consults the profile on
+                            // the runtime state, so a scripted unlock that wrote only the flag left
+                            // the door locked at the gate — the state was correct and the door stayed
+                            // shut. `ApplyUnlocked` is setAct("lock",101) + setAct("mine",101): the
+                            // lock zeroes, the save records 101, and a signal mine on the same object
+                            // disarms with it, exactly as the oracle's command does.
+                            SecurityProfile profile = SecurityRuntime.ProfileFor(target, room);
+                            if (profile != null)
+                            {
+                                SecurityRules.ApplyUnlocked(profile);
+                                SecurityRuntime.Commit(target, profile);
+                            }
+
+                            // AS3's `shine()` — Emitter.emit("unlock", loc, X, Y - scY/2) with ten
+                            // particles spread over the object's box (Interact.as:1678-1686, called
+                            // from `command("unlock")` at :1717). The port has the art
+                            // (Art/Particles/flUnlock) and the emitter, so this is the real flash,
+                            // not a log line: see ObjectShineEmitter for the anchor and the one
+                            // measured divergence (authored extent vs the oracle's vis.width).
+                            ObjectShineEmitter.Emit(_particles, room, target);
                         }
 
                         OnObjectStateChanged?.Invoke(target);
@@ -651,6 +714,18 @@ namespace PFE.Systems.Map.Scripting
         public void SetUnitHost(IUnitCommandHost unitHost)
         {
             _unitHost = unitHost;
+        }
+
+        /// <summary>
+        /// Hands this room's particle emitter over, for AS3 <c>Interact.shine()</c>. Called by
+        /// <c>RoomVisualController</c> from both places it can learn the adapter exists — the adapter
+        /// can arrive after the first room is built, and a shine that silently skipped the opening
+        /// room is the failure mode this push avoids. A second call replaces the emitter, which is what
+        /// a room rebuild does.
+        /// </summary>
+        public void SetParticleEmitter(PFE.Systems.Particles.Adapters.RoomParticleEmitter emitter)
+        {
+            _particles = emitter;
         }
 
         /// <summary>
@@ -841,6 +916,10 @@ namespace PFE.Systems.Map.Scripting
                     // non-explosive arm). Resolved per call rather than held, because the registry is
                     // replaced wholesale on every land build — see RoomTransitionManager.ProbSessions.
                     CheckProbRoom = CheckProbRoomFor,
+                    // AS3 `Interact.shine()` (Interact.as:1678-1686) — the ten-particle "unlock"
+                    // sparkle the `hack` and `unlock` verbs both end with (:1709, :1717). This delegate
+                    // had no binder at all, so both verbs ran their state changes and flashed nothing.
+                    Shine = (room, obj) => ObjectShineEmitter.Emit(_particles, room, obj),
                 });
         }
 
@@ -910,6 +989,13 @@ namespace PFE.Systems.Map.Scripting
                 }
             }
 
+            // The chain mirror (bullet/round collision) is built from this grid and refreshed only
+            // from `RoomInstance.TilesMutated` — so writing `physicsType` above without saying so left
+            // it describing the door's OPPOSITE state. `DoorPropPresenter.SetOpen` has always
+            // notified; this, the script/Lua path, did not, so a door a script opened still stopped
+            // rounds at a phantom surface in the doorway. Same one-line contract, both paths.
+            room.NotifyTilesMutated(new RectInt(txMin, tyMin, txMax - txMin + 1, tyMax - tyMin + 1));
+
             // AS3 `Box.setDoor()` force-relights the room when the door is *opened* — and only then:
             // `if(param1) { loc.isRelight = true; loc.isRebuild = true; }` (Box.as:688-692, param1 =
             // the new open state). The room's per-frame gate (Location.as:3398) then runs the full
@@ -919,6 +1005,10 @@ namespace PFE.Systems.Map.Scripting
             // (ExecuteAction "open"/"close" above, and LuaTriggerBridge); DoorPropPresenter is the
             // same port for the player-interact path and requests it in SetOpen. Both must, or a door
             // a script opens leaves the room behind it dark until the player happens to move.
+            //
+            // The relight is now already raised by NotifyTilesMutated above (which calls
+            // RequestRelight unconditionally, matching SetOpen's "both directions" reasoning), so this
+            // is kept only as the documented statement of intent — it is idempotent, not a second pass.
             if (isOpen)
             {
                 room.RequestRelight();

@@ -5,6 +5,7 @@ using PFE.Data.Definitions;
 using PFE.Systems.Interaction;
 using PFE.Systems.Inventory;
 using PFE.Systems.Loot;
+using PFE.Systems.Security;
 using UnityEngine;
 
 namespace PFE.Systems.Map.Rendering
@@ -32,7 +33,7 @@ namespace PFE.Systems.Map.Rendering
     /// have.</para>
     /// </summary>
     [RequireComponent(typeof(BoxCollider2D))]
-    public sealed class ContainerPropPresenter : MonoBehaviour, IInteractable, IHoldInteractable, IInteractableName
+    public sealed class ContainerPropPresenter : MonoBehaviour, IInteractable, IHoldInteractable, IInteractableName, ISecurityObject
     {
         /// <summary>How close the player must be — AS3 <c>World.w.actionDist</c>, shared with the
         /// player's own target search so the two cannot disagree.</summary>
@@ -80,8 +81,24 @@ namespace PFE.Systems.Map.Rendering
         /// The HUD prompt. "Open" while there is something to open, empty once looted — AS3
         /// <c>update()</c> (<c>Interact.as:672</c>, <c>:777-780</c>). The "empty" state string is a
         /// separate presentation concern (D12), not this label.
+        ///
+        /// <para><b>A locked container says so.</b> AS3 writes <c>actionText</c> from
+        /// <c>lock</c>/<c>lockTip</c> before it ever reaches the open/close branch
+        /// (<c>Interact.as:732-776</c>), so a safe reads "Pick lock" and a mined crate reads "Defuse".
+        /// Leaving this as "Open" would let the player press and watch nothing happen.</para>
         /// </summary>
-        public string ActionText => Admits(IsContainer, IsLooted) ? "Open" : string.Empty;
+        public string ActionText
+        {
+            get
+            {
+                if (!Admits(IsContainer, IsLooted)) return string.Empty;
+
+                string locked = SecurityGate.Prompt(_objectInstance, _room, null);
+                if (locked != null) return locked;
+
+                return "Open";
+            }
+        }
 
         /// <summary>
         /// The container's display name — AS3 <c>celObj.nazv</c>, the first line of the world-anchored
@@ -102,8 +119,19 @@ namespace PFE.Systems.Map.Rendering
         }
 
         /// <summary>Frames the action key must be held — AS3 <c>Interact.t_action</c>, authored as
-        /// <c>time</c>. Almost every container authors none, so this is 0 and it acts on the press.</summary>
-        public int HoldFrames => _objectInstance != null ? _objectInstance.GetHoldFrames() : 0;
+        /// <c>time</c>. Almost every container authors none, so this is 0 and it acts on the press.
+        ///
+        /// <para><b>A locked container always has a hold.</b> AS3 adds the pick duration to the authored
+        /// one (<c>UnitPlayer.as:1976</c>), so a safe with no <c>time</c> still takes a full second per
+        /// attempt. See <c>DoorPropPresenter.HoldFrames</c> for the same reasoning.</para></summary>
+        public int HoldFrames
+        {
+            get
+            {
+                int authored = _objectInstance != null ? _objectInstance.GetHoldFrames() : 0;
+                return authored + SecurityGate.ExtraHoldFrames(_objectInstance, _room);
+            }
+        }
 
         /// <summary>The container's own world position — the hold's range guard and the eject origin.</summary>
         public Vector3 WorldPosition => transform.position;
@@ -160,6 +188,15 @@ namespace PFE.Systems.Map.Rendering
             // double the loot.
             if (Time.frameCount == _lastInteractFrame) return;
             _lastInteractFrame = Time.frameCount;
+
+            // The lock before the loot — AS3's act() resolves mine, then lock, and only then reaches
+            // actOsn() → loot() (Interact.as:911-1244, :1285-1288). A failed pick must not spill the
+            // contents, which is the one thing this ordering guarantees.
+            SecurityGateOutcome security = SecurityGate.TryWork(user, _objectInstance, _room);
+            if (security == SecurityGateOutcome.Handled)
+            {
+                return;
+            }
 
             LootContext ctx = LootRuntime.CreateContext(ResolvedCont);
             if (ctx == null)

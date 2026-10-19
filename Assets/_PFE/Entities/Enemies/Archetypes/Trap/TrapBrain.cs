@@ -40,6 +40,41 @@ namespace PFE.Entities.Enemies.Archetypes
         public TrapKind Kind { get => _kind; set => _kind = value; }
         public bool IsArmed { get => _isArmed; set => _isArmed = value; }
 
+        /// <summary>
+        /// This emplacement has been <b>switched off by a hacked robot terminal</b> — AS3
+        /// <c>UnitTurret.sleep</c> (<c>UnitTurret.as:389</c>, set by <c>hack(0)</c>).
+        ///
+        /// <para><b>Why a separate flag from <see cref="IsArmed"/>.</b> <c>IsArmed</c> is the
+        /// bear-trap/trigger latch — a trap that has already sprung. <c>sleep</c> is a turret that is
+        /// <i>deliberately</i> inert and can be brought back by a second hack
+        /// (<c>UnitTurret.as:394-406</c>). Overloading one flag would make a hacked-off turret
+        /// indistinguishable from a spent bear trap, and the two are re-armed differently.</para>
+        ///
+        /// <para><b>It gates perception as well as firing.</b> AS3's <c>control()</c> opens with
+        /// <c>if(World.w.enemyAct &lt;= 0 || this.sleep) return;</c> (<c>UnitTurret.as:572</c>) — before
+        /// the cadence-gated <c>findCel()</c> — so a sleeping turret never acquires a target. Gating
+        /// only the shot would leave it tracking the player with its barrel, which reads as "not
+        /// hacked".</para>
+        /// </summary>
+        public bool Disabled
+        {
+            get => _disabled;
+            set
+            {
+                _disabled = value;
+                if (!value) return;
+
+                if (_blackboard != null)
+                {
+                    _blackboard.TargetUnit = null;
+                }
+
+                SetState(EnemyAIState.Idle);
+            }
+        }
+
+        [SerializeField] protected bool _disabled;
+
         protected override bool StopsToAttack => false;
 
         /// <summary>
@@ -171,6 +206,24 @@ namespace PFE.Entities.Enemies.Archetypes
             // called here exactly as the live path's own tail calls it.
             if (EnemyActivity.IsFrozen)
             {
+                TickWeapons();
+                return;
+            }
+
+            // ── A hacked-off turret ────────────────────────────────────────────────────────────────
+            //
+            // AS3 `if(World.w.enemyAct <= 0 || this.sleep) return;` (UnitTurret.as:572) — the return is
+            // from control() only, so the mount keeps advancing and the sprite keeps drawing. That is
+            // why TickWeapons() still runs and why the trigger is released explicitly: a turret that
+            // was firing when it was hacked must stop, not finish its burst.
+            if (_disabled)
+            {
+                if (_controller is TurretController hackedTurret && hackedTurret.TurretWeaponMount != null)
+                {
+                    hackedTurret.TurretWeaponMount.SetFiring(false);
+                }
+
+                StopMovement();
                 TickWeapons();
                 return;
             }

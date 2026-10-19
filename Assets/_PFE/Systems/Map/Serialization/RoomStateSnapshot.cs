@@ -942,6 +942,22 @@ namespace PFE.Systems.Map.Serialization
         public int difficultyState;
         public bool hasSignState;
         public int signState;
+
+        // Security state — see MapObjectRuntimeStateData's block. Saved because the profile is
+        // randomised at build time (Interact.as:505-516) and a reload that re-rolled it would hand the
+        // player a different lock than the one they were working.
+        public bool hasSecurityState;
+        public int securityLock;
+        public int securitySaveLock;
+        public int securityLockLevel;
+        public int securityLockTip;
+        public float securityLockHp;
+        public float securityLockAtt;
+        public int securityMine;
+        public int securityMineTip;
+        public bool securityHackable;
+        public int securityAllDif;
+
         public MapObjectDynamicStateSnapshot dynamicState;
 
         public static MapObjectRuntimeStateSnapshot CreateFrom(MapObjectRuntimeStateData state)
@@ -963,6 +979,17 @@ namespace PFE.Systems.Map.Serialization
                 difficultyState = state.difficultyState,
                 hasSignState = state.hasSignState,
                 signState = state.signState,
+                hasSecurityState = state.hasSecurityState,
+                securityLock = state.securityLock,
+                securitySaveLock = state.securitySaveLock,
+                securityLockLevel = state.securityLockLevel,
+                securityLockTip = state.securityLockTip,
+                securityLockHp = state.securityLockHp,
+                securityLockAtt = state.securityLockAtt,
+                securityMine = state.securityMine,
+                securityMineTip = state.securityMineTip,
+                securityHackable = state.securityHackable,
+                securityAllDif = state.securityAllDif,
                 dynamicState = MapObjectDynamicStateSnapshot.CreateFrom(state.dynamicState)
             };
         }
@@ -985,6 +1012,17 @@ namespace PFE.Systems.Map.Serialization
                 difficultyState = difficultyState,
                 hasSignState = hasSignState,
                 signState = signState,
+                hasSecurityState = hasSecurityState,
+                securityLock = securityLock,
+                securitySaveLock = securitySaveLock,
+                securityLockLevel = securityLockLevel,
+                securityLockTip = securityLockTip,
+                securityLockHp = securityLockHp,
+                securityLockAtt = securityLockAtt,
+                securityMine = securityMine,
+                securityMineTip = securityMineTip,
+                securityHackable = securityHackable,
+                securityAllDif = securityAllDif,
                 dynamicState = dynamicState?.ToDynamicState() ?? new MapObjectDynamicStateData()
             };
         }

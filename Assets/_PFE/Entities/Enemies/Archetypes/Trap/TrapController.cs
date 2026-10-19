@@ -62,6 +62,58 @@ namespace PFE.Entities.Enemies.Archetypes
         }
 
         /// <summary>
+        /// AS3 <c>UnitTurret.hack(param1)</c> (<c>UnitTurret.as:385-414</c>) — the mount is the only
+        /// unit in the game that answers a <c>hack_robot</c> terminal.
+        ///
+        /// <para><b>Three arms, and the difference between them is who the turret shoots.</b>
+        /// <c>0</c> shuts it down (<c>sleep = true</c>, aim forced to <c>π/2</c>, no target search);
+        /// <c>1</c> and <c>2</c> both hand it to the player (<c>fraction = F_PLAYER</c>) — <c>1</c>
+        /// additionally resets the AI cadence and pays the turret's XP to the player, which is why it is
+        /// the arm a security perk reaches. <c>warn = 0</c> at the end of all three.</para>
+        ///
+        /// <para><b>Not ported: the <c>π/2</c> barrel rotation and <c>findCel = false</c>.</b> Both are
+        /// presentation/aim state that <see cref="TrapBrain.Disabled"/> already produces the visible
+        /// effect of — no acquisition, no firing — and forcing the mount's rotation would fight the
+        /// aim the brain republishes every tick. The XP payout on arm 1 is also skipped: the port's
+        /// <c>loc.takeXP</c> has no equivalent call site here, and paying XP for a hack would need the
+        /// award pipeline wired through the campaign.</para>
+        /// </summary>
+        public override void Hack(int mode = 0)
+        {
+            base.Hack(mode);
+
+            TrapBrain trap = Brain;
+            if (trap != null)
+            {
+                switch (mode)
+                {
+                    case 0:
+                        trap.IsArmed = false;
+                        trap.Disabled = true;
+                        break;
+
+                    case 1:
+                    case 2:
+                        trap.Disabled = false;
+                        trap.IsArmed = true;
+                        SetRuntimeFaction(FactionType.Player);
+                        break;
+                }
+            }
+            else
+            {
+                // No brain (a definition-less test spawn): the faction is the only observable part.
+                if (mode == 1 || mode == 2)
+                {
+                    SetRuntimeFaction(FactionType.Player);
+                }
+            }
+
+            Debug.Log($"[Turret] '{name}' hacked with mode {mode} " +
+                      $"({(mode == 0 ? "shut down" : "reprogrammed to the player")}).");
+        }
+
+        /// <summary>
         /// AS3 <c>UnitTurret</c>'s constructor order: the weapon is built inside the constructor,
         /// which is before <c>putLoc</c> and therefore before the placement's own attributes are read
         /// for anything else. The port's equivalent moment is <see cref="Initialize"/> (where

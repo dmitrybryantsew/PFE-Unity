@@ -629,6 +629,19 @@ namespace PFE.Entities.Enemies
             // Evaluate sensory perception
             Vector2 eyePosPx = GetEyePositionPixels();
             _sensors.Evaluate(_blackboard, eyePosPx, _blackboard.FacingDirection, _tileQuery, _targetCandidates, tickIndex, rayOriginPx);
+
+            // ── A sighting is what calls for help ─────────────────────────────────────────────────
+            //
+            // AS3 starts the unit's authored `alarm="…"` script the first time `findCel()` commits a
+            // target (UnitRaider.as:800-806), and those scripts are `<s act="alarm"/>` →
+            // `World.w.loc.signal()` (Script.as:480-483). The port does not bind per-unit alarm
+            // scripts, so the room alarm is raised from the same moment, through the one gate that
+            // makes it a design decision rather than a tax: the room must still have an armed alarm
+            // panel. See SecurityRuntime.NotifySighting.
+            if (_blackboard.TargetUnit != null)
+            {
+                PFE.Systems.Security.SecurityRuntime.NotifySighting(_controller, _blackboard.TargetUnit);
+            }
         }
 
         /// <summary>

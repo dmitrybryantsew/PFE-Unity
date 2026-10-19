@@ -340,6 +340,11 @@ namespace PFE.Systems.Map.Rendering
             // effects would never draw while every later room's would — a difference that looks like a
             // room-specific bug rather than a missed handover.
             roomUnitSpawner?.SetParticleEmitter(emitter);
+
+            // And the same handover for the scripted unlock's `shine()` (Interact.as:1678-1686): the
+            // trigger layer is built before this adapter exists, so without this push the begDoor
+            // cutscene's unlock in the opening room would flash nothing while later rooms worked.
+            areaTriggerSystem?.SetParticleEmitter(emitter);
         }
 
         /// <summary>
@@ -705,6 +710,12 @@ namespace PFE.Systems.Map.Rendering
             // AFTER RefreshAll, because the host answers against the spawned GameObjects: a handover
             // before the units exist would resolve `surfCalam` to a record with no controller behind it.
             areaTriggerSystem.SetUnitHost(roomUnitSpawner);
+
+            // ...and the particle adapter, for the `shine()` that ends a scripted unlock
+            // (Interact.as:1678-1686). Pushed here as well as in SetParticleAdapters because the two
+            // orderings are both real: the adapter may arrive first (this path) or the room may be
+            // built first (that one).
+            areaTriggerSystem.SetParticleEmitter(particleEmitter);
 
             // ...and the same table, handed the other way, so a DIALOGUE script can resolve `@targ`.
             //

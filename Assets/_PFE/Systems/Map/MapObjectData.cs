@@ -157,6 +157,53 @@ namespace PFE.Systems.Map
         public int difficultyState;
         public bool hasSignState;
         public int signState;
+
+        // ── Security (locks, mines, hacking) ────────────────────────────────────────────────────
+        //
+        // The resolved `Interact` state of this object — AS3 saves exactly these fields
+        // (`Interact.as:599-609`: `lock`, `lockLevel`, `mine`, `dif`, plus `open`/`loot`/`expl` which
+        // already live above). They are resolved ONCE because the constructor randomises the
+        // difficulty (`:505-516`), so re-deriving them per room rebuild would hand the same door a
+        // different lock every time the player walked away.
+        //
+        // `hasSecurityState` is the latch: false means "not resolved yet". A field default of 0 is not
+        // a safe sentinel here, because `lock == 0` is a legitimate answer (an unlocked box).
+
+        /// <summary>True once <see cref="PFE.Systems.Security.SecurityRules.Build"/> has run for this
+        /// object. Never cleared except by an explicit re-roll.</summary>
+        public bool hasSecurityState;
+
+        /// <summary><c>lock</c> — the difficulty. 0 = unlocked, &gt;= 100 = seized.</summary>
+        public int securityLock;
+
+        /// <summary><c>saveLock</c> — 101 unlocked, 102 seized, otherwise the difficulty.</summary>
+        public int securitySaveLock;
+
+        /// <summary><c>locklevel</c> — the quality tier gated by the actor's master skill.</summary>
+        public int securityLockLevel;
+
+        /// <summary><c>locktip</c> — which verb the lock answers to (see
+        /// <see cref="PFE.Systems.Security.SecurityLockTip"/>).</summary>
+        public int securityLockTip = 1;
+
+        /// <summary><c>lockhp</c> — the damage pool that failure drains. Emptying it SEIZES the lock.</summary>
+        public float securityLockHp = 10f;
+
+        /// <summary><c>lockatt</c> — the terminal attempt counter. <b>-100 means unset</b>, not zero.</summary>
+        public float securityLockAtt = -100f;
+
+        /// <summary><c>mine</c> — a trap on the object, resolved before the lock.</summary>
+        public int securityMine;
+
+        /// <summary><c>minetip</c> — 6 means "signal": a failed defusal raises the alarm.</summary>
+        public int securityMineTip = 3;
+
+        /// <summary><c>hack</c> &gt; 0 — the object can be cleared by a <c>hack_lock</c> terminal.</summary>
+        public bool securityHackable;
+
+        /// <summary><c>allDif</c> — the derived difficulty score AS3 saves for the UI.</summary>
+        public int securityAllDif = -1;
+
         public MapObjectDynamicStateData dynamicState = new MapObjectDynamicStateData();
 
         public void InitializeFromAttributes(List<MapObjectAttributeData> attributes)
