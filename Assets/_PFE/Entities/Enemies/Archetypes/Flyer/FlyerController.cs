@@ -113,7 +113,11 @@ namespace PFE.Entities.Enemies.Archetypes
 
         public override void TakeDamage(float damage)
         {
-            if (damage > 0f)
+            // `IsAlive` in the condition, not just `damage > 0`: the phoenix's one-shot kill is the
+            // LIVING behaviour. A hit on its corpse has to fall through to the base class, or the
+            // body would be immune to damage forever (this override calls RaiseDeath instead of
+            // applying damage, and RaiseDeath is latched once per death).
+            if (damage > 0f && IsAlive)
             {
                 if (_unitStats != null)
                 {
@@ -127,7 +131,7 @@ namespace PFE.Entities.Enemies.Archetypes
 
         public override bool ApplyDamage(in PFE.Systems.Combat.DamageOutcome outcome)
         {
-            if (outcome.HpDamage > 0f)
+            if (outcome.HpDamage > 0f && IsAlive)
             {
                 if (_unitStats != null)
                 {

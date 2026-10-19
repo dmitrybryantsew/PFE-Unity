@@ -1434,7 +1434,12 @@ namespace PFE.Entities.Weapons
             bool evaded      = false;
             bool soundPlayed = false;
 
-            if (damageable != null && damageable.IsAlive)
+            // `CanBeHit`, not `IsAlive`. The oracle's bullet loop skips `sost == 4` only
+            // (`weapon/Bullet.as:513`), so a corpse — `sost == 3` — is a normal target: the round
+            // damages it, and the penetration gate below decides whether it stops. Gating on
+            // `IsAlive` here skipped the damage AND the whole `_penetration` block, which is why a
+            // body ate infinite rounds and a penetrator stopped dead on it.
+            if (damageable != null && damageable.CanBeHit)
             {
                 // `impactPos`, not `other.transform.position`, is the bullet's own contact point — and
                 // the two are deliberately different arguments. The second is the TARGET's position and
@@ -1677,7 +1682,11 @@ namespace PFE.Entities.Weapons
                 if (hit.isTrigger) continue;
 
                 var damageable = hit.GetComponent<IDamageable>();
-                if (damageable != null && damageable.IsAlive)
+
+                // `CanBeHit` — AS3's blast loop tests `sost == 4` and nothing else (`Bullet.as:756`,
+                // `:809`), so a blast damages a body exactly as it damages a live unit. See
+                // HandleImpact for the corpse story.
+                if (damageable != null && damageable.CanBeHit)
                 {
                     if (_hasDamageContext && _damageSystem != null)
                     {

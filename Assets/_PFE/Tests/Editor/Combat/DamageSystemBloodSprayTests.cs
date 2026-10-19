@@ -252,6 +252,9 @@ namespace PFE.Tests.Editor.Combat
 
             public float CurrentHealth => Health;
             public bool IsAlive => Health > 0f;
+
+            /// <summary>No corpse state on a double; see <see cref="IDamageable.CanBeHit"/>.</summary>
+            public bool CanBeHit => IsAlive;
         }
 
         /// <summary>

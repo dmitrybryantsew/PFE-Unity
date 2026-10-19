@@ -1051,7 +1051,10 @@ namespace PFE.Entities.Weapons
                     if (hit.isTrigger) continue;
 
                     var damageable = hit.GetComponent<IDamageable>();
-                    if (damageable == null || !damageable.IsAlive) continue;
+                    // `CanBeHit` — AS3's blast loop tests `sost == 4` only (`Bullet.as:756`, `:809`),
+                    // so a grenade damages a body the same way a bullet does. See
+                    // docs/AUDIT_corpse_damage_and_piercing_2026-10-18.md.
+                    if (damageable == null || !damageable.CanBeHit) continue;
 
                     if (_hasDamageContext && _damageSystem != null)
                     {

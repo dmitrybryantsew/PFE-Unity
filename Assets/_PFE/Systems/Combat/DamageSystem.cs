@@ -221,9 +221,15 @@ namespace PFE.Systems.Combat
             // Liveness is checked here as well as at the drain, and the two checks exist for different
             // reasons. This one keeps a roll from being spent on a target that is already gone: the
             // oracle tests `sost == 4 || disabled` before it calls `udarBullet` at all
-            // (`weapon/Bullet.as:504`), so a corpse consumes no random number. The drain-time check
-            // catches a target that an earlier hit in the same drain killed.
-            if (IsGone(target) || !target.IsAlive)
+            // (`weapon/Bullet.as:513`). The drain-time check catches a target that an earlier hit in
+            // the same drain killed.
+            //
+            // `CanBeHit`, NOT `IsAlive`. The oracle's gate is `sost == 4` — "removed" — and a corpse
+            // is `sost == 3`, which passes it and DOES get `udarBullet` called on it, avoidance roll
+            // and all. This used to read `!IsAlive`, which is `sost >= 3`; that one-word difference is
+            // why a body absorbed infinite rounds and could never be shot apart. See
+            // docs/AUDIT_corpse_damage_and_piercing_2026-10-18.md.
+            if (IsGone(target) || !target.CanBeHit)
             {
                 SkippedCount++;
                 return DamageVerdict.Ignored;
@@ -359,8 +365,10 @@ namespace PFE.Systems.Combat
             IDamageable target = hit.Target;
 
             // Re-checked at drain time, not just at report time: an earlier hit in this same drain may
-            // have killed it, and the GameObject may be gone entirely.
-            if (IsGone(target) || !target.IsAlive)
+            // have killed it, and the GameObject may be gone entirely. `CanBeHit`, for the same reason
+            // as the report-time check above — a body killed by the previous hit in this drain is still
+            // a legal target, and the oracle keeps damaging it.
+            if (IsGone(target) || !target.CanBeHit)
             {
                 SkippedCount++;
                 return DamageVerdict.Ignored;
@@ -546,18 +554,29 @@ namespace PFE.Systems.Combat
             // `Math.random()` and it is argued on EmitBloodSpray.
             EmitBloodSpray(hit, target, outcome);
 
-            _publisher?.Publish(new DamageDealtMessage
-            {
-                damage = outcome.HpDamage,
-                position = hit.ImpactPosition,
-                isCritical = outcome.IsCritical,
-                // Reached only past the avoidance roll above, so a published hit genuinely landed.
-                isMiss = false,
-            });
+            // AS3 gates the floating number on `showNumbs`, and that gate includes the unit's state:
+            // `_loc6_ = (this.sost == 1 || this.sost == 2) && this.showNumbs && param1 > 0.5`
+            // (`Unit.as:3683`). A corpse is `sost == 3`, so it takes the damage and throws the blood
+            // but prints no number. Both feeds below are number feeds — `FloatingTextManager`
+            // subscribes to the message and `DamageEventFeed` is read by the overlay — so both are
+            // gated together rather than leaving one of them printing on a body.
+            bool showsDamageNumber = target.IsAlive;
 
-            // See the miss path above for why this is unconditional rather than gated on the channel.
-            DamageEventFeed.Default.Report(
-                hit.ImpactPosition, outcome.HpDamage, outcome.IsCritical, isMiss: false);
+            if (showsDamageNumber)
+            {
+                _publisher?.Publish(new DamageDealtMessage
+                {
+                    damage = outcome.HpDamage,
+                    position = hit.ImpactPosition,
+                    isCritical = outcome.IsCritical,
+                    // Reached only past the avoidance roll above, so a published hit genuinely landed.
+                    isMiss = false,
+                });
+
+                // See the miss path above for why this is unconditional rather than gated on the channel.
+                DamageEventFeed.Default.Report(
+                    hit.ImpactPosition, outcome.HpDamage, outcome.IsCritical, isMiss: false);
+            }
 
             // Last, and the position is load-bearing: AS3 runs `otbros()` after `this.damage()`
             // (`Unit.as:4090-4091`), so this draw has to follow the armour and crit draws. Taking it any

@@ -960,7 +960,11 @@ namespace PFE.Entities.Weapons
                     if (hit.isTrigger) continue;
 
                     var damageable = hit.GetComponent<IDamageable>();
-                    if (damageable == null || !damageable.IsAlive) continue;
+                    // `CanBeHit` — a mine blast damages a corpse, like every other blast: AS3's
+                    // `explGas` tests `sost == 4` only (`Bullet.as:756`). Note this is the BLAST
+                    // loop, not the trigger check above it, which correctly refuses to arm on a
+                    // corpse (`_loc1_.sost == 3`).
+                    if (damageable == null || !damageable.CanBeHit) continue;
                     if (ReferenceEquals(damageable, this)) continue;
 
                     if (_hasDamageContext && _damageSystem != null)
@@ -1196,6 +1200,13 @@ namespace PFE.Entities.Weapons
         public float CurrentHealth => _hp;
         public float MaxHealth     => _maxHp > 0f ? _maxHp : 1f;
         public bool  IsAlive       => !_detonated && _hp > 0f;
+
+        /// <summary>
+        /// A mine has no corpse state — it is destroyed, not killed — so "may be hit" and "is alive"
+        /// are the same question here. See <see cref="IDamageable.CanBeHit"/> for the one target that
+        /// answers them differently.
+        /// </summary>
+        public bool  CanBeHit      => IsAlive;
 
         /// <summary>
         /// Raw HP subtraction, bypassing armour — used by the no-resolver fallback in

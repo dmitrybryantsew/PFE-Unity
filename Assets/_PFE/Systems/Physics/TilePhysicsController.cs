@@ -836,6 +836,12 @@ namespace PFE.Systems.Physics
             // the contact-invulnerability call above it: the motor runs the unit's per-frame actions.
             Unit?.TickEffects();
 
+            // ...and the corpse dissolve, which AS3 runs in the same block of `Unit.step` as the
+            // effect loop (`:1836-1843`). A motor-driven unit never reaches
+            // `UnitController.StepUnit`, so leaving this out would freeze every spawned enemy's body
+            // mid-dissolve — the same trap TickEffects/TickNoise/TickStealth document above.
+            Unit?.TickCorpse();
+
             // ...and the acoustic half of the same frame, for the same reason. The motor is where the
             // authoritative grounded flag and the AS3 px/frame velocity live, so it passes its own —
             // UnitController.TickNoise takes them as parameters rather than reaching back for a motor

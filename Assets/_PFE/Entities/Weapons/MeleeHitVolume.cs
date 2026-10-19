@@ -311,7 +311,10 @@ namespace PFE.Entities.Weapons
             if (!_isActive || other.isTrigger) return;
 
             var damageable = other.GetComponent<IDamageable>();
-            if (damageable == null || !damageable.IsAlive) return;
+            // `CanBeHit` — AS3's contact attack reaches `Unit.udarUnit` (`:4125`) with no state test
+            // at all, so a blade damages a corpse exactly as it damages a live unit. `IsAlive` here
+            // made corpses immune to melee while bullets were merely stopped by them.
+            if (damageable == null || !damageable.CanBeHit) return;
 
             ResolveOwner();
 

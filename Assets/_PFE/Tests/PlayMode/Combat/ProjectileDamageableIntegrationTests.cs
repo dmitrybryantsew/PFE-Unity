@@ -370,6 +370,9 @@ namespace PFE.Tests.PlayMode.Combat
             public float CurrentHealth => _health;
             public float MaxHealth => 100f;
             public bool IsAlive => _health > 0;
+
+            /// <summary>No corpse state on a double; see <see cref="IDamageable.CanBeHit"/>.</summary>
+            public bool CanBeHit => IsAlive;
         }
     }
 }

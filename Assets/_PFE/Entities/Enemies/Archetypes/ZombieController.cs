@@ -65,6 +65,12 @@ namespace PFE.Entities.Enemies.Archetypes
         {
             if (!_canResurrect || IsAlive) return;
 
+            // AS3's timer only runs while the body still exists — `if(sost == 3 && isRes && t_res < 20)`
+            // (`UnitZombie.as:219`). A body the player shot apart is `sost == 4`, and a destroyed body
+            // cannot get up. Without this the corpse would dissolve and then stand back up out of
+            // nothing, which is the one outcome the state machine exists to prevent.
+            if (IsCorpseRemoved) return;
+
             _resurrectTimer--;
             if (_resurrectTimer <= 1)
             {
@@ -79,6 +85,12 @@ namespace PFE.Entities.Enemies.Archetypes
             {
                 _unitStats.CurrentHp.Value = _unitStats.MaxHp.Value;
             }
+
+            // AS3 sets `sost = 1` here. The port's corpse state owns the collider, the rigidbody and
+            // the renderer, so writing HP alone would leave an invisible, intangible unit that every
+            // damage source skips — see ReviveFromCorpse.
+            ReviveFromCorpse();
+
             if (_brain != null)
             {
                 _brain.SetState(EnemyAIState.Idle);

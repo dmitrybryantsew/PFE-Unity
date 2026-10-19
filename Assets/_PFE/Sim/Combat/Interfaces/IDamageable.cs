@@ -325,5 +325,31 @@ namespace PFE.Systems.Combat
         /// Projectiles should not damage dead entities.
         /// </summary>
         bool IsAlive { get; }
+
+        /// <summary>
+        /// Whether a hit may still be <b>resolved against</b> this target at all — AS3's
+        /// <c>sost != 4</c>, the only liveness test the oracle's bullet loop and blast loop make
+        /// (<c>weapon/Bullet.as:513</c>, <c>:756</c>, <c>:809</c>).
+        /// </summary>
+        /// <remarks>
+        /// <para><b>This exists because <see cref="IsAlive"/> was answering two different questions
+        /// and the difference is a corpse.</b> AS3's <c>sost</c> has four values — <c>1</c> alive,
+        /// <c>2</c> dying, <c>3</c> <i>corpse</i>, <c>4</c> removed — and the bullet only skips
+        /// <c>4</c>. A corpse is still in <c>loc.units</c>, still holds a full-size collision box,
+        /// still takes damage from every source, and keeps taking it until its unclamped
+        /// <c>hp</c> crosses <c>-maxhp * 2</c>, at which point it burns away or is removed
+        /// (<c>unit/Unit.as:4333-4367</c>).</para>
+        ///
+        /// <para>Every port gate that read <see cref="IsAlive"/> therefore read <c>sost &gt;= 3</c>
+        /// where the oracle reads <c>sost == 4</c>: a corpse absorbed infinite rounds, dealt none, and
+        /// — because the projectile's penetration branch sat inside that gate — a penetrator stopped
+        /// dead on it. <b>A source that wants "can this round interact with it" must ask this; one
+        /// that wants "is it a live creature" keeps asking <see cref="IsAlive"/>.</b> The two answers
+        /// differ for exactly one state, and that state is the whole point.</para>
+        ///
+        /// <para>Non-unit targets — mines, crates, test doubles — have no corpse state, so they answer
+        /// the same value as <see cref="IsAlive"/>.</para>
+        /// </remarks>
+        bool CanBeHit { get; }
     }
 }

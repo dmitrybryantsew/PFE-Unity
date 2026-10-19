@@ -27,6 +27,14 @@ public readonly ReactiveProperty<float> MaxHp;
 public readonly ReactiveProperty<float> Mana;
 public readonly ReactiveProperty<float> MaxMana;
 
+/// <summary>
+/// The part of AS3's <c>Unit.hp</c> that lives below zero — a corpse's remaining body. Written by
+/// <see cref="Damage"/>, paid back by <see cref="Heal"/>, and read through <see cref="Overkill"/>,
+/// which also clears it the moment the unit is alive again. See <see cref="Overkill"/> for why the
+/// accessor is the writer's partner here.
+/// </summary>
+private float _overkill;
+
 // === Combat Offense Stats ===
     // Critical Hit modifiers
     public float critChanceBonus = 0f;
@@ -327,15 +335,66 @@ public readonly ReactiveProperty<float> MaxMana;
     // === Methods ===
     public void Damage(float amount)
     {
+        // The half of AS3's `this.hp -= param1` that the clamp below throws away. `Unit.as:3699`
+        // subtracts from an unclamped number, and the corpse's destruction threshold reads that
+        // negative HP (`hp <= -maxhp * 2`, `:4333`). This port keeps `CurrentHp` at `[0, maxHp]`
+        // because the HUD and a dozen other readers depend on it, so the part below zero is
+        // accumulated here instead. See CorpseDamageMath for why the sum is equivalent.
+        _overkill += CorpseDamageMath.OverkillAdded(CurrentHp.Value, amount);
+
         float newHp = Mathf.Clamp(CurrentHp.Value - amount, 0, MaxHp.Value);
         CurrentHp.Value = newHp;
     }
 
     public void Heal(float amount)
     {
-        float newHp = Mathf.Clamp(CurrentHp.Value + amount, 0, MaxHp.Value);
+        // AS3's heal is `hp += param1` on the same unclamped field, so a heal first climbs back out of
+        // the negative HP a corpse accumulated before any of it reaches the bar.
+        float toHp = amount;
+        if (_overkill > 0f)
+        {
+            _overkill = CorpseDamageMath.OverkillAfterHeal(_overkill, amount, out toHp);
+        }
+
+        float newHp = Mathf.Clamp(CurrentHp.Value + toHp, 0, MaxHp.Value);
         CurrentHp.Value = newHp;
     }
+
+    /// <summary>
+    /// How far past zero this unit's health has been taken — the port's stand-in for AS3's negative
+    /// <c>Unit.hp</c>. Non-zero only for a corpse.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Reading this is what keeps a resurrection honest.</b> The oracle's <c>hp</c> is one
+    /// field: any write that lifts it above zero is also what ends the corpse, and several paths do
+    /// that without going through <see cref="Heal"/> — <c>BossController.OnDeath</c>'s second life
+    /// (<c>CurrentHp.Value = maxHp - 0.1</c>), <c>ZombieController.Resurrect</c>, the debug overlay's
+    /// "Full HP". A stale accumulator would leave a revived unit carrying overkill it had already
+    /// spent, so it would die-destroy sooner the second time. Clearing it whenever the HP is positive
+    /// makes every one of those writes correct without touching any of them.</para>
+    ///
+    /// <para>The getter therefore mutates. That is deliberate and it is the only place the rule can
+    /// live: the alternative is a `Reset()` call at each of the four writers, and the fifth writer
+    /// added later would silently miss it.</para>
+    /// </remarks>
+    public float Overkill
+    {
+        get
+        {
+            if (CurrentHp.Value > 0f)
+            {
+                _overkill = 0f;
+            }
+
+            return _overkill;
+        }
+    }
+
+    /// <summary>
+    /// AS3 <c>hp &lt;= -maxhp * 2</c> — this body has taken enough to be destroyed. See
+    /// <see cref="CorpseDamageMath.IsDestroyed"/>.
+    /// </summary>
+    public bool CorpseDestroyed => CorpseDamageMath.IsDestroyed(Overkill, MaxHp.Value);
 
     /// <summary>
     /// Project an equipped armour <b>item</b> into combat stats and remember it, so its condition can

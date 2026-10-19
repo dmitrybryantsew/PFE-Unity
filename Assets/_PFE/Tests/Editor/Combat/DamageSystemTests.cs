@@ -163,6 +163,12 @@ namespace PFE.Tests.Editor.Combat
 
             public float CurrentHealth => Health;
             public bool IsAlive => Health > 0f;
+
+            /// <summary>
+            /// A test double has no corpse state, so the two questions coincide. A unit answers them
+            /// differently — see <see cref="IDamageable.CanBeHit"/>.
+            /// </summary>
+            public bool CanBeHit => IsAlive;
         }
 
         private static DamageContext Context(

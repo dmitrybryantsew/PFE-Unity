@@ -234,6 +234,17 @@ namespace PFE.Entities.Units
         protected bool _lootDropped;
 
         /// <summary>
+        /// Whether <see cref="OnDeath"/> has already run for the death this unit is currently in.
+        ///
+        /// <para>AS3 reaches <c>die()</c> more than once per death — every hit on a corpse re-enters it
+        /// (<c>Unit.as:3713-3745</c>) — and guards the re-entry's <i>effects</i> individually
+        /// (<c>lootIsDrop</c> for the drop, <c>sost == 1</c> for the death rattle). The port has one
+        /// reaction (<see cref="OnDeath"/>) covering loot <i>and</i> XP, and only the loot half was
+        /// guarded, so this flag is the missing half. See <see cref="RaiseDeath"/>.</para>
+        /// </summary>
+        protected bool _deathRaised;
+
+        /// <summary>
         /// Whether this unit leaves loot when it dies. <c>true</c> for every unit in the world; the
         /// player overrides it to <c>false</c>.
         ///
@@ -487,6 +498,17 @@ namespace PFE.Entities.Units
         {
             _tileQuery = tileQuery;
         }
+
+        /// <summary>
+        /// The room this unit currently belongs to — AS3 <c>Unit.loc</c>, read through the tile query
+        /// the spawner handed over. <c>null</c> for a unit built without one (a bare test spawn).
+        ///
+        /// <para><b>Why a property rather than a field.</b> The room is not the unit's to own: it comes
+        /// in with <see cref="SetTileQuery"/>, changes when the unit is re-spawned into another room,
+        /// and is already reachable from the query. A second field would be a second answer that could
+        /// disagree — the failure shape this project keeps finding.</para>
+        /// </summary>
+        public RoomInstance Room => _tileQuery != null ? _tileQuery.Room : null;
 
         /// <summary>
         /// Hand this unit the room's prop physics layer — AS3's <c>loc.objs</c>, the list
@@ -915,6 +937,11 @@ namespace PFE.Entities.Units
             // body rather than on either driver, for exactly the reason described above: a driver-level
             // hook would put a burn on whichever clock that unit happens to use.
             TickEffects();
+
+            // ...and the corpse dissolve, which is the same block of AS3's `Unit.step` (`:1836-1843`:
+            // `if(burn == null) animate(); else { burn.step(); if(burn.vse) exterminate(); }`). Both
+            // drivers call it for the same reason they call TickEffects.
+            TickCorpse();
 
             // ...and the acoustic half, for the same reason. It runs BEFORE the move because AS3's noise
             // block sits in the unit's own frame alongside `actions()`'s other countdowns, reading the
@@ -2258,7 +2285,18 @@ namespace PFE.Entities.Units
             _placementWeapText = _placementWeapPresent
                 ? (placement.GetAttribute(UnitPlacementWeapon.AttributeName, string.Empty) ?? string.Empty)
                 : string.Empty;
+
+            // AS3 `Unit.create` -> the base constructor's `inter` — the Interact built from the placed
+            // node's own `<item>` children, which `Unit.dropLoot` opens with (`if(inter) inter.loot();`,
+            // Unit.as:4450-4455). Kept by reference rather than copied: the `UnitInstance` is the room's
+            // own record, it outlives the unit, and AS3's `inter` likewise holds the node.
+            _placementItems = placement.items;
         }
+
+        /// <summary>The placement's own <c>&lt;item&gt;</c> children, or <c>null</c>.</summary>
+        public List<MapObjectItemData> PlacementItems => _placementItems;
+
+        private List<MapObjectItemData> _placementItems;
 
         /// <summary>
         /// Whether this placement authored a <c>weap</c> attribute at all, regardless of its value —
@@ -2607,6 +2645,34 @@ namespace PFE.Entities.Units
             _instanceFaction ?? (_stats != null ? _stats.fraction : FactionType.Neutral);
 
         /// <summary>
+        /// Re-point this unit's faction at runtime — AS3's <c>fraction = Unit.F_PLAYER</c> inside
+        /// <c>UnitTurret.hack()</c> (<c>UnitTurret.as:401</c>, <c>:410</c>).
+        ///
+        /// <para><b>Writes the placement layer, never the definition.</b> <c>UnitDefinition</c> is a
+        /// ScriptableObject shared by every instance of the id, so writing the stat would reprogram
+        /// every turret in the project the moment one terminal is used. This is the same rule
+        /// <see cref="Faction"/> documents for the read side.</para>
+        /// </summary>
+        public void SetRuntimeFaction(FactionType faction)
+        {
+            _instanceFaction = faction;
+        }
+
+        /// <summary>
+        /// AS3 <c>Unit.hack(param1 = 0)</c> (<c>Unit.as:4298-4300</c>) — the base is an <b>empty
+        /// method</b>, so a hack terminal sweeping the room does nothing to an ordinary raider. Only
+        /// units that override it react; in the shipped game that is <c>UnitTurret</c>.
+        ///
+        /// <para><b>0 = shut down, 1 = reprogram to the player, 2 = reprogram silently.</b> The three
+        /// arms are <c>UnitTurret.as:385-414</c>. A <c>hack_robot</c> terminal passes
+        /// <c>World.w.pers.security</c>, so <c>Pers.security == 0</c> turns turrets <i>off</i> and a
+        /// security perk turns them <i>friendly</i> — the same verb, two very different outcomes.</para>
+        /// </summary>
+        public virtual void Hack(int mode = 0)
+        {
+        }
+
+        /// <summary>
         /// Whether this unit is player-controlled.
         /// Enemies don't degrade weapons, have different recoil, etc.
         /// </summary>
@@ -2619,21 +2685,35 @@ namespace PFE.Entities.Units
         /// Base implementation uses UnitStats if available.
         /// Subclasses can override for custom behavior (e.g., PlayerController).
         /// </summary>
+        /// <remarks>
+        /// <para><b>A dead unit is not a no-op — it is a corpse, and AS3 keeps damaging it.</b>
+        /// <c>Unit.damage()</c> has no <c>sost</c> guard (<c>Unit.as:3527-3995</c>), so a hit on a body
+        /// still runs the whole reduction block, still does <c>hp -= param1</c>, and still re-enters
+        /// <c>die()</c> (<c>:3713-3745</c>) — which is the mechanism that eventually destroys it. The
+        /// <see cref="IsAlive"/> branch below is the death transition; the corpse branch is the
+        /// <i>continuation</i> of the same field, and it must not run <see cref="RaiseDeath"/> again
+        /// (see <see cref="RaiseDeath"/>).</para>
+        /// </remarks>
         public virtual void TakeDamage(float damage)
         {
-            if (_unitStats != null)
-            {
-                _unitStats.Damage(damage);
-
-                // Handle death if applicable
-                if (!IsAlive)
-                {
-                    RaiseDeath();
-                }
-            }
-            else
+            if (_unitStats == null)
             {
                 Debug.LogWarning($"[{GetType().Name}] TakeDamage called but no UnitStats assigned!");
+                return;
+            }
+
+            if (!IsAlive)
+            {
+                ApplyCorpseDamage(damage);
+                return;
+            }
+
+            _unitStats.Damage(damage);
+
+            // Handle death if applicable
+            if (!IsAlive)
+            {
+                RaiseDeath();
             }
         }
 
@@ -2647,6 +2727,16 @@ namespace PFE.Entities.Units
             if (_unitStats == null)
             {
                 Debug.LogWarning($"[{GetType().Name}] ApplyDamage called but no UnitStats assigned!");
+                return false;
+            }
+
+            // A corpse has no armour integrity left to wear and no shield to spend — the oracle's
+            // armour pool was zeroed by `die()` (`Unit.as:4369`), and re-running the wear path here
+            // would write condition onto an item the body is no longer holding. Only the HP half
+            // applies, which is exactly what is left of AS3's `hp -= param1`.
+            if (!IsAlive)
+            {
+                ApplyCorpseDamage(outcome.HpDamage);
                 return false;
             }
 
@@ -2904,16 +2994,87 @@ namespace PFE.Entities.Units
         /// AS3 <c>sost &lt; 4</c> — the unit is still in the world and still drawn.
         /// </summary>
         /// <remarks>
-        /// <para><b>The port has no <c>sost</c>, so this is an approximation and it is one state
-        /// short.</b> AS3's <c>sost</c> is <c>1</c> alive, <c>3</c> dying, <c>4</c> removed, and a
-        /// <i>dying</i> unit still burns — <c>sost == 3</c> is inside the <c>&lt; 4</c> test. This port
-        /// has no dying state on the controller, so the closest available predicate is
-        /// <see cref="IsAlive"/>, which turns false the moment hp reaches 0. The observable difference
-        /// is a burning unit whose flame stops at death rather than at removal: a shorter flame, not a
-        /// wrong one. Recorded rather than hidden — the alternative was inventing a dying flag nothing
-        /// else in the port uses.</para>
+        /// <para><b>This used to be <c>=&gt; IsAlive</c>, and that was the corpse bug in one line.</b>
+        /// AS3's <c>sost</c> is <c>1</c> alive, <c>2</c> dying, <c>3</c> corpse, <c>4</c> removed, and a
+        /// corpse is inside the <c>&lt; 4</c> test: it is still in <c>loc.units</c>, still drawn, still
+        /// solid and still takes damage. Collapsing <c>3</c> and <c>4</c> into "not alive" is what made
+        /// a body absorb infinite rounds and stop a penetrator. See <see cref="CorpseState"/>.</para>
         /// </remarks>
-        public virtual bool IsInWorld => IsAlive;
+        public virtual bool IsInWorld => IsAlive || IsCorpse;
+
+        /// <summary>
+        /// Whether this unit is a body rather than a live creature — AS3 <c>sost == 3</c>.
+        /// </summary>
+        public bool IsCorpse =>
+            _corpseState == CorpseState.Corpse || _corpseState == CorpseState.Dissolving;
+
+        /// <summary>
+        /// Whether the body has been taken out of the world — AS3 <c>sost == 4</c>. A resurrecting
+        /// zombie must check this: AS3 only counts its timer down while the corpse still exists
+        /// (<c>UnitZombie.as:219</c>, <c>sost == 3 &amp;&amp; isRes &amp;&amp; t_res &lt; 20</c>), so a body the player
+        /// destroyed can no longer get up.
+        /// </summary>
+        public bool IsCorpseRemoved => _corpseState == CorpseState.Removed;
+
+        /// <summary>
+        /// Where this unit sits in AS3's <c>sost</c> state machine, as far as the port models it.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Only the states that change behaviour.</b> AS3's <c>2</c> (dying, on a
+        /// <c>timerDie</c> countdown) is not modelled — nothing in the port delays a death — so a unit
+        /// goes straight from <c>1</c> to <c>3</c>. The three that remain are the three that a damage
+        /// source, a bullet's stop decision or a despawn can observe.</para>
+        /// </remarks>
+        public enum CorpseState
+        {
+            /// <summary><c>sost 1</c> — alive. No body has been left.</summary>
+            None = 0,
+
+            /// <summary>
+            /// <c>sost 3</c> — a body. Solid, still a legal target, still accumulating overkill until
+            /// <see cref="UnitStats.CorpseDestroyed"/>.
+            /// </summary>
+            Corpse = 1,
+
+            /// <summary>
+            /// <c>sost 3</c> with a live <c>Desintegr</c> — the 40-frame dissolve a bloody body goes
+            /// through on its way out (<c>Unit.as:4347-4353</c>). Still solid and still targetable, as
+            /// in the oracle: <c>initBurn</c> changes nothing about <c>X1..X2</c> or <c>sost</c>.
+            /// </summary>
+            Dissolving = 2,
+
+            /// <summary><c>sost 4</c> — <c>exterminate()</c> ran. Out of the world for good.</summary>
+            Removed = 3,
+        }
+
+        private CorpseState _corpseState = CorpseState.None;
+
+        /// <summary>Canonical frames of dissolve elapsed, accumulated by <see cref="TickCorpse"/>.</summary>
+        private float _corpseDissolveFrames;
+
+        /// <summary>
+        /// The renderer tint captured when the dissolve started, so the fade multiplies the sprite's
+        /// own colour instead of forcing it to white.
+        /// </summary>
+        private Color _corpseBaseColor = Color.white;
+
+        /// <summary>
+        /// Whether a hit may still be resolved against this unit — AS3's bullet and blast filters,
+        /// which test <c>sost == 4</c> and nothing else (<c>Bullet.as:513</c>, <c>:756</c>,
+        /// <c>:809</c>).
+        /// </summary>
+        /// <remarks>
+        /// <para><b>The whole corpse fix hangs off this member being different from
+        /// <see cref="IsAlive"/>.</b> A live unit and a body both answer <c>true</c>; only the removed
+        /// state answers <c>false</c>. Before it existed, every damage source in the port gated on
+        /// <c>IsAlive</c> and therefore skipped a corpse entirely — no damage, no penetration spend,
+        /// no pass-through, and (because the projectile's stop path is unconditional) a round that
+        /// always died on the body. See <c>docs/AUDIT_corpse_damage_and_piercing_2026-10-18.md</c>.</para>
+        ///
+        /// <para>A dissolving body still answers <c>true</c>, which is deliberate: AS3 keeps it solid
+        /// for the 40 frames of the burn.</para>
+        /// </remarks>
+        public virtual bool CanBeHit => IsAlive || IsCorpse;
 
         /// <summary>
         /// AS3 <c>Unit.isPlav</c> — the unit's <b>upper body</b> is submerged (<c>Unit.as:2627-2655</c>,
@@ -3643,9 +3804,31 @@ namespace PFE.Entities.Units
         protected bool RaiseDeath()
         {
             if (!IsAuthoritativeForDeath) return false;
+
+            // AS3 re-enters `die()` on every hit that lands on a corpse (`Unit.as:3713-3745`), and
+            // `die()`'s tail is written to survive that: loot is guarded by `lootIsDrop` and the death
+            // rattle by `sost == 1`. The port had only the loot half, so this latch is the missing
+            // one — and it matters the moment corpses take damage, because `OnDeath` awards XP with no
+            // guard at all: every hit on a body would have paid the player again.
+            //
+            // The latch is released when a subclass leaves the unit ALIVE after the reaction. The
+            // training dummy does exactly that (`OnDeath` restores full HP — AS3 `UnitTrain.as:65-68`),
+            // and a permanent latch would kill it on its second zero.
+            if (_deathRaised && !IsAlive) return false;
+
+            _deathRaised = true;
             OnDeath();
+
+            if (IsAlive) _deathRaised = false;
+
             return true;
         }
+
+        /// <summary>
+        /// Whether <see cref="OnDeath"/> has been acted on for the current death. See
+        /// <see cref="RaiseDeath"/>.
+        /// </summary>
+        protected bool DeathRaised => _deathRaised;
 
         /// <summary>
         /// Called when this unit dies.
@@ -3670,8 +3853,259 @@ namespace PFE.Entities.Units
                 }
             }
 
+            // AS3 `Unit.die()`'s branch table (`:4302-4368`) — what the body becomes. Last, because
+            // the oracle runs `runScript`/`dropLoot`/`incStat` in `die()`'s tail and the branch table
+            // at its head, and the drop must not be conditional on which arm was taken.
+            EnterCorpse();
+
             // Base class doesn't destroy the GameObject.
             // Subclasses can override to play death animations, drop loot, etc.
+        }
+
+        // === Corpse lifecycle — AS3's `sost == 3` ==================================================
+        //
+        // The oracle's death is not an event, it is a state. `die()` runs at the moment HP reaches
+        // zero and again on every hit after that, and what keeps a body around is `hp > -maxhp * 2`.
+        // The port models that as `CorpseState` plus `UnitStats.Overkill`; the two together are
+        // `sost == 3` and its remaining body. See docs/AUDIT_corpse_damage_and_piercing_2026-10-18.md.
+
+        /// <summary>
+        /// AS3 <c>Unit.die()</c>'s branch table (<c>Unit.as:4302-4368</c>) — what this unit's body
+        /// becomes now that it is dead.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Which arms the port can answer, and which it cannot.</b> AS3 tries, in order:
+        /// <c>noDestr</c> (a body that can never be destroyed), <c>param1 &gt; 0</c> (the damage type
+        /// asked for a burn), <c>trup &amp;&amp; hp &gt; -maxhp*2</c> (an ordinary body),
+        /// <c>trup &amp;&amp; blood &gt; 0</c> (enough overkill — burn it away), then
+        /// <c>expl(); exterminate()</c>. The port answers three of them: a body, a body already past
+        /// its threshold, or nothing at all. <c>noDestr</c> is not imported anywhere and the
+        /// damage-type death code is §6 step 5 of the audit — both are recorded gaps, not silent
+        /// omissions.</para>
+        /// </remarks>
+        private void EnterCorpse()
+        {
+            // AS3 `UnitPlayer.die()` is the game-over path, not a body: the player leaves no corpse
+            // and never becomes a target. Gating here rather than inside `OnDeath` keeps the subclass
+            // override (which calls `base`) honest.
+            if (IsPlayer || _corpseState != CorpseState.None)
+            {
+                return;
+            }
+
+            // `trup='0'` — AS3's "destroyed outright": no body, no death row. `expl(); exterminate()`
+            // (`Unit.as:4366-4367`), which in the port is "stop being a target and stop being drawn".
+            // Three units author it (`rat`, `tarakan`, `ant`) and they author no `die` row either.
+            if (_stats != null && !_stats.leavesCorpse)
+            {
+                ExterminateCorpse();
+                return;
+            }
+
+            // The death blow's own overkill can already be past the threshold — a plasma round that
+            // lands for three times the body's health destroys it on the frame it dies, which AS3
+            // reaches by falling through the `hp > -maxhp*2` arm on the same `die()` call.
+            if (_unitStats != null && _unitStats.CorpseDestroyed)
+            {
+                BeginCorpseDestroy();
+                return;
+            }
+
+            _corpseState = CorpseState.Corpse;
+        }
+
+        /// <summary>
+        /// One hit on a body. AS3's <c>Unit.damage()</c> has no <c>sost</c> guard, so this is the same
+        /// <c>hp -= param1</c> as a hit on a living unit — it just has nothing left to spend it on but
+        /// the overkill budget, and that budget is what eventually destroys the body.
+        /// </summary>
+        private void ApplyCorpseDamage(float damage)
+        {
+            // `CorpseState.None` means "not alive, but not a body" — the player's game-over path, or a
+            // death this peer is not authoritative for. Neither has anything to damage: the player's
+            // controller must not lose its collider to a stray round after death, and a suppressed
+            // death is not simulated here at all.
+            if (damage <= 0f || _unitStats == null) return;
+            if (_corpseState != CorpseState.Corpse && _corpseState != CorpseState.Dissolving) return;
+
+            _unitStats.Damage(damage);
+
+            if (_unitStats.CorpseDestroyed)
+            {
+                BeginCorpseDestroy();
+            }
+        }
+
+        /// <summary>
+        /// AS3's last two <c>die()</c> arms: a bloody body burns away over 40 frames
+        /// (<c>initBurn(4 + blood)</c>, <c>Unit.as:4347-4353</c>), a bloodless one is gone at once
+        /// (<c>expl(); exterminate()</c>, <c>:4360-4367</c>).
+        /// </summary>
+        private void BeginCorpseDestroy()
+        {
+            if (_corpseState == CorpseState.Removed || _corpseState == CorpseState.Dissolving)
+            {
+                return;
+            }
+
+            if (BloodType == BloodType.None)
+            {
+                ExterminateCorpse();
+                return;
+            }
+
+            _corpseState = CorpseState.Dissolving;
+            _corpseDissolveFrames = 0f;
+            if (_visualRenderer != null)
+            {
+                _corpseBaseColor = _visualRenderer.color;
+            }
+        }
+
+        /// <summary>
+        /// Advance a dissolving body by one step — AS3's <c>Unit.step</c> arm that calls
+        /// <c>burn.step()</c> and then <c>exterminate()</c> when <c>burn.vse</c> goes true
+        /// (<c>Unit.as:1839-1843</c>).
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Called from both drivers, next to <see cref="TickEffects"/>.</b> A motor-driven unit
+        /// never reaches <see cref="StepUnit"/> — <c>TilePhysicsController.StepMotor</c> owns its step —
+        /// so a dissolve ticked only there would freeze for every spawned enemy in the shipped
+        /// configuration. That is the same trap <c>TickNoise</c>/<c>TickStealth</c>/<c>TickControl</c>
+        /// document at their call sites.</para>
+        ///
+        /// <para>The countdown is in <b>canonical 30 Hz frames</b>, accumulated through
+        /// <see cref="PFE.Core.SimClock.StepScale"/>, so a 60 Hz build dissolves a body in the same
+        /// wall-clock 1.33 s the oracle does rather than in half of it.</para>
+        /// </remarks>
+        public void TickCorpse()
+        {
+            if (_corpseState != CorpseState.Dissolving)
+            {
+                return;
+            }
+
+            float scale = _simClock != null ? _simClock.StepScale : 1f;
+            float before = _corpseDissolveFrames;
+            _corpseDissolveFrames += scale;
+
+            // Emit on a fixed cadence rather than every frame: a room can hold a dozen bodies and
+            // AS3's per-frame emit is gated on mass for exactly that reason (`Desintegr.as:126-131`).
+            int interval = CorpseDamageMath.DissolveParticleIntervalFrames;
+            if ((int)(_corpseDissolveFrames / interval) != (int)(before / interval))
+            {
+                EmitCorpseDissolveParticles();
+            }
+
+            if (_visualRenderer != null)
+            {
+                float t = Mathf.Clamp01(_corpseDissolveFrames / CorpseDamageMath.DissolveFrames);
+                Color color = _corpseBaseColor;
+                color.a *= 1f - t;
+                _visualRenderer.color = color;
+            }
+
+            if (_corpseDissolveFrames >= CorpseDamageMath.DissolveFrames)
+            {
+                ExterminateCorpse();
+            }
+        }
+
+        /// <summary>
+        /// The dissolve's particles — AS3 <c>Desintegr.step</c>'s <c>Emitter.emit(burnPart, …)</c>,
+        /// where <c>burnPart</c> is the blood colour for the <c>4 + blood</c> tips
+        /// (<c>serv/Desintegr.as:80-98</c>).
+        /// </summary>
+        private void EmitCorpseDissolveParticles()
+        {
+            if (_particleEmitter == null)
+            {
+                return;
+            }
+
+            string id = BloodSprayRules.SprayIdFor(BloodType);
+            if (string.IsNullOrEmpty(id))
+            {
+                return;
+            }
+
+            if (!_particleEmitter.TryToAs3Local(WorldPosition, out Vector2 anchor))
+            {
+                return;
+            }
+
+            Vector2 size = SpriteSizePixels;
+            var spec = new ParticleSpec
+            {
+                Kol = 2,
+                RX  = size.x * 0.35f,
+                RY  = size.y * 0.25f,
+            };
+
+            // `Y - scY / 2`, the body's centre — the same anchor AS3's `Desintegr` emits from.
+            _particleEmitter.EmitAt(id, new Vector2(anchor.x, anchor.y - size.y * 0.5f), spec);
+        }
+
+        /// <summary>
+        /// AS3 <c>exterminate()</c> (<c>Unit.as:4411-4421</c>) — <c>loc.remObj(this)</c>,
+        /// <c>sost = 4</c>, <c>disabled = true</c>.
+        /// </summary>
+        /// <remarks>
+        /// The port has no room-local unit list, so "out of the world" is expressed as the three
+        /// things that list membership bought: it is no longer a physics body (no collider, no
+        /// simulated rigidbody), it is no longer drawn, and <see cref="CanBeHit"/> is false. The
+        /// GameObject stays alive because the brain, the health overlay and the loot code all still
+        /// hold references to it — destroying it here would turn every one of those into a null check
+        /// the oracle does not have.
+        /// </remarks>
+        private void ExterminateCorpse()
+        {
+            if (_corpseState == CorpseState.Removed)
+            {
+                return;
+            }
+
+            _corpseState = CorpseState.Removed;
+            _corpseDissolveFrames = 0f;
+
+            if (_collider != null) _collider.enabled = false;
+            if (_rb != null) _rb.simulated = false;
+
+            SetVisible(false);
+        }
+
+        /// <summary>
+        /// Put a body back on its feet — AS3 sets <c>sost = 1</c> directly when a boss takes its second
+        /// life (<c>UnitBossNecr.as:571-584</c>) or a zombie resurrects (<c>UnitZombie.as:495-524</c>).
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Required, not optional.</b> <see cref="ExterminateCorpse"/> turns off the collider
+        /// and the rigidbody, so a revive that only wrote HP would leave an invisible, intangible unit
+        /// that every damage source would skip — the same class of bug as the corpse itself, one state
+        /// over. <see cref="UnitStats.Overkill"/> clears itself when the HP goes positive, so the
+        /// budget does not need resetting here.</para>
+        /// </remarks>
+        public void ReviveFromCorpse()
+        {
+            if (_corpseState == CorpseState.None)
+            {
+                return;
+            }
+
+            _corpseState = CorpseState.None;
+            _corpseDissolveFrames = 0f;
+
+            if (_collider != null) _collider.enabled = true;
+            if (_rb != null) _rb.simulated = true;
+
+            if (_visualRenderer != null)
+            {
+                Color color = _corpseBaseColor;
+                color.a = 1f;
+                _visualRenderer.color = color;
+            }
+
+            SetVisible(true);
         }
 
         /// <summary>
@@ -3718,8 +4152,14 @@ namespace PFE.Entities.Units
 
             if (_stats == null) return;
 
+            // Resolved but NOT gated on. `ResolveLootTableKey` falls back to the unit id, so this is only
+            // empty when the unit has no id at all — but even that case must still drop its placement
+            // items, because AS3's `if(inter) inter.loot();` (`Unit.as:4452-455`) runs before anything
+            // that reads `cont`. The old `if (string.IsNullOrEmpty(key)) return;` therefore had to move
+            // BELOW the placed-items block: it was the difference between "this boss drops its key" and
+            // "this boss drops nothing", and for a unit whose id never made it into `UnitKeys` it decided
+            // which by accident.
             string key = UnitDeathDrop.ResolveLootTableKey(_stats.lootTableKey, _stats.controllerId, _stats.id);
-            if (string.IsNullOrEmpty(key)) return;
 
             LootContext ctx = LootRuntime.CreateContext(key);
             if (ctx == null)
@@ -3757,7 +4197,29 @@ namespace PFE.Entities.Units
                 lacksWeapon: weaponId => WeaponLacks(player, weaponId));
 
             float centreY = transform.position.y + (_stats.Height * 0.5f);   // AS3 `Y - scY/2`
-            LootRoller.RollUnitDrop(key, ctx, transform.position.x, centreY);
+
+            // AS3 `Unit.dropLoot`'s FIRST statement — `if(inter) { inter.loot(); }`
+            // (Unit.as:4452-4455), and inside `Interact.loot` the `<item>` children are looped before the
+            // `cont` table is touched (Interact.as:1975-2000 then :2005-2010). So the placement's own items
+            // come first, and the essence and gem rolls come last — that ordering is preserved here.
+            //
+            // This is the boss's `key_sewer`. `bossraider` at
+            // `Assets/_PFE/Data/Resources/Rooms/rooms_nio/bossraider.asset:158-178` authors
+            // `<item id="key_sewer" imp="1"/>`, and `imp` is what makes it drop-mode 2 rather than 1 —
+            // which is what exempts a quest item from the per-run loot limit (LootGen.as:261).
+            if (_placementItems != null && _placementItems.Count > 0)
+            {
+                LootRoller.RollPlacedItems(UnitLootRules.PlacedItems(_placementItems), ctx,
+                                          nx: transform.position.x, ny: centreY);
+            }
+
+            // AS3's `Interact.loot` second half — `LootGen.lootDrop(…, this.cont, …)`
+            // (Interact.as:2005-2010), which only runs for a `cont` the container actually carries.
+            // Guarded here rather than above so the placed items drop first and regardless.
+            if (!string.IsNullOrEmpty(key))
+            {
+                LootRoller.RollUnitDrop(key, ctx, transform.position.x, centreY);
+            }
 
             IRngService rng = ctx.Rng;
 
