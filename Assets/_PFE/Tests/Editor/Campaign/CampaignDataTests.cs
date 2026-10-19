@@ -192,6 +192,156 @@ namespace PFE.Tests.Editor.Campaign
             Assert.AreEqual(3f, scr.actions[3].delaySeconds);
         }
 
+        /// <summary>
+        /// <c>@n</c> is <b>absent-means-minus-one</b>, and the three answers are three different
+        /// meanings.
+        /// </summary>
+        /// <remarks>
+        /// <c>analiz</c> declares <c>var _loc6_:String = "-1";</c> (<c>Script.as:70</c>) and only
+        /// overwrites it when the attribute is present (<c>:97-100</c>). The port defaulted to 0, and a
+        /// 0 is not "neutral": it is an authored value meaning sub <c>"0"</c>, which no quest has
+        /// (sub ids are 1-based). So every bare <c>&lt;s act="stage" val="x"/&gt;</c> — twelve of them,
+        /// covering the entire main story chain — ran <c>closeSub("0")</c> and closed nothing, leaving
+        /// each quest in the journal for ever.
+        ///
+        /// <para>The fixture pins all three arms in one place so a future default cannot be "fixed"
+        /// back to 0 without this failing.</para>
+        /// </remarks>
+        [Test]
+        public void ParseAction_AbsentN_IsMinusOne_AndAnAuthoredZeroStaysZero()
+        {
+            const string xml = @"
+<game>
+    <scr id='nArms'>
+        <s act=""stage"" val=""storyMain""/>
+        <s act=""stage"" val=""storyMain"" n=""0""/>
+        <s act=""stage"" val=""storyMain"" n=""2""/>
+        <s act=""stage"" val=""storyMain"" n=""-1""/>
+    </scr>
+</game>";
+
+            var (_, scripts) = CampaignDataParser.ParseNpcsAndScripts(xml);
+            Assert.AreEqual(1, scripts.Count);
+            var actions = scripts[0].actions;
+            Assert.AreEqual(4, actions.Count);
+
+            Assert.AreEqual(-1, actions[0].numericParam,
+                "Absent @n is '-1' (Script.as:70) — 'finish the whole quest' for a `stage`.");
+            Assert.AreEqual(0, actions[1].numericParam,
+                "An authored n='0' is a third answer and must not be normalised to -1.");
+            Assert.AreEqual(2, actions[2].numericParam);
+            Assert.AreEqual(-1, actions[3].numericParam);
+        }
+
+        /// <summary>
+        /// The shipped campaign assets must not contain a <c>stage</c> action carrying sub id 0.
+        /// </summary>
+        /// <remarks>
+        /// <b>Why this is the guard that matters.</b> The parser fix is invisible until the Editor
+        /// importer is re-run: the 80 <c>.asset</c> files under <c>Resources/Campaign</c> were written
+        /// by the old parser, and 375 of their <c>numericParam</c> values were the stale 0. Reading
+        /// them as text (rather than through <c>AssetDatabase</c>) is deliberate — it catches a stale
+        /// asset on a machine where the importer has never run, which is exactly the state that
+        /// produced the bug.
+        ///
+        /// <para>A <c>stage</c> with sub 0 is not merely suspicious, it is <b>always</b> a no-op: every
+        /// shipped quest numbers its subs from 1 (<c>&lt;q id='1'/&gt;</c>…), so
+        /// <c>subsId["0"]</c> is null and <c>closeSub</c> returns immediately.</para>
+        /// </remarks>
+        [Test]
+        public void ShippedCampaignAssets_HaveNoStageActionOnSubZero()
+        {
+            string root = Path.Combine(Application.dataPath, "_PFE/Data/Resources/Campaign");
+            if (!Directory.Exists(root))
+            {
+                Assert.Pass("Skipping: the campaign resources folder is not present in this checkout.");
+                return;
+            }
+
+            var offenders = new List<string>();
+            int stageActions = 0;
+
+            foreach (string path in Directory.GetFiles(root, "*.asset", SearchOption.AllDirectories))
+            {
+                string[] lines = File.ReadAllLines(path);
+                for (int i = 0; i < lines.Length; i++)
+                {
+                    if (!lines[i].TrimStart().StartsWith("- action:", System.StringComparison.Ordinal))
+                    {
+                        continue;
+                    }
+
+                    string act = lines[i].Substring(lines[i].IndexOf(':') + 1).Trim();
+                    if (act != "stage") continue;
+                    stageActions++;
+
+                    int n = int.MinValue;
+                    for (int j = i + 1; j < lines.Length && j <= i + 6; j++)
+                    {
+                        string trimmed = lines[j].TrimStart();
+                        if (!trimmed.StartsWith("numericParam:", System.StringComparison.Ordinal)) continue;
+                        int.TryParse(trimmed.Substring("numericParam:".Length).Trim(), out n);
+                        break;
+                    }
+
+                    if (n == 0) offenders.Add($"{Path.GetFileName(path)}:{i + 1}");
+                }
+            }
+
+            Assert.Greater(stageActions, 100,
+                "Sanity: the campaign assets should contain well over 100 stage actions; " +
+                "a much smaller number means the scan is not reading the files it thinks it is.");
+
+            Assert.IsEmpty(offenders,
+                "These shipped assets still carry `stage` with numericParam 0, which closes no sub and " +
+                "therefore never advances or finishes the quest. Re-run " +
+                "PFE/Campaign/Import Campaign Lands from GameData.as (and the NPC/quest importers) so " +
+                "the assets are regenerated by the fixed parser. Offenders: " +
+                string.Join(", ", offenders));
+        }
+
+        /// <summary>
+        /// The autodoc's own payload — <c>&lt;quest id cid&gt;</c> and the <c>&lt;rep id kol&gt;</c>
+        /// parts list (<c>NPC.repair</c>, <c>NPC.as:492-557</c>).
+        /// </summary>
+        /// <remarks>
+        /// <b>Why these three fields are worth a test of their own.</b> Without them
+        /// <c>NpcActivationKind.AutoDocRepair</c> resolved and had nothing to run — the interaction was
+        /// consumed and the doctor did nothing, with no way to tell that apart from a broken
+        /// <c>inter</c> attribute. The shape below is the shipped <c>autodoc</c> row
+        /// (<c>GameData.as:1098-1111</c>) trimmed to three parts.
+        /// </remarks>
+        [Test]
+        public void NpcParsing_ReadsTheAutodocQuestAndPartsList()
+        {
+            const string xml = @"
+<game>
+    <npc id='autodoc' vendor='nope' inter='adoc' vis='Autodoc' needskill='repair' noturn='1'>
+        <quest id='repairAutoDoc' cid='1'/>
+        <rep id='glue' kol='3'/>
+        <rep id='chip' kol='1'/>
+        <rep id='elcomp' kol='10'/>
+    </npc>
+</game>";
+
+            var (npcs, _) = CampaignDataParser.ParseNpcsAndScripts(xml);
+            Assert.AreEqual(1, npcs.Count);
+            NpcDefinition autodoc = npcs[0];
+
+            Assert.AreEqual("repair", autodoc.requiredSkill);
+            Assert.AreEqual("repairAutoDoc", autodoc.questId,
+                "The quest the first interaction grants and a successful repair closes.");
+            Assert.AreEqual("1", autodoc.questSubId,
+                "`cid` is the SUB form of closeQuest — a string, not an index.");
+
+            Assert.AreEqual(3, autodoc.repairRequirements.Count,
+                "All three <rep> rows, in authored order.");
+            Assert.AreEqual("glue", autodoc.repairRequirements[0].itemId);
+            Assert.AreEqual(3, autodoc.repairRequirements[0].count);
+            Assert.AreEqual("elcomp", autodoc.repairRequirements[2].itemId);
+            Assert.AreEqual(10, autodoc.repairRequirements[2].count);
+        }
+
         [Test]
         public void CampaignCatalog_InitializesAndResolvesEntities()
         {

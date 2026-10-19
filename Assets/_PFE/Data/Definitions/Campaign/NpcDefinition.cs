@@ -69,6 +69,20 @@ namespace PFE.Data.Definitions.Campaign
     /// <c>gotoAndPlay</c> can start at the right frame and run on to the next one — which a
     /// label→single-sprite map could not express.</para>
     /// </summary>
+    /// <summary>
+    /// One <c>&lt;rep id kol/&gt;</c> row of an autodoc — a part the repair consumes
+    /// (<c>NPC.as:514-542</c>).
+    /// </summary>
+    [Serializable]
+    public class NpcRepairRequirement
+    {
+        [Tooltip("Item id the repair consumes (glue, tape, tubing, pbatt, …).")]
+        public string itemId = "";
+
+        [Tooltip("How many of it the repair consumes.")]
+        public int count = 1;
+    }
+
     [Serializable]
     public class NpcVisualFrame
     {
@@ -286,6 +300,46 @@ namespace PFE.Data.Definitions.Campaign
 
         [Tooltip("Item the NPC consumes to complete its action — AS3 needitem (NPC.as:586-588).")]
         public string requiredItemId = "";
+
+        // ── The autodoc's own payload (`NPC.repair`, NPC.as:492-557) ────────────────────────────────
+        //
+        // A `<quest>` child and a list of `<rep>` children. Both were read by the oracle and by
+        // nothing in the port: `NpcActivationKind.AutoDocRepair` existed, was resolved, and had no
+        // handler, so the autodoc's interaction was consumed and did nothing.
+        //
+        // The shape in the shipped data (`GameData.as:1098-1111`) is:
+        //
+        //   <npc id='autodoc' vendor='nope' inter='adoc' needskill='repair' …>
+        //     <quest id='repairAutoDoc' cid='1'/>
+        //     <rep id='glue' kol='3'/> … eleven rows …
+        //   </npc>
+
+        /// <summary>
+        /// AS3 <c>this.xml.quest.@id</c> — the quest the autodoc grants on the first interaction and
+        /// closes on a successful repair (<c>NPC.as:494-500</c>, <c>:552-555</c>). Empty for every NPC
+        /// that is not an autodoc.
+        /// </summary>
+        [Tooltip("Quest granted by (and closed by) the autodoc's repair — AS3 <quest id> (NPC.as:494).")]
+        public string questId = "";
+
+        /// <summary>
+        /// AS3 <c>this.xml.quest.@cid</c> — the sub-objective id closed on a successful repair. The
+        /// shipped value is <c>"1"</c>; <c>closeQuest(id, cid)</c> is the sub form, not the
+        /// close-everything form, which is why this is kept as a string.
+        /// </summary>
+        [Tooltip("Sub-objective closed on a successful repair — AS3 <quest cid> (NPC.as:554).")]
+        public string questSubId = "";
+
+        /// <summary>
+        /// The autodoc's parts list — AS3 <c>this.xml.rep</c> (<c>NPC.as:514-542</c>).
+        ///
+        /// <para><b>Two passes over the same list, and the order is the rule.</b> The first pass only
+        /// <i>tests</i> every row and shows the shortfall; the second <i>withdraws</i>. A single fused
+        /// loop would consume the parts before discovering one is missing, leaving the player short
+        /// with nothing repaired.</para>
+        /// </summary>
+        [Tooltip("Parts the repair consumes — AS3 <rep id kol> children (NPC.as:514-542).")]
+        public List<NpcRepairRequirement> repairRequirements = new List<NpcRepairRequirement>();
 
         // IGameContent implementation
         string IGameContent.ContentId => npcId;

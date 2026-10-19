@@ -21,8 +21,32 @@ namespace PFE.Data.Definitions.Campaign
         [Tooltip("String value or identifier payload: land ID, quest ID, dialogue ID, sound ID (val attribute)")]
         public string value = "";
 
-        [Tooltip("Numeric parameter: stage index, trigger flag value, count, or sub-index (n attribute)")]
-        public int numericParam = 0;
+        /// <summary>
+        /// The <c>@n</c> attribute — a stage index, a trigger value, a count, or a sub-objective id.
+        ///
+        /// <para><b>The default is <c>-1</c>, and it is not a sentinel this port invented.</b>
+        /// <c>analiz</c> declares <c>var _loc6_:String = "-1";</c> (<c>Script.as:70</c>) and only
+        /// overwrites it when the attribute is present (<c>:97-100</c>), so <b>every</b> action pushed
+        /// by the oracle carries <c>n = "-1"</c> when the author wrote no <c>@n</c>. Three consumers
+        /// branch on the sign, and a <c>0</c> default silently picks the wrong arm of all three:
+        /// <c>stage</c> (<c>Game.as:624</c> — negative means "finish the whole quest"),
+        /// <c>take</c> (<c>Script.as:302</c> — negative means "withdraw" rather than "grant"), and
+        /// <c>setTrigger</c> (<c>Game.as:676</c> — writes <c>-1</c>, not <c>0</c>).</para>
+        ///
+        /// <para><b>An authored <c>n="0"</c> is a different answer and stays <c>0</c>.</b> Fifteen
+        /// rows in <c>GameData.as</c> write it explicitly; <c>closeSub("0")</c> finds no sub and is a
+        /// deliberate no-op, which is not what a bare <c>stage</c> means.</para>
+        ///
+        /// <para><b>The type is <c>int</c> and that is lossy for three rows.</b> <c>@n</c> is a string
+        /// in AS3 and three authored values are non-numeric (<c>n='wait'</c>, <c>n='a1'</c>,
+        /// <c>n='d3'</c> — all in prob-room <c>out</c>/<c>close</c> scripts, which the port does not run
+        /// yet). They arrive here as <c>-1</c> via <c>ParseInt</c>'s fallback rather than as their
+        /// authored text; that is recorded rather than papered over, and widening the field is the
+        /// change to make when the prob-room event pipeline lands.</para>
+        /// </summary>
+        [Tooltip("Numeric parameter: stage index, trigger flag value, count, or sub-index (n attribute). " +
+                 "Absent means -1, matching AS3 analiz's default — see the doc comment.")]
+        public int numericParam = -1;
 
         [Tooltip("Delay or timer in seconds before this action executes (t attribute in AS3, multiplied by 30 fps)")]
         public float delaySeconds = 0f;

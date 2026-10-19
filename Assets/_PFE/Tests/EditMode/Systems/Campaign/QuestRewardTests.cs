@@ -334,6 +334,50 @@ namespace PFE.Tests.EditMode.Systems.Campaign
                 "The sub-close merge must carry the reward list through, not just the scalars.");
         }
 
+        /// <summary>
+        /// <c>n = "-1"</c> finishes the WHOLE quest, and that is what a bare
+        /// <c>&lt;s act="stage" val="x"/&gt;</c> carries — <c>analiz</c> declares
+        /// <c>var _loc6_:String = "-1"</c> (<c>Script.as:70</c>), so the value is never absent at the
+        /// consumer. Twelve authored rows depend on it.
+        /// </summary>
+        [Test]
+        public void CloseQuest_WithMinusOne_FinishesTheWholeQuest()
+        {
+            QuestFacts facts = Facts("q",
+                new QuestSubFacts { SubId = "1" },
+                new QuestSubFacts { SubId = "2" });
+            facts.Xp = 100;
+            QuestRuntimeState runtime = RuntimeOf(facts);
+
+            QuestCloseOutcome outcome = QuestRules.CloseQuest(facts, runtime, "-1");
+
+            Assert.That(outcome.Closed, Is.True);
+            Assert.That(outcome.IsParent, Is.True, "-1 is 'close the parent', not 'close sub -1'.");
+            Assert.That(runtime.State, Is.EqualTo((int)QuestState.Done));
+        }
+
+        /// <summary>
+        /// <c>n = "0"</c> is a <b>third</b> meaning, not a synonym for "absent": it names sub
+        /// <c>"0"</c>, which no quest has (sub ids are 1-based — <c>&lt;q id='1'&gt;</c>…), so it
+        /// closes nothing at all. This is the arm the port used to take for every bare <c>stage</c>
+        /// because <c>ParseAction</c> defaulted <c>@n</c> to 0.
+        /// </summary>
+        [Test]
+        public void CloseQuest_WithZero_ClosesNothing()
+        {
+            QuestFacts facts = Facts("q",
+                new QuestSubFacts { SubId = "1" },
+                new QuestSubFacts { SubId = "2" });
+            QuestRuntimeState runtime = RuntimeOf(facts);
+
+            QuestCloseOutcome outcome = QuestRules.CloseQuest(facts, runtime, "0");
+
+            Assert.That(outcome.Closed, Is.False, "There is no sub '0' to close.");
+            Assert.That(runtime.State, Is.EqualTo((int)QuestState.Active),
+                "A quest that is never closed stays in the journal for ever — the reported " +
+                "'the quest never advances' shape.");
+        }
+
         // ═══════════════════════════ D. the host ═══════════════════════════
 
         [Test]

@@ -287,6 +287,34 @@ namespace PFE.Data.Definitions.Campaign
                     npcDef.requiredSkill = node.Attributes?["needskill"]?.Value?.Trim() ?? string.Empty;
                     npcDef.requiredItemId = node.Attributes?["needitem"]?.Value?.Trim() ?? string.Empty;
 
+                    // The autodoc's payload — `NPC.repair` (NPC.as:492-557). A `<quest>` child names the
+                    // quest the first interaction grants and a successful repair closes; the `<rep>`
+                    // children are the parts list. Neither was read before, which is why
+                    // `NpcActivationKind.AutoDocRepair` resolved and then had nothing to run.
+                    XmlNode questChild = node.SelectSingleNode("./quest");
+                    npcDef.questId = questChild?.Attributes?["id"]?.Value?.Trim() ?? string.Empty;
+                    npcDef.questSubId = questChild?.Attributes?["cid"]?.Value?.Trim() ?? string.Empty;
+
+                    npcDef.repairRequirements.Clear();
+                    XmlNodeList repNodes = node.SelectNodes("./rep");
+                    if (repNodes != null)
+                    {
+                        foreach (XmlNode repNode in repNodes)
+                        {
+                            string repItem = repNode.Attributes?["id"]?.Value?.Trim() ?? string.Empty;
+                            if (string.IsNullOrEmpty(repItem)) continue;
+
+                            npcDef.repairRequirements.Add(new NpcRepairRequirement
+                            {
+                                itemId = repItem,
+                                // `_loc3_.@kol` is compared and then subtracted; an absent @kol reads
+                                // as 0 in AS3 and would make the row free, so it defaults to 1 here —
+                                // no shipped row omits it (11 of 11 carry kol).
+                                count = ParseInt(repNode.Attributes?["kol"]?.Value, 1),
+                            });
+                        }
+                    }
+
                     npcDef.dialogues.Clear();
                     XmlNodeList dialNodes = node.SelectNodes("./dial");
                     if (dialNodes != null)
@@ -554,6 +582,26 @@ namespace PFE.Data.Definitions.Campaign
             }
         }
 
+        /// <summary>
+        /// One authored <c>&lt;s act=… targ=… val=… t=… n=… opt1=… opt2=…/&gt;</c> —
+        /// <c>Script.analiz</c> (<c>Script.as:64-121</c>).
+        ///
+        /// <para><b><c>@n</c> defaults to <c>-1</c>, not <c>0</c>.</b> <c>analiz</c> declares
+        /// <c>var _loc6_:String = "-1";</c> (<c>:70</c>) and overwrites it only when the attribute is
+        /// present (<c>:97-100</c>), so a bare <c>&lt;s act="stage" val="x"/&gt;</c> carries
+        /// <c>"-1"</c> and means <i>finish the whole quest</i> (<c>Game.as:624</c>). Twelve authored
+        /// rows rely on it — <c>storyMain</c>, <c>storyStable</c>, <c>storyMeet</c>, <c>storyHome</c>,
+        /// <c>storyFind</c>, <c>storyStorm</c>, <c>storyCanter</c>, <c>storyMane</c>,
+        /// <c>storyHelpCovert</c>, <c>storyHelpCamp</c>, <c>storyFbattle</c>, <c>patientHeal</c> — and
+        /// with a <c>0</c> default each one became <c>closeSub("0")</c>, which matches no sub (they are
+        /// 1-based) and therefore closed nothing. A <c>0</c> default is not "neutral": it is a third
+        /// meaning that the oracle never produces.</para>
+        ///
+        /// <para><c>@t</c> is read as <b>seconds</b> here and multiplied by the frame rate later
+        /// (<c>ScriptRunner.FramesOf</c>), where <c>analiz</c> converts it once at read time. Both are
+        /// one conversion; keeping the authored unit on the asset is what lets the field be inspected
+        /// in the editor without knowing the frame rate.</para>
+        /// </summary>
         public static CampaignScriptAction ParseAction(XmlNode actNode)
         {
             return new CampaignScriptAction
@@ -561,7 +609,7 @@ namespace PFE.Data.Definitions.Campaign
                 action = actNode.Attributes?["act"]?.Value?.Trim() ?? string.Empty,
                 target = actNode.Attributes?["targ"]?.Value?.Trim() ?? string.Empty,
                 value = actNode.Attributes?["val"]?.Value?.Trim() ?? string.Empty,
-                numericParam = ParseInt(actNode.Attributes?["n"]?.Value, 0),
+                numericParam = ParseInt(actNode.Attributes?["n"]?.Value, -1),
                 delaySeconds = ParseFloat(actNode.Attributes?["t"]?.Value, 0f),
                 opt1 = ParseInt(actNode.Attributes?["opt1"]?.Value, 0),
                 opt2 = ParseInt(actNode.Attributes?["opt2"]?.Value, 0)

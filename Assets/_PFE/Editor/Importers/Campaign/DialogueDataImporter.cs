@@ -92,9 +92,9 @@ namespace PFE.Editor.Importers
                 }
 
                 // `CopySerialized` overwrites EVERY serialised field on the target, and the parser is
-                // only a source for the fields GameData.as carries. `visualSprite` is not one of them:
-                // it is written by UnitSpriteImporter's NPC pass from the SWF sprite export, so it is
-                // *asset* state, not *data* state. Copying over it nulls it silently.
+                // only a source for the fields GameData.as carries. The four visual fields are not
+                // among them: `UnitSpriteImporter`'s NPC pass writes them from the SWF sprite export,
+                // so they are *asset* state, not *data* state. Copying over them wipes them silently.
                 //
                 // That is not hypothetical — it is how Calamity lost his body. `PFE/Art/Import Unit
                 // Sprites` writes the sprite, `PFE/Campaign/Import NPCs and Scripts` (and therefore
@@ -102,14 +102,28 @@ namespace PFE.Editor.Importers
                 // imported everything" ends with every persona pointing at no art. Measured in the
                 // asset mtimes of the run that produced it: art at 12:37, NPCs at 12:38, lands at
                 // 12:41.
+                //
+                // The first fix restored `visualSprite` alone, which was one quarter of the answer.
+                // `visualFrames` (the persona's own `osn` clip), `visualScaleX` and `visualScaleY` come
+                // from the SAME pass and were still being erased — and the visible result is subtler
+                // than a missing body, therefore worse: a static first frame at scale 1. The doctor and
+                // every vendor lose their mirrored shrink (-0.316, 0.316), and every animated persona
+                // freezes on frame 1. Restore the family, not the field that happened to be reported.
                 Sprite importedVisual = npcDef.visualSprite;
+                var importedFrames = new List<NpcVisualFrame>(
+                    npcDef.visualFrames ?? new List<NpcVisualFrame>());
+                float importedScaleX = npcDef.visualScaleX;
+                float importedScaleY = npcDef.visualScaleY;
 
                 EditorUtility.CopySerialized(parsed, npcDef);
 
-                // Restored rather than merged: the parser has no opinion about this field, so the value
-                // already on the asset is the only correct one. Re-running the art import is still what
-                // *creates* it the first time.
+                // Restored rather than merged: the parser has no opinion about any of these fields, so
+                // the value already on the asset is the only correct one. Re-running the art import is
+                // still what *creates* them the first time.
                 npcDef.visualSprite = importedVisual;
+                npcDef.visualFrames = importedFrames;
+                npcDef.visualScaleX = importedScaleX;
+                npcDef.visualScaleY = importedScaleY;
 
                 EditorUtility.SetDirty(npcDef);
                 npcResults.Add(npcDef);
@@ -133,6 +147,30 @@ namespace PFE.Editor.Importers
                 EditorUtility.SetDirty(scriptDef);
                 scriptResults.Add(scriptDef);
             }
+
+            // A number to compare across runs, because the art fields are the one thing this import
+            // neither owns nor can reconstruct. Before the restore above, a re-import produced
+            // "54 with a body sprite, 0 with an osn clip, 0 with a non-unit scale" — the clip and the
+            // scale were erased on every run and nothing said so. Reading the same four numbers before
+            // and after a re-import is what turns "did that break my art?" into an observation.
+            int withSprite = 0;
+            int withClip = 0;
+            int withScale = 0;
+            for (int i = 0; i < npcResults.Count; i++)
+            {
+                NpcDefinition npc = npcResults[i];
+                if (npc.visualSprite != null) withSprite++;
+                if (npc.visualFrames != null && npc.visualFrames.Count > 0) withClip++;
+                if (!Mathf.Approximately(npc.visualScaleX, 1f) || !Mathf.Approximately(npc.visualScaleY, 1f))
+                {
+                    withScale++;
+                }
+            }
+
+            Debug.Log($"[DialogueDataImporter] {npcResults.Count} personas: {withSprite} with a body " +
+                      $"sprite, {withClip} with an osn clip, {withScale} with a non-unit scale. " +
+                      "(The clip and the scale are UnitSpriteImporter's, not this import's — if they " +
+                      "drop to 0, run PFE/Art/Import Unit Sprites again.)");
 
             return (npcResults, scriptResults);
         }

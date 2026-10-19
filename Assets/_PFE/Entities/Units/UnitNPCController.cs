@@ -4,11 +4,14 @@ using System.Globalization;
 using PFE.Data.Definitions;
 using PFE.Data.Definitions.Campaign;
 using PFE.Entities.Enemies;
+using PFE.Entities.Player;
 using PFE.Systems.Campaign;
 using PFE.Systems.Interaction;
+using PFE.Systems.Inventory;
 using PFE.Systems.Map;
 using PFE.Systems.Map.Scripting;
 using PFE.Systems.Map.TileQuery;
+using PFE.Systems.RPG;
 using PFE.Systems.Trade;
 using PFE.Systems.Weapons;
 using UnityEngine;
@@ -212,6 +215,16 @@ namespace PFE.Entities.Units
         bool _reportedMissingPersona;
         bool _reportedNoCatalog;
         bool _reportedNoBubbleFrames;
+
+        /// <summary>
+        /// The player's stats and inventory, resolved on first use by <see cref="ResolvePlayerStats"/> /
+        /// <see cref="ResolvePlayerInventory"/>. Cached because the bubble poll evaluates the dialogue
+        /// gate every second; never cached as <c>null</c>, because the player may be assembled after the
+        /// first NPC tick.
+        /// </summary>
+        CharacterStats _playerStats;
+        GameInventory _playerInventory;
+
         readonly HashSet<string> _reportedUnwiredVerbs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         readonly HashSet<string> _reportedUnwiredActivations = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -1659,6 +1672,65 @@ namespace PFE.Entities.Units
                 return;
             }
 
+            // NPC.as:236-239 — `else if(this.vendor) { this.pip(4); }`. `pip` sets the three device
+            // fields and opens page 4; the campaign publishes and the device's subscriber opens.
+            if (kind == NpcActivationKind.Trade)
+            {
+                CampaignManager campaign = CampaignManager.Current;
+                if (campaign == null)
+                {
+                    Debug.LogWarning(
+                        "[UnitNPCController] no CampaignManager.Current, so this trader cannot open " +
+                        "the trade page.");
+                    return;
+                }
+
+                campaign.RequestTrade(_persona.npcId, _persona.vendorId, _persona.interactionType);
+                return;
+            }
+
+            // NPC.as:221-231 — `adoc` with `rep <= 1` runs `this.repair()`; with `rep > 1` it opens the
+            // clinic page instead. The repair half is the ladder below; the clinic half is page 6.
+            if (kind == NpcActivationKind.AutoDocRepair)
+            {
+                RunAutoDocRepair();
+                return;
+            }
+
+            // NPC.as:232-235 — `this.patient()`.
+            if (kind == NpcActivationKind.Patient)
+            {
+                RunPatient();
+                return;
+            }
+
+            // NPC.as:217-220 — `else if(npcInter == "doc" || npcInter == "vdoc") this.pip(6);`, and
+            // NPC.as:227-230 — `adoc` with `rep > 1` does the same. `pip` writes the three device
+            // fields and then `onoff(6)`; the campaign publishes and the device's subscriber opens.
+            //
+            // Page 6 is still a stub. Opening it is nevertheless the right answer and reporting "no
+            // handler for kind 'Doctor'" is not: the Oracle opens the clinic, so the port opens the
+            // clinic, and the stub says in one line that its contents are not ported yet. The old
+            // behaviour consumed the interaction and showed nothing at all, which is the one outcome
+            // the player cannot distinguish from a bug in the doctor's `inter` attribute.
+            if (kind == NpcActivationKind.Doctor || kind == NpcActivationKind.AutoDocClinic)
+            {
+                CampaignManager campaign = CampaignManager.Current;
+                if (campaign == null)
+                {
+                    Debug.LogWarning(
+                        "[UnitNPCController] no CampaignManager.Current, so this doctor cannot open " +
+                        "the clinic page.");
+                    return;
+                }
+
+                // `pip(6)` writes all three device fields before it opens the page, so the doctor's own
+                // shelf is reachable from the Vendor tab while the clinic is up. Dropping the vendor id
+                // is what made a doctor's trade unreachable (see ClinicOpenedMessage).
+                campaign.RequestClinic(_persona.npcId, _persona.interactionType, _persona.vendorId);
+                return;
+            }
+
             ReportUnwiredActivation(kind.ToString());
         }
 
@@ -1723,7 +1795,23 @@ namespace PFE.Entities.Units
                     "accessible and no quest is in progress.");
             }
 
-            int Level = 0;
+            // AS3 reads the LIVE player here — `World.w.pers.level` (:273-277) and
+            // `World.w.gg.currentArmor.id` (:306-310). Both used to be hardcoded answers, which is
+            // worse than a missing gate: a constant `false` does not "skip" the test, it makes every
+            // row that carries the attribute unmatchable for ever, so the row is dead data and the
+            // dialogue list silently falls through to the next entry.
+            //
+            //   `level: 0`  → 10 authored rows (`vendor_armor_new1` lvl=5, `vendor_weap_new1`
+            //                 lvl=10, `vendor_armor_paint` lvl=20, …) could never be reached.
+            //   `ownsArmor: false` → 3 rows (`dialEnd_vendor_armor` armor='ali',
+            //                 `vendor_expl_sapper` armor='sapper', `vendor_sr_power_armor`
+            //                 armor='power') could never be reached.
+            //
+            // The player is resolved lazily and cached: `PlayerController` is a scene object and this
+            // controller may evaluate the gate before it exists (the bubble poll runs from the first
+            // tick), so a null is retried rather than remembered as "there is no player".
+            CharacterStats stats = ResolvePlayerStats();
+            GameInventory inventory = ResolvePlayerInventory();
 
             return new NpcDialogueFacts(
                 isDialoguePlayed: id => campaign != null && TriggerTruthy(campaign.GetTrigger("dial_" + id)),
@@ -1732,15 +1820,64 @@ namespace PFE.Entities.Units
                 questState: questId => campaign != null && campaign.TryGetQuestState(questId, out int state, out _, out _)
                     ? state
                     : 0,
-                ownsArmor: _ => false,
-                ownsWeapon: _ => false,
-                level: Level,
-                barterSkill: 0,
+                // `gg.currentArmor == null || gg.currentArmor.id != @armor` — the EQUIPPED set, not
+                // "owns it". An empty `CurrentArmorId` therefore fails every `@armor` row, which is
+                // the oracle's answer for a player in plain clothes.
+                ownsArmor: armorId => inventory != null &&
+                                      !string.IsNullOrEmpty(inventory.CurrentArmorId) &&
+                                      string.Equals(inventory.CurrentArmorId, armorId, StringComparison.Ordinal),
+                // No row in the shipped data carries `@weap` on a `<dial>` (measured: 0 of 97), and
+                // `NpcDialogueGate` does not consult the attribute at all — so this answers the same
+                // question the same way as `@armor` rather than returning a constant, and the day the
+                // gate starts reading it the answer is already right.
+                ownsWeapon: weaponId => inventory != null &&
+                                        !string.IsNullOrEmpty(inventory.CurrentWeaponId) &&
+                                        string.Equals(inventory.CurrentWeaponId, weaponId, StringComparison.Ordinal),
+                level: stats != null ? stats.Level : 0,
+                // AS3 compares the barter skill's TIER, not its points: `getSkLevel(pers.skills["barter"])`
+                // (<c>NPC.as:278</c>) is the 0-5 ladder at <c>Pers.as:995-1016</c> (>=2→1, >=5→2, >=9→3,
+                // >=14→4, >=20→5). `CharacterStats.GetSkillTier` is that same ladder
+                // (<c>ComputeSkillTier</c>), so this is the faithful reading; `GetSkillLevel` would hand
+                // back the raw 0-20+ points and make every `barter='1'` row pass at 2 points instead of
+                // at tier 1 — the two coincide only below tier 1.
+                barterSkill: stats != null ? stats.GetSkillTier("barter") : 0,
                 isTriggerValue: (name, value) =>
                     campaign != null &&
                     double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out double wanted) &&
                     TriggerEquals(campaign.GetTrigger(name), wanted),
+                // `gg.currentPet` — there is no pet system in the port, so "the player has this pet"
+                // is honestly false. One row authors it (`dialVelvet3 pet='phoenix'`) and it is a
+                // side conversation, not a gate on any quest.
                 hasPet: _ => false);
+        }
+
+        /// <summary>
+        /// The player's stats, cached across calls but never cached as <c>null</c>.
+        /// </summary>
+        /// <remarks>
+        /// <b>Why a scene search at all.</b> This controller is spawned by <c>RoomUnitSpawner</c>, which
+        /// has no player reference and no container — the same reason <c>HudBootstrapper</c> and
+        /// <c>DevConsoleCommands</c> resolve the player the same way. The lookup runs once per NPC
+        /// instance; the per-second bubble poll then reads a field.
+        /// </remarks>
+        CharacterStats ResolvePlayerStats()
+        {
+            if (_playerStats != null) return _playerStats;
+
+            PlayerController player = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
+            _playerStats = player != null ? player.CharacterStats : null;
+            return _playerStats;
+        }
+
+        /// <summary>The player's inventory — see <see cref="ResolvePlayerStats"/> for the lookup rule.</summary>
+        GameInventory ResolvePlayerInventory()
+        {
+            if (_playerInventory != null) return _playerInventory;
+
+            PlayerController player = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
+            PlayerInventory component = player != null ? player.GetComponent<PlayerInventory>() : null;
+            _playerInventory = component != null ? component.Inventory : null;
+            return _playerInventory;
         }
 
         static bool LandIsAccessible(CampaignManager campaign, string landId)
@@ -1888,6 +2025,315 @@ namespace PFE.Entities.Units
                 $"[UnitNPCController] '{name}' (persona '{_npcId}') resolved an activation of kind " +
                 $"'{key}', which the port has no handler for. The world interaction was consumed and " +
                 "did nothing; see NpcActivationKind for which branches exist.");
+        }
+
+        // ── The autodoc and the patient ────────────────────────────────────────────────────────────
+        //
+        // `NPC.repair` (:492-557) and `NPC.patient` (:563-621). Both were RESOLVED by
+        // `NpcActivation.Resolve` and then had no handler, so the interaction was consumed and
+        // reported "no handler for kind 'AutoDocRepair'" — the doctor looked inert.
+        //
+        // Both ladders are driven by the persona's own `<quest>` / `<rep>` children, which
+        // `NpcDefinition` did not carry at all until this pass; the fields exist now and
+        // `CampaignDataParser` fills them.
+
+        /// <summary>
+        /// AS3 <c>NPC.repair()</c> (<c>NPC.as:492-557</c>) — the <c>inter='adoc'</c> branch taken while
+        /// <c>rep &lt;= 1</c>.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>The first interaction does not repair anything, by design.</b> <c>:494-500</c>
+        /// grants the persona's quest and <i>returns</i>, so the autodoc's first use is a conversation
+        /// and only the second can be a repair. That is the branch the port was missing entirely.</para>
+        ///
+        /// <para><b>The parts list is walked twice, and it must be.</b> <c>:514-529</c> only tests each
+        /// row and reports the shortfall; <c>:530-541</c> withdraws. A single fused loop would consume
+        /// glue and tape before discovering the chip is missing, leaving the player short with nothing
+        /// repaired.</para>
+        ///
+        /// <para><b>One oracle quirk is reproduced rather than fixed.</b> The test is
+        /// <c>items[id] &amp;&amp; items[id].kol &lt; kol</c> — so a part the player has <i>never held</i>
+        /// has no inventory row at all, the condition is false, and its requirement is <b>skipped</b>.
+        /// A part that was held and spent to zero keeps its row (<c>Invent.minusItem</c> sets
+        /// <c>kol = 0</c> and does not delete it, <c>Invent.as:1393-1396</c>) and therefore does fail.
+        /// The port's <c>GameInventory</c> keeps rows the same way, so the same distinction is
+        /// observable here; it is written out rather than "corrected" because the fix belongs to the
+        /// Oracle.</para>
+        /// </remarks>
+        void RunAutoDocRepair()
+        {
+            CampaignManager campaign = CampaignManager.Current;
+            CharacterStats stats = ResolvePlayerStats();
+            GameInventory inventory = ResolvePlayerInventory();
+
+            if (stats == null || inventory == null)
+            {
+                ReportOnce("(autodoc player)", $"[UnitNPCController] '{name}' is an autodoc, but the " +
+                    "player's stats/inventory could not be resolved, so the repair did nothing.");
+                return;
+            }
+
+            // :494-500 — grant the quest, then stop.
+            if (!string.IsNullOrEmpty(_persona.questId) && campaign != null &&
+                !campaign.TryGetQuestRuntime(_persona.questId, out _))
+            {
+                campaign.AddQuest(_persona.questId);
+                return;
+            }
+
+            // :501-504 — `pers.skills[needskill] == null`. A skill the player was never given is a
+            // different answer from "level 0", and the port's table keeps the two apart.
+            if (!string.IsNullOrEmpty(_persona.requiredSkill) &&
+                !stats.SkillLevels.ContainsKey(_persona.requiredSkill))
+            {
+                return;
+            }
+
+            int tier = stats.GetSkillTier(_persona.requiredSkill);
+            bool canRepair = false;
+
+            if (tier < 2)
+            {
+                ShowNpcDialogue("rblAutoDocR1");
+            }
+            else if (tier >= 5)
+            {
+                ShowNpcDialogue("rblAutoDocR5");
+                canRepair = true;
+            }
+            else if (_rep == 1)
+            {
+                canRepair = true;
+
+                for (int i = 0; i < _persona.repairRequirements.Count; i++)
+                {
+                    NpcRepairRequirement requirement = _persona.repairRequirements[i];
+                    if (requirement == null || string.IsNullOrEmpty(requirement.itemId)) continue;
+
+                    GameItemInstance row = inventory.GetItem(requirement.itemId);
+                    if (row == null) continue; // the never-held quirk above
+
+                    if (row.Quantity < requirement.count)
+                    {
+                        ShowNpcMessage("required",
+                            $"{requirement.itemId} x{requirement.count - row.Quantity}");
+                        canRepair = false;
+                    }
+                }
+
+                if (canRepair)
+                {
+                    for (int i = 0; i < _persona.repairRequirements.Count; i++)
+                    {
+                        NpcRepairRequirement requirement = _persona.repairRequirements[i];
+                        if (requirement == null || string.IsNullOrEmpty(requirement.itemId)) continue;
+                        if (inventory.GetItem(requirement.itemId) == null) continue;
+
+                        inventory.RemoveItem(requirement.itemId, requirement.count);
+                        ShowNpcMessage("withdraw", $"{requirement.itemId} x{requirement.count}");
+                    }
+
+                    ShowNpcDialogue("rblAutoDocR4");
+                }
+                else
+                {
+                    ShowNpcDialogue("rblAutoDocR3");
+                }
+            }
+            else
+            {
+                ShowNpcDialogue("rblAutoDocR2");
+                _rep = 1;
+            }
+
+            if (!canRepair) return;
+
+            // :548-551 — `rep = 2; inter.t_action = 0; setStatus();`. `t_action` is the interaction
+            // cooldown the port calls `_tRef`; zeroing it lets the next press land immediately.
+            _rep = 2;
+            _tRef = 0;
+            RefreshBubble();
+
+            // :552-555 — `closeQuest(quest.@id, quest.@cid)`, i.e. the SUB form. `cid` is "1" in the
+            // shipped data; an empty one would mean "close everything", which is why it is passed
+            // through rather than defaulted.
+            if (!string.IsNullOrEmpty(_persona.questId))
+            {
+                campaign?.CloseQuest(_persona.questId, _persona.questSubId);
+            }
+        }
+
+        /// <summary>
+        /// AS3 <c>NPC.patient()</c> (<c>NPC.as:563-621</c>) — the <c>inter='patient'</c> branch.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>The captive's dialogue does not pre-empt this.</b> <c>activate()</c> tests
+        /// <c>check(true) &amp;&amp; npcInter != "patient"</c>, so a matched dialogue still falls through
+        /// to here — <c>NpcActivation.Resolve</c> already reproduces that exemption.</para>
+        ///
+        /// <para><b><c>rep</c> is the whole state machine.</b> 0 → tell the player what the patient
+        /// needs and set 1; 1 → consume the vaccine and set 2; 2 → the "open your eyes" ending, gated
+        /// on the <c>patient_tr2</c> trigger having been written as the literal <c>"wait"</c>. Note
+        /// that literal: it is a string, not <c>1</c>, and <c>trig("patient_tr2") == "1"</c> is false
+        /// for it — the last branch is unreachable until something else writes the trigger.</para>
+        /// </remarks>
+        void RunPatient()
+        {
+            CampaignManager campaign = CampaignManager.Current;
+            CharacterStats stats = ResolvePlayerStats();
+            GameInventory inventory = ResolvePlayerInventory();
+
+            if (stats == null || inventory == null)
+            {
+                ReportOnce("(patient player)", $"[UnitNPCController] '{name}' is a patient, but the " +
+                    "player's stats/inventory could not be resolved, so nothing happened.");
+                return;
+            }
+
+            // :565-569 — the skill gate comes first, before any branch.
+            if (!string.IsNullOrEmpty(_persona.requiredSkill) &&
+                !stats.SkillLevels.ContainsKey(_persona.requiredSkill))
+            {
+                return;
+            }
+
+            int tier = stats.GetSkillTier(_persona.requiredSkill);
+
+            if (_rep == 2)
+            {
+                // :575-586 — `trig("patient_tr2") == "1"` opens the owner's eyes; anything else (the
+                // literal "wait" included) re-shows the line.
+                bool opened = campaign != null && TriggerEquals(campaign.GetTrigger("patient_tr2"), 1d);
+                if (opened)
+                {
+                    // `this.owner.command("openEyes")` — the unit-command vocabulary has no `openEyes`
+                    // verb in the port, and the patient's owner is a room unit this controller does not
+                    // command. Named rather than silently dropped: the quest half below still runs.
+                    ReportOnce("openEyes", $"[UnitNPCController] '{name}': the patient's " +
+                        "`openEyes` verb has no consumer in the port, so the visual opening is not " +
+                        "played. The quest progression below is unaffected.");
+                }
+                else
+                {
+                    ShowNpcDialogue("dialPatient7");
+                }
+            }
+            else if (_rep == 1)
+            {
+                // :587-601 — the vaccine. `items[needitem] && kol > 0`, so a missing row is a refusal
+                // here (unlike the autodoc's parts list, which skips it).
+                string itemId = _persona.requiredItemId;
+                if (!string.IsNullOrEmpty(itemId) && inventory.HasItem(itemId, 1))
+                {
+                    inventory.RemoveItem(itemId, 1);
+                    _rep = 2;
+                    ShowNpcDialogue("dialPatient5");
+
+                    // `triggers["patient_tr2"] = "wait"` — the STRING, not 1. `TriggerValue.FromString`
+                    // keeps it a string, so `trig(name) == 1` is false for it, exactly as in the oracle.
+                    campaign?.SetTrigger("patient_tr2", TriggerValue.FromString("wait"));
+                    campaign?.CloseQuest("patientHeal", "3");
+                    campaign?.ShowQuest("patientHeal", "4");
+                }
+                else
+                {
+                    ShowNpcDialogue("dialPatient8");
+                }
+            }
+            else if (tier < 4)
+            {
+                ShowNpcDialogue("dialPatient2");
+            }
+            else
+            {
+                // :614-621 — the medic identifies the illness and starts the quest's stages 2 and 3.
+                ShowNpcDialogue("dialPatient3");
+                _rep = 1;
+                campaign?.SetTrigger("patient_tr1", TriggerValue.FromInt(1));
+                campaign?.CloseQuest("patientHeal", "1");
+                campaign?.ShowQuest("patientHeal", "2");
+                campaign?.ShowQuest("patientHeal", "3");
+            }
+
+            // `this.refresh()` (:620) — re-evaluate the icon/verb after the state change.
+            RefreshBubble();
+        }
+
+        /// <summary>
+        /// Show one authored dialogue line through the room's real <see cref="ScriptRunner"/>.
+        /// </summary>
+        /// <remarks>
+        /// <b>Why a runner and not a direct call to the presentation.</b> The autodoc's lines are
+        /// ordinary <c>dial</c> text and must behave like any other dialogue — blocking on a press,
+        /// releasing control afterwards. Reusing the interpreter is the same argument
+        /// <see cref="RunGreeting"/> makes: a second path would be a second place for the blocking
+        /// rules to drift.
+        /// </remarks>
+        void ShowNpcDialogue(string dialogueId)
+        {
+            if (string.IsNullOrEmpty(dialogueId)) return;
+            RunOneNpcAction("dialog", dialogueId);
+        }
+
+        /// <summary>
+        /// Show one HUD message — AS3 <c>World.w.gui.infoText(key, …)</c>.
+        /// </summary>
+        /// <remarks>
+        /// <b>The arguments are logged, not rendered.</b> <c>infoText</c> takes parameters
+        /// (<c>required, itemName, shortfall</c>; <c>withdraw, itemName, count</c>) and the port's
+        /// <c>mess</c> command carries only a text key. The numbers therefore go to the console so a
+        /// play-tester can see what the autodoc asked for; wiring them into the HUD needs the
+        /// parameterised <c>infoText</c> seam, which does not exist yet.
+        /// </remarks>
+        void ShowNpcMessage(string key, string detail)
+        {
+            if (string.IsNullOrEmpty(key)) return;
+            if (!string.IsNullOrEmpty(detail))
+            {
+                Debug.Log($"[UnitNPCController] infoText '{key}': {detail}");
+            }
+
+            RunOneNpcAction("mess", key);
+        }
+
+        void RunOneNpcAction(string act, string val)
+        {
+            ScriptSystem system = ScriptSystem.Current;
+            if (system == null)
+            {
+                Debug.LogWarning(
+                    $"[UnitNPCController] '{name}' tried to run `{act} {val}` but there is no " +
+                    "ScriptSystem.Current, so the line was not shown.");
+                return;
+            }
+
+            var script = new MapObjectScriptData
+            {
+                eventName = string.Empty,
+                actions = new List<MapObjectScriptActionData>
+                {
+                    new MapObjectScriptActionData
+                    {
+                        act = act,
+                        val = val,
+                        t = "0",
+                        n = "-1",
+                        opt1 = "0",
+                        opt2 = "0",
+                        targ = string.Empty,
+                    },
+                },
+            };
+
+            ScriptRunner runner = system.CreateRunner(
+                objects: _scriptObjects, campaign: null, units: _scriptUnits);
+            system.Register(runner);
+            runner.Run(_room, script, owner: null);
+        }
+
+        void ReportOnce(string key, string message)
+        {
+            if (_reportedUnwiredVerbs.Add(key)) Debug.LogWarning(message);
         }
 
         // ── Coordinates ────────────────────────────────────────────────────────────────────────────
