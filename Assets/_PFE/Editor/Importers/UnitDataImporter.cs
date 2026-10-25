@@ -465,6 +465,22 @@ namespace PFE.Editor.Importers
                 SetPrivateField(unit, "height", height);
             }
 
+            // Crouch height — AS3 `sitY`, which defaults to `stayY / 2` (`Unit.as:1039-1043`) and is
+            // swapped in for `scY` while crouching (`:2519-2520`). `SetUnitDefaults` runs first and
+            // writes a flat 0.5, so every imported unit used to crouch to 50 px whatever its size: a
+            // 30-tall bloat crouched TALLER than its standing box, and a 100-tall hellhound crouched to
+            // half its height. Only the height is written: the definition has no `sitWidth`, and the
+            // motor only shrinks `collisionHeight`, so AS3's `sitX = stayX` has nothing to drive here.
+            var sitYMatch = Regex.Match(attrs, @"sitY='(\d+)'");
+            if (sitYMatch.Success)
+            {
+                SetPrivateField(unit, "sitHeight", int.Parse(sitYMatch.Groups[1].Value) / 100f);
+            }
+            else if (syMatch.Success)
+            {
+                SetPrivateField(unit, "sitHeight", int.Parse(syMatch.Groups[1].Value) / 100f / 2f);
+            }
+
             // Parse massa (mass) and massafix.
             //
             // AS3 reads BOTH off this same <phis> node — `Unit.as:1018` does `node = node0.phis[0]`,
@@ -1234,7 +1250,12 @@ namespace PFE.Editor.Importers
         private static void SetUnitDefaults(UnitDefinition unit)
         {
             // Set sensible defaults for fields not in XML
-            SetPrivateField(unit, "sitHeight", 0.5f);
+            //
+            // Crouch height: AS3 `sitY` defaults to `stayY / 2` (`Unit.as:1043`), and the `height` field
+            // this pairs with defaults to 0.70, so a row with no <phis> at all crouches to 0.35.
+            // `ParsePhysics` overwrites this with the authored `sitY`, or with `sY / 2`, whenever the row
+            // has a phis node — this is only the "source is silent" value.
+            SetPrivateField(unit, "sitHeight", 0.35f);
             SetPrivateField(unit, "runMultiplier", 2f);
             // AS3 `public var runSpeed:Number = 10` (`Unit.as:220`) is the DECLARED default, but it is
             // not the right "source is silent" value here: `Unit.getXmlParam` only overwrites it when
