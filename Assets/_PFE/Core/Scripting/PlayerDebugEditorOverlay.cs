@@ -5799,7 +5799,30 @@ namespace PFE.Core.Scripting
             string cat = CategoryLabelFor(weapon);
             GUILayout.Label(string.IsNullOrEmpty(cat) ? "—" : cat, _badgeStyle, GUILayout.Width(85));
             GUILayout.Label($"Dmg: <b>{weapon.baseDamage}</b>", GUILayout.Width(70));
-            GUILayout.Label($"Mag: <b>{weapon.magazineSize}</b>", GUILayout.Width(65));
+
+            // ── "Mag" is meaningless for a throwable; the ammo count is the number that matters ──────
+            //
+            // A thrown weapon's magazineSize is always 0 (`WThrow.reloadWeapon()` is an empty override,
+            // `WThrow.as:264`), so "Mag: 0" is noise on 25 of these rows. What decides whether the
+            // grenade key will actually throw is the ITEM count under the weapon's own id
+            // (`WThrow.as:42`, `ammo = id`) — the same number "Give" now stocks and the same one a
+            // refusal turns on. Same 65 px as the label it replaces, so the row's layout is unchanged.
+            if (weapon.weaponType == WeaponType.Thrown)
+            {
+                int throwStock = _debugInventory != null
+                    ? _debugInventory.GetAmmoCount(ThrownAmmoRule.AmmoIdFor(null, wid))
+                    : 0;
+
+                GUILayout.Label(throwStock > 0
+                        ? $"Throw: <b>{throwStock}</b>"
+                        : "<color=#FF9A6A>Throw: 0</color>",
+                    GUILayout.Width(65));
+            }
+            else
+            {
+                GUILayout.Label($"Mag: <b>{weapon.magazineSize}</b>", GUILayout.Width(65));
+            }
+
             GUILayout.Label($"DType: <b>{weapon.damageType}</b>", GUILayout.Width(110));
 
             GUILayout.FlexibleSpace();
@@ -6076,6 +6099,18 @@ namespace PFE.Core.Scripting
         }
 
         /// <summary>
+        /// How many throwing ammo items "Give" stocks alongside a <c>tip == 4</c> weapon.
+        ///
+        /// <para><b>4 because that is the oracle's own number</b> — <c>WThrow.kolAmmo</c> is declared
+        /// <c>4</c> (<c>WThrow.as:12</c>) and seeded from an NPC's <c>&lt;un grenader&gt;</c>, so a debug
+        /// give hands you what an enemy grenadier carries. There is no AS3 debug equivalent to copy: the
+        /// oracle's <c>Invent.addAll*()</c> family stocks every row at once, which is not what a
+        /// per-weapon "Give" button means. A named constant rather than a literal so the number is
+        /// arguable in one place.</para>
+        /// </summary>
+        private const int ThrowableStockOnGive = 4;
+
+        /// <summary>
         /// Put a weapon into the player's bag — AS3 <c>Invent.addWeapon(id)</c>.
         ///
         /// <para><b>This is the fix for "the inventory has no weapon while I have a minigun equipped".</b>
@@ -6083,8 +6118,18 @@ namespace PFE.Core.Scripting
         /// tables are disjoint), which is the same path <c>PlayerInventory.GrantWeapon</c> takes for the
         /// starting kit — so a weapon given here is indistinguishable from one the game gave, which is
         /// what makes it a useful test of the seam rather than a bypass of it.</para>
+        ///
+        /// <para><b>A throwable needs a second row, and giving only the weapon is what made the button
+        /// look broken.</b> <c>WThrow.as:42</c> sets <c>ammo = id</c>, so a thrown weapon's ammunition is
+        /// the <i>item</i> of the same name — a different table and a different dictionary. Stocking the
+        /// weapon alone left <c>GetAmmoCount</c> at 0, <c>ThrownAmmoRule.Decide</c> answered
+        /// <c>RefuseInventoryEmpty</c>, and <c>ThrownWeaponController.RunAttack</c> returns on that without
+        /// a word: weapon in the bag, nothing throwable, no message, and a lifecycle log that still said
+        /// "throwing". <see cref="StockThrowableAmmo"/> is the second half; see it for the failure that
+        /// remains when the id has no item row.</para>
         /// </summary>
-        /// <returns>True when the bag took it.</returns>
+        /// <returns>True when the bag took the weapon. The ammo half is reported separately — a weapon
+        /// that landed with no ammo is still a weapon that landed.</returns>
         private bool GiveWeaponToInventory(WeaponDefinition weapon)
         {
             if (weapon == null) return false;
@@ -6104,6 +6149,8 @@ namespace PFE.Core.Scripting
                 Debug.Log(result.Applied
                     ? $"[PlayerDebugEditor] Gave weapon '{wid}' — it is on the Pip-Buck's Weapons page now."
                     : $"[PlayerDebugEditor] Weapon '{wid}' was not given: {result.Reason}");
+
+                if (result.Applied) StockThrowableAmmo(weapon, wid);
                 return result.Applied;
             }
 
@@ -6120,7 +6167,49 @@ namespace PFE.Core.Scripting
             Debug.Log(added != null
                 ? $"[PlayerDebugEditor] Gave weapon '{wid}' to the fallback bag (no PlayerInventory in the scene)."
                 : $"[PlayerDebugEditor] Weapon '{wid}' was not given — see the Console above.");
+
+            if (added != null) StockThrowableAmmo(weapon, wid);
             return added != null;
+        }
+
+        /// <summary>
+        /// The item half of giving a throwable — AS3 <c>WThrow.as:42</c>, <c>ammo = id</c>.
+        ///
+        /// <para><b>Why this is not "give some ammo" in general.</b> A gun's ammo id is a separate row
+        /// (<c>p32</c>, <c>p556</c>, …) that the weapon names in <c>ammoType</c>, and the Weapons tab
+        /// already has a "Give 30" for the equipped weapon's family. A throwable names <b>nothing</b> —
+        /// its <c>ammoType</c> is blank and <c>WThrow</c> overwrites the field with its own id — which is
+        /// why <see cref="DrawAmmoTypeRow"/> skips the whole row for it and why this is the only place a
+        /// grenade's stock can be created. Non-thrown weapons are deliberately untouched: silently
+        /// stocking rounds for a gun whose ammo id is a different table is a different decision.</para>
+        ///
+        /// <para><b>The three ids with no item row.</b> <c>drongr</c>, <c>mercgr</c> and <c>roboplagr</c>
+        /// have a weapon row and no <c>&lt;item&gt;</c> row in <c>AllData.as</c> — which is the oracle's
+        /// own shape, not a port gap: they are enemy throwables, thrown from the NPC's <c>kolAmmo</c>
+        /// counter, and a player can never hold one. The warning says so by name instead of letting the
+        /// button look like it worked.</para>
+        ///
+        /// <para>Goes through <see cref="GiveAmmoToInventory"/>, i.e. the same command seam a real pickup
+        /// takes, so this is not a bypass.</para>
+        /// </summary>
+        private void StockThrowableAmmo(WeaponDefinition weapon, string wid)
+        {
+            if (weapon == null || weapon.weaponType != WeaponType.Thrown) return;
+
+            // No override exists at give time — that lives on the runtime state and is written by the
+            // ammo dropdown after an equip — so the weapon's own id is the whole answer here.
+            string ammoId = ThrownAmmoRule.AmmoIdFor(null, wid);
+
+            if (GiveAmmoToInventory(ammoId, ThrowableStockOnGive)) return;
+
+            // GiveAmmoToInventory has already logged its own reason. This line adds the consequence,
+            // which is the part that was invisible: the throw will refuse and say nothing.
+            Debug.LogWarning(ResolveAmmoItem(ammoId) == null
+                ? $"[PlayerDebugEditor] '{wid}' was given, but there is no ItemDefinition row for its ammo " +
+                  $"'{ammoId}', so nothing can stock it and the grenade key will refuse silently. Only an " +
+                  "NPC's kolAmmo counter can throw this weapon."
+                : $"[PlayerDebugEditor] '{wid}' was given, but '{ammoId}' could not be stocked — the grenade " +
+                  "key will refuse silently until the inventory holds some.");
         }
 
         /// <summary>
