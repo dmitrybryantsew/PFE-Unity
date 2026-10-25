@@ -70,8 +70,8 @@ namespace PFE.Entities.Weapons
         /// <summary>
         /// The stretched beam child, for a <c>spring='2'</c> laser — AS3's <c>vis.laser</c>
         /// (<c>Bullet.as:213-215</c>). Left unassigned it is found by name under the visual renderer;
-        /// see <see cref="BeamChildName"/>. Null is legal and means "this prefab has no beam", which is
-        /// the state of every prefab in the project today.
+        /// see <see cref="BeamChildName"/>. Null is legal, and means "look for the named child, and
+        /// failing that let the visual play the beam" — see <see cref="BeamTransform"/>.
         /// </summary>
         [Tooltip("Optional child stretched along the shot for spring='2' lasers. Auto-found as a " +
                  "child named 'laser' when left empty — AS3's vis.laser, Bullet.as:213.")]
@@ -153,7 +153,18 @@ namespace PFE.Entities.Weapons
         private float   _traveledDistancePixels;
 
         // Scaled to Unity units from AS3 pixel values where needed by caller.
-        private const float DefaultLifetime = 30f;
+        //
+        // AS3's default is `liv = 100` FRAMES (`weapon/Bullet.as:27`), decremented once per step and
+        // removed at zero (`:246`, `:256-262`) — i.e. 3.33 s at the canonical 30 Hz, never 30 seconds.
+        // The old value here was an uncited `30f`, nine times the oracle's, and it is what the owner
+        // saw as "a laser that flies into the void lives for too long": a beam is stretched from the
+        // muzzle to the round, so every still-alive round keeps drawing a full-screen streak, and half
+        // a minute of them stacks into a bundle of beams. The number itself lives in
+        // ProjectilePhysicsMath with the other AS3 source values, so it can be pinned by a fixture.
+        private const float DefaultLifetime = ProjectilePhysicsMath.DefaultLifetimeSeconds;
+        // `Weapon.as:1542-1556` — a flame round gets `liv = brakeR / 7`, brakeR being 180..220 (flame 1)
+        // or 100..140 (flame 2). The port keeps fixed values rather than re-rolling brakeR here; both
+        // are shorter than the default and both are already below it, so the ordering is unaffected.
         private const float FlameLifetime1  = 0.7f;   // flame==1 short lifetime (AS3 ~21 frames)
         private const float FlameLifetime2  = 1.2f;   // flame==2 medium lifetime
         // The parking spot comes from the template spec, which is where the old prefab's values now
@@ -166,6 +177,24 @@ namespace PFE.Entities.Weapons
         private bool          _isInitialized;
         private bool          _hasDetonated;
         private bool          _isImpacting;       // true while playing impact frames before pool
+
+        /// <summary>
+        /// AS3's <c>liv</c> during the post-impact fade — see
+        /// <see cref="ProjectilePhysicsMath.BeamFadeFrames"/>. Non-zero means "this instance is a
+        /// stopped beam, drawing its last four frames", which is a state the pool release must not
+        /// cut short. Zero for every other round.
+        /// </summary>
+        private int           _beamFadeFramesLeft;
+
+        /// <summary>Seconds accumulated toward the next 30 Hz fade frame.</summary>
+        private float         _beamFadeTimer;
+
+        /// <summary>
+        /// The visual's colour as it was at impact, so the fade multiplies the weapon's tint instead
+        /// of replacing it (a laser can be tinted; writing a bare <c>new Color(1,1,1,a)</c> would
+        /// bleach it on the way out).
+        /// </summary>
+        private Color         _beamFadeBaseColor = Color.white;
 
         // ── Unit collision — the sim's sub-stepped probe (Stage C) ──────────────────────────────
         // AS3's bullet keeps `parr`: the units it has already struck (`Bullet.as:69`, and `udar()` at
@@ -986,6 +1015,11 @@ namespace PFE.Entities.Weapons
             _tileContactActive   = false;
             _viewDirty           = false;
             _pendingReturnToPool = false;
+            // A spawn always begins in flight, never mid-fade. ResetProjectile clears these too; this
+            // is the belt to its braces, because an instance re-initialised without a pool return would
+            // otherwise start its shot already transparent.
+            _beamFadeFramesLeft  = 0;
+            _beamFadeTimer       = 0f;
             _simPosition         = _spawnPosition;   // world units — the sim's origin for this flight
 
             if (_debugSettings?.ProjectilesUseLowLevelPhysics == true)
@@ -1166,6 +1200,9 @@ namespace PFE.Entities.Weapons
             if (!_isInitialized) return;
             UpdateVisualAnimation();
             UpdateBeamStretch();
+            // After the stretch, because the fade's last step releases the instance: measuring the
+            // beam one more time first is what keeps the final visible frame the full length.
+            UpdateBeamFade();
         }
 
         /// <summary>
@@ -1198,13 +1235,15 @@ namespace PFE.Entities.Weapons
         /// reachable only through a private member of a <c>MonoBehaviour</c>. This method only converts
         /// units, picks the transform and writes.</para>
         ///
-        /// <para><b>Still inert for the beam until the template has the child.</b> The code-built
-        /// template (<see cref="ProjectileTemplateBuilder"/>) creates no child named <c>laser</c>, so the
-        /// beam arm is a no-op today — deliberately. It is now a one-line change in the builder rather
-        /// than a prefab edit, which is the whole reason building in code was worth doing. The smear arm,
-        /// by contrast, is <b>live now</b>:
-        /// it applies to any <c>spring == 1</c> weapon whose round exceeds 100 px/frame, which is the
-        /// owner's "rail — I am not sure but worth to check".</para>
+        /// <para><b>The beam arm was inert until 10-23.</b> It required a child named <c>laser</c>, and
+        /// neither the code-built template nor any prefab had one — so every <c>spring='2'</c> laser
+        /// fell through to the natural-size reset and drew a one-unit dash at the round's position.
+        /// At 2000 px/frame that dash is up to 50 tiles ahead of the gun, which is the owner-reported
+        /// "laser beams spawn far away from the character". The visual now plays the beam when no child
+        /// exists (<see cref="BeamTransform"/>), and its centre-pivoted art is anchored back to the
+        /// muzzle (<see cref="AnchorBeamToMuzzle"/>). The smear arm, by contrast, has been live all
+        /// along: it applies to any <c>spring == 1</c> weapon whose round exceeds 100 px/frame, which is
+        /// the owner's "rail — I am not sure but worth to check".</para>
         /// </summary>
         private void UpdateBeamStretch()
         {
@@ -1212,8 +1251,10 @@ namespace PFE.Entities.Weapons
             // factor (×0.3), not the identity and not the acceleration one.
             float velocityPxPerFrame = _velocity.magnitude / ProjectilePhysicsMath.VelocityScale;
 
+            Transform beamTransform = BeamTransform;
+
             ProjectilePhysicsMath.ViewScaleTarget target = ProjectilePhysicsMath.BulletViewScaleTarget(
-                hasBeamChild:        _beamTransform != null,
+                hasBeamChild:        beamTransform != null,
                 spring:              _springMode,
                 velocityPxPerFrame:  velocityPxPerFrame,
                 hasDetonated:        _hasDetonated);
@@ -1223,13 +1264,13 @@ namespace PFE.Entities.Weapons
             if (target == ProjectilePhysicsMath.ViewScaleTarget.None) return;
 
             bool beam = target == ProjectilePhysicsMath.ViewScaleTarget.BeamChild;
-            Transform targetTransform = beam ? _beamTransform : _visualTransform;
+            Transform targetTransform = beam ? beamTransform : _visualTransform;
             if (targetTransform == null) return;
 
             // Only the beam arm measures distance, and only the smear arm measures speed — each is the
             // other's 0, because `BulletViewScaleTarget` has already decided which arm is live.
             float distancePx = beam
-                ? Vector2.Distance(_spawnPosition, transform.position) / TileQueryConstants.PixelToUnit
+                ? Vector2.Distance(_spawnPosition, DrawnPosition) / TileQueryConstants.PixelToUnit
                 : 0f;
 
             float scaleX = ProjectilePhysicsMath.BulletViewScaleX(
@@ -1241,7 +1282,73 @@ namespace PFE.Entities.Weapons
             Vector3 scale = targetTransform.localScale;
             scale.x = scaleX;
             targetTransform.localScale = scale;
+
+            // …and the beam's art has to be pushed back so it grows toward the muzzle rather than
+            // straddling the round. Only the centre-pivoted export needs this; a child authored the
+            // way AS3's `vis.laser` is (far end on the registration point) is already anchored.
+            if (beam && beamTransform == _visualTransform)
+                AnchorBeamToMuzzle(targetTransform, scaleX);
         }
+
+        /// <summary>
+        /// The transform that plays AS3's <c>vis.laser</c> — the serialized child if one was authored,
+        /// otherwise the visual itself.
+        ///
+        /// <para><b>Why the visual itself is the beam here.</b> AS3's beam is a named child of the
+        /// bullet symbol, and <see cref="BeamChildName"/> is how the port looks for it. But the SWF
+        /// extraction flattened each bullet symbol to a single sprite, and for the <c>spring='2'</c>
+        /// family that sprite <i>is</i> the beam: all ten <c>Art/Projectiles/laser*</c> textures are
+        /// exactly 100 px wide — the length <c>Bullet.as:215</c> divides by — and nothing else is
+        /// drawn. So "no child" cannot mean "no beam" for these weapons; it means the art was
+        /// exported one level up. Without this the beam arm is unreachable and a laser draws a
+        /// one-unit dash at the round's position, which on a 2000 px/frame round is up to 50 tiles
+        /// from the gun.</para>
+        ///
+        /// <para>Gated on <c>spring &gt;= 2</c> as well, so an ordinary round's art is never stretched
+        /// by distance — the rule AS3 encodes by testing <c>vis.laser</c>.</para>
+        /// </summary>
+        private Transform BeamTransform
+        {
+            get
+            {
+                if (_beamTransform != null) return _beamTransform;
+                return _springMode >= 2 ? _visualTransform : null;
+            }
+        }
+
+        /// <summary>
+        /// Moves the beam's centre back by half its scaled length so its far end lands on the round
+        /// and its near end on the muzzle — the anchor AS3's art carries in its registration point and
+        /// this project's centre-pivoted export does not. See
+        /// <see cref="ProjectilePhysicsMath.BeamAnchorOffsetX"/>.
+        /// </summary>
+        private void AnchorBeamToMuzzle(Transform targetTransform, float scaleX)
+        {
+            Sprite sprite = _visualRenderer != null ? _visualRenderer.sprite : null;
+            float lengthUnits = sprite != null && sprite.pixelsPerUnit > 0f
+                ? sprite.rect.width / sprite.pixelsPerUnit
+                : ProjectilePhysicsMath.ViewStretchReferencePx / TileQueryConstants.UnitToPixel;
+
+            float authoredX = _currentVisual != null ? _currentVisual.localOffset.x : 0f;
+
+            Vector3 local = targetTransform.localPosition;
+            local.x = authoredX + ProjectilePhysicsMath.BeamAnchorOffsetX(lengthUnits, scaleX);
+            targetTransform.localPosition = local;
+        }
+
+        /// <summary>
+        /// The round's world position as it will be <i>drawn</i> this frame — the input to the beam's
+        /// length.
+        ///
+        /// <para><b>Why not just <c>transform.position</c>.</b> On the flipped path the Transform is
+        /// written in <see cref="LateUpdate"/> from <c>_simPosition</c>, i.e. <i>after</i> the
+        /// <see cref="Update"/> that measures the beam. Reading the Transform there would size the beam
+        /// from the previous tick while the round is drawn at the current one — one tick of lag, which
+        /// at a laser's 20 units/tick is a beam that visibly misses its own gun. The legacy path moves
+        /// the Transform from the Rigidbody before <see cref="Update"/>, so there it is already
+        /// current.</para>
+        /// </summary>
+        private Vector2 DrawnPosition => FlipActive ? _simPosition : (Vector2)transform.position;
 
         private void OnTriggerEnter2D(Collider2D other)
         {
@@ -1615,12 +1722,90 @@ namespace PFE.Entities.Weapons
             }
             else
             {
+                // ── A beam gets its four post-impact frames before it is released ────────────
+                // AS3 caps `liv` at 4 when the round detonates (`Bullet.as:385-388`) and fades the
+                // beam over exactly that count (`Bullet.as:229-231`). The port recycled the instance
+                // on the impact frame instead, which for a beam is *the only frame on which its
+                // stretch is non-zero*: the stretch is measured in Update, after the tick that moved
+                // the round, and a laser covers 20 units per tick — wider than any room. So inside a
+                // room the beam was never drawn at all, while in the void the round never hits
+                // anything and the beam draws for its whole flight. That is the owner's "works
+                // outside the room, not in rooms".
+                if (BeginBeamFade()) return;
+
                 // A tick must not deactivate a GameObject — the tickable list is being iterated while
                 // this runs. With the flip active the release is deferred to LateUpdate; on the legacy
                 // path (called from OnTriggerEnter2D) it is safe to do immediately.
                 if (FlipActive) _pendingReturnToPool = true;
                 else            ReturnToPool();
             }
+        }
+
+        /// <summary>
+        /// Stops a beam where it hit and hands the visual to the four-frame fade AS3 gives every
+        /// impacted round. Returns <c>false</c> — leaving the caller to recycle as before — for every
+        /// round that is not a beam.
+        ///
+        /// <para><b>Why the stop has to happen here.</b> The immediate-release branch above is the
+        /// only place that stops a round whose visual has no impact frames, and every
+        /// <c>spring='2'</c> visual is in that group (all of them are single-frame; <c>laser6</c>
+        /// declares six but no <c>flightFrameCount</c>, so it loops in flight and still has no impact
+        /// arm). So without this the round would be deactivated mid-flight the moment it touched a
+        /// wall.</para>
+        ///
+        /// <para><b>Why <c>_isImpacting</c> rather than a new flag.</b> It is the port's existing
+        /// "stopped" state: <see cref="SimTick"/> returns on it, the legacy path's rotation write is
+        /// gated on it, and <see cref="UpdateBeamStretch"/> deliberately keeps running through it —
+        /// which is the whole point, since the beam must be re-measured against the impact point it
+        /// just stopped at.</para>
+        /// </summary>
+        private bool BeginBeamFade()
+        {
+            if (_springMode < 2 || _visualRenderer == null) return false;
+
+            _velocity          = Vector2.zero;
+            _rb.linearVelocity = Vector2.zero;
+            if (_triggerCollider != null) _triggerCollider.enabled = false;
+
+            _isImpacting         = true;
+            _beamFadeFramesLeft  = ProjectilePhysicsMath.BeamFadeFrames;
+            _beamFadeTimer       = 0f;
+            _beamFadeBaseColor   = _visualRenderer.color;
+            return true;
+        }
+
+        /// <summary>
+        /// Counts the beam's post-impact frames down at AS3's 30 Hz and writes
+        /// <c>vis.alpha = liv / 4</c>, releasing the instance when the count reaches zero.
+        ///
+        /// <para>Timed in <i>seconds</i> rather than render frames on purpose: AS3's four frames are
+        /// 4/30 s, and the port renders at whatever rate the display runs. Decrementing per
+        /// <see cref="Update"/> would make the fade 2× shorter on a 60 Hz display.</para>
+        /// </summary>
+        private void UpdateBeamFade()
+        {
+            if (_beamFadeFramesLeft <= 0) return;
+
+            _beamFadeTimer += Time.deltaTime;
+            float frameDuration = 1f / SimClock.FramesPerSecond;
+
+            while (_beamFadeTimer >= frameDuration && _beamFadeFramesLeft > 0)
+            {
+                _beamFadeTimer -= frameDuration;
+                _beamFadeFramesLeft--;
+            }
+
+            if (_beamFadeFramesLeft <= 0)
+            {
+                // Same deferral rule as the impact path: a tick may be iterating the tickable list.
+                if (FlipActive) _pendingReturnToPool = true;
+                else            ReturnToPool();
+                return;
+            }
+
+            Color colour = _beamFadeBaseColor;
+            colour.a *= ProjectilePhysicsMath.BeamFadeAlpha(_beamFadeFramesLeft);
+            _visualRenderer.color = colour;
         }
 
         /// <summary>
@@ -1883,6 +2068,11 @@ namespace PFE.Entities.Weapons
             _hasDetonated     = false;
             _hasDamageContext = false;
             _isImpacting      = false;
+            // A recycled instance must not inherit the previous shot's fade, or the next laser would
+            // be released four frames early (or start already faded). The colour itself is restored by
+            // RestoreDefaultVisual at the end of this method.
+            _beamFadeFramesLeft = 0;
+            _beamFadeTimer      = 0f;
 
             // Stage C: a pooled instance must not stay registered after release. SimLoop.Register
             // de-duplicates, so leaving it registered would not double-register — it would keep the
@@ -1968,11 +2158,12 @@ namespace PFE.Entities.Weapons
             _visualTransform = _visualRenderer != null ? _visualRenderer.transform : null;
 
             // AS3's beam is a CHILD of the bullet view (`vis.laser`, `Bullet.as:213`), so the port
-            // looks for the same child by name. Absent is the normal state today: no prefab in the
-            // project has one, which is exactly why `spring='2'` weapons draw an ordinary round. The
-            // lookup is by name rather than a serialized field so an art change activates the stretch
-            // without a code change — but a serialized override still wins, for prefabs that name it
-            // differently.
+            // looks for the same child by name. No prefab in the project has one and the code-built
+            // template creates none — the extraction flattened the child into the visual — so a
+            // `spring='2'` weapon falls back to the visual itself as the beam; see BeamTransform.
+            // The lookup is by name rather than a serialized field so an art change that re-authors
+            // the child activates it without a code change — but a serialized override still wins,
+            // for prefabs that name it differently.
             if (_beamTransform == null && _visualTransform != null)
             {
                 _beamTransform = _visualTransform.Find(BeamChildName);
@@ -2025,6 +2216,11 @@ namespace PFE.Entities.Weapons
 
         private void UpdateVisualAnimation()
         {
+            // A fading beam owns the visual for its last four frames. Without this the impact branch
+            // below would see `_isImpacting` with the frame index already at the last frame and release
+            // the instance on the very next 30 Hz step — undoing the fade in the frame it began.
+            if (_beamFadeFramesLeft > 0) return;
+
             if (_currentVisual == null || _visualRenderer == null ||
                 _currentVisual.frames == null || _currentVisual.frameRate <= 0f)
                 return;

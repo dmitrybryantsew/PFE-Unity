@@ -286,14 +286,77 @@ namespace PFE.Tests.EditMode.Systems.Weapons
         [Test]
         public void ViewStretch_WithNoBeamChild_FallsThroughToTheOtherBranches()
         {
-            // The gate is the CHILD's existence as well as `spring`, and this is the case the port is
-            // in today: every prefab lacks the child, so a spring='2' weapon must NOT be stretched by
-            // distance. Getting this wrong would stretch ordinary rounds as if they were beams.
+            // The gate is the CHILD's existence as well as `spring`. This is the rule the port relied
+            // on while every bullet lacked the child — and it is still the rule, because the call site
+            // now decides what "the child" is (Projectile.BeamTransform: the named child, else the
+            // visual itself for spring>=2, since the extracted art IS the beam). The function stays
+            // ignorant of that: given no beam it must NOT stretch by distance, or ordinary rounds
+            // would be smeared as if they were beams.
             Assert.AreEqual(1f,
                 ProjectilePhysicsMath.BulletViewScaleX(hasBeamChild: false, spring: 2,
                                                        velocityPxPerFrame: 50f,
                                                        distanceFromOriginPx: 250f), Tolerance,
                 "no `laser` child means no beam, whatever spring says — Bullet.as:213");
+        }
+
+        /// <summary>
+        /// <b>The anchor that makes the beam reach the gun.</b> AS3 scales a child whose down-range end
+        /// sits on the registration point, so it grows backwards. The port's beam art is exported
+        /// centre-pivoted, so without this shift a 2.5x beam hangs half in front of the round and never
+        /// reaches the muzzle — the owner-reported "laser beams spawn far away from the character".
+        /// </summary>
+        [Test]
+        public void BeamAnchor_PushesTheCentreBackByHalfTheScaledLength()
+        {
+            // One unit of art at 2.5x is 2.5 units long, so its centre goes back 1.25 and the sprite
+            // spans [-2.5, 0] in the round's local space: far end on the round, near end on the muzzle.
+            Assert.AreEqual(-1.25f, ProjectilePhysicsMath.BeamAnchorOffsetX(1f, 2.5f), Tolerance,
+                "a beam's far end belongs on the round, not at the round's centre");
+
+            // Control: the offset is a function of the SCALED length, not a constant. At the instant of
+            // firing the beam is zero-length and must not be shifted at all — otherwise every laser
+            // would start one unit behind the gun.
+            Assert.AreEqual(0f, ProjectilePhysicsMath.BeamAnchorOffsetX(1f, 0f), Tolerance,
+                "a zero-length beam is not displaced — the shift scales with scaleX");
+        }
+
+        [Test]
+        public void BeamFade_CountsDownFromOpaqueOverFourFrames()
+        {
+            // AS3 `Bullet.as:385-388` caps `liv` at 4 when a round detonates, and `:229-231` writes
+            // `vis.alpha = liv / 4`. So the beam is drawn at full strength on the impact frame, then
+            // 75 %, 50 %, 25 %, and released — four frames, 133 ms at 30 Hz.
+            Assert.AreEqual(1f,    ProjectilePhysicsMath.BeamFadeAlpha(4), Tolerance, "impact frame: unchanged");
+            Assert.AreEqual(0.75f, ProjectilePhysicsMath.BeamFadeAlpha(3), Tolerance);
+            Assert.AreEqual(0.5f,  ProjectilePhysicsMath.BeamFadeAlpha(2), Tolerance);
+            Assert.AreEqual(0.25f, ProjectilePhysicsMath.BeamFadeAlpha(1), Tolerance, "last visible frame");
+
+            // 0 is "released", and the count is decremented in a loop, so the clamp is load-bearing
+            // rather than defensive: without it a single overshoot would write a negative alpha.
+            Assert.AreEqual(0f, ProjectilePhysicsMath.BeamFadeAlpha(0),  Tolerance, "released");
+            Assert.AreEqual(0f, ProjectilePhysicsMath.BeamFadeAlpha(-3), Tolerance, "cannot go below zero");
+
+            Assert.AreEqual(4, ProjectilePhysicsMath.BeamFadeFrames,
+                "the fade length is AS3's `liv` cap, not a tunable");
+        }
+
+        [Test]
+        public void DefaultLifetime_IsAs3sHundredFrames_NotThirtySeconds()
+        {
+            // `weapon/Bullet.as:27` — `liv = 100`, counted down once per 30 Hz step. The port stored
+            // `30f` seconds here (900 frames, 9x the oracle) and the visible result was a laser fired
+            // into the void leaving a full-screen muzzle-to-round streak for half a minute; several of
+            // them stack into a bundle of beams, which is the owner's "it lives for too long".
+            Assert.AreEqual(100, ProjectilePhysicsMath.DefaultLifetimeFrames,
+                "the frame count is the oracle's, and it is what the seconds are derived from");
+
+            Assert.AreEqual(100f / 30f, ProjectilePhysicsMath.DefaultLifetimeSeconds, Tolerance,
+                "3.33 s at the canonical tick rate");
+
+            // The regression this pins is an order of magnitude, not a percent: anything at or above
+            // ten seconds is the old behaviour wearing a new expression.
+            Assert.Less(ProjectilePhysicsMath.DefaultLifetimeSeconds, 10f,
+                "a round that never hits anything must not outlive a few seconds");
         }
 
         [Test]

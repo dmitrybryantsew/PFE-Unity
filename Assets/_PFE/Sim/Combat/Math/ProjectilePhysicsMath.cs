@@ -48,6 +48,23 @@ namespace PFE.Systems.Weapons
         // ── AS3 source values (px, never hand-converted) ─────────────────────────────────────
 
         /// <summary>
+        /// <c>weapon/Bullet.as:27</c> <c>public var liv:int = 100</c> — how many 30 Hz steps a round
+        /// lives before <c>:246</c> counts it down to zero and <c>:256-262</c> removes it.
+        ///
+        /// <para>A <b>frame count</b>, and it is kept as one: the port stored 30 <i>seconds</i> for
+        /// years, nine times the oracle's, which is why a laser fired into the void kept drawing a
+        /// muzzle-to-round streak for half a minute and stacked into a bundle of beams.</para>
+        /// </summary>
+        public const int DefaultLifetimeFrames = 100;
+
+        /// <summary>
+        /// <see cref="DefaultLifetimeFrames"/> in the seconds the port's timers count in — 3.33 s.
+        /// Divide by the clock rather than writing <c>3.33f</c>, so the source keeps the oracle's
+        /// number and a change of tick rate cannot silently stretch every round's life.
+        /// </summary>
+        public const float DefaultLifetimeSeconds = DefaultLifetimeFrames / PFE.Core.SimClock.FramesPerSecond;
+
+        /// <summary>
         /// <c>Weapon.as:1545</c> <c>b.ddy += -0.8 - Math.random() * 0.2</c> — flame==1 lift,
         /// px/frame². This is the <b>minimum</b> of AS3's range; see the jitter note below.
         /// </summary>
@@ -220,6 +237,66 @@ namespace PFE.Systems.Weapons
             // `else` — drawn at its natural size.
             return 1f;
         }
+
+        /// <summary>
+        /// Where a beam's art must sit along its own local X so the stretched sprite spans
+        /// <c>[round, muzzle]</c> instead of straddling the round.
+        ///
+        /// <para><b>Why the stretch alone is not enough.</b> AS3 scales <c>vis.laser</c>, a child
+        /// authored with its <b>down-range end on the registration point</b>, so <c>scaleX = dist/100</c>
+        /// grows it <i>backwards</i> from the round toward the muzzle — that is the whole reason the
+        /// beam looks continuous at 2000 px/frame. The port's beam art is exported as a standalone,
+        /// <b>centre-pivoted</b> sprite (<c>spritePivot: 0.5</c> on all ten <c>Art/Projectiles/laser*</c>
+        /// textures), so the same <c>scaleX</c> makes it grow both ways: half of it hangs in front of
+        /// the round and the other half fails to reach the gun. On a 2000 px/frame round that is a
+        /// 10-unit gap on each side, which is what "the beam spawns far from the character" looks
+        /// like.</para>
+        ///
+        /// <para>The correction is half the <i>scaled</i> length, in the child's own units, applied to
+        /// <c>localPosition.x</c>: a sprite that is <paramref name="beamLengthUnits"/> long at scale 1
+        /// becomes <c>beamLengthUnits × scaleX</c> long, and moving its centre back by half of that
+        /// puts its far end exactly on the round.</para>
+        /// </summary>
+        /// <param name="beamLengthUnits">
+        /// The beam sprite's natural length in units — <c>sprite.rect.width / sprite.pixelsPerUnit</c>.
+        /// Every <c>spring='2'</c> art in the project is 100 px wide at 100 ppu, i.e. exactly the
+        /// <c>1</c> that makes <see cref="ViewStretchReferencePx"/> a length rather than a magic number.
+        /// </param>
+        /// <param name="scaleX">The <c>scaleX</c> <see cref="BulletViewScaleX"/> just produced.</param>
+        public static float BeamAnchorOffsetX(float beamLengthUnits, float scaleX)
+            => -0.5f * beamLengthUnits * scaleX;
+
+        /// <summary>
+        /// How many AS3 frames a round lives <i>after</i> it impacts — <b>4</b>.
+        ///
+        /// <para>Two lines in the oracle, and both matter. <c>Bullet.as:385-388</c> is the
+        /// <c>babah</c> setter: <c>if(this.liv &gt; 4) this.liv = 4;</c> — a round that hits something
+        /// stops counting from 100 down and starts counting from 4. <c>Bullet.as:229-231</c> then fades
+        /// the beam over exactly those frames: <c>vis.alpha = this.liv / 4</c>.</para>
+        ///
+        /// <para><b>Why a laser needs this and a bullet does not.</b> An ordinary round's visual is a
+        /// small sprite at the round's own position, so recycling it on the impact frame costs one
+        /// frame of a 40 px blob. A beam's visual <i>is</i> the whole shot — it is stretched from the
+        /// muzzle to the round — and the stretch only becomes non-zero on the frame after the tick
+        /// that moved the round. A laser moves <b>20 units per tick</b> (2000 px/frame), which is wider
+        /// than any room, so <i>inside</i> a room it always impacts on its very first tick and the
+        /// port recycled the instance before a single frame of beam could be drawn. That is the
+        /// owner-reported "the beams work outside a room but not in rooms": in the void there is
+        /// nothing to hit, so the beam draws every frame of the flight.</para>
+        /// </summary>
+        public const int BeamFadeFrames = 4;
+
+        /// <summary>
+        /// The beam's alpha with <paramref name="framesRemaining"/> frames of the post-impact fade
+        /// left — AS3 <c>Bullet.as:229-231</c>, <c>vis.alpha = liv / 4</c>.
+        ///
+        /// <para>Reads <b>4, 3, 2, 1 → 1.0, 0.75, 0.5, 0.25</b>, then the round is released at 0. So
+        /// the beam lingers four 30 Hz frames — 133 ms — which is what makes a wall hit read as a
+        /// zap instead of a single frame of nothing. Clamped, because the count is decremented in a
+        /// loop and the last step can overshoot.</para>
+        /// </summary>
+        public static float BeamFadeAlpha(int framesRemaining)
+            => Mathf.Clamp01(framesRemaining / (float)BeamFadeFrames);
 
         /// <summary>
         /// <b>Which</b> transform AS3's view-stretch writes — and whether it writes at all.
