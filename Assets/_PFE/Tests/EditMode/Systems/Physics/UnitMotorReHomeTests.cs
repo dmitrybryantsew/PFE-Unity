@@ -287,5 +287,74 @@ namespace PFE.Tests.EditMode.Systems.Physics
                 "inside AddComponent — so a motor added afterwards is invisible to it, the unit keeps " +
                 "its own step, and both integrate every tick.");
         }
+
+        /// <summary>
+        /// A unit built <b>without</b> <c>RoomUnitSpawner</c> — the prefab player is the real case —
+        /// must still get a body anchored on its feet and a motor sized from its definition.
+        ///
+        /// <para><b>The defect this pins.</b> <c>UnitController</c> wrote only the collider's
+        /// <c>size</c>. <c>RoomUnitSpawner</c> and <c>PlayerRigBuilder</c> set the offset by hand, so the
+        /// one path that never did — <c>Player.prefab</c> — shipped a 0.70-tall collider centred on its
+        /// feet: 35 px of it inside the floor tile, the head 35 px outside the box that projectiles and
+        /// <c>CollisionBoxesOverlap</c> test against. The motor was never sized outside the spawner at
+        /// all, so the player collided as the serialized 30×50 default while AS3's <c>littlepip</c> is
+        /// 50×70 (<c>&lt;phis sX='50' sY='70'&gt;</c>).</para>
+        ///
+        /// <para><b>Why <c>offset</c>/<c>size</c> and not <c>bounds</c>.</b> <c>offset.y - size.y/2</c>
+        /// is the same statement as "the box's bottom edge is on the transform" without asking the 2D
+        /// physics world to compute an AABB in EditMode, where nothing has stepped. The arithmetic is
+        /// the invariant; <c>bounds</c> is one of its consequences.</para>
+        /// </summary>
+        [Test]
+        public void Initialize_AnchorsTheBodyBoxOnTheFeet_AndSizesTheMotorFromTheDefinition()
+        {
+            var go = new GameObject("unit_body");
+            go.transform.SetParent(_root.transform, false);
+            go.transform.position = new Vector3(1f, 2f, 0f);
+
+            // The prefab's component order: body, then collider, then the motor, then the controller.
+            go.AddComponent<Rigidbody2D>();
+            var box = go.AddComponent<BoxCollider2D>();
+            var motor = go.AddComponent<TilePhysicsController>();
+            var controller = go.AddComponent<UnitController>();
+
+            // AS3 `littlepip`: sX='50' sY='70' (AllData.as:21), stored as world units. `sitY` is not
+            // authored on that row, so AS3 derives it as `stayY / 2` = 35 (Unit.as:1037-1044).
+            var definition = ScriptableObject.CreateInstance<UnitDefinition>();
+            definition.id = "littlepip";
+            definition.width = 0.50f;
+            definition.height = 0.70f;
+            definition.sitHeight = 0.35f;
+
+            controller.Initialize(definition, new UnitStats(definition.health, 100f));
+
+            Assert.That(box.size.x, Is.EqualTo(0.50f).Within(0.0001f),
+                "The collider must be as wide as the definition.");
+            Assert.That(box.size.y, Is.EqualTo(0.70f).Within(0.0001f),
+                "The collider must be as tall as the definition.");
+            Assert.That(box.offset.x, Is.EqualTo(0f).Within(0.0001f),
+                "The body box is centred on the unit's X.");
+            Assert.That(box.offset.y, Is.EqualTo(0.35f).Within(0.0001f),
+                "AS3 Unit.as:1872-1881 puts the whole box above the origin (Y1 = Y - scY, Y2 = Y), " +
+                "so a 0.70-tall body sits 0.35 above its feet. An offset of 0 centres it instead, " +
+                "which buries the bottom half in the floor tile and leaves the head outside the box.");
+            Assert.That(box.offset.y - box.size.y * 0.5f, Is.EqualTo(0f).Within(0.0001f),
+                "The collider's bottom edge must land exactly on the unit's feet.");
+
+            Assert.That(motor.CollisionWidth, Is.EqualTo(50f).Within(0.001f),
+                "The motor must collide against the definition's width in PIXELS (sX='50'), not its " +
+                "serialized 30 px default — the player is the path that never went through the spawner.");
+            Assert.That(motor.CollisionHeight, Is.EqualTo(70f).Within(0.001f),
+                "The motor must collide against the definition's height in PIXELS (sY='70').");
+
+            // The motor's field starts at 0, so 35 here can only have come from the definition —
+            // which is the point: a prefab that serialized a stale crouchedCollisionHeight used to
+            // win over `sitHeight`, because ResolveCrouchedCollisionHeight prefers the serialized
+            // value whenever it is positive.
+            Assert.That(motor.CrouchedCollisionHeight, Is.EqualTo(35f).Within(0.001f),
+                "The motor must take the crouch height from the definition's sitHeight (AS3 sitY), " +
+                "not from whatever a prefab serialized. Zero here means ApplyDefinitionToBody stopped " +
+                "passing it, and the crouch silently reverts to the prefab's value.");
+        }
     }
 }

@@ -309,7 +309,7 @@ namespace PFE.Entities.Units
         protected virtual void Awake()
         {
             ResolvePhysicsComponents();
-            ApplyDefinitionToCollider();
+            ApplyDefinitionToBody();
         }
 
         /// <summary>
@@ -387,13 +387,28 @@ namespace PFE.Entities.Units
         }
 
         /// <summary>
-        /// Size the collider from the unit definition's footprint. AS3 sizes a unit's box from its
-        /// <c>&lt;phis sX sY&gt;</c> pair, so <see cref="UnitDefinition.Width"/> /
-        /// <see cref="UnitDefinition.Height"/> are the port's equivalent.
+        /// Size <b>both</b> descriptions of the unit's body from the definition: the Unity
+        /// <see cref="Collider2D"/> (world units) and the tile motor's collision box (pixels).
+        ///
+        /// <para><b>AS3 has one body; the port has two, so both are written here.</b> The oracle sizes a
+        /// unit from its <c>&lt;phis sX sY&gt;</c> pair and puts the box <i>entirely above</i> the origin —
+        /// <c>Y1 = Y - scY; Y2 = Y</c> (<c>Unit.as:1872-1881</c>) — because the origin is the unit's
+        /// feet and the body grows upward. Writing only <c>size</c> leaves the collider <i>centred</i> on
+        /// the feet: half the body sits inside the floor tile the unit stands on and the top half (the
+        /// head) is outside the box that <see cref="CollisionBoxesOverlap"/> tests against. That was the
+        /// shipped state of <c>Player.prefab</c> — the one construction path that never set the offset
+        /// itself, unlike <c>RoomUnitSpawner</c> and <c>PlayerRigBuilder</c>, which both do it by hand.</para>
+        ///
+        /// <para><b>The motor is the other half.</b> <c>TilePhysicsController.collisionWidth/Height</c>
+        /// default to 30×50 px and were only ever written by <c>RoomUnitSpawner</c>, so any unit built
+        /// another way — the player above all — resolved walls, ceilings and ground against a box that
+        /// was neither its own size nor its definition's (AS3's <c>littlepip</c> is 50×70). Both
+        /// consumers now come from the same pair, so the box the F6 overlay draws and the box the motor
+        /// collides with cannot disagree again.</para>
         /// </summary>
-        protected void ApplyDefinitionToCollider()
+        protected void ApplyDefinitionToBody()
         {
-            if (_stats == null || _collider == null)
+            if (_stats == null)
             {
                 return;
             }
@@ -401,6 +416,21 @@ namespace PFE.Entities.Units
             if (_collider is BoxCollider2D boxCollider)
             {
                 boxCollider.size = new Vector2(_stats.Width, _stats.Height);
+                boxCollider.offset = new Vector2(0f, _stats.Height * 0.5f);
+            }
+
+            // Absent on the legacy Rigidbody2D path, so this is a skip rather than a failure: a unit
+            // with no motor has no tile body to size. The fallback GetComponent covers a caller that
+            // reaches this without ResolvePhysicsComponents having cached the motor first.
+            TilePhysicsController motor = _cachedTilePhysics != null
+                ? _cachedTilePhysics
+                : GetComponent<TilePhysicsController>();
+            if (motor != null)
+            {
+                motor.ConfigureCollisionSize(
+                    UnitCollisionBoxMath.PixelsFromWorldUnits(_stats.Width),
+                    UnitCollisionBoxMath.PixelsFromWorldUnits(_stats.Height),
+                    UnitCollisionBoxMath.PixelsFromWorldUnits(_stats.sitHeight));
             }
         }
 
@@ -426,11 +456,11 @@ namespace PFE.Entities.Units
             _stats = stats;
             _unitStats = unitStats;
 
-            // Resolve before ApplyDefinitionToCollider, which sizes the collider and early-returns on a
-            // null one. In play mode Awake has already done this; in EditMode it has not. See
-            // ResolvePhysicsComponents for why both paths call it.
+            // Resolve before ApplyDefinitionToBody, which sizes the collider and the motor and skips
+            // whatever is missing. In play mode Awake has already done this; in EditMode it has not.
+            // See ResolvePhysicsComponents for why both paths call it.
             ResolvePhysicsComponents();
-            ApplyDefinitionToCollider();
+            ApplyDefinitionToBody();
             SeedEvasionFromDefinition();
             SeedArmourFromDefinition();
 
@@ -914,7 +944,7 @@ namespace PFE.Entities.Units
         /// <remarks>
         /// <para><b>The boxes are the Unity colliders, not a rectangle recomputed from the
         /// definition.</b> AS3's four edges are the unit's own body box, and the port's equivalent is the
-        /// <see cref="Collider2D"/> that <c>ApplyDefinitionToCollider</c> sizes from the same data —
+        /// <see cref="Collider2D"/> that <c>ApplyDefinitionToBody</c> sizes from the same data —
         /// including the <b>feet-anchored</b> <c>offset</c> (<c>Y1 = Y - scY</c>, <c>Y2 = Y</c>), which a
         /// recomputed rectangle would have to duplicate and could get wrong. Reading the collider also
         /// means a unit whose definition is missing still has a box — Unity's default 1x1 — rather than

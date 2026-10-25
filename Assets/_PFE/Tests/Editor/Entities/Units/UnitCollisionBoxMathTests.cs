@@ -1,6 +1,7 @@
 using NUnit.Framework;
 using PFE.Entities.Units;
 using PFE.Systems.Map.TileQuery;
+using PFE.Tests.Editor.Common;
 
 namespace PFE.Tests.Editor.Entities.Units
 {
@@ -88,6 +89,63 @@ namespace PFE.Tests.Editor.Entities.Units
                 "0 must stay 0 so ConfigureCollisionSize keeps the serialized default.");
             Assert.That(UnitCollisionBoxMath.PixelsFromWorldUnits(-0.55f), Is.EqualTo(0f),
                 "A negative world size must not become a negative collision box.");
+        }
+
+        /// <summary>
+        /// <c>UnitController.ApplyDefinitionToBody</c> must write <b>three</b> things from the
+        /// definition: the collider's size, its feet-anchored offset, and the tile motor's pixel size.
+        ///
+        /// <para><b>Why a lint.</b> The behavioural form of this needs a <c>GameObject</c> with a
+        /// <c>BoxCollider2D</c>, a <c>Rigidbody2D</c> and a <c>TilePhysicsController</c>, which this
+        /// project's offline harness cannot construct (<c>SecurityException: ECall methods must be
+        /// packaged into a system module</c>) — see <c>UnitMotorReHomeTests</c>'s neighbours.
+        /// <c>UnitBodyAnchorTests</c> asserts the real <c>bounds.min.y</c> inside the editor; this is the
+        /// half that can go red anywhere.</para>
+        ///
+        /// <para><b>The defect this pins, exactly.</b> The method wrote <c>size</c> only. Every other
+        /// construction path set the offset by hand (<c>RoomUnitSpawner</c>, <c>PlayerRigBuilder</c>), so
+        /// the one unit that never did — the prefab player — shipped with its 0.70-tall collider centred
+        /// on its feet: 35 px of it inside the floor tile, and the head 35 px outside the box that
+        /// projectiles and <c>CollisionBoxesOverlap</c> test against. The motor was never sized at all
+        /// outside <c>RoomUnitSpawner</c>, so the player collided as 30×50 while AS3's <c>littlepip</c> is
+        /// 50×70. All four writes are checked here because dropping any one of them restores part of the
+        /// bug, silently.</para>
+        /// </summary>
+        [Test]
+        public void ApplyDefinitionToBody_WritesSizeOffsetAndMotorSize()
+        {
+            string source = SourceLint.ReadStripped("Entities/Units/UnitController.cs");
+            string body = SourceLint.MethodBody(source, "protected void ApplyDefinitionToBody()");
+
+            Assert.That(body, Does.Contain("boxCollider.offset ="),
+                "ApplyDefinitionToBody no longer writes the collider's offset, so the body box is " +
+                "centred on the feet again — half of it inside the floor (AS3 Unit.as:1872-1881 puts " +
+                "the whole box above the origin: Y1 = Y - scY, Y2 = Y).");
+
+            Assert.That(body, Does.Contain("Height * 0.5f"),
+                "The collider offset must be HALF the body height, so that the box's bottom edge lands " +
+                "on the feet. A full height, a negative half, or a hardcoded value all put the box " +
+                "somewhere other than on the feet.");
+
+            Assert.That(body, Does.Contain("ConfigureCollisionSize("),
+                "ApplyDefinitionToBody no longer sizes the tile motor, so any unit built outside " +
+                "RoomUnitSpawner (the prefab player above all) collides as the motor's serialized " +
+                "30x50 default instead of its definition's box.");
+
+            Assert.That(body, Does.Contain("PixelsFromWorldUnits("),
+                "The motor size must go through PixelsFromWorldUnits — the definition is in world " +
+                "units and the motor is in pixels, and handing it the raw value is a silent 100x " +
+                "error that still compiles.");
+
+            // AS3's crouch height is `sitY` (default `stayY / 2`, Unit.as:1037-1044) and it replaces
+            // `scY` while crouching (:2519-2520) — so it is authored data, not a prefab tunable. The
+            // motor prefers its serialized `crouchedCollisionHeight` over the definition, which makes
+            // it the one body dimension a prefab could still shadow after the offset and size were
+            // fixed. Dropping this argument silently restores that shadow.
+            Assert.That(body, Does.Contain("sitHeight"),
+                "ApplyDefinitionToBody no longer hands the motor the crouch height, so a prefab that " +
+                "serialized a stale crouchedCollisionHeight crouches to that instead of the " +
+                "definition's sitHeight (AS3 sitY).");
         }
     }
 }
