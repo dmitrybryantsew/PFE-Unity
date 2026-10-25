@@ -1,6 +1,8 @@
 using UnityEngine;
 using VContainer;
+using PFE.Data.Definitions;
 using PFE.Entities.Units;
+using PFE.Systems.Audio;
 using PFE.Systems.Combat;
 using PFE.Systems.Map.Rendering;
 using PFE.Systems.Map.TileQuery;
@@ -59,6 +61,8 @@ namespace PFE.Entities.Weapons
 
 #pragma warning disable CS0649
         [Inject] private PFE.Systems.Combat.DamageSystem _damageSystem;
+        [Inject] private ISoundService                  _soundService;
+        [Inject] private ImpactSoundTable               _impactSoundTable;
 #pragma warning restore CS0649
 
         // ── Owner ─────────────────────────────────────────────────────────────
@@ -188,10 +192,22 @@ namespace PFE.Entities.Weapons
             Collider2D destructibleCollider = DestructibleColliderAtPixel(hitPx, hitPy);
             if (destructibleCollider == null) return;
 
+            Vector2 hitWorld = new Vector2(hitPx, hitPy) * TileQueryConstants.PixelToUnit;
+
+            // AS3's order inside the tile arm is `popadalo(mat)` → `sound(mat)` → `weap.crash()` →
+            // `loc.hitTile(...)` (`weapon/Bullet.as:480-491`), so the impact sound lands <b>before</b>
+            // the damage and <b>whatever the damage does</b> — a wall too tough for this blade still
+            // rings. The tile arm passes `_loc3_.mat`, i.e. the tile's own material, which is the
+            // collider's `TileSurface` on the port's side.
+            //
+            // Placed after the latch and before the destructible lookup, because both of those are
+            // part of "was there a tile here at all": the latch is the oracle's own
+            // `if(!this.tilehit ...)`, and a collider that is not an `IDestructibleTile` is still a
+            // solid surface AS3 would have sounded.
+            PlayImpactSound(destructibleCollider, hitWorld, surfaceSound: true);
+
             var destructible = destructibleCollider.GetComponent<IDestructibleTile>();
             if (destructible == null) return;
-
-            Vector2 hitWorld = new Vector2(hitPx, hitPy) * TileQueryConstants.PixelToUnit;
 
             // TileCollider.ApplyDestruction is AS3 Tile.udar(): `if (indestruct || thre > param1)
             // return false; hp -= param1`. It already owns the `phis >= 1` gate and the destroy
@@ -331,13 +347,79 @@ namespace PFE.Entities.Weapons
             if (_hasDamageContext && _damageSystem != null)
             {
                 // Report, do not resolve — DamageSystem owns the formula and the tick that runs it.
-                _damageSystem.Report(PendingDamage.Direct(
+                // The verdict is read only for the impact sound: AS3 passes `udarBullet`'s return
+                // straight into `sound()` (`weapon/Bullet.as:531-532`), and a miss returns `-1`,
+                // which matches none of that method's material cases.
+                DamageVerdict verdict = _damageSystem.Report(PendingDamage.Direct(
                     _damageContext, damageable, other.transform.position));
+
+                // AS3's sound fires on the miss too — only the <b>material</b> half is suppressed by
+                // the `-1`, and the weapon's own `<snd hit>` is above that test in `Bullet.sound()`
+                // (`:606-611`). So an evaded swing still rings if the weapon authors a hit sample.
+                //
+                // `Ignored` is folded in with `Landed` rather than special-cased: it means the target
+                // stopped being hittable between the `CanBeHit` test three lines above and this call,
+                // which AS3 would have resolved by skipping the unit in its loop entirely. One sound
+                // in a race the test above already closes is not worth a branch that can never be
+                // exercised on purpose.
+                PlayImpactSound(other, transform.position, surfaceSound: verdict != DamageVerdict.Evaded);
             }
             else
             {
                 damageable.TakeDamage(1f);
+
+                // No context and no DamageSystem: there is no verdict to read, so the material half
+                // is played as if the hit landed. Silence here would be a second, invisible failure
+                // stacked on the missing-damage one.
+                PlayImpactSound(other, transform.position, surfaceSound: true);
             }
+        }
+
+        /// <summary>
+        /// Both impact-sound layers for one melee contact — AS3 <c>Bullet.sound()</c>
+        /// (<c>weapon/Bullet.as:606-663</c>), which a swing reaches exactly like a bullet does
+        /// because a swing <b>is</b> a <c>Bullet</c> in the oracle (<c>WClub.as:148-156</c>).
+        /// </summary>
+        /// <remarks>
+        /// <para><b>This is the gap this method closes.</b> Before it, a melee or unarmed hit played
+        /// <i>no</i> impact sound at all: the swing sample (<c>&lt;snd shoot&gt;</c>, carried on the
+        /// plan's <see cref="ShotCues"/>) played, and then the blade hit a body or a wall in silence.
+        /// The projectile path had both layers since <c>Projectile.HandleImpact</c> was written; the
+        /// swing path never called the resolver, because it does not go through a projectile — it goes
+        /// through this trigger volume, and the volume only knew how to report damage.</para>
+        ///
+        /// <para><b>Two gates, and they are not the same gate.</b> <c>surfaceSound</c> is the evasion
+        /// verdict, which the caller knows; the <b>decal</b> gate is a property of the weapon and is
+        /// applied here through <see cref="ImpactSoundResolver.PlaysMaterialSound"/>. AS3 tests both
+        /// before it reaches a material case: the verdict by falling through every <c>if(param1 ==
+        /// …)</c> arm, the decal by an early <c>return</c> at <c>:612</c>.</para>
+        ///
+        /// <para><b>Null-tolerant on purpose.</b> <see cref="ISoundService"/> and
+        /// <see cref="ImpactSoundTable"/> are both optional scene references on
+        /// <c>GameLifetimeScope</c>, and this volume is built by <c>AddComponent</c> on two different
+        /// paths (the player rig and <c>EnemyWeaponMount</c>). A missing one must degrade to silence,
+        /// not throw out of a physics callback.</para>
+        /// </remarks>
+        private void PlayImpactSound(Collider2D hitCollider, Vector2 worldPos, bool surfaceSound)
+        {
+            if (_soundService == null) return;
+
+            // The decal is the WEAPON's (`setBullet` copies `Weapon.tipDecal` onto the bullet,
+            // `Weapon.as:1669-1670`), so it is read off the context rather than off the target. With
+            // no context there is no decal to test — `DecalType.None` fails the gate, which leaves
+            // only the weapon layer, and that layer has no weapon either.
+            DecalType decal = _hasDamageContext && _damageContext.Weapon != null
+                ? _damageContext.Weapon.decalType
+                : DecalType.None;
+
+            ImpactSoundResolver.Resolve(
+                hitCollider,
+                _hasDamageContext,
+                _damageContext,
+                worldPos,
+                _soundService,
+                _impactSoundTable,
+                surfaceSound && ImpactSoundResolver.PlaysMaterialSound(decal));
         }
 
         // ── Debug ─────────────────────────────────────────────────────────────
