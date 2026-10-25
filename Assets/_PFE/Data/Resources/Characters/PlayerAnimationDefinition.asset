@@ -169,7 +169,7 @@ MonoBehaviour:
     isArmorAware: 0
     baseSprite: {fileID: -3966044189379602213, guid: 16c6176e006f0c74ea1b613b26ab699b, type: 3}
     styleVariants: []
-    pivotNormalized: {x: -0.19407895, y: -0.1638989}
+    pivotNormalized: {x: 0, y: 0}
   - partName: eye
     symbolId: 220
     sortOrder: 19
@@ -197,7 +197,7 @@ MonoBehaviour:
     isArmorAware: 0
     baseSprite: {fileID: -3966044189379602213, guid: e3ba20f6e88bd4d4cbc339b9c697523b, type: 3}
     styleVariants: []
-    pivotNormalized: {x: 2.6812143, y: -1.5497078}
+    pivotNormalized: {x: 1, y: 0}
   - partName: magic
     symbolId: 239
     sortOrder: 22
@@ -205,7 +205,7 @@ MonoBehaviour:
     isArmorAware: 0
     baseSprite: {fileID: 0}
     styleVariants: []
-    pivotNormalized: {x: 1.6214689, y: -0.7109045}
+    pivotNormalized: {x: 1, y: 0}
   - partName: konec
     symbolId: 240
     sortOrder: 23

@@ -297,7 +297,9 @@ namespace PFE.Editor.Importers.SWF
                         else if (swfData.Symbols.TryGetValue(symbolId, out var sym) && sym.Bounds.width > 0)
                         { swfBounds = sym.Bounds; boundsSource = "ComputedBounds(union)"; }
 
-                        int zf = spriteImport.ZoomFactor;
+                        int zf = spriteImport.EffectiveZoomBySymbol.TryGetValue(symbolId, out int diagZoom)
+                            ? diagZoom
+                            : spriteImport.ZoomFactor;
                         Debug.Log($"[AnimDataGen] DEFAULT PIVOT DIAG: {name}(sym{symbolId}) " +
                             $"png={spriteRect.width}x{spriteRect.height} " +
                             $"swfBounds=({swfBounds.x:F1},{swfBounds.y:F1},{swfBounds.width:F1},{swfBounds.height:F1}) " +
@@ -1027,12 +1029,22 @@ namespace PFE.Editor.Importers.SWF
                                 }
 
                                 Vector2 varPivot;
-                                int zf = spriteImport.ZoomFactor;
+                                // The zoom the variant's pixels actually measure, not the one the import
+                                // window was set to — they differ when the art was re-exported at a
+                                // reserve and the slider was left alone (CharacterSpriteImporter.ResolveZoom).
+                                int zf = spriteImport.EffectiveZoomBySymbol.TryGetValue(variantSymbolId, out int variantZoom)
+                                    ? variantZoom
+                                    : spriteImport.ZoomFactor;
                                 if (swfBounds.width > 0 && pngW > 1 && pngH > 1)
                                 {
-                                    // Use SWF origin (xMin, yMin) but actual PNG dimensions
-                                    float correctedPivotX = (0f - swfBounds.x) / pngW;
-                                    float correctedPivotY = 1f - ((0f - swfBounds.y) / pngH);
+                                    // SWF origin is in Flash units; the PNG is rasterised at `zf`
+                                    // pixels per Flash unit, so the offset has to be scaled into PNG
+                                    // pixels before it is divided by the PNG size. Dividing the raw
+                                    // Flash offset by the zoomed PNG size scales every variant pivot
+                                    // by 1/zf — invisible at the current zoom 1 export, and wrong by
+                                    // 4x the moment the art is re-exported at 4x to fix pixelation.
+                                    float correctedPivotX = (0f - swfBounds.x) * zf / pngW;
+                                    float correctedPivotY = 1f - ((0f - swfBounds.y) * zf / pngH);
                                     varPivot = new Vector2(correctedPivotX, correctedPivotY);
                                 }
                                 else

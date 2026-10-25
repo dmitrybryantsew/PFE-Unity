@@ -119,14 +119,17 @@ namespace PFE.Editor.Importers.SWF
 
             EditorGUILayout.Space(4);
             _spriteZoomFactor = EditorGUILayout.IntSlider(
-                "JPEXS Export Zoom", _spriteZoomFactor, 1, 10);
-            if (_spriteZoomFactor > 1)
-                EditorGUILayout.HelpBox(
-                    $"Zoom {_spriteZoomFactor}x: You MUST re-export from JPEXS at {_spriteZoomFactor}x zoom BEFORE importing!\n" +
-                    $"JPEXS CLI: ffdec.bat -export sprite <outdir> assets.swf -zoom {_spriteZoomFactor}\n" +
-                    $"PPU will be set to {100 * _spriteZoomFactor} so visual size stays the same but with higher resolution.\n" +
-                    $"Setting zoom here without re-exporting from JPEXS will make sprites {_spriteZoomFactor}x too small!",
-                    MessageType.Warning);
+                "Expected JPEXS Export Zoom", _spriteZoomFactor, 1, 10);
+            EditorGUILayout.HelpBox(
+                "This is an expectation, not a scale factor. The importer measures each symbol's PNG\n" +
+                "against its SWF bounds and derives PPU from what it finds, so a re-export at any\n" +
+                "integer zoom works without touching this value — a mismatch is a warning, not a\n" +
+                "silently 4x-too-small sprite.\n\n" +
+                $"Set it to the zoom you actually exported at (JPEXS: ffdec.bat -export sprite <outdir> " +
+                $"assets.swf -zoom N). A reserve only buys texel density: it does not change the size\n" +
+                $"on screen, and with the character sampler policy on bilinear it is optional.\n" +
+                $"See docs/CharacterImportPipeline/02.",
+                MessageType.Info);
 
             // ─── Actions ─────────────────────────────────────────
             EditorGUILayout.Space(8);

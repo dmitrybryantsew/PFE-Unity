@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using UnityEditor;
 using UnityEngine;
 
@@ -31,7 +32,42 @@ namespace PFE.Editor.Importers.SWF
 
             public int TotalSpritesImported;
             public int TotalSymbolsProcessed;
+
+            /// <summary>
+            /// The zoom the import was <em>asked</em> for. Treated as an expectation, not as truth:
+            /// <see cref="EffectiveZoomBySymbol"/> is what the pixels on disk actually measure, and
+            /// that is what the PPU is derived from.
+            /// </summary>
             public int ZoomFactor = 1;
+
+            /// <summary>
+            /// symbolId → the export zoom its PNGs actually measure. Equals <see cref="ZoomFactor"/>
+            /// unless the art on disk is at a different zoom, in which case the measurement wins and a
+            /// warning is raised. Every consumer that needs "how many PNG px per Flash unit" must read
+            /// this rather than <see cref="ZoomFactor"/>.
+            /// </summary>
+            public Dictionary<int, int> EffectiveZoomBySymbol = new();
+
+            /// <summary>
+            /// symbolId → the pivot the asset's <c>.meta</c> already carried <b>before</b> this import
+            /// replaced its PNG.
+            ///
+            /// <para>A pivot is a fraction of the canvas, so a change of export zoom leaves it correct
+            /// and unchanged; re-deriving it from SWF bounds does not, because the canvas is the
+            /// symbol's <em>union</em> bounds while the parser's per-frame bounds are one frame's
+            /// content box. On 10-24 the import re-derived every pivot from the wrong box and moved
+            /// all 358 metas — <c>korpus</c> 0.4997 → 0.5556, <c>rwing</c> 0.876 → 1.0 (clamped).
+            /// <c>docs/CharacterImportPipeline/06</c> §2.</para>
+            /// </summary>
+            public Dictionary<int, Vector2> PreviousPivotBySymbol = new();
+
+            /// <summary>
+            /// Assets whose <c>.meta</c> sprite rect this import re-measured because the PNG under it
+            /// was replaced. Reported so a run can say how many rects moved instead of leaving it to be
+            /// discovered on screen. <c>docs/CharacterImportPipeline/07</c>.
+            /// </summary>
+            public List<string> RetrimmedAssets = new();
+
             public List<string> Warnings = new();
         }
 
@@ -103,43 +139,55 @@ namespace PFE.Editor.Importers.SWF
                     string targetFolder = Path.Combine(CharacterArtRoot, category);
                     EnsureDirectory(targetFolder);
 
-                    // Compute pivot from SWF bounds if available.
-                    // Priority: Frame1Bounds (per-frame, matches JPEXS PNG) >
-                    //           ShapeBounds (exact for DefineShape) >
-                    //           Symbol.Bounds (union of all frames, may not match PNG size)
+                    // Registration point. A part that already exists keeps the pivot its .meta records:
+                    // the pivot is normalized, so it survives any change of export zoom, and re-deriving
+                    // it moves the part on screen (06 §2). Only a first import derives it from bounds.
                     Vector2 pivot = new(0.5f, 0.5f); // default center
-                    Rect bounds = default;
-                    bool hasBounds = false;
+                    string firstDestAsset = FrameAssetPath(targetFolder, pngFiles.Length,
+                                                           GetFrameNumber(pngFiles[0]));
+                    if (TryReadMetaPivot(firstDestAsset, out Vector2 previousPivot))
+                    {
+                        pivot = ClampPivot(previousPivot);
+                        result.PreviousPivotBySymbol[symbolId] = pivot;
+                    }
+                    else
+                    {
+                        Rect bounds = default;
+                        bool hasBounds = false;
 
-                    if (swfData.ShapeBounds.TryGetValue(symbolId, out bounds) && bounds.width > 0 && bounds.height > 0)
-                    {
-                        hasBounds = true;
-                    }
-                    else if (swfData.Frame1Bounds.TryGetValue(symbolId, out var f1b) &&
-                             f1b.width > 0 && f1b.height > 0)
-                    {
-                        bounds = f1b;
-                        hasBounds = true;
-                    }
-                    else if (swfData.Symbols.TryGetValue(symbolId, out var sym) &&
-                             sym.Bounds.width > 0 && sym.Bounds.height > 0)
-                    {
-                        bounds = sym.Bounds;
-                        hasBounds = true;
-                    }
+                        // Priority: Frame1Bounds (per-frame, matches JPEXS PNG) >
+                        //           ShapeBounds (exact for DefineShape) >
+                        //           Symbol.Bounds (union of all frames, may not match PNG size)
+                        if (swfData.ShapeBounds.TryGetValue(symbolId, out bounds) && bounds.width > 0 && bounds.height > 0)
+                        {
+                            hasBounds = true;
+                        }
+                        else if (swfData.Frame1Bounds.TryGetValue(symbolId, out var f1b) &&
+                                 f1b.width > 0 && f1b.height > 0)
+                        {
+                            bounds = f1b;
+                            hasBounds = true;
+                        }
+                        else if (swfData.Symbols.TryGetValue(symbolId, out var sym) &&
+                                 sym.Bounds.width > 0 && sym.Bounds.height > 0)
+                        {
+                            bounds = sym.Bounds;
+                            hasBounds = true;
+                        }
 
-                    if (hasBounds)
-                    {
-                        // Registration point is (0,0) in Flash local space.
-                        // bounds.x = xMin, bounds.y = yMin (Flash coords, Y-down)
-                        // Pivot in Unity sprite space: (0,0) at bottom-left, (1,1) at top-right
-                        float pivotX = (0f - bounds.x) / bounds.width;
-                        // Flash Y is down, Unity Y is up — flip
-                        float pivotY = 1f - ((0f - bounds.y) / bounds.height);
-                        // Do NOT clamp — registration point can be outside sprite bounds.
-                        // Sprite.Create() supports unclamped pivots.
-                        // TextureImporter will clamp separately for its own settings.
-                        pivot = new Vector2(pivotX, pivotY);
+                        if (hasBounds)
+                        {
+                            // Registration point is (0,0) in Flash local space.
+                            // bounds.x = xMin, bounds.y = yMin (Flash coords, Y-down)
+                            // Pivot in Unity sprite space: (0,0) at bottom-left, (1,1) at top-right
+                            float pivotX = (0f - bounds.x) / bounds.width;
+                            // Flash Y is down, Unity Y is up — flip
+                            float pivotY = 1f - ((0f - bounds.y) / bounds.height);
+                            // Do NOT clamp — registration point can be outside sprite bounds.
+                            // Sprite.Create() supports unclamped pivots.
+                            // TextureImporter will clamp separately for its own settings.
+                            pivot = new Vector2(pivotX, pivotY);
+                        }
                     }
                     result.PivotsBySymbol[symbolId] = pivot;
 
@@ -163,6 +211,13 @@ namespace PFE.Editor.Importers.SWF
                             File.GetLastWriteTimeUtc(pngPath) > File.GetLastWriteTimeUtc(destFullPath))
                         {
                             File.Copy(pngPath, destFullPath, true);
+
+                            // The sprite rect is measured in the PNG's own pixels, so it has to be
+                            // re-measured whenever the PNG is replaced. See RetrimSpriteRect.
+                            if (RetrimSpriteRect(destAssetPath, result.Warnings))
+                            {
+                                result.RetrimmedAssets.Add(destAssetPath);
+                            }
                         }
 
                         result.TotalSpritesImported++;
@@ -210,12 +265,32 @@ namespace PFE.Editor.Importers.SWF
         /// inside ONE <c>StartAssetEditing</c>/<c>StopAssetEditing</c> batch defers them into a single
         /// ordered flush, so the collision cannot arise. The price is that nothing is loadable until the
         /// batch closes — hence pass 1 sets, pass 2 reads back.</para>
+        ///
+        /// <para><b>Placement is measured, not assumed.</b> The export zoom is read off the PNG that is
+        /// actually on disk (compared against the symbol's SWF bounds) instead of being taken from the
+        /// import window's slider. Two consequences: re-exporting the art at 2× or 4× needs no setting
+        /// changed, and the old footgun — "set zoom 4 here without re-exporting and every sprite becomes
+        /// 4× too small" — cannot happen, because a declared zoom that disagrees with the pixels is a
+        /// warning, not a scale factor. <c>docs/CharacterImportPipeline/02</c> §5.</para>
         /// </summary>
         static void ConfigureImportSettings(ImportResult result, SWFFile swfData)
         {
             // Snapshot keys to avoid collection-modified-during-enumeration
             var symbolIds = result.SpritesBySymbol.Keys.ToList();
-            int effectivePPU = PixelsPerUnit * result.ZoomFactor;
+
+            // One placement per symbol: all frames of a symbol share a canvas (measured on disk), so a
+            // per-frame PPU would only introduce jitter between frames.
+            var placements = new Dictionary<int, SpritePlacement>();
+            foreach (int symbolId in symbolIds)
+            {
+                var frameMap = result.SpritesBySymbol[symbolId];
+                if (frameMap.Count == 0) continue;
+
+                string sampleFolder = Path.Combine(CharacterArtRoot, CategorizeSymbol(symbolId));
+                string samplePath = FrameAssetPath(sampleFolder, frameMap.Count,
+                                                   frameMap.Keys.OrderBy(k => k).First());
+                placements[symbolId] = ResolvePlacement(result, swfData, symbolId, samplePath);
+            }
 
             // ── Pass 1: set every importer inside a single batch ──────────────
             AssetDatabase.StartAssetEditing();
@@ -223,17 +298,18 @@ namespace PFE.Editor.Importers.SWF
             {
                 foreach (int symbolId in symbolIds)
                 {
+                    if (!placements.TryGetValue(symbolId, out var placement)) continue;
+
                     var frameMap = result.SpritesBySymbol[symbolId];
                     string category = CategorizeSymbol(symbolId);
                     string targetFolder = Path.Combine(CharacterArtRoot, category);
-                    Vector2 pivot = ClampPivot(PivotFor(result, symbolId));
 
                     foreach (int frameNum in frameMap.Keys)
                     {
                         string destAssetPath = FrameAssetPath(targetFolder, frameMap.Count, frameNum);
 
                         if (AssetImporter.GetAtPath(destAssetPath) is TextureImporter importer)
-                            ApplySettings(importer, effectivePPU, category, pivot);
+                            ApplySettings(importer, placement.PixelsPerUnit, category, placement.Pivot);
                         else
                             result.Warnings.Add($"Symbol {symbolId} frame {frameNum}: TextureImporter not found at {destAssetPath}");
                     }
@@ -251,18 +327,19 @@ namespace PFE.Editor.Importers.SWF
             var failures = new List<(string assetPath, Vector2 pivot, int ppu, string category)>();
             foreach (int symbolId in symbolIds)
             {
+                if (!placements.TryGetValue(symbolId, out var placement)) continue;
+
                 var frameMap = result.SpritesBySymbol[symbolId];
                 string category = CategorizeSymbol(symbolId);
                 string targetFolder = Path.Combine(CharacterArtRoot, category);
-                Vector2 pivot = ClampPivot(PivotFor(result, symbolId));
 
                 var updatedFrames = new Dictionary<int, Sprite>();
                 foreach (int frameNum in frameMap.Keys.OrderBy(k => k))
                 {
                     string destAssetPath = FrameAssetPath(targetFolder, frameMap.Count, frameNum);
 
-                    if (!MetaFileHasPivot(destAssetPath, pivot))
-                        failures.Add((destAssetPath, pivot, effectivePPU, category));
+                    if (!MetaFileHasPlacement(destAssetPath, placement.Pivot, placement.PixelsPerUnit))
+                        failures.Add((destAssetPath, placement.Pivot, placement.PixelsPerUnit, category));
 
                     // Load the sprite reference
                     var sprite = AssetDatabase.LoadAssetAtPath<Sprite>(destAssetPath);
@@ -303,12 +380,227 @@ namespace PFE.Editor.Importers.SWF
                     AssetDatabase.StopAssetEditing();
                 }
 
-                failures.RemoveAll(f => MetaFileHasPivot(f.assetPath, f.pivot));
+                failures.RemoveAll(f => MetaFileHasPlacement(f.assetPath, f.pivot, f.ppu));
             }
 
-            foreach (var (assetPath, pivot, _, _) in failures)
-                result.Warnings.Add($"Pivot did not persist for {assetPath} (wanted " +
-                                    $"{pivot.x:0.####}, {pivot.y:0.####}) — Unity could not write the .meta.");
+            foreach (var (assetPath, pivot, ppu, _) in failures)
+                result.Warnings.Add($"Sprite settings did not persist for {assetPath} (wanted pivot " +
+                                    $"{pivot.x:0.####}, {pivot.y:0.####} at ppu {ppu}) — Unity could not write the .meta.");
+        }
+
+        /// <summary>A symbol's resolved import geometry: what its PNGs are drawn at.</summary>
+        readonly struct SpritePlacement
+        {
+            public readonly int PixelsPerUnit;
+            public readonly Vector2 Pivot;
+
+            public SpritePlacement(int pixelsPerUnit, Vector2 pivot)
+            {
+                PixelsPerUnit = pixelsPerUnit;
+                Pivot = pivot;
+            }
+        }
+
+        /// <summary>
+        /// How far the measured reserve may sit from an integer zoom before it is rejected. A canvas
+        /// rounded up to whole pixels inflates the measurement by up to 1 px per axis, i.e. by
+        /// 1/(bounds·zoom) relative — 6 % on a 7 px part at zoom 1, 1.5 % at zoom 4. 15 % covers the
+        /// rounding for every part in this project and still cannot confuse one zoom with the next.
+        /// </summary>
+        const float ZoomTolerance = 0.15f;
+        const int MaxZoom = 16;
+
+        /// <summary>
+        /// Resolve a symbol's PPU and pivot from the PNG on disk and its SWF bounds.
+        ///
+        /// <para>PPU is <c>100 × zoom</c>, so the sprite's world size stays <c>bounds/100</c> whatever
+        /// the export zoom was — density is the only thing a re-export changes. That is the property the
+        /// reference port gets from building its quad out of the SWF bounds instead of out of the
+        /// bitmap; with a <see cref="SpriteRenderer"/> the same property has to be maintained here.</para>
+        /// </summary>
+        static SpritePlacement ResolvePlacement(ImportResult result, SWFFile swfData, int symbolId,
+                                                string sampleAssetPath)
+        {
+            int declared = Mathf.Max(1, result.ZoomFactor);
+            Vector2 declaredPivot = ClampPivot(PivotFor(result, symbolId));
+
+            if (!TryGetSymbolBounds(swfData, symbolId, out Rect bounds) ||
+                !TryReadPngSize(sampleAssetPath, out int pngW, out int pngH) || pngW <= 1 || pngH <= 1)
+            {
+                result.EffectiveZoomBySymbol[symbolId] = declared;
+                result.Warnings.Add($"Symbol {symbolId}: no SWF bounds or unreadable PNG ({sampleAssetPath}); " +
+                                    $"PPU falls back to the declared {PixelsPerUnit * declared}.");
+                return new SpritePlacement(PixelsPerUnit * declared, declaredPivot);
+            }
+
+            // The canvas is proportional to the symbol's UNION bounds, not to one frame's content box:
+            // across the six leg parts png/union measures 3.89..4.00 at a 4x export, while png/frame1
+            // measures 5..7. Measuring against frame 1 is what turned a 4x re-export into PPU 700 for
+            // fleg1, and PPU 500 for rwing whose shipped PPU was 100. (docs/CharacterImportPipeline/06 §2)
+            Rect zoomBounds = TryGetCanvasBounds(swfData, symbolId, out Rect canvasBounds)
+                ? canvasBounds
+                : bounds;
+            int zoom = ResolveZoom(symbolId, pngW, pngH, zoomBounds, declared, result.Warnings);
+            result.EffectiveZoomBySymbol[symbolId] = zoom;
+
+            // A preserved pivot wins over a derived one: the .meta records where the registration point
+            // sits in this canvas, and a change of export zoom does not move it.
+            Vector2 pivot = result.PreviousPivotBySymbol.TryGetValue(symbolId, out Vector2 keptPivot)
+                ? ClampPivot(keptPivot)
+                : ClampPivot(PivotFromBounds(bounds));
+
+            // Publish it: CharacterAnimationDataGenerator falls back to PivotsBySymbol for armor
+            // variants whose bounds are unknown, and it must agree with what the .meta now records.
+            result.PivotsBySymbol[symbolId] = pivot;
+
+            // A pivot that moves is visible: the part shifts on screen. Report it rather than letting a
+            // silent sub-pixel change ride along with an unrelated re-import.
+            if ((pivot - declaredPivot).sqrMagnitude > 1e-6f)
+                result.Warnings.Add($"Symbol {symbolId}: pivot moves ({declaredPivot.x:0.####}, " +
+                                    $"{declaredPivot.y:0.####}) -> ({pivot.x:0.####}, {pivot.y:0.####}); " +
+                                    $"png {pngW}x{pngH}, bounds {bounds.width:0.#}x{bounds.height:0.#}, zoom {zoom}.");
+
+            return new SpritePlacement(PixelsPerUnit * zoom, pivot);
+        }
+
+        /// <summary>
+        /// Which export zoom the art on disk is actually at. The declared zoom wins when the measurement
+        /// agrees with it (the normal case, and the only one at a zoom-1 export); a measurement that
+        /// snaps to a different integer wins with a warning, so a re-exported reserve needs no slider.
+        /// Anything else keeps the declared zoom, because a mismatch that fits no integer means the
+        /// bounds and the PNG do not describe the same canvas and guessing would be worse than warning.
+        /// </summary>
+        static int ResolveZoom(int symbolId, int pngW, int pngH, Rect bounds, int declared,
+                               List<string> warnings)
+        {
+            float rx = pngW / bounds.width;
+            float ry = pngH / bounds.height;
+
+            // Least-squares scale over the two axes: k minimises the relative error of both dimensions
+            // at once, so a canvas that rounded up on one axis only does not bias the answer.
+            float measured = (rx * rx + ry * ry) / (rx + ry);
+
+            if (Mathf.Abs(measured - declared) <= ZoomTolerance * declared) return declared;
+
+            int snapped = Mathf.RoundToInt(measured);
+            if (snapped >= 1 && snapped <= MaxZoom && Mathf.Abs(measured - snapped) <= ZoomTolerance * snapped)
+            {
+                warnings.Add($"Symbol {symbolId}: PNG {pngW}x{pngH} against SWF bounds " +
+                             $"{bounds.width:0.#}x{bounds.height:0.#} measures {measured:0.##}x, not the " +
+                             $"declared {declared}x — importing at {snapped}x. Set the window's zoom to " +
+                             $"{snapped} to silence this.");
+                return snapped;
+            }
+
+            warnings.Add($"Symbol {symbolId}: PNG {pngW}x{pngH} against SWF bounds " +
+                         $"{bounds.width:0.#}x{bounds.height:0.#} measures {measured:0.##}x, which is not an " +
+                         $"integer zoom — keeping the declared {declared}x. The PNG and the bounds may " +
+                         $"describe different canvases; check the export folder.");
+            return declared;
+        }
+
+        /// <summary>
+        /// Pivot for a sprite whose frame-1 content box is <paramref name="bounds"/>, as a fraction of
+        /// the sprite's canvas.
+        ///
+        /// <para><b>Divided by the bounds, never by the canvas.</b> The registration point sits a fixed
+        /// Flash distance inside the content box, and the content box is a fixed Flash distance inside
+        /// the canvas, so <c>(−bounds.x)/bounds.width</c> is a ratio of two Flash lengths: it does not
+        /// contain the export zoom at all, and is therefore the same number at 1x and at 4x. The previous
+        /// form, <c>(−bounds.x)·zoom/pngW</c>, is only equal to it when the canvas happens to be
+        /// <c>bounds × zoom</c> — true for a shape, false for a multi-frame sprite, whose canvas is the
+        /// union over every frame. That is what moved all 358 metas on 10-24
+        /// (<c>docs/CharacterImportPipeline/06</c> §2), and it also reproduces the shipped pivots exactly:
+        /// <c>korpus</c> 56.3/112.7 = 0.4996, <c>fleg1</c> 2.3/4.25 = 0.5412.</para>
+        /// </summary>
+        static Vector2 PivotFromBounds(Rect bounds)
+        {
+            float pivotX = (0f - bounds.x) / bounds.width;
+            float pivotY = 1f - ((0f - bounds.y) / bounds.height);   // Flash Y is down, Unity Y is up
+            return new Vector2(pivotX, pivotY);
+        }
+
+        /// <summary>Same priority order the pivot has always used: exact shape, then frame 1, then union.</summary>
+        static bool TryGetSymbolBounds(SWFFile swfData, int symbolId, out Rect bounds)
+        {
+            if (swfData.ShapeBounds.TryGetValue(symbolId, out bounds) &&
+                bounds.width > 0 && bounds.height > 0) return true;
+
+            if (swfData.Frame1Bounds.TryGetValue(symbolId, out bounds) &&
+                bounds.width > 0 && bounds.height > 0) return true;
+
+            if (swfData.Symbols.TryGetValue(symbolId, out var symbol) &&
+                symbol.Bounds.width > 0 && symbol.Bounds.height > 0)
+            {
+                bounds = symbol.Bounds;
+                return true;
+            }
+
+            bounds = default;
+            return false;
+        }
+
+        /// <summary>
+        /// The bounds a PNG's canvas is proportional to: <see cref="SWFSymbol.Bounds"/>, the union over
+        /// every frame of the sprite.
+        ///
+        /// <para>JPEXS sizes a sprite's export canvas to the whole sprite, so a sprite whose frames move
+        /// (a leg swings, a wing flaps) has a canvas much larger than any one frame's content. Dividing
+        /// the PNG by <see cref="SWFFile.Frame1Bounds"/> therefore overstates the zoom by exactly
+        /// canvas/frame-1 — 1.75x on <c>fleg1</c>. At zoom 1 the declared zoom absorbed that error inside
+        /// the 15 % tolerance, which is why it only surfaced once the art was re-exported at 4x.</para>
+        /// </summary>
+        static bool TryGetCanvasBounds(SWFFile swfData, int symbolId, out Rect bounds)
+        {
+            if (swfData.Symbols.TryGetValue(symbolId, out var symbol) &&
+                symbol.Bounds.width > 0 && symbol.Bounds.height > 0)
+            {
+                bounds = symbol.Bounds;
+                return true;
+            }
+
+            bounds = default;
+            return false;
+        }
+
+        /// <summary>
+        /// PNG pixel size straight from the IHDR chunk. Read from the file rather than from a loaded
+        /// <see cref="Sprite"/> because placement is resolved before the sprites are loadable — pass 1
+        /// runs inside a single <c>StartAssetEditing</c> batch, where nothing is loadable yet.
+        /// </summary>
+        static bool TryReadPngSize(string assetPath, out int width, out int height)
+        {
+            width = 0;
+            height = 0;
+            try
+            {
+                string fullPath = Path.GetFullPath(assetPath);
+                if (!File.Exists(fullPath)) return false;
+
+                var head = new byte[24];
+                using (var stream = File.OpenRead(fullPath))
+                {
+                    int read = 0;
+                    while (read < head.Length)
+                    {
+                        int got = stream.Read(head, read, head.Length - read);
+                        if (got <= 0) return false;
+                        read += got;
+                    }
+                }
+
+                // 8-byte signature, 4-byte chunk length, "IHDR", then width and height as big-endian u32.
+                if (head[12] != (byte)'I' || head[13] != (byte)'H' ||
+                    head[14] != (byte)'D' || head[15] != (byte)'R') return false;
+
+                width = (head[16] << 24) | (head[17] << 16) | (head[18] << 8) | head[19];
+                height = (head[20] << 24) | (head[21] << 16) | (head[22] << 8) | head[23];
+                return width > 0 && height > 0;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
         }
 
         static Vector2 PivotFor(ImportResult result, int symbolId)
@@ -323,10 +615,11 @@ namespace PFE.Editor.Importers.SWF
 
         static void ApplySettings(TextureImporter importer, int effectivePPU, string category, Vector2 pivot)
         {
-            importer.textureType = TextureImporterType.Sprite;
+            // Sampler settings live in CharacterTextureImportPolicy and nowhere else. That file is also
+            // an AssetPostprocessor, so a re-import that does not go through this importer still lands
+            // on the same filter/mipmap/compression values instead of Unity's defaults.
+            CharacterTextureImportPolicy.ApplySampler(importer);
             importer.spritePixelsPerUnit = effectivePPU;
-            importer.filterMode = FilterMode.Point;
-            importer.textureCompression = TextureImporterCompression.Uncompressed;
 
             var settings = new TextureImporterSettings();
             importer.ReadTextureSettings(settings);
@@ -339,6 +632,41 @@ namespace PFE.Editor.Importers.SWF
         }
 
         /// <summary>
+        /// True when the .meta on disk records both the pivot and the PPU we asked for.
+        ///
+        /// <para>Both, not just the pivot: a stale <c>spritePixelsToUnits</c> is invisible in a pivot-only
+        /// check and silently rescales the part, which is precisely the failure mode a measured zoom is
+        /// supposed to remove. Read from the file for the reason
+        /// <see cref="MetaFileHasPivot"/> documents.</para>
+        /// </summary>
+        static bool MetaFileHasPlacement(string assetPath, Vector2 pivot, int ppu)
+            => MetaFileHasPivot(assetPath, pivot) && MetaFileHasPixelsPerUnit(assetPath, ppu);
+
+        static bool MetaFileHasPixelsPerUnit(string assetPath, int ppu)
+        {
+            string metaPath = Path.GetFullPath(assetPath) + ".meta";
+            if (!File.Exists(metaPath)) return false;
+
+            try
+            {
+                foreach (string line in File.ReadLines(metaPath))
+                {
+                    int key = line.IndexOf("spritePixelsToUnits:", StringComparison.Ordinal);
+                    if (key < 0) continue;
+
+                    string body = line.Substring(key + "spritePixelsToUnits:".Length).Trim();
+                    return float.TryParse(body, NumberStyles.Float, CultureInfo.InvariantCulture,
+                                          out float value) && Mathf.Abs(value - ppu) < 0.01f;
+                }
+            }
+            catch (Exception)
+            {
+                // Unreadable or vanished file: treat as "not on disk" so the caller (re)writes it.
+            }
+            return false;
+        }
+
+        /// <summary>
         /// True when the asset's <c>.meta</c> on disk records <paramref name="pivot"/> as the sprite pivot.
         ///
         /// <para>Reads the file rather than the importer on purpose: <see cref="TextureImporter"/> exposes
@@ -346,7 +674,21 @@ namespace PFE.Editor.Importers.SWF
         /// used either to decide whether a write is needed or to confirm one succeeded.</para>
         /// </summary>
         static bool MetaFileHasPivot(string assetPath, Vector2 pivot)
+            => TryReadMetaPivot(assetPath, out Vector2 onDisk) &&
+               Mathf.Abs(onDisk.x - pivot.x) < 0.001f &&
+               Mathf.Abs(onDisk.y - pivot.y) < 0.001f;
+
+        /// <summary>
+        /// The sprite pivot an asset's <c>.meta</c> already records, or false when there is no meta yet
+        /// (first import) or it cannot be read.
+        ///
+        /// <para>One parser for both the "what is on disk?" question and the "did the write land?"
+        /// question, so a preserved pivot and a verified pivot can never disagree about what the file
+        /// says. Read as text for the reason <see cref="MetaFileHasPivot"/> documents.</para>
+        /// </summary>
+        static bool TryReadMetaPivot(string assetPath, out Vector2 pivot)
         {
+            pivot = default;
             string metaPath = Path.GetFullPath(assetPath) + ".meta";
             if (!File.Exists(metaPath)) return false;
 
@@ -372,7 +714,10 @@ namespace PFE.Editor.Importers.SWF
 
                     if (float.TryParse(sx, NumberStyles.Float, CultureInfo.InvariantCulture, out float px) &&
                         float.TryParse(sy, NumberStyles.Float, CultureInfo.InvariantCulture, out float py))
-                        return Mathf.Abs(px - pivot.x) < 0.001f && Mathf.Abs(py - pivot.y) < 0.001f;
+                    {
+                        pivot = new Vector2(px, py);
+                        return true;
+                    }
 
                     return false;
                 }
@@ -382,6 +727,153 @@ namespace PFE.Editor.Importers.SWF
                 // Unreadable or vanished file: treat as "not on disk" so the caller (re)writes it.
             }
             return false;
+        }
+
+        /// <summary>Alpha at or below this is empty when measuring a part's ink box. The same threshold
+        /// the offline census used, so the importer and the audit cannot disagree about a box.</summary>
+        const int InkAlphaFloor = 8;
+
+        /// <summary>Margin added on every side of the ink box. See <see cref="TryMeasureInkRect"/>.</summary>
+        const int RectHalo = 1;
+
+        /// <summary>
+        /// The four numbers of the first sub-sprite's rect, captured with the lines that precede each
+        /// one so a rewrite touches those four values and nothing else in the file.
+        /// </summary>
+        static readonly Regex SpriteRectPattern = new(
+            @"(rect:\s*\r?\n\s*serializedVersion: 2\s*\r?\n\s*x: )\d+" +
+            @"(\s*\r?\n\s*y: )\d+" +
+            @"(\s*\r?\n\s*width: )\d+" +
+            @"(\s*\r?\n\s*height: )\d+",
+            RegexOptions.Compiled);
+
+        /// <summary>
+        /// Re-measures the sprite rect of an asset whose PNG was just replaced, and writes it into the
+        /// <c>.meta</c> before Unity imports the new bytes.
+        ///
+        /// <para><b>Why the rect is not decorative.</b> Each character-part PNG is one frame of one
+        /// symbol, imported in <c>SpriteImportMode.Multiple</c> with a single sub-sprite whose rect is a
+        /// trim of the canvas — the alpha ink box plus a one-pixel halo. That rect <i>is</i> the sprite:
+        /// Unity fills <c>sprite.textureRect</c> from it, so both renderers size the part as
+        /// <c>rect / ppu</c> and sample the window <c>rect / texture</c>. A rect measured on 1× art and
+        /// left in place under 4× art therefore draws the part four times too small, cropped to a corner
+        /// of itself, and registered away from where it belongs — which is exactly what the 10-24 leg
+        /// re-export produced (<c>docs/CharacterImportPipeline/07</c>).</para>
+        ///
+        /// <para><b>Why the <c>.meta</c> is written here, as text.</b> This runs immediately after
+        /// <see cref="File.Copy(string,string,bool)"/> and before <c>AssetDatabase.Refresh()</c>, so the
+        /// asset has no live <c>TextureImporter</c> to race with — the file on disk is simply bytes.
+        /// Writing through the importer at that moment would be the wrong order, and writing through
+        /// <c>TextureImporter.spritesheet</c> at any moment is a no-op on this editor (the trap
+        /// <c>UnitSpriteImporter.ApplySpriteGrid</c> documents).</para>
+        ///
+        /// <para><b>Silent when it cannot act.</b> A missing meta means a first import, which Unity will
+        /// write itself; Single sprite mode ignores the rect entirely. Neither can produce a wrong
+        /// picture, so neither is a warning. A failure to measure or to write <i>can</i>, so that one is
+        /// reported rather than swallowed.</para>
+        /// </summary>
+        /// <returns>True when the rect recorded on disk changed.</returns>
+        static bool RetrimSpriteRect(string assetPath, List<string> warnings)
+        {
+            string metaPath = Path.GetFullPath(assetPath) + ".meta";
+            if (!File.Exists(metaPath)) return false;
+
+            string meta;
+            try
+            {
+                meta = File.ReadAllText(metaPath);
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+
+            // Single-mode sprites take textureRect from the whole texture, so the block is inert.
+            if (!meta.Contains("spriteMode: 2")) return false;
+
+            if (!TryMeasureInkRect(assetPath, out RectInt rect)) return false;
+
+            string updated = SpriteRectPattern.Replace(meta, match =>
+                match.Groups[1].Value + rect.x.ToString(CultureInfo.InvariantCulture) +
+                match.Groups[2].Value + rect.y.ToString(CultureInfo.InvariantCulture) +
+                match.Groups[3].Value + rect.width.ToString(CultureInfo.InvariantCulture) +
+                match.Groups[4].Value + rect.height.ToString(CultureInfo.InvariantCulture),
+                1);
+
+            if (updated == meta) return false;
+
+            try
+            {
+                File.WriteAllText(metaPath, updated);
+                return true;
+            }
+            catch (Exception e)
+            {
+                warnings.Add($"{assetPath}: could not write the re-measured sprite rect: {e.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// The rect a part's PNG asks for: its alpha ink box expanded by <see cref="RectHalo"/> pixels
+        /// and clipped to the canvas, in pixels with y measured from the bottom.
+        ///
+        /// <para><c>GetPixels32</c> is already bottom-up, so no flip is needed — the same reason the
+        /// Unity-side rect and the PIL-side box differ by <c>h − bottom</c> in the offline audit.</para>
+        ///
+        /// <para>One pixel of halo is what the 300-odd untouched parts already carry: measured, not
+        /// chosen, since the rule reproduces their shipped rects to within a pixel. The halo is margin
+        /// only — the box is derived from the ink, so the ink can never fall outside it.</para>
+        /// </summary>
+        static bool TryMeasureInkRect(string assetPath, out RectInt rect)
+        {
+            rect = default;
+            Texture2D texture = null;
+            try
+            {
+                byte[] bytes = File.ReadAllBytes(Path.GetFullPath(assetPath));
+
+                // Decoded straight from the bytes, so the asset's own isReadable: 0 does not matter and
+                // no import has to have happened yet.
+                texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+                if (!texture.LoadImage(bytes)) return false;
+
+                int width = texture.width;
+                int height = texture.height;
+                Color32[] pixels = texture.GetPixels32();
+
+                int minX = width, minY = height, maxX = -1, maxY = -1;
+                for (int y = 0; y < height; y++)
+                {
+                    int row = y * width;
+                    for (int x = 0; x < width; x++)
+                    {
+                        if (pixels[row + x].a <= InkAlphaFloor) continue;
+                        if (x < minX) minX = x;
+                        if (x > maxX) maxX = x;
+                        if (y < minY) minY = y;
+                        if (y > maxY) maxY = y;
+                    }
+                }
+
+                if (maxX < minX || maxY < minY) return false; // fully transparent: nothing to trim to
+
+                int x0 = Mathf.Max(0, minX - RectHalo);
+                int y0 = Mathf.Max(0, minY - RectHalo);
+                int x1 = Mathf.Min(width, maxX + 1 + RectHalo);
+                int y1 = Mathf.Min(height, maxY + 1 + RectHalo);
+
+                rect = new RectInt(x0, y0, x1 - x0, y1 - y0);
+                return true;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+            finally
+            {
+                if (texture != null) UnityEngine.Object.DestroyImmediate(texture);
+            }
         }
 
         static void EnsureDirectoryStructure()
