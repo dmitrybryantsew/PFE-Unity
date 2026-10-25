@@ -566,6 +566,12 @@ namespace PFE.Systems.Map.DataMigration
                 env.waterDamageType = wtd;
             if (float.TryParse(ResolveOption(as3Room, inheritedOptions, "rad", "0"), out float rad))
                 env.radiation = rad;
+            // `wrad` is the water-borne half (Location.as:159, :408-412) and its declaration default is
+            // 1, not 0 — a room that authors nothing still radiates while you swim. Resolved through
+            // the land's options first, exactly like `rad` above, because buildLoc copies the land's
+            // value into the room before the room's own override is applied.
+            if (float.TryParse(ResolveOption(as3Room, inheritedOptions, "wrad", "1"), out float wrad))
+                env.waterRadiation = wrad;
             if (int.TryParse(ResolveOption(as3Room, inheritedOptions, "dark", "0"), out int dark))
                 env.darkness = dark;
 

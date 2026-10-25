@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using VContainer;
 using R3;
 using MessagePipe;
@@ -129,6 +129,28 @@ namespace PFE.Entities.Player
         private PlayerManaTicker _manaTicker;
 
         /// <summary>
+        /// Runs AS3's radiation block (<c>UnitPlayer.as:898-960</c>) once per sim tick and owns the
+        /// player's exposure state. Created here for the same reason as <see cref="PlayerManaTicker"/>:
+        /// the player is motor-driven, so <c>UnitController.SimTick</c> returns early for it and a
+        /// separate <see cref="ISimTickable"/> is the only per-tick hook.
+        /// </summary>
+        private PlayerRadiationTicker _radiationTicker;
+
+        /// <summary>
+        /// The player's live radiation state — <c>gg.rad</c> and the accumulators around it. Read by the
+        /// PipBuck pages and by RadAway; written by <see cref="PlayerRadiationTicker"/> and by any
+        /// emitter that pushes exposure (the glowing ghoul's aura). Null only before <c>Awake</c>.
+        /// </summary>
+        public PlayerRadiationState Radiation => _radiationTicker != null ? _radiationTicker.State : null;
+
+        /// <summary>
+        /// The room the player is standing in — <c>gg.loc</c>. Follows the land map rather than caching
+        /// a room, because a door within the same land never re-enters <c>MapBridge.SpawnPlayer</c>.
+        /// </summary>
+        public PFE.Systems.Map.RoomInstance CurrentRoom =>
+            _pendingLandMap != null ? _pendingLandMap.currentRoom : null;
+
+        /// <summary>
         /// Walk-over loot collection — AS3 <c>Loot.take()</c>'s automatic half, gated on the player's
         /// <c>isTake</c> window. Created here for the same reason as <see cref="PlayerManaTicker"/>: the
         /// player is motor-driven, so <c>UnitController.SimTick</c> returns early for it and a separate
@@ -246,6 +268,10 @@ namespace PFE.Entities.Player
             // Same ordering problem, same answer. See ApplyParticleEmitterIfReady.
             _pendingParticleEmitter = particleEmitter;
             ApplyParticleEmitterIfReady();
+
+            // And again for radiation: the land map and the sound service arrive here, the stats are
+            // built in Awake. Whichever runs second wins; Construct is idempotent.
+            WireRadiationTickerIfReady();
 
             // ── Construct really is called twice, and this guard is why that is harmless ─────────────
             //
@@ -480,6 +506,37 @@ namespace PFE.Entities.Player
         }
 
         /// <summary>
+        /// Binds the radiation ticker's collaborators from whichever of <c>Construct</c>/<c>Awake</c>
+        /// ran second — the same two-sided wire as <see cref="WireInventoryIfReady"/>.
+        ///
+        /// <para><b>Why it cannot be done once.</b> The land map and the sound service are injected
+        /// (<c>Construct</c>); <c>CharacterStats</c> and <c>UnitStats</c> are built in <c>Awake</c>.
+        /// A ticker bound from only one of those moments would run with a null room — no ambient
+        /// radiation and no object scan — or with null stats, i.e. no exposure at all.</para>
+        /// </summary>
+        private void WireRadiationTickerIfReady()
+        {
+            if (_radiationTicker == null || _characterStats == null || base._unitStats == null)
+            {
+                return;
+            }
+
+            _radiationTicker.Construct(this, _characterStats, base._unitStats, _pendingLandMap, _pendingSoundService);
+
+            // The Rad Child perk scales organ damage by the player's remaining headroom
+            // (Pers.as:1675-1678), so the RPG layer needs the exposure number too.
+            _characterStats.RadiationProvider = () => _radiationTicker != null ? _radiationTicker.State.Rad : 0f;
+
+            // RadAway reaches the same state through the inventory, which is built in a different
+            // method and may not exist yet. Setting it here and in WireInventoryIfReady covers both
+            // orders.
+            if (_inventoryComponent != null)
+            {
+                _inventoryComponent.Radiation = _radiationTicker.State;
+            }
+        }
+
+        /// <summary>
         /// Build and bind the inventory from whichever of <c>Construct</c>/<c>Awake</c> ran second.
         ///
         /// <para><b>Both sides are needed and neither can do it alone:</b> the content registry arrives
@@ -502,6 +559,10 @@ namespace PFE.Entities.Player
             // Null before injection; PlayerInventory tolerates it and rebuilds its sink once the real
             // registry arrives, so calling this with null is a no-op rather than a permanent downgrade.
             _inventoryComponent.Construct(_pendingRegistry);
+
+            // RadAway's destination. Null until the radiation ticker is built (it is created later in
+            // Awake than this can run), so WireRadiationTickerIfReady sets it again from the other side.
+            _inventoryComponent.Radiation = Radiation;
         }
 
         protected override void Awake()
@@ -535,6 +596,12 @@ namespace PFE.Entities.Player
             // runs it falls back to FixedUpdate and warns, so it is never silently absent.
             _manaTicker = GetComponent<PlayerManaTicker>() ?? gameObject.AddComponent<PlayerManaTicker>();
             _manaTicker.Construct(_characterStats, _locomotion, _telekinesis);
+
+            // AS3's radiation block. Created here and wired from BOTH sides, because the land map and
+            // the sound service arrive in Construct while `_characterStats`/`_unitStats` are built here
+            // — Unity does not order the two. Construct is idempotent.
+            _radiationTicker = GetComponent<PlayerRadiationTicker>() ?? gameObject.AddComponent<PlayerRadiationTicker>();
+            WireRadiationTickerIfReady();
 
             // AS3's spell half. The component is created here so `GetComponentInParent<PlayerSpellCaster>`
             // finds it the moment the inventory asks to select a spell, but its dependencies are wired by
@@ -619,6 +686,14 @@ namespace PFE.Entities.Player
             if (_manaTicker != null)
             {
                 _manaTicker.Attach(clock, loop);
+            }
+
+            // Registered after the mana block, at the same PlayerMotor order, so exposure is billed
+            // after the motor has placed the player for this tick — walking into a reactor costs the
+            // frame you walked in, not the one before it.
+            if (_radiationTicker != null)
+            {
+                _radiationTicker.Attach(clock, loop);
             }
 
             // Registered after the mana ticker on purpose: both sit at SimTickOrder.PlayerMotor, and at
@@ -1073,6 +1148,44 @@ namespace PFE.Entities.Player
 
             // TODO: Show game over screen
             // TODO: Reload last save
+        }
+
+        /// <summary>
+        /// The radiation block's death arm — <c>UnitPlayer.as:929-931</c>, <c>if(hp &lt;= 0) this.die()</c>.
+        ///
+        /// <para><b>Why this is a method and not a direct <c>CurrentHp</c> write in the ticker.</b> The
+        /// hp has already been clamped by the ticker; what is left is the <i>reaction</i>, and every
+        /// death in the port funnels through <see cref="PFE.Entities.Units.UnitController.RaiseDeath"/>
+        /// so the multiplayer authority gate and the once-only latch both apply. Writing hp to zero from
+        /// a sibling component would leave a player at 0 hp and still standing.</para>
+        /// </summary>
+        public void KillFromRadiation()
+        {
+            if (base._unitStats == null || !IsAlive)
+            {
+                return;
+            }
+
+            base._unitStats.CurrentHp.Value = 0f;
+
+            if (!IsAlive)
+            {
+                RaiseDeath();
+            }
+        }
+
+        /// <summary>
+        /// A radioactive source's elemental damage, paid out every 30 frames by
+        /// <see cref="PlayerRadiationTicker"/> — <c>UnitPlayer.as:1536-1551</c>.
+        ///
+        /// <para>Routed through <c>ReportEffectDamage</c> rather than <c>UnitStats.Damage</c> so armour,
+        /// vulnerabilities, the floating number and the death check all apply — the same reason an
+        /// effect tick does. The oracle's own call is <c>damage(val, type, null, true)</c>, which is
+        /// exactly that path's shape.</para>
+        /// </summary>
+        public void ApplyRadiationElementalDamage(float damage, PFE.Data.Definitions.DamageType type)
+        {
+            ReportEffectDamage(damage, type);
         }
 
         // There is deliberately no serialized interaction radius any more. The reach is AS3's

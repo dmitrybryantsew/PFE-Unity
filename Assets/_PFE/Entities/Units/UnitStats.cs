@@ -356,9 +356,27 @@ private float _overkill;
             _overkill = CorpseDamageMath.OverkillAfterHeal(_overkill, amount, out toHp);
         }
 
-        float newHp = Mathf.Clamp(CurrentHp.Value + toHp, 0, MaxHp.Value);
+        float ceiling = HpCeiling < MaxHp.Value ? HpCeiling : MaxHp.Value;
+        float newHp = Mathf.Clamp(CurrentHp.Value + toHp, 0, ceiling);
         CurrentHp.Value = newHp;
     }
+
+    /// <summary>
+    /// The highest health this unit may hold — <b>the radiation ceiling</b>, AS3's <c>maxhp - rad</c>
+    /// (<c>UnitPlayer.as:3157</c>, <c>:963</c>, <c>:927</c>).
+    ///
+    /// <para><b>Positive infinity by default, and that is the point.</b> No NPC has a radiation pool in
+    /// the oracle — <c>rad</c> is declared on <c>UnitPlayer</c>, not on <c>Unit</c> — so an unset
+    /// ceiling must not clamp anything. Only the player's radiation ticker writes it, once per frame.
+    /// </para>
+    ///
+    /// <para><b>Why it lives here rather than in the ticker.</b> Three separate paths in the oracle
+    /// clamp a heal to <c>maxhp - rad</c>: the radiation tick, <c>heal(amount, 0)</c>, and regen. If the
+    /// clamp were applied only in the tick, a stimpak would heal straight through the radiation and the
+    /// next frame would claw it back — a health bar that jumps, and a heal that appears to do nothing.
+    /// </para>
+    /// </summary>
+    public float HpCeiling = float.PositiveInfinity;
 
     /// <summary>
     /// How far past zero this unit's health has been taken — the port's stand-in for AS3's negative

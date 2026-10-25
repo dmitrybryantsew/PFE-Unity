@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -1187,6 +1187,7 @@ namespace PFE.Systems.Map.Serialization
         public int waterDamageType;
         public float radiation;
         public float radiationDamage;
+        public float waterRadiation = 1f;
         public int darkness;
 
         public static RoomEnvironmentSnapshot CreateFrom(RoomEnvironment environment)
@@ -1214,6 +1215,7 @@ namespace PFE.Systems.Map.Serialization
                 waterDamageType = environment.waterDamageType,
                 radiation = environment.radiation,
                 radiationDamage = environment.radiationDamage,
+                waterRadiation = environment.waterRadiation,
                 darkness = environment.darkness
             };
         }
@@ -1241,6 +1243,7 @@ namespace PFE.Systems.Map.Serialization
             environment.waterDamageType = waterDamageType;
             environment.radiation = radiation;
             environment.radiationDamage = radiationDamage;
+            environment.waterRadiation = waterRadiation;
             environment.darkness = darkness;
         }
     }

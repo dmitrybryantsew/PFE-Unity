@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using PFE.Systems.Campaign;
 using UnityEngine;
@@ -215,6 +215,7 @@ namespace PFE.Systems.Map
                 waterDamageType = template.environment.waterDamageType,
                 radiation = template.environment.radiation,
                 radiationDamage = template.environment.radiationDamage,
+                waterRadiation = template.environment.waterRadiation,
                 darkness = template.environment.darkness
             };
 

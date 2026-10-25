@@ -36,6 +36,22 @@ namespace PFE.Systems.Map
         public float radiation = 0f;        // Radiation level
         public float radiationDamage = 0f;  // Damage per second
 
+        /// <summary>
+        /// AS3 <c>Location.wrad</c> (<c>Location.as:159</c>, <c>:379-380</c>, <c>:408-412</c>) — the
+        /// radiation a <b>submerged</b> player absorbs, added to the room's own <see cref="radiation"/>
+        /// only while <c>inWater</c> (<c>UnitPlayer.as:906-910</c>).
+        ///
+        /// <para><b>The oracle's default is 1, not 0</b> (<c>LandAct.as:62</c>,
+        /// <c>Location.as:159</c>), so a room that authors no <c>wrad</c> and inherits no land default
+        /// still radiates 1 while you swim in it. That is why the converter reads it with a
+        /// <c>"1"</c> default rather than the <c>"0"</c> every other float option uses.</para>
+        ///
+        /// <para>Measured in the oracle's room data: <b>40 of 51</b> authored <c>wrad</c> values are
+        /// non-zero, up to 30 — water is the commonest radiation source in the game, not the barrels.
+        /// </para>
+        /// </summary>
+        public float waterRadiation = 1f;
+
         // Lighting
         public int darkness = 0;            // 0-255, darkness level
 

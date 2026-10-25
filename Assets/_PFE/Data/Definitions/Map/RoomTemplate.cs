@@ -391,6 +391,17 @@ namespace PFE.Systems.Map
         public int waterDamageType = 7;
         public float radiation = 0f;
         public float radiationDamage = 0f;
+
+        /// <summary>
+        /// AS3 <c>&lt;options wrad="…"&gt;</c> → <c>Location.wrad</c> — the radiation absorbed while
+        /// <b>submerged</b> in this room (<c>UnitPlayer.as:906-910</c>).
+        ///
+        /// <para><b>Default 1, not 0</b> (<c>Location.as:159</c>, <c>LandAct.as:62</c>): water is
+        /// radioactive by default in the oracle. The importer resolves the room's own attribute first
+        /// and then the land's, exactly as <c>Location.buildLoc</c> does, and only falls back to the
+        /// declaration default when neither authors one.</para>
+        /// </summary>
+        public float waterRadiation = 1f;
         public int darkness = 0;
 
         /// <summary>

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 using PFE.Core.Messages;
@@ -218,6 +218,34 @@ namespace PFE.Systems.RPG
         [HideInInspector] public float organMult = 1.0f;
         [HideInInspector] public float organMultPot = 1.0f;
         [HideInInspector] public float radChild = 0f;
+
+        /// <summary>
+        /// AS3 <c>UnitPlayer.radX</c> (<c>UnitPlayer.as:223</c>) — the multiplier applied to every point
+        /// of radiation the player absorbs. <b>1 is neutral, 0 is immune, below 1 is resistance.</b>
+        ///
+        /// <para>Two producers write it, and both are already in the data:</para>
+        /// <list type="bullet">
+        ///   <item><description>Perk/skill rows — four <c>&lt;sk id='radX' ref='add' v1='-0.2'/&gt;</c>
+        ///     entries in <c>AllData.as</c> (plus one <c>vd='-0.05'</c>), applied by
+        ///     <see cref="ApplyNamedStat"/> like every other stat.</description></item>
+        ///   <item><description>The equipped armour's <c>radVul</c> (<c>Armor.as:250-253</c>,
+        ///     <c>1 - @radx</c>), which <c>Pers.setParameters</c> multiplies in
+        ///     (<c>Pers.as:2033-2035</c>). That wiring is <b>not</b> done yet — see the radiation
+        ///     doc's gap ledger; the field is the destination it needs.</description></item>
+        /// </list>
+        ///
+        /// <para><b>Reset to 1 by <see cref="ResetToDefaults"/>, because the oracle does exactly that</b>
+        /// (<c>Pers.as:873</c>, <c>this.gg.radX = 1</c>, inside <c>defaultParams()</c>) — unlike
+        /// <see cref="radChild"/>, which <c>defaultParams()</c> never touches.</para>
+        /// </summary>
+        [HideInInspector] public float radX = 1f;
+
+        /// <summary>
+        /// The player's current <c>gg.rad</c>, for the Rad Child perk's organ-damage scaling
+        /// (<c>Pers.as:1675-1678</c>). Null when there is no radiation model — an NPC, or a rig with
+        /// no player — and then the perk's factor is 1 rather than a guess.
+        /// </summary>
+        public System.Func<float> RadiationProvider;
 
         /// <summary>
         /// AS3 <c>Pers.dieDamage</c> (<c>Pers.as:83</c>) — the fraction of max organ HP a
@@ -1658,6 +1686,9 @@ namespace PFE.Systems.RPG
 
             allDamMult = 1.0f;
             allVulnerMult = 1.0f;
+            // Pers.as:873 — `this.gg.radX = 1` sits in defaultParams(), so every recompute re-seeds the
+            // radiation multiplier before the <sk>/armour passes multiply into it.
+            radX = 1.0f;
             critCh = 0.05f;
             critDamMult = 2.0f;
             // satsMult is a pure <sk> target (Pers.as:301, written by the mathlogic perk); resetting
@@ -2723,6 +2754,13 @@ namespace PFE.Systems.RPG
                     radChild = ApplyFloatOp(radChild, refType, val);
                     TrackFactor("radChild", sourceId ?? "stat", sourceType, val, radChild);
                     break;
+                case "radX":
+                    // AS3 `UnitPlayer.radX` — the radiation absorption multiplier, written by four
+                    // `<sk id='radX'>` rows and (once wired) by the equipped armour's radVul. Without
+                    // this case the rows were logged as unmodelled and every radiation perk was inert.
+                    radX = ApplyFloatOp(radX, refType, val);
+                    TrackFactor("radX", sourceId ?? "stat", sourceType, val, radX);
+                    break;
                 case "organMultPot":
                     organMultPot = ApplyFloatOp(organMultPot, refType, val);
                     TrackFactor("organMultPot", sourceId ?? "stat", sourceType, val, organMultPot);
@@ -2986,6 +3024,22 @@ namespace PFE.Systems.RPG
 
             damage *= organMult;
             damage *= organMultPot;
+
+            // AS3:1675-1678 — the Rad Child perk scales every organ hit by the player's remaining
+            // health headroom: `param1 *= (this.gg.maxhp - this.gg.rad) / this.gg.maxhp`. With no
+            // radiation the factor is 1, so the provider being absent (an NPC, a rig with no player)
+            // leaves damage untouched.
+            if (radChild > 0f && RadiationProvider != null)
+            {
+                float maxHp = BoundUnitStats != null ? BoundUnitStats.MaxHp.Value : 0f;
+                if (maxHp > 0f)
+                {
+                    float rad = RadiationProvider();
+                    float headroom = (maxHp - rad) / maxHp;
+                    if (headroom < 0f) headroom = 0f;
+                    damage *= headroom;
+                }
+            }
 
             float roll = CombatRng.NextFloat();
             if (roll < 0.2f)

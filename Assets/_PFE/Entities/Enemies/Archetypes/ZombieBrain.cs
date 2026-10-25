@@ -1,7 +1,9 @@
-using System;
+﻿using System;
 using PFE.Core;
 using PFE.Data.Definitions;
+using PFE.Entities.Player;
 using PFE.Entities.Units;
+using PFE.Sim.Radiation;
 using PFE.Systems.Map;
 using PFE.Systems.Map.TileQuery;
 using UnityEngine;
@@ -138,6 +140,9 @@ namespace PFE.Entities.Enemies.Archetypes
         /// <see cref="SuperSilaVse"/>, by the target's death, and when the zombie dies.
         /// </summary>
         private UnitController _teleUnit;
+
+        /// <summary>The player, for the radiation aura's push. See <see cref="ResolvePlayer"/>.</summary>
+        private PlayerController _player;
 
         /// <summary>AS3 <c>radMax</c>/<c>radMin</c>/<c>radioactiv</c>/<c>radrad</c> for skill 5.</summary>
         private float _radMax = 1f;
@@ -1294,6 +1299,83 @@ namespace PFE.Entities.Enemies.Archetypes
             {
                 SuperSilaVse();
             }
+
+            // `Unit.as:1803-1806` — `getRasst2(); if(radioactiv) ggModum();`. This is NOT part of the
+            // super state machine: it runs on every live tick of every unit whose `radioactiv` is
+            // non-zero, which is why the aura keeps burning after the burst ends (`superSilaVse` parks
+            // it at `radMin`, and for this skill `radMin` is 1, not 0).
+            ApplyRadiationAura();
+        }
+
+        /// <summary>
+        /// The glowing ghoul's aura, damaging the player — <c>Obj.ggModum</c> (<c>Obj.as:231-236</c>)
+        /// with this unit as the emitter.
+        ///
+        /// <para><b>Why the emitter pushes instead of the player pulling.</b> The oracle calls
+        /// <c>ggModum()</c> from the <i>emitter's</i> step and it writes straight into
+        /// <c>World.w.gg</c>. The player's ticker has no way to enumerate live auras — a zombie is a
+        /// scene object, not a room record — so the emitter pushes the same number into the player's
+        /// state, and the player's next tick bills it. One frame of latency, which is the same latency
+        /// the oracle has between the two units' steps.</para>
+        ///
+        /// <para><b>The three gates are the oracle's.</b> <c>radioactiv</c> non-zero; the same
+        /// <c>loc</c> (<c>loc == World.w.gg.loc</c> — the port compares the room references); and inside
+        /// <c>radrad</c>. Distance is measured with the player's chest at
+        /// <c>Y - scY * 0.75</c> and this unit's centre at <c>Y + scY / 2</c>, exactly as
+        /// <c>Obj.getRasst2</c> does for the player target.</para>
+        /// </summary>
+        private void ApplyRadiationAura()
+        {
+            if (_radCurrent <= 0f || _radRadius <= 0f)
+            {
+                return;
+            }
+
+            PlayerController player = ResolvePlayer();
+            PlayerRadiationState radiation = player != null ? player.Radiation : null;
+            if (radiation == null)
+            {
+                return;
+            }
+
+            // `loc == World.w.gg.loc` — an aura does not cross a room boundary. Without this a zombie
+            // standing on the far side of a shared wall would irradiate through it.
+            RoomInstance ownRoom = _tileQuery != null ? _tileQuery.Room : null;
+            if (ownRoom == null || !ReferenceEquals(player.CurrentRoom, ownRoom))
+            {
+                return;
+            }
+
+            Vector2 selfFeet = (Vector2)transform.position * 100f;
+            float selfHeight = UnitHeightPixels;
+            Vector2 playerFeet = (Vector2)player.transform.position * 100f;
+            float playerHeight = player.Definition != null ? player.Definition.Height * 100f : 70f;
+
+            float dx = playerFeet.x - selfFeet.x;
+            float dy = RadiationMath.VerticalOffset(playerFeet.y, playerHeight, selfFeet.y + selfHeight * 0.5f);
+
+            if (!RadiationMath.InRadius(dx, dy, _radRadius))
+            {
+                return;
+            }
+
+            float distance = Mathf.Sqrt(dx * dx + dy * dy);
+            radiation.AddSourceExposure(RadiationMath.Falloff(distance, _radRadius), _radCurrent);
+        }
+
+        /// <summary>
+        /// The player, cached across ticks. A scene search per aura tick would be one
+        /// <c>FindFirstObjectByType</c> per zombie per frame for a value that cannot change while the
+        /// scene is loaded; the cache is dropped when the object is destroyed.
+        /// </summary>
+        private PlayerController ResolvePlayer()
+        {
+            if (_player == null)
+            {
+                _player = FindFirstObjectByType<PlayerController>();
+            }
+
+            return _player;
         }
 
         /// <summary>
