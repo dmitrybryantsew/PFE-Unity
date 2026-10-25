@@ -323,6 +323,12 @@ namespace PFE.Character
                 go.transform.SetParent(transform, false);
                 go.SetActive(false);
 
+                // Inherit the character's layer. A new GameObject is always on layer 0, and the
+                // preview windows cull their camera to one layer — so a slot built after the last
+                // layer sweep is invisible there with nothing logged. Same rule as
+                // CharacterQuadAssembler.CreateSlot; a no-op in game, where both are 0.
+                go.layer = gameObject.layer;
+
                 var sr = go.AddComponent<SpriteRenderer>();
                 sr.sortingLayerName = _sortingLayerName;
 
@@ -348,7 +354,7 @@ namespace PFE.Character
                 if (slot.gameObject != null)
                 {
                     slot.gameObject.SetActive(false);
-                    Destroy(slot.gameObject);
+                    DestroyObject(slot.gameObject);
                 }
             }
 
@@ -357,7 +363,7 @@ namespace PFE.Character
 
             foreach (Sprite s in _pivotCache.Values)
             {
-                if (s != null) Destroy(s);
+                DestroyObject(s);
             }
             _pivotCache.Clear();
         }
@@ -429,7 +435,7 @@ namespace PFE.Character
                 if (slot.gameObject != null)
                 {
                     slot.gameObject.SetActive(false);
-                    Destroy(slot.gameObject);
+                    DestroyObject(slot.gameObject);
                 }
             }
 
@@ -858,6 +864,28 @@ namespace PFE.Character
         void OnDestroy()
         {
             ClearSlots(); // destroys slot GOs and clears the pivot cache
+        }
+
+        /// <summary>
+        /// <c>Destroy</c> is deferred and never runs in edit mode, where the animation preview window
+        /// builds a transient rig; <c>DestroyImmediate</c> is illegal while playing. This picks the
+        /// right one for both. At runtime it is exactly the <c>Destroy</c> it replaces.
+        /// </summary>
+        static void DestroyObject(Object target)
+        {
+            if (target == null)
+            {
+                return;
+            }
+
+            if (Application.isPlaying)
+            {
+                Destroy(target);
+            }
+            else
+            {
+                DestroyImmediate(target);
+            }
         }
 
         // ─── Data types ──────────────────────────────────────────────────────
