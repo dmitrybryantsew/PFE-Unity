@@ -1583,6 +1583,28 @@ namespace PFE.Systems.Map.Rendering
             return color;
         }
 
+        /// <summary>
+        /// The room's colour scheme as a plain RGB multiplier, with <b>no darkness term</b>.
+        ///
+        /// <para>This is the original's <c>Location.colorFilter(loc.color)</c>, which
+        /// <c>Grafon.as:617</c> applies to <c>frontBmp</c> — the <b>front</b> terrain bitmap — as well
+        /// as to the water bitmap at <c>:618</c>. It is the same table
+        /// <see cref="ResolveBackgroundTileTint"/> uses, minus
+        /// <see cref="ResolveTileDarknessMultiplier"/>: the original multiplies the front pass by the
+        /// scheme alone and the back pass by scheme × darkness.</para>
+        ///
+        /// <para><b>Exposed because the front layer had no way to ask for it.</b> The shipped path
+        /// hands <c>TileVisualManager</c> <c>Color.white</c> as its primary tint
+        /// (<c>RoomVisualController.cs:592</c>) and only the <i>background</i> manager gets a resolved
+        /// colour (<c>:1346-1347</c>), so no front wall in the port is multiplied by the room's scheme.
+        /// For the 399 of 640 shipped room assets that declare one — <c>black</c> is
+        /// <c>(0.5, 0.6, 0.7)</c>, i.e. a halving — that is not a subtle difference.</para>
+        /// </summary>
+        public static Color ResolveColorSchemeTint(string colorScheme)
+        {
+            return ResolveEnvironmentTint(colorScheme);
+        }
+
         private static Color ResolveBackgroundEnvironmentTint(RoomEnvironment environment)
         {
             if (environment == null)

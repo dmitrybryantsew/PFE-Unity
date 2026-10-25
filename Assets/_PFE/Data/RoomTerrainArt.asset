@@ -1,0 +1,580 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ec3f2d7f9ad44b169d3b70796e8b98b7, type: 3}
+  m_Name: RoomTerrainArt
+  m_EditorClassIdentifier: PFE.View::PFE.Systems.Map.Rendering.RoomTerrain.RoomTerrainArt
+  quarterPixels: 20
+  cellPixels: 40
+  frameSets:
+  - clip: 4901
+    rasterZoom: 8
+    frames:
+    - {fileID: 21300000, guid: a7cba16eb57e94b40813ed4e1a2a90b5, type: 3}
+    - {fileID: 21300000, guid: 9a00ce2bb99c39a4a8dcb9b75ed0a924, type: 3}
+    - {fileID: 21300000, guid: 2477297e3a3a9d743a776c0d04d463bd, type: 3}
+    - {fileID: 21300000, guid: 4a91070842c7634448315ad8a26f4e5e, type: 3}
+    - {fileID: 21300000, guid: bf253dab901ad2743aba6b64cd0f70f1, type: 3}
+  - clip: 4906
+    rasterZoom: 8
+    frames:
+    - {fileID: 21300000, guid: 9f603316c2c4a5941a41592aa4325895, type: 3}
+    - {fileID: 21300000, guid: f1f9b4650b7834e4099a28c7a771013f, type: 3}
+    - {fileID: 21300000, guid: 363f8337b93a6c648bf9f3fbbf7ae9cc, type: 3}
+    - {fileID: 21300000, guid: 22b1267a97045ad42b2ca1a9cdba18c6, type: 3}
+    - {fileID: 21300000, guid: 01b418dd8a29b28409c5d3979f978c21, type: 3}
+  - clip: 4910
+    rasterZoom: 8
+    frames:
+    - {fileID: 21300000, guid: 39bb6bda218ed4b40aeec294a9b60b2c, type: 3}
+    - {fileID: 21300000, guid: 36cc30e32f2eaec4c98c522e8e809b2d, type: 3}
+    - {fileID: 21300000, guid: b30b41918c3300b40abcfc05ff69ec0d, type: 3}
+    - {fileID: 21300000, guid: 40eb1c7d22a759140858236d4b6b6019, type: 3}
+    - {fileID: 21300000, guid: e8f373e16a1ad184aa63351fcf505765, type: 3}
+  - clip: 4914
+    rasterZoom: 8
+    frames:
+    - {fileID: 21300000, guid: d3ab2594434f00245a1fd7ac9fb4df4c, type: 3}
+    - {fileID: 21300000, guid: 51bf16e1edba46e4ba36af5e2e006c74, type: 3}
+    - {fileID: 21300000, guid: fb6249e001ec507428925343994f05cd, type: 3}
+    - {fileID: 21300000, guid: 0e42864e209b2e64883160769916ccbb, type: 3}
+    - {fileID: 21300000, guid: fae774bc47b700c43a4ce4a720d5f708, type: 3}
+  - clip: 4917
+    rasterZoom: 8
+    frames:
+    - {fileID: 21300000, guid: ee8afe2c81a181c4f8de72f989f3c1c0, type: 3}
+    - {fileID: 21300000, guid: 7f6282cf5f356a64aab826270c470efa, type: 3}
+    - {fileID: 21300000, guid: f9952a9062bc70d49aea60c1a4fbe9b3, type: 3}
+    - {fileID: 21300000, guid: 9cd3003279461b44abedbf5e083d9b4d, type: 3}
+    - {fileID: 21300000, guid: a796b90d1ef1ca94bb1eab3532eb40b7, type: 3}
+  - clip: 4920
+    rasterZoom: 8
+    frames:
+    - {fileID: 21300000, guid: 60cb6913b7e9e0449af70b159d6e2213, type: 3}
+    - {fileID: 21300000, guid: 47ace9d80f7ad9c4299f1049791208af, type: 3}
+    - {fileID: 21300000, guid: ada93a5295381084db3e31ab01396457, type: 3}
+    - {fileID: 21300000, guid: e22e0ec46e9d0414f84cf0e539b8c78f, type: 3}
+    - {fileID: 21300000, guid: a1f639d3fb0d8404bb39d9cf19be44dc, type: 3}
+  - clip: 4922
+    rasterZoom: 8
+    frames:
+    - {fileID: 21300000, guid: 5dd55f40fc2dae346b3ed56951dcb297, type: 3}
+    - {fileID: 21300000, guid: 4fae3f3d467144d4e8d78d4d96c350a4, type: 3}
+    - {fileID: 21300000, guid: 680de0d8c1eaff441b3d961fd2d2a832, type: 3}
+    - {fileID: 21300000, guid: 1906f5bf6b67d0f498681e5d9826e2bc, type: 3}
+    - {fileID: 21300000, guid: 24d3480f0d65e9d4a9503a0acce11236, type: 3}
+  - clip: 4926
+    rasterZoom: 8
+    frames:
+    - {fileID: 21300000, guid: 1017f38ea7e4f074081f41b0b994998c, type: 3}
+    - {fileID: 21300000, guid: 9cf3d7a4f4d180c48bdd2bfe82cef9c2, type: 3}
+    - {fileID: 21300000, guid: 793216aaab0e7b14e9022080f001d2ec, type: 3}
+    - {fileID: 21300000, guid: f676bdc46df1e26489978a5ff9132c33, type: 3}
+    - {fileID: 21300000, guid: b95c1bb011800904e9be832933b8e6a6, type: 3}
+  - clip: 4931
+    rasterZoom: 8
+    frames:
+    - {fileID: 21300000, guid: 8cf316cdcc741ef41bbc944af8ef2063, type: 3}
+    - {fileID: 21300000, guid: ef6143fa5ddfee24188cf7098ee017e8, type: 3}
+    - {fileID: 21300000, guid: 425ef21949264224f873ca72cb2fa814, type: 3}
+    - {fileID: 21300000, guid: 72f8f2f04f876014f84ad292120cb212, type: 3}
+    - {fileID: 21300000, guid: 08e5cf149fc2c3647a46f5b6840aae2e, type: 3}
+  - clip: 4933
+    rasterZoom: 8
+    frames:
+    - {fileID: 21300000, guid: 516706ffdb1fbcb4c83e1d1b09040dd6, type: 3}
+    - {fileID: 21300000, guid: 2b4c399f2ee7b204f944be1cdf9a3466, type: 3}
+    - {fileID: 21300000, guid: 8390d6ad1e59cda4190e1fe2e0f48db5, type: 3}
+    - {fileID: 21300000, guid: caf6055f3f44f0841b00c5ec48c7e330, type: 3}
+    - {fileID: 21300000, guid: b441fbab90a8fb44d84c2363c64e23c2, type: 3}
+  - clip: 4938
+    rasterZoom: 8
+    frames:
+    - {fileID: 21300000, guid: e8d0d8e60c76ac845b071638ad83a149, type: 3}
+    - {fileID: 21300000, guid: eb29dcf83cff81e42b36252fed8c822e, type: 3}
+    - {fileID: 21300000, guid: 2433a4521047ed043b126b3fb40a4b1e, type: 3}
+    - {fileID: 21300000, guid: 6b1e90db2e4732e4cba4a99f2a28a1df, type: 3}
+    - {fileID: 21300000, guid: c3689cb2aff19ad4d9cf990094d7eb03, type: 3}
+  - clip: 4940
+    rasterZoom: 8
+    frames:
+    - {fileID: 21300000, guid: 7cdfdb8ea48537e49892a9e6d987bed1, type: 3}
+    - {fileID: 21300000, guid: 77a765d1b934ae541a093bd73b6e192b, type: 3}
+    - {fileID: 21300000, guid: a1c2c8b40cd82ff4182d933466a14858, type: 3}
+    - {fileID: 21300000, guid: 2841b02c6e61e094ba3c9b2681293a95, type: 3}
+    - {fileID: 21300000, guid: 623266088320bff45915068472ada08f, type: 3}
+  - clip: 4945
+    rasterZoom: 8
+    frames:
+    - {fileID: 21300000, guid: 32373297205953345b3898c5d273a629, type: 3}
+    - {fileID: 21300000, guid: 6d133cbb1fc7bbc4f9ea0856ff2c5336, type: 3}
+    - {fileID: 21300000, guid: eae8c5963e93057458f9c52be711e61c, type: 3}
+    - {fileID: 21300000, guid: 38f9b8ac38a21e24da17c2dae76f01ee, type: 3}
+    - {fileID: 21300000, guid: 6c3e9cea1d2d3cd4e817e6c58fa7252c, type: 3}
+  - clip: 4948
+    rasterZoom: 8
+    frames:
+    - {fileID: 21300000, guid: b4f2795c85c502543b0e0a005b1fd311, type: 3}
+    - {fileID: 21300000, guid: f0185e3d659cc7a4b88da4c4746c4aa2, type: 3}
+    - {fileID: 21300000, guid: 714818669aa346148b057c1bceea1e0f, type: 3}
+    - {fileID: 21300000, guid: 60a20a956d36bc94e8e2b94dbbf92ff7, type: 3}
+    - {fileID: 21300000, guid: 70afc1b0e9c7bc345930c057800d7618, type: 3}
+  - clip: 4960
+    rasterZoom: 8
+    frames:
+    - {fileID: 21300000, guid: 133ead98185ede4418c5ea6a289f8150, type: 3}
+    - {fileID: 21300000, guid: 2c90daa10350dbf469e57c8443bae7b5, type: 3}
+    - {fileID: 21300000, guid: dae496d4276041944b070ff520c34379, type: 3}
+    - {fileID: 21300000, guid: 5ada9237d4df71748b31e89ea1baf863, type: 3}
+    - {fileID: 21300000, guid: 82f473f307f97434ba2f807a9997d937, type: 3}
+  - clip: 4963
+    rasterZoom: 8
+    frames:
+    - {fileID: 21300000, guid: c6751f7614f960447880b1adf73ed00b, type: 3}
+    - {fileID: 21300000, guid: 196428b9ddd75ae41ac78f200fd802bb, type: 3}
+    - {fileID: 21300000, guid: 9244d819ce6ae79438d353488e2a53c8, type: 3}
+    - {fileID: 21300000, guid: 6278cca7ba3cdee41be270419b25ea0b, type: 3}
+    - {fileID: 21300000, guid: ffb50100c6d501f498c991b2a1f5fbae, type: 3}
+  - clip: 4975
+    rasterZoom: 8
+    frames:
+    - {fileID: 21300000, guid: 3494ffdf55c5013458a6aeef3aab6c3f, type: 3}
+  masks:
+  - name: TileMask
+    kind: whole
+    clip: 4975
+    quarters: []
+  - name: maskBare
+    kind: corners
+    clip: 0
+    quarters:
+    - quarter: 0
+      clip: 4963
+      flipX: 0
+      flipY: 0
+    - quarter: 1
+      clip: 4963
+      flipX: 1
+      flipY: 0
+    - quarter: 2
+      clip: 4963
+      flipX: 0
+      flipY: 1
+    - quarter: 3
+      clip: 4963
+      flipX: 1
+      flipY: 1
+  - name: maskBorderBare
+    kind: corners
+    clip: 0
+    quarters:
+    - quarter: 0
+      clip: 4960
+      flipX: 0
+      flipY: 0
+    - quarter: 1
+      clip: 4960
+      flipX: 1
+      flipY: 0
+    - quarter: 2
+      clip: 4960
+      flipX: 0
+      flipY: 1
+    - quarter: 3
+      clip: 4960
+      flipX: 1
+      flipY: 1
+  - name: maskCTiles
+    kind: corners
+    clip: 0
+    quarters:
+    - quarter: 0
+      clip: 4938
+      flipX: 0
+      flipY: 0
+    - quarter: 1
+      clip: 4938
+      flipX: 1
+      flipY: 0
+    - quarter: 2
+      clip: 4940
+      flipX: 0
+      flipY: 1
+    - quarter: 3
+      clip: 4940
+      flipX: 1
+      flipY: 1
+  - name: maskCrack
+    kind: corners
+    clip: 0
+    quarters:
+    - quarter: 0
+      clip: 4945
+      flipX: 0
+      flipY: 0
+    - quarter: 1
+      clip: 4945
+      flipX: 1
+      flipY: 0
+    - quarter: 2
+      clip: 4948
+      flipX: 0
+      flipY: 1
+    - quarter: 3
+      clip: 4948
+      flipX: 1
+      flipY: 1
+  - name: maskDamaged
+    kind: corners
+    clip: 0
+    quarters:
+    - quarter: 0
+      clip: 4933
+      flipX: 0
+      flipY: 0
+    - quarter: 1
+      clip: 4933
+      flipX: 1
+      flipY: 0
+    - quarter: 2
+      clip: 4906
+      flipX: 0
+      flipY: 1
+    - quarter: 3
+      clip: 4906
+      flipX: 1
+      flipY: 1
+  - name: maskDirt
+    kind: corners
+    clip: 0
+    quarters:
+    - quarter: 0
+      clip: 4931
+      flipX: 0
+      flipY: 0
+    - quarter: 1
+      clip: 4931
+      flipX: 1
+      flipY: 0
+    - quarter: 2
+      clip: 4906
+      flipX: 0
+      flipY: 1
+    - quarter: 3
+      clip: 4906
+      flipX: 1
+      flipY: 1
+  - name: maskDirtBorder
+    kind: corners
+    clip: 0
+    quarters:
+    - quarter: 0
+      clip: 4926
+      flipX: 0
+      flipY: 0
+    - quarter: 1
+      clip: 4926
+      flipX: 1
+      flipY: 0
+    - quarter: 2
+      clip: 4901
+      flipX: 0
+      flipY: 1
+    - quarter: 3
+      clip: 4901
+      flipX: 1
+      flipY: 1
+  - name: maskFloor
+    kind: corners
+    clip: 0
+    quarters:
+    - quarter: 0
+      clip: 4922
+      flipX: 0
+      flipY: 0
+    - quarter: 1
+      clip: 4922
+      flipX: 1
+      flipY: 0
+  - name: maskMetalBorder
+    kind: corners
+    clip: 0
+    quarters:
+    - quarter: 0
+      clip: 4920
+      flipX: 0
+      flipY: 0
+    - quarter: 1
+      clip: 4920
+      flipX: 1
+      flipY: 0
+    - quarter: 2
+      clip: 4920
+      flipX: 0
+      flipY: 1
+    - quarter: 3
+      clip: 4920
+      flipX: 1
+      flipY: 1
+  - name: maskSimple
+    kind: corners
+    clip: 0
+    quarters:
+    - quarter: 0
+      clip: 4917
+      flipX: 0
+      flipY: 0
+    - quarter: 1
+      clip: 4917
+      flipX: 1
+      flipY: 0
+    - quarter: 2
+      clip: 4917
+      flipX: 0
+      flipY: 1
+    - quarter: 3
+      clip: 4917
+      flipX: 1
+      flipY: 1
+  - name: maskSkol
+    kind: corners
+    clip: 0
+    quarters:
+    - quarter: 0
+      clip: 4910
+      flipX: 0
+      flipY: 0
+    - quarter: 1
+      clip: 4910
+      flipX: 1
+      flipY: 0
+    - quarter: 2
+      clip: 4914
+      flipX: 0
+      flipY: 1
+    - quarter: 3
+      clip: 4914
+      flipX: 1
+      flipY: 1
+  - name: maskStone
+    kind: corners
+    clip: 0
+    quarters:
+    - quarter: 0
+      clip: 4906
+      flipX: 0
+      flipY: 0
+    - quarter: 1
+      clip: 4906
+      flipX: 1
+      flipY: 0
+    - quarter: 2
+      clip: 4906
+      flipX: 0
+      flipY: 1
+    - quarter: 3
+      clip: 4906
+      flipX: 1
+      flipY: 1
+  - name: maskStoneBorder
+    kind: corners
+    clip: 0
+    quarters:
+    - quarter: 0
+      clip: 4901
+      flipX: 0
+      flipY: 0
+    - quarter: 1
+      clip: 4901
+      flipX: 1
+      flipY: 0
+    - quarter: 2
+      clip: 4901
+      flipX: 0
+      flipY: 1
+    - quarter: 3
+      clip: 4901
+      flipX: 1
+      flipY: 1
+  textures:
+  - name: tBackWall
+    texture: {fileID: 2800000, guid: 45714930ae0e5324bb651b9fa607c435, type: 3}
+  - name: tBase
+    texture: {fileID: 2800000, guid: 235f4a0bd61f8a34399ddfdbc2469027, type: 3}
+  - name: tBaseMetal
+    texture: {fileID: 2800000, guid: 8e877e432cf251f4aa3eb2dba08f76ac, type: 3}
+  - name: tBlocks
+    texture: {fileID: 2800000, guid: 745d5100891f37a4fa3236fa4c77b08d, type: 3}
+  - name: tBorder
+    texture: {fileID: 2800000, guid: 91f2d625d007d5e4cb346418dc4da57f, type: 3}
+  - name: tBrick
+    texture: {fileID: 2800000, guid: f66f47574c46fe745aea2b9fe5d5e243, type: 3}
+  - name: tBrick2
+    texture: {fileID: 2800000, guid: 33513979343a62c458d268e8ed5706ad, type: 3}
+  - name: tBuild
+    texture: {fileID: 2800000, guid: a96001571de62ab4c83b2c837218384b, type: 3}
+  - name: tCanBeam
+    texture: {fileID: 2800000, guid: 49b516857f0455f46aaf3d1caeff58be, type: 3}
+  - name: tCanBrick
+    texture: {fileID: 2800000, guid: 890b571f0efb2e74ba64d35af917f2a4, type: 3}
+  - name: tCanStuc
+    texture: {fileID: 2800000, guid: b31635d490cb8a543ac1e6db96c465da, type: 3}
+  - name: tCanTiles
+    texture: {fileID: 2800000, guid: 3ac94ef532228bf4a995f73b3df4096f, type: 3}
+  - name: tCave
+    texture: {fileID: 2800000, guid: 9d56616da26b0a84e9a54dd663d173b1, type: 3}
+  - name: tCloud
+    texture: {fileID: 2800000, guid: ed17f7ee9cb81374f99219b2ee912929, type: 3}
+  - name: tCloudBeam
+    texture: {fileID: 2800000, guid: 259b654c13ecfe84589e157f1a444bc1, type: 3}
+  - name: tConBeam
+    texture: {fileID: 2800000, guid: 83581feab6f957a44996ae5b8583e543, type: 3}
+  - name: tConPlates
+    texture: {fileID: 2800000, guid: 354c4f2bfaf841f4b8bf2070965c8a06, type: 3}
+  - name: tConRough
+    texture: {fileID: 2800000, guid: cdf4b2dafe26aa847a416de265a1062b, type: 3}
+  - name: tConcrete
+    texture: {fileID: 2800000, guid: 54bbfdbe25001da429c992f4dbb01d17, type: 3}
+  - name: tConcreteBack
+    texture: {fileID: 2800000, guid: 0f1daf0af4c6c4b439aa0fcef21530e0, type: 3}
+  - name: tConcreteD
+    texture: {fileID: 2800000, guid: 5e589ea875776254aafb6f51548961d9, type: 3}
+  - name: tConcreteDirt
+    texture: {fileID: 2800000, guid: 9fe1bcb7974d23f4688127fa114e5680, type: 3}
+  - name: tConcreteMoss
+    texture: {fileID: 2800000, guid: 418e1c1724a7a394d838811e49c0b69b, type: 3}
+  - name: tCracked
+    texture: {fileID: 2800000, guid: a6830ea98c12bb34fbab094571913da4, type: 3}
+  - name: tDarkMetal
+    texture: {fileID: 2800000, guid: 09207995ca70ebc49bf9d7278f931481, type: 3}
+  - name: tDarkPlates
+    texture: {fileID: 2800000, guid: 4e5a416a92fd92a4f88bb1500e0e5678, type: 3}
+  - name: tDarkRivets
+    texture: {fileID: 2800000, guid: bdc8ba8a2f49f6c44935686aac9789a4, type: 3}
+  - name: tDirt
+    texture: {fileID: 2800000, guid: 8d9e6e191f837c9408dda7852941b0dd, type: 3}
+  - name: tDirt2
+    texture: {fileID: 2800000, guid: 70da6679a75536743a64a06ef4693f93, type: 3}
+  - name: tEncl1
+    texture: {fileID: 2800000, guid: 7653e15f02f1d624f886d70c6b048d5c, type: 3}
+  - name: tEncl2
+    texture: {fileID: 2800000, guid: 26644c2afa3828a49aa20a7c83c70bbe, type: 3}
+  - name: tEncl3
+    texture: {fileID: 2800000, guid: 580433be532130e4abc4c7cbc544bb1e, type: 3}
+  - name: tFloor
+    texture: {fileID: 2800000, guid: 7a01dcc0fe895874687150ad7acec670, type: 3}
+  - name: tFloorMetal
+    texture: {fileID: 2800000, guid: e992d21d208706e4ab7c38f22adb5838, type: 3}
+  - name: tKaf
+    texture: {fileID: 2800000, guid: 4febc80cbce57f94cb403d0b2b3d3b79, type: 3}
+  - name: tKlep
+    texture: {fileID: 2800000, guid: 82b5d55c7374a994990a3550da32328d, type: 3}
+  - name: tKlep2
+    texture: {fileID: 2800000, guid: e7b1e081fa8e58041bef67ea6e362424, type: 3}
+  - name: tKlep3
+    texture: {fileID: 2800000, guid: 77764eb2421d703408953b69c7207c02, type: 3}
+  - name: tLeaking
+    texture: {fileID: 2800000, guid: a49d3d6a451ca434da17acb26c69c463, type: 3}
+  - name: tLightPlate
+    texture: {fileID: 2800000, guid: d2ceb0aa21b21884b85bd96ef1a0d5c0, type: 3}
+  - name: tMWall
+    texture: {fileID: 2800000, guid: 2dcd1a674c043e24bb66a4b77be79122, type: 3}
+  - name: tMWall2
+    texture: {fileID: 2800000, guid: 5acdae83430f21a4ab7cf6af63931c84, type: 3}
+  - name: tMarble
+    texture: {fileID: 2800000, guid: b8fb0bf0493ae034d937df3910cb55a7, type: 3}
+  - name: tMbase
+    texture: {fileID: 2800000, guid: 08d0114142a5c1a4ab3a20f5fcc68fba, type: 3}
+  - name: tMeh
+    texture: {fileID: 2800000, guid: 64c634e640548fd4983c61f72c7606eb, type: 3}
+  - name: tMetal
+    texture: {fileID: 2800000, guid: 339a4ad7e8ec0d14fb1e2a575c6aeab2, type: 3}
+  - name: tMetalPlates
+    texture: {fileID: 2800000, guid: 88e6ebd5d201c4f47ba2e944e438dd4f, type: 3}
+  - name: tMetalPlates2
+    texture: {fileID: 2800000, guid: 7fcb4a5fa0d93ed4780c6b97c12c93da, type: 3}
+  - name: tMetalRust
+    texture: {fileID: 2800000, guid: be68254893ad7b847bab52c3cc7ec774, type: 3}
+  - name: tMetalVert
+    texture: {fileID: 2800000, guid: d7ca9f1aff4144046b12c8672d4b272f, type: 3}
+  - name: tMoss
+    texture: {fileID: 2800000, guid: 03700d2024ac49a419c106cb5991a18e, type: 3}
+  - name: tMossy
+    texture: {fileID: 2800000, guid: ee2155dc29767c54faff839394b45240, type: 3}
+  - name: tOrn
+    texture: {fileID: 2800000, guid: d957ef8003b380844a5d28023fa84fdd, type: 3}
+  - name: tPipes
+    texture: {fileID: 2800000, guid: 70f2dfa3161026244bc93b5140783f8d, type: 3}
+  - name: tPlates2
+    texture: {fileID: 2800000, guid: 8ac18c07bc44d9c408be994f95a102a0, type: 3}
+  - name: tRivets
+    texture: {fileID: 2800000, guid: cb5800ffaf0f9964eb7b5539db4e08fd, type: 3}
+  - name: tRock
+    texture: {fileID: 2800000, guid: a4d3e40fc3a1e8d44824c21c5a61ea47, type: 3}
+  - name: tRoof
+    texture: {fileID: 2800000, guid: c99b383af8bf5a444bea087dc6ce9456, type: 3}
+  - name: tRoofFloor
+    texture: {fileID: 2800000, guid: f69ddfe411af84143a943d0e26c4d8d5, type: 3}
+  - name: tRust
+    texture: {fileID: 2800000, guid: a0fb96e13f6f26340b537e0492041412, type: 3}
+  - name: tRustPlates
+    texture: {fileID: 2800000, guid: 5322e02f5ec256c4098f7b0e45926b4e, type: 3}
+  - name: tSetka
+    texture: {fileID: 2800000, guid: 759d000b028ea07409646b567b7041eb, type: 3}
+  - name: tShelf
+    texture: {fileID: 2800000, guid: ddb4b6fc505e57f4b90c407f8615fd61, type: 3}
+  - name: tShtuk
+    texture: {fileID: 2800000, guid: f58fe21e7c4a7f14d8bbd54e48dc8ca3, type: 3}
+  - name: tSkol
+    texture: {fileID: 2800000, guid: da46d99f4dc7b444dbe064f484ea38fb, type: 3}
+  - name: tStConcrete
+    texture: {fileID: 2800000, guid: ac3d9ba096ce9224fb79967ca0a2b329, type: 3}
+  - name: tStPlates
+    texture: {fileID: 2800000, guid: fb0615c7fa3838141a6c9e17acd481cf, type: 3}
+  - name: tStShelf
+    texture: {fileID: 2800000, guid: 4bcb74ba62571aa4b8171fd07957c712, type: 3}
+  - name: tSteklo
+    texture: {fileID: 2800000, guid: 1e188ce8871d1e94cbb00393875e3280, type: 3}
+  - name: tStones
+    texture: {fileID: 2800000, guid: 25ab2d29db3b57442a109b31d3f36588, type: 3}
+  - name: tSuperCon
+    texture: {fileID: 2800000, guid: 4267cf1c0a9a05043bbd39cabea55439, type: 3}
+  - name: tTiles
+    texture: {fileID: 2800000, guid: ece390aca13ecaa4d8b181fb4b60141e, type: 3}
+  - name: tTower
+    texture: {fileID: 2800000, guid: 19de1911c8371df4b9ba1740e9fe520a, type: 3}
+  - name: tVent
+    texture: {fileID: 2800000, guid: 2358dd24bb2ee7f4aa44204bc85a1825, type: 3}
+  - name: tWindows
+    texture: {fileID: 2800000, guid: d41d814bfe4e87c48b37d7f694bc4290, type: 3}
+  - name: tWood
+    texture: {fileID: 2800000, guid: 16872c4fb9176b8419d2f61ee32e1ab7, type: 3}
+  - name: tWoodBeam
+    texture: {fileID: 2800000, guid: 427f9d5dfe60d2949ac68660cace810f, type: 3}
+  - name: tWoodPlanks
+    texture: {fileID: 2800000, guid: f378aabd932fd9c4c92a353125ac0e59, type: 3}
+  overlayFrames:
+  - {fileID: 21300000, guid: bc0be587cbf080f488c061ade046f3e5, type: 3}
+  - {fileID: 21300000, guid: 7b197d136791042468cc504942574944, type: 3}
+  - {fileID: 21300000, guid: 977f619d0df60ca40a23a8f1a14b18a4, type: 3}
+  - {fileID: 21300000, guid: c4ecc618c54ef884a9fbbb1b53b8b7be, type: 3}
+  - {fileID: 21300000, guid: c4495137abe405547abfe7c9775f73f7, type: 3}
+  - {fileID: 21300000, guid: 6240774e62d95214bb9386c0cf6fdce5, type: 3}
+  - {fileID: 21300000, guid: 79d5ad6851a915f42940ca7a74b4dadb, type: 3}
+  - {fileID: 21300000, guid: 8b44616d23f222b458ab7f9d18c354dd, type: 3}
+  - {fileID: 21300000, guid: 57b0741e434e3a74d9cdca34fbf6432b, type: 3}
+  - {fileID: 21300000, guid: 75db45d4cddbd86458d53b3803cdcdc6, type: 3}
+  - {fileID: 21300000, guid: 9678450b523584c4dac022b959b0d91f, type: 3}
+  - {fileID: 21300000, guid: f91826cf19d11f44a86a2ac6be7cfc2d, type: 3}
+  - {fileID: 21300000, guid: 7c1ae2e30e5d32743ba5ed7bbd7052e6, type: 3}
+  - {fileID: 21300000, guid: 0b59629901181f94385e1f6ce9c61f0c, type: 3}
+  - {fileID: 21300000, guid: 33eaf27357df9a34d996adae97f401e7, type: 3}
+  - {fileID: 21300000, guid: b107e12eb334f3e43a4fdbd5cf8eb122, type: 3}
