@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.IO;
 using NUnit.Framework;
 using PFE.Tests.Editor.Common;
@@ -118,10 +118,9 @@ namespace PFE.Tests.EditMode.UI
         ///
         /// <para><b>Why this is the honest shape and not a shortcut.</b> The Oracle pushes radiation,
         /// open wounds and poison unconditionally (<c>:172-192</c>) because <c>gg.rad</c>, <c>gg.cut</c>
-        /// and <c>gg.poison</c> always exist there. The port keeps none of the three, so printing them
-        /// would show three zeroes at a price of zero — a claim about the player that happens to be
-        /// true today and would become a lie the moment damage started writing them. An absent row is a
-        /// claim about the port, and it is the one that stays true.</para>
+        /// and <c>gg.poison</c> always exist there. The port can supply radiation and still cannot
+        /// supply wounds or poison, so the page asks per row: printing a zero at a zero price is a
+        /// claim about the player, while an absent row is a claim about the port and stays true.</para>
         /// </summary>
         [Test]
         public void RowsFor_ExposureRows_AppearOnlyWhenTheSourceHasThem()
@@ -131,7 +130,10 @@ namespace PFE.Tests.EditMode.UI
                 "No exposure readings, so no radiation row.");
 
             PipMedSnapshot with = Healthy();
+            // Two flags, because the port can supply the radiation row and still cannot supply the
+            // wound or poison ones. See PipMedSnapshot.HasWoundReadings.
             with.HasExposureReadings = true;
+            with.HasWoundReadings = true;
             with.Rad = 12f;
             with.Cut = 3.4f;
             with.Poison = 0.25f;
@@ -159,6 +161,7 @@ namespace PFE.Tests.EditMode.UI
             s.InMaxHp = 200f;
             s.ManaOrganHp = 133.3f;
             s.HasExposureReadings = true;
+            s.HasWoundReadings = true;
             s.Rad = 12.4f;
             s.Cut = 3.44f;
             s.Poison = 0.25f;
@@ -198,6 +201,7 @@ namespace PFE.Tests.EditMode.UI
         {
             PipMedSnapshot s = Healthy();
             s.HasExposureReadings = true;
+            s.HasWoundReadings = true;
             s.Rad = 5f;
             s.Cut = 5f;
             s.Poison = 5f;
@@ -573,6 +577,7 @@ namespace PFE.Tests.EditMode.UI
         {
             PipMedSnapshot s = Healthy();
             s.HasExposureReadings = true;
+            s.HasWoundReadings = true;
             s.Rad = 4f;
             s.Cut = 2f;
             s.Poison = 1f;

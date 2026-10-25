@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 
 namespace PFE.UI.PipBuck
@@ -257,13 +257,27 @@ namespace PFE.UI.PipBuck
         public int HeadSt, TorsoSt, LegsSt, BloodSt, ManaSt;
 
         /// <summary>
-        /// Radiation, its resistance, open wounds and poison — four of the Oracle's six exposure rows
-        /// (<c>PipPageStat.as:231-258</c>). <b>False in this port</b>: it keeps no radiation, wound or
-        /// poison value at all. The Oracle pushes these four unconditionally, so with the flag false the
-        /// page omits them rather than printing zeroes — see <see cref="PipStatSnapshot"/> for why an
-        /// absent row is the honest answer.
+        /// Radiation and its resistance — the first two of the Oracle's six exposure rows
+        /// (<c>PipPageStat.as:231-258</c>). <b>True now that the port has a radiation model</b>: these
+        /// two come from <c>PlayerRadiationState.Rad</c> and <c>CharacterStats.radX</c>.
         /// </summary>
         public bool HasExposureReadings;
+
+        /// <summary>
+        /// Open wounds and poison — the other two value readings of the six. <b>Still false</b>: the
+        /// port keeps no <c>cut</c> or <c>poison</c> value, so the page omits those two rows rather
+        /// than printing zeroes — see <see cref="PipStatSnapshot"/> for why an absent row is the honest
+        /// answer.
+        ///
+        /// <para><b>Why this is a second flag and not the same one.</b> Until radiation landed the four
+        /// readings shared one flag because they shared one reason to be absent. They no longer do:
+        /// gating the real radiation rows behind a flag that must stay false would hide them, and
+        /// raising the shared flag would print <c>cut 0</c> and <c>poison 0</c> at a player who cannot
+        /// have either. The Oracle pushes all six in one sequence, so the builder asks per row and the
+        /// order survives either way.</para>
+        /// </summary>
+        public bool HasWoundReadings;
+
         public float Rad, RadX, Cut, Poison;
 
         /// <summary>
@@ -885,11 +899,11 @@ namespace PFE.UI.PipBuck
                 PipBuckReadoutFormat.As3Round(v.Rad).ToString());
             AddExposureRow(rows, "radx", v.HasExposureReadings, text,
                 PipBuckReadoutFormat.As3Round((1f - v.RadX) * 100f) + "%");
-            AddExposureRow(rows, "cut", v.HasExposureReadings, text,
+            AddExposureRow(rows, "cut", v.HasWoundReadings, text,
                 PipBuckReadoutFormat.Numb(v.Cut));
             AddExposureRow(rows, "resbleeding", v.HasResistanceReadings, text,
                 PipBuckReadoutFormat.As3Round((1f - v.ResBleeding) * 100f) + "%");
-            AddExposureRow(rows, "poison", v.HasExposureReadings, text,
+            AddExposureRow(rows, "poison", v.HasWoundReadings, text,
                 PipBuckReadoutFormat.Numb(v.Poison));
             AddExposureRow(rows, "respoison", v.HasResistanceReadings, text,
                 PipBuckReadoutFormat.As3Round((1f - v.ResPoison) * 100f) + "%");

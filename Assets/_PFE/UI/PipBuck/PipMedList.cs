@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using PFE.Systems.Campaign;
 
@@ -225,8 +225,21 @@ namespace PFE.UI.PipBuck
         // with a zero price for readings nothing in the port takes. Same arrangement, and the same
         // reason, as the character sheet's Health sub-page.
 
-        /// <summary>Whether the three exposure readings exist. <b>False in this port.</b></summary>
+        /// <summary>
+        /// Whether the radiation reading exists. <b>True now that the port has a radiation model</b> —
+        /// <c>PlayerRadiationState.Rad</c>.
+        /// </summary>
         public bool HasExposureReadings;
+
+        /// <summary>
+        /// Whether the wound and poison readings exist. <b>Still false</b>: the port keeps neither, so
+        /// the clinic omits those two rows rather than pricing a treatment it cannot perform.
+        ///
+        /// <para>Separate from <see cref="HasExposureReadings"/> for the reason recorded on
+        /// <c>PipStatVitals.HasWoundReadings</c>: one flag used to cover all three because all three
+        /// were absent for the same reason, and radiation no longer is.</para>
+        /// </summary>
+        public bool HasWoundReadings;
 
         public float Rad, Cut, Poison;
 
@@ -512,9 +525,9 @@ namespace PFE.UI.PipBuck
             // pushes no `bar` key for them), and wounds and poison print one decimal while radiation
             // prints an integer — the Oracle's own inconsistency at :176 vs :183 and :190.
             //
-            // Omitted entirely while the port keeps no such readings. See
-            // PipMedSnapshot.HasExposureReadings: an absent row is a claim about the port, and a row of
-            // zeroes is a false claim about the player.
+            // Each is gated on its own flag: the radiation row exists now, the wound and poison rows
+            // do not. An absent row is a claim about the port, a row of zeroes is a false claim about
+            // the player — and a clinic would charge for a treatment it cannot perform.
             if (s.HasExposureReadings)
             {
                 rows.Add(new PipMedRow(
@@ -522,7 +535,10 @@ namespace PFE.UI.PipBuck
                     Localise("p", "rad", text),
                     PipBuckReadoutFormat.As3Round(s.Rad).ToString(),
                     s.Rad * p.Rad));
+            }
 
+            if (s.HasWoundReadings)
+            {
                 rows.Add(new PipMedRow(
                     CutRowId,
                     Localise("p", "cut", text),

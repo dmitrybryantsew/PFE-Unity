@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using UnityEngine;
 using MessagePipe;
 using VContainer;
@@ -714,6 +714,10 @@ namespace PFE.UI.PipBuck
                 GlobalDifficultyProvider = ResolveDifficulty,
                 ActionsBlockedProvider = null,
 
+                // `gg.rad` — the clinic's radiation row. Resolved per read for the same reason as
+                // everything else here: the player (and its radiation ticker) are built in Awake.
+                RadiationProvider = () => ResolvePlayer()?.Radiation,
+
                 // `pip.vendor` — the same registry the trade page reads, so the doctor's takings land in
                 // the wallet the player can later sell to. Resolved from the PAGE, not from a cached id,
                 // because the page drops its context when the device closes: a clinic the player walked
@@ -926,6 +930,10 @@ namespace PFE.UI.PipBuck
                 ReputationProvider = null,
                 GameTimeProvider = null,
                 MedicineDisabledProvider = null,
+
+                // `gg.rad` — the Health sub-page's radiation row. Resolved per read, like every other
+                // owner on this seam.
+                RadiationProvider = () => ResolvePlayer()?.Radiation,
             };
         }
 

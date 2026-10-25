@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using PFE.Entities.Units;
 using PFE.Systems.Inventory;
 using PFE.Systems.RPG;
@@ -72,6 +72,13 @@ namespace PFE.UI.PipBuck
         public Func<string> NpcInterProvider { get; set; }
 
         /// <summary>
+        /// The player's radiation state — <c>gg.rad</c>. Null means the port has no radiation model in
+        /// this rig (a hand-made snapshot, or an editor window), and then the exposure rows stay
+        /// absent rather than printing a zero the page would price and take money for.
+        /// </summary>
+        public Func<PFE.Entities.Player.PlayerRadiationState> RadiationProvider { get; set; }
+
+        /// <summary>
         /// <c>World.w.game.globalDif</c> — the index into <see cref="PipMedPrices.ForDifficulty"/>.
         /// Null uses <see cref="DefaultDifficulty"/>, the Oracle's own default (<c>Game.as:41</c>).
         /// </summary>
@@ -127,6 +134,7 @@ namespace PFE.UI.PipBuck
         {
             CharacterStats stats = _characterStats?.Invoke();
             UnitStats unit = _unitStats?.Invoke();
+            PFE.Entities.Player.PlayerRadiationState radiation = RadiationProvider?.Invoke();
             GameInventory inventory = _inventory?.Invoke();
             string currency = CurrencyFor(NpcInterProvider?.Invoke());
 
@@ -156,11 +164,14 @@ namespace PFE.UI.PipBuck
                 BloodSt = stats != null ? stats.bloodSt : 0,
                 ManaSt = stats != null ? stats.manaSt : 0,
 
-                // `gg.rad` / `gg.cut` / `gg.poison` have no port member. The Oracle pushes these three
-                // rows unconditionally (:172-192); the flag is what stops the page pricing readings
-                // nothing takes. See PipStatVitals.HasExposureReadings for the same decision on the
-                // character sheet's Health sub-page.
-                HasExposureReadings = false,
+                // `gg.rad` exists now; `gg.cut` and `gg.poison` still do not. The Oracle pushes all
+                // three rows unconditionally (:172-192) and the page prices each one, so the flag is
+                // what stops it selling a wound or poison treatment that would heal nothing — and it is
+                // now true, because the radiation row is real. The two absent readings still print
+                // nothing: PipMedList gates each row on its own value, not on this flag.
+                HasExposureReadings = radiation != null,
+                Rad = radiation != null ? radiation.Rad : 0f,
+                HasWoundReadings = false,
 
                 CurrencyItemId = currency,
                 CurrencyBalance = BalanceOf(inventory, currency),
@@ -210,17 +221,30 @@ namespace PFE.UI.PipBuck
 
             int charge = PipBuckReadoutFormat.As3Round(plan.Cost);
 
-            if (plan.Target == PipMedTarget.Rad || plan.Target == PipMedTarget.Cut ||
-                plan.Target == PipMedTarget.Poison)
+            if (plan.Target == PipMedTarget.Rad)
             {
-                // `gg.heal(n, 2|3|4)` writes `Unit.rad`, `cut` and `poison` (UnitPlayer.as:3171-3201).
-                // The port keeps none of the three, so there is nothing to heal and nothing is charged.
-                // Unreachable while Read() reports HasExposureReadings false; kept so that a snapshot
-                // which turns the flag on cannot silently take the player's money.
+                // `gg.heal(_loc2_ / priceRad, 2, false)` (PipPageMed.as:298-305) → `rad -= amount`,
+                // floored at zero (UnitPlayer.as:3173-3178). Charged only when there is a state to
+                // write to, so a rig without one cannot take the player's money for nothing.
+                PFE.Entities.Player.PlayerRadiationState radiation = RadiationProvider?.Invoke();
+                if (radiation == null)
+                {
+                    UnityEngine.Debug.LogWarning(
+                        "[PlayerPipMedSource] radiation treatment: no PlayerRadiationState is bound. " +
+                        "Nothing was healed and nothing was charged.");
+                    return false;
+                }
+
+                radiation.RemoveRad(plan.Heal);
+            }
+            else if (plan.Target == PipMedTarget.Cut || plan.Target == PipMedTarget.Poison)
+            {
+                // `gg.heal(n, 3|4)` writes `cut`/`poison` (UnitPlayer.as:3180-3201). The port keeps
+                // neither, so there is nothing to heal and nothing is charged.
                 UnityEngine.Debug.LogWarning(
                     $"[PlayerPipMedSource] '{plan.Target}' treatment: the Oracle heals it through " +
-                    "`UnitPlayer.heal(_, 2|3|4)`, but the port keeps no radiation, wound or poison " +
-                    "value (UnitPlayer.as:3171-3201). Nothing was healed and nothing was charged.");
+                    "`UnitPlayer.heal(_, 3|4)`, but the port keeps no wound or poison value " +
+                    "(UnitPlayer.as:3180-3201). Nothing was healed and nothing was charged.");
                 return false;
             }
 

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using PFE.Data.Definitions;
 using PFE.Entities.Units;
@@ -134,6 +134,12 @@ namespace PFE.UI.PipBuck
         /// whose value nothing in the port can change.</para>
         /// </summary>
         public Func<bool> MedicineDisabledProvider { get; set; }
+
+        /// <summary>
+        /// The player's radiation state — <c>gg.rad</c>. Null means no radiation model in this rig, and
+        /// then the two radiation rows stay absent instead of printing zeroes.
+        /// </summary>
+        public Func<PFE.Entities.Player.PlayerRadiationState> RadiationProvider { get; set; }
 
         /// <summary>
         /// <c>Game.as:41</c> — <c>globalDif</c>'s own default, and <c>NewGameDifficulty.Normal</c>'s
@@ -528,10 +534,24 @@ namespace PFE.UI.PipBuck
                 vitals.ResPoison = unit.Vulnerabilities.GetVulnerability(DamageType.Poison);
             }
 
-            // `gg.rad` / `gg.radX` / `gg.cut` / `gg.poison` have no port member at all. The Oracle pushes
-            // these four unconditionally, so the flag is what stops the page printing four zeroes for
-            // readings nothing in the port takes.
-            vitals.HasExposureReadings = false;
+            // `gg.rad` and `gg.radX` are real now (PlayerRadiationState / CharacterStats.radX), so the
+            // radiation pair is supplied. `gg.cut` / `gg.poison` still have no port member and stay
+            // behind their own flag — the Oracle pushes all six rows in one sequence, and the builder
+            // asks per row, so the order is intact whichever flags are on.
+            PFE.Entities.Player.PlayerRadiationState radiation = RadiationProvider?.Invoke();
+            vitals.HasExposureReadings = radiation != null;
+            vitals.HasWoundReadings = false;
+            if (radiation != null)
+            {
+                vitals.Rad = radiation.Rad;
+            }
+            if (stats != null)
+            {
+                // `gg.radX` lives on the Pers side (UnitPlayer.as:223, written by <sk> and by the
+                // equipped armour's radVul), so it is read from CharacterStats even when the radiation
+                // state is missing — the resistance is meaningful without an exposure value.
+                vitals.RadX = stats.radX;
+            }
 
             // `gg.pets["phoenix"]` — no pet system, so no row. The Oracle's own guard is
             // `Boolean(gg.pets["phoenix"]) && Boolean(triggers["pet_phoenix"])`, i.e. absent is a state

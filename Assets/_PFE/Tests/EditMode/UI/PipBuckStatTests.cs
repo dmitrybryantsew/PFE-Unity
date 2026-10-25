@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using NUnit.Framework;
@@ -790,6 +790,7 @@ namespace PFE.Tests.EditMode.UI
             // page that had simply forgotten them.
             PipStatSnapshot snapshot = HealthSnapshot();
             snapshot.Vitals.HasExposureReadings = true;
+            snapshot.Vitals.HasWoundReadings = true;
             snapshot.Vitals.Rad = 12f;
             snapshot.Vitals.RadX = 0.9f;
             snapshot.Vitals.Cut = 3.5f;
@@ -814,6 +815,7 @@ namespace PFE.Tests.EditMode.UI
             // the flags disagreed — which in this port they always do.
             PipStatSnapshot snapshot = HealthSnapshot();
             snapshot.Vitals.HasExposureReadings = true;
+            snapshot.Vitals.HasWoundReadings = true;
             snapshot.Vitals.HasResistanceReadings = true;
 
             string[] ids = Ids(Rows(snapshot, PipStatList.HealthSubPage)).ToArray();

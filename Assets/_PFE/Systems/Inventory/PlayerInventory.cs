@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -610,12 +610,13 @@ namespace PFE.Systems.Inventory
         /// <c>@hhp</c>/<c>@hmana</c>/<c>@effect</c>/<c>@ad</c>/<c>@perk</c>, which are the whole payload
         /// of a potion. The row is read from <c>Resources/Loot/AllData</c> and cached.</para>
         ///
-        /// <para><b>What is deliberately not carried out, and why.</b> Radiation (<c>@hrad</c>),
-        /// poison/cut tracks (<c>@hpoison</c>/<c>@hcut</c>), the pet summons (<c>@pet</c>), weapon
-        /// painting (<c>@paint</c>), the readable-document dialog (<c>@text</c>) and the three crafting
-        /// benches have no ported subsystem behind them. Each one is <i>named</i> at the line where it
-        /// would run and returns false rather than pretending: a potion that silently healed nothing is
-        /// indistinguishable from a broken potion.</para>
+        /// <para><b>What is deliberately not carried out, and why.</b> Poison/cut tracks
+        /// (<c>@hpoison</c>/<c>@hcut</c>), the pet summons (<c>@pet</c>), weapon painting
+        /// (<c>@paint</c>), the readable-document dialog (<c>@text</c>) and the three crafting benches
+        /// have no ported subsystem behind them. Each one is <i>named</i> at the line where it would
+        /// run and returns false rather than pretending: a potion that silently healed nothing is
+        /// indistinguishable from a broken potion. Radiation (<c>@hrad</c>) used to be on that list and
+        /// is no longer — it lands on <see cref="Radiation"/>.</para>
         /// </summary>
         /// <param name="itemId">The item id, variant suffix already stripped.</param>
         /// <returns>True when the Oracle's branch ran (whether or not the item was consumed).</returns>
@@ -760,6 +761,15 @@ namespace PFE.Systems.Inventory
         }
 
         /// <summary>
+        /// The player's radiation state, bound by <c>PlayerController</c> once its ticker exists.
+        ///
+        /// <para><b>Nullable on purpose.</b> The inventory is constructed in its own <c>Awake</c> and
+        /// can be exercised without a player (tests, the editor's item browser); a null state means
+        /// "no radiation model here", which the two call sites report rather than throw.</para>
+        /// </summary>
+        public PFE.Entities.Player.PlayerRadiationState Radiation { get; set; }
+
+        /// <summary>
         /// <c>usePotion</c>'s healing block (<c>Invent.as:390-500</c>) plus its guards
         /// (<c>:300-350</c>).
         ///
@@ -804,6 +814,14 @@ namespace PFE.Systems.Inventory
                 Debug.Log($"[PlayerInventory] '{itemId}' refused: the mana organ is already full.");
                 return false;
             }
+            // :317-320 — `if(pot.@heal == "rad" && gg.rad < 1) infoText("noMedic")`. A RadAway at zero
+            // exposure is NOT consumed in the oracle. With no radiation state bound there is nothing to
+            // test, so the guard is skipped rather than refusing a dose the port cannot measure.
+            if (heal == "rad" && Radiation != null && Radiation.Rad < 1f)
+            {
+                Debug.Log($"[PlayerInventory] '{itemId}' refused (noMedic): the player has no radiation.");
+                return false;
+            }
             // `heal == "poison"` is NOT gated: the port has no poison accumulator to test against, and
             // refusing an antidote for a condition the port cannot represent would be worse than
             // letting it through and healing nothing.
@@ -840,11 +858,24 @@ namespace PFE.Systems.Inventory
                           "does not track (no damage-type conditions on UnitStats).");
             }
 
-            // `@hrad` — radiation. No radiation model in the port.
-            if (AttrF(attrs, "hrad") > 0f)
+            // :430-433 — `@hrad`, scaled by healMult like every other heal. `heal(amount, 2)` in AS3 is
+            // `rad -= amount` floored at zero (UnitPlayer.as:3173-3178), so the state owns the clamp and
+            // returns what it actually removed.
+            float hrad = AttrF(attrs, "hrad");
+            if (hrad > 0f)
             {
-                Debug.Log($"[PlayerInventory] '{itemId}' also removes radiation, which the port does not " +
-                          "model yet.");
+                if (Radiation != null)
+                {
+                    Radiation.RemoveRad(hrad * healMult);
+                }
+                else
+                {
+                    // Only reachable before the player's radiation ticker exists (a hand-built rig, or
+                    // an inventory used outside the player). Named rather than silent, because the
+                    // failure mode is a RadAway that is consumed and does nothing.
+                    Debug.Log($"[PlayerInventory] '{itemId}' removes radiation, but this inventory has no " +
+                              "PlayerRadiationState bound — the dose was lost.");
+                }
             }
 
             // :429-439 — `@hpurif` clears every curse-type effect. The port's effect set is the
