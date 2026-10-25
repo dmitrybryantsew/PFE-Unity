@@ -54,7 +54,14 @@ namespace PFE.Character.Animation
     /// </summary>
     public interface IAnimationEventSink
     {
-        void FireEvent(string eventId, Vector2 worldPosition);
+        /// <summary>
+        /// <paramref name="volumeScale"/> is the event's own loudness relative to the sound's normal
+        /// level, and defaults to 1. Most events have no opinion. The water splash does: AS3 plays it at
+        /// <c>|dy| / 10</c> (<c>Unit.as:2675</c>), so a gentle slip into water is quiet and a plunge is
+        /// not. Without the parameter the sink can only play every splash at full volume, which is the
+        /// difference between an entry and a repeated breach that the player hears as a glitch.
+        /// </summary>
+        void FireEvent(string eventId, Vector2 worldPosition, float volumeScale = 1f);
     }
 
     /// <summary>String constants for events fired through IAnimationEventSink.</summary>

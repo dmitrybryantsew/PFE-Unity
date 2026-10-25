@@ -278,15 +278,11 @@ namespace PFE.Entities.Player
                 float verticalSpeed = ResolveLevitationVerticalSpeed(state, dt);
                 _motor.SetDesiredVerticalSpeed(verticalSpeed);
             }
-            // Vertical swim control (AS3: plavdy = acceleration * 0.5)
+            // Vertical swim control (AS3: `dy -= plavdy * speedPlavMult` — an IMPULSE, not a speed).
             // Only units with canSwim can actively swim; others sink normally.
             else if (state.IsFullySubmerged && CanSwim)
             {
-                float swimVerticalSpeed = ResolveSwimVerticalSpeed(state);
-                if (Mathf.Abs(swimVerticalSpeed) > 0.01f)
-                {
-                    _motor.SetDesiredVerticalSpeed(swimVerticalSpeed);
-                }
+                ApplySwimImpulse();
             }
 
             _justDoubleJumped = false;
@@ -480,28 +476,34 @@ namespace PFE.Entities.Player
         // ──────────────────────────────────────
 
         /// <summary>
-        /// Resolve vertical swim speed when fully submerged.
-        /// AS3: plavdy = acceleration * 0.5, up = -plavdy, down = +plavdy/2.
-        /// Jump/up key swims up, down key swims down at half speed.
+        /// AS3's swim control: an <b>impulse added to <c>dy</c> every frame</b>, not a target speed.
+        ///
+        /// <para><c>UnitPlayer.as:2804-2807</c> is <c>if(isPlav &amp;&amp; keyBeUp &amp;&amp; !keyJump)
+        /// dy -= plavdy * pers.speedPlavMult</c>, and <c>:2700-2703</c> is the same impulse for
+        /// <c>keyJump</c> while <c>isPlav</c> — which is why a swimmer's jump key does not jump, it
+        /// swims. <c>:2873</c> adds half of it downward for <c>keySit</c>. The water's
+        /// <c>dy *= 0.8</c> (<c>Unit.as:1931</c>, the motor's drag) is what turns the impulse into a
+        /// terminal speed; see <see cref="PFE.Systems.Physics.SwimMath"/> for the arithmetic and for
+        /// why the old assigned-speed form could not carry the unit out of the water.</para>
+        ///
+        /// <para><b>One impulse per frame, not two.</b> The up-key and jump arms are mutually
+        /// exclusive in the oracle (<c>keyBeUp &amp;&amp; !keyJump</c>), so holding both must not swim
+        /// at twice the speed — hence the early return rather than two calls.</para>
         /// </summary>
-        private float ResolveSwimVerticalSpeed(MovementMotorState state)
+        private void ApplySwimImpulse()
         {
             float walkSpeed = _definition != null ? _definition.WalkSpeed : 4f;
-            float swimUpSpeed = walkSpeed * 0.5f;
 
-            // Up input or jump held → swim upward
             if (_moveInput.y > 0.5f || _jumpHeld)
             {
-                return swimUpSpeed;
+                _motor.AddVerticalImpulse(SwimMath.UpImpulsePixelsPerFrame(walkSpeed));
+                return;
             }
 
-            // Down input → swim downward at half speed
             if (_moveInput.y < -0.5f)
             {
-                return -swimUpSpeed * 0.5f;
+                _motor.AddVerticalImpulse(-SwimMath.DownImpulsePixelsPerFrame(walkSpeed));
             }
-
-            return 0f;
         }
 
         // ──────────────────────────────────────
@@ -610,7 +612,11 @@ namespace PFE.Entities.Player
                 return;
             }
 
-            // Fully submerged swimmers: can't normal-jump, vertical swim control handles upward movement.
+            // Fully submerged swimmers: can't normal-jump, the swim impulse handles upward movement.
+            // AS3 has the same shape — while `isPlav`, the jump key takes the `dy -= plavdy` arm
+            // (`UnitPlayer.as:2700`) and never reaches the `jumpp > 0` jump arm, so a swimmer cannot
+            // jump and `jumpp` is never even charged (it is only set while `stay`). Holding the key
+            // still swims up, through `_jumpHeld` in ApplySwimImpulse.
             // Wading (IsInWater but not fully submerged) still allows jumping out of water.
             // Non-swimmers can still attempt to jump while submerged.
             if (state.IsFullySubmerged && CanSwim)

@@ -360,10 +360,44 @@ namespace PFE.Systems.Map
         }
 
         /// <summary>
-        /// Mirrors the original Location.as stair placement pass:
-        /// when a stair overlay sits on an air-like tile and the stair direction
-        /// changes relative to the tile below, Flash promotes it to a shelf and
-        /// advances the tileFront frame by one.
+        /// Mirrors the original Location.as stair placement pass: when a stair overlay sits on an
+        /// air-like tile and the stair direction changes relative to the tile <b>above</b>, Flash
+        /// promotes it to a shelf and advances the tileFront frame by one.
+        ///
+        /// <para><b>What the promoted frame actually is.</b> The only two forms with <c>stair != 0</c>
+        /// are <c>А</c> ("Лестница справа", <c>vid='3' stair='1'</c>) and <c>Б</c> ("Лестница слева",
+        /// <c>vid='1' stair='-1'</c>) — <b>ladders</b>, not stairs. Their next frames (4 and 2) are the
+        /// ladder's <i>upper half</i>: the exported art for frames 2 and 4 starts at canvas
+        /// <c>y = 0</c>, i.e. 30 px <i>above</i> the registration point, while frames 1 and 3 start at
+        /// <c>y = 30</c>. So the promotion is what makes a ladder poke up through the opening in the
+        /// floor above, and it fires on the <i>topmost</i> cell of a ladder column — the cell whose
+        /// above-neighbour is air. It is not a stair-ledge rule, and the 12 tread forms
+        /// (<c>В Г Ж З И Й Л М О П С Т</c>) all carry <c>stair = 0</c>, so they can never be promoted.</para>
+        ///
+        /// <para><b>AS3's <c>!shelf</c> guard is not reproduced, and cannot matter.</b> The oracle tests
+        /// <c>!this.space[i][j].shelf</c>, the <i>form's</i> shelf flag, where this uses
+        /// <see cref="TileData.isLedge"/>. The two differ only for a form that is both a shelf and a
+        /// stair; in <c>AllData.as</c> the six shelf forms (<c>- Д Е К Н Р</c>) are the beams and all
+        /// have <c>stair = 0</c> and <c>vid = 0</c>, so the oracle's guard is unreachable. Recorded
+        /// because "we substituted our own flag for the oracle's" reads like a defect and is not
+        /// one.</para>
+        ///
+        /// <para><b>The promotion is a COLLISION change, not just a frame change.</b> AS3 sets
+        /// <c>shelf = true</c> (<c>Location.as:582</c>), and <c>shelf</c> is the one-way platform flag:
+        /// <c>collisionTile</c> answers 1 for it whenever the unit's feet are at or below its top
+        /// (<c>Unit.as:2578</c>). So the topmost ladder cell is what a climber stands on when the
+        /// climb runs out — that is how a ladder is exited upward at all. The port copied the
+        /// <c>vid</c> bump (the art) and dropped the flag, so the cap drew correctly and had no
+        /// floor: the climb ended in mid-air and the unit either fell back down the shaft or — with
+        /// the old body-wide ladder probe — hovered above the rungs. <see cref="TilePhysicsType.Platform"/>
+        /// is this port's <c>shelf</c> (see <c>SurfaceKindRule</c>), and <c>stairType</c> survives the
+        /// change, so the cell stays climbable: <c>IsClimbableLadder()</c> reads <c>stairType</c> and
+        /// <c>slopeType</c>, never <c>physicsType</c>.</para>
+        ///
+        /// <para>The <see cref="UsesLegacyAirStairPlacement"/> gate is what keeps this safe — it admits
+        /// only <see cref="TilePhysicsType.Air"/> and <see cref="TilePhysicsType.Stair"/>, so the
+        /// promotion can never demote a wall, which is the mistake the <c>form.shelf</c> branch in
+        /// <c>ApplyForm</c> already carries a guard against.</para>
         /// </summary>
         private static void ApplyLegacyStairPlacementRules(TileData[,] tiles, int roomWidth, int roomHeight)
         {
@@ -391,6 +425,10 @@ namespace PFE.Systems.Map
                     }
 
                     tile.isLedge = true;
+
+                    // AS3 `this.space[i][j].shelf = true` — the cap is a one-way platform.
+                    tile.physicsType = TilePhysicsType.Platform;
+
                     if (tile.visualId > 0)
                     {
                         tile.visualId++;

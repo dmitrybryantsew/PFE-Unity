@@ -1,5 +1,6 @@
 using System;
 using PFE.Entities.Player;
+using PFE.Systems.Physics;
 using UnityEngine;
 using Random = UnityEngine.Random;
 
@@ -311,6 +312,7 @@ namespace PFE.Character.Animation
     public sealed class SwimAnimState : IAnimationState
     {
         Vector2 _pos;
+        float   _velocityY;
 
         public int  Priority  => 80;
         public bool IsLocked  => false;
@@ -318,20 +320,55 @@ namespace PFE.Character.Animation
         public bool CanEnter(in PlayerMovementSnapshot s)
         {
             _pos = s.Position;
+            _velocityY = s.Velocity.y;
             return s.LocomotionState == PlayerLocomotionState.Swim;
         }
 
         public string GetStateName(in PlayerMovementSnapshot s)                          => "plav";
         public int    OverrideFrame(in PlayerMovementSnapshot s, int cf, int fc)         => -1;
 
+        // ── The splash, gated and scaled exactly as AS3 does ──────────────────────────────────
+        //
+        // `dy` is read from the snapshot cached by CanEnter. On the ordinary transition that is this
+        // tick's value, because the driver evaluates states in priority order and plav is the state it
+        // selects. The one exception is a transition where a HIGHER-priority state wins (ladder 100,
+        // levitate 90) — `EvaluateBestState` returns on the first match, so plav's CanEnter is not
+        // called that tick and the cache is one tick old. That is the right value anyway: AS3 compares
+        // this frame's `inWater` against the previous frame's flag, so the speed it gates on is the
+        // speed the unit had as it crossed. Recorded because "stale" and "previous frame" look the
+        // same here and only one of them is a bug.
+        //
+        // Why the gate exists is written up on SwimMath: a swimmer holding Up at the surface bobs
+        // across the water line at 3.72 px/frame, below AS3's ±5, and is silent. Firing on the
+        // transition alone (what this did) turns every stroke of that bob into two full-volume
+        // splashes — exit, then re-entry — because the swim impulse now actually carries the unit out
+        // of the water. See SwimMath.SplashMinVerticalSpeedPixelsPerFrame.
+
         public void OnEnter(string prev, IAnimationEventSink e)
-            => e?.FireEvent(AnimEvent.WaterEnter, _pos);
+        {
+            if (!SwimMath.ShouldSplashEnteringWater(_velocityY))
+            {
+                return;
+            }
+
+            e?.FireEvent(AnimEvent.WaterEnter, _pos, SwimMath.SplashVolume(_velocityY));
+        }
 
         public void OnExit(string next, IAnimationEventSink e)
-            => e?.FireEvent(AnimEvent.WaterExit, _pos);
+        {
+            if (!SwimMath.ShouldSplashLeavingWater(_velocityY))
+            {
+                return;
+            }
+
+            e?.FireEvent(AnimEvent.WaterExit, _pos, SwimMath.SplashVolume(_velocityY));
+        }
 
         public void OnFrameChanged(int frame, in PlayerMovementSnapshot s, IAnimationEventSink e)
-            => _pos = s.Position;
+        {
+            _pos = s.Position;
+            _velocityY = s.Velocity.y;
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────

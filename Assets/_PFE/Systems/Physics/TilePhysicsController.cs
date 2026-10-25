@@ -212,6 +212,21 @@ namespace PFE.Systems.Physics
         [Tooltip("Horizontal half-width in pixels used for ladder-specific collision probes.")]
         [SerializeField] internal float ladderProbeHalfWidth = 6f;
 
+        /// <summary>
+        /// AS3's <c>checkStairs()</c> probe offset: <c>Y - 1</c> in the oracle's Y-down space, i.e.
+        /// <b>one pixel above the feet</b>. Not a tuning knob — it is the literal argument in
+        /// <c>UnitPlayer.as:2933</c>, and the cell it lands in is the only cell the climb-up test
+        /// reads. See <see cref="TryGetLadderContactForCurrentIntent"/>.
+        /// </summary>
+        private const float LadderProbeAboveFeetPixels = 1f;
+
+        /// <summary>
+        /// AS3's <c>checkStairs(2)</c> probe offset: <c>Y + 2</c>, i.e. <b>two pixels below the
+        /// feet</b> (<c>UnitPlayer.as:2841,2866</c>). Two pixels rather than one so that a unit
+        /// standing exactly on a cell boundary still probes the cell it is about to descend into.
+        /// </summary>
+        private const float LadderProbeBelowFeetPixels = 2f;
+
         [Header("State (read-only)")]
         [SerializeField] private bool isGrounded;
         [SerializeField] private bool isOnPlatform;
@@ -227,6 +242,9 @@ namespace PFE.Systems.Physics
         // Velocity in pixel space (matching AS3 dx/dy)
         private float dx;
         private float dy;
+
+        // Vertical impulse waiting for the next step, in pixels per canonical 30 Hz frame.
+        private float pendingVerticalImpulse;
 
         /// <summary>
         /// This unit's velocity in AS3's own units — <b>pixels per 30 Hz frame</b>, i.e. exactly
@@ -456,6 +474,16 @@ namespace PFE.Systems.Physics
         // Properties
         public float CollisionWidth => collisionWidth;
         public float CollisionHeight => collisionHeight;
+
+        /// <summary>
+        /// The authored crouch height, 0 when this motor has none and
+        /// <c>ResolveCrouchedCollisionHeight</c> derives one. Exposed beside the two standing
+        /// dimensions because a fixture has to be able to tell "the definition sized the crouch" from
+        /// "the prefab's serialized value survived", and those two are the same number whenever the
+        /// prefab happens to agree.
+        /// </summary>
+        public float CrouchedCollisionHeight => crouchedCollisionHeight;
+
         public bool IsGrounded => isGrounded;
         public bool IsOnPlatform => isOnPlatform;
         public bool IsInWater => isInWater;
@@ -536,8 +564,17 @@ namespace PFE.Systems.Physics
         /// silent 100x error: <c>zombie0</c> gets a 0.55×0.70 px box instead of 55×70, so the motor
         /// collides against a point while the <c>BoxCollider2D</c> — and the box the collider debug
         /// overlay draws — is the right size. Nothing throws; the unit just ignores walls.</para>
+        ///
+        /// <para><b><paramref name="crouchedHeightPixels"/> is optional and 0 means "leave it".</b>
+        /// AS3's crouch height is authored data (<c>sitY</c>, defaulting to <c>stayY / 2</c>,
+        /// <c>Unit.as:1037-1044</c>) that replaces <c>scY</c> while crouching (<c>:2519-2520</c>). It was
+        /// the last field a prefab could still shadow: <c>ResolveCrouchedCollisionHeight</c> prefers this
+        /// serialized value over <c>UnitDefinition.sitHeight</c>, so a prefab carrying a stale
+        /// <c>crouchedCollisionHeight</c> crouched to that number no matter what the definition said —
+        /// exactly the split this whole class of bug is made of. Callers that have no definition keep
+        /// the serialized value, which is why the parameter defaults to 0 rather than to the height.</para>
         /// </summary>
-        public void ConfigureCollisionSize(float widthPixels, float heightPixels)
+        public void ConfigureCollisionSize(float widthPixels, float heightPixels, float crouchedHeightPixels = 0f)
         {
             if (widthPixels > 0f)
             {
@@ -552,6 +589,11 @@ namespace PFE.Systems.Physics
             // Kept in step with the standing height so UpdateColliderProfile's crouch round-trip has a
             // valid reference even if Start() has not run yet.
             standingCollisionHeight = collisionHeight;
+
+            if (crouchedHeightPixels > 0f)
+            {
+                crouchedCollisionHeight = crouchedHeightPixels;
+            }
         }
 
         /// <summary>
@@ -576,6 +618,17 @@ namespace PFE.Systems.Physics
         {
             dx += forceX;
             dy += forceY;
+        }
+
+        /// <summary>
+        /// A vertical impulse in pixels per canonical 30 Hz frame, held until the next step consumes
+        /// it. Accumulated rather than overwritten so two callers in one tick add up; the step is the
+        /// only place that knows how many canonical frames it covers, so the scaling happens there
+        /// (see <see cref="IMovementMotor.AddVerticalImpulse"/> for why that matters).
+        /// </summary>
+        public void AddVerticalImpulse(float impulsePixelsPerFrame)
+        {
+            pendingVerticalImpulse += impulsePixelsPerFrame;
         }
 
         public void AddForce(Vector2 force)
@@ -921,14 +974,31 @@ namespace PFE.Systems.Physics
                 hasDesiredVerticalSpeed = false;
             }
 
+            // 2c. Consume a pending vertical impulse (swimming).
+            //
+            // ADDED to dy, never assigned — that is the whole difference from the levitation arm
+            // above. AS3's swim is `dy -= plavdy * pers.speedPlavMult` every frame
+            // (UnitPlayer.as:2804), and the water drag then turns the accumulation into a terminal
+            // speed and leaves the momentum that carries a swimmer out of the water. An assigned
+            // speed has neither. Scaled by the canonical frames this step covers, like gravity, so
+            // the impulse is a per-AS3-frame quantity at any tick rate.
+            dy += pendingVerticalImpulse * RateFramesPerStep;
+            pendingVerticalImpulse = 0f;
+
             // 3. Apply damping/friction
             ApplyFriction();
 
             // 3b. Water drag (AS3: dx *= 0.8, dy *= 0.8 when fully submerged; dx *= 0.5 when wading)
+            //
+            // The 0.8 is `SwimMath.WaterDragPerFrame`, not a literal: the swim impulse's terminal
+            // speed is derived from it (4 * (impulse - gravity)), so a second copy here would let the
+            // two drift and make the swim speed a coincidence. The wading 0.5 is a different rule —
+            // AS3's `else` arm, `if(inWater) dx *= 0.5` (Unit.as:1955-1958) — and damps horizontal
+            // only.
             if (isFullySubmerged)
             {
-                dx *= DecayOverStep(0.8f);
-                dy *= DecayOverStep(0.8f);
+                dx *= DecayOverStep(SwimMath.WaterDragPerFrame);
+                dy *= DecayOverStep(SwimMath.WaterDragPerFrame);
             }
             else if (isInWater)
             {
@@ -975,6 +1045,19 @@ namespace PFE.Systems.Physics
             // 7. Update facing
             if (dx > 0.5f) facingDirection = 1;
             else if (dx < -0.5f) facingDirection = -1;
+
+            // A ladder OWNS the facing, and the dx rule above can never produce it: a climb zeroes
+            // dx (`ApplyHorizontalMovement` drives it to 0 and `MoveOnLadder` pins posX), so the
+            // facing would otherwise stay whatever it was on the approach. AS3 writes it inside the
+            // probe itself — `this.isLaz = storona = space[x][y].stair` (Unit.as:2604) — and it is
+            // load-bearing, not cosmetic: the climb pose is drawn for one side, and the snap puts
+            // the body on the ladder's edge, so the wrong facing is the unit climbing with its back
+            // to the rungs. `stair` is the side the ladder is mounted on (А = -1, Б = +1 in the room
+            // data), which is also the side `ComputeLadderSnapX` snapped to.
+            if (isOnLadder && activeLadderDirection != 0)
+            {
+                facingDirection = activeLadderDirection > 0 ? 1 : -1;
+            }
 
             // 8. Flip sprite
             Vector3 scale = transform.localScale;
@@ -1390,7 +1473,7 @@ namespace PFE.Systems.Physics
 
                 posY = targetY;
 
-                if (!TryGetLadderContactAt(posX, posY, hh, out LadderContact ladderContact))
+                if (!TryGetLadderContactForCurrentIntent(out LadderContact ladderContact))
                 {
                     isOnLadder = false;
                     break;
@@ -1741,7 +1824,13 @@ namespace PFE.Systems.Physics
                 return;
             }
 
-            bool canEnterFromHere = climbUpPressed || (!isGrounded && climbDownPressed);
+            // AS3 lets a unit start a descent from the GROUND as well as from the air:
+            // `if(stay && diagon == 0 && ... ) { if(checkStairs(2)) { dy = lazSpeed; throu = true; } }`
+            // (UnitPlayer.as:2839-2846) runs BEFORE the sit branch, so standing on a ladder's top cap
+            // and pressing Down descends instead of crouching. Requiring `!isGrounded` here was the
+            // port's own rule and it made a ladder a one-way trip: the cap that AS3 promotes to a
+            // shelf (Location.as:578-585) is exactly where the descent has to start from.
+            bool canEnterFromHere = climbUpPressed || climbDownPressed;
             if (!wantsToUseLadder || !canEnterFromHere || !hasLadderContact)
             {
                 return;
@@ -1763,7 +1852,7 @@ namespace PFE.Systems.Physics
                 return;
             }
 
-            if (TryGetLadderContactAt(posX, posY, collisionHeight, out LadderContact ladderContact))
+            if (TryGetLadderContactForCurrentIntent(out LadderContact ladderContact))
             {
                 SnapToLadder(ladderContact);
                 isGrounded = false;
@@ -1775,26 +1864,108 @@ namespace PFE.Systems.Physics
             activeLadderDirection = 0;
         }
 
+        /// <summary>
+        /// AS3 <c>Unit.checkStairs(param1, param2)</c> (<c>Unit.as:2585-2625</c>) as the motor's
+        /// intent-shaped form.
+        ///
+        /// <para><b>It is a ONE-POINT probe, and the offset is the whole mechanic.</b> The oracle
+        /// samples the single cell containing <c>(X + param2, Y + param1)</c>:
+        /// <c>checkStairs()</c> is <c>param1 = -1</c> — <b>one pixel above the feet</b> — and is what
+        /// <c>keyBeUp</c> calls, while <c>checkStairs(2)</c> is <b>two pixels below the feet</b> and
+        /// is what <c>keySit</c> calls. A climb therefore only continues while the cell the feet are
+        /// entering is itself a ladder.</para>
+        ///
+        /// <para><b>This used to scan the whole body plus a tile above and below</b>, which is a
+        /// different question with a visible answer: a ladder tile anywhere under the body kept the
+        /// attachment alive, so the climb did not stop when the feet left the topmost ladder row but
+        /// roughly a body-height later — the unit hung in the air above the ladder, and pressing Up
+        /// there re-attached it to the tile below, so it hovered instead of finishing the climb.</para>
+        ///
+        /// <para><b>AS3's Y runs down, this motor's runs up</b>, so the oracle's offsets mirror:
+        /// <c>Y - 1</c> becomes <c>posY + 1</c> and <c>Y + 2</c> becomes <c>posY - 2</c>. The probe X
+        /// is the body centre, exactly as in the oracle (the tile containing <c>X</c>), not a span
+        /// across the body — a ladder the unit merely grazes with a shoulder is not one it is on.</para>
+        ///
+        /// <para><b>No vertical input keeps the attachment.</b> AS3 does not call
+        /// <c>checkStairs</c> at all while neither key is held, so <c>isLaz</c> simply persists and
+        /// the unit hangs on the rungs; re-deriving contact here would make a hanging unit fall off
+        /// the ladder it is holding.</para>
+        /// </summary>
         private bool TryGetLadderContactForCurrentIntent(out LadderContact ladderContact)
         {
-            float probeY = posY;
             if (ladderInputY > 0.5f)
             {
-                probeY += 2f;
-            }
-            else if (ladderInputY < -0.5f)
-            {
-                probeY -= 2f;
+                // AS3 `checkStairs()` — (X, Y - 1), one pixel above the feet.
+                return TryProbeLadderCell(posY + LadderProbeAboveFeetPixels, out ladderContact);
             }
 
-            if (TryGetLadderContactAt(posX, probeY, collisionHeight, out ladderContact))
+            if (ladderInputY < -0.5f)
             {
+                // AS3 `checkStairs(2)` — (X, Y + 2), two pixels below the feet.
+                return TryProbeLadderCell(posY - LadderProbeBelowFeetPixels, out ladderContact);
+            }
+
+            if (isOnLadder && activeLadderDirection != 0)
+            {
+                ladderContact = new LadderContact(default, activeLadderDirection, activeLadderSnapX);
                 return true;
             }
 
-            return TryGetLadderContactAt(posX, posY, collisionHeight, out ladderContact);
+            ladderContact = default;
+            return false;
         }
 
+        /// <summary>
+        /// AS3 <c>checkStairs</c>'s body: read the ONE cell containing
+        /// <paramref name="probeY"/> in the unit's own column, and answer whether it is a climbable
+        /// ladder.
+        ///
+        /// <para><b>A solid cell wins over a ladder.</b> The oracle's first branch is
+        /// <c>if(space[x][y].phis &gt;= 1) { isLaz = 0; return false; }</c> — it runs <i>before</i>
+        /// the <c>.stair</c> test, so a wall that carries stair metadata is still a wall. The port's
+        /// <see cref="TileData.IsClimbableLadder"/> does not encode that, hence the explicit
+        /// <see cref="TilePhysicsType.Wall"/> guard.</para>
+        /// </summary>
+        private bool TryProbeLadderCell(float probeY, out LadderContact ladderContact)
+        {
+            ladderContact = default;
+            if (currentRoom == null || currentRoom.tiles == null)
+            {
+                return false;
+            }
+
+            int tx = Mathf.FloorToInt((posX - roomWorldPixelX) / WorldConstants.TILE_SIZE);
+            int ty = Mathf.FloorToInt((probeY - roomWorldPixelY) / WorldConstants.TILE_SIZE);
+
+            TileData tile = currentRoom.GetTileAtCoord(new Vector2Int(tx, ty));
+            if (tile == null || tile.physicsType == TilePhysicsType.Wall)
+            {
+                return false;
+            }
+
+            if (!tile.IsClimbableLadder())
+            {
+                return false;
+            }
+
+            ladderContact = new LadderContact(
+                new Vector2Int(tx, ty), tile.stairType, ComputeLadderSnapX(tx, tile.stairType));
+            return true;
+        }
+
+        /// <summary>
+        /// The <b>spawn / room-transition</b> query: "is this body standing in a ladder column at
+        /// all?" — a body-shaped scan that picks the nearest ladder cell.
+        ///
+        /// <para><b>This is deliberately NOT the climb rule.</b> A unit arriving through a door is
+        /// placed by data, not by its own movement, so there is no intent to shape the question and
+        /// a forgiving scan is the right one: the alternative is a player who was mid-climb losing
+        /// the ladder on a room transition and dropping. The climb itself is
+        /// <see cref="TryGetLadderContactForCurrentIntent"/>, which is AS3's one-point
+        /// <c>checkStairs</c>. Keeping the two apart matters — this scan is what used to answer the
+        /// climb question, and answering it with a body-shaped test is what let a unit keep climbing
+        /// a body-height past the top of the ladder.</para>
+        /// </summary>
         private bool TryGetLadderContactAt(float x, float y, float hh, out LadderContact ladderContact)
         {
             ladderContact = default;

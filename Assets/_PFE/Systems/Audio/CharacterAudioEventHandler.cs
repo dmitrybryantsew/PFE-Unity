@@ -63,7 +63,7 @@ namespace PFE.Systems.Audio
         // IAnimationEventSink
         // ---------------------------------------------------------------
 
-        public void FireEvent(string eventId, Vector2 worldPosition)
+        public void FireEvent(string eventId, Vector2 worldPosition, float volumeScale = 1f)
         {
             switch (eventId)
             {
@@ -84,10 +84,12 @@ namespace PFE.Systems.Audio
                     return;
             }
 
-            // All other events: simple one-to-one mapping, normal volume
+            // All other events: simple one-to-one mapping, at the event's own loudness. The water
+            // splash is the one event that sets it — `|dy| / 10` (`Unit.as:2675`), computed by
+            // SwimAnimState, so a slip into water is quiet and a plunge is not.
             string soundId = MapEventToSound(eventId);
             if (soundId != null)
-                _sounds?.Play(soundId, worldPosition);
+                _sounds?.Play(soundId, worldPosition, volumeScale);
         }
 
         // ---------------------------------------------------------------

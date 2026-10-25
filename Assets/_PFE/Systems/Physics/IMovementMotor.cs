@@ -17,6 +17,23 @@ namespace PFE.Systems.Physics
         void Dash(Vector2 direction, float speed, float duration);
         void SetGravityScale(float scale);
         void AddForce(Vector2 force);
+
+        /// <summary>
+        /// Add a vertical <b>impulse</b> in pixels per canonical 30 Hz frame, accumulated until the
+        /// next step consumes it.
+        ///
+        /// <para><b>Why this is not <see cref="AddForce"/>.</b> A force is applied once, the moment
+        /// it is called; a swim impulse is a <i>per-frame</i> quantity, so the motor has to scale it
+        /// by the canonical frames its next step covers — exactly as it scales gravity — or the swim
+        /// speed would depend on whether the build steps at 30, 50 or 120 Hz. The locomotion brain
+        /// does not and cannot know that factor (it is <c>TilePhysicsStepMath.RateFramesPerStep</c>,
+        /// private to the motor), so the conversion belongs on this side of the seam.</para>
+        ///
+        /// <para>AS3's swim is an impulse and not a target speed: <c>UnitPlayer.as:2804</c>
+        /// <c>dy -= plavdy * pers.speedPlavMult</c> every frame. Assigning a speed instead destroys
+        /// the accumulation, and with it the momentum a swimmer carries out of the water.</para>
+        /// </summary>
+        void AddVerticalImpulse(float impulsePixelsPerFrame);
         bool CanTeleportTo(float targetPixelX, float targetPixelY, float halfWidth, float halfHeight);
         void TeleportTo(float targetPixelX, float targetPixelY);
         void SetUnityPosition(Vector3 worldPos);

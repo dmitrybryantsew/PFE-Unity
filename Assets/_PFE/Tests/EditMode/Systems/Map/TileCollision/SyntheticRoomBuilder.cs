@@ -15,10 +15,20 @@ namespace PFE.Tests.EditMode.Systems.Map.TileCollision
     ///   # = Wall
     ///   = = One-way Platform (shelf)
     ///   H = Climbable Ladder (stairType = 1, slopeType = 0)
+    ///   J = Climbable Ladder, other side (stairType = -1)
+    ///   h = Ladder TOP cell (stairType = 1, Platform) — AS3's promoted `shelf` cap
+    ///   j = Ladder TOP cell, other side (stairType = -1, Platform)
     ///   / = Slope Up (slopeType = 1, stair)
     ///   \ = Slope Down (slopeType = -1, stair)
     ///   ~ = Water (hasWater = true)
     ///   . or space = Air
+    ///
+    /// <para><b>Why the cap needs its own character.</b> A real ladder's topmost cell is not the
+    /// same cell as the rest of the column: AS3 promotes it to a <c>shelf</c>
+    /// (<c>Location.as:578-585</c>) and <c>TileDecoder</c> now decodes it to
+    /// <see cref="TilePhysicsType.Platform"/>. A synthetic room that spelled the whole column 'H'
+    /// would be a ladder no real room can produce, so the motor's behaviour at the top could not be
+    /// exercised here at all.</para>
     /// </summary>
     public static class SyntheticRoomBuilder
     {
@@ -113,6 +123,23 @@ namespace PFE.Tests.EditMode.Systems.Map.TileCollision
                 case 'H':
                     tile.physicsType = TilePhysicsType.Air;
                     tile.stairType = 1;
+                    break;
+
+                case 'J':
+                    tile.physicsType = TilePhysicsType.Air;
+                    tile.stairType = -1;
+                    break;
+
+                case 'h':
+                    tile.physicsType = TilePhysicsType.Platform;
+                    tile.stairType = 1;
+                    tile.isLedge = true;
+                    break;
+
+                case 'j':
+                    tile.physicsType = TilePhysicsType.Platform;
+                    tile.stairType = -1;
+                    tile.isLedge = true;
                     break;
 
                 case '/':

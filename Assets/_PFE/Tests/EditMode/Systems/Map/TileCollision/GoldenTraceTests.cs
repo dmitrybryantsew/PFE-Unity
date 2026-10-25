@@ -70,12 +70,84 @@ namespace PFE.Tests.EditMode.Systems.Map.TileCollision
 
             // Attach and climb up past top of ladder
             harness.StepN(30, ladderY: 1f, ladderClimb: true);
+            // Then let go of Up and let it settle: AS3's `isLaz` is cleared by a probe that fails, so
+            // a unit that has run out of ladder either stands on the cap or falls down the shaft —
+            // it never keeps hanging above the rungs.
+            harness.StepN(20);
 
-            // Motor should either detach cleanly or remain clamped below top ceiling
-            Assert.LessOrEqual(harness.Motor.PixelPosition.y, 200f);
+            // The ladder occupies rows y = 1..3, so its top edge is 160 px. This used to assert
+            // `<= 200`, which is a whole tile ABOVE that edge — the body-wide ladder probe kept the
+            // unit attached while any ladder cell was still under its body, so it climbed to 200 and
+            // stayed there. The 1 px slack is the probe's own offset (the climb stops when the cell
+            // one pixel above the feet stops being a ladder, so the last step may land at 161).
+            const float ladderTopEdge = 160f;
+            Assert.LessOrEqual(harness.Motor.PixelPosition.y, ladderTopEdge + 1f,
+                "the climb must end at the ladder's top cell, not a body-height above it");
 
             ulong hash = harness.Recorder.ComputeHash();
             Assert.AreNotEqual(0UL, hash);
+        }
+
+        [Test]
+        public void L2b_LadderCap_IsStandableAfterTheClimb()
+        {
+            // The same column, but the top cell is a CAP — the shape a real room decodes to
+            // (AS3 promotes the topmost ladder cell to a `shelf`, `Location.as:578-585`).
+            string[] ascii = {
+                "..........",
+                ".....h....",
+                ".....H....",
+                ".....H....",
+                "##########"
+            };
+            RoomInstance room = SyntheticRoomBuilder.BuildFromAscii(ascii);
+
+            using var harness = new GoldenTraceHarness(room, startX: 220f, startY: 40f);
+
+            harness.StepN(30, ladderY: 1f, ladderClimb: true);
+            harness.StepN(20);
+
+            Assert.IsFalse(harness.Motor.IsOnLadder,
+                "the climb is over: the cell above the feet is no longer a ladder");
+            Assert.IsTrue(harness.Motor.IsGrounded,
+                "and the cap holds the unit — without the shelf flag the climb ended in mid-air and " +
+                "the unit fell back down the shaft it had just climbed");
+            Assert.AreEqual(160f, harness.Motor.PixelPosition.y, 1.5f,
+                "standing on the cap's top edge, which is the top of the ladder column");
+
+            ulong hash = harness.Recorder.ComputeHash();
+            Assert.AreNotEqual(0UL, hash);
+        }
+
+        [Test]
+        public void L2c_LadderOwnsTheFacing_EvenWhenTheApproachSaidOtherwise()
+        {
+            // AS3 `Unit.as:2604` — `this.isLaz = storona = space[x][y].stair`. The climb pose is drawn
+            // for one side and the snap puts the body on the ladder's edge, so the facing is part of
+            // the ladder, not of the approach. A climb also zeroes dx, so the dx-derived facing rule
+            // can never produce it.
+            string[] ascii = {
+                "..........",
+                "....H.....",
+                "....H.....",
+                "##########"
+            };
+            RoomInstance room = SyntheticRoomBuilder.BuildFromAscii(ascii);
+
+            // Start to the RIGHT of the column (x = 4 is 160..200) and walk LEFT into it, so the
+            // approach facing is -1 while the ladder's `stair` is +1.
+            using var harness = new GoldenTraceHarness(room, startX: 260f, startY: 40f);
+
+            harness.StepN(10, horizontal: -1f);
+            Assert.AreEqual(-1, harness.Motor.FacingDirection,
+                "control: walking left must leave the unit facing left before it touches the ladder");
+
+            harness.StepN(6, ladderY: 1f, ladderClimb: true);
+
+            Assert.IsTrue(harness.Motor.IsOnLadder, "expected the unit to be on the ladder");
+            Assert.AreEqual(1, harness.Motor.FacingDirection,
+                "stair = +1 means the rungs are on the cell's right edge, so the unit faces right — " +
+                "regardless of having walked in facing left");
         }
 
         [Test]

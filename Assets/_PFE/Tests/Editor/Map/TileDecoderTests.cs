@@ -22,10 +22,21 @@ namespace PFE.Tests.Editor.Map
             TileData capTile = tiles[0, 1];
             TileData lowerTile = tiles[0, 0];
 
-            Assert.AreEqual(TilePhysicsType.Stair, capTile.physicsType);
+            // AS3 `Location.as:578-585` sets `shelf = true` on this cell, and `shelf` is a COLLISION
+            // flag: `collisionTile` answers 1 for it whenever the feet are at or below its top
+            // (`Unit.as:2578`). `Platform` is this port's `shelf`, so the cap is a one-way platform —
+            // that is what a climber stands on when the climb runs out. The frame bump alone (which
+            // the port did copy) only draws the ladder's upper half through the floor opening.
+            Assert.AreEqual(TilePhysicsType.Platform, capTile.physicsType,
+                "AS3 promotes the ladder's top cell to a shelf, i.e. a one-way platform.");
+            Assert.IsTrue(capTile.IsPlatform());
             Assert.AreEqual(1, capTile.stairType);
+            Assert.IsTrue(capTile.IsClimbableLadder(),
+                "`stairType` survives the promotion, so the cap is still climbable — AS3's cap is " +
+                "`phis 0` + `shelf` + `stair` all at once.");
             Assert.IsTrue(capTile.isLedge);
             Assert.AreEqual(4, capTile.visualId);
+            Assert.AreEqual(TilePhysicsType.Stair, lowerTile.physicsType);
             Assert.IsFalse(lowerTile.isLedge);
             Assert.AreEqual(3, lowerTile.visualId);
         }
