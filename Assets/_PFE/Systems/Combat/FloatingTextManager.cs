@@ -30,6 +30,13 @@ namespace PFE.Systems.Combat
     /// <para><b>The working renderer is <see cref="FloatingDamageOverlay"/></b>, which draws through
     /// IMGUI and needs no prefab. Assign a prefab here and this manager starts drawing again — gated on
     /// the same <c>DamageNumbers</c> channel, so the two can never double-draw.</para>
+    ///
+    /// <para><b>If you do revive it, port the accumulation first.</b> This class prints one figure per
+    /// <c>DamageDealtMessage</c>, which is AS3's <c>showHit == 1</c>. The oracle's default is
+    /// <c>showHit == 2</c>: one figure per target that <b>adds successive hits up</b>. That logic now
+    /// lives in <see cref="DamageEventFeed"/> (per-target key, ten-frame window), so a renderer built
+    /// from these messages would have to read the feed rather than the message.</para>
+    /// </summary>
     /// </summary>
     public class FloatingTextManager : IStartable, IDisposable
     {

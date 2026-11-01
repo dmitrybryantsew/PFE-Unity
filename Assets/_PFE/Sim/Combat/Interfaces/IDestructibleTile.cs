@@ -27,9 +27,17 @@ namespace PFE.Systems.Combat
         ///   Damage type for material resistance lookup
         ///   (e.g. Explosive ignores Metal resistance that stops Ballistic).
         /// </param>
+        /// <param name="decal">
+        ///   AS3 <c>tipDecal</c> — the weapon's authored <c>tipdec</c>, which is what decides <i>which
+        ///   mark</i> a hit leaves (<c>Location.hitTile</c>'s fifth parameter, <c>Location.as:2503</c>).
+        ///   Deliberately not derived from <paramref name="damageType"/>: several weapons share a damage
+        ///   type and differ in decal, and <c>DecalType.Ram</c> (100) is not a damage type at all — it is
+        ///   the marker a ramming body passes.
+        /// </param>
         void ApplyDestruction(UnityEngine.Vector3 worldPosition,
                               float destroyAmount,
-                              DamageType damageType);
+                              DamageType damageType,
+                              DecalType decal);
 
         /// <summary>
         /// Apply destruction damage to every tile within a radius (AoE explosion).
@@ -39,9 +47,11 @@ namespace PFE.Systems.Combat
         /// <param name="radius">Explosion radius in Unity world units.</param>
         /// <param name="destroyAmount">Destruction power.</param>
         /// <param name="damageType">Damage type.</param>
+        /// <param name="decal">AS3 <c>tipDecal</c> — see <see cref="ApplyDestruction"/>.</param>
         void ApplyDestructionRadius(UnityEngine.Vector3 worldPosition,
                                     float radius,
                                     float destroyAmount,
-                                    DamageType damageType);
+                                    DamageType damageType,
+                                    DecalType decal);
     }
 }

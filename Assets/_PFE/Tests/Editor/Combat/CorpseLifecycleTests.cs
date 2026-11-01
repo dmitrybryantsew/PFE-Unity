@@ -103,6 +103,38 @@ namespace PFE.Tests.Editor.Combat
 
         // ── What a death leaves behind (Unit.as:4302-4368) ──────────────────────
 
+        /// <summary>
+        /// <see cref="UnitController.Died"/> is the seam a room's death-script latch listens on
+        /// (<c>AreaTriggerSystem.OnUnitDestroyed</c>, which is AS3 <c>die()</c>'s <c>runScript()</c> at
+        /// <c>Unit.as:4392</c>). It has to be <b>once per death</b>: a death script is a cutscene —
+        /// <c>megabossDie</c> fades the screen and <c>goto</c>s to another room — so a second raise
+        /// replays it over the player.
+        ///
+        /// <para>The corpse hit is the case that would break it. AS3 re-enters <c>die()</c> on every hit
+        /// that lands on a body (<c>:3713-3745</c>) and survives that because the tail is guarded by
+        /// <c>lootIsDrop</c>; the port's equivalent guard is <c>_deathRaised</c>. If the event were
+        /// raised outside that latch, every round into a corpse would restart the room's script.</para>
+        /// </summary>
+        [Test]
+        public void Died_FiresOncePerDeath_AndNotOnAHitToTheBody()
+        {
+            int fired = 0;
+            _unit.Died += _ => fired++;
+
+            _unit.TakeDamage(40f);
+            Assert.That(fired, Is.EqualTo(0),
+                "a wounded unit has not died, so no death script may start");
+
+            KillUnit();
+            Assert.That(fired, Is.EqualTo(1),
+                "the killing blow must raise Died exactly once — this is what starts `scrDie`");
+
+            _unit.TakeDamage(10f);
+            Assert.That(fired, Is.EqualTo(1),
+                "a hit on the body re-enters die() in the oracle but its tail runs once; a second " +
+                "raise here would replay the death script for every round that lands on the corpse");
+        }
+
         [Test]
         public void Death_LeavesATargetableBody()
         {

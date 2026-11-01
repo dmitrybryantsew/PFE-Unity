@@ -104,7 +104,10 @@ namespace PFE.Systems.Combat
                 // vis.@visexpl — the per-weapon explosion-visual override `Bullet.explVis()` reads first
                 // (Weapon.as:623-625). A string, so it rides along rather than becoming another
                 // positional primitive the factory would have to unpack.
-                visExpl:   weapon.visExpl);
+                visExpl:   weapon.visExpl,
+                // weapon/vis `tipdec` — AS3 `Bullet.tipDecal`, the fifth argument of `hitTile`. This is
+                // what decides which mark a wall takes; without it every hit would be decal-less.
+                decal:     weapon.decalType);
 
             // AS3 gives every weapon with no `vbul` the `visualBullet` default (Weapon.as:521-525) —
             // see ProjectileVisualDefaults. Without this a null definition reaches ApplyVisual, which

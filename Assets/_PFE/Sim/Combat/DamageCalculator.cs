@@ -596,7 +596,10 @@ namespace PFE.Systems.Combat
                 isStealthCritical: stealthCrit,
                 // Step 3b's pool result. `NoShield` when there was no shield up, so the target's write
                 // is a no-op rather than a zeroing — `0` is a real value here ("this hit broke it").
-                shieldHpAfter: shieldHpAfter);
+                shieldHpAfter: shieldHpAfter,
+                // AS3 `param2` carried out with the result. The death branch table reads it
+                // (`Unit.as:3713-3741`) to pick the burn tip, and by then this context no longer exists.
+                damageType: damageType);
         }
 
         #endregion

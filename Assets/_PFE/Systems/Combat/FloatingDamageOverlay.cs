@@ -5,14 +5,21 @@ using PFE.Core;
 namespace PFE.Systems.Combat
 {
     /// <summary>
-    /// Draws a rising, fading figure at every resolved hit — the port's answer to AS3's
-    /// <c>numbEmit</c> damage numbers (<c>Unit.as:4103-4117</c>).
+    /// Draws a rising figure at every resolved hit — the port's answer to AS3's
+    /// <c>numbEmit</c> damage numbers (<c>Unit.as:3906-3961</c>).
     ///
     /// <para><b>What it is for.</b> A bullet that <i>misses</i> and a bullet that <i>never collided</i>
     /// look identical on screen, and they have completely different causes — one is the evasion roll,
     /// the other is the hit path. This overlay separates them: a landed hit draws a number, an evaded
     /// hit draws <c>MISS</c>, and a shot that passes through a unit draws <b>nothing at all</b>. That
     /// third case is the one worth having a tool for, and it is invisible without this.</para>
+    ///
+    /// <para><b>It draws what the game draws, not a per-hit column.</b> The figure accumulates while
+    /// hits keep landing on the same unit — that is AS3's default (<c>World.showHit = 2</c>) and it is
+    /// <see cref="DamageEventFeed"/>'s default too. The rule that reads oddly at first is the
+    /// <b>ten-frame window</b>: ten frames after the last hit the sum is forgotten, but the figure stays
+    /// on screen for another fifty, so a burst leaves a lingering total behind and the next burst starts
+    /// a second figure over it (<c>Unit.as:3222-3233</c> vs <c>:3957</c>).</para>
     ///
     /// <para><b>Why IMGUI rather than a TextMesh prefab.</b> Every other overlay in this project draws
     /// through <c>OnGUI</c>, which needs no font asset, no prefab and no scene wiring — so the tool is
@@ -37,7 +44,12 @@ namespace PFE.Systems.Combat
         private const int MaxDrawn = 48;
 
         private const int BodyFontSize = 13;
-        private const int CritFontSize = 19;
+
+        /// <summary>
+        /// A crit's font size. <c>13 × 1.6 = 20.8</c>, which is the oracle's own <c>scale: 1.6</c>
+        /// (<c>Unit.as:3935</c>) applied to the body size rather than a second, unrelated number.
+        /// </summary>
+        private const int CritFontSize = 21;
 
         private readonly List<DamageNumber> _visible =
             new List<DamageNumber>(DamageEventFeed.DefaultCapacity);
@@ -105,9 +117,14 @@ namespace PFE.Systems.Combat
         ///
         /// <para>Aging only while visible would make the buffer a log of everything since the overlay
         /// was last enabled: switch it on mid-fight and the last sixty-four hits appear stacked at
-        /// once, all at age zero. Aging always keeps it a rolling 0.9-second window, so enabling it
+        /// once, all at age zero. Aging always keeps it a rolling two-second window, so enabling it
         /// shows the burst that is happening — which is the shot the user enabled it to catch. The cost
         /// is 64 struct copies per frame.</para>
+        ///
+        /// <para><b>It also ages the accumulate windows, and that is not optional.</b> The window is
+        /// what decides whether the next hit adds to a figure or starts a new one; if it only counted
+        /// down while the overlay was visible, switching the overlay on would leave every unit
+        /// permanently accumulating into one number that never resets.</para>
         /// </summary>
         private void Update()
         {
@@ -137,7 +154,7 @@ namespace PFE.Systems.Combat
                 // Rise is a world-space offset, so a number climbs at the same apparent speed
                 // regardless of distance — an offset applied in screen space would make a distant hit
                 // crawl and a near one fly.
-                float rise = DamageEventFeed.RiseOffset(number.Age, _feed.Lifetime);
+                float rise = DamageEventFeed.RiseOffsetWorld(number.Age);
                 Vector3 world = number.Position + Vector3.up * rise;
 
                 Vector3 screen = cam.WorldToScreenPoint(world);
@@ -161,7 +178,13 @@ namespace PFE.Systems.Combat
         {
             float alpha = DamageEventFeed.Alpha(number.Age, _feed.Lifetime);
 
-            GUIStyle style = number.IsCritical ? _crit : _body;
+            // AS3 casts a miss at half strength (`"alpha": 0.5`, `Unit.as:4118`); everything else is
+            // opaque for its whole life, because the `numb` emitter does not fade.
+            if (number.IsMiss) alpha *= DamageEventFeed.MissOpacity;
+
+            // Scale, not a bool: an accumulated figure that took a crit stays enlarged for the rest of
+            // its life, which is AS3's `hitPart.vis.scaleX = 1.6 / cam.scaleV` on an update (`:3954`).
+            GUIStyle style = number.Scale > 1f ? _crit : _body;
             Color tint = ColorFor(number);
 
             // IMGUI's y axis runs down from the top; WorldToScreenPoint's runs up from the bottom.
@@ -186,14 +209,16 @@ namespace PFE.Systems.Combat
         private static Color ColorFor(in DamageNumber number)
         {
             if (number.CustomColor.HasValue) return number.CustomColor.Value;
-            if (number.IsMiss) return new Color(0.72f, 0.72f, 0.78f);   // grey: nothing happened
-            if (number.IsCritical) return new Color(1f, 0.36f, 0.24f);  // red: crit
 
             // A landed hit that did no damage is the signature of armour absorbing everything, so it
-            // gets its own colour rather than reading as a small white number.
-            if (number.Amount <= 0f) return new Color(1f, 0.85f, 0.2f);
+            // gets its own colour rather than reading as a small orange number. AS3 prints nothing at
+            // all for one of these (`param1 > 0.5`, `Unit.as:3683`) — see
+            // DamageEventFeed.MinPrintedDamage for why the diagnostic keeps it.
+            if (!number.IsMiss && number.Amount <= 0f) return new Color(1f, 0.85f, 0.2f);
 
-            return new Color(1f, 0.97f, 0.85f);
+            // Everything else takes the oracle's own tint, sampled from its `visualNumb` frames: orange
+            // for a hit on a monster, red for the player or a stealth crit, grey for a miss, and so on.
+            return DamageEventFeed.ColorFor(number.Frame);
         }
 
         /// <summary>
@@ -207,7 +232,7 @@ namespace PFE.Systems.Combat
         /// </remarks>
         private void DrawReadout()
         {
-            const float width = 300f;
+            const float width = 380f;
             const float height = 20f;
 
             var box = new Rect(Screen.width - width - 8f, Screen.height - height - 8f, width, height);
@@ -217,11 +242,26 @@ namespace PFE.Systems.Combat
             GUI.DrawTexture(box, Texture2D.whiteTexture);
             GUI.color = previous;
 
-            string text = $"<b>[damage]</b> live {_visible.Count}, drawn {_drawn}" +
-                          $", window {_feed.Lifetime:0.00}s" +
+            string text = $"<b>[damage]</b> {StyleName(_feed.Style)}, live {_visible.Count}" +
+                          $", {_feed.AccumulatingCount} adding up, drawn {_drawn}" +
                           (_offscreen > 0 ? $", <color=#ff4040>{_offscreen} behind camera</color>" : "");
 
             GUI.Label(new Rect(box.x + 6f, box.y + 2f, width - 12f, height - 4f), text, _readout);
+        }
+
+        /// <summary>
+        /// The live mode, in the readout's words. The mode is the thing a screenshot cannot otherwise
+        /// show: the same three hits look completely different in <c>adding up</c> and
+        /// <c>one per hit</c>, and a reader has no way to tell which they are looking at.
+        /// </summary>
+        private static string StyleName(HitNumberStyle style)
+        {
+            switch (style)
+            {
+                case HitNumberStyle.Off: return "off";
+                case HitNumberStyle.PerHit: return "one per hit";
+                default: return "adding up";
+            }
         }
 
         private void EnsureStyles()

@@ -42,13 +42,6 @@ namespace PFE.Systems.Combat
         public const int DissolveFrames = 40;
 
         /// <summary>
-        /// Frames between dissolve particles. AS3 emits from <c>Desintegr.step</c> on every frame of
-        /// the second phase (<c>:124-133</c>), gated on the unit's mass; the port thins it to keep the
-        /// particle budget for a whole room of bodies.
-        /// </summary>
-        public const int DissolveParticleIntervalFrames = 4;
-
-        /// <summary>
         /// How much of <paramref name="damage"/> lands <i>below</i> zero HP — the part AS3's unclamped
         /// <c>hp</c> would have kept.
         /// </summary>

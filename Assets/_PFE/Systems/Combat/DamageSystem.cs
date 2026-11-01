@@ -169,6 +169,17 @@ namespace PFE.Systems.Combat
         public int MissedCount { get; private set; }
 
         /// <summary>
+        /// Hits a target <b>refused</b> through <see cref="IDamageContextSink"/> — today only the
+        /// <c>tr2</c> alicorn's <c>osob</c> escape (<c>UnitAlicorn.as:422-427</c>, whose branch ends in
+        /// <c>return 0</c>).
+        ///
+        /// <para>Worth counting because the alternative is indistinguishable from a bug: a player who
+        /// empties a magazine into an alicorn that teleports on the first hit sees "no damage numbers"
+        /// and no explanation. This counter says the refusal happened.</para>
+        /// </summary>
+        public int RefusedCount { get; private set; }
+
+        /// <summary>
         /// True when a reported hit will actually be drained: the flag is on <b>and</b> this system is
         /// on the loop <b>and</b> the loop is dispatching. All three, or <see cref="Report"/> resolves
         /// inline.
@@ -348,8 +359,13 @@ namespace PFE.Systems.Combat
             // the overlay can be switched on mid-burst without having missed the hits that led up to
             // it — a diagnostic that only records from the moment you enable it cannot show you the
             // shot you enabled it to catch.
+            //
+            // The target key is what makes a burst ADD UP instead of printing a column of figures:
+            // AS3 keeps one `hitPart` per unit and sums into it (`Unit.as:3940-3958`). Without a key
+            // every hit is its own figure, which is the per-hit mode.
             DamageEventFeed.Default.Report(
-                hit.ImpactPosition, amount: 0f, isCritical: false, isMiss: true);
+                hit.ImpactPosition, amount: 0f, isCritical: false, isMiss: true,
+                targetKey: TargetKeyOf(hit.Target), frame: HitNumberFrame.Miss);
 
             // AS3 returns -1 here, and that -1 is what keeps the round alive: `Bullet.run` only
             // calls `popadalo()` (the sole setter of the stop flag) when the return is >= 0.
@@ -438,8 +454,24 @@ namespace PFE.Systems.Combat
                 return DamageVerdict.Landed;
             }
 
-            ArmourState armour = target.Armour;
+            // ── The target's last look at the SHOT ───────────────────────────────────────────────
+            // AS3 `UnitAlicorn.damage():415-429` is an override that runs at the TOP of `damage()` —
+            // after `udarBullet` has spread the hit, before vulnerability, armour and crit — and it can
+            // `return 0`, which refuses the hit outright. Two of its three behaviours are gated on facts
+            // that exist only on the shot (the weapon's tip, the owner being the player), so they cannot
+            // be expressed through `DamageOutcome`. This is the seam: an optional interface, asked only
+            // when the target implements it.
+            //
+            // `Refused` is deliberately not `Landed`: nothing is subtracted, worn, critted or thrown.
+            // The round still stops, which is the one thing it shares with a landed hit — AS3's `return
+            // 0` is `>= 0` to `udarBullet`'s caller.
+            if (target is IDamageContextSink contextSink && contextSink.OnDamageContext(in ctx))
+            {
+                RefusedCount++;
+                return DamageVerdict.Refused;
+            }
 
+            ArmourState armour = target.Armour;
             // ── The spell/boss shield's two target-side reads ──────────────────────────────────────
             // AS3 `Unit.shithp` / `Unit.shitArmor` (`Unit.as:134/160`). Read once, here, because both
             // are consumed by two *different* statements in `Unit.damage()` and reading them twice
@@ -575,7 +607,8 @@ namespace PFE.Systems.Combat
 
                 // See the miss path above for why this is unconditional rather than gated on the channel.
                 DamageEventFeed.Default.Report(
-                    hit.ImpactPosition, outcome.HpDamage, outcome.IsCritical, isMiss: false);
+                    hit.ImpactPosition, outcome.HpDamage, outcome.IsCritical, isMiss: false,
+                    targetKey: TargetKeyOf(target), frame: FrameFor(target, hit, outcome));
             }
 
             // Last, and the position is load-bearing: AS3 runs `otbros()` after `this.damage()`
@@ -585,6 +618,46 @@ namespace PFE.Systems.Combat
 
             return DamageVerdict.Landed;
         }
+
+        /// <summary>
+        /// The <c>visualNumb</c> frame for a landed hit — which is to say, the colour of the number
+        /// (<c>Unit.as:3908-3927</c>).
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Only two of the oracle's four assignments can fire here, and that is correct.</b>
+        /// AS3's sequence is <c>1</c>; then <c>2</c> if the target is the player <i>or</i> the hit was a
+        /// stealth crit (<c>_loc5_ &gt;= 2</c>); then <c>3</c> if <c>param4</c>; then <c>11</c> if the
+        /// player took <c>D_PINK</c>. <c>param4</c> is the <b>ambient</b> flag — the path bleed, poison,
+        /// burning, acid and <c>D_INSIDE</c> take (<c>Unit.as:3167</c>, <c>:3176</c>,
+        /// <c>Effect.as:417-438</c>) — and that path does not reach this system at all in the port, so
+        /// there is no <c>3</c> to assign yet.</para>
+        ///
+        /// <para><b>It is deliberately NOT keyed on <see cref="PendingDamage.ReachedDamageWithoutUdarBullet"/>.</b>
+        /// That flag means "a blast or a crate impact", and AS3 gives those frame <c>1</c>/<c>2</c> like
+        /// any other hit — <c>Bullet.explGas():788</c> and <c>Unit.udarBox():4237</c> both call
+        /// <c>damage()</c> with three arguments, leaving <c>param4</c> at its <c>false</c> default. Painting
+        /// blast damage purple would be a plausible-looking invention that no line of the oracle
+        /// supports.</para>
+        /// </remarks>
+        private static int FrameFor(IDamageable target, in PendingDamage hit, in DamageOutcome outcome)
+        {
+            bool onPlayer = target is UnitController unit && unit.IsPlayer;
+
+            if (onPlayer && hit.Context.DamageType == DamageType.Pink)
+                return HitNumberFrame.Pink;
+
+            return onPlayer || outcome.IsStealthCritical
+                ? HitNumberFrame.PlayerDamage
+                : HitNumberFrame.Damage;
+        }
+
+        /// <summary>
+        /// The identity the hit-number feed accumulates against — AS3's per-unit <c>hitPart</c>
+        /// (<c>Unit.as:540</c>). <c>0</c> for a target that is not a Unity object, which switches the
+        /// feed to one figure per hit for it rather than silently pooling every such hit together.
+        /// </summary>
+        private static int TargetKeyOf(IDamageable target)
+            => target is Object unityTarget ? unityTarget.GetInstanceID() : 0;
 
         /// <summary>
         /// The blood a landed hit throws — the port of AS3 <c>Unit.damage()</c>'s blood block

@@ -267,6 +267,50 @@ namespace PFE.Systems.Weapons
             => -0.5f * beamLengthUnits * scaleX;
 
         /// <summary>
+        /// How far a beam's view must slide so its near end stays on the gun while the gun walks —
+        /// AS3 <c>Bullet.as:232-238</c>:
+        ///
+        /// <code>
+        /// if(this.liv &lt; 4 &amp;&amp; Boolean(vis.laser)) {
+        ///    vis.alpha = this.liv / 4;
+        ///    if(this.weap) { this.weap.getBulXY();
+        ///                    vis.x = X + this.weap.bulX - this.begx;
+        ///                    vis.y = Y + this.weap.bulY - this.begy; }
+        /// }
+        /// </code>
+        ///
+        /// <para><b>The oracle re-reads the muzzle and slides the whole view by the displacement since
+        /// the shot left.</b> <c>begx/begy</c> are frozen at construction (<c>Bullet.as:148</c>), so a
+        /// beam's tail sits where the gun <i>was</i> for the entire flight — the port's behaviour and
+        /// the oracle's. Only during the last four frames of <c>liv</c> does AS3 pull the beam back onto
+        /// the current muzzle, which is what makes a fired-while-walking laser stay glued to the barrel
+        /// instead of hanging behind the character.</para>
+        ///
+        /// <para><b>Why the gate is the fade counter and not "while flying".</b> Widening it to the
+        /// whole flight is the obvious "improvement" and it is a different game: a laser that misses
+        /// lives 100 frames and its streak would then follow the player across the room, where the
+        /// oracle leaves it pointing at where the shot was taken. The condition is <c>liv &lt; 4</c>,
+        /// i.e. exactly <see cref="BeamFadeFrames"/> — the same four frames <see cref="BeamFadeAlpha"/>
+        /// fades over, because both lines are inside that one <c>if</c>.</para>
+        /// </summary>
+        /// <param name="beamFadeFramesLeft">
+        /// The port's <c>liv</c> during the post-impact fade. Zero means "in flight", and the answer is
+        /// then zero — see the note above.
+        /// </param>
+        /// <param name="hasMuzzleSource">
+        /// Whether the gun's live muzzle could be read at all. AS3 guards with <c>if(this.weap)</c>;
+        /// a round with no weapon behind it (a test, an explosion's throwaway bullet) keeps its tail.
+        /// </param>
+        /// <param name="currentMuzzle">The muzzle <i>now</i> — the port's <c>weap.bulX/bulY</c>.</param>
+        /// <param name="spawnPosition">The muzzle the shot left from — the port's <c>begx/begy</c>.</param>
+        public static Vector2 BeamMuzzleShift(int beamFadeFramesLeft, bool hasMuzzleSource,
+                                              Vector2 currentMuzzle, Vector2 spawnPosition)
+        {
+            if (beamFadeFramesLeft <= 0 || !hasMuzzleSource) return Vector2.zero;
+            return currentMuzzle - spawnPosition;
+        }
+
+        /// <summary>
         /// How many AS3 frames a round lives <i>after</i> it impacts — <b>4</b>.
         ///
         /// <para>Two lines in the oracle, and both matter. <c>Bullet.as:385-388</c> is the

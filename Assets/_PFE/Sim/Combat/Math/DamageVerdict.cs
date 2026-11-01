@@ -58,5 +58,19 @@ namespace PFE.Systems.Combat
         /// should not also stop on this.
         /// </summary>
         Ignored = 3,
+
+        /// <summary>
+        /// The target <b>refused</b> the hit outright — AS3 <c>UnitAlicorn.damage()</c>'s
+        /// <c>return 0</c> at <c>:426</c>, where a <c>tr2</c> alicorn with <c>osob</c> teleports away
+        /// from the first player-weapon hit and takes <b>none</b> of it.
+        ///
+        /// <para><b>Not <see cref="Landed"/>, and not <see cref="Evaded"/> either.</b> It is not a
+        /// landed hit — nothing was subtracted, no wear, no crit, no knockback, no blood, no number. And
+        /// it is not an evasion: the shot was on target, and the target chose to leave. The round
+        /// <b>is</b> consumed (the oracle returns 0, and <c>udarBullet</c>'s caller reads
+        /// <c>&gt;= 0</c> as "stop"), which is the one thing it shares with
+        /// <see cref="Landed"/>.</para>
+        /// </summary>
+        Refused = 4,
     }
 }

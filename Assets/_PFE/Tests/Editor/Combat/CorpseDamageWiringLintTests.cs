@@ -211,5 +211,161 @@ namespace PFE.Tests.Editor.Combat
             Assert.That(unit, Does.Contain("TickCorpse"),
                 "and the motor-less driver needs it too, or the other half of the units never finish");
         }
+
+        // ── The dissolve itself (AS3 `serv/Desintegr.as`) ──────────────────────────────────────
+
+        [Test]
+        public void TickCorpse_DrivesTheEffectAndNotJustACountdown()
+        {
+            // The regression this guards: `TickCorpse` used to advance a counter and fade the renderer's
+            // alpha, so a body "dissolved" by standing still for 40 frames and then blinking out — the
+            // reported "they just simply disappear". The oracle's step is three effects read off one
+            // frame number (`Desintegr.as:112-135`).
+            string body = SourceLint.MethodBody(
+                SourceLint.ReadStripped("Entities/Units/UnitController.cs"),
+                "public void TickCorpse()");
+
+            Assert.That(body, Does.Contain("_corpseDissolveFrames"),
+                "positive control: this is TickCorpse's body");
+
+            Assert.That(body, Does.Contain("ApplyDissolveFrame"),
+                "the tint, the erosion and the glow have to be pushed every frame, or the body just " +
+                "waits 40 frames and vanishes");
+
+            Assert.That(body, Does.Contain("EmitsParticles"),
+                "the particle gate is the oracle's (Desintegr.as:119-128), not a fixed interval");
+        }
+
+        [Test]
+        public void ExterminateCorpse_KeepsTheBurstAndTheDissolveApart()
+        {
+            // Two different removals: `expl(); exterminate()` on the non-burning arms, and a bare
+            // `exterminate()` when the burn has already played. Collapsing them either sprays blood out
+            // of a body that just crumbled or removes a rat silently.
+            string source = SourceLint.ReadStripped("Entities/Units/UnitController.cs");
+
+            Assert.That(source, Does.Contain("private void ExterminateCorpse(bool bloodBurst)"),
+                "the flag is the whole distinction; a no-argument overload would let a caller pick the " +
+                "wrong arm by accident");
+
+            Assert.That(source, Does.Contain("ExterminateCorpse(bloodBurst: true)"),
+                "the non-burning arms must burst");
+
+            Assert.That(source, Does.Contain("ExterminateCorpse(bloodBurst: false)"),
+                "and the completed dissolve must not — its particles were the effect");
+        }
+
+        [Test]
+        public void EverySpawnedUnitIsHandedItsRenderer()
+        {
+            // The bug this pins: `SetVisualRenderer` sat inside the `npc` branch, so an enemy's
+            // `_visualRenderer` was null for its whole life. `SetVisible` still worked (it reaches the
+            // animator by search) but every renderer-driven effect — the dissolve's fade, and now its
+            // material — wrote to nothing, and the failure was silent.
+            string spawn = SourceLint.MethodBody(
+                SourceLint.ReadStripped("Systems/Map/Rendering/RoomUnitSpawner.cs"),
+                "GameObject Spawn(UnitInstance unit)");
+
+            Assert.That(spawn, Does.Contain("ApplySprite(renderer"),
+                "positive control: this is Spawn's body");
+
+            int handover = spawn.IndexOf("controller.SetVisualRenderer(renderer)");
+            int npcBranch = spawn.IndexOf("controller is UnitNPCController");
+
+            Assert.That(handover, Is.GreaterThanOrEqualTo(0),
+                "the renderer has to reach the controller at all");
+            Assert.That(npcBranch, Is.GreaterThanOrEqualTo(0),
+                "control: the npc branch is still there, so the index comparison below is meaningful");
+            Assert.That(handover, Is.LessThan(npcBranch),
+                "the handover must be unconditional — before the npc branch, not inside it. Inside, " +
+                "every enemy in the game has a null renderer and no effect that draws on one works.");
+        }
+
+        [Test]
+        public void EnterCorpse_AsksTheDamageTypeBeforeTheCorpseArm()
+        {
+            // AS3's arm order (`Unit.as:4317-4367`): `noDestr`, then `param1 > 0`, then the two `trup`
+            // arms, then `expl(); exterminate()`. So the damage-type burn outranks the corpse — a rat
+            // (`trup='0'`) killed by fire burns away instead of bursting, and a body killed by plasma
+            // never becomes a corpse at all. Putting this arm anywhere lower silently disables it for
+            // every unit that leaves a body, which is almost all of them.
+            string body = SourceLint.MethodBody(
+                SourceLint.ReadStripped("Entities/Units/UnitController.cs"),
+                "private void EnterCorpse()");
+
+            Assert.That(body, Does.Contain("TipForDamageType"),
+                "positive control: this is EnterCorpse's body and it consults the damage-type table");
+
+            int damageArm = body.IndexOf("TipForDamageType");
+            int corpseArm = body.IndexOf("leavesCorpse");
+
+            Assert.That(corpseArm, Is.GreaterThanOrEqualTo(0),
+                "control: the `trup='0'` arm is still in this method");
+            Assert.That(damageArm, Is.LessThan(corpseArm),
+                "the damage-type arm has to come FIRST — AS3 tests `param1 > 0` before `trup`");
+
+            Assert.That(body, Does.Contain("BeginDissolve(damageTip)"),
+                "a decided tip must reach the one dissolve entry point, not a copy of it");
+        }
+
+        [Test]
+        public void ApplyDamage_RecordsTheKillingTypeBeforeTheDeathRuns()
+        {
+            // The type is only useful if it is written down before `RaiseDeath()` can read it. The
+            // ordering is the whole content of this lint: assigning it after the death branch would be
+            // a silent no-op that still compiles and still looks right in a diff.
+            string body = SourceLint.MethodBody(
+                SourceLint.ReadStripped("Entities/Units/UnitController.cs"),
+                "public virtual bool ApplyDamage(in DamageOutcome outcome)");
+
+            int record = body.IndexOf("_lastDamageType = outcome.DamageType");
+            int apply = body.IndexOf("_unitStats.ApplyDamage(outcome)");
+            int raise = body.IndexOf("RaiseDeath");
+
+            Assert.That(record, Is.GreaterThanOrEqualTo(0),
+                "the outcome carries the type; ApplyDamage is the only place it can be kept");
+            Assert.That(apply, Is.GreaterThanOrEqualTo(0), "control: this is the apply path");
+            Assert.That(raise, Is.GreaterThanOrEqualTo(0), "control: the death trigger is in this body");
+
+            Assert.That(record, Is.LessThan(apply),
+                "recorded before the pool is spent, as AS3 reads `param2` at the same line it subtracts");
+            Assert.That(record, Is.LessThan(raise),
+                "and before the death branch table asks which preset the killing blow wanted");
+        }
+
+        [Test]
+        public void BeginDissolve_IsTheOnlyPlaceADissolveStarts()
+        {
+            // Two arms now choose a tip — blood (`BeginCorpseDestroy`) and damage type (`EnterCorpse`).
+            // They must converge on ONE setup, or the second one grows its own copy of the material
+            // swap, the glow radius and the sound, and the two drift.
+            string source = SourceLint.ReadStripped("Entities/Units/UnitController.cs");
+
+            Assert.That(source, Does.Contain("private void BeginDissolve(DesintegrTip tip)"),
+                "the shared entry point exists");
+
+            Assert.That(source, Does.Contain("BeginDissolve(tip)"),
+                "the blood arm calls it");
+            Assert.That(source, Does.Contain("BeginDissolve(damageTip)"),
+                "the damage-type arm calls it");
+
+            int transitions = CountOccurrences(source, "_corpseState = CorpseState.Dissolving");
+            Assert.AreEqual(1, transitions,
+                "exactly one assignment puts a body into the dissolving state — a second one is a " +
+                "duplicated setup path, and `CorpseState.Dissolving` is what makes the dissolve tick");
+        }
+
+        private static int CountOccurrences(string haystack, string needle)
+        {
+            int count = 0;
+            int at = haystack.IndexOf(needle, System.StringComparison.Ordinal);
+            while (at >= 0)
+            {
+                count++;
+                at = haystack.IndexOf(needle, at + needle.Length, System.StringComparison.Ordinal);
+            }
+
+            return count;
+        }
     }
 }

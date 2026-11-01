@@ -1,5 +1,7 @@
 namespace PFE.Systems.Combat
 {
+    using PFE.Data.Definitions;
+
     /// <summary>
     /// The result of resolving one damage context against one target.
     ///
@@ -89,6 +91,28 @@ namespace PFE.Systems.Combat
         public readonly float ShieldHpAfter;
 
         /// <summary>
+        /// What kind of damage this was — AS3 <c>Unit.damage(param1, param2, …)</c>'s <c>param2</c>, the
+        /// <c>D_*</c> code. Defaults to <see cref="DamageType.PhysicalBullet"/> (<c>D_BUL</c>, 0), which
+        /// is AS3's own default for a hit that does not say.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Carried because the <i>death</i> effect is chosen from it, not from the weapon.</b>
+        /// <c>Unit.as:3713-3741</c> turns <c>param2</c> into the <c>_loc10_</c> burn tip that
+        /// <c>die(_loc10_)</c> receives, and a positive tip is the <b>first</b> arm of the death branch
+        /// table (<c>:4325</c>) — it beats both the corpse arm and the blood-colour arm. Nothing on the
+        /// target side survives that long: by the time the body is being decided, the
+        /// <see cref="DamageContext"/> is gone and the only thing left is the outcome. Without this field
+        /// the port can only ever dissolve a body with the blood preset, so a plasma kill looks
+        /// identical to a rifle kill.</para>
+        ///
+        /// <para><b>Defaulting to bullet is the correct zero, not a placeholder.</b> <c>D_BUL</c> is one
+        /// of the codes that maps to <i>no</i> burn tip, so an outcome built by a fixture or by the dev
+        /// console — neither of which is a weapon hit — behaves exactly like a rifle shot, which is what
+        /// they are.</para>
+        /// </remarks>
+        public readonly DamageType DamageType;
+
+        /// <summary>
         /// <see cref="ShieldHpAfter"/>'s "this hit did not touch a shield" sentinel. Negative so it can
         /// never collide with a real pool value, which AS3 clamps at <c>0</c>.
         /// </summary>
@@ -101,7 +125,8 @@ namespace PFE.Systems.Combat
             bool armourReduced = false,
             bool isCritical = false,
             bool isStealthCritical = false,
-            float shieldHpAfter = NoShield)
+            float shieldHpAfter = NoShield,
+            DamageType damageType = default)
         {
             HpDamage = hpDamage;
             ArmourIntegrityDamage = armourIntegrityDamage;
@@ -110,6 +135,7 @@ namespace PFE.Systems.Combat
             IsCritical = isCritical;
             IsStealthCritical = isStealthCritical;
             ShieldHpAfter = shieldHpAfter;
+            DamageType = damageType;
         }
 
         /// <summary>True when armour ate the whole hit — useful for feedback and for tests.</summary>

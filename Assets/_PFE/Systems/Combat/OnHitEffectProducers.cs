@@ -148,8 +148,24 @@ namespace PFE.Systems.Combat
                 case "poison":
                 case "cut":
                 case "stun":
-                case "psy":
                     receiver.Effects.RecordUnmappedName("dopEffect:" + dopEffect);
+                    return;
+
+                // `psy` is NOT in the group above, and grouping it there was a mistake worth recording.
+                // AS3 `UnitPlayer.damage():3253-3268` turns this id into one of three real effects —
+                // `horror` / `vote` / `disorient` (`PsyEffectRules`).
+                //
+                // It is handled in the PLAYER's damage hook rather than here, and that placement is the
+                // oracle's: the branch lives in `UnitPlayer.damage()`, not in `Unit.damage()`, above
+                // the `loc.train || loc.base` return, with no `vulner` test and no `dopCh` re-roll.
+                // Adding it here would put a susceptibility gate and an extra RNG draw on it, and would
+                // apply it to NPCs — which the oracle never does.
+                //
+                // So silence is CORRECT for a non-player receiver: the base `Unit.damage()` has no psy
+                // arm, so an NPC struck by `psy` receives nothing. That is why this case records no
+                // unmapped name any more — the earlier version did, and the diagnostic then reported a
+                // gap that no longer existed.
+                case "psy":
                     return;
 
                 default:
