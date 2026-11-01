@@ -420,55 +420,11 @@ namespace PFE.Entities.Enemies.Archetypes
                 UnityEngine.Random.Range(0, UnitJumpMath.CooldownRollRange));
         }
 
-        /// <summary>
-        /// AS3 <c>UnitZombie.checkJump()</c> (<c>UnitZombie.as:465-484</c>) — the headroom probe.
-        ///
-        /// <para><b>Four probes, and any one of them being non-air refuses the jump.</b> Two heights above
-        /// the feet (85 and 125 px) in the unit's own column and in the column one tile toward its facing.
-        /// The oracle writes it as four early <c>return false</c>s; the port writes it as four
-        /// <c>&amp;&amp;</c>s, which is the same predicate.</para>
-        ///
-        /// <para><b><c>phis != 0</c> maps to <c>IsWallAtRoomLocalPixels</c>, and that is not an
-        /// approximation.</b> AS3 asks whether the tile is <i>anything but air</i>, which reads like it
-        /// should map to "not <c>Air</c>" here — and it should not. The port's
-        /// <see cref="TilePhysicsType"/> splits AS3's <c>phis == 0</c> case into the geometry markers
-        /// <c>Platform</c> and <c>Stair</c> (<c>TilePhysicsType.cs:7-21</c>), and <c>TileDecoder</c>'s
-        /// <c>MapPhysicsType</c> maps <b>every non-zero <c>phis</c> to <c>Wall</c></b>
-        /// (<c>TileDecoder.cs:296-303</c>). So <c>physicsType == Wall</c> <i>is</i> the port's encoding of
-        /// "AS3 <c>phis</c> is non-zero" (<c>TileData.cs:205-209</c>), and a catwalk or ladder — air to AS3
-        /// — is correctly <b>not</b> a headroom blocker.</para>
-        ///
-        /// <para><b>No room to ask is not a refusal.</b> A brain spawned without a room cannot answer the
-        /// question, and refusing would make a bare test spawn permanently unable to jump for a reason that
-        /// has nothing to do with headroom. <c>true</c> is the honest degradation: the caller has already
-        /// established the unit is grounded and has an impulse.</para>
-        /// </summary>
-        private bool HasJumpHeadroom()
-        {
-            if (_tileQuery == null || _tileQuery.Room == null)
-            {
-                return true;
-            }
+        // `HasJumpHeadroom()` — AS3 `UnitZombie.checkJump()` (`:465-484`) — now lives on `EnemyBrain`,
+        // because the ArmedShooter family needs the identical four-probe test (`UnitRaider.as:603-623`)
+        // and a second copy is how two definitions of one literal drift apart. Its doc, including the
+        // `phis != 0` → `IsWallAtRoomLocalPixels` mapping, moved with it.
 
-            // Room-local pixels: world pixels minus the room origin, the same space `HasWallUnderFeet`
-            // uses and the space AS3's `X`/`Y` are already in.
-            Vector2 origin = _tileQuery.OriginPixel;
-            float feetX = transform.position.x * 100f - origin.x;
-            float feetY = transform.position.y * 100f - origin.y;
-
-            int facing = _controller != null ? _controller.FacingDirection : 1;
-
-            float aheadX = UnitJumpMath.HeadroomAheadPixelX(feetX, facing);
-            float lowY = UnitJumpMath.HeadroomLowPixelY(feetY);
-            float highY = UnitJumpMath.HeadroomHighPixelY(feetY);
-
-            RoomInstance room = _tileQuery.Room;
-
-            return !room.IsWallAtRoomLocalPixels(new Vector2(feetX, lowY))
-                && !room.IsWallAtRoomLocalPixels(new Vector2(feetX, highY))
-                && !room.IsWallAtRoomLocalPixels(new Vector2(aheadX, lowY))
-                && !room.IsWallAtRoomLocalPixels(new Vector2(aheadX, highY));
-        }
 
         // ── The ledge sense: AS3 `shX1`/`shX2` ──────────────────────────────────────────────────────
         //
@@ -490,17 +446,10 @@ namespace PFE.Entities.Enemies.Archetypes
         // hop suppresses the next target-overhead jump, but the ledge sites are themselves NOT gated on
         // the cooldown (there is no `aiJump <= 0` test at :789 or :890), and neither is this.
 
-        /// <summary>
-        /// AS3 <c>UnitZombie.as:791</c>/<c>:810</c> — <c>isrnd(0.1)</c>: the chance, per tick at a lip,
-        /// that the zombie even <i>looks</i> for a crate before turning around.
-        /// </summary>
-        private const float PatrolProbeChance = 0.1f;
-
-        /// <summary>
-        /// AS3 <c>UnitZombie.as:829</c> — <c>if(isrnd(0.1)) { aiState = 0; }</c>: one turn in ten also
-        /// drops the zombie to idle before it resumes patrolling.
-        /// </summary>
-        private const float PatrolIdleChance = 0.1f;
+        // The two probabilities this archetype's ledge sites roll live on EnemyBrain
+        // (`PatrolProbeChance` / `PatrolStopChance`), because the patrol arm that uses them is shared.
+        // They were private constants here first, and the base copies were added when the patrol arm
+        // moved down — two definitions of `isrnd(0.1)` is how one of them drifts.
 
         /// <summary>
         /// AS3 <c>UnitZombie.as:892</c> — <c>isrnd(0.5)</c>, the chase's chance of taking the half hop
@@ -670,7 +619,7 @@ namespace PFE.Entities.Enemies.Archetypes
             _blackboard.FacingDirection = turned;
             ApplyFacing(turned);
 
-            if (UnityEngine.Random.value < PatrolIdleChance)
+            if (UnityEngine.Random.value < PatrolStopChance)
             {
                 SetState(EnemyAIState.Idle);
             }
@@ -888,10 +837,11 @@ namespace PFE.Entities.Enemies.Archetypes
             //
             // ORDERING THIS DEPENDS ON: `EnemyBrain.SyncSensorTuning()` copies the unit's `ear` from the
             // definition into this same field, and it would silently undo the override below. It is safe
-            // only because `RoomUnitSpawner` calls `Initialize` (→ `OnDefinitionAssigned` → sync) BEFORE
-            // `ApplyPlacement` (→ `OnPlacementApplied` → this method), and nothing re-syncs per tick. If
-            // a future change makes the sync periodic, the buried ear must move into the sync's own
-            // source (a `UnitController` override) rather than being written here.
+            // only because both sync points run BEFORE this method's body: `RoomUnitSpawner` calls
+            // `Initialize` (→ `OnDefinitionAssigned` → sync) and then `ApplyPlacement`
+            // (→ `OnPlacementApplied` → `base` sync → this). Nothing re-syncs per tick. If a future
+            // change makes the sync periodic, the buried ear must move into the sync's own source (a
+            // `UnitController` override) rather than being written here.
             if (!_buriedEarCaptured)
             {
                 _unburiedEar = _sensors.Ear;
@@ -1717,16 +1667,17 @@ namespace PFE.Entities.Enemies.Archetypes
         }
 
         /// <summary>
-        /// Where the spit is aimed: the target's body centre when there is one, otherwise the point
-        /// ahead of the muzzle. Same shape as <c>ArmedShooterBrain.ResolveAimWorldPoint</c>.
+        /// Where the spit is aimed: <c>setCel(target)</c>'s point when there is a target, otherwise the
+        /// point ahead of the muzzle. Same shape as <c>ArmedShooterBrain.ResolveAimWorldPoint</c>.
         /// </summary>
         private Vector2 ResolveAimWorldPoint()
         {
             if (_blackboard.TargetUnit != null)
             {
-                UnitController target = _blackboard.TargetUnit;
-                float height = target.Stats != null ? target.Stats.Height * 100f : 50f;
-                return (Vector2)target.transform.position * 100f + new Vector2(0f, height * 0.5f);
+                // `setCel(target)`'s point — mid-body plus a quarter-width lead (`Unit.as:4707-4708`),
+                // NOT the target's feet. A spit aimed at the feet lands on the floor tile she stands
+                // on; the port's own centre-only version was half the fix and still short of the lead.
+                return EnemySensors.GetUnitAimWorld(_blackboard.TargetUnit);
             }
 
             Vector2 eye = GetEyePositionPixels();

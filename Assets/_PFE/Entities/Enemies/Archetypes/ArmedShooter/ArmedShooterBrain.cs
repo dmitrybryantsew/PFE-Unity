@@ -7,6 +7,7 @@ using PFE.Systems.Combat;
 using PFE.Systems.Weapons;
 using PFE.Systems.Map;
 using PFE.Systems.Map.TileQuery;
+using PFE.Sim.Units;
 using UnityEngine;
 
 namespace PFE.Entities.Enemies.Archetypes
@@ -61,16 +62,25 @@ namespace PFE.Entities.Enemies.Archetypes
         /// Mirrors AS3 <c>UnitRaider.dash</c> (<c>UnitRaider.as:57</c>) — the gate on the states-7/8
         /// dash-and-charge arm (<c>:764</c>).
         ///
-        /// <para><b>It is never assigned, and that is faithful.</b> AS3 declares
-        /// <c>public var dash:Boolean = false</c> and then never writes it: <c>:57</c> is the declaration
-        /// and <c>:764</c> is its only read, and no <c>&lt;un dash=…&gt;</c> exists anywhere in
-        /// <c>AllData.as</c> (grep: 0 hits). So the dash arm is dead in the <b>oracle</b> too, and the
-        /// port's dead arm is a copy of the oracle's dead arm, not a port defect. Kept because a
-        /// faithful port reproduces the oracle's reachability, not its intent — and because deleting it
-        /// would make the port *diverge* the day a subclass sets it.</para>
+        /// <para><b>It is live, for exactly one family, and this comment used to say the opposite.</b>
+        /// <c>UnitRaider</c> declares <c>public var dash:Boolean = false</c> and never writes it, and no
+        /// <c>&lt;un dash=…&gt;</c> exists in <c>AllData.as</c> — so a grep of the <i>base</i> class says
+        /// the arm is dead, which is what the previous note concluded. But <c>UnitZebra.as:25</c> writes
+        /// <c>dash = true;</c> in its constructor, and <c>UnitZebra</c> is the only subclass that does.
+        /// The arm was therefore dead for the one class it exists for: the zebra — the charger, the
+        /// family whose whole silhouette is a body that runs you down — never reached states 7 or 8.
+        /// <see cref="ApplyDefinitionTuning"/> now sets it from the family id, beside <c>tupizna</c> and
+        /// <c>durak</c>.</para>
         /// </summary>
         [SerializeField] protected bool _canDash;
-        [SerializeField] protected bool _durak = true; // allows sprinting
+        /// <summary>
+        /// AS3 <c>UnitRaider.durak</c> (<c>UnitRaider.as:55</c>, declared <c>true</c>) — the oracle's
+        /// "foolish" flag, and it cuts both ways: a <c>durak</c> unit takes the run speed in states 2/3
+        /// (<c>:1014</c>) but re-asserts its heading only 50 % of the time instead of 90 % (<c>:1185</c>).
+        /// <c>UnitZebra.as:24</c>, <c>UnitEncl.as:23</c> and <c>UnitRanger.as:22</c> clear it;
+        /// <c>UnitMerc</c> does not. <see cref="ApplyDefinitionTuning"/> derives it from the family id.
+        /// </summary>
+        [SerializeField] protected bool _durak = true;
         /// <summary>
         /// AS3 <c>UnitRaider.flyer</c> (<c>UnitRaider.as:29</c>) — "this unit can fly", a <b>class</b>
         /// fact for the two subclasses that set it in their constructors.
@@ -185,11 +195,54 @@ namespace PFE.Entities.Enemies.Archetypes
         protected int _aiTCh;
 
         /// <summary>
+        /// AS3 <c>aiNapr</c> (<c>Unit.as:348</c>, aliased to <c>storona</c> wherever either is written) —
+        /// the direction this unit <b>wants to move</b>, as a <i>latched</i> value.
+        ///
+        /// <para><b>The latch is the whole mechanism, not an implementation detail.</b> The oracle
+        /// re-asserts it from <c>celDX</c> only every fifteen ticks and only when the target is more than
+        /// 100 px away (<c>:1181-1196</c>), and every turn — at a wall, at a lip — writes it. Between
+        /// those writes it <i>persists</i>, which is what lets a raider that turned at a wall walk away
+        /// from it for a few seconds instead of turning straight back. The port derived the direction
+        /// from <c>TargetDeltaX</c> on every tick, so a turn lasted exactly one frame: that is the
+        /// "stuck in geometry" report.</para>
+        /// </summary>
+        protected int _aiNapr;
+
+        /// <summary>
+        /// AS3 <c>aiTTurn</c> (<c>Unit.as:352</c>, declared <c>10</c>) — how many more blocked ticks the
+        /// unit will try to <i>jump</i> before it commits to going around. Only the wall reaction reads
+        /// it; every refusal costs <see cref="ArmedShooterStateMath.WallTurnPenalty"/>.
+        /// </summary>
+        protected int _aiTTurn = ArmedShooterStateMath.WallTurnInitialTicks;
+
+        /// <summary>
         /// Family internal state (0..8 in UnitRaider.as:624-1453):
         /// 0: Idle, 1: Patrol, 2: Alert, 3: CombatChase, 4: Hold/strafe,
         /// 5: Spotted deciding, 6: Grenade/mine approach, 7: Dash wind-up, 8: Charge
         /// </summary>
         protected int _familyState;
+
+        /// <summary>
+        /// The port's <c>Unit.overLook</c> — <b>latched</b> from
+        /// <see cref="ArmedShooterStateMath.OverLookForFamilyState"/> because the oracle's states 4, 5
+        /// and 7 do not touch it, and pushed to <see cref="EnemySensors.Omnidirectional"/> at the top of
+        /// every tick.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Why a latched field and not a property.</b> The oracle's <c>overLook</c> is a plain
+        /// <c>Boolean</c> on the unit that three different state bodies write and nothing recomputes, so
+        /// its value in state 4 depends on whether the unit arrived from state 3 or from state 1. A
+        /// property that mapped the state to a value would have to answer for 4/5/7, and every answer it
+        /// could give is a rule the oracle does not have.</para>
+        ///
+        /// <para><b>Seeded <c>false</c>, which is what the data says for every raider.</b> AS3 seeds it
+        /// from the unit row (<c>Unit.as:1345</c>, <c>node.@overlook &gt; 0</c>), and only the bosses and
+        /// <c>turret2</c> author <c>overlook='1'</c> — <c>raider</c>, <c>slaver</c>, <c>merc</c>,
+        /// <c>ranger</c> and <c>encl</c> are all <c>0</c>. The seed is therefore inert for this
+        /// archetype and only matters for a subclass; the state bodies override it within one tick
+        /// anyway.</para>
+        /// </remarks>
+        protected bool _overLook;
 
         protected float _walkSpeed = 2f;
         protected float _runSpeed = 4f;
@@ -243,6 +296,15 @@ namespace PFE.Entities.Enemies.Archetypes
         protected int _secondaryFiring = -1;
 
         protected override bool StopsToAttack => false;
+
+        /// <summary>
+        /// <c>UnitRaider.as:1378-1387</c> — a raider walks doors open. The gate there is
+        /// <c>pumpObj.lock &lt;= 0 &amp;&amp; pumpObj.active &amp;&amp; pumpObj.action == 1 &amp;&amp;
+        /// pumpObj.lockTip != 4</c>; the port applies the first two in
+        /// <see cref="EnemyBrain.TryPushDoorOpen"/> and has no <c>lockTip</c> concept — a door it cannot
+        /// open is simply a locked one, which is the same outcome.
+        /// </summary>
+        protected override bool CanOpenDoors => true;
 
         /// <summary>
         /// AS3 <c>stroll == false</c> — this unit was authored to hold its post rather than wander.
@@ -313,16 +375,48 @@ namespace PFE.Entities.Enemies.Archetypes
 
             UnitDefinition def = _controller.Definition;
 
-            _walkSpeed = _isWalker ? 2.5f : (def.moveSpeed > 0 ? def.moveSpeed : 2f);
-            float runMult = def.runMultiplier > 0 ? def.runMultiplier : 2f;
-            _runSpeed = _canDash ? _walkSpeed * 3f : _walkSpeed * runMult;
+            // ── The row flags, BEFORE anything reads them ────────────────────────────────────────────
+            //
+            // `_walkSpeed` is derived from `_isWalker` and `_isWalker` is derived from the row, so the
+            // assignment has to come first. It did not, and the two passes this method makes then
+            // disagreed: the first (during `Initialize`) computed a walker's walk speed from
+            // `moveSpeed`, and the second (`OnWeaponEquipped`, once the weapon is mounted) recomputed it
+            // as 2.5. A zebra therefore walked at 4 until it was armed and at 2.5 afterwards, and which
+            // one a reader saw depended on when they looked.
+            if (def.isWalker) _isWalker = true;
+            if (def.isSniper) _isSniper = true;
+
+            string defId = def.id != null ? def.id.ToLowerInvariant() : "";
+
+            // `parentId` is the family id (`encl1` → `encl`); the unit's own id is the fallback for a
+            // family template, which has no parent. Every per-class constant below is keyed on it.
+            string familyId = !string.IsNullOrEmpty(def.parentId) ? def.parentId : defId;
+
+            // The class table first, because `runSpeed` below depends on `dash` — the zebra is the only
+            // family that overrides the raider's `× 2` with `× 3`, and it does so in the same
+            // constructor that sets `dash`. See ClassConstantsFor for the transcription.
+            ArmedShooterStateMath.ClassConstants constants =
+                ArmedShooterStateMath.ClassConstantsFor(familyId);
+
+            // ── `maxSpeed`, `walkSpeed`, `runSpeed` (UnitRaider.as:152-160, UnitZebra.as:31) ─────────
+            //
+            //     walkSpeed = maxSpeed;  if(this.walker) walkSpeed = 2.5;
+            //     runSpeed  = maxSpeed * 2;          // UnitRaider.as:160
+            //     runSpeed  = maxSpeed * 3;          // UnitZebra.as:31 — after super() returns
+            //
+            // **`maxSpeed` is the ROW's speed, not `walkSpeed`, and the two differ for a walker.**
+            // The port derived the run speed from `walkSpeed` and multiplied by `runMultiplier` (2), so
+            // the zebra — which is `isWalker: 1`, `moveSpeed: 4` — ran at 2.5 × 2 = **5** px/frame where
+            // the oracle gives 4 × 3 = **12**. That is not a tuning nudge: the zebra is the one
+            // ArmedShooter built to close a gap, the player simply walks away from it, and a boss that
+            // cannot arrive reads in play as a boss that is not moving.
+            float maxSpeed = def.moveSpeed > 0f ? def.moveSpeed : 2f;
+            _walkSpeed = ArmedShooterStateMath.WalkSpeedFor(maxSpeed, _isWalker);
+            _runSpeed = ArmedShooterStateMath.RunSpeedFor(maxSpeed, def.runMultiplier, constants.Dash);
 
             _patrolSpeed = _walkSpeed;
             _chaseSpeed = _runSpeed;
             _alertSpeed = _runSpeed * 0.6f;
-
-            if (def.isWalker) _isWalker = true;
-            if (def.isSniper) _isSniper = true;
 
             // AS3 `aiDist` (`UnitRaider.as:323-326`, declared 1000). This used to read
             // `detectionDistance` — AS3's *observation* power, which the importer leaves at 400 for every
@@ -333,24 +427,37 @@ namespace PFE.Entities.Enemies.Archetypes
             // AS3 `stalkDist` (`:327-330`, declared 500), the flyer's hover radius.
             _stalkDistance = def.stalkDistance > 0 ? def.stalkDistance : 500f;
 
-            string defId = def.id != null ? def.id.ToLowerInvariant() : "";
+            // ── The per-class constants, read from the constructors ─────────────────────────────────
+            //
+            // `tupizna`, `durak`, `dash`, `flyer`, `visionMult` and `maxSpok` are all declared with a
+            // default on `UnitRaider`/`Unit` and overwritten by a subclass constructor that runs after
+            // `super(...)`. They are CLASS facts — nothing in `AllData.as` authors them — so the only
+            // way to know one is to read the subclass, and none of them was ported: every ArmedShooter
+            // in the game used the raider defaults. The table lives in
+            // `ArmedShooterStateMath.ClassConstantsFor` so the offline harness can pin it against the
+            // oracle's literals; this is the wiring.
+            //
+            // What the zebra was getting wrong, concretely:
+            //   tupizna 40 → 10   it stood for up to 59 ticks after spotting the player, not 29
+            //   durak   true → false  it took the run speed in states 2/3 and re-asserted its heading
+            //                        50 % of the time instead of 90 % — faster AND worse at steering
+            //   dash    false → true  states 7 and 8 never happened, i.e. no wind-up, no charge
+            //   visionMult 1 → 1.3    it saw 23 % shorter than the oracle's zebra
+            _tupizna = constants.Tupizna;
+            _durak = constants.Durak;
+            _canDash = constants.Dash;
+            _isFlyer = constants.Flyer;
+            _maxSpok = constants.MaxSpok;
 
-            // AS3 sets `maxSpok` per class in the constructor, not from imported data: `Unit.as:362`
-            // declares 30, and of the seven ArmedShooter classes only two override it —
-            // `UnitEncl.as:25` and `UnitMerc.as:27`, both to 50. One 30 for the whole family made the
-            // encl and merc variants commit to a target after 30 awareness ticks instead of 50, i.e. a
-            // shorter and quieter engagement than the oracle's. `parentId` is the family id (`encl1` →
-            // `encl`); the unit's own id is the fallback for a family template, which has no parent.
-            string familyId = !string.IsNullOrEmpty(def.parentId) ? def.parentId : defId;
-            _maxSpok = (familyId == "encl" || familyId == "merc") ? 50 : 30;
+            if (_sensors != null)
+            {
+                _sensors.VisionMultiplier = constants.VisionMultiplier;
+            }
 
-            // AS3 `flyer` is a class fact, not a row attribute — `UnitMerc.as:22` and `UnitEncl.as:18`
-            // set it in their constructors and nothing in `AllData` authors `<un flyer>` (grep: 0). The
-            // port routes `merc*` through `controllerId: raider`, so the brain cannot tell the class
-            // from its own type; the family id is the fact it does have, and it is the same one the
-            // `maxSpok` line above already trusts. `merc1..5` carry `parentId: merc` and `encl1..4`
-            // `parentId: encl`, and no other unit does.
-            _isFlyer = familyId == "merc" || familyId == "encl";
+            // `flyer` used to be derived here from the family id, and it now comes from the constants
+            // table above with the rest of the class facts. `UnitMerc.as:22` and `UnitEncl.as:18` set it
+            // in their constructors; nothing in `AllData` authors `<un flyer>` (grep: 0), so the family
+            // id is still the only input — it just has one reader now instead of two.
 
             // ── The attack branch, read off the weapon the controller rolled ──────────────────
             //
@@ -456,7 +563,57 @@ namespace PFE.Entities.Enemies.Archetypes
                 if (_aiSpok > 0 && tickIndex % 10 == 0) _aiSpok--;
             }
 
+            // ── overLook → the sensors' cone switch, BEFORE the sensors run ────────────────────────
+            //
+            // `findCel()` is called at `UnitRaider.as:794`, which is ~380 lines ABOVE the state bodies
+            // that write `overLook` (:1074, :1078, :1178) — so in the oracle a frame's sighting uses the
+            // PREVIOUS frame's flag. Latching from `_familyState` here, before `base.SimTick` runs
+            // `Evaluate`, reproduces that ordering exactly rather than approximately.
+            //
+            // Without this the flag stayed false for every raider in every state, so the facing cone
+            // applied during a chase: the player steps behind the shooter and `TargetUnit` goes null on
+            // that tick, leaving `ChaseLastKnownPosition` to walk to a stale point. The oracle's chasing
+            // raider tracks through 360° (`look(target, true)` drops the behind-gate at `:4598`).
+            bool? overLook = ArmedShooterStateMath.OverLookForFamilyState(_familyState);
+            if (overLook.HasValue)
+            {
+                _overLook = overLook.Value;
+            }
+
+            _sensors.Omnidirectional = _overLook;
+
             base.SimTick(tickIndex);
+
+            // ── AS3 `findCel()`'s re-arm: `if(celUnit) { this.replic("attack"); aiSpok = maxSpok + 10; }` ──
+            //
+            // `_aiSpok` was declared, read by `TickIdle` and by the state-4 gate below, and **written by
+            // nothing but `Alarma`** — so it started at 0 and only ever drained. Two consequences, both
+            // reported as behaviour: `TickIdle`'s `_aiSpok >= _maxSpok` promotion was unreachable, and
+            // the ranged raider's hold state (`aiSpok >= maxSpok + 8`) could never be entered at all.
+            //
+            // In the oracle the value is re-armed on **every visible frame** — `findCel()` runs inside the
+            // `aiTCh % 10 == 1` block, and its `if(celUnit)` arm assigns `maxSpok + 10` — so while the
+            // player is in sight `aiSpok` sits pinned at its maximum and the hold gate is permanently
+            // open. When sight breaks it drains at one per ten ticks, which is what closes the gate.
+            //
+            // `TargetUnit != null` is the port's `celUnit`: `EnemySensors.Evaluate` nulls it on the first
+            // obscured tick and leaves it set only on a sighting commit. Gated on the freeze for the same
+            // reason the oracle's site is inside `enemyAct > 1`.
+            if (!EnemyActivity.IsFrozen && _blackboard.TargetUnit != null)
+            {
+                _aiSpok = _maxSpok + 10;
+
+                // `findCel()`'s committed-target arm (`UnitRaider.as:821-824`):
+                //     else { this.replic("attack"); aiSpok = maxSpok + 10; … }
+                // i.e. a unit that is ALREADY engaged shouts again while it can still see the player.
+                // `aiState > 1` is `_familyState > 1`, and the latch is last tick's value because
+                // `findCel` runs before the state bodies in the oracle too. The cooldown inside
+                // `TryReplic` is what keeps this from being a line per frame.
+                if (_familyState > 1)
+                {
+                    _controller.TryReplic(ReplicKind.Attack);
+                }
+            }
 
             // The secondary's countdown is NOT ticked here. `base.SimTick` ends in `TickWeapons`, which
             // advances every mount — so a trigger set after it would be released at the top of the next
@@ -512,12 +669,12 @@ namespace PFE.Entities.Enemies.Archetypes
 
             if (firing && _blackboard.TargetUnit != null)
             {
-                // The target's CENTRE, not its origin. AS3's `celY` is `param1.Y - param1.scY/2`
-                // (`Unit.as:4708`), i.e. mid-body; a unit's transform sits on its feet, so aiming at
-                // `transform.position` points the barrel half a body too low — visible as a gun that
-                // fires into the floor when the shooter is a griffin hovering at head height.
-                mount.SetAimTarget(
-                    EnemySensors.GetUnitCenterPixels(_blackboard.TargetUnit) * TileQueryConstants.PixelToUnit);
+                // `setCel`'s point, not the target's origin. AS3's `celY` is `param1.Y - param1.scY/2`
+                // (`Unit.as:4708`), i.e. mid-body, plus a quarter-width bias along the target's facing
+                // (`:4707`); a unit's transform sits on its feet, so aiming at `transform.position`
+                // points the barrel half a body too low — visible as a gun that fires into the floor
+                // when the shooter is a griffin hovering at head height.
+                mount.SetAimTarget(EnemySensors.GetUnitAimWorld(_blackboard.TargetUnit));
             }
 
             mount.SetFiring(firing);
@@ -557,29 +714,31 @@ namespace PFE.Entities.Enemies.Archetypes
         /// <b>world units</b> (the unit the mount, the presenter and the ranged controller all speak).
         /// </summary>
         /// <remarks>
-        /// <para><b>Two cases, both the oracle's.</b> With a goal — a committed target, or the last
-        /// place one was seen — the weapon points at it. With no goal at all it points at the
-        /// ahead-point <c>control()</c> maintains for an idle unit:
-        /// <c>celY = Y - scY; celX = X + scX * storona * 2;</c> (<c>:682-683</c>), i.e. two body widths
-        /// forward at head height. That replaces the mount's fallback, which aims at the <i>feet</i> and
-        /// so tilts every idle NPC's gun slightly downward.</para>
+        /// <para><b>Three cases, all the oracle's.</b> A live target gets <c>setCel(unit)</c>'s point —
+        /// half a body up and a quarter body along the target's facing (<c>Unit.as:4707-4708</c>) — and
+        /// that is <b>not</b> the same as the centre <see cref="EnemySensors.GetUnitCenterPixels"/>
+        /// returns: the lead is part of the aim. A remembered point (a sound, or the last sighting)
+        /// gets that point as-is, because the oracle's <c>setCel(null, x, y)</c> stores raw numbers.
+        /// With no goal at all the weapon points at the ahead-point <c>control()</c> maintains for an
+        /// idle unit: <c>celY = Y - scY; celX = X + scX * storona * 2;</c> (<c>:682-683</c>), i.e. two
+        /// body widths forward at head height — <see cref="EnemyAimMath.AheadCel"/>.</para>
         /// </remarks>
         protected Vector2 ResolveAimWorldPoint()
         {
+            if (_blackboard.TargetUnit != null)
+            {
+                return EnemySensors.GetUnitAimWorld(_blackboard.TargetUnit);
+            }
+
             if (TryResolveCelPixels(out Vector2 goalPx, out _))
             {
                 return goalPx * TileQueryConstants.PixelToUnit;
             }
 
-            UnitDefinition def = _controller.Definition;
-            float heightPx = def != null && def.Height > 0f ? def.Height * 100f : 50f;
-            float widthPx = def != null && def.Width > 0f ? def.Width * 100f : 40f;
-
-            Vector2 feetPx = (Vector2)_controller.transform.position * 100f;
-            float facing = _controller.FacingDirection >= 0 ? 1f : -1f;
-
-            return new Vector2(feetPx.x + widthPx * 2f * facing, feetPx.y + heightPx)
-                 * TileQueryConstants.PixelToUnit;
+            return EnemyAimMath.AheadCel(
+                (Vector2)_controller.transform.position * 100f,
+                _controller.SpriteSizePixels,
+                _controller.FacingDirection) * TileQueryConstants.PixelToUnit;
         }
 
         /// <summary>
@@ -712,25 +871,172 @@ namespace PFE.Entities.Enemies.Archetypes
             }
         }
 
+        /// <summary>
+        /// AS3 <c>UnitRaider.control()</c>'s jump request (<c>:1179-1182</c>) — <c>aiVNapr &lt; 0 &amp;&amp;
+        /// this.aiJump &lt;= 0 &amp;&amp; aiTCh % 2 == 1 &amp;&amp; this.checkJump()</c>.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>This method never fired, and the proof is arithmetic.</b> The old body had two gates
+        /// that cannot both hold:</para>
+        /// <list type="bullet">
+        /// <item><description><c>_blackboard.TargetDeltaY &lt; -40f</c> — and <c>TargetDeltaY</c> is
+        /// <i>target centre minus this unit's eye</i> (<c>EnemySensors.cs:713</c>), where the eye is the
+        /// body's centre (<c>GetEyePositionPixels</c>). For two 70 px bodies that reduces to
+        /// <i>feet − feet</i>, so the test means <b>"the target is 40 px BELOW me"</b>.</description></item>
+        /// <item><description><c>UnitJumpMath.ShouldJump(feet + 30, LastKnownTargetPosition.y)</c> — and
+        /// the stored position is the target's <b>feet</b> (<c>EnemySensors.cs:710</c>), so this means
+        /// <b>"the target's feet are 70 px ABOVE mine"</b>.</description></item>
+        /// </list>
+        /// <para>A body that must be simultaneously 40 px below and 70 px above is dead code, which is why
+        /// no raider has ever jumped in this port — and why a 40 px lip, which the motor's 10 px step-up
+        /// cannot take, left them pushing at the geometry.</para>
+        ///
+        /// <para><b>The oracle's four terms, restored one for one:</b></para>
+        /// <list type="number">
+        /// <item><b>the state</b> — <c>aiState == 2 || 3 || 6 || 8</c>. The port has no state 6 (its
+        /// grenade arm is not a movement state), so 2, 3 and 8.</item>
+        /// <item><b>the cooldown</b> — <c>aiJump &lt;= 0</c>, armed by every <c>jump()</c> call.</item>
+        /// <item><b>the parity gate</b> — <c>aiTCh % 2 == 1</c>. Read from <c>_aiTCh</c> rather than from
+        /// the tick index, because this brain <i>has</i> the oracle's counter: it is decremented every
+        /// tick exactly as <c>:692-695</c> does and re-armed every 100..199 ticks by the chase re-roll, so
+        /// its parity is the oracle's.</item>
+        /// <item><b>the target overhead</b> — <c>aiVNapr &lt; 0</c>, i.e. <c>celDY &lt; -40</c>, i.e.
+        /// <see cref="UnitJumpMath.ShouldJump"/> on the two quantities the oracle compares: the
+        /// <b>target's centre</b> against this unit's <b>top</b>. Both are recovered from the blackboard's
+        /// own centre-to-centre delta, which is what <c>ZombieBrain.UpdateJump</c> already does — no
+        /// second position definition, and no dependence on the feet-stored last-known position.</item>
+        /// <item><b>grounded + headroom</b> — <c>jump()</c>'s <c>if(stay)</c> and
+        /// <c>checkJump()</c>'s four probes, the same <see cref="EnemyBrain.HasJumpHeadroom"/> the zombie
+        /// uses.</item>
+        /// </list>
+        /// </remarks>
         protected virtual void UpdateJump(int tickIndex)
         {
             if (_controller == null || !_controller.IsGrounded) return;
             if (_jumpCooldownTicks > 0) return;
 
-            if ((_familyState == 2 || _familyState == 3 || _familyState == 8) && (tickIndex % 2 == 1))
+            if (_familyState != 2 && _familyState != 3 && _familyState != 8) return;
+
+            // AS3 `aiTCh % 2 == 1` — every other tick.
+            if (_aiTCh % 2 != 1) return;
+
+            // `aiVNapr < 0`: the target's centre is more than 40 px above this unit's top.
+            if (!IsTargetAbove()) return;
+
+            if (_controller.Stats == null || _controller.Stats.JumpForce <= 0f) return;
+            if (!HasJumpHeadroom()) return;
+
+            JumpScaled(1f);
+        }
+
+        /// <summary>
+        /// <c>aiVNapr &lt; 0</c> (<c>:930-932</c>) — is the target above this unit's top by more than
+        /// 40 px?
+        ///
+        /// <para><b>Why the centre and not the feet.</b> AS3 compares <c>celY</c> (the target's centre,
+        /// <c>setCel</c>: <c>param1.Y - param1.scY/2</c>) against <c>Y1 = Y - scY</c> (this unit's top).
+        /// The blackboard carries the same difference in centre-to-centre form, so both ends are
+        /// recovered from it rather than from a stored feet position — the two agree by construction with
+        /// <c>ZombieBrain.UpdateJump</c>, which reads the identical pair.</para>
+        /// </summary>
+        protected bool IsTargetAbove()
+        {
+            if (!_blackboard.HasLastKnownTargetPosition) return false;
+
+            Vector2 eyePx = GetEyePositionPixels();
+            float halfHeightPx = UnitHeightPixels * 0.5f;
+            float unitTopPx = eyePx.y + halfHeightPx;
+            float targetCentrePx = eyePx.y + _blackboard.TargetDeltaY;
+
+            return UnitJumpMath.ShouldJump(unitTopPx, targetCentrePx);
+        }
+
+        /// <summary><c>aiVNapr == 1</c> — the target's centre is more than 40 px <b>below</b> this unit's
+        /// top. The mirror of <see cref="IsTargetAbove"/>, on the same measurement.</summary>
+        protected bool IsTargetBelow()
+        {
+            if (!_blackboard.HasLastKnownTargetPosition) return false;
+
+            Vector2 eyePx = GetEyePositionPixels();
+            float unitTopPx = eyePx.y + UnitHeightPixels * 0.5f;
+            float targetCentrePx = eyePx.y + _blackboard.TargetDeltaY;
+
+            return ArmedShooterStateMath.IsTargetBelow(
+                unitTopPx, targetCentrePx, UnitJumpMath.TargetAboveJumpPixels);
+        }
+
+        /// <summary><c>celDY &gt; 100</c> — the target is far enough below that a jump would carry this
+        /// unit away from it. Read by the wall reaction (<c>:1392</c>).</summary>
+        protected bool IsTargetWellBelow()
+        {
+            if (!_blackboard.HasLastKnownTargetPosition) return false;
+
+            Vector2 eyePx = GetEyePositionPixels();
+            float unitTopPx = eyePx.y + UnitHeightPixels * 0.5f;
+            float targetCentrePx = eyePx.y + _blackboard.TargetDeltaY;
+
+            return ArmedShooterStateMath.IsTargetBelow(
+                unitTopPx, targetCentrePx, ArmedShooterStateMath.WallJumpTargetBelowPixels);
+        }
+
+        /// <summary>This unit's body height in pixels, for the two <c>celDY</c> comparisons.</summary>
+        protected float UnitHeightPixels => (_controller != null && _controller.Stats != null)
+            ? _controller.Stats.Height * 100f
+            : 70f;
+
+        /// <summary>
+        /// AS3 <c>UnitRaider.jump(param1)</c> (<c>:574-601</c>) — an impulse of <c>jumpdy * magnitude</c>
+        /// plus the forward shove, and the cooldown the call itself arms.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>The cooldown belongs to <c>jump()</c>, not to its callers.</b>
+        /// <c>aiJump = Math.floor(30 + Math.random() * 50)</c> is the first line of the oracle's function,
+        /// before the <c>if(stay)</c> that applies the impulse — so <i>every</i> jump site arms it, and a
+        /// ledge hop therefore suppresses the next overhead jump. Arming it at one call site (as the port
+        /// did) would leave the other three sites free to re-jump every tick.</para>
+        ///
+        /// <para><b>The shove is real and it is what makes a raider look lively.</b>
+        /// <c>if(aiNapr == -1) dx *= 0.8; else dx += storona * accel * 2;</c> — a jump carries the unit
+        /// two acceleration units in its facing direction. <c>AddForce</c> is the port's <c>dx +=</c>
+        /// (both are px/frame against the motor's <c>dx</c>), and the <c>* 0.8</c> damping on the
+        /// leftward case is <b>not</b> modelled: the seam offers a desired speed, not a velocity, so there
+        /// is nothing to scale. Recorded rather than faked, because the asymmetry is the oracle's own
+        /// (it is a `if`/`else`, not a mirror) and reproducing half of it would be worse than reproducing
+        /// none.</para>
+        /// </remarks>
+        protected virtual void JumpScaled(float magnitude)
+        {
+            // `this.aiJump = Math.floor(30 + Math.random() * 50);` — the oracle's FIRST line, before the
+            // `if(stay)` that applies the impulse. So a jump attempted in mid-air still costs the
+            // cooldown, and arming it after the grounded test would let a falling raider re-arm every
+            // tick and land with a full cooldown instead of a spent one.
+            //
+            // An int draw: the float overload is inclusive of its upper bound and can produce 80, one
+            // tick longer than the oracle can ever give.
+            _jumpCooldownTicks = UnitJumpMath.CooldownTicks(
+                UnityEngine.Random.Range(0, UnitJumpMath.CooldownRollRange));
+
+            float jumpForce = (_controller != null && _controller.Stats != null)
+                ? _controller.Stats.JumpForce
+                : 0f;
+
+            // `Unit.as:1890`'s `jumpdy <= 0` refusal — `bigrobot` carries 0, so "cannot jump" is a real
+            // data property and not a missing value.
+            if (jumpForce <= 0f) return;
+
+            // `jump()`'s `if(stay)`. Every caller checks grounded too, but this is the gate the oracle
+            // puts inside the function and it is the only one that cannot be forgotten by a new caller.
+            if (_controller == null || !_controller.IsGrounded) return;
+
+            JumpVertical(jumpForce * magnitude);
+
+            if (_motor != null)
             {
-                bool targetAbove = _blackboard.HasLastKnownTargetPosition && _blackboard.TargetDeltaY < -40f;
-                if (targetAbove)
+                float accel = _controller.Stats != null ? _controller.Stats.Acceleration : 0f;
+                if (accel > 0f)
                 {
-                    Vector2 currentPx = (Vector2)transform.position * 100f;
-                    if (UnitJumpMath.ShouldJump(currentPx.y + 30f, _blackboard.LastKnownTargetPosition.y))
-                    {
-                        float jumpVelocity = _controller.Definition != null && _controller.Definition.jumpForce > 0
-                            ? _controller.Definition.jumpForce
-                            : 8f;
-                        JumpVertical(jumpVelocity);
-                        _jumpCooldownTicks = UnitJumpMath.CooldownTicks(UnityEngine.Random.Range(0, 50));
-                    }
+                    int facing = _controller.FacingDirection >= 0 ? 1 : -1;
+                    _motor.AddForce(new Vector2(facing * accel * 2f, 0f));
                 }
             }
         }
@@ -974,6 +1280,15 @@ namespace PFE.Entities.Enemies.Archetypes
         protected override void TickIdle(int tickIndex)
         {
             _familyState = 0;
+
+            // `UnitRaider.as:1060` / `:1079` — `if(!this.quiet && isrnd(0.001)) this.replic("neutral");`
+            // The `quiet` test belongs here and not inside `TryReplic`: it mutes the idle roll only, so
+            // a pinned sniper placement still shouts when it engages and still gets a death rattle.
+            if (!_controller.PlacementIsQuiet && UnityEngine.Random.value < 0.001f)
+            {
+                _controller.TryReplic(ReplicKind.Neutral);
+            }
+
             if (_aiSpok >= _maxSpok && _blackboard.TargetUnit != null)
             {
                 _familyState = 3;
@@ -1000,15 +1315,23 @@ namespace PFE.Entities.Enemies.Archetypes
 
             if (_blackboard.HasLineOfSight && _blackboard.TargetUnit != null)
             {
-                // Spotted deciding state
+                // Spotted deciding state — `aiTCh = floor(rand*20 + tupizna)` for a ranged attacker,
+                // `… + tupizna/4` for a melee one (`UnitRaider.as:810-821`).
                 _familyState = 5;
-                _aiTCh = UnityEngine.Random.Range(0, 20) + _tupizna;
+                _aiTCh = ArmedShooterStateMath.SpottedDelayTicks(
+                    _tupizna, _attackerType, UnityEngine.Random.Range(0, ArmedShooterStateMath.SpottedRollRange));
                 SetState(EnemyAIState.Alert);
                 return;
             }
 
             if (_blackboard.HasHeardNoise)
             {
+                // `findCel()`'s heard-only arm (`UnitRaider.as:826-829`): `replic("ear")` with the
+                // budget left one short, so hearing something can never promote into the chase. The
+                // port has that invariant in `EnemyAwarenessMath.SoundOnlyAwarenessTicks`; the bark is
+                // placed here, at the one-shot transition, rather than per tick — a noise event is a
+                // single event, and `TryReplic`'s cooldown would otherwise turn it into a monologue.
+                _controller.TryReplic(ReplicKind.Ear);
                 SetState(EnemyAIState.Alert);
                 return;
             }
@@ -1019,16 +1342,26 @@ namespace PFE.Entities.Enemies.Archetypes
         protected override void TickPatrol(int tickIndex)
         {
             _familyState = 1;
+
+            // `UnitRaider.as:1079` — the same 0.1 % idle roll in the walk state. Two call sites, one
+            // condition: the oracle duplicates the line in both state bodies rather than sharing it.
+            if (!_controller.PlacementIsQuiet && UnityEngine.Random.value < 0.001f)
+            {
+                _controller.TryReplic(ReplicKind.Neutral);
+            }
+
             if (_blackboard.HasLineOfSight && _blackboard.TargetUnit != null)
             {
                 _familyState = 5;
-                _aiTCh = UnityEngine.Random.Range(0, 20) + _tupizna;
+                _aiTCh = ArmedShooterStateMath.SpottedDelayTicks(
+                    _tupizna, _attackerType, UnityEngine.Random.Range(0, ArmedShooterStateMath.SpottedRollRange));
                 SetState(EnemyAIState.Alert);
                 return;
             }
 
             if (_blackboard.HasHeardNoise)
             {
+                _controller.TryReplic(ReplicKind.Ear);
                 SetState(EnemyAIState.Alert);
                 return;
             }
@@ -1047,6 +1380,14 @@ namespace PFE.Entities.Enemies.Archetypes
 
         protected override void TickAlert(int tickIndex)
         {
+            // Drop the movement commit. AS3 seeds `aiNapr` from `storona` in the constructor and never
+            // clears it, so it survives a whole patrol — but the port has no constructor to seed from and
+            // a stale commit from a chase that ended forty seconds ago would send a freshly alarmed
+            // raider the wrong way until its first `aiTCh % 15` re-assert. Clearing it here makes the
+            // chase's own `if (_aiNapr == 0)` arm point the unit at the target on the tick it commits,
+            // which is the same observable answer the oracle reaches on its next re-assert.
+            _aiNapr = 0;
+
             if (_familyState == 5)
             {
                 StopMovement();
@@ -1058,6 +1399,11 @@ namespace PFE.Entities.Enemies.Archetypes
                     // first tick. The `else` arm is the oracle's `else { aiState = 1; }`.
                     if (_blackboard.TargetUnit != null && !ChaseBudgetExhausted)
                     {
+                        // `UnitRaider.as:698-715` — the spotted timer expiring with the target still in
+                        // sight: `if(celUnit) { this.replic("attack"); aiSpok = maxSpok + 10; … }`. This
+                        // is the engagement bark; the ongoing re-shout lives at `findCel`'s re-arm.
+                        _controller.TryReplic(ReplicKind.Attack);
+
                         _familyState = 3;
                         SetState(EnemyAIState.CombatChase);
                     }
@@ -1074,6 +1420,37 @@ namespace PFE.Entities.Enemies.Archetypes
             base.TickAlert(tickIndex);
         }
 
+        /// <summary>
+        /// AS3 <c>UnitRaider.control()</c>'s combat arm — the state bodies at <c>:1174-1416</c> (states
+        /// 2/3/6/8), <c>:1418-1428</c> (state 4) and <c>:1430-1434</c> (state 7), plus the <b>re-roll</b>
+        /// that chooses between them at <c>:746-780</c>.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>What was wrong with the previous body, in one sentence: it re-decided the state from
+        /// the current distance on every tick, and the oracle only re-decides when <c>aiTCh</c> drains.</b>
+        /// The consequences were exactly the three reported symptoms:</para>
+        /// <list type="bullet">
+        /// <item><description><b>Parked in state 4.</b> <c>_attackerType == 2 &amp;&amp; dist &lt;= aiDist
+        /// &amp;&amp; dist &gt;= 80</c> is true for the whole engagement of a ranged raider, so it stood
+        /// still with <c>speed = 0</c> from the moment it entered its own <c>aiDist</c> (1000 px by
+        /// default) until the player closed to 80 px. The oracle's state 4 is a <i>cycle</i>: 70 % of
+        /// re-rolls choose it, and its body returns to state 3 the moment the target is inside 200 px —
+        /// usually with a backwards hop.</description></item>
+        /// <item><description><b>No backwards hop.</b> The whole <c>dx = runSpeed * (celDX &gt; 0 ? -1 : 1)
+        /// * 2; jump(0.4);</c> tail (<c>:1421-1427</c>) was absent, so the one thing that makes a raider
+        /// look agitated in the original — a flinch out of its own stand-off — never happened.</description></item>
+        /// <item><description><b>No wall or ledge reaction.</b> The chase never read
+        /// <c>WallLeft</c>/<c>WallRight</c> and never ran the lip hop, so a blocked raider pushed at the
+        /// geometry until its awareness budget drained.</description></item>
+        /// </list>
+        ///
+        /// <para><b>Direction is a latch, not a per-tick derivation — and that is the fix for "stuck in
+        /// geometry".</b> AS3's <c>aiNapr</c> is re-asserted from <c>celDX</c> only every fifteen ticks
+        /// and only when the target is more than 100 px away (<c>:1181-1196</c>); between those it
+        /// persists, which is what lets a turn at a wall actually <i>take</i>. The port re-derived the
+        /// direction from <c>TargetDeltaX</c> every tick, so any turn was undone on the next frame and the
+        /// unit walked straight back into the wall.</para>
+        /// </remarks>
         protected override void TickCombatChase(int tickIndex)
         {
             // The hunt ends on the awareness budget, not on the sighting. `EnemySensors` nulls
@@ -1082,6 +1459,14 @@ namespace PFE.Entities.Enemies.Archetypes
             // `EnemyBrain.ChaseBudgetExhausted`.
             if (ChaseBudgetExhausted)
             {
+                // `UnitRaider.as:723-728` — `if(aiSpok == 0) { if(this.aiVKurse && aiState > 1)
+                // this.replic("vse"); … }`. The budget running out is the port's `aiSpok == 0`, and a
+                // chase that reaches it is by definition `aiState > 1`, so this is the "she got away"
+                // line. The oracle's `aiVKurse` guard ("this one personally wronged me") is not modelled
+                // — see the open-work note; without it every raider says it, which is the oracle's
+                // behaviour for a raider that actually saw the player.
+                _controller.TryReplic(ReplicKind.Vse);
+
                 SetState(EnemyAIState.Alert);
                 return;
             }
@@ -1095,73 +1480,120 @@ namespace PFE.Entities.Enemies.Archetypes
                 return;
             }
 
-            float dist = _blackboard.TargetDistance;
             float dx = _blackboard.TargetDeltaX;
+            float distSq = _blackboard.TargetDistanceSq;
 
-            // State 4 (Hold / strafe) if at stand-off distance
-            if (_attackerType == 2 && dist <= _aiDist && dist >= 80f)
-            {
-                _familyState = 4;
-            }
-            else if (_canDash && _familyState != 8 && dist <= 250f && dist >= 120f && UnityEngine.Random.value < 0.05f)
-            {
-                _familyState = 7; // Dash wind-up
-                _aiTCh = 20;
-            }
-            else if (_familyState == 7)
+            // ── AS3 `aiState == 7`: `walk = 0; aiNapr = tstor = celX > X ? 1 : -1;` (:1430-1434) ────
+            //
+            // The oracle's 7 → 8 transition sits in the `aiTCh` chain *before* the general re-roll
+            // (`:737-741`), so it is an `else if` of it and must be tested first. Reachable only for a
+            // family whose constructor sets `dash` — the zebra alone (`UnitZebra.as:25`); see `_canDash`.
+            if (_familyState == ArmedShooterStateMath.DashWindUp)
             {
                 StopMovement();
+                ApplyFacing(dx >= 0f ? 1 : -1);
+
                 if (_aiTCh <= 0)
                 {
-                    _familyState = 8; // Charge
-                    _aiTCh = 35;
+                    // `aiState = 8; aiTCh = 35;` (`:716-720`). The wind-up itself was given 20 ticks by
+                    // `NextStateTimerTicks`; this is the charge that follows it.
+                    _familyState = ArmedShooterStateMath.Charge;
+                    _aiTCh = ArmedShooterStateMath.ChargeTicks;
                 }
+
                 return;
             }
-            else if (_familyState == 8)
+
+            // ── The re-roll (`:746-780`) ────────────────────────────────────────────────────────────
+            //
+            // States 2 and 3 share one body in the oracle (`aiState == 2 || 3 || 6 || 8`), so a unit
+            // promoted out of Alert with `_familyState == 2` is already running the chase; only the
+            // speed differs, and `_durak` gives both the run speed. Normalise before the re-roll so the
+            // state-4 arm cannot be reached with a stale 2.
+            if (_familyState < ArmedShooterStateMath.Chase)
             {
-                if (_aiTCh <= 0)
+                _familyState = ArmedShooterStateMath.Chase;
+            }
+
+            if (_aiTCh <= 0)
+            {
+                ReRollFamilyState(distSq);
+            }
+
+            // ── `aiState == 4` (:1418-1428) ─────────────────────────────────────────────────────────
+            if (_familyState == ArmedShooterStateMath.Hold)
+            {
+                TickHoldState(dx, distSq);
+
+                // `aiAttack = 1` covers states 3, 4, 6 and 8 (`:1442-1452`), so the hold still fires.
+                if (IsTargetInAttackRange())
                 {
-                    _familyState = 3;
+                    ExecuteAttackAction();
                 }
+
+                return;
+            }
+
+            // ── `aiState == 2 || 3 || 6 || 8` (:1174-1416) ──────────────────────────────────────────
+
+            // `if(aiTCh % 15 == 1 && aiState != 6) { if(isrnd(durak ? 0.5 : 0.9)) { if(celDX > 100)
+            // aiNapr = tstor = 1; if(celDX < -100) aiNapr = tstor = -1; } }` (:1181-1196).
+            //
+            // Note the dead zone: a target inside 100 px does not re-assert the direction at all, which
+            // is why a raider circling the player does not jitter. The roll is consumed unconditionally
+            // so the stream does not shift.
+            if (_aiTCh % 15 == 1)
+            {
+                float directionRoll = UnityEngine.Random.value;
+                if (directionRoll < (_durak ? 0.5f : 0.9f))
+                {
+                    if (dx > 100f) _aiNapr = 1;
+                    else if (dx < -100f) _aiNapr = -1;
+                }
+            }
+
+            if (_aiNapr == 0)
+            {
+                // `aiNapr = storona` in the constructor (`:256`). A brain that enters the chase without
+                // ever having patrolled has no direction yet; point it at the target once.
+                _aiNapr = dx >= 0f ? 1 : -1;
+            }
+
+            // Facing. `if(aiState == 3 && weaponKrep == 1 && attackerType == 2) tstor = celDX > 0 ? 1 : -1`
+            // (`:1037-1040`) — a ranged raider faces its target even while stepping away from it; every
+            // other class aliases `tstor` to `aiNapr`, so it faces where it walks.
+            if (_attackerType == 2)
+            {
+                if (dx > 5f) ApplyFacing(1);
+                else if (dx < -5f) ApplyFacing(-1);
             }
             else
             {
-                _familyState = 3;
+                ApplyFacing(_aiNapr);
             }
 
-            // ── AS3 `UnitRaider.as:768-771` — `if(!this.moving) aiState = 4;` ────────────────────────
-            //
-            // The override sits exactly where the oracle puts it: AFTER the state has been chosen and
-            // BEFORE it executes. So it beats the dash roll in the chain above without suppressing the
-            // roll itself — the `UnityEngine.Random.value` call still happens, which matters because
-            // skipping it would shift the shared stream (the same reason the pinned wander roll is
-            // consumed rather than skipped, see TickIdle).
-            //
-            // `_familyState == 7` cannot be re-entered while this is true: 7 is overwritten to 4 in the
-            // same frame it is assigned, and the flag is fixed for the unit's life once ApplyPlacement has
-            // run, so the wind-up branch's `return` is unreachable for a pinned sniper.
-            if (HoldsPosition)
+            float speed = _familyState == ArmedShooterStateMath.Charge ? _runSpeed * 2.5f
+                        : _durak ? _runSpeed : _walkSpeed;
+
+            // `if(storona * aiNapr < 0) maxSpeed = walkSpeed;` (`:1041-1044`) — back-pedalling is a
+            // walk. Only reachable for the ranged arm above, since everyone else faces `aiNapr`.
+            if (_attackerType == 2 && _controller != null && _controller.FacingDirection * _aiNapr < 0)
             {
-                _familyState = 4;
+                speed = _walkSpeed;
             }
 
-            // Facing towards target
-            if (dx > 5f) ApplyFacing(1);
-            else if (dx < -5f) ApplyFacing(-1);
-
-            float speed = _familyState == 8 ? _runSpeed * 2.5f :
-                          _familyState == 4 ? 0f :
-                          _durak ? _runSpeed : _walkSpeed;
+            int moveDir = _aiNapr;
 
             if (speed > 0f)
             {
-                // AS3's ledge reaction (`checkJump`/`shX1`) is the ground arm of `control()`. A flyer
-                // never takes it: there is no ledge to fall off, and `HandleLedgeAhead` would reverse
-                // a griffin in mid-air at the edge of a catwalk.
-                if (!_isFly) HandleLedgeAhead(tickIndex);
-                float dir = dx >= 0 ? 1f : -1f;
-                MoveHorizontal(dir * speed);
+                // A flyer takes neither the ledge hop nor the wall reaction: there is no ledge to fall
+                // off, and a wall is something it flies over.
+                if (!_isFly)
+                {
+                    moveDir = HandleChaseObstacles(moveDir);
+                }
+
+                MoveHorizontal(moveDir * speed);
             }
             else
             {
@@ -1173,6 +1605,233 @@ namespace PFE.Entities.Enemies.Archetypes
             {
                 ExecuteAttackAction();
             }
+        }
+
+        /// <summary>
+        /// AS3 <c>UnitRaider.control()</c>'s <c>aiTCh</c>-expiry block (<c>:746-780</c>) — the only place
+        /// the chase's state is <i>chosen</i>.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Three writers, in the oracle's order, and the last one wins:</b></para>
+        /// <list type="number">
+        /// <item><description><c>if(attackerType == 2 &amp;&amp; aiSpok &gt;= maxSpok + 8 &amp;&amp; dist²
+        /// &lt; aiDist²) aiState = isrnd(0.3) ? 3 : 4; else aiState = 3;</c> (<c>:756-763</c>) — the
+        /// ranged stand-off, and the reason a raider holds 70 % of its cycles.</description></item>
+        /// <item><description><c>if(this.dash &amp;&amp; isrnd(0.3) &amp;&amp; celUnit) aiState = 7;</c>
+        /// (<c>:764-767</c>) — dead in the shipped data.</description></item>
+        /// <item><description><c>if(!this.moving) aiState = 4;</c> (<c>:768-771</c>) — the pinned sniper
+        /// override. It sits <i>after</i> the others so it beats them, and it does not suppress their
+        /// rolls.</description></item>
+        /// </list>
+        ///
+        /// <para><b>The cycle is re-armed here and nowhere else.</b> <c>aiTCh = floor(rand*100) + 100</c>
+        /// (<c>:772</c>) for the general case, which is what makes the 3↔4 choice a rhythm of 3.3–6.6 s
+        /// rather than a per-frame coin flip. `_aiTCh` is decremented in <see cref="SimTick"/> beside the
+        /// oracle's own <c>--aiTCh</c>.</para>
+        /// </remarks>
+        protected virtual void ReRollFamilyState(float distSq)
+        {
+            bool mayHold = ArmedShooterStateMath.MayHold(
+                _attackerType == 2, _aiSpok, _maxSpok, distSq, _aiDist * _aiDist);
+
+            _familyState = ArmedShooterStateMath.SelectChaseState(mayHold, UnityEngine.Random.value);
+
+            // `this.dash && isrnd(0.3)` — short-circuited in the oracle, so the draw is only taken when
+            // the flag is set. Only the zebra sets it (`UnitZebra.as:25`); see `_canDash`.
+            if (_canDash && UnityEngine.Random.value < 0.3f)
+            {
+                _familyState = ArmedShooterStateMath.DashWindUp;
+            }
+
+            if (HoldsPosition)
+            {
+                _familyState = ArmedShooterStateMath.Hold;
+            }
+
+            _aiTCh = ArmedShooterStateMath.NextStateTimerTicks(
+                _familyState, _attackerType,
+                UnityEngine.Random.Range(0, ArmedShooterStateMath.StateTimerRollRange));
+        }
+
+        /// <summary>
+        /// AS3's <c>aiState == 4</c> body (<c>:1418-1428</c>) — stand, face the target, and flinch
+        /// backwards out of the target's reach.
+        /// </summary>
+        /// <remarks>
+        /// <code>
+        /// walk = 0;
+        /// aiNapr = this.tstor = celX > X ? 1 : -1;
+        /// if(this.attackerType == 2 &amp;&amp; celDX * celDX + celDY * celDY &lt; 200 * 200) {
+        ///    if(isrnd(0.6)) {
+        ///       dx = runSpeed * (celDX &gt; 0 ? -1 : 1) * 2;
+        ///       this.jump(0.4);
+        ///    }
+        ///    aiState = 3;
+        /// }
+        /// </code>
+        ///
+        /// <para><b>The <c>aiState = 3</c> is outside the roll, and that is load-bearing.</b> The hold
+        /// ends the moment a ranged attacker's target is inside 200 px whether or not the flinch fired —
+        /// a port that gated the exit on the roll would leave a raider standing in front of a player it
+        /// rolled badly against, for the rest of the cycle.</para>
+        ///
+        /// <para><b>The reversal is a velocity assignment, not a target speed.</b> The oracle writes
+        /// <c>dx = -2 * runSpeed</c> outright, so the unit leaves at twice run speed <i>immediately</i>
+        /// and spends the next frames being pulled back by state 3's <c>dx += accel</c>. A target speed
+        /// held for one tick would only decelerate the unit and the hop would have no retreat in it at
+        /// all — see <see cref="SetHorizontalVelocity"/>, which is how the assignment is expressed
+        /// through a seam that only offers a target speed.</para>
+        /// </remarks>
+        protected virtual void TickHoldState(float dx, float distSq)
+        {
+            // `walk = 0;`
+            StopMovement();
+
+            // `aiNapr = this.tstor = celX > X ? 1 : -1;`
+            _aiNapr = dx >= 0f ? 1 : -1;
+            ApplyFacing(_aiNapr);
+
+            if (!ArmedShooterStateMath.ShouldEndHold(_attackerType == 2, distSq)) return;
+
+            if (ArmedShooterStateMath.ShouldBackHop(UnityEngine.Random.value))
+            {
+                // `dx = runSpeed * (celDX > 0 ? -1 : 1) * 2` — an ASSIGNMENT, not an acceleration, and
+                // that difference is the whole flinch. See `SetHorizontalVelocity`.
+                SetHorizontalVelocity(
+                    (dx > 0f ? -1f : 1f) * _runSpeed * ArmedShooterStateMath.BackHopSpeedMultiplier);
+
+                JumpScaled(ArmedShooterStateMath.BackHopMagnitude);
+            }
+
+            _familyState = ArmedShooterStateMath.Chase;
+        }
+
+        /// <summary>
+        /// AS3's <c>dx = …</c> — <b>assign</b> the horizontal velocity — expressed through a seam that
+        /// only offers an acceleration-limited target speed.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Why the plain seam is not enough.</b> <see cref="EnemyBrain.MoveHorizontal"/> sets the
+        /// motor's <i>desired</i> speed and the motor walks <c>dx</c> toward it at its own acceleration,
+        /// so a target of −2·runSpeed held for a single tick moves <c>dx</c> by one acceleration step and
+        /// never reverses it. The oracle's state-4 flinch <i>assigns</i> <c>dx</c>, so the unit leaves at
+        /// −2·runSpeed instantly and then spends several frames being pulled back by <c>dx += accel</c> —
+        /// which is what reads as a hop backwards rather than as a stutter. Doing it with a target speed
+        /// produces a vertical jump with no visible retreat, i.e. the animation without the behaviour.</para>
+        ///
+        /// <para><b>How it is expressed.</b> <c>AddForce</c> is the seam's <c>dx +=</c>, so adding
+        /// <c>v − dx</c> <i>is</i> <c>dx = v</c> — exact, and it leaves the subsequent decay to the
+        /// motor's own <c>MoveTowards</c> on the next ticks, which is the same shape as the oracle's
+        /// per-frame <c>dx += accel</c>. The desired speed is set too, so a motor-less brain (the
+        /// <c>UnitController</c> path) still gets the intent.</para>
+        /// </remarks>
+        private void SetHorizontalVelocity(float speedPixelsPerFrame)
+        {
+            if (_motor == null)
+            {
+                MoveHorizontal(speedPixelsPerFrame);
+                return;
+            }
+
+            _motor.AddForce(new Vector2(speedPixelsPerFrame - _motor.State.Velocity.x, 0f));
+            _motor.SetDesiredHorizontalSpeed(speedPixelsPerFrame);
+        }
+
+        /// <summary>
+        /// The chase's two ground reactions — the ledge half-hop (<c>:1372-1375</c>) and the
+        /// <c>turnX</c> wall turn-or-jump (<c>:1379-1414</c>).
+        /// </summary>
+        /// <returns>
+        /// The direction to move this tick. Usually <paramref name="moveDir"/>; flipped when the wall
+        /// reaction decides to turn away.
+        /// </returns>
+        /// <remarks>
+        /// <para><b>Where <c>turnX</c> comes from, since the port has no physics latch.</b> AS3's
+        /// collision pass sets <c>turnX = -sign(dx)</c> when a horizontal move is blocked
+        /// (<c>Unit.as:2070</c>, <c>:2080</c>) and the state body consumes it on the next frame. The
+        /// motor's <c>WallLeft</c>/<c>WallRight</c> are that same fact, kept per step
+        /// (<c>TilePhysicsController.MoveSingleStep</c>) — so the brain reads the flag the physics pass
+        /// just set instead of a latch, which is the same information one frame earlier.</para>
+        ///
+        /// <para><b>The two branches of the wall reaction are not symmetric.</b>
+        /// <c>if(celDX * aiNapr &lt; 0)</c> — the wall is <i>behind</i> the target, so turning away from
+        /// it also turns away from the target — is taken immediately and refreshes the patience timer.
+        /// The other branch, where the wall is <i>between</i> the unit and its target, tries to jump:
+        /// 10 % of frames, a ceiling, a target far below, or no headroom each refuse, and a refusal
+        /// costs ten ticks of the timer. Two refusals force the turn. So a blocked raider hops about
+        /// once and then commits to going around, rather than bouncing in place.</para>
+        ///
+        /// <para><b>Both are gated on the unit being grounded, and neither runs for a flyer</b> — the
+        /// caller has already excluded <c>_isFly</c>, and AS3's <c>stay</c> tests sit inside the
+        /// non-flying branch of the movement ladder.</para>
+        /// </remarks>
+        protected virtual int HandleChaseObstacles(int moveDir)
+        {
+            if (_controller == null || _tileQuery == null || _tileQuery.Room == null) return moveDir;
+            if (!_controller.IsGrounded) return moveDir;
+
+            // ── `if(stay && isrnd(0.5) && aiVNapr <= 0 && (shX1 > 0.5 && aiNapr < 0 || shX2 > 0.5 &&
+            // aiNapr > 0)) _loc2_ = 0.5;` — the chase's only ledge reaction.
+            bool atEdge = UnitOverhangMath.IsAtEdgeToward(
+                moveDir,
+                _controller.OverhangLeft,
+                _controller.OverhangRight,
+                UnitOverhangMath.ChaseEdgeThreshold);
+
+            if (ArmedShooterStateMath.ShouldHopAtLip(
+                    grounded: true,
+                    roll: UnityEngine.Random.value,
+                    targetBelow: IsTargetBelow(),
+                    atEdgeTowardDirection: atEdge))
+            {
+                JumpScaled(ArmedShooterStateMath.ChaseLipHopMagnitude);
+            }
+
+            if (_motor == null) return moveDir;
+
+            // `turnX` — the direction that turns away from the wall.
+            bool wallAhead = moveDir < 0 ? _motor.State.WallLeft : _motor.State.WallRight;
+            if (!wallAhead) return moveDir;
+
+            int turnX = moveDir < 0 ? 1 : -1;
+
+            // `if(celDX * aiNapr < 0) { aiNapr = this.tstor = turnX; aiTTurn = floor(rand*20) + 5; }`
+            if (_blackboard.TargetDeltaX * moveDir < 0f)
+            {
+                _aiNapr = turnX;
+                ApplyFacing(turnX);
+                _aiTTurn = ArmedShooterStateMath.WallTurnTicks(
+                    UnityEngine.Random.Range(0, ArmedShooterStateMath.WallTurnRollRange));
+                return turnX;
+            }
+
+            // `--aiTTurn; if(refused) aiTTurn -= 10; else _loc2_ = 1;`
+            _aiTTurn--;
+
+            if (ArmedShooterStateMath.ShouldJumpAtWall(
+                    hitCeiling: _motor.State.HitCeiling,
+                    targetWellBelow: IsTargetWellBelow(),
+                    hasHeadroom: HasJumpHeadroom(),
+                    roll: UnityEngine.Random.value))
+            {
+                JumpScaled(1f);
+            }
+            else
+            {
+                _aiTTurn -= ArmedShooterStateMath.WallTurnPenalty;
+            }
+
+            // `if(aiTTurn < 0 && stay) { aiNapr = this.tstor = turnX; aiTTurn = …; }`
+            if (ArmedShooterStateMath.ShouldTurnAtWall(_aiTTurn, _controller.IsGrounded))
+            {
+                _aiTTurn = ArmedShooterStateMath.WallTurnTicks(
+                    UnityEngine.Random.Range(0, ArmedShooterStateMath.WallTurnRollRange));
+                _aiNapr = turnX;
+                ApplyFacing(turnX);
+                return turnX;
+            }
+
+            return moveDir;
         }
 
         protected override bool IsTargetInAttackRange()
@@ -1248,7 +1907,18 @@ namespace PFE.Entities.Enemies.Archetypes
                 // hits for full scale, a standing one for half. `dx` is the unit's own per-frame x
                 // velocity, which is what the motor's State.Velocity carries.
                 float speed = Mathf.Abs(_motor != null ? _motor.State.Velocity.x : 0f);
-                _controller.TryContactAttack(_blackboard.TargetUnit, speed > 8f ? 1f : 0.5f);
+                bool connected = _controller.TryContactAttack(
+                    _blackboard.TargetUnit, speed > 8f ? 1f : 0.5f);
+
+                // `if(attKorp(...)) { if(aiState == 8) aiTCh = 5; }` (`:1486-1493`) — a landed charge hit
+                // cuts the remaining charge short. Without it the zebra keeps ploughing through the
+                // player for the whole 35 ticks however many times it connects, instead of bouncing off
+                // and re-deciding, which is the difference between a charge and a wall.
+                if (connected && _familyState == ArmedShooterStateMath.Charge)
+                {
+                    _aiTCh = ArmedShooterStateMath.ChargeHitTicks;
+                }
+
                 return;
             }
 
@@ -1475,7 +2145,9 @@ namespace PFE.Entities.Enemies.Archetypes
             // See docs/EnemyImplementationGuides/AUDIT_noise_sources_2026-10-19.md.
 
             // Directly report simulated ranged combat or contact impact
-            float baseDamage = _controller.Definition != null ? _controller.Definition.damage : 10f;
+            // `MeleeDamage`, not `Definition.damage`: a starred enemy's `dam` is multiplied per instance
+            // (Unit.as:1650-1669) and the definition is shared by every unit of this id.
+            float baseDamage = _controller.MeleeDamage;
             DamageType dType = _controller.Definition != null ? _controller.Definition.damageType : DamageType.PhysicalBullet;
 
             Vector2 origin = (Vector2)transform.position * 100f;
@@ -1506,7 +2178,7 @@ namespace PFE.Entities.Enemies.Archetypes
             // No noise — same reason as FireRangedAttack: this is the no-mount fallback, and the
             // thrown weapon's own `<snd noise>` is what the oracle charges when it actually lands.
 
-            float baseDamage = _controller.Definition != null ? _controller.Definition.damage * 1.5f : 15f;
+            float baseDamage = _controller.Definition != null ? _controller.MeleeDamage * 1.5f : 15f;
             Vector2 targetPos = (Vector2)_blackboard.TargetUnit.transform.position * 100f;
 
             var pending = PendingDamage.Direct(

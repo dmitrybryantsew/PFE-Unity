@@ -247,7 +247,9 @@ namespace PFE.Entities.Units
         /// The mount's weapon state. Its <c>Rot</c> is the angle AS3 calls <c>currentWeapon.rot</c>, and
         /// it is what <c>RangedWeaponController</c> advances from the aim the brain publishes each tick.
         /// </param>
-        /// <param name="brain">The brain whose <c>CurrentState</c> is the oracle's <c>aiState</c>.</param>
+        /// <param name="brain">The brain whose <see cref="EnemyBrain.LampStateIndex"/> is the oracle's
+        /// <c>aiState</c> — for a turret, the <c>TurretAIStateMath</c> ladder rather than the generic
+        /// enemy enum. See <see cref="ApplyLamp"/>.</param>
         /// <param name="tr">The weapon <c>tr</c>, which <c>gotoAndStop</c> uses as a frame number.</param>
         public void Bind(WeaponRuntimeState weapon, EnemyBrain brain, int tr)
         {
@@ -342,9 +344,19 @@ namespace PFE.Entities.Units
             }
         }
 
+        /// <summary>
+        /// <c>vis.osn.light.gotoAndStop(aiState + 1)</c> (<c>UnitTurret.as:310-313</c>).
+        ///
+        /// <para><b>The index is <see cref="EnemyBrain.LampStateIndex"/>, not
+        /// <see cref="EnemyBrain.CurrentState"/>.</b> The latter is the port's <i>generic</i> enemy
+        /// enum, which diverges from AS3's turret ladder at 3 (<c>CombatChase</c> vs "attacking") and
+        /// at 7 (<c>Attack</c>), and which <c>TrapBrain</c> never wrote at all — so the lamp sat on
+        /// frame 1, the <b>empty</b> frame, for the mount's whole life. A turret now reports its own
+        /// <c>TurretAIStateMath</c> state: 0 dark, 1 yellow, 2 orange, 3 red, 4 orange.</para>
+        /// </summary>
         void ApplyLamp()
         {
-            int frame = TurretParts.LampFrame(_brain != null ? (int)_brain.CurrentState : 0);
+            int frame = TurretParts.LampFrame(_brain != null ? _brain.LampStateIndex : 0);
             if (frame == _drawnLampFrame) return;
 
             _drawnLampFrame = frame;

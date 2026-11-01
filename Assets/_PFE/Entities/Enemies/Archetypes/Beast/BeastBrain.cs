@@ -300,7 +300,7 @@ namespace PFE.Entities.Enemies.Archetypes
                     // `Weapon.as:1581`, emitted by ProjectileSpawner.AnnounceShot). The invented
                     // `MakeNoise(80, true)` was quieter than the weapon it stood in for.
 
-                    float acidDmg = _controller.Definition != null ? _controller.Definition.damage : 8f;
+                    float acidDmg = _controller.Definition != null ? _controller.MeleeDamage : 8f;
                     Vector2 targetPos = (Vector2)_blackboard.TargetUnit.transform.position * 100f;
 
                     var pending = PendingDamage.Direct(

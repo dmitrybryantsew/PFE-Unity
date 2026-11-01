@@ -568,10 +568,18 @@ namespace PFE.Tests.Editor.Entities.Units
         }
 
         /// <summary>
-        /// Vision's two tiers: 20 inside <c>detecting</c>, 4 out to the look range, nothing beyond.
+        /// Vision's three tiers: 20 inside <c>detecting</c>, 4 out to the look range, then the graded
+        /// <c>range²/d² · 4</c> decay out to four times the range and nothing beyond.
         /// </summary>
+        /// <remarks>
+        /// <b>Every boundary here is asserted at the value the oracle returns, not at the value the
+        /// tiers suggest.</b> `look()` tests `_loc8_ &lt; _loc7_²` (<c>Unit.as:4636</c>), so at
+        /// <i>exactly</i> the range it falls through to `range²/d² · 4`, which is 4 — the tier is
+        /// continuous rather than exclusive, and the earlier version of this test asserted 0 there. The
+        /// outer edge is `d² &gt; range² · 16` (<c>:4594</c>), so at exactly `4 · range` the answer is 0.
+        /// </remarks>
         [Test]
-        public void VisionIntensity_HasTwoTiers_AndNothingBeyondTheRange()
+        public void VisionIntensity_HasThreeTiers_AndDecaysToFourTimesTheRange()
         {
             const float detecting = 40f;
             const float range = 480f;
@@ -584,8 +592,25 @@ namespace PFE.Tests.Editor.Entities.Units
                 "Exactly at `detecting` it drops to the 4 tier — `<`, not `<=`.");
             Assert.That(NoiseMath.VisionIntensity(range * range - 0.5f, detecting, range), Is.EqualTo(4f),
                 "4 commits in 5 ticks (0.17 s) — the oracle's reaction time at the far edge.");
-            Assert.That(NoiseMath.VisionIntensity(range * range, detecting, range), Is.EqualTo(0f),
-                "Exactly at the range limit: not seen.");
+
+            Assert.That(NoiseMath.VisionIntensity(range * range, detecting, range),
+                Is.EqualTo(4f).Within(1e-4f),
+                "Exactly at the range: `_loc8_ < _loc7_*_loc7_` is FALSE, so the oracle returns " +
+                "`_loc7_*_loc7_/_loc8_*4` = 4. The tier is continuous, and a hard cut here is the bug " +
+                "this band exists to remove.");
+
+            Assert.That(NoiseMath.VisionIntensity(2f * range * 2f * range, detecting, range),
+                Is.EqualTo(1f).Within(1e-4f),
+                "At twice the range: 1 per tick, so 20 ticks (0.67 s) to commit. This is the band the " +
+                "port used to be blind in entirely.");
+            Assert.That(NoiseMath.VisionIntensity(3f * range * 3f * range, detecting, range),
+                Is.EqualTo(4f / 9f).Within(1e-4f));
+            Assert.That(NoiseMath.VisionIntensity(4f * range * 4f * range - 1f, detecting, range),
+                Is.GreaterThan(0f), "Just inside `4 · range` it is still seen, faintly.");
+
+            Assert.That(NoiseMath.VisionIntensity(4f * range * 4f * range, detecting, range), Is.EqualTo(0f),
+                "At exactly `4 · range`: `_loc8_ > _loc7_*_loc7_*16` is false, but `_loc8_ < range²*16` " +
+                "is also false, so the graded arm is skipped and the method falls through to 0.");
 
             Assert.That(NoiseMath.VisionCloseIntensity, Is.EqualTo(NoiseMath.MaxHearingIntensity * 5f),
                 "AS3's `return 20` against `listen()`'s ceiling of 4 — sight at close range is five " +
@@ -593,6 +618,49 @@ namespace PFE.Tests.Editor.Entities.Units
             Assert.That(NoiseMath.VisionRangeIntensity, Is.EqualTo(NoiseMath.MaxHearingIntensity),
                 "…but at range, sight and the loudest possible sound commit at exactly the same speed. " +
                 "That equality is the oracle's, and it is what makes the two senses comparable.");
+        }
+
+        /// <summary>
+        /// The far band is a ratio of the range, so it has to survive the range being scaled by stealth —
+        /// a cloaked target at 2× <i>its</i> range is as visible as a plain one at 2× the plain range.
+        /// </summary>
+        [Test]
+        public void VisionMaxDistancePixels_ScalesWithTheRange_AndIsTheOnlyLegalPreCull()
+        {
+            Assert.That(NoiseMath.VisionMaxDistancePixels(480f), Is.EqualTo(1920f),
+                "`look()`'s cull is `range² * 16`, i.e. four times the range — see Unit.as:4594-4597.");
+            Assert.That(NoiseMath.VisionMaxDistancePixels(240f), Is.EqualTo(960f),
+                "A target at half visibility is seen out to half the distance, band included.");
+            Assert.That(NoiseMath.VisionFarBandSquaredMultiplier, Is.EqualTo(16f));
+            Assert.That(NoiseMath.VisionMaxDistancePixels(0f), Is.EqualTo(0f),
+                "A blind observer has no band either — 0 is the oracle's early return.");
+            Assert.That(NoiseMath.VisionMaxDistancePixels(-5f), Is.EqualTo(0f));
+        }
+
+        /// <summary>
+        /// <c>look():4589-4592</c> — the below-the-eye range penalty. Halved at straight down, full at
+        /// 45°, and not applied at all to a target at or above the eye.
+        /// </summary>
+        [Test]
+        public void BelowEyeRangeScale_HalvesAtStraightDown_AndIsFullAt45Degrees()
+        {
+            Assert.That(NoiseMath.BelowEyeRangeScale(100f, 100f), Is.EqualTo(1f),
+                "A target ABOVE the eye (port Y up) — `_loc6_ > 0` is false, so no penalty.");
+            Assert.That(NoiseMath.BelowEyeRangeScale(100f, 0f), Is.EqualTo(1f),
+                "Level with the eye — still no penalty.");
+            Assert.That(NoiseMath.BelowEyeRangeScale(100f, -100f), Is.EqualTo(1f),
+                "Exactly 45° below: `_loc6_² > _loc5_²` is false at equality, so the taper has not " +
+                "started. Full range.");
+            Assert.That(NoiseMath.BelowEyeRangeScale(50f, -100f), Is.EqualTo(0.75f).Within(1e-4f),
+                "Steeply below: 0.5 + 0.5*|50/100| = 0.75, i.e. three quarters of the range.");
+            Assert.That(NoiseMath.BelowEyeRangeScale(0f, -100f), Is.EqualTo(0.5f),
+                "Straight down: the floor. AS3 halves the range, it does not make the target " +
+                "invisible — `_loc7_ *= 0.5 + 0.5 * Math.abs(_loc5_ / _loc6_)`.");
+
+            Assert.That(NoiseMath.BelowEyeRangeScale(-50f, -100f), Is.EqualTo(0.75f).Within(1e-4f),
+                "The sign of dx is irrelevant — the oracle takes Math.abs of the ratio.");
+            Assert.That(NoiseMath.BelowEyeRangeScale(0f, 100f), Is.EqualTo(1f),
+                "Above and dead vertical: the `_loc6_ > 0` half of the gate refuses it.");
         }
 
         // ── The declared defaults, pinned so a "tidy-up" cannot move them ─────────────────────

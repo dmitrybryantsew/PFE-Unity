@@ -40,7 +40,7 @@ namespace PFE.Entities.Units
         public const int GunFrameCount = 10;
 
         /// <summary>Frames in <c>turret_light_1277</c>. <c>aiState + 1</c> selects one.</summary>
-        public const int LampFrameCount = 6;
+        public const int LampFrameCount = PFE.Entities.Enemies.Archetypes.TurretAIStateMath.LampFrameCount;
 
         /// <summary>
         /// The gun's registration point inside its own exported frame, in <b>frame pixels from the
@@ -178,13 +178,13 @@ namespace PFE.Entities.Units
         /// (<c>UnitTurret.as:310-313</c>). Frame 1 is the unlit pose and the symbol's frame 1 is
         /// <b>empty</b>, so an idle mount shows no lamp — that is the oracle's behaviour, not a missing
         /// asset.
+        ///
+        /// <para>The arithmetic lives in
+        /// <see cref="PFE.Entities.Enemies.Archetypes.TurretAIStateMath.LampFrame"/> so the offline wall
+        /// can assert it; this is the art-side name for the same number, and it must not diverge.</para>
         /// </summary>
         public static int LampFrame(int aiState)
-        {
-            int frame = aiState + 1;
-            if (frame < 1) return 1;
-            return frame > LampFrameCount ? LampFrameCount : frame;
-        }
+            => PFE.Entities.Enemies.Archetypes.TurretAIStateMath.LampFrame(aiState);
 
         /// <summary><c>Resources</c> path of a mount's body, which is the composite frame minus the gun.</summary>
         public static string BodyResourcePath(string unitId) => "TurretParts/" + unitId + "/body";

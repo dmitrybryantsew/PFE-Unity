@@ -693,51 +693,153 @@ namespace PFE.Entities.Units
         }
 
         /// <summary>
-        /// AS3 <c>Unit.look()</c>'s two flat tiers (<c>:126426-126437</c>) — the vision contribution to
-        /// the suspicion meter.
+        /// AS3 <c>Unit.look()</c>'s <b>three</b> tiers (<c>Unit.as:4632-4640</c>) — the vision
+        /// contribution to the suspicion meter.
         ///
         /// <para><b>Why vision needs an intensity at all.</b> Sight and sound feed the <i>same</i> meter
         /// (<c>findCel</c> calls <c>observation()</c> for both, <c>:126469-126474</c>), which is the only
         /// reason the two senses are comparable. A port that commits on a bool sighting and accumulates
         /// on sound has two different notions of "noticed", and the sighting one wins every time.</para>
         ///
-        /// <para><c>20</c> inside <c>detecting</c> and <c>4</c> out to the look range, straight from the
-        /// oracle's two <c>return</c> statements. Against <c>maxObs = 20</c> that is a commit in
-        /// <b>1 tick</b> at close range and <b>5 ticks</b> (0.17 s) at the far edge — the oracle's
-        /// reaction time, and the reason a guard you walk into reacts before one you merely cross.</para>
+        /// <para><c>20</c> inside the target's <c>detecting</c>, <c>4</c> out to the look range, then
+        /// <c>range²/d² · 4</c> — a <b>graded decay out to four times the range</b>, straight from the
+        /// oracle's three <c>return</c> statements. Against <c>maxObs = 20</c> that is a commit in
+        /// <b>1 tick</b> at close range, <b>5 ticks</b> (0.17 s) at the far edge of the range, and
+        /// <b>80 ticks</b> at <c>4 · range</c> — the oracle's reaction times, and the reason a guard you
+        /// walk into reacts before one you merely cross.</para>
         /// </summary>
         /// <param name="distanceSquaredPixels">Squared distance from the observer's eye to the target's
         /// centre, in AS3 pixels.</param>
         /// <param name="closeProximityPixels">AS3's <c>detecting</c> radius.</param>
         /// <param name="visionRangePixels">
-        /// The port's flat sight range — AS3's <c>lookR</c>. See the remarks for the one band this does
-        /// not reproduce.
+        /// The sight range for <i>this</i> target — AS3's <c>_loc7_</c>, the
+        /// <c>(visibility · stealthMult · visMult + demask) · vision</c> product. The far edge is
+        /// <see cref="VisionFarBandMultiplier"/> times this.
         /// </param>
         /// <remarks>
-        /// <b>Not modelled: AS3's outer decay band.</b> Beyond <c>lookR</c> the oracle returns
-        /// <c>lookR²/d² · 4</c> out to four times the range (<c>if(_loc8_ &gt; _loc7_² · 16) return 0</c>),
-        /// so a sharp-eyed unit sees a faint suggestion of a target at 4× its range. The port's vision
-        /// range is already a hard cut at <c>EnemySensors.VisionRangePixels</c> and its line-of-sight
-        /// test is a bool, so there is no soft band to put the decay in; reproducing it means porting
-        /// <c>look()</c>'s distance curve, which is its own task. Vision therefore ends where the port's
-        /// range says it ends, and that is a known divergence rather than an oversight.
+        /// <para><b>The far band is not decoration — it is where most sightings happen.</b> The oracle
+        /// culls at <c>d² &gt; range² · 16</c> (<c>Unit.as:4594-4597</c>) and only <i>then</i> grades, so
+        /// a unit genuinely responds to a target at four times its nominal range. The port used to cut
+        /// dead at <c>range</c>, which reads in play as "he did not notice me" for every engagement
+        /// that starts across a room. <c>docs/StealthSystem/03_GAP_LEDGER.md:109</c> carried this as an
+        /// open decision; it is closed here in the oracle's favour.</para>
+        ///
+        /// <para><b>The exact boundaries are the oracle's, and they are not the tidy ones.</b> At
+        /// <c>d² == range²</c> the oracle's <c>if(_loc8_ &lt; _loc7_²)</c> is false and it falls through
+        /// to <c>range²/d² · 4</c>, which is <b>4</b> — so the tier is continuous, not exclusive. At
+        /// <c>d² == range² · 16</c> it returns 0. Both edges are asserted in
+        /// <c>NoiseMathTests.VisionIntensity_*</c>.</para>
         /// </remarks>
         public static float VisionIntensity(
             float distanceSquaredPixels, float closeProximityPixels, float visionRangePixels)
         {
+            // `look()` returns before it looks at the target at all when the observer is blind
+            // (`if(… this.vision <= 0) return 0;`, Unit.as:4573), so this is checked FIRST: a unit with
+            // no range has no point-blank tier either, whatever the target's `detecting` says.
+            if (visionRangePixels <= 0f)
+            {
+                return 0f;
+            }
+
             if (closeProximityPixels > 0f &&
                 distanceSquaredPixels < closeProximityPixels * closeProximityPixels)
             {
                 return VisionCloseIntensity;
             }
 
-            if (visionRangePixels > 0f && distanceSquaredPixels < visionRangePixels * visionRangePixels)
+            float rangeSquared = visionRangePixels * visionRangePixels;
+
+            if (distanceSquaredPixels < rangeSquared)
             {
                 return VisionRangeIntensity;
             }
 
+            // AS3 `return _loc7_ * _loc7_ / _loc8_ * 4;` (:4640). `d² > range² > 0` here, so the
+            // division is safe and the result is strictly below 4 and strictly above 0.
+            if (distanceSquaredPixels < rangeSquared * VisionFarBandSquaredMultiplier)
+            {
+                return rangeSquared / distanceSquaredPixels * VisionRangeIntensity;
+            }
+
             return 0f;
         }
+
+        /// <summary>
+        /// AS3 <c>Unit.look()</c>'s outer cull ratio — <c>if(_loc8_ &gt; _loc7_ * _loc7_ * 16) return 0</c>
+        /// (<c>Unit.as:4594-4597</c>). A unit's vision reaches <b>four times</b> the range it is
+        /// nominally given; beyond that it is blind.
+        /// </summary>
+        /// <remarks>
+        /// Set this to <c>1</c> to restore the port's old hard cut at the nominal range — every
+        /// consumer reads the constant, so that one edit is the whole rollback. It is a <c>const</c>
+        /// rather than a field on purpose: a per-unit value would let one archetype's range and its
+        /// own <see cref="VisionIntensity"/> disagree, and the failure would look like "this enemy is
+        /// blind" rather than like a tuning mistake.
+        /// </remarks>
+        public const float VisionFarBandMultiplier = 4f;
+
+        /// <summary><see cref="VisionFarBandMultiplier"/> squared, for the squared-distance tests.</summary>
+        public const float VisionFarBandSquaredMultiplier =
+            VisionFarBandMultiplier * VisionFarBandMultiplier;
+
+        /// <summary>
+        /// The furthest distance at which <see cref="VisionIntensity"/> can return anything non-zero —
+        /// <c>4 · range</c> (<c>Unit.as:4594-4597</c>).
+        /// </summary>
+        /// <remarks>
+        /// <b>Any pre-cull before the graded ladder has to use this, not the nominal range.</b> A caller
+        /// that culls at <c>range</c> and then asks for an intensity never reaches the far band at all,
+        /// and the two halves silently disagree — which is exactly how the band stayed unported while
+        /// the arithmetic for it existed.
+        /// </remarks>
+        public static float VisionMaxDistancePixels(float visionRangePixels)
+        {
+            return visionRangePixels > 0f ? visionRangePixels * VisionFarBandMultiplier : 0f;
+        }
+
+        // ────────────────────────────────────────────────────────────────────────────────────────
+        //  look() — the below-the-eye range penalty
+        // ────────────────────────────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// AS3 <c>Unit.look()</c>'s <b>vertical-angle range penalty</b> (<c>Unit.as:4589-4592</c>):
+        /// <c>if(vKonus == 0 &amp;&amp; !param2 &amp;&amp; _loc6_² &gt; _loc5_² &amp;&amp; _loc6_ &gt; 0) _loc7_ *= 0.5 +
+        /// 0.5 * Math.abs(_loc5_ / _loc6_);</c>
+        ///
+        /// <para>A unit with a plain half-plane view (<c>vKonus == 0</c>) that is not overlooking
+        /// (<c>!param2</c>) has its range <b>halved</b> for a target more than 45° below it, tapering
+        /// linearly back to full range at 45°. Reading a target down a shaft is harder than reading one
+        /// across the floor.</para>
+        ///
+        /// <para><b>Sign convention.</b> AS3's <c>_loc6_</c> is <c>target.Y − eyeY</c> and its Y axis
+        /// grows <i>downward</i>, so <c>_loc6_ &gt; 0</c> means "the target is below the eye". The port's
+        /// Y grows upward, so the same test is <c>deltaYPixels &lt; 0</c>. Passing the raw
+        /// <c>target − eye</c> delta in port coordinates is therefore correct and is what
+        /// <c>EnemySensors.Evaluate</c> does.</para>
+        /// </summary>
+        /// <param name="deltaXPixels">Target centre minus eye, X, in AS3 pixels.</param>
+        /// <param name="deltaYPixels">Target centre minus eye, Y, in <b>port</b> pixels (up positive).</param>
+        /// <returns><c>1</c> when the penalty does not apply, otherwise <c>0.5 … 1</c>.</returns>
+        public static float BelowEyeRangeScale(float deltaXPixels, float deltaYPixels)
+        {
+            // `_loc6_ > 0` in AS3 is `deltaYPixels < 0` here; `_loc6_² > _loc5_²` is direction-free.
+            if (deltaYPixels >= 0f ||
+                deltaYPixels * deltaYPixels <= deltaXPixels * deltaXPixels)
+            {
+                return 1f;
+            }
+
+            // `0.5 + 0.5 * |dx/dy|`, with |dx| < |dy| so the factor lands in (0.5, 1).
+            return BelowEyeRangePenaltyFloor
+                + (1f - BelowEyeRangePenaltyFloor) * Mathf.Abs(deltaXPixels / deltaYPixels);
+        }
+
+        /// <summary>
+        /// The floor of <see cref="BelowEyeRangeScale"/> — AS3's literal <c>0.5</c> in
+        /// <c>0.5 + 0.5 * Math.abs(...)</c> (<c>Unit.as:4591</c>): a target straight down is seen at
+        /// <b>half</b> range, not not at all.
+        /// </summary>
+        public const float BelowEyeRangePenaltyFloor = 0.5f;
 
         /// <summary>
         /// AS3 <c>look()</c>'s <c>return 20;</c> for a target inside <c>detecting</c>

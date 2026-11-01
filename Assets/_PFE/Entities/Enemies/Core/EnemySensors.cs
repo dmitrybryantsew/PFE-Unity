@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using PFE.Entities.Units;
+using PFE.Systems.Combat;
 using PFE.Systems.Map.TileQuery;
 using UnityEngine;
 
@@ -49,6 +50,25 @@ namespace PFE.Entities.Enemies
         public VisionCone Cone = VisionCone.Horizontal;
 
         /// <summary>
+        /// Whether this observer has an <b>elevation cone</b> — AS3 <c>Unit.vKonus &gt; 0</c>, which only
+        /// the wall/ceiling turret mounts set (<c>UnitTurret.as:204</c>, <c>:248</c>).
+        ///
+        /// <para><b>It suppresses one rule and it is not the same thing as <see cref="Cone"/>.</b>
+        /// <c>look()</c>'s below-the-eye range penalty is
+        /// <c>if(this.vKonus == 0 &amp;&amp; !param2 &amp;&amp; _loc6_*_loc6_ &gt; _loc5_*_loc5_ &amp;&amp; _loc6_ &gt; 0)
+        /// _loc7_ *= 0.5 + 0.5*|_loc5_/_loc6_|</c> (<c>Unit.as:4589-4592</c>) — <b>gated on
+        /// <c>vKonus == 0</c></b>, so a mount that aims with a real cone never suffers it. A ceiling
+        /// turret with its barrel hanging straight down would otherwise have its range halved for
+        /// everything in the room below it, which is every target it exists to shoot.</para>
+        ///
+        /// <para>Kept separate from <see cref="Cone"/> because the two do not coincide: a
+        /// <c>vis='right'</c> wall mount is <see cref="VisionCone.Horizontal"/> <i>and</i> has
+        /// <c>vKonus = π/2</c>. Collapsing them would either give that mount a free 360° arc or
+        /// re-impose the penalty the oracle removed.</para>
+        /// </summary>
+        public bool HasElevationCone;
+
+        /// <summary>
         /// The shape of a unit's vision half-plane. See <see cref="Cone"/>.
         /// </summary>
         public enum VisionCone
@@ -60,21 +80,52 @@ namespace PFE.Entities.Enemies
             Up = 1,
 
             /// <summary>The lower half-plane: every point at or below the eye's height.</summary>
-            Down = 2
+            Down = 2,
+
+            /// <summary>
+            /// No facing restriction at all — the aggregate of a mount that sweeps the <b>four
+            /// diagonals</b>. See the note on <see cref="Cone"/>.
+            ///
+            /// <para><b>This is the absent-<c>@vis</c> wall/ceiling mount, and it was the "too blind"
+            /// report.</b> A mount whose placement authors no <c>vis</c> keeps
+            /// <c>aRot = [45,135,-135,-45]</c> (<c>UnitTurret.as:203</c>), so over one period its
+            /// ±45° cone covers <i>every</i> quadrant in turn. The port mapped that to the
+            /// <see cref="Horizontal"/> hemisphere — the facing the placement happened to roll — so a
+            /// ceiling turret with its barrel hanging down never looked down, and a player standing
+            /// two tiles under it was invisible. The aggregate of four quadrants is 360°, not a
+            /// half-plane.</para>
+            /// </summary>
+            All = 3
         }
 
         /// <summary>
-        /// Maximum sight range in world pixels at a <b>neutral</b> target (40px = 1 tile; 480px = 12
-        /// tiles).
+        /// The range at which <b>this</b> observer sees a target at the oracle's reference visibility —
+        /// AS3's <c>(visibility · stealthMult · loc.visMult + demask) · vision</c> for a moving, uncloaked,
+        /// ungeared player (<c>unit/Unit.as:4587</c>).
         ///
-        /// <para><b>It is no longer the range an actual target is tested at.</b> AS3's <c>look()</c>
-        /// computes the range <i>per target</i> from that target's own stealth
-        /// (<c>unit/Unit.as:4587</c>), so this field is now the observer's range against a target at
-        /// <see cref="StealthMath.ReferenceVisibility"/> with no cloak and no reveal. See
-        /// <see cref="EffectiveSightRangePixels"/>. It is kept as the drawn radius for the neutral case
-        /// and as the turret-aggregate model's base; the F3 overlay draws the <i>effective</i> range.</para>
+        /// <para><b>2000 px, which is the oracle's own number and not a calibration.</b> The player's
+        /// <c>visibility</c> is <c>2000</c> while moving and <c>1500</c> while still
+        /// (<c>unit/UnitPlayer.as:1093-1096</c>), and every observer's <c>vision</c> is 1, so the
+        /// oracle's range is literally <c>2000</c> — 50 tiles. This field used to hold <c>480</c>
+        /// (12 tiles), an invented calibration that made every enemy in the game
+        /// <b>4.17× blinder</b> than the original; the reported symptom was "turrets are too blind
+        /// compared to the original", and it was not a turret problem — the turret was simply the
+        /// emplacement you can walk away from and watch.</para>
+        ///
+        /// <para><b>What 2000 px means in play, and why it is not a mistake.</b> Rooms are ~90 tiles
+        /// wide (3720 px), so an enemy with line of sight and the player in its arc notices him from
+        /// roughly half a room away — off-screen. That is the original's design: distance is a weak
+        /// gate, and the real gates are the tile ray (<c>Unit.as:4619-4631</c>) and the facing cone.
+        /// The 4× far band (<see cref="NoiseMath.VisionMaxDistancePixels"/>) then extends weak
+        /// awareness to 8000 px, exactly as the oracle's <c>d² &gt; range²·16</c> cull does.</para>
+        ///
+        /// <para><b>Per-target ranges still shorten it.</b> <see cref="EffectiveSightRangePixels"/>
+        /// divides by <c>StealthMath.ReferenceVisibility</c> (2000) and multiplies by this base, so with
+        /// this base equal to that reference the port's arithmetic collapses to the oracle's own
+        /// formula with no ratio at all — a crouching, lurking or cloaked target scales it down, and a
+        /// <c>demask</c> reveal adds to it outside the multiply.</para>
         /// </summary>
-        public float VisionRangePixels = 480f;
+        public float VisionRangePixels = 2000f;
 
         /// <summary>
         /// The <b>observer's</b> own vision scale — AS3 <c>Unit.vision</c>, the
@@ -91,6 +142,27 @@ namespace PFE.Entities.Enemies
         public float VisionPower = 1f;
 
         /// <summary>
+        /// The observer's <b>class-level</b> vision scale — AS3 <c>Unit.visionMult</c>.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>A fourth number, and it is not <see cref="VisionPower"/> under another name.</b>
+        /// <c>vision</c> is a per-frame field the class rewrites in <c>control()</c>
+        /// (<c>UnitRaider.as:991-1000</c>: <c>1</c> while <c>aiSpok == 0</c>, <c>1.5</c> once alerted);
+        /// <c>visionMult</c> is a constant its constructor sets once. The oracle's range product is
+        /// <c>… · vision</c> (<c>Unit.as:4587</c>) and the multiplier is already inside
+        /// <c>vision</c> by the time it is read, which is why the port needs both factors rather than
+        /// one: <see cref="VisionPower"/> carries the <c>1</c>/<c>1.5</c> switch the port has not
+        /// modelled, and this carries the class constant.</para>
+        ///
+        /// <para><b>Only one class writes it.</b> <c>Unit.visionMult</c> is declared <c>1</c> and the
+        /// only assignment in the whole oracle is <c>UnitZebra.as:23</c>'s <c>visionMult = 1.3</c> — the
+        /// zebra sees 30 % farther than its row's numbers suggest, which is the mechanical half of a
+        /// unit that fades out of sight and has to find you again. Defaulting to the oracle's neutral
+        /// <c>1</c> keeps every other family exactly where it was.</para>
+        /// </remarks>
+        public float VisionMultiplier = 1f;
+
+        /// <summary>
         /// The location's <c>visMult</c> — AS3 <c>Location.visMult</c>, the room/land brightness
         /// multiplier in <c>look()</c>'s range product (<c>unit/Unit.as:4587</c>).
         ///
@@ -100,7 +172,9 @@ namespace PFE.Entities.Enemies
         /// multiplied by the room's own value. The surf rooms author <c>vis='10'</c>, so their sight
         /// range was <b>ten times</b> shorter than the original's. The symptom was read as "Calamity
         /// can't see the raiders", which was literally true: 480 px against a 573 px gap, where the
-        /// oracle's range is 4800 px.</para>
+        /// oracle's range is 4800 px. <i>(Those two numbers are historical: they predate the base being
+        /// corrected from 480 to the oracle's 2000. The missing multiplier is the defect; the scale is
+        /// not.)</i></para>
         ///
         /// <para>Now fed from <c>RoomEnvironment.visibilityMultiplier</c> by
         /// <c>EnemyController.SetLocationVisibilityMultiplier</c>, which <c>RoomUnitSpawner</c> calls
@@ -109,8 +183,26 @@ namespace PFE.Entities.Enemies
         /// </summary>
         public float LocationVisiMult = StealthMath.DefaultVisiMult;
 
-        /// <summary>Close proximity radius in pixels where target is detected even behind unit (AS3 'detecting').</summary>
-        public float CloseProximityPixels = 40f;
+        /// <summary>
+        /// The <b>observer's</b> own point-blank bubble, in pixels: a target inside it is seen even
+        /// though it is behind the observer — AS3 <c>Unit.detecting</c>, which is <c>80</c>
+        /// (<c>unit/Unit.as:464</c>) and is read as <c>this.detecting</c> by the behind-the-back gate at
+        /// <c>:4598</c>.
+        ///
+        /// <para><b>It was 40, and that halved every enemy's bubble.</b> The oracle's default is 80 and
+        /// only a <i>player</i> target ever changes it (<c>UnitPlayer.as:1118-1131</c>: 80, then 0 while
+        /// lurking or cloaked). The port's 40 was an invented value, so a raider walked past a player
+        /// standing 50 px behind it and reported "no vision" where the oracle acquires him outright —
+        /// which reads in play as "he forgot about me the moment I got behind him".</para>
+        ///
+        /// <para><b>Two different <c>detecting</c>s live in <c>look()</c>, and this is the observer's.</b>
+        /// The point-blank <i>intensity</i> tier (<c>:4632</c>) uses the <b>target's</b>
+        /// <c>detecting</c> — see <see cref="NoiseMath.VisionIntensity"/>'s
+        /// <c>closeProximityPixels</c> argument, fed from <c>candidate.Detecting</c>. That asymmetry is
+        /// the oracle's: a lurking target (<c>detecting == 0</c>) loses the 20-per-tick tier entirely
+        /// while the observer's own bubble still applies to the behind-gate. Do not merge the two.</para>
+        /// </summary>
+        public float CloseProximityPixels = 80f;
 
         /// <summary>
         /// The listener's hearing multiplier — AS3 <c>Unit.ear</c>.
@@ -162,6 +254,19 @@ namespace PFE.Entities.Enemies
         public int RaycastThrottleInterval = 10;
 
         /// <summary>
+        /// The tick phase the raycast runs on, within every <see cref="RaycastThrottleInterval"/> ticks.
+        ///
+        /// <para><b>The phase, not the interval, is the part a caller has to match.</b> A brain that
+        /// throttles its own perception to save the candidate scan has to look on <i>this</i> phase — an
+        /// archetype that evaluated on any other one would evaluate with the raycast skipped every single
+        /// time, so it would never establish line of sight and never acquire a target. That failure is
+        /// silent: no exception, no log, no failing test, just an emplacement that watches a player walk
+        /// past. `TrapBrain.UpdateSenses` reads this constant rather than restating `1` so the two cannot
+        /// drift apart.</para>
+        /// </summary>
+        public const int RaycastPhase = 1;
+
+        /// <summary>
         /// Whether the facing cone is skipped — AS3 <c>look(param1, param2)</c>'s <c>param2</c>
         /// (<c>unit/Unit.as:4560</c>).
         /// </summary>
@@ -179,6 +284,19 @@ namespace PFE.Entities.Enemies
         /// <para>The base <c>Unit.findCel</c> passes <c>this.overLook || param1</c> instead
         /// (<c>:4671</c>, <c>:4693</c>), so an ordinary raider keeps the cone unless the data says
         /// otherwise — which is why this is a per-observer flag and not a change to the default.</para>
+        ///
+        /// <para><b><c>overLook</c> is a per-<i>state</i> flag, and that is the half that was
+        /// missing.</b> It is not a character trait: <c>UnitRaider.as</c> writes it in its own state
+        /// bodies — <c>false</c> in states 0 and 1 (<c>:1074</c>, <c>:1078</c>, idle and patrol) and
+        /// <c>true</c> in states 2/3/6/8 (<c>:1178</c>, alert, chase, grenade, charge), where states
+        /// 4/5/7 inherit whatever the last body wrote. So a raider that has <i>engaged</i> tracks a
+        /// target through 360° and out to four times its range, and a raider on patrol does not. That
+        /// is the whole of the oracle's answer to "he lost me when I got behind him": while chasing,
+        /// he does not lose you. <c>UnitZombie.as:420,454</c> and <c>UnitTurret.as:693,711,731</c> do
+        /// the same; <c>UnitAlicorn</c> and <c>UnitNpcBrain</c> are the other two writers of this
+        /// flag in the port. A brain that leaves it <c>false</c> for every state has a raider whose
+        /// <c>TargetUnit</c> goes null the instant the player crosses behind it, and the chase then
+        /// runs on the stale last-known position until the awareness budget drains.</para>
         /// </remarks>
         public bool Omnidirectional;
 
@@ -226,7 +344,11 @@ namespace PFE.Entities.Enemies
             /// <summary>A target was acquired; no gate refused it.</summary>
             Committed,
 
-            /// <summary>Beyond <see cref="EffectiveSightRangePixels"/> for that target.</summary>
+            /// <summary>
+            /// Beyond <c>4 · EffectiveSightRangePixels</c> for that target — AS3's
+            /// <c>d² &gt; range² · 16</c> cull (<c>Unit.as:4594-4597</c>). <b>Not</b> the range itself:
+            /// between the range and 4× it the target is still seen, weakly.
+            /// </summary>
             Range,
 
             /// <summary>Behind the observer, with <see cref="Omnidirectional"/> off.</summary>
@@ -250,7 +372,10 @@ namespace PFE.Entities.Enemies
         /// <see cref="EffectiveSightRangePixels"/>; a non-positive value falls back to
         /// <see cref="VisionRangePixels"/>, which is what a caller with no target wants.</para>
         /// </summary>
-        /// <param name="maxRangePixels">The cull distance for <i>this</i> target. <c>&lt;= 0</c> means <see cref="VisionRangePixels"/>.</param>
+        /// <param name="maxRangePixels">The <b>range</b> for <i>this</i> target. The ray is culled at
+        /// <see cref="NoiseMath.VisionFarBandMultiplier"/> times it, which is what <c>look()</c> does
+        /// (<c>Unit.as:4594-4597</c>) — not at the range itself. <c>&lt;= 0</c> means
+        /// <see cref="VisionRangePixels"/>.</param>
         public bool CheckLineOfSight(
             Vector2 eyePosPx, Vector2 targetCenterPx, ITileQueryService tileQuery, float maxRangePixels = -1f,
             Vector2 rayOriginPx = default)
@@ -270,7 +395,15 @@ namespace PFE.Entities.Enemies
             }
 
             float range = maxRangePixels > 0f ? maxRangePixels : VisionRangePixels;
-            if (dist > range)
+
+            // The ray is culled at FOUR times the range, matching `look()`'s own pre-cull
+            // (`Unit.as:4594-4597`) and NoiseMath.VisionIntensity's far band. A ray that stopped at the
+            // nominal range would contradict the intensity ladder the caller just used: the caller
+            // would ask for a graded intensity at 2·range and get "occluded" back. The cost is real —
+            // the walk steps a quarter tile (10 px), so a 4·range ray is ~190 samples against ~48 — and
+            // it is paid on the throttled raycast tick only.
+            float maxSightPixels = NoiseMath.VisionMaxDistancePixels(range);
+            if (dist > maxSightPixels)
             {
                 return false;
             }
@@ -368,6 +501,13 @@ namespace PFE.Entities.Enemies
                 return true;
             }
 
+            // A mount that sweeps all four diagonals has no single arc to be outside of — see
+            // VisionCone.All. `look()` has no cone to apply when `vKonus` covers the plane.
+            if (Cone == VisionCone.All)
+            {
+                return true;
+            }
+
             // A vertical cone is the same half-plane turned 90 degrees, rim included: AS3's
             // ±45 frame around an aim of straight up accepts everything at or above the eye, and
             // the sweep over the author's aRot pair covers the two adjacent quadrants, i.e. the
@@ -424,7 +564,7 @@ namespace PFE.Entities.Enemies
                 stealth.StealthMult,
                 LocationVisiMult,
                 stealth.Demask,
-                VisionPower);
+                VisionPower * VisionMultiplier);
         }
 
         /// <summary>
@@ -506,6 +646,51 @@ namespace PFE.Entities.Enemies
         }
 
         /// <summary>
+        /// The point a weapon aimed at <paramref name="unit"/> must point at — AS3's
+        /// <c>celX</c>/<c>celY</c> for a live target, in world pixels.
+        ///
+        /// <para><b>Not the same point as <see cref="GetUnitCenterPixels"/>, and the difference is a
+        /// bug that shipped twice.</b> A ported unit's <c>transform.position</c> is its <i>feet</i>
+        /// (<c>Unit.as:1875</c>: <c>Y1 = Y - scY, Y2 = Y</c>), so aiming a weapon at
+        /// <c>target.transform.position</c> points the barrel at the floor the target stands on. A
+        /// round fired on that line reaches the ground at her hooves — at best it grazes the bottom
+        /// edge of the collider, and in practice the floor tile is hit first, so it reads as "the
+        /// enemy cannot hit me". That was the turret report ("something must be eating them") and it
+        /// was still true of the alicorn, the alicorn boss, the robots, the necromancer boss and every
+        /// pet.</para>
+        ///
+        /// <para><b>This is the aim point, not the distance point.</b> <c>setCel</c> adds a
+        /// quarter-width bias along the target's facing (<c>Unit.as:4707</c>); hearing and range tests
+        /// compare centre to centre and must keep using
+        /// <see cref="GetUnitCenterPixels"/>. See <see cref="EnemyAimMath.TargetCel"/>.</para>
+        /// </summary>
+        public static Vector2 GetUnitAimPixels(UnitController unit)
+        {
+            if (unit == null) return Vector2.zero;
+
+            Vector2 feetPx = (Vector2)unit.transform.position * 100f;
+            Vector2 sizePx = unit.SpriteSizePixels;
+
+            // A statless spawn (a bare test unit, or one whose definition failed to load) has no
+            // scX/scY to take a quarter and a half of. The old centre helper used a 50 px height in
+            // that case; keep a body-sized default rather than collapsing the aim onto the feet.
+            if (sizePx.x <= 0f) sizePx.x = 40f;
+            if (sizePx.y <= 0f) sizePx.y = 50f;
+
+            return EnemyAimMath.TargetCel(feetPx, sizePx, unit.FacingDirection);
+        }
+
+        /// <summary>
+        /// <see cref="GetUnitAimPixels"/> in Unity world units — what
+        /// <c>EnemyWeaponMount.SetAimTarget</c> takes. The conversion lives here so no brain has to
+        /// remember it, and so the "world units, never pixels" rule has one implementation instead of
+        /// eleven (a <c>* 100f</c> at a call site is the documented cause of the alicorn's "fires at
+        /// 45° to the right" bug).
+        /// </summary>
+        public static Vector2 GetUnitAimWorld(UnitController unit)
+            => GetUnitAimPixels(unit) * TileQueryConstants.PixelToUnit;
+
+        /// <summary>
         /// Evaluates candidates (e.g. players) and updates the blackboard situational context.
         /// Raycasting is throttled to every <see cref="RaycastThrottleInterval"/> ticks.
         ///
@@ -544,7 +729,7 @@ namespace PFE.Entities.Enemies
             }
 
             // Oracle AS3 gates raycast checks on `aiTCh % 10 == 1`
-            bool shouldRaycast = (tickIndex % RaycastThrottleInterval == 1);
+            bool shouldRaycast = (tickIndex % RaycastThrottleInterval == RaycastPhase);
 
             UnitController seenCandidate = null;
             float seenIntensity = 0f;
@@ -597,7 +782,24 @@ namespace PFE.Entities.Enemies
                     // yields exactly VisionRangePixels, which is why this changed no enemy's range until
                     // something authored stealth.
                     float effectiveRange = EffectiveSightRangePixels(candidate);
-                    if (distSq > effectiveRange * effectiveRange)
+
+                    // `look():4589-4592` — a plain half-plane observer that is not overlooking halves its
+                    // range for a target more than 45° below it, tapering back to full at 45°. Before the
+                    // cull, because the oracle applies it to `_loc7_` before it computes `_loc8_`.
+                    //
+                    // `HasElevationCone` is the oracle's own escape hatch: the whole arm is gated on
+                    // `this.vKonus == 0`, so a wall/ceiling mount aiming with a real cone never pays it.
+                    if (!Omnidirectional && !HasElevationCone)
+                    {
+                        effectiveRange *= NoiseMath.BelowEyeRangeScale(diff.x, diff.y);
+                    }
+
+                    // The cull is at FOUR times the range, not at the range: `if(_loc8_ > _loc7_*_loc7_*16)
+                    // return 0` (Unit.as:4594-4597). Past `effectiveRange` the oracle still returns the
+                    // graded `range²/d²·4`, so cutting here at `effectiveRange` throws away the band in
+                    // which most sightings actually happen. See NoiseMath.VisionMaxDistancePixels.
+                    float maxSightPixels = NoiseMath.VisionMaxDistancePixels(effectiveRange);
+                    if (distSq > maxSightPixels * maxSightPixels)
                     {
                         NoteRefusal(RejectionReason.Range, distSq, ref nearestReason, ref nearestDistanceSq);
                         continue;

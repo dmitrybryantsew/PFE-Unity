@@ -183,6 +183,47 @@ namespace PFE.Entities.Enemies.Archetypes
             EnemyWeaponMount mount = TurretWeaponMount;
             if (mount == null) return;
 
+            // The weapon half of putLoc — aRot/forceRot/drot/fixRot. Set from here because this is the
+            // one seam both arrival orders pass through: the mount may be built by Initialize (before
+            // the placement) or by OnWeaponServicesReady (after it), and this runs on both.
+            if (Brain is TrapBrain trap)
+            {
+                trap.ApplySweepToWeapon(mount);
+            }
+
+            // ── AS3 `currentWeapon.auto = true` — UnitTurret.as:130 ────────────────────────────────
+            //
+            // The oracle's constructor writes this immediately after `new Weapon(this, "turret"+tr)`
+            // (:126) and `rot = forceRot` (:129), and it is NOT redundant with the row: a weapon's
+            // default is `auto = rapid <= 6` (Weapon.as:856), so four of the eight turret rows —
+            // turret2 (10), turret4 (30), turret7 (25), turret3 (40), AllData.as:1810-1856 — come out
+            // SEMI-automatic. A semi-automatic weapon under a trigger that is held every frame locks
+            // itself out: `attack()` takes `if(!param1 && !auto && t_auto > 0) { t_auto = 3; ++pow;
+            // return; }` (:1296-1302) while `step()` is what decays t_auto to 2 (:1225-1227), so the
+            // counter is refreshed above its own floor on every frame and never reaches 0.
+            //
+            // That is the reported "some turrets fire once or twice and then stare at me": exactly
+            // the four slow mounts, and exactly one shot each (measured — 24 fixtures in
+            // .workbuddy-ai/tools/agentverify/turretfire). The four fast mounts were never affected
+            // because rapid <= 6 already made them automatic, which is why the symptom looked
+            // arbitrary.
+            //
+            // Set on the INSTANCE, not in the assets: `auto` is a per-mount override in the oracle,
+            // and the importer rewrites `autoMode` from the row's `@auto` attribute on every import,
+            // so a data-side fix would be silently reverted by the next `Run Full Import`.
+            mount.MarkAutomaticTrigger();
+
+            // The position half of putLoc — UnitTurret.setWeaponPos (UnitTurret.as:422-441).
+            //
+            // Read from TurretParts.Placements, the same table the gun sprite is positioned from, so
+            // the barrel is drawn and fired from one point. `LocalPixels` flips the oracle's y-down
+            // Flash sign into the port's y-up room space; nothing else is transformed.
+            string unitId = Definition != null ? Definition.id : null;
+            if (TurretParts.TryGetPlacements(unitId, out Vector2 gunFlash, out _))
+            {
+                mount.HoldOffsetPixels = TurretParts.LocalPixels(gunFlash);
+            }
+
             TurretPartPresenter parts = GetComponentInChildren<TurretPartPresenter>(true);
             if (parts == null) return;
 

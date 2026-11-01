@@ -7,6 +7,7 @@ using PFE.Systems.Combat;
 using PFE.Systems.Weapons;
 using PFE.Systems.Map;
 using PFE.Systems.Map.TileQuery;
+using PFE.Sim.Units;
 using UnityEngine;
 
 namespace PFE.Entities.Enemies.Archetypes
@@ -127,6 +128,15 @@ namespace PFE.Entities.Enemies.Archetypes
         protected RobotController RobotCtrl => _controller as RobotController;
 
         protected override bool StopsToAttack => _kind == RobotKind.Standard;
+
+        /// <summary>
+        /// <c>UnitAIRobot.as:452-461</c> — a robot walks doors open, on the same
+        /// <c>pumpObj.lock == 0 &amp;&amp; active &amp;&amp; action == 1</c> gate as the raider. Note the
+        /// oracle uses <c>== 0</c> here where the raider uses <c>&lt;= 0</c>; both are "unlocked", and
+        /// the shared port test (<c>lockValue &gt; 0</c> refuses) is the weaker of the two, which can only
+        /// ever open a door the robot would not have — never the reverse.
+        /// </summary>
+        protected override bool CanOpenDoors => true;
 
         protected override void Awake()
         {
@@ -545,9 +555,37 @@ namespace PFE.Entities.Enemies.Archetypes
             }
         }
 
+        /// <summary>
+        /// The robot's idle line — <c>if((aiState == 0 || aiState == 1) &amp;&amp; aiTCh % 30 == 1 &amp;&amp;
+        /// isrnd(0.02)) replic("neutral");</c> (<c>UnitAIRobot.as:316-319</c>).
+        /// </summary>
+        /// <remarks>
+        /// <para><b><c>_aiTCh % 30 == 1</c> is not a timer, it is a phase.</b> The oracle decrements
+        /// <c>aiTCh</c> and re-rolls it in the state bodies, so the modulo lands on whatever tick the
+        /// current value happens to hit — the roll is therefore not "every thirty ticks" but "on the
+        /// one tick in thirty whose phase matches". Reading it as a period and firing on a fixed
+        /// thirty-tick timer would give every robot in a room the same cadence.</para>
+        /// </remarks>
+        private void TryBarkRobotNeutral()
+        {
+            if (_controller == null) return;
+            if (_controller.PlacementIsQuiet) return;
+            if (_aiTCh % 30 != 1) return;
+            if (UnityEngine.Random.value >= 0.02f) return;
+
+            _controller.TryReplic(ReplicKind.Neutral);
+        }
+
         protected override void TickIdle(int tickIndex)
         {
             _familyState = 0;
+
+            // `UnitAIRobot.as:316-319` — `if((aiState == 0 || aiState == 1) && aiTCh % 30 == 1 &&
+            // isrnd(0.02)) replic("neutral");`. A robot's idle chatter is a 2 % roll on one tick in
+            // thirty, not the raider's 0.1 % per frame: same average rate, completely different shape,
+            // and the shape is what makes the two archetypes sound different.
+            TryBarkRobotNeutral();
+
             if (_isDormant)
             {
                 StopMovement();
@@ -577,6 +615,8 @@ namespace PFE.Entities.Enemies.Archetypes
 
             if (_blackboard.HasHeardNoise)
             {
+                // `UnitAIRobot.as:263-267` — `else { replic("ear"); aiSpok = maxSpok - 1; }`.
+                _controller.TryReplic(ReplicKind.Ear);
                 SetState(EnemyAIState.Alert);
                 return;
             }
@@ -587,6 +627,10 @@ namespace PFE.Entities.Enemies.Archetypes
         protected override void TickPatrol(int tickIndex)
         {
             _familyState = 1;
+
+            // Same idle roll as `TickIdle`; the oracle's condition names both states in one test.
+            TryBarkRobotNeutral();
+
             if (_blackboard.HasLineOfSight && _blackboard.TargetUnit != null)
             {
                 _familyState = 5;
@@ -597,6 +641,7 @@ namespace PFE.Entities.Enemies.Archetypes
 
             if (_blackboard.HasHeardNoise)
             {
+                _controller.TryReplic(ReplicKind.Ear);
                 SetState(EnemyAIState.Alert);
                 return;
             }
@@ -632,6 +677,10 @@ namespace PFE.Entities.Enemies.Archetypes
                     // demotes to patrol rather than freezing in the deciding state.
                     if (_blackboard.TargetUnit != null && !ChaseBudgetExhausted)
                     {
+                        // `UnitAIRobot.as:185-189` — `if(celUnit) { replic("attack"); aiSpok = maxSpok + 10;
+                        // aiState = 3; }`.
+                        _controller.TryReplic(ReplicKind.Attack);
+
                         _familyState = 3;
                         SetState(EnemyAIState.CombatChase);
                     }
@@ -657,6 +706,9 @@ namespace PFE.Entities.Enemies.Archetypes
             // forget the player on the first obscured tick.
             if (ChaseBudgetExhausted)
             {
+                // `UnitAIRobot.as:200-205` — `if(aiSpok == 0) { if(aiState > 1) replic("vse"); … }`.
+                _controller.TryReplic(ReplicKind.Vse);
+
                 SetState(EnemyAIState.Alert);
                 return;
             }
@@ -838,7 +890,7 @@ namespace PFE.Entities.Enemies.Archetypes
             }
 
             // ── Unarmed fallback ────────────────────────────────────────────────────────────────────
-            float baseDamage = _controller.Definition != null ? _controller.Definition.damage : 12f;
+            float baseDamage = _controller.Definition != null ? _controller.MeleeDamage : 12f;
             DamageType dType = _controller.Definition != null ? _controller.Definition.damageType : DamageType.Laser;
 
             Vector2 targetPos = (Vector2)_blackboard.TargetUnit.transform.position * 100f;
@@ -876,7 +928,10 @@ namespace PFE.Entities.Enemies.Archetypes
 
             if (firing && _blackboard.TargetUnit != null)
             {
-                mount.SetAimTarget(_blackboard.TargetUnit.transform.position);
+                // `setCel`'s point, not the target's origin: `celY = Y - scY/2` (`Unit.as:4708`) is the
+                // middle of her body, and `transform.position` is her feet. The old form fired the
+                // flamethrower and the plasma bolt into the floor tile she stands on.
+                mount.SetAimTarget(EnemySensors.GetUnitAimWorld(_blackboard.TargetUnit));
             }
 
             mount.SetFiring(firing);
@@ -993,7 +1048,9 @@ namespace PFE.Entities.Enemies.Archetypes
 
             if (firing && _blackboard.TargetUnit != null)
             {
-                mount.SetAimTarget(_blackboard.TargetUnit.transform.position);
+                // Same point as the primary — the oracle's `celX`/`celY` is one field per unit, so
+                // `dopWeapon` and `currentWeapon` always read the same aim (`Unit.as:364`).
+                mount.SetAimTarget(EnemySensors.GetUnitAimWorld(_blackboard.TargetUnit));
             }
 
             mount.SetFiring(firing);

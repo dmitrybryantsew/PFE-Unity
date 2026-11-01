@@ -50,10 +50,14 @@ namespace PFE.Entities.Enemies.Archetypes
         /// <c>down</c>→<c>[45,135]</c>, each swept against <c>vKonus = Math.PI / 2</c> (:204), so the
         /// sweep covers the whole half-plane named.
         ///
-        /// <para>Returns <see cref="EnemySensors.VisionCone.Horizontal"/> for an absent value — the
-        /// mount's default table is the four diagonals, whose aggregate has no single horizontal side,
-        /// so the facing the placement rolled is kept — and <c>null</c> for a value the oracle's four
-        /// <c>if</c>s do not name, so the caller can report it rather than treat it as absent.</para>
+        /// <para><b>An absent value is <see cref="EnemySensors.VisionCone.All"/>, not
+        /// <c>Horizontal</c>.</b> Without an override the table stays the <b>four diagonals</b>
+        /// <c>[45,135,-135,-45]</c> (<c>:203</c>), and a ±45° cone around each of those covers all four
+        /// quadrants in turn — the aggregate is the whole plane. The port used to keep the facing the
+        /// placement rolled, i.e. one hemisphere, which is what made a ceiling mount with its barrel
+        /// hanging down unable to see the floor it was aimed at. Returns <c>null</c> only for a value
+        /// the oracle's four <c>if</c>s do not name, so the caller can report it rather than treat it as
+        /// absent.</para>
         /// </summary>
         public static EnemySensors.VisionCone? ConeForVis(string vis)
         {
@@ -68,7 +72,7 @@ namespace PFE.Entities.Enemies.Archetypes
                     return EnemySensors.VisionCone.Down;
                 case null:
                 case "":
-                    return EnemySensors.VisionCone.Horizontal;
+                    return EnemySensors.VisionCone.All;
                 default:
                     return null;
             }

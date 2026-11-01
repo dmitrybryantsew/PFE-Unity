@@ -267,7 +267,7 @@ namespace PFE.Entities.Enemies.Archetypes
                     // No noise: `antfire` is a weapon and its `<snd noise>` is the radius
                     // (AS3 `Weapon.as:1581`). The invented `MakeNoise(120, true)` is removed.
 
-                    float dmg = _controller.Definition != null ? _controller.Definition.damage : 10f;
+                    float dmg = _controller.Definition != null ? _controller.MeleeDamage : 10f;
                     Vector2 targetPos = (Vector2)_blackboard.TargetUnit.transform.position * 100f;
 
                     var pending = PendingDamage.Direct(

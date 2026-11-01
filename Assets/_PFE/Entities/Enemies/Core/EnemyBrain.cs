@@ -5,6 +5,7 @@ using PFE.Data.Definitions;
 using PFE.Entities.Units;
 using PFE.Systems.Campaign;
 using PFE.Systems.Map;
+using PFE.Systems.Map.Actions;
 using PFE.Systems.Map.TileQuery;
 using PFE.Systems.Physics;
 using UnityEngine;
@@ -31,6 +32,18 @@ namespace PFE.Entities.Enemies
         [SerializeField] protected int _attackCooldownTicks = 30; // 1 second at 30 fps
         [SerializeField] protected int _patrolDurationTicks = 90; // 3 seconds
         [SerializeField] protected int _idleDurationTicks = 60;   // 2 seconds
+
+        /// <summary>
+        /// `isrnd(0.1)` (`UnitRaider.as:1120`, `:1139`) — the chance a unit at a lip probes for
+        /// something to hop onto instead of turning. Nine visits in ten it turns without probing.
+        /// </summary>
+        protected const float PatrolProbeChance = 0.1f;
+
+        /// <summary>
+        /// `isrnd(0.1)` (`UnitRaider.as:1158`) — the chance the turn also drops the unit to idle. This
+        /// is the <i>only</i> way a patrol ends; there is no patrol timer in the oracle.
+        /// </summary>
+        protected const float PatrolStopChance = 0.1f;
 
         /// <summary>
         /// How long the unit spends climbing out of the floor — AS3 <c>UnitZombie</c>'s
@@ -65,6 +78,21 @@ namespace PFE.Entities.Enemies
         public EnemyAIState CurrentState => _currentState;
         public EnemyBlackboard Blackboard => _blackboard;
         public EnemySensors Sensors => _sensors;
+
+        /// <summary>
+        /// The <b>AS3 <c>aiState</c></b> this brain's unit is in, as a raw integer — the value a state
+        /// lamp indexes its frames with. Defaults to <see cref="CurrentState"/>'s value, which is the
+        /// identity for every archetype whose enum <i>is</i> AS3's numbering.
+        ///
+        /// <para><b>Why this is not just <c>(int)CurrentState</c> everywhere.</b> The port's
+        /// <see cref="EnemyAIState"/> is a <i>generic</i> enemy vocabulary, and it diverges from AS3's
+        /// turret ladder at 3: the port's <c>Attack = 7</c> is a stop-and-swing construct AS3 does not
+        /// have, while a turret's <c>aiState 3</c> means "committed, firing". Reading the enum gave a
+        /// turret lamp frame 1 (empty) forever, and frame 8 (clamped to the boss frame) the one time
+        /// something wrote <c>Attack</c>. <c>TrapBrain</c> overrides this with its own
+        /// <c>TurretAIStateMath</c> state so the lamp and the behaviour read one number.</para>
+        /// </summary>
+        public virtual int LampStateIndex => (int)_currentState;
 
         /// <summary>
         /// The live targets this brain evaluated this tick, exposed read-only so the debug overlay can
@@ -261,9 +289,55 @@ namespace PFE.Entities.Enemies
         /// synchronously and calls <c>ApplyPlacement</c> as its last act, so no sim tick can run between
         /// the brain registering with <see cref="SimLoop"/> and this call — a brain may enter a
         /// placement-derived state here without the sim observing a tick of the wrong one.</para>
+        ///
+        /// <para><b>Why the sensor sync is repeated here.</b> <c>ApplyPlacement</c> is also where a
+        /// starred enemy is promoted, and tier 4 adds <c>observ += 8</c> (<c>Unit.as:1666</c>). The
+        /// <see cref="OnDefinitionAssigned"/> sync ran before that, so without a second read a tier-4
+        /// elite would keep an ordinary unit's observation power and its <c>+8</c> would be inert —
+        /// silently, because nothing else reads the field. Re-syncing here is one call and is ordered
+        /// <i>before</i> any subclass body (every override calls <c>base</c> first), which is what keeps
+        /// <c>ZombieBrain</c>'s buried <c>ear</c> override winning.</para>
         /// </summary>
         public virtual void OnPlacementApplied(UnitInstance placement)
         {
+            SyncSensorTuning();
+
+            // The placement's `turn` — resolved by `UnitController.ApplyPlacement` one line before this
+            // hook runs — is the cone's first real direction. See SyncFacingFromController for why the
+            // seed in Initialize could not have seen it.
+            SyncFacingFromController();
+        }
+
+        /// <summary>
+        /// Scale the three speeds this brain drives with — AS3's tier-4 hero block,
+        /// <c>walkSpeed *= 1.4</c>, <c>sitSpeed *= 1.4</c>, <c>runSpeed *= 1.25</c>
+        /// (<c>Unit.as:1667-1669</c>).
+        ///
+        /// <para><b>Why the base class owns it.</b> Every archetype computes <c>_patrolSpeed</c> /
+        /// <c>_chaseSpeed</c> / <c>_alertSpeed</c> from the definition in its own
+        /// <see cref="OnDefinitionAssigned"/> — <c>ArmedShooterBrain</c> keeps its own
+        /// <c>_walkSpeed</c>/<c>_runSpeed</c> pair on top — but all three fields are declared here, so
+        /// one multiply covers every family. A per-brain implementation would be nine copies of the same
+        /// three lines and nine chances to miss one.</para>
+        ///
+        /// <para><b>The mapping is a port choice, not an oracle citation.</b> AS3's three names are
+        /// <c>walkSpeed</c>, <c>sitSpeed</c> (the speed while standing and aiming) and <c>runSpeed</c>.
+        /// The port's three are patrol, alert and chase. Patrol is the walk/sit pair and chase is the
+        /// run, so those two are exact. <b>Alert takes the run factor</b> because three of the five
+        /// archetypes derive it from the run speed (<c>ArmedShooterBrain</c>: <c>_runSpeed * 0.6f</c>,
+        /// <c>BeastBrain</c>: <c>_chaseSpeed * 0.7f</c>, <c>FlyerBrain</c>: <c>_flySpeed * 1.2f</c>) —
+        /// scaling it by the walk factor instead would make a tier-4 beast move <i>slower</i> when
+        /// alert than when patrolling.</para>
+        ///
+        /// <para><b>Called once.</b> <c>UnitController.ApplyHeroTier</c> guards its whole body, so a
+        /// second <c>ApplyPlacement</c> cannot compound these — the same trap
+        /// <c>RobotController.ApplyVariantTuning</c> documents for <c>DamageScale</c>.</para>
+        /// </summary>
+        public void ScaleMovementSpeeds(float walkScale, float runScale)
+        {
+            _patrolSpeed *= walkScale;
+            _alertSpeed *= runScale;
+            _chaseSpeed *= runScale;
         }
 
         public virtual void SetState(EnemyAIState newState)
@@ -499,6 +573,54 @@ namespace PFE.Entities.Enemies
             OnDamaged(0f, src);
         }
 
+        /// <summary>
+        /// Hand this brain an objective it did not see for itself — AS3 <c>Unit.setCel(celUnit)</c>
+        /// (<c>Unit.as:4703-4735</c>), reached from <c>UnitAlicorn.telepat()</c> (<c>:403-413</c>).
+        ///
+        /// <para><b>Why a public seam and not a field write.</b> <c>TargetUnit</c> is the one piece of
+        /// state <c>EnemySensors.Evaluate</c> owns, and the docs on <see cref="EnemyBlackboard"/> are
+        /// explicit that a second writer is how "the target flickers" bugs happen. A named method keeps
+        /// the invariant visible: <b>the position and the unit are written together</b>, because a
+        /// <c>TargetUnit</c> with no position sends <c>TickAlert</c> walking to whatever the last
+        /// sighting was, and a position with no unit leaves a chase with nothing to shoot.</para>
+        ///
+        /// <para><b>What it deliberately does not touch.</b> <c>AlertTimerTicks</c> — the awareness
+        /// budget — and the current state. AS3's <c>setCel</c> assigns only <c>celUnit</c>/<c>celX</c>/
+        /// <c>celDY</c>; a shared target is an <i>objective</i>, not a promotion, and a receiver that
+        /// cannot see the target still has to reach it under its own budget.</para>
+        ///
+        /// <para><b>The receiver may lose it on the next sensor pass.</b> <c>TargetUnit</c> is cleared
+        /// whenever nothing is visible, so what survives a hand-off is the position. That is a known
+        /// divergence from the oracle's <c>celUnit</c>, which survives a failed <c>findCel</c> — recorded
+        /// on <c>AlicornBrain.Telepat</c>.</para>
+        /// </summary>
+        /// <param name="target">The unit to pursue. A null target is ignored rather than clearing.</param>
+        /// <param name="lastKnownPositionPixels">The target's position, in world pixels.</param>
+        public void ShareTarget(UnitController target, Vector2 lastKnownPositionPixels)
+        {
+            if (target == null) return;
+
+            _blackboard.TargetUnit = target;
+            _blackboard.LastKnownTargetPosition = lastKnownPositionPixels;
+            _blackboard.HasLastKnownTargetPosition = true;
+        }
+
+        /// <summary>
+        /// A look at the incoming <b>shot</b> before it is applied — AS3's third parameter to
+        /// <c>Unit.damage(param1, param2, param3)</c>, which <see cref="OnDamaged"/> cannot carry.
+        ///
+        /// <para><b>The default is "let it land".</b> Nothing in the base brain has ever inspected a
+        /// shot, and every family that does not override this keeps exactly the behaviour it had before
+        /// the seam existed.</para>
+        ///
+        /// <para><b>Reached through <c>EnemyController</c>, not through the brain directly</b> — the
+        /// resolver asks the <i>target</i> (<see cref="PFE.Systems.Combat.IDamageContextSink"/>), and the
+        /// target is the controller. See <c>DamageSystem.Apply</c> for where in the pipeline it lands and
+        /// why that is the oracle's position.</para>
+        /// </summary>
+        /// <returns><c>true</c> to refuse the hit entirely (AS3's <c>return 0</c>).</returns>
+        public virtual bool OnDamageContext(in PFE.Systems.Weapons.DamageContext context) => false;
+
         public virtual void OnDamaged(float amount, Vector2 damageSourcePx)
         {
             if (_currentState == EnemyAIState.Dead)
@@ -617,6 +739,11 @@ namespace PFE.Entities.Enemies
             // is dead code whatever it returns.
             TryEnterAttackState();
 
+            // A body pressed against a door pushes it open — AS3's `pumpObj` (`Unit.as:2129`, consumed
+            // at `UnitRaider.as:1378-1387` / `UnitAIRobot.as:452-461`). After the state tick, because
+            // the facing it probes with is the one the tick just set.
+            TryPushDoorOpen();
+
             // ...and draw, which the oracle also does last. `UnitZombie.animate()` runs after
             // `control()` in the same frame, and the state it picks is a function of the decision
             // `control()` just made — including the speed this tick commanded.
@@ -669,6 +796,30 @@ namespace PFE.Entities.Enemies
                 _blackboard.IsGrounded = _controller.IsGrounded;
             }
 
+            UpdateSenses(tickIndex);
+        }
+
+        /// <summary>
+        /// The expensive half of <see cref="UpdatePerception"/> — rebuild the candidate list, run the
+        /// sensors, raise the sighting alarm. Split out so an archetype can throttle it to the oracle's
+        /// own cadence <i>without</i> also freezing the timer countdowns and the grounded mirror above it.
+        ///
+        /// <para><b>Why a separate call rather than a guard inside <see cref="UpdatePerception"/>.</b>
+        /// `ShockTimerTicks`, `AttackCooldownTicks` and `AlertTimerTicks` are decremented once per tick in
+        /// AS3 whether or not `findCel()` ran that tick — a stunned unit's timers keep draining. A
+        /// subclass that wrapped the whole method in a cadence gate would stop those clocks for nine
+        /// ticks in ten, and the only symptom would be "a stun lasts ten times longer". Nothing else in
+        /// the code would notice, so the seam has to be here rather than at the caller.</para>
+        ///
+        /// <para><b>Throttling this freezes the target fields, and that is faithful.</b>
+        /// <see cref="EnemyBlackboard.TargetDistance"/>, <c>TargetDeltaX/Y</c> and
+        /// <see cref="EnemyBlackboard.HasLineOfSight"/> are written only from
+        /// <see cref="EnemySensors.Evaluate"/>, which is what AS3 does too: `celX`/`celDX` are assigned
+        /// only inside `setCel()` (`Unit.as:4703-4734`), so the oracle's own turret aims at a target
+        /// sampled at its `findCel` cadence, not every tick.</para>
+        /// </summary>
+        protected virtual void UpdateSenses(int tickIndex)
+        {
             // Update candidate targets (find living players)
             RefreshTargetCandidates();
 
@@ -842,9 +993,12 @@ namespace PFE.Entities.Enemies
 
             if (--_blackboard.StateTimerTicks <= 0)
             {
-                // Turn around and patrol
-                _blackboard.FacingDirection = -_blackboard.FacingDirection;
-                ApplyFacing(_blackboard.FacingDirection);
+                // <b>The oracle's idle does NOT flip the facing, and flipping here was a bug.</b>
+                // `aiState == 0` (`UnitRaider.as:1046-1075`) only reacts to a lip (`shX1/shX2`), jumps
+                // in water and emits its idle replic; the direction change lives in the *patrol* arm
+                // (`:1156-1164`, `aiNapr = tstor = turnX`). The port reversed the facing on the idle
+                // timer instead, which is why a standing enemy visibly ping-ponged every three seconds
+                // with nothing to react to. Turning is now the patrol's job — see HandleLedgeAhead.
                 SetState(EnemyAIState.Patrol);
             }
         }
@@ -869,6 +1023,13 @@ namespace PFE.Entities.Enemies
 
             MoveHorizontal(_blackboard.FacingDirection * _patrolSpeed);
 
+            // <b>The cycle DOES re-roll the state, and dropping this was an over-correction.</b> AS3
+            // re-derives `aiState` once per `aiTCh` cycle while calm:
+            // `if(stroll) aiState = Math.floor(Math.random()*2); else aiState = 0;`
+            // (`UnitRaider.as:723-738`), so patrol returning to idle on the cycle is the oracle's
+            // behaviour and `ArmedShooterBrain.TickPatrol` does the same thing. What is NOT the
+            // oracle is re-rolling the *direction*: the facing only ever changes at a lip or a wall,
+            // which is what HandleLedgeAhead above now does.
             if (--_blackboard.StateTimerTicks <= 0)
             {
                 SetState(EnemyAIState.Idle);
@@ -1417,23 +1578,327 @@ namespace PFE.Entities.Enemies
         /// oracle's behaviour too, since a chasing unit's <c>aiNapr</c> is re-derived from <c>celX</c>.
         /// A handler that needs to change a chaser's course must do something other than flip.</para>
         ///
-        /// <para><b>The base does nothing, and that is a decision.</b> AS3's ledge idiom is
-        /// per-archetype — it appears in <c>UnitAIRobot</c>, <c>UnitAlicorn</c>, <c>UnitAnt</c>,
-        /// <c>UnitBossNecr</c>, <c>UnitBossRaider</c>, <c>UnitHellhound</c> and <c>UnitZombie</c> — and
-        /// the archetypes that do <i>not</i> carry it must not inherit one. A default that turned every
-        /// enemy around at every lip would be a much larger behaviour change than the one being
-        /// ported.</para>
+        /// <para><b>The base handles the patrol arm; an archetype overrides only for its own chase.</b>
+        /// This hook used to do nothing at all, and the gap was filled by a <i>facing flip on the idle
+        /// timer</i> — which is not the oracle for any archetype and made standing enemies ping-pong
+        /// every three seconds. The patrol arm now carries the oracle's real reaction
+        /// (<c>UnitRaider.as:1118-1164</c>): at a lip, a 10% probe for something to hop onto, otherwise
+        /// a turn; and the turn alone may drop the unit to idle (10%). A wall in the facing direction
+        /// turns it too, because AS3's physics pass sets <c>turnX</c> on a wall hit (<c>Unit.as:2070</c>)
+        /// and this same arm consumes it.</para>
+        ///
+        /// <para><b>The chase arms are still deliberately untouched.</b> AS3's ledge idiom is
+        /// per-archetype — <c>UnitAIRobot</c>, <c>UnitAlicorn</c>, <c>UnitAnt</c>, <c>UnitBossNecr</c>,
+        /// <c>UnitBossRaider</c>, <c>UnitHellhound</c> and <c>UnitZombie</c> each carry a chase variant
+        /// with its own threshold and its own hop, and the ones that do not must not inherit one. That
+        /// is why <see cref="ZombieBrain"/> overrides this hook: its chase has a half-body threshold and
+        /// a half hop the base must not apply to everyone.</para>
         /// </summary>
         protected virtual void HandleLedgeAhead(int tickIndex)
         {
+            // <b>Patrol only, and the restriction is the oracle's.</b> `aiState == 1` runs the `shX`
+            // turn (`UnitRaider.as:1118-1164`). The chase arms (`aiState 2/3`, `:1176-1190`) re-derive
+            // their direction from `celX` every tick and carry no `shX` test, so a turn there would be
+            // overwritten on the next tick and only serve to fight the chase.
+            if (_currentState != EnemyAIState.Patrol) return;
+            if (_controller == null || _tileQuery == null || _tileQuery.Room == null) return;
+            if (!_controller.IsGrounded) return;
+
+            int facing = _blackboard.FacingDirection;
+
+            // `stay && shX1 > 0.25 && aiNapr < 0`, mirrored for shX2 — the lip test, at the patrol's
+            // quarter-body threshold (UnitOverhangMath.PatrolEdgeThreshold, which is this `0.25`).
+            if (UnitOverhangMath.IsAtEdgeToward(
+                    facing,
+                    _controller.OverhangLeft,
+                    _controller.OverhangRight,
+                    UnitOverhangMath.PatrolEdgeThreshold))
+            {
+                // `if(isrnd(0.1)) { getAbsTile(X + storona*80, Y+10); if(phis==1 || shelf) jump(0.5); }`
+                // — the minority branch: nine visits in ten turn without probing at all.
+                if (UnityEngine.Random.value < PatrolProbeChance && HasHopSurfaceAhead(facing))
+                {
+                    HopOntoLip();
+                    return;
+                }
+
+                TurnAroundAtPatrolLip();
+                return;
+            }
+
+            // A wall, not a lip. AS3 sets `turnX` from the physics pass on a wall hit (`Unit.as:2070`,
+            // `:2080`) and the patrol arm consumes it (`:1156-1164`) — same turn, different trigger.
+            // Without this a unit whose facing runs into geometry would push at it forever, because
+            // the lip test can never fire while it is standing on solid ground.
+            //
+            // The flags come from the motor's state, not from `UnitController`: `WallLeft`/`WallRight`
+            // live on `MovementMotorState`, which is the seam the brain already holds. `TilePhysicsController`
+            // exposes the same pair, but reaching for the concrete class would bind the brain to it.
+            if (_motor != null)
+            {
+                bool wallAhead = facing < 0 ? _motor.State.WallLeft : _motor.State.WallRight;
+                if (wallAhead)
+                {
+                    TurnAroundAtPatrolLip();
+                }
+            }
         }
 
+        /// <summary>
+        /// `loc.getAbsTile(X + storona * 80, Y + 10)`, asked as `phis == 1 || shelf` — is there a solid
+        /// column or a shelf at floor level 80 px ahead, i.e. something this unit could hop onto?
+        /// </summary>
+        /// <remarks>
+        /// The Y sign is the trap: AS3's `Y + 10` is ten pixels <i>below</i> the feet because AS3's Y
+        /// grows downward, while this port's room-local Y grows upward. That conversion lives in
+        /// <see cref="UnitOverhangMath.AheadProbePoint"/>; getting it wrong puts the probe above the
+        /// unit's head, where there is never a crate, and the unit then turns at every lip and never
+        /// hops — with no exception and nothing in a log.
+        /// </remarks>
+        /// <summary>
+        /// AS3's <c>checkJump()</c> — the headroom probe that gates every jump in the family
+        /// (<c>UnitZombie.as:465-484</c>, <c>UnitRaider.as:603-623</c>: the two are line-for-line the
+        /// same function).
+        ///
+        /// <para><b>Four probes, and any one of them being non-air refuses the jump.</b> Two heights above
+        /// the feet (85 and 125 px) in the unit's own column and in the column one tile toward its facing.
+        /// The oracle writes it as four early <c>return false</c>s; this writes it as four
+        /// <c>&amp;&amp;</c>s, which is the same predicate.</para>
+        ///
+        /// <para><b><c>phis != 0</c> maps to <c>IsWallAtRoomLocalPixels</c>, and that is not an
+        /// approximation.</b> AS3 asks whether the tile is <i>anything but air</i>. The port's
+        /// <see cref="PFE.Data.Definitions.Map.TilePhysicsType"/> splits AS3's <c>phis == 0</c> case into
+        /// the geometry markers <c>Platform</c> and <c>Stair</c>, and <c>TileDecoder.MapPhysicsType</c>
+        /// maps <b>every non-zero <c>phis</c> to <c>Wall</c></b> — so <c>physicsType == Wall</c> <i>is</i>
+        /// the port's encoding of "AS3 <c>phis</c> is non-zero", and a catwalk or a ladder (air to AS3) is
+        /// correctly <b>not</b> a headroom blocker.</para>
+        ///
+        /// <para><b>Why this is on the base class and not in one archetype.</b> It was written once, in
+        /// <c>ZombieBrain</c>, and the ArmedShooter family then needed the identical function. A second
+        /// copy is how the two definitions of <c>isrnd(0.1)</c> drifted apart before; the probe heights
+        /// and the <c>phis</c> mapping are exactly the kind of literal that goes stale in the copy nobody
+        /// reads.</para>
+        ///
+        /// <para><b>No room to ask is not a refusal.</b> A brain spawned without a room cannot answer the
+        /// question, and refusing would make a bare test spawn permanently unable to jump for a reason
+        /// that has nothing to do with headroom. <c>true</c> is the honest degradation: the caller has
+        /// already established the unit is grounded and has an impulse.</para>
+        /// </summary>
+        protected virtual bool HasJumpHeadroom()
+        {
+            if (_tileQuery == null || _tileQuery.Room == null)
+            {
+                return true;
+            }
+
+            // Room-local pixels: world pixels minus the room origin, the same space `HasWallUnderFeet`
+            // uses and the space AS3's `X`/`Y` are already in.
+            Vector2 origin = _tileQuery.OriginPixel;
+            float feetX = transform.position.x * 100f - origin.x;
+            float feetY = transform.position.y * 100f - origin.y;
+
+            int facing = _controller != null ? _controller.FacingDirection : 1;
+
+            float aheadX = UnitJumpMath.HeadroomAheadPixelX(feetX, facing);
+            float lowY = UnitJumpMath.HeadroomLowPixelY(feetY);
+            float highY = UnitJumpMath.HeadroomHighPixelY(feetY);
+
+            RoomInstance room = _tileQuery.Room;
+
+            return !room.IsWallAtRoomLocalPixels(new Vector2(feetX, lowY))
+                && !room.IsWallAtRoomLocalPixels(new Vector2(feetX, highY))
+                && !room.IsWallAtRoomLocalPixels(new Vector2(aheadX, lowY))
+                && !room.IsWallAtRoomLocalPixels(new Vector2(aheadX, highY));
+        }
+
+        private bool HasHopSurfaceAhead(int facing)
+        {
+            Vector2 origin = _tileQuery.OriginPixel;
+            float feetX = transform.position.x * 100f - origin.x;
+            float feetY = transform.position.y * 100f - origin.y;
+
+            Vector2 probe = UnitOverhangMath.AheadProbePoint(feetX, feetY, facing);
+            return _tileQuery.Room.IsSolidOrShelfAtRoomLocalPixels(probe);
+        }
+
+        /// <summary>`this.jump(0.5)` (`:1125`) — the crate hop, at half the unit's own jump force.</summary>
+        private void HopOntoLip()
+        {
+            float jumpForce = (_controller != null && _controller.Stats != null)
+                ? _controller.Stats.JumpForce
+                : 0f;
+
+            // `jump()`'s `if(stay)` is the caller's IsGrounded gate; `jumpdy <= 0` (`Unit.as:1890`) is
+            // the other refusal, and "cannot jump" is a real data property (`bigrobot` carries 0).
+            if (jumpForce <= 0f) return;
+
+            JumpVertical(jumpForce * UnitOverhangMath.CrateHopMagnitude);
+        }
+
+        /// <summary>
+        /// `aiNapr = this.tstor = turnX` plus `if(isrnd(0.1)) aiState = 0` (`:1156-1161`) — the patrol
+        /// turn, and the only way a patrol ends.
+        /// </summary>
+        private void TurnAroundAtPatrolLip()
+        {
+            int turned = -_blackboard.FacingDirection;
+            _blackboard.FacingDirection = turned;
+            ApplyFacing(turned);
+
+            if (UnityEngine.Random.value < PatrolStopChance)
+            {
+                SetState(EnemyAIState.Idle);
+            }
+        }
+
+        // ── doors ────────────────────────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Whether this archetype pushes a door open by walking into it.
+        ///
+        /// <para><b>Two archetypes in the oracle, and the list is exhaustive.</b> <c>UnitRaider</c>
+        /// (<c>:1378-1387</c>) and <c>UnitAIRobot</c> (<c>UnitAIRobot.as:452-461</c>) consume the
+        /// <c>pumpObj</c> the physics pass parks on a door-tile collision. The others — <c>UnitAlicorn</c>
+        /// (<c>:1003</c>), <c>UnitZombie</c> (<c>:933</c>), <c>UnitHellhound</c> (<c>:535</c>),
+        /// <c>UnitMsp</c> (<c>:375</c>) — only <i>clear</i> it, so they never open a door and must not
+        /// inherit this. Default <c>false</c> is therefore the faithful answer, not a placeholder.</para>
+        /// </summary>
+        protected virtual bool CanOpenDoors => false;
+
+        /// <summary>
+        /// AS3's <c>pumpObj</c> push. The oracle's gate is
+        /// <c>pumpObj.lock &lt;= 0 &amp;&amp; pumpObj.active &amp;&amp; pumpObj.action == 1</c>, plus the
+        /// raider's extra <c>lockTip != 4</c>.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Probed with the same 80 px / floor-level point as the lip hop</b>, because AS3's
+        /// <c>pumpObj</c> is set by the <i>collision</i> pass on the tile the body ran into — i.e. the
+        /// tile in front of the feet, not the tile the unit is standing on.</para>
+        ///
+        /// <para><b>A locked door is left alone, not forced.</b> <c>lock &lt;= 0</c> is the whole test;
+        /// there is no pick attempt here, and adding one would turn every raider into a locksmith.
+        /// </para>
+        /// </remarks>
+        private void TryPushDoorOpen()
+        {
+            if (!CanOpenDoors) return;
+            if (_controller == null || _tileQuery == null) return;
+
+            RoomInstance room = _tileQuery.Room;
+            if (room == null) return;
+
+            Vector2 origin = _tileQuery.OriginPixel;
+            float feetX = transform.position.x * 100f - origin.x;
+            float feetY = transform.position.y * 100f - origin.y;
+
+            Vector2 probe = UnitOverhangMath.AheadProbePoint(feetX, feetY, _blackboard.FacingDirection);
+            TileData tile = room.GetTileAt(probe);
+            if (tile == null || string.IsNullOrEmpty(tile.doorId)) return;
+
+            ObjectInstance door = FindDoorObject(room, tile.doorId);
+            if (door == null) return;
+
+            // `pumpObj.active` and `pumpObj.lock <= 0`. `action == 1` is the interactive/usable flag,
+            // which the port reads as "this object answers verbs at all" — a non-interactive door object
+            // has no runtime state to open.
+            if (!door.isActive) return;
+            if (door.runtimeState != null && door.runtimeState.lockValue > 0f) return;
+
+            ObjectInteractionBroadcast.Current?.RunOn(
+                room, door, "open", ObjectVerbCommand.BroadcastParam);
+        }
+
+        /// <summary>
+        /// The object owning a door tile. The importer stamps the tile with the door object's id, so the
+        /// match is by <c>uid</c> first (the placement's unique id) and <c>objectId</c> second (the
+        /// authored one) — a room may be authored with either, and a mismatch here is silent: the door
+        /// simply never opens.
+        /// </summary>
+        private static ObjectInstance FindDoorObject(RoomInstance room, string doorId)
+        {
+            if (room?.objects == null) return null;
+
+            for (int i = 0; i < room.objects.Count; i++)
+            {
+                ObjectInstance candidate = room.objects[i];
+                if (candidate == null) continue;
+
+                if (string.Equals(candidate.uid, doorId, StringComparison.Ordinal) ||
+                    string.Equals(candidate.objectId, doorId, StringComparison.Ordinal))
+                {
+                    return candidate;
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Turn the unit, and turn its <b>perception</b> with it.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Why this writes the blackboard as well as the controller.</b> AS3 has one field,
+        /// <c>storona</c>, and it is read by both halves: the sprite's <c>scaleX</c> and the cone gate
+        /// in <c>look()</c> (<c>Unit.as:4598</c> — <c>if(!(détecting…) &amp;&amp; storona * diffX &lt; 0)
+        /// return null;</c>). The port split the fact in two — <c>UnitController._facingDirection</c>
+        /// for the drawing and <c>EnemyBlackboard.FacingDirection</c> for
+        /// <see cref="EnemySensors.Evaluate"/>'s <c>facing</c> argument — and this method used to write
+        /// only the first. A brain that turned a unit therefore kept perceiving through the <i>old</i>
+        /// cone, and a unit that never turned kept the cone it was spawned with.</para>
+        ///
+        /// <para><b>The spawn value is the worse half of that, and it is what made the Centurion zebra
+        /// stand still.</b> <see cref="EnemyBrain.Initialize"/> seeds the blackboard from
+        /// <c>_controller.FacingDirection</c>, but the spawner calls <c>controller.Initialize</c> and
+        /// then <c>controller.ApplyPlacement</c> — so the seed reads the field's default <c>+1</c>, and
+        /// the placement's <c>turn="-1"</c> arrives one line later. <c>room_7_1</c> places its zebra
+        /// boss at x=28 with <c>turn="-1"</c>, facing the door the player enters from; its sprite faced
+        /// left and its cone faced right, so <c>CheckVisionAngle</c> rejected every candidate more than
+        /// <see cref="EnemySensors.CloseProximityPixels"/> away and the boss never acquired, never
+        /// alerted and never moved. It is not a zebra bug: any placement that authors <c>turn="-1"</c>
+        /// was blind in that direction, and any placement that authors no <c>turn</c> at all lost the
+        /// coin flip half the time. See <see cref="OnPlacementApplied"/> for the other half of the
+        /// repair.</para>
+        /// </remarks>
         protected virtual void ApplyFacing(int direction)
         {
+            int facing = direction >= 0 ? 1 : -1;
+
             if (_controller != null)
             {
-                _controller.SetFacing(direction);
+                _controller.SetFacing(facing);
             }
+
+            if (_blackboard != null)
+            {
+                _blackboard.FacingDirection = facing;
+            }
+        }
+
+        /// <summary>
+        /// Re-seed the perception cone from the facing the placement actually resolved.
+        /// </summary>
+        /// <remarks>
+        /// <para><c>RoomUnitSpawner.Spawn</c> runs <c>controller.Initialize(definition, stats)</c> and
+        /// then, as its last act, <c>controller.ApplyPlacement(unit)</c>. <c>Initialize</c> is where
+        /// <see cref="EnemyBrain.Initialize"/> seeds <see cref="EnemyBlackboard.FacingDirection"/>, and
+        /// at that moment <c>UnitController._facingDirection</c> is still its field default — the
+        /// placement's <c>turn</c> is applied by <c>ApplyPlacement</c>, one call later. So the cone was
+        /// always born pointing right, whatever the room authored.</para>
+        ///
+        /// <para><b>This is the same late-fact seam as <see cref="SyncSensorTuning"/></b> — the
+        /// definition arrives on one call and the placement on another, and every placement-derived
+        /// sensor input has to be re-read at the second one. It is separate from
+        /// <see cref="ApplyFacing"/> because it is not a turn: it is the first observation of a fact
+        /// that was already decided.</para>
+        /// </remarks>
+        protected void SyncFacingFromController()
+        {
+            if (_controller == null || _blackboard == null)
+            {
+                return;
+            }
+
+            _blackboard.FacingDirection = _controller.FacingDirection >= 0 ? 1 : -1;
         }
 
         protected virtual Vector2 GetEyePositionPixels()

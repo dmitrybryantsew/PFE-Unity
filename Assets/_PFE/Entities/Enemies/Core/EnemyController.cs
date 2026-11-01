@@ -16,11 +16,22 @@ namespace PFE.Entities.Enemies
     /// Base controller for living hostile enemies.
     /// Bridges <see cref="EnemyBrain"/> with <see cref="UnitController"/> locomotion and combat.
     /// </summary>
-    public class EnemyController : UnitController
+    public class EnemyController : UnitController, PFE.Systems.Combat.IDamageContextSink
     {
         protected EnemyBrain _brain;
 
         public EnemyBrain Brain => _brain;
+
+        /// <summary>
+        /// The room's sound service, or <c>null</c> for a rig with no audio.
+        ///
+        /// <para><b>Read, not injected, by <c>NpcSpellHost</c>.</b> A spell's success cue
+        /// (<c>Spell.as:279</c>, <c>Snd.ps(this.snd, X, Y)</c>) needs a sound service, and the host is
+        /// built from the controller rather than by VContainer — so the field has to be readable rather
+        /// than protected. The alternative was a second audio path for spells, which is how two
+        /// services that must agree end up disagreeing.</para>
+        /// </summary>
+        public ISoundService Sound => _soundService;
 
         // ── The two services an NPC needs to look and sound like a unit ──────────
         //
@@ -132,6 +143,12 @@ namespace PFE.Entities.Enemies
         /// outside a 480 px range and comfortably inside the oracle's 4800. He was not blind, he was
         /// short-sighted by exactly the room's multiplier, and the one thing that would have closed the
         /// distance (the agro descent) was inverted at the same time.</para>
+        ///
+        /// <para><b>The two absolute numbers above are historical (2026-10-31).</b> They were measured
+        /// against a base sight range of 480 px, which was an invented calibration; the base is now the
+        /// oracle's 2000 px, so the same pair reads 2000 / 20000. The <i>shape</i> of the defect — a
+        /// missing multiplier, a factor of exactly the room's <c>vis</c> — is unchanged, and that is what
+        /// this note exists to record.</para>
         ///
         /// <para><b>Handed over rather than read, for the reason
         /// <see cref="SetLocationDifficulty"/> gives:</b> the value belongs to the room, and the unit's
@@ -248,6 +265,99 @@ namespace PFE.Entities.Enemies
         }
 
         /// <summary>
+        /// The elite weapon factor — AS3 <c>this.currentWeapon.damage *= 1.5</c> for a tier-1 hero
+        /// (<c>Unit.as:1652-1655</c>).
+        ///
+        /// <para><b>Why it is a field and not a one-shot multiply.</b> The raider family re-rolls and
+        /// re-equips its weapon from its own <c>ApplyPlacement</c> override, which runs <i>after</i>
+        /// <c>base.ApplyPlacement</c> — i.e. after the tier is known and after
+        /// <see cref="ScaleWeaponDamage"/> has already scaled the first mount. A one-shot would be
+        /// thrown away with that mount. Holding the factor here lets <see cref="EquipWeapon"/> stamp it
+        /// on every mount it builds, so a re-roll and a late <c>OnWeaponServicesReady</c> both end up
+        /// scaled exactly once.</para>
+        /// </summary>
+        private float _eliteWeaponDamageMultiplier = 1f;
+
+        /// <summary>
+        /// AS3 <c>currentWeapon.damage *= 1.5</c>, applied through
+        /// <c>WeaponRuntimeState.DamageScale</c> — the per-instance damage factor the ranged controller
+        /// already multiplies into the finished damage product (<c>RangedWeaponController</c>'s wear
+        /// penalty, which the gutsy variant's <c>dopWeapon.damage *= 2</c> also rides on).
+        ///
+        /// <para><b>Multiplied, not assigned.</b> The gutsy variant assigns <c>2</c> from its own tuning
+        /// hook, and AS3 composes the two (<c>UnitGutsy.as:30-33</c> runs in the constructor,
+        /// <c>setHero</c> afterwards), so a gutsy tier-1 hero fires at 3×. Assigning would silently
+        /// cancel whichever ran first.</para>
+        /// </summary>
+        protected override void ScaleWeaponDamage(float multiplier)
+        {
+            _eliteWeaponDamageMultiplier = multiplier;
+
+            MultiplyMountedWeaponDamage(multiplier);
+        }
+
+        /// <summary>
+        /// AS3 <c>UnitBossNecr.spawn()</c>'s damage scaling (<c>:669-674</c>) — a summon fights at
+        /// <c>summonAtkMult</c> of its row's strength: <c>_loc4_.dam *= this.summonAtkMult</c> and
+        /// <c>currentWeapon.damage/damageExpl *= this.summonAtkMult</c>.
+        ///
+        /// <para><b>Two multipliers, and both are multiplied rather than assigned.</b> The melee term
+        /// goes through <see cref="UnitController.MeleeDamage"/>'s own per-instance factor;
+        /// the weapon term is folded <i>into</i> <see cref="_eliteWeaponDamageMultiplier"/> so a later
+        /// <see cref="EquipWeapon"/> — the raider family re-rolls its weapon from its own
+        /// <c>ApplyPlacement</c> — stamps the product instead of cancelling one of the two factors.
+        /// Assigning would be right only if a unit could never be both starred and summoned, and that is
+        /// a property of today's content rather than of this method.</para>
+        ///
+        /// <para><b>Called after the spawn, not before.</b> The weapon mounts do not exist until
+        /// <c>Initialize</c> has run, which <c>RoomUnitSpawner</c> does inside
+        /// <c>SpawnUnitNow</c> — so a caller that scaled first would have nothing to scale and the
+        /// <c>MultiplyMountedWeaponDamage</c> pass would be a silent no-op for any unit that equips on
+        /// spawn.</para>
+        /// </summary>
+        /// <param name="multiplier">
+        /// <c>summonAtkMult</c>: <c>1</c> is a no-op, and a value <c>&lt;= 0</c> is refused rather than
+        /// applied, because a zero would leave the summon harmless in a way the oracle never produces.
+        /// </param>
+        public void ScaleSummonDamage(float multiplier)
+        {
+            if (multiplier <= 0f || Mathf.Approximately(multiplier, 1f)) return;
+
+            ScaleMeleeDamage(multiplier);
+
+            _eliteWeaponDamageMultiplier *= multiplier;
+
+            MultiplyMountedWeaponDamage(multiplier);
+        }
+
+        /// <summary>
+        /// <c>controller.State.DamageScale *= multiplier</c> on every mount — the shared tail of
+        /// <see cref="ScaleWeaponDamage"/> and <see cref="ScaleSummonDamage"/>.
+        /// </summary>
+        void MultiplyMountedWeaponDamage(float multiplier)
+        {
+            if (_weaponMounts.Count == 0) return;
+
+            foreach (KeyValuePair<string, EnemyWeaponMount> pair in _weaponMounts)
+            {
+                IWeaponController controller = pair.Value != null ? pair.Value.Controller : null;
+                if (controller != null)
+                {
+                    controller.State.DamageScale *= multiplier;
+                }
+            }
+        }
+
+        /// <summary>
+        /// AS3's tier-4 speed block, forwarded to the brain — see
+        /// <see cref="EnemyBrain.ScaleMovementSpeeds"/> for why the three speeds live there.
+        /// </summary>
+        protected override void ScaleMovementSpeed(float walkScale, float runScale)
+        {
+            _brain?.ScaleMovementSpeeds(walkScale, runScale);
+        }
+
+        /// <summary>
         /// Hand the enemy the services it needs to fire a weapon and make a sound. Called by
         /// <c>RoomUnitSpawner</c> immediately after the component is added and <i>before</i>
         /// <c>Initialize</c>, so an archetype can equip in <c>Initialize</c>/<c>OnDefinitionAssigned</c>.
@@ -352,6 +462,15 @@ namespace PFE.Entities.Enemies
             mount.HoldRule = ResolveHoldRule();
 
             mount.Initialize(def, Faction, _projectileFactory, _resolver, _soundService, _debugSettings, _rng);
+
+            // A starred enemy's weapon hits harder, and every mount this unit ever builds has to know
+            // it — including one built by a re-roll long after the tier was applied. See
+            // _eliteWeaponDamageMultiplier for why the factor is held rather than applied once.
+            if (!Mathf.Approximately(_eliteWeaponDamageMultiplier, 1f) && mount.Controller != null)
+            {
+                mount.Controller.State.DamageScale *= _eliteWeaponDamageMultiplier;
+            }
+
             _weaponMounts[weaponId] = mount;
             return mount;
         }
@@ -460,6 +579,20 @@ namespace PFE.Entities.Enemies
             return broke;
         }
 
+        /// <summary>
+        /// The shot itself, before it is applied — see
+        /// <see cref="PFE.Systems.Combat.IDamageContextSink"/>.
+        ///
+        /// <para><b>Why the controller and not the brain is the sink.</b> The resolver holds an
+        /// <c>IDamageable</c> and nothing else; the controller is that object, and the brain is a
+        /// component hanging off it. Forwarding here keeps the resolver from having to know what a brain
+        /// is, and keeps <see cref="EnemyBrain"/> free of a second lifetime to reason about.</para>
+        /// </summary>
+        bool PFE.Systems.Combat.IDamageContextSink.OnDamageContext(in PFE.Systems.Weapons.DamageContext context)
+        {
+            return _brain != null && _brain.OnDamageContext(in context);
+        }
+
         protected override void OnDeath()
         {
             base.OnDeath();
@@ -469,6 +602,19 @@ namespace PFE.Entities.Enemies
                 _brain.SetState(EnemyAIState.Dead);
             }
         }
+
+        /// <summary>
+        /// The service the dissolve's one-shot sound plays through — see
+        /// <see cref="UnitController.DeathSoundService"/>.
+        /// </summary>
+        /// <remarks>
+        /// <b>This is the only thing that makes a plasma kill audible.</b> AS3's <c>Desintegr</c>
+        /// constructor calls <c>Snd.ps("desintegr_f"|"liquid_f"|"freezing_f", X, Y)</c> for the four
+        /// elemental tips (<c>serv/Desintegr.as:67, :74, :81, :88</c>), and the port had no sound service
+        /// on the corpse path at all. The field is private to this class, so the base's virtual read is
+        /// forwarded here rather than duplicated.
+        /// </remarks>
+        protected override ISoundService DeathSoundService => _soundService;
 
         /// <summary>
         /// AS3 <c>Unit.as:4316-4318</c> — <c>if(param1 == 0 &amp;&amp; sost == 1 &amp;&amp; sndDie)

@@ -143,17 +143,18 @@ namespace PFE.Entities.Units
 
         /// <summary>
         /// The <c>visibility</c> value at which an observer's range is exactly its base — i.e. the
-        /// reference the port calibrates against.
+        /// reference the port's range product divides by.
         ///
-        /// <para><b>This is the one port-side calibration in this file, and it is deliberate.</b> The
-        /// oracle's absolute range is <c>(2000 · 1 · 1 + 0) · 1 = 2000 px</c> for a moving player, while
-        /// the port's <c>EnemySensors.VisionRangePixels</c> is <c>480</c>. Wiring the oracle's absolute
-        /// number would multiply every enemy's sight range by 4.17 in one step — an unverifiable gameplay
-        /// change that has nothing to do with stealth. So the port expresses the <i>same formula</i>
-        /// relative to its own calibrated base: a target at
-        /// <see cref="VisibilityMoving"/> gets the current range, and the stealth channels scale it
-        /// <i>down</i> from there. The absolute-range divergence is named in
-        /// <c>docs/StealthSystem/03_GAP_LEDGER.md</c> §3 and is <b>not</b> touched here.</para>
+        /// <para><b>The calibration this constant used to describe is gone, and that is a fix, not a
+        /// tidy-up.</b> It used to be a deliberate divergence: the oracle's absolute range is
+        /// <c>(2000 · 1 · 1 + 0) · 1 = 2000 px</c> for a moving player while the port's
+        /// <c>EnemySensors.VisionRangePixels</c> was <c>480</c>, so the port expressed the <i>same
+        /// formula</i> relative to its own base and a neutral target yielded exactly 480. The cost was
+        /// that <b>every enemy in the game was 4.17× blinder than the original</b> — which is what the
+        /// 2026-10-31 "turrets are too blind" report turned out to be. The base is now the oracle's
+        /// 2000, so <c>visibilityRatio</c> is 1 for a moving player and the product collapses to the
+        /// oracle's own formula with no ratio at all. This constant is kept because the ratio is still
+        /// what makes a <i>non-player</i> target (<c>Unit.visibility = 1000</c>) halve the range.</para>
         /// </summary>
         public const float ReferenceVisibility = VisibilityMoving;
 
