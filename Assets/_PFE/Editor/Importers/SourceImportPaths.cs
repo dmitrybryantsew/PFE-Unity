@@ -89,6 +89,54 @@ namespace PFE.Editor.Importers
         public static string AssetsSwfPath => Combine("pfe", "scripts", "_assets", "assets.swf");
         public static string AssetsExportRoot => Combine("pfe", "scripts", "_assets");
 
+        /// <summary>Where <c>PFE/Art/Import Character From SWF</c> saves an explicit ffdec path.</summary>
+        public const string JpexsCliEditorPrefsKey = "PFE.JpexsCli";
+
+        /// <summary>Environment override for <see cref="JpexsCliPath"/>, for CI and scripts.</summary>
+        public const string JpexsCliEnvironmentVariable = "PFE_JPEXS_CLI";
+
+        /// <summary>
+        /// Path to <c>ffdec-cli.exe</c>, the JPEXS command line, or <see cref="string.Empty"/>.
+        ///
+        /// <para>Needed because a texel reserve is produced by re-exporting a symbol, and the import
+        /// window now does that itself (<see cref="CharacterArtReserve"/>) rather than asking the user
+        /// to run ffdec first and remember to. Resolution order: the saved setting, then
+        /// <see cref="JpexsCliEnvironmentVariable"/>, then the two conventional layouts — a
+        /// <c>pfe_content/jpexs-decompiller</c> folder beside the source root (where this project
+        /// keeps it) and one inside it. Nothing is persisted on discovery, for the same reason the
+        /// source root is not: a getter that writes is a surprise.</para>
+        /// </summary>
+        public static string JpexsCliPath => ResolveJpexsCli();
+
+        static string s_jpexsCli;
+
+        static string ResolveJpexsCli()
+        {
+            if (s_jpexsCli != null) return s_jpexsCli;
+
+            var candidates = new List<string>();
+            string saved = EditorPrefs.GetString(JpexsCliEditorPrefsKey, string.Empty);
+            if (!string.IsNullOrWhiteSpace(saved)) candidates.Add(saved);
+
+            string fromEnv = Environment.GetEnvironmentVariable(JpexsCliEnvironmentVariable);
+            if (!string.IsNullOrWhiteSpace(fromEnv)) candidates.Add(fromEnv);
+
+            // Walk a few ancestors of the source root rather than assuming one layout: on this machine
+            // ffdec lives at <Games>/pfe_content/jpexs-decompiller, i.e. beside the *parent* of the
+            // root, not beside the root itself — and the root is <Games>/UnityGames/pfeToUnity.
+            string root = SourceProjectRoot;
+            string dir = string.IsNullOrEmpty(root) ? null : root;
+            for (int up = 0; up < 4 && !string.IsNullOrEmpty(dir); up++)
+            {
+                candidates.Add(Path.Combine(dir, "pfe_content", "jpexs-decompiller", "ffdec-cli.exe"));
+                candidates.Add(Path.Combine(dir, "jpexs-decompiller", "ffdec-cli.exe"));
+                dir = Path.GetDirectoryName(dir);
+            }
+
+            s_jpexsCli = candidates.FirstOrDefault(File.Exists) ?? string.Empty;
+            return s_jpexsCli;
+        }
+
         /// <summary>
         /// FFDec's per-<c>DefineShape</c> SVG export: 2563 files named <c>{shapeId}_symbol{shapeId}.svg</c>
         /// (measured 2026-10-05 — 2114 vector-only, 449 bitmap-filled, 0 bitmap-only, 21.76 MB total).

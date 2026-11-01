@@ -68,6 +68,21 @@ namespace PFE.Editor.Importers.SWF
             /// </summary>
             public List<string> RetrimmedAssets = new();
 
+            /// <summary>
+            /// How many part assets the post-import read-back examined, and how many of those still had
+            /// a rect that disagreed with the art <i>after</i> Unity had written the <c>.meta</c>.
+            ///
+            /// <para>A non-zero <see cref="SpriteRectsRepaired"/> is the proof that
+            /// <see cref="RetrimSpriteRect"/>'s write can be lost: on 10-27 <c>pip</c> was re-exported
+            /// from 7×7 to 56×57 and kept a <b>7×7</b> rect at PPU 800, so it drew at 0.0088 units
+            /// instead of 0.0700 — eight times too small, identically in both character renderers,
+            /// because both size a part as <c>rect / ppu</c>.</para>
+            /// </summary>
+            public int SpriteRectsVerified;
+
+            /// <summary>See <see cref="SpriteRectsVerified"/>.</summary>
+            public int SpriteRectsRepaired;
+
             public List<string> Warnings = new();
         }
 
@@ -119,6 +134,18 @@ namespace PFE.Editor.Importers.SWF
                     string folderName = $"DefineSprite_{symbolId}_symbol{symbolId}";
                     string sourceFolderPath = Path.Combine(spritesRoot, folderName);
 
+                    // A bare DefineShape has no timeline, so ffdec exports it under
+                    // DefineShape_{id}_symbol{id} — one PNG, no frames. The per-armour head layers
+                    // (261–268) are shapes: they are the hair, helm and second-helm layers that
+                    // morda_armor(273) frames place directly instead of a nested sprite.
+                    if (!Directory.Exists(sourceFolderPath))
+                    {
+                        string shapeFolderPath = Path.Combine(spritesRoot,
+                            $"DefineShape_{symbolId}_symbol{symbolId}");
+                        if (Directory.Exists(shapeFolderPath))
+                            sourceFolderPath = shapeFolderPath;
+                    }
+
                     if (!Directory.Exists(sourceFolderPath))
                     {
                         result.Warnings.Add($"Symbol {symbolId}: source folder not found at {sourceFolderPath}");
@@ -141,53 +168,58 @@ namespace PFE.Editor.Importers.SWF
 
                     // Registration point. A part that already exists keeps the pivot its .meta records:
                     // the pivot is normalized, so it survives any change of export zoom, and re-deriving
-                    // it moves the part on screen (06 §2). Only a first import derives it from bounds.
-                    Vector2 pivot = new(0.5f, 0.5f); // default center
+                    // it moves the part on screen (06 §2). Only a first import derives it from bounds —
+                    // with one exception, because a .meta cannot always hold what the derivation says.
                     string firstDestAsset = FrameAssetPath(targetFolder, pngFiles.Length,
                                                            GetFrameNumber(pngFiles[0]));
-                    if (TryReadMetaPivot(firstDestAsset, out Vector2 previousPivot))
+
+                    Rect bounds = default;
+                    bool hasBounds = false;
+
+                    // Priority: Frame1Bounds (per-frame, matches JPEXS PNG) >
+                    //           ShapeBounds (exact for DefineShape) >
+                    //           Symbol.Bounds (union of all frames, may not match PNG size)
+                    if (swfData.ShapeBounds.TryGetValue(symbolId, out bounds) && bounds.width > 0 && bounds.height > 0)
+                    {
+                        hasBounds = true;
+                    }
+                    else if (swfData.Frame1Bounds.TryGetValue(symbolId, out var f1b) &&
+                             f1b.width > 0 && f1b.height > 0)
+                    {
+                        bounds = f1b;
+                        hasBounds = true;
+                    }
+                    else if (swfData.Symbols.TryGetValue(symbolId, out var sym) &&
+                             sym.Bounds.width > 0 && sym.Bounds.height > 0)
+                    {
+                        bounds = sym.Bounds;
+                        hasBounds = true;
+                    }
+
+                    // The registration point is (0,0) in Flash local space; bounds.x/bounds.y are that
+                    // space's xMin/yMin, and Flash's Y runs down where Unity's runs up.
+                    //
+                    // Deliberately NOT clamped: the origin can lie outside the part's own content box,
+                    // and then no value in 0..1 describes it. `horn` wants (2.68, -1.55) and
+                    // `morda_overlay` (-0.19, -0.16) — both used to be clamped to a corner, which put
+                    // the part a visible distance from where the game draws it.
+                    // docs/CharacterImportPipeline/08.
+                    Vector2 derived = hasBounds ? PivotFromBounds(bounds) : new Vector2(0.5f, 0.5f);
+
+                    // A .meta can only record a pivot in 0..1 (TextureImporterSettings clamps), so when
+                    // the derived pivot falls outside that range the value on disk is a clamp artefact,
+                    // not a measurement — there is nothing to preserve and the derivation must win.
+                    bool metaCanHoldIt = IsUnitRange(derived);
+
+                    Vector2 pivot;
+                    if (metaCanHoldIt && TryReadMetaPivot(firstDestAsset, out Vector2 previousPivot))
                     {
                         pivot = ClampPivot(previousPivot);
                         result.PreviousPivotBySymbol[symbolId] = pivot;
                     }
                     else
                     {
-                        Rect bounds = default;
-                        bool hasBounds = false;
-
-                        // Priority: Frame1Bounds (per-frame, matches JPEXS PNG) >
-                        //           ShapeBounds (exact for DefineShape) >
-                        //           Symbol.Bounds (union of all frames, may not match PNG size)
-                        if (swfData.ShapeBounds.TryGetValue(symbolId, out bounds) && bounds.width > 0 && bounds.height > 0)
-                        {
-                            hasBounds = true;
-                        }
-                        else if (swfData.Frame1Bounds.TryGetValue(symbolId, out var f1b) &&
-                                 f1b.width > 0 && f1b.height > 0)
-                        {
-                            bounds = f1b;
-                            hasBounds = true;
-                        }
-                        else if (swfData.Symbols.TryGetValue(symbolId, out var sym) &&
-                                 sym.Bounds.width > 0 && sym.Bounds.height > 0)
-                        {
-                            bounds = sym.Bounds;
-                            hasBounds = true;
-                        }
-
-                        if (hasBounds)
-                        {
-                            // Registration point is (0,0) in Flash local space.
-                            // bounds.x = xMin, bounds.y = yMin (Flash coords, Y-down)
-                            // Pivot in Unity sprite space: (0,0) at bottom-left, (1,1) at top-right
-                            float pivotX = (0f - bounds.x) / bounds.width;
-                            // Flash Y is down, Unity Y is up — flip
-                            float pivotY = 1f - ((0f - bounds.y) / bounds.height);
-                            // Do NOT clamp — registration point can be outside sprite bounds.
-                            // Sprite.Create() supports unclamped pivots.
-                            // TextureImporter will clamp separately for its own settings.
-                            pivot = new Vector2(pivotX, pivotY);
-                        }
+                        pivot = derived;
                     }
                     result.PivotsBySymbol[symbolId] = pivot;
 
@@ -386,6 +418,13 @@ namespace PFE.Editor.Importers.SWF
             foreach (var (assetPath, pivot, ppu, _) in failures)
                 result.Warnings.Add($"Sprite settings did not persist for {assetPath} (wanted pivot " +
                                     $"{pivot.x:0.####}, {pivot.y:0.####} at ppu {ppu}) — Unity could not write the .meta.");
+
+            // ── Pass 4: read the sprite rects back off disk ───────────────────
+            // The rect is written by RetrimSpriteRect *before* Unity imports the new PNG, so its write
+            // can be overwritten by the importer's own serialisation of the asset. Measuring the file
+            // afterwards is the only way to know which one survived — the same reason pass 2 verifies
+            // pivots against the file instead of against the importer.
+            VerifySpriteRects(result);
         }
 
         /// <summary>A symbol's resolved import geometry: what its PNGs are drawn at.</summary>
@@ -422,7 +461,9 @@ namespace PFE.Editor.Importers.SWF
                                                 string sampleAssetPath)
         {
             int declared = Mathf.Max(1, result.ZoomFactor);
-            Vector2 declaredPivot = ClampPivot(PivotFor(result, symbolId));
+            // Unclamped: this is only compared against the resolved pivot to report a move, and clamping
+            // it would make a part whose true pivot is outside 0..1 warn on every single run.
+            Vector2 declaredPivot = PivotFor(result, symbolId);
 
             if (!TryGetSymbolBounds(swfData, symbolId, out Rect bounds) ||
                 !TryReadPngSize(sampleAssetPath, out int pngW, out int pngH) || pngW <= 1 || pngH <= 1)
@@ -440,14 +481,24 @@ namespace PFE.Editor.Importers.SWF
             Rect zoomBounds = TryGetCanvasBounds(swfData, symbolId, out Rect canvasBounds)
                 ? canvasBounds
                 : bounds;
-            int zoom = ResolveZoom(symbolId, pngW, pngH, zoomBounds, declared, result.Warnings);
+            var zoomWarnings = new List<string>();
+            int zoom = ResolveZoom(symbolId, pngW, pngH, zoomBounds, declared, zoomWarnings);
+            // A reserved part is *supposed* to be denser than the window's "expected zoom" claims —
+            // that is what the reserve is — so the "measures Nx, not the declared 1x" note is noise
+            // for exactly those symbols. Everywhere else a mismatch still means the export folder is
+            // not what the slider says, which is worth a line.
+            if (zoom != CharacterArtReserve.TargetZoom(symbolId))
+                result.Warnings.AddRange(zoomWarnings);
             result.EffectiveZoomBySymbol[symbolId] = zoom;
 
             // A preserved pivot wins over a derived one: the .meta records where the registration point
-            // sits in this canvas, and a change of export zoom does not move it.
+            // sits in this canvas, and a change of export zoom does not move it. Only representable
+            // values ever reach PreviousPivotBySymbol, so the derived one is used unclamped otherwise —
+            // `Sprite.Create` and the quad path both accept a pivot outside 0..1, and only the .meta
+            // write has to clamp. docs/CharacterImportPipeline/08.
             Vector2 pivot = result.PreviousPivotBySymbol.TryGetValue(symbolId, out Vector2 keptPivot)
                 ? ClampPivot(keptPivot)
-                : ClampPivot(PivotFromBounds(bounds));
+                : PivotFromBounds(bounds);
 
             // Publish it: CharacterAnimationDataGenerator falls back to PivotsBySymbol for armor
             // variants whose bounds are unknown, and it must agree with what the .meta now records.
@@ -461,6 +512,44 @@ namespace PFE.Editor.Importers.SWF
                                     $"png {pngW}x{pngH}, bounds {bounds.width:0.#}x{bounds.height:0.#}, zoom {zoom}.");
 
             return new SpritePlacement(PixelsPerUnit * zoom, pivot);
+        }
+
+        /// <summary>
+        /// The export zoom the art for <paramref name="symbolId"/> actually measures on disk, or 0 when
+        /// it cannot be measured (no folder, no PNG, no bounds).
+        ///
+        /// <para>Same arithmetic as <see cref="ResolvePlacement"/>, with the declared zoom pinned to 1
+        /// so the answer is what the pixels say rather than what a slider claims. Used by
+        /// <see cref="CharacterArtReserve"/> to decide whether a reserved part still needs exporting —
+        /// a question that has to be answered from the file, because that folder is refreshed by hand
+        /// and nothing in the asset records how dense its source was.</para>
+        /// </summary>
+        public static int MeasureShippedZoom(string jpexsExportRoot, SWFFile swfData, int symbolId)
+        {
+            if (string.IsNullOrEmpty(jpexsExportRoot) || swfData == null) return 0;
+
+            string spritesRoot = Path.Combine(jpexsExportRoot, "sprites");
+            string folder = Path.Combine(spritesRoot, $"DefineSprite_{symbolId}_symbol{symbolId}");
+            if (!Directory.Exists(folder))
+                folder = Path.Combine(spritesRoot, $"DefineShape_{symbolId}_symbol{symbolId}");
+            if (!Directory.Exists(folder)) return 0;
+
+            string firstPng = Directory.GetFiles(folder, "*.png")
+                .OrderBy(GetFrameNumber)
+                .FirstOrDefault();
+            if (firstPng == null) return 0;
+
+            if (!TryGetSymbolBounds(swfData, symbolId, out Rect bounds) ||
+                !TryReadPngSize(firstPng, out int pngW, out int pngH) || pngW <= 1 || pngH <= 1)
+                return 0;
+
+            // Canvas, not one frame's content box — the same rule ResolvePlacement measures against.
+            Rect zoomBounds = TryGetCanvasBounds(swfData, symbolId, out Rect canvasBounds)
+                ? canvasBounds
+                : bounds;
+            if (zoomBounds.width <= 0f || zoomBounds.height <= 0f) return 0;
+
+            return ResolveZoom(symbolId, pngW, pngH, zoomBounds, 1, new List<string>());
         }
 
         /// <summary>
@@ -610,6 +699,15 @@ namespace PFE.Editor.Importers.SWF
         static Vector2 ClampPivot(Vector2 pivot)
             => new Vector2(Mathf.Clamp01(pivot.x), Mathf.Clamp01(pivot.y));
 
+        /// <summary>
+        /// Whether a pivot can be recorded in a <c>.meta</c> at all. <c>TextureImporterSettings.spritePivot</c>
+        /// is a 0..1 fraction of the sprite rect, so a registration point outside the part's own content
+        /// box has no representation there — which is what makes a clamped value on disk a clamp artefact
+        /// rather than a measurement.
+        /// </summary>
+        static bool IsUnitRange(Vector2 pivot)
+            => pivot.x >= 0f && pivot.x <= 1f && pivot.y >= 0f && pivot.y <= 1f;
+
         static string FrameAssetPath(string folder, int frameCount, int frameNum)
             => Path.Combine(folder, frameCount > 1 ? $"f{frameNum:D3}.png" : "base.png").Replace('\\', '/');
 
@@ -624,7 +722,10 @@ namespace PFE.Editor.Importers.SWF
             var settings = new TextureImporterSettings();
             importer.ReadTextureSettings(settings);
             settings.spriteAlignment = (int)SpriteAlignment.Custom;
-            settings.spritePivot = pivot;
+            // The one place the pivot has to be clamped: a TextureImporterSettings pivot is a 0..1
+            // fraction of the rect, so a registration point outside the content box (`horn`) cannot be
+            // written. The unclamped value lives in the definition, which is what both renderers read.
+            settings.spritePivot = ClampPivot(pivot);
             importer.SetTextureSettings(settings);
 
             // Set sprite atlas tag
@@ -669,14 +770,22 @@ namespace PFE.Editor.Importers.SWF
         /// <summary>
         /// True when the asset's <c>.meta</c> on disk records <paramref name="pivot"/> as the sprite pivot.
         ///
+        /// <para>Compares against the clamped value, because that is the only thing a <c>.meta</c> can
+        /// hold: a part whose registration point lies outside its content box (<c>horn</c>) keeps its
+        /// true pivot in the definition while the file records the clamp of it. Without the clamp here
+        /// the verification would never match and the repair pass would rewrite the file every run.</para>
+        ///
         /// <para>Reads the file rather than the importer on purpose: <see cref="TextureImporter"/> exposes
         /// Unity's in-memory state, which is updated even when the write to disk failed, so it cannot be
         /// used either to decide whether a write is needed or to confirm one succeeded.</para>
         /// </summary>
         static bool MetaFileHasPivot(string assetPath, Vector2 pivot)
-            => TryReadMetaPivot(assetPath, out Vector2 onDisk) &&
-               Mathf.Abs(onDisk.x - pivot.x) < 0.001f &&
-               Mathf.Abs(onDisk.y - pivot.y) < 0.001f;
+        {
+            Vector2 onDiskTarget = ClampPivot(pivot);
+            return TryReadMetaPivot(assetPath, out Vector2 onDisk) &&
+                   Mathf.Abs(onDisk.x - onDiskTarget.x) < 0.001f &&
+                   Mathf.Abs(onDisk.y - onDiskTarget.y) < 0.001f;
+        }
 
         /// <summary>
         /// The sprite pivot an asset's <c>.meta</c> already records, or false when there is no meta yet
@@ -745,6 +854,18 @@ namespace PFE.Editor.Importers.SWF
             @"(\s*\r?\n\s*y: )\d+" +
             @"(\s*\r?\n\s*width: )\d+" +
             @"(\s*\r?\n\s*height: )\d+",
+            RegexOptions.Compiled);
+
+        /// <summary>
+        /// The same block, read instead of written: the four numbers as capture groups. Separate from
+        /// <see cref="SpriteRectPattern"/> rather than merged, because the writer must capture the
+        /// labels and leave the digits outside the groups, and the reader wants the opposite.
+        /// </summary>
+        static readonly Regex SpriteRectReadPattern = new(
+            @"rect:\s*\r?\n\s*serializedVersion: 2\s*\r?\n\s*x: (-?\d+)" +
+            @"\s*\r?\n\s*y: (-?\d+)" +
+            @"\s*\r?\n\s*width: (\d+)" +
+            @"\s*\r?\n\s*height: (\d+)",
             RegexOptions.Compiled);
 
         /// <summary>
@@ -874,6 +995,115 @@ namespace PFE.Editor.Importers.SWF
             {
                 if (texture != null) UnityEngine.Object.DestroyImmediate(texture);
             }
+        }
+
+        /// <summary>
+        /// How far a stored rect may sit from the art's ink box before it counts as a different rect
+        /// rather than as the ±1 px halo drift the ~190 untouched parts already carry.
+        ///
+        /// <para>Only the <i>too small</i> direction is repaired. A rect larger than its ink draws the
+        /// part at the right size with margin around it, which is a visual choice; a rect smaller than
+        /// its ink draws a fragment of the part, which is never one. <c>docs/CharacterImportPipeline/07</c>
+        /// §4 measured the drift at one pixel on a ~190-part sweep and decided against churning them.</para>
+        /// </summary>
+        const float MinRectToInk = 0.8f;
+
+        /// <summary>
+        /// Reads every imported part's sprite rect back off disk and repairs the ones whose art no longer
+        /// fits under it.
+        ///
+        /// <para><b>Why this exists when <see cref="RetrimSpriteRect"/> already does.</b> That one runs
+        /// inside the copy branch, before <c>AssetDatabase.Refresh()</c>, and on 10-27 its write was not
+        /// the one on disk: <c>pip</c> went from 7×7 to 56×57 at <c>-zoom 8</c>, the PPU was corrected to
+        /// 800 by pass 1, and the rect stayed <b>7×7</b> — a part drawn at an eighth of its size in both
+        /// renderers. Whatever consumed that write (the importer's own serialisation of the asset, or a
+        /// copy skipped by the mtime guard on a second run), the only way to know is to measure the file
+        /// after everything else has finished. That is also this importer's own rule for pivots: verify
+        /// against the file, never against the importer.</para>
+        ///
+        /// <para>Cheap by construction: it decodes one PNG per part once per import (these are 7–200 px
+        /// wide) and writes only when the ratio is off by more than <see cref="MinRectToInk"/>, so an
+        /// unchanged import reports "verified N, repaired 0" and leaves every <c>.meta</c> byte-identical.</para>
+        /// </summary>
+        static void VerifySpriteRects(ImportResult result)
+        {
+            foreach (var frameMap in result.SpritesBySymbol.Values)
+            {
+                foreach (Sprite sprite in frameMap.Values)
+                {
+                    if (sprite == null) continue;
+
+                    string assetPath = AssetDatabase.GetAssetPath(sprite);
+                    if (string.IsNullOrEmpty(assetPath)) continue;
+
+                    result.SpriteRectsVerified++;
+
+                    if (!SpriteRectIsTooSmallForArt(assetPath)) continue;
+
+                    if (!RetrimSpriteRect(assetPath, result.Warnings))
+                    {
+                        result.Warnings.Add($"{assetPath}: the sprite rect still does not fit the art, and " +
+                                            "it could not be re-measured — the part will draw too small.");
+                        continue;
+                    }
+
+                    result.RetrimmedAssets.Add(assetPath);
+                    result.SpriteRectsRepaired++;
+
+                    // The .meta was written as text after Unity had already imported the asset, so the
+                    // import has to be asked again for the new rect to reach the Sprite.
+                    AssetDatabase.ImportAsset(assetPath, ImportAssetOptions.ForceUpdate);
+                }
+            }
+        }
+
+        /// <summary>
+        /// <c>true</c> when the rect recorded in the <c>.meta</c> is materially smaller than the art's
+        /// ink box — i.e. the part is drawn as a fragment of itself.
+        /// </summary>
+        static bool SpriteRectIsTooSmallForArt(string assetPath)
+        {
+            string metaPath = Path.GetFullPath(assetPath) + ".meta";
+            if (!File.Exists(metaPath)) return false;
+
+            string meta;
+            try
+            {
+                meta = File.ReadAllText(metaPath);
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+
+            if (!meta.Contains("spriteMode: 2")) return false;
+            if (!TryReadSpriteRect(meta, out RectInt stored)) return false;
+            if (!TryMeasureInkRect(assetPath, out RectInt ink)) return false;
+
+            // A degenerate ink box (a one-texel part) has no meaningful ratio; leave it alone.
+            if (ink.width < 2 || ink.height < 2) return false;
+
+            return stored.width < ink.width * MinRectToInk || stored.height < ink.height * MinRectToInk;
+        }
+
+        /// <summary>The first <c>rect:</c> block of a Multiple-mode <c>.meta</c>, in pixels.</summary>
+        static bool TryReadSpriteRect(string meta, out RectInt rect)
+        {
+            rect = default;
+
+            Match match = SpriteRectReadPattern.Match(meta);
+            if (!match.Success) return false;
+
+            if (!int.TryParse(match.Groups[1].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int x) ||
+                !int.TryParse(match.Groups[2].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int y) ||
+                !int.TryParse(match.Groups[3].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int width) ||
+                !int.TryParse(match.Groups[4].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int height))
+            {
+                return false;
+            }
+
+            rect = new RectInt(x, y, width, height);
+            return true;
         }
 
         static void EnsureDirectoryStructure()

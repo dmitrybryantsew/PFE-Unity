@@ -61,6 +61,7 @@ namespace PFE.Editor.Importers.SWF
             public CharacterAnimationDefinition Asset;
             public int StatesGenerated;
             public int PartsRegistered;
+            public Vector2 BodyScale = Vector2.one;
             public List<string> Warnings = new();
         }
 
@@ -104,6 +105,11 @@ namespace PFE.Editor.Importers.SWF
             definition.stateClips = stateClips.ToArray();
             result.StatesGenerated = stateClips.Count;
 
+            // The body's own placement inside the outer visual symbol. Without it the whole rig draws
+            // at 1/1.3 of its AS3 size — see CharacterAnimationDefinition.bodyScale.
+            definition.bodyScale = ResolveBodyScale(swfData, result.Warnings);
+            result.BodyScale = definition.bodyScale;
+
             // Build armor sets using SWF frame labels for correct per-part mapping
             // Include head sub-part overrides from morda_armor(273) frame analysis
             var armorSets = BuildArmorSets(swfData, spriteImport, partIndexLookup, partsList, headVariants);
@@ -125,6 +131,55 @@ namespace PFE.Editor.Importers.SWF
             result.Asset = definition;
             result.Warnings.AddRange(spriteImport.Warnings);
             return result;
+        }
+
+        /// <summary>
+        /// The scale the game draws the body clip at — <c>visualPlayer</c>(3690) placing its
+        /// <c>osn</c> child (3679) at <b>1.2999878</b>.
+        ///
+        /// <para><b>Why the import has to read one symbol up.</b> Every state clip the rig plays lives
+        /// inside 3679, and 3679 places all 26 of them at identity — so the only matrix between the
+        /// player's art and the world is the single one on 3690's <c>osn</c>. The importer reads
+        /// 3651 and its parts, which is correct for the art and silent about the size: without this
+        /// the rig draws at 1/1.3 of what AS3 draws, with no part individually wrong. The personas
+        /// have the same fact stored per persona (<c>NpcDefinition.visualScaleX</c>); the player had
+        /// nowhere to put it, which is exactly why it was the only character drawn at 1.0.</para>
+        ///
+        /// <para><b>Absence is a warning and a fallback, never a silent 1.</b> A stale parse, or a SWF
+        /// whose 3690 has been renamed, leaves the rig at 1.0 — the current, wrong size. Saying so is
+        /// the difference between "the import could not find it" and "the game draws it at 1".</para>
+        /// </summary>
+        static Vector2 ResolveBodyScale(SWFFile swfData, List<string> warnings)
+        {
+            const string osnInstanceName = "osn";
+
+            if (swfData?.Symbols == null ||
+                !swfData.Symbols.TryGetValue(AS3StateMapping.VisualPlayerSymbolId, out SWFSymbol visual) ||
+                visual.Frames == null || visual.Frames.Count == 0)
+            {
+                warnings.Add(
+                    $"body scale: visualPlayer({AS3StateMapping.VisualPlayerSymbolId}) is not in the parsed " +
+                    "SWF, so the body keeps scale 1 — which draws the player at 1/1.3 of its AS3 size.");
+                return Vector2.one;
+            }
+
+            SWFFrame frame = visual.Frames[0];
+            if (frame.Placements != null)
+            {
+                foreach (SWFPlacement placement in frame.Placements)
+                {
+                    if (string.Equals(placement.InstanceName, osnInstanceName, StringComparison.Ordinal))
+                    {
+                        return placement.Scale;
+                    }
+                }
+            }
+
+            warnings.Add(
+                $"body scale: visualPlayer({AS3StateMapping.VisualPlayerSymbolId}) frame 1 has no " +
+                $"'{osnInstanceName}' placement, so the body keeps scale 1 — which draws the player at " +
+                "1/1.3 of its AS3 size.");
+            return Vector2.one;
         }
 
         /// <summary>
@@ -214,52 +269,108 @@ namespace PFE.Editor.Importers.SWF
             overlays.Add(overlay);
         }
 
+        /// <summary>
+        /// Every renderable part, listed in draw order.
+        /// </summary>
+        /// <remarks>
+        /// <para>This is not a hint. The renderers draw in the order they meet
+        /// <c>partPlacements</c> and set <c>sortingOrder = slotIdx * 2</c>, and nothing sorts that
+        /// array — so a part's position here decides what covers what. The SWF's placement order is
+        /// therefore reproduced once, here, instead of being inherited from whatever order the
+        /// exporter walked the display list in.</para>
+        ///
+        /// <para>The head block is in ascending <c>morda_armor</c>(273) placement depth, which is
+        /// Flash's back-to-front order. The depths themselves are in <c>MapInstanceNameToSlot</c>;
+        /// this list and that table must not disagree.</para>
+        ///
+        /// <para>The previous order was not this one: it put <c>morda_overlay</c> before <c>eye</c>
+        /// and <c>konec</c> before <c>helm</c>. Neither was visible in the shipped art — none of the
+        /// eye's 12 677 opaque pixels fall inside the overlay's rect, and <c>konec</c> and
+        /// <c>helm</c> are empty on the unarmoured head — but the order is the premise of the
+        /// decomposition, and it became load-bearing the moment a layer was inserted between two of
+        /// them (the depth-3 shell sits between the face and the eye).</para>
+        /// </remarks>
+        static readonly (int symbolId, string name, int sortOrder)[] OrderedParts =
+        {
+            (3640, "lwing", 0),
+            (24, "sleg3a", 1),
+            (319, "sleg3", 2),
+            (55, "sleg1", 3),      // hind leg upper (back)
+            (78, "fleg1", 4),      // front leg 1 (back)
+            (101, "fleg2", 5),     // front leg 2 (back)
+            (124, "fleg3", 6),     // front hoof (back)
+            (297, "fleg3a", 7),    // front hoof variant (back)
+            (136, "tail", 8),
+            (692, "tail_run", 9),
+            (159, "korpus", 10),
+            (182, "neck", 11),
+            (195, "mane", 12),
+            (734, "mane_run", 13),
+            // ── head sub-model, in morda_armor(273) depth order ──────────────────
+            //   depth  1/2  morda_base + morda_base_back (whatever is behind the face)
+            //          3    shell
+            //          6    eye        15  forelock
+            //         19    morda_overlay
+            //         21    horn       23  magic
+            //         26    helm       27  helm2
+            //         29    konec
+            (274, "head", 14),             // head composite (hidden when sub-parts active)
+            (262, "morda_base_back", 15),  // depth-1/2 layer behind the face (tre's hat); no default art
+            (199, "morda_base", 16),       // face base shape (3 frames: mouth expressions)
+            (242, "shell", 17),            // depth-3 layer between the face and the eye; no default art
+            (220, "eye", 18),              // eyes (4 frames: expressions)
+            (233, "forelock", 19),         // front hair tuft
+            (235, "morda_overlay", 20),    // face detail overlay
+            (237, "horn", 21),             // unicorn horn
+            (239, "magic", 22),            // horn aura disc, alpha-driven — see HornAura
+            (31, "helm", 23),              // helmet overlay (1x1, empty by default)
+            (266, "helm2", 24),            // depth-27 second helmet layer; no default art
+            (240, "konec", 25),            // horn tip effect (1x1, empty by default)
+            (273, "morda_armor", 26),      // whole 273 frame, only for a frame that cannot be taken apart
+            // The PipBuck is drawn above everything the body places — depth 63 in 514, 67 in the
+            // twenty-three bodies that also place a mirror copy at 25, 70 in 3656 — and below
+            // rwing(3650) at 69. It used to sit at 8, between the back hooves and the tail, which
+            // put the torso and the head in front of it. See 12_compound_parts_and_the_pipbuck.md.
+            (513, "pip", 27),
+            // Note: front-side legs reuse the same symbols at a higher depth in the body sprite.
+            (3650, "rwing", 28),
+        };
+
+        /// <summary>symbolId → draw order, derived from <see cref="OrderedParts"/>.</summary>
+        static readonly Dictionary<int, int> PartSortOrderBySymbol = BuildPartSortOrder();
+
+        static Dictionary<int, int> BuildPartSortOrder()
+        {
+            var map = new Dictionary<int, int>(OrderedParts.Length);
+            foreach (var (symbolId, _, sortOrder) in OrderedParts)
+                map[symbolId] = sortOrder;
+            return map;
+        }
+
         static List<CharacterPartDefinition> BuildPartDefinitions(
             SWFFile swfData,
             CharacterSpriteImporter.ImportResult spriteImport)
         {
             var parts = new List<CharacterPartDefinition>();
-
-            // Add parts in the confirmed depth order from SWF research
-            var orderedParts = new (int symbolId, string name, int sortOrder)[]
-            {
-                (3640, "lwing", 0),
-                (24, "sleg3a", 1),
-                (319, "sleg3", 2),
-                (55, "sleg1", 3),      // hind leg upper (back)
-                (78, "fleg1", 4),      // front leg 1 (back)
-                (101, "fleg2", 5),     // front leg 2 (back)
-                (124, "fleg3", 6),     // front hoof (back)
-                (297, "fleg3a", 7),    // front hoof variant (back)
-                (513, "pip", 8),       // pip marker
-                (136, "tail", 9),
-                (692, "tail_run", 10),
-                (159, "korpus", 11),
-                (182, "neck", 12),
-                (195, "mane", 13),
-                (734, "mane_run", 14),
-                // Head sub-model: decomposed into individual sub-parts
-                // The head composite (274) is kept for reference but sub-parts render individually
-                (274, "head", 15),         // head composite (hidden when sub-parts active)
-                (199, "morda_base", 16),   // face base shape (3 frames: mouth expressions)
-                (273, "morda_armor", 17),  // armor face overlay (16 frames: composites per armor)
-                (235, "morda_overlay", 18),// face detail overlay
-                (220, "eye", 19),          // eyes (4 frames: expressions)
-                (233, "forelock", 20),     // front hair tuft
-                (237, "horn", 21),         // unicorn horn
-                (239, "magic", 22),        // magic aura effect (invisible by default)
-                (240, "konec", 23),        // horn tip effect (1x1, empty by default)
-                (31, "helm", 24),          // helmet overlay (1x1, empty by default)
-                // Note: front-side legs reuse same symbols at higher sort order
-                // The actual sort order per-frame comes from the SWF placement depth
-                (3650, "rwing", 25),
-            };
+            var orderedParts = OrderedParts;
 
             // Parts that should NOT show baseSprite by default:
             // - Head composite (274): replaced by individual sub-parts
             // - morda_armor (273): composite with baked-in eyes/hair, only for armor mode
-            // - helm (31), konec (240), magic (239): 1x1 or invisible by default
-            var noBaseSpriteIds = new HashSet<int> { 274, 273, 31, 240, 239 };
+            // - helm (31), konec (240): 1x1, genuinely empty art
+            //
+            // 239 (magic) used to be listed here with the same "1x1 or invisible" reasoning, and that
+            // was wrong: its PNG is 53x59 with 2 212 ink pixels and a dominant alpha of 175 — the
+            // horn's aura disc. It is invisible in the game because its *alpha* starts at 0, not
+            // because there is no art (UnitPlayer.as:4851 writes alpha = aMC / 100 and :4852 hides it
+            // while that is 0). Leaving the sprite unassigned threw away the only copy of the art, so
+            // no amount of driving the alpha could ever have shown it. The alpha is now the
+            // renderer's business — see HornAura — and the sprite is assigned like every other part.
+            // 262, 242 and 266 are the anchor symbols of the three slots that have no art on the
+            // unarmoured head (morda_base_back, shell, helm2 — see ExtraHeadSlots). They are keys,
+            // not defaults: the sprite belongs to one armour, so assigning it here would draw that
+            // armour's shell on every outfit.
+            var noBaseSpriteIds = new HashSet<int> { 274, 273, 31, 240, 262, 242, 266 };
 
             foreach (var (symbolId, name, sortOrder) in orderedParts)
             {
@@ -343,8 +454,17 @@ namespace PFE.Editor.Importers.SWF
         /// 273 (morda_armor) is both a target (for armor overlays) AND a container
         /// (head(274) → morda(273) → [morda_base(199), eye(220), forelock(233), etc.]).
         /// CollectSubPartOffsets handles this by storing AND recursing into containers.
+        ///
+        /// <para>262, 242 and 266 are not frame-1 layers — they are the anchor symbols of the three
+        /// slots that only an armour frame places (see <see cref="ExtraHeadSlots"/>). They are listed
+        /// here so their parts receive a placement on every state frame;
+        /// <c>SeedExtraHeadSlotOffsets</c> supplies the offset, because the walk over frame 1 cannot
+        /// find a placement that frame 1 does not have.</para>
         /// </remarks>
-        static readonly HashSet<int> HeadSubPartIds = new() { 199, 220, 233, 235, 237, 239, 240, 273, 31 };
+        static readonly HashSet<int> HeadSubPartIds = new()
+        {
+            199, 220, 233, 235, 237, 239, 240, 273, 31, 262, 242, 266
+        };
 
         static List<CharacterStateClip> BuildStateClips(
             SWFFile swfData,
@@ -432,6 +552,9 @@ namespace PFE.Editor.Importers.SWF
                 CollectSubPartOffsets(swfData, headSymbol.Frames[0].Placements,
                     Vector2.zero, 0f, Vector2.one, headSubPartOffsets);
 
+                // ...and the three slots frame 1 does not place, which the walk above cannot see.
+                SeedExtraHeadSlotOffsets(swfData, headSymbol, headSubPartOffsets);
+
                 Debug.Log($"[AnimDataGen] Found {headSubPartOffsets.Count} head sub-parts: " +
                     string.Join(", ", headSubPartOffsets.Keys.Select(id =>
                     {
@@ -495,20 +618,75 @@ namespace PFE.Editor.Importers.SWF
                         if (!partIndexLookup.TryGetValue(placement.CharacterId, out int partIndex))
                             continue;
 
+                        // ── The PipBuck rides a foreleg; the frame does not place it ────────
+                        // UnitPlayer.as:4828-4849:
+                        //
+                        //     if (vis.scaleX > 0) { pip1.visible = true;  pip2.visible = false;
+                        //                           pip1.x/y/rotation = frleg3.x/y/rotation; }
+                        //     else                { pip2.visible = true;  pip1.visible = false;
+                        //                           pip2.x/y/rotation = flleg3.x/y/rotation; }
+                        //
+                        // So the device is never drawn where 513's own placement puts it: it is
+                        // snapped onto the near foreleg every frame, and exactly one of the two
+                        // instances is visible. Drawn as authored, both stay at their frame-1
+                        // positions — measured over `stay`: each placement's position is constant to
+                        // four decimals across all 76 frames while the foreleg it should ride spans
+                        // 0.258 units in x, so the device drifts up to 0.164 away (more than half the
+                        // torso's own width) and a second copy sits behind the body.
+                        //
+                        // The port has no horizontal mirror — nothing in the codebase flips the
+                        // character — so only the `scaleX > 0` branch is reachable: pip1 on frleg3.
+                        // pip2 is kept in the data but emitted invisible rather than dropped, so the
+                        // mirror branch is a renderer change and not a re-import when facing lands.
+                        // Both names exist on all 27 body symbols that place 513 (26 have pip2).
+                        bool pipHidden = placement.InstanceName == "pip2";
+                        SWFPlacement posed = placement;
+                        if (placement.InstanceName == "pip1")
+                        {
+                            SWFPlacement foreleg = frame.Placements
+                                .FirstOrDefault(q => q.InstanceName == "frleg3");
+                            if (foreleg != null)
+                            {
+                                // Position and rotation only — AS3 copies x/y/rotation, never scale.
+                                posed = new SWFPlacement
+                                {
+                                    Position = foreleg.Position,
+                                    Rotation = foreleg.Rotation,
+                                    Scale = placement.Scale,
+                                };
+                            }
+                            else
+                            {
+                                Debug.LogWarning($"[AnimDataGen] state '{stateName}' frame " +
+                                    $"{frame.FrameNumber}: pip1 has no frleg3 to follow; the device " +
+                                    "stays at its authored position and will drift from the leg");
+                            }
+                        }
+
                         placements.Add(new PartFramePlacement
                         {
                             partIndex = partIndex,
-                            localPosition = FlashToUnityPosition(placement.Position),
-                            localRotation = -placement.Rotation, // Flash CW → Unity CCW
-                            localScale = placement.Scale,
-                            visible = true,
+                            localPosition = FlashToUnityPosition(posed.Position),
+                            localRotation = -posed.Rotation, // Flash CW → Unity CCW
+                            localScale = posed.Scale,
+                            visible = !pipHidden,
                         });
                     }
 
-                    // Compose head sub-part placements from head transform + pre-built offsets
+                    // Compose head sub-part placements from head transform + pre-built offsets.
+                    //
+                    // Ordered by the part table, NOT by the order the offsets were discovered. The
+                    // renderers draw in array order (sortingOrder = slotIdx * 2) and nothing sorts,
+                    // so this loop's order is the draw order. CollectSubPartOffsets walks frame 1 of
+                    // morda_armor(273) — a frame that has no shell, no second helm layer and no hat —
+                    // and SeedExtraHeadSlotOffsets appends those three afterwards, so insertion order
+                    // would draw the depth-3 shell and the depth-1 hat ON TOP of the eye and the face.
                     if (headPlacement != null && headSubPartOffsets.Count > 0)
                     {
-                        foreach (var kvp2 in headSubPartOffsets)
+                        foreach (var kvp2 in headSubPartOffsets
+                                     .OrderBy(kv => PartSortOrderBySymbol.TryGetValue(kv.Key, out int so)
+                                         ? so
+                                         : int.MaxValue))
                         {
                             int subPartSymId = kvp2.Key;
                             if (!HeadSubPartIds.Contains(subPartSymId))
@@ -577,6 +755,67 @@ namespace PFE.Editor.Importers.SWF
             );
 
             return (composedPos, composedRot, composedScale);
+        }
+
+        /// <summary>
+        /// Adds placements for the head slots that <c>morda_armor</c>(273) frame 1 does not place —
+        /// <c>morda_base_back</c>, <c>shell</c> and <c>helm2</c> (see <see cref="ExtraHeadSlots"/>).
+        /// </summary>
+        /// <remarks>
+        /// <para>Each is anchored at the position of the first armour frame that puts something in
+        /// that slot, composed through head(274) → morda(273) exactly as
+        /// <see cref="CollectSubPartOffsets"/> composes the frame-1 layers. That position then serves
+        /// as the slot's default, so an armour placing it elsewhere gets the difference as
+        /// <c>localOffset</c>. In the shipped data none does: both shells sit at the face's
+        /// <c>(2, −222)</c> and every shape layer at the container's origin.</para>
+        ///
+        /// <para>Without this the parts would have no <c>PartFramePlacement</c> on any state frame,
+        /// and the renderers iterate placements — so the layer would be invisible no matter what
+        /// override it carried.</para>
+        /// </remarks>
+        static void SeedExtraHeadSlotOffsets(
+            SWFFile swfData,
+            SWFSymbol headSymbol,
+            Dictionary<int, (Vector2 position, float rotation, Vector2 scale)> results)
+        {
+            if (!swfData.Symbols.TryGetValue(273, out var mordaSymbol) || mordaSymbol.Frames.Count == 0)
+                return;
+
+            SWFPlacement mordaInHead = headSymbol.Frames[0].Placements
+                .FirstOrDefault(p => p.CharacterId == 273);
+            if (mordaInHead == null)
+                return;
+
+            foreach (var (slot, anchorSymbol, depth) in ExtraHeadSlots)
+            {
+                if (results.ContainsKey(anchorSymbol))
+                    continue;
+
+                SWFPlacement anchor = null;
+                foreach (var frame in mordaSymbol.Frames)
+                {
+                    // Depths 1/2 hold the face in every frame but `tre`; the slot's anchor is the
+                    // other layer, so the face is not a candidate.
+                    anchor = frame.Placements.FirstOrDefault(p =>
+                        p.Depth == depth && p.CharacterId != 199);
+                    if (anchor != null) break;
+                }
+
+                if (anchor == null)
+                {
+                    Debug.LogWarning($"[AnimDataGen] Head slot '{slot}': no frame places anything at " +
+                        $"depth {depth}, so the slot has no placement and will never be drawn");
+                    continue;
+                }
+
+                var composed = ComposeFlashPlacements(mordaInHead, anchor);
+                results[anchorSymbol] = composed;
+
+                Debug.Log($"[AnimDataGen] Extra head slot '{slot}' keyed by sym{anchorSymbol}: " +
+                    $"first placement sym{anchor.CharacterId} at depth {depth} -> " +
+                    $"pos=({composed.position.x:F1},{composed.position.y:F1}) rot={composed.rotation:F1} " +
+                    $"scale=({composed.scale.x:F2},{composed.scale.y:F2})");
+            }
         }
 
         /// <summary>
@@ -673,6 +912,8 @@ namespace PFE.Editor.Importers.SWF
                 199 => "morda_base", 220 => "eye", 233 => "forelock",
                 235 => "morda_overlay", 237 => "horn", 239 => "magic",
                 240 => "konec", 273 => "morda_armor", 31 => "helm",
+                // The three slots with no default art, by their anchor symbols.
+                262 => "morda_base_back", 242 => "shell", 266 => "helm2",
                 _ => $"sym{symbolId}"
             };
         }
@@ -695,20 +936,51 @@ namespace PFE.Editor.Importers.SWF
         };
 
         /// <summary>
-        /// Maps SWF instance names to our head sub-part slot names.
-        /// "morda" maps to morda_base by default; the second occurrence (by depth) maps to morda_overlay.
+        /// Which head slot a placement in <c>morda_armor</c>(273) belongs to.
         /// </summary>
-        static string MapInstanceNameToSlot(string instanceName, int depthRank)
+        /// <remarks>
+        /// <para><b>Why depth and not the order the placements appear in.</b> The old rule counted
+        /// the placements named <c>morda</c> and called the first one the base face and every later
+        /// one the overlay. That is only right when the frame places both. <c>power</c> places just
+        /// one — the <i>overlay</i>, at depth 19 — so the rule called it <c>morda_base</c>, recorded
+        /// it as a variant, and the power armour lost its face entirely. Depth is stable across all
+        /// 16 frames: 1 and 2 are the base face, 3 is a shell layer drawn over the face (the battle
+        /// and intel helmets), 15 is the hair layer, 26 the helm, 27 a second helm layer.</para>
+        ///
+        /// <para>Name still wins where it is unambiguous, because <c>ali</c> puts a <i>horn</i> at
+        /// depth 15 — the hair layer — and it is a horn, not hair.</para>
+        ///
+        /// <para><b>Depths 1 and 2 are one slot with an exception.</b> Every frame but one puts the
+        /// face (199) in the base depths and nothing else. <c>tre</c> puts its hat (262) at depth 1
+        /// and the face at depth 2, so the face keeps <c>morda_base</c> and the hat goes to
+        /// <c>morda_base_back</c>, which sorts below it — which is what the depths say, since the hat
+        /// is at the lower one. A frame that put a second layer <i>in front</i> of the face would be
+        /// misread by this rule; no such frame exists in the shipped data.</para>
+        /// </remarks>
+        static string MapInstanceNameToSlot(string instanceName, int depth, int characterId)
         {
-            return instanceName switch
+            switch (instanceName)
             {
-                "helm" => "helm",
-                "eye" => "eye",
-                "hair" => "forelock",
-                "horn" => "horn",
-                "magic" => "magic",
-                "konec" => "konec",
-                "morda" => depthRank == 0 ? "morda_base" : "morda_overlay",
+                case "helm": return "helm";
+                case "eye": return "eye";
+                case "hair": return "forelock";
+                case "horn": return "horn";
+                case "magic": return "magic";
+                case "konec": return "konec";
+            }
+
+            return depth switch
+            {
+                1 or 2 => characterId == 199 ? "morda_base" : "morda_base_back",
+                3 => "shell",
+                19 => "morda_overlay",
+                6 => "eye",
+                15 => "forelock",
+                21 => "horn",
+                23 => "magic",
+                26 => "helm",
+                27 => "helm2",
+                29 => "konec",
                 _ => null,
             };
         }
@@ -729,6 +1001,35 @@ namespace PFE.Editor.Importers.SWF
         };
 
         /// <summary>
+        /// Head slots the unarmoured head does not draw, each keyed by the symbol that anchors it.
+        /// </summary>
+        /// <remarks>
+        /// <para><c>morda_armor</c>(273) frame 1 places eight layers. Three armour frames place a
+        /// ninth, tenth or eleventh: a shell at depth 3 (battle, intel), a second helm layer at
+        /// depth 27 (polic, spec, encl), and a layer behind the face at depth 1 (tre). None of them
+        /// has default art, and that is the picture rather than a gap — the unarmoured head has no
+        /// shell. Until now these were the reason eight armours could not be taken apart, so the
+        /// whole 273 frame was drawn instead and the eye inside it was frozen at whatever frame the
+        /// exporter happened to bake.</para>
+        ///
+        /// <para>A part still needs a stable key so it can exist, receive a placement and carry an
+        /// override, so each slot is keyed by the first symbol the data places in it. That symbol is
+        /// <b>only a key</b>: its art is never drawn as a default (it is in <c>noBaseSpriteIds</c>),
+        /// because it belongs to one armour and would otherwise appear on every outfit. The art
+        /// always arrives as an override.</para>
+        ///
+        /// <para>Positions come from the same placements — see <c>SeedExtraHeadSlotOffsets</c>: both
+        /// shells sit exactly where the face sits, <c>(2, −222)</c> inside 273, and every shape layer
+        /// sits at the container's origin with an identity matrix.</para>
+        /// </remarks>
+        static readonly (string slot, int anchorSymbol, int depth)[] ExtraHeadSlots =
+        {
+            ("morda_base_back", 262, 1),
+            ("shell", 242, 3),
+            ("helm2", 266, 27),
+        };
+
+        /// <summary>
         /// Result of scanning morda_armor(273) frames for per-armor head sub-part variants.
         /// </summary>
         public class HeadArmorVariantData
@@ -745,9 +1046,32 @@ namespace PFE.Editor.Importers.SWF
             /// <summary>
             /// armorLabel → (slotName → position delta in Flash coords).
             /// Delta = variant_position - default_position within morda_armor(273).
-            /// Applied to correct for sub-parts that are repositioned per armor.
+            /// Consumed as <c>ArmorPartOverride.localOffset</c> — the delta is in the head
+            /// container's space, so it is <b>not</b> a root-space offset (see ArmorOffsets).
             /// </summary>
             public Dictionary<string, Dictionary<string, Vector2>> PositionDeltasByArmor = new();
+
+            /// <summary>
+            /// Armours whose <c>morda_armor</c>(273) frame cannot be taken apart into our slots: it
+            /// places a child at a depth with no slot, or a child with no art at any address.
+            /// </summary>
+            /// <remarks>
+            /// These armours fall back to the frame as a single baked sprite. That is the original's
+            /// picture — right geometry, right layers — but with the eye, the mane and the aura glow
+            /// baked at their authored colours, so the player's tints do not reach them. It is still
+            /// better than decomposing halfway: a frame that loses one of its layers is a *wrong*
+            /// picture, while a flat frame is merely an untinted one.
+            ///
+            /// <para>This set is <b>empty for the shipped data</b>. It used to hold eight armours —
+            /// two because their shells sat at depth 3 and six because a layer was a bare
+            /// DefineShape — and those two reasons are gone: the depths have slots and the shapes
+            /// have PNGs. A non-empty set now means the SWF changed, and the log says which child
+            /// caused it.</para>
+            /// </remarks>
+            public HashSet<string> CompositeArmours = new();
+
+            /// <summary>armorLabel → why it could not be decomposed, for the log.</summary>
+            public Dictionary<string, List<string>> UnmappedByArmor = new();
         }
 
         /// <summary>
@@ -768,16 +1092,38 @@ namespace PFE.Editor.Importers.SWF
             if (mordaArmorSymbol.Frames.Count > 0)
             {
                 var frame1 = mordaArmorSymbol.Frames[0];
-                int mordaCount = 0;
                 foreach (var p in frame1.Placements.OrderBy(p => p.Depth))
                 {
-                    int mordaRank = (p.InstanceName == "morda") ? mordaCount++ : 0;
-                    string slot = MapInstanceNameToSlot(p.InstanceName, mordaRank);
+                    string slot = MapInstanceNameToSlot(p.InstanceName, p.Depth, p.CharacterId);
                     if (slot != null)
                     {
                         defaultSlots[slot] = p.CharacterId;
                         defaultPositions[slot] = p.Position;
                     }
+                }
+            }
+
+            // The three slots with no default art still need an anchor position, so that a frame
+            // which moves one of them has a delta to report. Read each from the first frame that
+            // places anything there: in the shipped data every shell sits at the face's position and
+            // every shape layer at the container's origin, so the first occurrence is the only one.
+            foreach (var (slot, anchorSymbol, depth) in ExtraHeadSlots)
+            {
+                foreach (var frame in mordaArmorSymbol.Frames)
+                {
+                    var anchor = frame.Placements.FirstOrDefault(p =>
+                        p.Depth == depth && p.CharacterId != 199);
+                    if (anchor == null) continue;
+
+                    defaultPositions[slot] = anchor.Position;
+
+                    if (anchor.CharacterId != anchorSymbol)
+                    {
+                        Debug.LogWarning($"[AnimDataGen] Head slot '{slot}' is keyed by sym{anchorSymbol} " +
+                            $"but the first frame that places it uses sym{anchor.CharacterId}; the key " +
+                            "stays, the position is taken from the data.");
+                    }
+                    break;
                 }
             }
 
@@ -794,17 +1140,26 @@ namespace PFE.Editor.Importers.SWF
                 var presentSlots = new HashSet<string>();
 
                 var positionDeltas = new Dictionary<string, Vector2>();
+                var unmapped = new List<string>();
 
-                int mordaCount = 0;
                 foreach (var p in frame.Placements.OrderBy(p => p.Depth))
                 {
-                    int mordaRank = (p.InstanceName == "morda") ? mordaCount++ : 0;
-                    string slot = MapInstanceNameToSlot(p.InstanceName, mordaRank);
+                    string slot = MapInstanceNameToSlot(p.InstanceName, p.Depth, p.CharacterId);
 
                     if (slot == null)
                     {
-                        // Unknown instance - might be a shape-based overlay unique to this armor
-                        // We can't map it to a slot, skip it
+                        unmapped.Add($"depth {p.Depth} sym{p.CharacterId} (no slot)");
+                        continue;
+                    }
+
+                    // A bare DefineShape has no timeline, but it does have bounds and — since the
+                    // eight per-armour layers were exported as shapes — a PNG under
+                    // Head/Variants/symbol{id}. Only a child we have neither a sprite nor bounds for
+                    // is unimportable; that one has no art at any address.
+                    if (!swfData.Symbols.ContainsKey(p.CharacterId) &&
+                        !swfData.ShapeBounds.ContainsKey(p.CharacterId))
+                    {
+                        unmapped.Add($"depth {p.Depth} sym{p.CharacterId} ({slot}, no sprite and no bounds)");
                         continue;
                     }
 
@@ -818,12 +1173,28 @@ namespace PFE.Editor.Importers.SWF
                             positionDeltas[slot] = delta;
                     }
 
-                    // Check if this uses a different symbol than the default
-                    if (defaultSlots.TryGetValue(slot, out int defaultSymId) && p.CharacterId != defaultSymId)
+                    // Check if this uses a different symbol than the default. A slot with no default
+                    // has no "unchanged" case: whatever it places is the variant, because there is
+                    // no unarmoured art to fall back to (see ExtraHeadSlots).
+                    if (!defaultSlots.TryGetValue(slot, out int defaultSymId) || p.CharacterId != defaultSymId)
                     {
                         variants[slot] = p.CharacterId;
-                        result.AllVariantSymbolIds.Add(p.CharacterId);
                     }
+                }
+
+                if (unmapped.Count > 0)
+                {
+                    // Nothing partial: a frame that cannot be drawn completely is drawn as one
+                    // sprite, which is exactly what the original shows.
+                    result.CompositeArmours.Add(armorLabel);
+                    result.UnmappedByArmor[armorLabel] = unmapped;
+                    Debug.Log($"[AnimDataGen] Armor '{armorLabel}': flat frame — {string.Join("; ", unmapped)}");
+                    continue;
+                }
+
+                foreach (int symbolId in variants.Values)
+                {
+                    result.AllVariantSymbolIds.Add(symbolId);
                 }
 
                 if (variants.Count > 0)
@@ -894,6 +1265,13 @@ namespace PFE.Editor.Importers.SWF
                     slotToPartIndex[kvp.Key] = partIdx;
             }
 
+            // Slots with no default art are keyed by their anchor symbol (see ExtraHeadSlots).
+            foreach (var (extraSlot, anchorSymbol, _) in ExtraHeadSlots)
+            {
+                if (partIndexLookup.TryGetValue(anchorSymbol, out int extraIdx))
+                    slotToPartIndex[extraSlot] = extraIdx;
+            }
+
             for (int armorIdx = 1; armorIdx < armorLabels.Length; armorIdx++)
             {
                 string armorId = armorLabels[armorIdx];
@@ -906,6 +1284,20 @@ namespace PFE.Editor.Importers.SWF
 
                 var overrides = new List<ArmorPartOverride>();
 
+                // Parts and head symbols that have no frame for this armour. Expected, not a fault:
+                // `pip` (the starting outfit) has no head frame at all, so the original keeps the
+                // unarmoured head and only the body changes. Collected so the log states which parts
+                // fell back to frame 1 rather than leaving it to be discovered on screen.
+                var labelMisses = new List<string>();
+
+                // Parts whose armour frame exists but draws frame 1's display list unchanged. Not a
+                // miss and not an override: the outfit simply does not touch that part.
+                var unchangedFrames = new List<string>();
+
+                // Set when a head layer's art is missing from the import. A partial decomposition
+                // draws a *wrong* head, so it is turned back into the baked frame below.
+                bool headIncomplete = false;
+
                 // --- Body part armor overrides (korpus, neck, legs, etc.) ---
                 foreach (var part in parts)
                 {
@@ -917,16 +1309,58 @@ namespace PFE.Editor.Importers.SWF
                     if (DefaultHeadSymbolToSlot.ContainsKey(part.symbolId) || part.symbolId == 273)
                         continue;
 
-                    // Determine the correct sprite frame for this armor on this part
-                    int spriteFrame;
-                    if (partLabelToFrame.TryGetValue(part.symbolId, out var labelMap) &&
-                        labelMap.TryGetValue(armorId, out int labelFrame))
+                    // Determine the correct sprite frame for this armor on this part.
+                    //
+                    // ── Label, or nothing. Never an ordinal. ──────────────────────────────
+                    // The original picks these frames the same way (fe/Obj.as:67-96):
+                    //
+                    //     try { m.gotoAndStop(aid); } catch (err) { m.gotoAndStop(1); }
+                    //
+                    // `aid` is the armour id, i.e. a *frame label*, and a symbol that has no frame
+                    // with that label shows frame 1 — the unarmoured art. Every one of these symbols
+                    // is called from its own frame1() (`pfe_fla/korpus_18.as:20`,
+                    // `morda_26.as:32`, `fleg1_9.as:18`, …), so this is the only selection rule.
+                    //
+                    // The frame orders are NOT the same across symbols, which is why an ordinal
+                    // fallback is not a harmless approximation: `neck`(182) puts kombu on 4 and
+                    // chitin on 5 while `korpus`(159) has them the other way round, `fleg1`(78) puts
+                    // chitin on 2 and tre on 16, and the five leg symbols have no `tre` frame at
+                    // all. `swfbounds labels` prints the whole matrix.
+                    if (!TryResolveArmorFrame(partLabelToFrame, part.symbolId, armorId, out int spriteFrame))
                     {
-                        spriteFrame = labelFrame;
+                        // Only worth reporting when the symbol *has* per-armour frames at all. A
+                        // symbol with no labels anywhere (helm(31) is one: a single frame, no label)
+                        // simply has no armour art, which is not a fallback worth naming.
+                        if (partLabelToFrame.ContainsKey(part.symbolId))
+                        {
+                            labelMisses.Add($"{part.partName}({part.symbolId})");
+                        }
+                        continue;
                     }
-                    else
+
+                    // ── A frame that changes nothing is not an override ────────────────────
+                    // `Obj.setArmor` is `m.gotoAndStop(aid)` (fe/Obj.as:67-96). A Flash frame with
+                    // no PlaceObject of its own *inherits* the previous frame's display list, so a
+                    // labelled frame can exist and change nothing at all — and that is exactly what
+                    // the armour labels do on parts the outfit does not touch: `sleg1`(55) frame 2 is
+                    // the `pip` frame and places nothing, `sleg3`(319) and `sleg3a`(24) the same.
+                    //
+                    // Drawing such a frame as an override is not a no-op, it is a regression. The
+                    // clip keeps its *instance* when the frame changes nothing, so the colour
+                    // transform `Obj.setColor(this,0)` put on it (`pfe_fla/sleg10_6.as:18`) survives
+                    // and the leg stays fur-coloured. An override is drawn untinted — armour art
+                    // carries its own colour — so the pip suit's hind legs came out white on a grey
+                    // pony. Four overrides in the whole asset are this: pip/sleg1, pip/sleg3,
+                    // pip/sleg3a, chitin/fleg2.
+                    //
+                    // Not to be confused with `ali`'s aura: that override points at the default
+                    // symbol 239 as well, but it is emitted by the head-variant "the armour frame
+                    // moves this slot" path further down, to carry a (0.123, -0.157) position delta.
+                    // Same sprite, and it must stay.
+                    if (FramePlacesTheSameAsFirst(swfData, part.symbolId, spriteFrame))
                     {
-                        spriteFrame = armorIdx + 1;
+                        unchangedFrames.Add($"{part.partName}({part.symbolId})");
+                        continue;
                     }
 
                     if (spriteImport.SpritesBySymbol.TryGetValue(part.symbolId, out var frames) &&
@@ -942,40 +1376,44 @@ namespace PFE.Editor.Importers.SWF
                     }
                 }
 
-                // --- morda_armor(273) as body-part override for late armors ---
-                // Late armors (power, polic, spec, encl, ali) don't have morda_armor(273) sub-part
-                // variant frames. For these, treat morda_armor as a renderable body part with its
-                // per-armor composite frame, instead of decomposing into individual sub-parts.
+                // --- morda_armor(273) as a single baked head, for an armour it has a frame for ---
+                // Only reached when morda_armor has a frame labelled with this armour but the frame
+                // swaps no symbols (so there is nothing to decompose). It must NOT invent a frame:
+                // five armours — pip, chitin, kombu, skin, metal — have no frame in symbol 273 at all,
+                // and the old `armorIdx + 1` fallback gave them somebody else's head. That is the
+                // whole pip bug: `pip` is armour index 1, so it took frame 2, which is labelled
+                // 'battle', and the starting outfit wore the battle helmet. In the original,
+                // `Obj.setArmor` throws on the missing label, catches, and shows frame 1 — the
+                // unarmoured head — which is exactly what "no override" means here.
                 bool hasHeadVariants = headVariants != null &&
                     headVariants.VariantsByArmor.ContainsKey(armorId);
 
                 if (!hasHeadVariants && partIndexLookup.TryGetValue(273, out int mordaPartIndex))
                 {
-                    // Try to get morda_armor's composite sprite for this armor
-                    int mordaFrame;
-                    if (partLabelToFrame.TryGetValue(273, out var mordaLabelMap) &&
-                        mordaLabelMap.TryGetValue(armorId, out int mordaLabelFrame))
+                    if (TryResolveArmorFrame(partLabelToFrame, 273, armorId, out int mordaFrame))
                     {
-                        mordaFrame = mordaLabelFrame;
+                        if (spriteImport.SpritesBySymbol.TryGetValue(273, out var mordaFrames) &&
+                            mordaFrames.TryGetValue(mordaFrame, out var mordaSprite) &&
+                            mordaSprite != null)
+                        {
+                            var mordaPart = parts.FirstOrDefault(p => p.symbolId == 273);
+                            Vector2 compositePivot = CompositeFramePivot(
+                                swfData, spriteImport, mordaPart?.pivotNormalized ?? new Vector2(0.5f, 0.5f),
+                                mordaFrame);
+                            overrides.Add(new ArmorPartOverride
+                            {
+                                partIndex = mordaPartIndex,
+                                armorSprite = mordaSprite,
+                                pivotOverride = compositePivot,
+                            });
+                            Debug.Log($"[AnimDataGen] Armor '{armorId}': using morda_armor(273) composite " +
+                                $"frame {mordaFrame} pivot ({compositePivot.x:F6},{compositePivot.y:F6}) " +
+                                "(no sub-part variants for this armor)");
+                        }
                     }
                     else
                     {
-                        mordaFrame = armorIdx + 1;
-                    }
-
-                    if (spriteImport.SpritesBySymbol.TryGetValue(273, out var mordaFrames) &&
-                        mordaFrames.TryGetValue(mordaFrame, out var mordaSprite) &&
-                        mordaSprite != null)
-                    {
-                        var mordaPart = parts.FirstOrDefault(p => p.symbolId == 273);
-                        overrides.Add(new ArmorPartOverride
-                        {
-                            partIndex = mordaPartIndex,
-                            armorSprite = mordaSprite,
-                            pivotOverride = mordaPart?.pivotNormalized ?? new Vector2(0.5f, 0.5f),
-                        });
-                        Debug.Log($"[AnimDataGen] Armor '{armorId}': using morda_armor(273) composite " +
-                            $"frame {mordaFrame} (no sub-part variants for this armor)");
+                        labelMisses.Add("morda_armor(273)");
                     }
                 }
 
@@ -1065,10 +1503,15 @@ namespace PFE.Editor.Importers.SWF
                                     partIndex = partIndex,
                                     armorSprite = varSprite,
                                     pivotOverride = varPivot,
+                                    localOffset = LocalOffsetFor(headVariants, armorId, slotName),
                                 });
                             }
                             else
                             {
+                                // Recorded, not just warned: a layer with no sprite would otherwise
+                                // disappear without a trace on screen. See the composite fallback
+                                // below, which is what this flag buys.
+                                headIncomplete = true;
                                 Debug.LogWarning($"[AnimDataGen] Armor '{armorId}' slot '{slotName}': " +
                                     $"variant sym{variantSymbolId} sprite not found in import");
                             }
@@ -1085,13 +1528,290 @@ namespace PFE.Editor.Importers.SWF
                         if (hiddenPartNames.Count > 0)
                             set.hiddenHeadParts = hiddenPartNames.ToArray();
                     }
+
+                    // Slots the armour frame MOVES without changing their symbol. `ali` is the one
+                    // case in the shipped data: its aura is both displaced and scaled up 1.374×, and
+                    // because the symbol is the default 239 nothing above would emit an override for
+                    // it, so the aura stayed at the unarmoured position. The scale is still not
+                    // carried — ArmorPartOverride has no scale field — so only the position is right.
+                    // Runs after the hidden list so a moved-and-hidden slot is not resurrected.
+                    if (headVariants.PositionDeltasByArmor.TryGetValue(armorId, out var movedSlots))
+                    {
+                        foreach (var kvp in movedSlots)
+                        {
+                            string slotName = kvp.Key;
+                            if (headVariants.VariantsByArmor.TryGetValue(armorId, out var already) &&
+                                already.ContainsKey(slotName))
+                            {
+                                continue;
+                            }
+
+                            if (!slotToPartIndex.TryGetValue(slotName, out int partIndex)) continue;
+                            if (set.hiddenHeadParts != null && Array.IndexOf(set.hiddenHeadParts, slotName) >= 0) continue;
+                            // Only the slots with default art can reach this: a slot with no default
+                            // always records a variant, so it is handled above and skipped here.
+                            if (!SlotToDefaultSymbol.TryGetValue(slotName, out int defaultSymbolId)) continue;
+
+                            if (spriteImport.SpritesBySymbol.TryGetValue(defaultSymbolId, out var defaultFrames) &&
+                                defaultFrames.TryGetValue(1, out var defaultSprite) &&
+                                defaultSprite != null)
+                            {
+                                var part = parts.FirstOrDefault(p => p.symbolId == defaultSymbolId);
+                                overrides.Add(new ArmorPartOverride
+                                {
+                                    partIndex = partIndex,
+                                    armorSprite = defaultSprite,
+                                    pivotOverride = part?.pivotNormalized ?? new Vector2(0.5f, 0.5f),
+                                    localOffset = LocalOffsetFor(headVariants, armorId, slotName),
+                                });
+                            }
+                        }
+                    }
+                }
+
+                // ── A head we could not draw completely is drawn as one sprite ────────────
+                // The same rule the exporter applies to a frame with an unmappable child, moved
+                // here because "the art is missing" is only knowable once the sprites are in hand.
+                // Reached only when a variant's PNG is absent from the import; without this the
+                // layer would simply not be drawn, and a missing layer and a missing feature look
+                // identical on screen.
+                if (headIncomplete)
+                {
+                    bool composited = false;
+
+                    if (partIndexLookup.TryGetValue(273, out int fallbackPartIndex) &&
+                        TryResolveArmorFrame(partLabelToFrame, 273, armorId, out int fallbackFrame) &&
+                        spriteImport.SpritesBySymbol.TryGetValue(273, out var fallbackFrames) &&
+                        fallbackFrames.TryGetValue(fallbackFrame, out var fallbackSprite) &&
+                        fallbackSprite != null)
+                    {
+                        // Drop the head overrides already added: the baked frame draws all of them.
+                        overrides.RemoveAll(o => slotToPartIndex.ContainsValue(o.partIndex));
+
+                        var mordaPart = parts.FirstOrDefault(p => p.symbolId == 273);
+                        overrides.Add(new ArmorPartOverride
+                        {
+                            partIndex = fallbackPartIndex,
+                            armorSprite = fallbackSprite,
+                            pivotOverride = CompositeFramePivot(swfData, spriteImport,
+                                mordaPart?.pivotNormalized ?? new Vector2(0.5f, 0.5f), fallbackFrame),
+                        });
+                        composited = true;
+
+                        Debug.LogWarning($"[AnimDataGen] Armor '{armorId}': a head layer has no " +
+                            $"sprite, so morda_armor(273) frame {fallbackFrame} is drawn whole " +
+                            "(right picture, frozen eye)");
+                    }
+
+                    if (!composited)
+                    {
+                        Debug.LogError($"[AnimDataGen] Armor '{armorId}': a head layer has no sprite " +
+                            "and morda_armor(273) has no frame to fall back to — the head will be " +
+                            "drawn without that layer");
+                    }
                 }
 
                 set.partOverrides = overrides.ToArray();
                 armorSets.Add(set);
+
+                if (labelMisses.Count > 0)
+                {
+                    Debug.Log($"[AnimDataGen] Armor '{armorId}': no frame for [{string.Join(", ", labelMisses)}] " +
+                        "-> those keep frame 1 (unarmoured), as Obj.setArmor's catch does (fe/Obj.as:90-95)");
+                }
+
+                if (unchangedFrames.Count > 0)
+                {
+                    Debug.Log($"[AnimDataGen] Armor '{armorId}': frame changes nothing on " +
+                        $"[{string.Join(", ", unchangedFrames)}] -> no override, so the part keeps its tint " +
+                        "(the frame inherits frame 1's display list; the clip's colour transform survives)");
+                }
             }
 
             return armorSets;
+        }
+
+        /// <summary>
+        /// The frame a symbol draws for <paramref name="armorId"/>, resolved by <b>label only</b>.
+        ///
+        /// <para><b>Why there is no ordinal fallback.</b> The original resolves armour art with
+        /// <c>m.gotoAndStop(aid)</c> inside a try/catch (<c>fe/Obj.as:67-96</c>), where <c>aid</c> is
+        /// the armour id used as a frame label. A symbol with no such label throws, and the catch
+        /// shows frame 1 — the unarmoured art. So "no label" is a real, meaningful answer, and the
+        /// frame numbers are not interchangeable between symbols: <c>korpus</c>(159) has pip=2, tre=3,
+        /// chitin=4, while <c>neck</c>(182) has kombu=4, chitin=5 and <c>fleg1</c>(78) has chitin=2,
+        /// pip=3, tre=16. An <c>armourIndex + 1</c> guess therefore silently draws a different
+        /// armour's art — which is what put the <c>battle</c> helmet on the <c>pip</c> outfit, since
+        /// <c>morda_armor</c>(273) has no pip frame and frame 2 is labelled 'battle'.</para>
+        /// </summary>
+        static bool TryResolveArmorFrame(
+            Dictionary<int, Dictionary<string, int>> partLabelToFrame,
+            int symbolId,
+            string armorId,
+            out int frame)
+        {
+            frame = 0;
+            return partLabelToFrame.TryGetValue(symbolId, out var labelMap) &&
+                   labelMap.TryGetValue(armorId, out frame);
+        }
+
+        /// <summary>
+        /// Whether frame <paramref name="frameNumber"/> of <paramref name="symbolId"/> draws exactly
+        /// what frame 1 draws — i.e. the armour frame changed nothing.
+        ///
+        /// <para><b>This is the rule, not a shortcut.</b> Flash frames inherit the display list, so a
+        /// labelled frame may place no objects at all and still be a valid <c>gotoAndStop</c> target;
+        /// <c>sleg1</c>(55) frame 2 (<c>pip</c>) is one. The clip keeps its instance across such a
+        /// frame, so the tint its art set in <c>frame1()</c> is still on it, and the original draws the
+        /// unarmoured leg in the pony's coat colour. The exporter still writes that frame as a PNG, so
+        /// "the armour has a frame here" is true and "the armour changes anything" is false — and only
+        /// the second one justifies an override.</para>
+        ///
+        /// <para><b>Compared field by field, not by count.</b> A frame that re-places the same child
+        /// at a different transform changes the picture just as much as a different child does, so
+        /// depth, character, position, rotation, scale and colour transform all have to match before
+        /// the frame counts as unchanged. Colour is included because an override cannot express a
+        /// tint — it is drawn at <c>Color.white</c> — so a frame that only re-tints must still count
+        /// as a change, or the tint would be dropped rather than re-applied.</para>
+        /// </summary>
+        static bool FramePlacesTheSameAsFirst(SWFFile swfData, int symbolId, int frameNumber)
+        {
+            if (frameNumber <= 1) return true;
+            if (swfData?.Symbols == null || !swfData.Symbols.TryGetValue(symbolId, out SWFSymbol symbol))
+            {
+                return false;
+            }
+
+            SWFFrame first = FindFrame(symbol, 1);
+            SWFFrame other = FindFrame(symbol, frameNumber);
+            if (first?.Placements == null || other?.Placements == null) return false;
+            if (first.Placements.Count != other.Placements.Count) return false;
+
+            for (int i = 0; i < first.Placements.Count; i++)
+            {
+                SWFPlacement a = first.Placements[i];
+                SWFPlacement b = other.Placements[i];
+
+                if (a.Depth != b.Depth || a.CharacterId != b.CharacterId) return false;
+                if ((a.Position - b.Position).sqrMagnitude > 1e-6f) return false;
+                if (Mathf.Abs(a.Rotation - b.Rotation) > 1e-3f) return false;
+                if ((a.Scale - b.Scale).sqrMagnitude > 1e-6f) return false;
+
+                // A frame that only re-tints a child still changes the picture, and an override
+                // cannot express a tint (it is drawn at Color.white), so treat it as a change and
+                // keep the override rather than silently dropping the frame.
+                if (a.HasColorTransform != b.HasColorTransform) return false;
+                if (a.HasColorTransform &&
+                    (ColorDiffers(a.ColorMultiply, b.ColorMultiply) ||
+                     ColorDiffers(a.ColorAdd, b.ColorAdd)))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        /// <summary>Whether two colours differ by more than a rounding error on any channel.</summary>
+        static bool ColorDiffers(Color a, Color b)
+        {
+            const float epsilon = 1e-4f;
+            return Mathf.Abs(a.r - b.r) > epsilon ||
+                   Mathf.Abs(a.g - b.g) > epsilon ||
+                   Mathf.Abs(a.b - b.b) > epsilon ||
+                   Mathf.Abs(a.a - b.a) > epsilon;
+        }
+
+        /// <summary>The frame whose <c>FrameNumber</c> is <paramref name="frameNumber"/>, or null.</summary>
+        static SWFFrame FindFrame(SWFSymbol symbol, int frameNumber)
+        {
+            if (symbol?.Frames == null) return null;
+
+            foreach (SWFFrame frame in symbol.Frames)
+            {
+                if (frame.FrameNumber == frameNumber) return frame;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// The pivot for one frame of <c>morda_armor</c>(273), normalised inside that frame's own
+        /// exported crop.
+        ///
+        /// <para><b>Why frame 1's pivot cannot be reused.</b> Part 273's stored pivot is the
+        /// origin's position inside <i>frame 1's</i> content bounds: <c>0.7191358</c> is exactly
+        /// <c>93.2 / 129.6</c> and <c>0.19850056</c> is <c>1 - 112.25 / 140.05</c>, both read
+        /// straight off the SWF. Every armour frame is a different picture with its own bounds, so
+        /// the origin sits at a different normalised point in each. Reusing frame 1's value pins
+        /// the sprite by the wrong point and slides the whole head: measured against the shipped
+        /// frames the error reaches 10.4 px on battle/polic/spec and 7.3 px vertically on intel —
+        /// about 0.021 world units, the same size as the per-armour helmet offsets this file also
+        /// emits, so it is a real defect and not a rounding detail.</para>
+        ///
+        /// <para><b>How frame N's bounds are recovered.</b> The exporter crops each frame to its own
+        /// content, so the difference between two frames' sprite rects equals the difference
+        /// between their bounds and the constant padding cancels. Only frame 1's bounds have to
+        /// come from the SWF, and frame 1 must reproduce the stored pivot — it does, exactly.</para>
+        /// </summary>
+        static Vector2 CompositeFramePivot(
+            SWFFile swfData,
+            CharacterSpriteImporter.ImportResult spriteImport,
+            Vector2 defaultPivot,
+            int frame)
+        {
+            if (!swfData.Frame1Bounds.TryGetValue(273, out Rect bounds1) ||
+                bounds1.width <= 0f || bounds1.height <= 0f)
+            {
+                return defaultPivot;
+            }
+
+            if (!spriteImport.SpritesBySymbol.TryGetValue(273, out var frames) ||
+                !frames.TryGetValue(1, out Sprite sprite1) || sprite1 == null ||
+                !frames.TryGetValue(frame, out Sprite spriteN) || spriteN == null)
+            {
+                return defaultPivot;
+            }
+
+            Rect rect1 = sprite1.textureRect;
+            Rect rectN = spriteN.textureRect;
+            if (rectN.width <= 0f || rectN.height <= 0f) return defaultPivot;
+
+            float zoom = spriteImport.EffectiveZoomBySymbol.TryGetValue(273, out int z)
+                ? z
+                : spriteImport.ZoomFactor;
+            if (zoom <= 0f) zoom = 1f;
+
+            float x = bounds1.x + (rectN.x - rect1.x) / zoom;
+            float width = bounds1.width + (rectN.width - rect1.width) / zoom;
+            // textureRect.y counts up from the canvas bottom, while bounds.y is the top edge, so the
+            // top of the crop is rect.y + rect.height.
+            float y = bounds1.y + ((rect1.y + rect1.height) - (rectN.y + rectN.height)) / zoom;
+            float height = bounds1.height + (rectN.height - rect1.height) / zoom;
+
+            if (width <= 0f || height <= 0f) return defaultPivot;
+
+            return new Vector2(-x / width, 1f + y / height);
+        }
+
+        /// <summary>
+        /// The head-container-space offset this armour gives a slot, or zero if it does not move it.
+        /// </summary>
+        /// <remarks>
+        /// Only the Flash→Unity axis flip happens here. The head's rotation and scale are applied by
+        /// the renderers (<c>ArmorOffsets.LocalToRoot</c>) because they are per-frame: folding them
+        /// in would bake the stay pose into every frame, which is the fault that made the old
+        /// root-space <c>positionOffset</c> unusable for head sub-parts.
+        /// </remarks>
+        static Vector2 LocalOffsetFor(HeadArmorVariantData headVariants, string armorId, string slotName)
+        {
+            if (!headVariants.PositionDeltasByArmor.TryGetValue(armorId, out var deltas) ||
+                !deltas.TryGetValue(slotName, out Vector2 flashDelta))
+            {
+                return Vector2.zero;
+            }
+
+            return new Vector2(flashDelta.x / 100f, -flashDelta.y / 100f);
         }
 
         /// <summary>

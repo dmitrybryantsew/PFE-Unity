@@ -709,7 +709,8 @@ namespace PFE.Editor.Importers.SWF
 
             // Track which head sub-parts have placements
             var headSubPartNames = new HashSet<string>
-                { "head", "morda_base", "morda_armor", "morda_overlay", "eye", "forelock", "horn", "magic", "konec", "helm" };
+                { "head", "morda_base", "morda_base_back", "shell", "morda_armor", "morda_overlay",
+                  "eye", "forelock", "horn", "magic", "konec", "helm", "helm2" };
             var foundHeadParts = new HashSet<string>();
 
             foreach (var p in frameData.partPlacements)
@@ -1133,7 +1134,8 @@ namespace PFE.Editor.Importers.SWF
 
         /// <summary>Head sub-part names that get their armor sprites from morda_armor(273) variants.</summary>
         static readonly HashSet<string> HeadSubPartNames = new()
-            { "morda_base", "morda_overlay", "eye", "forelock", "horn", "magic", "konec", "helm" };
+            { "morda_base", "morda_base_back", "shell", "morda_overlay", "eye", "forelock",
+              "horn", "magic", "konec", "helm", "helm2" };
 
         /// <summary>
         /// Returns the sprite, pivot, and baked position offset for a given part, considering armor overrides.
@@ -1158,7 +1160,7 @@ namespace PFE.Editor.Importers.SWF
                         foreach (var ovr in armorSet.partOverrides)
                         {
                             if (ovr.partIndex == partIndex && ovr.armorSprite != null)
-                                return (ovr.armorSprite, ovr.pivotOverride, ovr.positionOffset);
+                                return (ovr.armorSprite, ArmorPivots.Resolve(part, ovr), ovr.positionOffset);
                         }
                     }
                 }
@@ -1178,7 +1180,7 @@ namespace PFE.Editor.Importers.SWF
                         foreach (var ovr in armorSet.partOverrides)
                         {
                             if (ovr.partIndex == partIndex && ovr.armorSprite != null)
-                                return (ovr.armorSprite, ovr.pivotOverride, ovr.positionOffset);
+                                return (ovr.armorSprite, ArmorPivots.Resolve(part, ovr), ovr.positionOffset);
                         }
                         break;
                     }

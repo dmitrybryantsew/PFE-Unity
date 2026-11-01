@@ -7,6 +7,7 @@ using PFE.Data.Definitions;
 using PFE.Data.Definitions.Campaign;
 using PFE.Editor.Importers.SWF;
 using PFE.Entities.Enemies.Archetypes;
+using PFE.Entities.Units;
 using PFE.Systems.Particles;
 using UnityEditor;
 using UnityEditor.U2D.Sprites;
@@ -72,6 +73,22 @@ namespace PFE.Editor.Importers
         const int MaxTextureSize = 8192;
 
         /// <summary>
+        /// The most pixels one unit's <c>osn</c> clip may occupy across all of its frames before the
+        /// clip is left un-imported and reported instead.
+        ///
+        /// <para><b>Why a ceiling at all.</b> A clip's frames are separate textures (one sprite each in
+        /// <see cref="UnitDefinition.spriteSheet"/>), so the cost is frames x canvas and it is not small:
+        /// <c>visualNecrBoss</c>'s twelve one-frame states expand to <b>235</b> frames at 435x435, and
+        /// <c>visualSentinel2</c>'s to 44 at 573x628. Together that is 60 MPx — 240 MB of uncompressed
+        /// RGBA for two units — to animate two bosses. 8 MPx (32 MB) still admits every unit this pass
+        /// was built for: the bloodwings need 0.3, the fish 0.5, the raider boss 6.2.</para>
+        ///
+        /// <para>Reported rather than silently skipped, because "this unit has no clip" and "the clip
+        /// was too big to import" are different facts and only one of them is a data problem.</para>
+        /// </summary>
+        const long MaxClipPixels = 8_000_000L;
+
+        /// <summary>
         /// How many times to re-issue a <c>SaveAndReimport</c> whose <c>.meta</c> write collided with the
         /// import already in flight, and the base backoff between attempts in milliseconds (it grows
         /// linearly, since the thing being waited on is a texture decode rather than a fixed-length lock).
@@ -129,6 +146,31 @@ namespace PFE.Editor.Importers
             /// </summary>
             public int GriffinArmsWired;
 
+            /// <summary>
+            /// Villager pony looks written onto <c>ponpon</c> — AS3
+            /// <c>UnitPonPon.as:112 vis.osn.pon.gotoAndStop(tr)</c>. Counted on its own because it is
+            /// the only pass that writes a <b>set</b> of frames onto one unit: 27 ponies, one unit row.
+            /// </summary>
+            public int VillagerVariantsImported;
+
+            /// <summary>
+            /// Units whose DisplayObject <c>osn</c> clip was imported — the animation a
+            /// <c>&lt;vis vclass='…'/&gt;</c> unit is drawn from, which nothing imported before
+            /// 2026-10-28. A unit counted here has more than one frame in at least one state.
+            /// </summary>
+            public int UnitClipsImported;
+
+            /// <summary>Total frames written for those clips.</summary>
+            public int UnitClipFrames;
+
+            /// <summary>
+            /// Clips that exist in the SWF but were deliberately not imported, with the reason — a
+            /// timeline whose sections are several frames long (not a state set), or one that would
+            /// exceed <see cref="MaxClipPixels"/>. Separate from <see cref="Warnings"/> because none of
+            /// these is a fault in the export.
+            /// </summary>
+            public readonly List<string> ClipsNotImported = new List<string>();
+
             /// <summary>States whose row or frame count falls outside the sheet they are drawn from.</summary>
             public readonly List<string> OutOfRange = new List<string>();
 
@@ -150,6 +192,11 @@ namespace PFE.Editor.Importers
                               "(the `osn` MovieClip `UnitNPC.animate()` drives)");
                 sb.AppendLine($"griffin arms wired : {GriffinArmsWired} " +
                               "(the separate aiming limb `UnitMerc.arm`)");
+                sb.AppendLine($"villager looks     : {VillagerVariantsImported} " +
+                              "(`pon` frames on `ponpon`, selected by the placement's `tr`)");
+                sb.AppendLine($"unit display clips : {UnitClipsImported} units, {UnitClipFrames} frames " +
+                              "(the `osn` MovieClip a `vclass` unit is drawn from)");
+                sb.AppendLine($"clips not imported : {ClipsNotImported.Count}");
                 sb.AppendLine($"states out of range : {OutOfRange.Count}");
                 sb.AppendLine($"warnings           : {Warnings.Count}");
                 return sb.ToString();
@@ -199,6 +246,14 @@ namespace PFE.Editor.Importers
             }
 
             // ── Pass 1: sheet units ──────────────────────────────────────────
+            //
+            // The symbol table and the SWF are read ONCE for the whole run, before any pass. Both the
+            // DisplayObject pass below and the NPC persona pass need them, and parsing an 8 MB SWF per
+            // unit would turn a minute into an hour. Reading them here also means a missing export is
+            // reported once, up front, instead of once per unit.
+            Dictionary<string, int> symbols = ReadPfeSymbolTable(result);
+            SWFFile swf = ParseAssetsSwf(result);
+
             foreach (UnitDefinition unit in units)
             {
                 if (string.IsNullOrWhiteSpace(unit.spriteSheetId))
@@ -252,7 +307,7 @@ namespace PFE.Editor.Importers
 
                 try
                 {
-                    if (ImportVisual(unit, visualNames, result))
+                    if (ImportVisual(unit, visualNames, symbols, swf, result))
                     {
                         result.UnitsWired++;
                     }
@@ -276,7 +331,7 @@ namespace PFE.Editor.Importers
             // included — would spawn as a collider with no art however complete the rest of the port is.
             try
             {
-                ImportNpcVisuals(result);
+                ImportNpcVisuals(result, symbols, swf);
             }
             catch (Exception e)
             {
@@ -291,7 +346,26 @@ namespace PFE.Editor.Importers
             // Report the states the sheet cannot satisfy, after the sheets are known.
             ReportOutOfRangeStates(units, result);
 
-            // ── Pass 4: the griffin's separate aiming arm ────────────────────
+            // ── Pass 4: the villager ponies' 27 looks ────────────────────────
+            //
+            // `ponpon`'s `<vis>` is `visualPonPon`, whose own timeline is ONE frame placing `osn`,
+            // which places `pon` — and `pon` is where the 27 villager looks live. Pass 2 exports the
+            // outer symbol, so every villager in the game drew the same single mare; the look is
+            // picked by the placement's `tr` (`UnitPonPon.as:112`). Runs after pass 3 because the
+            // `ponpon` row is a unit, and after pass 2 because it rewrites that row's `variantSprites`.
+            try
+            {
+                ImportVillagerVariants(units, symbols, swf, result);
+            }
+            catch (Exception e)
+            {
+                result.Warnings.Add($"villager looks: pass threw {e.GetType().Name}: {e.Message}");
+            }
+
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+
+            // ── Pass 5: the griffin's separate aiming arm ────────────────────
             //
             // Deliberately last and outside the sheet pass: the arm is not a state of the body sheet,
             // it is a limb drawn beside it, so it is neither a cell to slice nor a DisplayObject to
@@ -348,7 +422,7 @@ namespace PFE.Editor.Importers
         /// clip is not reported as a failure. The outer symbol's own frames are imported instead, exactly
         /// as before.</para>
         /// </summary>
-        static void ImportNpcVisuals(Result result)
+        static void ImportNpcVisuals(Result result, Dictionary<string, int> symbols, SWFFile swf)
         {
             List<NpcDefinition> npcs = LoadNpcs();
             if (npcs.Count == 0)
@@ -358,11 +432,9 @@ namespace PFE.Editor.Importers
                 return;
             }
 
-            // Resolved once for the whole pass. The symbol table and the SWF timeline are the same for
-            // all 54 personas, and re-parsing an 11 MB SWF per persona would turn a minute into an hour.
-            Dictionary<string, int> symbols = ReadPfeSymbolTable(result);
-            SWFFile swf = ParseAssetsSwf(result);
-
+            // The symbol table and the SWF timeline are resolved once by Run and handed in: they are the
+            // same for all 54 personas, and re-parsing an 11 MB SWF per persona would turn a minute into
+            // an hour.
             foreach (NpcDefinition npc in npcs)
             {
                 if (string.IsNullOrWhiteSpace(npc.visualId))
@@ -393,6 +465,184 @@ namespace PFE.Editor.Importers
                 }
             }
         }
+
+        /// <summary>
+        /// Import the villager ponies' looks — the 27 frames of <c>pon</c>, which is the only place the
+        /// generic NPC has more than one appearance.
+        ///
+        /// <para><b>Why this is not covered by pass 2.</b> <c>ponpon</c>'s <c>&lt;vis&gt;</c> names
+        /// <c>visualPonPon</c>, and that symbol's own timeline is <b>one frame</b>: it places
+        /// <c>osn</c>, which places <c>pon</c>. Pass 2 exports the outer symbol, so the port got one
+        /// picture of one mare and drew it for every villager in the wasteland. The oracle does not use
+        /// the outer timeline at all — <c>UnitPonPon.as:112</c> is
+        /// <c>vis.osn.pon.gotoAndStop(this.tr)</c>, and <c>tr</c> is the placement's own attribute
+        /// (<c>RoomsCamp.as:46</c> <c>&lt;obj id="ponpon" tr="20" rep="child"/&gt;</c>).</para>
+        ///
+        /// <para><b>The chain is resolved, not assumed.</b> <c>visualPonPon</c> → its <c>osn</c>
+        /// placement → that symbol's <c>pon</c> placement → the folder for that character id. A
+        /// hardcoded <c>DefineSprite_3515</c> would be right today and silently wrong after any
+        /// re-export, so the ids come out of the SWF the same way <see cref="TryResolveOsnClip"/>
+        /// gets a persona's clip.</para>
+        ///
+        /// <para>Frame <c>n</c> becomes <c>f{n:D3}.png</c> and index <c>n-1</c> of
+        /// <see cref="PFE.Data.Definitions.UnitDefinition.variantSprites"/>, so
+        /// <c>gotoAndStop(tr)</c> is an array index — no label table, because <c>pon</c> has none.</para>
+        ///
+        /// <para><b>The symbol table and the SWF are handed in.</b> This pass used to parse
+        /// <c>assets.swf</c> itself, which is a second full parse of a 76 MB file in one import run —
+        /// <see cref="Run"/> resolves both once now, for the same reason the unit-clip pass does.</para>
+        /// </summary>
+        static void ImportVillagerVariants(List<UnitDefinition> units,
+                                           Dictionary<string, int> symbols, SWFFile swf, Result result)
+        {
+            UnitDefinition pony = null;
+            for (int i = 0; i < units.Count; i++)
+            {
+                if (string.Equals(units[i].id, PFE.Entities.Units.PonPonVariants.UnitId,
+                                  StringComparison.OrdinalIgnoreCase))
+                {
+                    pony = units[i];
+                    break;
+                }
+            }
+
+            if (pony == null)
+            {
+                result.Warnings.Add($"no '{PFE.Entities.Units.PonPonVariants.UnitId}' UnitDefinition " +
+                                    "under " + UnitAssetRoot + ", so the villager looks were skipped");
+                return;
+            }
+
+            if (symbols == null || swf == null)
+            {
+                // Both readers have already reported why. The unit keeps its single frame.
+                return;
+            }
+
+            if (!symbols.TryGetValue(VillagerVisualName, out int visualId) ||
+                !swf.Symbols.TryGetValue(visualId, out SWFSymbol visual))
+            {
+                result.Warnings.Add($"{VillagerVisualName} ({visualId}) is not a DefineSprite in " +
+                                    "assets.swf, so the villager looks cannot be located.");
+                return;
+            }
+
+            SWFPlacement osn = FindPlacement(visual, "osn");
+            if (osn == null || osn.CharacterId <= 0 ||
+                !swf.Symbols.TryGetValue(osn.CharacterId, out SWFSymbol osnSymbol))
+            {
+                result.Warnings.Add($"{VillagerVisualName} has no usable `osn` placement, so the " +
+                                    "villager looks cannot be located.");
+                return;
+            }
+
+            SWFPlacement pon = FindPlacement(osnSymbol, "pon");
+            if (pon == null || pon.CharacterId <= 0)
+            {
+                result.Warnings.Add($"{VillagerVisualName}'s `osn` has no `pon` placement, so the " +
+                                    "villager looks cannot be located.");
+                return;
+            }
+
+            string[] folders = SourceImportPaths.PfeSpriteFoldersById(pon.CharacterId);
+            if (folders.Length != 1)
+            {
+                result.Warnings.Add($"{VillagerVisualName}'s `pon` is symbol {pon.CharacterId}, but " +
+                                    $"pfe/sprites holds {folders.Length} folder(s) matching " +
+                                    $"DefineSprite_{pon.CharacterId}*. The villager keeps one look.");
+                return;
+            }
+
+            string[] pngs = Directory.GetFiles(folders[0], "*.png")
+                .OrderBy(UnitSheetLayout.FrameNumberOf)
+                .ToArray();
+
+            if (pngs.Length == 0)
+            {
+                result.Warnings.Add($"`pon` ({pon.CharacterId}) folder {folders[0]} holds no PNGs.");
+                return;
+            }
+
+            if (pngs.Length != PFE.Entities.Units.PonPonVariants.VariantCount)
+            {
+                // Not fatal — the clip is imported as exported — but the count is the one number the
+                // selection rule depends on, so a change in it is reported rather than absorbed.
+                result.Warnings.Add($"`pon` ({pon.CharacterId}) exported {pngs.Length} frame(s), but " +
+                                    $"{PFE.Entities.Units.PonPonVariants.VariantCount} are expected. " +
+                                    "`tr` selection is clamped to what was exported.");
+            }
+
+            string targetFolder = $"{VisualArtRoot}/{VillagerVariantsFolderName}";
+            EnsureDirectory(targetFolder);
+
+            int copied = 0;
+            foreach (string png in pngs)
+            {
+                int frame = UnitSheetLayout.FrameNumberOf(png);
+                string dest = $"{targetFolder}/f{frame:D3}.png";
+                try
+                {
+                    CopyIfNewer(png, dest);
+                    copied++;
+                }
+                catch (Exception e)
+                {
+                    result.Warnings.Add($"villager frame {Path.GetFileName(png)}: {e.Message}");
+                }
+            }
+
+            AssetDatabase.ImportAsset(targetFolder, ImportAssetOptions.ImportRecursive);
+
+            var frames = new List<Sprite>();
+            string[] assets = AssetDatabase.FindAssets("t:Sprite", new[] { targetFolder });
+            foreach (string assetPath in assets.Select(AssetDatabase.GUIDToAssetPath)
+                                               .OrderBy(UnitSheetLayout.FrameNumberOf))
+            {
+                var importer = AssetImporter.GetAtPath(assetPath) as TextureImporter;
+                if (importer == null)
+                {
+                    continue;
+                }
+
+                ConfigureBase(importer, MaxTextureSize);
+                importer.spriteImportMode = SpriteImportMode.Single;
+
+                var settings = new TextureImporterSettings();
+                importer.ReadTextureSettings(settings);
+                settings.spriteAlignment = (int)SpriteAlignment.Center;
+                importer.SetTextureSettings(settings);
+                Reimport(importer, assetPath, pony, result);
+
+                var sprite = AssetDatabase.LoadAssetAtPath<Sprite>(assetPath);
+                if (sprite != null)
+                {
+                    frames.Add(sprite);
+                }
+            }
+
+            if (frames.Count == 0)
+            {
+                result.Warnings.Add($"villager looks: {copied} PNG(s) copied but no sprite loaded from " +
+                                    $"{targetFolder}. `ponpon` keeps one look.");
+                return;
+            }
+
+            pony.variantSprites = frames.ToArray();
+            EditorUtility.SetDirty(pony);
+
+            result.VillagerVariantsImported = frames.Count;
+            result.VisualFramesCopied += copied;
+        }
+
+        /// <summary>The outer symbol the villager pony's <c>&lt;vis&gt;</c> names (<c>AllData.as:56</c>).</summary>
+        const string VillagerVisualName = "visualPonPon";
+
+        /// <summary>
+        /// Where the villager looks are written. A sibling of the unit's own
+        /// <c>visualPonPon</c> folder rather than inside it, because that folder holds the composite
+        /// resting frame in a different pixel space (100×98 against <c>pon</c>'s 183×180).
+        /// </summary>
+        const string VillagerVariantsFolderName = "visualPonPonVariants";
 
         /// <summary>
         /// AS3's <c>"visual" + npcXML.@vis</c> (<c>UnitNPC.as:101</c>) — capitalising the first letter,
@@ -1173,8 +1423,551 @@ namespace PFE.Editor.Importers
             return null;
         }
 
-        static bool ImportVisual(UnitDefinition unit, string[] visualNames, Result result)
+        /// <summary>
+        /// One frame of a planned DisplayObject clip: the <c>osn</c> canvas it is drawn on, and the
+        /// child frame (if any) pasted onto it.
+        /// </summary>
+        sealed class ClipFrame
         {
+            /// <summary>The <c>osn</c> frame render — the canvas, and the picture when there is no child.</summary>
+            public string BasePng;
+
+            /// <summary>The child clip's frame to paste on top, or null when the frame is the child itself.</summary>
+            public string OverlayPng;
+
+            /// <summary>Where the overlay's top-left goes inside the base canvas.</summary>
+            public int OffsetX;
+            public int OffsetY;
+        }
+
+        /// <summary>
+        /// Import a <c>vclass</c> unit's <c>osn</c> clip — the animation the DisplayObject is drawn
+        /// from — and wire it onto the definition as a one-row sheet plus the states it names.
+        /// </summary>
+        ///
+        /// <remarks>
+        /// <para><b>What was wrong.</b> Every <c>&lt;vis vclass='visualX'/&gt;</c> unit in the game is
+        /// a container MovieClip whose own timeline is <i>one</i> frame, and that frame's entire content
+        /// is a child named <c>osn</c>. The importer copied the container's frames, so it wrote exactly
+        /// one PNG per unit and an empty <c>animations</c> set — and <c>UnitAnimator</c>, which reads
+        /// that set, therefore had nothing to step. 43 of the 82 units that draw from a DisplayObject
+        /// have an <c>osn</c> clip with more than one frame; <b>the bloat family and both bloodwings
+        /// were among them</b>, which is the "no animation" report this pass answers.</para>
+        ///
+        /// <para><b>The two shapes of clip, and why only one of them is a set of states.</b>
+        /// <see cref="DisplayObjectClipLayout.Segments"/> splits the clip at its labels. When every
+        /// segment is a single frame the label is choosing <i>which child is on stage</i>, and the child
+        /// is the animation — <c>visualBloodwing</c>'s <c>stay/fly/attack/die</c> over four one-frame
+        /// segments, with 1/6/1/20 frames in the children. When the segments are several frames long the
+        /// labels are section markers on a timeline nobody calls <c>gotoAndStop</c> on
+        /// (<c>visualVendor</c>: <c>stay</c> 1, <c>move1</c> 2..50, <c>move2</c> 51..96); treating those
+        /// as states would freeze a shopkeeper on its first frame, so those units keep the frame they
+        /// already have and are listed in <see cref="Result.ClipsNotImported"/>.</para>
+        ///
+        /// <para><b>An unlabelled clip is the whole animation.</b> <c>UnitBloat.animate()</c> is an
+        /// empty override (<c>UnitBloat.as:219-221</c>) — the bloat's <c>osn</c> simply plays and loops,
+        /// which is the three frames this pass files under <c>stay</c>, the id <c>Unit.as:2860</c>
+        /// initialises <c>animState</c> to.</para>
+        ///
+        /// <para><b>Everything is written into the container's own canvas, measured from the container's
+        /// own PNG.</b> The outer symbol's single frame is the <c>osn</c> canvas scaled by its placement
+        /// matrix (0.287 for the bloodwing, 1.0 for every bloat), so the composited clip is downscaled to
+        /// the size of <c>1.png</c> in the outer symbol's folder. That size is <b>read from the file, not
+        /// recomputed from the matrix</b>: recomputing gives 101x107 for the bloodwing where the export is
+        /// 100x107, and a frame one pixel wider than the sprite it replaces would shift the pivot and the
+        /// anchor for every frame. Reading it means the new frames cannot disagree with the size the game
+        /// already draws, so no draw-time scale, pivot or anchor rule has to change.</para>
+        /// </remarks>
+        /// <returns>True when the clip was imported and the definition wired.</returns>
+        static bool ImportDisplayClip(UnitDefinition unit, string visualName,
+                                      Dictionary<string, int> symbols, SWFFile swf, Result result)
+        {
+            // Both readers report their own failure once per run; without them the outer-frame path is
+            // still correct, so this is a silent fallback rather than a second warning.
+            if (symbols == null || swf == null)
+            {
+                return false;
+            }
+
+            if (!symbols.TryGetValue(visualName, out int visualSymbolId) ||
+                !swf.Symbols.TryGetValue(visualSymbolId, out SWFSymbol visualSymbol))
+            {
+                return false;
+            }
+
+            SWFPlacement osn = FindPlacement(visualSymbol, "osn");
+            if (osn == null || osn.CharacterId <= 0)
+            {
+                // 114 of the 175 `visual*` symbols have no `osn` child: they are genuinely static props
+                // and effects, and the outer frame is the whole visual. Not a gap, not a warning.
+                return false;
+            }
+
+            // The six turret mounts are excluded on purpose. `UnitTurret` animates a gun and a lamp
+            // INSIDE the mount's MovieClip, and `TurretPartPresenter` already rebuilds those two as
+            // separate renderers from the baked frame. Playing the baked frames as well would draw the
+            // gun twice — once swinging with the body, once held by the presenter.
+            if (TurretSpriteOrigin.TryGet(unit.id, out _))
+            {
+                return false;
+            }
+
+            if (!swf.Symbols.TryGetValue(osn.CharacterId, out SWFSymbol osnSymbol))
+            {
+                result.Warnings.Add($"{unit.id}: {visualName}'s `osn` ({osn.CharacterId}) is not a " +
+                                    "DefineSprite in assets.swf, so its clip cannot be read. The " +
+                                    "resting frame is imported instead.");
+                return false;
+            }
+
+            string[] osnFolders = SourceImportPaths.PfeSpriteFoldersById(osn.CharacterId);
+            if (osnFolders.Length != 1)
+            {
+                result.Warnings.Add($"{unit.id}: {visualName}'s `osn` is symbol {osn.CharacterId}, but " +
+                                    $"pfe/sprites holds {osnFolders.Length} folder(s) matching " +
+                                    $"DefineSprite_{osn.CharacterId}*. The resting frame is imported instead.");
+                return false;
+            }
+
+            string[] osnPngs = Directory.GetFiles(osnFolders[0], "*.png")
+                .OrderBy(UnitSheetLayout.FrameNumberOf)
+                .ToArray();
+
+            if (osnPngs.Length == 0)
+            {
+                result.Warnings.Add($"{unit.id}: {visualName}'s `osn` folder {osnFolders[0]} holds no PNGs.");
+                return false;
+            }
+
+            // ── Split the clip ────────────────────────────────────────────────────────────────────
+            var labelByFrame = new string[Math.Max(osnSymbol.FrameCount, osnPngs.Length)];
+            foreach (SWFFrame frame in osnSymbol.Frames)
+            {
+                if (frame.FrameNumber >= 1 && frame.FrameNumber <= labelByFrame.Length)
+                {
+                    labelByFrame[frame.FrameNumber - 1] = frame.Label;
+                }
+            }
+
+            int clipLength = Math.Min(osnPngs.Length, Math.Max(osnSymbol.FrameCount, 1));
+            DisplayClipSegment[] segments =
+                DisplayObjectClipLayout.Segments(labelByFrame, clipLength);
+
+            if (segments.Length == 0)
+            {
+                return false;
+            }
+
+            bool labelled = !string.IsNullOrEmpty(segments[0].Label) || segments.Length > 1;
+            if (labelled && !DisplayObjectClipLayout.IsStateSelector(segments))
+            {
+                result.ClipsNotImported.Add(
+                    $"{unit.id} ({visualName}): a timeline with labelled sections " +
+                    $"({DescribeSegments(segments)}), not a set of states — nothing calls " +
+                    "`gotoAndStop` on those labels, so the clip plays as one sequence and the unit " +
+                    "keeps its single frame.");
+                return false;
+            }
+
+            // ── Plan the frames ──────────────────────────────────────────────────────────────────
+            var plan = new List<ClipFrame>();
+            var states = new List<(string As3Id, int FirstFrame, int FrameCount)>();
+
+            foreach (DisplayClipSegment segment in segments)
+            {
+                int firstFrame = plan.Count;
+
+                if (segment.IsSingleFrame)
+                {
+                    int osnIndex = segment.FirstFrame - 1;
+                    SWFPlacement child = osnSymbol.Frames.Count >= segment.FirstFrame
+                        ? FirstPlacement(osnSymbol.Frames[segment.FirstFrame - 1])
+                        : null;
+
+                    if (child != null && swf.Symbols.TryGetValue(child.CharacterId, out SWFSymbol childSymbol) &&
+                        childSymbol.FrameCount > 1 &&
+                        TryGetFramePngs(child.CharacterId, childSymbol.FrameCount, out string[] childPngs))
+                    {
+                        // The label picks a child clip, and the child is the animation: paste each of
+                        // its frames onto this state's osn render, at the offset the ink origin gives.
+                        if (TryMeasurePasteOffset(osnPngs[osnIndex], childPngs[0], out int dx, out int dy))
+                        {
+                            foreach (string childPng in childPngs)
+                            {
+                                plan.Add(new ClipFrame
+                                {
+                                    BasePng = osnPngs[osnIndex],
+                                    OverlayPng = childPng,
+                                    OffsetX = dx,
+                                    OffsetY = dy,
+                                });
+                            }
+                        }
+                        else
+                        {
+                            result.Warnings.Add($"{unit.id}: {visualName}'s `{segment.Label}` frame " +
+                                                "could not be placed over its child clip (no ink to " +
+                                                "measure); the state shows its first pose only.");
+                            plan.Add(new ClipFrame { BasePng = osnPngs[osnIndex] });
+                        }
+                    }
+                    else
+                    {
+                        plan.Add(new ClipFrame { BasePng = osnPngs[osnIndex] });
+                    }
+                }
+                else
+                {
+                    for (int f = segment.FirstFrame; f < segment.FirstFrame + segment.FrameCount; f++)
+                    {
+                        plan.Add(new ClipFrame { BasePng = osnPngs[f - 1] });
+                    }
+                }
+
+                states.Add((DisplayObjectClipLayout.As3IdForLabel(segment.Label),
+                            firstFrame, plan.Count - firstFrame));
+            }
+
+            // A clip of one frame is the picture the outer symbol already provides. Writing it would
+            // churn 25 assets to no effect, so the outer path keeps those units.
+            int multiFrameStates = states.Count(s => s.FrameCount > 1);
+            if (multiFrameStates == 0)
+            {
+                return false;
+            }
+
+            // ── Canvas and budget ────────────────────────────────────────────────────────────────
+            string outerFolder = FindVisualFolder(visualName);
+            string outerPng = outerFolder != null ? Path.Combine(outerFolder, "1.png") : null;
+            if (outerPng == null || !UnitSheetLayout.TryReadPngSize(outerPng, out int outerWidth, out int outerHeight) ||
+                !UnitSheetLayout.TryReadPngSize(osnPngs[0], out int osnWidth, out int osnHeight))
+            {
+                result.Warnings.Add($"{unit.id}: {visualName}'s frame sizes could not be read, so its " +
+                                    "`osn` clip was not imported.");
+                return false;
+            }
+
+            long pixels = (long)plan.Count * outerWidth * outerHeight;
+            if (pixels > MaxClipPixels)
+            {
+                result.ClipsNotImported.Add(
+                    $"{unit.id} ({visualName}): {plan.Count} frames at {outerWidth}x{outerHeight} = " +
+                    $"{pixels / 1_000_000.0:0.0} MPx, over the {MaxClipPixels / 1_000_000} MPx budget. " +
+                    "Raise MaxClipPixels if the textures are wanted.");
+                return false;
+            }
+
+            // ── Write the frames ─────────────────────────────────────────────────────────────────
+            string targetFolder = $"{VisualArtRoot}/{visualName}";
+            EnsureDirectory(targetFolder);
+
+            var written = new string[plan.Count];
+            for (int i = 0; i < plan.Count; i++)
+            {
+                Color32[] canvas = ReadPngPixels(plan[i].BasePng, out int width, out int height);
+                if (canvas == null)
+                {
+                    result.Warnings.Add($"{unit.id}: {Path.GetFileName(plan[i].BasePng)} could not be " +
+                                        "decoded, so the clip stops at frame " + (i + 1) + ".");
+                    Array.Resize(ref written, i);
+                    break;
+                }
+
+                if (plan[i].OverlayPng != null)
+                {
+                    Color32[] overlay = ReadPngPixels(plan[i].OverlayPng, out int ow, out int oh);
+                    if (overlay != null)
+                    {
+                        DisplayObjectClipLayout.PasteOver(canvas, width, height, overlay, ow, oh,
+                                                          plan[i].OffsetX, plan[i].OffsetY);
+                    }
+                }
+
+                Color32[] scaled = DisplayObjectClipLayout.Downscale(canvas, width, height,
+                                                                     outerWidth, outerHeight);
+                string dest = $"{targetFolder}/f{i + 1:D3}.png";
+                WritePng(dest, scaled, outerWidth, outerHeight);
+                written[i] = dest;
+            }
+
+            if (written.Length == 0)
+            {
+                return false;
+            }
+
+            // A previous run wrote fewer frames (one, in every case before this pass existed). Leaving
+            // the tail behind would put PNGs in the folder that no state addresses and that the next
+            // reader would have to reason about.
+            RemoveStaleFrames(targetFolder, written.Length);
+
+            AssetDatabase.ImportAsset(targetFolder, ImportAssetOptions.ImportRecursive);
+
+            var sprites = new List<Sprite>(written.Length);
+            foreach (string assetPath in written)
+            {
+                var importer = AssetImporter.GetAtPath(assetPath) as TextureImporter;
+                if (importer == null)
+                {
+                    result.Warnings.Add($"{unit.id}: no TextureImporter at {assetPath}");
+                    continue;
+                }
+
+                ConfigureBase(importer, MaxTextureSize);
+                importer.spriteImportMode = SpriteImportMode.Single;
+
+                var settings = new TextureImporterSettings();
+                importer.ReadTextureSettings(settings);
+                settings.spriteAlignment = (int)SpriteAlignment.Center;
+                importer.SetTextureSettings(settings);
+
+                Reimport(importer, assetPath, unit, result);
+
+                var sprite = AssetDatabase.LoadAssetAtPath<Sprite>(assetPath);
+                if (sprite != null)
+                {
+                    sprites.Add(sprite);
+                }
+            }
+
+            if (sprites.Count == 0)
+            {
+                return false;
+            }
+
+            // ── Wire it ──────────────────────────────────────────────────────────────────────────
+            //
+            // One row, every state laid end to end, so `UnitAnimator` addresses it with the same
+            // row * columns + column arithmetic it uses for a blit sheet. `firstFrame` is the state's
+            // column, `length` its frame count, and `replay` loops to its own first column — a Flash
+            // MovieClip loops unless a frame script stops it, and none of these clips carries one.
+            SetPrivateField(unit, "spriteSheet", sprites.ToArray());
+            SetPrivateField(unit, "spriteSheetColumns", sprites.Count);
+            SetPrivateField(unit, "spriteSheetRows", 1);
+
+            // The resting frame is the first cell, exactly as `UnitSheetLayout.RestingCell` reads a
+            // sheet: `stay`'s first frame, which is what `RoomUnitSpawner.ApplySprite` draws before the
+            // animator takes over.
+            SetPrivateField(unit, "sprite", sprites[0]);
+
+            AnimationSet animations = unit.animations ?? new AnimationSet();
+            foreach ((string as3Id, int firstFrame, int frameCount) in states)
+            {
+                var row = new AnimationFrame
+                {
+                    row = 0,
+                    length = frameCount,
+                    firstFrame = firstFrame,
+                    returnFrame = firstFrame,
+                    frameStep = 1f,
+                    replay = true,
+                    isStatic = false,
+                };
+
+                if (!animations.TrySet(as3Id, row))
+                {
+                    // A label the port has no state for (`move1`, `wake`, `opened`). The frames stay in
+                    // the sheet — dropping them would shift every later state's columns — but nothing
+                    // can select them, and that is worth saying rather than hiding.
+                    result.ClipsNotImported.Add(
+                        $"{unit.id} ({visualName}): state `{as3Id}` has no field in AnimationSet, so its " +
+                        $"{frameCount} frame(s) are in the sheet but unreachable.");
+                }
+            }
+
+            SetPrivateField(unit, "animations", animations);
+            EditorUtility.SetDirty(unit);
+
+            result.UnitClipsImported++;
+            result.UnitClipFrames += sprites.Count;
+
+            return true;
+        }
+
+        /// <summary>The first placement on a frame — the child a one-frame state draws.</summary>
+        static SWFPlacement FirstPlacement(SWFFrame frame)
+        {
+            if (frame?.Placements == null)
+            {
+                return null;
+            }
+
+            foreach (SWFPlacement placement in frame.Placements)
+            {
+                if (placement != null && placement.CharacterId > 0)
+                {
+                    return placement;
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>A symbol's exported frame PNGs in timeline order, or false when the export lacks them.</summary>
+        static bool TryGetFramePngs(int symbolId, int expected, out string[] pngs)
+        {
+            pngs = null;
+
+            string[] folders = SourceImportPaths.PfeSpriteFoldersById(symbolId);
+            if (folders.Length != 1)
+            {
+                return false;
+            }
+
+            string[] found = Directory.GetFiles(folders[0], "*.png")
+                .OrderBy(UnitSheetLayout.FrameNumberOf)
+                .ToArray();
+
+            if (found.Length == 0)
+            {
+                return false;
+            }
+
+            // A short export is still usable — the frames that exist are the ones that exist — but the
+            // caller wants to know the count it actually got.
+            pngs = found.Length > expected ? found.Take(expected).ToArray() : found;
+            return true;
+        }
+
+        /// <summary>
+        /// Where a child frame's top-left goes inside its parent's canvas, measured from the two
+        /// renders — see <see cref="DisplayObjectClipLayout.InkTopLeft"/> for why this is measured
+        /// rather than derived from the placement matrix.
+        /// </summary>
+        static bool TryMeasurePasteOffset(string parentPng, string childPng, out int offsetX, out int offsetY)
+        {
+            offsetX = 0;
+            offsetY = 0;
+
+            Color32[] parent = ReadPngPixels(parentPng, out int pw, out int ph);
+            Color32[] child = ReadPngPixels(childPng, out int cw, out int ch);
+            if (parent == null || child == null)
+            {
+                return false;
+            }
+
+            Vector2Int parentInk = DisplayObjectClipLayout.InkTopLeft(parent, pw, ph);
+            Vector2Int childInk = DisplayObjectClipLayout.InkTopLeft(child, cw, ch);
+            if (parentInk.x < 0 || childInk.x < 0)
+            {
+                return false;
+            }
+
+            offsetX = parentInk.x - childInk.x;
+            offsetY = parentInk.y - childInk.y;
+            return true;
+        }
+
+        /// <summary>Decode a PNG to pixels. Returns null when the file is missing or unreadable.</summary>
+        static Color32[] ReadPngPixels(string path, out int width, out int height)
+        {
+            width = 0;
+            height = 0;
+
+            if (string.IsNullOrEmpty(path) || !File.Exists(path))
+            {
+                return null;
+            }
+
+            Texture2D texture = null;
+            try
+            {
+                texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+                if (!texture.LoadImage(File.ReadAllBytes(path), markNonReadable: false))
+                {
+                    return null;
+                }
+
+                width = texture.width;
+                height = texture.height;
+                return texture.GetPixels32();
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+            finally
+            {
+                if (texture != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(texture);
+                }
+            }
+        }
+
+        /// <summary>Write pixels to a PNG, overwriting whatever is there.</summary>
+        static void WritePng(string assetPath, Color32[] pixels, int width, int height)
+        {
+            Texture2D texture = null;
+            try
+            {
+                texture = new Texture2D(width, height, TextureFormat.RGBA32, false);
+                texture.SetPixels32(pixels);
+                texture.Apply(false);
+
+                string full = Path.GetFullPath(assetPath);
+                EnsureDirectory(Path.GetDirectoryName(full).Replace('\\', '/'));
+                File.WriteAllBytes(full, texture.EncodeToPNG());
+            }
+            finally
+            {
+                if (texture != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(texture);
+                }
+            }
+        }
+
+        /// <summary>Delete <c>f###.png</c> files past <paramref name="keep"/> — a longer earlier clip's tail.</summary>
+        static void RemoveStaleFrames(string targetFolder, int keep)
+        {
+            string[] existing = Directory.GetFiles(Path.GetFullPath(targetFolder), "f*.png");
+            foreach (string file in existing)
+            {
+                int number = UnitSheetLayout.FrameNumberOf(file);
+                if (number <= keep)
+                {
+                    continue;
+                }
+
+                string assetPath = $"{targetFolder}/{Path.GetFileName(file)}";
+                AssetDatabase.DeleteAsset(assetPath);
+            }
+        }
+
+        static string DescribeSegments(DisplayClipSegment[] segments)
+        {
+            var parts = new List<string>(segments.Length);
+            foreach (DisplayClipSegment segment in segments)
+            {
+                string label = string.IsNullOrEmpty(segment.Label) ? "(unlabelled)" : segment.Label;
+                parts.Add($"{label} {segment.FirstFrame}..{segment.FirstFrame + segment.FrameCount - 1}");
+            }
+
+            return string.Join(", ", parts);
+        }
+
+        static bool ImportVisual(UnitDefinition unit, string[] visualNames,
+                                 Dictionary<string, int> symbols, SWFFile swf, Result result)
+        {
+            // ── The `osn` clip comes first ──────────────────────────────────────────────────────────
+            //
+            // A `vclass` unit's art is a container: `visualBloodwing` is ONE frame whose only content
+            // is a child MovieClip named `osn`, and `osn` is where the animation lives. Copying the
+            // container's own frames — which is all this method did before 2026-10-28 — therefore
+            // yields exactly one picture per unit, and `UnitBat.animate()`'s
+            // `vis.osn.gotoAndStop("fly")` has nothing to stop on. That is the whole of "the bloat
+            // sprites and the bloodwings have no animation": not a missing renderer, not a missing
+            // brain — the animator was reading `animations`, and the importer had written an empty set.
+            //
+            // Single-visual units only. A unit with several visuals (`training`'s
+            // visualTrain/visualTrainArmor) is two alternative looks, not a stack, and the clip belongs
+            // to whichever one is on screen — the outer-frame path below already handles that shape.
+            if (visualNames.Length == 1 &&
+                ImportDisplayClip(unit, visualNames[0], symbols, swf, result))
+            {
+                return true;
+            }
+
             var frames = new List<Sprite>();
             int copied = 0;
 

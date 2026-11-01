@@ -38,6 +38,8 @@ namespace PFE.Editor.Importers.SWF
             if (string.IsNullOrEmpty(_swfPath)) _swfPath = DefaultSwfPath;
             if (string.IsNullOrEmpty(_jpexsExportPath)) _jpexsExportPath = DefaultJpexsExportPath;
             _logMessages ??= new List<string>();
+            if (string.IsNullOrEmpty(_ffdecCli)) _ffdecCli = SourceImportPaths.JpexsCliPath;
+            _reexportReserved = File.Exists(_ffdecCli);
         }
 
         // Parse results for inspection
@@ -53,6 +55,13 @@ namespace PFE.Editor.Importers.SWF
 
         // Sprite import settings
         int _spriteZoomFactor = 1;
+
+        // Texel reserve — the ffdec export that produces the reserved parts, run as part of the
+        // import so "one button" is true. Not [SerializeField]: it resets to whatever is available on
+        // reload, and the export is idempotent (a part already at its target zoom is skipped), so
+        // defaulting to on costs nothing and cannot rot into "why is my pip still 7x7".
+        string _ffdecCli;
+        bool _reexportReserved;
 
         [MenuItem("PFE/Art/Import Character From SWF")]
         public static void ShowWindow()
@@ -130,6 +139,43 @@ namespace PFE.Editor.Importers.SWF
                 $"on screen, and with the character sampler policy on bilinear it is optional.\n" +
                 $"See docs/CharacterImportPipeline/02.",
                 MessageType.Info);
+
+            // ─── Texel reserve ───────────────────────────────────
+            EditorGUILayout.Space(8);
+            EditorGUILayout.LabelField("Texel Reserve", EditorStyles.boldLabel);
+
+            EditorGUILayout.BeginHorizontal();
+            _ffdecCli = EditorGUILayout.TextField("ffdec CLI", _ffdecCli);
+            if (GUILayout.Button("...", GUILayout.Width(30)))
+            {
+                string path = EditorUtility.OpenFilePanel("Select ffdec-cli.exe",
+                    string.IsNullOrEmpty(_ffdecCli) ? "" : Path.GetDirectoryName(_ffdecCli), "exe");
+                if (!string.IsNullOrEmpty(path))
+                {
+                    _ffdecCli = path;
+                    EditorPrefs.SetString(SourceImportPaths.JpexsCliEditorPrefsKey, path);
+                    _reexportReserved = true;
+                }
+            }
+            EditorGUILayout.EndHorizontal();
+
+            bool ffdecFound = !string.IsNullOrEmpty(_ffdecCli) && File.Exists(_ffdecCli);
+            using (new EditorGUI.DisabledScope(!ffdecFound))
+            {
+                _reexportReserved = EditorGUILayout.ToggleLeft(
+                    "Re-export reserved parts before importing", _reexportReserved);
+            }
+
+            string reservedList = string.Join(", ",
+                CharacterArtReserve.Reserved.Select(r => $"{r.part}({r.symbolId}) {r.zoom}x"));
+            EditorGUILayout.LabelField("Reserved", string.IsNullOrEmpty(reservedList) ? "none" : reservedList);
+
+            if (!ffdecFound)
+                EditorGUILayout.HelpBox(
+                    "ffdec CLI not found, so the reserved parts keep whatever zoom is already on disk.\n" +
+                    "Point it at ffdec-cli.exe (JPEXS) and the import re-exports them itself — no\n" +
+                    "separate step to remember. See docs/CharacterImportPipeline/12 §2b.",
+                    MessageType.Warning);
 
             // ─── Actions ─────────────────────────────────────────
             EditorGUILayout.Space(8);
@@ -280,6 +326,30 @@ namespace PFE.Editor.Importers.SWF
                         Log($"  Found {headVariants.AllVariantSymbolIds.Count} head armor variant symbols to import");
                 }
 
+                // Step 1.6: Re-export the parts that ship at a texel reserve.
+                //
+                // Before the sprite import, because the importer copies from this folder: exporting
+                // afterwards would leave the freshly imported asset pointing at the old PNG until the
+                // next run, which is exactly the trap this step exists to close. Idempotent — a part
+                // already at its target zoom is skipped without invoking ffdec.
+                if (_stepImportSprites && _parsedSwf != null)
+                {
+                    if (_reexportReserved)
+                    {
+                        Log("=== Step 1.6: Re-exporting reserved art ===");
+                        var sw = Stopwatch.StartNew();
+                        foreach (string line in CharacterArtReserve.ExportBelowTarget(
+                                     _ffdecCli, _swfPath, _jpexsExportPath, _parsedSwf))
+                            Log(line);
+                        sw.Stop();
+                        Log($"  done in {sw.ElapsedMilliseconds}ms");
+                    }
+                    else
+                    {
+                        Log("=== Step 1.6 skipped: reserved parts keep the zoom already on disk ===");
+                    }
+                }
+
                 // Step 2: Import Sprites
                 CharacterSpriteImporter.ImportResult spriteResult = null;
                 if (_stepImportSprites)
@@ -295,6 +365,17 @@ namespace PFE.Editor.Importers.SWF
                     sw.Stop();
                     Log($"  Imported {spriteResult.TotalSpritesImported} sprites from {spriteResult.TotalSymbolsProcessed} symbols in {sw.ElapsedMilliseconds}ms");
 
+                    // Read back, not assumed: a rect written before Unity's own serialisation can lose
+                    // to it, and the only symptom is a part drawn at a fraction of its size.
+                    Log($"  Sprite rects: {spriteResult.SpriteRectsVerified} verified, " +
+                        $"{spriteResult.SpriteRectsRepaired} re-measured after the import" +
+                        (spriteResult.SpriteRectsRepaired == 0
+                            ? " (every rect fits its art)"
+                            : " — the art changed under a stale rect; see the list below"));
+
+                    foreach (string retrimmed in spriteResult.RetrimmedAssets)
+                        Log($"  [RECT] {retrimmed}");
+
                     foreach (string warn in spriteResult.Warnings)
                         Log($"[WARN] {warn}");
                 }
@@ -309,6 +390,7 @@ namespace PFE.Editor.Importers.SWF
 
                     sw.Stop();
                     Log($"  Generated {genResult.StatesGenerated} states, {genResult.PartsRegistered} parts in {sw.ElapsedMilliseconds}ms");
+                    Log($"  Body scale: {genResult.BodyScale.x:0.####} x {genResult.BodyScale.y:0.####} (visualPlayer's osn placement)");
                     Log($"  Asset: {AssetDatabase.GetAssetPath(genResult.Asset)}");
 
                     foreach (string warn in genResult.Warnings)

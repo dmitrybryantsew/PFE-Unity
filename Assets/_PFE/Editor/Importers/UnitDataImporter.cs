@@ -576,6 +576,37 @@ namespace PFE.Editor.Importers
             {
                 unit.leavesCorpse = int.Parse(trupMatch.Groups[1].Value) > 0;
             }
+
+            // AS3 `Unit.as:1371-1375`:
+            //     if(node.@hero.length()) { this.mHero = true; this.id_name = node.@hero; }
+            //
+            // The value is a KEY, not a tier: it names the list `Unit.getName()` draws a starred enemy's
+            // name from (`Res.namesArr(id_name)`, `:1486`). `mHero` — "this row may be promoted at all" —
+            // is exactly "the attribute is present", so one string carries both facts and there is no
+            // second flag to keep in sync.
+            //
+            // Until this line existed the field was declared and never written, so `heroType` was empty
+            // for all 148 units and the port's promotion path had to fall back to `parentId`/`id` to find
+            // a name list (see UnitController.ResolveEliteNameKey).
+            //
+            // COUNTED, not estimated (`.workbuddy-ai/tmp/hero_rows.py`, 2026-10-29): 34 of the 148 rows
+            // carry `hero` in `<param>`, over 19 distinct values, and every one of those 19 is an id the
+            // localisation document authored a list for. The fallback resolves correctly for 22 of the
+            // 34 — 14 where the row id IS the value (`raider`, `zombie`, `alicorn`, …) and 8 where
+            // `parent` is (`bloat1..6`→`bloat`, `ant2..3`→`ant`). The remaining 12 — `bloodwing2`,
+            // `fish1..3`, `molerat`, `scorp1..3`, `robobrain`, `protect`, `protect1`, `gutsy1` — fall
+            // through to an id with no list, so they cannot be promoted at all until this importer runs.
+            // That is the safe half of the failure: no star, rather than a name borrowed from another
+            // species. Running this importer is what makes those 12 promotable.
+            //
+            // Quoted with either style: `AllData.as` writes single quotes, and a re-export from the
+            // original tooling is as likely to write double.
+            var heroMatch = Regex.Match(attrs, @"\bhero='([^']*)'|\bhero=""([^""]*)""");
+            if (heroMatch.Success)
+            {
+                string hero = heroMatch.Groups[1].Success ? heroMatch.Groups[1].Value : heroMatch.Groups[2].Value;
+                SetPrivateField(unit, "heroType", hero);
+            }
         }
 
         /// <summary>
