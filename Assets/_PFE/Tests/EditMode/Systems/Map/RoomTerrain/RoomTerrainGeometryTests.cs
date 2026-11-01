@@ -831,6 +831,128 @@ namespace PFE.Tests.EditMode.Systems.Map.RoomTerrain
         // composition is one Matrix4x4.TRS call; the A/B window verifies it on screen (set Gap to 0 and
         // the two sides must coincide).
 
+        // ─── Mutation: what a region rebuild rests on ────────────
+
+        [Test]
+        public void EveryQuarterOfACellLandsInItsOwnTwoByTwoHalfCellBlock()
+        {
+            // `RoomTerrainRenderer.ClearCell` clears exactly the 2×2 half-cell block at (2x, 2y) and
+            // nothing else, because the block is derivable and needs no bookkeeping. That makes the
+            // invariant load-bearing: a quarter landing outside the block would leave a quarter of a
+            // destroyed wall on screen, and the miss would be one cell wide — invisible in a screenshot
+            // and obvious only after shooting a specific wall.
+            var seen = new System.Collections.Generic.HashSet<(int x, int y)>();
+
+            foreach (RoomQuarter quarter in Enum.GetValues(typeof(RoomQuarter)))
+            {
+                int cellX = RoomTerrainGeometry.QuarterCellX(3, quarter);
+                int cellY = RoomTerrainGeometry.QuarterCellY(5, quarter);
+
+                Assert.That(cellX, Is.InRange(6, 7), $"quarter {quarter} is outside the block in x");
+                Assert.That(cellY, Is.InRange(10, 11), $"quarter {quarter} is outside the block in y");
+                Assert.IsTrue(seen.Add((cellX, cellY)),
+                    $"two quarters of one cell share half-cell ({cellX}, {cellY}) — the mask grid is wrong");
+            }
+
+            Assert.AreEqual(4, seen.Count, "four quarters must occupy four distinct half-cells");
+
+            // A whole-cell mask anchors at the block's bottom-left corner, so the same clear covers it.
+            RoomTerrainPlacement whole = RoomTerrainGeometry.Whole(3, 5, 0.4f, 1f, 0f);
+            Assert.AreEqual(6, whole.Cell.x, "a whole mask must sit at the block's origin in x");
+            Assert.AreEqual(10, whole.Cell.y, "a whole mask must sit at the block's origin in y");
+        }
+
+        [Test]
+        public void Union_CoversBothRectangles()
+        {
+            RectInt union = RoomTerrainRenderer.Union(new RectInt(10, 10, 3, 3), new RectInt(14, 4, 2, 2));
+
+            // 10..12 and 14..15 -> 10..15 in x; 10..12 and 4..5 -> 4..12 in y.
+            Assert.AreEqual(new RectInt(10, 4, 6, 9), union);
+        }
+
+        [Test]
+        public void Union_AnEmptyRectangleContributesNothing()
+        {
+            // The first mutation of a frame starts from an empty accumulator, and `Union(empty, r)` has
+            // to be exactly `r` — otherwise the first region of every frame is silently widened to
+            // include the origin, and the rebuild covers cells nobody touched.
+            var region = new RectInt(20, 30, 3, 3);
+
+            Assert.AreEqual(region, RoomTerrainRenderer.Union(default(RectInt), region), "empty first");
+            Assert.AreEqual(region, RoomTerrainRenderer.Union(region, default(RectInt)), "empty second");
+            Assert.AreEqual(default(RectInt), RoomTerrainRenderer.Union(default(RectInt), default(RectInt)),
+                "still empty");
+        }
+
+        [Test]
+        public void ClampToRoom_CutsTheBorderAnEdgeTileCarries()
+        {
+            // `TileCollider` raises a 3×3 region around the destroyed tile, so a tile on the room's
+            // edge names cells at -1. Indexing those would throw out of the tile array, in the middle
+            // of a frame, the first time someone shot a wall on a boundary.
+            RectInt clamped = RoomTerrainRenderer.ClampToRoom(new RectInt(-1, -1, 3, 3), 10, 10);
+
+            Assert.AreEqual(new RectInt(0, 0, 2, 2), clamped);
+        }
+
+        [Test]
+        public void ClampToRoom_RegionEntirelyOutsideIsEmpty()
+        {
+            RectInt clamped = RoomTerrainRenderer.ClampToRoom(new RectInt(-6, -6, 3, 3), 10, 10);
+
+            Assert.AreEqual(0, clamped.width, "an empty region must report zero width");
+            Assert.AreEqual(0, clamped.height, "an empty region must report zero height");
+        }
+
+        [Test]
+        public void ClampToRoom_LeavesAnInteriorRegionAlone()
+        {
+            var region = new RectInt(4, 5, 3, 3);
+
+            Assert.AreEqual(region, RoomTerrainRenderer.ClampToRoom(region, 10, 10));
+        }
+
+        [Test]
+        public void States_OpenUpWhenAWallIsDestroyed()
+        {
+            // The premise the whole subscription rests on, and the reason the raised region is 3×3
+            // rather than 1×1: a quarter's state is a function of its neighbours, so destroying one
+            // tile changes the state of the cells beside it. If this ever stopped holding, the
+            // region would be larger than needed — harmless. The dangerous direction is the reverse,
+            // and this is what pins it.
+            RoomInstance room = BuildRoom(5, 5);
+
+            for (int x = 1; x <= 3; x++)
+            {
+                for (int y = 1; y <= 3; y++)
+                {
+                    room.tiles[x, y].physicsType = TilePhysicsType.Wall;
+                    room.tiles[x, y].SetFrontGraphic("wall");
+                }
+            }
+
+            RoomQuarterStates before = RoomTerrainRenderer.BuildStates(room);
+
+            // (1, 1)'s top-right quarter looks at (2, 1) across and (1, 2) up, with (2, 2) as the
+            // diagonal. All three are solid, so the quarter is a plain square.
+            Assert.AreEqual(RoomQuarterRules.Inside, before.Front(1, 1, RoomQuarter.TopRight),
+                "precondition: the block's corner cell must start as an interior quarter");
+
+            room.tiles[2, 1].Destroy();
+
+            Assert.AreEqual(TilePhysicsType.Air, room.tiles[2, 1].physicsType, "Destroy() clears phis");
+
+            RoomQuarterStates after = RoomTerrainRenderer.BuildStates(room);
+
+            Assert.AreEqual(RoomQuarterRules.VerticalEdge, after.Front(1, 1, RoomQuarter.TopRight),
+                "the cell beside the hole must now show a side wall — the neighbour is what changed, " +
+                "not the destroyed cell");
+            Assert.AreNotEqual(before.Front(1, 1, RoomQuarter.TopRight),
+                after.Front(1, 1, RoomQuarter.TopRight),
+                "a 1×1 region would have missed this cell entirely");
+        }
+
         // ─── Fixtures ────────────────────────────────────────────
 
         private static RoomQuarterStates Compute(int width, int height, Func<int, int, bool> solid)

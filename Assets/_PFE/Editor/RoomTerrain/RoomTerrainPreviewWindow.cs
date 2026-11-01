@@ -80,8 +80,11 @@ namespace PFE.Editor.RoomTerrain
         private bool _drawBorder = true;
         private bool _drawFloor = true;
         private bool _drawOverlays = true;
-        private bool _overlayAboveMaterials = true;
+        private bool _overlayAboveMaterials = false;
         private bool _hideState0Mask;
+
+        /// <summary>Mask edge dilation in mask texels; 5 is the measured width of the mask's AA border.</summary>
+        private float _maskDilateTexels = 5f;
         private bool _applyBackTint = true;
         private bool _applyFrontTint = true;
         private Color _shippedBackTint = Color.white;
@@ -117,6 +120,25 @@ namespace PFE.Editor.RoomTerrain
         private string _boundsLine = "not measured";
         private string _layerLine = "-";
         private string _pictureLine = "not sampled";
+
+        /// <summary>
+        /// The one question the window exists to answer, as a number: how far apart are the two sides?
+        /// </summary>
+        /// <remarks>
+        /// <para>Without this line the owner has to subtract two rgb triples in their head, and the two
+        /// triples are not even the same kind of number — one is a mean over every pixel including the
+        /// clear colour, the other over a different count. Reporting the delta in the units the decision
+        /// is made in (8-bit levels and percentage points of coverage) is the difference between a
+        /// measurement and a puzzle.</para>
+        ///
+        /// <para>The thresholds are deliberately loose. The sample is every second pixel, the pixels are
+        /// 8-bit, and the two sides are drawn by different renderers with different filtering, so a
+        /// sub-level difference is not evidence of anything. 0.03 is about 8 levels; 2 points of coverage
+        /// is about 25 cells in a 48x25 room.</para>
+        /// </remarks>
+        private string _sideDeltaLine = "not sampled";
+
+        private double _quarterCoveredPercent = -1d;
         private string _colourLine = "-";
         private string _roundTripLine = "not measured";
         private string _roundTripVerdict = "not measured";
@@ -373,6 +395,7 @@ namespace PFE.Editor.RoomTerrain
                 EditorGUILayout.LabelField(_roundTripVerdict, EditorStyles.miniLabel);
                 EditorGUILayout.LabelField("Picture (measured)", EditorStyles.miniBoldLabel);
                 EditorGUILayout.LabelField(_pictureLine, EditorStyles.miniLabel);
+                EditorGUILayout.LabelField(_sideDeltaLine, EditorStyles.wordWrappedMiniLabel);
             }
         }
 
@@ -408,20 +431,35 @@ namespace PFE.Editor.RoomTerrain
                 _overlayAboveMaterials = EditorGUILayout.ToggleLeft(
                     new GUIContent(
                         "Overlays above the walls (Remains order)",
+                        "OFF (default): AS3's bitmap order — Grafon.as:518 blits the overlays before :526 " +
+                        "draws the materials, so a stair, ladder or ledge sits UNDER the wall material and is " +
+                        "seen only through the channel the mask carves. The wall's face therefore occludes " +
+                        "the treads instead of being painted over by them. " +
                         "ON: overlays move to the wall layer (MainTiles) at order " +
-                        RoomTerrainRenderer.OverlayAboveOrder + ", i.e. above the front trio, which is " +
-                        "what Remains-Unity does (RoomTerrainView: FrontSpriteOrder = 10, above " +
-                        "FloorOrder = -20). " +
-                        "OFF: AS3's bitmap order — Grafon.as:518 blits the overlays before :526 draws the " +
-                        "materials, so they are under the walls and visible only through the channel the " +
-                        "mask carves. If a room shows a black staircase channel, switch this ON: it means " +
-                        "the mask did not carve and the art was hidden underneath."),
+                        RoomTerrainRenderer.OverlayAboveOrder + ", above the front trio, which is what " +
+                        "Remains-Unity does (RoomTerrainView: FrontSpriteOrder = 10, above FloorOrder = -20). " +
+                        "That order guarantees visibility, but it also lets the treads spill over the wall's " +
+                        "edge. The old advice to switch this ON when a channel looked black predates the " +
+                        "unlit-material and mask-scale fixes; with those landed, a black channel is a " +
+                        "missing mask carve, not a sorting problem."),
                     _overlayAboveMaterials);
             }
 
             _hideState0Mask = EditorGUILayout.ToggleLeft(
                 new GUIContent("Debug: skip state 0", "The shipped compositor skips the mask at state 0 and writes the material through unmasked."),
                 _hideState0Mask);
+
+            _maskDilateTexels = EditorGUILayout.Slider(
+                new GUIContent(
+                    "Mask edge dilation (texels)",
+                    "Grows each mask outward before the shader multiplies by it. The mask PNGs have an " +
+                    "anti-aliased border (clip4906-f1 runs alpha 0,0,0,95,255), so two abutting masks leave " +
+                    "a ~6-texel transparent band at every cell boundary and the clear colour shows through " +
+                    "as a grid of hairlines. 5 closes it (measured: edge min alpha 0 -> 255). Overlapping " +
+                    "is invisible here because the material is sampled by world position, so both masks " +
+                    "draw the same pixel. Cost: silhouettes also grow ~1.5 % of a cell per side and lose " +
+                    "their AA outline. 0 shows the seams again for comparison."),
+                _maskDilateTexels, 0f, 12f);
 
             _applyBackTint = EditorGUILayout.ToggleLeft(
                 new GUIContent(
@@ -586,7 +624,11 @@ namespace PFE.Editor.RoomTerrain
             _terrain.Build(_room, _art, _materialDatabase, BuildOptions());
 
             _quarterStats = $"{_terrain.LastBuildMilliseconds:0.0} ms · {_terrain.LayerCount} layer(s) · " +
-                            $"{_terrain.ShapesPlaced} shape(s)" + DescribeMisses();
+                            $"{_terrain.ShapesPlaced} shape(s)" +
+                            (_terrain.OverwrittenShapes > 0
+                                ? $" · {_terrain.OverwrittenShapes} OVERWRITTEN (grid mismatch — those cells drew fewer quarters than were placed)"
+                                : " · 0 overwritten") +
+                            DescribeMisses();
 
             ApplyPreviewFlags(_root.transform);
 
@@ -624,6 +666,7 @@ namespace PFE.Editor.RoomTerrain
             options.drawOverlays = _drawOverlays;
             options.overlayAboveMaterials = _overlayAboveMaterials;
             options.skipState0Mask = _hideState0Mask;
+            options.maskDilateTexels = _maskDilateTexels;
             options.applyBackTint = _applyBackTint;
             options.applyFrontTint = _applyFrontTint;
             return options;
@@ -754,7 +797,11 @@ namespace PFE.Editor.RoomTerrain
 
             _terrain.Build(_room, _art, _materialDatabase, BuildOptions());
             _quarterStats = $"{_terrain.LastBuildMilliseconds:0.0} ms · {_terrain.LayerCount} layer(s) · " +
-                            $"{_terrain.ShapesPlaced} shape(s)" + DescribeMisses();
+                            $"{_terrain.ShapesPlaced} shape(s)" +
+                            (_terrain.OverwrittenShapes > 0
+                                ? $" · {_terrain.OverwrittenShapes} OVERWRITTEN (grid mismatch — those cells drew fewer quarters than were placed)"
+                                : " · 0 overwritten") +
+                            DescribeMisses();
 
             ApplyPreviewFlags(_root.transform);
             Render();
@@ -854,7 +901,9 @@ namespace PFE.Editor.RoomTerrain
             _boundsLine = "not measured";
             _layerLine = "-";
             _pictureLine = "not sampled";
+            _sideDeltaLine = "not sampled";
             _shippedCoveredPercent = -1d;
+            _quarterCoveredPercent = -1d;
             _colourLine = "-";
             _roundTripLine = "not measured";
             _roundTripVerdict = "not measured";
@@ -1672,8 +1721,9 @@ namespace PFE.Editor.RoomTerrain
             }
 
             return string.Format(
-                "verdict: no round trip — composed is {0:0.00}× source^2.2, i.e. brighter than the gamma model " +
-                "predicts. The dark shipped side has some other cause; stop looking at colour space.",
+                "verdict: no gamma round trip — composed is {0:0.00}× source^2.2, i.e. far brighter than the " +
+                "gamma model predicts, so the compositor is not reading linear pixels as sRGB. Colour space " +
+                "is cleared; if the two sides still disagree, the cause is geometry, tint or filtering.",
                 gammaPrediction > 0.0001d ? composedMean / gammaPrediction : 0d);
         }
 
@@ -1794,11 +1844,113 @@ namespace PFE.Editor.RoomTerrain
             }
 
             _shippedCoveredPercent = 100.0 * leftCovered / leftCount;
+            _quarterCoveredPercent = 100.0 * rightCovered / rightCount;
+
+            // Coverage as a fraction of the *frame* moves when the zoom slider moves: the same picture
+            // fills more of the half. That makes two runs incomparable for a reason that has nothing to do
+            // with either renderer, which is exactly how a stable-looking number stops being evidence.
+            // The room's own projected rectangle is the denominator that does not move, so it is what the
+            // delta is judged on; the frame-relative figure stays in the line for the blank-side guard.
+            double shippedOfRoom = -1d, quarterOfRoom = -1d;
+            if (TryUnionBounds(_spriteRoot, out Bounds roomBounds) &&
+                _previewCamera.orthographicSize > 0.0001f)
+            {
+                double pixelsPerUnit = _previewRt.height / (2.0 * _previewCamera.orthographicSize);
+                double roomAreaPixels = roomBounds.size.x * pixelsPerUnit * roomBounds.size.y * pixelsPerUnit;
+
+                if (roomAreaPixels > 1d)
+                {
+                    // Every sample stands for a 2x2 block, so four pixels.
+                    shippedOfRoom = 100.0 * (leftCovered * 4.0) / roomAreaPixels;
+                    quarterOfRoom = 100.0 * (rightCovered * 4.0) / roomAreaPixels;
+                    _shippedCoveredPercent = shippedOfRoom;
+                    _quarterCoveredPercent = quarterOfRoom;
+                }
+            }
+
+            double leftMeanR = leftR / leftCount, leftMeanG = leftG / leftCount, leftMeanB = leftB / leftCount;
+            double rightMeanR = rightR / rightCount, rightMeanG = rightG / rightCount, rightMeanB = rightB / rightCount;
 
             _pictureLine = string.Format(
-                "left rgb {0:0.00}/{1:0.00}/{2:0.00} covered {3:0.0}%  ·  right rgb {4:0.00}/{5:0.00}/{6:0.00} covered {7:0.0}%",
-                leftR / leftCount, leftG / leftCount, leftB / leftCount, _shippedCoveredPercent,
-                rightR / rightCount, rightG / rightCount, rightB / rightCount, 100.0 * rightCovered / rightCount);
+                "left rgb {0:0.00}/{1:0.00}/{2:0.00}  ·  right rgb {3:0.00}/{4:0.00}/{5:0.00}  ·  " +
+                "coverage of room {6:0.0}% / {7:0.0}% (zoom-independent)  ·  of frame {8:0.0}% / {9:0.0}%",
+                leftMeanR, leftMeanG, leftMeanB, rightMeanR, rightMeanG, rightMeanB,
+                shippedOfRoom, quarterOfRoom,
+                100.0 * leftCovered / leftCount, 100.0 * rightCovered / rightCount);
+
+            _sideDeltaLine = DescribeSideDelta(
+                rightMeanR - leftMeanR, rightMeanG - leftMeanG, rightMeanB - leftMeanB,
+                _quarterCoveredPercent - _shippedCoveredPercent,
+                _applyFrontTint && _drawFront);
+        }
+
+        /// <summary>
+        /// Turns the two sides' means into a verdict about whether they agree.
+        /// </summary>
+        /// <param name="deltaR">quarter minus shipped, in 0-1 channel units.</param>
+        /// <param name="deltaCoverage">quarter minus shipped, in percentage points.</param>
+        /// <param name="frontTinted">
+        /// True when the quarter side is tinting its front by the room's colour scheme while the shipped
+        /// side passes white. That is a difference the two sides are <i>supposed</i> to have
+        /// (<c>Grafon.as:617</c>), so a colour delta under it says nothing about the renderer.
+        /// </param>
+        private static string DescribeSideDelta(
+            double deltaR, double deltaG, double deltaB, double deltaCoverage, bool frontTinted)
+        {
+            const double ColourTolerance = 0.03d;
+            const double CoverageTolerance = 2.0d;
+
+            double worst = Math.Max(Math.Abs(deltaR), Math.Max(Math.Abs(deltaG), Math.Abs(deltaB)));
+            bool colourAgrees = worst <= ColourTolerance;
+            bool coverageAgrees = Math.Abs(deltaCoverage) <= CoverageTolerance;
+
+            string head = string.Format(
+                "quarter - shipped: rgb {0:+0.00;-0.00;+0.00}/{1:+0.00;-0.00;+0.00}/{2:+0.00;-0.00;+0.00} " +
+                "({3:0} level(s) worst) · coverage {4:+0.0;-0.0;+0.0} pt",
+                deltaR, deltaG, deltaB, Math.Round(worst * 255d), deltaCoverage);
+
+            // With front tint on, the colour comparison is not a comparison — the quarter side is
+            // multiplying its walls by the room's scheme (0.50/0.60/0.70 for room_3_2) and the shipped
+            // side is not. Calling that "neither agrees" would be this instrument inventing a defect out
+            // of a difference the two sides are supposed to have, which is worse than saying nothing.
+            if (frontTinted)
+            {
+                string coverageOnly = Math.Abs(deltaCoverage) <= CoverageTolerance
+                    ? "coverage agrees"
+                    : string.Format(
+                        "coverage is the only comparable number here and it is {0:0.0} pt {1} — that is " +
+                        "geometry (an extra or missing part), not colour",
+                        Math.Abs(deltaCoverage), deltaCoverage > 0d ? "high" : "low");
+
+                return head + " · colour NOT COMPARABLE: Front tint is on, so the quarter side is " +
+                       "multiplying its front by the scheme and the shipped side is not. Switch Front tint " +
+                       "off and re-run before reading the rgb delta. " + coverageOnly + ".";
+            }
+
+            string body;
+            if (colourAgrees && coverageAgrees)
+            {
+                body = "agree — colour and coverage are both inside tolerance, so the quarter path is " +
+                       "drawing the same picture by a different route.";
+            }
+            else if (colourAgrees)
+            {
+                body = "colour agrees, coverage does not — the sides differ in *how much* they draw, not " +
+                       "in what colour. That is a missing or extra part (border, floor, a mask that " +
+                       "overhangs), not a tint or a colour-space defect: check the coverage of each part " +
+                       "in turn.";
+            }
+            else if (coverageAgrees)
+            {
+                body = "coverage agrees, colour does not — the same shapes are drawn in a different " +
+                       "colour. Look at the tint lines before the geometry.";
+            }
+            else
+            {
+                body = "neither agrees — treat this as a different picture, not a tuning difference.";
+            }
+
+            return head + " · " + body;
         }
 
         private static string FormatTint(Color tint)
@@ -1937,6 +2089,7 @@ namespace PFE.Editor.RoomTerrain
                 "walls are BackgroundTiles order 0 (back) and MainTiles order 0 (front).");
             Debug.Log($"[RoomTerrainAB] registration   : {_boundsLine}");
             Debug.Log($"[RoomTerrainAB] picture        : {_pictureLine}");
+            Debug.Log($"[RoomTerrainAB] side delta     : {_sideDeltaLine}");
             Debug.Log($"[RoomTerrainAB] colour         : {_colourLine}");
             Debug.Log($"[RoomTerrainAB] round-trip     : {_roundTripLine}");
             Debug.Log($"[RoomTerrainAB] verdict        : {_roundTripVerdict}");
@@ -2012,6 +2165,15 @@ namespace PFE.Editor.RoomTerrain
                             : "1 is correct: one beam cell, one girder."));
                 }
             }
+
+            Debug.Log(
+                $"[RoomTerrainAB] mask dilate   : {_maskDilateTexels:0.#} texel(s) → each mask grown outward " +
+                "before the shader multiplies by it. " +
+                (_maskDilateTexels > 0f
+                    ? "This is what closes the cell seams: the mask PNGs have an AA border (alpha 0,0,0,95,255), " +
+                      "so two abutting masks leave a ~6-texel transparent band and the clear colour shows through. " +
+                      "Overlapping is invisible because the material is sampled by world position. Set it to 0 to see the seams again."
+                    : "0 means the seams are back: every cell boundary has a transparent band where two AA mask borders meet."));
         }
 
         // ─── Export / logging ────────────────────────────────────
@@ -2058,6 +2220,7 @@ namespace PFE.Editor.RoomTerrain
             Debug.Log($"[RoomTerrainAB] quarter side: {_quarterStats}");
             Debug.Log($"[RoomTerrainAB] registration : {_boundsLine}");
             Debug.Log($"[RoomTerrainAB] picture      : {_pictureLine}");
+            Debug.Log($"[RoomTerrainAB] side delta   : {_sideDeltaLine}");
             Debug.Log($"[RoomTerrainAB] round-trip   : {_roundTripLine}");
             Debug.Log($"[RoomTerrainAB] verdict      : {_roundTripVerdict}");
             Debug.Log($"[RoomTerrainAB] rear pass    : {_rearLine}");

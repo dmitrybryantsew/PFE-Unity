@@ -20,6 +20,18 @@ Shader "PFE/RoomTerrain"
         _MaterialOrigin ("Bitmap fill origin (room top-left, world)", Vector) = (0, 0, 0, 0)
         _Color ("Tint", Color) = (1, 1, 1, 1)
         _Ambient ("Ambient brightness", Range(0, 1)) = 1
+
+        // Radius, in UV, that the mask's alpha is grown outward by before it is used. The mask PNGs
+        // have an anti-aliased border (clip4906-f1 runs alpha 0, 0, 0, 95, 255 across four texels), so
+        // two abutting masks leave a ~6-texel band at every cell boundary where both are transparent —
+        // and because the alpha is *multiplied* below, the clear colour shows through it as a grid of
+        // hairlines. Growing each mask by the border width makes the neighbours overlap instead of abut.
+        //
+        // Overlapping is safe *here specifically* because the material is sampled by world position: two
+        // masks over the same fragment draw the same material pixel, so the overlap is invisible rather
+        // than a smear. 0 disables the tap entirely (a whole-cell mask such as TileMask is already
+        // opaque to its edge and needs nothing).
+        _MaskDilateUV ("Mask edge dilation (UV)", Float) = 0
     }
 
     SubShader
@@ -52,6 +64,7 @@ Shader "PFE/RoomTerrain"
             float _TexelsPerMeter;
             half4 _Color;
             half _Ambient;
+            float _MaskDilateUV;
         CBUFFER_END
 
         struct Attributes
@@ -84,6 +97,19 @@ Shader "PFE/RoomTerrain"
         {
             // The mask is alpha only: it decides where the material is allowed to exist.
             half mask = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, input.uv).a;
+
+            // Grow the mask outward by _MaskDilateUV before using it, so two abutting masks overlap
+            // instead of leaving the transparent seam described above. A max over four axis taps rather
+            // than a blur: the border is a hard alpha-0 band, so anything that averages it would only
+            // make the seam greyer. The branch is uniform per draw, so it costs nothing when off.
+            if (_MaskDilateUV > 0.0)
+            {
+                float2 o = float2(_MaskDilateUV, _MaskDilateUV);
+                mask = max(mask, SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, input.uv + float2(o.x, 0)).a);
+                mask = max(mask, SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, input.uv - float2(o.x, 0)).a);
+                mask = max(mask, SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, input.uv + float2(0, o.y)).a);
+                mask = max(mask, SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, input.uv - float2(0, o.y)).a);
+            }
 
             // Bitmap rows run down from the fill origin and Unity's v runs up, so subtracting the
             // room's top edge makes world-down map to v-down instead of mirroring the texture.
