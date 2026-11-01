@@ -94,5 +94,41 @@ namespace PFE.Entities.Units
         {
             return unitPixelY - roomFloorPixelY < RoomFloorGuardPixels;
         }
+
+        /// <summary>
+        /// The vertical deadzone that turns an analogue stick into "down". The same <c>-0.5</c> the
+        /// locomotion controller already uses for crouching, named once so the two cannot drift.
+        /// </summary>
+        public const float DownThreshold = -0.5f;
+
+        /// <summary>
+        /// AS3 <c>UnitPlayer.as:2640</c> — the player's <c>throu</c> trigger, reduced to its input arm:
+        /// <c>(ctr.keyJump || !stay) &amp;&amp; ctr.keySit</c>.
+        ///
+        /// <para><b>Why this arm and not just the double-tap.</b> The player has two ways into
+        /// <c>throu</c>: <c>keyDubSit</c> (a double-tap of Down) sets it outright
+        /// (<c>:2917-2925</c>), and this expression re-derives it <i>every frame</i> from the keys.
+        /// The second is the one that makes a drop a <i>fall</i>: the frame after the double-tap the
+        /// unit is no longer <c>stay</c>, so holding Down keeps <c>throu</c> true for the whole descent.
+        /// Without it the drop lasts one pulse and the unit lands on the next surface below — on a
+        /// diagonal staircase that is the tread one step down, which reads as "the stairs cannot be
+        /// fallen through".</para>
+        ///
+        /// <para><b>The <c>keyJump</c> term is transcribed, not simplified away.</b> Holding Down and
+        /// Jump together is <c>throu</c> in the oracle even while standing, so the surface the unit is
+        /// on stops being ground on that frame. Dropping the term would make "jump while holding Down"
+        /// land back on the catwalk it left.</para>
+        ///
+        /// <para><b>Scope.</b> The rest of the oracle expression — <c>isPlav</c>, <c>kdash_t &gt; 3</c>,
+        /// <c>pinok &gt; 70</c> — are their own states (swimming, a live dash, the punch/knockback
+        /// timer) and are not input, so they are not this helper's question.</para>
+        /// </summary>
+        /// <param name="jumpHeld">AS3 <c>ctr.keyJump</c> — the key's level, not its edge.</param>
+        /// <param name="moveY">The intent's vertical axis, Unity-positive-up.</param>
+        /// <param name="grounded">AS3 <c>stay</c> — the port's <c>IsGrounded</c>.</param>
+        public static bool PlayerShouldDropThrough(bool jumpHeld, float moveY, bool grounded)
+        {
+            return (jumpHeld || !grounded) && moveY < DownThreshold;
+        }
     }
 }

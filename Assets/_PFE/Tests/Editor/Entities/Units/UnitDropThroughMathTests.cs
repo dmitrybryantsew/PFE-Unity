@@ -232,5 +232,56 @@ namespace PFE.Tests.Editor.Entities.Units
             Assert.That(wantsDrop, Is.False,
                 "Target 50 px below is inside the 80 px band → stay on the catwalk and keep chasing.");
         }
+
+        // ── PlayerShouldDropThrough: AS3 UnitPlayer.as:2640's input arm ───────────────────────
+
+        /// <summary>
+        /// <c>throu = (ctr.keyJump || !stay) &amp;&amp; ctr.keySit || …</c> — the player's own trigger, which
+        /// is the one a staircase needs. The zombie's trigger above is a different rule on the same flag
+        /// and the two must not be merged.
+        /// </summary>
+        /// <remarks>
+        /// The row that matters is "airborne + Down": it is what keeps the flag true after the double-tap's
+        /// one-frame push, so the unit keeps falling instead of being caught by the next tread. Every
+        /// other row is the boundary of that one.
+        /// </remarks>
+        [Test]
+        public void PlayerShouldDropThrough_IsDownHeldWhileAirborneOrJumping()
+        {
+            // keySit alone, standing: false. This is the crouch, not a drop — and it is the row that
+            // would break crouching if the `!stay` term were dropped.
+            Assert.That(UnitDropThroughMath.PlayerShouldDropThrough(false, -1f, true), Is.False,
+                "Down while standing on solid ground crouches; it does not drop through it.");
+
+            // keySit alone, airborne: true — `(keyJump || !stay) && keySit`.
+            Assert.That(UnitDropThroughMath.PlayerShouldDropThrough(false, -1f, false), Is.True,
+                "Down while airborne keeps `throu` true, which is what makes a drop a fall.");
+
+            // keyJump + keySit while standing: true — the `keyJump` term is transcribed, not simplified.
+            Assert.That(UnitDropThroughMath.PlayerShouldDropThrough(true, -1f, true), Is.True,
+                "Down + Jump is `throu` in the oracle even on the ground (:2640).");
+
+            // No Down: never. The flag is `&& keySit`, so nothing else can raise it.
+            Assert.That(UnitDropThroughMath.PlayerShouldDropThrough(false, 0f, false), Is.False);
+            Assert.That(UnitDropThroughMath.PlayerShouldDropThrough(true, 1f, false), Is.False,
+                "Up held is a climb intent, not a drop.");
+        }
+
+        /// <summary>
+        /// The deadzone is the same <c>-0.5</c> the crouch reads, and it is a strict <c>&lt;</c>: an axis
+        /// resting exactly on the line is not "down". A second threshold here would let crouch and drop
+        /// disagree about a half-deflected stick.
+        /// </summary>
+        [Test]
+        public void PlayerShouldDropThrough_UsesTheCrouchDeadzoneStrictly()
+        {
+            Assert.That(UnitDropThroughMath.DownThreshold, Is.EqualTo(-0.5f),
+                "PlayerLocomotionController's crouch test is `_moveInput.y < -0.5f`; one constant, two readers.");
+
+            Assert.That(UnitDropThroughMath.PlayerShouldDropThrough(false, -0.5f, false), Is.False,
+                "exactly on the deadzone edge is not down");
+            Assert.That(UnitDropThroughMath.PlayerShouldDropThrough(false, -0.51f, false), Is.True,
+                "just past it is");
+        }
     }
 }

@@ -1,8 +1,12 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using PFE.Data.Definitions;
+using PFE.Systems.Audio;
 using PFE.Systems.Campaign;
 using PFE.Systems.Interaction;
+using PFE.Systems.Loot;
+using PFE.Systems.Map;
 using PFE.Systems.Map.Rendering;
 using PFE.UI.Common;
 using PFE.UI.HUD;
@@ -157,6 +161,68 @@ namespace PFE.Systems.Inventory
         /// <summary>Where it landed, for the overlay's list.</summary>
         public Vector2 Position => transform.position;
 
+        // ── Falling (AS3 Loot.step / Loot.run) ───────────────────────────────
+
+        /// <summary>
+        /// AS3's frame rate. <c>Loot.step</c> runs once per 30 Hz frame and its whole arithmetic is
+        /// per-frame (1 px/frame², 20 px/frame terminal), so the accumulator below must feed it ticks of
+        /// exactly this length. Feeding it <c>Time.deltaTime</c> would make a 60 fps machine fall at
+        /// twice the oracle's speed and a 144 fps one at 4.8×.
+        /// </summary>
+        private const float TickSeconds = 1f / 30f;
+
+        /// <summary>
+        /// A room to resolve against when the caller did not hand one in. Set once by the player; the
+        /// loot tables use the same idiom (<c>LootRuntime</c>) for the same reason — a pickup is created
+        /// with <c>new GameObject</c> and has no injection point.
+        ///
+        /// <para><b>Null means "do not fall".</b> A pickup with no room has no tile grid to land on, so it
+        /// stays exactly where it was spawned — the pre-existing behaviour. That keeps the debug overlay's
+        /// "drop this here" honest in a scene with no land loaded.</para>
+        /// </summary>
+        public static Func<RoomInstance> RoomProvider { get; set; }
+
+        /// <summary>Room-local pixels → world units. Same scale as <see cref="PixelsToUnits"/>.</summary>
+        private RoomInstance _room;
+
+        /// <summary>Horizontal speed, px/frame, positive right — AS3 <c>Loot.dx</c>.</summary>
+        private float _vx;
+
+        /// <summary>Vertical speed, px/frame, positive <b>up</b> — AS3 <c>Loot.dy</c> mirrored.</summary>
+        private float _vy;
+
+        /// <summary>True while the pickup is still in the air. Cleared by landing, by the magnet, or by
+        /// running out of room to fall into.</summary>
+        private bool _falling;
+
+        /// <summary>
+        /// AS3 <c>Loot.vsos</c> — the magnet is towing this pickup. It suspends gravity
+        /// (<c>Loot.as:352</c> tests <c>!this.vsos</c>), because the magnet owns the position instead.
+        /// </summary>
+        private bool _magnetized;
+
+        /// <summary>Half the loot's height in <b>px</b> — AS3 <c>scY / 2</c>, measured off the drawn
+        /// sprite so the bottom edge is what rests on the floor rather than an invented box.</summary>
+        private float _halfHeightPx = LootFallRules.DefaultHeightPx * 0.5f;
+
+        /// <summary>Half the loot's width in <b>px</b> — AS3 <c>scX / 2</c>.</summary>
+        private float _halfWidthPx = LootFallRules.DefaultWidthPx * 0.5f;
+
+        /// <summary>
+        /// The <c>sndFall</c> this pickup plays when it lands — <c>Loot.sndFall</c>
+        /// (<see cref="LootFallRules.ResolveFallSoundId"/>). Empty means silent, which is what the oracle
+        /// does for loot dropped into an inactive location (<c>Loot.as:234-237</c>).
+        /// </summary>
+        private string _fallSoundId = string.Empty;
+
+        /// <summary>Whether the pickup is still in the air. Exposed for the overlay and for fixtures.</summary>
+        public bool IsFalling => _falling;
+
+        /// <summary>Vertical speed in px/frame (positive up) — AS3 <c>Loot.dy</c> mirrored.</summary>
+        public float FallSpeedPixelsPerFrame => _vy;
+
+        private float _tickAccumulator;
+
         // ── IInteractable ────────────────────────────────────────────────────
 
         /// <summary>
@@ -177,6 +243,23 @@ namespace PFE.Systems.Inventory
         /// <c>Item.as:206-218</c> fills from <c>Res.txt("w", id)</c> for a weapon and <c>Res.txt("i", id)</c>
         /// for an item.
         ///
+        /// <para><b>Neither half reads <c>definition.displayName</c> as a first choice, and the item half
+        /// must not read it at all.</b> Both fields are inspector placeholders that no importer has ever
+        /// overwritten: <see cref="WeaponDefinition.displayName"/> ships as <c>""</c> on all 213 weapon
+        /// assets, and <see cref="ItemDefinition.displayName"/> ships as the literal
+        /// <see cref="PipItemNames.PlaceholderName"/> — <c>"Item Name"</c> — on <b>all 500</b> item
+        /// assets. Reading the item field is what made every take read <i>"Found: Item Name"</i> and
+        /// every prompt read <i>"Take Item Name"</i>, while the PipBuck row for the same item read
+        /// "Screwdriver": the two disagreed because only one of them went through the localisation
+        /// document. See <see cref="ItemName"/>.</para>
+        /// </summary>
+        private string DisplayName => WeaponDefinition != null
+            ? WeaponName(PfeTextTableProvider.Shared, WeaponDefinition, Variant)
+            : ItemName(PfeTextTableProvider.Shared, Definition);
+
+        /// <summary>
+        /// A weapon pickup's name — <c>Item.as:206-220</c>.
+        ///
         /// <para><b>A weapon's name comes from the localisation document, not from the asset.</b> All 213
         /// shipped <c>WeaponDefinition</c> assets predate the <c>displayName</c> field and so load it as
         /// <c>""</c>; the names themselves already ship in
@@ -194,25 +277,56 @@ namespace PFE.Systems.Inventory
         /// <see cref="PipItemNames.Weapon"/> rather than re-implemented: 55 of the 71 variants have a
         /// bespoke name (<c>spear^1</c> is "Viper`s bite") and the other 16 get the literal suffix.</para>
         /// </summary>
-        private string DisplayName
+        /// <param name="text">The localisation document, or null.</param>
+        /// <param name="weapon">The weapon row.</param>
+        /// <param name="variant">The <c>^N</c> tier; 0 is the plain weapon.</param>
+        public static string WeaponName(PipTextTable text, WeaponDefinition weapon, int variant)
         {
-            get
+            if (weapon == null) return string.Empty;
+
+            if (variant > 0)
             {
-                if (WeaponDefinition != null)
-                {
-                    if (Variant > 0)
-                    {
-                        return PipItemNames.Weapon(PfeTextTableProvider.Shared, WeaponDefinition.weaponId,
-                                                   Variant, WeaponDefinition.displayName);
-                    }
-
-                    return !string.IsNullOrEmpty(WeaponDefinition.displayName)
-                        ? WeaponDefinition.displayName
-                        : PfeTextTableProvider.WeaponNameOrId(WeaponDefinition.weaponId);
-                }
-
-                return !string.IsNullOrEmpty(Definition?.displayName) ? Definition.displayName : ItemId;
+                return PipItemNames.Weapon(text, weapon.weaponId, variant, weapon.displayName);
             }
+
+            return !string.IsNullOrEmpty(weapon.displayName)
+                ? weapon.displayName
+                : PfeTextTableProvider.WeaponNameOrId(weapon.weaponId);
+        }
+
+        /// <summary>
+        /// An item pickup's name — <c>Item.as:240-267</c>, delegated to <see cref="PipItemNames.Item"/>
+        /// so the take message, the rising label, the prompt and the PipBuck row are one rule and not
+        /// two.
+        ///
+        /// <para><b>The bug this closes.</b> <see cref="ItemDefinition.displayName"/>'s C# initialiser is
+        /// the literal <c>"Item Name"</c> and the item importer never writes the field, so all 500
+        /// shipped assets carry that placeholder (measured: <c>grep -c</c> over
+        /// <c>Data/Resources/Items/*.asset</c>). This method used to return the field verbatim whenever
+        /// it was non-empty — which is always — so every take printed <i>"Found: Item Name"</i> and the
+        /// floating label over the player said <i>"Item Name"</i>, while the PipBuck listed the same
+        /// stack as "Screwdriver". The Oracle has no name on the row at all: <c>Item.nazv</c> is
+        /// <i>assigned</i> from the localisation document, which is exactly what
+        /// <see cref="PipItemNames"/> ports, placeholder test included.</para>
+        ///
+        /// <para><b>Why the table is a parameter.</b> Same reason <see cref="PipItemNames"/> is
+        /// Unity-free: a fixture can feed this the shipped <c>text_en.xml</c> parsed from disk (or a
+        /// four-line inline document) and assert the answer offline, without a <c>Resources.Load</c>.
+        /// The property above passes <see cref="PfeTextTableProvider.Shared"/>.</para>
+        /// </summary>
+        /// <param name="text">The localisation document, or null.</param>
+        /// <param name="definition">The item row, or null.</param>
+        public static string ItemName(PipTextTable text, ItemDefinition definition)
+        {
+            if (definition == null) return string.Empty;
+
+            // The `@base` variant branch, then the item table, then the schematic override — and, when
+            // the document cannot name the row, the definition's own name *only if it is not the
+            // placeholder*, else the id. That last step is `PipItemNames.Finish`; re-implementing it
+            // here is how the placeholder got back on screen in the first place.
+            return PipItemNames.Item(text, definition.itemId, definition.legacyTip,
+                definition.baseItemId, definition.modifierType, definition.workStation,
+                definition.displayName);
         }
 
         /// <summary>
@@ -359,18 +473,27 @@ namespace PFE.Systems.Inventory
         /// and <c>UnitController.SpillDrops</c> — are <i>sources</i> rather than moves: a rolled or
         /// conjured pickup was never in the bag, so there is no removal to pair with it.</para>
         ///
-        /// <para><b>No landing sound.</b> AS3's <c>Loot.sndFall</c> (default <c>"fall_item"</c>,
-        /// <c>Loot.as:45</c>) plays as the object falls and lands (<c>Loot.as:481</c>). This spawns the
-        /// pickup already at rest, so there is no fall to hear, and the port has no resolver from a
-        /// <c>snd.@fall</c> id to an <c>AudioClip</c> — inventing one would be a guess. The take sound is
-        /// the item's own <c>pickupSound</c> and is played in <see cref="Interact"/>.</para>
+        /// <para><b>A spawned pickup falls, if it is given a room.</b> AS3 constructs every rolled item
+        /// with <c>jump = true</c> (<c>LootGen.as:293</c>) and every player drop with <c>jump = true</c>
+        /// too (<c>Invent.as:1550</c>), so both are lobbed and then fall under gravity to the floor,
+        /// playing their own <c>sndFall</c> when they land. Pass <paramref name="room"/> to get that;
+        /// leave it null and the pickup stays exactly where it was placed, which is what the debug
+        /// overlay wants. The arithmetic is <see cref="LootFallRules"/>; the component only carries it
+        /// out.</para>
+        ///
+        /// <para><paramref name="fallSoundId"/> is the resolved <c>Loot.sndFall</c> — see
+        /// <see cref="LootFallRules.ResolveFallSoundId"/>. It is a parameter rather than a lookup here
+        /// because the ladder needs the roll's <b>tip</b>, which only the caller has: a weapon's fall
+        /// sound lives on <c>snd/@fall</c>, everything else on <c>@fall</c>, and <c>scheme</c>/<c>book</c>
+        /// default to paper. Null or empty means the landing is silent.</para>
         ///
         /// <para><paramref name="autoCollect"/> defaults to <c>false</c> deliberately — see
         /// <see cref="AutoCollect"/> for which of the oracle's three call sites pass which value. A
         /// caller that has not considered walk-over collection gets the conservative behaviour.</para>
         /// </summary>
         public static WorldItemPickup Spawn(ItemDefinition definition, int quantity, Vector3 position,
-                                            bool autoCollect = false)
+                                            bool autoCollect = false, bool jump = false,
+                                            RoomInstance room = null, string fallSoundId = null)
         {
             if (definition == null)
             {
@@ -386,7 +509,8 @@ namespace PFE.Systems.Inventory
             return SpawnCore(definition.itemId, quantity, position, autoCollect,
                              icon: definition.icon, fallbackColor: definition.fallbackColor,
                              itemDefinition: definition, weaponDefinition: null,
-                             variant: 0, condition: 1f);
+                             variant: 0, condition: 1f,
+                             jump: jump, room: room, fallSoundId: fallSoundId);
         }
 
         /// <summary>
@@ -413,7 +537,9 @@ namespace PFE.Systems.Inventory
         /// every pre-existing caller keeps its behaviour, and a drop that knows better passes them.</para>
         /// </summary>
         public static WorldItemPickup Spawn(WeaponDefinition weaponDefinition, int quantity, Vector3 position,
-                                            bool autoCollect = false, int variant = 0, float condition = 1f)
+                                            bool autoCollect = false, int variant = 0, float condition = 1f,
+                                            bool jump = false, RoomInstance room = null,
+                                            string fallSoundId = null)
         {
             if (weaponDefinition == null)
             {
@@ -433,7 +559,8 @@ namespace PFE.Systems.Inventory
             return SpawnCore(weaponDefinition.weaponId, quantity, position, autoCollect,
                              icon: icon, fallbackColor: WeaponFallbackColor,
                              itemDefinition: null, weaponDefinition: weaponDefinition,
-                             variant: variant, condition: condition);
+                             variant: variant, condition: condition,
+                             jump: jump, room: room, fallSoundId: fallSoundId);
         }
 
         /// <summary>
@@ -444,7 +571,8 @@ namespace PFE.Systems.Inventory
                                                  Sprite icon, Color fallbackColor,
                                                  ItemDefinition itemDefinition,
                                                  WeaponDefinition weaponDefinition,
-                                                 int variant, float condition)
+                                                 int variant, float condition,
+                                                 bool jump, RoomInstance room, string fallSoundId)
         {
             var go = new GameObject($"Loot_{id}_{quantity}");
             go.transform.position = position;
@@ -500,6 +628,8 @@ namespace PFE.Systems.Inventory
             }
             go.transform.localScale = new Vector3(size, size, 1f);
 
+            pickup.BeginFall(jump, room ?? RoomProvider?.Invoke(), fallSoundId);
+
             Live.Add(pickup);
             return pickup;
         }
@@ -509,6 +639,344 @@ namespace PFE.Systems.Inventory
         {
             Live.Remove(this);
             if (this != null) Destroy(gameObject);
+        }
+
+        // ── Falling ──────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Put this pickup in the air — the tail of AS3's <c>Loot</c> constructor
+        /// (<c>Loot.as:221-237</c>): the sprite is measured for the take box, and a <c>jump</c> drop is
+        /// lobbed.
+        ///
+        /// <para><b>Why the box is measured off the renderer.</b> AS3 assigns <c>scX = vis.width</c>,
+        /// <c>scY = vis.height</c> (<c>:226-227</c>) — the loot's collision box <i>is</i> its artwork, so
+        /// its bottom edge is what rests on the floor. A fixed 30×20 box would sink a tall sprite 8 px
+        /// into the tile it lands on, and a short one would hover.</para>
+        /// </summary>
+        private void BeginFall(bool jump, RoomInstance room, string fallSoundId)
+        {
+            _room = room;
+            _fallSoundId = fallSoundId ?? string.Empty;
+
+            var renderer = GetComponent<SpriteRenderer>();
+            if (renderer != null && renderer.sprite != null)
+            {
+                Vector3 extents = renderer.bounds.extents;
+                _halfWidthPx = Mathf.Max(1f, extents.x / PixelsToUnits);
+                _halfHeightPx = Mathf.Max(1f, extents.y / PixelsToUnits);
+            }
+
+            // No room means no grid to land on: leave the pickup exactly where it was asked to be, which
+            // is the behaviour every caller had before this existed.
+            if (_room == null) return;
+
+            if (jump)
+            {
+                LootFallRules.JumpVelocity(UnityEngine.Random.value, UnityEngine.Random.value,
+                                           out _vx, out _vy);
+            }
+
+            // A drop with no lob is still a drop: a container's eject may be a straight release, and the
+            // oracle's non-jump constructor path leaves the loot at rest only because it is placed on the
+            // ground. Here the caller may have placed it in mid-air, so the fall is always armed.
+            _falling = true;
+        }
+
+        /// <summary>
+        /// AS3 runs this once per 30 Hz frame (<c>Loot.step</c>). Unity calls it per rendered frame, so the
+        /// accumulator hands the model ticks of a fixed length — see <see cref="TickSeconds"/>.
+        ///
+        /// <para><b>Not an <c>ISimTickable</c>, deliberately.</b> A tickable has to be registered, and an
+        /// unregistered one fails <i>silently</i> — the trap <c>PlayerAutoPickup</c> documents at length.
+        /// A pickup is created at arbitrary moments by arbitrary code, so a self-driving <c>Update</c> is
+        /// the only hook that cannot be forgotten.</para>
+        /// </summary>
+        private void Update()
+        {
+            if (!_falling) return;
+
+            // A tab-out can hand in a delta of seconds; capping it keeps one frame from teleporting a
+            // pickup through a floor, and the cap is a whole tick so nothing is lost in the common case.
+            _tickAccumulator += Mathf.Min(Time.deltaTime, TickSeconds * 4f);
+
+            while (_tickAccumulator >= TickSeconds && _falling)
+            {
+                _tickAccumulator -= TickSeconds;
+                FallTick();
+            }
+        }
+
+        /// <summary>
+        /// One 30 Hz tick of <c>Loot.step</c>'s physics half (<c>Loot.as:332-400</c>) — gravity, then the
+        /// sub-stepped move, then the water check.
+        ///
+        /// <para><b>The parts of the oracle that are not here, and why.</b> <c>step()</c> also runs the
+        /// take window (<c>ttake</c>), the magnet's <c>vsos</c> state and <c>auto &amp;&amp; auto2</c>
+        /// collection. Those are the <i>collection</i> half, which the port already has in
+        /// <see cref="PFE.Entities.Player.PlayerAutoPickup"/>; duplicating them here would give the port two
+        /// owners for one decision. The one piece that had to move is <c>vsos</c> itself: a magnetised
+        /// pickup must stop falling, or the magnet and gravity fight for the position.</para>
+        /// </summary>
+        public void FallTick()
+        {
+            if (!_falling) return;
+
+            if (_magnetized)
+            {
+                // AS3 `if(!levit && !this.vsos && dy < maxdy) dy += ddy` — the magnet suppresses gravity.
+                _falling = false;
+                return;
+            }
+
+            _vy = LootFallRules.StepVelocity(_vy);
+
+            int steps = LootFallRules.SubstepCount(_vx, _vy);
+            for (int i = 0; i < steps && _falling; i++)
+            {
+                StepOnce(steps);
+            }
+
+            if (_falling) CheckWater();
+        }
+
+        /// <summary>
+        /// One collision sub-step — the port of <c>Loot.run</c> (<c>Loot.as:402-494</c>), in room-local
+        /// pixels because that is the space the tile grid and the prop layer speak.
+        ///
+        /// <para><b>The oracle's box.</b> <c>X</c> is the loot's centre and <c>Y</c> its <i>bottom</i>
+        /// (<c>Y1 = Y - scY</c>, <c>Y2 = Y</c>), while this component's transform is the sprite's centre.
+        /// So <c>Y</c> here is <c>centre + halfHeight</c>, and every comparison below is against that.</para>
+        /// </summary>
+        private void StepOnce(int divisor)
+        {
+            Vector2 origin = WorldCoordinates.RoomOriginPixel(_room);
+            float centreX = transform.position.x / PixelsToUnits;
+            float centreY = transform.position.y / PixelsToUnits;
+            float bottom = centreY - _halfHeightPx;
+
+            // ── Horizontal: `X += dx / param1`, then the two walls and the two tile pushes ──────────
+            float stepX = _vx / divisor;
+            float x = centreX + stepX;
+
+            float roomLeft = origin.x;
+            float roomRight = origin.x + _room.width * WorldConstants.TILE_SIZE;
+
+            if (x - _halfWidthPx < roomLeft)
+            {
+                x = roomLeft + _halfWidthPx;
+                _vx = Mathf.Abs(_vx);
+            }
+            if (x + _halfWidthPx >= roomRight)
+            {
+                x = roomRight - 1f - _halfWidthPx;
+                _vx = -Mathf.Abs(_vx);
+            }
+
+            if (_vx < 0f)
+            {
+                TileData tile = TileAt(x, bottom, origin);
+                if (IsSolid(tile) && x <= TileRight(tile) && x >= TileLeft(tile) &&
+                    bottom >= TileTop(tile) && bottom <= TileBottom(tile))
+                {
+                    x = TileRight(tile) + 1f;
+                    _vx = Mathf.Abs(_vx);
+                }
+            }
+            else if (_vx > 0f)
+            {
+                TileData tile = TileAt(x, bottom, origin);
+                if (IsSolid(tile) && x >= TileLeft(tile) && x <= TileRight(tile) &&
+                    bottom >= TileTop(tile) && bottom <= TileBottom(tile))
+                {
+                    x = TileLeft(tile) - 1f;
+                    _vx = -Mathf.Abs(_vx);
+                }
+            }
+
+            // ── Vertical. Up first: the oracle's `dy < 0` branch is a ceiling snap
+            // (`Y = _loc2_.phY2 + 1`, `Loot.as:435-449`), which a lobbed pickup does reach when it is
+            // thrown from a crate tucked under a low ceiling.
+            if (_vy > 0f)
+            {
+                float stepUp = _vy / divisor;
+                float top = bottom + _halfHeightPx * 2f + stepUp;
+
+                TileData above = TileAt(x, top, origin);
+                if (IsSolid(above) && top >= TileBottom(above) && top <= TileTop(above) &&
+                    x >= TileLeft(above) && x <= TileRight(above))
+                {
+                    // `Y = _loc2_.phY2 + 1` — the loot's <b>bottom</b> ends up one pixel below the
+                    // tile's underside, i.e. just under it. phY2 is the underside in AS3's y-down space
+                    // and `TileBottom` is the same edge in the port's y-up one.
+                    _vy = 0f;
+                    transform.position = ToWorld(x, TileBottom(above) - 1f + _halfHeightPx, origin);
+                    return;
+                }
+
+                transform.position = ToWorld(x, bottom + stepUp + _halfHeightPx, origin);
+                return;
+            }
+
+            float stepY = _vy / divisor;
+            float bottomAfter = bottom + stepY;
+
+            float roomBottom = origin.y;
+            if (bottomAfter >= roomBottom + _room.height * WorldConstants.TILE_SIZE)
+            {
+                // AS3: `if(Y + dy/param1 >= loc.spaceY * tileY) { if(auto2) take(true); dx = 0; return; }`
+                // — falling out of the room's floor. The oracle takes an auto-collectible item here and
+                // otherwise simply stops it. A pickup that vanished would lose the player's loot, so this
+                // stops it at the room's bottom edge instead and says so once.
+                _vx = 0f;
+                _vy = 0f;
+                _falling = false;
+                Debug.LogWarning($"[WorldItemPickup] '{ItemId}' fell out of the room at " +
+                                 $"{x:0},{bottom:0} (AS3 would stop it here too, Loot.as:454-462).");
+                return;
+            }
+
+            float surface = FindLandingSurface(x, bottom, bottomAfter, origin);
+            if (!float.IsNaN(surface))
+            {
+                // AS3 `Y = _loc4_ - 1` — the loot rests one pixel clear of the surface.
+                float landedBottom = surface - 1f;
+
+                float downwardSpeed = -_vy;
+                _vx = 0f;
+                _vy = 0f;
+                _falling = false;
+                transform.position = ToWorld(x, landedBottom + _halfHeightPx, origin);
+
+                // The sound is emitted at the <b>landed</b> position: the oracle moves `Y` and only then
+                // calls `Snd.ps(this.sndFall, X, Y, …)` (`Loot.as:479-483`). Playing it before the move
+                // put every thud up to one substep (20 px) above the floor it came from.
+                if (LootFallRules.ShouldPlayLandingSound(downwardSpeed))
+                {
+                    PlayFallSound(LootFallRules.LandingVolume(downwardSpeed));
+                }
+
+                return;
+            }
+
+            transform.position = ToWorld(x, bottomAfter + _halfHeightPx, origin);
+        }
+
+        /// <summary>
+        /// The surface this step lands on, or <see cref="float.NaN"/> — the port of the <c>dy &gt; 0</c>
+        /// branch of <c>Loot.run</c> (<c>Loot.as:463-492</c>), which asks three questions in order: the
+        /// destination tile's top, then a <b>shelf</b> tile's top, then a shelf <b>prop</b>.
+        ///
+        /// <para><b>Why the shelf cases exist separately.</b> A one-way catwalk (<c>phis == 0</c> +
+        /// <c>shelf</c>) only catches a loot crossing its top edge from above — the same reason a unit can
+        /// jump up through one. Testing it with the solid rule would make loot land on the underside of
+        /// every catwalk in the level.</para>
+        /// </summary>
+        private float FindLandingSurface(float x, float bottom, float bottomAfter, Vector2 origin)
+        {
+            TileData tile = TileAt(x, bottomAfter, origin);
+
+            if (IsSolid(tile) && bottomAfter >= TileTop(tile) && bottom <= TileBottom(tile) &&
+                x >= TileLeft(tile) && x <= TileRight(tile))
+            {
+                return TileTop(tile);
+            }
+
+            if (tile != null && tile.physicsType == TilePhysicsType.Platform &&
+                bottomAfter >= TileTop(tile) && bottom <= TileTop(tile) &&
+                x >= TileLeft(tile) && x <= TileRight(tile))
+            {
+                return TileTop(tile);
+            }
+
+            // `this.checkShelf(dy / param1)` — a prop's top edge (Loot.as:511-525). Room-local pixels,
+            // because that is what the prop layer speaks, and `deltaY` is this substep's motion so the
+            // support has to be one this step actually reaches.
+            RoomObjectPhysicsLayer layer = _room.ExistingObjectPhysicsLayer;
+            if (layer != null && layer.TryFindLootSupport(x, bottom, bottomAfter - bottom, out float propTop))
+            {
+                return propTop;
+            }
+
+            return float.NaN;
+        }
+
+        /// <summary>
+        /// AS3 <c>Loot.checkWater</c> (<c>Loot.as:527-550</c>) — entering water damps the motion and
+        /// splashes once. The splash is a separate sample from the landing one
+        /// (<c>fall_item_water</c>, volume <c>dy / 10</c> rather than <c>/ 15</c>), so it is not a
+        /// variant of <see cref="PlayFallSound"/>.
+        /// </summary>
+        private void CheckWater()
+        {
+            Vector2 origin = WorldCoordinates.RoomOriginPixel(_room);
+            float x = transform.position.x / PixelsToUnits;
+            float bottom = transform.position.y / PixelsToUnits - _halfHeightPx;
+
+            TileData tile = TileAt(x, bottom, origin);
+            bool inWater = tile != null && tile.hasWater;
+
+            if (inWater != _inWater)
+            {
+                // `if(_loc1_ != this.isPlav && dy > 5)` — the splash is on the <b>transition</b>, in either
+                // direction, not on entering only. Leaving a pool counts too (a pickup that falls out of
+                // the bottom of one), and the `dy > 5` gate is what keeps that from being most exits: an
+                // upward exit has a negative dy, so the same comparison silences it for free.
+                _inWater = inWater;
+
+                float downwardSpeed = -_vy;
+                if (downwardSpeed > LootFallRules.WaterSoundMinDy)
+                {
+                    SoundBus.Current?.Play(LootFallRules.WaterFallSound,
+                                           (Vector2)transform.position,
+                                           LootFallRules.WaterVolume(downwardSpeed));
+                }
+            }
+
+            // `if(this.isPlav) { dy *= 0.7; dx *= 0.7; }` — water drag, every tick it is submerged.
+            if (!inWater) return;
+            _vx *= 0.7f;
+            _vy *= 0.7f;
+        }
+
+        private bool _inWater;
+
+        /// <summary>
+        /// Play this pickup's landing sample at <paramref name="volumeScale"/>, if it has one and a sound
+        /// service is live. Silence is the correct answer for an unarmed pickup — AS3's <c>sndFall</c> is
+        /// empty when the location is inactive (<c>Loot.as:234-237</c>).
+        /// </summary>
+        private void PlayFallSound(float volumeScale)
+        {
+            if (string.IsNullOrEmpty(_fallSoundId)) return;
+            SoundBus.Current?.Play(_fallSoundId, (Vector2)transform.position, volumeScale);
+        }
+
+        private TileData TileAt(float x, float bottom, Vector2 origin)
+        {
+            int tileX = Mathf.FloorToInt((x - origin.x) / WorldConstants.TILE_SIZE);
+            int tileY = Mathf.FloorToInt((bottom - origin.y) / WorldConstants.TILE_SIZE);
+            return _room.GetTileAtCoord(new Vector2Int(tileX, tileY));
+        }
+
+        /// <summary>AS3 <c>phis == 1</c> — the one tile kind a loot collides with.</summary>
+        private static bool IsSolid(TileData tile) => tile != null && tile.physicsType == TilePhysicsType.Wall;
+
+        private static float TileLeft(TileData tile) => tile.GetBounds().xMin;
+        private static float TileRight(TileData tile) => tile.GetBounds().xMax;
+        private static float TileTop(TileData tile) => tile.SolidTopY;
+        private static float TileBottom(TileData tile) => tile.SolidBottomY;
+
+        /// <summary>
+        /// Room-local px → a world-unit transform position, keeping the pickup's own z. The z is
+        /// preserved rather than zeroed because the caller works in 2D and a fresh 0 would silently move
+        /// the pickup off whatever plane it was spawned on — the same reason <see cref="MagnetToward"/>
+        /// preserves it.
+        /// </summary>
+        private Vector3 ToWorld(float x, float centreY, Vector2 origin)
+        {
+            return new Vector3((x - origin.x) * PixelsToUnits,
+                               (centreY - origin.y) * PixelsToUnits,
+                               transform.position.z);
         }
 
         /// <summary>
@@ -528,6 +996,14 @@ namespace PFE.Systems.Inventory
         /// </summary>
         public void MagnetToward(Vector2 target)
         {
+            // AS3 `Loot.vsos` — a magnetised loot has gravity suppressed (`Loot.as:352`), so the fall has
+            // to stop or the two would fight for the position every tick and the pickup would stutter.
+            if (_falling)
+            {
+                _magnetized = true;
+                _falling = false;
+            }
+
             Vector2 current = transform.position;
             Vector2 step = new Vector2(
                 AutoPickupRule.MagnetStep(target.x - current.x),

@@ -394,19 +394,27 @@ namespace PFE.Entities.Units
 
             // The anchor is derived from the sprite actually being drawn, and from its size AFTER the
             // persona's own scale — because `localScale` scales the sprite about the transform's
-            // origin, so the offset that puts its bottom edge 10 px below the feet is measured in
-            // scaled pixels, not source ones. A centre-pivoted, unscaled sprite yields exactly what
-            // UnitSpriteAnchor.ApplyTo produces, so nothing moves for the 114 clip-less personas.
+            // origin, so the offset that puts its bottom edge below the feet is measured in scaled
+            // pixels, not source ones.
             _renderer.sprite = sprite;
             _renderer.transform.localPosition = WorldCoordinates.PixelToUnity(
-                ScaledPixelOffset(sprite, _persona.VisualScale, PersonaRegistrationPoint));
+                ScaledPixelOffset(sprite, _persona.VisualScale, _persona.visualId));
         }
 
         /// <summary>
-        /// <see cref="UnitSpriteAnchor.PixelOffset(Vector2, Vector2, Vector2Int)"/> with the sprite's
-        /// pivot and size expressed in post-scale pixels.
+        /// <see cref="UnitSpriteAnchor.PixelOffsetForFeetGap"/> for a persona, using the anchor measured
+        /// out of the SWF (<c>VisualSpriteOrigins</c>) and expressed in post-scale pixels.
+        ///
+        /// <para><b>Why not the bitmap rule.</b> <c>UnitSpriteAnchor</c>'s default 10 px is
+        /// <c>visBmp.y = -blitY + 10</c>, which only describes a cell blitted out of a sheet. A persona
+        /// is a DisplayObject placed by <c>vis.x = X; vis.y = Y</c> (<c>Unit.as:2969-2977</c>), so its
+        /// anchor is the symbol's own origin — 4.7 px above the bottom edge for the shopkeepers once
+        /// their <c>osn</c> scale is applied, not 10. Using 10 drew every NPC 5.3 px into the floor.</para>
+        ///
+        /// <para>The fallback is the old behaviour, unchanged, for a persona whose visual has no
+        /// measured entry or whose entry was solved against a different frame size.</para>
         /// </summary>
-        static Vector2 ScaledPixelOffset(Sprite sprite, Vector2 scale, Vector2Int registrationPoint)
+        static Vector2 ScaledPixelOffset(Sprite sprite, Vector2 scale, string visualId)
         {
             if (sprite == null)
             {
@@ -419,7 +427,13 @@ namespace PFE.Entities.Units
             var pivot = new Vector2(sprite.pivot.x * sx, sprite.pivot.y * sy);
             var size = new Vector2(sprite.rect.width * sx, sprite.rect.height * sy);
 
-            return UnitSpriteAnchor.PixelOffset(pivot, size, registrationPoint);
+            if (VisualSpriteOrigins.TryGetFeetGap(visualId, sprite.rect.width, sprite.rect.height,
+                                                  out float feetGapPixels))
+            {
+                return UnitSpriteAnchor.PixelOffsetForFeetGap(pivot, size, feetGapPixels * sy);
+            }
+
+            return UnitSpriteAnchor.PixelOffset(pivot, size, PersonaRegistrationPoint);
         }
 
         /// <summary>

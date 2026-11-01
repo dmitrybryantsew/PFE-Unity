@@ -500,6 +500,65 @@ namespace PFE.Systems.RPG
         /// </summary>
         [HideInInspector] public float mazilAdd = 0.0f;
 
+        // ── the psy-effect control fields (2026-10-28) ────────────────────────────────────────────
+        //
+        // `horror`, `vote` and `disorient` are the three outcomes of the alicorn's `alipsy` psy bolt
+        // (`UnitPlayer.as:3253-3268`). Between them they write exactly the four fields below; until
+        // these existed the three `<eff>` rows were imported and had nowhere to land, so applying
+        // `horror` degraded aim and left movement untouched — a half-effect that read as working.
+        //
+        // They live here rather than on the player controller for the same reason `mazilAdd` does:
+        // AS3 puts them on `UnitPlayer`, and `Pers.defaultParams()` resets three of the four
+        // (`Pers.as:890-892`), i.e. they take part in the reset-then-replay stat pass. A field on a
+        // MonoBehaviour would be invisible to that pass and would survive a recompute.
+
+        /// <summary>
+        /// AS3 <c>UnitPlayer.runForever</c> (<c>:85</c>) — while <c>&gt; 0</c> the player runs whether
+        /// or not the run key is held: <c>isRun = (possRun || stam &gt; 200) &amp;&amp; ctr.keyRun ||
+        /// runForever &gt; 0</c> (<c>:2467</c>). Underwater still cancels it (<c>:2468-2471</c>), and
+        /// <c>:2839</c> additionally refuses the sit/stay transition while it is set.
+        ///
+        /// <para>Written by <c>horror</c> (<c>AllData.as:5963</c>, <c>ref='add' v1='1'</c>). Reset by
+        /// <c>defaultParams()</c> (<c>Pers.as:890</c>), so the effect's write is replayed by the
+        /// stat pass rather than surviving a recompute.</para>
+        /// </summary>
+        [HideInInspector] public int runForever = 0;
+
+        /// <summary>
+        /// AS3 <c>UnitPlayer.zaput</c> (<c>:93</c>) — <c>1</c> swaps the movement keys:
+        /// <c>left = zaput ? keyRight : keyLeft</c> and vice versa (<c>:2085-2086</c>).
+        ///
+        /// <para>Written by <c>disorient</c> (<c>AllData.as:5960</c>). Reset by <c>defaultParams()</c>
+        /// (<c>Pers.as:892</c>).</para>
+        /// </summary>
+        [HideInInspector] public int zaput = 0;
+
+        /// <summary>
+        /// AS3 <c>UnitPlayer.attackForever</c> (<c>:207</c>) — while <c>&gt; 0</c> the player cannot
+        /// stop attacking. It does not hold the fire key itself; it drives
+        /// <see cref="autoAttack"/>, which is what the fire gate actually reads.
+        ///
+        /// <para>Three read sites: the aim point scatters 5 % of ticks (<c>:1168-1174</c>), the
+        /// <see cref="autoAttack"/> toggle below (<c>:1507-1516</c>), and grenade/magic are locked out
+        /// (<c>:2186</c>, <c>:2206</c>). Written by <c>vote</c> (<c>AllData.as:5966</c>). Reset by
+        /// <c>defaultParams()</c> (<c>Pers.as:891</c>).</para>
+        /// </summary>
+        [HideInInspector] public int attackForever = 0;
+
+        /// <summary>
+        /// AS3 <c>UnitPlayer.autoAttack</c> (<c>:209</c>) — substitutes for holding the attack key:
+        /// <c>if((ctr.keyAttack || autoAttack) &amp;&amp; …)</c> (<c>:2318</c>).
+        ///
+        /// <para><b>Deliberately NOT reset by <c>defaultParams()</c>.</b> AS3 resets the other three
+        /// (<c>Pers.as:890-892</c>) but not this one, because it is derived state rather than a
+        /// parameter: <c>:1507-1516</c> re-derives it every tick — while <see cref="attackForever"/>
+        /// is set it flips at 10 % per tick, and the moment <c>attackForever</c> clears it is forced
+        /// back to <c>0</c>. The <c>vote</c> row's <c>&lt;sk id='autoAttack'&gt;</c> write is therefore
+        /// an initial value that the next tick may overwrite; the real driver is
+        /// <see cref="attackForever"/>.</para>
+        /// </summary>
+        [HideInInspector] public int autoAttack = 0;
+
         /// <summary>
         /// The locomotion inputs <see cref="ComputePrecisionMultiplier"/> needs, published by the
         /// movement layer each tick.
@@ -597,6 +656,104 @@ namespace PFE.Systems.RPG
         /// <summary>AS3 <c>Pers.alicornRunMana</c> (<c>Pers.as:469</c>, 5) — the alicorn flight-run drain on the budget.</summary>
         [HideInInspector] public float alicornRunMana = 5f;
 
+        // ---------------------------------------------------------------------------------------
+        // The twelve ids that used to fall through ApplyNamedStat's default arm.
+        //
+        // All twelve are real `Pers` fields — `Pers` is declared `dynamic` (Pers.as:8), so AS3's
+        // `this[id] = _loc5_` (Pers.as:1522-1525) lands on the object even for a name it never
+        // declares, and every one of them is read back by name somewhere in the oracle. The port
+        // had a field for none of them, so `ApplyNamedStat` dropped the modifier and warned once per
+        // instance — which, because a fresh CharacterStats is built per test, failed every RPG test
+        // that calls Initialize(). Fields first, then the switch cases, then the resets.
+        //
+        // Where the consumer is not ported yet the field is still the right landing place: the value
+        // is what AS3's Pers would hold, TrackFactor already records it, and the consumer reads it
+        // when it arrives instead of having to re-derive it from AllData.
+        // ---------------------------------------------------------------------------------------
+
+        /// <summary>
+        /// AS3 <c>Pers.visiTrap</c> (<c>Pers.as:205</c>, no initialiser → 0) — how far the player
+        /// sees traps. Read at <c>UnitPlayer.as:2957</c>. The explosives skill sets it
+        /// (<c>AllData.as:5241</c>, <c>v0='1' vd='0.4'</c>) and a perk multiplies it
+        /// (<c>AllData.as:6172</c>, <c>ref='mult' v1='10'</c>).
+        /// </summary>
+        [HideInInspector] public float visiTrap = 0f;
+        /// <summary>
+        /// AS3 <c>Pers.unitLevitMult</c> (<c>Pers.as:243</c>, 1) — scales the levit budget of a unit
+        /// the player is dragging; <c>UnitPlayer.as:1265</c> compares <c>levit_r</c> against
+        /// <c>levit_max * unitLevitMult</c>. Set by the tele skill (<c>AllData.as:5216</c>).
+        /// </summary>
+        [HideInInspector] public float unitLevitMult = 1f;
+        /// <summary>
+        /// AS3 <c>Pers.teleEnemy</c> (<c>Pers.as:245</c>, 60) — the levit a telekinetically thrown
+        /// <i>unit</i> gets, halved outside tier 2 (<c>UnitAlicorn.as:1184</c>); the boss uses it
+        /// unhalved (<c>UnitBossAlicorn.as:635</c>). Set by the tele skill (<c>AllData.as:5220</c>)
+        /// and multiplied by a perk (<c>AllData.as:6311</c>, <c>ref='mult' v1='0.1'</c>).
+        /// </summary>
+        [HideInInspector] public float teleEnemy = 60f;
+        /// <summary>
+        /// AS3 <c>UnitPlayer.teleSpeed</c> (<c>UnitPlayer.as:57</c>, 8) — <b>stored, never read.</b>
+        /// The tele skill's <c>&lt;sk id='teleSpeed' v0='8' vd='1.5'/&gt;</c> (<c>AllData.as:5215</c>)
+        /// writes <c>pers.teleSpeed</c>, but the drag code reads <c>this.teleSpeed</c> — the
+        /// <i>UnitPlayer</i> field — and nothing ever assigns it from Pers. So in the oracle this
+        /// modifier is dead data. Kept here because the assignment is real (Pers is dynamic) and the
+        /// port should hold what AS3 holds; <see cref="TelekinesisMath.PlayerTeleSpeed"/> stays the
+        /// value the drag actually uses.
+        /// </summary>
+        [HideInInspector] public float teleSpeed = 8f;
+        /// <summary>
+        /// AS3 <c>UnitPlayer.teleAccel</c> (<c>UnitPlayer.as:59</c>, 1) — dead data for the same
+        /// reason as <see cref="teleSpeed"/>: the skill writes <c>pers.teleAccel</c>
+        /// (<c>AllData.as:5214</c>), the drag reads the UnitPlayer field.
+        /// </summary>
+        [HideInInspector] public float teleAccel = 1f;
+        /// <summary>
+        /// AS3 <c>Pers.medic</c> (<c>Pers.as:261</c>, 0) — the medicine level an item gates on:
+        /// <c>Invent.as:179</c> and <c>:351</c> compare a potion's <c>minmed</c> against it, so a
+        /// stimpak with <c>minmed='40'</c> needs <c>medic &gt;= 40</c>. Set by the medic skill
+        /// (<c>AllData.as:5260</c>, <c>v0='0' vd='1'</c>).
+        /// </summary>
+        [HideInInspector] public float medic = 0f;
+        /// <summary>
+        /// AS3 <c>Pers.alicornHeal</c> (<c>Pers.as:461</c>, 2) — the per-tick top-up while in
+        /// alicorn mode (<c>UnitPlayer.as:972</c>, <c>hp += pers.alicornHeal</c>). Set by the
+        /// alicorn skill (<c>AllData.as:5265</c>).
+        /// </summary>
+        [HideInInspector] public float alicornHeal = 2f;
+        /// <summary>
+        /// AS3 <c>Pers.alicornPortMana</c> (<c>Pers.as:465</c>, 500) — the mana a teleport costs in
+        /// alicorn mode, and the floor below which teleporting is refused
+        /// (<c>UnitPlayer.as:1662</c>, <c>:1685</c>). Set by the alicorn skill
+        /// (<c>AllData.as:5270</c>, <c>v0='500' vd='-60'</c>).
+        /// </summary>
+        [HideInInspector] public float alicornPortMana = 500f;
+        /// <summary>
+        /// AS3 <c>Pers.alicornFlyMult</c> (<c>Pers.as:471</c>, 1) — multiplies the run speed while
+        /// flying (<c>UnitPlayer.as:2506</c>). Set by the tele skill (<c>AllData.as:5223</c>).
+        /// </summary>
+        [HideInInspector] public float alicornFlyMult = 1f;
+        /// <summary>
+        /// AS3 <c>Pers.alicornSkin</c> (<c>Pers.as:473</c>, 5) — added to <c>skin</c> by the
+        /// alicorn branch of the recompute (<c>Pers.as:2235-2236</c>). Set by the alicorn skill
+        /// (<c>AllData.as:5257</c>, <c>v0='10' vd='2'</c>). <b>Application owed:</b> the port has no
+        /// alicorn-mode branch in <see cref="RecalculateStats"/> yet, so nothing adds it to
+        /// <see cref="skin"/> — the value is held, not spent.
+        /// </summary>
+        [HideInInspector] public float alicornSkin = 5f;
+        /// <summary>
+        /// AS3 <c>Pers.alicornDexter</c> (<c>Pers.as:475</c>, 0) — added to <c>dexter</c> by the same
+        /// branch (<c>Pers.as:2238-2239</c>). Set by the alicorn skill (<c>AllData.as:5284</c>).
+        /// <b>Application owed</b>, as for <see cref="alicornSkin"/>.
+        /// </summary>
+        [HideInInspector] public float alicornDexter = 0f;
+        /// <summary>
+        /// AS3 <c>Pers.alicornVulner</c> (<c>Pers.as:477</c>, 0.7) — multiplies
+        /// <c>allVulnerMult</c> in the alicorn branch (<c>Pers.as:2241-2242</c>). Set by the alicorn
+        /// skill (<c>AllData.as:5291</c>, <c>v0='0.7' vd='-0.04'</c>). <b>Application owed</b>, as
+        /// for <see cref="alicornSkin"/>.
+        /// </summary>
+        [HideInInspector] public float alicornVulner = 0.7f;
+
         [HideInInspector] public int isDJ = 0;
         [HideInInspector] public int levitOn = 0;
         [HideInInspector] public float levitDMana = 5.0f;
@@ -657,7 +814,35 @@ namespace PFE.Systems.RPG
         /// </summary>
         [HideInInspector] public int security = 0;
         [HideInInspector] public int repair = 0;
-        [HideInInspector] public float repairMult = 1.0f;
+
+        /// <summary>
+        /// AS3 <c>Pers.repairMult</c> (<c>Pers.as:249</c>, <b>0.25</b>) — how much of a component's
+        /// worth of durability one repair restores, as a fraction of max hp.
+        ///
+        /// <para><b>Was declared 1.0 here, which is four times the oracle's number.</b> Nothing read it
+        /// until the workbench's repair page landed, so the divergence was invisible; the page prints
+        /// <c>rep_eff · 0.25 · repairMult</c> as a percentage, and a weapon repaired four times faster
+        /// than the original game is exactly the kind of difference a player notices and a compile
+        /// cannot. Raised by <c>&lt;sk ref='mult'&gt;</c> rows, never recomputed from the skill.</para>
+        /// </summary>
+        [HideInInspector] public float repairMult = 0.25f;
+
+        /// <summary>
+        /// AS3 <c>Pers.maxArmorLvl</c> (<c>Pers.as:253</c>, <b>0</b>) — the highest armour upgrade level
+        /// the player may reach. Written by the perk row <c>&lt;sk id='maxArmorLvl' v0='0' v1='1'
+        /// v2='2'/&gt;</c> (<c>AllData.as:5646</c>) and read only by the workbench's upgrade tab
+        /// (<c>PipPageWork.as:166-170</c>), which is why the tab is empty at level 0 — the shipped
+        /// behaviour, not a broken list. The field did not exist in the port, so the perk's row had
+        /// nowhere to land and the tab could never fill.
+        /// </summary>
+        [HideInInspector] public int maxArmorLvl = 0;
+
+        /// <summary>
+        /// AS3 <c>Pers.potmaster</c> (<c>Pers.as:325</c>, <b>0</b>) — the perk level that doubles a
+        /// crafted potion's output (<c>PipPageWork.as:433-436</c>). Read as a boolean, so any level
+        /// doubles. Absent from the port until the crafting page needed it.
+        /// </summary>
+        [HideInInspector] public int potmaster = 0;
         [HideInInspector] public int remine = 0;
         [HideInInspector] public int signal = 0;
         [HideInInspector] public int barterLvl = 0;
@@ -838,6 +1023,19 @@ namespace PFE.Systems.RPG
         [HideInInspector] public float owlDam = 3.0f;
         [HideInInspector] public float owlSkin = 5.0f;
         [HideInInspector] public float owlVulner = 1.0f;
+
+        /// <summary>
+        /// The moon's base HP — AS3 <c>Pers.moonHP</c> (<c>Pers.as:439-459</c>, default <c>70</c>).
+        ///
+        /// <para><b>This pair was missing.</b> <c>petHP</c>/<c>owlHP</c> were declared with the rest of
+        /// the companion block but <c>moonHP</c>/<c>moonDam</c> were not, so the third pet had no stats to
+        /// scale and <c>UnitPet.setLevel</c>'s moon arm (<c>:219-222</c>) had nothing to read. Both are
+        /// the oracle's own defaults.</para>
+        /// </summary>
+        [HideInInspector] public float moonHP = 70f;
+
+        /// <summary>The moon's base damage — AS3 <c>Pers.moonDam</c>, default <c>15</c>.</summary>
+        [HideInInspector] public float moonDam = 15.0f;
 
         // Ammo/Inventory limits
         [HideInInspector] public float maxmW = 7f;
@@ -1260,8 +1458,12 @@ namespace PFE.Systems.RPG
                 spawnPos = new Vector3(worldX, worldY, transform.position.z);
             }
 
-            // Spawn floating +Nxp text via DamageEventFeed (AS3 Pers.as:980 numbEmit("+Nxp"))
-            DamageEventFeed.Default.ReportText(spawnPos + Vector3.up * 0.4f, $"+{amount}xp", new Color(1f, 0.95f, 0.4f));
+            // Spawn floating +Nxp text via DamageEventFeed (AS3 Pers.as:979-984: frame 8, scale 1.5,
+            // alpha 0.5 — the cream figure). The colour comes from the frame, not from a literal here:
+            // the palette belongs with the sprite it was sampled from.
+            DamageEventFeed.Default.ReportText(
+                spawnPos + Vector3.up * 0.4f, $"+{amount}xp",
+                frame: HitNumberFrame.Xp, scale: DamageEventFeed.XpScale);
 
             _xpPublisher?.Publish(new PFE.Core.Messages.XpGainedMessage
             {
@@ -1712,6 +1914,30 @@ namespace PFE.Systems.RPG
             dexter = 0.0f;
             dodgePlus = 0f;
             skin = 0.0f;
+            // The twelve ids that used to fall through ApplyNamedStat's default arm (see the field
+            // block near alicornRunMana). They belong to the "modifier target" class described just
+            // above, not the "not in the oracle" class: every one is written by a set-type <sk> row,
+            // so seeding the Pers declaration default here reproduces "skill absent → declaration
+            // value" exactly, and it stops the ref='mult' perk variants of teleEnemy and visiTrap
+            // from compounding a little further on every recompute.
+            visiTrap = 0f;
+            unitLevitMult = 1f;
+            teleEnemy = 60f;
+            teleSpeed = 8f;
+            teleAccel = 1f;
+            medic = 0f;
+            alicornHeal = 2f;
+            alicornPortMana = 500f;
+            alicornFlyMult = 1f;
+            alicornSkin = 5f;
+            alicornDexter = 0f;
+            alicornVulner = 0.7f;
+            // knocked and tormoz are in defaultParams() proper — Pers.as:881 and :883 both set 1 —
+            // so unlike the five "not in the oracle" ids just above they MUST be re-seeded. They
+            // were not, and both are ref='mult' targets (AllData.as:5314, :5919), so every recompute
+            // multiplied the already-multiplied value: the slowdown compounded instead of resetting.
+            knocked = 1f;
+            tormoz = 1f;
             meleeDamMult = 1.0f;
             meleeSpdMult = 1.0f;
             gunsDamMult = 1.0f;
@@ -1745,6 +1971,13 @@ namespace PFE.Systems.RPG
             maxOd = 75f;
             // AS3 defaultParams() DOES assign mazilAdd = 0 (Pers.as:928) — so it is reset here.
             mazilAdd = 0f;
+            // The psy-effect controls: defaultParams() clears three of the four (Pers.as:890-892) and
+            // this mirrors that exactly. `autoAttack` is NOT here on purpose — AS3 does not reset it,
+            // because :1507-1516 re-derives it every tick from attackForever. Resetting it would look
+            // tidier and would be a divergence.
+            runForever = 0;
+            attackForever = 0;
+            zaput = 0;
             // runPenalty / jumpPenalty / backPenalty / stayBonus are DELIBERATELY NOT reset:
             // AS3's defaultParams() has no line for any of them, so their declaration values
             // (0.5 / 0.3 / 0.4 / 0.3) survive every stat recompute, and only the rungun/composure
@@ -2049,14 +2282,25 @@ namespace PFE.Systems.RPG
             ApplyTraumaModifiers();
 
             // 8. Push to UnitStats bridge
+            //
+            // THE ORDER IS LOAD-BEARING: the ceiling first, the health second. AS3 does the same —
+            // `Pers.as:2165` raises `gg.maxhp` and `:2245` only then writes `gg.hp = maxhp * procHP`.
+            //
+            // Written the other way round (health, then max) every listener of CurrentHp reads MaxHp at
+            // the instant the health lands, which is still the OLD ceiling — so the HUD's "85 / 100"
+            // readout renders a max that is about to be wrong, and a level-up that only *changed* the
+            // max (a full-health player: 100/100 becomes 115/115) never refreshed the text at all,
+            // because nothing wrote CurrentHp a second time. That is the "max health lags behind"
+            // report: the bar was right and the number beside it was not.
             if (_unitStats != null)
             {
-                _unitStats.CurrentHp.Value = Mathf.Clamp(maxHp * procHp, 0, maxHp);
                 // The magic budget is deliberately NOT written here. AS3's setParameters
                 // (Pers.as:2152+) preserves the ORGAN's fraction across a max change and never
                 // touches Unit.mana. This line used to copy the organ value into the budget,
                 // which is one of the ways the two pools stayed merged.
                 SyncUnitStats();
+
+                _unitStats.CurrentHp.Value = Mathf.Clamp(maxHp * procHp, 0, maxHp);
             }
 
             onStatsRecalculated?.Invoke();
@@ -2476,6 +2720,25 @@ namespace PFE.Systems.RPG
                     mazilAdd = ApplyFloatOp(mazilAdd, refType, val);
                     TrackFactor("mazilAdd", sourceId ?? "stat", sourceType, val, mazilAdd);
                     break;
+                // The psy-effect controls — `horror`/`vote`/`disorient` (AllData.as:5960-5966). They are
+                // ints in AS3, so they round like isDJ/levitOn rather than accumulating fractions: a
+                // `ref='add' v1='1'` write must land as exactly 1, not 0.9999.
+                case "runForever":
+                    runForever = Mathf.RoundToInt(ApplyFloatOp(runForever, refType, val));
+                    TrackFactor("runForever", sourceId ?? "stat", sourceType, val, runForever);
+                    break;
+                case "zaput":
+                    zaput = Mathf.RoundToInt(ApplyFloatOp(zaput, refType, val));
+                    TrackFactor("zaput", sourceId ?? "stat", sourceType, val, zaput);
+                    break;
+                case "attackForever":
+                    attackForever = Mathf.RoundToInt(ApplyFloatOp(attackForever, refType, val));
+                    TrackFactor("attackForever", sourceId ?? "stat", sourceType, val, attackForever);
+                    break;
+                case "autoAttack":
+                    autoAttack = Mathf.RoundToInt(ApplyFloatOp(autoAttack, refType, val));
+                    TrackFactor("autoAttack", sourceId ?? "stat", sourceType, val, autoAttack);
+                    break;
                 case "isDJ":
                     isDJ = Mathf.RoundToInt(ApplyFloatOp(isDJ, refType, val));
                     TrackFactor("isDJ", sourceId ?? "stat", sourceType, val, isDJ);
@@ -2610,6 +2873,17 @@ namespace PFE.Systems.RPG
                 case "repairMult":
                     repairMult = ApplyFloatOp(repairMult, refType, val);
                     TrackFactor("repairMult", sourceId ?? "stat", sourceType, val, repairMult);
+                    break;
+                case "maxArmorLvl":
+                    // AllData.as:5646 — `<sk id='maxArmorLvl' v0='0' v1='1' v2='2'/>` inside the perk
+                    // that unlocks armour upgrades. Read only by PipPageWork.as:166-170.
+                    maxArmorLvl = Mathf.RoundToInt(ApplyFloatOp(maxArmorLvl, refType, val));
+                    TrackFactor("maxArmorLvl", sourceId ?? "stat", sourceType, val, maxArmorLvl);
+                    break;
+                case "potmaster":
+                    // Pers.as:325 — a perk level used as a boolean by PipPageWork.as:433.
+                    potmaster = Mathf.RoundToInt(ApplyFloatOp(potmaster, refType, val));
+                    TrackFactor("potmaster", sourceId ?? "stat", sourceType, val, potmaster);
                     break;
                 case "remine":
                     remine = Mathf.RoundToInt(ApplyFloatOp(remine, refType, val));
@@ -2851,6 +3125,93 @@ namespace PFE.Systems.RPG
                     maxmM = ApplyFloatOp(maxmM, refType, val);
                     TrackFactor("maxmM", sourceId ?? "stat", sourceType, val, maxmM);
                     break;
+
+                // The twelve ids that used to reach the default arm and warn. Each is a real Pers
+                // field with an oracle consumer — see the field block near alicornRunMana for the
+                // line references. All twelve arrive from a *set*-type <sk> row, so ApplyFloatOp
+                // still honours the ref='mult' perk variants (teleEnemy, visiTrap) on top.
+                case "visiTrap":
+                    visiTrap = ApplyFloatOp(visiTrap, refType, val);
+                    TrackFactor("visiTrap", sourceId ?? "stat", sourceType, val, visiTrap);
+                    break;
+                case "unitLevitMult":
+                    unitLevitMult = ApplyFloatOp(unitLevitMult, refType, val);
+                    TrackFactor("unitLevitMult", sourceId ?? "stat", sourceType, val, unitLevitMult);
+                    break;
+                case "teleEnemy":
+                    teleEnemy = ApplyFloatOp(teleEnemy, refType, val);
+                    TrackFactor("teleEnemy", sourceId ?? "stat", sourceType, val, teleEnemy);
+                    break;
+                case "teleSpeed":
+                    teleSpeed = ApplyFloatOp(teleSpeed, refType, val);
+                    TrackFactor("teleSpeed", sourceId ?? "stat", sourceType, val, teleSpeed);
+                    break;
+                case "teleAccel":
+                    teleAccel = ApplyFloatOp(teleAccel, refType, val);
+                    TrackFactor("teleAccel", sourceId ?? "stat", sourceType, val, teleAccel);
+                    break;
+                case "medic":
+                    medic = ApplyFloatOp(medic, refType, val);
+                    TrackFactor("medic", sourceId ?? "stat", sourceType, val, medic);
+                    break;
+                case "alicornHeal":
+                    alicornHeal = ApplyFloatOp(alicornHeal, refType, val);
+                    TrackFactor("alicornHeal", sourceId ?? "stat", sourceType, val, alicornHeal);
+                    break;
+                case "alicornPortMana":
+                    alicornPortMana = ApplyFloatOp(alicornPortMana, refType, val);
+                    TrackFactor("alicornPortMana", sourceId ?? "stat", sourceType, val, alicornPortMana);
+                    break;
+                case "alicornFlyMult":
+                    alicornFlyMult = ApplyFloatOp(alicornFlyMult, refType, val);
+                    TrackFactor("alicornFlyMult", sourceId ?? "stat", sourceType, val, alicornFlyMult);
+                    break;
+                case "alicornSkin":
+                    alicornSkin = ApplyFloatOp(alicornSkin, refType, val);
+                    TrackFactor("alicornSkin", sourceId ?? "stat", sourceType, val, alicornSkin);
+                    break;
+                case "alicornDexter":
+                    alicornDexter = ApplyFloatOp(alicornDexter, refType, val);
+                    TrackFactor("alicornDexter", sourceId ?? "stat", sourceType, val, alicornDexter);
+                    break;
+                case "alicornVulner":
+                    alicornVulner = ApplyFloatOp(alicornVulner, refType, val);
+                    TrackFactor("alicornVulner", sourceId ?? "stat", sourceType, val, alicornVulner);
+                    break;
+
+                // Seven more ids that had a FIELD on this class but no case, so the modifier was
+                // dropped and the warning fired. Found by diffing every <sk id> in AllData.as against
+                // the labels below: a field with no writer is the unambiguous case (unlike the ~30
+                // ids that have neither, which need a destination designed first).
+                case "ableFly":
+                    ableFly = Mathf.RoundToInt(ApplyFloatOp(ableFly, refType, val));
+                    TrackFactor("ableFly", sourceId ?? "stat", sourceType, val, ableFly);
+                    break;
+                case "infravis":
+                    infravis = Mathf.RoundToInt(ApplyFloatOp(infravis, refType, val));
+                    TrackFactor("infravis", sourceId ?? "stat", sourceType, val, infravis);
+                    break;
+                case "knocked":
+                    knocked = ApplyFloatOp(knocked, refType, val);
+                    TrackFactor("knocked", sourceId ?? "stat", sourceType, val, knocked);
+                    break;
+                case "tormoz":
+                    tormoz = ApplyFloatOp(tormoz, refType, val);
+                    TrackFactor("tormoz", sourceId ?? "stat", sourceType, val, tormoz);
+                    break;
+                case "lastCh":
+                    lastCh = ApplyFloatOp(lastCh, refType, val);
+                    TrackFactor("lastCh", sourceId ?? "stat", sourceType, val, lastCh);
+                    break;
+                case "pipEmpVulner":
+                    pipEmpVulner = ApplyFloatOp(pipEmpVulner, refType, val);
+                    TrackFactor("pipEmpVulner", sourceId ?? "stat", sourceType, val, pipEmpVulner);
+                    break;
+                case "potShad":
+                    potShad = ApplyFloatOp(potShad, refType, val);
+                    TrackFactor("potShad", sourceId ?? "stat", sourceType, val, potShad);
+                    break;
+
                 default:
                     // AS3 Pers is dynamic: a perk's <sk id='pistolPrec'> becomes pers.pistolPrec, which
                     // Weapon.setPers reads back through `pers[perk + "Prec"]` (Weapon.as:1002-1040).
@@ -3324,6 +3685,47 @@ namespace PFE.Systems.RPG
             if (manaHp < manaMin)
             {
                 manaHp += manaHPRes;
+            }
+        }
+
+        /// <summary>
+        /// One frame of passive health regeneration — AS3 <c>UnitPlayer.actions()</c>,
+        /// <c>UnitPlayer.as:963-967</c>. Driven once per authoritative tick by
+        /// <c>PlayerHealthRegenTicker</c>.
+        ///
+        /// <para><b>Why this is a method here and a rule in <c>PFE.Sim</c>.</b> Same split as
+        /// <see cref="TickMana"/>: the expression is pinned offline
+        /// (<c>PFE.Sim.RPG.HealthRegenRules</c>), the field plumbing lives on the class that owns the
+        /// fields. The three inputs are all already here — <c>regenFew</c>/<c>regenMax</c> from the
+        /// held-item <c>&lt;sk&gt;</c> rows, <c>BoundUnitStats</c> for the hp, and
+        /// <see cref="RadiationProvider"/> for the <c>rad</c> ceiling.</para>
+        ///
+        /// <para><b>What this fixes.</b> <c>impl_regen</c> — the doctor's 15 000-cap regeneration
+        /// implant — writes <c>regenFew 0.1</c> / <c>regenMax 0.25</c> and, until this method existed,
+        /// nothing read either field: the implant was purchasable, visible in the stat dump, and
+        /// completely inert.</para>
+        /// </summary>
+        public void TickHealthRegen()
+        {
+            // The gate first: this runs 30 times a second for a character that has no implant.
+            if (regenFew <= 0f) return;
+
+            UnitStats unit = BoundUnitStats;
+            if (unit == null) return;
+
+            float maxHp = unit.MaxHp.Value;
+            if (maxHp <= 0f) return;
+
+            float rad = RadiationProvider != null ? RadiationProvider() : 0f;
+            float hp = unit.CurrentHp.Value;
+
+            float newHp = PFE.Sim.RPG.HealthRegenRules.Step(hp, maxHp, rad, regenFew, regenMax);
+            if (newHp != hp)
+            {
+                // Written directly, not through Heal(): AS3 does `hp += regenFew` on the unit's own
+                // field, and Heal()'s clamp to the radiation ceiling is the *other* half of the
+                // oracle's rule (the `hp < min(...)` guard above), already applied by the rule.
+                unit.CurrentHp.Value = newHp;
             }
         }
 

@@ -1,3 +1,5 @@
+using PFE.Data.Definitions;
+using PFE.Data.Definitions.Campaign;
 using PFE.Systems.Map;
 using UnityEngine;
 
@@ -101,6 +103,30 @@ namespace PFE.Entities.Units
             return new Vector2(spritePivot.x - desiredX, spritePivot.y - desiredY);
         }
 
+        /// <summary>
+        /// The same offset expressed the other way round: <paramref name="feetGapPixels"/> is how far
+        /// the unit's origin sits <b>above the sprite's bottom edge</b>, already in post-scale pixels.
+        ///
+        /// <para><b>Why a DisplayObject visual needs this instead of
+        /// <see cref="PixelOffset(Vector2, Vector2, Vector2Int)"/>.</b> The 10 px constant in that
+        /// overload is AS3's <i>bitmap</i> rule (<c>visBmp.y = -blitY + 10</c>, <c>Unit.as:2844-2859</c>),
+        /// and it only applies to a cell blitted out of a sheet. A unit whose art is a DisplayObject is
+        /// positioned by <c>vis.x = X; vis.y = Y</c> (<c>Unit.as:2969-2977</c>), so its anchor is wherever
+        /// the artist put the symbol's origin — for the ponies and the shopkeepers, <b>~4.7 px</b> above
+        /// the bottom edge. Applying the bitmap rule to them draws every one of them 5.3 px into the
+        /// floor, which is the "NPCs are sunk into the ground" report. The measured value per visual
+        /// lives in <c>VisualSpriteOrigins</c>.</para>
+        ///
+        /// <para>Horizontal placement stays centred, which is what the oracle does when a visual
+        /// declares no <c>sprDX</c>: the 10 px rule has no horizontal half, so <c>-blitX / 2</c> is the
+        /// only horizontal anchor a DisplayObject can be given without its own <c>sprDX</c>.</para>
+        /// </summary>
+        public static Vector2 PixelOffsetForFeetGap(Vector2 spritePivot, Vector2 spriteSize,
+                                                     float feetGapPixels)
+        {
+            return new Vector2(spritePivot.x - spriteSize.x * 0.5f, spritePivot.y - feetGapPixels);
+        }
+
         /// <inheritdoc cref="PixelOffset(Vector2, Vector2, Vector2Int)"/>
         public static Vector2 PixelOffset(Sprite sprite, Vector2Int registrationPoint)
         {
@@ -138,6 +164,94 @@ namespace PFE.Entities.Units
 
             Vector2 pixels = PixelOffset(sprite, registrationPoint);
             visualRenderer.transform.localPosition = WorldCoordinates.PixelToUnity(pixels);
+        }
+
+        /// <summary>
+        /// Set the sprite and anchor it by <b>whichever rule describes this unit's art</b> — the one
+        /// entry point every reader of a unit sprite calls, so the resting frame and an animation cell
+        /// cannot disagree about where the feet are.
+        ///
+        /// <para><b>Three rules, and the unit's own data picks between them.</b></para>
+        /// <list type="number">
+        /// <item><b>A turret mount</b> — a DisplayObject whose origin is neither the frame's centre nor
+        /// a 10 px gap. <see cref="TurretSpriteOrigin"/> carries the solved origin.</item>
+        /// <item><b>Any other DisplayObject unit</b> (<c>visualClassName</c> set and no sheet — 40 of
+        /// the definitions, including <c>bossnecr</c>, <c>bossraider</c>, <c>bloat*</c>, <c>dron*</c>) —
+        /// AS3 places it with <c>vis.x = X; vis.y = Y</c>, so the anchor is the symbol's origin as
+        /// measured in <see cref="VisualSpriteOrigins"/>.</item>
+        /// <item><b>Everything else</b> — a sheet-blitted unit, where the bitmap rule
+        /// (<c>-blitY + 10</c>) and the definition's declared <c>sprDX</c>/<c>sprDY</c> apply.</item>
+        /// </list>
+        ///
+        /// <para><b>Why one function rather than a branch at each call site.</b> There are two readers
+        /// of a unit's sprite — <c>RoomUnitSpawner</c>'s resting frame and <see cref="UnitAnimator"/>'s
+        /// cells — and an override applied at only one of them is a unit that stands in one place and
+        /// jumps when it animates. That is exactly how the boss in <c>bossnecr1</c> would have been
+        /// re-floated on its first tick if only the spawner had been fixed.</para>
+        /// </summary>
+        /// <param name="unitId">
+        /// The spawned unit's id, for the turret table. Passed rather than read off
+        /// <paramref name="definition"/> because a spawn can resolve a placement to a variant
+        /// definition, and the mount is a property of what was placed.
+        /// </param>
+        public static void ApplyResolved(SpriteRenderer visualRenderer, Sprite sprite,
+                                         UnitDefinition definition, string unitId)
+        {
+            if (visualRenderer == null)
+            {
+                return;
+            }
+
+            // A DisplayObject unit's origin is the symbol's, not the bitmap rule's. `TryGetFeetGap`
+            // answers false for an unknown visual or a frame whose crop it does not recognise, which
+            // falls through to the sheet rule rather than guessing.
+            if (sprite != null && definition != null
+                && !string.IsNullOrEmpty(definition.visualClassName)
+                && !TurretSpriteOrigin.TryGet(unitId, out _)
+                && VisualSpriteOrigins.TryGetFeetGap(definition.visualClassName,
+                                                     sprite.rect.width, sprite.rect.height,
+                                                     out float visualFeetGap))
+            {
+                ApplyWithFeetGap(visualRenderer, sprite, visualFeetGap, Vector2.one);
+                return;
+            }
+
+            ApplyTo(visualRenderer, sprite,
+                    TurretSpriteOrigin.Resolve(unitId,
+                        definition != null ? definition.registrationPoint : new Vector2Int(-1, -1)));
+        }
+
+        /// <summary>
+        /// Set the sprite, put <paramref name="scale"/> on the visual child, and anchor it by a
+        /// measured <paramref name="feetGapPixels"/> (source pixels, above the sprite's bottom edge).
+        ///
+        /// <para>The gap is multiplied by the scale's Y before the offset is computed, because
+        /// <c>localScale</c> scales the sprite about the transform's origin: a 180 px frame drawn at
+        /// 0.546 has its bottom edge 8.54 × 0.546 px below the feet, not 8.54.</para>
+        /// </summary>
+        public static void ApplyWithFeetGap(SpriteRenderer visualRenderer, Sprite sprite,
+                                            float feetGapPixels, Vector2 scale)
+        {
+            if (visualRenderer == null)
+            {
+                return;
+            }
+
+            visualRenderer.sprite = sprite;
+            visualRenderer.transform.localScale = new Vector3(scale.x, scale.y, 1f);
+
+            if (sprite == null)
+            {
+                return;
+            }
+
+            float sx = Mathf.Abs(scale.x);
+            float sy = Mathf.Abs(scale.y);
+            var pivot = new Vector2(sprite.pivot.x * sx, sprite.pivot.y * sy);
+            var size = new Vector2(sprite.rect.width * sx, sprite.rect.height * sy);
+
+            visualRenderer.transform.localPosition = WorldCoordinates.PixelToUnity(
+                PixelOffsetForFeetGap(pivot, size, feetGapPixels * sy));
         }
     }
 }

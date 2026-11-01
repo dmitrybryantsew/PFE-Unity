@@ -61,6 +61,20 @@ namespace PFE.Entities.Player
         /// </summary>
         bool _shieldVisible;
 
+        /// <summary>
+        /// Levitation source for the horn aura. Resolved lazily and allowed to be null: a player rig
+        /// without a locomotion controller still draws, it just never reaches the aura's 100 state.
+        /// </summary>
+        PlayerLocomotionController _locomotion;
+        bool _locomotionResolved;
+
+        /// <summary>
+        /// The aura's current charge, 0..100 — AS3 <c>aMC</c> (<c>UnitPlayer.as:287</c>, which
+        /// initialises it to 50 so the glow fades <i>in</i> at spawn rather than snapping). Ramped
+        /// here rather than in the renderer so the renderer stays a thing that draws a number.
+        /// </summary>
+        float _hornAuraLevel = HornAura.LevelWeaponDrawn;
+
         // ── Unity lifecycle ──────────────────────────────────────────────────
 
         void Awake()
@@ -142,6 +156,52 @@ namespace PFE.Entities.Player
             {
                 SetShieldVisible(false);
             }
+
+            UpdateHornAura();
+        }
+
+        /// <summary>
+        /// Walks the horn's glow toward its target — AS3 <c>aMC</c> chasing <c>aMagic</c>
+        /// (<c>UnitPlayer.as:1478-1486</c>), written out at <c>:4851-4852</c> as
+        /// <c>alpha = aMC / 100</c>. See <see cref="HornAura"/> for the whole rule.
+        ///
+        /// <para><b>Which half of the rule is wired.</b> The 100 state — levitating, or holding a
+        /// telekinesis target of mass ≥ 1 — is driven from
+        /// <see cref="PlayerLocomotionController.IsLevitating"/>, which is the state the port actually
+        /// models. The 50 state is "a weapon whose <c>vis</c> is visible is drawn"
+        /// (<c>:1142-1150</c>), and the port has no equivalent signal: weapons here are data, with no
+        /// in-hand model whose <c>visible</c> flag could be read, so there is nothing honest to test.
+        /// The consequence is bounded and visible rather than silent: the glow reaches full brightness
+        /// but never sits at half, and it never comes on merely because a gun is out.</para>
+        ///
+        /// <para><b>Polled, like the shield.</b> <c>IsLevitating</c> is a plain bool on a controller
+        /// that owns its own update loop, and the ramp has to run every frame anyway to be a ramp — so
+        /// there is no edge to subscribe to.</para>
+        /// </summary>
+        void UpdateHornAura()
+        {
+            if (_assembler == null)
+            {
+                return;
+            }
+
+            if (!_locomotionResolved)
+            {
+                _locomotionResolved = true;
+                _locomotion = GetComponentInParent<PlayerLocomotionController>();
+            }
+
+            bool levitating = _locomotion != null && _locomotion.IsLevitating;
+            float target = levitating ? HornAura.LevelLevitate : HornAura.LevelIdle;
+
+            float next = HornAura.StepLevel(_hornAuraLevel, target);
+            if (Mathf.Approximately(next, _hornAuraLevel))
+            {
+                return;
+            }
+
+            _hornAuraLevel = next;
+            _assembler.HornAuraLevel = next;
         }
 
         // ── Public runtime API ───────────────────────────────────────────────
@@ -195,6 +255,23 @@ namespace PFE.Entities.Player
         {
             if (appearance == null) return;
             _assembler.Appearance = appearance.Clone();
+        }
+
+        /// <summary>
+        /// Force the horn aura's charge, 0..100 — see <see cref="HornAura"/>.
+        ///
+        /// <para>Exists because <see cref="UpdateHornAura"/> can only reach two of the original's
+        /// three states: levitation (100) and nothing (0). The third, "a weapon whose <c>vis</c> is
+        /// visible is drawn" (50), needs a signal the port does not have yet, so until it does this is
+        /// the seam a caller can drive instead of the rule being invented here.</para>
+        /// </summary>
+        public void SetHornAuraLevel(float level)
+        {
+            _hornAuraLevel = Mathf.Clamp(level, HornAura.LevelIdle, HornAura.LevelMax);
+            if (_assembler != null)
+            {
+                _assembler.HornAuraLevel = _hornAuraLevel;
+            }
         }
 
         /// <summary>Equip or unequip an armor set by its ID.</summary>

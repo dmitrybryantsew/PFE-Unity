@@ -10,6 +10,7 @@ using PFE.Systems.Interaction;
 using PFE.Systems.Inventory;
 using PFE.Systems.Map;
 using PFE.Systems.Map.Scripting;
+using PFE.Sim.Units;
 using PFE.Systems.Map.TileQuery;
 using PFE.Systems.RPG;
 using PFE.Systems.Trade;
@@ -49,10 +50,14 @@ namespace PFE.Entities.Units
     ///
     /// <para><b>What is deliberately not ported, each named rather than silently dropped.</b></para>
     /// <list type="bullet">
-    /// <item><description><c>replic()</c> — the idle voice lines (<c>:477</c>) and the
-    /// <c>replicVse</c> verb (<c>:365-369</c>). The port has no per-unit voice-line table; the
-    /// <c>replicVse</c> branch is a real branch and is recognised here, but it plays nothing. That is a
-    /// missing subsystem, not a missing call.</description></item>
+    /// <item><description><c>replic()</c> — <b>ported</b>, both the idle line (<c>:477</c>) and the
+    /// <c>replicVse</c> verb (<c>:365-369</c>): the persona's <c>replic</c> id is
+    /// <see cref="ReplicaId"/>, the lines come from <c>ReplicCatalog</c>, and the two script verbs
+    /// force the cooldown to zero exactly as the oracle does. The idle roll's own cadence
+    /// (<c>200 + random*500</c>, <c>:479</c>) is <b>not</b> wired — it needs the persona's
+    /// <c>silent</c> flag, which <see cref="NpcDefinition"/> does not carry yet, and a chatty NPC
+    /// authored silent would be worse than a quiet one. Named here so the remaining half is a task
+    /// rather than a surprise.</description></item>
     /// <item><description><c>zzzGen</c> particles (<c>:481-491</c>) — <c>NPC.refresh</c> sets
     /// <c>zzzGen = rep == 2</c> for the <c>patient</c> persona, and the oracle emits a <c>zzz</c>
     /// particle every 120 frames. The port's particle emitter is available but the persona's
@@ -318,6 +323,25 @@ namespace PFE.Entities.Units
         /// <summary>The persona this NPC resolved, or <c>null</c>. Read by the interaction ladder.</summary>
         public NpcDefinition Persona => _persona;
 
+        /// <summary>
+        /// AS3 <c>UnitNPC.as:125-127</c> — <c>id_replic = this.npcXML.@replic</c>, i.e. the persona's
+        /// voice set, not the unit row's.
+        ///
+        /// <para><b>The persona wins when it names one, and that is not a fallback chain.</b> An NPC's
+        /// <c>&lt;unit id='npc'&gt;</c> row is shared by every persona in the game, so the row's
+        /// <c>&lt;vis replic&gt;</c> is either absent or wrong for a specific character; the persona row
+        /// is the only place that knows whether this is Calamity or a vendor. Falling back to the row
+        /// keeps a persona that names nothing silent rather than inheriting someone else's lines.</para>
+        /// </summary>
+        public override string ReplicaId
+        {
+            get
+            {
+                if (_persona != null && !string.IsNullOrEmpty(_persona.replicaId)) return _persona.replicaId;
+                return base.ReplicaId;
+            }
+        }
+
         /// <summary>AS3 <c>inter.active</c> — a hidden NPC cannot be walked up to (<c>Unit.as:1845</c>).</summary>
         public string DisplayName => _persona != null && !string.IsNullOrEmpty(_persona.aliasName)
             ? _persona.aliasName
@@ -562,7 +586,21 @@ namespace PFE.Entities.Units
                 return;
             }
 
-            UnitSpriteAnchor.ApplyTo(_npcRenderer, persona.visualSprite, new Vector2Int(-1, -1));
+            // A persona with no clip is drawn from its single exported frame, and that frame is a
+            // DisplayObject render: its anchor is the symbol's origin, which `VisualSpriteOrigins`
+            // carries. Falling back to the bitmap rule's 10 px drew it 5.3 px into the floor.
+            if (VisualSpriteOrigins.TryGetFeetGap(persona.visualId, persona.visualSprite.rect.width,
+                                                  persona.visualSprite.rect.height,
+                                                  out float feetGapPixels))
+            {
+                UnitSpriteAnchor.ApplyWithFeetGap(_npcRenderer, persona.visualSprite, feetGapPixels,
+                                                  Vector2.one);
+            }
+            else
+            {
+                UnitSpriteAnchor.ApplyTo(_npcRenderer, persona.visualSprite, new Vector2Int(-1, -1));
+            }
+
             _npcRenderer.enabled = IsVisible;
         }
 
@@ -825,8 +863,11 @@ namespace PFE.Entities.Units
                     return true;
 
                 case UnitNpcVerbKind.ReplicVse:
-                    // UnitNPC.as:365-369 — `t_replic = 0; replic("vse")`. No voice-line table; see the
-                    // class summary. `t_replic` has no port counterpart to reset either.
+                    // UnitNPC.as:365-369 — `t_replic = 0; replic("vse")`. The forced reset is the whole
+                    // point of the verb: a scripted "stand down" must be audible even if the NPC spoke a
+                    // moment ago, so the cooldown is zeroed rather than merely tested.
+                    ResetReplicCooldown();
+                    TryReplic(ReplicKind.Vse);
                     return true;
 
                 case UnitNpcVerbKind.Rep:
@@ -1008,8 +1049,11 @@ namespace PFE.Entities.Units
                     break;
 
                 case "tell":
-                    // UnitNPC.as:386-390 — `t_replic = 0; replic(param1.val)`. No voice-line table; the
-                    // branch is recognised so it is not reported as unknown.
+                    // UnitNPC.as:386-390 — `t_replic = 0; replic(param1.val)`. The act is whatever the
+                    // script wrote, so an unknown one resolves to `None` and stays silent exactly as the
+                    // oracle's row lookup does.
+                    ResetReplicCooldown();
+                    TryReplic(ReplicRules.KindFor(verb.Value));
                     break;
 
                 case "mater":

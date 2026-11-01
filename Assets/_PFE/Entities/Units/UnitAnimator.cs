@@ -163,6 +163,36 @@ namespace PFE.Entities.Units
         }
 
         /// <summary>
+        /// Point an already-bound animator at a <b>different</b> definition and draw its first cell at
+        /// once — the seam for a unit whose body is chosen after spawn.
+        ///
+        /// <para><b>Why it is not just <see cref="Initialize"/>.</b> <c>Initialize</c> deliberately
+        /// leaves the renderer alone, because <c>RoomUnitSpawner.ApplySprite</c> has already drawn the
+        /// resting frame and a spawn should not flicker through an empty cell. On a <i>re-bind</i> the
+        /// resting frame on screen belongs to the <b>previous</b> definition, so waiting for the next
+        /// animation step would show the wrong body for up to a frame. <see cref="Draw"/> runs here so
+        /// the swap is complete before the caller returns.</para>
+        ///
+        /// <para>The one unit that needs it is the raider leader, whose <c>tr</c> attribute — and
+        /// therefore its body — is only read once the placement is applied
+        /// (<see cref="PFE.Entities.Enemies.Bosses.BossRaiderVariants"/>).</para>
+        /// </summary>
+        /// <returns>True when the new definition's <c>stay</c> row has frames to play.</returns>
+        public bool Rebind(UnitDefinition definition)
+        {
+            bool playable = Initialize(definition, _renderer);
+
+            // Draw early-returns on a null renderer's `CellIndexFor` path only for a null definition;
+            // an unbound animator would otherwise reach UnitSpriteAnchor.ApplyTo with nothing to anchor.
+            if (_renderer != null)
+            {
+                Draw();
+            }
+
+            return playable;
+        }
+
+        /// <summary>
         /// Show or hide the unit's sprite — AS3 <c>vis.visible</c>.
         ///
         /// <para>Not "disable the renderer": see <see cref="_visible"/> for why the flag has to be read
@@ -340,9 +370,10 @@ namespace PFE.Entities.Units
             // per-frame resting frame does not, so a unit that starts animating would otherwise jump by
             // the difference. UnitSpriteAnchor derives the offset from the sprite actually drawn, so a
             // correctly-pivoted cell yields zero and a centre-pivoted one yields the correction.
-            // Same resolution the resting frame used — a turret's DisplayObject origin overrides the
-            // definition's (-1,-1), so a cell and the resting frame cannot disagree about the anchor.
-            UnitSpriteAnchor.ApplyTo(_renderer, cell, TurretSpriteOrigin.Resolve(_definition));
+            // `ApplyResolved` is the same single entry point the resting frame used, so a turret's
+            // DisplayObject origin — and a DisplayObject unit's measured feet gap — cannot disagree
+            // between the spawn and the first animated cell.
+            UnitSpriteAnchor.ApplyResolved(_renderer, cell, _definition, _definition != null ? _definition.id : null);
             _renderer.enabled = _visible && cell != null;
         }
 

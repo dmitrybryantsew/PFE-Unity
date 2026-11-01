@@ -30,8 +30,29 @@ namespace PFE.Entities.Player
     /// - Uses VContainer for dependency injection
     /// - Uses InputReader for decoupled input handling
     /// </summary>
-    public class PlayerController : UnitController
+    public class PlayerController : UnitController, IDamageContextSink
     {
+        /// <summary>
+        /// The player's step-up allowance — AS3 <c>UnitPlayer.as:2530-2569</c>, which is <b>not</b> the
+        /// generic unit's 10/4.
+        ///
+        /// <para>The oracle sets <c>porog = 0</c> at rest and <c>porog = 20</c> inside the two walk
+        /// branches (<c>:2550</c>, <c>:2569</c>), and <c>porog_jump = 10</c> while running or holding
+        /// Up (<c>:2533</c>). The asymmetry is the point: a <i>stationary</i> player is stopped by any
+        /// ledge, and a <i>walking</i> one climbs half a tile — 20 px, i.e. two <c>zForm</c> levels.</para>
+        ///
+        /// <para><b>Walking is read from <see cref="_velocity"/>, not from a key.</b> AS3's branch is
+        /// "a walk key is held"; the only observable difference is a player who holds a key against a
+        /// wall, whose velocity is zero — and in that state there is nothing to step onto anyway,
+        /// because the step is evaluated while moving into the obstacle.</para>
+        /// </summary>
+        protected override float StepUpAllowancePixels =>
+            _isGrounded
+                ? (Mathf.Abs(_velocity.x) > 0.01f
+                    ? TileQueryConstants.PlayerPorogWalk
+                    : TileQueryConstants.PlayerPorogGrounded)
+                : TileQueryConstants.PlayerPorogJump;
+
         [Header("Player Specifics")]
         [SerializeField]
         [Tooltip("Should the player always face the mouse cursor?")]
@@ -137,6 +158,14 @@ namespace PFE.Entities.Player
         private PlayerRadiationTicker _radiationTicker;
 
         /// <summary>
+        /// Runs AS3's regen block (<c>UnitPlayer.as:963-967</c>) once per sim tick — the regeneration
+        /// implant's passive healing. Created and registered right after the radiation block, because
+        /// AS3 has them adjacent inside one <c>actions()</c> and the radiation ceiling must be current
+        /// before regen reads it.
+        /// </summary>
+        private PlayerHealthRegenTicker _regenTicker;
+
+        /// <summary>
         /// The player's live radiation state — <c>gg.rad</c> and the accumulators around it. Read by the
         /// PipBuck pages and by RadAway; written by <see cref="PlayerRadiationTicker"/> and by any
         /// emitter that pushes exposure (the glowing ghoul's aura). Null only before <c>Awake</c>.
@@ -165,6 +194,14 @@ namespace PFE.Entities.Player
         /// only way to get a per-tick hook. See <see cref="PlayerSpellCaster"/>.
         /// </summary>
         private PlayerSpellCaster _spellCaster;
+
+        /// <summary>
+        /// The companion manager — AS3 <c>gg.callPet</c>/<c>gg.currentPet</c>/<c>gg.noPet</c>
+        /// (<c>UnitPlayer.as:3899-3970</c>). Created in <c>Awake</c> and registered on the sim loop by
+        /// <see cref="AttachSimulation"/>, for the same reason as <see cref="PlayerManaTicker"/>: the
+        /// player is motor-driven, so a separate <see cref="ISimTickable"/> is the only per-tick hook.
+        /// </summary>
+        private PFE.Entities.Pets.PetCompanion _petCompanion;
 
         /// <summary>
         /// The player's inventory. Created in <c>Awake</c> like the caster, and wired from both
@@ -198,6 +235,29 @@ namespace PFE.Entities.Player
 
         private Camera _mainCamera;
         private bool _isRunning;
+
+        /// <summary>AS3 <c>isrnd(0.1)</c> (<c>UnitPlayer.as:1509</c>) — the per-tick <c>autoAttack</c> flip chance.</summary>
+        private const float AutoAttackFlipChance = 0.1f;
+
+        /// <summary>AS3 <c>isrnd(0.05)</c> (<c>UnitPlayer.as:1170</c>) — the forced-aim scatter chance per tick.</summary>
+        private const float ForcedAimScatterChance = 0.05f;
+
+        /// <summary>
+        /// The aim point the <c>vote</c> effect is holding, in world units. It survives between ticks
+        /// on purpose: AS3's forced-aim arm only reassigns <c>celX</c>/<c>celY</c> on the 5 % roll, so
+        /// the aim freezes wherever it last was.
+        /// </summary>
+        private Vector3 _forcedAimTarget;
+
+        /// <summary>Whether <see cref="_forcedAimTarget"/> has been seeded since the effect started.</summary>
+        private bool _forcedAimValid;
+
+        /// <summary>
+        /// Whether the <c>vote</c> effect is currently holding the trigger for the player. Edge
+        /// tracking only: the loadout is told on the transition, not every tick, because
+        /// <c>BeginAttack</c>/<c>EndAttack</c> latch a held flag rather than firing once.
+        /// </summary>
+        private bool _forcedAttackActive;
         private float _aimAngle;
         private float _lastLeftTapTime = float.NegativeInfinity;
         private float _lastRightTapTime = float.NegativeInfinity;
@@ -210,6 +270,18 @@ namespace PFE.Entities.Player
         private CharacterStats _characterStats;
         public CharacterStats CharacterStats => _characterStats;
 
+        /// <summary>
+        /// The room resolver this controller installed on <c>WorldItemPickup.RoomProvider</c>, kept so
+        /// <see cref="OnDestroy"/> can tell "still mine" from "already replaced" before clearing it.
+        /// </summary>
+        private System.Func<PFE.Systems.Map.RoomInstance> _lootRoomProvider;
+
+        /// <summary>
+        /// The player's companions — AS3 <c>gg.callPet</c> and the three pet fields it keeps. Never
+        /// null after <c>Awake</c>.
+        /// </summary>
+        public PFE.Entities.Pets.PetCompanion Pets => _petCompanion;
+
         // VContainer Injection
         [Inject]
         public void Construct(
@@ -221,6 +293,7 @@ namespace PFE.Entities.Player
             ISubscriber<SpellCastMessage> spellCastSubscriber,
             ISubscriber<SpellHotkeyMessage> spellHotkeySubscriber,
             ISubscriber<GrenadeMessage> grenadeSubscriber,
+            ISubscriber<PunchMessage> punchSubscriber,
             PFE.Core.PfeDebugSettings debugSettings,
             // Required, not optional: VContainer has no optional parameters (it resolves every [Inject]
             // argument or throws), so a default value here would document a fallback that never happens.
@@ -341,6 +414,20 @@ namespace PFE.Entities.Player
             {
                 if (!message.IsHeld) return;
 
+                // AS3 `:2186` — the grenade arm is gated on `this.attackForever <= 0`, so the `vote`
+                // effect locks throwing out entirely while it runs. The gate is here rather than in the
+                // loadout because it is a *player control* rule, not a weapon rule: the same
+                // `ThrowGrenade()` is what a script or a test calls.
+                if (_characterStats != null && _characterStats.attackForever > 0)
+                {
+                    if (_debugSettings.LogWeaponLifecycle)
+                    {
+                        Debug.Log("[PlayerController] GrenadeMessage — refused: attackForever > 0 " +
+                                  "(AS3 UnitPlayer.as:2186).");
+                    }
+                    return;
+                }
+
                 bool threw = _loadout != null && _loadout.ThrowGrenade();
 
                 if (_debugSettings.LogWeaponLifecycle)
@@ -349,6 +436,40 @@ namespace PFE.Entities.Player
                         ? $"[PlayerController] GrenadeMessage — throwing '{_loadout.ThrowWeapon?.State.Def.weaponId}'."
                         : "[PlayerController] GrenadeMessage — no throwable in the grenade slot " +
                           "(AS3's `else { keyGrenad = false; }` arm).");
+                }
+            }).AddTo(_disposables);
+
+            // F — AS3 `keyPunch` (inter/Ctr.as:23), handled at UnitPlayer.as:2377-2385.
+            //
+            // A second weapon slot, not a mode of the one in hand: AS3 builds `punchWeapon` beside
+            // `currentWeapon` and runs its `actions()` every frame, so hoofing something with a rifle
+            // equipped is normal. The run key is read HERE, at the press, because that is where the
+            // oracle reads it (`(punchWeapon as WKick).kick = this.ctr.keyRun`, :2379).
+            punchSubscriber.Subscribe(message =>
+            {
+                if (!message.IsHeld) return;
+
+                // AS3 `:2377` gates the whole block on `attackForever <= 0` — the `vote` effect locks
+                // striking out, the same gate the grenade arm above honours (:2186).
+                if (_characterStats != null && _characterStats.attackForever > 0)
+                {
+                    if (_debugSettings.LogWeaponLifecycle)
+                        Debug.Log("[PlayerController] PunchMessage — refused: attackForever > 0 (UnitPlayer.as:2377).");
+                    return;
+                }
+
+                // Shift is AS3's `keyRun`. The port binds it as `Dash` (PfeInputSettings.dash) and the
+                // locomotion block already reads it as `runHeld`, so this is the same signal, not a
+                // second opinion about it.
+                bool kicked = _input != null && _input.IsDashing.Value;
+
+                bool struck = _loadout != null && _loadout.Punch(kicked);
+
+                if (_debugSettings.LogWeaponLifecycle)
+                {
+                    Debug.Log(struck
+                        ? $"[PlayerController] PunchMessage — {(kicked ? "back kick" : "front strike")} (runHeld={kicked})."
+                        : "[PlayerController] PunchMessage — no punch weapon built; nothing struck.");
                 }
             }).AddTo(_disposables);
 
@@ -578,6 +699,14 @@ namespace PFE.Entities.Player
             _characterStats = GetComponent<CharacterStats>() ?? gameObject.AddComponent<CharacterStats>();
             _characterStats.BindUnitStats(base._unitStats);
 
+            // Where a code-spawned loot pickup finds the room it must fall through. A pickup is built with
+            // `new GameObject` and has no injection point, so this is the same settable-static idiom
+            // `LootRuntime` uses for the loot tables. The player is the one who opens containers and drops
+            // items, and `CurrentRoom` follows the land map rather than caching, so this stays correct
+            // across a room transition without being re-wired.
+            _lootRoomProvider = () => CurrentRoom;
+            PFE.Systems.Inventory.WorldItemPickup.RoomProvider = _lootRoomProvider;
+
             // AS3 `new Pers()` applies `setGlobalDif(globalDif)` at construction (Pers.as:517-528), and
             // `Game.changeDif` re-applies it plus `setParameters()` on every change (Game.as:326-327).
             // Both halves land here: the setting is read once now, and the event covers a mid-run change
@@ -602,6 +731,11 @@ namespace PFE.Entities.Player
             // — Unity does not order the two. Construct is idempotent.
             _radiationTicker = GetComponent<PlayerRadiationTicker>() ?? gameObject.AddComponent<PlayerRadiationTicker>();
             WireRadiationTickerIfReady();
+
+            // AS3's regen block. Created here for the same reason and wired from both sides: it reads
+            // `regenFew`/`regenMax` off CharacterStats, which is built above, and the hp off UnitStats.
+            _regenTicker = GetComponent<PlayerHealthRegenTicker>() ?? gameObject.AddComponent<PlayerHealthRegenTicker>();
+            _regenTicker.Construct(_characterStats);
 
             // AS3's spell half. The component is created here so `GetComponentInParent<PlayerSpellCaster>`
             // finds it the moment the inventory asks to select a spell, but its dependencies are wired by
@@ -636,6 +770,12 @@ namespace PFE.Entities.Player
             // AttachSimulation's job below.
             _autoPickup = GetComponent<PlayerAutoPickup>() ?? gameObject.AddComponent<PlayerAutoPickup>();
             _autoPickup.Construct(_inventoryComponent, this);
+
+            // The companions. Created here so `PlayerInventory`'s `@pet` branch and the PipBuck's pet row
+            // both find it the moment they ask; put on the sim clock by AttachSimulation below.
+            _petCompanion = GetComponent<PFE.Entities.Pets.PetCompanion>()
+                            ?? gameObject.AddComponent<PFE.Entities.Pets.PetCompanion>();
+            _petCompanion.Construct(this);
 
             // The land's `eve='take'` item scripts. Built after the inventory for the same reason
             // `_autoPickup` is: it subscribes to that inventory's OnItemAdded/OnWeaponAdded. The
@@ -683,6 +823,15 @@ namespace PFE.Entities.Player
         {
             base.AttachSimulation(clock, loop);
 
+            // The swim impulse, first of the per-frame blocks because it is the only one that is a
+            // pulse rather than a level: it is registered at SimTickOrder.Input so it lands before the
+            // motor's step consumes it. Registered even when the motor itself stays on FixedUpdate —
+            // the two drivers are independent flags, and the impulse is a frame count either way.
+            if (_locomotion != null)
+            {
+                _locomotion.AttachSimulation(clock, loop);
+            }
+
             if (_manaTicker != null)
             {
                 _manaTicker.Attach(clock, loop);
@@ -694,6 +843,15 @@ namespace PFE.Entities.Player
             if (_radiationTicker != null)
             {
                 _radiationTicker.Attach(clock, loop);
+            }
+
+            // Registered immediately after the radiation block, at the same order: AS3 has the
+            // exposure block, then `healhp`, then regen inside one `actions()`, and at equal order
+            // SimLoop runs in registration order. Regen first would top the player up and let the
+            // same tick's exposure claw it back — a jittery bar instead of a smooth one.
+            if (_regenTicker != null)
+            {
+                _regenTicker.Attach(clock, loop);
             }
 
             // Registered after the mana ticker on purpose: both sit at SimTickOrder.PlayerMotor, and at
@@ -712,10 +870,27 @@ namespace PFE.Entities.Player
             {
                 _autoPickup.Attach(clock, loop);
             }
+
+            // Companions, at the same order and registered last: the pet's own brain ticks at
+            // `SimTickOrder.UnitMotor - 1`, so the player has already been placed for this tick when the
+            // pet reads the player's position — the same ordering the oracle gets from
+            // `UnitPlayer.step` running before `UnitPet.step` in the room's unit list.
+            if (_petCompanion != null)
+            {
+                _petCompanion.Attach(clock, loop);
+            }
         }
 
         protected override void OnDestroy()
         {
+            // Only clear the loot room resolver if it is still the one THIS controller installed — a
+            // respawn that built a new player before this one was torn down must not have its wiring
+            // dropped by the old object's teardown.
+            if (ReferenceEquals(PFE.Systems.Inventory.WorldItemPickup.RoomProvider, _lootRoomProvider))
+            {
+                PFE.Systems.Inventory.WorldItemPickup.RoomProvider = null;
+            }
+
             PFE.Systems.Campaign.GlobalDifficulty.Changed -= OnGlobalDifficultyChanged;
 
             if (_characterStats != null)
@@ -831,6 +1006,22 @@ namespace PFE.Entities.Player
             // the locomotion controller has to be told "no input" so it decelerates, whereas an early
             // return would leave it holding the last direction for the whole cutscene.
             Vector2 input = ControlActive ? _input.CurrentMoveInput : Vector2.zero;
+
+            // AS3 `zaput` (UnitPlayer.as:93, read at :2085-2086) swaps the two movement keys at the
+            // moment they are read: `left = zaput ? keyRight : keyLeft`. Negating the horizontal axis
+            // is the same fact for an analogue stick, and it is deliberately applied HERE, to the raw
+            // intent, so everything downstream — locomotion, ladder, double-tap dash — sees one
+            // consistent direction.
+            //
+            // It does NOT touch the aim: `zaput` inverts movement, not the camera. The aim angle is
+            // mouse-derived and stays where the player points, which is what makes `disorient`
+            // disorienting rather than a full control inversion.
+            if (ControlActive && _characterStats != null && _characterStats.zaput != 0)
+            {
+                input.x = -input.x;
+            }
+
+            UpdateForcedAttack();
 
             // Arm the loot-take window — AS3's `this.isTake = 40`, set while a horizontal direction is
             // HELD (UnitPlayer.as:2551, :2570) or on a jump press (:2685). It is assigned, not
@@ -988,6 +1179,28 @@ namespace PFE.Entities.Player
         {
             if (!_mouseAiming || _mainCamera == null) return;
 
+            // AS3 `:1164-1176` — the third read site of `attackForever`, and the one that makes `vote`
+            // read as panic rather than as a stuck trigger. The oracle's aim block is a three-way:
+            //   if (sats.que.length > 0)  … VATS queue
+            //   else if (attackForever)   { if(isrnd(0.05)) celX/celY = a random point in the room }
+            //   else                      { celX = World.w.celX; celY = World.w.celY }
+            // So while the effect runs the aim point STOPS tracking the cursor: it holds its last value
+            // and teleports somewhere random on 5 % of ticks. The `else` arm is not reached at all —
+            // this is a freeze plus scatter, not a wobble around the cursor.
+            if (_characterStats != null && _characterStats.attackForever > 0)
+            {
+                if (!_forcedAimValid || UnityEngine.Random.value < ForcedAimScatterChance)
+                {
+                    _forcedAimTarget = RandomAimPointInCurrentRoom();
+                    _forcedAimValid = true;
+                }
+
+                ApplyAimTarget(_forcedAimTarget);
+                return;
+            }
+
+            _forcedAimValid = false;
+
             Vector3 mouseScreen = Input.mousePosition;
             // Same near-plane trap as HandleMovementInput above: `Input.mousePosition.z` is 0, which on
             // a perspective camera means "on the camera", not "on the z = 0 plane the rooms live on".
@@ -1000,11 +1213,57 @@ namespace PFE.Entities.Player
             Vector3 mouseWorld  = _mainCamera.ScreenToWorldPoint(mouseScreen);
             mouseWorld.z = 0f;
 
-            Vector2 aimDirection = mouseWorld - transform.position;
+            ApplyAimTarget(mouseWorld);
+        }
+
+        /// <summary>
+        /// Turn a world-space aim point into the facing angle and hand it to the loadout. Split out of
+        /// <see cref="HandleAiming"/> so the forced-aim path and the cursor path cannot drift apart.
+        /// </summary>
+        private void ApplyAimTarget(Vector3 targetWorld)
+        {
+            Vector2 aimDirection = (Vector2)(targetWorld - transform.position);
             _aimAngle = Mathf.Atan2(aimDirection.y, aimDirection.x) * Mathf.Rad2Deg;
 
             // Push the aim target into the loadout; the controller and the presenter read it from there.
-            _loadout?.SetAimTarget(mouseWorld);
+            _loadout?.SetAimTarget(targetWorld);
+        }
+
+        /// <summary>
+        /// AS3 <c>celX = Math.random() * loc.limX</c> / <c>celY = Math.random() * loc.limY</c>
+        /// (<c>:1172-1173</c>) — a uniformly random point across the room's pixel extent.
+        /// </summary>
+        /// <remarks>
+        /// <b>Built from the documented origin helpers, not from <c>tile * TILE_SIZE</c>.</b>
+        /// <c>WorldCoordinates.RoomOriginPixelY</c> returns a room's origin as its <i>bottom edge in
+        /// world pixels</i>, and the room extends upward from there, so the rect needs no Y mirror —
+        /// unlike the AS3→room-local conversions, which do. The inset is <c>borderOffset</c> tiles on
+        /// both axes, the same subtraction <c>UnitNPCController.As3PixelsToRoomLocal</c> makes.
+        /// </remarks>
+        private Vector3 RandomAimPointInCurrentRoom()
+        {
+            PFE.Systems.Map.RoomInstance room = CurrentRoom;
+            if (room == null)
+            {
+                // No room resolved: hold the player's own position rather than inventing a target.
+                return transform.position;
+            }
+
+            float tile = WorldConstants.TILE_SIZE;
+            int borderOffset = Mathf.Max(0, room.borderOffset);
+            float widthPixels = Mathf.Max(1, room.width - borderOffset) * tile;
+            float heightPixels = Mathf.Max(1, room.height - borderOffset) * tile;
+
+            float originPixelX = WorldCoordinates.RoomOriginPixelX(room.landPosition.x, borderOffset);
+            float originPixelY = WorldCoordinates.RoomOriginPixelY(room.landPosition.y, borderOffset);
+
+            float pixelX = originPixelX + UnityEngine.Random.Range(0f, widthPixels);
+            float pixelY = originPixelY + UnityEngine.Random.Range(0f, heightPixels);
+
+            return new Vector3(
+                pixelX / TileQueryConstants.UnitToPixel,
+                pixelY / TileQueryConstants.UnitToPixel,
+                0f);
         }
 
         /// <summary>Start attacking when attack button is pressed.</summary>
@@ -1031,6 +1290,99 @@ namespace PFE.Entities.Player
         private void HandleAttackEnd()
         {
             _loadout?.EndAttack();
+        }
+
+        /// <summary>
+        /// AS3 <c>UnitPlayer.damage():3253-3268</c> — a psionic hit, applied before any HP logic.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Why this seam and not <c>OnHitEffectProducers</c>.</b> Every other <c>dopEffect</c>
+        /// arm is a generic producer gated on the target's susceptibility, because AS3's
+        /// <c>Unit.damage()</c> is. <c>psy</c> is not one of those: it lives in the <i>player's</i>
+        /// override, above the <c>loc.train || loc.base</c> early return, with no <c>vulner</c> test and
+        /// no <c>dopCh</c> re-roll. Routing it through the generic path would add a resistance gate and
+        /// an extra RNG draw the oracle does not have — and would apply it to NPCs, which the oracle
+        /// never does.</para>
+        ///
+        /// <para><b>It never refuses the hit.</b> AS3 runs this block and then continues into the normal
+        /// damage body, so <c>false</c> is "not refused". Contrast the alicorn's own <c>damage()</c>
+        /// override, whose <c>tr2</c> arm really does <c>return 0</c>.</para>
+        /// </remarks>
+        bool IDamageContextSink.OnDamageContext(in DamageContext context)
+        {
+            if (PsyEffectRules.IsPsyHit(context.DopEffect))
+            {
+                // The draw is passed, not pre-computed: AS3's second `isrnd()` is conditional, and
+                // drawing both up front would shift the RNG stream for every later hit in the tick.
+                string effectId = PsyEffectRules.RollEffect(() => UnityEngine.Random.value);
+                _unitStats?.Effects?.AddEffect(effectId, 0f);
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// AS3 <c>UnitPlayer.as:1507-1516</c> — the <c>vote</c> effect's forced attack.
+        ///
+        /// <para><b>What the oracle does.</b> <c>attackForever</c> does not hold the fire button; it
+        /// drives <c>autoAttack</c>, and <c>autoAttack</c> is what the fire gate reads:
+        /// <c>if((ctr.keyAttack || autoAttack) &amp;&amp; …)</c> (<c>:2318</c>). While
+        /// <c>attackForever &gt; 0</c> the oracle flips <c>autoAttack</c> at 10 % per tick — so the
+        /// player stutters between firing and not firing rather than holding the trigger — and the
+        /// instant <c>attackForever</c> clears it forces <c>autoAttack = 0</c>.</para>
+        ///
+        /// <para><b>Why the loadout is driven directly instead of through
+        /// <see cref="HandleAttackStart"/>.</b> That method first tries to interact with whatever is
+        /// under the cursor. AS3's <c>autoAttack</c> substitutes for <c>keyAttack</c> at the <i>weapon</i>
+        /// gate, which sits below the interact decision — a panicking player who happens to be pointing
+        /// at a door should keep firing, not open it.</para>
+        /// </summary>
+        private void UpdateForcedAttack()
+        {
+            if (_characterStats == null)
+            {
+                return;
+            }
+
+            // A cutscene or a modal panel owns the input; do not let a status effect fire through it.
+            // The effect keeps ticking, it simply cannot act until control returns.
+            if (!ControlActive)
+            {
+                return;
+            }
+
+            if (_characterStats.attackForever > 0)
+            {
+                // `if(isrnd(0.1)) this.autoAttack = 1 - this.autoAttack;` (`:1509-1512`).
+                if (UnityEngine.Random.value < AutoAttackFlipChance)
+                {
+                    _characterStats.autoAttack = 1 - _characterStats.autoAttack;
+                }
+            }
+            else
+            {
+                // `else { this.autoAttack = 0; }` (`:1514-1517`).
+                _characterStats.autoAttack = 0;
+            }
+
+            bool forced = _characterStats.autoAttack != 0;
+            if (forced == _forcedAttackActive)
+            {
+                return;
+            }
+
+            _forcedAttackActive = forced;
+
+            if (forced)
+            {
+                _loadout?.BeginAttack();
+            }
+            else if (_input == null || !_input.IsAttackHeld)
+            {
+                // Release only when the player is not holding the button themselves: AS3's gate is
+                // `keyAttack || autoAttack`, so the forced term clearing must not cancel a real hold.
+                _loadout?.EndAttack();
+            }
         }
 
         // ── Identity ──────────────────────────────────────────────────────────
@@ -1084,6 +1436,8 @@ namespace PFE.Entities.Player
                 _characterStats.ApplyOrganDamage(damage);
             }
 
+            TryBarkPlayerDamaged(damage);
+
             // Player-specific damage feedback
             // TODO: Trigger damage feedback (screen shake, flash, etc.)
         }
@@ -1095,7 +1449,100 @@ namespace PFE.Entities.Player
             {
                 _characterStats.ApplyOrganDamage(outcome.HpDamage);
             }
+
+            TryBarkPlayerDamaged(outcome.HpDamage);
             return broke;
+        }
+
+        // ── Speech ──────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// The player's voice set — <c>UnitPlayer.as:350</c> <c>id_replic = "pip"</c>, set in the
+        /// constructor because the player has no <c>&lt;unit&gt;</c> row in <c>AllData</c> at all.
+        /// </summary>
+        public override string ReplicaId => "pip";
+
+        /// <summary>The last line the player said — <c>UnitPlayer.prev_replic</c> (<c>:307</c>).</summary>
+        private string _prevReplic;
+
+        /// <summary>
+        /// <c>UnitPlayer.replic</c> (<c>UnitPlayer.as:4967-4995</c>) — the player's own speech path,
+        /// which differs from the generic unit's in four ways and every one of them is visible.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>1. No <c>dam</c>/<c>die</c> window rolls.</b> The generic <c>replic</c> zeroes the
+        /// cooldown on a 5 %/50 % roll; the player's version has no such arm. Its damage gate lives at
+        /// the <i>call site</i> instead and is proportional to the hit —
+        /// <c>if(_loc6_ / maxhp &gt; 0.1 &amp;&amp; isrnd(_loc6_ / maxhp))</c>
+        /// (<c>UnitPlayer.as:3327-3330</c>) — so a scratch never makes her flinch and a rocket always
+        /// does. See <see cref="TryBarkPlayerDamaged"/>.</para>
+        ///
+        /// <para><b>2. A shorter cooldown.</b> <c>75 + random*30</c> instead of the generic
+        /// 110 + random*150. The player comments on what happens to her far more often than a raider
+        /// does, and this is the number that decides it.</para>
+        ///
+        /// <para><b>3. No repeats.</b> If the drawn line equals the previous one the oracle draws
+        /// <i>again</i>, and only gives up if the second draw also matches. That is why the player never
+        /// says "Ouch!" twice in a row even though the table has nine <c>dam</c> lines.</para>
+        ///
+        /// <para><b>4. Female forms, always.</b> The call passes <c>msex = false</c> literally, rather
+        /// than reading the unit's <c>sex</c> attribute — Littlepip is the protagonist, and the
+        /// <c>#male|female#</c> splice must take the female half whatever the (nonexistent) row says.</para>
+        ///
+        /// <para><b>And the bubble is <c>replic2</c>.</b> Same text, 90 px above the feet instead of
+        /// 110, with a ±10 px jitter instead of ±25 (<c>:4990-4993</c>).</para>
+        /// </remarks>
+        public override bool TryReplic(PFE.Sim.Units.ReplicKind kind)
+        {
+            if (!IsAlive || !isActiveAndEnabled) return false;
+            if (kind == PFE.Sim.Units.ReplicKind.None) return false;
+            if (_replicCooldown > 0) return false;
+
+            _replicCooldown = 75 + (int)(UnityEngine.Random.value * 30f);
+
+            bool matureFilter = PFE.UI.PipBuck.PipTextTable.MatureContentFilter;
+            string playerName = PFE.Systems.Units.ReplicCatalog.PlayerName;
+
+            if (!PFE.Systems.Units.ReplicCatalog.Shared.TryResolve(
+                    "pip", kind, UnityEngine.Random.value, male: false, matureFilter, playerName, out string text))
+            {
+                return false;
+            }
+
+            // One retry on a repeat, then give up — `UnitPlayer.as:4982-4989`.
+            if (text == _prevReplic)
+            {
+                if (!PFE.Systems.Units.ReplicCatalog.Shared.TryResolve(
+                        "pip", kind, UnityEngine.Random.value, male: false, matureFilter, playerName,
+                        out string retry))
+                {
+                    return false;
+                }
+
+                if (retry == _prevReplic) return false;
+                text = retry;
+            }
+
+            _prevReplic = text;
+            PFE.Systems.Units.UnitBarkFeed.Emit(transform.position, text, player: true, UnityEngine.Random.value);
+            return true;
+        }
+
+        /// <summary>
+        /// The player's damage bark — <c>if(_loc6_ / maxhp &gt; 0.1 &amp;&amp; isrnd(_loc6_ / maxhp))
+        /// this.replic("dam");</c> (<c>UnitPlayer.as:3327-3330</c>).
+        /// </summary>
+        /// <param name="dealt">The HP damage the hit actually took, after armour and resistance.</param>
+        private void TryBarkPlayerDamaged(float dealt)
+        {
+            float maxHp = MaxHealth;
+            if (maxHp <= 0f || dealt <= 0f) return;
+
+            float fraction = dealt / maxHp;
+            if (fraction <= 0.1f) return;
+            if (!PFE.Sim.Units.ReplicRules.IsRandom(UnityEngine.Random.value, fraction)) return;
+
+            TryReplic(PFE.Sim.Units.ReplicKind.Dam);
         }
 
         // Organ trauma can fire more than once (each of head/torso/legs/blood is checked), and a

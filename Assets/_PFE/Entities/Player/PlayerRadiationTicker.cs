@@ -48,6 +48,12 @@ namespace PFE.Entities.Player
         private bool _warnedLegacy;
         private bool _warnedNoRoom;
 
+        /// <summary>
+        /// <see cref="Time.frameCount"/> of the last geiger click, so a frame that drains several sim
+        /// steps cannot emit several clicks at once. -1 means "never clicked".
+        /// </summary>
+        private int _lastGeigerFrame = -1;
+
         /// <summary>The live exposure state. Never null after <see cref="Construct"/>.</summary>
         public PlayerRadiationState State { get; private set; } = new PlayerRadiationState();
 
@@ -161,10 +167,19 @@ namespace PFE.Entities.Player
 
             ApplyHealth(result, hp);
 
-            if (result.GeigerEligible && result.GeigerChance > 0f && Random.value < result.GeigerChance)
+            if (result.GeigerEligible && result.GeigerChance > 0f && Random.value < result.GeigerChance
+                && _lastGeigerFrame != Time.frameCount)
             {
                 // `sound("geiger")` — a three-clip group in the oracle (Snd.as:293-296), which
                 // SoundCatalog models as `geiger` plus `geiger1..3`.
+                //
+                // One click per RENDERED frame at most. The oracle could only ever emit one — its
+                // `sound()` was called from `ENTER_FRAME` — but this block runs on the sim clock,
+                // which drains up to MaxCatchupTicks (5) steps into a single frame after a long one.
+                // Without the guard those steps all start their clips in the same instant: five
+                // clicks stack into one loud burst, then the next frame has none, and the counter
+                // reads as a jitter rather than a crackle.
+                _lastGeigerFrame = Time.frameCount;
                 _soundService?.Play("geiger", transform.position);
             }
 

@@ -4,15 +4,18 @@ using UnityEngine;
 using VContainer;
 using PFE.Data.Definitions;
 using PFE.Systems.Combat;
+using PFE.Systems.Audio;
 using PFE.Systems.Effects;
 using PFE.Systems.Inventory;
 using PFE.Systems.Loot;
 using PFE.Systems.Map;
+using PFE.Systems.Map.Rendering;
 using PFE.Systems.Map.TileQuery;
 using PFE.Systems.Physics;
 using PFE.Systems.Particles;
 using PFE.Systems.Particles.Adapters;
 using PFE.Systems.Weapons;
+using PFE.Sim.Units;
 using PFE.Core.Rng;
 namespace PFE.Entities.Units
 {
@@ -123,6 +126,22 @@ namespace PFE.Entities.Units
         /// fixture.</para>
         /// </summary>
         protected bool _isVis = true;
+
+        /// <summary>
+        /// The animator that actually owns the sprite write, resolved lazily by
+        /// <see cref="ApplyVisualVisibility"/>.
+        ///
+        /// <para><b>Why the controller needs it at all.</b> <see cref="UnitAnimator.Draw"/> is the only
+        /// writer of <c>renderer.enabled</c> and it re-derives that flag from its own <c>_visible</c>
+        /// every animation frame, so a hide that stops at <c>renderer.enabled</c> is undone on the next
+        /// frame — the failure <c>UnitAnimator._visible</c>'s own remarks warn about. Worse, enemies are
+        /// <b>never handed a renderer at all</b>: <c>RoomUnitSpawner</c> calls
+        /// <see cref="SetVisualRenderer"/> only on the <c>UnitNPCController</c> branch, so for every
+        /// enemy <c>_visualRenderer</c> is null and <see cref="ApplyVisualVisibility"/> wrote to nothing.
+        /// That is why the alicorn's <c>tr1</c> cloak was invisible in the log sense — it hid a sprite
+        /// nobody was told about.</para>
+        /// </summary>
+        UnitAnimator _animatorForVisibility;
 
         // ── Which clock owns this unit's step ────────────────────────────────
         //
@@ -261,11 +280,347 @@ namespace PFE.Entities.Units
         /// AS3 <c>Unit.hero</c> — the boss tier, read off the <b>placement</b> (<c>Unit.as:645</c>,
         /// <c>this.hero = param3.@hero</c>). <c>0</c> = an ordinary unit.
         ///
-        /// <para>No row in <c>AllData.as</c> authors <c>hero</c>; it is a per-placement fact, which is why
-        /// it arrives through <see cref="ApplyPlacement"/> and not through the definition. 33 room assets
-        /// under <c>Resources/Rooms</c> author it (<c>hero="3"</c>, <c>hero="4"</c>).</para>
+        /// <para>No <c>&lt;unit&gt;</c> row in <c>AllData.as</c> authors <c>hero</c> — the rows author a
+        /// <i>name-list key</i> under the same attribute name (see <see cref="EliteNameKey"/>), which is
+        /// a different fact. The tier is a per-placement one, which is why it arrives through
+        /// <see cref="ApplyPlacement"/> and not through the definition: 41 placements across 33 room
+        /// assets under <c>Resources/Rooms</c> author it (24 × <c>hero="1"</c>, 6 × <c>"2"</c>,
+        /// 6 × <c>"3"</c>, 5 × <c>"4"</c>).</para>
         /// </summary>
         protected int _heroTier;
+
+        // ── The elite ("starred") block ──────────────────────────────────────────
+        //
+        // AS3 Unit.setHero() (Unit.as:1625-1672) runs once, from Location.createUnit, right after the
+        // unit is constructed and before it is placed (Location.as:1203-1204). Everything it writes is a
+        // PER-INSTANCE number: hp, dam, currentWeapon.damage, observ, walkSpeed/sitSpeed/runSpeed and
+        // the vulnerability table. The port cannot write any of those back onto UnitDefinition — the
+        // asset is shared by every unit of that id — so each one gets an instance field here and the
+        // readers that used to read the definition straight now go through a property. That is the same
+        // split UnitController.SkinResistance documents for `skin`.
+
+        /// <summary>AS3 <c>this.dam *= …</c> — scales <see cref="MeleeDamage"/> only.</summary>
+        private float _eliteDamageMultiplier = 1f;
+
+        /// <summary>AS3 <c>this.observ += 8</c> — a flat add on top of the row's <c>observ</c>.</summary>
+        private float _eliteObservationBonus;
+
+        /// <summary>AS3 <c>this.xp *= 5</c> — a multiplier rather than a rewritten reward, so the
+        /// definition's authored XP stays the single source for the base value.</summary>
+        private float _eliteXpMultiplier = 1f;
+
+        /// <summary>
+        /// The generated (or authored) name, or <c>null</c> for a unit that has none — AS3 <c>nazv</c>.
+        ///
+        /// <para><c>null</c> and <c>""</c> are different states here, which is why this is not defaulted:
+        /// <c>setHero</c> only overwrites <c>nazv</c> when <c>getName()</c> returned something
+        /// (<c>Unit.as:1640-1645</c>), and an exhausted name list is exactly the case that returns
+        /// nothing. A unit whose species list has run out keeps its species name and still gets the
+        /// star and the stats.</para>
+        /// </summary>
+        private string _eliteName;
+
+        /// <summary>
+        /// True once <see cref="ApplyEliteTier"/> has actually promoted this unit — i.e. the placement
+        /// said <c>hero &gt; 0</c> <b>and</b> the unit's row can carry a hero at all (AS3's
+        /// <c>if(!this.mHero) return;</c>). The nameplate keys off this, not off
+        /// <see cref="HeroTier"/>, so a <c>hero="1"</c> placement on a row the oracle refuses to promote
+        /// does not get a star the original would not have drawn.
+        /// </summary>
+        private bool _isElite;
+
+        /// <summary>
+        /// AS3 <c>Unit.hero</c> — the boss tier this unit was placed with (<c>Unit.as:645</c>), or
+        /// <c>0</c> for an ordinary unit. Read by the death drop's essence gate
+        /// (<see cref="UnitDeathDrop.ShouldDropEssence"/>) and by the nameplate.
+        /// </summary>
+        public int HeroTier => _heroTier;
+
+        /// <summary>
+        /// True when this unit was actually promoted — see <see cref="_isElite"/>. Drives the gold star
+        /// and the name label, and nothing in the damage path.
+        /// </summary>
+        public bool IsElite => _isElite;
+
+        /// <summary>
+        /// The unit's display name for a starred enemy, or <c>null</c> when it has none.
+        /// <see cref="DisplayNameOrSpecies"/> is the fallback-aware reader.
+        /// </summary>
+        public string EliteName => _eliteName;
+
+        /// <summary>
+        /// The name to print over this unit — the elite name when there is one, otherwise the
+        /// definition's own display name.
+        /// </summary>
+        public string DisplayNameOrSpecies =>
+            !string.IsNullOrEmpty(_eliteName)
+                ? _eliteName
+                : (_stats != null ? _stats.DisplayName : name);
+
+        /// <summary>
+        /// This unit's melee/contact damage — AS3 <c>Unit.dam</c>, i.e. the row's <c>&lt;comb damage&gt;</c>
+        /// after <c>setHero</c>'s multiplier.
+        ///
+        /// <para><b>Why a property and not the definition field.</b> Three readers used to write
+        /// <c>Definition.damage</c> inline (<c>UnitController</c>'s contact path, <c>ArmedShooterBrain</c>
+        /// and <c>AlicornBrain</c>). A hero's <c>×1.8</c> has to reach all three, and the definition is a
+        /// shared asset — multiplying it would promote every raider in the game the moment one was
+        /// starred.</para>
+        /// </summary>
+        public float MeleeDamage =>
+            (_stats != null ? _stats.damage : 0f) * _eliteDamageMultiplier;
+
+        /// <summary>
+        /// AS3 <c>this.dam *= multiplier</c> — scales <see cref="MeleeDamage"/> for this instance only.
+        ///
+        /// <para><b>The second writer of <see cref="_eliteDamageMultiplier"/>, and it multiplies for the
+        /// same reason the elite path does.</b> AS3 has two independent call sites that reach
+        /// <c>this.dam</c>: <c>setHero</c>'s <c>×1.8</c> (<c>Unit.as:1652-1655</c>) and
+        /// <c>UnitBossNecr.spawn()</c>'s <c>summonAtkMult</c> (<c>:669</c>). They compose, so this
+        /// multiplies rather than assigns. <c>protected</c> rather than <c>public</c> because the only
+        /// legitimate caller is a subclass applying a documented oracle statement — an arbitrary
+        /// public multiplier on a live unit is a cheat, not a port.</para>
+        /// </summary>
+        protected void ScaleMeleeDamage(float multiplier)
+        {
+            _eliteDamageMultiplier *= multiplier;
+        }
+
+        /// <summary>
+        /// The XP this unit is worth — AS3 <c>this.xp</c> after <c>setHero</c>'s <c>×5</c>.
+        ///
+        /// <para>Read by the death award (<c>Unit.as:4397</c>) <b>and</b> by the gem roll
+        /// (<c>:4460-4466</c>), which is why it is a property: the oracle's gem chance reads the same
+        /// <c>this.xp</c> the award pays out, so a starred enemy is both worth more and more likely to
+        /// drop a gem.</para>
+        /// </summary>
+        public int XpReward
+        {
+            get
+            {
+                if (_stats == null) return 0;
+                float scaled = _stats.xpReward * _eliteXpMultiplier;
+                return scaled > 0f ? Mathf.RoundToInt(scaled) : 0;
+            }
+        }
+
+        /// <summary>Guards <see cref="ApplyHeroTier"/> against a second <see cref="ApplyPlacement"/>.</summary>
+        private bool _heroApplied;
+
+        /// <summary>
+        /// The key this unit's name list is filed under — AS3 <c>Unit.id_name</c>, which
+        /// <c>Unit.getName()</c> hands to <c>Res.namesArr()</c> (<c>Unit.as:1483-1493</c>).
+        ///
+        /// <para><b><c>heroType</c> is the exact source; the two fallbacks are for assets imported
+        /// before <c>UnitDataImporter</c> read the attribute.</b> AS3 sets <c>id_name</c> from
+        /// <c>&lt;param hero='…'&gt;</c> (<c>:1371-1375</c>), which the importer now writes into
+        /// <see cref="UnitDefinition.heroType"/>. Every shipped <c>.asset</c> still carries an empty
+        /// <c>heroType</c>, so the chain falls through to <c>parentId</c> and then <c>id</c>.
+        ///
+        /// <para>Counted on 2026-10-29 (<c>.workbuddy-ai/tmp/hero_rows.py</c>): 34 of the 148 rows
+        /// author <c>hero</c>, and the fallback resolves the right list for 22 of them — 14 where the row
+        /// id is the value (<c>raider</c>, <c>zombie</c>, <c>alicorn</c>, …) and 8 where <c>parent</c> is
+        /// (<c>bloat1..6</c>→<c>bloat</c>, <c>ant2..3</c>→<c>ant</c>). The other 12 (<c>bloodwing2</c>,
+        /// <c>fish1..3</c>, <c>molerat</c>, <c>scorp1..3</c>, <c>robobrain</c>, <c>protect</c>,
+        /// <c>protect1</c>, <c>gutsy1</c>) resolve to an id with no list and so cannot be promoted until
+        /// the importer runs. That degradation is visible (no star) rather than wrong (a name from
+        /// another species) — which is why the fallback is acceptable at all.</para>
+        /// </summary>
+        public string EliteNameKey => ResolveEliteNameKey(_stats);
+
+        /// <summary>
+        /// <see cref="EliteNameKey"/> as a pure function, so the spawn layer can ask the same question
+        /// before a unit exists — <c>RoomPopulator</c> has to know whether a rolled tier will actually be
+        /// applied before it writes the <c>hero</c> attribute onto the placement.
+        /// </summary>
+        public static string ResolveEliteNameKey(UnitDefinition definition)
+        {
+            if (definition == null) return null;
+            if (!string.IsNullOrEmpty(definition.heroType)) return definition.heroType;
+            if (!string.IsNullOrEmpty(definition.parentId)) return definition.parentId;
+            return definition.id;
+        }
+
+        /// <summary>
+        /// Whether this row may be promoted at all — AS3 <c>Unit.mHero</c>, set from
+        /// <c>&lt;param hero='…'&gt;</c> at <c>Unit.as:1371-1375</c> and tested first thing in
+        /// <c>setHero</c> (<c>:1628</c>).
+        ///
+        /// <para><b>Two sources, in order, and the order matters.</b> <see cref="UnitDefinition.heroType"/>
+        /// is the exact one — it <i>is</i> the attribute. The name-list lookup is the pre-reimport
+        /// fallback: every shipped <c>.asset</c> still has an empty <c>heroType</c> until
+        /// <c>UnitDataImporter</c> is run, so without it the whole feature would be off in the current
+        /// build. Using the list as the primary source instead would couple a <i>stat</i> decision to a
+        /// cosmetic asset: a missing <c>text_en.xml</c> would silently stop promoting anyone.</para>
+        ///
+        /// <para>Both answers are data questions about the row, never about a particular spawn, which is
+        /// why this is static and takes the definition rather than reading <c>_stats</c>.</para>
+        /// </summary>
+        public static bool CanCarryHero(UnitDefinition definition)
+        {
+            if (definition == null) return false;
+            if (!string.IsNullOrEmpty(definition.heroType)) return true;
+            return UnitNameTable.Shared.HasList(ResolveEliteNameKey(definition));
+        }
+
+        /// <summary><see cref="CanCarryHero"/> for this unit's own row.</summary>
+        public bool CanBePromoted => CanCarryHero(_stats);
+
+        /// <summary>
+        /// Promote this unit to a starred enemy — AS3 <c>Unit.setHero(param1)</c>
+        /// (<c>Unit.as:1625-1672</c>) and <c>setHeroVulners()</c> (<c>:1674-1695</c>), run once from
+        /// <see cref="ApplyPlacement"/>.
+        ///
+        /// <para><b>The gate is the unit's ROW, not its placement.</b> <c>setHero</c> opens with
+        /// <c>if(!this.mHero) return;</c>, and <c>mHero</c> comes from <c>&lt;param hero='…'&gt;</c>
+        /// (<c>:1371-1375</c>). So a <c>hero="3"</c> placement on a row that cannot be a hero gets
+        /// <b>nothing</b> — no stats, no name, no star — which is why this is not simply
+        /// <c>if (_heroTier &gt; 0)</c>. <see cref="HeroTier"/> still reports the placement's value,
+        /// because <c>Unit.as:645</c> writes the field unconditionally and the essence drop reads it.</para>
+        ///
+        /// <para><b>The vulnerability block is not an elite perk.</b> <c>setHeroVulners()</c> is the last
+        /// statement of <c>setHero</c>, <i>after</i> all the tier branches, so it runs for every
+        /// hero-capable unit including the tier-0 majority — the oracle calls <c>setHero(_loc11_)</c>
+        /// unconditionally at <c>Location.as:1204</c> and <c>_loc11_</c> is 0 unless the roll fired. See
+        /// <see cref="ApplyHeroVulnerabilities"/>.</para>
+        /// </summary>
+        protected virtual void ApplyHeroTier()
+        {
+            if (_heroApplied) return;
+            _heroApplied = true;
+
+            // `if(!this.mHero) return;`
+            if (!CanBePromoted) return;
+
+            ApplyHeroVulnerabilities(_heroTier);
+
+            if (_heroTier <= 0) return;
+
+            _isElite = true;
+            _eliteXpMultiplier = EliteEnemyRules.XpMultiplier;
+            _eliteDamageMultiplier = EliteEnemyRules.DamageMultiplier(_heroTier);
+            _eliteObservationBonus = EliteEnemyRules.ObservationBonus(_heroTier);
+
+            // `this.hp = this.maxhp = this.maxhp * …` — applied here rather than at UnitStats
+            // construction because the tier only reaches the unit at ApplyPlacement, which the spawner
+            // runs after Initialize. Nothing has hit the unit yet at this point, so re-seeding
+            // CurrentHp from the new ceiling is the same number the oracle ends up with.
+            if (_unitStats != null)
+            {
+                float health = _unitStats.MaxHp.Value * EliteEnemyRules.HealthMultiplier(_heroTier);
+                _unitStats.MaxHp.Value = health;
+                _unitStats.CurrentHp.Value = health;
+            }
+
+            // `if(this.currentWeapon) this.currentWeapon.damage *= 1.5` — tier 1 only, and routed
+            // through a virtual because the weapon mounts live on EnemyController.
+            float weaponMultiplier = EliteEnemyRules.WeaponDamageMultiplier(_heroTier);
+            if (!Mathf.Approximately(weaponMultiplier, 1f))
+            {
+                ScaleWeaponDamage(weaponMultiplier);
+            }
+
+            // Tier 4's `walkSpeed/sitSpeed/runSpeed` — see EnemyBrain.ScaleMovementSpeeds for the
+            // mapping onto the port's three speeds.
+            if (_heroTier == EliteEnemyRules.MaxTier)
+            {
+                ScaleMovementSpeed(EliteEnemyRules.WalkSpeedMultiplier(_heroTier),
+                                   EliteEnemyRules.RunSpeedMultiplier(_heroTier));
+            }
+
+            // The name is NOT drawn here. It arrives as the placement's `name` attribute, because the
+            // draw belongs to the spawn stream that RoomPopulator owns — the same reason the tier
+            // itself is rolled there. See RoomPopulator.RollEliteTier.
+            EliteEnemyRegistry.Register(this);
+        }
+
+        /// <summary>
+        /// <c>setHeroVulners()</c> — the four reductions every hero-capable unit gets, plus the two
+        /// tier-specific blocks.
+        ///
+        /// <para><b>Multiplied onto the live table, not assigned.</b> The oracle writes
+        /// <c>vulner[D_X] *= 0.7</c> onto whatever the unit already has, and the port's live table is
+        /// <see cref="UnitStats.Vulnerabilities"/> — which composes with an authored
+        /// <c>&lt;vulner&gt;</c> baseline the moment the spawner seeds one (it does not today; see
+        /// <c>UnitStats.SetVulnerabilityBaseline</c>). Writing a bare 0.7 here would erase the authored
+        /// table instead of reducing it.</para>
+        ///
+        /// <para><b>Two slots are unreachable.</b> The oracle also reduces <c>D_BALE</c> and
+        /// <c>D_ASTRO</c> by 0.7 for every tier, but <see cref="VulnerabilityData"/> has no slot for
+        /// either — <see cref="EliteEnemyRules.VulnerabilityMultiplier"/> names them.</para>
+        /// </summary>
+        protected virtual void ApplyHeroVulnerabilities(int tier)
+        {
+            if (_unitStats == null) return;
+
+            VulnerabilityData table = _unitStats.Vulnerabilities;
+            bool changed = false;
+
+            for (int i = 0; i < EliteEnemyRules.ExpressibleTypes.Length; i++)
+            {
+                DamageType type = EliteEnemyRules.ExpressibleTypes[i];
+                float multiplier = EliteEnemyRules.VulnerabilityMultiplier(tier, type);
+                if (Mathf.Approximately(multiplier, 1f)) continue;
+
+                table.SetVulnerability(type, table.GetVulnerability(type) * multiplier);
+                changed = true;
+            }
+
+            // Override, not Set: the reduced table IS this unit's new baseline. Going through
+            // SetVulnerabilityBaseline would recompute the live value from the old baseline and discard
+            // the reduction the moment anything recalculated.
+            if (changed)
+            {
+                _unitStats.OverrideVulnerabilityBaseline(table);
+            }
+        }
+
+        /// <summary>
+        /// Scale every weapon this unit carries — AS3's <c>currentWeapon.damage *= 1.5</c>. A no-op on
+        /// the base class, because only <see cref="PFE.Entities.Enemies.EnemyController"/> owns mounts.
+        /// </summary>
+        protected virtual void ScaleWeaponDamage(float multiplier)
+        {
+        }
+
+        /// <summary>
+        /// Scale the unit's movement speeds — AS3's tier-4 <c>walkSpeed/sitSpeed/runSpeed</c> block. A
+        /// no-op on the base class; <see cref="PFE.Entities.Enemies.EnemyController"/> forwards it to the
+        /// brain, which is where the port keeps those three numbers.
+        /// </summary>
+        protected virtual void ScaleMovementSpeed(float walkScale, float runScale)
+        {
+        }
+
+        /// <summary>
+        /// Resolve a placement's <c>name</c> attribute — AS3 <c>nazv = Res.txt("u", param3.@name)</c>
+        /// (<c>Unit.as:617</c>).
+        ///
+        /// <para><b>Two kinds of value arrive here.</b> An authored name is a <i>localisation id</i>
+        /// (<c>name="madfox"</c> → "Mad Fox", <c>name="lucerne"</c> → "Lucerne"), while a generated one is
+        /// the literal string the name list produced ("Pooptooth"). The oracle separates them with
+        /// <c>uniqName</c>; the port separates them by looking the id up and falling back to the raw
+        /// text, which is the same answer for both cases and needs no extra attribute.</para>
+        ///
+        /// <para><b>Why the lookup lives here and not in the HUD.</b> <c>nazv</c> is a unit field in the
+        /// oracle, read by more than the label (<c>GUI.as:1287</c>, <c>:1321</c> print it in the
+        /// interaction prompt). Resolving it at the HUD would give the label a name the rest of the game
+        /// cannot see.</para>
+        /// </summary>
+        private static string LocaliseUnitName(string raw)
+        {
+            if (string.IsNullOrEmpty(raw)) return raw;
+
+            // `Res.txt("u", id)` — the same table the PipBuck reads. A miss is the normal case for a
+            // generated name, so it is not logged.
+            if (PFE.UI.Common.PfeTextTableProvider.Shared.TryGet("u", raw, 0, out string localised) &&
+                !string.IsNullOrEmpty(localised))
+            {
+                return localised;
+            }
+
+            return raw;
+        }
 
         /// <summary>
         /// The faction this <b>placement</b> overrode, or <c>null</c> to fall back to the unit
@@ -310,6 +665,7 @@ namespace PFE.Entities.Units
         {
             ResolvePhysicsComponents();
             ApplyDefinitionToBody();
+            SeedReplicCooldown();
         }
 
         /// <summary>
@@ -380,6 +736,11 @@ namespace PFE.Entities.Units
         /// </summary>
         protected virtual void OnDestroy()
         {
+            // A destroyed unit must not stay on the nameplate's list: the HUD would keep projecting a
+            // label onto a destroyed transform (a fake-null entry, exactly the shape this method's own
+            // remarks describe for SimLoop). Harmless for a unit that was never promoted.
+            EliteEnemyRegistry.Unregister(this);
+
             if (SimDriven)
             {
                 _simLoop.Unregister(this);
@@ -685,6 +1046,23 @@ namespace PFE.Entities.Units
         /// </summary>
         protected void ApplyVisualVisibility()
         {
+            // The animator first: it is the authority, because Draw overwrites `renderer.enabled` from
+            // its own flag on the next frame. Searched only while still null — a hide during
+            // Initialize can legitimately run before the animator is attached, and caching that
+            // "none" would leave the unit permanently unhideable.
+            if (_animatorForVisibility == null)
+            {
+                _animatorForVisibility = GetComponentInChildren<UnitAnimator>(true);
+            }
+
+            if (_animatorForVisibility != null)
+            {
+                _animatorForVisibility.SetVisible(_isVis);
+            }
+
+            // Then the handed-over renderer, for the paths that have one and for the frame before the
+            // animator draws: a unit whose animator has no cell yet sets `enabled = _visible && cell !=
+            // null`, i.e. false, so leaving this out would make a show() wait for the first Draw.
             if (_visualRenderer != null)
             {
                 _visualRenderer.enabled = _isVis;
@@ -840,9 +1218,10 @@ namespace PFE.Entities.Units
 
             // AS3 udarUnit:4150 — the spread, drawn before the damage is computed.
             // AS3 udarUnit:4166 — `this.damage(param1.dam * _loc3_ * param2, param1.tipDamage)`.
-            // `_stats.damage` is the row's `<comb damage>`; `_stats.damageType` is its `<comb tipdam>`,
-            // which Unit.as:186 declares as 2 (D_PHIS) and only an explicit attribute moves.
-            float baseDamage = _stats != null ? _stats.damage : 0f;
+            // `MeleeDamage` is the row's `<comb damage>` after setHero's multiplier; `_stats.damageType`
+            // is its `<comb tipdam>`, which Unit.as:186 declares as 2 (D_PHIS) and only an explicit
+            // attribute moves.
+            float baseDamage = MeleeDamage;
             DamageType type = _stats != null ? _stats.damageType : DamageType.PhysicalMelee;
 
             // The draw comes first because the oracle's does, and it is the only RNG this path takes —
@@ -1260,8 +1639,12 @@ namespace PFE.Entities.Units
         /// <summary>
         /// This unit's observation power — AS3 <c>Unit.observ</c>, the <c>obs</c> attribute. Multiplies
         /// how fast this unit builds suspicion of a target; it is <b>not</b> a sight range.
+        ///
+        /// <para>The tier-4 hero branch adds a flat <c>+8</c> (<c>Unit.as:1666</c>), which is why this
+        /// sums an instance bonus rather than returning the row value.</para>
         /// </summary>
-        public float ObservationPower => _stats != null ? _stats.observationRange : 0f;
+        public float ObservationPower =>
+            (_stats != null ? _stats.observationRange : 0f) + _eliteObservationBonus;
 
         /// <summary>Whether this unit is mechanical — AS3 <c>opt.robot</c>, the alarm-propagation exception.</summary>
         public bool IsMechanical => _stats != null && _stats.isMechanical;
@@ -2007,6 +2390,20 @@ namespace PFE.Entities.Units
             // downward one, and the victim would sink through the effect that is supposed to lift it.
             if (IsLevitated)
             {
+                // AS3 `Unit.as:1919-1924` — the levitation arm is not a bare `return`:
+                //     if(levit) { dy *= 0.8; dx *= 0.8; this.isLaz = 0; }
+                // The damping is what makes a held unit settle instead of oscillating: the holder
+                // accelerates toward a point and adds its nudge every tick, so without a term that
+                // bleeds the speed off, a victim would cross the target at the per-axis cap and swing
+                // back for ever. `isLaz = 0` is the same statement's second half — a lifted unit is not
+                // standing on anything, and `stay` is read by `Box.checkShelf` and by the HUD hint.
+                //
+                // The exponent form, not `*= 0.8`: 0.8 is per AS3 frame at 30 Hz, and this runs on
+                // whatever `StepSeconds` the active driver supplies (1/30 on the sim path, 1/60 on the
+                // legacy one). A bare product would damp twice as often at 60 Hz.
+                float damping = PFE.Systems.Telekinesis.TelekinesisMath.DampingOverInterval(0.8f, StepSeconds);
+                As3VelocityPixelsPerFrame = As3VelocityPixelsPerFrame * damping;
+                SetGrounded(false);
                 return;
             }
 
@@ -2151,11 +2548,40 @@ namespace PFE.Entities.Units
         /// </summary>
         public Vector2 ApplyFlightBrakeToPixels(Vector2 velocityPixelsPerFrame, float rateFrames)
         {
-            float maxSpeed = UnitFlyPhysics.ResolveMaxSpeed(_stats != null ? _stats.moveSpeed : 0f);
+            // AS3's `maxSpeed` is not a constant: `control()` rewrites it every frame from the unit's
+            // own state (`UnitBloat.as:232`/`:237`/`:250` — `runSpeed`/`walkSpeed`/`sitSpeed`;
+            // `UnitBat.as:251`/`:269` — `runSpeed`/`walkSpeed`/`runSpeed * 2.5`/`0`). The definition
+            // carries only the walking value, so a flyer that charges or dives must be able to say so.
+            // Without this seam the brake clamps every flyer to `moveSpeed`: a bat's state-6 dive
+            // (5 × `moveSpeed`) and a bloat's charge (2 × `moveSpeed`) would both be trimmed back to
+            // a walk on the first step after the brain commanded them.
+            float maxSpeed = _flySpeedCapPixelsPerFrame
+                             ?? UnitFlyPhysics.ResolveMaxSpeed(_stats != null ? _stats.moveSpeed : 0f);
             float brake = UnitFlyPhysics.ResolveBrake(_stats != null ? _stats.braking : 0f);
 
             return UnitFlyPhysics.ApplyBrake(velocityPixelsPerFrame, maxSpeed, brake, rateFrames);
         }
+
+        /// <summary>
+        /// AS3 <c>Unit.maxSpeed</c> as a value the brain moves per state — see
+        /// <see cref="ApplyFlightBrakeToPixels"/> for why the definition's single number is not enough.
+        ///
+        /// <para><b>Null means "the definition decides".</b> Only a flyer sets this, and only from its
+        /// own control ladder; every other unit keeps the definition's <c>moveSpeed</c>, which is the
+        /// value AS3 itself reads from <c>&lt;move speed&gt;</c>.</para>
+        ///
+        /// <para><b>Zero is a real cap.</b> <c>UnitBat.as:265</c> sets <c>maxSpeed = 0</c> for the
+        /// stall state, and the <c>isFly</c> arm then decays the velocity by 0.7 per frame until the
+        /// deadzone eats it — the bat coasts to a stop. A sentinel such as <c>-1</c> would have to be
+        /// tested for on every read, which is the same check as a nullable, with more room to get
+        /// wrong.</para>
+        /// </summary>
+        public void SetFlySpeedCapPixelsPerFrame(float? maxSpeedPixelsPerFrame)
+        {
+            _flySpeedCapPixelsPerFrame = maxSpeedPixelsPerFrame;
+        }
+
+        float? _flySpeedCapPixelsPerFrame;
 
         /// <summary>
         /// Hand the prop under the feet a share of the unit's downward speed — AS3
@@ -2280,7 +2706,17 @@ namespace PFE.Entities.Units
                 // MovePosition on a Kinematic body is not blocked by static geometry, so before this
                 // the only thing that ever stopped a unit was the ground probe below the feet. A unit
                 // walked and was knocked straight through walls. See UnitWallMotion.
-                deltaUnits.x = ResolveHorizontalMotion(deltaUnits.x);
+                UnitWallResolution wall = ResolveHorizontalMotion(deltaUnits.x);
+                deltaUnits.x = wall.AppliedDeltaXPx * TileQueryConstants.PixelToUnit;
+
+                // AS3's step-up writes Y as well as X (`Y = _loc2_.phY1`, Unit.as:2133 / :2210), so a
+                // climbed ledge has to move the body up. Applied as an absolute delta from the
+                // pre-move feet, like the prop snap below, because the step's height is a position
+                // (the obstacle's top), not a velocity.
+                if (wall.StepUpPixels > 0f)
+                {
+                    deltaUnits.y = wall.StepUpPixels * TileQueryConstants.PixelToUnit;
+                }
 
                 // AS3 snaps Y to the shelf top (`Y = _loc5_`, Unit.as:2358). The porog band is a
                 // step-up allowance, not a resting height, so without this a unit can read as grounded
@@ -2316,6 +2752,23 @@ namespace PFE.Entities.Units
         }
 
         /// <summary>
+        /// AS3's step-up allowance for this unit right now, in pixels — <c>stay ? porog :
+        /// porog_jump</c> (<c>Unit.as:2131</c> / <c>:2208</c>).
+        ///
+        /// <para><b>Why it is a property and not a constant.</b> The oracle's values are per-family
+        /// and per-state: a generic unit carries <c>porog = 10</c> / <c>porog_jump = 4</c>
+        /// (<c>Unit.as:278-279</c>) while the player carries <b>0 standing and 20 walking</b>
+        /// (<c>UnitPlayer.as:2530-2569</c>). 10 px is one <c>zForm</c> level and 20 px is two, which is
+        /// exactly why a half-tile step is walkable in the original.</para>
+        ///
+        /// <para>Read at the moment of the step, so it uses the previous tick's grounded flag — the
+        /// same lag AS3's <c>stay</c> has, since <c>stay</c> is written by the ground pass that runs
+        /// after <c>run()</c>'s horizontal block.</para>
+        /// </summary>
+        protected virtual float StepUpAllowancePixels =>
+            _isGrounded ? TileQueryConstants.PorogGrounded : TileQueryConstants.PorogAirborne;
+
+        /// <summary>
         /// Sweeps this step's horizontal motion against the room's tiles and returns the distance the
         /// unit may actually travel. See <see cref="UnitWallMotion"/> for why this exists.
         /// </summary>
@@ -2331,25 +2784,29 @@ namespace PFE.Entities.Units
         /// outside one), no collider, and no horizontal motion at all — the last is worth the branch
         /// because it is the common case for a unit that is standing still or only falling.</para>
         /// </remarks>
-        protected float ResolveHorizontalMotion(float deltaXUnits)
+        /// <returns>The applied horizontal delta and the step-up lift, both in <b>world pixels</b>.
+        /// Pixels rather than units because the caller applies both to a pixel-space
+        /// <c>deltaUnits</c> in one place, and mixing the two conventions across a return value is
+        /// how the 100× factor goes missing.</returns>
+        protected UnitWallResolution ResolveHorizontalMotion(float deltaXUnits)
         {
             if (_tileQuery == null || _collider == null || deltaXUnits == 0f)
             {
-                return deltaXUnits;
+                return new UnitWallResolution(deltaXUnits * TileQueryConstants.UnitToPixel, blocked: false);
             }
 
             TileBox boxPx = UnitWallMotion.ToMoveBoxPixels(
                 _collider.bounds, TileQueryConstants.PixelToUnit);
 
             UnitWallResolution resolution = UnitWallMotion.Resolve(
-                _tileQuery, boxPx, deltaXUnits * TileQueryConstants.UnitToPixel);
+                _tileQuery, boxPx, deltaXUnits * TileQueryConstants.UnitToPixel, StepUpAllowancePixels);
 
             if (resolution.Blocked)
             {
                 _velocity.x = 0f;
             }
 
-            return resolution.AppliedDeltaXPx * TileQueryConstants.PixelToUnit;
+            return resolution;
         }
 
         /// <summary>
@@ -2456,17 +2913,239 @@ namespace PFE.Entities.Units
         /// <c>UnitAIRobot.as:49-52</c>).
         /// </summary>
         /// <remarks>
-        /// <para><b>Stored, but with no consumer in the port.</b> The flag's only readers in the oracle
-        /// are two voice barks — <c>if(!this.quiet &amp;&amp; isrnd(0.001)) this.replic("neutral");</c> at
-        /// <c>UnitRaider.as:1060</c> and <c>:1079</c> — and the port has no voice-line table for enemy
-        /// units at all (the NPC <c>replic</c> verbs queue a script action and say so in
-        /// <c>UnitNpcRules</c>). So this is data fidelity, not behaviour: it exists so that a future bark
-        /// system reads the oracle's own switch instead of inventing one, and the gap is named here rather
-        /// than left for someone to rediscover. Its <i>other</i> effect — clearing <c>stroll</c>, which the
-        /// oracle's shared branch does at the same time — is modelled, as
-        /// <see cref="PlacementStaysPut"/>.</para>
+        /// <para><b>Read at the idle call site, not inside <see cref="TryReplic"/>.</b> The oracle's two
+        /// readers are <c>if(!this.quiet &amp;&amp; isrnd(0.001)) this.replic("neutral");</c>
+        /// (<c>UnitRaider.as:1060</c>, <c>:1079</c>) — the flag guards the <i>roll</i>, not the method, so
+        /// a quiet unit still says <c>attack</c>, <c>dam</c>, <c>die</c> and everything else. Moving the
+        /// test into <c>replic</c> would silence a sniper placement's death rattle, which is the opposite
+        /// of what <c>ai="quiet"</c> means.</para>
+        ///
+        /// <para>Its <i>other</i> effect — clearing <c>stroll</c>, which the oracle's shared branch does
+        /// at the same time — is modelled as <see cref="PlacementStaysPut"/>.</para>
         /// </remarks>
         public bool PlacementIsQuiet => (_placementAi & PlacementAiEffect.Quiet) != 0;
+
+        // ── Speech ──────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// AS3 <c>Unit.t_replic</c> (<c>Unit.as:498</c>) — the speech cooldown, in ticks. Positive means
+        /// "not yet", zero or negative means "may speak".
+        /// </summary>
+        protected int _replicCooldown;
+
+        /// <summary>Whether <see cref="_replicCooldown"/> has been seeded with the oracle's random start.</summary>
+        private bool _replicCooldownSeeded;
+
+        /// <summary>A per-unit voice-set override — the NPC persona's <c>replic</c>, or <c>"pip"</c>.</summary>
+        private string _replicaIdOverride;
+
+        /// <summary>
+        /// AS3 <c>Unit.id_replic</c> — the voice set this unit speaks with, or <c>null</c>/empty for a
+        /// unit that never speaks.
+        ///
+        /// <para><b>Resolved from the <c>AllData</c> row, not from the unit asset.</b> The id lives on
+        /// the family row's <c>&lt;vis replic='…'&gt;</c> and is inherited by every variant, so the
+        /// lookup walks <c>@parent</c> — see <c>ReplicCatalog.SpeakerFor</c>. A subclass with a better
+        /// source overrides this: <see cref="PFE.Entities.Player.PlayerController"/> answers
+        /// <c>"pip"</c>, and <c>UnitNPCController</c> answers its persona's own id.</para>
+        /// </summary>
+        public virtual string ReplicaId
+        {
+            get
+            {
+                if (!string.IsNullOrEmpty(_replicaIdOverride)) return _replicaIdOverride;
+
+                string unitId = Definition != null ? Definition.id : null;
+                return string.IsNullOrEmpty(unitId) ? null : PFE.Systems.Units.ReplicCatalog.Shared.SpeakerFor(unitId);
+            }
+        }
+
+        /// <summary>
+        /// AS3 <c>Unit.msex</c> — true unless the row authored <c>&lt;vis sex='w'&gt;</c>
+        /// (<c>Unit.as:434</c> default, <c>:1279-1281</c> the only writer).
+        ///
+        /// <para><b>The polarity is the trap.</b> <c>msex</c> defaults to <b>true</b> and is only ever
+        /// set false for a female row, so a unit with no <c>sex</c> attribute takes the <i>male</i> half
+        /// of a <c>#male|female#</c> splice. Deriving it as <c>gender == Male</c> would send every
+        /// unspecified unit — which is most of them — down the female branch.</para>
+        /// </summary>
+        public bool ReplicUsesMaleForms => Definition == null || Definition.gender != Gender.Female;
+
+        /// <summary>
+        /// Set the voice set explicitly, for a unit whose id does not resolve one — an NPC persona
+        /// (<c>&lt;npc replic='…'&gt;</c>) or the player.
+        /// </summary>
+        public void SetReplicaId(string replicaId)
+        {
+            _replicaIdOverride = string.IsNullOrEmpty(replicaId) ? null : replicaId;
+        }
+
+        /// <summary>
+        /// AS3 <c>t_replic = 0</c> — the two script verbs that force a line through
+        /// (<c>UnitNPC.as:365-369</c> <c>replic("vse")</c>, <c>:386-390</c> <c>replic(param1.val)</c>).
+        /// </summary>
+        protected void ResetReplicCooldown()
+        {
+            _replicCooldown = 0;
+            _replicCooldownSeeded = true;
+        }
+
+        /// <summary>
+        /// AS3 <c>Unit.replic(kind)</c> (<c>Unit.as:4813-4850</c>) — try to say something.
+        ///
+        /// <para><b>The gates, in the oracle's order.</b> Dead or disabled → silent; no voice set →
+        /// silent; the <c>dam</c>/<c>die</c> window rolls; then the cooldown. Only after all of those
+        /// does a line get looked up, and the cooldown is charged even when the lookup fails — see
+        /// <see cref="ReplicRules.TryOpenWindow"/> for why that order is load-bearing.</para>
+        ///
+        /// <para><b>Randomness comes from <see cref="UnityEngine.Random"/>, deliberately.</b> The oracle
+        /// has one global <c>Math.random()</c> stream and its bark draws are interleaved with gameplay
+        /// rolls. The port's seeded stream (<c>IRngService</c>) is what makes loot and spawns
+        /// reproducible, so spending it on a cosmetic line would shift every later gameplay roll in the
+        /// room — the exact failure the boss-summon path avoids by composing its own id instead of
+        /// calling <c>ResolveSpawnId</c>. A bark must not move a bullet.</para>
+        /// </summary>
+        /// <returns><c>true</c> when a bubble was emitted.</returns>
+        public virtual bool TryReplic(ReplicKind kind)
+        {
+            return TryReplicCore(kind, IsAlive);
+        }
+
+        /// <summary>
+        /// <see cref="TryReplic"/> with the aliveness gate passed in, because the death rattle is spoken
+        /// <b>while the unit is already at zero HP</b>.
+        ///
+        /// <para><b>This is not a convenience — it is the oracle's evaluation order.</b>
+        /// <c>Unit.damage()</c> subtracts HP, calls <c>die()</c>, and <c>die()</c> calls
+        /// <c>replic("die")</c> <i>before</i> it assigns <c>sost = 3</c> (<c>Unit.as:4333-4343</c>), so
+        /// the <c>sost != 1</c> gate at the top of <c>replic</c> still sees a living unit. The port's
+        /// <c>IsAlive</c> is already false by then, so passing <c>true</c> here is what reproduces the
+        /// oracle rather than an exception to it.</para>
+        /// </summary>
+        protected bool TryReplicCore(ReplicKind kind, bool alive)
+        {
+            if (!alive || !isActiveAndEnabled) return false;
+            if (kind == ReplicKind.None) return false;
+
+            string speaker = ReplicaId;
+            if (string.IsNullOrEmpty(speaker)) return false;
+
+            SeedReplicCooldown();
+
+            // `UnitRaider.replic` — the flamer/grenadier bodies swap their attack line for a
+            // weapon-specific one. Rolled only when the oracle would roll: on an attack frame that is
+            // already off cooldown, and only for the two variants that have an alternative.
+            if (kind == ReplicKind.Attack && _replicCooldown <= 0)
+            {
+                int tr = VariantIndex;
+                if (tr == ReplicRules.RaiderFlamerTr || tr == ReplicRules.RaiderGrenadierTr)
+                {
+                    kind = ReplicRules.OverrideRaiderKind(kind, tr, Random.value);
+                }
+            }
+
+            // `replic` draws the window roll only inside its dam/die arms, so drawing it for every kind
+            // would consume two values per attempt instead of one on the common path.
+            float windowRoll = kind == ReplicKind.Dam || kind == ReplicKind.Die ? Random.value : 0f;
+            float cooldownRoll = Random.value;
+
+            if (!ReplicRules.TryOpenWindow(kind, ref _replicCooldown, windowRoll, cooldownRoll)) return false;
+
+            bool male = ReplicUsesMaleForms;
+            bool matureFilter = PFE.UI.PipBuck.PipTextTable.MatureContentFilter;
+            string playerName = PFE.Systems.Units.ReplicCatalog.PlayerName;
+
+            if (!PFE.Systems.Units.ReplicCatalog.Shared.TryResolve(
+                    Definition != null ? Definition.id : null, kind, Random.value, male, matureFilter,
+                    playerName, out string text))
+            {
+                // The cooldown is already charged. That is AS3's order — the assignment sits above
+                // `Res.repText` — and it is what stops an act the voice set lacks from retrying every
+                // frame of the state that calls it.
+                return false;
+            }
+
+            PFE.Systems.Units.UnitBarkFeed.Emit(transform.position, text, IsPlayer, Random.value);
+            return true;
+        }
+
+        /// <summary>
+        /// The unit's AS3 <c>tr</c> — the variant index, derived from the id the way
+        /// <c>UnitRaider.as:150</c> composes it (<c>id = parentId + tr</c>). <c>0</c> when the id is the
+        /// family row itself or carries no numeric suffix.
+        /// </summary>
+        /// <remarks>
+        /// Derived rather than stored because the importer never wrote a <c>tr</c> field: the variant
+        /// <i>is</i> the row, and <c>raider8</c> minus its <c>parentId</c> is the whole answer. The
+        /// raider family's <c>raider9</c> is the only <c>tr=9</c> body in the game, and no other family
+        /// reaches 8 — a slaver has six variants, a zebra five, a merc five — so reading the suffix is
+        /// equivalent to reading the oracle's field on every row that exists.
+        /// </remarks>
+        public int VariantIndex
+        {
+            get
+            {
+                if (Definition == null) return 0;
+                string id = Definition.id;
+                string parent = Definition.parentId;
+                if (string.IsNullOrEmpty(id) || string.IsNullOrEmpty(parent)) return 0;
+                if (!id.StartsWith(parent, System.StringComparison.Ordinal)) return 0;
+
+                string suffix = id.Substring(parent.Length);
+                return int.TryParse(suffix, NumberStyles.Integer, CultureInfo.InvariantCulture, out int tr) ? tr : 0;
+            }
+        }
+
+        /// <summary>
+        /// The damage-path bark — <c>if(this.hp &gt; 0 &amp;&amp; !this.player &amp;&amp; this.isrnd()) this.replic("dam");</c>
+        /// (<c>Unit.as:3962-3965</c>).
+        ///
+        /// <para><b>Two gates, one line.</b> This method owns the 50 % call-site roll and
+        /// <see cref="TryReplic"/> owns the 5 % window roll, so a hit has a 2.5 % chance of producing a
+        /// line. Collapsing them would make every wounded enemy complain on every bullet, and the
+        /// oracle's split is the reason a firefight has any chance of staying quiet.</para>
+        ///
+        /// <para><b>Called only while the unit is still alive.</b> The oracle's <c>hp &gt; 0</c> test is
+        /// after the subtraction, so a killing blow barks <c>die</c>, never <c>dam</c>.</para>
+        /// </summary>
+        protected void TryBarkDamaged()
+        {
+            if (IsPlayer) return;
+            if (!ReplicRules.IsRandom(Random.value, ReplicRules.DamageBarkChance)) return;
+            TryReplic(ReplicKind.Dam);
+        }
+
+        /// <summary>
+        /// The death rattle — <c>replic("die")</c> inside <c>die()</c>'s corpse branch
+        /// (<c>Unit.as:4333-4335</c>).
+        ///
+        /// <para><b>Only when the body survives the blow.</b> The branch is
+        /// <c>else if(this.trup &amp;&amp; this.hp &gt; -this.maxhp * 2)</c> — an overkill past twice the
+        /// unit's maximum HP falls through to the blood/burn arms instead, so a corpse torn apart by a
+        /// rocket does not get a last word. The port's equivalent of that threshold is
+        /// <see cref="UnitStats.CorpseDestroyed"/>.</para>
+        /// </summary>
+        protected void TryBarkDeath()
+        {
+            if (_unitStats != null && _unitStats.CorpseDestroyed) return;
+            TryReplicCore(ReplicKind.Die, alive: true);
+        }
+
+        /// <summary>
+        /// Seed <see cref="_replicCooldown"/> with AS3's construction-time value
+        /// (<c>Math.random() * 100 - 50</c>, <c>Unit.as:498</c>).
+        ///
+        /// <para><b>Seeded lazily as well as in <c>Awake</c>.</b> EditMode never runs <c>Awake</c> for
+        /// <c>AddComponent</c> (see <see cref="ResolvePhysicsComponents"/>), and a unit built by a
+        /// fixture must not start with a cooldown of zero — that would make the first bark of every
+        /// fixture deterministic, hiding exactly the gate the fixture is meant to pin.</para>
+        /// </summary>
+        private void SeedReplicCooldown()
+        {
+            if (_replicCooldownSeeded) return;
+            _replicCooldownSeeded = true;
+            _replicCooldown = ReplicRules.InitialCooldown(Random.value);
+        }
 
         /// <summary>
         /// Whether this placement stops the unit closing distance — AS3's <c>moving = false</c>, set by
@@ -2533,6 +3212,22 @@ namespace PFE.Entities.Units
             {
                 _heroTier = hero;
             }
+
+            // AS3 `param3.@name` (Unit.as:614-618) — the authored name of a unique enemy, and in the
+            // port also the carrier of a *generated* one: RoomPopulator writes the name it drew into
+            // this same attribute, because the draw has to come from the spawn stream (see
+            // RollEliteTier). `Res.txt("u", name)` is the oracle's lookup, so an authored id such as
+            // `madfox` becomes "Mad Fox" while a generated name misses the table and is used verbatim.
+            string placementName = placement.GetAttribute("name", null);
+            if (!string.IsNullOrEmpty(placementName))
+            {
+                _eliteName = LocaliseUnitName(placementName);
+            }
+
+            // AS3 `Location.as:1204` — `setHero` runs at creation, right after `setLevel`. It has to
+            // come after the name read, because `setHero` keeps an authored name and only generates one
+            // when there is none.
+            ApplyHeroTier();
 
             // AS3 `if(param3 && param3.@fraction.length()) fraction = param3.@fraction;`
             // (UnitTurret.as:140-142, and the same read on every other placed unit). Assigned only
@@ -2671,13 +3366,6 @@ namespace PFE.Entities.Units
                     return false;
             }
         }
-
-        /// <summary>
-        /// AS3 <c>Unit.hero</c> — the boss tier this unit was placed with (<c>Unit.as:645</c>). <c>0</c>
-        /// for an ordinary unit. Read by the death drop's essence gate
-        /// (<see cref="UnitDeathDrop.ShouldDropEssence"/>).
-        /// </summary>
-        public int HeroTier => _heroTier;
 
         /// <summary>
         /// AS3's <c>@turn</c> resolution (<c>Unit.as:596-611</c>), as a pure function so the only
@@ -3066,6 +3754,12 @@ namespace PFE.Entities.Units
             {
                 RaiseDeath();
             }
+            else
+            {
+                // `Unit.as:3962-3965` — the bark sits after the subtraction and behind `hp > 0`, so a
+                // killing blow takes the death rattle instead of complaining about the wound.
+                TryBarkDamaged();
+            }
         }
 
         /// <summary>
@@ -3091,12 +3785,22 @@ namespace PFE.Entities.Units
                 return false;
             }
 
+            // AS3 reads `param2` right where it subtracts the HP (`Unit.as:3713-3741`); the port reads it
+            // off the outcome here, for the same reason and at the same moment — before the death branch
+            // table can ask which preset the killing blow wanted.
+            _lastDamageType = outcome.DamageType;
+
             bool broke = _unitStats.ApplyDamage(outcome);
 
             // Handle death if applicable
             if (!IsAlive)
             {
                 RaiseDeath();
+            }
+            else
+            {
+                // See TakeDamage: the damage bark is gated on the unit still being alive after the hit.
+                TryBarkDamaged();
             }
 
             return broke;
@@ -3433,8 +4137,54 @@ namespace PFE.Entities.Units
         private float _corpseDissolveFrames;
 
         /// <summary>
-        /// The renderer tint captured when the dissolve started, so the fade multiplies the sprite's
-        /// own colour instead of forcing it to white.
+        /// Which of the seven <c>Desintegr</c> presets this body is dissolving with — <c>initBurn</c>'s
+        /// argument, kept because every frame of the effect reads it.
+        /// </summary>
+        private DesintegrTip _desintegrTip = DesintegrTip.None;
+
+        /// <summary>
+        /// The <c>D_*</c> code of the last hit that landed on a <i>living</i> unit — AS3's
+        /// <c>param2</c>, remembered because the death effect is chosen from it.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Why this has to be stored rather than passed.</b> <c>Unit.damage(param1, param2, …)</c>
+        /// reads <c>param2</c> in the same breath as the HP subtraction (<c>Unit.as:3713-3741</c>), so the
+        /// oracle never needs to keep it. The port splits that one function into a resolver
+        /// (<c>DamageSystem</c> → <c>DamageCalculator</c>) and a receiver (<c>ApplyDamage</c>), and by the
+        /// time <c>RaiseDeath()</c> reaches <c>EnterCorpse</c> the context is gone — the
+        /// <see cref="DamageOutcome"/> is the only survivor, which is why it carries the type.</para>
+        ///
+        /// <para><b>Only written while alive.</b> A hit on a corpse returns early in
+        /// <see cref="ApplyDamage"/>, so a body already dissolving cannot have its preset re-decided by
+        /// whoever keeps shooting it — the oracle has the same property, because a dead unit's
+        /// <c>damage()</c> never reaches the <c>hp &lt;= 0</c> block again.</para>
+        ///
+        /// <para><b><see cref="DamageType.PhysicalBullet"/> is the resting value and the correct one.</b>
+        /// It maps to no burn tip, so a unit killed by something that never went through the damage
+        /// pipeline — a scripted <c>KillNow</c>, a dev-console command, a fixture calling
+        /// <c>OnDeath</c> directly — dies exactly as a rifle shot would, which is the least surprising
+        /// answer available.</para>
+        /// </remarks>
+        private DamageType _lastDamageType = DamageType.PhysicalBullet;
+
+        /// <summary>
+        /// The per-body dissolve material, created when the burn starts and destroyed when it ends.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>One material per dissolving body, not one shared.</b> A <c>SpriteRenderer</c> binds its
+        /// sprite's texture through its own property block, so driving <c>_Dissolve</c> with
+        /// <c>SetPropertyBlock</c> on a shared material would drop <c>_MainTex</c> and draw a white quad.
+        /// See <see cref="DesintegrMaterial"/>.</para>
+        ///
+        /// <para><b>Null is a legal, working state.</b> No shader (stripped from a player build, or a
+        /// headless test host) means the dissolve falls back to the alpha fade, which is what the port
+        /// did before this landed.</para>
+        /// </remarks>
+        private Material _desintegrMaterial;
+
+        /// <summary>
+        /// The renderer tint captured when the dissolve started, so the fallback fade multiplies the
+        /// sprite's own colour instead of forcing it to white.
         /// </summary>
         private Color _corpseBaseColor = Color.white;
 
@@ -3909,8 +4659,9 @@ namespace PFE.Entities.Units
         /// <para><b>Why a method and not a settable property.</b> <see cref="As3VelocityPixelsPerFrame"/>
         /// is protected; a public setter on this class would also make
         /// <see cref="VelocityPixelsPerFrame"/> writable and every caller that reads it a candidate for
-        /// accidentally writing it. A verb is greppable — <c>SetVelocityPixelsPerFrame</c> has exactly
-        /// two callers, both in the contact exchange.</para>
+        /// accidentally writing it. A verb is greppable — the callers are the contact exchange and
+        /// <c>FlyerBrain.Fly</c>, which has to assign rather than ramp a flyer's thrust (the motor's
+        /// <c>MoveTowards</c> is a 2 px/frame² acceleration, and AS3's <c>dx +=</c> is instant).</para>
         /// </remarks>
         public void SetVelocityPixelsPerFrame(Vector2 velocityPixelsPerFrame)
         {
@@ -3968,10 +4719,19 @@ namespace PFE.Entities.Units
                 return;
             }
 
-            // AS3 `Box.as:928-931` — a prop still inside its throw window does not damage. It hands the
+            // AS3 `Box.as:928-931` — a prop still inside its THROW WINDOW does not damage. It hands the
             // unit the fixed 12-tick grace instead, and crucially does NOT clear the prop's own
-            // `isThrow`: a crate still in flight keeps its grace for every unit it passes through.
-            if (propState.isThrown)
+            // `isThrow`: a crate still in flight keeps its window for every unit it passes through.
+            //
+            // ⚠ The gate is `t_throw`, NOT `isThrow`. They are different fields with different writers,
+            // and reading the wrong one is what made every alicorn-thrown crate harmless: `isThrow` is
+            // set by every thrower and cleared only by a wall/floor hit, so gating on it meant a crate
+            // thrown across open air refused to damage anything until it happened to touch geometry.
+            // `t_throw` is written by exactly one site in the whole oracle — the player's throw
+            // (`UnitPlayer.as:1871`, `= 2`) — so an alicorn's or the boss's throw arrives here with a
+            // window of zero and hurts on the first overlapping unit, as the oracle does. The two
+            // constants live in `PropThrowGrace`; the countdown is the prop layer's (`Box.as:646`).
+            if (PropThrowGrace.IsActive(propState.throwGraceTicks))
             {
                 GrantContactInvulnerability(PropImpactMath.ThrowGraceInvulnerabilityTicks);
                 return;
@@ -4243,18 +5003,71 @@ namespace PFE.Entities.Units
             if (_deathRaised && !IsAlive) return false;
 
             _deathRaised = true;
+
+            // `Unit.as:4333-4335` — the death rattle is spoken inside `die()`, before `sost = 3`, so it
+            // is attempted before `OnDeath` and with the aliveness gate passed in rather than read.
+            TryBarkDeath();
+
             OnDeath();
 
-            if (IsAlive) _deathRaised = false;
+            if (IsAlive)
+            {
+                _deathRaised = false;
+            }
+            else
+            {
+                // AS3 `runScript()` (`Unit.as:4483`) — the room-facing half of a death, fired after the
+                // body has been decided so a cutscene cannot tear the room down mid-`OnDeath`. See
+                // <see cref="Died"/> for why it is an event rather than a call.
+                Died?.Invoke(this);
+            }
 
             return true;
         }
+
+        /// <summary>
+        /// Raised once for each death this unit actually stays dead from — the hook a room uses to run
+        /// the unit's authored death script (<c>scrDie</c>).
+        ///
+        /// <para><b>What the oracle does here.</b> <c>Unit.die()</c>'s tail calls <c>runScript()</c>
+        /// (<c>Unit.as:4392</c>), which starts <c>scrDie</c> (<c>:4483-4489</c>) — built either from an
+        /// inline <c>&lt;scr&gt;</c> whose <c>eve</c> is <c>"die"</c> <b>or absent</b>
+        /// (<c>:1566-1575</c>), or from the <c>scr="id"</c> attribute, which <i>overrides</i> the inline
+        /// one because it is assigned after the loop (<c>:1580-1582</c>).</para>
+        ///
+        /// <para><b>Why an event and not a direct call.</b> A unit is built with <c>AddComponent</c>, so
+        /// nothing injects it and it has no reference to the scripting layer — the spawner is the one
+        /// place that holds both halves. The same reasoning is why <c>RoomUnitSpawner.CheckDeaths</c>
+        /// polls for the prob-room kill count; an event is the synchronous half of that seam, which is
+        /// what a death script needs: a unit removed from <c>room.units</c> in the same frame would
+        /// never be seen by a scan, and its script would silently not run.</para>
+        ///
+        /// <para><b>Not raised</b> when a subclass leaves the unit alive (<see cref="TrainingDummyController"/>
+        /// restores full HP in its <c>OnDeath</c>) — that is a latch release, not a death.</para>
+        /// </summary>
+        public event System.Action<UnitController> Died;
 
         /// <summary>
         /// Whether <see cref="OnDeath"/> has been acted on for the current death. See
         /// <see cref="RaiseDeath"/>.
         /// </summary>
         protected bool DeathRaised => _deathRaised;
+
+        /// <summary>
+        /// The audio service a dissolve's one-shot sound plays through, or <c>null</c> for silence.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>A virtual read rather than a field, because the service is already held one level
+        /// down.</b> <c>EnemyController</c> receives <see cref="ISoundService"/> in
+        /// <c>SetWeaponServices</c> — the same handover that gave enemies their first sound at all — and
+        /// keeps it private. Copying it into a second field here would be two references to one object
+        /// that a future re-handover could leave disagreeing; forwarding is one.</para>
+        ///
+        /// <para><c>null</c> is the base answer and means "this unit makes no dissolve noise", which is
+        /// correct for the player (no corpse, never dissolves) and for a headless fixture. It is not an
+        /// error and nothing logs it.</para>
+        /// </remarks>
+        protected virtual ISoundService DeathSoundService => null;
 
         /// <summary>
         /// Called when this unit dies.
@@ -4264,18 +5077,24 @@ namespace PFE.Entities.Units
         {
             Debug.Log($"[{GetType().Name}] has died!");
 
+            // The star goes out with the unit. AS3 hides the whole hpBar when `hp <= 0`
+            // (Unit.visDetails():2985), so a corpse keeps neither the bar nor the star.
+            EliteEnemyRegistry.Unregister(this);
+
             // AS3 Unit.as:4392-4394 — runScript(), dropLoot(), incStat(). The drop comes BEFORE the XP
             // award (:4397), and that order is observable: the gem chance reads `this.xp`, which the
             // award path does not clear until after it has run.
             DropLootOnDeath();
 
             // Reward XP to player (AS3 Unit.as:4397 loc.takeXP(this.xp, X, Y, true))
-            if (_stats != null && _stats.xpReward > 0)
+            // `XpReward`, not `_stats.xpReward`: a starred enemy is worth five times its row
+            // (Unit.as:1646).
+            if (XpReward > 0)
             {
                 var player = FindFirstObjectByType<PFE.Entities.Player.PlayerController>();
                 if (player != null && player.CharacterStats != null)
                 {
-                    player.CharacterStats.AddXp(_stats.xpReward, transform.position.x, transform.position.y);
+                    player.CharacterStats.AddXp(XpReward, transform.position.x, transform.position.y);
                 }
             }
 
@@ -4300,14 +5119,18 @@ namespace PFE.Entities.Units
         /// becomes now that it is dead.
         /// </summary>
         /// <remarks>
-        /// <para><b>Which arms the port can answer, and which it cannot.</b> AS3 tries, in order:
+        /// <para><b>Which arms the port answers, and which it cannot.</b> AS3 tries, in order:
         /// <c>noDestr</c> (a body that can never be destroyed), <c>param1 &gt; 0</c> (the damage type
         /// asked for a burn), <c>trup &amp;&amp; hp &gt; -maxhp*2</c> (an ordinary body),
         /// <c>trup &amp;&amp; blood &gt; 0</c> (enough overkill — burn it away), then
-        /// <c>expl(); exterminate()</c>. The port answers three of them: a body, a body already past
-        /// its threshold, or nothing at all. <c>noDestr</c> is not imported anywhere and the
-        /// damage-type death code is §6 step 5 of the audit — both are recorded gaps, not silent
-        /// omissions.</para>
+        /// <c>expl(); exterminate()</c>. The port answers four of them: a damage-type burn, a body, a
+        /// body already past its threshold, or nothing at all. <c>noDestr</c> is still not imported
+        /// anywhere — §6 step 5 of the audit, a recorded gap, not a silent omission.</para>
+        ///
+        /// <para><b>The <c>trup='0'</c> arm now bursts as the oracle does.</b> <c>expl()</c>
+        /// (<c>Unit.as:4423-4448</c>) casts <c>massa * 50</c> blood particles across the body's own box
+        /// before <c>exterminate()</c> removes it, which is why a rat shot with a plasma rifle sprays
+        /// gore instead of blinking out. The port used to skip straight to removal.</para>
         /// </remarks>
         private void EnterCorpse()
         {
@@ -4319,12 +5142,37 @@ namespace PFE.Entities.Units
                 return;
             }
 
+            // ── AS3's `param1 > 0` arm — the killing blow asked for a burn (`Unit.as:4325-4333`) ─────
+            //
+            // This arm is FIRST after `noDestr` and it beats both `trup` arms, which is why it sits above
+            // the `leavesCorpse` test: a rat killed by fire does not burst into gore, it burns away, even
+            // though `trup='0'`. `die()`'s own tail here is `dexter = 100; fraction = 0; throu = false;
+            // sost = 3` — the same "this is now a body" bookkeeping the other arms do, which the dissolve
+            // state covers.
+            if (_unitStats != null)
+            {
+                DesintegrTip damageTip = DesintegrRules.TipForDamageType(
+                    _lastDamageType,
+                    _unitStats.Overkill,
+                    _unitStats.MaxHp.Value,
+                    // `trup` — absent definition means a body, which is AS3's own default.
+                    _stats == null || _stats.leavesCorpse,
+                    Random.value);
+
+                if (damageTip != DesintegrTip.None)
+                {
+                    BeginDissolve(damageTip);
+                    return;
+                }
+            }
+
             // `trup='0'` — AS3's "destroyed outright": no body, no death row. `expl(); exterminate()`
-            // (`Unit.as:4366-4367`), which in the port is "stop being a target and stop being drawn".
+            // (`Unit.as:4366-4367`), which in the port is "burst into blood, then stop being a target
+            // and stop being drawn".
             // Three units author it (`rat`, `tarakan`, `ant`) and they author no `die` row either.
             if (_stats != null && !_stats.leavesCorpse)
             {
-                ExterminateCorpse();
+                ExterminateCorpse(bloodBurst: true);
                 return;
             }
 
@@ -4367,6 +5215,18 @@ namespace PFE.Entities.Units
         /// (<c>initBurn(4 + blood)</c>, <c>Unit.as:4347-4353</c>), a bloodless one is gone at once
         /// (<c>expl(); exterminate()</c>, <c>:4360-4367</c>).
         /// </summary>
+        /// <remarks>
+        /// <para><b>This is the blood-colour half of <c>initBurn</c>.</b>
+        /// <c>DesintegrRules.TipForOverkill</c> is <c>4 + blood</c> verbatim, so a red-blooded unit
+        /// dissolves with the red preset, a zombie with the green one and a pink-blooded creature with
+        /// the pink one — three different particle rows, three different colour ramps.</para>
+        ///
+        /// <para><b>The other half is the damage type</b>, which is a <i>different</i> arm of the same
+        /// branch table and does not pass through here: <see cref="EnterCorpse"/> asks
+        /// <see cref="DesintegrRules.TipForDamageType"/> first, because <c>param1 &gt; 0</c> outranks both
+        /// <c>trup</c> arms (<c>Unit.as:4325</c>). Both halves end in <see cref="BeginDissolve"/>, which
+        /// is the only place a dissolve starts.</para>
+        /// </remarks>
         private void BeginCorpseDestroy()
         {
             if (_corpseState == CorpseState.Removed || _corpseState == CorpseState.Dissolving)
@@ -4374,19 +5234,96 @@ namespace PFE.Entities.Units
                 return;
             }
 
-            if (BloodType == BloodType.None)
+            // AS3's arm order, read from the other end: `die()` reaches this point only when
+            // `trup && hp > -maxhp*2` has ALREADY failed, so the body is going. What is left to decide
+            // is whether it goes with a burn (`trup && blood > 0`) or immediately.
+            DesintegrTip tip = DesintegrRules.TipForOverkill(BloodType);
+
+            if (!DesintegrRules.IsDissolve(tip))
             {
-                ExterminateCorpse();
+                // Bloodless — `expl()` tests `this.blood` first and does nothing, so this is the plain
+                // `exterminate()` of `Unit.as:4360-4367`. The burst is still requested because the
+                // `trup='0'` arm reaches the same call and *does* have blood; `ExterminateCorpse`'s own
+                // gate is the one that decides, not this branch.
+                ExterminateCorpse(bloodBurst: true);
+                return;
+            }
+
+            BeginDissolve(tip);
+        }
+
+        /// <summary>
+        /// Start the 40-frame dissolve with an already-decided preset — AS3
+        /// <c>initBurn(param1)</c> (<c>Unit.as:4469-4481</c>).
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Two callers, one entry point.</b> The blood arm
+        /// (<see cref="BeginCorpseDestroy"/>) and the damage-type arm (<see cref="EnterCorpse"/>) decide
+        /// <i>which</i> preset; everything after that decision — the state, the material swap, the glow
+        /// radius, the one-shot sound — is identical, and duplicating it is how the two would drift.</para>
+        ///
+        /// <para><b>The material, and why it is created here rather than in the tick.</b> A dissolving
+        /// body is the only thing in the project that needs the dissolve shader, so it is swapped in at
+        /// the start and out at the end; creating it lazily on the first tick would leave the first
+        /// frame of every dissolve untinted. <see cref="DesintegrMaterial"/> explains why it is a
+        /// per-body material and not a property block.</para>
+        /// </remarks>
+        private void BeginDissolve(DesintegrTip tip)
+        {
+            if (_corpseState == CorpseState.Removed || _corpseState == CorpseState.Dissolving)
+            {
                 return;
             }
 
             _corpseState = CorpseState.Dissolving;
             _corpseDissolveFrames = 0f;
+            _desintegrTip = tip;
+
             if (_visualRenderer != null)
             {
                 _corpseBaseColor = _visualRenderer.color;
+
+                _desintegrMaterial = DesintegrMaterial.Create();
+                if (_desintegrMaterial != null)
+                {
+                    _visualRenderer.sharedMaterial = _desintegrMaterial;
+
+                    // The oracle's GlowFilter is 3 px; the shader's taps are in UV. Converted once,
+                    // here, from the body's own authored size rather than per frame.
+                    _desintegrMaterial.SetFloat(
+                        ShaderGlowRadiusUv, DesintegrMaterial.GlowRadiusUv(SpriteSizePixels));
+                }
+            }
+
+            // AS3 `Desintegr.as:67, :74, :81, :88` — `Snd.ps(id, X, Y)` in the constructor, i.e. once,
+            // at the start. The three blood tips have no such call and are silent by design.
+            string sound = DesintegrRules.SoundId(tip);
+            ISoundService soundService = DeathSoundService;
+            if (!string.IsNullOrEmpty(sound) && soundService != null)
+            {
+                soundService.Play(sound, transform.position);
             }
         }
+
+        /// <summary>The shader property name for the glow radius — <c>PFE_UnitDissolve.shader</c>'s own.</summary>
+        private const string ShaderGlowRadiusUv = "_GlowRadiusUV";
+
+        /// <summary>Shader property: the erosion threshold, 0..1.</summary>
+        private const string ShaderDissolve = "_Dissolve";
+
+        /// <summary>Shader property: the accumulated colour multiplier, <c>_MulR/_MulG/_MulB</c>.</summary>
+        private static readonly int ShaderMulR = Shader.PropertyToID("_MulR");
+        private static readonly int ShaderMulG = Shader.PropertyToID("_MulG");
+        private static readonly int ShaderMulB = Shader.PropertyToID("_MulB");
+
+        /// <summary>Shader property: the accumulated colour offset, <c>_AddR/_AddG/_AddB</c>.</summary>
+        private static readonly int ShaderAddR = Shader.PropertyToID("_AddR");
+        private static readonly int ShaderAddG = Shader.PropertyToID("_AddG");
+        private static readonly int ShaderAddB = Shader.PropertyToID("_AddB");
+
+        /// <summary>Shader property: the glow's colour and alpha.</summary>
+        private static readonly int ShaderGlowColor = Shader.PropertyToID("_GlowColor");
+        private static readonly int ShaderGlowAlpha = Shader.PropertyToID("_GlowAlpha");
 
         /// <summary>
         /// Advance a dissolving body by one step — AS3's <c>Unit.step</c> arm that calls
@@ -4403,6 +5340,11 @@ namespace PFE.Entities.Units
         /// <para>The countdown is in <b>canonical 30 Hz frames</b>, accumulated through
         /// <see cref="PFE.Core.SimClock.StepScale"/>, so a 60 Hz build dissolves a body in the same
         /// wall-clock 1.33 s the oracle does rather than in half of it.</para>
+        ///
+        /// <para><b>One frame number drives all three effects.</b> The tint, the erosion and the glow are
+        /// three reads of the same <c>burnN</c> (<c>Desintegr.as:112-135</c>), so they are computed from
+        /// one integer here instead of three independent counters that could drift apart — which is how a
+        /// body ends up fully eroded while still tinted, or glowing after it is gone.</para>
         /// </remarks>
         public void TickCorpse()
         {
@@ -4412,36 +5354,107 @@ namespace PFE.Entities.Units
             }
 
             float scale = _simClock != null ? _simClock.StepScale : 1f;
-            float before = _corpseDissolveFrames;
             _corpseDissolveFrames += scale;
 
-            // Emit on a fixed cadence rather than every frame: a room can hold a dozen bodies and
-            // AS3's per-frame emit is gated on mass for exactly that reason (`Desintegr.as:126-131`).
-            int interval = CorpseDamageMath.DissolveParticleIntervalFrames;
-            if ((int)(_corpseDissolveFrames / interval) != (int)(before / interval))
+            // `burnN` is seeded at 1 by the Desintegr constructor (`Desintegr.as:109`) and `step()` runs
+            // before the frame is drawn, so the frame index is the number of steps taken, floored and
+            // never below 1. A 60 Hz build taking two half-steps must not advance two frames.
+            int frame = Mathf.FloorToInt(_corpseDissolveFrames);
+            if (frame < 1)
+            {
+                frame = 1;
+            }
+
+            ApplyDissolveFrame(frame);
+
+            // The oracle emits on EVERY erosion frame, gated on the body's mass (`Desintegr.as:122-128`).
+            // The port used to thin this to one emit in four, which was an invented divergence: the
+            // oracle's own cap (100 live particles, `Emitter.as` `maxParts`) already bounds the cost, and
+            // `ParticleWorld` refuses past it the same way.
+            if (DesintegrRules.EmitsParticles(frame) &&
+                DesintegrRules.ShouldEmit(Mass, UnityEngine.Random.value))
             {
                 EmitCorpseDissolveParticles();
             }
 
-            if (_visualRenderer != null)
-            {
-                float t = Mathf.Clamp01(_corpseDissolveFrames / CorpseDamageMath.DissolveFrames);
-                Color color = _corpseBaseColor;
-                color.a *= 1f - t;
-                _visualRenderer.color = color;
-            }
-
             if (_corpseDissolveFrames >= CorpseDamageMath.DissolveFrames)
             {
-                ExterminateCorpse();
+                // No burst: the oracle's dissolve path ends in a bare `exterminate()` — the particles
+                // were the effect, and `expl()` only ever runs on the non-burning arm.
+                ExterminateCorpse(bloodBurst: false);
             }
         }
 
         /// <summary>
-        /// The dissolve's particles — AS3 <c>Desintegr.step</c>'s <c>Emitter.emit(burnPart, …)</c>,
-        /// where <c>burnPart</c> is the blood colour for the <c>4 + blood</c> tips
-        /// (<c>serv/Desintegr.as:80-98</c>).
+        /// Push one frame of the dissolve onto the body's renderer — the tint, the erosion threshold and
+        /// the glow (<c>Desintegr.as:112-135</c>).
         /// </summary>
+        /// <remarks>
+        /// <para><b>Two paths, and the shader one is the real one.</b> With a dissolve material the three
+        /// effects are three uniforms: the colour ramp, the threshold and the halo. Without one — a
+        /// stripped shader, a headless host — the body falls back to the alpha fade the port shipped
+        /// before, which is a worse effect but the same timing, so nothing downstream (the removal frame,
+        /// the corpse's solidity) changes between the two.</para>
+        ///
+        /// <para><b>The fallback deliberately does NOT apply the tint.</b> The oracle's tint is a
+        /// <c>ColorTransform</c> with additive offsets; <c>SpriteRenderer.color</c> only multiplies, so
+        /// writing the ramp into it would darken a fire-death body instead of brightening it — the wrong
+        /// colour in the wrong direction, which is worse than no tint at all.</para>
+        /// </remarks>
+        private void ApplyDissolveFrame(int frame)
+        {
+            if (_visualRenderer == null)
+            {
+                return;
+            }
+
+            if (_desintegrMaterial != null)
+            {
+                DesintegrTint tint = DesintegrRules.TintAt(_desintegrTip, frame);
+
+                _desintegrMaterial.SetFloat(ShaderMulR, tint.MulR);
+                _desintegrMaterial.SetFloat(ShaderMulG, tint.MulG);
+                _desintegrMaterial.SetFloat(ShaderMulB, tint.MulB);
+                _desintegrMaterial.SetFloat(ShaderAddR, tint.AddR);
+                _desintegrMaterial.SetFloat(ShaderAddG, tint.AddG);
+                _desintegrMaterial.SetFloat(ShaderAddB, tint.AddB);
+
+                _desintegrMaterial.SetFloat(ShaderDissolve, DesintegrRules.ErodeFraction(frame));
+                _desintegrMaterial.SetFloat(ShaderGlowAlpha, DesintegrRules.GlowAlpha(frame));
+
+                int rgb = DesintegrRules.GlowColorRgb(_desintegrTip);
+                _desintegrMaterial.SetColor(ShaderGlowColor, new Color(
+                    ((rgb >> 16) & 0xFF) / 255f,
+                    ((rgb >> 8) & 0xFF) / 255f,
+                    (rgb & 0xFF) / 255f,
+                    1f));
+                return;
+            }
+
+            // No shader: the pre-existing fade, unchanged so that its behaviour stays pinned by
+            // CorpseLifecycleTests.
+            float t = Mathf.Clamp01(_corpseDissolveFrames / CorpseDamageMath.DissolveFrames);
+            Color color = _corpseBaseColor;
+            color.a *= 1f - t;
+            _visualRenderer.color = color;
+        }
+
+        /// <summary>
+        /// The dissolve's particles — AS3 <c>Desintegr.step</c>'s <c>Emitter.emit(burnPart, …)</c>,
+        /// where <c>burnPart</c> is the tip's own row (<c>serv/Desintegr.as:65-107</c>).
+        /// </summary>
+        /// <remarks>
+        /// <para><b>The spec reproduces an oracle bug on purpose.</b> <c>Desintegr.as:124-127</c> passes
+        /// <c>{ "rx": scX * 0.75, "rx": scY * 0.5 }</c> — the same key twice, so <c>ry</c> is never
+        /// supplied and <c>rx</c> ends up as <c>scY * 0.5</c>. The port used to pass
+        /// <c>rx = scX*0.35, ry = scY*0.25</c>, which is the "intended" reading and gives every dissolve
+        /// a wider, flatter spray than the game has. See
+        /// <see cref="DesintegrRules.ParticleJitterX"/>.</para>
+        ///
+        /// <para><b>One particle per emit, not two.</b> The oracle passes no <c>kol</c> at all here, so
+        /// <c>Emitter.cast</c> spawns its default of one; the port's old <c>Kol = 2</c> doubled the
+        /// density and is what made the spray read as a fountain rather than as crumbling.</para>
+        /// </remarks>
         private void EmitCorpseDissolveParticles()
         {
             if (_particleEmitter == null)
@@ -4449,7 +5462,7 @@ namespace PFE.Entities.Units
                 return;
             }
 
-            string id = BloodSprayRules.SprayIdFor(BloodType);
+            string id = DesintegrRules.ParticleId(_desintegrTip);
             if (string.IsNullOrEmpty(id))
             {
                 return;
@@ -4463,9 +5476,8 @@ namespace PFE.Entities.Units
             Vector2 size = SpriteSizePixels;
             var spec = new ParticleSpec
             {
-                Kol = 2,
-                RX  = size.x * 0.35f,
-                RY  = size.y * 0.25f,
+                RX = DesintegrRules.ParticleJitterX(size.x, size.y),
+                RY = DesintegrRules.ParticleJitterY(size.x, size.y),
             };
 
             // `Y - scY / 2`, the body's centre — the same anchor AS3's `Desintegr` emits from.
@@ -4473,31 +5485,123 @@ namespace PFE.Entities.Units
         }
 
         /// <summary>
-        /// AS3 <c>exterminate()</c> (<c>Unit.as:4411-4421</c>) — <c>loc.remObj(this)</c>,
-        /// <c>sost = 4</c>, <c>disabled = true</c>.
+        /// AS3 <c>expl()</c> (<c>Unit.as:4423-4448</c>) — the blood burst a body throws when it is removed
+        /// <b>without</b> a dissolve, and then <c>exterminate()</c> (<c>:4411-4421</c>):
+        /// <c>loc.remObj(this)</c>, <c>sost = 4</c>, <c>disabled = true</c>.
         /// </summary>
+        /// <param name="bloodBurst">
+        /// Whether to run <c>expl()</c> first. True on the two non-burning arms of <c>die()</c>
+        /// (<c>:4320-4332</c> and <c>:4360-4367</c>), false when the dissolve has already played — the
+        /// oracle's <c>burn.vse</c> path calls <c>exterminate()</c> alone (<c>Unit.as:1839-1843</c>).
+        /// </param>
         /// <remarks>
-        /// The port has no room-local unit list, so "out of the world" is expressed as the three
-        /// things that list membership bought: it is no longer a physics body (no collider, no
+        /// <para><b>The burst is <c>massa * 50</c> particles across the body's own box.</b> For a rat that
+        /// is a handful, for a boss fifty; either way it is the difference between "shot into a red mist"
+        /// and "blinked out", which is the whole of <c>expl()</c>.</para>
+        ///
+        /// <para><b>The port has no room-local unit list, so "out of the world" is expressed as the three
+        /// things that list membership bought:</b> it is no longer a physics body (no collider, no
         /// simulated rigidbody), it is no longer drawn, and <see cref="CanBeHit"/> is false. The
-        /// GameObject stays alive because the brain, the health overlay and the loot code all still
-        /// hold references to it — destroying it here would turn every one of those into a null check
-        /// the oracle does not have.
+        /// GameObject stays alive because the brain, the health overlay and the loot code all still hold
+        /// references to it — destroying it here would turn every one of those into a null check the
+        /// oracle does not have.</para>
         /// </remarks>
-        private void ExterminateCorpse()
+        private void ExterminateCorpse(bool bloodBurst)
         {
             if (_corpseState == CorpseState.Removed)
             {
                 return;
             }
 
+            if (bloodBurst)
+            {
+                EmitExterminationBurst();
+            }
+
             _corpseState = CorpseState.Removed;
             _corpseDissolveFrames = 0f;
+
+            ReleaseDesintegrMaterial();
 
             if (_collider != null) _collider.enabled = false;
             if (_rb != null) _rb.simulated = false;
 
             SetVisible(false);
+        }
+
+        /// <summary>
+        /// AS3 <c>expl()</c> — <c>bloodEmit.cast(loc, X, Y, {kol: massa * 50, rx: scX/2, ry: scY/2})</c>
+        /// (<c>Unit.as:4442-4446</c>).
+        /// </summary>
+        /// <remarks>
+        /// <b>The whole body is gated on <c>if(this.blood)</c></b> (<c>:4425</c>), so a bloodless unit's
+        /// removal is silent and this returns without touching the emitter. The emitter itself is picked
+        /// from the blood colour (<c>:4429-4440</c>) — the same three rows the dissolve uses.
+        /// </remarks>
+        private void EmitExterminationBurst()
+        {
+            if (_particleEmitter == null)
+            {
+                return;
+            }
+
+            string id = DesintegrRules.ParticleId(DesintegrRules.TipForOverkill(BloodType));
+            if (string.IsNullOrEmpty(id))
+            {
+                return;
+            }
+
+            int count = DesintegrRules.ExplosionCount(Mass);
+            if (count <= 0)
+            {
+                return;
+            }
+
+            if (!_particleEmitter.TryToAs3Local(WorldPosition, out Vector2 anchor))
+            {
+                return;
+            }
+
+            Vector2 size = SpriteSizePixels;
+            var spec = new ParticleSpec
+            {
+                Kol = count,
+                RX  = size.x * 0.5f,
+                RY  = size.y * 0.5f,
+            };
+
+            // `cast(loc, X, Y, …)` — the unit's own origin, NOT the mid-height the dissolve uses. The
+            // difference is visible: a burst anchored at the feet looks like the body fell apart upward.
+            _particleEmitter.EmitAt(id, anchor, spec);
+        }
+
+        /// <summary>
+        /// Drop the per-body dissolve material and hand the renderer back its shared presenter material.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Required on both exits, not just removal.</b> A unit can be revived — a boss's second
+        /// life, a zombie getting up — and it would otherwise come back wearing a material whose
+        /// <c>_Dissolve</c> is still 0.6, i.e. a body with holes in it.</para>
+        ///
+        /// <para>The shared presenter material is re-fetched rather than remembered, because it is a
+        /// static that a domain reload can recreate; the dissolve material is the only object this class
+        /// owns and must destroy.</para>
+        /// </remarks>
+        private void ReleaseDesintegrMaterial()
+        {
+            if (_desintegrMaterial == null)
+            {
+                return;
+            }
+
+            if (_visualRenderer != null)
+            {
+                _visualRenderer.sharedMaterial = SpritePresenterMaterial.Get();
+            }
+
+            Destroy(_desintegrMaterial);
+            _desintegrMaterial = null;
+            _desintegrTip = DesintegrTip.None;
         }
 
         /// <summary>
@@ -4510,6 +5614,10 @@ namespace PFE.Entities.Units
         /// that every damage source would skip — the same class of bug as the corpse itself, one state
         /// over. <see cref="UnitStats.Overkill"/> clears itself when the HP goes positive, so the
         /// budget does not need resetting here.</para>
+        ///
+        /// <para><b>A half-finished dissolve is undone too.</b> The material goes back to the presenter's
+        /// and the tint to the base colour, or a revived boss would keep the erosion threshold it had
+        /// reached when it died.</para>
         /// </remarks>
         public void ReviveFromCorpse()
         {
@@ -4520,6 +5628,8 @@ namespace PFE.Entities.Units
 
             _corpseState = CorpseState.None;
             _corpseDissolveFrames = 0f;
+
+            ReleaseDesintegrMaterial();
 
             if (_collider != null) _collider.enabled = true;
             if (_rb != null) _rb.simulated = true;
@@ -4657,8 +5767,10 @@ namespace PFE.Entities.Units
             }
 
             // AS3 :4460-4466 — pers.dropTre > 0 && xp > 0 && rnd < dropTre * xp / 4000.
+            // `XpReward` for the same reason as the award above: the oracle's `this.xp` is the
+            // multiplied one, so a starred enemy is both worth more and likelier to drop a gem.
             float dropTre = player != null && player.CharacterStats != null ? player.CharacterStats.dropTre : 0f;
-            if (UnitDeathDrop.ShouldDropGem(dropTre, _stats.xpReward, rng.NextFloat()))
+            if (UnitDeathDrop.ShouldDropGem(dropTre, XpReward, rng.NextFloat()))
             {
                 LootRoller.RollPlacedItem(UnitDeathDrop.RollGemId(rng.NextFloat()), ctx,
                                           nx: transform.position.x, ny: centreY);
@@ -4667,7 +5779,10 @@ namespace PFE.Entities.Units
             // AS3 `UnitRaider.dropLoot` (:507-523) — the gun the corpse was holding, dropped
             // <b>after</b> `super.dropLoot()` returns, i.e. after the table, the essence and the gem.
             // A no-op for every family that does not override `dropLoot`, which is all of them except
-            // the raider family (and the two bosses, whose port controllers hold no weapon at all).
+            // the raider family and the two bosses that carry a gun: `UnitBossRaider` (which drops its
+            // carbine/flamer unconditionally, `UnitBossRaider.as:199-227`) and `UnitBossAlicorn` (which
+            // hides its weapon and does NOT drop it, `UnitBossAlicorn.as:166-172`). The other four
+            // bosses hold no weapon at all.
             //
             // Rolled into `ctx` rather than spawned here so the dropped weapon goes through the same
             // item-construction rules as every other drop — the `kol = 0` condition band, the `^N`
@@ -4781,7 +5896,9 @@ namespace PFE.Entities.Units
                     Vector3 weaponWhere = DropScatter(rng, centreY);
                     if (WorldItemPickup.Spawn(weapon, 1, weaponWhere, autoCollect: true,
                                               variant: roll.Variant,
-                                              condition: roll.Condition * roll.HpMultiplier) != null)
+                                              condition: roll.Condition * roll.HpMultiplier,
+                                              jump: true, room: Room,
+                                              fallSoundId: FallSoundFor(roll.Tip, roll.ItemId, isWeapon: true)) != null)
                     {
                         spawned++;
                     }
@@ -4799,7 +5916,12 @@ namespace PFE.Entities.Units
 
                 Vector3 where = DropScatter(rng, centreY);
 
-                if (WorldItemPickup.Spawn(definition, roll.Quantity, where, autoCollect: true) != null)
+                // `jump: true` — AS3 `LootGen.newLoot` builds every corpse drop as
+                // `new Loot(loc, item, nx, ny, true)` (LootGen.as:293), so a kill's loot is lobbed and
+                // falls rather than appearing already at rest.
+                if (WorldItemPickup.Spawn(definition, roll.Quantity, where, autoCollect: true,
+                                          jump: true, room: Room,
+                                          fallSoundId: FallSoundFor(roll.Tip, roll.ItemId, isWeapon: false)) != null)
                 {
                     spawned++;
                 }
@@ -4834,9 +5956,19 @@ namespace PFE.Entities.Units
                 transform.position.z);
         }
 
-        /// <summary>Half-extent of the eject scatter, in world units — the corpse-drop twin of
-        /// <c>ContainerPropPresenter</c>'s. See that constant for why a scatter stands in for the
-        /// oracle's fall.</summary>
+        /// <summary>Half-extent of the eject scatter, in world units. Still used by a corpse drop,
+        /// because AS3's <c>lootDrop</c> hands every item the unit's own point and lets the <b>throw</b>
+        /// spread them — the port keeps a small offset on top so a multi-item spill does not start every
+        /// arc from the same pixel. The falling itself is <c>LootFallRules</c>.</summary>
         private const float DropScatterRadius = 0.3f;
+
+        /// <summary>
+        /// The landing sample for one spilled item — AS3 <c>Loot.sndFall</c>, resolved by
+        /// <see cref="LootFallRules.ResolveFallSoundId(ILootItemCatalog, bool, string, string)"/>. One
+        /// shared rule for all three drop sites, because the ladder is tip-routed and a weapon must be
+        /// read off <c>&lt;snd fall&gt;</c> rather than the row's own <c>@fall</c>.
+        /// </summary>
+        private static string FallSoundFor(string tip, string itemId, bool isWeapon)
+            => LootFallRules.ResolveFallSoundId(LootRuntime.Catalog, isWeapon, tip, itemId);
     }
 }

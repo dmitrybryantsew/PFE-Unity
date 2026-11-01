@@ -19,10 +19,20 @@ namespace PFE.Entities.Units
         /// </summary>
         public readonly bool Blocked;
 
-        public UnitWallResolution(float appliedDeltaXPx, bool blocked)
+        /// <summary>
+        /// How far the body was lifted by a step-up this sweep, in pixels; <c>0</c> when it was not.
+        ///
+        /// <para>AS3's step-up writes <c>Y = tile.phY1</c> (<c>Unit.as:2133</c> / <c>:2210</c>) — the
+        /// body moves up as well as sideways — so the caller must apply this or the unit ends up
+        /// standing inside the ledge it just climbed.</para>
+        /// </summary>
+        public readonly float StepUpPixels;
+
+        public UnitWallResolution(float appliedDeltaXPx, bool blocked, float stepUpPixels = 0f)
         {
             AppliedDeltaXPx = appliedDeltaXPx;
             Blocked = blocked;
+            StepUpPixels = stepUpPixels;
         }
     }
 
@@ -52,17 +62,19 @@ namespace PFE.Entities.Units
     /// (<c>ResolveGroundState</c> + <c>ApplyGravity</c>) is untouched. Vertical motion is not the
     /// reported fault, and changing it here would move every unit's fall at once.</para>
     ///
-    /// <para><b>Step-up is not implemented, and the reason is not laziness.</b> AS3's gate is
-    /// <c>Y2 - _loc2_.phY1 &lt;= (stay ? porog : porog_jump)</c> — the unit's feet may be at most
-    /// <c>porog</c> (10 px, <c>TileQueryConstants.PorogGrounded</c>) below the obstacle's top, and
-    /// <c>4</c> px airborne. That fires on <i>sub-tile</i> surfaces. The port's tile geometry has none:
-    /// <c>TileCollisionMath.CheckTileCollisionAt</c> — the function <c>ResolveMove</c> steps with —
-    /// classifies by grid coordinate and treats every tile as a full 40 px cell, so an obstacle's top is
-    /// always a multiple of 40 and the smallest possible step is 39 px. The gate could never fire, and a
-    /// branch that cannot fire is worse than no branch: it reads as live. It becomes live the moment the
-    /// resolver honours <c>TileData.heightLevel</c>, which shifts a tile's bounds in 10 px steps —
-    /// <c>HasSolidOverlapAt</c> already does, and <c>CheckTileCollisionAt</c> does not, which is the
-    /// inconsistency to fix first.</para>
+    /// <para><b>Step-up is implemented, and it is what makes a half or quarter tile a step.</b>
+    /// AS3's gate is <c>Y2 - _loc2_.phY1 &lt;= (stay ? porog : porog_jump)</c> — the feet may be at
+    /// most <c>porog</c> (10 px standing, 4 px airborne) below the obstacle's <i>top</i>, and
+    /// <c>porog</c> is exactly one quarter-tile. This used to be recorded as unportable because the
+    /// port's tile geometry had no sub-tile surfaces: <c>TileCollisionMath.CheckTileCollisionAt</c>
+    /// classified by grid coordinate, so an obstacle's top was always a multiple of 40 and the
+    /// smallest possible step was 39 px. Now that the collision functions test
+    /// <see cref="TileData.GetBounds"/> — which lowers a <c>heightLevel &gt; 0</c> tile's top by a
+    /// quarter cell per level — the gate can fire, and leaving it out would turn every quarter-tile
+    /// step into a wall. The allowance is passed in by the caller
+    /// (<see cref="UnitController.StepUpAllowancePixels"/>) because it is per-unit and per-state: a
+    /// generic unit gets a flat 10, the player gets <b>0 standing and 20 walking</b>
+    /// (<c>UnitPlayer.as:2530, 2550, 2569</c>).</para>
     /// </summary>
     public static class UnitWallMotion
     {
@@ -127,7 +139,11 @@ namespace PFE.Entities.Units
         /// failure than letting it walk.</param>
         /// <param name="boxPx">The unit's box, world pixels. See <see cref="ToMoveBoxPixels"/>.</param>
         /// <param name="deltaXPx">Requested horizontal movement, world pixels.</param>
-        public static UnitWallResolution Resolve(ITileQueryService tileQuery, in TileBox boxPx, float deltaXPx)
+        /// <param name="stepUpPixels">AS3 <c>stay ? porog : porog_jump</c> — how far above the feet
+        /// an obstacle's top may be and still be climbed. <c>0</c> disables the step-up, which is the
+        /// right answer for anything that is not a walking unit.</param>
+        public static UnitWallResolution Resolve(ITileQueryService tileQuery, in TileBox boxPx,
+                                                 float deltaXPx, float stepUpPixels = 0f)
         {
             if (tileQuery == null || deltaXPx == 0f)
             {
@@ -139,7 +155,7 @@ namespace PFE.Entities.Units
             // nothing here — and the vertical pass is a no-op because delta.y is 0, which is what keeps
             // this from also re-deciding where the unit stands.
             TileMoveResult moved = tileQuery.ResolveMove(
-                boxPx, new Vector2(deltaXPx, 0f), TileQueryFlags.Solid);
+                boxPx, new Vector2(deltaXPx, 0f), TileQueryFlags.Solid, stepUpPixels);
 
             // `ResolveMove` reports only the side the step was moving toward — it sets `HitLeft` from a
             // negative sub-step and `HitRight` from a positive one — so this is exact rather than
@@ -150,8 +166,12 @@ namespace PFE.Entities.Units
 
             // ResolveMove's Position is the box CENTRE, so the applied delta is the difference from
             // where the box started. When blocked it has already been clamped flush to the wall face,
-            // which is AS3's `X = _loc2_.phX2 + scX / 2` (`:2142`).
-            return new UnitWallResolution(moved.Position.x - boxPx.Center.x, blocked);
+            // which is AS3's `X = _loc2_.phX2 + scX / 2` (`:2142`). A step-up is not a block: the box
+            // moved the full delta and rose, so `Blocked` stays false and the velocity survives.
+            return new UnitWallResolution(
+                moved.Position.x - boxPx.Center.x,
+                blocked,
+                moved.StepUpPixels);
         }
     }
 }

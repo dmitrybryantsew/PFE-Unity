@@ -7,6 +7,7 @@ using PFE.Data.Definitions;
 using PFE.ModAPI;          // ContentType lives here, not in PFE.Data (ContentRegistry implements IContentRegistry)
 using PFE.Systems.Campaign;
 using PFE.Systems.Items;
+using PFE.Systems.Loot;
 using PFE.Systems.Magic;
 using PFE.Systems.RPG;
 using PFE.Systems.Weapons;
@@ -557,7 +558,15 @@ namespace PFE.Systems.Inventory
             // deliberately — dropping something and having the walk-over magnet drag it straight back
             // would be absurd. The parameter is written out so the mapping is visible rather than implied
             // by an omitted argument.
-            WorldItemPickup pickup = WorldItemPickup.Spawn(definition, amount, position, autoCollect: false);
+            //
+            // `jump: true` is the oracle's other argument on that same line: `new Loot(..., true, false,
+            // false)` is (jump, krit, auto). A dropped item is *thrown* — it arcs up and sideways and
+            // then falls to the floor, playing its `sndFall` when it lands. Spawning it at rest is why a
+            // player's drop used to appear already lying down.
+            WorldItemPickup pickup = WorldItemPickup.Spawn(
+                definition, amount, position, autoCollect: false, jump: true,
+                room: WorldItemPickup.RoomProvider?.Invoke(),
+                fallSoundId: FallSoundForItem(definition));
             if (pickup == null) { error = "the world refused the pickup"; return false; }
 
             InventoryCommandResult result = Submit(InventoryCommand.DropItem(itemId, amount));
@@ -571,6 +580,23 @@ namespace PFE.Systems.Inventory
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// The landing sample for a dropped item — AS3 <c>Loot.sndFall</c> over the item's own row
+        /// (<see cref="LootFallRules.ResolveFallSoundId"/>).
+        ///
+        /// <para><b>Not the pickup sound.</b> Those are two different samples on two different events:
+        /// <c>sndFall</c> fires when the item hits the floor and is what "dropping on the floor has a
+        /// sound" means; <c>ItemDefinition.pickupSound</c> fires when it is taken. This method answers the
+        /// first.</para>
+        /// </summary>
+        private static string FallSoundForItem(ItemDefinition definition)
+        {
+            if (definition == null) return LootFallRules.DefaultFallSound;
+
+            return LootFallRules.ResolveFallSoundId(
+                LootRuntime.Catalog, isWeapon: false, definition.legacyTip, definition.itemId);
         }
 
         // ── Item use (AS3 Invent.useItem) ─────────────────────────────────────
@@ -715,10 +741,23 @@ namespace PFE.Systems.Inventory
                     return false;
 
                 case ItemUseOutcome.Workshop:
-                    // Invent.as:563-571 — `pip.workTip = id; pip.onoff(7)`. Page 7 is still a stub, and
-                    // the device owns the open, so this is the seam a caller would use.
-                    Debug.Log($"[PlayerInventory] '{itemId}' is a crafting bench: AS3 opens page 7. " +
-                              "Page 7 is not ported, so nothing opened; the item is not consumed.");
+                    // Invent.as:561-571 — `pip.workTip = id; pip.onoff(7)`. The three portable benches
+                    // are named by id there, and `mworklab`/`mworkexpl` are rewritten to `lab`/`expl` by
+                    // the page itself (PipPageWork.as:40-47), so the raw id is what goes in.
+                    //
+                    // The battle refusal is the oracle's own (`if(World.w.t_battle > 0)`, :563-567) and
+                    // comes BEFORE the page opens. `false` is returned so the item is not consumed —
+                    // the oracle's `return false` for all three (:570), which is also why a bench is
+                    // never used up.
+                    if (inBattle)
+                    {
+                        Debug.Log($"[PlayerInventory] '{itemId}' refused: AS3 refuses a portable bench in " +
+                                  "battle (`noUseCombat`, Invent.as:563-567). The item is not consumed.");
+                        return false;
+                    }
+
+                    Debug.Log($"[PlayerInventory] '{itemId}' opens the workbench (pip.onoff(7)).");
+                    PFE.Core.PipPageRouter.Open(7, 0, itemId);
                     return false;
 
                 case ItemUseOutcome.Reading:
@@ -728,9 +767,12 @@ namespace PFE.Systems.Inventory
                     return false;
 
                 case ItemUseOutcome.Pet:
-                    Debug.Log($"[PlayerInventory] '{itemId}' summons pet '{Attr(attrs, "pet")}'. The port " +
-                              "has no pet model, so nothing was summoned; the item is not consumed.");
-                    return false;
+                    // Invent.as:695-707 — `gg.callPet(xml.@pet)`, and `alicorn` was already refused by
+                    // the ladder above (`:695-700`), matching `callPet`'s own `World.w.alicorn` gate.
+                    // The item is NOT consumed: `ItemUseRules.ConsumesItem` answers false for Pet,
+                    // which is the oracle's own `return false` — the whistle and the owl are reusable.
+                    ran = SummonPet(Attr(attrs, "pet"));
+                    break;
 
                 case ItemUseOutcome.Paint:
                     Debug.Log($"[PlayerInventory] '{itemId}' paints the held weapon '{Attr(attrs, "paint")}'. " +
@@ -968,6 +1010,42 @@ namespace PFE.Systems.Inventory
         }
 
         /// <summary>
+        /// <c>gg.callPet(xml.@pet)</c> (<c>Invent.as:695-707</c>) — the pet whistle / owl summon.
+        ///
+        /// <para><b>All of the gates live in <see cref="PFE.Systems.Pets.PetRules.DecideCall"/>, not
+        /// here.</b> The item path is only a source of the request: cooldowns, the alicorn lock, the
+        /// owl-dead case and the same-pet toggle-off are the same ladder the spell path uses, so
+        /// duplicating any of them here would give two answers to one question. This method resolves
+        /// the companion and forwards the id — nothing more.</para>
+        ///
+        /// <para><b>Returns false when the pet is absent, not when it is refused.</b> The Oracle's
+        /// <c>useItem</c> answers <c>true</c> for a pet item regardless of what <c>callPet</c> did
+        /// (the item is not consumed either way — see <see cref="ItemUseRules.ConsumesItem"/>), so a
+        /// refusal must not read as "the item did nothing". A missing companion is the only honest
+        /// false: there is no game object for the pet to attach to.</para>
+        /// </summary>
+        private bool SummonPet(string petId)
+        {
+            PFE.Entities.Pets.PetCompanion companion = GetComponentInParent<PFE.Entities.Pets.PetCompanion>();
+            if (companion == null)
+            {
+                Debug.LogWarning($"[PlayerInventory] pet item '{petId}' used but no PetCompanion is " +
+                                 "attached to the player, so nothing could be summoned.");
+                return false;
+            }
+
+            if (!PFE.Systems.Pets.PetIds.TryParse(petId, out PFE.Systems.Pets.PetKind kind))
+            {
+                Debug.LogWarning($"[PlayerInventory] pet item names '{petId}', which is not one of " +
+                                 $"'{PFE.Systems.Pets.PetIds.Phoenix}', '{PFE.Systems.Pets.PetIds.Owl}' or " +
+                                 $"'{PFE.Systems.Pets.PetIds.Moon}' — refused.");
+                return false;
+            }
+
+            return companion.CallPet(kind);
+        }
+
+        /// <summary>
         /// <c>id == "rep"</c> (<c>Invent.as:665-670</c>) — the weapon repair kit, which repairs the
         /// <b>held</b> weapon and is refused when there is nothing to repair.
         /// </summary>
@@ -1066,6 +1144,25 @@ namespace PFE.Systems.Inventory
         private static Dictionary<string, PFE.Systems.Items.ItemXmlRow> s_itemRows;
 
         /// <summary>
+        /// The whole <c>AllData.as</c> mirror, read once per process.
+        ///
+        /// <para><b>Why this is public.</b> The crafting recipe table is built from the same document
+        /// (<see cref="PFE.Systems.Crafting.CraftingRecipeTable.Build"/>) and its <c>&lt;craft&gt;</c>
+        /// children are already in the text this class reads for <c>&lt;sk&gt;</c> rows. A second
+        /// <c>Resources.Load</c> in the PipBuck bootstrapper would be a second path to the same file and
+        /// a second chance for one of them to be renamed. Null offline, which every caller already
+        /// treats as "no row".</para>
+        /// </summary>
+        public static string AllDataText
+        {
+            get
+            {
+                EnsureAllDataRead();
+                return s_allData;
+            }
+        }
+
+        /// <summary>
         /// The lazy <c>AllData</c> read, shared by both row tables. Runs once per process; the
         /// <see cref="s_allDataRead"/> guard is what keeps a failed read from retrying every frame.
         /// </summary>
@@ -1145,6 +1242,21 @@ namespace PFE.Systems.Inventory
         /// </summary>
         private static string ItemRowAttributes(string itemId)
             => TryGetItemRow(itemId, out PFE.Systems.Items.ItemXmlRow row) ? row.Attrs : string.Empty;
+
+        /// <summary>
+        /// The <c>&lt;item&gt;</c> row's attribute run for an id, or <b>null</b> when the mirror has no
+        /// such row (or no mirror at all). Public for the same reason <see cref="ItemRowMess"/> is: the
+        /// vendor page needs it and is not the inventory.
+        ///
+        /// <para><b>Null, not empty — the distinction is the price.</b>
+        /// <see cref="PFE.Systems.Items.ItemPriceRules"/> treats "no row" as "fall back to the asset"
+        /// and "row present without <c>@price</c>" as AS3's 0 (<c>Item.as:352-372</c> coerces an absent
+        /// attribute to 0, and <c>PipPageVend.as:141</c> then skips the row). Collapsing the two into an
+        /// empty string would price <c>money</c>/<c>bit</c>/<c>gem1..3</c> — 75 rows with no
+        /// <c>@price</c> — at the asset placeholder of 10.</para>
+        /// </summary>
+        public static string ItemRowAttrsOrNull(string itemId)
+            => TryGetItemRow(itemId, out PFE.Systems.Items.ItemXmlRow row) ? row.Attrs : null;
 
         /// <summary>One raw attribute value, or empty when absent.</summary>
         private static string Attr(string attrs, string name)

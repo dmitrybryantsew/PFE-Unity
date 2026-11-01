@@ -1,3 +1,4 @@
+using PFE.Core;
 using PFE.Data.Definitions;
 using PFE.Entities.Units;
 using PFE.Systems.Map;
@@ -11,12 +12,25 @@ namespace PFE.Entities.Player
     /// High-level player locomotion brain.
     /// Reads intent from PlayerController, applies movement rules, and drives the low-level motor.
     /// Queries ILocomotionAbilities for perk-modified capabilities (double jump, levitation, etc.).
+    ///
+    /// <para><b>It is also an <see cref="ISimTickable"/>, for one line of its work only: the swim
+    /// impulse.</b> Everything else here is a <i>level</i> — a target speed, a gravity scale, a
+    /// crouch flag — and a level is idempotent, so applying it once per Unity fixed step is
+    /// harmless even when the motor steps on the sim clock instead. The swim is the exception:
+    /// AS3 <i>adds</i> <c>plavdy</c> to <c>dy</c> every frame (<c>UnitPlayer.as:2804</c>), so the
+    /// number of applications between two motor steps is the swim speed. At this project's
+    /// <c>Fixed Timestep</c> of 0.02 (50 Hz) against a 30 Hz sim, <c>FixedUpdate</c> runs 1.67 times
+    /// per step, which made the swim 1.67x too fast — terminal ~10 px/frame instead of 5.6 — and
+    /// that is what made the water splash fire on every stroke of a surface bob, because the exit
+    /// velocity then cleared AS3's ±5 px/frame splash gate
+    /// (<see cref="PFE.Systems.Physics.SwimMath.SplashMinVerticalSpeedPixelsPerFrame"/>). See
+    /// <see cref="SimTick"/>.</para>
     /// </summary>
     [DefaultExecutionOrder(-200)]
     [DisallowMultipleComponent]
     [RequireComponent(typeof(UnitController))]
     [RequireComponent(typeof(TilePhysicsController))]
-    public sealed class PlayerLocomotionController : MonoBehaviour
+    public sealed class PlayerLocomotionController : MonoBehaviour, ISimTickable
     {
         private const float DefaultRunMultiplier = 2f;
         private const float DefaultSwimSpeedMultiplier = 0.75f;
@@ -90,6 +104,14 @@ namespace PFE.Entities.Player
         private float _teleportFreezeTimer;
         private bool _justTeleported;
         private Vector2 _cursorWorldPixels;
+
+        /// <summary>
+        /// The destination square (AS3 <c>vis.portCel</c>). Built lazily on the first frame of a charge
+        /// that is long enough to show it, so a player that never teleports never pays for the art.
+        /// Null when the art is missing — see <see cref="TeleportDestinationView.Attach"/>.
+        /// </summary>
+        private TeleportDestinationView _teleportMarker;
+        private bool _teleportMarkerResolved;
 
         // Telekinesis/teleport trace bookkeeping. Both exist only to keep the trace from flooding the
         // console: `TryConsumeTeleport` runs EVERY frame, so a per-frame line for the whole hold would
@@ -269,7 +291,16 @@ namespace PFE.Entities.Player
             float targetSpeed = ResolveTargetHorizontalSpeed(state);
             _motor.SetDesiredHorizontalSpeed(targetSpeed);
             _motor.SetCrouching(_isCrouching);
-            _motor.SetDropThroughPlatforms(_dropThroughPressedBuffered);
+
+            // AS3 `UnitPlayer.as:2640` — `throu = (ctr.keyJump || !stay) && ctr.keySit || …`, which
+            // is re-derived EVERY frame. The buffered double-tap below is the oracle's other arm
+            // (`keyDubSit`, `:2917-2925`) and it is a one-off: it sets the flag and hands out a 10
+            // px/frame push. On its own the port then falls for the pulse's 0.18 s and is caught by the
+            // next surface down — on a diagonal staircase that is the tread one step below, so the
+            // flight could not be dropped through. The level arm is what keeps `throu` true while the
+            // unit is off the ground with Down held, which is how the original falls the whole way.
+            _motor.SetDropThroughPlatforms(_dropThroughPressedBuffered
+                || UnitDropThroughMath.PlayerShouldDropThrough(_jumpHeld, _moveInput.y, state.IsGrounded));
             _motor.SetGravityScale(ResolveGravityScale(state));
 
             // Apply levitation vertical speed
@@ -280,7 +311,13 @@ namespace PFE.Entities.Player
             }
             // Vertical swim control (AS3: `dy -= plavdy * speedPlavMult` — an IMPULSE, not a speed).
             // Only units with canSwim can actively swim; others sink normally.
-            else if (state.IsFullySubmerged && CanSwim)
+            //
+            // `!_simRegistered`: with the impulse on the sim clock (SimTick) this arm must stand down,
+            // or the impulse is applied twice — once per fixed step AND once per step, which is the
+            // 1.67x over-application this class comment describes. Unregistered (the legacy path,
+            // where the motor steps per FixedUpdate) one call here is one call per step, so the
+            // ratio is 1:1 and this arm is correct.
+            else if (!_simRegistered && state.IsFullySubmerged && CanSwim)
             {
                 ApplySwimImpulse();
             }
@@ -475,6 +512,71 @@ namespace PFE.Entities.Player
         //  Swimming
         // ──────────────────────────────────────
 
+        private SimLoop _simLoop;
+        private bool _simRegistered;
+
+        /// <summary>
+        /// One impulse per AS3 frame, so it is applied once per <b>sim step</b> and never per
+        /// <c>FixedUpdate</c> — see the class comment for why the difference is the swim speed.
+        ///
+        /// <para><see cref="SimTickOrder.Input"/> rather than <c>PlayerMotor</c>: the motor consumes
+        /// the pending impulse inside its own step (20), so this has to run before it. That is also
+        /// the oracle's order — <c>control()</c> reads the key and writes <c>dy</c>, then
+        /// <c>run()</c> integrates.</para>
+        /// </summary>
+        public int TickOrder => SimTickOrder.Input;
+
+        /// <summary>Puts the swim impulse on the sim clock. Safe to call twice.</summary>
+        public void AttachSimulation(SimClock clock, SimLoop loop)
+        {
+            if (loop == null)
+            {
+                return;
+            }
+
+            _simLoop = loop;
+            if (!_simRegistered)
+            {
+                _simLoop.Register(this);
+                _simRegistered = true;
+            }
+        }
+
+        public void SimTick(int tickIndex)
+        {
+            // `_isLevitating` is a level set in FixedUpdate; a levitating player does not swim
+            // (`UnitPlayer.as:2804` is gated on isPlav, and levitation stands the swim down).
+            if (_motor == null || _isLevitating)
+            {
+                return;
+            }
+
+            // `isPlav`, not `inWater`: AS3 only accepts the swim keys while the 75% sample is wet.
+            // Read from the motor, i.e. the state the last step left behind — the same value
+            // FixedUpdate's `state.IsFullySubmerged` sees.
+            //
+            // `_moveInput`/`_jumpHeld` are the frame-boundary snapshot FixedUpdate fills in, which is
+            // exactly what `ISimTickable` asks a tick to read: a level gathered once per frame, not a
+            // value sampled inside the tick. At most one fixed step of latency, and the oracle has
+            // the same one — `control()` reads the key state the frame handler last wrote.
+            MovementMotorState state = _motor.State;
+            if (!state.IsFullySubmerged || !CanSwim)
+            {
+                return;
+            }
+
+            ApplySwimImpulse();
+        }
+
+        private void OnDestroy()
+        {
+            if (_simLoop != null && _simRegistered)
+            {
+                _simLoop.Unregister(this);
+                _simRegistered = false;
+            }
+        }
+
         /// <summary>
         /// AS3's swim control: an <b>impulse added to <c>dy</c> every frame</b>, not a target speed.
         ///
@@ -537,7 +639,7 @@ namespace PFE.Entities.Player
             {
                 speed *= Mathf.Clamp(swimSpeedMultiplier, 0.1f, 1f);
             }
-            else if (_runHeld)
+            else if (_runHeld || RunForced)
             {
                 speed = _definition != null ? _definition.RunSpeed : walkSpeed * DefaultRunMultiplier;
             }
@@ -550,6 +652,19 @@ namespace PFE.Entities.Player
 
             return _moveInput.x * speed;
         }
+
+        /// <summary>
+        /// AS3 <c>runForever &gt; 0</c> — the <c>horror</c> effect's forced run
+        /// (<c>AllData.as:5963</c> → <c>UnitPlayer.as:2467</c>).
+        ///
+        /// <para><b>It substitutes for the run key, and nothing else.</b> The oracle is
+        /// <c>isRun = (possRun || stam &gt; 200) &amp;&amp; ctr.keyRun || runForever &gt; 0</c>, so the
+        /// forced term sits exactly where the key sits — which is why this is folded in beside
+        /// <c>_runHeld</c> rather than short-circuiting the speed. The port maps the run key to
+        /// <c>IsDashing</c> (see <c>PlayerController</c>), so the substitution lands in the same
+        /// place.</para>
+        /// </summary>
+        private bool RunForced => _characterStats != null && _characterStats.runForever > 0;
 
         // ──────────────────────────────────────
         //  Gravity
@@ -715,9 +830,14 @@ namespace PFE.Entities.Player
                         $"[6] teleport DISABLED: _abilities={(_abilities == null ? "NULL" : "present")}, " +
                         $"CanTeleport={(_abilities != null && _abilities.CanTeleport)}. Q can never teleport in this state.");
                 }
+                HideTeleportMarker();
                 return;
             }
-            if (IsTeleporting) return;
+            if (IsTeleporting)
+            {
+                HideTeleportMarker();
+                return;
+            }
 
             // There is deliberately NO held-object gate here. AS3's teleport path is checkPort()
             // (UnitPlayer.as:1690), which tests mana, loc.sky, tile visibility >= 0.8 and
@@ -738,6 +858,7 @@ namespace PFE.Entities.Player
                             $"teleport charge RESET: cooldown={_teleportCooldownTimer:F2}s dashing={IsDashing} onLadder={state.IsOnLadder}");
                     }
                     _teleportChargeTimer = 0f;
+                    HideTeleportMarker();
                     return;
                 }
 
@@ -749,10 +870,15 @@ namespace PFE.Entities.Player
                         TelekinesisTrace.Log("teleport charge RESET: not enough mana");
                     }
                     _teleportChargeTimer = 0f;
+                    HideTeleportMarker();
                     return;
                 }
 
                 _teleportChargeTimer += Time.fixedDeltaTime;
+
+                // GUI.as:1977 — the destination square is drawn from the 15th frame of the charge on,
+                // in one of three frames chosen by checkPort() (GUI.as:1536-1551).
+                UpdateTeleportMarker();
 
                 // Log the crossing only. Whether the charge REACHES portTime is the whole question;
                 // a line per frame for the duration of the hold would bury it.
@@ -773,6 +899,7 @@ namespace PFE.Entities.Player
             float chargedTime = _teleportChargeTimer;
             _teleportChargeTimer = 0f;
             _teleportChargeLoggedReady = false;
+            HideTeleportMarker();
             bool hadCharge = chargedTime > 0f;
 
             if (chargedTime < _abilities.TeleportChargeTimeSeconds)
@@ -804,27 +931,26 @@ namespace PFE.Entities.Player
             TelekinesisTrace.Log(
                 $"teleport RELEASED with a valid charge ({chargedTime:F2}s) -- cursor=({_cursorWorldPixels.x:F1},{_cursorWorldPixels.y:F1})px");
 
-            // Snap cursor position to tile grid (AS3: Math.round(celX / tileX) * tileX)
-            float tileSize = WorldConstants.TILE_SIZE;
-            float targetX = Mathf.Round(_cursorWorldPixels.x / tileSize) * tileSize;
-            // AS3: Math.round(celY / tileY + 1) * tileY - 1  (feet-aligned)
-            float targetY = (Mathf.Round(_cursorWorldPixels.y / tileSize + 1f)) * tileSize - 1f;
+            // Snap the cursor to the destination cell. AS3: UnitPlayer.as:1641-1642 —
+            //   _loc1_ = Math.round(celX / tileX) * tileX;
+            //   _loc2_ = Math.round(celY / tileY + 1) * tileY - 1;
+            // The y expression is NOT portable as written: AS3's y grows downward, so "+ tileY - 1"
+            // puts the feet one pixel above the destination cell's BOTTOM seam. Copied into this y-up
+            // motor it evaluates to `round(y/tile)*tile + tile - 1`, one whole cell ABOVE the cursor —
+            // every indoor destination landed inside the ceiling, CanTeleportTo refused it, and
+            // teleporting looked broken in every room with a roof while still working under open sky.
+            // See PlayerTeleportTargetMath for the derivation.
+            PlayerTeleportTargetMath.Target target =
+                PlayerTeleportTargetMath.Resolve(_cursorWorldPixels, WorldConstants.TILE_SIZE);
+            float targetX = target.FeetPixelX;
+            float targetY = target.FeetPixelY;
 
-            // Collider dimensions for destination validation
-            var tilePhysics = _motor as TilePhysicsController;
-            float hw = 15f;
-            float hh = 25f;
-            if (tilePhysics != null)
-            {
-                hw = tilePhysics.CollisionWidth * 0.5f;
-                hh = tilePhysics.CollisionHeight;
-            }
+            ResolveTeleportProbe(out float hw, out float hh);
 
-            // TODO: Visibility check — tile.visi >= 0.8 (fog of war not yet implemented)
-            // When fog of war is added, check: tile at cursor has visibility >= 0.8
-            // For outdoor maps (sky=true), skip visibility check.
-
-            // Collision check at destination (AS3: loc.collisionUnit)
+            // TODO: Visibility check — tile.visi >= 0.8 (UnitPlayer.as:1701). The port has no per-tile
+            // visibility: fog is a render-pass shader over the backdrop, and nothing writes an AS3-style
+            // `Tile.visi` back to the tile data. Outdoors the oracle skips the test anyway (`loc.sky`),
+            // and indoors the port currently allows the teleport on collision alone. Not invented here.
             if (!_motor.CanTeleportTo(targetX, targetY, hw, hh))
             {
                 TelekinesisTrace.Log(
@@ -885,6 +1011,89 @@ namespace PFE.Entities.Player
                 _unitStats.Mana.Value, _unitStats.MaxMana.Value, cost);
         }
 
+        /// <summary>
+        /// The AABB the oracle's <c>loc.collisionUnit(x, y, stayX, stayY)</c> tests at the destination
+        /// (<c>Location.as:2342-2366</c>): half-width <c>stayX / 2</c> and full height <c>stayY</c>,
+        /// standing ON the given point.
+        ///
+        /// <para><b>The height is not doubled.</b> <c>CanTeleportTo</c> used to build its rect as
+        /// <c>(x - hw, y, 2hw, 2hh)</c>, i.e. twice the body height, so any solid within two body
+        /// heights above the feet refused the teleport — which indoors is the ceiling, the whole point.
+        /// Combined with the mis-mirrored y snap (see <see cref="PlayerTeleportTargetMath"/>) that made
+        /// every indoor teleport fail while outdoor ones still worked.</para>
+        /// </summary>
+        private void ResolveTeleportProbe(out float halfWidth, out float halfHeight)
+        {
+            halfWidth = 15f;
+            halfHeight = 25f;
+
+            if (_motor is TilePhysicsController tilePhysics)
+            {
+                halfWidth = tilePhysics.CollisionWidth * 0.5f;
+                halfHeight = tilePhysics.CollisionHeight;
+            }
+        }
+
+        /// <summary>
+        /// <c>gg.checkPort()</c> (<c>UnitPlayer.as:1690-1706</c>) as the marker needs it: mana, and the
+        /// destination clear of solid geometry. The oracle's third term, <c>tile.visi &gt;= 0.8</c>, has
+        /// no counterpart in this port — there is no per-tile visibility value to read — and the sky
+        /// branch (<c>loc.sky</c>) exists only to skip it, so both are absent rather than faked.
+        /// </summary>
+        private bool IsTeleportDestinationAllowed(PlayerTeleportTargetMath.Target target)
+        {
+            if (!HasManaForTeleport())
+            {
+                return false;
+            }
+
+            ResolveTeleportProbe(out float hw, out float hh);
+            return _motor.CanTeleportTo(target.FeetPixelX, target.FeetPixelY, hw, hh);
+        }
+
+        /// <summary>
+        /// Draw or hide the destination square for the current charge — the port of
+        /// <c>GUI.step</c>'s <c>if(gg.t_port &gt; 15) showPortCel();</c> (<c>GUI.as:1977</c>) and
+        /// <c>showPortCel</c> itself (<c>:1531-1552</c>).
+        /// </summary>
+        private void UpdateTeleportMarker()
+        {
+            float chargeTime = _abilities != null ? _abilities.TeleportChargeTimeSeconds : 0f;
+            if (!PlayerTeleportTargetMath.ShouldShowMarker(_teleportChargeTimer, chargeTime))
+            {
+                HideTeleportMarker();
+                return;
+            }
+
+            if (!_teleportMarkerResolved)
+            {
+                _teleportMarkerResolved = true;
+                _teleportMarker = TeleportDestinationView.Attach(gameObject);
+            }
+
+            if (_teleportMarker == null)
+            {
+                return;
+            }
+
+            PlayerTeleportTargetMath.Target target =
+                PlayerTeleportTargetMath.Resolve(_cursorWorldPixels, WorldConstants.TILE_SIZE);
+
+            bool allowed = IsTeleportDestinationAllowed(target);
+            bool complete = _teleportChargeTimer >= chargeTime;
+            int frame = PlayerTeleportTargetMath.ResolveMarkerFrame(allowed, complete);
+
+            _teleportMarker.Show(frame, target.CellRectPixels(WorldConstants.TILE_SIZE));
+        }
+
+        private void HideTeleportMarker()
+        {
+            if (_teleportMarker != null)
+            {
+                _teleportMarker.Hide();
+            }
+        }
+
         // ──────────────────────────────────────
         //  State resolution
         // ──────────────────────────────────────
@@ -933,12 +1142,23 @@ namespace PFE.Entities.Player
 
         private bool ResolveRunningState(MovementMotorState state)
         {
-            return _runHeld &&
-                !state.IsCrouching &&
-                state.IsGrounded &&
-                !state.IsOnLadder &&
-                !state.IsInWater &&
-                Mathf.Abs(_moveInput.x) > 0.1f;
+            bool forced = RunForced;
+            if (!(_runHeld || forced))
+            {
+                return false;
+            }
+
+            if (state.IsCrouching || !state.IsGrounded || state.IsOnLadder || state.IsInWater)
+            {
+                return false;
+            }
+
+            // The movement requirement is the port's, not the oracle's: AS3's `isRun` has no such term.
+            // It exists because `IsRunning` drives the locomotion animation here. A forced run skips it
+            // on purpose — AS3 refuses the sit/stay transition while `runForever > 0` (`:2839`), so a
+            // panicking player is in the run state even standing still. Dropping the requirement for
+            // the key path instead would make an idle player animate as running.
+            return forced || Mathf.Abs(_moveInput.x) > 0.1f;
         }
 
         private float ResolveNormalizedMoveSpeed(MovementMotorState state)

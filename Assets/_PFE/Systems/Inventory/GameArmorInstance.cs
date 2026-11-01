@@ -55,6 +55,48 @@ namespace PFE.Systems.Inventory
         public int Level => level;
 
         /// <summary>
+        /// AS3 <c>Armor.maxlvl</c> (<c>Armor.as:24</c>) — the last upgrade level, from the row's
+        /// <c>@lvl</c>. The port derives it from the number of <c>&lt;upd&gt;</c> children, which is the
+        /// same number: <c>upd</c> has one child per level, level 0 included, and AS3 cross-checks
+        /// <c>@lvl</c> against that count at import.
+        /// </summary>
+        public int MaxLevel
+        {
+            get
+            {
+                if (definition == null || definition.armourLevels == null) return 0;
+                return Mathf.Max(0, definition.armourLevels.Length - 1);
+            }
+        }
+
+        /// <summary>
+        /// Set the upgrade level — the create page's <c>arm.lvl = 0</c> (<c>PipPageWork.as:475</c>).
+        ///
+        /// <para><b>Level &lt; 0 is a real state and must stay writable.</b> A known-but-unbuilt armour
+        /// is created at <c>lvl = -1</c> (the Oracle's scheme-only armour), and the create page lists
+        /// exactly those. Clamping at 0 here would make every armour look built and empty the create
+        /// list.</para>
+        /// </summary>
+        public void SetLevel(int newLevel)
+        {
+            level = newLevel;
+        }
+
+        /// <summary>
+        /// One upgrade step — <c>Armor.upgrade()</c> (<c>Armor.as:359-370</c>): increment, refuse at the
+        /// ceiling, and re-read the level's ratings. The ratings are read through
+        /// <see cref="ItemDefinition.EquipmentAtLevel"/> on every access, so there is nothing to re-read
+        /// here; the increment is the whole operation.
+        /// </summary>
+        /// <returns>False when already at the ceiling — the oracle's silent early return.</returns>
+        public bool Upgrade()
+        {
+            if (level >= MaxLevel) return false;
+            level++;
+            return true;
+        }
+
+        /// <summary>
         /// Health as percentage (0-100)
         /// </summary>
         public float HealthPercent => maxHealth > 0 ? (currentHealth / maxHealth) * 100f : 0f;
