@@ -1,6 +1,8 @@
+using System;
 using PFE.Data.Definitions;
 using PFE.Entities.Units;
 using PFE.Systems.Combat;
+using PFE.Systems.Map;
 using UnityEngine;
 
 namespace PFE.Entities.Enemies.Archetypes
@@ -90,6 +92,13 @@ namespace PFE.Entities.Enemies.Archetypes
         [SerializeField] private bool _osob;
 
         /// <summary>
+        /// True once <see cref="RollOsob"/> has run, so a second <see cref="Initialize"/> (a re-spawn
+        /// through the same object, or a pooled unit) does not re-roll and silently flip a unit that
+        /// already behaved one way.
+        /// </summary>
+        private bool _osobRolled;
+
+        /// <summary>
         /// AS3 <c>UnitAlicorn.t_shit</c> (<c>:111</c>, <c>90</c>; <c>:178</c> sets <c>45</c> on
         /// <c>tr3</c>) — the countdown to the next <see cref="CastShield"/>. Unbounded below, as AS3's
         /// is: <see cref="CastShield"/> rewrites it to <c>1000</c>, and it only stops falling when the
@@ -111,6 +120,24 @@ namespace PFE.Entities.Enemies.Archetypes
         /// ordinary one. Health is not the tier and never was; the id is.</para>
         /// </remarks>
         public int Tier { get; private set; }
+
+        /// <summary>
+        /// AS3 <c>UnitAlicorn.osob</c> — the third term of the shield timer's decrement condition
+        /// (<c>:571</c>), and the first term of every reactive-damage gate (<c>:415</c>, <c>:421</c>).
+        /// Read by <see cref="AlicornBrain.OnDamageContext"/>.
+        /// </summary>
+        public bool Osob => _osob;
+
+        /// <summary>
+        /// The per-tier constants for this unit — <c>teleSpeed</c>/<c>teleAccel</c>/<c>throwForce</c>/
+        /// <c>tTeleRes</c>/<c>tUsed</c>/<c>superSilaTip</c>, from <see cref="AlicornVariantRules.For"/>.
+        /// </summary>
+        /// <remarks>
+        /// <b>Exposed rather than re-derived</b> so a debug overlay, a fixture and the telekinesis helper
+        /// all read one object. It is a struct built on demand from <see cref="Tier"/>; nothing caches
+        /// it, so a tier read before <see cref="Initialize"/> sees the <c>tr1</c> row.
+        /// </remarks>
+        public AlicornTuning Tuning => AlicornVariantRules.For(Tier);
 
         /// <summary>
         /// The tier the shield <b>dome</b> reads — AS3 <c>UnitAlicorn.as:191</c>,
@@ -174,11 +201,41 @@ namespace PFE.Entities.Enemies.Archetypes
 
         protected override void OnWeaponServicesReady() => EquipAlicornWeapons();
 
+        /// <summary>
+        /// AS3's constructor, <c>:213-222</c> — the <c>pole</c> objective.
+        /// </summary>
+        /// <remarks>
+        /// <para>Two spellings, and they are not synonyms:</para>
+        /// <code>
+        /// if(param3 &amp;&amp; param3.@pole.length()) { this.poleId = param3.@pole; this.pole = true; }
+        /// if(aiTip == "pole") { this.pole = true; }
+        /// </code>
+        /// <para>The attribute supplies the <c>allid</c> tag; <c>ai="pole"</c> only raises the flag and
+        /// leaves the tag empty, which <c>allAct</c> reads as "every object" — so a bare
+        /// <c>ai="pole"</c> placement opens everything in the room that answers <c>open</c>. Both arms
+        /// are reproduced rather than collapsed, because the difference is observable.</para>
+        /// </remarks>
+        public override void ApplyPlacement(UnitInstance placement)
+        {
+            base.ApplyPlacement(placement);
+
+            if (placement == null || !(_brain is AlicornBrain brain)) return;
+
+            string poleId = placement.GetAttribute("pole", string.Empty);
+            bool hasPoleAttribute = !string.IsNullOrEmpty(poleId);
+            bool aiSaysPole = string.Equals(PlacementAiTip, "pole", StringComparison.Ordinal);
+
+            if (!hasPoleAttribute && !aiSaysPole) return;
+
+            brain.AssignPole(poleId);
+        }
+
         public override void Initialize(UnitDefinition definition, UnitStats stats)
         {
             base.Initialize(definition, stats);
 
             Tier = ParseTier(definition);
+            RollOsob();
 
             // AS3 UnitAlicorn.as:152/172/173 — shitArmor 25, and 50 with a 500 pool on tr3.
             // AS3 :111/:178 — the cast timer starts at 90, or 45 on tr3.
@@ -205,11 +262,41 @@ namespace PFE.Entities.Enemies.Archetypes
         }
 
         /// <summary>
+        /// AS3's constructor rolls <c>osob</c> per tier — <c>:155/:167/:179</c>:
+        /// <c>osob = Math.random() &lt; 0.7 / 0.5 / 0.4</c>, then forced <c>true</c> when
+        /// <c>globalDif == 4</c>.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Drawn from <c>UnityEngine.Random</c>, not from the seeded combat RNG.</b> AS3's
+        /// <c>Math.random()</c> is Flash's unseeded global, so there is no stream to reproduce; and a
+        /// spawn that consumed a number from the port's seeded stream would shift every later roll in
+        /// the room, which is a desync invented by the port rather than copied from the oracle.</para>
+        ///
+        /// <para><b>A serialized <c>true</c> short-circuits the roll.</b> <c>_osob</c> is a
+        /// <see cref="SerializeField"/>, so a hand-authored placement can force the flag on; there is
+        /// no way to force it <i>off</i>, because <c>false</c> is indistinguishable from "not set yet".
+        /// That asymmetry is deliberate — the flag's effect is a slightly faster shield recast and a
+        /// one-shot reactive teleport, so an unwanted <c>true</c> is benign where a silently disabled
+        /// one would hide a regression.</para>
+        /// </remarks>
+        private void RollOsob()
+        {
+            if (_osobRolled) return;
+            _osobRolled = true;
+
+            if (_osob) return;
+
+            bool maxDifficulty = PFE.Systems.Campaign.GlobalDifficulty.Value >= 4;
+            _osob = AlicornVariantRules.RollsOsob(Tier, UnityEngine.Random.value, maxDifficulty);
+        }
+
+        /// <summary>
         /// Read the oracle's <c>tr</c> from the unit id's trailing digits (<c>alicorn3</c> → 3).
         /// A template id with no digit (<c>alicorn</c>) is tier 0.
         /// </summary>
         private static int ParseTier(UnitDefinition definition)
         {
+
             string id = definition != null ? definition.id : null;
             if (string.IsNullOrEmpty(id)) return 0;
 
@@ -278,5 +365,35 @@ namespace PFE.Entities.Enemies.Archetypes
             if (UnitStats != null) UnitStats.ShitHp = _shieldMaxHp;
             _tShit = AlicornShieldRules.CastTimerAfterCast;
         }
+
+        /// <summary>
+        /// AS3 <c>UnitAlicorn.die()</c> (<c>:452-468</c>) — its first statement is
+        /// <c>dropTeleObj()</c>.
+        /// </summary>
+        /// <remarks>
+        /// <b>This is a correctness fix, not tidiness.</b> A player the alicorn had lifted carries
+        /// <c>levit = 2</c>; <see cref="UnitController.ApplyGravity"/>'s levitated arm only <i>damps</i>
+        /// the velocity and returns without grounding, so nothing in the physics pass will ever bring
+        /// them down. If the caster dies mid-hold and nobody clears the flag, the player floats.
+        /// </remarks>
+        protected override void OnDeath()
+        {
+            base.OnDeath();
+            AlicornBrain brain = _brain as AlicornBrain;
+            if (brain == null) return;
+
+            // AS3 `die()` (:452-468), in the oracle's order: `superSilaVse(); dropTeleObj(); budilo();
+            // blasted = true; if(pole) { allAct unlock; allAct open; pole = false; } … aliAlarm = true`.
+            //
+            // The pole broadcast is the family's one interaction with the room: a boss door that stays
+            // shut while its guard lives opens the moment the guard dies.
+            brain.DropTelekinesis();
+            brain.OpenPole();
+
+            // `loc.land.aliAlarm = true` (:466) — every later alicorn in the land now remembers a
+            // sighting for 75 instead of 30. See AlicornBrain.LandIsAlarmed for why it is a static.
+            AlicornBrain.LandIsAlarmed = true;
+        }
+
     }
 }
